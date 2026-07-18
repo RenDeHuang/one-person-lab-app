@@ -208,6 +208,7 @@
         "diagnostic_scope": "release_gate",
         "runtime_profile": "full"
       },
+      "compiled_expectation_ref": "contracts/app-first-run-compiled-expectations.json#profiles.full",
       "diagnostics_contract": {
         "app_wrapper": {
           "current_artifact": "app-wrapper-diagnostics.json",
@@ -474,6 +475,7 @@
           ]
         }
       },
+      "compiled_expectation_ref": "contracts/app-first-run-compiled-expectations.json#profiles.standard",
       "expects": [
         "Standard DMG is installed into /Applications on first launch",
         "App-managed bootstrap installs or refreshes the Framework CLI when opl is missing on the clean Mac",
@@ -481,7 +483,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA professional Agent Package shortcuts visible but disabled while their packages are not installed, exposes readiness and repair guidance, and does not claim agent_package_shortcut invocation receipts"
+        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA configured Home shortcuts visible and selectable before selection; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim an agent_package_shortcut invocation receipt"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -637,6 +639,7 @@
           ]
         }
       },
+      "compiled_expectation_ref": "contracts/app-first-run-compiled-expectations.json#profiles.standard",
       "expects": [
         "Homebrew installs the standard cask through the fully qualified gaofeng21cn/one-person-lab/one-person-lab ref and trusts only the standard plus conflicts_with sibling cask refs",
         "The cask resolves the standard App DMG from gaofeng21cn/one-person-lab-app GitHub Releases",
@@ -645,7 +648,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA professional Agent Package shortcuts visible but disabled while their packages are not installed, exposes readiness and repair guidance, and does not claim agent_package_shortcut invocation receipts",
+        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA configured Home shortcuts visible and selectable before selection; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim an agent_package_shortcut invocation receipt",
         "Homebrew receipt is treated as install evidence only; activation and agent-pack exposure still come from App/CLI maintenance"
       ],
       "release_evidence_artifacts": [
@@ -796,6 +799,7 @@
           "fail_fast_seconds": 60
         }
       },
+      "compiled_expectation_ref": "contracts/app-first-run-compiled-expectations.json#profiles.full",
       "expects": [
         "Full DMG reaches Core ready from the bundled runtime",
         "ready_to_launch is reached before the first conversation after workspace root, Codex CLI, and usable Codex model access are ready, while /guid remains explicitly enterable earlier",

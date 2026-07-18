@@ -10,21 +10,13 @@ on:
       - contracts/app-product-profile.json
       - contracts/app-gui-product-contract.json
       - contracts/app-page-state-matrix.json
-  workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the verified bundle to GitHub Pages
-        required: false
-        default: false
-        type: boolean
-
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   whitepaper:
-    uses: gaofeng21cn/one-person-lab/.github/workflows/reusable-whitepaper.yml@main
+    uses: gaofeng21cn/one-person-lab/.github/workflows/reusable-whitepaper.yml@64b1361ed76fecc82b8e32e3dd58d4a4c2fb95d9
     with:
       profile: contracts/whitepaper_profile.json
       output_name: opl-app-whitepaper
-      publish: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+      publish: false

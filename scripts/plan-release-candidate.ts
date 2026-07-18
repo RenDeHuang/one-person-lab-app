@@ -19,65 +19,74 @@ type Lane = {
   required_for: string[];
 };
 
+type AddonGraph = {
+  requested: boolean;
+  starts_after: 'standard_stable_terminal';
+  terminal: 'addon_train_terminal';
+  blocking_standard_terminal: false;
+  lanes: Lane[];
+};
+
 const FULL_PAYLOAD_REF_AUDIT = {
   schema: 'opl_full_payload_ref_audit_plan.v1',
   record_path: 'dist/opl-full-release/full-package-manifest.json#resolved_refs',
   telemetry_path: 'dist/opl-full-release/full-workflow-telemetry.json#payload_refs',
   summary_section: 'Full Payload Resolved Refs',
   resolution: 'actual_full_workflow_checkout_commit',
+  release_bound_authority: 'frozen_framework_catalog_and_full_input_manifests',
   modes: {
     stable: {
       records_resolved_refs: true,
-      pin_input_required: false,
-      default_refs_can_follow_main: true,
+      pin_input_required: true,
+      default_refs_can_follow_main: false,
     },
     draft_candidate: {
       records_resolved_refs: true,
-      pin_input_required: false,
-      default_refs_can_follow_main: true,
+      pin_input_required: true,
+      default_refs_can_follow_main: false,
     },
   },
   payloads: {
     opl_framework: {
       label: 'OPL Framework',
       repository: 'gaofeng21cn/one-person-lab',
-      default_ref: 'main',
       workflow_input: 'framework_ref',
+      ref_authority: 'release_cohort.framework_sha',
     },
     mas: {
       label: 'MAS',
       repository: 'gaofeng21cn/med-autoscience',
-      default_ref: 'main',
+      ref_authority: 'frozen_framework_catalog.owner_source_commit',
     },
     mag: {
       label: 'MAG',
       repository: 'gaofeng21cn/med-autogrant',
-      default_ref: 'main',
+      ref_authority: 'frozen_framework_catalog.owner_source_commit',
     },
     rca: {
       label: 'RCA',
       repository: 'gaofeng21cn/redcube-ai',
-      default_ref: 'main',
+      ref_authority: 'frozen_framework_catalog.owner_source_commit',
     },
     opl_meta_agent: {
       label: 'OPL Meta Agent',
       repository: 'gaofeng21cn/opl-meta-agent',
-      default_ref: 'main',
+      ref_authority: 'frozen_framework_catalog.owner_source_commit',
     },
     officecli: {
       label: 'OfficeCLI',
       repository: 'iOfficeAI/OfficeCLI',
-      default_ref: 'main',
+      ref_authority: 'app_full_third_party_source_manifest.commit',
     },
     mineru: {
       label: 'MinerU',
       repository: 'opendatalab/MinerU-Ecosystem',
-      default_ref: 'main',
+      ref_authority: 'app_full_third_party_source_manifest.commit',
     },
     ui_ux_skill: {
       label: 'UI UX skill',
       repository: 'nextlevelbuilder/ui-ux-pro-max-skill',
-      default_ref: 'main',
+      ref_authority: 'app_full_third_party_source_manifest.commit',
     },
   },
 } as const;
@@ -200,72 +209,24 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       version: options.version,
       profile: 'nightly_standard',
       release_repo: 'gaofeng21cn/one-person-lab-app',
+      status: 'blocked',
+      blocker: {
+        code: 'retired_pending_brokered_replacement',
+        retry_disposition: 'terminal_blocked',
+        reason: 'The direct Nightly writer is retired. A separately brokered, immutable-input Nightly workflow must be provisioned before Nightly publication can resume.',
+      },
       strategy: {
-        version_identity: 'unique_immutable_prerelease_per_workflow_attempt',
-        same_tag_replacement: 'forbidden',
-        resume_uploads: 'skip_existing_assets_when_size_and_sha256_digest_match',
-        full_runtime_cache: 'not_used',
-        vm_policy: 'not_required_for_nightly_standard',
+        mutation_authority: 'external_release_mutation_broker',
+        direct_github_write: 'forbidden',
+        recovery: 'new_brokered_attempt_or_read_only_reconcile',
       },
       lanes: [
         {
-          id: 'release_version_gate',
-          phase: 'fast_candidate',
+          id: 'nightly_release_blocked',
+          phase: 'release_gate',
           depends_on: [],
           can_run_with: [],
-          command: `npm run release:version:validate -- --channel nightly --version ${options.version}`,
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'release_source_gate',
-          phase: 'fast_candidate',
-          depends_on: ['release_version_gate'],
-          can_run_with: [],
-          command: `npm run release:source-gate -- --version ${options.version} --app-ref "$APP_SHA" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" --framework-root "$FRAMEWORK_ROOT" --require-shell-format true --run-shell-tests true --output release-source-gate.json --json`,
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'release_boundary',
-          phase: 'fast_candidate',
-          depends_on: ['release_source_gate'],
-          can_run_with: ['standard_build'],
-          command: 'npm run test:release-boundary',
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'standard_build',
-          phase: 'parallel_build',
-          depends_on: ['release_source_gate'],
-          can_run_with: ['release_boundary'],
-          command: `npm run build-mac:arm64 && node --experimental-strip-types scripts/validate-release.ts release-assets`,
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'publish_nightly_prerelease',
-          phase: 'publish',
-          depends_on: ['standard_build', 'release_boundary'],
-          can_run_with: [],
-          command: `.github/workflows/nightly-standard-release.yml publishes v${options.version} as --prerelease --latest=false`,
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'remote_verify_standard',
-          phase: 'remote_gate',
-          depends_on: ['publish_nightly_prerelease'],
-          can_run_with: ['webui_ghcr_publish'],
-          command: `npm run verify-remote-release -- --version ${options.version}`,
-          required_for: ['nightly_standard_release'],
-        },
-        {
-          id: 'webui_ghcr_publish',
-          phase: 'publish',
-          depends_on: ['publish_nightly_prerelease'],
-          can_run_with: ['remote_verify_standard'],
-          command: [
-            `.github/workflows/nightly-standard-release.yml builds and verifies one-person-lab-webui:${options.version}`,
-            `docker push ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
-            'docker push ghcr.io/<owner>/one-person-lab-webui:nightly',
-          ].join(' && '),
+          command: 'No release mutation command is available while the brokered Nightly replacement is unprovisioned.',
           required_for: ['nightly_standard_release'],
         },
       ] satisfies Lane[],
@@ -285,15 +246,15 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         `--include-full-package ${options.includeFullPackage ? 'true' : 'false'}`,
         `--run-vm-smoke ${options.settingsVm ? 'true' : 'false'}`,
       ].join(' '),
-      required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
+      required_for: ['standard_release'],
     },
     {
       id: 'release_boundary',
       phase: 'fast_candidate',
       depends_on: ['release_preflight'],
-      can_run_with: ['standard_build', 'full_runtime_keys', 'active_shell_quick_validation'],
+      can_run_with: ['standard_build', 'active_shell_quick_validation'],
       command: 'npm run test:release-boundary',
-      required_for: ['standard_release', 'full_first_install'],
+      required_for: ['standard_release'],
     },
     {
       id: 'standard_build',
@@ -304,40 +265,14 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       required_for: ['standard_release'],
     },
     {
-      id: 'full_runtime_keys',
-      phase: 'fast_candidate',
-      depends_on: ['release_preflight', 'release_boundary'],
-      can_run_with: ['active_shell_quick_validation', 'standard_build'],
-      command: `npm run release:full -- --version ${options.version} --print-runtime-cache-keys`,
-      required_for: ['full_first_install'],
-    },
-    {
       id: 'active_shell_quick_validation',
       phase: 'fast_candidate',
       depends_on: ['release_preflight'],
-      can_run_with: ['release_boundary', 'full_runtime_keys'],
+      can_run_with: ['release_boundary'],
       command: 'npm run validate:active-shell -- --quick',
-      required_for: ['standard_release', 'full_first_install'],
+      required_for: ['standard_release'],
     },
   ];
-
-  if (options.includeFullPackage) {
-    lanes.push({
-      id: 'full_build',
-      phase: 'parallel_build',
-      depends_on: [
-        'release_preflight',
-        'full_runtime_keys',
-      ],
-      can_run_with: ['standard_build', 'active_shell_quick_validation'],
-      command: [
-        'OPL_FULL_RUNTIME_CACHE_MODE=readwrite',
-        'npm run release:full --',
-        `--version ${options.version}`,
-      ].join(' '),
-      required_for: ['full_first_install'],
-    });
-  }
 
   lanes.push({
     id: 'publish_standard',
@@ -348,36 +283,12 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     required_for: ['standard_release'],
   });
 
-  if (options.includeFullPackage) {
-    lanes.push({
-      id: 'publish_full_assets',
-      phase: 'publish',
-      depends_on: [
-        'publish_standard',
-        'full_build',
-        ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
-      ],
-      can_run_with: [],
-      command: [
-        'npm run release:publish --',
-        '--no-build',
-        `--version ${options.version}`,
-        '--full-package-only',
-        '--include-full-package',
-        '--full-package-dir <downloaded-full-package-artifact>',
-      ].join(' '),
-      required_for: ['full_first_install'],
-    });
-  }
-
   if (options.settingsVm) {
     lanes.push({
       id: 'standard_dmg_clean_vm_smoke',
       phase: 'installation_gate',
       depends_on: ['publish_standard'],
-      can_run_with: options.includeFullPackage
-        ? []
-        : ['one_shot_app_installer_smoke', 'docker_webui_smoke'],
+      can_run_with: ['one_shot_app_installer_smoke'],
       command: [
         'npm run test:opl-first-run-vm:tart --',
         '--source-vm opl-first-run-no-clt-clean-base',
@@ -390,81 +301,23 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       ].join(' '),
       required_for: ['standard_release'],
     });
-    lanes.push({
-      id: 'full_dmg_clean_vm_smoke',
-      phase: 'release_gate',
-      depends_on: ['remote_verify_standard_and_full'],
-      can_run_with: [],
-      command: [
-        'npm run test:opl-first-run-vm:tart --',
-        '--source-vm opl-first-run-no-clt-clean-base',
-        `--dmg dist/opl-full-release/One-Person-Lab-Full-${options.version}-mac-arm64.dmg`,
-        '--smoke-profile no-clt-clean-vm',
-        '--display 1920x1080px',
-        '--settings-smoke',
-        '--assistant-route-smoke',
-        '--runtime-profile full',
-      ].join(' '),
-      required_for: ['full_first_install'],
-    });
   }
 
   lanes.push({
-    id: 'remote_verify_standard_and_full',
+    id: 'remote_verify_standard',
     phase: 'remote_gate',
-    depends_on: options.includeFullPackage
-      ? ['publish_full_assets', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])]
-      : ['publish_standard'],
-    can_run_with: options.includeFullPackage
-      ? ['one_shot_app_installer_smoke', 'docker_webui_smoke']
-      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke', 'docker_webui_smoke'],
-    command: [
-      'npm run verify-remote-release --',
-      `--version ${options.version}`,
-      options.includeFullPackage ? '--include-full-package' : '',
-    ].filter(Boolean).join(' '),
-    required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
+    depends_on: ['publish_standard'],
+    can_run_with: ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
+    command: `npm run verify-remote-release -- --version ${options.version}`,
+    required_for: ['standard_release'],
   });
 
   lanes.push({
     id: 'one_shot_app_installer_smoke',
     phase: 'installation_gate',
     depends_on: ['publish_standard', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])],
-    can_run_with: options.includeFullPackage
-      ? ['full_build', 'publish_full_assets', 'docker_webui_smoke']
-      : ['standard_dmg_clean_vm_smoke', 'docker_webui_smoke'],
+    can_run_with: ['standard_dmg_clean_vm_smoke', 'remote_verify_standard'],
     command: 'OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --with-app --skip-packages',
-    required_for: ['stable_release'],
-  });
-
-  lanes.push({
-    id: 'docker_webui_smoke',
-    phase: 'installation_gate',
-    depends_on: ['publish_standard', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])],
-    can_run_with: options.includeFullPackage
-      ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
-      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
-    command: [
-      `docker build -t one-person-lab-webui:${options.version} shells/aionui`,
-      `docker run --rm -d -p 127.0.0.1::3000 one-person-lab-webui:${options.version}`,
-      'curl -fsS http://127.0.0.1:<port>/',
-      'curl -fsS http://127.0.0.1:<port>/manifest.webmanifest',
-    ].join(' && '),
-    required_for: ['stable_release'],
-  });
-
-  lanes.push({
-    id: 'webui_ghcr_publish',
-    phase: 'publish',
-    depends_on: ['docker_webui_smoke'],
-    can_run_with: options.includeFullPackage
-      ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
-      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
-    command: [
-      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
-      'docker push ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>',
-      'desktop-release-promote.yml later moves the verified immutable digest to stable',
-    ].join(' && '),
     required_for: ['stable_release'],
   });
 
@@ -472,12 +325,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     id: 'release_evidence_bundle',
     phase: 'release_gate',
     depends_on: [
-      'remote_verify_standard_and_full',
+      'remote_verify_standard',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
-      ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
-      'docker_webui_smoke',
-      'webui_ghcr_publish',
     ],
     can_run_with: [],
     command: `npm run release:evidence:validate -- --bundle-dir release-evidence/${options.version}`,
@@ -489,13 +339,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     phase: 'release_gate',
     depends_on: [
       'publish_standard',
-      ...(options.includeFullPackage ? ['publish_full_assets'] : []),
-      'remote_verify_standard_and_full',
+      'remote_verify_standard',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
-      ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
-      'docker_webui_smoke',
-      'webui_ghcr_publish',
       'release_evidence_bundle',
     ],
     can_run_with: [],
@@ -506,7 +352,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'release_candidate_record',
     phase: 'release_gate',
-    depends_on: ['release_preflight', 'release_readiness_summary', 'remote_verify_standard_and_full'],
+    depends_on: ['release_preflight', 'release_readiness_summary', 'remote_verify_standard'],
     can_run_with: [],
     command: 'npm run release:candidate-record -- --version <version> --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>',
     required_for: ['stable_release_promotion'],
@@ -526,7 +372,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       'requires status=ready_to_promote',
       'publishes nonlatest then completes the receipt-backed promotion saga',
     ].join(' '),
-    required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
+    required_for: ['standard_release'],
   });
 
   lanes.push({
@@ -534,30 +380,14 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     phase: 'publish',
     depends_on: ['promote_stable_release'],
     can_run_with: [],
-    command: [
-      '.github/workflows/desktop-release-promote.yml',
-      'dispatches tap-owned stable-distribution.yml',
-      'passes the exact Release Set generation and Framework carrier digest',
-      'atomically writes Formula/opl.rb and all App casks after Framework latest-stable readback',
+      command: [
+        '.github/workflows/desktop-release-promote.yml',
+        'validates the stable-distribution receipt already created by the isolated mutation broker',
+        'passes the exact Release Set generation and Framework carrier digest',
+        'never dispatches or writes the tap from the App workflow',
     ].join(' '),
     required_for: ['stable_release'],
   });
-
-  if (options.includeFullPackage) {
-    lanes.push({
-      id: 'full_homebrew_tap_update',
-      phase: 'publish',
-      depends_on: ['promote_stable_release', 'stable_homebrew_tap_update'],
-      can_run_with: [],
-      command: [
-        '.github/workflows/desktop-release-promote.yml',
-        'reuses the same atomic stable-distribution receipt',
-        'does not dispatch a second tap writer',
-        'before both Homebrew clean-VM gates',
-      ].join(' '),
-      required_for: ['full_first_install', 'stable_release'],
-    });
-  }
 
   if (options.settingsVm) {
     lanes.push({
@@ -565,7 +395,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       phase: 'installation_gate',
       depends_on: [
         'stable_homebrew_tap_update',
-        ...(options.includeFullPackage ? ['full_homebrew_tap_update'] : []),
       ],
       can_run_with: [],
       command: [
@@ -589,7 +418,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     depends_on: [
       'promote_stable_release',
       'stable_homebrew_tap_update',
-      ...(options.includeFullPackage ? ['full_homebrew_tap_update'] : []),
       ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       'release_candidate_record',
     ],
@@ -607,6 +435,126 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     required_for: ['post_release_docs_refresh'],
   });
 
+  const fullAddonLanes: Lane[] = options.includeFullPackage ? [
+    {
+      id: 'full_addon_preflight',
+      phase: 'fast_candidate',
+      depends_on: [],
+      can_run_with: [],
+      command: 'npm run validate:release-boundary -- --scope full-addon && npm run release:full:prune-audit -- --markdown',
+      required_for: ['full_first_install'],
+    },
+    {
+      id: 'full_runtime_keys',
+      phase: 'fast_candidate',
+      depends_on: ['full_addon_preflight'],
+      can_run_with: [],
+      command: `npm run release:full -- --version ${options.version} --print-runtime-cache-keys`,
+      required_for: ['full_first_install'],
+    },
+    {
+      id: 'full_build',
+      phase: 'parallel_build',
+      depends_on: ['full_runtime_keys'],
+      can_run_with: [],
+      command: `OPL_FULL_RUNTIME_CACHE_MODE=readwrite npm run release:full -- --version ${options.version}`,
+      required_for: ['full_first_install'],
+    },
+    ...(options.settingsVm ? [{
+      id: 'full_dmg_clean_vm_smoke',
+      phase: 'installation_gate' as const,
+      depends_on: ['full_build'],
+      can_run_with: [],
+      command: [
+        'npm run test:opl-first-run-vm:tart --',
+        '--source-vm opl-first-run-no-clt-clean-base',
+        `--dmg dist/opl-full-release/One-Person-Lab-Full-${options.version}-mac-arm64.dmg`,
+        '--smoke-profile no-clt-clean-vm',
+        '--display 1920x1080px',
+        '--settings-smoke',
+        '--assistant-route-smoke',
+        '--runtime-profile full',
+      ].join(' '),
+      required_for: ['full_first_install'],
+    }] : []),
+    {
+      id: 'publish_full_assets',
+      phase: 'publish',
+      depends_on: [options.settingsVm ? 'full_dmg_clean_vm_smoke' : 'full_build'],
+      can_run_with: [],
+      command: 'npm run release:stable -- dispatch-full-addon --state <release-session.json>',
+      required_for: ['full_first_install'],
+    },
+    {
+      id: 'remote_verify_full_addon',
+      phase: 'remote_gate',
+      depends_on: ['publish_full_assets'],
+      can_run_with: [],
+      command: `npm run verify-remote-release -- --version ${options.version} --include-full-package`,
+      required_for: ['full_first_install'],
+    },
+    {
+      id: 'full_addon_receipt',
+      phase: 'release_gate',
+      depends_on: ['remote_verify_full_addon'],
+      can_run_with: [],
+      command: 'validate opl_app_full_addon_receipt.v1 for the exact Standard cohort and Full artifact digest',
+      required_for: ['full_first_install'],
+    },
+  ] : [];
+
+  const webuiAddonLanes: Lane[] = [
+    {
+      id: 'webui_addon_preflight',
+      phase: 'fast_candidate',
+      depends_on: [],
+      can_run_with: [],
+      command: 'npm run validate:release-boundary -- --scope webui-addon',
+      required_for: ['webui_addon'],
+    },
+    {
+      id: 'docker_webui_smoke',
+      phase: 'installation_gate',
+      depends_on: ['webui_addon_preflight'],
+      can_run_with: [],
+      command: `docker build -t one-person-lab-webui:${options.version} shells/aionui && docker run --rm one-person-lab-webui:${options.version}`,
+      required_for: ['webui_addon'],
+    },
+    {
+      id: 'webui_ghcr_publish',
+      phase: 'publish',
+      depends_on: ['docker_webui_smoke'],
+      can_run_with: [],
+      command: 'publish exact WebUI image digest through the independent brokered WebUI lane',
+      required_for: ['webui_addon'],
+    },
+    {
+      id: 'webui_addon_receipt',
+      phase: 'release_gate',
+      depends_on: ['webui_ghcr_publish'],
+      can_run_with: [],
+      command: 'validate the same-cohort WebUI add-on receipt',
+      required_for: ['webui_addon'],
+    },
+  ];
+
+  const addonGraphs: Record<'full' | 'webui', AddonGraph> = {
+    full: {
+      requested: options.includeFullPackage,
+      starts_after: 'standard_stable_terminal',
+      terminal: 'addon_train_terminal',
+      blocking_standard_terminal: false,
+      lanes: fullAddonLanes,
+    },
+    webui: {
+      requested: false,
+      starts_after: 'standard_stable_terminal',
+      terminal: 'addon_train_terminal',
+      blocking_standard_terminal: false,
+      lanes: webuiAddonLanes,
+    },
+  };
+
   return {
     schema_version: 1,
     version: options.version,
@@ -622,8 +570,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       resume_uploads: 'skip_existing_assets_when_size_and_sha256_digest_match',
       full_runtime_cache: 'content_addressed_layer_cache',
       vm_policy: 'clone_clean_no_clt_base_for_release_gate',
+      standard_terminal: 'independent_from_full_and_webui_addons',
     },
     lanes,
+    addon_graphs: addonGraphs,
   };
 }
 

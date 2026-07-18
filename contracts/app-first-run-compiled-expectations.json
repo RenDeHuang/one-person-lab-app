@@ -1,0 +1,157 @@
+{
+  "schema": "opl_app_first_run_compiled_expectations.v1",
+  "source_contracts": {
+    "behavior": "contracts/app-gui-product-contract.json#agent_package_activation_policy.home_shortcut_interaction",
+    "scenarios": "contracts/app-first-run-test-matrix.json",
+    "product_profile": "contracts/app-product-profile.json#gui.home.home_layout.shortcut_selection_policy",
+    "page_state": "contracts/app-page-state-matrix.json#pages[id=guid_home].home_view_model.home_layout.shortcut_selection_policy",
+    "release": "contracts/app-release-channel.json#release_acceleration.assistant_route_smoke_policy.standard"
+  },
+  "profiles": {
+    "standard": {
+      "semantics": {
+        "artifact_kind": "standard",
+        "scenario_ids": [
+          "standard_dmg_clean_vm_smoke",
+          "homebrew_standard_cask_clean_vm_smoke"
+        ],
+        "assistant_targets": [
+          {
+            "assistant_id": "mas",
+            "shortcut_id": "research",
+            "package_id": "mas",
+            "codex_visible_entry": "med-autoscience",
+            "required_skill_ids": [
+              "med-autoscience"
+            ],
+            "badge": "@科研"
+          },
+          {
+            "assistant_id": "mag",
+            "shortcut_id": "grant",
+            "package_id": "mag",
+            "codex_visible_entry": "med-autogrant",
+            "required_skill_ids": [
+              "med-autogrant"
+            ],
+            "badge": "@基金"
+          },
+          {
+            "assistant_id": "rca",
+            "shortcut_id": "ppt",
+            "package_id": "rca",
+            "codex_visible_entry": "redcube-ai",
+            "required_skill_ids": [
+              "redcube-ai"
+            ],
+            "badge": "@演示"
+          }
+        ],
+        "configured_home_shortcut": {
+          "visible": true,
+          "selectable_before_selection": true
+        },
+        "unavailable_selected_package": {
+          "state": "package_unavailable",
+          "enforcement_phase": "selected_package_send",
+          "send_allowed": false,
+          "launch_allowed": false,
+          "typed_reason_required": true,
+          "draft_preserved": true,
+          "owner_repair_guidance_required": true
+        },
+        "successful_invocation_receipt_expected": false
+      },
+      "semantic_digest": "b6d83a128ad96a48a39a3977e4724a0d2f822b4e758c33d202f47764438fe534",
+      "probes": {
+        "home_control_testid_templates": [
+          "home-starter-<package_id>",
+          "preset-pill-<package_id>"
+        ],
+        "composer_selector": "[data-testid=\"opl-guid-entry\"]",
+        "input_selector": "textarea[data-testid=\"guid-input\"], input[data-testid=\"guid-input\"]",
+        "send_selector": "[data-testid=\"guid-send-btn\"]",
+        "blocking_message_selector": "[data-testid=\"opl-agent-package-launch-blocked\"]",
+        "polling_contract": [
+          "select",
+          "composer_active",
+          "input_event",
+          "send",
+          "blocking_message",
+          "passed"
+        ]
+      },
+      "probe_digest": "5fca1ea07ee622be462f0fa69221a659bfc24e8fea09fa3f30138b5dbf865d91"
+    },
+    "full": {
+      "semantics": {
+        "artifact_kind": "full",
+        "scenario_ids": [
+          "full_first_install_clean_machine",
+          "full_dmg_clean_vm_smoke"
+        ],
+        "assistant_targets": [
+          {
+            "assistant_id": "mas",
+            "shortcut_id": "research",
+            "package_id": "mas",
+            "codex_visible_entry": "med-autoscience",
+            "required_skill_ids": [
+              "med-autoscience"
+            ],
+            "badge": "@科研"
+          },
+          {
+            "assistant_id": "mag",
+            "shortcut_id": "grant",
+            "package_id": "mag",
+            "codex_visible_entry": "med-autogrant",
+            "required_skill_ids": [
+              "med-autogrant"
+            ],
+            "badge": "@基金"
+          },
+          {
+            "assistant_id": "rca",
+            "shortcut_id": "ppt",
+            "package_id": "rca",
+            "codex_visible_entry": "redcube-ai",
+            "required_skill_ids": [
+              "redcube-ai"
+            ],
+            "badge": "@演示"
+          }
+        ],
+        "required": [
+          "MAS_MAG_RCA_home_starters_visible",
+          "starters_launchable",
+          "owner_projected_required_payload_fields_satisfied_before_send",
+          "agent_package_activate_action_per_starter",
+          "real_guid_composer_send_per_starter",
+          "conversation_get_readback_per_starter",
+          "agent_package_activation_receipt_per_starter",
+          "agent_package_shortcut_route_receipt_per_starter"
+        ],
+        "forbidden": [
+          "direct_conversation_post",
+          "synthetic_agent_package_activation_receipt",
+          "synthetic_agent_package_route_receipt"
+        ],
+        "verification_mode": "route_receipt"
+      },
+      "semantic_digest": "83ef68e68c8f21d25cec933b1730015b1ca70827326fb31f91705f67b15d7b7a",
+      "probes": {
+        "composer_selector": "[data-testid=\"opl-guid-entry\"]",
+        "send_selector": "[data-testid=\"guid-send-btn\"]",
+        "observation_contract": [
+          "selection",
+          "activation",
+          "send",
+          "conversation_readback",
+          "route_receipt"
+        ]
+      },
+      "probe_digest": "1a992b5de5b9ddc912b5f1c9237cb09c3c3adbfd7391e531693a6a8014588d7c"
+    }
+  }
+}

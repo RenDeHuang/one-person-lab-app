@@ -9,33 +9,26 @@ import { parseArgs } from 'node:util';
 
 const shaPattern = /^[0-9a-f]{40}$/i;
 
-const allowedAppPaths = new Set([
-  '.github/workflows/opl-first-run-vm.yml',
-  'contracts/app-release-channel.json',
-  'scripts/README.md',
-  'scripts/artifact-qualification-receipt.ts',
-  'scripts/qualification-harness-scope.ts',
-  'scripts/run-stable-release.ts',
-  'scripts/validate-artifact-qualification-receipt.ts',
-  'scripts/validate-release-addon-readiness.ts',
-  'scripts/validate-release-boundary/release-checks.ts',
-  'scripts/validate-release-boundary/release-contract-policy.ts',
-  'scripts/write-artifact-qualification-receipt.ts',
-  'scripts/write-first-run-vm-critical-diagnostics.ts',
-  'tests/release/first-run-vm-critical-diagnostics.test.ts',
-  'tests/release/qualification-harness-scope.test.ts',
-  'tests/release/release-addon-readiness.test.ts',
-  'tests/release/stable-release-state-machine.test.ts',
-]);
-
-const allowedShellPaths = new Set([
-  'scripts/opl-first-run-vm-smoke.mjs',
-  'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
-]);
-
 export type QualificationHarnessScopeProof = {
-  schema: 'opl_app_qualification_harness_scope.v1';
-  classification: 'same_as_artifact_cohort' | 'smoke_or_validator_only';
+  schema: 'opl_app_qualification_harness_scope.v2';
+  profile: 'standard' | 'full';
+  classification: 'same_as_artifact_cohort' | 'harness_mechanics_only' | 'new_cohort_required';
+  expectations: {
+    artifact_semantic_digest: string;
+    verification_semantic_digest: string;
+    semantic_equal: boolean;
+    artifact_probe_digest: string;
+    verification_probe_digest: string;
+    probe_equal: boolean;
+  };
+  reuse_authorization: {
+    allowed: boolean;
+    reason: 'exact_cohort' | 'harness_mechanics_only' | 'semantic_expectation_changed' | 'app_changed' | 'shell_product_or_runtime_changed';
+    forbidden_paths: {
+      app: string[];
+      shell: string[];
+    };
+  };
   app: {
     repo: 'gaofeng21cn/one-person-lab-app';
     base_sha: string;
@@ -129,16 +122,49 @@ export function collectRemoteChangedPaths(
   }
 }
 
-function validateChangedPaths(label: string, changedPaths: string[], allowlist: Set<string>): string[] {
+export function readRemoteExpectationDigests(
+  runner: QualificationHarnessScopeCommandRunner,
+  appSha: string,
+  profile: 'standard' | 'full',
+): { semantic: string; probe: string } {
+  const sha = assertSha('expectation App SHA', appSha);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-expectation-'));
+  try {
+    runOrThrow(runner, 'git', ['init', '-q'], root, 'initialize expectation checkout');
+    runOrThrow(
+      runner,
+      'git',
+      ['remote', 'add', 'origin', 'https://github.com/gaofeng21cn/one-person-lab-app.git'],
+      root,
+      'configure expectation remote',
+    );
+    runOrThrow(runner, 'git', ['fetch', '--no-tags', '--depth=1', 'origin', sha], root, `fetch App@${sha}`);
+    const raw = runOrThrow(
+      runner,
+      'git',
+      ['show', `${sha}:contracts/app-first-run-compiled-expectations.json`],
+      root,
+      `read App@${sha} compiled expectations`,
+    );
+    const profileExpectations = JSON.parse(raw)?.profiles?.[profile];
+    const semantic = profileExpectations?.semantic_digest;
+    const probe = profileExpectations?.probe_digest;
+    if (typeof semantic !== 'string' || !/^[0-9a-f]{64}$/.test(semantic)) {
+      throw new Error(`App@${sha} has no valid ${profile} semantic expectation digest.`);
+    }
+    if (typeof probe !== 'string' || !/^[0-9a-f]{64}$/.test(probe)) {
+      throw new Error(`App@${sha} has no valid ${profile} probe expectation digest.`);
+    }
+    return { semantic, probe };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function normalizeChangedPaths(label: string, changedPaths: string[]): string[] {
   const normalized = [...new Set(changedPaths)].sort();
   if (normalized.length !== changedPaths.length || normalized.some((entry, index) => entry !== changedPaths[index])) {
     throw new Error(`${label} changed_paths must be sorted and unique.`);
-  }
-  const forbidden = normalized.filter((entry) => !allowlist.has(entry));
-  if (forbidden.length > 0) {
-    throw new Error(
-      `${label} qualification harness changes product/runtime paths outside the allowlist: ${forbidden.join(', ')}`,
-    );
   }
   return normalized;
 }
@@ -150,13 +176,31 @@ export function buildQualificationHarnessScopeProof(input: {
   artifactShellSha: string;
   verificationShellSha: string;
   shellChangedPaths: string[];
+  profile?: 'standard' | 'full';
+  artifactExpectationDigest?: string;
+  verificationExpectationDigest?: string;
+  artifactProbeDigest?: string;
+  verificationProbeDigest?: string;
 }): QualificationHarnessScopeProof {
   const artifactAppSha = assertSha('artifact App SHA', input.artifactAppSha);
   const verificationAppSha = assertSha('verification App SHA', input.verificationAppSha);
   const artifactShellSha = assertSha('artifact Shell SHA', input.artifactShellSha);
   const verificationShellSha = assertSha('verification Shell SHA', input.verificationShellSha);
-  const appChangedPaths = validateChangedPaths('App', input.appChangedPaths, allowedAppPaths);
-  const shellChangedPaths = validateChangedPaths('Shell', input.shellChangedPaths, allowedShellPaths);
+  const appChangedPaths = normalizeChangedPaths('App', input.appChangedPaths);
+  const shellChangedPaths = normalizeChangedPaths('Shell', input.shellChangedPaths);
+  const profile = input.profile ?? 'standard';
+  const artifactExpectationDigest = input.artifactExpectationDigest ?? '0'.repeat(64);
+  const verificationExpectationDigest = input.verificationExpectationDigest ?? artifactExpectationDigest;
+  const artifactProbeDigest = input.artifactProbeDigest ?? '0'.repeat(64);
+  const verificationProbeDigest = input.verificationProbeDigest ?? artifactProbeDigest;
+  for (const [label, digest] of [
+    ['artifact expectation', artifactExpectationDigest],
+    ['verification expectation', verificationExpectationDigest],
+    ['artifact probe', artifactProbeDigest],
+    ['verification probe', verificationProbeDigest],
+  ]) {
+    if (!/^[0-9a-f]{64}$/.test(digest)) throw new Error(`${label} digest is invalid.`);
+  }
 
   if ((artifactAppSha === verificationAppSha) !== (appChangedPaths.length === 0)) {
     throw new Error('App scope proof SHA equality is inconsistent with changed_paths.');
@@ -164,10 +208,45 @@ export function buildQualificationHarnessScopeProof(input: {
   if ((artifactShellSha === verificationShellSha) !== (shellChangedPaths.length === 0)) {
     throw new Error('Shell scope proof SHA equality is inconsistent with changed_paths.');
   }
-  const differs = appChangedPaths.length > 0 || shellChangedPaths.length > 0;
+  const expectationsEqual = artifactExpectationDigest === verificationExpectationDigest;
+  const probesEqual = artifactProbeDigest === verificationProbeDigest;
+  const appDiffers = appChangedPaths.length > 0;
+  const shellDiffers = shellChangedPaths.length > 0;
+  // Path allowlists cannot prove that a verifier patch only changes mechanics;
+  // weakening an assertion in the same file is a semantic change. Until a
+  // separately signed patch-review authority exists, every Shell SHA change
+  // creates a new product/verification cohort.
+  const forbiddenShellPaths = shellChangedPaths;
+  const classification = !expectationsEqual || appDiffers || shellDiffers
+    ? 'new_cohort_required'
+    : 'same_as_artifact_cohort';
+  const reason = !expectationsEqual
+    ? 'semantic_expectation_changed'
+    : appDiffers
+      ? 'app_changed'
+      : forbiddenShellPaths.length > 0
+        ? 'shell_product_or_runtime_changed'
+        : 'exact_cohort';
   return {
-    schema: 'opl_app_qualification_harness_scope.v1',
-    classification: differs ? 'smoke_or_validator_only' : 'same_as_artifact_cohort',
+    schema: 'opl_app_qualification_harness_scope.v2',
+    profile,
+    classification,
+    expectations: {
+      artifact_semantic_digest: artifactExpectationDigest,
+      verification_semantic_digest: verificationExpectationDigest,
+      semantic_equal: expectationsEqual,
+      artifact_probe_digest: artifactProbeDigest,
+      verification_probe_digest: verificationProbeDigest,
+      probe_equal: probesEqual,
+    },
+    reuse_authorization: {
+      allowed: classification !== 'new_cohort_required',
+      reason,
+      forbidden_paths: {
+        app: appChangedPaths,
+        shell: forbiddenShellPaths,
+      },
+    },
     app: {
       repo: 'gaofeng21cn/one-person-lab-app',
       base_sha: artifactAppSha,
@@ -213,6 +292,11 @@ export function validateQualificationHarnessScopeProof(
       artifactShellSha: proof.shell.base_sha,
       verificationShellSha: proof.shell.head_sha,
       shellChangedPaths: proof.shell.changed_paths,
+      profile: proof.profile,
+      artifactExpectationDigest: proof.expectations?.artifact_semantic_digest,
+      verificationExpectationDigest: proof.expectations?.verification_semantic_digest,
+      artifactProbeDigest: proof.expectations?.artifact_probe_digest,
+      verificationProbeDigest: proof.expectations?.verification_probe_digest,
     });
     if (JSON.stringify(proof) !== JSON.stringify(normalized)) {
       errors.push('qualification harness scope proof fields are inconsistent');
@@ -238,8 +322,14 @@ export function inspectQualificationHarnessScope(
     verificationAppSha: string;
     artifactShellSha: string;
     verificationShellSha: string;
+    profile?: 'standard' | 'full';
   },
 ): QualificationHarnessScopeProof {
+  const profile = input.profile ?? 'standard';
+  const artifactExpectations = readRemoteExpectationDigests(runner, input.artifactAppSha, profile);
+  const verificationExpectations = input.artifactAppSha === input.verificationAppSha
+    ? artifactExpectations
+    : readRemoteExpectationDigests(runner, input.verificationAppSha, profile);
   return buildQualificationHarnessScopeProof({
     ...input,
     appChangedPaths: collectRemoteChangedPaths(
@@ -254,6 +344,11 @@ export function inspectQualificationHarnessScope(
       input.artifactShellSha,
       input.verificationShellSha,
     ),
+    profile,
+    artifactExpectationDigest: artifactExpectations.semantic,
+    verificationExpectationDigest: verificationExpectations.semantic,
+    artifactProbeDigest: artifactExpectations.probe,
+    verificationProbeDigest: verificationExpectations.probe,
   });
 }
 
@@ -264,6 +359,7 @@ function main(): void {
       'verification-app-sha': { type: 'string' },
       'artifact-shell-sha': { type: 'string' },
       'verification-shell-sha': { type: 'string' },
+      profile: { type: 'string', default: 'standard' },
     },
     strict: true,
   });
@@ -280,6 +376,7 @@ function main(): void {
     verificationAppSha: values['verification-app-sha']!,
     artifactShellSha: values['artifact-shell-sha']!,
     verificationShellSha: values['verification-shell-sha']!,
+    profile: values.profile === 'full' ? 'full' : 'standard',
   });
   process.stdout.write(`${JSON.stringify(proof)}\n`);
 }

@@ -18,7 +18,7 @@ test("Full workflow checks out and validates the OPL Flow source before cache re
   );
   assert.match(
     workflow,
-    /name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a[\s\S]*path: opl-flow/,
+    /name: Resolve managed Full package refs[\s\S]*bundled-full-runtime-package-catalog\.json[\s\S]*opl_flow=opl-flow[\s\S]*name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*ref: \$\{\{ steps\.managed-package-refs\.outputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/,
   );
   assert.match(
     workflow,
@@ -37,7 +37,7 @@ test("Full workflow checks out MAS Scholar Skills and binds both runtime assembl
   );
   assert.match(
     workflow,
-    /name: Resolve managed Full package refs[\s\S]*bundled-full-runtime-package-catalog\.json[\s\S]*\.packages\["mas-scholar-skills"\]\.owner_source_commit[\s\S]*\^\[0-9a-f\]\{40\}\$[\s\S]*mas_scholar_skills_ref=\$mas_scholar_skills_ref/,
+    /name: Resolve managed Full package refs[\s\S]*bundled-full-runtime-package-catalog\.json[\s\S]*while IFS='=' read -r output package_id[\s\S]*mas_scholar_skills=mas-scholar-skills/,
   );
   assert.match(
     workflow,

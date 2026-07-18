@@ -9,6 +9,7 @@ import { validateActiveShellImplementation } from './validate-active-shell/shell
 import { validateShellThreadCoordination } from './validate-active-shell/shell-thread-coordination-validator.ts';
 import { validateAppGuiProductContract } from './validate-active-shell/gui-product-contract-validator.ts';
 import { validateFirstRunMatrix } from './validate-active-shell/first-run-matrix-validator.ts';
+import { validateFirstRunCompiledExpectations } from './validate-active-shell/first-run-expectation-contract-validator.ts';
 import { validateInstallExposurePolicy } from './validate-active-shell/install-exposure-policy-validator.ts';
 import { validatePageStateMatrix } from './validate-active-shell/page-state-matrix-validator.ts';
 import { validateProductProfile } from './validate-active-shell/product-profile-validator.ts';
@@ -21,6 +22,7 @@ import {
 } from './validate-active-shell/runtime-bridge-validator.ts';
 import {
   firstRunMatrixPath,
+  firstRunCompiledExpectationsPath,
   guiProductContractPath,
   installExposurePolicyPath,
   pageStateMatrixPath,
@@ -51,6 +53,14 @@ validateAppGuiProductContract(guiProductContract, releaseChannel, installExposur
 validatePageStateMatrix(pageStateMatrix, contract, guiProductContract);
 validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageStateMatrix, productProfile, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
+validateFirstRunCompiledExpectations({
+  compiledPath: firstRunCompiledExpectationsPath,
+  gui: guiProductContract,
+  matrix: firstRunMatrix,
+  pageState: pageStateMatrix,
+  productProfile,
+  release: releaseChannel,
+});
 validateProductProfile(productProfile, installExposurePolicy);
 validateReleaseChannelContract(releaseChannel, shellPaths);
 validateReleaseEvidenceBundle(releaseChannel, firstRunMatrix);

@@ -32,7 +32,7 @@ const reusableBuildWorkflow = fs.readFileSync(
   "utf8",
 );
 
-test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
+test("release attempt telemetry exposes the 90-minute circuit breaker and bounded monitor", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
   assert.doesNotMatch(
     workflow,
@@ -40,8 +40,9 @@ test("release attempt telemetry forces a same-cohort reuse strategy without aban
   );
   assert.match(workflow, /attempts\.length >= 3 && !process\.env\.GATE_REUSE_PLAN_REF/);
   assert.match(workflow, /Generate release:gate-reuse-plan for the same cohort/);
-  assert.match(workflow, /elapsed time never abandons an authorized release/);
-  assert.match(workflow, /gh run watch --interval 60/);
+  assert.match(workflow, /at 90:00 the circuit breaker forbids a new release train/);
+  assert.match(workflow, /controller uses a bounded absolute watch deadline and read-only reconcile/);
+  assert.doesNotMatch(workflow, /gh run watch --interval 60/);
   assert.doesNotMatch(workflow, /sleep 25/);
 });
 
@@ -151,7 +152,7 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && \(inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact\) \}\}/,
+    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && inputs\.upload_full_package_artifact \}\}/,
   );
   assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
   assert.match(
@@ -203,15 +204,10 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
   assert.match(firstRunVmWorkflow, /framework_args=\(--framework-sha/);
 });
 
-test("Full build artifacts survive release-note provider failure and notes use a bounded fallback", () => {
+test("Full build artifacts use deterministic release-note inputs and survive optional package upload", () => {
   assert.match(fullWorkflow, /id: full_package_build/);
-  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '30'/);
-  assert.match(
-    fullWorkflow,
-    /AI release notes were unavailable; using the deterministic release-note template/,
-  );
-  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_MODE=template npm run release:notes:prepare/);
-  assert.match(fullWorkflow, /--input "\$RUNNER_TEMP\/full-release-notes-template\.md"/);
+  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_MODE: template/);
+  assert.doesNotMatch(fullWorkflow, /OPL_RELEASE_NOTES_CODEX_API_KEY:[\s\S]*release:notes:prepare/);
   assert.match(
     fullWorkflow,
     /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success'/,
@@ -251,7 +247,7 @@ test("Full build verifies managed carrier and Home readiness before expensive pa
 });
 
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
-  assert.match(workflow, /OPL_FLOW_SHA: 2c7fad262938fb4295d2bb866f6b955c0aa2361a/);
+  assert.match(workflow, /OPL_FLOW_SHA: \$\{\{ needs\.release-source-gate\.outputs\.opl_flow_sha \}\}/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
   assert.match(workflow, /write_publish_summary "started"/);
   assert.match(workflow, /webui_smoke_or_publish_failed/);

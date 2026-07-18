@@ -108,33 +108,29 @@ function sortedAssets(remote: Record<string, unknown>) {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function retryCommand(gateId: string, options: Options, candidate: Record<string, unknown>) {
-  const tag = `v${options.version}`;
-  const inputs = recordOrNull(candidate.inputs);
-  const includeFull = inputs?.include_full_package === true;
-  const shellRef = String(inputs?.shell_ref ?? '<shell-sha>');
-  if (gateId === 'remote_release_verification') {
-    return `npm run verify-remote-release -- --version ${options.version}${includeFull ? ' --include-full-package' : ''}`;
-  }
-  if (gateId === 'standard_dmg_clean_vm') {
-    return `gh workflow run "OPL GUI First-Run VM" -f release_tag=${tag} -f package_profile=standard -f shell_ref=${shellRef}`;
-  }
-  if (gateId === 'full_dmg_clean_vm') {
-    return `gh workflow run "OPL GUI First-Run VM" -f release_tag=${tag} -f release_artifact_name=opl-full-first-install-dmg-${options.version}-mac-arm64 -f package_profile=full -f shell_ref=${shellRef}`;
-  }
-  if (gateId === 'homebrew_standard_cask_clean_vm') {
-    return `gh workflow run "OPL GUI First-Run VM" -f release_tag=${tag} -f package_profile=homebrew-standard -f shell_ref=${shellRef}`;
-  }
-  if (gateId === 'one_shot_app_installer') {
-    return 'rerun job: Run one-shot App installer smoke';
-  }
-  if (gateId === 'docker_webui') {
-    return 'rerun job: Run Docker WebUI smoke and stage GHCR publish';
-  }
-  if (gateId === 'webui_ghcr_publish') {
-    return 'rerun job: Verify WebUI GHCR publish';
-  }
-  return `rerun or reuse gate ${gateId} from this cohort manifest`;
+function recoveryAction(gateId: string) {
+  const qualificationGates = new Set([
+    'standard_dmg_clean_vm',
+    'full_dmg_clean_vm',
+    'homebrew_standard_cask_clean_vm',
+  ]);
+  const isQualification = qualificationGates.has(gateId);
+  const artifactKind = gateId === 'full_dmg_clean_vm' ? 'full' : 'standard';
+  const subcommand = isQualification ? 'retry-qualification' : 'reconcile';
+  const artifactArg = isQualification ? ` --artifact-kind ${artifactKind}` : '';
+  return {
+    action: isQualification
+      ? 'retry_qualification_same_artifact'
+      : 'reconcile_stable_session',
+    controller: 'release:stable',
+    controller_subcommand: subcommand,
+    state_ref: 'original_stable_release_session',
+    command_template: `npm run release:stable -- ${subcommand} --state <original-release-session.json>${artifactArg}`,
+    execution_mode: 'dry_run',
+    execute_flag_included: false,
+    mutation_authorized: false,
+    direct_workflow_dispatch_allowed: false,
+  };
 }
 
 function buildManifest(options: Options) {
@@ -149,7 +145,7 @@ function buildManifest(options: Options) {
     required: gate.required !== false,
     artifact_name: typeof gate.artifact_name === 'string' ? gate.artifact_name : null,
     artifact_path: typeof gate.artifact_path === 'string' ? gate.artifact_path : null,
-    retry_command: retryCommand(gate.id, options, candidate),
+    recovery_action: recoveryAction(gate.id),
   }));
   const reusable = recordOrNull(gateReusePlan)?.decisions;
 
@@ -185,6 +181,9 @@ function buildManifest(options: Options) {
       build_once_promote_many: true,
       failed_gate_retry_should_consume_this_manifest: true,
       retry_must_not_rebuild_verified_assets_when_asset_sha256_matches: true,
+      recovery_must_use_stable_controller: true,
+      direct_workflow_dispatch_allowed: false,
+      manifest_can_authorize_mutation: false,
       manifest_can_publish_release: false,
       manifest_can_claim_release_ready: false,
       manifest_can_write_runtime_truth: false,
@@ -203,10 +202,10 @@ function writeMarkdown(filePath: string, manifest: ReturnType<typeof buildManife
     `- Assets: ${manifest.assets.length}`,
     `- Gates: ${manifest.gates.length}`,
     '',
-    '| Gate | Status | Retry command |',
-    '| --- | --- | --- |',
+    '| Gate | Status | Typed recovery action | Stable controller route |',
+    '| --- | --- | --- | --- |',
     ...manifest.gates.map((gate) => (
-      `| ${gate.id} | ${gate.status} | \`${gate.retry_command.replaceAll('`', '\\`')}\` |`
+      `| ${gate.id} | ${gate.status} | ${gate.recovery_action.action} | \`${gate.recovery_action.command_template.replaceAll('`', '\\`')}\` |`
     )),
     '',
   ]);

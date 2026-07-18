@@ -17,136 +17,78 @@ import { validateArtifactQualificationReceipt, type ArtifactQualificationReceipt
 import {
   buildQualificationHarnessScopeProof,
   inspectQualificationHarnessScope,
+  validateQualificationHarnessScopeProof,
   type QualificationHarnessScopeProof,
 } from './qualification-harness-scope.ts';
-import { readReceipt, validateLocalActivationReceipt, validatePromotionSagaReceipt } from './release-saga-receipts.ts';
+import { validateLocalActivationReceipt, validatePromotionSagaReceipt } from './release-saga-receipts.ts';
+import {
+  encodeReleaseSessionLease,
+  validateReleaseSessionLease,
+  type ReleaseMutation,
+  type ReleaseSessionLeaseV2,
+} from './release-session-lease.ts';
+import type { QualificationAttemptReceiptV1 } from './qualification-attempt-receipt.ts';
+import { validateQualificationAttemptReceipt } from './qualification-attempt-receipt.ts';
+import {
+  appendStableReleaseEfficiencyAdvisory,
+  appendQualificationAttempt,
+  appendQualificationAttemptEvent,
+  appendReleaseMutationAttemptEvent,
+  buildStableReleaseSession,
+  createStableReleaseSessionAtomic as createSession,
+  planReleaseMutationAttempt,
+  recoverStaleStableReleaseSessionLock,
+  readStableReleaseSession as readSession,
+  transitionStableReleaseSession,
+  writeStableReleaseSessionAtomic as writeSession,
+  type QualificationArtifactKind,
+  type StableReleaseSession,
+} from './stable-release-session.ts';
+import { reconcileStableReleaseSession } from './stable-release-reconcile.ts';
+import {
+  readReleaseBrokerAuthority,
+  readValidatedCredentialIsolationReceipt,
+  resolveHistoricalReleaseBrokerAuthority,
+  validateReleaseBrokerAuthority,
+} from './release-broker-authority.ts';
+import { validateFullAddonReceipt } from './full-addon-receipt.ts';
+import { validateAddonDebtReceipt } from './addon-debt-receipt.ts';
+import {
+  encodeReleaseMutationPayload,
+  releaseMutationPayloadSha256,
+  type ReleaseMutationPayload,
+} from './release-mutation-payload.ts';
+import {
+  externalReleaseMutationBroker,
+  externalReleaseMutationBrokerLedgerLookup,
+  releaseMutationBrokerRequestSha256,
+  validateHistoricalReleaseMutationAcceptanceReceipt,
+  validateReleaseMutationAcceptanceReceipt,
+  validateReleaseMutationBrokerRequest,
+  type ReleaseMutationAcceptanceReceiptV1,
+  type ReleaseMutationBroker,
+  type ReleaseMutationBrokerRequestV1,
+} from './release-mutation-broker.ts';
+export { buildStableReleaseSession, transitionStableReleaseSession } from './stable-release-session.ts';
+export type { StableReleaseSession } from './stable-release-session.ts';
 
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
-
-export type StableReleasePhase =
-  | 'candidate_frozen'
-  | 'source_gates_passed'
-  | 'artifact_build_running'
-  | 'source_gate_failed'
-  | 'artifact_build_failed'
-  | 'release_train_failed'
-  | 'qualification_failed'
-  | 'retry_failed_gate_same_artifact'
-  | 'artifacts_qualified'
-  | 'owner_approved'
-  | 'promotion_running'
-  | 'promotion_failed'
-  | 'release_published_not_latest'
-  | 'distribution_synced'
-  | 'homebrew_verified'
-  | 'latest_activated'
-  | 'awaiting_local_activation'
-  | 'complete';
-
-type PhaseTiming = { started_at: string; ended_at: string | null; duration_ms: number | null };
-
-type ReleaseMetrics = {
-  session_started_at: string;
-  session_completed_at: string | null;
-  total_wall_time_ms: number;
-  phases: Partial<Record<StableReleasePhase, PhaseTiming>>;
-  workflow_dispatch_counts: { desktop_release: number; qualification_retry: number; promotion: number };
-  artifact_build_count: number;
-  qualification_retry_count: number;
-  promotion_retry_count: number;
-  wait_poll_policy: {
-    monitor: 'gh_run_watch';
-    interval_seconds: 60;
-    nested_polling_allowed: false;
-    transport_retry_limit: 3;
-  };
-  reused_artifact_sha256: string | null;
-  efficiency_advisories: Array<{ at: string; elapsed_ms: number; threshold_ms: 5400000; action: string }>;
-};
-
-export type StableReleaseSession = {
-  schema: 'opl_app_stable_release_session.v2';
-  id: string;
-  created_at: string;
-  updated_at: string;
-  phase: StableReleasePhase;
-  version: string;
-  repo: string;
-  cohort_plan: ReleaseCohortPlan;
-  source_gates: Array<{
-    id: string;
-    command: string;
-    status: 'pending' | 'passed' | 'failed';
-  }>;
-  release_run: {
-    id: string | null;
-    url: string | null;
-    conclusion: string | null;
-  };
-  promotion_run: {
-    id: string | null;
-    url: string | null;
-    conclusion: string | null;
-    attempt: number | null;
-    rerun_requested_from_attempt: number | null;
-  };
-  qualification_run: {
-    id: string | null;
-    url: string | null;
-    conclusion: string | null;
-    artifact_run_id: string | null;
-    artifact_name: string | null;
-    artifact_sha256: string | null;
-    evidence_ref: string | null;
-    evidence_sha256: string | null;
-    verification_harness?: {
-      app_ref: string;
-      app_sha: string;
-      shell_ref: string;
-      shell_sha: string;
-      scope_proof: QualificationHarnessScopeProof;
-    } | null;
-  };
-  receipts: {
-    promotion_saga: { ref: string; sha256: string } | null;
-    local_activation: { ref: string; sha256: string } | null;
-  };
-  metrics: ReleaseMetrics;
-  release_owner_receipt_ref: string | null;
-  transitions: Array<{
-    at: string;
-    from: StableReleasePhase | null;
-    to: StableReleasePhase;
-    reason: string;
-  }>;
-  efficiency_policy: {
-    desktop_release_dispatch_limit_per_cohort: 1;
-    monitor_interval_seconds: 60;
-    run_id_discovery_timeout_seconds: 60;
-    monitor_transport_retry_limit: 3;
-    cross_cohort_artifact_reuse_allowed: false;
-    rebuild_after_smoke_only_change_allowed: false;
-  };
-  authority_boundary: {
-    session_is_release_truth: false;
-    execute_flag_required_for_external_mutation: true;
-    publish_requires_candidate_and_owner_receipt: true;
-  };
-};
+const releaseTransportTimeoutCapMs = 30_000;
 
 type CommandResult = {
   status: number | null;
   stdout: string;
   stderr: string;
+  timedOut?: boolean;
 };
 
 export type StableReleaseCommandRunner = (
   command: string,
   args: string[],
-  options?: { cwd?: string },
+  options?: { cwd?: string; timeoutMs?: number },
 ) => CommandResult;
 
-type StartOptions = {
+export type StartOptions = {
   execute: boolean;
   watch: boolean;
   repo: string;
@@ -164,11 +106,20 @@ type PromoteOptions = {
 };
 
 type ResumeOptions = { statePath: string; execute: boolean };
+type ReconcileOptions = { statePath: string };
+type RecoverStaleLockOptions = { statePath: string; sessionId: string; revision: number };
+type CancelOptions = { statePath: string; targetRunId: string; reason: string; execute: boolean };
+type FullAddonOptions = {
+  statePath: string; releaseSetGeneration: string; releaseSetManifestDigest: string;
+  execute: boolean; watch: boolean; forceRebuildRuntimeCache: boolean;
+};
+type AddonDebtOptions = { statePath: string; addon: 'full' | 'webui'; receiptPath: string };
 
 type RetryQualificationOptions = {
   execute: boolean;
   watch: boolean;
   statePath: string;
+  artifactKind: QualificationArtifactKind;
   smokeHarnessAppRef?: string;
   smokeHarnessShellRef?: string;
 };
@@ -177,17 +128,19 @@ type QualificationVerificationHarness = NonNullable<StableReleaseSession['qualif
 
 type CompleteLocalOptions = { statePath: string; receiptPath: string; localAuthorizationPolicyPath: string };
 
-function run(command: string, args: string[], options: { cwd?: string } = {}): CommandResult {
+function run(command: string, args: string[], options: { cwd?: string; timeoutMs?: number } = {}): CommandResult {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     encoding: 'utf8',
     env: process.env,
     maxBuffer: 16 * 1024 * 1024,
+    timeout: options.timeoutMs,
   });
   return {
     status: result.status,
     stdout: result.stdout,
     stderr: result.stderr,
+    timedOut: (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT',
   };
 }
 
@@ -204,155 +157,395 @@ function failResult(result: CommandResult, label: string): never {
   throw new Error(formatCommandFailure(result, label));
 }
 
-function writeSession(statePath: string, session: StableReleaseSession): void {
-  fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, `${JSON.stringify(session, null, 2)}\n`, 'utf8');
-}
-
-function readSession(statePath: string): StableReleaseSession {
-  const session = JSON.parse(fs.readFileSync(statePath, 'utf8')) as StableReleaseSession;
-  if (session.schema !== 'opl_app_stable_release_session.v2') {
-    throw new Error(`Unsupported stable release session schema in ${statePath}.`);
+function admissionDeadlineMs(session: StableReleaseSession): number {
+  const deadline = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  if (!Number.isFinite(deadline)) {
+    throw new Error('Stable release session has no valid absolute Standard admission deadline.');
   }
-  return session;
+  return deadline;
 }
 
-export function buildStableReleaseSession(
-  plan: ReleaseCohortPlan,
-  repo = defaultRepo,
-  generatedAt = now(),
-): StableReleaseSession {
-  const identity = JSON.stringify({
-    version: plan.version,
-    operator_plan_ref: plan.operator_plan_ref,
-    app_sha: plan.cohort_lock.app.resolved_sha,
-    shell_sha: plan.cohort_lock.shell.resolved_sha,
-    framework_sha: plan.cohort_lock.framework.resolved_sha,
-  });
-  return {
-    schema: 'opl_app_stable_release_session.v2',
-    id: `sha256:${crypto.createHash('sha256').update(identity).digest('hex')}`,
-    created_at: generatedAt,
-    updated_at: generatedAt,
-    phase: 'candidate_frozen',
-    version: plan.version,
-    repo,
-    cohort_plan: plan,
-    source_gates: plan.cheap_gates
-      .filter((gate) => gate.id !== 'release_cohort_lock')
-      .filter((gate, index, gates) => gates.findIndex((candidate) => candidate.command === gate.command) === index)
-      .map((gate) => ({ id: gate.id, command: gate.command, status: 'pending' })),
-    release_run: { id: null, url: null, conclusion: null },
-    promotion_run: { id: null, url: null, conclusion: null, attempt: null, rerun_requested_from_attempt: null },
-    qualification_run: {
-      id: null, url: null, conclusion: null, artifact_run_id: null, artifact_name: null,
-      artifact_sha256: null, evidence_ref: null, evidence_sha256: null, verification_harness: null,
-    },
-    receipts: { promotion_saga: null, local_activation: null },
-    metrics: {
-      session_started_at: generatedAt,
-      session_completed_at: null,
-      total_wall_time_ms: 0,
-      phases: { candidate_frozen: { started_at: generatedAt, ended_at: null, duration_ms: null } },
-      workflow_dispatch_counts: { desktop_release: 0, qualification_retry: 0, promotion: 0 },
-      artifact_build_count: 0,
-      qualification_retry_count: 0,
-      promotion_retry_count: 0,
-      wait_poll_policy: {
-        monitor: 'gh_run_watch',
-        interval_seconds: 60,
-        nested_polling_allowed: false,
-        transport_retry_limit: 3,
-      },
-      reused_artifact_sha256: null,
-      efficiency_advisories: [],
-    },
-    release_owner_receipt_ref: null,
-    transitions: [{ at: generatedAt, from: null, to: 'candidate_frozen', reason: 'immutable cohort and candidate identity frozen' }],
-    efficiency_policy: {
-      desktop_release_dispatch_limit_per_cohort: 1,
-      monitor_interval_seconds: 60,
-      run_id_discovery_timeout_seconds: 60,
-      monitor_transport_retry_limit: 3,
-      cross_cohort_artifact_reuse_allowed: false,
-      rebuild_after_smoke_only_change_allowed: false,
-    },
-    authority_boundary: {
-      session_is_release_truth: false,
-      execute_flag_required_for_external_mutation: true,
-      publish_requires_candidate_and_owner_receipt: true,
-    },
-  };
-}
-
-const allowedTransitions: Record<StableReleasePhase, StableReleasePhase[]> = {
-  candidate_frozen: ['source_gates_passed', 'source_gate_failed'],
-  source_gates_passed: ['artifact_build_running'],
-  source_gate_failed: [],
-  artifact_build_running: ['artifacts_qualified', 'qualification_failed', 'artifact_build_failed', 'release_train_failed'],
-  artifact_build_failed: ['artifact_build_running'],
-  release_train_failed: [],
-  qualification_failed: ['retry_failed_gate_same_artifact'],
-  retry_failed_gate_same_artifact: ['artifacts_qualified', 'qualification_failed'],
-  artifacts_qualified: ['owner_approved'],
-  owner_approved: ['promotion_running'],
-  promotion_running: ['release_published_not_latest', 'promotion_failed'],
-  promotion_failed: ['promotion_running'],
-  release_published_not_latest: ['distribution_synced', 'promotion_failed'],
-  distribution_synced: ['homebrew_verified', 'promotion_failed'],
-  homebrew_verified: ['latest_activated', 'promotion_failed'],
-  latest_activated: ['awaiting_local_activation', 'promotion_failed'],
-  awaiting_local_activation: ['complete'],
-  complete: [],
-};
-
-export function transitionStableReleaseSession(
+function remainingAdmissionBudgetMs(
   session: StableReleaseSession,
-  to: StableReleasePhase,
-  reason: string,
-  at = now(),
-): StableReleaseSession {
-  if (!allowedTransitions[session.phase].includes(to)) {
-    throw new Error(`Invalid stable release transition: ${session.phase} -> ${to}.`);
+  clock: () => number = Date.now,
+): number {
+  return admissionDeadlineMs(session) - clock();
+}
+
+function boundedReleaseTransportTimeoutMs(
+  session: StableReleaseSession,
+  label: string,
+  clock: () => number = Date.now,
+): number {
+  if (session.terminal_truth.standard_status === 'terminal') return releaseTransportTimeoutCapMs;
+  const remaining = remainingAdmissionBudgetMs(session, clock);
+  if (remaining <= 0) {
+    throw new Error(
+      `${label} cannot start because the immutable 90-minute Standard admission deadline has elapsed; ` +
+      'record a typed blocker and do not refresh the budget on resume.',
+    );
   }
-  const started = Date.parse(session.metrics.session_started_at);
-  const ended = Date.parse(at);
-  const elapsed = Number.isFinite(started) && Number.isFinite(ended) ? Math.max(0, ended - started) : 0;
-  const currentTiming = session.metrics.phases[session.phase];
-  const currentStarted = Date.parse(currentTiming?.started_at ?? session.updated_at);
-  const phases = {
-    ...session.metrics.phases,
-    [session.phase]: {
-      started_at: currentTiming?.started_at ?? session.updated_at,
-      ended_at: at,
-      duration_ms: Number.isFinite(currentStarted) && Number.isFinite(ended) ? Math.max(0, ended - currentStarted) : 0,
-    },
-    [to]: { started_at: at, ended_at: null, duration_ms: null },
-  };
-  const efficiencyAdvisories = elapsed >= 5_400_000 && session.metrics.efficiency_advisories.length === 0
-    ? [{ at, elapsed_ms: elapsed, threshold_ms: 5_400_000 as const, action: 'classify blocker and reuse same-cohort evidence; do not stop the authorized release solely because of elapsed time' }]
-    : session.metrics.efficiency_advisories;
-  return {
-    ...session,
-    phase: to,
-    updated_at: at,
-    transitions: [...session.transitions, { at, from: session.phase, to, reason }],
-    metrics: {
-      ...session.metrics,
-      total_wall_time_ms: elapsed,
-      session_completed_at: to === 'complete' ? at : session.metrics.session_completed_at,
-      phases,
-      efficiency_advisories: efficiencyAdvisories,
-    },
-  };
+  return Math.max(1, Math.min(releaseTransportTimeoutCapMs, remaining));
+}
+
+function assertMutationWithinAdmissionDeadline(
+  session: StableReleaseSession,
+  mutation: ReleaseMutation,
+  clock: () => number = Date.now,
+): void {
+  if (mutation === 'workflow_cancel') return;
+  if (mutation === 'full_addon_dispatch' && session.terminal_truth.standard_status === 'terminal') return;
+  if (remainingAdmissionBudgetMs(session, clock) <= 0) {
+    throw new Error(
+      `${mutation} cannot reach broker admission after the immutable 90-minute Standard deadline; ` +
+      'only read-only reconcile, exact-run emergency cancel, or a typed blocker may continue.',
+    );
+  }
+}
+
+function standardDeadlineBlockedSession(
+  session: StableReleaseSession,
+  stage: string,
+  runId: string | null,
+  observedAtMs: number,
+): StableReleaseSession {
+  const blockedAtMs = Math.max(observedAtMs, admissionDeadlineMs(session));
+  return transitionStableReleaseSession(
+    session,
+    'standard_deadline_blocked',
+    `immutable 90-minute Standard admission deadline elapsed at ${stage}`,
+    new Date(blockedAtMs).toISOString(),
+    { stage, run_id: runId },
+  );
+}
+
+function sha256Bytes(bytes: Buffer): string {
+  return crypto.createHash('sha256').update(bytes).digest('hex');
+}
+
+function assertSessionLease(
+  session: StableReleaseSession,
+  mutation: ReleaseMutation,
+  lease: ReleaseSessionLeaseV2,
+  binding: {
+    attemptId: string;
+    workflow: ReleaseSessionLeaseV2['workflow'];
+    artifactKind: ReleaseSessionLeaseV2['artifact_kind'];
+    controllerWorkflowSha: string;
+    artifactAppSha: string;
+  },
+  at = now(),
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+): void {
+  const authority = authorityOverride ?? readReleaseBrokerAuthority();
+  const authorityErrors = validateReleaseBrokerAuthority(authority);
+  if (authorityErrors.length > 0) {
+    throw new Error(`Stable release broker authority rejected mutation: ${authorityErrors.join('; ')}`);
+  }
+  const errors = validateReleaseSessionLease(lease, {
+    stableSessionId: session.id,
+    releaseCohortRef: session.cohort_plan.operator_plan_ref,
+    repository: session.repo,
+    operatorActor: lease.operator_actor,
+    brokerActor: authority.broker_identity.github_actor,
+    mutation,
+    ...binding,
+    mutationPayloadSha256: lease.mutation_payload_sha256,
+    plannedSessionRevision: lease.planned_session_revision,
+    now: at,
+    issuer: authority.issuer,
+    publicKeys: authority.trusted_ed25519_public_keys,
+    requireSigned: true,
+  });
+  if (errors.length > 0) throw new Error(`Stable release mutation lease rejected: ${errors.join('; ')}`);
 }
 
 function workflowRef(plan: ReleaseCohortPlan): string {
   const ref = plan.cohort_lock.app.requested_ref;
-  if (/^[0-9a-f]{7,40}$/i.test(ref)) {
-    throw new Error('Stable release dispatch requires the branch or tag recorded by the cohort plan, not a manually entered SHA.');
+  if (ref !== 'main') {
+    throw new Error(`Stable release workflow verifier must run from canonical main, got cohort ref ${ref}.`);
   }
-  return ref;
+  return 'main';
+}
+
+function mutationPayloadArgs(payload: ReleaseMutationPayload): string[] {
+  return [
+    '--field', `release_mutation_payload_base64=${encodeReleaseMutationPayload(payload)}`,
+    ...Object.entries(payload).flatMap(([key, value]) => ['--field', `${key}=${value}`]),
+  ];
+}
+
+function assertLeasePayload(lease: ReleaseSessionLeaseV2, payload: ReleaseMutationPayload): void {
+  const digest = releaseMutationPayloadSha256(payload);
+  if (lease.mutation_payload_sha256 !== digest) {
+    throw new Error(`Signed mutation payload digest ${lease.mutation_payload_sha256} does not match dispatch payload ${digest}.`);
+  }
+}
+
+function releaseOperatorActor(): string {
+  const actor = readReleaseBrokerAuthority().operator_identity.github_actor;
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(actor)) throw new Error('Release operator actor must be an exact GitHub login.');
+  return actor;
+}
+
+function exactAcceptedRunId(
+  receipt: ReleaseMutationAcceptanceReceiptV1,
+  github: ReleaseMutationBrokerRequestV1['github'],
+): string {
+  const runId = receipt.github.run_id;
+  if (!/^[1-9][0-9]*$/.test(runId ?? '')) {
+    throw new Error('Release mutation broker acceptance must return an exact numeric GitHub run_id.');
+  }
+  if (github.operation === 'workflow_cancel' && runId !== github.target_run_id) {
+    throw new Error('Release mutation broker cancel acceptance run_id does not match the exact target run.');
+  }
+  return runId!;
+}
+
+export function executeBrokeredReleaseMutation(
+  session: StableReleaseSession,
+  statePath: string,
+  attemptId: string,
+  payload: ReleaseMutationPayload,
+  github: ReleaseMutationBrokerRequestV1['github'],
+  broker: ReleaseMutationBroker = externalReleaseMutationBroker,
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+  persist: typeof writeSession = writeSession,
+): { session: StableReleaseSession; receipt: ReleaseMutationAcceptanceReceiptV1 } {
+  const attempt = session.mutation_attempts.find((candidate) => candidate.attempt_id === attemptId);
+  if (!attempt) {
+    throw new Error(`Release mutation broker requires durable mutation attempt ${attemptId}.`);
+  }
+  if (attempt.mutation_payload_sha256 !== releaseMutationPayloadSha256(payload)) {
+    throw new Error(`Release mutation broker retry payload does not match durable attempt ${attemptId}.`);
+  }
+  const existingAcceptance = session.mutation_acceptances.find((receipt) => receipt.lease.attempt_id === attemptId);
+  const latestAttemptState = attempt.events.at(-1)?.state;
+  if (!existingAcceptance && latestAttemptState === 'dispatching') {
+    throw new Error(
+      `Release mutation attempt ${attemptId} already crossed its durable request fence; ` +
+      'use broker ledger reconcile and never resubmit the mutation.',
+    );
+  }
+  if (!existingAcceptance && latestAttemptState !== 'planned') {
+    throw new Error(`Release mutation attempt ${attemptId} cannot be submitted from ${String(latestAttemptState)}.`);
+  }
+  const authority = authorityOverride ?? readReleaseBrokerAuthority();
+  const authorityErrors = validateReleaseBrokerAuthority(authority, {
+    capability: existingAcceptance ? 'contract_read' : 'mutation_submit',
+  });
+  if (authorityErrors.length > 0) throw new Error(`Release broker authority is not ready: ${authorityErrors.join('; ')}`);
+  const credentialIsolationReceipt = existingAcceptance?.credential_isolation_receipt ??
+    readValidatedCredentialIsolationReceipt(authority);
+  const request: ReleaseMutationBrokerRequestV1 = {
+    schema: 'opl_app_release_mutation_broker_request.v1',
+    stable_session_id: session.id,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    operator_actor: authority.operator_identity.github_actor,
+    attempt_id: attemptId,
+    planned_session_revision: attempt.planned_session_revision,
+    mutation: attempt.mutation,
+    workflow: attempt.workflow,
+    artifact_kind: attempt.artifact_kind,
+    controller_workflow_sha: attempt.controller_workflow_sha,
+    artifact_app_sha: attempt.artifact_app_sha,
+    mutation_payload: payload,
+    mutation_payload_sha256: attempt.mutation_payload_sha256,
+    idempotency: {
+      key: `${session.repo}:stable:${session.version}`,
+      channel: 'stable',
+      version: session.version,
+      same_attempt_returns_same_receipt: true,
+      conflicting_session_or_cohort_rejected: true,
+      concurrent_different_attempt_rejected: true,
+    },
+    credential_isolation_receipt: credentialIsolationReceipt,
+    github,
+  };
+  const requestSha256 = releaseMutationBrokerRequestSha256(request);
+  if (existingAcceptance) {
+    const historicalAuthority = resolveHistoricalReleaseBrokerAuthority(
+      authority,
+      existingAcceptance.pre_api_fence.authority_epoch,
+      existingAcceptance.credential_isolation_receipt.authority_sha256,
+      existingAcceptance.signature.key_id,
+    );
+    const historicalErrors = validateHistoricalReleaseMutationAcceptanceReceipt(
+      existingAcceptance, request, historicalAuthority,
+    );
+    if (historicalErrors.length > 0) {
+      throw new Error(`Durable broker acceptance is invalid: ${historicalErrors.join('; ')}`);
+    }
+    exactAcceptedRunId(existingAcceptance, github);
+    if (attempt.broker_lookup.request_sha256 !== null && attempt.broker_lookup.request_sha256 !== requestSha256) {
+      throw new Error(`Durable broker request digest conflicts with acceptance for attempt ${attemptId}.`);
+    }
+    return { session, receipt: existingAcceptance };
+  }
+  try {
+    assertMutationWithinAdmissionDeadline(session, attempt.mutation);
+  } catch (error) {
+    const blocked = standardDeadlineBlockedSession(
+      session,
+      `broker_admission:${attempt.mutation}`,
+      attempt.events.at(-1)?.run_id ?? attempt.dispatch_fence.target_run_id,
+      Date.now(),
+    );
+    persist(statePath, blocked);
+    throw error;
+  }
+  if (session.revision !== attempt.planned_session_revision) {
+    throw new Error(`Release mutation broker attempt ${attemptId} is not at durable planned revision ${attempt.planned_session_revision}.`);
+  }
+  const requestObservedAt = now();
+  const requestErrors = validateReleaseMutationBrokerRequest(request, authority, requestObservedAt);
+  if (requestErrors.length > 0) throw new Error(`Release mutation broker request is invalid: ${requestErrors.join('; ')}`);
+  session = appendReleaseMutationAttemptEvent(session, attemptId, {
+    at: requestObservedAt, state: 'dispatching', run_id: attempt.dispatch_fence.target_run_id,
+    reason: 'exact broker request digest persisted before isolated external mutation admission',
+  });
+  session = {
+    ...session,
+    mutation_attempts: session.mutation_attempts.map((candidate) => candidate.attempt_id === attemptId ? {
+      ...candidate,
+      broker_lookup: { ...candidate.broker_lookup, request_sha256: requestSha256 },
+    } : candidate),
+  };
+  persist(statePath, session);
+  const receipt = broker(request);
+  const responseObservedAt = now();
+  const receiptErrors = validateReleaseMutationAcceptanceReceipt(receipt, request, authority, responseObservedAt);
+  if (receiptErrors.length > 0) throw new Error(`Release mutation broker returned an invalid acceptance receipt: ${receiptErrors.join('; ')}`);
+  exactAcceptedRunId(receipt, github);
+  let acceptedSession: StableReleaseSession = {
+    ...session,
+    updated_at: responseObservedAt,
+    mutation_leases: session.mutation_leases.some((lease) => lease.attempt_id === attemptId)
+      ? session.mutation_leases
+      : [...session.mutation_leases, receipt.lease],
+    mutation_acceptances: [...session.mutation_acceptances, receipt],
+    mutation_attempts: session.mutation_attempts.map((candidate) => candidate.attempt_id === attemptId ? {
+      ...candidate,
+      broker_lookup: {
+        ...candidate.broker_lookup,
+        request_sha256: requestSha256,
+      },
+    } : candidate),
+  };
+  const acceptedRunId = exactAcceptedRunId(receipt, github);
+  acceptedSession = appendReleaseMutationAttemptEvent(acceptedSession, attemptId, {
+    at: responseObservedAt,
+    state: attempt.mutation === 'workflow_cancel' ? 'running' : 'acceptance_pending_visibility',
+    run_id: acceptedRunId,
+    reason: attempt.mutation === 'workflow_cancel'
+      ? `signed broker accepted exact emergency cancel target ${acceptedRunId}`
+      : `signed broker accepted exact workflow run ${acceptedRunId}; GitHub identity readback remains pending`,
+  });
+  if (attempt.workflow === 'desktop-release.yml') {
+    acceptedSession.release_run = {
+      id: acceptedRunId,
+      url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+      conclusion: null,
+    };
+  } else if (attempt.workflow === 'desktop-release-promote.yml') {
+    acceptedSession.promotion_run = {
+      id: acceptedRunId,
+      url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+      conclusion: null,
+      attempt: 1,
+      rerun_requested_from_attempt: null,
+    };
+  } else if (attempt.workflow === 'desktop-release-full-addon.yml') {
+    acceptedSession.addon_tracks = {
+      ...acceptedSession.addon_tracks,
+      full: {
+        ...acceptedSession.addon_tracks.full,
+        status: 'running',
+        run_id: acceptedRunId,
+        run_url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+        conclusion: null,
+      },
+    };
+  }
+  persist(statePath, acceptedSession);
+  return { receipt, session: acceptedSession };
+}
+
+export function desktopReleaseMutationPayload(session: StableReleaseSession): ReleaseMutationPayload {
+  const plan = session.cohort_plan;
+  return {
+    opl_version: plan.version, release_mode: plan.release_mode, release_intent: plan.release_intent,
+    full_omission_reason: plan.full_omission_reason ?? '', release_operator_plan_ref: plan.operator_plan_ref,
+    stable_session_id: session.id,
+    standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
+    gate_reuse_plan_ref: plan.gate_reuse_plan_ref ?? '',
+    include_full_package: String(plan.include_full_package), run_vm_smoke: String(plan.run_vm_smoke),
+    publish_docker_webui: String(plan.publish_docker_webui), defer_addons: 'true',
+    shell_ref: plan.cohort_lock.shell.resolved_sha,
+    framework_ref: plan.cohort_lock.framework.resolved_sha,
+    artifact_app_sha: plan.cohort_lock.app.resolved_sha,
+    operator_actor: releaseOperatorActor(),
+  };
+}
+
+export function qualificationMutationPayload(
+  session: StableReleaseSession,
+  verificationHarness: QualificationVerificationHarness,
+  artifactKind: QualificationArtifactKind,
+): ReleaseMutationPayload {
+  const track = session.artifact_tracks[artifactKind];
+  return {
+    release_tag: `v${session.version}`, package_profile: artifactKind, diagnostic_scope: 'release_gate',
+    release_artifact_name: track.source_artifact_name ?? '', release_artifact_run_id: track.source_run_id ?? '',
+    stable_session_id: session.id,
+    standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    artifact_app_ref: session.cohort_plan.cohort_lock.app.resolved_sha,
+    shell_ref: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    smoke_harness_ref: verificationHarness.shell_sha,
+    framework_ref: session.cohort_plan.cohort_lock.framework.resolved_sha,
+    operator_actor: releaseOperatorActor(),
+  };
+}
+
+export function promotionMutationPayload(
+  session: StableReleaseSession,
+  ownerReceiptRef: string,
+  releaseSetGeneration: string,
+): ReleaseMutationPayload {
+  return {
+    opl_version: session.version, release_set_generation: releaseSetGeneration,
+    release_run_id: session.release_run.id ?? '', stable_session_id: session.id,
+    standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    artifact_app_sha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    standard_vm_run_id: session.artifact_tracks.standard.qualification_run.id ?? '',
+    release_owner_receipt_ref: ownerReceiptRef,
+    shell_ref: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    framework_ref: session.cohort_plan.cohort_lock.framework.resolved_sha,
+    resume_from_checkpoint: session.promotion_progress.resume_from_checkpoint,
+    operator_actor: releaseOperatorActor(),
+  };
+}
+
+export function fullAddonMutationPayload(
+  session: StableReleaseSession,
+  releaseSetGeneration: string,
+  releaseSetManifestDigest: string,
+  forceRebuildRuntimeCache = false,
+): ReleaseMutationPayload {
+  return {
+    opl_version: session.version, stable_session_id: session.id,
+    standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    app_sha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    shell_sha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    framework_sha: session.cohort_plan.cohort_lock.framework.resolved_sha,
+    release_set_generation: releaseSetGeneration,
+    release_set_manifest_digest: releaseSetManifestDigest,
+    force_rebuild_runtime_cache: String(forceRebuildRuntimeCache),
+    operator_actor: releaseOperatorActor(),
+  };
 }
 
 function resolveRemoteGitRefSha(
@@ -386,26 +579,26 @@ function resolveRemoteGitRefSha(
   return sha;
 }
 
-export function desktopReleaseDispatchArgs(session: StableReleaseSession): string[] {
-  const plan = session.cohort_plan;
+export function desktopReleaseDispatchArgs(
+  session: StableReleaseSession,
+  lease = session.mutation_leases.at(-1),
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+): string[] {
+  if (!lease) throw new Error('Desktop release dispatch requires a per-attempt broker lease.');
+  const payload = desktopReleaseMutationPayload(session);
+  assertLeasePayload(lease, payload);
+  assertSessionLease(session, 'desktop_release_dispatch', lease, {
+    attemptId: lease.attempt_id, workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: lease.controller_workflow_sha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+  }, now(), authorityOverride);
   return [
     'workflow', 'run', 'desktop-release.yml',
     '--repo', session.repo,
-    '--ref', workflowRef(plan),
-    '--field', `opl_version=${plan.version}`,
-    '--field', `release_mode=${plan.release_mode}`,
-    '--field', `release_intent=${plan.release_intent}`,
-    '--field', `full_omission_reason=${plan.full_omission_reason ?? ''}`,
-    '--field', `release_operator_plan_ref=${plan.operator_plan_ref}`,
-    '--field', `stable_session_id=${session.id}`,
-    '--field', `gate_reuse_plan_ref=${plan.gate_reuse_plan_ref ?? ''}`,
-    '--field', `include_full_package=${String(plan.include_full_package)}`,
-    '--field', `run_vm_smoke=${String(plan.run_vm_smoke)}`,
-    '--field', `publish_docker_webui=${String(plan.publish_docker_webui)}`,
-    '--field', 'defer_addons=true',
-    '--field', 'require_addon_gates_for_stable_readiness=false',
-    '--field', `shell_ref=${plan.cohort_lock.shell.resolved_sha}`,
-    '--field', `framework_ref=${plan.cohort_lock.framework.resolved_sha}`,
+    '--ref', 'main',
+    '--field', `release_attempt_id=${lease.attempt_id}`,
+    '--field', `release_session_lease_base64=${encodeReleaseSessionLease(lease)}`,
+    ...mutationPayloadArgs(payload),
   ];
 }
 
@@ -425,95 +618,143 @@ export function qualificationRetryDispatchArgs(
       shellChangedPaths: [],
     }),
   },
+  lease = session.mutation_leases.at(-1),
+  artifactKind: QualificationArtifactKind = 'standard',
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
 ): string[] {
-  if (!session.release_run.id) throw new Error('Same-artifact qualification retry requires the original release run id.');
-  const artifactName = session.qualification_run.artifact_name;
-  if (!artifactName || !session.qualification_run.artifact_sha256) {
+  if (verificationHarness.app_ref !== 'main') {
+    throw new Error('Qualification workflow must execute from canonical main; App harness branches can replace the lease verifier.');
+  }
+  const scopeErrors = validateQualificationHarnessScopeProof(verificationHarness.scope_proof, {
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    verificationAppSha: verificationHarness.app_sha,
+    artifactShellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    verificationShellSha: verificationHarness.shell_sha,
+  });
+  if (scopeErrors.length > 0) {
+    throw new Error(`Qualification scope proof is invalid: ${scopeErrors.join('; ')}`);
+  }
+  if (!verificationHarness.scope_proof.reuse_authorization.allowed) {
+    throw new Error(
+      `Qualification scope requires a new cohort: ${verificationHarness.scope_proof.reuse_authorization.reason}; ` +
+      `forbidden App paths=${verificationHarness.scope_proof.reuse_authorization.forbidden_paths.app.join(',') || '<none>'}; ` +
+      `forbidden Shell paths=${verificationHarness.scope_proof.reuse_authorization.forbidden_paths.shell.join(',') || '<none>'}.`,
+    );
+  }
+  if (!lease) throw new Error('Qualification dispatch requires a per-attempt broker lease.');
+  const payload = qualificationMutationPayload(session, verificationHarness, artifactKind);
+  assertLeasePayload(lease, payload);
+  assertSessionLease(session, 'qualification_dispatch', lease, {
+    attemptId: lease.attempt_id, workflow: 'opl-first-run-vm.yml', artifactKind,
+    controllerWorkflowSha: verificationHarness.app_sha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+  }, now(), authorityOverride);
+  const track = session.artifact_tracks[artifactKind];
+  if (!track.source_run_id) throw new Error(`Same-artifact ${artifactKind} qualification retry requires its source run id.`);
+  const artifactName = track.source_artifact_name;
+  if (!artifactName || !track.artifact_sha256) {
     throw new Error('Same-artifact qualification retry requires a validated artifact manifest in the release session.');
   }
   return [
     'workflow', 'run', 'opl-first-run-vm.yml',
     '--repo', session.repo,
-    '--ref', verificationHarness.app_ref,
-    '--field', `release_tag=v${session.version}`,
-    '--field', 'package_profile=full',
-    '--field', 'diagnostic_scope=release_gate',
-    '--field', `release_artifact_name=${artifactName}`,
-    '--field', `release_artifact_run_id=${session.release_run.id}`,
-    '--field', `stable_session_id=${session.id}`,
-    '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
-    '--field', `artifact_app_ref=${session.cohort_plan.cohort_lock.app.resolved_sha}`,
-    '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
-    '--field', `smoke_harness_ref=${verificationHarness.shell_sha}`,
-    '--field', `framework_ref=${session.cohort_plan.cohort_lock.framework.resolved_sha}`,
+    '--ref', 'main',
+    '--field', `release_attempt_id=${lease.attempt_id}`,
+    '--field', `release_session_lease_base64=${encodeReleaseSessionLease(lease)}`,
+    ...mutationPayloadArgs(payload),
   ];
 }
 
-function verifyRemoteDispatchHead(
+function resolveCanonicalControllerWorkflowSha(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
-): void {
-  const ref = workflowRef(session.cohort_plan);
+): string {
+  const authority = readReleaseBrokerAuthority();
+  const authorityErrors = validateReleaseBrokerAuthority(authority, { requireProvisioned: false });
+  if (authorityErrors.length > 0) throw new Error(`Canonical controller authority is invalid: ${authorityErrors.join('; ')}`);
+  const ref = authority.canonical_workflow_ref.replace(/^refs\/heads\//, '');
   const result = runner('gh', [
     'api', `repos/${session.repo}/commits/${encodeURIComponent(ref)}`, '--jq', '.sha',
-  ]);
+  ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, 'canonical controller ref lookup') });
   if (result.status !== 0) failResult(result, `resolve remote App dispatch ref ${ref}`);
   const actual = result.stdout.trim().toLowerCase();
-  const expected = session.cohort_plan.cohort_lock.app.resolved_sha.toLowerCase();
-  if (actual !== expected) {
-    throw new Error(
-      `Remote App dispatch ref moved after cohort freeze: expected ${expected}, got ${actual || '<missing>'}. Freeze a new cohort instead of dispatching stale inputs.`,
-    );
-  }
+  if (!/^[0-9a-f]{40}$/.test(actual)) throw new Error(`Canonical controller ref ${authority.canonical_workflow_ref} did not resolve to an exact SHA.`);
+  return actual;
 }
 
 export function promoteDispatchArgs(
   session: StableReleaseSession,
   ownerReceiptRef: string,
   releaseSetGeneration: string,
+  lease = session.mutation_leases.at(-1),
+  controllerWorkflowSha = lease?.controller_workflow_sha,
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
 ): string[] {
   if (!session.release_run.id) throw new Error('Stable release session has no source release run id.');
   if (!ownerReceiptRef.trim()) throw new Error('Promotion requires a same-cohort release owner receipt ref.');
   if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(releaseSetGeneration)) {
     throw new Error('Promotion requires an exact Release Set generation in YY.M.D[-rN] form.');
   }
-  const standardVmRunId = session.qualification_run.id;
-  if (!standardVmRunId || session.qualification_run.conclusion !== 'success') {
+  const standardVmRunId = session.artifact_tracks.standard.qualification_run.id;
+  if (!standardVmRunId || session.artifact_tracks.standard.qualification_run.conclusion !== 'success') {
     throw new Error('Promotion requires a passed Standard exact-artifact qualification run.');
   }
+  if (!lease) throw new Error('Promotion dispatch requires a per-attempt broker lease.');
+  const payload = promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration);
+  assertLeasePayload(lease, payload);
+  assertSessionLease(session, 'promotion_dispatch', lease, {
+    attemptId: lease.attempt_id, workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    controllerWorkflowSha: controllerWorkflowSha ?? '',
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+  }, now(), authorityOverride);
   return [
     'workflow', 'run', 'desktop-release-promote.yml',
     '--repo', session.repo,
     '--ref', workflowRef(session.cohort_plan),
-    '--field', `opl_version=${session.version}`,
-    '--field', `release_set_generation=${releaseSetGeneration}`,
-    '--field', `release_run_id=${session.release_run.id}`,
-    '--field', `stable_session_id=${session.id}`,
-    '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
-    '--field', `standard_vm_run_id=${standardVmRunId}`,
-    '--field', `schedule_full_addon=${String(session.cohort_plan.include_full_package)}`,
-    '--field', `release_owner_receipt_ref=${ownerReceiptRef}`,
-    '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
+    '--field', `release_attempt_id=${lease.attempt_id}`,
+    '--field', `release_session_lease_base64=${encodeReleaseSessionLease(lease)}`,
+    ...mutationPayloadArgs(payload),
   ];
 }
 
-export function promotionRerunArgs(session: StableReleaseSession, failedOnly = true): string[] {
-  if (session.phase !== 'promotion_failed') {
-    throw new Error(`Promotion rerun requires promotion_failed state, got ${session.phase}.`);
+export function workflowCancelArgs(session: StableReleaseSession, targetRunId: string): string[] {
+  if (!/^\d+$/.test(targetRunId)) throw new Error('Emergency cancel target must be an exact workflow run id.');
+  return ['run', 'cancel', targetRunId, '--repo', session.repo];
+}
+
+export function fullAddonDispatchArgs(
+  session: StableReleaseSession,
+  releaseSetGeneration: string,
+  releaseSetManifestDigest: string,
+  forceRebuildRuntimeCache = false,
+  lease = session.mutation_leases.at(-1),
+  controllerWorkflowSha = lease?.controller_workflow_sha,
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+): string[] {
+  if (!lease) throw new Error('Full add-on dispatch requires a per-attempt broker lease.');
+  const payload = fullAddonMutationPayload(
+    session, releaseSetGeneration, releaseSetManifestDigest, forceRebuildRuntimeCache,
+  );
+  assertLeasePayload(lease, payload);
+  if (session.terminal_truth.standard_status !== 'terminal') {
+    throw new Error('Full add-on dispatch requires Standard Stable terminal truth.');
   }
-  if (!session.promotion_run.id || !session.promotion_run.attempt) {
-    throw new Error('Promotion rerun requires the original promotion run id and attempt.');
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(releaseSetGeneration)) {
+    throw new Error('Full add-on requires an immutable Release Set generation.');
   }
-  if (!session.release_owner_receipt_ref) {
-    throw new Error('Promotion rerun requires the owner receipt accepted by the original promotion run.');
+  if (!/^sha256:[0-9a-f]{64}$/.test(releaseSetManifestDigest)) {
+    throw new Error('Full add-on requires an immutable Release Set manifest digest.');
   }
-  if (session.metrics.workflow_dispatch_counts.promotion !== 1) {
-    throw new Error('Promotion rerun requires exactly one original promotion workflow dispatch.');
-  }
+  assertSessionLease(session, 'full_addon_dispatch', lease, {
+    attemptId: lease.attempt_id, workflow: 'desktop-release-full-addon.yml', artifactKind: 'full',
+    controllerWorkflowSha: controllerWorkflowSha ?? '',
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+  }, now(), authorityOverride);
   return [
-    'run', 'rerun', session.promotion_run.id,
-    '--repo', session.repo,
-    ...(failedOnly ? ['--failed'] : []),
+    'workflow', 'run', 'desktop-release-full-addon.yml', '--repo', session.repo, '--ref', 'main',
+    '--field', `release_attempt_id=${lease.attempt_id}`,
+    '--field', `release_session_lease_base64=${encodeReleaseSessionLease(lease)}`,
+    ...mutationPayloadArgs(payload),
   ];
 }
 
@@ -523,6 +764,9 @@ type WorkflowRun = {
   createdAt: string;
   headBranch: string;
   headSha: string;
+  displayTitle?: string;
+  workflowName?: string;
+  event?: string;
   status: string;
   conclusion?: string;
   url: string;
@@ -536,12 +780,14 @@ type WorkflowJob = {
   completedAt?: string;
 };
 
-function expectedQualificationProfile(session: StableReleaseSession): 'full' | 'standard' {
-  return 'standard';
+function expectedQualificationProfile(artifactKind: QualificationArtifactKind = 'standard'): 'full' | 'standard' {
+  return artifactKind;
 }
 
-function expectedBuildArtifactName(session: StableReleaseSession): string {
-  return 'macos-build-arm64-dmg';
+function expectedBuildArtifactName(session: StableReleaseSession, artifactKind: QualificationArtifactKind = 'standard'): string {
+  return artifactKind === 'full'
+    ? `opl-full-first-install-dmg-${session.version}-mac-arm64`
+    : 'macos-build-arm64-dmg';
 }
 
 function findFile(root: string, name: string): string | null {
@@ -557,15 +803,21 @@ function findFile(root: string, name: string): string | null {
   return null;
 }
 
+type DownloadedArtifactFile = { path: string; bytes: Buffer; cleanup: () => void };
+
 function downloadArtifactFile(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
   runId: string,
   artifactName: string,
   fileName: string,
-): { path: string; cleanup: () => void } | null {
+): DownloadedArtifactFile | null {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-release-artifact-'));
-  const result = runner('gh', ['run', 'download', runId, '--repo', session.repo, '--name', artifactName, '--dir', root]);
+  const result = runner(
+    'gh',
+    ['run', 'download', runId, '--repo', session.repo, '--name', artifactName, '--dir', root],
+    { timeoutMs: boundedReleaseTransportTimeoutMs(session, `download ${artifactName}`) },
+  );
   if (result.status !== 0) {
     fs.rmSync(root, { recursive: true, force: true });
     return null;
@@ -575,19 +827,23 @@ function downloadArtifactFile(
     fs.rmSync(root, { recursive: true, force: true });
     return null;
   }
-  return { path: filePath, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
+  const bytes = fs.readFileSync(filePath);
+  return { path: filePath, bytes, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
+
+type ValidatedBuildArtifactManifest = { manifest: BuildArtifactCohortV2; sha256: string };
 
 function readBuildArtifactManifest(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
   runId: string,
-): BuildArtifactCohortV2 | null {
-  const artifactName = expectedBuildArtifactName(session);
+  artifactKind: QualificationArtifactKind = 'standard',
+): ValidatedBuildArtifactManifest | null {
+  const artifactName = expectedBuildArtifactName(session, artifactKind);
   const downloaded = downloadArtifactFile(runner, session, runId, `${artifactName}-cohort`, 'opl-build-cohort.json');
   if (!downloaded) return null;
   try {
-    const manifest = JSON.parse(fs.readFileSync(downloaded.path, 'utf8')) as BuildArtifactCohortV2;
+    const manifest = JSON.parse(downloaded.bytes.toString('utf8')) as BuildArtifactCohortV2;
     const errors = validateArtifactCohortV2(manifest, {
       appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
       shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
@@ -597,7 +853,22 @@ function readBuildArtifactManifest(
       stableSessionId: session.id,
       releaseCohortRef: session.cohort_plan.operator_plan_ref,
     });
-    return errors.length === 0 ? manifest : null;
+    if (errors.length > 0) return null;
+    const manifestSha256 = sha256Bytes(downloaded.bytes);
+    const track = session.artifact_tracks[artifactKind];
+    const frozenErrors = [
+      track.source_run_id && track.source_run_id !== manifest.actions.run_id ? 'source run id' : null,
+      track.source_artifact_name && track.source_artifact_name !== manifest.actions.artifact_name ? 'source artifact name' : null,
+      track.artifact_sha256 && track.artifact_sha256 !== manifest.artifact.sha256 ? 'artifact SHA-256' : null,
+      track.build_manifest_sha256 && track.build_manifest_sha256 !== manifestSha256 ? 'build manifest SHA-256' : null,
+      track.expectation_semantic_digest && track.expectation_semantic_digest !== manifest.digests.compiled_expectation_semantic_sha256 ? 'semantic expectation digest' : null,
+      track.expectation_probe_digest && track.expectation_probe_digest !== manifest.digests.compiled_expectation_probe_sha256 ? 'probe expectation digest' : null,
+      track.qualification_input_manifest_digest && track.qualification_input_manifest_digest !== manifest.digests.qualification_input_manifest_sha256 ? 'qualification input manifest digest' : null,
+      track.full_input_manifest_digest && track.full_input_manifest_digest !== (manifest.digests.full_input_manifest_sha256 ?? null) ? 'Full input manifest digest' : null,
+      track.framework_bundled_catalog_digest && track.framework_bundled_catalog_digest !== (manifest.digests.framework_bundled_catalog_sha256 ?? null) ? 'Framework bundled catalog digest' : null,
+      track.full_toolchain_observation_receipt_digest && track.full_toolchain_observation_receipt_digest !== (manifest.digests.full_toolchain_observation_receipt_sha256 ?? null) ? 'Full toolchain receipt digest' : null,
+    ].filter(Boolean);
+    return frozenErrors.length === 0 ? { manifest, sha256: manifestSha256 } : null;
   } finally {
     downloaded.cleanup();
   }
@@ -609,8 +880,10 @@ function readQualificationReceipt(
   qualificationRunId: string,
   sourceArtifactRunId: string,
   expectedResult: 'passed' | 'failed',
+  artifactKind: QualificationArtifactKind = 'standard',
+  expectedManifest: ValidatedBuildArtifactManifest | null = null,
 ): { receipt: ArtifactQualificationReceiptV1; sha256: string } | null {
-  const profile = expectedQualificationProfile(session);
+  const profile = expectedQualificationProfile(artifactKind);
   const evidenceRef = `opl-first-run-vm-${profile}-${qualificationRunId}`;
   const downloaded = downloadArtifactFile(
     runner,
@@ -621,7 +894,7 @@ function readQualificationReceipt(
   );
   if (!downloaded) return null;
   try {
-    const receipt = JSON.parse(fs.readFileSync(downloaded.path, 'utf8')) as ArtifactQualificationReceiptV1;
+    const receipt = JSON.parse(downloaded.bytes.toString('utf8')) as ArtifactQualificationReceiptV1;
     const errors = validateArtifactQualificationReceipt(receipt, {
       stableSessionId: session.id,
       releaseCohortRef: session.cohort_plan.operator_plan_ref,
@@ -630,15 +903,27 @@ function readQualificationReceipt(
       result: expectedResult,
       qualificationRunId,
       sourceArtifactRunId,
-      sourceArtifactName: expectedBuildArtifactName(session),
+      sourceArtifactName: expectedManifest?.manifest.actions.artifact_name ?? expectedBuildArtifactName(session, artifactKind),
       appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
       shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
       frameworkSha: session.cohort_plan.cohort_lock.framework.resolved_sha,
-      verificationAppSha: session.qualification_run.verification_harness?.app_sha,
-      verificationShellSha: session.qualification_run.verification_harness?.shell_sha,
-      verificationScopeProof: session.qualification_run.verification_harness?.scope_proof,
+      verificationAppSha: session.artifact_tracks[artifactKind].qualification_run.verification_harness?.app_sha,
+      verificationShellSha: session.artifact_tracks[artifactKind].qualification_run.verification_harness?.shell_sha,
+      verificationScopeProof: session.artifact_tracks[artifactKind].qualification_run.verification_harness?.scope_proof,
+      artifactSha256: expectedManifest?.manifest.artifact.sha256,
+      qualificationInputManifestDigest: expectedManifest?.manifest.digests.qualification_input_manifest_sha256,
+      fullInputManifestDigest: expectedManifest?.manifest.digests.full_input_manifest_sha256,
+      frameworkBundledCatalogDigest: expectedManifest?.manifest.digests.framework_bundled_catalog_sha256,
+      fullToolchainObservationReceiptDigest: expectedManifest?.manifest.digests.full_toolchain_observation_receipt_sha256,
     });
-    return errors.length === 0 ? { receipt, sha256: sha256File(downloaded.path) } : null;
+    if (expectedManifest && receipt.build_manifest.sha256 !== expectedManifest.sha256) {
+      errors.push('qualification receipt build manifest SHA-256 does not match the frozen manifest bytes');
+    }
+    const track = session.artifact_tracks[artifactKind];
+    if (track.build_manifest_sha256 && receipt.build_manifest.sha256 !== track.build_manifest_sha256) {
+      errors.push('qualification receipt build manifest SHA-256 does not match the durable session identity');
+    }
+    return errors.length === 0 ? { receipt, sha256: sha256Bytes(downloaded.bytes) } : null;
   } finally {
     downloaded.cleanup();
   }
@@ -646,84 +931,136 @@ function readQualificationReceipt(
 
 function bindQualificationEvidence(
   session: StableReleaseSession,
-  manifest: BuildArtifactCohortV2,
+  validatedManifest: ValidatedBuildArtifactManifest,
   qualificationRunId: string,
   conclusion: 'success' | 'failure',
   evidenceSha256: string | null,
+  artifactKind: QualificationArtifactKind = 'standard',
 ): StableReleaseSession {
-  const profile = expectedQualificationProfile(session);
+  const { manifest } = validatedManifest;
+  const profile = expectedQualificationProfile(artifactKind);
+  const qualificationRun = {
+    ...session.artifact_tracks[artifactKind].qualification_run,
+    id: qualificationRunId,
+    url: `https://github.com/${session.repo}/actions/runs/${qualificationRunId}`,
+    conclusion,
+    artifact_run_id: manifest.actions.run_id,
+    artifact_name: manifest.actions.artifact_name,
+    artifact_sha256: manifest.artifact.sha256,
+    evidence_ref: `opl-first-run-vm-${profile}-${qualificationRunId}`,
+    evidence_sha256: evidenceSha256,
+  };
   return {
     ...session,
-    qualification_run: {
-      ...session.qualification_run,
-      id: qualificationRunId,
-      url: `https://github.com/${session.repo}/actions/runs/${qualificationRunId}`,
-      conclusion,
-      artifact_run_id: manifest.actions.run_id,
-      artifact_name: manifest.actions.artifact_name,
-      artifact_sha256: manifest.artifact.sha256,
-      evidence_ref: `opl-first-run-vm-${profile}-${qualificationRunId}`,
-      evidence_sha256: evidenceSha256,
+    qualification_run: artifactKind === 'standard' ? qualificationRun : session.qualification_run,
+    artifact_tracks: {
+      ...session.artifact_tracks,
+      [artifactKind]: {
+        ...session.artifact_tracks[artifactKind],
+        artifact_sha256: manifest.artifact.sha256,
+        build_manifest_sha256: validatedManifest.sha256,
+        source_run_id: manifest.actions.run_id,
+        source_artifact_name: manifest.actions.artifact_name,
+        expectation_semantic_digest: manifest.digests.compiled_expectation_semantic_sha256,
+        expectation_probe_digest: manifest.digests.compiled_expectation_probe_sha256,
+        qualification_input_manifest_digest: manifest.digests.qualification_input_manifest_sha256,
+        full_input_manifest_digest: manifest.digests.full_input_manifest_sha256 ?? null,
+        framework_bundled_catalog_digest: manifest.digests.framework_bundled_catalog_sha256 ?? null,
+        full_toolchain_observation_receipt_digest: manifest.digests.full_toolchain_observation_receipt_sha256 ?? null,
+        qualification_run: qualificationRun,
+      },
     },
   };
-}
-
-function listRuns(runner: StableReleaseCommandRunner, workflow: string, repo: string): WorkflowRun[] {
-  const result = runner('gh', [
-    'run', 'list', '--repo', repo, '--workflow', workflow, '--event', 'workflow_dispatch', '--limit', '30',
-    '--json', 'databaseId,attempt,createdAt,headBranch,headSha,status,conclusion,url',
-  ]);
-  if (result.status !== 0) failResult(result, `list ${workflow} runs`);
-  return JSON.parse(result.stdout) as WorkflowRun[];
-}
-
-export function selectNewCohortRun(
-  runs: WorkflowRun[],
-  previousIds: Set<number>,
-  expectedHead: string | null,
-  expectedBranch: string,
-  dispatchedAt: string,
-): WorkflowRun | null {
-  const earliest = Date.parse(dispatchedAt) - 5_000;
-  return runs
-    .filter((candidate) => (
-      !previousIds.has(candidate.databaseId)
-      && candidate.headBranch === expectedBranch
-      && (expectedHead === null || candidate.headSha.toLowerCase() === expectedHead.toLowerCase())
-      && Date.parse(candidate.createdAt) >= earliest
-    ))
-    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))[0] ?? null;
 }
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function discoverRun(
-  runner: StableReleaseCommandRunner,
-  workflow: string,
-  session: StableReleaseSession,
-  previousIds: Set<number>,
-  dispatchedAt: string,
-  expectedHead: string | null,
-  expectedBranch = workflowRef(session.cohort_plan),
-): Promise<WorkflowRun> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const candidate = selectNewCohortRun(
-      listRuns(runner, workflow, session.repo),
-      previousIds,
-      expectedHead,
-      expectedBranch,
-      dispatchedAt,
-    );
-    if (candidate) return candidate;
-    await delay(3_000);
+const workflowNames: Record<ReleaseSessionLeaseV2['workflow'], string> = {
+  'desktop-release.yml': 'OPL Desktop Release',
+  'opl-first-run-vm.yml': 'OPL GUI First-Run VM',
+  'desktop-release-promote.yml': 'OPL Desktop Release Promote',
+  'desktop-release-full-addon.yml': 'OPL Desktop Full Add-on',
+  'desktop-release-cleanup-drafts.yml': 'OPL Desktop Release Draft Cleanup',
+};
+
+export function validateAcceptedWorkflowRunIdentity(
+  run: WorkflowRun,
+  expected: {
+    runId: string;
+    attemptId: string;
+    workflow: ReleaseSessionLeaseV2['workflow'];
+    controllerWorkflowSha: string;
+    headBranch?: string;
+  },
+): string[] {
+  const errors: string[] = [];
+  if (String(run.databaseId) !== expected.runId) errors.push('GitHub run databaseId does not match broker acceptance');
+  if (run.attempt !== 1) errors.push('broker-attributed workflow must be run attempt 1');
+  if (run.event !== 'workflow_dispatch') errors.push('broker-attributed workflow event is not workflow_dispatch');
+  if (run.workflowName !== workflowNames[expected.workflow]) errors.push('broker-attributed workflow name does not match the mutation');
+  if (run.headBranch !== (expected.headBranch ?? 'main')) errors.push('broker-attributed workflow branch is not canonical main');
+  if (run.headSha.toLowerCase() !== expected.controllerWorkflowSha.toLowerCase()) {
+    errors.push('broker-attributed workflow controller SHA does not match the durable attempt');
   }
-  throw new Error(`Unable to discover the exact ${workflow} run within 60 seconds; session was not advanced.`);
+  if (!run.displayTitle?.endsWith(` attempt=${expected.attemptId}`)) {
+    errors.push('broker-attributed workflow run-name does not end with the exact mutation attempt id');
+  }
+  return errors;
 }
 
-function watchRun(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): CommandResult {
-  return runner('gh', ['run', 'watch', runId, '--repo', session.repo, '--interval', '60', '--exit-status']);
+async function awaitAcceptedWorkflowRun(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+  attemptId: string,
+  workflow: ReleaseSessionLeaseV2['workflow'],
+  controllerWorkflowSha: string,
+  expectedBranch = 'main',
+  persist: (session: StableReleaseSession) => void,
+): Promise<WorkflowRun> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (session.terminal_truth.standard_status !== 'terminal' && remainingStandardAdmissionBudgetMs(session) <= 0) {
+      persist(standardDeadlineBlockedSession(
+        session, `run_visibility:${workflow}`, runId, Date.now(),
+      ));
+      throw new Error(
+        `Standard admission deadline expired while waiting for exact run ${runId}; ` +
+        'the typed blocker is durable; reconcile or cancel the exact run without redispatch.',
+      );
+    }
+    const view = runView(runner, session, runId);
+    if (view.readback) {
+      const errors = validateAcceptedWorkflowRunIdentity(view.readback, {
+        runId, attemptId, workflow, controllerWorkflowSha, headBranch: expectedBranch,
+      });
+      if (errors.length > 0) {
+        throw new Error(`Broker-attributed workflow run identity is invalid: ${errors.join('; ')}`);
+      }
+      return view.readback;
+    }
+    const remaining = remainingAdmissionBudgetMs(session);
+    if (remaining <= 0) break;
+    await delay(Math.min(3_000, remaining));
+  }
+  throw new Error(
+    `Broker-attributed workflow run ${runId} was not visible within 60 seconds; ` +
+    'the exact accepted run remains durable and only reconcile or resume may continue.',
+  );
+}
+
+function watchRun(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+  remainingBudgetMs: number,
+): CommandResult {
+  return runner(
+    'gh',
+    ['run', 'watch', runId, '--repo', session.repo, '--interval', '60', '--exit-status'],
+    { timeoutMs: Math.max(1, remainingBudgetMs) },
+  );
 }
 
 export function decodeWorkflowRunReadback(
@@ -746,12 +1083,113 @@ function runView(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
   runId: string,
+  clock: () => number = Date.now,
 ): { readback: WorkflowRun | null; error: string | null } {
   const result = runner('gh', [
     'run', 'view', runId, '--repo', session.repo,
-    '--json', 'databaseId,attempt,createdAt,headBranch,headSha,status,conclusion,url',
-  ]);
+    '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
+  ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, `read workflow run ${runId}`, clock) });
   return decodeWorkflowRunReadback(result);
+}
+
+function readQualificationAttemptReceipt(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  artifactKind: QualificationArtifactKind,
+  runId: string,
+): { receipt: QualificationAttemptReceiptV1; ref: string; sha256: string } | null {
+  const ref = `opl-qualification-attempt-${artifactKind}-${runId}`;
+  const downloaded = downloadArtifactFile(runner, session, runId, ref, 'qualification-attempt-receipt.json');
+  if (!downloaded) return null;
+  try {
+    const receipt = JSON.parse(downloaded.bytes.toString('utf8')) as QualificationAttemptReceiptV1;
+    const track = session.artifact_tracks[artifactKind];
+    const errors = validateQualificationAttemptReceipt(receipt, {
+      stableSessionId: session.id,
+      releaseCohortRef: session.cohort_plan.operator_plan_ref,
+      artifactKind,
+      qualificationRunId: runId,
+      sourceArtifactRunId: track.source_run_id ?? '',
+      sourceArtifactName: track.source_artifact_name ?? '',
+      artifactSha256: track.artifact_sha256 ?? '',
+      manifestSha256: track.build_manifest_sha256,
+      semanticDigest: track.expectation_semantic_digest ?? '',
+      probeDigest: track.expectation_probe_digest ?? '',
+      qualificationInputManifestDigest: track.qualification_input_manifest_digest ?? undefined,
+    });
+    if (errors.length > 0) {
+      return null;
+    }
+    return { receipt, ref, sha256: sha256Bytes(downloaded.bytes) };
+  } catch {
+    return null;
+  } finally {
+    downloaded.cleanup();
+  }
+}
+
+function createReconcileEvidenceReader(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+): {
+  readJson<T>(runId: string, artifactName: string, fileName: string): { value: T; ref: string; sha256: string } | null;
+  cleanup(): void;
+} {
+  const artifactRoots = new Map<string, string | null>();
+  const evidenceFiles = new Map<string, { value: unknown; ref: string; sha256: string } | null>();
+
+  function artifactRoot(runId: string, artifactName: string): string | null {
+    const key = `${runId}\u0000${artifactName}`;
+    if (artifactRoots.has(key)) return artifactRoots.get(key) ?? null;
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-reconcile-artifact-'));
+    const result = runner(
+      'gh',
+      ['run', 'download', runId, '--repo', session.repo, '--name', artifactName, '--dir', root],
+      { timeoutMs: boundedReleaseTransportTimeoutMs(session, `reconcile artifact ${artifactName}`) },
+    );
+    if (result.status !== 0) {
+      fs.rmSync(root, { recursive: true, force: true });
+      artifactRoots.set(key, null);
+      return null;
+    }
+    artifactRoots.set(key, root);
+    return root;
+  }
+
+  return {
+    readJson<T>(runId: string, artifactName: string, fileName: string) {
+      const key = `${runId}\u0000${artifactName}\u0000${fileName}`;
+      if (evidenceFiles.has(key)) {
+        return evidenceFiles.get(key) as { value: T; ref: string; sha256: string } | null;
+      }
+      const root = artifactRoot(runId, artifactName);
+      const filePath = root ? findFile(root, fileName) : null;
+      if (!filePath) {
+        evidenceFiles.set(key, null);
+        return null;
+      }
+      try {
+        const bytes = fs.readFileSync(filePath);
+        const evidence = {
+          value: JSON.parse(bytes.toString('utf8')) as T,
+          ref: artifactName,
+          sha256: sha256Bytes(bytes),
+        };
+        evidenceFiles.set(key, evidence);
+        return evidence;
+      } catch {
+        evidenceFiles.set(key, null);
+        return null;
+      }
+    },
+    cleanup() {
+      for (const root of artifactRoots.values()) {
+        if (root) fs.rmSync(root, { recursive: true, force: true });
+      }
+      artifactRoots.clear();
+      evidenceFiles.clear();
+    },
+  };
 }
 
 export function classifyWorkflowRunObservation(
@@ -764,17 +1202,112 @@ export function classifyWorkflowRunObservation(
   return { terminal: true, succeeded: conclusion === 'success', conclusion };
 }
 
-async function watchRunToTerminal(
+export function standardReleaseCircuitBreaker(
+  session: StableReleaseSession,
+  observedAtMs = Date.now(),
+): 'new_release_train_allowed' | 'targeted_recovery_or_typed_blocker_only' {
+  const deadlineAtMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  if (!Number.isFinite(deadlineAtMs)) return 'targeted_recovery_or_typed_blocker_only';
+  return observedAtMs < deadlineAtMs
+    ? 'new_release_train_allowed'
+    : 'targeted_recovery_or_typed_blocker_only';
+}
+
+export function remainingStandardAdmissionBudgetMs(
+  session: StableReleaseSession,
+  observedAtMs = Date.now(),
+): number {
+  const deadlineAtMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  return Number.isFinite(deadlineAtMs) ? Math.max(0, deadlineAtMs - observedAtMs) : 0;
+}
+
+export async function watchRunToTerminal(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
   runId: string,
-): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string }> {
+  persist: (session: StableReleaseSession) => void,
+  clock: () => number = Date.now,
+): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string; session: StableReleaseSession }> {
   const retryLimit = session.efficiency_policy.monitor_transport_retry_limit ?? 3;
+  const standardDeadlineApplies = session.terminal_truth.standard_status !== 'terminal';
+  const phaseStartedAtMs = Date.parse(session.metrics.phases[session.phase]?.started_at ?? session.updated_at);
+  const terminalTransportWindowMs =
+    (session.efficiency_policy.monitor_wall_clock_timeout_seconds[session.phase] ?? 7_200) * 1_000;
+  const deadline = standardDeadlineApplies
+    ? admissionDeadlineMs(session)
+    : phaseStartedAtMs + terminalTransportWindowMs;
+  const warningAt = Date.parse(session.metrics.session_started_at) + 60 * 60 * 1_000;
+  let monitoredSession = session;
   let lastReadback: WorkflowRun | null = null;
   let lastReadbackError: string | null = null;
   for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
-    const watched = watchRun(runner, session, runId);
-    const view = runView(runner, session, runId);
+    const observedAtMs = clock();
+    if (
+      standardDeadlineApplies && observedAtMs >= warningAt && observedAtMs < deadline &&
+      monitoredSession.metrics.efficiency_advisories.length === 0
+    ) {
+      monitoredSession = appendStableReleaseEfficiencyAdvisory(monitoredSession, {
+        stage: monitoredSession.phase, status: lastReadback?.status ?? 'unknown', observedAtMs,
+      });
+      persist(monitoredSession);
+    }
+    const remainingBudgetMs = deadline - observedAtMs;
+    if (remainingBudgetMs <= 0) {
+      if (!standardDeadlineApplies) {
+        throw new Error(`Workflow run ${runId} monitor reached its independent post-Standard transport window.`);
+      }
+      monitoredSession = standardDeadlineBlockedSession(
+        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, observedAtMs,
+      );
+      persist(monitoredSession);
+      throw new Error(
+        `Workflow run ${runId} reached the immutable 90-minute Standard deadline before transport attempt ${attempt}; ` +
+        `remote status is ${lastReadback?.status ?? 'unknown'}. The typed blocker permits only reconcile or emergency cancel.`,
+      );
+    }
+    const warningPending = standardDeadlineApplies && monitoredSession.metrics.efficiency_advisories.length === 0 && observedAtMs < warningAt;
+    const watchBudgetMs = Math.min(remainingBudgetMs, warningPending ? warningAt - observedAtMs : remainingBudgetMs);
+    const watched = watchRun(runner, monitoredSession, runId, watchBudgetMs);
+    const afterWatchMs = clock();
+    if (afterWatchMs >= deadline) {
+      if (!standardDeadlineApplies) {
+        throw new Error(`Workflow run ${runId} monitor reached its independent post-Standard transport window.`);
+      }
+      monitoredSession = standardDeadlineBlockedSession(
+        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, afterWatchMs,
+      );
+      persist(monitoredSession);
+      throw new Error(
+        `Workflow run ${runId} reached the immutable 90-minute Standard deadline; ` +
+        'the durable typed blocker permits only reconcile or emergency cancel.',
+      );
+    }
+    if (
+      standardDeadlineApplies && afterWatchMs >= warningAt &&
+      monitoredSession.metrics.efficiency_advisories.length === 0
+    ) {
+      monitoredSession = appendStableReleaseEfficiencyAdvisory(monitoredSession, {
+        stage: monitoredSession.phase,
+        status: lastReadback?.status ?? (watched.timedOut ? 'watch_timeout_at_warning_boundary' : 'watch_transport_returned'),
+        observedAtMs: afterWatchMs,
+      });
+      persist(monitoredSession);
+    }
+    const view = runView(runner, monitoredSession, runId, clock);
+    const afterReadbackMs = clock();
+    if (afterReadbackMs >= deadline) {
+      if (!standardDeadlineApplies) {
+        throw new Error(`Workflow run ${runId} readback reached its independent post-Standard transport window.`);
+      }
+      monitoredSession = standardDeadlineBlockedSession(
+        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, afterReadbackMs,
+      );
+      persist(monitoredSession);
+      throw new Error(
+        `Workflow run ${runId} readback reached the immutable 90-minute Standard deadline; ` +
+        'the durable typed blocker permits only reconcile or emergency cancel.',
+      );
+    }
     if (view.readback) {
       const observation = classifyWorkflowRunObservation(watched, view.readback);
       if (observation.terminal && observation.conclusion) {
@@ -782,12 +1315,32 @@ async function watchRunToTerminal(
           readback: view.readback,
           succeeded: observation.succeeded,
           conclusion: observation.conclusion,
+          session: monitoredSession,
         };
       }
       lastReadback = view.readback;
     }
     lastReadbackError = view.error;
-    if (attempt < retryLimit) await delay(session.efficiency_policy.monitor_interval_seconds * 1_000);
+    if (
+      standardDeadlineApplies && afterReadbackMs >= warningAt && monitoredSession.metrics.efficiency_advisories.length === 0
+    ) {
+      monitoredSession = appendStableReleaseEfficiencyAdvisory(monitoredSession, {
+        stage: monitoredSession.phase, status: lastReadback?.status ?? 'unknown', observedAtMs: afterReadbackMs,
+      });
+      persist(monitoredSession);
+    }
+    if (watched.timedOut) {
+      if (afterReadbackMs >= warningAt) continue;
+      throw new Error(
+        `Workflow run ${runId} monitor reached its wall-clock budget; remote status is ${lastReadback?.status ?? 'unknown'}. ` +
+        'The durable run identity remains recoverable with reconcile or resume; no mutation was retried.',
+      );
+    }
+    if (attempt < retryLimit) {
+      const remainingAfterTransport = deadline - clock();
+      if (remainingAfterTransport <= 0) continue;
+      await delay(Math.min(session.efficiency_policy.monitor_interval_seconds * 1_000, remainingAfterTransport));
+    }
   }
   throw new Error(
     `Workflow run ${runId} monitor exited before a terminal remote state after ${retryLimit} attempts; ` +
@@ -797,7 +1350,11 @@ async function watchRunToTerminal(
 }
 
 function runJobs(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): WorkflowJob[] {
-  const result = runner('gh', ['run', 'view', runId, '--repo', session.repo, '--json', 'jobs', '--jq', '.jobs']);
+  const result = runner(
+    'gh',
+    ['run', 'view', runId, '--repo', session.repo, '--json', 'jobs', '--jq', '.jobs'],
+    { timeoutMs: boundedReleaseTransportTimeoutMs(session, `read workflow jobs ${runId}`) },
+  );
   if (result.status !== 0) return [];
   try {
     return JSON.parse(result.stdout) as WorkflowJob[];
@@ -813,20 +1370,27 @@ function finalizeReleaseRun(
   runner: StableReleaseCommandRunner,
 ): StableReleaseSession {
   const manifest = readBuildArtifactManifest(runner, session, runId);
-  if (succeeded && manifest) {
-    const qualification = readQualificationReceipt(runner, session, runId, runId, 'passed');
-    if (qualification) {
-      session = bindQualificationEvidence(session, manifest, runId, 'success', qualification.sha256);
+  if (manifest) {
+    const passedQualification = readQualificationReceipt(runner, session, runId, runId, 'passed', 'standard', manifest);
+    if (passedQualification) {
+      session = bindQualificationEvidence(session, manifest, runId, 'success', passedQualification.sha256);
       return transitionStableReleaseSession(
         session,
         'artifacts_qualified',
-        'build and exact-artifact qualification completed; owner approval is required before promotion',
+        succeeded
+          ? 'build and exact-artifact qualification completed; owner approval is required before promotion'
+          : 'exact artifact and qualification passed before a later nonblocking train failure; owner approval is required before promotion',
       );
     }
-    return transitionStableReleaseSession(session, 'release_train_failed', 'release run succeeded without a valid exact-artifact qualification receipt');
+  }
+  if (succeeded) {
+    throw new Error(
+      `Desktop release run ${runId} succeeded but exact manifest/qualification evidence is not yet readable; ` +
+      'keep the durable run in readback_pending and use reconcile or resume without redispatch.',
+    );
   }
   if (manifest) {
-    const qualification = readQualificationReceipt(runner, session, runId, runId, 'failed');
+    const qualification = readQualificationReceipt(runner, session, runId, runId, 'failed', 'standard', manifest);
     if (qualification) {
       session = bindQualificationEvidence(session, manifest, runId, 'failure', qualification.sha256);
       return transitionStableReleaseSession(
@@ -858,12 +1422,46 @@ function readPromotionSagaReceipt(
   );
   if (!downloaded) return null;
   try {
-    const receipt = readReceipt(downloaded.path);
+    const receipt = JSON.parse(downloaded.bytes.toString('utf8')) as unknown;
     const errors = validatePromotionSagaReceipt(receipt, {
       stableSessionId: session.id,
       version: session.version,
     });
-    return errors.length === 0 ? { sha256: sha256File(downloaded.path) } : null;
+    return errors.length === 0 ? { sha256: sha256Bytes(downloaded.bytes) } : null;
+  } finally {
+    downloaded.cleanup();
+  }
+}
+
+function readFullAddonReceipt(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+  releaseSetGeneration: string,
+  releaseSetManifestDigest: string,
+  qualificationInputManifestDigest: string,
+  fullInputManifestDigest: string,
+  frameworkBundledCatalogDigest: string,
+  fullToolchainObservationReceiptDigest: string,
+): { sha256: string; ref: string } | null {
+  const ref = `opl-app-full-addon-receipt-${session.version}-${runId}`;
+  const downloaded = downloadArtifactFile(runner, session, runId, ref, 'opl-app-full-addon-receipt.json');
+  if (!downloaded) return null;
+  try {
+    const receipt = JSON.parse(downloaded.bytes.toString('utf8')) as unknown;
+    const errors = validateFullAddonReceipt(receipt, {
+      version: session.version, stableSessionId: session.id,
+      releaseCohortRef: session.cohort_plan.operator_plan_ref,
+      appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      frameworkSha: session.cohort_plan.cohort_lock.framework.resolved_sha,
+      runId, releaseSetGeneration, releaseSetManifestDigest,
+      qualificationInputManifestDigest,
+      fullInputManifestDigest,
+      frameworkBundledCatalogDigest,
+      fullToolchainObservationReceiptDigest,
+    });
+    return errors.length === 0 ? { sha256: sha256Bytes(downloaded.bytes), ref } : null;
   } finally {
     downloaded.cleanup();
   }
@@ -883,6 +1481,14 @@ function finalizePromotionRun(
     { phase: 'homebrew_verified' as const, job: 'Verify Standard Homebrew activation', reason: 'Standard Homebrew clean-VM receipt verified' },
     { phase: 'latest_activated' as const, job: 'Activate App latest after Standard distribution gates', reason: 'GitHub Stable latest activated after Standard downstream verification' },
   ];
+  if (succeeded && (!receipt || jobs.length === 0 || checkpoints.some((checkpoint) =>
+    !jobs.some((candidate) => candidate.name.includes(checkpoint.job))
+  ))) {
+    throw new Error(
+      `Promotion run ${runId} succeeded but saga receipt/jobs readback is not yet complete; ` +
+      'keep promotion_running and use reconcile or resume without redispatch.',
+    );
+  }
   for (const checkpoint of checkpoints) {
     const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
     if (job?.conclusion !== 'success') break;
@@ -908,21 +1514,48 @@ async function dispatchAndWatchRelease(
   watch: boolean,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
+  if (standardReleaseCircuitBreaker(session) !== 'new_release_train_allowed') {
+    session = standardDeadlineBlockedSession(
+      session, 'desktop_release_dispatch_admission', session.release_run.id, Date.now(),
+    );
+    writeSession(statePath, session);
+    throw new Error('The 90-minute Standard circuit breaker forbids a new release train; only same-artifact targeted recovery or a typed blocker may continue.');
+  }
   if (session.release_run.id) throw new Error('This frozen cohort already has a desktop release run; refusing a second dispatch.');
   if (session.metrics.artifact_build_count >= 1) throw new Error('This frozen cohort already consumed its one artifact build.');
-  verifyRemoteDispatchHead(runner, session);
-  const previousIds = new Set(listRuns(runner, 'desktop-release.yml', session.repo).map((candidate) => candidate.databaseId));
+  const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
   const dispatchedAt = now();
-  const dispatch = runner('gh', desktopReleaseDispatchArgs(session));
-  if (dispatch.status !== 0) failResult(dispatch, 'dispatch desktop release');
-  const releaseRun = await discoverRun(
-    runner,
-    'desktop-release.yml',
+  const mutationPlanned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(desktopReleaseMutationPayload(session)),
+    mutationPayload: desktopReleaseMutationPayload(session),
+    at: dispatchedAt, reason: 'persist desktop release mutation before external dispatch',
+  });
+  const planned = appendQualificationAttempt(mutationPlanned.session, {
+    artifactKind: 'standard', workflow: 'desktop-release.yml', mutation: 'desktop_release_dispatch',
+    at: dispatchedAt, reason: 'record Standard qualification before desktop release mutation',
+    mutationAttemptId: mutationPlanned.attemptId,
+  });
+  session = planned.session;
+  writeSession(statePath, session);
+  const accepted = executeBrokeredReleaseMutation(
     session,
-    previousIds,
-    dispatchedAt,
-    session.cohort_plan.cohort_lock.app.resolved_sha,
+    statePath,
+    mutationPlanned.attemptId,
+    desktopReleaseMutationPayload(session),
+    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+    externalReleaseMutationBroker,
   );
+  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
+    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  });
+  session = accepted.session;
+  session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
+    at: accepted.receipt.accepted_at, state: 'dispatching', run_id: acceptedRunId, conclusion: null, failure_taxonomy: 'none',
+    remote_receipt_ref: null, reason: 'isolated broker accepted and durably bound the exact desktop release run',
+  });
   session.metrics = {
     ...session.metrics,
     artifact_build_count: session.metrics.artifact_build_count + 1,
@@ -931,12 +1564,32 @@ async function dispatchAndWatchRelease(
       desktop_release: session.metrics.workflow_dispatch_counts.desktop_release + 1,
     },
   };
-  session = transitionStableReleaseSession(session, 'artifact_build_running', `desktop release run ${releaseRun.databaseId} dispatched`);
-  session.release_run = { id: String(releaseRun.databaseId), url: releaseRun.url, conclusion: null };
+  session.release_run = {
+    id: acceptedRunId,
+    url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+    conclusion: null,
+  };
+  session = transitionStableReleaseSession(session, 'artifact_build_running', `broker accepted exact desktop release run ${acceptedRunId}`);
+  writeSession(statePath, session);
+  const releaseRun = await awaitAcceptedWorkflowRun(
+    runner, session, acceptedRunId, mutationPlanned.attemptId, 'desktop-release.yml', controllerWorkflowSha,
+    'main', (next) => writeSession(statePath, next),
+  );
+  session.release_run = { id: acceptedRunId, url: releaseRun.url, conclusion: null };
+  session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed desktop release run read back',
+  });
+  session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, conclusion: null,
+    failure_taxonomy: 'none', remote_receipt_ref: null, reason: 'exact broker-attributed workflow run read back',
+  });
   writeSession(statePath, session);
   if (!watch) return session;
 
-  const observation = await watchRunToTerminal(runner, session, String(releaseRun.databaseId));
+  const observation = await watchRunToTerminal(
+    runner, session, acceptedRunId, (next) => writeSession(statePath, next),
+  );
+  session = observation.session;
   const { readback } = observation;
   session.release_run = {
     id: String(readback.databaseId),
@@ -944,6 +1597,21 @@ async function dispatchAndWatchRelease(
     conclusion: observation.conclusion,
   };
   session = finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner);
+  session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
+    at: now(),
+    state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: String(readback.databaseId), reason: `desktop release workflow concluded ${observation.conclusion ?? 'unknown'}`,
+  });
+  session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
+    at: now(),
+    state: session.phase === 'artifacts_qualified' ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: String(readback.databaseId), conclusion: observation.conclusion,
+    failure_taxonomy: session.phase === 'artifacts_qualified' ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : 'unknown',
+    remote_receipt_ref: session.qualification_run.evidence_ref,
+    reason: session.phase === 'artifacts_qualified'
+      ? 'strict exact-artifact qualification receipt validated'
+      : 'release terminal state requires reconcile before retry classification',
+  });
   writeSession(statePath, session);
   return session;
 }
@@ -956,38 +1624,96 @@ async function dispatchAndWatchPromotion(
   watch: boolean,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
-  const previousIds = new Set(listRuns(runner, 'desktop-release-promote.yml', session.repo).map((candidate) => candidate.databaseId));
+  if (!ownerReceiptRef.trim()) throw new Error('Promotion requires a same-cohort release owner receipt ref.');
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(releaseSetGeneration)) {
+    throw new Error('Promotion requires an exact Release Set generation in YY.M.D[-rN] form.');
+  }
+  if (!session.release_run.id || session.artifact_tracks.standard.qualification_run.conclusion !== 'success') {
+    throw new Error('Promotion requires the exact source run and passed Standard qualification before mutation planning.');
+  }
+  const retrying = session.phase === 'promotion_failed';
+  if (!retrying && session.phase !== 'artifacts_qualified') {
+    throw new Error(`Promotion dispatch requires artifacts_qualified or promotion_failed, got ${session.phase}.`);
+  }
+  if (retrying && session.promotion_progress.release_set_generation !== releaseSetGeneration) {
+    throw new Error('Promotion retry must preserve the exact Release Set generation from the failed promotion.');
+  }
+  if (retrying && session.release_owner_receipt_ref !== ownerReceiptRef) {
+    throw new Error('Promotion retry must preserve the exact release owner receipt from the failed promotion.');
+  }
+  session = {
+    ...session,
+    promotion_progress: {
+      ...session.promotion_progress,
+      release_set_generation: releaseSetGeneration,
+    },
+  };
   const dispatchedAt = now();
-  const dispatch = runner('gh', promoteDispatchArgs(session, ownerReceiptRef, releaseSetGeneration));
-  if (dispatch.status !== 0) failResult(dispatch, 'dispatch stable promotion');
-  const promotionRun = await discoverRun(
-    runner,
-    'desktop-release-promote.yml',
+  const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    controllerWorkflowSha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
+    mutationPayload: promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
+    at: dispatchedAt, reason: 'persist promotion mutation before external dispatch',
+  });
+  session = planned.session;
+  writeSession(statePath, session);
+  const accepted = executeBrokeredReleaseMutation(
     session,
-    previousIds,
-    dispatchedAt,
-    null,
+    statePath,
+    planned.attemptId,
+    promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
+    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+    externalReleaseMutationBroker,
   );
+  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
+    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  });
+  session = accepted.session;
+  session.release_owner_receipt_ref = ownerReceiptRef;
+  if (!retrying) {
+    session = transitionStableReleaseSession(session, 'owner_approved', 'same-cohort release owner receipt accepted');
+  }
+  session.promotion_run = {
+    id: acceptedRunId,
+    url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+    conclusion: null,
+    attempt: 1,
+    rerun_requested_from_attempt: null,
+  };
+  session = transitionStableReleaseSession(session, 'promotion_running', `broker accepted exact promotion run ${acceptedRunId}`);
   session.metrics = {
     ...session.metrics,
+    promotion_retry_count: session.metrics.promotion_retry_count + (retrying ? 1 : 0),
     workflow_dispatch_counts: {
       ...session.metrics.workflow_dispatch_counts,
       promotion: session.metrics.workflow_dispatch_counts.promotion + 1,
     },
   };
-  session = transitionStableReleaseSession(session, 'promotion_running', `promotion run ${promotionRun.databaseId} dispatched`);
+  writeSession(statePath, session);
+  const promotionRun = await awaitAcceptedWorkflowRun(
+    runner, session, acceptedRunId, planned.attemptId, 'desktop-release-promote.yml', controllerWorkflowSha,
+    'main', (next) => writeSession(statePath, next),
+  );
   session.promotion_run = {
-    id: String(promotionRun.databaseId),
+    id: acceptedRunId,
     url: promotionRun.url,
     conclusion: null,
     attempt: promotionRun.attempt ?? 1,
     rerun_requested_from_attempt: null,
   };
-  session.release_owner_receipt_ref = ownerReceiptRef;
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed promotion run read back',
+  });
   writeSession(statePath, session);
   if (!watch) return session;
 
-  const observation = await watchRunToTerminal(runner, session, String(promotionRun.databaseId));
+  const observation = await watchRunToTerminal(
+    runner, session, acceptedRunId, (next) => writeSession(statePath, next),
+  );
+  session = observation.session;
   const { readback } = observation;
   session.promotion_run = {
     id: String(readback.databaseId),
@@ -997,7 +1723,219 @@ async function dispatchAndWatchPromotion(
     rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
   };
   session = finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner);
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: now(),
+    state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: String(readback.databaseId), reason: `promotion workflow concluded ${observation.conclusion ?? 'unknown'}`,
+  });
   writeSession(statePath, session);
+  return session;
+}
+
+async function dispatchAndWatchFullAddon(
+  session: StableReleaseSession,
+  options: FullAddonOptions,
+  runner: StableReleaseCommandRunner,
+): Promise<StableReleaseSession> {
+  if (!session.addon_tracks.full.required) throw new Error('This cohort did not declare the Full add-on.');
+  if (session.terminal_truth.standard_status !== 'terminal') {
+    throw new Error('Full add-on starts only after Standard Stable reaches its independent terminal state.');
+  }
+  if (session.addon_tracks.full.status === 'qualified') throw new Error('Full add-on is already terminal and qualified.');
+  const existingAttempts = session.mutation_attempts.filter((attempt) => attempt.mutation === 'full_addon_dispatch').length;
+  if (existingAttempts >= session.qualification_retry_policy.max_attempts_per_artifact_kind) {
+    throw new Error(`Full add-on reached the bounded attempt limit of ${session.qualification_retry_policy.max_attempts_per_artifact_kind}.`);
+  }
+  const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
+  const dispatchedAt = now();
+  const mutation = planReleaseMutationAttempt(session, {
+    mutation: 'full_addon_dispatch', workflow: 'desktop-release-full-addon.yml', artifactKind: 'full',
+    controllerWorkflowSha, artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(fullAddonMutationPayload(
+      session, options.releaseSetGeneration, options.releaseSetManifestDigest, options.forceRebuildRuntimeCache,
+    )),
+    mutationPayload: fullAddonMutationPayload(
+      session, options.releaseSetGeneration, options.releaseSetManifestDigest, options.forceRebuildRuntimeCache,
+    ),
+    at: dispatchedAt,
+    reason: 'persist Full add-on mutation after Standard terminal and before external dispatch',
+  });
+  let plannedSession = mutation.session;
+  plannedSession.addon_tracks = {
+    ...plannedSession.addon_tracks,
+    full: {
+      ...plannedSession.addon_tracks.full,
+      status: 'pending',
+      release_set_generation: options.releaseSetGeneration,
+      release_set_manifest_digest: options.releaseSetManifestDigest,
+    },
+  };
+  const qualification = appendQualificationAttempt(plannedSession, {
+    artifactKind: 'full', workflow: 'desktop-release-full-addon.yml', mutation: 'full_addon_dispatch',
+    mutationAttemptId: mutation.attemptId, at: dispatchedAt,
+    reason: 'record Full build and exact-artifact qualification as an independent add-on track',
+  });
+  session = qualification.session;
+  writeSession(options.statePath, session);
+  const fullPayload = fullAddonMutationPayload(
+    session, options.releaseSetGeneration, options.releaseSetManifestDigest, options.forceRebuildRuntimeCache,
+  );
+  const accepted = executeBrokeredReleaseMutation(
+    session,
+    options.statePath,
+    mutation.attemptId,
+    fullPayload,
+    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+    externalReleaseMutationBroker,
+  );
+  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
+    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  });
+  session = accepted.session;
+  session = appendQualificationAttemptEvent(session, 'full', qualification.attemptId, {
+    at: accepted.receipt.accepted_at, state: 'dispatching', run_id: acceptedRunId, conclusion: null,
+    failure_taxonomy: 'none', remote_receipt_ref: null,
+    reason: 'isolated broker accepted Full add-on mutation after durable planned state',
+  });
+  session.metrics = {
+    ...session.metrics,
+    workflow_dispatch_counts: {
+      ...session.metrics.workflow_dispatch_counts,
+      full_addon: session.metrics.workflow_dispatch_counts.full_addon + 1,
+    },
+  };
+  session.addon_tracks = {
+    ...session.addon_tracks,
+    full: {
+      ...session.addon_tracks.full,
+      status: 'running',
+      run_id: acceptedRunId,
+      run_url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
+      conclusion: null,
+    },
+  };
+  writeSession(options.statePath, session);
+  const run = await awaitAcceptedWorkflowRun(
+    runner, session, acceptedRunId, mutation.attemptId, 'desktop-release-full-addon.yml', controllerWorkflowSha,
+    'main', (next) => writeSession(options.statePath, next),
+  );
+  session.addon_tracks = {
+    ...session.addon_tracks,
+    full: { ...session.addon_tracks.full, run_url: run.url },
+  };
+  session = appendReleaseMutationAttemptEvent(session, mutation.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed Full add-on run read back',
+  });
+  session = appendQualificationAttemptEvent(session, 'full', qualification.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, conclusion: null,
+    failure_taxonomy: 'none', remote_receipt_ref: null, reason: 'exact broker-attributed Full add-on run read back',
+  });
+  writeSession(options.statePath, session);
+  if (!options.watch) return session;
+
+  const observation = await watchRunToTerminal(
+    runner, session, acceptedRunId, (next) => writeSession(options.statePath, next),
+  );
+  session = observation.session;
+  const runId = String(observation.readback.databaseId);
+  const manifest = observation.succeeded ? readBuildArtifactManifest(runner, session, runId, 'full') : null;
+  const sourceDigests = manifest ? {
+    qualificationInputManifestDigest: manifest.manifest.digests.qualification_input_manifest_sha256,
+    fullInputManifestDigest: manifest.manifest.digests.full_input_manifest_sha256 ?? '',
+    frameworkBundledCatalogDigest: manifest.manifest.digests.framework_bundled_catalog_sha256 ?? '',
+    fullToolchainObservationReceiptDigest: manifest.manifest.digests.full_toolchain_observation_receipt_sha256 ?? '',
+  } : null;
+  const strict = observation.succeeded && sourceDigests
+    ? readQualificationReceipt(runner, session, runId, runId, 'passed', 'full', manifest)
+    : null;
+  const receipt = observation.succeeded && sourceDigests
+    ? readFullAddonReceipt(
+      runner, session, runId, options.releaseSetGeneration, options.releaseSetManifestDigest,
+      sourceDigests.qualificationInputManifestDigest, sourceDigests.fullInputManifestDigest,
+      sourceDigests.frameworkBundledCatalogDigest, sourceDigests.fullToolchainObservationReceiptDigest,
+    )
+    : null;
+  const passed = Boolean(observation.succeeded && manifest && strict && receipt);
+  if (passed) {
+    session = bindQualificationEvidence(session, manifest!, runId, 'success', strict!.sha256, 'full');
+  }
+  session.addon_tracks = {
+    ...session.addon_tracks,
+    full: {
+      ...session.addon_tracks.full,
+      status: passed ? 'qualified' : 'failed',
+      run_id: runId,
+      run_url: observation.readback.url,
+      conclusion: observation.conclusion,
+      receipt_ref: receipt?.ref ?? null,
+      receipt_sha256: receipt?.sha256 ?? null,
+    },
+  };
+  session.terminal_truth = {
+    ...session.terminal_truth,
+    addon_status: passed && !session.addon_tracks.webui.required ? 'terminal' : 'pending',
+    addon_terminal_at: passed && !session.addon_tracks.webui.required ? now() : session.terminal_truth.addon_terminal_at,
+  };
+  session = appendReleaseMutationAttemptEvent(session, mutation.attemptId, {
+    at: now(), state: passed ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: runId,
+    reason: passed ? 'Full build, strict qualification, publish receipt, and remote readback are bound' : 'Full add-on ended without all required exact-byte evidence',
+  });
+  session = appendQualificationAttemptEvent(session, 'full', qualification.attemptId, {
+    at: now(), state: passed ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'failed' : 'runner_lost',
+    run_id: runId, conclusion: observation.conclusion,
+    failure_taxonomy: passed ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'product' : 'infrastructure',
+    remote_receipt_ref: receipt?.ref ?? null,
+    reason: passed ? 'Full add-on exact artifact and durable receipts validated' : 'Full add-on evidence is incomplete; Standard terminal truth remains unchanged',
+  });
+  if (addonTrackIsTerminal(session) && session.phase === 'standard_stable_terminal') {
+    session = transitionStableReleaseSession(session, 'addon_train_terminal', 'all declared add-ons reached verified or typed debt states');
+  }
+  writeSession(options.statePath, session);
+  return session;
+}
+
+function addonTrackIsTerminal(session: StableReleaseSession): boolean {
+  const full = session.addon_tracks.full;
+  const webui = session.addon_tracks.webui;
+  const fullTerminal = !full.required || ['qualified', 'blocked_with_debt'].includes(full.status);
+  const webuiTerminal = !webui.required || ['verified', 'blocked_with_debt'].includes(webui.status);
+  return fullTerminal && webuiTerminal;
+}
+
+export function applyAddonDebtDisposition(
+  session: StableReleaseSession,
+  addon: 'full' | 'webui',
+  receiptPath: string,
+): StableReleaseSession {
+  if (session.terminal_truth.standard_status !== 'terminal') {
+    throw new Error('Add-on debt disposition requires Standard Stable terminal truth.');
+  }
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')) as unknown;
+  const track = addon === 'full' ? session.addon_tracks.full : session.addon_tracks.webui;
+  const errors = validateAddonDebtReceipt(receipt, {
+    stableSessionId: session.id,
+    releaseCohortRef: session.cohort_plan.operator_plan_ref,
+    addon,
+    trackStatus: track.status,
+    runId: addon === 'full' ? session.addon_tracks.full.run_id : null,
+  });
+  if (errors.length > 0) throw new Error(`Add-on debt receipt invalid: ${errors.join('; ')}`);
+  if (addon === 'full') {
+    session.addon_tracks = {
+      ...session.addon_tracks,
+      full: { ...session.addon_tracks.full, status: 'blocked_with_debt', receipt_ref: receiptPath, receipt_sha256: sha256File(receiptPath) },
+    };
+  } else {
+    session.addon_tracks = {
+      ...session.addon_tracks,
+      webui: { ...session.addon_tracks.webui, status: 'blocked_with_debt', receipt_ref: receiptPath, receipt_sha256: sha256File(receiptPath) },
+    };
+  }
+  session.terminal_truth = { ...session.terminal_truth, addon_status: 'blocked_with_debt' };
+  if (addonTrackIsTerminal(session) && session.phase === 'standard_stable_terminal') {
+    session = transitionStableReleaseSession(session, 'addon_train_terminal', 'all declared add-ons reached verified or explicit typed debt disposition');
+  }
   return session;
 }
 
@@ -1007,11 +1945,14 @@ async function dispatchAndWatchQualificationRetry(
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   const verificationAppRef = options.smokeHarnessAppRef || workflowRef(session.cohort_plan);
+  if (verificationAppRef !== 'main') {
+    throw new Error('Qualification workflow must execute from canonical main; App changes require a new cohort.');
+  }
   if (/^[0-9a-f]{7,40}$/i.test(verificationAppRef)) {
     throw new Error('Qualification retry App harness ref must be a remote branch or tag accepted by workflow_dispatch.');
   }
   const verificationShellRef = options.smokeHarnessShellRef || session.cohort_plan.cohort_lock.shell.resolved_sha;
-  const verificationAppSha = resolveRemoteGitRefSha(runner, session.repo, verificationAppRef);
+  const verificationAppSha = resolveCanonicalControllerWorkflowSha(runner, session);
   const verificationShellSha = resolveRemoteGitRefSha(runner, 'gaofeng21cn/opl-aion-shell', verificationShellRef);
   const verificationHarness: QualificationVerificationHarness = {
     app_ref: verificationAppRef,
@@ -1023,25 +1964,64 @@ async function dispatchAndWatchQualificationRetry(
       verificationAppSha,
       artifactShellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
       verificationShellSha,
+      profile: options.artifactKind,
     }),
   };
-  const previousIds = new Set(listRuns(runner, 'opl-first-run-vm.yml', session.repo).map((candidate) => candidate.databaseId));
   const dispatchedAt = now();
-  const dispatch = runner('gh', qualificationRetryDispatchArgs(session, verificationHarness));
-  if (dispatch.status !== 0) failResult(dispatch, 'dispatch same-artifact qualification retry');
-  const run = await discoverRun(
-    runner,
-    'opl-first-run-vm.yml',
+  const artifactKind = options.artifactKind;
+  const track = session.artifact_tracks[artifactKind];
+  if (!track.source_run_id || !track.source_artifact_name || !track.artifact_sha256) {
+    throw new Error(`${artifactKind} same-artifact retry requires a previously validated independent artifact track.`);
+  }
+  const mutationPlanned = planReleaseMutationAttempt(session, {
+    mutation: 'qualification_dispatch', workflow: 'opl-first-run-vm.yml', artifactKind,
+    controllerWorkflowSha: verificationHarness.app_sha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(qualificationMutationPayload(session, verificationHarness, artifactKind)),
+    mutationPayload: qualificationMutationPayload(session, verificationHarness, artifactKind),
+    at: dispatchedAt, reason: 'persist same-artifact qualification mutation before external dispatch',
+  });
+  const planned = appendQualificationAttempt(mutationPlanned.session, {
+    artifactKind, workflow: 'opl-first-run-vm.yml', mutation: 'qualification_dispatch',
+    at: dispatchedAt, reason: `record ${artifactKind} same-artifact retry before workflow mutation`,
+    verificationHarness,
+    mutationAttemptId: mutationPlanned.attemptId,
+  });
+  session = planned.session;
+  writeSession(options.statePath, session);
+  const accepted = executeBrokeredReleaseMutation(
     session,
-    previousIds,
-    dispatchedAt,
-    verificationHarness.app_sha,
-    verificationHarness.app_ref,
+    options.statePath,
+    mutationPlanned.attemptId,
+    qualificationMutationPayload(session, verificationHarness, artifactKind),
+    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+    externalReleaseMutationBroker,
   );
+  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
+    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  });
+  session = accepted.session;
+  session = appendQualificationAttemptEvent(session, artifactKind, planned.attemptId, {
+    at: accepted.receipt.accepted_at, state: 'dispatching', run_id: acceptedRunId, conclusion: null, failure_taxonomy: 'none',
+    remote_receipt_ref: null, reason: 'isolated broker accepted signed qualification mutation and same-artifact scope proof',
+  });
+  session.artifact_tracks = {
+    ...session.artifact_tracks,
+    [artifactKind]: {
+      ...session.artifact_tracks[artifactKind],
+      qualification_run: {
+        ...session.artifact_tracks[artifactKind].qualification_run,
+        verification_harness: verificationHarness,
+      },
+    },
+  };
+  if (artifactKind === 'standard') {
+    session.qualification_run = { ...session.qualification_run, verification_harness: verificationHarness };
+  }
   session = transitionStableReleaseSession(
     session,
     'retry_failed_gate_same_artifact',
-    `qualification run ${run.databaseId} reuses artifact ${session.qualification_run.artifact_name} from release run ${session.release_run.id}`,
+    `broker accepted exact qualification run ${acceptedRunId} reusing ${artifactKind} artifact ${track.source_artifact_name} from run ${track.source_run_id}`,
   );
   session.metrics = {
     ...session.metrics,
@@ -1052,23 +2032,49 @@ async function dispatchAndWatchQualificationRetry(
       qualification_retry: session.metrics.workflow_dispatch_counts.qualification_retry + 1,
     },
   };
-  session.qualification_run = {
-    ...session.qualification_run,
-    id: String(run.databaseId),
-    url: run.url,
+  const runningQualification = {
+    ...session.artifact_tracks[artifactKind].qualification_run,
+    id: acceptedRunId,
+    url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
     conclusion: null,
-    artifact_run_id: session.release_run.id,
+    artifact_run_id: track.source_run_id,
     verification_harness: verificationHarness,
   };
+  session.artifact_tracks = {
+    ...session.artifact_tracks,
+    [artifactKind]: { ...session.artifact_tracks[artifactKind], qualification_run: runningQualification },
+  };
+  if (artifactKind === 'standard') session.qualification_run = runningQualification;
+  writeSession(options.statePath, session);
+  const run = await awaitAcceptedWorkflowRun(
+    runner, session, acceptedRunId, mutationPlanned.attemptId, 'opl-first-run-vm.yml', verificationHarness.app_sha,
+    verificationHarness.app_ref, (next) => writeSession(options.statePath, next),
+  );
+  const visibleQualification = { ...runningQualification, url: run.url };
+  session.artifact_tracks = {
+    ...session.artifact_tracks,
+    [artifactKind]: { ...session.artifact_tracks[artifactKind], qualification_run: visibleQualification },
+  };
+  if (artifactKind === 'standard') session.qualification_run = visibleQualification;
+  session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed qualification run read back',
+  });
+  session = appendQualificationAttemptEvent(session, artifactKind, planned.attemptId, {
+    at: now(), state: 'running', run_id: acceptedRunId, conclusion: null,
+    failure_taxonomy: 'none', remote_receipt_ref: null, reason: 'exact broker-attributed qualification workflow run read back',
+  });
   writeSession(options.statePath, session);
   if (!options.watch) return session;
-  const observation = await watchRunToTerminal(runner, session, String(run.databaseId));
+  const observation = await watchRunToTerminal(
+    runner, session, acceptedRunId, (next) => writeSession(options.statePath, next),
+  );
+  session = observation.session;
   const { readback } = observation;
   const retryRunId = String(readback.databaseId);
-  const sourceRunId = session.release_run.id!;
-  const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
+  const sourceRunId = track.source_run_id;
+  const manifest = readBuildArtifactManifest(runner, session, sourceRunId, artifactKind);
   const expectedResult = observation.succeeded ? 'passed' : 'failed';
-  const qualification = readQualificationReceipt(runner, session, retryRunId, sourceRunId, expectedResult);
+  const qualification = readQualificationReceipt(runner, session, retryRunId, sourceRunId, expectedResult, artifactKind, manifest);
   if (!manifest || !qualification) {
     session = transitionStableReleaseSession(session, 'qualification_failed', 'qualification retry did not produce a valid same-artifact receipt');
   } else {
@@ -1078,14 +2084,27 @@ async function dispatchAndWatchQualificationRetry(
       retryRunId,
       observation.succeeded ? 'success' : 'failure',
       qualification.sha256,
+      artifactKind,
     );
-    session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
+    session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
     session = transitionStableReleaseSession(
       session,
       observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
       observation.succeeded ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
     );
   }
+  session = appendQualificationAttemptEvent(session, artifactKind, planned.attemptId, {
+    at: now(), state: session.phase === 'artifacts_qualified' ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: retryRunId, conclusion: observation.conclusion,
+    failure_taxonomy: session.phase === 'artifacts_qualified' ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : 'unknown',
+    remote_receipt_ref: qualification ? `opl-first-run-vm-${artifactKind}-${retryRunId}` : null,
+    reason: qualification ? 'strict exact-artifact qualification receipt validated' : 'strict receipt missing or invalid; reconcile required',
+  });
+  session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
+    at: now(),
+    state: session.phase === 'artifacts_qualified' ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    run_id: retryRunId, reason: `qualification workflow concluded ${observation.conclusion ?? 'unknown'}`,
+  });
   writeSession(options.statePath, session);
   return session;
 }
@@ -1095,6 +2114,7 @@ async function resumeSession(
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
+  if (!options.execute) return session;
   if (session.phase === 'artifact_build_failed') {
     if (!session.release_run.id) throw new Error('Artifact build failure has no original workflow run id.');
     session = transitionStableReleaseSession(
@@ -1106,49 +2126,7 @@ async function resumeSession(
     writeSession(options.statePath, session);
   }
   if (session.phase === 'promotion_failed') {
-    const runId = session.promotion_run.id;
-    if (!runId) throw new Error('Promotion failure has no original workflow run id.');
-    const remoteView = runView(runner, session, runId);
-    if (!remoteView.readback) {
-      throw new Error(
-        `Unable to reconcile promotion workflow ${runId}: ${remoteView.error ?? 'remote readback unavailable'}. ` +
-          'The existing promotion session remains recoverable with resume.',
-      );
-    }
-    const remote = remoteView.readback;
-    const localAttempt = session.promotion_run.attempt ?? 0;
-    const remoteAttempt = remote.attempt ?? localAttempt;
-    const rerunAlreadyStarted = remoteAttempt > localAttempt || remote.status === 'queued' || remote.status === 'in_progress';
-    if (!rerunAlreadyStarted) {
-      if (!options.execute) {
-        throw new Error('Promotion retry mutates the existing workflow run; pass --execute to rerun its failed jobs.');
-      }
-      const rerun = runner('gh', promotionRerunArgs(session, remote.conclusion !== 'success'));
-      if (rerun.status !== 0) failResult(rerun, `rerun promotion workflow ${runId}`);
-      session.metrics = {
-        ...session.metrics,
-        promotion_retry_count: session.metrics.promotion_retry_count + 1,
-      };
-      session.promotion_run = {
-        ...session.promotion_run,
-        conclusion: null,
-        rerun_requested_from_attempt: localAttempt,
-      };
-    } else {
-      session.promotion_run = {
-        ...session.promotion_run,
-        conclusion: null,
-        attempt: remoteAttempt || session.promotion_run.attempt,
-      };
-    }
-    session = transitionStableReleaseSession(
-      session,
-      'promotion_running',
-      rerunAlreadyStarted
-        ? `resuming already-started attempt ${remoteAttempt} of promotion run ${runId}`
-        : `rerunning failed jobs in promotion run ${runId}; no new workflow dispatch`,
-    );
-    writeSession(options.statePath, session);
+    throw new Error('Low-level workflow rerun is forbidden because it replays the original signed ticket. Reconcile first, then create a new controller mutation attempt.');
   }
   const isRelease = session.phase === 'artifact_build_running';
   const isQualification = session.phase === 'retry_failed_gate_same_artifact';
@@ -1158,7 +2136,10 @@ async function resumeSession(
   }
   const runId = isRelease ? session.release_run.id : isQualification ? session.qualification_run.id : session.promotion_run.id;
   if (!runId) throw new Error(`Session phase ${session.phase} has no workflow run id.`);
-  const observation = await watchRunToTerminal(runner, session, runId);
+  const observation = await watchRunToTerminal(
+    runner, session, runId, (next) => writeSession(options.statePath, next),
+  );
+  session = observation.session;
   const { readback } = observation;
   if (isRelease) {
     session.release_run = {
@@ -1171,18 +2152,20 @@ async function resumeSession(
     const sourceRunId = session.release_run.id!;
     const retryRunId = String(readback.databaseId);
     const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
-    const qualification = readQualificationReceipt(
+    const qualification = manifest ? readQualificationReceipt(
       runner,
       session,
       retryRunId,
       sourceRunId,
       observation.succeeded ? 'passed' : 'failed',
-    );
+      'standard',
+      manifest,
+    ) : null;
     if (!manifest || !qualification) {
       session = transitionStableReleaseSession(session, 'qualification_failed', 'resumed qualification did not produce a valid same-artifact receipt');
     } else {
       session = bindQualificationEvidence(session, manifest, retryRunId, observation.succeeded ? 'success' : 'failure', qualification.sha256);
-      session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
+      session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
       session = transitionStableReleaseSession(
         session,
         observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
@@ -1279,15 +2262,20 @@ function parseRetryQualificationArgs(argv: string[]): RetryQualificationOptions 
       execute: { type: 'boolean' },
       'no-watch': { type: 'boolean' },
       state: { type: 'string' },
+      'artifact-kind': { type: 'string' },
       'smoke-harness-app-ref': { type: 'string' },
       'smoke-harness-shell-ref': { type: 'string' },
     },
   });
   if (!values.state) throw new Error('Pass --state from the original release run.');
+  if (values['artifact-kind'] && values['artifact-kind'] !== 'standard' && values['artifact-kind'] !== 'full') {
+    throw new Error('--artifact-kind must be standard or full.');
+  }
   return {
     execute: values.execute === true,
     watch: values['no-watch'] !== true,
     statePath: path.resolve(values.state),
+    artifactKind: values['artifact-kind'] === 'full' ? 'full' : 'standard',
     smokeHarnessAppRef: values['smoke-harness-app-ref'],
     smokeHarnessShellRef: values['smoke-harness-shell-ref'],
   };
@@ -1310,27 +2298,171 @@ function parseCompleteLocalArgs(argv: string[]): CompleteLocalOptions {
   };
 }
 
+function parseReconcileArgs(argv: string[]): ReconcileOptions {
+  const { values } = parseNodeArgs({ args: argv, options: { state: { type: 'string' } }, strict: true });
+  if (!values.state) throw new Error('reconcile requires --state <path>.');
+  return { statePath: path.resolve(values.state) };
+}
+
+function parseRecoverStaleLockArgs(argv: string[]): RecoverStaleLockOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: { state: { type: 'string' }, 'session-id': { type: 'string' }, revision: { type: 'string' } },
+    strict: true,
+  });
+  const revision = Number(values.revision);
+  if (!values.state || !values['session-id'] || !Number.isSafeInteger(revision) || revision < 0) {
+    throw new Error('recover-stale-lock requires --state, --session-id, and a non-negative integer --revision.');
+  }
+  return { statePath: path.resolve(values.state), sessionId: values['session-id'], revision };
+}
+
+function parseCancelArgs(argv: string[]): CancelOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: { state: { type: 'string' }, target: { type: 'string' }, reason: { type: 'string' }, execute: { type: 'boolean' } },
+    strict: true,
+  });
+  if (!values.state || !values.target || !/^\d+$/.test(values.target) || !values.reason?.trim()) {
+    throw new Error('cancel requires --state, numeric --target, and non-empty --reason.');
+  }
+  return { statePath: path.resolve(values.state), targetRunId: values.target, reason: values.reason.trim(), execute: values.execute === true };
+}
+
+function parseFullAddonArgs(argv: string[]): FullAddonOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      state: { type: 'string' }, execute: { type: 'boolean' }, 'no-watch': { type: 'boolean' },
+      'release-set-generation': { type: 'string' }, 'release-set-manifest-digest': { type: 'string' },
+      'force-rebuild-runtime-cache': { type: 'boolean' },
+    },
+    strict: true,
+  });
+  if (!values.state || !values['release-set-generation'] || !values['release-set-manifest-digest']) {
+    throw new Error('dispatch-full-addon requires --state, --release-set-generation, and --release-set-manifest-digest.');
+  }
+  return {
+    statePath: path.resolve(values.state), execute: values.execute === true, watch: values['no-watch'] !== true,
+    releaseSetGeneration: values['release-set-generation'],
+    releaseSetManifestDigest: values['release-set-manifest-digest'],
+    forceRebuildRuntimeCache: values['force-rebuild-runtime-cache'] === true,
+  };
+}
+
+function parseAddonDebtArgs(argv: string[]): AddonDebtOptions {
+  const { values } = parseNodeArgs({
+    args: argv, options: { state: { type: 'string' }, addon: { type: 'string' }, receipt: { type: 'string' } }, strict: true,
+  });
+  if (!values.state || !values.receipt || (values.addon !== 'full' && values.addon !== 'webui')) {
+    throw new Error('disposition-addon-debt requires --state, --addon full|webui, and --receipt.');
+  }
+  return { statePath: path.resolve(values.state), addon: values.addon, receiptPath: path.resolve(values.receipt) };
+}
+
 function printSession(session: StableReleaseSession): void {
   process.stdout.write(`${JSON.stringify(session, null, 2)}\n`);
 }
 
-async function start(options: StartOptions, runner: StableReleaseCommandRunner): Promise<StableReleaseSession> {
-  let session = buildStableReleaseSession(buildReleaseCohortPlan(options.cohort), options.repo);
-  writeSession(options.statePath, session);
+function planSession(options: StartOptions, startedAt = now()): StableReleaseSession {
+  return buildStableReleaseSession(
+    buildReleaseCohortPlan(options.cohort, undefined, startedAt),
+    options.repo,
+    startedAt,
+  );
+}
+
+function persistStandardDeadlineBlocker(
+  session: StableReleaseSession,
+  statePath: string,
+  stage: string,
+  runId: string | null,
+  observedAtMs: number,
+): StableReleaseSession {
+  const blocked = standardDeadlineBlockedSession(session, stage, runId, observedAtMs);
+  writeSession(statePath, blocked);
+  return blocked;
+}
+
+export async function start(
+  options: StartOptions,
+  runner: StableReleaseCommandRunner,
+  clock: () => number = Date.now,
+): Promise<StableReleaseSession> {
+  const startedAtMs = clock();
+  const startedAt = new Date(startedAtMs).toISOString();
+  let session = planSession(options, startedAt);
   if (!options.execute) return session;
+  if (fs.existsSync(options.statePath)) {
+    let current = 'unreadable';
+    try {
+      const existing = readSession(options.statePath);
+      current = `${existing.id} phase=${existing.phase} revision=${existing.revision}`;
+    } catch {
+      // An unreadable existing file is still never safe to replace.
+    }
+    throw new Error(
+      `Stable release session already exists at ${options.statePath} (${current}); ` +
+      'use status, reconcile, or resume instead of start.',
+    );
+  }
+  createSession(options.statePath, session);
+
+  const planningFinishedAtMs = clock();
+  if (remainingStandardAdmissionBudgetMs(session, planningFinishedAtMs) <= 0) {
+    const reason = 'cohort planning exhausted the immutable 90-minute Standard admission deadline before source gates';
+    persistStandardDeadlineBlocker(session, options.statePath, 'cohort_planning', null, planningFinishedAtMs);
+    throw new Error(reason);
+  }
 
   for (let index = 0; index < session.source_gates.length; index += 1) {
     const gate = session.source_gates[index];
-    const result = runner('bash', ['-lc', gate.command]);
-    session.source_gates[index] = { ...gate, status: result.status === 0 ? 'passed' : 'failed' };
+    const gateStartedAtMs = clock();
+    const remainingGateBudgetMs = remainingStandardAdmissionBudgetMs(session, gateStartedAtMs);
+    if (remainingGateBudgetMs <= 0) {
+      const reason = `source gate ${gate.id} could not start before the immutable 90-minute Standard admission deadline`;
+      persistStandardDeadlineBlocker(
+        session, options.statePath, `source_gate:${gate.id}`, null, gateStartedAtMs,
+      );
+      throw new Error(reason);
+    }
+    const result = runner('bash', ['-lc', gate.command], { timeoutMs: Math.max(1, remainingGateBudgetMs) });
+    const gateFinishedAtMs = clock();
+    const deadlineElapsed = remainingStandardAdmissionBudgetMs(session, gateFinishedAtMs) <= 0;
+    const hardSloFailed = result.timedOut === true || deadlineElapsed;
+    session.source_gates[index] = {
+      ...gate,
+      status: !hardSloFailed && result.status === 0 ? 'passed' : 'failed',
+    };
     writeSession(options.statePath, session);
+    if (hardSloFailed) {
+      const reason = result.timedOut === true
+        ? `source gate ${gate.id} timed out against the immutable 90-minute Standard admission deadline`
+        : `source gate ${gate.id} returned after the immutable 90-minute Standard admission deadline elapsed`;
+      persistStandardDeadlineBlocker(
+        session, options.statePath, `source_gate:${gate.id}`, null, gateFinishedAtMs,
+      );
+      throw new Error(reason);
+    }
     if (result.status !== 0) {
-      session = transitionStableReleaseSession(session, 'source_gate_failed', `source gate ${gate.id} failed`);
+      session = transitionStableReleaseSession(
+        session, 'source_gate_failed', `source gate ${gate.id} failed`, new Date(gateFinishedAtMs).toISOString(),
+      );
       writeSession(options.statePath, session);
       failResult(result, `source gate ${gate.id}`);
     }
   }
-  session = transitionStableReleaseSession(session, 'source_gates_passed', 'all deduplicated cheap source gates passed');
+  const gatesFinishedAtMs = clock();
+  if (remainingStandardAdmissionBudgetMs(session, gatesFinishedAtMs) <= 0) {
+    const reason = 'source gate persistence exhausted the immutable 90-minute Standard admission deadline before dispatch';
+    persistStandardDeadlineBlocker(
+      session, options.statePath, 'source_gate_persistence', null, gatesFinishedAtMs,
+    );
+    throw new Error(reason);
+  }
+  session = transitionStableReleaseSession(
+    session, 'source_gates_passed', 'all deduplicated cheap source gates passed', new Date(gatesFinishedAtMs).toISOString(),
+  );
   writeSession(options.statePath, session);
   return dispatchAndWatchRelease(session, options.statePath, options.watch, runner);
 }
@@ -1341,8 +2473,6 @@ async function promote(options: PromoteOptions, runner: StableReleaseCommandRunn
     throw new Error(`Initial promotion requires artifacts_qualified state, got ${session.phase}. Use resume --execute for a failed promotion run.`);
   }
   if (!options.execute) return session;
-  session = transitionStableReleaseSession(session, 'owner_approved', 'same-cohort release owner receipt accepted');
-  writeSession(options.statePath, session);
   return dispatchAndWatchPromotion(
     session,
     options.statePath,
@@ -1365,24 +2495,103 @@ async function retryQualification(
   return dispatchAndWatchQualificationRetry(session, options, runner);
 }
 
+function identifyCancelableRun(session: StableReleaseSession, runId: string): {
+  targetAttemptId: string;
+  workflow: ReleaseSessionLeaseV2['workflow'];
+  artifactKind: ReleaseSessionLeaseV2['artifact_kind'];
+  controllerWorkflowSha: string;
+} {
+  const attempt = [...session.mutation_attempts].reverse().find((entry) =>
+    entry.mutation !== 'workflow_cancel' && entry.events.some((event) => event.run_id === runId),
+  );
+  if (!attempt) throw new Error(`Workflow run ${runId} has no exact durable mutation attempt in this stable release session.`);
+  if (['succeeded', 'failed', 'cancelled'].includes(attempt.events.at(-1)?.state ?? '')) {
+    throw new Error(`Workflow run ${runId} belongs to terminal mutation attempt ${attempt.attempt_id} and cannot be cancelled.`);
+  }
+  return {
+    targetAttemptId: attempt.attempt_id,
+    workflow: attempt.workflow,
+    artifactKind: attempt.artifact_kind,
+    controllerWorkflowSha: attempt.controller_workflow_sha,
+  };
+}
+
+export function dispatchEmergencyCancel(
+  session: StableReleaseSession,
+  statePath: string,
+  targetRunId: string,
+  reason: string,
+  _readOnlyRunner: StableReleaseCommandRunner,
+  at = now(),
+  persist: typeof writeSession = writeSession,
+  broker: ReleaseMutationBroker = externalReleaseMutationBroker,
+  authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+): StableReleaseSession {
+  const target = identifyCancelableRun(session, targetRunId);
+  const payload: ReleaseMutationPayload = {
+    opl_version: session.version,
+    stable_session_id: session.id,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    target_attempt_id: target.targetAttemptId,
+    target_run_id: targetRunId,
+    reason,
+    operator_actor: releaseOperatorActor(),
+  };
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'workflow_cancel', workflow: target.workflow, artifactKind: target.artifactKind,
+    controllerWorkflowSha: target.controllerWorkflowSha,
+    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload),
+    mutationPayload: payload,
+    targetAttemptId: target.targetAttemptId,
+    targetRunId, at, reason: `emergency cancel planned: ${reason}`,
+  });
+  session = planned.session;
+  persist(statePath, session);
+  const accepted = executeBrokeredReleaseMutation(
+    session,
+    statePath,
+    planned.attemptId,
+    payload,
+    { repository: session.repo, operation: 'workflow_cancel', workflow_ref: null, target_run_id: targetRunId },
+    broker,
+    authorityOverride,
+    persist,
+  );
+  return accepted.session;
+}
+
 function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSession {
   let session = readSession(options.statePath);
   if (session.phase !== 'awaiting_local_activation') {
     throw new Error(`Local activation completion requires awaiting_local_activation state, got ${session.phase}.`);
   }
-  const receipt = readReceipt(options.receiptPath);
+  const artifactSha256 = session.qualification_run.artifact_sha256;
+  if (
+    typeof artifactSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(artifactSha256) ||
+    session.artifact_tracks.standard.artifact_sha256 !== artifactSha256
+  ) {
+    throw new Error('Local activation completion requires the exact qualified Standard artifact SHA-256.');
+  }
+  const receiptBytes = fs.readFileSync(options.receiptPath);
+  const policyBytes = fs.readFileSync(options.localAuthorizationPolicyPath);
+  const receipt = JSON.parse(receiptBytes.toString('utf8')) as unknown;
+  const policySha256 = crypto.createHash('sha256').update(policyBytes).digest('hex');
   const errors = validateLocalActivationReceipt(receipt, {
     stableSessionId: session.id,
     version: session.version,
-    artifactSha256: session.qualification_run.artifact_sha256 ?? undefined,
-    localAuthorizationPolicyPath: options.localAuthorizationPolicyPath,
+    artifactSha256,
+    localAuthorizationPolicySha256: policySha256,
   });
   if (errors.length > 0) throw new Error(`Local activation receipt invalid: ${errors.join('; ')}`);
   session.receipts = {
     ...session.receipts,
-    local_activation: { ref: options.receiptPath, sha256: sha256File(options.receiptPath) },
+    local_activation: {
+      ref: options.receiptPath,
+      sha256: crypto.createHash('sha256').update(receiptBytes).digest('hex'),
+    },
   };
-  session = transitionStableReleaseSession(session, 'complete', 'same-version local installation and CDP Home/Settings/Capabilities readback passed');
+  session = transitionStableReleaseSession(session, 'standard_stable_terminal', 'same-version local installation and CDP Home/Settings/Capabilities readback passed');
   writeSession(options.statePath, session);
   return session;
 }
@@ -1390,12 +2599,22 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
 async function main(): Promise<void> {
   const [command, ...argv] = process.argv.slice(2);
   if (!command || command === '--help' || command === '-h') {
-    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--smoke-harness-app-ref <branch-or-tag>] [--smoke-harness-shell-ref <ref>] [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
+    process.stdout.write(`Usage:\n  npm run release:stable -- plan <cohort options> [--state <path>]\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- status --state <path>\n  npm run release:stable -- retry-qualification --state <path> [--smoke-harness-app-ref <branch-or-tag>] [--smoke-harness-shell-ref <ref>] [--execute] [--no-watch]\n  npm run release:stable -- reconcile --state <path>\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- dispatch-full-addon --state <path> --release-set-generation <generation> --release-set-manifest-digest <sha256:...> [--execute] [--no-watch]\n  npm run release:stable -- disposition-addon-debt --state <path> --addon full|webui --receipt <typed-receipt.json>\n  npm run release:stable -- cancel --state <path> --target <run-id> --reason <text> --execute\n  npm run release:stable -- recover-stale-lock --state <path> --session-id <sha256:...> --revision <n>\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nPlan and dry-run are pure reads. start --execute creates a new session only when --state is absent. Each external mutation receives a fresh per-attempt signed broker lease and also requires --execute.\n`);
     return;
   }
-  if (command === 'start' || command === 'plan') {
+  if (command === 'plan') {
     const options = parseStartArgs(argv);
-    printSession(await start({ ...options, execute: command === 'plan' ? false : options.execute }, run));
+    printSession(planSession({ ...options, execute: false }));
+    return;
+  }
+  if (command === 'start') {
+    const options = parseStartArgs(argv);
+    printSession(await start(options, run));
+    return;
+  }
+  if (command === 'status') {
+    const options = parseReconcileArgs(argv);
+    printSession(readSession(options.statePath));
     return;
   }
   if (command === 'promote') {
@@ -1406,8 +2625,93 @@ async function main(): Promise<void> {
     printSession(await retryQualification(parseRetryQualificationArgs(argv), run));
     return;
   }
+  if (command === 'dispatch-full-addon') {
+    const options = parseFullAddonArgs(argv);
+    let session = readSession(options.statePath);
+    if (options.execute) session = await dispatchAndWatchFullAddon(session, options, run);
+    printSession(session);
+    return;
+  }
+  if (command === 'disposition-addon-debt') {
+    const options = parseAddonDebtArgs(argv);
+    const session = applyAddonDebtDisposition(readSession(options.statePath), options.addon, options.receiptPath);
+    writeSession(options.statePath, session);
+    printSession(session);
+    return;
+  }
   if (command === 'resume') {
     printSession(await resumeSession(parseResumeArgs(argv), run));
+    return;
+  }
+  if (command === 'reconcile') {
+    const options = parseReconcileArgs(argv);
+    const current = readSession(options.statePath);
+    const evidence = createReconcileEvidenceReader(run, current);
+    try {
+      const session = reconcileStableReleaseSession(current, {
+        readRun: (runId, attempt) => {
+          const result = runView(run, current, runId).readback;
+          const workflow = result
+            ? Object.entries(workflowNames).find(([, name]) => name === result.workflowName)?.[0] ?? result.workflowName ?? ''
+            : '';
+          return result ? {
+            databaseId: String(result.databaseId),
+            status: result.status,
+            conclusion: result.conclusion || null,
+            runAttempt: result.attempt ?? 0,
+            workflow,
+            controllerWorkflowSha: result.headSha,
+            mutationAttemptId: result.displayTitle?.match(/ attempt=(sha256:[0-9a-f]{64})$/)?.[1] ?? '',
+            headBranch: result.headBranch,
+            event: result.event ?? '',
+            url: result.url,
+          } : null;
+        },
+        readBrokerRecord: (lookup) => externalReleaseMutationBrokerLedgerLookup(lookup),
+        readBuildManifest: (artifactKind, sourceRunId) => evidence.readJson<BuildArtifactCohortV2>(
+          sourceRunId,
+          `${expectedBuildArtifactName(current, artifactKind)}-cohort`,
+          'opl-build-cohort.json',
+        ),
+        readStrictQualificationReceipt: (artifactKind, qualificationRunId) => evidence.readJson<ArtifactQualificationReceiptV1>(
+          qualificationRunId,
+          `opl-first-run-vm-${artifactKind}-${qualificationRunId}`,
+          'artifact-qualification-receipt.json',
+        ),
+        readSmokeSummary: (artifactKind, qualificationRunId) => evidence.readJson<Record<string, unknown>>(
+          qualificationRunId,
+          `opl-first-run-vm-${artifactKind}-${qualificationRunId}`,
+          'tart-smoke-summary.json',
+        ),
+        readAttemptReceipt: (artifactKind, runId) => {
+          const result = evidence.readJson<QualificationAttemptReceiptV1>(
+            runId,
+            `opl-qualification-attempt-${artifactKind}-${runId}`,
+            'qualification-attempt-receipt.json',
+          );
+          return result ? { receipt: result.value, ref: result.ref, sha256: result.sha256 } : null;
+        },
+      });
+      writeSession(options.statePath, session);
+      printSession(session);
+    } finally {
+      evidence.cleanup();
+    }
+    return;
+  }
+  if (command === 'cancel') {
+    const options = parseCancelArgs(argv);
+    let session = readSession(options.statePath);
+    if (options.execute) session = dispatchEmergencyCancel(session, options.statePath, options.targetRunId, options.reason, run);
+    printSession(session);
+    return;
+  }
+  if (command === 'recover-stale-lock') {
+    const options = parseRecoverStaleLockArgs(argv);
+    const recovered = recoverStaleStableReleaseSessionLock(options.statePath, {
+      sessionId: options.sessionId, revision: options.revision,
+    });
+    process.stdout.write(`${JSON.stringify({ recovered: recovered.exists, diagnostic: recovered }, null, 2)}\n`);
     return;
   }
   if (command === 'complete-local') {

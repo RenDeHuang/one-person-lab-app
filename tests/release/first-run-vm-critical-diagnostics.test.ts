@@ -41,7 +41,7 @@ function writeJson(cwd: string, relativePath: string, payload: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
-test('VM critical diagnostics classify failed artifact download and keep same-artifact retry scoped to VM only', () => {
+test('VM critical diagnostics classify failed artifact download and route recovery through Stable controller only', () => {
   const summary = runDiagnostics({
     RELEASE_ARTIFACT_NAME: 'macos-build-arm64-dmg',
     RELEASE_ARTIFACT_RUN_ID: '777',
@@ -53,11 +53,18 @@ test('VM critical diagnostics classify failed artifact download and keep same-ar
   assert.equal(summary.schema_version, 2);
   assert.equal(summary.failure.type, 'artifact_download_failed');
   assert.equal(summary.failure.boundary, 'workflow_artifact_download');
-  assert.equal(summary.retry_entry.action, 'rerun_diagnostic_same_artifact');
-  assert.equal(summary.retry_entry.scope, 'vm_qualification_only_same_cohort');
-  assert.equal(summary.retry_entry.rebuilds_standard_or_full_artifact, false);
-  assert.match(summary.retry_entry.command_hint, /release_artifact_name=macos-build-arm64-dmg/);
-  assert.match(summary.retry_entry.command_hint, /release_artifact_run_id=777/);
+  assert.equal(summary.typed_controller_action.action, 'retry_qualification_same_artifact');
+  assert.equal(summary.typed_controller_action.scope, 'vm_qualification_only_same_cohort');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.mutation_authorized, false);
+  assert.equal(summary.typed_controller_action.direct_workflow_dispatch_allowed, false);
+  assert.match(
+    summary.typed_controller_action.command_template,
+    /^npm run release:stable -- retry-qualification .*--artifact-kind standard$/,
+  );
+  assert.equal(summary.release_inputs.release_artifact_name, 'macos-build-arm64-dmg');
+  assert.equal(summary.release_inputs.release_artifact_run_id, '777');
+  assert.doesNotMatch(JSON.stringify(summary), /gh workflow run|--execute|rerun/i);
 });
 
 test('VM critical diagnostics classify missing release asset before VM work', () => {
@@ -70,8 +77,9 @@ test('VM critical diagnostics classify missing release asset before VM work', ()
 
   assert.equal(summary.failure.type, 'release_asset_missing');
   assert.equal(summary.failure.boundary, 'resolve_release_dmg');
-  assert.equal(summary.retry_entry.action, 'provide_existing_dmg_or_release_artifact_then_rerun_vm');
-  assert.equal(summary.retry_entry.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.action, 'reconcile_stable_session');
+  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
 });
 
 test('VM critical diagnostics distinguish Tart launch failure from App readiness failure', () => {
@@ -150,9 +158,13 @@ test('VM critical diagnostics classify OPL output buffer exhaustion as a harness
   );
 
   assert.equal(summary.failure.type, 'opl_command_output_buffer_exhausted');
-  assert.equal(summary.retry_entry.action, 'update_smoke_harness_then_rerun_same_artifact');
-  assert.match(summary.retry_entry.command_hint, /artifact_app_ref=a{40}.*shell_ref=b{40}.*smoke_harness_ref=c{40}/);
-  assert.equal(summary.retry_entry.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.action, 'reconcile_stable_session');
+  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.release_inputs.artifact_app_sha, 'a'.repeat(40));
+  assert.equal(summary.release_inputs.product_shell_sha, 'b'.repeat(40));
+  assert.equal(summary.release_inputs.smoke_harness_shell_sha, 'c'.repeat(40));
+  assert.doesNotMatch(JSON.stringify(summary), /gh workflow run|--execute|rerun/i);
 });
 
 test('VM critical diagnostics keep Settings contract failures out of App readiness', () => {

@@ -1165,6 +1165,79 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   );
 });
 
+test('release contract keeps Standard terminal independent and cohort plans behind the canonical controller', () => {
+  const release = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const prepare = release.release_acceleration.cohort_prepare;
+  const intent = prepare.release_intent_policy;
+  const publishRecovery = release.release_acceleration.publish_resume.release_upload_failure_recovery;
+  const draftCleanup = release.release_acceleration.publish_resume.draft_candidate_cleanup;
+
+  assert.equal(prepare.next_action_policy.canonical_command_prefix, 'npm run release:stable -- start');
+  assert.equal(prepare.next_action_policy.default_mode, 'dry_run');
+  assert.equal(prepare.next_action_policy.direct_workflow_dispatch_allowed, false);
+  assert.equal(intent.stable_complete.standard_terminal_independent, true);
+  assert.equal(intent.stable_complete.include_full_package_required, false);
+  assert.equal(
+    intent.stable_complete.include_full_package_role,
+    'optional_same_cohort_nonblocking_addon_intent',
+  );
+  assert.equal(intent.full_addon_terminal_policy.dispatch_after, 'standard_stable_terminal');
+  assert.equal(intent.full_addon_terminal_policy.completion_required_for_standard_terminal, false);
+  assert.equal(publishRecovery.remote_state, 'typed_incomplete_draft_retained');
+  assert.equal(publishRecovery.receipt_schema, 'opl_app_release_publish_recovery_receipt.v1');
+  assert.equal(publishRecovery.automatic_release_delete_allowed, false);
+  assert.equal(publishRecovery.automatic_tag_cleanup_allowed, false);
+  assert.equal(publishRecovery.ordinary_release_workflow_delete_allowed, false);
+  assert.equal(draftCleanup.execution_authority, 'independent_isolated_release_mutation_broker');
+  assert.equal(draftCleanup.required_broker_mutation, 'release_draft_cleanup');
+  assert.equal(draftCleanup.broker_mutation, null);
+  assert.equal(draftCleanup.direct_github_release_delete_allowed, false);
+  assert.equal(draftCleanup.direct_tag_cleanup_allowed, false);
+
+  const coupledFullTerminal = structuredClone(release);
+  coupledFullTerminal.release_acceleration.cohort_prepare.release_intent_policy
+    .full_addon_terminal_policy.completion_required_for_standard_terminal = true;
+  assert.throws(
+    () => validateReleaseChannelContract(coupledFullTerminal),
+    /Standard terminal independent.*Full only as a same-cohort non-blocking add-on intent/,
+  );
+
+  const directWorkflowPlan = structuredClone(release);
+  directWorkflowPlan.release_acceleration.cohort_prepare.next_action_policy.direct_workflow_dispatch_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(directWorkflowPlan),
+    /dry-run canonical Stable controller/,
+  );
+
+  const implicitFailureCleanup = structuredClone(release);
+  implicitFailureCleanup.release_acceleration.publish_resume
+    .release_upload_failure_recovery.automatic_release_delete_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(implicitFailureCleanup),
+    /retain a typed incomplete draft.*without implicit deletion/,
+  );
+
+  const legacyImplicitCleanup = structuredClone(release);
+  legacyImplicitCleanup.release_acceleration.publish_resume.new_release_upload_failure_cleanup = {
+    enabled: true,
+    command: 'direct destructive cleanup',
+  };
+  assert.throws(
+    () => validateReleaseChannelContract(legacyImplicitCleanup),
+    /retain a typed incomplete draft.*without implicit deletion/,
+  );
+
+  const directDraftCleanup = structuredClone(release);
+  directDraftCleanup.release_acceleration.publish_resume
+    .draft_candidate_cleanup.direct_github_release_delete_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(directDraftCleanup),
+    /fail closed until an independent signed broker mutation/,
+  );
+});
+
 test('managed update payload and public actions use only the three software objects', () => {
   const release = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),

@@ -7,6 +7,8 @@ import { validateReleaseContractPolicies } from './validate-release-boundary/rel
 import { validateReleaseBoundaryScriptDependencies } from './validate-release-boundary/script-dependencies.ts';
 import {
   runReleaseBoundaryTextChecks,
+  validateStableReleaseActionPinPolicy,
+  validateWorkflowDispatchWriteAuthority,
   validateWorkflowNode24Policy,
 } from './validate-release-boundary/text-check-runner.ts';
 
@@ -22,6 +24,8 @@ try {
 
 failures += runReleaseBoundaryTextChecks(appRoot);
 failures += validateWorkflowNode24Policy(appRoot);
+failures += validateStableReleaseActionPinPolicy(appRoot);
+failures += validateWorkflowDispatchWriteAuthority(appRoot);
 failures += validateReleaseBoundaryScriptDependencies(appRoot);
 failures += validateReleaseContractPolicies(appRoot);
 

@@ -1,14 +1,11 @@
 name: OPL GUI First-Run VM
+run-name: OPL GUI First-Run VM attempt=${{ inputs.release_attempt_id }}
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
         description: 'GitHub release tag to test. Empty means latest release.'
-        required: false
-        type: string
-      release_dmg_url:
-        description: 'Direct DMG URL. Overrides release_tag when set.'
         required: false
         type: string
       release_artifact_name:
@@ -23,6 +20,26 @@ on:
         description: 'Stable release session sha256 identity for release-bound qualification.'
         required: false
         type: string
+      standard_admission_deadline_at:
+        description: 'Immutable Standard admission deadline propagated by a brokered caller.'
+        required: false
+        default: ''
+        type: string
+      operator_actor:
+        description: 'Human/operator audit identity; broker GitHub App holds mutation authority.'
+        required: false
+        default: ''
+        type: string
+      release_attempt_id:
+        description: 'Signed broker mutation attempt identity.'
+        required: true
+        type: string
+      pre_api_admission_receipt_base64:
+        description: 'Signed durable pre-API broker fence for release-bound qualification.'
+        required: false
+        default: ''
+        type: string
+      release_mutation_payload_sha256: { description: Exact digest of the broker-bound qualification payload, required: false, default: '', type: string }
       release_cohort_ref:
         description: 'Stable release cohort sha256 identity for release-bound qualification.'
         required: false
@@ -32,9 +49,8 @@ on:
         required: false
         type: string
       shell_ref:
-        description: 'Product opl-aion-shell ref recorded in the build artifact cohort. Empty means main.'
+        description: 'Product opl-aion-shell ref. Release-bound qualification requires the exact cohort SHA; diagnostics may omit it.'
         required: false
-        default: main
         type: string
       smoke_harness_ref:
         description: 'Separately pinned opl-aion-shell ref containing the verification scripts. Empty uses shell_ref.'
@@ -71,16 +87,6 @@ on:
         required: false
         type: boolean
         default: false
-      keep_vm:
-        description: 'Leave temporary Tart VM for debugging.'
-        required: false
-        type: boolean
-        default: false
-      guide_screenshots:
-        description: 'Capture full-screen user-guide screenshots in the VM smoke artifacts.'
-        required: false
-        type: boolean
-        default: false
       run_timeout_ms:
         description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
@@ -90,10 +96,6 @@ on:
         description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
         default: '3600000'
-        type: string
-      codex_install_phase_timeout_ms:
-        description: 'Codex install/setup phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
-        required: false
         type: string
       codex_readiness_phase_timeout_ms:
         description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
@@ -129,6 +131,30 @@ on:
         description: 'Stable release session sha256 identity for release-bound qualification.'
         required: false
         type: string
+      standard_admission_deadline_at:
+        description: 'Immutable Standard admission deadline propagated by a brokered caller.'
+        required: false
+        default: ''
+        type: string
+      operator_actor:
+        description: 'Human/operator audit identity; broker GitHub App holds mutation authority.'
+        required: false
+        default: ''
+        type: string
+      release_attempt_id:
+        description: 'Signed broker mutation attempt identity.'
+        required: false
+        type: string
+      pre_api_admission_receipt_base64:
+        description: 'Signed durable pre-API broker fence for the outer controller mutation.'
+        required: false
+        default: ''
+        type: string
+      release_mutation_payload_sha256: { description: Exact digest of the outer controller mutation payload, required: false, default: '', type: string }
+      broker_admission_validation_sha256: { description: Exact digest of the immutable broker admission validation produced by the outer controller, required: false, default: '', type: string }
+      release_mutation: { description: Outer controller mutation, required: false, default: '', type: string }
+      release_workflow: { description: Outer controller workflow, required: false, default: '', type: string }
+      controller_workflow_sha: { description: Exact controller workflow SHA, required: false, default: '', type: string }
       release_cohort_ref:
         description: 'Stable release cohort sha256 identity for release-bound qualification.'
         required: false
@@ -138,9 +164,8 @@ on:
         required: false
         type: string
       shell_ref:
-        description: 'Product opl-aion-shell ref recorded in the build artifact cohort. Empty means main.'
+        description: 'Product opl-aion-shell ref. Release-bound qualification requires the exact cohort SHA; diagnostics may omit it.'
         required: false
-        default: main
         type: string
       smoke_harness_ref:
         description: 'Separately pinned opl-aion-shell ref containing the verification scripts. Empty uses shell_ref.'
@@ -226,6 +251,10 @@ jobs:
   validate-vm-inputs:
     name: Validate VM harness inputs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       artifact_app_sha: ${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}
@@ -241,7 +270,196 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js for broker verification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Resolve signed broker admission for this exact qualification run
+        id: broker-admission
+        if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PACKAGE_PROFILE: ${{ inputs.package_profile }}
+          DIAGNOSTIC_SCOPE: ${{ inputs.diagnostic_scope }}
+          RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
+          ARTIFACT_APP_REF: ${{ inputs.artifact_app_ref }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          OPERATOR_ACTOR: ${{ inputs.operator_actor }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }
+          [[ "$RELEASE_ATTEMPT_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_attempt_id must be the complete signed sha256 attempt identity; empty or abbreviated values are forbidden."; exit 1; }
+          [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_mutation_payload_sha256 must be exact."; exit 1; }
+          remaining_seconds="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const deadline = process.env.STANDARD_ADMISSION_DEADLINE_AT || '';
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
+            || new Date(Date.parse(deadline)).toISOString() !== deadline) {
+            throw new Error('standard_admission_deadline_at must be canonical UTC ISO-8601 with millisecond precision.');
+          }
+          const fence = JSON.parse(Buffer.from(process.env.PRE_API_ADMISSION_RECEIPT_BASE64 || '', 'base64').toString('utf8'));
+          const request = fence.request || {};
+          const expectedPayload = {
+            release_tag: process.env.RELEASE_TAG,
+            package_profile: process.env.PACKAGE_PROFILE,
+            diagnostic_scope: process.env.DIAGNOSTIC_SCOPE,
+            release_artifact_name: process.env.RELEASE_ARTIFACT_NAME,
+            release_artifact_run_id: process.env.RELEASE_ARTIFACT_RUN_ID,
+            stable_session_id: process.env.STABLE_SESSION_ID,
+            standard_admission_deadline_at: deadline,
+            release_cohort_ref: process.env.RELEASE_COHORT_REF,
+            artifact_app_ref: process.env.ARTIFACT_APP_REF,
+            shell_ref: process.env.SHELL_REF,
+            smoke_harness_ref: process.env.SMOKE_HARNESS_REF,
+            framework_ref: process.env.FRAMEWORK_REF,
+            operator_actor: process.env.OPERATOR_ACTOR,
+          };
+          if (request.mutation !== 'qualification_dispatch' || request.workflow !== 'opl-first-run-vm.yml'
+            || request.attempt_id !== process.env.RELEASE_ATTEMPT_ID
+            || request.github?.repository !== process.env.GITHUB_REPOSITORY
+            || request.controller_workflow_sha !== process.env.GITHUB_SHA
+            || request.artifact_app_sha !== process.env.ARTIFACT_APP_REF) {
+            throw new Error('Signed pre-API fence does not bind this exact qualification run identity.');
+          }
+          const canonicalPayload = (value) => JSON.stringify(Object.fromEntries(
+            Object.entries(value || {}).sort(([left], [right]) => left.localeCompare(right)),
+          ));
+          if (request.mutation_payload_sha256 !== process.env.RELEASE_MUTATION_PAYLOAD_SHA256
+            || canonicalPayload(request.mutation_payload) !== canonicalPayload(expectedPayload)) {
+            throw new Error('Signed pre-API fence mutation payload does not match the exact workflow inputs.');
+          }
+          const deadlineMs = Date.parse(deadline);
+          const persistedMs = Date.parse(String(fence.persisted_at || ''));
+          const nowMs = Date.now();
+          if (!Number.isFinite(persistedMs) || persistedMs >= deadlineMs || deadlineMs - persistedMs > 90 * 60_000) {
+            throw new Error('Signed pre-API fence is outside the immutable 90-minute Standard admission window.');
+          }
+          if (nowMs >= deadlineMs) {
+            const failure = {
+              schema: 'opl_app_stable_deadline_failure.v1', status: 'blocked',
+              reason_code: 'standard_admission_deadline_elapsed', deadline_at: deadline,
+              observed_at: new Date(nowMs).toISOString(), run_id: process.env.GITHUB_RUN_ID,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            };
+            fs.writeFileSync('stable-deadline-failure.json', `${JSON.stringify(failure, null, 2)}\n`);
+            console.error(JSON.stringify(failure));
+            process.exit(78);
+          }
+          process.stdout.write(String(Math.max(1, Math.floor((deadlineMs - nowMs) / 1000))));
+          NODE
+          )"
+          set +e
+          timeout --signal=TERM --kill-after=10s "${remaining_seconds}s" \
+            node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+              --mode lookup \
+              --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
+              --expected-repository "$GITHUB_REPOSITORY" \
+              --expected-run-id "$GITHUB_RUN_ID" \
+              --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --expected-workflow opl-first-run-vm.yml \
+              --expected-workflow-sha "$GITHUB_SHA" \
+              --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+              --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --output broker-admission-validation.json
+          lookup_status="$?"
+          set -e
+          if [ "$lookup_status" -eq 124 ]; then
+            echo '{"schema":"opl_app_stable_deadline_failure.v1","status":"blocked","reason_code":"standard_admission_deadline_elapsed"}' > stable-deadline-failure.json
+            echo "::error::standard_admission_deadline_elapsed: broker lookup exceeded the immutable Standard deadline."
+            exit 78
+          fi
+          test "$lookup_status" -eq 0
+          validation_sha256="sha256:$(sha256sum broker-admission-validation.json | awk '{print $1}')"
+          echo "validation_sha256=$validation_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Persist immutable qualification broker admission validation
+        if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission-validation.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Download immutable outer broker admission validation
+        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission
+
+      - name: Validate release-bound reusable caller identity
+        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' }}
+        env:
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
+          ARTIFACT_APP_REF: ${{ inputs.artifact_app_ref }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+          OPERATOR_ACTOR: ${{ inputs.operator_actor }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ inputs.broker_admission_validation_sha256 }}
+          RELEASE_MUTATION: ${{ inputs.release_mutation }}
+          RELEASE_WORKFLOW: ${{ inputs.release_workflow }}
+          CONTROLLER_WORKFLOW_SHA: ${{ inputs.controller_workflow_sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Reusable release qualification cannot replay an outer broker admission."; exit 1; }
+          test "$GITHUB_REPOSITORY" = "gaofeng21cn/one-person-lab-app" || { echo "::error::Release qualification callers must originate in the canonical App repository."; exit 1; }
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "::error::Release qualification callers must execute from canonical main."; exit 1; }
+          case "$RELEASE_WORKFLOW:$RELEASE_MUTATION" in
+            desktop-release.yml:desktop_release_dispatch | \
+            desktop-release-promote.yml:promotion_dispatch | \
+            desktop-release-full-addon.yml:full_addon_dispatch) ;;
+            *) echo "::error::Unrecognized release workflow/mutation mapping: $RELEASE_WORKFLOW:$RELEASE_MUTATION"; exit 1 ;;
+          esac
+          case "$GITHUB_WORKFLOW_REF" in
+            "$GITHUB_REPOSITORY/.github/workflows/$RELEASE_WORKFLOW@"*) ;;
+            *) echo "::error::Release qualification caller identity does not match release_workflow: $GITHUB_WORKFLOW_REF"; exit 1 ;;
+          esac
+          [[ "$STABLE_SESSION_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Reusable release qualification requires the exact Stable session identity."; exit 1; }
+          [[ "$RELEASE_COHORT_REF" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Reusable release qualification requires the exact release cohort identity."; exit 1; }
+          [[ "$RELEASE_ATTEMPT_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Reusable release qualification requires the exact broker attempt identity."; exit 1; }
+          [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Reusable release qualification requires the exact outer payload digest."; exit 1; }
+          [[ "$BROKER_ADMISSION_VALIDATION_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Reusable release qualification requires the exact broker validation digest."; exit 1; }
+          [[ "$ARTIFACT_APP_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Reusable release qualification requires the frozen App SHA."; exit 1; }
+          [[ "$SHELL_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Reusable release qualification requires the frozen Shell SHA."; exit 1; }
+          [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Reusable release qualification requires the frozen Framework SHA."; exit 1; }
+          test "$CONTROLLER_WORKFLOW_SHA" = "$GITHUB_SHA" || { echo "::error::Reusable release qualification controller_workflow_sha must equal the running caller SHA."; exit 1; }
+          node --input-type=module <<'NODE'
+          const deadline = process.env.STANDARD_ADMISSION_DEADLINE_AT || '';
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
+            || new Date(Date.parse(deadline)).toISOString() !== deadline) {
+            throw new Error('Reusable release qualification requires the canonical immutable Standard deadline.');
+          }
+          NODE
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow "$RELEASE_WORKFLOW" \
+            --expected-workflow-sha "$CONTROLLER_WORKFLOW_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256"
 
       - name: Skip scheduled VM while desktop release is active
         id: scheduled_release_guard
@@ -301,11 +519,21 @@ jobs:
       - name: Normalize diagnostic inputs
         id: diagnostic_inputs
         shell: bash
+        env:
+          PACKAGE_PROFILE: ${{ inputs.package_profile }}
+          SHELL_REF_INPUT: ${{ inputs.shell_ref }}
+          SMOKE_HARNESS_REF_INPUT: ${{ inputs.smoke_harness_ref }}
+          ARTIFACT_APP_REF: ${{ inputs.artifact_app_ref }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          DIAGNOSTIC_SCOPE_INPUT: ${{ inputs.diagnostic_scope }}
+          RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
         run: |
           set -euo pipefail
-          profile="${{ inputs.package_profile }}"
+          profile="$PACKAGE_PROFILE"
           if [ -z "$profile" ]; then
-            if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
               profile="standard"
             else
               profile="full"
@@ -319,15 +547,15 @@ jobs:
               exit 1
               ;;
           esac
-          shell_ref="${{ inputs.shell_ref }}"
+          shell_ref="$SHELL_REF_INPUT"
           if [ -z "$shell_ref" ]; then
             shell_ref="main"
           fi
-          smoke_harness_ref="${{ inputs.smoke_harness_ref }}"
+          smoke_harness_ref="$SMOKE_HARNESS_REF_INPUT"
           if [ -z "$smoke_harness_ref" ]; then
             smoke_harness_ref="$shell_ref"
           fi
-          artifact_app_sha="${{ inputs.artifact_app_ref }}"
+          artifact_app_sha="$ARTIFACT_APP_REF"
           if [ -z "$artifact_app_sha" ]; then
             artifact_app_sha="$GITHUB_SHA"
           fi
@@ -335,9 +563,17 @@ jobs:
             echo "::error::artifact_app_ref must resolve to the exact 40-character App SHA recorded in the build cohort."
             exit 1
           fi
-          diagnostic_scope="${{ inputs.diagnostic_scope }}"
+          if [ -n "$STABLE_SESSION_ID" ]; then
+            [[ "$STABLE_SESSION_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Release-bound stable_session_id must be an exact sha256 identity."; exit 1; }
+            [[ "$RELEASE_COHORT_REF" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Release-bound release_cohort_ref must be an exact sha256 identity."; exit 1; }
+            [[ "$ARTIFACT_APP_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound artifact_app_ref must be an exact 40-character SHA."; exit 1; }
+            [[ "$shell_ref" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound shell_ref must be an exact 40-character SHA."; exit 1; }
+            [[ "$smoke_harness_ref" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound smoke_harness_ref must be an exact 40-character SHA."; exit 1; }
+            [[ "$FRAMEWORK_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound framework_ref must be an exact 40-character SHA."; exit 1; }
+          fi
+          diagnostic_scope="$DIAGNOSTIC_SCOPE_INPUT"
           if [ -z "$diagnostic_scope" ]; then
-            if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
               diagnostic_scope="bootstrap_only"
             else
               diagnostic_scope="release_gate"
@@ -351,11 +587,11 @@ jobs:
               exit 1
               ;;
           esac
-          if [ "$profile" = "full" ] && [ -n "${{ inputs.framework_ref }}" ] && [ -z "${{ inputs.release_artifact_name }}" ]; then
+          if [ "$profile" = "full" ] && [ -n "$FRAMEWORK_REF" ] && [ -z "$RELEASE_ARTIFACT_NAME" ]; then
             echo "::error::package_profile=full executes the Framework bundled inside the DMG; framework_ref cannot override a release_tag or release_dmg_url asset. Build a same-cohort Full artifact and pass release_artifact_name plus release_artifact_run_id."
             exit 1
           fi
-          if [ "$profile" = "full" ] && [ -n "${{ inputs.release_artifact_name }}" ] && [ -z "${{ inputs.framework_ref }}" ]; then
+          if [ "$profile" = "full" ] && [ -n "$RELEASE_ARTIFACT_NAME" ] && [ -z "$FRAMEWORK_REF" ]; then
             echo "::error::package_profile=full artifact validation requires framework_ref so the bundled Framework can be checked before VM allocation."
             exit 1
           fi
@@ -435,13 +671,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          profile="${{ steps.diagnostic_inputs.outputs.profile }}"
+          case "$profile" in full|homebrew-full) profile=full ;; *) profile=standard ;; esac
           proof="$(node --experimental-strip-types scripts/qualification-harness-scope.ts \
             --artifact-app-sha "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" \
             --verification-app-sha "$GITHUB_SHA" \
             --artifact-shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
-            --verification-shell-sha "${{ steps.smoke_harness_ref.outputs.shell_sha }}")"
+            --verification-shell-sha "${{ steps.smoke_harness_ref.outputs.shell_sha }}" \
+            --profile "$profile")"
           proof_base64="$(printf '%s' "$proof" | base64 | tr -d '\n')"
           echo "proof_base64=$proof_base64" >> "$GITHUB_OUTPUT"
+          reuse_allowed="$(node -e 'const proof=JSON.parse(process.argv[1]);process.stdout.write(String(proof.reuse_authorization?.allowed === true))' "$proof")"
+          if [ "$reuse_allowed" != true ]; then
+            node -e 'const proof=JSON.parse(process.argv[1]);console.error(`::error::Same-artifact qualification is not authorized: ${proof.reuse_authorization?.reason ?? "unknown"}; forbidden App paths=${(proof.reuse_authorization?.forbidden_paths?.app ?? []).join(",") || "<none>"}; forbidden Shell paths=${(proof.reuse_authorization?.forbidden_paths?.shell ?? []).join(",") || "<none>"}`)' "$proof"
+            exit 1
+          fi
 
       - name: Validate Framework ref before VM runner work
         id: framework_ref
@@ -478,7 +722,7 @@ jobs:
 
       - name: Download build artifact cohort manifest
         if: ${{ inputs.release_artifact_name != '' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.release_artifact_name }}-cohort
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
@@ -518,7 +762,7 @@ jobs:
     timeout-minutes: 75
     permissions:
       actions: read
-      contents: write
+      contents: read
     env:
       GH_TOKEN: ${{ github.token }}
       OPL_FIRST_RUN_RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
@@ -564,10 +808,10 @@ jobs:
           echo "source_vm=$SOURCE_VM" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
@@ -577,7 +821,7 @@ jobs:
 
       - name: Checkout OPL Framework bootstrap source
         if: ${{ inputs.framework_ref != '' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ needs.validate-vm-inputs.outputs.framework_sha }}
@@ -585,7 +829,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -694,6 +938,8 @@ jobs:
           SMOKE_TIMEOUT_MS="${{ inputs.smoke_timeout_ms }}"
           CODEX_INSTALL_PHASE_TIMEOUT_MS="${{ inputs.codex_install_phase_timeout_ms }}"
           CODEX_READINESS_PHASE_TIMEOUT_MS="${{ inputs.codex_readiness_phase_timeout_ms }}"
+          STANDARD_ADMISSION_DEADLINE_AT="${{ inputs.standard_admission_deadline_at }}"
+          RELEASE_MUTATION="${{ inputs.release_mutation }}"
 
           if [ -z "$RUN_TIMEOUT_MS" ]; then
             RUN_TIMEOUT_MS="3600000"
@@ -713,6 +959,32 @@ jobs:
           positive_integer "codex_install_phase_timeout_ms" "$CODEX_INSTALL_PHASE_TIMEOUT_MS"
           positive_integer "codex_readiness_phase_timeout_ms" "$CODEX_READINESS_PHASE_TIMEOUT_MS"
 
+          if [ -n "$STANDARD_ADMISSION_DEADLINE_AT" ] && [ "$RELEASE_MUTATION" != "full_addon_dispatch" ]; then
+            deadline_ms="$(DEADLINE="$STANDARD_ADMISSION_DEADLINE_AT" node --input-type=module -e '
+              const value = process.env.DEADLINE || "";
+              const parsed = Date.parse(value);
+              if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+                || !Number.isFinite(parsed) || new Date(parsed).toISOString() !== value) process.exit(2);
+              process.stdout.write(String(parsed));
+            ')" || { echo "::error::standard_admission_deadline_at must be canonical UTC ISO-8601."; exit 1; }
+            now_ms="$(node -e 'process.stdout.write(String(Date.now()))')"
+            evidence_reserve_ms=300000
+            remaining_ms="$((deadline_ms - now_ms - evidence_reserve_ms))"
+            if [ "$remaining_ms" -lt 1000 ]; then
+              echo "::error::standard_admission_deadline_elapsed: less than five minutes remain for VM evidence finalization."
+              exit 78
+            fi
+            cap_timeout() {
+              local value="$1"
+              if [ "$value" -gt "$remaining_ms" ]; then printf '%s' "$remaining_ms"; else printf '%s' "$value"; fi
+            }
+            RUN_TIMEOUT_MS="$(cap_timeout "$RUN_TIMEOUT_MS")"
+            SMOKE_TIMEOUT_MS="$(cap_timeout "$SMOKE_TIMEOUT_MS")"
+            CODEX_INSTALL_PHASE_TIMEOUT_MS="$(cap_timeout "$CODEX_INSTALL_PHASE_TIMEOUT_MS")"
+            CODEX_READINESS_PHASE_TIMEOUT_MS="$(cap_timeout "$CODEX_READINESS_PHASE_TIMEOUT_MS")"
+            echo "admission_remaining_budget_ms=$remaining_ms" >> "$GITHUB_OUTPUT"
+          fi
+
           echo "run_timeout_ms=$RUN_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
           echo "smoke_timeout_ms=$SMOKE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
           echo "codex_install_phase_timeout_ms=$CODEX_INSTALL_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
@@ -721,7 +993,7 @@ jobs:
       - name: Restore Codex install asset cache
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
         id: codex_install_asset_cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             artifacts/opl-first-run-vm/codex-npm-cache
@@ -733,7 +1005,7 @@ jobs:
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
         id: release_artifact_download
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         timeout-minutes: 10
         continue-on-error: true
         with:
@@ -744,7 +1016,7 @@ jobs:
 
       - name: Download release cohort identity
         if: ${{ inputs.release_artifact_name != '' }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.release_artifact_name }}-cohort
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
@@ -979,7 +1251,13 @@ jobs:
           const registryResponsePath = path.join(artifactRoot, 'codex-package-registry-response.json');
           const preflightPath = path.join(artifactRoot, 'codex-package-preflight.json');
           const packageName = '@openai/codex';
-          const packageSpec = `${packageName}@latest`;
+          const buildCohort = JSON.parse(fs.readFileSync('artifacts/release-cohort/opl-build-cohort.json', 'utf8'));
+          const frozen = buildCohort?.qualification_runtime?.codex_cli;
+          if (!frozen?.version || !frozen?.npm_integrity || !frozen?.tarball_url || !frozen?.tarball_sha256 ||
+              !frozen?.platform?.version || !frozen?.platform?.npm_integrity || !frozen?.platform?.tarball_url || !frozen?.platform?.tarball_sha256) {
+            throw new Error('build cohort lacks frozen Codex CLI qualification identity');
+          }
+          const packageSpec = `${packageName}@${frozen.version}`;
 
           function run(command, args = [], options = {}) {
             const started = new Date();
@@ -1065,13 +1343,13 @@ jobs:
             '--json',
           ], { timeout: 240000 });
           if (npmView.exit_code !== 0 || npmView.error) {
-            blockingFailures.push('npm view @openai/codex@latest version dist.tarball failed');
+            blockingFailures.push(`npm view ${packageSpec} version dist.tarball failed`);
           }
-          const metadata = npmView.stdout ? parseJson(npmView.stdout, 'npm view @openai/codex@latest', blockingFailures) : null;
+          const metadata = npmView.stdout ? parseJson(npmView.stdout, `npm view ${packageSpec}`, blockingFailures) : null;
           const version = metadata?.version || null;
           const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
           const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
-          const platformPackageSpec = version ? `${packageName}@${version}-darwin-arm64` : null;
+          const platformPackageSpec = `${packageName}@${frozen.platform.version}`;
           const platformPackageLabel = platformPackageSpec || '@openai/codex@<version>-darwin-arm64';
           let platformNpmView = null;
           let platformMetadata = null;
@@ -1082,6 +1360,9 @@ jobs:
           let tarballUrlHost = null;
           if (!version) {
             blockingFailures.push('npm package metadata did not include version');
+          }
+          if (version !== frozen.version || distIntegrity !== frozen.npm_integrity || tarballUrl !== frozen.tarball_url) {
+            blockingFailures.push('Codex package metadata does not match the frozen qualification identity');
           }
           if (!tarballUrl) {
             blockingFailures.push('npm package metadata did not include dist.tarball');
@@ -1112,6 +1393,13 @@ jobs:
             platformDistIntegrity = platformMetadata?.['dist.integrity'] || platformMetadata?.dist?.integrity || null;
             if (!platformVersion) {
               blockingFailures.push('npm platform package metadata did not include version');
+            }
+            if (
+              platformVersion !== frozen.platform.version ||
+              platformDistIntegrity !== frozen.platform.npm_integrity ||
+              platformTarballUrl !== frozen.platform.tarball_url
+            ) {
+              blockingFailures.push('Codex platform package metadata does not match the frozen qualification identity');
             }
             if (!platformTarballUrl) {
               blockingFailures.push('npm platform package metadata did not include dist.tarball');
@@ -1159,6 +1447,9 @@ jobs:
               const stat = fs.statSync(tarballPath);
               tarballSizeBytes = stat.size;
               tarballSha256 = sha256File(tarballPath);
+              if (tarballSha256 !== frozen.tarball_sha256) {
+                blockingFailures.push('downloaded Codex package tarball SHA-256 does not match the frozen qualification identity');
+              }
               if (tarballSizeBytes <= 0) {
                 blockingFailures.push('downloaded Codex package tarball is empty');
               }
@@ -1194,6 +1485,9 @@ jobs:
               const stat = fs.statSync(platformTarballPath);
               platformTarballSizeBytes = stat.size;
               platformTarballSha256 = sha256File(platformTarballPath);
+              if (platformTarballSha256 !== frozen.platform.tarball_sha256) {
+                blockingFailures.push('downloaded Codex platform package tarball SHA-256 does not match the frozen qualification identity');
+              }
               if (platformTarballSizeBytes <= 0) {
                 blockingFailures.push('downloaded Codex platform package tarball is empty');
               }
@@ -1253,6 +1547,8 @@ jobs:
               platform_tarball_url: platformTarballUrl,
               platform_tarball_url_host: platformTarballUrlHost,
               platform_dist_integrity: platformDistIntegrity,
+              frozen_identity: frozen,
+              qualification_input_manifest_sha256: buildCohort.digests?.qualification_input_manifest_sha256 || null,
             },
             registry: {
               npm_registry: registryUrl,
@@ -1353,7 +1649,7 @@ jobs:
 
       - name: Save Codex install asset cache
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && steps.codex_package_preflight.outputs.cache_key != '' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: |
@@ -1533,12 +1829,13 @@ jobs:
               };
             }
           })();
+          const frozenCodexSpec = codexPackagePreflight.data?.package?.requested_spec || '@openai/codex@<missing-frozen-version>';
           const codexPackageMetadata =
             diagnosticScope === 'bootstrap_only'
-              ? skippedDiagnostic('npm view @openai/codex@latest')
+              ? skippedDiagnostic(`npm view ${frozenCodexSpec}`)
               : run('npm', [
                   'view',
-                  '@openai/codex@latest',
+                  frozenCodexSpec,
                   'name',
                   'version',
                   'dist-tags',
@@ -1651,7 +1948,7 @@ jobs:
             ['curl --version', curlVersion],
             ['npm config get registry', npmRegistry],
             ['codex-package-preflight.json', codexPackagePreflight],
-            ['npm view @openai/codex@latest', codexPackageMetadata],
+            [`npm view ${frozenCodexSpec}`, codexPackageMetadata],
           ].filter(
             ([, result]) =>
               result.skipped !== true &&
@@ -1727,6 +2024,7 @@ jobs:
             --display 1920x1080px
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
+            --compiled-expectations "${{ github.workspace }}/contracts/app-first-run-compiled-expectations.json"
           )
           if [ -n "${{ steps.framework_source.outputs.archive_path }}" ]; then
             CMD+=(--framework-source-archive "${{ steps.framework_source.outputs.archive_path }}")
@@ -1867,7 +2165,7 @@ jobs:
 
       - name: Upload first-run VM critical diagnostics
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-first-run-vm-critical-diagnostics-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm-critical-diagnostics
@@ -1885,7 +2183,7 @@ jobs:
 
       - name: Upload first-run VM artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-first-run-vm-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm
@@ -1941,3 +2239,81 @@ jobs:
               node -e 'const fs=require("node:fs");const data=fs.readFileSync(process.argv[1]);const max=64*1024;process.stdout.write("```text\n"+data.subarray(0,max).toString("utf8")+(data.length>max?"\n...[summary truncated at 65536 bytes]":"")+"\n```\n")' artifacts/opl-first-run-vm/tart-smoke-summary.json
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  qualification-attempt-finalizer:
+    name: Persist qualification attempt receipt
+    if: ${{ always() && inputs.stable_session_id != '' }}
+    needs:
+      - validate-vm-inputs
+      - clean-vm-first-run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical App receipt writer
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download any VM evidence without making it a receipt prerequisite
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: opl-first-run-vm-*-${{ github.run_id }}
+          path: recovered-vm-evidence
+          merge-multiple: true
+
+      - name: Download exact source artifact manifest without making it a receipt prerequisite
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.release_artifact_name }}-cohort
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: recovered-artifact-manifest
+
+      - name: Write durable typed attempt receipt
+        shell: bash
+        run: |
+          set -u
+          profile='${{ needs.validate-vm-inputs.outputs.package_profile || inputs.package_profile || 'full' }}'
+          artifact_kind=standard
+          case "$profile" in full|homebrew-full) artifact_kind=full ;; esac
+          status=incomplete
+          taxonomy=unknown
+          case '${{ needs.clean-vm-first-run.result }}' in
+            success) status=passed; taxonomy=none ;;
+            cancelled) status=cancelled; taxonomy=cancelled ;;
+            failure) status=failed; taxonomy=unknown ;;
+            skipped) status=incomplete; taxonomy=operator ;;
+          esac
+          manifest="$(find recovered-artifact-manifest recovered-vm-evidence -name opl-build-cohort.json -type f 2>/dev/null | head -n 1)"
+          strict_receipt="$(find recovered-vm-evidence -name artifact-qualification-receipt.json -type f 2>/dev/null | head -n 1)"
+          smoke_summary="$(find recovered-vm-evidence -name tart-smoke-summary.json -type f 2>/dev/null | head -n 1)"
+          args=(
+            --output qualification-attempt-receipt.json
+            --status "$status"
+            --failure-taxonomy "$taxonomy"
+            --stable-session-id '${{ inputs.stable_session_id }}'
+            --release-cohort-ref '${{ inputs.release_cohort_ref }}'
+            --artifact-kind "$artifact_kind"
+            --package-profile "$profile"
+            --qualification-run-id "$GITHUB_RUN_ID"
+            --qualification-run-attempt "$GITHUB_RUN_ATTEMPT"
+            --source-artifact-run-id '${{ inputs.release_artifact_run_id }}'
+            --source-artifact-name '${{ inputs.release_artifact_name }}'
+            --scope-proof-base64 '${{ needs.validate-vm-inputs.outputs.qualification_scope_base64 }}'
+            --outcome "validate_inputs=${{ needs.validate-vm-inputs.result }}"
+            --outcome "clean_vm=${{ needs.clean-vm-first-run.result }}"
+          )
+          [ -n "$manifest" ] && args+=(--manifest "$manifest")
+          [ -n "$strict_receipt" ] && args+=(--strict-receipt "$strict_receipt")
+          [ -n "$smoke_summary" ] && args+=(--smoke-summary "$smoke_summary")
+          node --experimental-strip-types scripts/write-qualification-attempt-receipt.ts "${args[@]}"
+
+      - name: Upload durable qualification attempt receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-qualification-attempt-${{ (needs.validate-vm-inputs.outputs.package_profile == 'full' || needs.validate-vm-inputs.outputs.package_profile == 'homebrew-full') && 'full' || 'standard' }}-${{ github.run_id }}
+          path: qualification-attempt-receipt.json
+          if-no-files-found: error
+          retention-days: 14

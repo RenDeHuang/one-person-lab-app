@@ -17,6 +17,25 @@ const releaseCohortRef = `sha256:${'2'.repeat(64)}`;
 const artifactSha256 = '3'.repeat(64);
 const sourceArtifactName = 'opl-full-first-install-dmg-26.7.13-mac-arm64';
 
+function frozenCodexCliIdentity() {
+  const version = '0.144.5';
+  const integrity = `sha512-${'A'.repeat(86)}==`;
+  return {
+    package: '@openai/codex' as const,
+    version,
+    npm_integrity: integrity,
+    tarball_url: `https://registry.npmjs.org/@openai/codex/-/codex-${version}.tgz`,
+    tarball_sha256: 'a'.repeat(64),
+    platform: {
+      package: '@openai/codex' as const,
+      version: `${version}-darwin-arm64`,
+      npm_integrity: integrity,
+      tarball_url: `https://registry.npmjs.org/@openai/codex/-/codex-${version}-darwin-arm64.tgz`,
+      tarball_sha256: 'b'.repeat(64),
+    },
+  };
+}
+
 function temporalSupervisorProof() {
   const databasePath = '/Users/opl/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite';
   const plistPath = '/Users/opl/Library/LaunchAgents/ai.opl.family-runtime.temporal-service.plist';
@@ -181,7 +200,14 @@ function writeFixture(root: string) {
       app_product_profile_sha256: '5'.repeat(64),
       gui_product_contract_sha256: '6'.repeat(64),
       smoke_harness_sha256: '7'.repeat(64),
+      compiled_expectation_semantic_sha256: '8'.repeat(64),
+      compiled_expectation_probe_sha256: '9'.repeat(64),
+      qualification_input_manifest_sha256: 'a'.repeat(64),
+      full_input_manifest_sha256: 'b'.repeat(64),
+      framework_bundled_catalog_sha256: 'c'.repeat(64),
+      full_toolchain_observation_receipt_sha256: 'd'.repeat(64),
     },
+    qualification_runtime: { codex_cli: frozenCodexCliIdentity() },
   };
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   fs.writeFileSync(smokeSummaryPath, `${JSON.stringify({
@@ -234,51 +260,39 @@ function options(fixture: ReturnType<typeof writeFixture>) {
   };
 }
 
-test('qualification receipt records a separately pinned smoke-only verification harness', () => {
+test('qualification receipt rejects a verification harness SHA change as a new cohort', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-harness-'));
   try {
     const fixture = writeFixture(root);
     const smokeHarnessPath = path.join(root, 'opl-first-run-vm-smoke.mjs');
     fs.writeFileSync(smokeHarnessPath, 'fixed smoke harness');
-    const verificationAppSha = 'd'.repeat(40);
+    const verificationAppSha = 'a'.repeat(40);
     const verificationShellSha = 'e'.repeat(40);
     const scopeProof = buildQualificationHarnessScopeProof({
       artifactAppSha: 'a'.repeat(40),
       verificationAppSha,
-      appChangedPaths: ['.github/workflows/opl-first-run-vm.yml'],
+      appChangedPaths: [],
       artifactShellSha: 'b'.repeat(40),
       verificationShellSha,
       shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
     });
-    const receipt = buildArtifactQualificationReceipt({
-      manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
-      manifestPath: fixture.manifestPath,
-      result: 'passed',
-      packageProfile: 'full',
-      qualificationRunId: '203',
-      sourceArtifactRunId: '101',
-      sourceArtifactName,
-      evidenceRef: 'opl-first-run-vm-full-203',
-      smokeSummaryPath: fixture.smokeSummaryPath,
-      verificationHarness: {
-        appSha: verificationAppSha,
-        shellSha: verificationShellSha,
-        smokeHarnessPath,
-        scopeProof,
-      },
-    });
-
-    assert.equal(receipt.verification_harness?.differs_from_artifact_cohort, true);
-    assert.equal(receipt.verification_harness?.change_scope, 'smoke_or_validator_only');
-    assert.deepEqual(validateArtifactQualificationReceipt(receipt, {
-      stableSessionId,
-      releaseCohortRef,
-      version: '26.7.13',
-      packageProfile: 'full',
-      verificationAppSha,
-      verificationShellSha,
-      verificationScopeProof: scopeProof,
-    }), []);
+    assert.throws(() => buildArtifactQualificationReceipt({
+        manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
+        manifestPath: fixture.manifestPath,
+        result: 'passed',
+        packageProfile: 'full',
+        qualificationRunId: '203',
+        sourceArtifactRunId: '101',
+        sourceArtifactName,
+        evidenceRef: 'opl-first-run-vm-full-203',
+        smokeSummaryPath: fixture.smokeSummaryPath,
+        verificationHarness: {
+          appSha: verificationAppSha,
+          shellSha: verificationShellSha,
+          smokeHarnessPath,
+          scopeProof,
+        },
+      }), /require.*new artifact cohort/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -317,6 +331,12 @@ test('Standard qualification receipt does not require the Full-only Temporal sup
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-standard-'));
   try {
     const fixture = writeFixture(root);
+    const standardSmokeSummaryPath = path.join(root, 'standard-smoke-summary.json');
+    fs.writeFileSync(standardSmokeSummaryPath, `${JSON.stringify({
+      surface_id: 'opl_tart_gui_first_run_smoke',
+      status: 'passed',
+      runtime_profile: 'standard',
+    })}\n`);
     const receipt = buildArtifactQualificationReceipt({
       manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
       manifestPath: fixture.manifestPath,
@@ -326,6 +346,7 @@ test('Standard qualification receipt does not require the Full-only Temporal sup
       sourceArtifactRunId: '101',
       sourceArtifactName,
       evidenceRef: 'opl-first-run-vm-standard-205',
+      smokeSummaryPath: standardSmokeSummaryPath,
     });
     assert.equal(receipt.smoke_summary.temporal_service_supervisor_proof, null);
     assert.deepEqual(validateArtifactQualificationReceipt(receipt, {

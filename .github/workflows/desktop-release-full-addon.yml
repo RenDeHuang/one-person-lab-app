@@ -1,11 +1,17 @@
 name: OPL Desktop Full Add-on
-run-name: OPL Desktop Full Add-on v${{ inputs.opl_version }}
+run-name: OPL Desktop Full Add-on v${{ inputs.opl_version }} attempt=${{ inputs.release_attempt_id }}
 
 on:
   workflow_dispatch:
     inputs:
       opl_version: { description: Already-published Stable version, required: true, type: string }
       stable_session_id: { description: Original Standard Stable session id, required: true, type: string }
+      standard_admission_deadline_at: { description: Immutable Standard admission deadline as canonical UTC ISO-8601, required: true, type: string }
+      operator_actor: { description: Human/operator audit identity; broker GitHub App holds mutation authority, required: true, type: string }
+      release_attempt_id: { description: Signed broker mutation attempt id, required: true, type: string }
+      pre_api_admission_receipt_base64: { description: Signed durable pre-API broker fence containing the exact Full add-on request and one-use lease, required: true, type: string }
+      release_mutation_payload_sha256: { description: Exact digest of the broker-bound Full add-on mutation payload, required: true, type: string }
+      release_session_lease_base64: { description: Entry lease forwarded only to the immediately-called read-only Full builder, required: true, type: string }
       release_cohort_ref: { description: Original frozen release cohort ref, required: true, type: string }
       app_sha: { description: Frozen App SHA, required: true, type: string }
       shell_sha: { description: Frozen Shell SHA, required: true, type: string }
@@ -15,10 +21,8 @@ on:
       force_rebuild_runtime_cache: { description: Rebuild all Full layers, required: false, default: false, type: boolean }
 
 permissions:
-  contents: write
+  contents: read
   actions: read
-  attestations: write
-  id-token: write
 
 concurrency:
   group: opl-app-full-addon-${{ inputs.opl_version }}
@@ -31,8 +35,98 @@ jobs:
   preflight:
     name: Verify published Standard and frozen add-on cohort
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      broker_admission_validation_sha256: ${{ steps.broker-admission.outputs.validation_sha256 }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}' }
+      - name: Setup Node.js for broker verification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with: { node-version: '24' }
+      - name: Resolve signed broker admission for this exact Full add-on run
+        id: broker-admission
+        env:
+          OPL_VERSION: ${{ inputs.opl_version }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+          OPERATOR_ACTOR: ${{ inputs.operator_actor }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
+          APP_SHA: ${{ inputs.app_sha }}
+          SHELL_SHA: ${{ inputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ inputs.framework_sha }}
+          RELEASE_SET_GENERATION: ${{ inputs.release_set_generation }}
+          RELEASE_SET_MANIFEST_DIGEST: ${{ inputs.release_set_manifest_digest }}
+          FORCE_REBUILD_RUNTIME_CACHE: ${{ inputs.force_rebuild_runtime_cache }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }
+          [[ "$RELEASE_ATTEMPT_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_attempt_id must be the complete signed sha256 attempt identity; empty or abbreviated values are forbidden."; exit 1; }
+          [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_mutation_payload_sha256 must be exact."; exit 1; }
+          node --input-type=module <<'NODE'
+          const deadline = process.env.STANDARD_ADMISSION_DEADLINE_AT || '';
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
+            || new Date(Date.parse(deadline)).toISOString() !== deadline) {
+            throw new Error('standard_admission_deadline_at must be canonical UTC ISO-8601 with millisecond precision.');
+          }
+          const fence = JSON.parse(Buffer.from(process.env.PRE_API_ADMISSION_RECEIPT_BASE64 || '', 'base64').toString('utf8'));
+          const request = fence.request || {};
+          const expectedPayload = {
+            opl_version: process.env.OPL_VERSION,
+            stable_session_id: process.env.STABLE_SESSION_ID,
+            standard_admission_deadline_at: deadline,
+            release_cohort_ref: process.env.RELEASE_COHORT_REF,
+            app_sha: process.env.APP_SHA,
+            shell_sha: process.env.SHELL_SHA,
+            framework_sha: process.env.FRAMEWORK_SHA,
+            release_set_generation: process.env.RELEASE_SET_GENERATION,
+            release_set_manifest_digest: process.env.RELEASE_SET_MANIFEST_DIGEST,
+            force_rebuild_runtime_cache: process.env.FORCE_REBUILD_RUNTIME_CACHE,
+            operator_actor: process.env.OPERATOR_ACTOR,
+          };
+          if (request.mutation !== 'full_addon_dispatch' || request.workflow !== 'desktop-release-full-addon.yml'
+            || request.artifact_kind !== 'full' || request.attempt_id !== process.env.RELEASE_ATTEMPT_ID
+            || request.github?.repository !== process.env.GITHUB_REPOSITORY
+            || request.controller_workflow_sha !== process.env.GITHUB_SHA
+            || request.artifact_app_sha !== process.env.APP_SHA) {
+            throw new Error('Signed pre-API fence does not bind this exact Full add-on run identity.');
+          }
+          const canonicalPayload = (value) => JSON.stringify(Object.fromEntries(
+            Object.entries(value || {}).sort(([left], [right]) => left.localeCompare(right)),
+          ));
+          if (request.mutation_payload_sha256 !== process.env.RELEASE_MUTATION_PAYLOAD_SHA256
+            || canonicalPayload(request.mutation_payload) !== canonicalPayload(expectedPayload)) {
+            throw new Error('Signed pre-API fence mutation payload does not match the exact Full add-on inputs.');
+          }
+          NODE
+          timeout --signal=TERM --kill-after=10s 120s \
+            node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+              --mode lookup \
+              --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
+              --expected-repository "$GITHUB_REPOSITORY" \
+              --expected-run-id "$GITHUB_RUN_ID" \
+              --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --expected-workflow desktop-release-full-addon.yml \
+              --expected-workflow-sha "$GITHUB_SHA" \
+              --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+              --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --output broker-admission-validation.json
+          validation_sha256="sha256:$(sha256sum broker-admission-validation.json | awk '{print $1}')"
+          echo "validation_sha256=$validation_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Persist immutable Full add-on broker admission validation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission-validation.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Validate immutable inputs and Standard release
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         shell: bash
@@ -43,7 +137,7 @@ jobs:
           [[ "${{ inputs.release_cohort_ref }}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${{ inputs.release_set_manifest_digest }}" =~ ^sha256:[0-9a-f]{64}$ ]]
           for sha in "${{ inputs.app_sha }}" "${{ inputs.shell_sha }}" "${{ inputs.framework_sha }}"; do [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; done
-          test "$GITHUB_SHA" = "${{ inputs.app_sha }}"
+          test "$GITHUB_REF" = "refs/heads/main"
           tag="v${{ inputs.opl_version }}"
           test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = false
           test "$(gh release view "$tag" --json isPrerelease --jq .isPrerelease)" = false
@@ -85,16 +179,25 @@ jobs:
       opl_version: ${{ inputs.opl_version }}
       framework_ref: ${{ inputs.framework_sha }}
       shell_ref: ${{ inputs.shell_sha }}
-      publish_to_release: false
       upload_full_package_artifact: true
       stable_session_id: ${{ inputs.stable_session_id }}
+      standard_admission_deadline_at: ${{ inputs.standard_admission_deadline_at }}
       release_cohort_ref: ${{ inputs.release_cohort_ref }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_session_lease_base64: ${{ inputs.release_session_lease_base64 }}
+      operator_actor: ${{ inputs.operator_actor }}
+      release_mutation: full_addon_dispatch
+      release_workflow: desktop-release-full-addon.yml
+      controller_workflow_sha: ${{ github.sha }}
+      artifact_app_sha: ${{ inputs.app_sha }}
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
 
   full-vm:
     name: Qualify exact Full add-on artifact
-    needs: full-build
+    needs:
+      - preflight
+      - full-build
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -105,71 +208,138 @@ jobs:
       shell_ref: ${{ inputs.shell_sha }}
       framework_ref: ${{ inputs.framework_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
+      standard_admission_deadline_at: ${{ inputs.standard_admission_deadline_at }}
+      operator_actor: ${{ inputs.operator_actor }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_mutation_payload_sha256: ${{ inputs.release_mutation_payload_sha256 }}
+      broker_admission_validation_sha256: ${{ needs.preflight.outputs.broker_admission_validation_sha256 }}
+      release_mutation: full_addon_dispatch
+      release_workflow: desktop-release-full-addon.yml
+      controller_workflow_sha: ${{ github.sha }}
       release_cohort_ref: ${{ inputs.release_cohort_ref }}
     secrets: inherit
 
   publish:
     name: Append verified Full assets without changing Standard
-    needs: [full-build, full-vm]
+    needs: [preflight, full-build, full-vm]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      attestations: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}' }
+      - name: Setup Node.js for broker verification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with: { node-version: '24' }
+      - name: Download immutable broker admission validation
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission
+      - name: Verify historical Full add-on broker admission in write job
+        env:
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.preflight.outputs.broker_admission_validation_sha256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Write jobs cannot replay a broker ticket."; exit 1; }
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release-full-addon.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256"
       - name: Download Full release bundle
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
           path: full-package
       - name: Download Full build cohort
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64-cohort
           path: full-cohort
       - name: Download Full VM qualification receipt
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-first-run-vm-full-${{ github.run_id }}
           path: full-vm
       - name: Validate exact build and qualification cohort
         shell: bash
+        env:
+          APP_SHA: ${{ inputs.app_sha }}
+          SHELL_SHA: ${{ inputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ inputs.framework_sha }}
+          OPL_VERSION: ${{ inputs.opl_version }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
         run: |
           set -euo pipefail
           manifest="$(find full-cohort -name opl-build-cohort.json -type f | head -n 1)"
           receipt="$(find full-vm -name artifact-qualification-receipt.json -type f | head -n 1)"
+          full_input_digest="$(jq -er '.digests.full_input_manifest_sha256' "$manifest")"
+          framework_catalog_digest="$(jq -er '.digests.framework_bundled_catalog_sha256' "$manifest")"
+          qualification_input_digest="$(jq -er '.digests.qualification_input_manifest_sha256' "$manifest")"
+          full_toolchain_receipt_digest="$(jq -er '.digests.full_toolchain_observation_receipt_sha256' "$manifest")"
           node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
-            --manifest "$manifest" --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" \
-            --framework-sha "${{ inputs.framework_sha }}" --version "${{ inputs.opl_version }}" \
-            --actions-run-id "${{ github.run_id }}" --stable-session-id "${{ inputs.stable_session_id }}" \
-            --release-cohort-ref "${{ inputs.release_cohort_ref }}"
+            --manifest "$manifest" --app-sha "$APP_SHA" --shell-sha "$SHELL_SHA" \
+            --framework-sha "$FRAMEWORK_SHA" --version "$OPL_VERSION" \
+            --actions-run-id "$GITHUB_RUN_ID" --stable-session-id "$STABLE_SESSION_ID" \
+            --release-cohort-ref "$RELEASE_COHORT_REF"
           node --experimental-strip-types scripts/validate-artifact-qualification-receipt.ts \
-            --receipt "$receipt" --stable-session-id "${{ inputs.stable_session_id }}" \
-            --release-cohort-ref "${{ inputs.release_cohort_ref }}" --version "${{ inputs.opl_version }}" \
-            --package-profile full --result passed --qualification-run-id "${{ github.run_id }}" \
-            --source-artifact-run-id "${{ github.run_id }}" \
-            --source-artifact-name "opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64" \
-            --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" --framework-sha "${{ inputs.framework_sha }}"
+            --receipt "$receipt" --stable-session-id "$STABLE_SESSION_ID" \
+            --release-cohort-ref "$RELEASE_COHORT_REF" --version "$OPL_VERSION" \
+            --package-profile full --result passed --qualification-run-id "$GITHUB_RUN_ID" \
+            --source-artifact-run-id "$GITHUB_RUN_ID" \
+            --source-artifact-name "opl-full-first-install-dmg-$OPL_VERSION-mac-arm64" \
+            --app-sha "$APP_SHA" --shell-sha "$SHELL_SHA" --framework-sha "$FRAMEWORK_SHA" \
+            --qualification-input-manifest-sha256 "$qualification_input_digest" \
+            --full-input-manifest-sha256 "$full_input_digest" \
+            --framework-bundled-catalog-sha256 "$framework_catalog_digest" \
+            --full-toolchain-observation-receipt-sha256 "$full_toolchain_receipt_digest"
       - name: Attest Full add-on assets
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-path: |
             full-package/One-Person-Lab-Full-${{ inputs.opl_version }}-mac-arm64.dmg
             full-package/opl-release-manifest.json
       - name: Add Full assets and verify remote digests
-        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_VERSION: ${{ inputs.opl_version }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
+          APP_SHA: ${{ inputs.app_sha }}
+          SHELL_SHA: ${{ inputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ inputs.framework_sha }}
+          RELEASE_SET_GENERATION: ${{ inputs.release_set_generation }}
+          RELEASE_SET_MANIFEST_DIGEST: ${{ inputs.release_set_manifest_digest }}
         run: |
           node --experimental-strip-types scripts/publish-full-addon.ts \
-            --version "${{ inputs.opl_version }}" --full-package-dir full-package \
-            --stable-session-id "${{ inputs.stable_session_id }}" --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
-            --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" --framework-sha "${{ inputs.framework_sha }}" \
-            --qualification-run-id "${{ github.run_id }}" --source-artifact-run-id "${{ github.run_id }}" \
-            --release-set-generation "${{ inputs.release_set_generation }}" \
-            --release-set-manifest-digest "${{ inputs.release_set_manifest_digest }}" \
+            --version "$OPL_VERSION" --full-package-dir full-package \
+            --stable-session-id "$STABLE_SESSION_ID" --release-cohort-ref "$RELEASE_COHORT_REF" \
+            --app-sha "$APP_SHA" --shell-sha "$SHELL_SHA" --framework-sha "$FRAMEWORK_SHA" \
+            --qualification-run-id "$GITHUB_RUN_ID" --source-artifact-run-id "$GITHUB_RUN_ID" \
+            --release-set-generation "$RELEASE_SET_GENERATION" \
+            --release-set-manifest-digest "$RELEASE_SET_MANIFEST_DIGEST" \
+            --qualification-input-manifest-sha256 "$(jq -er '.digests.qualification_input_manifest_sha256' full-cohort/opl-build-cohort.json)" \
+            --full-input-manifest-sha256 "$(jq -er '.digests.full_input_manifest_sha256' full-cohort/opl-build-cohort.json)" \
+            --framework-bundled-catalog-sha256 "$(jq -er '.digests.framework_bundled_catalog_sha256' full-cohort/opl-build-cohort.json)" \
+            --full-toolchain-observation-receipt-sha256 "$(jq -er '.digests.full_toolchain_observation_receipt_sha256' full-cohort/opl-build-cohort.json)" \
             --output opl-app-full-addon-receipt.json
-          npm run verify-remote-release -- --version "${{ inputs.opl_version }}" --include-full-package \
+          npm run verify-remote-release -- --version "$OPL_VERSION" --include-full-package \
             --summary-path remote-full-addon-verification.json
       - name: Upload independent Full add-on receipt
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-app-full-addon-receipt-${{ inputs.opl_version }}-${{ github.run_id }}
           path: |

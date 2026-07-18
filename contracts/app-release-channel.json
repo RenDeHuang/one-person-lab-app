@@ -17,9 +17,21 @@
     "default": "stable",
     "allowed": [
       "stable",
-      "nightly",
       "local-install"
     ],
+    "unavailable": {
+      "nightly": {
+        "status": "retired_pending_brokered_replacement",
+        "selectable": false,
+        "publication_available": false,
+        "mutation_available": false,
+        "planner_behavior": "typed_terminal_blocker",
+        "retained_contract_scope": [
+          "version_format",
+          "historical_distribution_schema"
+        ]
+      }
+    },
     "local_install": {
       "plan_profile": "local_install",
       "version_channel": "stable",
@@ -416,6 +428,11 @@
     }
   },
   "nightly_standard": {
+    "status": "retired_pending_brokered_replacement",
+    "selectable": false,
+    "publication_available": false,
+    "mutation_available": false,
+    "workflow": null,
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
@@ -436,7 +453,7 @@
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
       "latest-arm64-mac.yml"
     ],
-    "rule": "The first Nightly release for a UTC date uses YY.M.D-nightly. A same-day rebuild allocates the next immutable .r1 through .r9 suffix from existing Git tags and GitHub Releases, while GitHub run identity remains in release evidence instead of the user-visible version. Nightly publishes standard macOS arm64 updater assets only and remains visible only to prerelease opt-in update checks; the moving nightly image tag is a channel pointer, not version identity."
+    "rule": "Nightly publication is unavailable and not selectable while the direct writer is retired and no brokered replacement exists. Version allocation and asset fields are retained only as historical distribution schema for a future separately authorized implementation."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",
@@ -605,8 +622,7 @@
       "rule": "WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing."
     },
     "publish_workflows": [
-      ".github/workflows/desktop-release.yml",
-      ".github/workflows/nightly-standard-release.yml"
+      ".github/workflows/desktop-release.yml"
     ],
     "immutable_version_writer": ".github/workflows/desktop-release.yml",
     "stable_promotion_workflow": ".github/workflows/desktop-release-promote.yml",
@@ -701,12 +717,12 @@
       "default_workflow": ".github/workflows/sync-from-app-releases.yml",
       "tap_sync_script": "scripts/sync-cask-from-release.mjs",
       "app_release_promotion_workflow": ".github/workflows/desktop-release-promote.yml",
-      "tap_owned_stable_distribution_workflow": ".github/workflows/stable-distribution.yml",
+      "tap_owned_stable_distribution_workflow": ".github/workflows/stable-standard-distribution.yml",
       "app_release_direct_workflow": null,
-      "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
+      "app_release_direct_token": null,
       "app_release_pull_request_allowed": false,
-      "app_release_workflow_write_mode": "dispatch_tap_owned_atomic_formula_and_app_cask_distribution_only",
-      "stable_release_workflow_write_mode": "promotion_saga_dispatches_tap_owned_atomic_formula_and_app_cask_distribution_after_framework_stable_receipt",
+      "app_release_workflow_write_mode": "read_only_receipt_validation_only",
+      "stable_release_workflow_write_mode": "isolated_broker_executes_tap_owned_atomic_distribution_then_app_saga_validates_receipt",
       "direct_commit_conflict_policy": "App never commits to the tap; the tap-owned workflow serializes and atomically pushes the OPL Formula, App casks, and its immutable receipt tag",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
@@ -714,7 +730,7 @@
         "may_update_stable": false
       },
       "stable": {
-        "mode": "desktop_promote_dispatches_tap_owned_atomic_formula_and_app_cask_distribution",
+        "mode": "isolated_broker_executes_tap_owned_atomic_distribution_then_desktop_promote_validates_receipt",
         "may_consume_nightly_directly": false
       },
       "full": {
@@ -1231,6 +1247,14 @@
     "script": "scripts/validate-release-preflight.ts",
     "package_script": "release:preflight",
     "workflow_job": "release-preflight",
+    "admission_scope": "standard_terminal_only",
+    "full_addon_preflight": {
+      "status": "deferred_to_independent_addon_attempt",
+      "controller_command": "release:stable dispatch-full-addon",
+      "runs_during_standard_admission": false,
+      "may_block_standard_terminal": false,
+      "required_before_addon_dispatch": true
+    },
     "summary_artifacts": [
       "release-preflight-summary.json",
       "release-preflight-summary.md"
@@ -1256,7 +1280,7 @@
       "macos_local_authorization",
       "remote_target"
     ],
-    "failure_budget": "fail before standard or Full builds start",
+    "failure_budget": "fail Standard admission before Standard build; evaluate Full-specific failures only in the independent Full add-on attempt",
     "source_gate": {
       "package_script": "release:source-gate",
       "status": "implemented_enforced_before_expensive_release_jobs",
@@ -1279,21 +1303,26 @@
       "failure_next_action": "repair_source_gate",
       "rule": "The App release source gate must fail before expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, shell format/type, shell ref resolution, or framework ref resolution is invalid."
     },
-    "rule": "Every App release train must pass preflight and the source gate before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs."
+    "rule": "Standard preflight and the standard-source gate validate only the Standard terminal path. Full and WebUI implementation checks run in their independent add-on scopes after Standard terminal and cannot fail or reopen Standard."
   },
   "release_acceleration": {
     "plan_command": "npm run release:plan -- --version <version> --include-full-package",
     "stable_release_state_machine": {
       "package_script": "release:stable",
       "script": "scripts/run-stable-release.ts",
-      "schema": "opl_app_stable_release_session.v2",
+      "schema": "opl_app_stable_release_session.v3",
       "default_mode": "dry_run",
       "execute_flag": "--execute",
       "canonical_commands": [
         "start",
         "retry-qualification",
+        "reconcile",
         "resume",
         "promote",
+        "dispatch-full-addon",
+        "disposition-addon-debt",
+        "cancel",
+        "recover-stale-lock",
         "complete-local"
       ],
       "phases": [
@@ -1314,7 +1343,8 @@
         "homebrew_verified",
         "latest_activated",
         "awaiting_local_activation",
-        "complete"
+        "standard_stable_terminal",
+        "addon_train_terminal"
       ],
       "cohort_binding": {
         "identity_fields": [
@@ -1324,7 +1354,7 @@
           "shell_sha",
           "framework_sha"
         ],
-        "remote_dispatch_ref_must_match_frozen_app_sha": true,
+        "controller_ref_is_canonical_and_separate_from_frozen_artifact_app_sha": true,
         "desktop_release_dispatch_limit_per_cohort": 1,
         "cross_cohort_artifact_reuse_allowed": false,
         "manual_sha_entry_after_freeze_allowed": false
@@ -1333,19 +1363,19 @@
         "deduplicate_cheap_source_gates": true,
         "stable_complete_requires_addon_gates": false,
         "run_id_discovered_from_exact_app_sha": true,
-        "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
+        "monitor_command": "controller bounded absolute-deadline watch followed by read-only GitHub and broker-ledger reconcile",
         "monitor_transport_retry_limit": 3,
         "monitor_nonterminal_exit_preserves_running_state": true,
         "monitor_readback_failure_preserves_running_state": true,
         "promotion_reuses_source_release_run_id": true,
         "promotion_requires_release_owner_receipt": true,
         "promotion_dispatch_limit_per_cohort": 1,
-        "promotion_retry": "gh run rerun <original-promotion-run-id> --failed",
-        "promotion_retry_reuses_original_run_id_and_owner_receipt": true
+        "promotion_retry": "new brokered promotion attempt after read-only reconcile",
+        "promotion_retry_reuses_original_run_id_and_owner_receipt": false
       },
       "recovery_policy": {
-        "smoke_or_validator_only_change_rebuilds_existing_artifact": false,
-        "smoke_or_validator_only_retry_may_use_separately_pinned_verification_harness": true,
+        "harness_mechanics_only_change_rebuilds_existing_artifact": false,
+        "harness_mechanics_only_retry_may_use_separately_pinned_verification_harness": false,
         "separate_verification_harness_requires_changed_path_scope_proof": true,
         "verification_harness_must_not_replace_artifact_cohort_identity": true,
         "verification_harness_identity_must_be_recorded_in_qualification_receipt": true,
@@ -1353,7 +1383,138 @@
         "failed_gate_requires_classification_before_next_dispatch": true,
         "artifact_build_failed_can_reconcile_original_run_without_redispatch": true,
         "qualification_retry_reuses_exact_artifact_bytes": true,
-        "qualification_override_must_match_session_cohort_manifest_and_artifact_sha256": true
+        "qualification_override_must_match_session_cohort_manifest_and_artifact_sha256": true,
+        "scope_evaluation_always_writes_forbidden_paths_and_classification_before_authorization": true,
+        "new_cohort_required_scope_is_durable_but_never_authorized_for_reuse": true,
+        "standard_and_full_artifact_tracks_recover_independently": true,
+        "bounded_qualification_attempts_per_artifact_kind": 2,
+        "terminal_workflow_without_attempt_receipt_requires_reconcile": true
+      },
+      "attempt_ledger": {
+        "schema": "append_only_session_v3",
+        "write_before_external_mutation": [
+          "planned",
+          "dispatching"
+        ],
+        "terminal_states": [
+          "passed",
+          "failed",
+          "cancelled"
+        ],
+        "reconcile_only_states": [
+          "runner_lost",
+          "dispatch_lost",
+          "reconcile_pending"
+        ],
+        "workflow_attempt_receipt_is_remote_evidence_not_ledger_precondition": true,
+        "monotonic_session_revision_required": true,
+        "atomic_write_requires_exclusive_lock_and_expected_revision_cas": true,
+        "stale_broker_revision_write_fails_closed": true,
+        "reconcile_inputs": [
+          "github_run_readback",
+          "optional_typed_attempt_receipt",
+          "signed_exact_attempt_broker_lookup_v2"
+        ],
+        "failure_taxonomy": [
+          "product",
+          "fixture",
+          "environment",
+          "operator",
+          "infrastructure",
+          "cancelled",
+          "unknown"
+        ],
+        "retry_dispositions": [
+          "new_cohort_required",
+          "same_artifact_retry_allowed",
+          "reconcile_only",
+          "terminal_blocked"
+        ]
+      },
+      "signed_mutation_authority": {
+        "lease_schema": "opl_app_release_session_lease.v2",
+        "signature_algorithm": "Ed25519",
+        "default_ttl_minutes": 15,
+        "one_ticket_per_attempt_and_mutation": true,
+        "ticket_issuance_requires_latest_attempt_event_planned": true,
+        "duplicate_ticket_for_attempt_rejected": true,
+        "payload_bindings": [
+          "stable_session_id",
+          "release_cohort_ref",
+          "actor",
+          "issuer",
+          "attempt_id",
+          "workflow",
+          "artifact_kind",
+          "controller_workflow_sha",
+          "artifact_app_sha",
+          "mutation_payload_sha256",
+          "planned_session_revision",
+          "target_attempt_id",
+          "target_run_id",
+          "nonce",
+          "expires_at",
+          "allowed_mutations"
+        ],
+        "allowed_mutations_cardinality": 1,
+        "cancel_requires_separate_emergency_ticket": true,
+        "cancel_requires_target_attempt_and_run_binding": true,
+        "lease_intrinsically_enforces_nonce_single_use": false,
+        "broker_durable_nonce_consumption_required": true,
+        "nonce_single_use_enforced": true,
+        "nonce_consumed_durably_before_api_and_atomically_with_fence": true,
+        "same_attempt_replay_returns_original_receipt": true,
+        "different_attempt_nonce_reuse_rejected": true,
+        "nonce_ownership_survives_lease_expiry": true,
+        "nonce_replay_boundary": "The isolated broker atomically consumes the signed nonce with the durable pre-API fence. The same exact attempt replays the original receipt without another API call; every different-attempt reuse fails closed.",
+        "ttl_scope": "first_pre_api_admission_only",
+        "historical_acceptance_validation_expires": false,
+        "historical_validation_requires_exact_run_attempt_workflow_sha_and_payload_digest": true,
+        "historical_authority_epoch_registry": "append_only_verify_only",
+        "retired_authority_epoch_can_authorize_new_admission": false,
+        "pre_api_admission_receipt_schema": "opl_app_release_mutation_pre_api_fence.v1",
+        "pre_api_admission_receipt_binds_authority_epoch": true,
+        "workflow_dispatch_input": "pre_api_admission_receipt_base64",
+        "post_api_acceptance_must_be_obtained_by_broker_lookup": true,
+        "workflow_lookup_response_schema": "opl_app_release_mutation_broker_ledger_lookup_result.v2",
+        "workflow_lookup_transport": "https_with_github_oidc_caller_admission",
+        "workflow_lookup_transport_failure_is_authoritative_not_found": false,
+        "workflow_lookup_random_challenge_required": true,
+        "signed_complete_version_aggregate_required": true,
+        "version_aggregate_partition_complete_from_sequence_one": true,
+        "global_latest_mutex_applies_to": [
+          "promotion_dispatch"
+        ],
+        "version_scoped_mutations": [
+          "desktop_release_dispatch",
+          "qualification_dispatch",
+          "full_addon_dispatch",
+          "release_draft_cleanup"
+        ],
+        "promotion_cancel_is_owner_child_and_does_not_advance_head": true,
+        "cancel_api_success_does_not_release_latest_mutex": true,
+        "latest_mutex_release_requires_target_terminal_readback_and_cas": true,
+        "standard_admission_deadline_required_for": [
+          "desktop_release_dispatch",
+          "qualification_dispatch",
+          "promotion_dispatch",
+          "full_addon_dispatch"
+        ],
+        "canonical_workflow_ref": "refs/heads/main",
+        "approved_controller_workflow_sha_allowlist_required": true,
+        "stable_dag_third_party_action_reference_policy": "exact_40_hex_commit_sha",
+        "stable_dag_moving_action_tags_allowed": false,
+        "stable_dag_bun_version": "1.3.14",
+        "controller_sha_alone_freezes_moving_action_tags": false,
+        "unprovisioned_or_malformed_authority_fails_closed_with_typed_errors": true,
+        "normal_codex_credential_actions_write_allowed": false,
+        "normal_codex_protected_main_push_allowed": false,
+        "normal_codex_release_control_plane_write_allowed": false,
+        "normal_codex_ruleset_bypass_allowed": false,
+        "normal_codex_required_review_bypass_allowed": false,
+        "isolated_release_broker_actions_write_token_required": true,
+        "repo_local_lease_prevents_same_identity_direct_api_bypass": false,
+        "protected_environment_alone_prevents_cancel_or_rerun": false
       },
       "artifact_cohort": {
         "schema": "opl_app_build_artifact_cohort.v2",
@@ -1363,7 +1524,7 @@
       "qualification_receipt": {
         "schema": "opl_app_artifact_qualification_receipt.v1",
         "same_artifact_retry_can_override_only": "full_dmg_clean_vm",
-        "separate_verification_harness_allowed_only_for": "smoke_or_validator_only_change",
+        "separate_verification_harness_allowed_only_for": "exact_artifact_cohort",
         "verification_harness_required_fields": [
           "app_sha",
           "shell_sha",
@@ -1419,7 +1580,7 @@
           "timing": "after_app_latest_activation",
           "wait_for_completion": false,
           "dispatch_failure_blocks_standard": false,
-          "manual_same_cohort_retry_allowed": true
+          "manual_same_cohort_retry_allowed": false
         },
         "tap_standard_vm_evidence_transport": {
           "source": "validated_artifact_qualification_receipt_raw_bytes",
@@ -1452,8 +1613,12 @@
       },
       "profiling": {
         "phase_durations_and_dispatch_counts_required": true,
-        "efficiency_advisory_after_minutes": 90,
-        "efficiency_advisory_is_stop_condition": false
+        "warning_after_minutes": 60,
+        "new_release_train_circuit_breaker_after_minutes": 90,
+        "circuit_breaker_allows_only": [
+          "same_artifact_targeted_recovery",
+          "typed_blocker_terminal"
+        ]
       },
       "authority_boundary": "The stable release session coordinates an explicitly authorized release but is not release truth. Same-cohort evidence, candidate validation, owner receipt, promotion readback, Homebrew readback, and installed App verification remain authoritative for their own states."
     },
@@ -1530,7 +1695,14 @@
         "cheap_source_gates",
         "next_action"
       ],
-      "purpose": "separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates",
+      "purpose": "record the exact pinned cohort refs and emit a dry-run canonical controller start plan before expensive release gates",
+      "next_action_policy": {
+        "canonical_command_prefix": "npm run release:stable -- start",
+        "default_mode": "dry_run",
+        "execute_flag_required_for_broker_submission": true,
+        "direct_workflow_dispatch_allowed": false,
+        "rule": "release:cohort-plan and release:operator may only plan the canonical release:stable start command. They must not emit or recommend a direct Desktop Release workflow dispatch."
+      },
       "release_intent_policy": {
         "workflow_input": "release_intent",
         "allowed_values": [
@@ -1538,16 +1710,27 @@
           "standard_hotfix"
         ],
         "stable_complete": {
-          "include_full_package": true,
+          "standard_terminal_independent": true,
           "run_vm_smoke": true,
+          "include_full_package_required": false,
+          "include_full_package_role": "optional_same_cohort_nonblocking_addon_intent",
           "full_omission_reason_allowed": false
         },
         "standard_hotfix": {
           "include_full_package": false,
           "full_omission_reason_required": true,
-          "must_not_claim_complete_stable": true
+          "standard_terminal_independent": true
         },
-        "rule": "Every Stable dispatch declares whether it is a complete Stable including Full or an intentionally Standard-only hotfix. A Standard-only run must expose its Full omission reason in preflight and release summaries and cannot be presented as the complete Stable train."
+        "full_addon_terminal_policy": {
+          "intent_input": "include_full_package",
+          "intent_role": "same_cohort_nonblocking_addon_intent",
+          "dispatch_after": "standard_stable_terminal",
+          "preflight_phase": "dispatch-full-addon",
+          "full_specific_checks_run_during_standard_admission": false,
+          "completion_required_for_standard_terminal": false,
+          "independent_receipt_required": true
+        },
+        "rule": "stable_complete is the compatibility input name for the normal Standard Stable path; its terminal state is independent of every add-on. include_full_package only declares whether a same-cohort Full add-on should run after Standard reaches terminal and never makes Full completion a Standard promotion or terminal requirement. standard_hotfix remains an expedited Standard-only intent and requires an omission reason."
       },
       "operator_plan_policy": {
         "workflow_input": "release_operator_plan_ref",
@@ -1567,7 +1750,7 @@
         ],
         "rule": "desktop-release rejects a dispatch whose inputs do not match the pinned cohort plan digest; raw dispatch without release:cohort-plan is not a supported release entry."
       },
-      "manifest_role": "retry_and_promote_entrypoint_for_same_cohort_gates",
+      "manifest_role": "controller_input_for_same_cohort_retry_and_promote",
       "manifest_must_record": [
         "version",
         "release_mode",
@@ -1601,7 +1784,7 @@
           "obsolete_candidate",
           "stale_candidate"
         ],
-        "next_action": "owner_receipt_then_promote_or_dispatch_new_cohort"
+        "next_action": "reconcile_then_continue_frozen_session_or_plan_new_frozen_cohort"
       },
       "authority_boundary": "cohort plan is an operator planning artifact only; it cannot publish a release, claim release-ready, write runtime truth, or replace same-cohort release evidence"
     },
@@ -1614,15 +1797,16 @@
         "release-operator-state.md"
       ],
       "active_monitor_policy": {
-        "command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
-        "poll_interval_seconds": 60,
-        "single_monitor_process": true,
+        "command": "npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>",
+        "poll_interval_seconds": null,
+        "single_monitor_process": false,
         "forbidden_patterns": [
+          "direct_gh_run_watch",
           "sleep_25_plus_second_polling_loop",
           "simultaneous_gh_run_watch_and_manual_polling",
           "multiple_monitors_for_same_run"
         ],
-        "terminal_handoff": "release_operator_status_once"
+        "terminal_handoff": "release_stable_reconcile_once"
       },
       "commands": [
         "plan",
@@ -1645,25 +1829,21 @@
         ],
         "failed_gate_next_actions": [
           "repair_source_gate",
-          "dispatch_new_cohort"
+          "reconcile_stable_session"
         ],
         "forbidden_wait_strategy": "continue_waiting_on_gh_run_watch_after_primary_gate_failure",
-        "rule": "After a critical release gate fails, is stale, cancelled, or superseded, operator status must report a terminal blocker state with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch."
+        "rule": "After a critical release gate fails, is stale, cancelled, or superseded, operator status must report a terminal blocker state and route through repair_source_gate or release:stable reconcile instead of continuing to wait or issuing a low-level dispatch."
       },
       "typed_next_actions": [
+        "follow_cohort_plan",
+        "retry_qualification_same_artifact",
+        "reconcile_stable_session",
         "repair_source_gate",
         "repair_webui_runtime_image",
         "repair_ghcr_publish_access",
-        "dispatch_new_cohort",
-        "rerun_diagnostic_same_artifact",
-        "inspect_full_build_diagnostics",
-        "rerun_full_build_same_cohort",
-        "inspect_homebrew_tap_diagnostics",
-        "inspect_webui_runtime_image_diagnostics",
-        "provide_owner_receipt",
-        "wait_for_runner_capacity",
-        "retry_transient_upload",
-        "promote_candidate"
+        "inspect_primary_blocker",
+        "inspect_current_step_progress",
+        "wait_for_release_run_completion"
       ],
       "authority_boundary": "release operator is a thin controller over existing release scripts, workflows, and artifacts; it must not become release truth, publish by implication, claim release-ready, or write runtime/domain truth"
     },
@@ -1695,9 +1875,9 @@
           "timeout_after_seconds": 4500,
           "primary_blocker": "vm_smoke_timeout_or_failure",
           "recommended_next_actions": {
-            "warning": "wait_for_runner_capacity",
-            "timeout": "rerun_diagnostic_same_artifact",
-            "diagnostic": "rerun_diagnostic_same_artifact"
+            "warning": "inspect_current_step_progress",
+            "timeout": "reconcile_stable_session",
+            "diagnostic": "retry_qualification_same_artifact"
           }
         },
         "full_build": {
@@ -1710,9 +1890,9 @@
           "timeout_after_seconds": 5400,
           "primary_blocker": "full_build_timeout_or_failure",
           "recommended_next_actions": {
-            "warning": "inspect_full_build_diagnostics",
-            "timeout": "rerun_full_build_same_cohort",
-            "diagnostic": "inspect_full_build_diagnostics"
+            "warning": "inspect_current_step_progress",
+            "timeout": "reconcile_stable_session",
+            "diagnostic": "inspect_primary_blocker"
           }
         },
         "homebrew": {
@@ -1727,9 +1907,9 @@
           "timeout_after_seconds": 3600,
           "primary_blocker": "homebrew_tap_or_cask_gate_failure",
           "recommended_next_actions": {
-            "warning": "inspect_homebrew_tap_diagnostics",
-            "timeout": "inspect_homebrew_tap_diagnostics",
-            "diagnostic": "inspect_homebrew_tap_diagnostics"
+            "warning": "inspect_current_step_progress",
+            "timeout": "reconcile_stable_session",
+            "diagnostic": "inspect_primary_blocker"
           }
         },
         "webui_ghcr": {
@@ -1742,9 +1922,9 @@
           "timeout_after_seconds": 3600,
           "primary_blocker": "webui_runtime_image_or_ghcr_publish_failure",
           "recommended_next_actions": {
-            "warning": "inspect_webui_runtime_image_diagnostics",
-            "timeout": "inspect_webui_runtime_image_diagnostics",
-            "diagnostic": "inspect_webui_runtime_image_diagnostics"
+            "warning": "inspect_current_step_progress",
+            "timeout": "reconcile_stable_session",
+            "diagnostic": "repair_webui_runtime_image"
           }
         }
       },
@@ -1753,7 +1933,7 @@
           "classification": "runtime_image_publish_gate_failure",
           "source_gate_failure": false,
           "primary_blocker": "webui_runtime_image_invalid",
-          "recommended_next_action": "inspect_webui_runtime_image_diagnostics"
+          "recommended_next_action": "repair_webui_runtime_image"
         }
       },
       "authority_boundary": "release monitor is an operator status and diagnostic routing surface only; it is not release truth, cannot publish a release, cannot write runtime truth, and cannot claim release-ready. Release-ready still requires same-cohort evidence, release candidate record, and owner receipt."
@@ -1970,12 +2150,44 @@
       "upload_attempts": 3,
       "upload_timeout_ms": 300000,
       "force_flag": "--force-upload",
-      "new_release_upload_failure_cleanup": {
-        "enabled": true,
-        "scope": "release created by the current publish invocation before asset upload",
-        "command": "gh release delete <tag> --repo <repo> --yes --cleanup-tag",
-        "existing_release_refresh_cleanup_allowed": false,
-        "rule": "If standard or Full asset upload fails after creating a new draft or release, delete that newly-created incomplete release and tag so the next same-cohort attempt starts from a clean remote state."
+      "release_upload_failure_recovery": {
+        "remote_state": "typed_incomplete_draft_retained",
+        "receipt_schema": "opl_app_release_publish_recovery_receipt.v1",
+        "receipt_default_path": "release-publish-recovery-receipt.json",
+        "receipt_required_fields": [
+          "repository",
+          "version",
+          "tag",
+          "failure.stage",
+          "draft.origin",
+          "draft.readback",
+          "draft.automatic_release_delete_attempted",
+          "draft.automatic_tag_cleanup_attempted",
+          "upload.planned_assets",
+          "upload.uploaded_assets",
+          "upload.remaining_assets",
+          "recovery.strategy",
+          "recovery.destructive_cleanup_authority"
+        ],
+        "resume_strategy": "read_back_then_resume_same_draft_same_cohort",
+        "automatic_release_delete_allowed": false,
+        "automatic_tag_cleanup_allowed": false,
+        "ordinary_release_workflow_delete_allowed": false,
+        "rule": "A failed draft creation, note refresh, or asset upload writes a typed recovery receipt and retains any incomplete draft. The same frozen cohort resumes by remote readback and digest-matched asset reuse; an ordinary release workflow never deletes the Release or tag."
+      },
+      "draft_candidate_cleanup": {
+        "workflow": ".github/workflows/desktop-release-cleanup-drafts.yml",
+        "summary_schema": "opl_release_draft_candidate_cleanup.v2",
+        "discovery_mode": "read_only",
+        "execution_authority": "independent_isolated_release_mutation_broker",
+        "required_broker_mutation": "release_draft_cleanup",
+        "broker_mutation": null,
+        "availability": "unavailable_until_broker_cleanup_mutation_is_provisioned",
+        "broker_acceptance_receipt_required": true,
+        "direct_github_release_delete_allowed": false,
+        "direct_tag_cleanup_allowed": false,
+        "ordinary_release_workflow_cleanup_allowed": false,
+        "rule": "Draft discovery remains read-only. Deleting a draft and its tag is a separate destructive mutation and stays unavailable until the isolated broker protocol provisions release_draft_cleanup with a signed acceptance receipt."
       }
     },
     "post_publish_remote_verification": {
@@ -2038,7 +2250,8 @@
       "remote_verification_workflow": ".github/workflows/release-verify-remote.yml",
       "full_runtime_cache_warmup_workflow": ".github/workflows/full-runtime-cache-warmup.yml",
       "diagnostics_workflow": ".github/workflows/desktop-release-diagnostics.yml",
-      "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
+      "nightly_standard_release_workflow": null,
+      "nightly_standard_release_status": "retired_pending_brokered_replacement",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "release_mode_boundaries": {
@@ -2416,8 +2629,13 @@
   },
   "release_validation_profiles": {
     "nightly_standard": {
-      "purpose": "fast prerelease confidence for users who opt into standard updater Nightly builds",
-      "required_lanes": [
+      "status": "retired_pending_brokered_replacement",
+      "selectable": false,
+      "publication_available": false,
+      "mutation_available": false,
+      "purpose": "historical prerelease validation schema retained while Nightly publication is unavailable",
+      "required_lanes": [],
+      "historical_required_lanes": [
         "release_boundary_contract",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
@@ -2434,7 +2652,7 @@
         "operator_evidence_bundle"
       ],
       "release_latest_policy": "never_mark_latest",
-      "github_release_visibility": "prerelease_only"
+      "github_release_visibility": "unavailable"
     },
     "stable": {
       "purpose": "complete user-install proof before a stable App Release is treated as smooth",
@@ -2443,24 +2661,26 @@
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "full_first_install_build",
-        "remote_standard_and_full_release_verification",
+        "remote_standard_release_verification",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke"
+      ],
+      "addon_lanes": [
+        "full_first_install_build",
         "full_dmg_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke",
+        "remote_full_addon_verification",
         "docker_webui_smoke",
         "webui_ghcr_publish"
       ],
+      "addon_gate_blocking_standard_terminal": false,
       "diagnostic_lanes": [
         "operator_evidence_bundle"
       ],
       "required_installation_surfaces": [
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "full_dmg_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke",
-        "docker_webui_smoke"
+        "one_shot_app_installer_fresh_install_smoke"
       ],
       "release_latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass",
       "heavy_gate_policy": "run before stable promotion; may be skipped only for draft or emergency packaging refreshes that are not called stable-complete",

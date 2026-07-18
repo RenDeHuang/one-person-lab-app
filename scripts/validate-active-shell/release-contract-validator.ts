@@ -29,21 +29,41 @@ function validateStandardUpdater(updater) {
 function validateReleaseExecutionPolicy(acceleration) {
   const prepare = acceleration?.cohort_prepare;
   const intent = prepare?.release_intent_policy;
+  const fullAddonTerminal = intent?.full_addon_terminal_policy;
+  const nextAction = prepare?.next_action_policy;
   const operatorPlan = prepare?.operator_plan_policy;
   const attemptSwitch = acceleration?.gate_reuse?.attempt_strategy_switch;
   const monitor = acceleration?.release_operator?.active_monitor_policy;
   const settingsReadiness = acceleration?.settings_page_readiness_policy;
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
+  const publishResume = acceleration?.publish_resume;
+  const publishRecovery = publishResume?.release_upload_failure_recovery;
+  const draftCleanup = publishResume?.draft_candidate_cleanup;
   assertDeepEqualJson(intent?.allowed_values, ['stable_complete', 'standard_hotfix'], 'Release intent allowed values');
   if (
     intent?.workflow_input !== 'release_intent' ||
-    intent?.stable_complete?.include_full_package !== true ||
+    intent?.stable_complete?.standard_terminal_independent !== true ||
     intent?.stable_complete?.run_vm_smoke !== true ||
+    intent?.stable_complete?.include_full_package_required !== false ||
+    intent?.stable_complete?.include_full_package_role !== 'optional_same_cohort_nonblocking_addon_intent' ||
     intent?.standard_hotfix?.include_full_package !== false ||
     intent?.standard_hotfix?.full_omission_reason_required !== true ||
-    intent?.standard_hotfix?.must_not_claim_complete_stable !== true
+    intent?.standard_hotfix?.standard_terminal_independent !== true ||
+    fullAddonTerminal?.intent_input !== 'include_full_package' ||
+    fullAddonTerminal?.intent_role !== 'same_cohort_nonblocking_addon_intent' ||
+    fullAddonTerminal?.dispatch_after !== 'standard_stable_terminal' ||
+    fullAddonTerminal?.completion_required_for_standard_terminal !== false ||
+    fullAddonTerminal?.independent_receipt_required !== true
   ) {
-    throw new Error('Release intent must distinguish complete Stable from an explicitly documented Standard-only hotfix');
+    throw new Error('Release intent must keep Standard terminal independent and treat Full only as a same-cohort non-blocking add-on intent');
+  }
+  if (
+    nextAction?.canonical_command_prefix !== 'npm run release:stable -- start' ||
+    nextAction?.default_mode !== 'dry_run' ||
+    nextAction?.execute_flag_required_for_broker_submission !== true ||
+    nextAction?.direct_workflow_dispatch_allowed !== false
+  ) {
+    throw new Error('Release cohort planning must route only through the dry-run canonical Stable controller');
   }
   if (
     operatorPlan?.workflow_input !== 'release_operator_plan_ref' ||
@@ -67,12 +87,60 @@ function validateReleaseExecutionPolicy(acceleration) {
     throw new Error('Repeated release attempts must switch to same-cohort reuse after the 90-minute threshold');
   }
   if (
-    monitor?.command !== 'gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status' ||
-    monitor?.poll_interval_seconds !== 60 ||
-    monitor?.single_monitor_process !== true ||
-    monitor?.terminal_handoff !== 'release_operator_status_once'
+    publishResume?.new_release_upload_failure_cleanup !== undefined ||
+    publishRecovery?.remote_state !== 'typed_incomplete_draft_retained' ||
+    publishRecovery?.receipt_schema !== 'opl_app_release_publish_recovery_receipt.v1' ||
+    publishRecovery?.receipt_default_path !== 'release-publish-recovery-receipt.json' ||
+    publishRecovery?.resume_strategy !== 'read_back_then_resume_same_draft_same_cohort' ||
+    publishRecovery?.automatic_release_delete_allowed !== false ||
+    publishRecovery?.automatic_tag_cleanup_allowed !== false ||
+    publishRecovery?.ordinary_release_workflow_delete_allowed !== false
   ) {
-    throw new Error('Release monitoring must use one low-frequency process followed by one terminal operator readback');
+    throw new Error('Release upload failure must retain a typed incomplete draft and write a recovery receipt without implicit deletion');
+  }
+  assertIncludesAll(
+    publishRecovery.receipt_required_fields,
+    [
+      'repository',
+      'version',
+      'tag',
+      'failure.stage',
+      'draft.origin',
+      'draft.readback',
+      'draft.automatic_release_delete_attempted',
+      'draft.automatic_tag_cleanup_attempted',
+      'upload.planned_assets',
+      'upload.uploaded_assets',
+      'upload.remaining_assets',
+      'recovery.strategy',
+      'recovery.destructive_cleanup_authority',
+    ],
+    'Release publish recovery receipt required fields',
+  );
+  if (
+    draftCleanup?.workflow !== '.github/workflows/desktop-release-cleanup-drafts.yml' ||
+    draftCleanup?.summary_schema !== 'opl_release_draft_candidate_cleanup.v2' ||
+    draftCleanup?.discovery_mode !== 'read_only' ||
+    draftCleanup?.execution_authority !== 'independent_isolated_release_mutation_broker' ||
+    draftCleanup?.required_broker_mutation !== 'release_draft_cleanup' ||
+    draftCleanup?.broker_mutation !== null ||
+    draftCleanup?.availability !== 'unavailable_until_broker_cleanup_mutation_is_provisioned' ||
+    draftCleanup?.broker_acceptance_receipt_required !== true ||
+    draftCleanup?.command !== undefined ||
+    draftCleanup?.direct_github_release_delete_allowed !== false ||
+    draftCleanup?.direct_tag_cleanup_allowed !== false ||
+    draftCleanup?.ordinary_release_workflow_cleanup_allowed !== false
+  ) {
+    throw new Error('Draft cleanup must fail closed until an independent signed broker mutation is provisioned');
+  }
+  if (
+    monitor?.command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>' ||
+    monitor?.poll_interval_seconds !== null ||
+    monitor?.single_monitor_process !== false ||
+    monitor?.terminal_handoff !== 'release_stable_reconcile_once' ||
+    !monitor?.forbidden_patterns?.includes('direct_gh_run_watch')
+  ) {
+    throw new Error('Release monitoring must use read-only operator status followed by one typed Stable reconcile');
   }
   assertIncludesAll(
     settingsReadiness?.required_signals,

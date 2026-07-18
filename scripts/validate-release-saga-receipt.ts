@@ -19,6 +19,9 @@ const { values } = parseArgs({
     'standard-vm-run-id': { type: 'string', default: '' }, 'distribution-receipt-sha256': { type: 'string', default: '' },
     'artifact-sha256': { type: 'string', default: '' },
     'local-authorization-policy': { type: 'string', default: '' },
+    'promotion-run-id': { type: 'string', default: '' }, 'promotion-run-attempt': { type: 'string', default: '' },
+    'promotion-attempt-id': { type: 'string', default: '' }, 'controller-workflow-sha': { type: 'string', default: '' },
+    'release-owner-receipt-ref': { type: 'string', default: '' },
   },
   strict: true,
 });
@@ -32,6 +35,11 @@ const expected = {
   releaseSetGeneration: values['release-set-generation'] || undefined,
   releaseSetManifestDigest: values['release-set-manifest-digest'] || undefined,
   sourceReleaseRunId: values['source-release-run-id'] || undefined, standardVmRunId: values['standard-vm-run-id'] || undefined,
+  promotionRunId: values['promotion-run-id'] || undefined,
+  promotionRunAttempt: values['promotion-run-attempt'] ? Number(values['promotion-run-attempt']) : undefined,
+  promotionAttemptId: values['promotion-attempt-id'] || undefined,
+  controllerWorkflowSha: values['controller-workflow-sha'] || undefined,
+  ownerReceiptRef: values['release-owner-receipt-ref'] || undefined,
 };
 const receipt = readReceipt(values.receipt!);
 let errors: string[];

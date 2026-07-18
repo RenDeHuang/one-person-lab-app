@@ -135,9 +135,30 @@ export type PromotionSagaReceiptV2 = {
     public: true;
     latest: true;
   };
+  provenance: {
+    workflow_run_id: string;
+    workflow_run_attempt: 1;
+    release_attempt_id: string;
+    controller_workflow_sha: string;
+    source_release_run_id: string;
+    standard_qualification_run_id: string;
+  };
+  cohort: {
+    release_cohort_ref: string;
+    app_sha: string;
+    shell_sha: string;
+    framework_sha: string;
+    release_set_generation: string;
+    release_set_manifest_digest: string;
+  };
+  release_owner: {
+    receipt_ref: string;
+  };
   distribution: {
     receipt_ref: string;
     receipt_sha256: string;
+    release_set_generation: string;
+    release_set_manifest_digest: string;
   };
   homebrew_activation: {
     receipt_ref: string;
@@ -161,6 +182,11 @@ export type ReceiptExpectation = {
   releaseSetManifestDigest?: string;
   sourceReleaseRunId?: string;
   standardVmRunId?: string;
+  promotionRunId?: string;
+  promotionRunAttempt?: number;
+  promotionAttemptId?: string;
+  controllerWorkflowSha?: string;
+  ownerReceiptRef?: string;
 };
 
 function record(value: unknown): JsonRecord | null {
@@ -298,7 +324,11 @@ export function validateHomebrewActivationReceipt(value: unknown, expected: Rece
   return errors;
 }
 
-export function validateLocalActivationReceipt(value: unknown, expected: ReceiptExpectation & { artifactSha256?: string; localAuthorizationPolicyPath?: string }): string[] {
+export function validateLocalActivationReceipt(value: unknown, expected: ReceiptExpectation & {
+  artifactSha256?: string;
+  localAuthorizationPolicyPath?: string;
+  localAuthorizationPolicySha256?: string;
+}): string[] {
   const receipt = record(value);
   if (!receipt) return ['local activation receipt is not an object'];
   const errors: string[] = [];
@@ -325,6 +355,10 @@ export function validateLocalActivationReceipt(value: unknown, expected: Receipt
     if (!fs.existsSync(expected.localAuthorizationPolicyPath)) errors.push('local authorization policy file is missing');
     else if (installation?.local_authorization_policy_sha256 !== sha256File(expected.localAuthorizationPolicyPath)) errors.push('local authorization policy digest does not match downloaded policy bytes');
   }
+  if (
+    expected.localAuthorizationPolicySha256 &&
+    installation?.local_authorization_policy_sha256 !== expected.localAuthorizationPolicySha256
+  ) errors.push('local authorization policy digest does not match the validated policy snapshot');
   const readback = record(receipt.readback);
   if (!readback || !string(readback.cdp_run_id) || !string(readback.evidence_ref) || !digestPattern.test(string(readback.evidence_sha256))) errors.push('local CDP readback evidence identity is invalid');
   for (const key of ['launch_succeeded', 'home_nonempty', 'settings_nonempty', 'capabilities_nonempty', 'starters_interactive'] as const) {
@@ -344,10 +378,68 @@ export function validatePromotionSagaReceipt(value: unknown, expected: ReceiptEx
   if (receipt.version !== expected.version) errors.push(`version is ${string(receipt.version) || '<missing>'}`);
   const release = record(receipt.release);
   if (!release || release.repo !== 'gaofeng21cn/one-person-lab-app' || release.tag !== `v${expected.version}` || release.public !== true || release.latest !== true) errors.push('final release readback is not public/latest for the expected tag');
+  const provenance = record(receipt.provenance);
+  if (!provenance) errors.push('promotion provenance is missing');
+  else {
+    if (!/^\d+$/.test(string(provenance.workflow_run_id))) errors.push('promotion workflow_run_id is invalid');
+    if (provenance.workflow_run_attempt !== 1) errors.push('promotion workflow_run_attempt is not 1');
+    if (!digestRefPattern.test(string(provenance.release_attempt_id))) errors.push('promotion release_attempt_id is invalid');
+    if (!shaPattern.test(string(provenance.controller_workflow_sha))) errors.push('promotion controller_workflow_sha is invalid');
+    if (!/^\d+$/.test(string(provenance.source_release_run_id))) errors.push('promotion source_release_run_id is invalid');
+    if (!/^\d+$/.test(string(provenance.standard_qualification_run_id))) errors.push('promotion standard_qualification_run_id is invalid');
+    for (const [field, expectedValue] of [
+      ['workflow_run_id', expected.promotionRunId],
+      ['workflow_run_attempt', expected.promotionRunAttempt],
+      ['release_attempt_id', expected.promotionAttemptId],
+      ['controller_workflow_sha', expected.controllerWorkflowSha],
+      ['source_release_run_id', expected.sourceReleaseRunId],
+      ['standard_qualification_run_id', expected.standardVmRunId],
+    ] as const) {
+      if (expectedValue !== undefined && provenance[field] !== expectedValue) {
+        errors.push(`promotion provenance ${field} does not match the exact session identity`);
+      }
+    }
+  }
+  const cohort = record(receipt.cohort);
+  if (!cohort) errors.push('promotion cohort is missing');
+  else {
+    for (const [field, expectedValue] of [
+      ['release_cohort_ref', expected.releaseCohortRef],
+      ['app_sha', expected.appSha],
+      ['shell_sha', expected.shellSha],
+      ['framework_sha', expected.frameworkSha],
+      ['release_set_generation', expected.releaseSetGeneration],
+      ['release_set_manifest_digest', expected.releaseSetManifestDigest],
+    ] as const) {
+      if (expectedValue !== undefined && cohort[field] !== expectedValue) {
+        errors.push(`promotion cohort ${field} does not match the exact session identity`);
+      }
+    }
+    if (!digestRefPattern.test(string(cohort.release_cohort_ref))) errors.push('promotion release_cohort_ref is invalid');
+    for (const field of ['app_sha', 'shell_sha', 'framework_sha'] as const) {
+      if (!shaPattern.test(string(cohort[field]))) errors.push(`promotion ${field} is invalid`);
+    }
+    if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(string(cohort.release_set_generation))) {
+      errors.push('promotion release_set_generation is invalid');
+    }
+    if (!digestRefPattern.test(string(cohort.release_set_manifest_digest))) errors.push('promotion release_set_manifest_digest is invalid');
+  }
+  const releaseOwner = record(receipt.release_owner);
+  if (!releaseOwner || !string(releaseOwner.receipt_ref)) errors.push('promotion release owner receipt ref is missing');
+  else if (expected.ownerReceiptRef && releaseOwner.receipt_ref !== expected.ownerReceiptRef) {
+    errors.push('promotion release owner receipt ref does not match the exact session identity');
+  }
   const distribution = record(receipt.distribution);
   if (!distribution || !string(distribution.receipt_ref) || !digestPattern.test(string(distribution.receipt_sha256))) errors.push('distribution receipt identity is invalid');
+  else if (
+    distribution.release_set_generation !== cohort?.release_set_generation ||
+    distribution.release_set_manifest_digest !== cohort?.release_set_manifest_digest
+  ) errors.push('distribution receipt Release Set identity does not match the promotion cohort');
   const activation = record(receipt.homebrew_activation);
   if (!activation || !string(activation.receipt_ref) || !digestPattern.test(string(activation.receipt_sha256)) || !/^\d+$/.test(string(activation.standard_vm_run_id))) errors.push('Homebrew activation receipt identity is invalid');
+  else if (expected.promotionRunId && activation.standard_vm_run_id !== expected.promotionRunId) {
+    errors.push('Homebrew activation run does not match the exact promotion workflow run');
+  }
   const stages = Array.isArray(receipt.stages) ? receipt.stages.map(record) : [];
   const expectedStages = ['release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated'];
   if (stages.length !== expectedStages.length || expectedStages.some((id, index) => stages[index]?.id !== id || stages[index]?.status !== 'verified')) errors.push('promotion saga stages are incomplete or out of order');

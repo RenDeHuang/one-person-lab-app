@@ -154,7 +154,7 @@ test('local-install plan stops at exact local build, install handoff, and instal
   }
 });
 
-test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
+test('release plan keeps the Standard terminal independent from post-terminal Full add-on lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
     '--version',
@@ -169,9 +169,18 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
   assert.equal(payload.strategy.candidate_record_promotion_source, 'only_source_for_stable_promotion');
   assert.equal(payload.strategy.post_release_user_guide_screenshots, 'after_promotion_not_pre_promotion_gate');
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
+  assert.equal(payload.full_payload_ref_audit.modes.stable.pin_input_required, true);
+  assert.equal(payload.full_payload_ref_audit.modes.stable.default_refs_can_follow_main, false);
+  assert.equal(payload.full_payload_ref_audit.modes.draft_candidate.pin_input_required, true);
+  assert.equal(payload.full_payload_ref_audit.modes.draft_candidate.default_refs_can_follow_main, false);
+  for (const input of Object.values(payload.full_payload_ref_audit.payloads)) {
+    assert.equal('default_ref' in input, false);
+    assert.match(input.ref_authority, /release_cohort|frozen_framework_catalog|app_full_third_party_source_manifest/);
+  }
   const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
-  const lane = (id: string) => {
-    const found = lanes.get(id);
+  const fullAddonLanes = new Map(payload.addon_graphs.full.lanes.map((lane) => [lane.id, lane]));
+  const lane = (id: string, source = lanes) => {
+    const found = source.get(id);
     assert.ok(found, `missing lane ${id}`);
     return found;
   };
@@ -180,18 +189,10 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
     ['release_preflight', { phase: 'fast_candidate', command: /npm run release:preflight/ }],
     ['release_boundary', {}],
     ['standard_build', {}],
-    ['full_build', {
-      depends_on: ['release_preflight', 'full_runtime_keys'],
-      can_run_with: 'standard_build',
-      command: /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/,
-    }],
-    ['publish_full_assets', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
     ['standard_dmg_clean_vm_smoke', { phase: 'installation_gate', command: /--runtime-profile standard/ }],
-    ['remote_verify_standard_and_full', { depends_on_includes: ['standard_dmg_clean_vm_smoke', 'publish_full_assets'] }],
+    ['remote_verify_standard', { depends_on_includes: ['publish_standard'] }],
     ['one_shot_app_installer_smoke', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
-    ['docker_webui_smoke', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
     ['homebrew_standard_cask_clean_vm_smoke', { command: /gaofeng21cn\/one-person-lab\/one-person-lab/ }],
-    ['full_dmg_clean_vm_smoke', { phase: 'release_gate', command: /--runtime-profile full/ }],
     ['release_evidence_bundle', {}],
     ['release_candidate_record', {
       depends_on_includes: ['release_readiness_summary'],
@@ -218,6 +219,16 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
       assert.equal(current.can_run_with.includes(expected.can_run_with), true);
     }
   }
+  assert.equal(payload.strategy.standard_terminal, 'independent_from_full_and_webui_addons');
+  assert.equal(payload.addon_graphs.full.starts_after, 'standard_stable_terminal');
+  assert.equal(payload.addon_graphs.full.blocking_standard_terminal, false);
+  assert.equal(payload.addon_graphs.webui.blocking_standard_terminal, false);
+  assert.equal(lanes.has('full_build'), false);
+  assert.equal(lanes.has('publish_full_assets'), false);
+  assert.deepEqual(lane('full_build', fullAddonLanes).depends_on, ['full_runtime_keys']);
+  assert.match(lane('full_build', fullAddonLanes).command, /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/);
+  assert.match(lane('full_dmg_clean_vm_smoke', fullAddonLanes).command, /--runtime-profile full/);
+  assert.deepEqual(lane('publish_full_assets', fullAddonLanes).depends_on, ['full_dmg_clean_vm_smoke']);
 });
 
 test('release preflight fails fast before expensive release jobs', () => {
@@ -252,16 +263,44 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.schema, 'opl_release_preflight.v1');
   assert.equal(payload.status, 'passed');
   assert.equal(payload.inputs.include_full_package, true);
+  assert.equal(payload.inputs.include_full_package_role, 'same_cohort_nonblocking_addon_intent');
+  assert.equal(payload.inputs.standard_terminal_requires_full_addon_terminal, false);
   assert.equal(payload.inputs.release_intent, 'stable_complete');
   assert.equal(payload.inputs.release_operator_plan_ref, offlineOperatorPlanRef);
+  assertCheck(payload, 'release_intent', 'passed', /independent Standard terminal.*non-blocking add-on/);
   for (const id of ['remote_target', 'release_refs', 'codex_package_metadata', 'docker_webui_clean_windows_evidence_artifact']) {
     assertCheck(payload, id, 'skipped');
   }
-  assertCheck(payload, 'full_workflow_call', 'passed');
+  assertCheck(payload, 'full_addon_preflight', 'skipped');
   assertCheck(payload, 'homebrew_vm_gate_static_policy', 'passed');
   assert.equal(payload.homebrew.vm_gate_static_policy.install_ref, 'gaofeng21cn/one-person-lab/one-person-lab');
   assert.ok(payload.homebrew.vm_gate_static_policy.trusted_cask_refs.includes('gaofeng21cn/one-person-lab/one-person-lab-full'));
   assert.equal(payload.homebrew.vm_gate_static_policy.whole_tap_trust_allowed, false);
+
+  const standardStableWithoutFull = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'new_release',
+    '--release-intent',
+    'stable_complete',
+    '--release-operator-plan-ref',
+    offlineOperatorPlanRef,
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'false',
+    '--offline',
+  ]);
+  assert.equal(standardStableWithoutFull.status, 0, standardStableWithoutFull.stderr || standardStableWithoutFull.stdout);
+  const standardStablePayload = JSON.parse(standardStableWithoutFull.stdout);
+  assert.equal(standardStablePayload.inputs.include_full_package, false);
+  assert.equal(standardStablePayload.inputs.standard_terminal_requires_full_addon_terminal, false);
+  assertCheck(standardStablePayload, 'release_intent', 'passed', /independent Standard terminal.*no Full add-on/);
+  assertCheck(standardStablePayload, 'full_addon_preflight', 'skipped');
 
   const standardOnly = runNode([
     'scripts/validate-release-preflight.ts',
@@ -285,7 +324,7 @@ test('release preflight fails fast before expensive release jobs', () => {
   ]);
   assert.equal(standardOnly.status, 0, standardOnly.stderr || standardOnly.stdout);
   const standardOnlyPayload = JSON.parse(standardOnly.stdout);
-  assertCheck(standardOnlyPayload, 'full_workflow_call', 'skipped');
+  assertCheck(standardOnlyPayload, 'full_addon_preflight', 'skipped');
   assertCheck(standardOnlyPayload, 'release_intent', 'passed', /explicitly omits Full/);
 });
 
@@ -343,7 +382,7 @@ test('release preflight rejects same-day Stable suffixes', () => {
   assertCheck(payload, 'version', 'failed', /expected YY\.M\.D without a same-day suffix/);
 });
 
-test('Nightly plan uses its executable source gate instead of Stable preflight', () => {
+test('Nightly plan is typed-blocked while its brokered replacement is unprovisioned', () => {
   const version = '26.7.12-nightly';
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -357,15 +396,13 @@ test('Nightly plan uses its executable source gate instead of Stable preflight',
   const payload = JSON.parse(result.stdout);
   const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
   assert.equal(payload.profile, 'nightly_standard');
-  assert.equal(lanes.has('release_preflight'), false);
-  assert.equal(lanes.has('release_version_gate'), true);
-  assert.equal(lanes.has('release_source_gate'), true);
-  assert.match(lanes.get('release_version_gate').command, /release:version:validate -- --channel nightly/);
-  assert.match(lanes.get('release_source_gate').command, /npm run release:source-gate/);
-  assert.doesNotMatch(lanes.get('release_source_gate').command, /release:preflight/);
-  assert.deepEqual(lanes.get('release_source_gate').depends_on, ['release_version_gate']);
-  assert.deepEqual(lanes.get('release_boundary').depends_on, ['release_source_gate']);
-  assert.deepEqual(lanes.get('standard_build').depends_on, ['release_source_gate']);
+  assert.equal(payload.status, 'blocked');
+  assert.equal(payload.blocker.code, 'retired_pending_brokered_replacement');
+  assert.equal(payload.blocker.retry_disposition, 'terminal_blocked');
+  assert.equal(payload.strategy.mutation_authority, 'external_release_mutation_broker');
+  assert.deepEqual([...lanes.keys()], ['nightly_release_blocked']);
+  assert.match(lanes.get('nightly_release_blocked').command, /No release mutation command is available/);
+  assert.doesNotMatch(JSON.stringify(payload), /nightly-standard-release\.yml|docker push|gh workflow run/);
 
   for (const [profile, invalidVersion] of [
     ['nightly', '26.7.12'],
@@ -384,7 +421,32 @@ test('Nightly plan uses its executable source gate instead of Stable preflight',
   }
 });
 
-test('release workflows serialize every mutation for one App version', () => {
+test('release-bound workflows require frozen SHA inputs and keep diagnostic VM fallback out of release sessions', () => {
+  const readWorkflow = (name: string) => fs.readFileSync(
+    path.join(process.cwd(), '.github', 'workflows', name),
+    'utf8',
+  );
+  const desktop = readWorkflow('desktop-release.yml');
+  const full = readWorkflow('full-first-install-release.yml');
+  const promote = readWorkflow('desktop-release-promote.yml');
+  const vm = readWorkflow('opl-first-run-vm.yml');
+  const reusableBuild = readWorkflow('_build-reusable.yml');
+
+  for (const workflow of [desktop, full, promote]) {
+    assert.doesNotMatch(workflow, /default: main|\|\| 'main'/);
+  }
+  assert.match(desktop, /framework_ref:[\s\S]*?required: true[\s\S]*?shell_ref:[\s\S]*?required: true/);
+  assert.match(full, /Validate frozen Full source SHAs[\s\S]*?shell_ref must be the exact frozen Shell SHA/);
+  assert.match(promote, /shell_ref:[\s\S]*?required: true/);
+  assert.match(vm, /if \[ -n "\$STABLE_SESSION_ID" \]; then[\s\S]*?Release-bound shell_ref must be an exact 40-character SHA/);
+  assert.match(vm, /Release-bound framework_ref must be an exact 40-character SHA/);
+  assert.match(reusableBuild, /Validate immutable release-bound build refs[\s\S]*?inputs\.stable_session_id != ''/);
+  for (const field of ['ref', 'shell_ref', 'framework_ref', 'opl_flow_ref']) {
+    assert.match(reusableBuild, new RegExp(`Release-bound ${field} must be the exact frozen`));
+  }
+});
+
+test('release workflows use broker CAS plus narrow GitHub concurrency backstops', () => {
   const readWorkflow = (name: string) => fs.readFileSync(
     path.join(process.cwd(), '.github', 'workflows', name),
     'utf8',
@@ -392,30 +454,34 @@ test('release workflows serialize every mutation for one App version', () => {
   const desktop = readWorkflow('desktop-release.yml');
   const promote = readWorkflow('desktop-release-promote.yml');
   const full = readWorkflow('full-first-install-release.yml');
+  const fullAddon = readWorkflow('desktop-release-full-addon.yml');
+  const qualification = readWorkflow('opl-first-run-vm.yml');
   const sharedGroup = 'group: opl-app-release-mutation-${{ inputs.opl_version }}';
 
   assert.match(desktop, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(promote, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(promote, /group: opl-app-stable-latest-mutation/);
+  assert.match(fullAddon, /group: opl-app-full-addon-\$\{\{ inputs\.opl_version \}\}/);
   assert.doesNotMatch(desktop, /group: opl-desktop-release-\$\{\{ inputs\.release_mode/);
   assert.match(promote, /concurrency:[\s\S]*?cancel-in-progress: false/);
-  assert.ok(full.includes("inputs.publish_to_release && format('opl-app-release-mutation-{0}', inputs.opl_version)"));
-  assert.ok(full.includes("format('opl-full-first-install-build-{0}-{1}', inputs.opl_version, github.run_id)"));
+  assert.match(full, /group: opl-full-first-install-build-\$\{\{ inputs\.opl_version \}\}-\$\{\{ github\.run_id \}\}/);
   assert.doesNotMatch(full, /release_mutation_owned_by_caller/);
-  assert.match(desktop, /publish_to_release: false/);
+  assert.doesNotMatch(full, /publish_to_release/);
+  assert.match(desktop, /defer_addons:[\s\S]*default: true/);
+  for (const workflow of [desktop, promote, full, fullAddon, qualification]) {
+    assert.doesNotMatch(workflow, /gh release delete|gh api[^\n]*-X DELETE|--cleanup-tag/);
+  }
 });
 
-test('Full publish planning probes a remote draft and only mocks absence for artifact-only mode', () => {
+test('Full build planning is artifact-only and never probes or mutates a release', () => {
   const workflow = fs.readFileSync(
     path.join(process.cwd(), '.github', 'workflows', 'full-first-install-release.yml'),
     'utf8',
   );
-  const liveStart = workflow.indexOf('- name: Verify release upload plan');
   const localStart = workflow.indexOf('- name: Verify Full artifact plan without a release mutation');
-  const nextStep = workflow.indexOf('- name: Verify existing standard updater metadata');
-  assert.ok(liveStart >= 0 && localStart > liveStart && nextStep > localStart);
-  assert.doesNotMatch(workflow.slice(liveStart, localStart), /OPL_RELEASE_EXISTS/);
+  const nextStep = workflow.indexOf('- name: Write Full build artifact cohort manifest');
+  assert.ok(localStart >= 0 && nextStep > localStart);
   assert.match(workflow.slice(localStart, nextStep), /OPL_RELEASE_EXISTS: '0'/);
-  assert.doesNotMatch(workflow, /OPL_RELEASE_EXISTS:\s*\$\{\{[^}]*publish_to_release/);
+  assert.doesNotMatch(workflow, /publish_to_release|gh release upload|gh release create/);
 });
 
 test('Stable preflight rejects padded or non-calendar YY.M.D versions', () => {

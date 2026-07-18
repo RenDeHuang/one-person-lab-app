@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { BuildArtifactCohortV2 } from './build-artifact-cohort.ts';
-import { sha256File } from './build-artifact-cohort.ts';
+import { sha256File, validateFrozenCodexCliIdentity } from './build-artifact-cohort.ts';
 import {
   validateQualificationHarnessScopeProof,
   type QualificationHarnessScopeProof,
@@ -44,13 +44,18 @@ export type ArtifactQualificationReceiptV1 = {
     schema: BuildArtifactCohortV2['schema'];
     sha256: string;
     smoke_harness_sha256: string;
+    qualification_input_manifest_sha256: string;
+    full_input_manifest_sha256: string | null;
+    framework_bundled_catalog_sha256: string | null;
+    full_toolchain_observation_receipt_sha256: string | null;
   };
+  qualification_runtime: BuildArtifactCohortV2['qualification_runtime'];
   verification_harness: {
     app_sha: string;
     shell_sha: string;
     smoke_harness_sha256: string;
     differs_from_artifact_cohort: boolean;
-    change_scope: 'same_as_artifact_cohort' | 'smoke_or_validator_only';
+    change_scope: 'same_as_artifact_cohort' | 'harness_mechanics_only';
     scope_proof: QualificationHarnessScopeProof;
   } | null;
   smoke_summary: {
@@ -428,6 +433,7 @@ export function buildArtifactQualificationReceipt(input: {
   const verificationSmokeHarnessSha256 = input.verificationHarness
     ? sha256File(input.verificationHarness.smokeHarnessPath)
     : null;
+  const verificationScope = input.verificationHarness?.scopeProof.classification;
   if (input.verificationHarness) {
     const scopeErrors = validateQualificationHarnessScopeProof(input.verificationHarness.scopeProof, {
       artifactAppSha: input.manifest.cohort.app_sha,
@@ -437,6 +443,9 @@ export function buildArtifactQualificationReceipt(input: {
     });
     if (scopeErrors.length > 0) {
       throw new Error(`Invalid qualification harness scope proof: ${scopeErrors.join('; ')}`);
+    }
+    if (verificationScope === 'new_cohort_required') {
+      throw new Error('Qualification harness changes require a new artifact cohort and cannot produce a same-artifact receipt.');
     }
     if (
       input.verificationHarness.scopeProof.classification === 'same_as_artifact_cohort' &&
@@ -456,7 +465,7 @@ export function buildArtifactQualificationReceipt(input: {
         shell_sha: input.verificationHarness.shellSha,
         smoke_harness_sha256: verificationSmokeHarnessSha256,
         differs_from_artifact_cohort: verificationDiffersFromArtifactCohort,
-        change_scope: input.verificationHarness.scopeProof.classification,
+        change_scope: verificationScope as 'same_as_artifact_cohort' | 'harness_mechanics_only',
         scope_proof: input.verificationHarness.scopeProof,
       }
     : null;
@@ -480,7 +489,12 @@ export function buildArtifactQualificationReceipt(input: {
       schema: input.manifest.schema,
       sha256: sha256File(input.manifestPath),
       smoke_harness_sha256: input.manifest.digests.smoke_harness_sha256,
+      qualification_input_manifest_sha256: input.manifest.digests.qualification_input_manifest_sha256,
+      full_input_manifest_sha256: input.manifest.digests.full_input_manifest_sha256 ?? null,
+      framework_bundled_catalog_sha256: input.manifest.digests.framework_bundled_catalog_sha256 ?? null,
+      full_toolchain_observation_receipt_sha256: input.manifest.digests.full_toolchain_observation_receipt_sha256 ?? null,
     },
+    qualification_runtime: input.manifest.qualification_runtime,
     verification_harness: verificationHarness,
     smoke_summary: {
       path: smokeSummaryExists ? input.smokeSummaryPath! : null,
@@ -509,6 +523,10 @@ export function validateArtifactQualificationReceipt(
     verificationShellSha?: string;
     verificationSmokeHarnessSha256?: string;
     verificationScopeProof?: QualificationHarnessScopeProof;
+    fullInputManifestDigest?: string;
+    frameworkBundledCatalogDigest?: string;
+    qualificationInputManifestDigest?: string;
+    fullToolchainObservationReceiptDigest?: string;
   },
 ): string[] {
   const errors: string[] = [];
@@ -526,7 +544,18 @@ export function validateArtifactQualificationReceipt(
     if (value && receipt.qualification[key] !== value) errors.push(`${key} is ${receipt.qualification[key]}`);
   }
   if (expected.artifactSha256 && receipt.artifact.sha256 !== expected.artifactSha256) errors.push(`artifact sha256 is ${receipt.artifact.sha256}`);
-  if (!digestPattern.test(receipt.artifact.sha256) || !digestPattern.test(receipt.build_manifest.sha256) || !digestPattern.test(receipt.build_manifest.smoke_harness_sha256)) errors.push('qualification receipt contains an invalid digest');
+  if (!digestPattern.test(receipt.artifact.sha256) || !digestPattern.test(receipt.build_manifest.sha256) || !digestPattern.test(receipt.build_manifest.smoke_harness_sha256) || !digestPattern.test(receipt.build_manifest.qualification_input_manifest_sha256)) errors.push('qualification receipt contains an invalid digest');
+  if (expected.qualificationInputManifestDigest && receipt.build_manifest.qualification_input_manifest_sha256 !== expected.qualificationInputManifestDigest) errors.push('Qualification input manifest digest does not match');
+  errors.push(...validateFrozenCodexCliIdentity(receipt.qualification_runtime?.codex_cli));
+  const fullProfile = receipt.package_profile === 'full' || receipt.package_profile === 'homebrew-full';
+  if (fullProfile && (
+    !digestPattern.test(receipt.build_manifest.full_input_manifest_sha256 || '') ||
+    !digestPattern.test(receipt.build_manifest.framework_bundled_catalog_sha256 || '') ||
+    !digestPattern.test(receipt.build_manifest.full_toolchain_observation_receipt_sha256 || '')
+  )) errors.push('Full qualification receipt lacks frozen input authority digests');
+  if (expected.fullInputManifestDigest && receipt.build_manifest.full_input_manifest_sha256 !== expected.fullInputManifestDigest) errors.push('Full input manifest digest does not match');
+  if (expected.frameworkBundledCatalogDigest && receipt.build_manifest.framework_bundled_catalog_sha256 !== expected.frameworkBundledCatalogDigest) errors.push('Framework bundled catalog digest does not match');
+  if (expected.fullToolchainObservationReceiptDigest && receipt.build_manifest.full_toolchain_observation_receipt_sha256 !== expected.fullToolchainObservationReceiptDigest) errors.push('Full toolchain observation receipt digest does not match');
   for (const [key, value] of [
     ['app_sha', expected.appSha], ['shell_sha', expected.shellSha], ['framework_sha', expected.frameworkSha],
   ] as const) {
@@ -547,7 +576,10 @@ export function validateArtifactQualificationReceipt(
     if (verificationHarness.differs_from_artifact_cohort !== differsFromArtifactCohort) {
       errors.push('verification harness differs_from_artifact_cohort is inconsistent');
     }
-    const expectedScope = differsFromArtifactCohort ? 'smoke_or_validator_only' : 'same_as_artifact_cohort';
+    const expectedScope = 'same_as_artifact_cohort';
+    if (differsFromArtifactCohort) {
+      errors.push('verification harness differs from the frozen artifact cohort; a new cohort is required');
+    }
     if (verificationHarness.change_scope !== expectedScope) {
       errors.push(`verification harness change_scope is ${verificationHarness.change_scope}`);
     }
@@ -575,14 +607,16 @@ export function validateArtifactQualificationReceipt(
   ) {
     errors.push('verification harness scope proof does not match the release session');
   }
-  const fullPassed =
+  const passed =
     receipt.status === 'passed' &&
-    receipt.qualification.result === 'passed' &&
-    (receipt.package_profile === 'full' || receipt.package_profile === 'homebrew-full');
-  if (fullPassed) {
+    receipt.qualification.result === 'passed';
+  if (passed) {
     if (!receipt.smoke_summary?.path || !digestPattern.test(receipt.smoke_summary?.sha256 ?? '')) {
-      errors.push('passed Full qualification receipt is missing its smoke summary binding');
+      errors.push('passed qualification receipt is missing its smoke summary binding');
     }
+  }
+  const fullPassed = passed && (receipt.package_profile === 'full' || receipt.package_profile === 'homebrew-full');
+  if (fullPassed) {
     errors.push(...validateTemporalServiceSupervisorProof(
       receipt.smoke_summary?.temporal_service_supervisor_proof,
     ));

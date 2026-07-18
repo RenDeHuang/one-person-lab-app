@@ -1,6 +1,9 @@
 import { assertRemoteReleaseCohortMatches } from './release-evidence-cohort.ts';
 import { asRecord } from './release-json-helpers.ts';
 import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
+import { compileCurrentFirstRunExpectations } from './compile-first-run-expectations.ts';
+
+const standardAssistantTargets = compileCurrentFirstRunExpectations().profiles.standard.semantics.assistant_targets;
 
 type EvidenceArtifact = {
   id: string;
@@ -59,14 +62,27 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       return [assistant.id, assistant];
     }),
   );
-  for (const [assistantId, badges, shortName] of [
-    ['med-autoscience', ['@科研', '@MAS'], 'MAS'],
-    ['med-autogrant', ['@基金', '@MAG'], 'MAG'],
-    ['redcube-ai', ['@演示', '@RCA'], 'RCA'],
-  ]) {
+  for (const target of standardAssistantTargets) {
+    const assistantId = target.assistant_id;
+    const badges = [target.badge, `@${assistantId.toUpperCase()}`];
+    const shortName = assistantId.toUpperCase();
     const assistant = resultsById.get(assistantId);
     if (!assistant) {
       throw new Error(`${artifact.id} must include ${assistantId} route smoke result.`);
+    }
+    for (const [field, expected] of [
+      ['assistant_id', target.assistant_id],
+      ['shortcut_id', target.shortcut_id],
+      ['package_id', target.package_id],
+      ['codex_visible_entry', target.codex_visible_entry],
+      ['badge', target.badge],
+    ] as const) {
+      if (assistant[field] !== expected) {
+        throw new Error(`${artifact.id}.${assistantId}.${field} must match the compiled assistant target mapping.`);
+      }
+    }
+    if (JSON.stringify(assistant.required_skill_ids) !== JSON.stringify(target.required_skill_ids)) {
+      throw new Error(`${artifact.id}.${assistantId}.required_skill_ids must match the compiled assistant target mapping.`);
     }
     if (!badges.includes(String(assistant.badge))) {
       throw new Error(`${artifact.id}.${assistantId} must show an App-owned purpose badge.`);
@@ -78,12 +94,15 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       const launchGate = asRecord(assistant.launch_gate, `${artifact.id}.${assistantId}.launch_gate`);
       if (
         launchGate.visible !== true ||
-        launchGate.disabled !== true ||
+        launchGate.selectable_before_selection !== true ||
+        launchGate.selected !== true ||
         launchGate.launch_allowed !== false ||
+        launchGate.send_blocked !== true ||
         launchGate.repair_hint_visible !== true ||
+        launchGate.message_visible !== true ||
         !String(launchGate.readiness_hint ?? '').toLowerCase().includes('repair')
       ) {
-        throw new Error(`${artifact.id}.${assistantId} must prove visible blocked launch with a repair hint.`);
+        throw new Error(`${artifact.id}.${assistantId} must prove selectable send-time blocking with a repair hint.`);
       }
       if (assistant.receipt != null) {
         throw new Error(`${artifact.id}.${assistantId} must not claim a route receipt for Standard.`);

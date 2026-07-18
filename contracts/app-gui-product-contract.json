@@ -2778,6 +2778,17 @@
     "receipt_policy": "use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition",
     "binding_policy": "validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch",
     "closure_policy": "Framework_owned_just_in_time_reconciliation_or_diagnostics_not_a_shell_preflight_gate",
+    "home_shortcut_interaction": {
+      "configured_shortcut_visible": true,
+      "configured_shortcut_selectable_before_selection": true,
+      "directory_entry_ordinary_discovery_visible_is_separate": true,
+      "launch_readiness_enforcement_phase": "selected_package_send",
+      "package_unavailable_send_allowed": false,
+      "typed_reason_required": true,
+      "draft_preserved": true,
+      "owner_repair_guidance_required": true,
+      "successful_invocation_receipt_expected_before_launch": false
+    },
     "launch_state_machine": {
       "states": [
         "ready",
@@ -5039,15 +5050,12 @@
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "full_first_install_build",
-        "remote_standard_and_full_release_verification",
+        "remote_standard_release_verification",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "full_dmg_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke",
-        "docker_webui_smoke",
-        "webui_ghcr_publish"
+        "one_shot_app_installer_fresh_install_smoke"
       ],
+      "addon_gate_blocking_standard_terminal": false,
       "diagnostic_gate": [
         "operator_evidence_bundle"
       ],
@@ -5056,13 +5064,12 @@
     "nightly": {
       "channel_id": "nightly_standard",
       "source": "contracts/app-release-channel.json#release_validation_profiles.nightly_standard",
-      "must_gate": [
-        "release_boundary_contract",
-        "standard_macos_arm64_build",
-        "local_standard_asset_validation",
-        "remote_standard_release_verification",
-        "webui_ghcr_publish"
-      ],
+      "status": "retired_pending_brokered_replacement",
+      "selectable": false,
+      "publication_available": false,
+      "mutation_available": false,
+      "display_policy": "status_only_not_channel_option",
+      "must_gate": [],
       "must_not_gate": [
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
@@ -5072,7 +5079,7 @@
         "docker_webui_smoke",
         "operator_evidence_bundle"
       ],
-      "latest_policy": "never_mark_latest"
+      "latest_policy": "unavailable"
     }
   },
   "retired_domain_agents": [

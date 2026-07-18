@@ -1,0 +1,64 @@
+{
+  "schema": "opl_app_full_third_party_source_manifest.v1",
+  "sources": {
+    "officecli": {
+      "repository": "iOfficeAI/OfficeCLI",
+      "ref": "aef80eff7b2cd1caf8e24fa2abfdcdf5f6222207",
+      "release_tag": "v1.0.138"
+    },
+    "mineru": {
+      "repository": "opendatalab/MinerU-Ecosystem",
+      "ref": "5733c03b3d53cb01c0361bb6acecda3f554c8c12"
+    },
+    "ui_ux_pro_max": {
+      "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "ref": "f8ac5e1266dba8354ea96e19994d9f4345e7ec31"
+    }
+  },
+  "toolchain": {
+    "bun": {
+      "version": "1.3.14",
+      "source": "oven-sh/setup-bun GitHub release asset",
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+    },
+    "go": {
+      "version": "1.26.4",
+      "source": "actions/setup-go toolcache resolved from go.dev release",
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+    },
+    "python": {
+      "version": "3.12.13",
+      "source": "actions/setup-python toolcache release",
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+    },
+    "uv": {
+      "version": "0.9.5",
+      "source": "PyPI exact-version distribution",
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+    },
+    "zstd": {
+      "version": "1.5.7",
+      "source": "Homebrew versioned bottle",
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+    }
+  },
+  "runtime_payloads": {
+    "codex_cli": {
+      "version": "0.144.5",
+      "qualification_input_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.codex_cli"
+    },
+    "temporal_cli": {
+      "version": "1.8.0",
+      "darwin_arm64_archive_sha256": "46b4ac2b603e2b68d684da728bccd938a69acfad9c5e1a469d28d00a64e8bc9c"
+    },
+    "officecli": {
+      "version": "1.0.138",
+      "darwin_arm64_asset_sha256": "761d9c2a6778d3932883bce7b8741284ad22f05f737a444b1e05b21c368f780a"
+    }
+  },
+  "authority_boundary": {
+    "moving_refs_for_release_payload_forbidden": true,
+    "manifest_is_bound_by_controller_workflow_sha": true,
+    "full_toolchain_observation_receipt_required": true
+  }
+}

@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import { buildQualificationHarnessScopeProof } from '../../scripts/qualification-harness-scope.ts';
@@ -7,17 +12,212 @@ import {
   classifyWorkflowRunObservation,
   decodeWorkflowRunReadback,
   desktopReleaseDispatchArgs,
+  desktopReleaseMutationPayload,
+  dispatchEmergencyCancel,
+  executeBrokeredReleaseMutation,
   formatCommandFailure,
   promoteDispatchArgs,
-  promotionRerunArgs,
+  promotionMutationPayload,
+  qualificationMutationPayload,
   qualificationRetryDispatchArgs,
-  selectNewCohortRun,
+  start as startStableRelease,
+  standardReleaseCircuitBreaker,
   transitionStableReleaseSession,
+  validateAcceptedWorkflowRunIdentity,
+  watchRunToTerminal,
+  applyAddonDebtDisposition,
+  type StableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
+import {
+  appendReleaseMutationAttemptEvent,
+  appendQualificationAttempt,
+  appendQualificationAttemptEvent,
+  createStableReleaseSessionAtomic,
+  issueReleaseMutationLease,
+  inspectStableReleaseSessionLock,
+  planReleaseMutationAttempt,
+  recoverStaleStableReleaseSessionLock,
+  readStableReleaseSession,
+  validateStableReleaseSessionInvariants,
+  writeStableReleaseSessionAtomic,
+} from '../../scripts/stable-release-session.ts';
+import { buildReleaseSessionLease, type ReleaseMutation } from '../../scripts/release-session-lease.ts';
+import { releaseMutationPayloadSha256 } from '../../scripts/release-mutation-payload.ts';
+import {
+  buildCredentialIsolationReceipt,
+  readReleaseBrokerAuthority,
+  releaseBrokerAuthoritySha256,
+  type ReleaseBrokerAuthorityV1,
+} from '../../scripts/release-broker-authority.ts';
+import {
+  buildReleaseMutationAcceptanceReceipt,
+  type ReleaseMutationBroker,
+} from '../../scripts/release-mutation-broker.ts';
 
 const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
+const repositoryHead = spawnSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).stdout.trim();
+const brokerKeys = crypto.generateKeyPairSync('ed25519');
+const brokerPrivateKeyPem = brokerKeys.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+const brokerPublicKeyPem = brokerKeys.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+const testBroker = (input: Parameters<typeof buildReleaseSessionLease>[0]) => buildReleaseSessionLease({
+  ...input, signingPrivateKeyPem: brokerPrivateKeyPem, keyId: 'test-release-broker',
+});
+const brokerAuthorityRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-broker-authority-'));
+const brokerAuthorityPath = path.join(brokerAuthorityRoot, 'authority.json');
+const canonicalBrokerAuthority = readReleaseBrokerAuthority();
+const brokerAuthority: ReleaseBrokerAuthorityV1 = {
+  ...canonicalBrokerAuthority,
+  status: 'provisioned',
+  authority_epoch: 1,
+  historical_verification_epochs: [],
+  mutation_broker: {
+    ...canonicalBrokerAuthority.mutation_broker,
+    executable_path: '/usr/local/libexec/opl-release-broker-test',
+    executable_sha256: `sha256:${'e'.repeat(64)}`,
+    executable_codesign_identity: 'com.onepersonlab.release-broker.test',
+    approved_controller_workflow_shas: [appSha, 'f'.repeat(40)],
+  },
+  trusted_ed25519_public_keys: {
+    'test-release-broker': brokerPublicKeyPem,
+  },
+  credential_isolation: {
+    ...canonicalBrokerAuthority.credential_isolation,
+    observed: {
+      normal_codex_actions_write_allowed: false,
+      release_broker_actions_write_token_isolated: true,
+      normal_codex_protected_main_push_allowed: false,
+      normal_codex_release_control_plane_write_allowed: false,
+      normal_codex_ruleset_bypass_allowed: false,
+      normal_codex_required_review_bypass_allowed: false,
+    },
+  },
+};
+fs.writeFileSync(brokerAuthorityPath, `${JSON.stringify(brokerAuthority, null, 2)}\n`);
+const isolationReceiptPath = path.join(brokerAuthorityRoot, 'credential-isolation.json');
+const isolationNow = Date.now();
+const isolationReceipt = buildCredentialIsolationReceipt({
+  authority: brokerAuthority,
+  observedAt: new Date(isolationNow - 30_000).toISOString(), expiresAt: new Date(isolationNow + 14 * 60_000).toISOString(),
+  normalActor: 'codex-read-only', normalTokenFingerprint: `sha256:${'1'.repeat(64)}`,
+  brokerActor: 'opl-release-broker[bot]', brokerTokenFingerprint: `sha256:${'2'.repeat(64)}`,
+  brokerBackend: 'isolated-github-app-service', privateKeyBackend: 'macos-keychain-release-broker',
+  brokerEndpointPath: brokerAuthority.mutation_broker.executable_path,
+  brokerEndpointSha256: brokerAuthority.mutation_broker.executable_sha256!,
+  brokerEndpointCodesignIdentity: brokerAuthority.mutation_broker.executable_codesign_identity!,
+  callerAdmissionBackend: 'launchd-xpc-peer-credential',
+  operatorActor: 'gaofeng21cn', operatorIdentitySource: 'broker_authenticated_caller',
+  keyId: 'test-release-broker', signingPrivateKeyPem: brokerPrivateKeyPem,
+});
+fs.writeFileSync(isolationReceiptPath, `${JSON.stringify(isolationReceipt, null, 2)}\n`);
+process.env.OPL_RELEASE_BROKER_CREDENTIAL_ISOLATION_RECEIPT_PATH = isolationReceiptPath;
+test.after(() => fs.rmSync(brokerAuthorityRoot, { recursive: true, force: true }));
+
+test('plan is a pure read and never creates or rewrites the requested state path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-plan-'));
+  const statePath = path.join(root, 'release-session.json');
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/run-stable-release.ts',
+    'plan',
+    '--version', '26.7.18',
+    '--release-mode', 'new_release',
+    '--release-intent', 'stable_complete',
+    '--include-full-package', 'true',
+    '--run-vm-smoke', 'true',
+    '--publish-docker-webui', 'false',
+    '--app-ref', repositoryHead,
+    '--shell-ref', repositoryHead,
+    '--framework-ref', repositoryHead,
+    '--shell-root', process.cwd(),
+    '--framework-root', process.cwd(),
+    '--state', statePath,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  try {
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(JSON.parse(result.stdout).schema, 'opl_app_stable_release_session.v3');
+    assert.equal(fs.existsSync(statePath), false);
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('start dry-run is pure and start --execute refuses every existing session path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-start-purity-'));
+  const statePath = path.join(root, 'release-session.json');
+  const cohortArgs = [
+    '--version', '26.7.18', '--release-mode', 'new_release', '--release-intent', 'stable_complete',
+    '--include-full-package', 'true', '--run-vm-smoke', 'true', '--publish-docker-webui', 'false',
+    '--app-ref', repositoryHead, '--shell-ref', repositoryHead, '--framework-ref', repositoryHead,
+    '--shell-root', process.cwd(), '--framework-root', process.cwd(), '--state', statePath,
+  ];
+  try {
+    fs.writeFileSync(statePath, 'do-not-overwrite\n');
+    const dry = spawnSync(process.execPath, [
+      '--experimental-strip-types', 'scripts/run-stable-release.ts', 'start', ...cohortArgs,
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.equal(dry.status, 0, dry.stderr || dry.stdout);
+    assert.equal(fs.readFileSync(statePath, 'utf8'), 'do-not-overwrite\n');
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+
+    const planResult = spawnSync(process.execPath, [
+      '--experimental-strip-types', 'scripts/run-stable-release.ts', 'plan', ...cohortArgs,
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.equal(planResult.status, 0, planResult.stderr || planResult.stdout);
+    fs.writeFileSync(statePath, planResult.stdout);
+    const before = fs.readFileSync(statePath, 'utf8');
+    const execute = spawnSync(process.execPath, [
+      '--experimental-strip-types', 'scripts/run-stable-release.ts', 'start', ...cohortArgs, '--execute',
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.notEqual(execute.status, 0);
+    assert.match(execute.stderr, /use status, reconcile, or resume/);
+    assert.equal(fs.readFileSync(statePath, 'utf8'), before);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function acceptanceForRequest(
+  request: Parameters<ReleaseMutationBroker>[0],
+  runId: string | null,
+) {
+  const acceptedAt = new Date().toISOString();
+  const lease = buildReleaseSessionLease({
+    stableSessionId: request.stable_session_id,
+    releaseCohortRef: request.release_cohort_ref,
+    repository: request.github.repository,
+    operatorActor: request.operator_actor,
+    brokerActor: brokerAuthority.broker_identity.github_actor,
+    attemptId: request.attempt_id,
+    workflow: request.workflow,
+    artifactKind: request.artifact_kind,
+    controllerWorkflowSha: request.controller_workflow_sha,
+    artifactAppSha: request.artifact_app_sha,
+    mutationPayloadSha256: request.mutation_payload_sha256,
+    plannedSessionRevision: request.planned_session_revision,
+    mutation: request.mutation,
+    targetAttemptId: request.mutation === 'workflow_cancel' ? request.mutation_payload.target_attempt_id : undefined,
+    targetRunId: request.mutation === 'workflow_cancel' ? request.github.target_run_id ?? undefined : undefined,
+    issuedAt: acceptedAt,
+    signingPrivateKeyPem: brokerPrivateKeyPem,
+    keyId: 'test-release-broker',
+  });
+  return buildReleaseMutationAcceptanceReceipt({
+    request, lease, acceptedAt,
+    brokerActor: brokerAuthority.broker_identity.github_actor,
+    brokerTokenFingerprint: `sha256:${'2'.repeat(64)}`,
+    requestId: `request-${request.attempt_id.slice(-8)}`,
+    runId,
+    keyId: 'test-release-broker',
+    signingPrivateKeyPem: brokerPrivateKeyPem,
+    credentialIsolationReceipt: isolationReceipt,
+  });
+}
+
+const testMutationBroker: ReleaseMutationBroker = (request) =>
+  acceptanceForRequest(request, request.github.target_run_id);
 
 function plan(): ReleaseCohortPlan {
   return {
@@ -39,7 +239,7 @@ function plan(): ReleaseCohortPlan {
     cohort_lock: {
       schema: 'opl_app_release_cohort_lock.v1',
       generated_at: '2026-07-12T00:00:00.000Z',
-      app: { requested_ref: 'codex/release-26.7.12', resolved_sha: appSha, repo_root: '/app' },
+      app: { requested_ref: 'main', resolved_sha: appSha, repo_root: '/app' },
       shell: { requested_ref: 'main', resolved_sha: shellSha, repo_root: '/shell' },
       framework: { requested_ref: 'main', resolved_sha: frameworkSha, repo_root: '/framework' },
       authority_boundary: {
@@ -62,6 +262,44 @@ function plan(): ReleaseCohortPlan {
   };
 }
 
+function sessionWithActiveReleaseRun(runId: string): StableReleaseSession {
+  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
+  const payload = desktopReleaseMutationPayload(session);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    at: '2026-07-18T00:01:00.000Z', reason: 'active release run fixture',
+  });
+  session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: '2026-07-18T00:01:01.000Z', state: 'acceptance_pending_visibility', run_id: runId,
+    reason: 'exact active release run fixture',
+  });
+  session.release_run = { id: runId, url: `https://example.test/${runId}`, conclusion: null };
+  return session;
+}
+
+function authorize(
+  session: ReturnType<typeof buildStableReleaseSession>,
+  mutation: ReleaseMutation,
+  workflow: 'desktop-release.yml' | 'opl-first-run-vm.yml' | 'desktop-release-promote.yml',
+  artifactKind: 'standard' | 'full' | 'promotion',
+  controllerWorkflowSha = appSha,
+  artifactAppSha = appSha,
+  mutationPayloadSha256 = `sha256:${'8'.repeat(64)}`,
+) {
+  const planned = planReleaseMutationAttempt(session, {
+    mutation, workflow, artifactKind, controllerWorkflowSha, artifactAppSha,
+    mutationPayloadSha256, reason: 'test authorization',
+  });
+  planned.session.revision = planned.session.mutation_attempts.at(-1)!.planned_session_revision;
+  return issueReleaseMutationLease(planned.session, {
+    actor: 'gaofeng21cn', attemptId: planned.attemptId,
+    workflow, artifactKind, controllerWorkflowSha, artifactAppSha, mutation,
+    broker: testBroker, authority: brokerAuthority,
+  }).session;
+}
+
 test('stable release session freezes one cohort and deduplicates cheap gates', () => {
   const session = buildStableReleaseSession(plan(), 'gaofeng21cn/one-person-lab-app', '2026-07-12T00:00:00.000Z');
   assert.equal(session.version, '26.7.12');
@@ -69,11 +307,650 @@ test('stable release session freezes one cohort and deduplicates cheap gates', (
   assert.equal(session.efficiency_policy.desktop_release_dispatch_limit_per_cohort, 1);
   assert.equal(session.efficiency_policy.cross_cohort_artifact_reuse_allowed, false);
   assert.equal(session.authority_boundary.execute_flag_required_for_external_mutation, true);
-  assert.equal(session.schema, 'opl_app_stable_release_session.v2');
+  assert.equal(session.schema, 'opl_app_stable_release_session.v3');
+  assert.deepEqual(session.mutation_leases, []);
   assert.equal(session.metrics.artifact_build_count, 0);
   assert.equal(session.metrics.promotion_retry_count, 0);
   assert.equal(session.efficiency_policy.monitor_transport_retry_limit, 3);
 });
+
+test('create-only session persistence never replaces even the same session identity', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-create-only-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const initial = buildStableReleaseSession(plan());
+    createStableReleaseSessionAtomic(statePath, initial);
+    const before = fs.readFileSync(statePath, 'utf8');
+    const sameIdentity = buildStableReleaseSession(plan());
+    assert.throws(
+      () => createStableReleaseSessionAtomic(statePath, sameIdentity),
+      /status, reconcile, or resume/,
+    );
+    assert.equal(fs.readFileSync(statePath, 'utf8'), before);
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read and write reject terminal truth without both validated receipt digests', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-terminal-invariant-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const invalid = buildStableReleaseSession(plan());
+    invalid.phase = 'standard_stable_terminal';
+    invalid.terminal_truth.standard_status = 'terminal';
+    invalid.terminal_truth.standard_terminal_at = new Date().toISOString();
+    invalid.metrics.standard_completed_at = invalid.terminal_truth.standard_terminal_at;
+    assert.match(validateStableReleaseSessionInvariants(invalid).join('; '), /local activation.*promotion saga/);
+    assert.throws(() => writeStableReleaseSessionAtomic(statePath, invalid), /invariant violation/);
+    fs.writeFileSync(statePath, `${JSON.stringify(invalid, null, 2)}\n`);
+    assert.throws(() => readStableReleaseSession(statePath), /invariant violation/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('legacy deadline-blocked sessions recover blocked terminal truth instead of resuming', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-deadline-fallback-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
+    const deadlineAt = new Date(startedAt + 90 * 60 * 1_000).toISOString();
+    const initial = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+    const blocked = transitionStableReleaseSession(
+      initial, 'standard_deadline_blocked', 'legacy deadline blocker', deadlineAt,
+      { stage: 'cohort_planning', run_id: null },
+    );
+    delete (blocked as Partial<StableReleaseSession>).terminal_truth;
+    fs.writeFileSync(statePath, `${JSON.stringify(blocked, null, 2)}\n`);
+
+    const recovered = readStableReleaseSession(statePath);
+    assert.equal(recovered.phase, 'standard_deadline_blocked');
+    assert.equal(recovered.terminal_truth.standard_status, 'blocked');
+    assert.equal(recovered.terminal_truth.standard_terminal_at, null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('every signed mutation lease requires a durable matching planned attempt', () => {
+  const session = buildStableReleaseSession(plan());
+  assert.throws(() => issueReleaseMutationLease(session, {
+    actor: 'gaofeng21cn', attemptId: `sha256:${'9'.repeat(64)}`,
+    workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutation: 'desktop_release_dispatch', broker: testBroker, authority: brokerAuthority,
+  }), /durable planned attempt/);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha, reason: 'test durable pre-mutation ledger',
+    mutationPayloadSha256: `sha256:${'8'.repeat(64)}`,
+  });
+  assert.equal(planned.session.mutation_attempts[0].events[0].state, 'planned');
+  planned.session.revision = planned.session.mutation_attempts[0].planned_session_revision;
+  assert.throws(() => issueReleaseMutationLease(planned.session, {
+    actor: 'gaofeng21cn', attemptId: planned.attemptId,
+    workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: frameworkSha, artifactAppSha: appSha,
+    mutation: 'desktop_release_dispatch', broker: testBroker, authority: brokerAuthority,
+  }), /does not match/);
+  const issued = issueReleaseMutationLease(planned.session, {
+    actor: 'gaofeng21cn', attemptId: planned.attemptId,
+    workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutation: 'desktop_release_dispatch', broker: testBroker, authority: brokerAuthority,
+  });
+  assert.throws(() => issueReleaseMutationLease(issued.session, {
+    actor: 'gaofeng21cn', attemptId: planned.attemptId,
+    workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutation: 'desktop_release_dispatch', broker: testBroker, authority: brokerAuthority,
+  }), /already has/);
+  const dispatching = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: new Date().toISOString(), state: 'dispatching', run_id: null, reason: 'test',
+  });
+  assert.throws(() => issueReleaseMutationLease(dispatching, {
+    actor: 'gaofeng21cn', attemptId: planned.attemptId,
+    workflow: 'desktop-release.yml', artifactKind: 'standard',
+    controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutation: 'desktop_release_dispatch', broker: testBroker, authority: brokerAuthority,
+  }), /planned state/);
+});
+
+test('the same durable attempt is idempotent and late broker attribution can recover dispatch_lost', () => {
+  const session = buildStableReleaseSession(plan());
+  const payload = desktopReleaseMutationPayload(session);
+  const input = {
+    mutation: 'desktop_release_dispatch' as const,
+    workflow: 'desktop-release.yml' as const,
+    artifactKind: 'standard' as const,
+    controllerWorkflowSha: appSha,
+    artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload),
+    mutationPayload: payload,
+    reason: 'idempotent recovery test',
+  };
+  const first = planReleaseMutationAttempt(session, input);
+  const replay = planReleaseMutationAttempt(first.session, { ...input, at: new Date().toISOString() });
+  assert.equal(replay.attemptId, first.attemptId);
+  assert.equal(replay.session.mutation_attempts.length, 1);
+  const lost = appendReleaseMutationAttemptEvent(replay.session, first.attemptId, {
+    at: new Date().toISOString(), state: 'dispatch_lost', run_id: null, reason: 'broker ledger temporarily unavailable',
+  });
+  const stillSame = planReleaseMutationAttempt(lost, input);
+  assert.equal(stillSame.attemptId, first.attemptId);
+  assert.equal(stillSame.session.mutation_attempts.length, 1);
+  const recovered = appendReleaseMutationAttemptEvent(lost, first.attemptId, {
+    at: new Date().toISOString(), state: 'running', run_id: '7001', reason: 'late exact broker ledger attribution',
+  });
+  assert.equal(recovered.mutation_attempts[0].events.at(-1)?.run_id, '7001');
+});
+
+test('runner_lost qualification remains reconcile-only and accepts late exact receipt attribution', () => {
+  const initial = appendQualificationAttempt(buildStableReleaseSession(plan()), {
+    artifactKind: 'standard', workflow: 'opl-first-run-vm.yml', mutation: 'qualification_dispatch',
+    reason: 'late receipt test',
+  });
+  let session = appendQualificationAttemptEvent(initial.session, 'standard', initial.attemptId, {
+    at: new Date().toISOString(), state: 'runner_lost', run_id: '7004', conclusion: 'success',
+    failure_taxonomy: 'infrastructure', remote_receipt_ref: null,
+    retry_disposition: 'reconcile_only', retry_reason: 'receipt visibility lag',
+    reason: 'first readback could not see the durable receipt',
+  });
+  session = appendQualificationAttemptEvent(session, 'standard', initial.attemptId, {
+    at: new Date().toISOString(), state: 'running', run_id: '7004', conclusion: null,
+    failure_taxonomy: 'none', remote_receipt_ref: null,
+    retry_disposition: 'reconcile_only', retry_reason: 'late exact receipt observed',
+    reason: 'read-only reconcile recovered the exact run attribution',
+  });
+  session = appendQualificationAttemptEvent(session, 'standard', initial.attemptId, {
+    at: new Date().toISOString(), state: 'passed', run_id: '7004', conclusion: 'success',
+    failure_taxonomy: 'none', remote_receipt_ref: 'opl-first-run-vm-standard-7004',
+    remote_receipt_sha256: 'a'.repeat(64), retry_disposition: 'reconcile_only', retry_reason: 'terminal evidence bound',
+    reason: 'late exact receipt validated against frozen identity',
+  });
+  assert.equal(session.artifact_tracks.standard.attempts[0].events.at(-1)?.state, 'passed');
+});
+
+test('broker acceptance requires exact run_id and replays without mutation after authority rotation', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-exact-acceptance-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    let session = buildStableReleaseSession(plan());
+    const payload = desktopReleaseMutationPayload(session);
+    const planned = planReleaseMutationAttempt(session, {
+      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      controllerWorkflowSha: appSha, artifactAppSha: appSha,
+      mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+      reason: 'exact acceptance test',
+    });
+    session = planned.session;
+    writeStableReleaseSessionAtomic(statePath, session);
+    assert.throws(
+      () => executeBrokeredReleaseMutation(
+        session, statePath, planned.attemptId, payload,
+        { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+        (request) => acceptanceForRequest(request, null), brokerAuthority,
+      ),
+      /invalid acceptance receipt|exact numeric GitHub run_id/,
+    );
+    session = readStableReleaseSession(statePath);
+    assert.equal(session.mutation_attempts[0].events.at(-1)?.state, 'dispatching');
+    assert.equal(session.mutation_acceptances.length, 0);
+    assert.match(session.mutation_attempts[0].broker_lookup.request_sha256 ?? '', /^sha256:[0-9a-f]{64}$/);
+    assert.throws(
+      () => executeBrokeredReleaseMutation(
+        session, statePath, planned.attemptId, payload,
+        { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+        () => { throw new Error('must not resubmit a fenced request'); }, brokerAuthority,
+      ),
+      /broker ledger reconcile and never resubmit/,
+    );
+
+    const successPath = path.join(root, 'success-session.json');
+    session = buildStableReleaseSession(plan());
+    const successPayload = desktopReleaseMutationPayload(session);
+    const successPlanned = planReleaseMutationAttempt(session, {
+      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      controllerWorkflowSha: appSha, artifactAppSha: appSha,
+      mutationPayloadSha256: releaseMutationPayloadSha256(successPayload), mutationPayload: successPayload,
+      reason: 'exact acceptance success test',
+    });
+    session = successPlanned.session;
+    writeStableReleaseSessionAtomic(successPath, session);
+    let brokerCalls = 0;
+    const accepted = executeBrokeredReleaseMutation(
+      session, successPath, successPlanned.attemptId, successPayload,
+      { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+      (request) => {
+        brokerCalls += 1;
+        return acceptanceForRequest(request, '7002');
+      },
+      brokerAuthority,
+    );
+    assert.equal(brokerCalls, 1);
+    const persisted = readStableReleaseSession(successPath);
+    assert.equal(persisted.mutation_acceptances[0].github.run_id, '7002');
+    assert.equal(persisted.release_run.id, '7002');
+    assert.equal(persisted.mutation_attempts[0].events.at(-1)?.state, 'acceptance_pending_visibility');
+    assert.equal(persisted.revision, accepted.session.revision);
+
+    const replayed = executeBrokeredReleaseMutation(
+      persisted, successPath, successPlanned.attemptId, successPayload,
+      { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+      () => {
+        brokerCalls += 1;
+        throw new Error('must not call broker for durable acceptance');
+      },
+      brokerAuthority,
+    );
+    assert.equal(brokerCalls, 1);
+    assert.equal(replayed.receipt.github.run_id, '7002');
+
+    const rotatedKeys = crypto.generateKeyPairSync('ed25519');
+    const rotatedAuthority: ReleaseBrokerAuthorityV1 = {
+      ...brokerAuthority,
+      authority_epoch: 2,
+      trusted_ed25519_public_keys: {
+        rotated: rotatedKeys.publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+      },
+      historical_verification_epochs: [{
+        authority_epoch: brokerAuthority.authority_epoch,
+        authority_sha256: releaseBrokerAuthoritySha256(brokerAuthority),
+        authority_snapshot_base64: Buffer.from(JSON.stringify(brokerAuthority), 'utf8').toString('base64'),
+        trusted_key_ids: ['test-release-broker'],
+        admission_closed: true,
+        verify_only: true,
+      }],
+    };
+    let rotatedBrokerCalls = 0;
+    const replayedAfterRotation = executeBrokeredReleaseMutation(
+      persisted, successPath, successPlanned.attemptId, successPayload,
+      { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+      () => {
+        rotatedBrokerCalls += 1;
+        throw new Error('historical acceptance replay must not submit a new broker mutation');
+      },
+      rotatedAuthority,
+    );
+    assert.equal(rotatedBrokerCalls, 0);
+    assert.equal(replayedAfterRotation.receipt.github.run_id, '7002');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('broker admission after 90 minutes durably blocks before any external mutation', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-broker-deadline-block-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
+    let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+    session = transitionStableReleaseSession(
+      session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString(),
+    );
+    const payload = desktopReleaseMutationPayload(session);
+    const planned = planReleaseMutationAttempt(session, {
+      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      controllerWorkflowSha: appSha, artifactAppSha: appSha,
+      mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+      at: new Date(startedAt + 2_000).toISOString(), reason: 'deadline admission test',
+    });
+    session = planned.session;
+    writeStableReleaseSessionAtomic(statePath, session);
+    let brokerCalls = 0;
+    assert.throws(
+      () => executeBrokeredReleaseMutation(
+        session, statePath, planned.attemptId, payload,
+        { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+        () => {
+          brokerCalls += 1;
+          throw new Error('deadline-blocked admission must not call the broker');
+        },
+        brokerAuthority,
+      ),
+      /cannot reach broker admission after the immutable 90-minute Standard deadline/,
+    );
+    assert.equal(brokerCalls, 0);
+    const blocked = readStableReleaseSession(statePath);
+    assert.equal(blocked.phase, 'standard_deadline_blocked');
+    assert.equal(blocked.standard_deadline_blocker?.stage, 'broker_admission:desktop_release_dispatch');
+    assert.equal(blocked.standard_deadline_blocker?.remaining_ms, 0);
+    assert.equal(blocked.mutation_attempts[0].events.at(-1)?.state, 'planned');
+    assert.equal(blocked.mutation_acceptances.length, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('emergency cancel persists planned state before the isolated broker and never uses the normal runner for mutation', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = sessionWithActiveReleaseRun('12345');
+    writeStableReleaseSessionAtomic(statePath, session);
+    let normalRunnerCalls = 0;
+    let brokerCalls = 0;
+    const broker: ReleaseMutationBroker = (request) => {
+      brokerCalls += 1;
+      const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+      assert.equal(persisted.mutation_attempts.at(-1).events.at(-1).state, 'dispatching');
+      assert.equal(persisted.mutation_leases.length, 0);
+      return testMutationBroker(request);
+    };
+    const result = dispatchEmergencyCancel(session, statePath, '12345', 'operator detected wrong cohort', () => {
+      normalRunnerCalls += 1;
+      throw new Error('normal controller runner must remain read-only');
+    }, '2026-07-18T00:02:00.000Z', undefined, broker, brokerAuthority);
+    assert.equal(normalRunnerCalls, 0);
+    assert.equal(brokerCalls, 1);
+    assert.equal(result.mutation_leases.at(-1)?.authorization_class, 'emergency_cancel');
+    assert.equal(result.mutation_acceptances.length, 1);
+    assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.state, 'running');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('unprovisioned authority leaves emergency cancel planned without calling GitHub', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-blocked-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = sessionWithActiveReleaseRun('54321');
+    writeStableReleaseSessionAtomic(statePath, session);
+    let calls = 0;
+    assert.throws(
+      () => dispatchEmergencyCancel(session, statePath, '54321', 'authority test', () => {
+        calls += 1;
+        return { status: 0, stdout: '', stderr: '' };
+      }),
+      /authority is not ready/,
+    );
+    assert.equal(calls, 0);
+    const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    assert.equal(persisted.mutation_attempts.at(-1).events.at(-1).state, 'planned');
+    assert.equal(persisted.mutation_leases.length, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('durability failure before rename prevents API calls and preserves an exact recoverable lock', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-fsync-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = sessionWithActiveReleaseRun('67890');
+    writeStableReleaseSessionAtomic(statePath, session);
+    let calls = 0;
+    assert.throws(
+      () => dispatchEmergencyCancel(
+        session,
+        statePath,
+        '67890',
+        'durability injection',
+        () => { calls += 1; return { status: 0, stdout: '', stderr: '' }; },
+        '2026-07-18T00:03:00.000Z',
+        (target, value) => writeStableReleaseSessionAtomic(target, value, {
+          afterSessionFsync: () => { throw new Error('injected fsync/rename boundary failure'); },
+        }),
+      ),
+      /injected fsync\/rename boundary failure/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).mutation_attempts.length, 1);
+    assert.equal(fs.existsSync(`${statePath}.lock`), true);
+    const lock = JSON.parse(fs.readFileSync(`${statePath}.lock`, 'utf8'));
+    fs.writeFileSync(`${statePath}.lock`, `${JSON.stringify({ ...lock, pid: 2_147_483_647 })}\n`);
+    const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    recoverStaleStableReleaseSessionLock(statePath, { sessionId: persisted.id, revision: persisted.revision });
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('parent directory fsync failure after rename prevents API calls and preserves committed-byte recovery', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-parent-fsync-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = sessionWithActiveReleaseRun('67891');
+    writeStableReleaseSessionAtomic(statePath, session);
+    let calls = 0;
+    assert.throws(
+      () => dispatchEmergencyCancel(
+        session,
+        statePath,
+        '67891',
+        'after rename durability injection',
+        () => { calls += 1; return { status: 0, stdout: '', stderr: '' }; },
+        '2026-07-18T00:04:00.000Z',
+        (target, value) => writeStableReleaseSessionAtomic(target, value, {
+          afterRename: () => { throw new Error('injected parent directory fsync failure'); },
+        }),
+      ),
+      /injected parent directory fsync failure/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(fs.existsSync(`${statePath}.lock`), true);
+    const lock = JSON.parse(fs.readFileSync(`${statePath}.lock`, 'utf8'));
+    fs.writeFileSync(`${statePath}.lock`, `${JSON.stringify({ ...lock, pid: 2_147_483_647 })}\n`);
+    const persisted = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    assert.equal(persisted.mutation_attempts.at(-1).events.at(-1).state, 'planned');
+    recoverStaleStableReleaseSessionLock(statePath, { sessionId: persisted.id, revision: persisted.revision });
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('session writes use an exclusive lock and revision CAS to reject stale broker updates', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-session-cas-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const initial = buildStableReleaseSession(plan());
+    writeStableReleaseSessionAtomic(statePath, initial);
+    assert.equal(initial.revision, 1);
+    const firstBroker = structuredClone(initial);
+    const staleBroker = structuredClone(initial);
+    writeStableReleaseSessionAtomic(statePath, firstBroker);
+    assert.equal(firstBroker.revision, 2);
+    assert.throws(
+      () => writeStableReleaseSessionAtomic(statePath, staleBroker),
+      /revision conflict: expected 1, current 2/,
+    );
+    assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).revision, 2);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function writeSimulatedStaleLock(
+  statePath: string,
+  input: { sessionId: string; baseRevision: number; targetRevision: number; targetBytes: string },
+): void {
+  fs.writeFileSync(`${statePath}.lock`, `${JSON.stringify({
+    host: os.hostname(),
+    pid: 2_147_483_647,
+    session_id: input.sessionId,
+    base_revision: input.baseRevision,
+    target_revision: input.targetRevision,
+    target_session_sha256: crypto.createHash('sha256').update(input.targetBytes).digest('hex'),
+    acquired_at: '2026-07-18T00:00:00.000Z',
+  })}\n`);
+}
+
+test('stale session lock recovery accepts an exact crash before rename', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-session-lock-before-rename-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = buildStableReleaseSession(plan());
+    writeStableReleaseSessionAtomic(statePath, session);
+    const targetBytes = `${JSON.stringify({ ...session, revision: session.revision + 1 }, null, 2)}\n`;
+    writeSimulatedStaleLock(statePath, {
+      sessionId: session.id,
+      baseRevision: session.revision,
+      targetRevision: session.revision + 1,
+      targetBytes,
+    });
+    const diagnostic = inspectStableReleaseSessionLock(statePath);
+    assert.equal(diagnostic.owner_process_alive, false);
+    recoverStaleStableReleaseSessionLock(statePath, { sessionId: session.id, revision: session.revision });
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+    assert.equal(JSON.parse(fs.readFileSync(statePath, 'utf8')).revision, session.revision);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('stale session lock recovery accepts exact committed bytes after rename', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-session-lock-after-rename-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = buildStableReleaseSession(plan());
+    writeStableReleaseSessionAtomic(statePath, session);
+    const baseRevision = session.revision;
+    const targetBytes = `${JSON.stringify({ ...session, revision: baseRevision + 1 }, null, 2)}\n`;
+    fs.writeFileSync(statePath, targetBytes);
+    writeSimulatedStaleLock(statePath, {
+      sessionId: session.id,
+      baseRevision,
+      targetRevision: baseRevision + 1,
+      targetBytes,
+    });
+    recoverStaleStableReleaseSessionLock(statePath, { sessionId: session.id, revision: baseRevision + 1 });
+    assert.equal(fs.existsSync(`${statePath}.lock`), false);
+    assert.equal(fs.readFileSync(statePath, 'utf8'), targetBytes);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('stale session lock recovery rejects a live owner and mismatched committed bytes', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-session-lock-reject-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const session = buildStableReleaseSession(plan());
+    writeStableReleaseSessionAtomic(statePath, session);
+    const targetBytes = `${JSON.stringify({ ...session, revision: session.revision + 1 }, null, 2)}\n`;
+    writeSimulatedStaleLock(statePath, {
+      sessionId: session.id,
+      baseRevision: session.revision,
+      targetRevision: session.revision + 1,
+      targetBytes,
+    });
+    const lock = JSON.parse(fs.readFileSync(`${statePath}.lock`, 'utf8'));
+    fs.writeFileSync(`${statePath}.lock`, `${JSON.stringify({ ...lock, pid: process.pid })}\n`);
+    assert.throws(
+      () => recoverStaleStableReleaseSessionLock(statePath, { sessionId: session.id, revision: session.revision }),
+      /still alive/,
+    );
+
+    fs.writeFileSync(`${statePath}.lock`, `${JSON.stringify({ ...lock, target_session_sha256: 'f'.repeat(64) })}\n`);
+    fs.writeFileSync(statePath, targetBytes);
+    assert.throws(
+      () => recoverStaleStableReleaseSessionLock(statePath, { sessionId: session.id, revision: session.revision + 1 }),
+      /pre-rename or post-rename/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function awaitingLocalActivationSession(): StableReleaseSession {
+  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
+  const artifactSha256 = 'e'.repeat(64);
+  session.qualification_run.artifact_sha256 = artifactSha256;
+  session.artifact_tracks.standard.artifact_sha256 = artifactSha256;
+  session.artifact_tracks.standard.qualification_run.artifact_sha256 = artifactSha256;
+  const advance = (to: Parameters<typeof transitionStableReleaseSession>[1], at: string) => {
+    session = transitionStableReleaseSession(session, to, `fixture ${to}`, at);
+  };
+  advance('source_gates_passed', '2026-07-18T00:01:00.000Z');
+  advance('artifact_build_running', '2026-07-18T00:02:00.000Z');
+  advance('artifacts_qualified', '2026-07-18T00:03:00.000Z');
+  advance('owner_approved', '2026-07-18T00:04:00.000Z');
+  advance('promotion_running', '2026-07-18T00:05:00.000Z');
+  advance('release_published_not_latest', '2026-07-18T00:06:00.000Z');
+  advance('distribution_synced', '2026-07-18T00:07:00.000Z');
+  advance('homebrew_verified', '2026-07-18T00:08:00.000Z');
+  advance('latest_activated', '2026-07-18T00:09:00.000Z');
+  advance('awaiting_local_activation', '2026-07-18T00:09:30.000Z');
+  return session;
+}
+
+function standardTerminalSession(): StableReleaseSession {
+  let session = awaitingLocalActivationSession();
+  session.receipts = {
+    promotion_saga: { ref: 'promotion-saga-test', sha256: 'a'.repeat(64) },
+    local_activation: { ref: 'local-activation-test', sha256: 'b'.repeat(64) },
+  };
+  return transitionStableReleaseSession(
+    session, 'standard_stable_terminal', 'fixture standard_stable_terminal', '2026-07-18T00:10:00.000Z',
+  );
+}
+
+test('awaiting and terminal Standard sessions require one exact qualification artifact SHA-256', () => {
+  const awaiting = awaitingLocalActivationSession();
+  awaiting.qualification_run.artifact_sha256 = null;
+  awaiting.artifact_tracks.standard.qualification_run.artifact_sha256 = null;
+  assert.match(
+    validateStableReleaseSessionInvariants(awaiting).join('; '),
+    /lacks an exact qualification artifact SHA-256|qualification and artifact-track SHA-256 differ/,
+  );
+
+  const terminal = standardTerminalSession();
+  terminal.qualification_run.artifact_sha256 = null;
+  terminal.artifact_tracks.standard.artifact_sha256 = null;
+  terminal.artifact_tracks.standard.qualification_run.artifact_sha256 = null;
+  assert.match(
+    validateStableReleaseSessionInvariants(terminal).join('; '),
+    /lacks an exact qualification artifact SHA-256|artifact track lacks an exact artifact SHA-256/,
+  );
+});
+
+for (const fullStatus of ['qualified', 'failed'] as const) {
+  test(`Standard terminal remains valid when Full is ${fullStatus} and WebUI has typed debt`, () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `opl-addon-debt-${fullStatus}-`));
+    const receiptPath = path.join(root, 'webui-debt.json');
+    try {
+      let session = standardTerminalSession();
+      session.addon_tracks.full.status = fullStatus;
+      if (fullStatus === 'qualified') {
+        session.addon_tracks.full.receipt_ref = 'full-addon-test';
+        session.addon_tracks.full.receipt_sha256 = 'c'.repeat(64);
+      }
+      if (fullStatus === 'failed') {
+        session.addon_tracks.full.run_id = '7001';
+        const fullReceiptPath = path.join(root, 'full-debt.json');
+        fs.writeFileSync(fullReceiptPath, `${JSON.stringify({
+          schema: 'opl_app_addon_debt_receipt.v1', status: 'blocked_with_debt',
+          stable_session_id: session.id, release_cohort_ref: session.cohort_plan.operator_plan_ref, addon: 'full',
+          source_status: 'failed', source_attempt_id: 'attempt-full-1', source_run_id: '7001',
+          failure_taxonomy: 'infrastructure', disposition_reason: 'typed Full failure debt accepted without changing Standard truth',
+          recorded_at: '2026-07-18T00:10:30.000Z',
+        })}\n`);
+        session = applyAddonDebtDisposition(session, 'full', fullReceiptPath);
+        assert.equal(session.phase, 'standard_stable_terminal');
+      }
+      fs.writeFileSync(receiptPath, `${JSON.stringify({
+        schema: 'opl_app_addon_debt_receipt.v1', status: 'blocked_with_debt',
+        stable_session_id: session.id, release_cohort_ref: session.cohort_plan.operator_plan_ref, addon: 'webui',
+        source_status: 'unavailable', source_attempt_id: null, source_run_id: null,
+        failure_taxonomy: 'not_implemented', disposition_reason: 'typed external blocker',
+        recorded_at: '2026-07-18T00:11:00.000Z',
+      })}\n`);
+      session = applyAddonDebtDisposition(session, 'webui', receiptPath);
+      assert.equal(session.phase, 'addon_train_terminal');
+      assert.equal(session.terminal_truth.standard_status, 'terminal');
+      assert.equal(session.terminal_truth.addon_status, 'blocked_with_debt');
+      assert.equal(session.addon_tracks.full.status, fullStatus === 'failed' ? 'blocked_with_debt' : fullStatus);
+      assert.equal(session.addon_tracks.webui.status, 'blocked_with_debt');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
 
 test('nonterminal monitor exits stay recoverable and remote terminal readback wins', () => {
   const interrupted = classifyWorkflowRunObservation(
@@ -124,6 +1001,220 @@ test('workflow readback transport and JSON failures stay retryable', () => {
   assert.match(malformed.error ?? '', /invalid JSON/);
 });
 
+test('workflow watch has a finite wall-clock budget and leaves the durable run recoverable', async () => {
+  const started = Date.parse('2026-07-18T00:00:00.000Z');
+  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched', new Date(started + 2_000).toISOString());
+  session.release_run.id = '123456';
+  let calls = 0;
+  await assert.rejects(
+    () => watchRunToTerminal((command, args, options) => {
+      calls += 1;
+      assert.equal(command, 'gh');
+      if (args[1] === 'watch') {
+        assert.equal(options?.timeoutMs, 3_600_000);
+        return { status: null, stdout: '', stderr: 'timed out', timedOut: true };
+      }
+      return {
+        status: 0,
+        stdout: JSON.stringify({ databaseId: 123456, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main', headSha: appSha, status: 'in_progress', url: 'https://example.test/123456' }),
+        stderr: '',
+      };
+    }, session, '123456', () => {}, () => started),
+    /wall-clock budget.*recoverable.*no mutation was retried/,
+  );
+  assert.equal(calls, 2);
+  assert.equal(session.release_run.id, '123456');
+});
+
+test('Standard circuit breaker permits 89:59 and blocks new trains at 90:00 and 90:01', () => {
+  const session = buildStableReleaseSession(plan(), '2026-07-18T00:00:00.000Z');
+  const started = Date.parse(session.metrics.session_started_at);
+  assert.equal(standardReleaseCircuitBreaker(session, started + 5_399_000), 'new_release_train_allowed');
+  assert.equal(standardReleaseCircuitBreaker(session, started + 5_400_000), 'targeted_recovery_or_typed_blocker_only');
+  assert.equal(standardReleaseCircuitBreaker(session, started + 5_401_000), 'targeted_recovery_or_typed_blocker_only');
+});
+
+test('watch and resume budget use the immutable admission deadline instead of a fresh phase window', async () => {
+  const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
+  let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString());
+  session.release_run.id = '7003';
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(startedAt + 2_000).toISOString());
+  const deadline = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  for (const [elapsedMinutes, expectedRemaining] of [[30, 1_800_000], [80, 600_000], [89 + 59 / 60, 1_000]] as const) {
+    const observedAt = Date.parse(session.metrics.session_started_at) + elapsedMinutes * 60_000;
+    let currentTime = observedAt;
+    await assert.rejects(
+      () => watchRunToTerminal((command, args, options) => {
+        assert.equal(command, 'gh');
+        if (args[1] === 'watch') {
+          assert.equal(options?.timeoutMs, expectedRemaining);
+          currentTime += options?.timeoutMs ?? 0;
+          return { status: null, stdout: '', stderr: 'deadline', timedOut: true };
+        }
+        assert.equal(options?.timeoutMs, Math.min(30_000, expectedRemaining));
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            databaseId: 7003, attempt: 1, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main',
+            headSha: appSha, status: 'in_progress', url: 'https://example.test/7003',
+          }),
+          stderr: '',
+        };
+      }, session, '7003', () => {}, () => currentTime),
+      /immutable 90-minute Standard deadline|durable typed blocker/,
+    );
+  }
+  let postDeadlineCalls = 0;
+  let deadlineBlocked: StableReleaseSession | null = null;
+  await assert.rejects(
+    () => watchRunToTerminal(() => {
+      postDeadlineCalls += 1;
+      return { status: 0, stdout: '', stderr: '' };
+    }, session, '7003', (next) => { deadlineBlocked = structuredClone(next); }, () => deadline),
+    /immutable 90-minute Standard deadline.*only reconcile or emergency cancel/,
+  );
+  assert.equal(postDeadlineCalls, 0);
+  assert.equal(deadlineBlocked?.phase, 'standard_deadline_blocked');
+  assert.equal(deadlineBlocked?.standard_deadline_blocker?.stage, 'workflow_watch:artifact_build_running');
+  assert.equal(deadlineBlocked?.standard_deadline_blocker?.run_id, '7003');
+  assert.equal(deadlineBlocked?.standard_deadline_blocker?.remaining_ms, 0);
+  assert.deepEqual(deadlineBlocked?.standard_deadline_blocker?.legal_next_actions, ['read_only_reconcile', 'emergency_cancel']);
+  assert.throws(
+    () => transitionStableReleaseSession(deadlineBlocked!, 'artifacts_qualified', 'forbidden resume'),
+    /Invalid stable release transition/,
+  );
+  assert.throws(
+    () => planReleaseMutationAttempt(deadlineBlocked!, {
+      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      controllerWorkflowSha: appSha, artifactAppSha: appSha,
+      mutationPayloadSha256: `sha256:${'8'.repeat(64)}`, reason: 'forbidden redispatch',
+    }),
+    /permits only read-only reconcile or an exact emergency cancel/,
+  );
+  assert.equal(session.efficiency_policy.standard_admission_deadline_at, '2026-07-18T01:30:00.000Z');
+});
+
+test('terminal success returned after the immutable deadline cannot bypass the typed blocker', async () => {
+  const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
+  let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(startedAt + 2_000).toISOString());
+  session.release_run.id = '7006';
+  const deadline = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  let currentTime = deadline - 1_000;
+  const persisted: StableReleaseSession[] = [];
+
+  await assert.rejects(
+    () => watchRunToTerminal((command, args, options) => {
+      assert.equal(command, 'gh');
+      if (args[1] === 'watch') {
+        assert.equal(options?.timeoutMs, 1_000);
+        currentTime = deadline - 1;
+        return { status: 1, stdout: '', stderr: 'watch transport ended' };
+      }
+      assert.equal(options?.timeoutMs, 1);
+      currentTime = deadline + 1;
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          databaseId: 7006, attempt: 1, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main',
+          headSha: appSha, status: 'completed', conclusion: 'success', url: 'https://example.test/7006',
+        }),
+        stderr: '',
+      };
+    }, session, '7006', (next) => { persisted.push(structuredClone(next)); }, () => currentTime),
+    /readback reached the immutable 90-minute Standard deadline/,
+  );
+  const blocked = persisted.at(-1);
+  assert.equal(blocked?.phase, 'standard_deadline_blocked');
+  assert.equal(blocked?.terminal_truth.standard_status, 'blocked');
+  assert.equal(blocked?.standard_deadline_blocker?.run_id, '7006');
+  assert.equal(blocked?.standard_deadline_blocker?.observed_at, new Date(deadline + 1).toISOString());
+});
+
+test('workflow watcher persists one 60-minute warning and never duplicates it on resume', async () => {
+  const started = Date.parse('2026-07-18T00:00:00.000Z');
+  const warningAt = started + 60 * 60_000;
+  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(started + 2_000).toISOString());
+  session.release_run.id = '7005';
+  let currentTime = started;
+  const watchTimeouts: number[] = [];
+  let viewCount = 0;
+  const persisted: StableReleaseSession[] = [];
+  const result = await watchRunToTerminal((command, args, options) => {
+    assert.equal(command, 'gh');
+    if (args[1] === 'watch') {
+      watchTimeouts.push(options?.timeoutMs ?? -1);
+      if (watchTimeouts.length === 1) {
+        currentTime = warningAt;
+        return { status: null, stdout: '', stderr: 'warning boundary', timedOut: true };
+      }
+      currentTime = warningAt + 1_000;
+      return { status: 1, stdout: '', stderr: 'watch transport ended' };
+    }
+    viewCount += 1;
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        databaseId: 7005, attempt: 1, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main',
+        headSha: appSha, status: viewCount === 1 ? 'in_progress' : 'completed',
+        conclusion: viewCount === 1 ? null : 'success', url: 'https://example.test/7005',
+      }),
+      stderr: '',
+    };
+  }, session, '7005', (next) => { persisted.push(structuredClone(next)); }, () => currentTime);
+  assert.deepEqual(watchTimeouts, [3_600_000, 1_800_000]);
+  assert.equal(persisted.length, 1);
+  assert.equal(result.session.metrics.efficiency_advisories.length, 1);
+  assert.deepEqual(result.session.metrics.efficiency_advisories[0], {
+    at: '2026-07-18T01:00:00.000Z', elapsed_ms: 3_600_000, threshold_ms: 3_600_000,
+    stage: 'artifact_build_running', status: 'watch_timeout_at_warning_boundary', blocker: 'standard_release_elapsed_60m',
+    remaining_ms: 1_800_000, action: 'inspect_current_stage_and_preserve_same_cohort_evidence',
+  });
+
+  await watchRunToTerminal((command, args) => {
+    if (args[1] === 'watch') return { status: 1, stdout: '', stderr: 'already terminal' };
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        databaseId: 7005, attempt: 1, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main',
+        headSha: appSha, status: 'completed', conclusion: 'success', url: 'https://example.test/7005',
+      }), stderr: '',
+    };
+  }, result.session, '7005', (next) => { persisted.push(structuredClone(next)); }, () => warningAt + 2_000);
+  assert.equal(persisted.length, 1, 'resume must not persist a duplicate 60-minute warning');
+});
+
+test('workflow readback transport consumes the same remaining admission budget with a finite per-call cap', async () => {
+  const started = Date.parse('2026-07-18T00:00:00.000Z');
+  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(started + 2_000).toISOString());
+  const observedAt = started + 30 * 60_000;
+  const result = await watchRunToTerminal((command, args, options) => {
+    assert.equal(command, 'gh');
+    if (args[1] === 'watch') {
+      assert.equal(options?.timeoutMs, 1_800_000);
+      return { status: 1, stdout: '', stderr: 'watch transport ended' };
+    }
+    assert.equal(options?.timeoutMs, 30_000);
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        databaseId: 7004, attempt: 1, createdAt: '2026-07-18T00:00:00Z', headBranch: 'main',
+        headSha: appSha, status: 'completed', conclusion: 'success', url: 'https://example.test/7004',
+      }),
+      stderr: '',
+    };
+  }, session, '7004', () => {}, () => observedAt);
+  assert.equal(result.succeeded, true);
+});
+
 test('source gate failures prefer structured stdout over runtime warnings', () => {
   assert.equal(
     formatCommandFailure(
@@ -138,67 +1229,190 @@ test('source gate failures prefer structured stdout over runtime warnings', () =
   );
 });
 
+function executableStartOptions(statePath: string) {
+  return {
+    execute: true,
+    watch: true,
+    repo: 'gaofeng21cn/one-person-lab-app',
+    statePath,
+    cohort: {
+      version: '26.7.18', releaseMode: 'new_release', releaseIntent: 'stable_complete' as const,
+      fullOmissionReason: '', gateReusePlanRef: '', includeFullPackage: true,
+      runVmSmoke: true, publishDockerWebui: false,
+      appCommit: repositoryHead, shellRef: repositoryHead, frameworkRef: repositoryHead,
+      shellRoot: process.cwd(), frameworkRoot: process.cwd(), output: '', markdown: '',
+    },
+  };
+}
+
+test('source gate timeout consumes the immutable remaining deadline and blocks before dispatch', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-timeout-'));
+  const statePath = path.join(root, 'session.json');
+  const startedAtMs = Date.parse('2026-07-18T00:00:00.000Z');
+  let observedAtMs = startedAtMs;
+  const calls: Array<{ command: string; timeoutMs?: number }> = [];
+  const runner = ((command, _args, options) => {
+    calls.push({ command, timeoutMs: options?.timeoutMs });
+    observedAtMs = startedAtMs + 90 * 60 * 1_000;
+    return { status: null, stdout: '', stderr: 'bounded source gate timeout', timedOut: true };
+  }) satisfies StableReleaseCommandRunner;
+  try {
+    await assert.rejects(
+      () => startStableRelease(executableStartOptions(statePath), runner, () => observedAtMs),
+      /source gate .* timed out against the immutable 90-minute Standard admission deadline/,
+    );
+    assert.deepEqual(calls, [{ command: 'bash', timeoutMs: 90 * 60 * 1_000 }]);
+    const blocked = readStableReleaseSession(statePath);
+    assert.equal(blocked.phase, 'standard_deadline_blocked');
+    assert.equal(blocked.terminal_truth.standard_status, 'blocked');
+    assert.equal(blocked.standard_deadline_blocker?.stage, `source_gate:${blocked.source_gates[0].id}`);
+    assert.equal(blocked.standard_deadline_blocker?.remaining_ms, 0);
+    assert.equal(blocked.source_gates[0].status, 'failed');
+    assert.equal(blocked.mutation_attempts.length, 0);
+    assert.equal(blocked.mutation_acceptances.length, 0);
+    assert.equal(blocked.release_run.id, null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cohort planning time is charged to the immutable deadline and persists a typed blocker', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-planning-timeout-'));
+  const statePath = path.join(root, 'session.json');
+  const startedAtMs = Date.parse('2026-07-18T00:00:00.000Z');
+  let clockCalls = 0;
+  let runnerCalls = 0;
+  const runner = (() => {
+    runnerCalls += 1;
+    return { status: 0, stdout: '', stderr: '' };
+  }) satisfies StableReleaseCommandRunner;
+  try {
+    await assert.rejects(
+      () => startStableRelease(
+        executableStartOptions(statePath),
+        runner,
+        () => clockCalls++ === 0 ? startedAtMs : startedAtMs + 90 * 60 * 1_000,
+      ),
+      /cohort planning exhausted the immutable 90-minute Standard admission deadline/,
+    );
+    assert.equal(runnerCalls, 0);
+    const blocked = readStableReleaseSession(statePath);
+    assert.equal(blocked.metrics.session_started_at, '2026-07-18T00:00:00.000Z');
+    assert.equal(blocked.efficiency_policy.standard_admission_deadline_at, '2026-07-18T01:30:00.000Z');
+    assert.equal(blocked.phase, 'standard_deadline_blocked');
+    assert.equal(blocked.terminal_truth.standard_status, 'blocked');
+    assert.equal(blocked.standard_deadline_blocker?.stage, 'cohort_planning');
+    assert.equal(blocked.mutation_attempts.length, 0);
+    assert.equal(blocked.release_run.id, null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('desktop release dispatch is derived entirely from the frozen cohort', () => {
-  const session = buildStableReleaseSession(plan());
-  const args = desktopReleaseDispatchArgs(session).join(' ');
-  assert.match(args, /--ref codex\/release-26\.7\.12/);
+  let session = buildStableReleaseSession(plan());
+  session = authorize(
+    session, 'desktop_release_dispatch', 'desktop-release.yml', 'standard', appSha, appSha,
+    releaseMutationPayloadSha256(desktopReleaseMutationPayload(session)),
+  );
+  const args = desktopReleaseDispatchArgs(session, undefined, brokerAuthority).join(' ');
+  assert.match(args, /--ref main/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
   assert.match(args, new RegExp(`framework_ref=${frameworkSha}`));
   assert.match(args, /include_full_package=true/);
   assert.match(args, /run_vm_smoke=true/);
   assert.match(args, /defer_addons=true/);
-  assert.match(args, /require_addon_gates_for_stable_readiness=false/);
   assert.doesNotMatch(args, /shell_ref=main/);
   assert.doesNotMatch(args, /framework_ref=main/);
 });
 
 test('promotion reuses the source run id and requires an owner receipt', () => {
-  const session = buildStableReleaseSession(plan());
+  let session = buildStableReleaseSession(plan());
   session.release_run.id = '29211495991';
   session.qualification_run.id = '29211496001';
   session.qualification_run.conclusion = 'success';
   session.qualification_run.artifact_sha256 = 'e'.repeat(64);
+  session.artifact_tracks.standard.qualification_run = structuredClone(session.qualification_run);
   assert.throws(() => promoteDispatchArgs(session, '', '26.7.12-r2'), /owner receipt/);
   assert.throws(
     () => promoteDispatchArgs(session, 'release_owner_receipt_ref://test', ''),
     /Release Set generation/,
   );
-  const args = promoteDispatchArgs(session, 'release_owner_receipt_ref://test', '26.7.12-r2').join(' ');
+  const ownerReceiptRef = 'release_owner_receipt_ref://test';
+  const releaseSetGeneration = '26.7.12-r2';
+  session = authorize(
+    session, 'promotion_dispatch', 'desktop-release-promote.yml', 'promotion', appSha, appSha,
+    releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
+  );
+  const args = promoteDispatchArgs(session, ownerReceiptRef, releaseSetGeneration, undefined, undefined, brokerAuthority).join(' ');
   assert.match(args, /release_run_id=29211495991/);
   assert.match(args, /standard_vm_run_id=29211496001/);
-  assert.match(args, /schedule_full_addon=true/);
+  assert.doesNotMatch(args, /schedule_full_addon/);
   assert.match(args, /release_set_generation=26\.7\.12-r2/);
   assert.match(args, /release_owner_receipt_ref=release_owner_receipt_ref:\/\/test/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
 });
 
-test('same-artifact qualification separates product cohort refs from verification harness refs', () => {
+test('same-artifact qualification keeps the verification Shell exact to the artifact cohort', () => {
+  const session = buildStableReleaseSession(plan());
+  session.release_run.id = '29246288414';
+  session.qualification_run.artifact_name = 'opl-full-first-install-dmg-26.7.13-mac-arm64';
+  session.qualification_run.artifact_sha256 = 'e'.repeat(64);
+  session.artifact_tracks.standard.source_run_id = session.release_run.id;
+  session.artifact_tracks.standard.source_artifact_name = session.qualification_run.artifact_name;
+  session.artifact_tracks.standard.artifact_sha256 = session.qualification_run.artifact_sha256;
+  const verificationAppSha = appSha;
+  const verificationShellSha = shellSha;
+  const verificationHarness = {
+    app_ref: 'main', app_sha: verificationAppSha,
+    shell_ref: verificationShellSha, shell_sha: verificationShellSha,
+    scope_proof: buildQualificationHarnessScopeProof({
+      artifactAppSha: appSha,
+      verificationAppSha,
+      appChangedPaths: [],
+      artifactShellSha: shellSha,
+      verificationShellSha,
+    shellChangedPaths: [],
+    }),
+  };
+  const authorizedSession = authorize(
+    session, 'qualification_dispatch', 'opl-first-run-vm.yml', 'standard', verificationAppSha, appSha,
+    releaseMutationPayloadSha256(qualificationMutationPayload(session, verificationHarness, 'standard')),
+  );
+  const args = qualificationRetryDispatchArgs(authorizedSession, {
+    ...verificationHarness,
+  }, undefined, 'standard', brokerAuthority).join(' ');
+
+  assert.match(args, /--ref main/);
+  assert.match(args, new RegExp(`artifact_app_ref=${appSha}`));
+  assert.match(args, new RegExp(`shell_ref=${shellSha}`));
+  assert.match(args, new RegExp(`smoke_harness_ref=${verificationShellSha}`));
+  assert.match(args, new RegExp(`smoke_harness_ref=${shellSha}`));
+});
+
+test('same-artifact qualification rejects a replaceable App verifier or product scope drift before dispatch', () => {
   const session = buildStableReleaseSession(plan());
   session.release_run.id = '29246288414';
   session.qualification_run.artifact_name = 'opl-full-first-install-dmg-26.7.13-mac-arm64';
   session.qualification_run.artifact_sha256 = 'e'.repeat(64);
   const verificationAppSha = 'f'.repeat(40);
-  const verificationShellSha = '1'.repeat(40);
-  const args = qualificationRetryDispatchArgs(session, {
-    app_ref: 'codex/release-26.7.13-qualification-harness',
-    app_sha: verificationAppSha,
-    shell_ref: verificationShellSha,
-    shell_sha: verificationShellSha,
-    scope_proof: buildQualificationHarnessScopeProof({
-      artifactAppSha: appSha,
-      verificationAppSha,
-      appChangedPaths: ['.github/workflows/opl-first-run-vm.yml'],
-      artifactShellSha: shellSha,
-      verificationShellSha,
-      shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
-    }),
-  }).join(' ');
-
-  assert.match(args, /--ref codex\/release-26\.7\.13-qualification-harness/);
-  assert.match(args, new RegExp(`artifact_app_ref=${appSha}`));
-  assert.match(args, new RegExp(`shell_ref=${shellSha}`));
-  assert.match(args, new RegExp(`smoke_harness_ref=${verificationShellSha}`));
-  assert.doesNotMatch(args, new RegExp(`shell_ref=${verificationShellSha}(?:\\s|$)`));
+  const authorizedSession = authorize(session, 'qualification_dispatch', 'opl-first-run-vm.yml', 'standard', verificationAppSha);
+  const scopeProof = buildQualificationHarnessScopeProof({
+    artifactAppSha: appSha,
+    verificationAppSha,
+    appChangedPaths: ['.github/workflows/opl-first-run-vm.yml'],
+    artifactShellSha: shellSha,
+    verificationShellSha: shellSha,
+    shellChangedPaths: [],
+  });
+  assert.throws(() => qualificationRetryDispatchArgs(authorizedSession, {
+    app_ref: 'codex/replaceable-verifier', app_sha: verificationAppSha,
+    shell_ref: shellSha, shell_sha: shellSha, scope_proof: scopeProof,
+  }), /canonical main/);
+  assert.throws(() => qualificationRetryDispatchArgs(authorizedSession, {
+    app_ref: 'main', app_sha: verificationAppSha,
+    shell_ref: shellSha, shell_sha: shellSha, scope_proof: scopeProof,
+  }), /requires a new cohort/);
 });
 
 test('state machine rejects skipped stages and repeated release dispatch paths', () => {
@@ -231,7 +1445,7 @@ test('an artifact build false negative can reconcile only the original run', () 
   );
 });
 
-test('failed promotion can only rerun failed jobs in the original run', () => {
+test('failed promotion cannot replay an old workflow ticket', () => {
   let session = buildStableReleaseSession(plan());
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed');
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched');
@@ -250,20 +1464,15 @@ test('failed promotion can only rerun failed jobs in the original run', () => {
   };
   session.release_owner_receipt_ref = 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.7.12/test';
   session.metrics.workflow_dispatch_counts.promotion = 1;
-  assert.deepEqual(promotionRerunArgs(session), [
-    'run', 'rerun', '29211497001',
-    '--repo', 'gaofeng21cn/one-person-lab-app',
-    '--failed',
-  ]);
   assert.equal(session.metrics.workflow_dispatch_counts.promotion, 1);
   assert.throws(
     () => transitionStableReleaseSession(session, 'owner_approved', 'redispatch'),
     /Invalid stable release transition/,
   );
-  assert.equal(
-    transitionStableReleaseSession(session, 'promotion_running', 'same-run retry').promotion_run.id,
-    '29211497001',
-  );
+  const reconciled = transitionStableReleaseSession(session, 'promotion_running', 'read-only reconcile');
+  assert.equal(reconciled.promotion_run.id, '29211497001');
+  assert.equal(reconciled.metrics.workflow_dispatch_counts.promotion, 1);
+  assert.deepEqual(reconciled.mutation_leases, []);
 });
 
 test('latest checkpoint can persist a missing saga receipt as promotion_failed', () => {
@@ -280,32 +1489,33 @@ test('latest checkpoint can persist a missing saga receipt as promotion_failed',
   assert.equal(transitionStableReleaseSession(session, 'promotion_failed', 'receipt missing').phase, 'promotion_failed');
 });
 
-test('run discovery selects only a new run from the exact frozen App SHA', () => {
-  const selected = selectNewCohortRun([
-    {
-      databaseId: 1,
-      createdAt: '2026-07-12T00:00:01.000Z',
-      headBranch: 'codex/release-26.7.12',
-      headSha: appSha,
-      status: 'queued',
-      url: 'https://example.test/old',
-    },
-    {
-      databaseId: 2,
-      createdAt: '2026-07-12T00:00:02.000Z',
-      headBranch: 'codex/release-26.7.12',
-      headSha: 'e'.repeat(40),
-      status: 'queued',
-      url: 'https://example.test/wrong-cohort',
-    },
-    {
-      databaseId: 3,
-      createdAt: '2026-07-12T00:00:03.000Z',
-      headBranch: 'codex/release-26.7.12',
-      headSha: appSha,
-      status: 'queued',
-      url: 'https://example.test/current',
-    },
-  ], new Set([1]), appSha, 'codex/release-26.7.12', '2026-07-12T00:00:00.000Z');
-  assert.equal(selected?.databaseId, 3);
+test('controller accepts only the broker run id with exact attempt, workflow, branch, and SHA identity', () => {
+  const attemptId = `sha256:${'9'.repeat(64)}`;
+  const exact = {
+    databaseId: 3, attempt: 1, createdAt: '2026-07-12T00:00:03.000Z',
+    headBranch: 'main', headSha: appSha, event: 'workflow_dispatch',
+    workflowName: 'OPL Desktop Release', displayTitle: `OPL Desktop Release v26.7.12 attempt=${attemptId}`,
+    status: 'queued', url: 'https://example.test/current',
+  };
+  const expected = {
+    runId: '3', attemptId, workflow: 'desktop-release.yml' as const,
+    controllerWorkflowSha: appSha,
+  };
+  assert.deepEqual(validateAcceptedWorkflowRunIdentity(exact, expected), []);
+  assert.match(
+    validateAcceptedWorkflowRunIdentity({ ...exact, databaseId: 4 }, expected).join('; '),
+    /databaseId/,
+  );
+  assert.match(
+    validateAcceptedWorkflowRunIdentity({ ...exact, displayTitle: 'newest unrelated run' }, expected).join('; '),
+    /attempt id/,
+  );
+  assert.match(
+    validateAcceptedWorkflowRunIdentity({ ...exact, displayTitle: `attempt=${attemptId} injected suffix` }, expected).join('; '),
+    /attempt id/,
+  );
+  assert.match(
+    validateAcceptedWorkflowRunIdentity({ ...exact, headSha: 'e'.repeat(40) }, expected).join('; '),
+    /controller SHA/,
+  );
 });

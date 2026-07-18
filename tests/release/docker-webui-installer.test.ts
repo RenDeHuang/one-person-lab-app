@@ -14,13 +14,23 @@ import { shouldRetryConfigureCodexProbe } from '../../scripts/docker-webui-smoke
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const fixtureCommandTimeoutMs = 30_000;
+
+function assertCommandDidNotTimeOut(result: ReturnType<typeof spawnSync>, label: string) {
+  if (result.error) {
+    throw new Error(`${label} did not terminate within ${fixtureCommandTimeoutMs}ms: ${result.error.message}`);
+  }
+  return result;
+}
 
 function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
-  return spawnSync('bash', [installerPath, ...args], {
+  return assertCommandDidNotTimeOut(spawnSync('bash', [installerPath, ...args], {
     cwd: appRoot,
     encoding: 'utf8',
     env: { ...process.env, ...env },
-  });
+    timeout: fixtureCommandTimeoutMs,
+    killSignal: 'SIGKILL',
+  }), 'Docker/WebUI installer fixture');
 }
 
 function writeWindowsEvidence(root: string, overrides: Record<string, unknown> = {}) {
@@ -68,10 +78,12 @@ function writeWindowsEvidence(root: string, overrides: Record<string, unknown> =
 }
 
 function runSmokeGate(args: string[]) {
-  return spawnSync(process.execPath, ['--experimental-strip-types', smokeGatePath, ...args], {
+  return assertCommandDidNotTimeOut(spawnSync(process.execPath, ['--experimental-strip-types', smokeGatePath, ...args], {
     cwd: appRoot,
     encoding: 'utf8',
-  });
+    timeout: fixtureCommandTimeoutMs,
+    killSignal: 'SIGKILL',
+  }), 'Docker/WebUI smoke-gate fixture');
 }
 
 function runWindowsEvidenceGate(evidence: string) {
@@ -111,17 +123,27 @@ function zipEvidence(evidence: string) {
     fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
     'windows-clean-evidence.zip',
   );
-  const zipped = spawnSync('zip', ['-qr', archivePath, '.'], { cwd: evidence, encoding: 'utf8' });
+  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-qr', archivePath, '.'], {
+    cwd: evidence,
+    encoding: 'utf8',
+    timeout: fixtureCommandTimeoutMs,
+    killSignal: 'SIGKILL',
+  }), 'Docker/WebUI evidence archive fixture');
   assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
   return archivePath;
 }
 
 test('Docker/WebUI installer shell parses cleanly', () => {
-  const result = spawnSync('bash', ['-n', installerPath], {
+  const result = assertCommandDidNotTimeOut(spawnSync('bash', ['-n', installerPath], {
     cwd: appRoot,
     encoding: 'utf8',
-  });
+    timeout: fixtureCommandTimeoutMs,
+    killSignal: 'SIGKILL',
+  }), 'Docker/WebUI installer syntax fixture');
   assert.equal(result.status, 0, result.stderr || result.stdout);
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const composeFunction = installer.match(/compose_content\(\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.doesNotMatch(composeFunction, /<<YAML/, 'compose dry-run must not depend on a heredoc writer process');
 });
 
 test('Docker/WebUI installer dry-run generates the compose-only startup plan', () => {
@@ -277,7 +299,7 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
     fs.writeFileSync(bomPath, `\uFEFF${fs.readFileSync(bomPath, 'utf8')}`);
   }
   const archivePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')), 'windows-clean-evidence.zip');
-  const createArchive = spawnSync(
+  const createArchive = assertCommandDidNotTimeOut(spawnSync(
     'python3',
     [
       '-c',
@@ -294,8 +316,8 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
       evidence,
       archivePath,
     ],
-    { encoding: 'utf8' },
-  );
+    { encoding: 'utf8', timeout: fixtureCommandTimeoutMs, killSignal: 'SIGKILL' },
+  ), 'PowerShell-style evidence archive fixture');
   assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
 
   const payload = runPassedWindowsEvidenceGate(archivePath);
@@ -310,10 +332,12 @@ test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows eviden
   const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
   const archivePath = path.join(archiveRoot, 'windows-clean-evidence.zip');
   fs.writeFileSync(path.join(archiveRoot, '..', 'evil.txt'), 'unsafe\n');
-  const zipped = spawnSync('zip', ['-q', archivePath, '../evil.txt'], {
+  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-q', archivePath, '../evil.txt'], {
     cwd: archiveRoot,
     encoding: 'utf8',
-  });
+    timeout: fixtureCommandTimeoutMs,
+    killSignal: 'SIGKILL',
+  }), 'unsafe archive rejection fixture');
   assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
 
   const { result } = runWindowsEvidenceGate(archivePath);

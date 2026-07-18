@@ -8,8 +8,47 @@ import { parseArgs as parseNodeArgs } from 'node:util';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const canonicalAppRepository = 'gaofeng21cn/one-person-lab-app';
 
-type CheckStatus = 'passed' | 'failed' | 'skipped';
+const forbiddenReleaseEnvironmentVariables = [
+  'BUN_OPTIONS',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+  'GIT_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_WORK_TREE',
+  'NODE_OPTIONS',
+] as const;
+
+const commandEnvironmentAllowlist = new Set([
+  'BUN_INSTALL',
+  'CI',
+  'COLORTERM',
+  'FORCE_COLOR',
+  'GITHUB_ACTIONS',
+  'GITHUB_WORKSPACE',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'LOGNAME',
+  'NO_COLOR',
+  'PATH',
+  'RUNNER_ARCH',
+  'RUNNER_OS',
+  'RUNNER_TEMP',
+  'RUNNER_TOOL_CACHE',
+  'SHELL',
+  'TEMP',
+  'TERM',
+  'TMP',
+  'TMPDIR',
+  'USER',
+  'XDG_CACHE_HOME',
+]);
+
+type CheckStatus = 'passed' | 'failed' | 'blocked';
 
 type CommandResult = {
   status: number | null;
@@ -17,7 +56,12 @@ type CommandResult = {
   stderr: string;
 };
 
-export type CommandRunner = (command: string, args: string[], options: { cwd: string }) => CommandResult;
+type CommandOptions = {
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+export type CommandRunner = (command: string, args: string[], options: CommandOptions) => CommandResult;
 
 export type ReleaseSourceGateOptions = {
   version: string;
@@ -51,6 +95,22 @@ type RequiredGate = {
   reason: string;
 };
 
+type SourceGateBlocker = {
+  schema: 'opl_app_release_source_gate_blocker.v1';
+  phase: 'pre_admission' | 'required_gate_execution';
+  blocker_kind: 'pre_admission_failed' | 'required_gate_failed';
+  failed_check_ids: string[];
+  next_action: 'repair_pre_admission' | 'repair_source_gate';
+  reason: string;
+};
+
+type ImmutableCohortIdentity = {
+  version: string;
+  app_sha: string;
+  shell_sha: string;
+  framework_sha: string;
+};
+
 export type ReleaseSourceGateReport = {
   schema: 'opl_app_release_source_gate.v1';
   generated_at: string;
@@ -67,6 +127,13 @@ export type ReleaseSourceGateReport = {
   framework_root: string;
   require_shell_format: boolean;
   run_shell_tests: boolean;
+  admission: {
+    status: 'passed' | 'blocked';
+    immutable_cohort: ImmutableCohortIdentity | null;
+    failed_check_ids: string[];
+    next_action: 'run_required_source_gates' | 'repair_pre_admission';
+  };
+  typed_blocker: SourceGateBlocker | null;
   checks: Check[];
   required_gates: RequiredGate[];
 };
@@ -74,6 +141,7 @@ export type ReleaseSourceGateReport = {
 export type ReleaseSourceGateEnvironment = {
   pathExists?: (candidatePath: string) => boolean;
   readJson?: (candidatePath: string) => unknown;
+  variables?: NodeJS.ProcessEnv;
 };
 
 function usage(): void {
@@ -172,11 +240,11 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
   };
 }
 
-function run(command: string, args: string[], options: { cwd: string }): CommandResult {
+function run(command: string, args: string[], options: CommandOptions): CommandResult {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     encoding: 'utf8',
-    env: process.env,
+    env: options.env ?? process.env,
     maxBuffer: 8 * 1024 * 1024,
   });
   return {
@@ -202,6 +270,87 @@ function addCheck(checks: Check[], check: Check): void {
   checks.push(check);
 }
 
+function isFullSha(value: string): boolean {
+  return /^[0-9a-f]{40}$/i.test(value.trim());
+}
+
+function normalizedSha(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function sameSha(left: string, right: string): boolean {
+  return isFullSha(left) && isFullSha(right) && normalizedSha(left) === normalizedSha(right);
+}
+
+function canonicalPath(candidatePath: string): string {
+  try {
+    return fs.realpathSync(candidatePath);
+  } catch {
+    return path.resolve(candidatePath);
+  }
+}
+
+function canonicalGithubRepository(remoteUrl: string): string | null {
+  const normalized = remoteUrl.trim().replace(/\.git$/i, '');
+  const match = normalized.match(/github\.com(?::\d+)?[/:]([^/]+\/[^/]+)$/i);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function remoteHeadSha(result: CommandResult, ref: string): string | null {
+  if (result.status !== 0) return null;
+  const matches = result.stdout
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts.length === 2 && parts[1] === ref && isFullSha(parts[0]));
+  return matches.length === 1 ? normalizedSha(matches[0][0]) : null;
+}
+
+function buildCommandEnvironment(source: NodeJS.ProcessEnv, options: ReleaseSourceGateOptions): NodeJS.ProcessEnv {
+  const commandEnvironment: NodeJS.ProcessEnv = {};
+  for (const [name, value] of Object.entries(source)) {
+    if (value !== undefined && commandEnvironmentAllowlist.has(name)) commandEnvironment[name] = value;
+  }
+  commandEnvironment.OPL_RELEASE_VERSION = options.version;
+  commandEnvironment.OPL_EXPECTED_APP_HEAD = options.expectedAppHead;
+  commandEnvironment.OPL_SHELL_ROOT = options.shellRoot;
+  commandEnvironment.OPL_APP_SHELL_ROOT = options.shellRoot;
+  commandEnvironment.OPL_AION_SHELL_ROOT = options.shellRoot;
+  commandEnvironment.OPL_FRAMEWORK_ROOT = options.frameworkRoot;
+  commandEnvironment.OPL_REQUIRE_SHELL_FORMAT = String(options.requireShellFormat);
+  commandEnvironment.OPL_RELEASE_SOURCE_GATE_RUN_SHELL_TESTS = String(options.runShellTests);
+  commandEnvironment.GIT_TERMINAL_PROMPT = '0';
+  commandEnvironment.GCM_INTERACTIVE = 'never';
+  return commandEnvironment;
+}
+
+function releaseEnvironmentProblems(source: NodeJS.ProcessEnv, options: ReleaseSourceGateOptions): string[] {
+  const problems = forbiddenReleaseEnvironmentVariables
+    .filter((name) => typeof source[name] === 'string' && source[name]!.trim())
+    .map((name) => `${name} must be unset`);
+  const exactBindings: Array<[string, string]> = [
+    ['OPL_RELEASE_VERSION', options.version],
+    ['OPL_EXPECTED_APP_HEAD', options.expectedAppHead],
+    ['OPL_SHELL_REF', options.shellRef],
+    ['OPL_FRAMEWORK_REF', options.frameworkRef],
+    ['OPL_SHELL_ROOT', options.shellRoot],
+    ['OPL_APP_SHELL_ROOT', options.shellRoot],
+    ['OPL_AION_SHELL_ROOT', options.shellRoot],
+    ['OPL_FRAMEWORK_ROOT', options.frameworkRoot],
+    ['OPL_REQUIRE_SHELL_FORMAT', String(options.requireShellFormat)],
+    ['OPL_RELEASE_SOURCE_GATE_RUN_SHELL_TESTS', String(options.runShellTests)],
+  ];
+  for (const [name, expected] of exactBindings) {
+    const actual = source[name];
+    if (actual !== undefined && actual !== expected) problems.push(`${name} conflicts with the admitted option`);
+  }
+  const githubRepository = source.GITHUB_REPOSITORY?.trim();
+  if (githubRepository && githubRepository.toLowerCase() !== canonicalAppRepository) {
+    problems.push(`GITHUB_REPOSITORY must be ${canonicalAppRepository}`);
+  }
+  return problems;
+}
+
 function refCandidates(ref: string): string[] {
   if (/^[0-9a-f]{7,40}$/i.test(ref)) return [ref];
   return [
@@ -212,20 +361,13 @@ function refCandidates(ref: string): string[] {
   ];
 }
 
-function resolveGitRef(root: string, ref: string, runner: CommandRunner): string | null {
+function resolveGitRef(root: string, ref: string, runner: CommandRunner, env: NodeJS.ProcessEnv): string | null {
   for (const candidate of refCandidates(ref)) {
-    const result = runner('git', ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`], { cwd: root });
+    const result = runner('git', ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`], { cwd: root, env });
     const resolved = firstLine(result.stdout);
-    if (result.status === 0 && resolved) return resolved;
+    if (result.status === 0 && isFullSha(resolved)) return normalizedSha(resolved);
   }
   return null;
-}
-
-function appHeadMatches(expected: string, actual: string): boolean {
-  const normalizedExpected = expected.trim().toLowerCase();
-  const normalizedActual = actual.trim().toLowerCase();
-  if (normalizedExpected.length < 7) return false;
-  return normalizedActual === normalizedExpected || normalizedActual.startsWith(normalizedExpected);
 }
 
 function pathForGitStatus(candidatePath: string): string {
@@ -278,8 +420,11 @@ export function buildReleaseSourceGateReport(
 ): ReleaseSourceGateReport {
   const pathExists = environment.pathExists ?? fs.existsSync;
   const readJson = environment.readJson ?? ((candidatePath: string) => JSON.parse(fs.readFileSync(candidatePath, 'utf8')));
+  const sourceEnvironment = environment.variables ?? process.env;
+  const commandEnvironment = buildCommandEnvironment(sourceEnvironment, options);
   const shellRoot = options.shellRoot;
   const frameworkRoot = options.frameworkRoot;
+  let appHead = '';
   let shellSha: string | null = null;
   let frameworkSha: string | null = null;
   const checks: Check[] = [];
@@ -289,7 +434,7 @@ export function buildReleaseSourceGateReport(
       required: true,
       command: 'npm run validate:release-boundary',
       cwd: options.repoRoot,
-      executed: true,
+      executed: false,
       reason: 'Release source gate must prove the App-owned release boundary before expensive release work.',
     },
     {
@@ -297,7 +442,7 @@ export function buildReleaseSourceGateReport(
       required: true,
       command: 'bun run format:check',
       cwd: shellRoot,
-      executed: options.requireShellFormat,
+      executed: false,
       reason: 'Release source gate must prove or require active shell formatting before expensive release work.',
     },
     {
@@ -305,31 +450,107 @@ export function buildReleaseSourceGateReport(
       required: true,
       command: 'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
       cwd: options.repoRoot,
-      executed: options.runShellTests,
+      executed: false,
       reason: 'Release source gate must catch active shell node/dom regressions before expensive release work.',
     },
   ];
 
-  const releaseBoundaryResult = runner('npm', ['run', 'validate:release-boundary'], { cwd: options.repoRoot });
+  const finish = (
+    admissionFailedCheckIds: string[],
+    blocker: SourceGateBlocker | null,
+  ): ReleaseSourceGateReport => {
+    const immutableCohort = admissionFailedCheckIds.length === 0 && appHead && shellSha && frameworkSha
+      ? {
+          version: options.version,
+          app_sha: normalizedSha(appHead),
+          shell_sha: shellSha,
+          framework_sha: frameworkSha,
+        }
+      : null;
+    return {
+      schema: 'opl_app_release_source_gate.v1',
+      generated_at: generatedAt,
+      status: checks.every((check) => check.status === 'passed') ? 'passed' : 'failed',
+      repo_root: options.repoRoot,
+      version: options.version,
+      expected_app_head: options.expectedAppHead,
+      app_head: appHead || null,
+      shell_ref: options.shellRef,
+      shell_sha: shellSha,
+      shell_root: shellRoot,
+      framework_ref: options.frameworkRef,
+      framework_sha: frameworkSha,
+      framework_root: frameworkRoot,
+      require_shell_format: options.requireShellFormat,
+      run_shell_tests: options.runShellTests,
+      admission: {
+        status: admissionFailedCheckIds.length === 0 ? 'passed' : 'blocked',
+        immutable_cohort: immutableCohort,
+        failed_check_ids: admissionFailedCheckIds,
+        next_action: admissionFailedCheckIds.length === 0 ? 'run_required_source_gates' : 'repair_pre_admission',
+      },
+      typed_blocker: blocker,
+      checks,
+      required_gates: requiredGates,
+    };
+  };
+  const blockRequiredGate = (id: RequiredGate['id'], reason: string): void => {
+    addCheck(checks, {
+      id,
+      status: 'blocked',
+      message: reason,
+      command: requiredGates.find((gate) => gate.id === id)?.command,
+    });
+  };
+
+  const environmentProblems = releaseEnvironmentProblems(sourceEnvironment, options);
   addCheck(checks, {
-    id: 'app_release_boundary_contract',
-    status: releaseBoundaryResult.status === 0 ? 'passed' : 'failed',
-    message: releaseBoundaryResult.status === 0
-      ? 'App release-boundary contract passed.'
-      : `App release-boundary contract failed.${commandDetail(releaseBoundaryResult) ? `\n${commandDetail(releaseBoundaryResult)}` : ''}`,
-    command: 'npm run validate:release-boundary',
+    id: 'release_environment_whitelist',
+    status: environmentProblems.length === 0 ? 'passed' : 'failed',
+    message: environmentProblems.length === 0
+      ? 'Release commands will run with the explicit source-gate environment allowlist; ambient controller identity is not inherited.'
+      : `Release environment is not admissible: ${environmentProblems.join('; ')}.`,
+    actual: environmentProblems.length > 0 ? environmentProblems.join(', ') : undefined,
   });
 
-  const appHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: options.repoRoot });
-  const appHead = appHeadResult.status === 0 ? firstLine(appHeadResult.stdout) : '';
-  if (!appHead) {
+  const repoRootResult = runner('git', ['rev-parse', '--show-toplevel'], { cwd: options.repoRoot, env: commandEnvironment });
+  const resolvedRepoRoot = repoRootResult.status === 0 ? firstLine(repoRootResult.stdout) : '';
+  addCheck(checks, {
+    id: 'app_repo_root',
+    status: resolvedRepoRoot && canonicalPath(resolvedRepoRoot) === canonicalPath(options.repoRoot) ? 'passed' : 'failed',
+    message: resolvedRepoRoot && canonicalPath(resolvedRepoRoot) === canonicalPath(options.repoRoot)
+      ? `App repository root is ${resolvedRepoRoot}.`
+      : `Declared App repository root ${options.repoRoot} does not match git top-level ${resolvedRepoRoot || '(unresolved)'}.`,
+    expected: canonicalPath(options.repoRoot),
+    actual: resolvedRepoRoot || undefined,
+    command: commandText('git', ['rev-parse', '--show-toplevel']),
+  });
+
+  const originResult = runner('git', ['remote', 'get-url', 'origin'], { cwd: options.repoRoot, env: commandEnvironment });
+  const originUrl = originResult.status === 0 ? firstLine(originResult.stdout) : '';
+  const originRepository = originUrl ? canonicalGithubRepository(originUrl) : null;
+  addCheck(checks, {
+    id: 'app_origin_repository',
+    status: originRepository === canonicalAppRepository ? 'passed' : 'failed',
+    message: originRepository === canonicalAppRepository
+      ? `App origin is canonical ${canonicalAppRepository}.`
+      : `App origin must resolve to ${canonicalAppRepository}, got ${originUrl || '(unresolved)'}.`,
+    expected: canonicalAppRepository,
+    actual: originUrl || undefined,
+    command: commandText('git', ['remote', 'get-url', 'origin']),
+  });
+
+  const appHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: options.repoRoot, env: commandEnvironment });
+  appHead = appHeadResult.status === 0 ? firstLine(appHeadResult.stdout) : '';
+  if (!isFullSha(appHead)) {
     addCheck(checks, {
       id: 'app_head_resolved',
       status: 'failed',
-      message: `Unable to resolve App HEAD.${commandDetail(appHeadResult) ? ` ${commandDetail(appHeadResult)}` : ''}`,
+      message: `Unable to resolve App HEAD to a full commit SHA.${commandDetail(appHeadResult) ? ` ${commandDetail(appHeadResult)}` : ''}`,
       command: commandText('git', ['rev-parse', 'HEAD']),
     });
   } else {
+    appHead = normalizedSha(appHead);
     addCheck(checks, {
       id: 'app_head_resolved',
       status: 'passed',
@@ -337,19 +558,49 @@ export function buildReleaseSourceGateReport(
       actual: appHead,
       command: commandText('git', ['rev-parse', 'HEAD']),
     });
-    addCheck(checks, {
-      id: 'expected_app_head',
-      status: appHeadMatches(options.expectedAppHead, appHead) ? 'passed' : 'failed',
-      message: appHeadMatches(options.expectedAppHead, appHead)
-        ? 'App HEAD matches the expected release dispatch commit.'
-        : `App HEAD does not match expected release dispatch commit ${options.expectedAppHead}.`,
-      expected: options.expectedAppHead,
-      actual: appHead,
-      command: commandText('git', ['rev-parse', 'HEAD']),
-    });
   }
 
-  const appStatusResult = runner('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: options.repoRoot });
+  addCheck(checks, {
+    id: 'expected_app_head',
+    status: sameSha(options.expectedAppHead, appHead) ? 'passed' : 'failed',
+    message: sameSha(options.expectedAppHead, appHead)
+      ? 'App HEAD exactly matches the immutable expected App commit.'
+      : `Expected App commit must be a full SHA exactly matching HEAD; got ${options.expectedAppHead}.`,
+    expected: options.expectedAppHead,
+    actual: appHead || undefined,
+    command: commandText('git', ['rev-parse', 'HEAD']),
+  });
+
+  const remoteMainResult = runner('git', ['ls-remote', '--heads', 'origin', 'refs/heads/main'], {
+    cwd: options.repoRoot,
+    env: commandEnvironment,
+  });
+  const remoteMainSha = remoteHeadSha(remoteMainResult, 'refs/heads/main');
+  addCheck(checks, {
+    id: 'app_remote_main_resolved',
+    status: remoteMainSha ? 'passed' : 'failed',
+    message: remoteMainSha
+      ? `Live origin/main resolves to ${remoteMainSha}.`
+      : `Unable to resolve live origin/main.${commandDetail(remoteMainResult) ? ` ${commandDetail(remoteMainResult)}` : ''}`,
+    actual: remoteMainSha ?? undefined,
+    command: commandText('git', ['ls-remote', '--heads', 'origin', 'refs/heads/main']),
+  });
+  addCheck(checks, {
+    id: 'app_current_main_identity',
+    status: remoteMainSha !== null && sameSha(appHead, remoteMainSha) && sameSha(options.expectedAppHead, remoteMainSha)
+      ? 'passed'
+      : 'failed',
+    message: remoteMainSha !== null && sameSha(appHead, remoteMainSha) && sameSha(options.expectedAppHead, remoteMainSha)
+      ? 'Local App HEAD, expected App commit, and live origin/main are the same immutable commit.'
+      : 'Stable admission requires local App HEAD and expected App commit to exactly equal live origin/main.',
+    expected: remoteMainSha ?? 'live origin/main',
+    actual: `${appHead || '(unresolved)'} / ${options.expectedAppHead}`,
+  });
+
+  const appStatusResult = runner('git', ['status', '--porcelain', '--untracked-files=normal'], {
+    cwd: options.repoRoot,
+    env: commandEnvironment,
+  });
   const rawStatusText = appStatusResult.stdout.trim();
   const statusText = statusTextWithoutDeclaredFrameworkCheckout(rawStatusText, options.repoRoot, frameworkRoot);
   addCheck(checks, {
@@ -374,7 +625,7 @@ export function buildReleaseSourceGateReport(
       status: 'passed',
       message: `Active shell checkout exists at ${shellRoot}.`,
     });
-    shellSha = resolveGitRef(shellRoot, options.shellRef, runner);
+    shellSha = resolveGitRef(shellRoot, options.shellRef, runner, commandEnvironment);
     addCheck(checks, {
       id: 'active_shell_ref_resolved',
       status: shellSha ? 'passed' : 'failed',
@@ -384,6 +635,18 @@ export function buildReleaseSourceGateReport(
       expected: options.shellRef,
       actual: shellSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.shellRef}^{commit}`]),
+    });
+    const shellHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, env: commandEnvironment });
+    const shellHead = shellHeadResult.status === 0 ? firstLine(shellHeadResult.stdout) : '';
+    addCheck(checks, {
+      id: 'active_shell_checkout_identity',
+      status: shellSha !== null && sameSha(shellHead, shellSha) ? 'passed' : 'failed',
+      message: shellSha !== null && sameSha(shellHead, shellSha)
+        ? 'Active shell checkout HEAD matches the resolved immutable shell SHA.'
+        : 'Active shell checkout HEAD must exactly match the resolved shell SHA before cohort admission.',
+      expected: shellSha ?? options.shellRef,
+      actual: shellHead || undefined,
+      command: commandText('git', ['rev-parse', 'HEAD']),
     });
     try {
       const packageJson = readJson(path.join(shellRoot, 'package.json')) as { name?: unknown };
@@ -418,7 +681,7 @@ export function buildReleaseSourceGateReport(
       status: 'passed',
       message: `OPL Framework checkout exists at ${frameworkRoot}.`,
     });
-    frameworkSha = resolveGitRef(frameworkRoot, options.frameworkRef, runner);
+    frameworkSha = resolveGitRef(frameworkRoot, options.frameworkRef, runner, commandEnvironment);
     addCheck(checks, {
       id: 'framework_ref_resolved',
       status: frameworkSha ? 'passed' : 'failed',
@@ -428,6 +691,18 @@ export function buildReleaseSourceGateReport(
       expected: options.frameworkRef,
       actual: frameworkSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.frameworkRef}^{commit}`]),
+    });
+    const frameworkHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: frameworkRoot, env: commandEnvironment });
+    const frameworkHead = frameworkHeadResult.status === 0 ? firstLine(frameworkHeadResult.stdout) : '';
+    addCheck(checks, {
+      id: 'framework_checkout_identity',
+      status: frameworkSha !== null && sameSha(frameworkHead, frameworkSha) ? 'passed' : 'failed',
+      message: frameworkSha !== null && sameSha(frameworkHead, frameworkSha)
+        ? 'OPL Framework checkout HEAD matches the resolved immutable Framework SHA.'
+        : 'OPL Framework checkout HEAD must exactly match the resolved Framework SHA before cohort admission.',
+      expected: frameworkSha ?? options.frameworkRef,
+      actual: frameworkHead || undefined,
+      command: commandText('git', ['rev-parse', 'HEAD']),
     });
     try {
       const appProviders = managedUpdateProviderMap(
@@ -456,73 +731,137 @@ export function buildReleaseSourceGateReport(
     }
   }
 
-  if (options.requireShellFormat) {
-    const formatResult = runner('bun', ['run', 'format:check'], { cwd: shellRoot });
-    addCheck(checks, {
-      id: 'active_shell_format_check',
-      status: formatResult.status === 0 ? 'passed' : 'failed',
-      message: formatResult.status === 0
-        ? 'Active shell format check passed.'
-        : `Active shell format check failed.${commandDetail(formatResult) ? `\n${commandDetail(formatResult)}` : ''}`,
-      command: 'bun run format:check',
-    });
-  } else {
-    addCheck(checks, {
-      id: 'active_shell_format_check',
-      status: 'skipped',
-      message: 'Active shell format check was not executed; required gate command is emitted for CI enforcement.',
-      command: 'bun run format:check',
+  addCheck(checks, {
+    id: 'active_shell_format_pre_admission',
+    status: options.requireShellFormat ? 'passed' : 'blocked',
+    message: options.requireShellFormat
+      ? 'Active shell format check is admitted as a required source gate.'
+      : 'Active shell format check is required; rerun pre-admission with --require-shell-format true.',
+    expected: 'true',
+    actual: String(options.requireShellFormat),
+  });
+  addCheck(checks, {
+    id: 'active_shell_node_dom_pre_admission',
+    status: options.runShellTests ? 'passed' : 'blocked',
+    message: options.runShellTests
+      ? 'Active shell node/dom tests are admitted as a required source gate.'
+      : 'Active shell node/dom tests are required; rerun pre-admission with --run-shell-tests true.',
+    expected: 'true',
+    actual: String(options.runShellTests),
+  });
+  const cohortIdentityReady = sameSha(options.expectedAppHead, appHead)
+    && shellSha !== null
+    && frameworkSha !== null
+    && isFullSha(shellSha)
+    && isFullSha(frameworkSha);
+  addCheck(checks, {
+    id: 'immutable_cohort_identity',
+    status: cohortIdentityReady ? 'passed' : 'failed',
+    message: cohortIdentityReady
+      ? `Immutable cohort frozen at App ${appHead}, Shell ${shellSha}, Framework ${frameworkSha}.`
+      : 'App, Shell, and Framework must each resolve to an exact 40-character SHA before source-gate execution.',
+  });
+
+  const admissionFailedCheckIds = checks
+    .filter((check) => check.status !== 'passed')
+    .map((check) => check.id);
+  if (admissionFailedCheckIds.length > 0) {
+    const blockedReason = 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
+    blockRequiredGate('app_release_boundary_contract', blockedReason);
+    blockRequiredGate('active_shell_format_check', blockedReason);
+    blockRequiredGate('active_shell_node_dom_tests', blockedReason);
+    return finish(admissionFailedCheckIds, {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'pre_admission',
+      blocker_kind: 'pre_admission_failed',
+      failed_check_ids: admissionFailedCheckIds,
+      next_action: 'repair_pre_admission',
+      reason: blockedReason,
     });
   }
 
-  if (options.runShellTests) {
-    const shellTestsArgs = [
-      '--experimental-strip-types',
-      'scripts/run-active-shell-tests.ts',
-      '--project',
-      'all',
-      '--chunk-size',
-      '8',
-      '--max-workers',
-      '2',
-    ];
-    const shellTestsResult = runner(process.execPath, shellTestsArgs, { cwd: options.repoRoot });
-    addCheck(checks, {
-      id: 'active_shell_node_dom_tests',
-      status: shellTestsResult.status === 0 ? 'passed' : 'failed',
-      message: shellTestsResult.status === 0
-        ? 'Active shell node/dom tests passed before expensive release work.'
-        : `Active shell node/dom tests failed before expensive release work.${commandDetail(shellTestsResult) ? `\n${commandDetail(shellTestsResult)}` : ''}`,
-      command: commandText('node', shellTestsArgs.slice(1)),
-    });
-  } else {
-    addCheck(checks, {
-      id: 'active_shell_node_dom_tests',
-      status: 'skipped',
-      message: 'Active shell node/dom tests were not executed; required gate command is emitted for CI enforcement.',
-      command: 'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
+  commandEnvironment.OPL_SHELL_REF = shellSha!;
+  commandEnvironment.OPL_FRAMEWORK_REF = frameworkSha!;
+  requiredGates[0].executed = true;
+  const releaseBoundaryResult = runner('npm', ['run', 'validate:release-boundary'], {
+    cwd: options.repoRoot,
+    env: commandEnvironment,
+  });
+  addCheck(checks, {
+    id: 'app_release_boundary_contract',
+    status: releaseBoundaryResult.status === 0 ? 'passed' : 'failed',
+    message: releaseBoundaryResult.status === 0
+      ? 'App release-boundary contract passed.'
+      : `App release-boundary contract failed.${commandDetail(releaseBoundaryResult) ? `\n${commandDetail(releaseBoundaryResult)}` : ''}`,
+    command: 'npm run validate:release-boundary',
+  });
+  if (releaseBoundaryResult.status !== 0) {
+    blockRequiredGate('active_shell_format_check', 'Blocked because the preceding App release-boundary gate failed.');
+    blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the preceding App release-boundary gate failed.');
+    return finish([], {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'required_gate_execution',
+      blocker_kind: 'required_gate_failed',
+      failed_check_ids: ['app_release_boundary_contract'],
+      next_action: 'repair_source_gate',
+      reason: 'Repair the App release-boundary failure before rerunning the same immutable cohort source gate.',
     });
   }
 
-  return {
-    schema: 'opl_app_release_source_gate.v1',
-    generated_at: generatedAt,
-    status: checks.some((check) => check.status === 'failed') ? 'failed' : 'passed',
-    repo_root: options.repoRoot,
-    version: options.version,
-    expected_app_head: options.expectedAppHead,
-    app_head: appHead || null,
-    shell_ref: options.shellRef,
-    shell_sha: shellSha,
-    shell_root: shellRoot,
-    framework_ref: options.frameworkRef,
-    framework_sha: frameworkSha,
-    framework_root: frameworkRoot,
-    require_shell_format: options.requireShellFormat,
-    run_shell_tests: options.runShellTests,
-    checks,
-    required_gates: requiredGates,
-  };
+  requiredGates[1].executed = true;
+  const formatResult = runner('bun', ['run', 'format:check'], { cwd: shellRoot, env: commandEnvironment });
+  addCheck(checks, {
+    id: 'active_shell_format_check',
+    status: formatResult.status === 0 ? 'passed' : 'failed',
+    message: formatResult.status === 0
+      ? 'Active shell format check passed.'
+      : `Active shell format check failed.${commandDetail(formatResult) ? `\n${commandDetail(formatResult)}` : ''}`,
+    command: 'bun run format:check',
+  });
+  if (formatResult.status !== 0) {
+    blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the preceding active shell format gate failed.');
+    return finish([], {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'required_gate_execution',
+      blocker_kind: 'required_gate_failed',
+      failed_check_ids: ['active_shell_format_check'],
+      next_action: 'repair_source_gate',
+      reason: 'Repair active shell formatting before rerunning the same immutable cohort source gate.',
+    });
+  }
+
+  const shellTestsArgs = [
+    '--experimental-strip-types',
+    'scripts/run-active-shell-tests.ts',
+    '--project',
+    'all',
+    '--chunk-size',
+    '8',
+    '--max-workers',
+    '2',
+  ];
+  requiredGates[2].executed = true;
+  const shellTestsResult = runner(process.execPath, shellTestsArgs, { cwd: options.repoRoot, env: commandEnvironment });
+  addCheck(checks, {
+    id: 'active_shell_node_dom_tests',
+    status: shellTestsResult.status === 0 ? 'passed' : 'failed',
+    message: shellTestsResult.status === 0
+      ? 'Active shell node/dom tests passed before expensive release work.'
+      : `Active shell node/dom tests failed before expensive release work.${commandDetail(shellTestsResult) ? `\n${commandDetail(shellTestsResult)}` : ''}`,
+    command: commandText('node', shellTestsArgs.slice(1)),
+  });
+  if (shellTestsResult.status !== 0) {
+    return finish([], {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'required_gate_execution',
+      blocker_kind: 'required_gate_failed',
+      failed_check_ids: ['active_shell_node_dom_tests'],
+      next_action: 'repair_source_gate',
+      reason: 'Repair active shell node/dom regressions before rerunning the same immutable cohort source gate.',
+    });
+  }
+
+  return finish([], null);
 }
 
 export function writeReleaseSourceGateReport(options: ReleaseSourceGateOptions, report: ReleaseSourceGateReport): void {

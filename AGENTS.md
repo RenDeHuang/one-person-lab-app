@@ -21,6 +21,7 @@
 ## Working Rules
 
 - App 写入任务默认使用任务自有 worktree；根仓 `main` 只用于短时集成、最终验证和发布，不作为普通开发工作区。
+- Release 低层 `desktop-release*` 与 `opl-first-run-vm` workflow 禁止 direct mutation 和 rerun。Canonical operator 只能先持久化 planned request，再提交给隔离的 release mutation broker；只有 broker 可执行 dispatch、cancel 或 promote，恢复只能创建新的 brokered attempt 或 read-only reconcile。Monitor 只允许 GET/readback。失败必须先 reconcile 并记录 failure taxonomy；没有 durable receipt 不得手工续跑。Compiled expectation 或 verification harness SHA 变化必须冻结新 cohort，不允许仅凭 changed-path allowlist 复用 artifact。发布对话或代理树不得作为 scheduler、watcher 或 state store：禁止递归监控/审计子树和重复 polling，所有接管只读 canonical session 并执行一次 typed reconcile；已有 owner 时其他 task 必须停止路由和等待。此规则只是协作软防线，不能替代 broker admission、credential isolation 与 workflow preflight；protected environment 也不能单独阻止 API cancel/rerun。日常 Codex credential 必须保持 Actions read-only，并且不能绕过受保护的 canonical `main` / release-control path 直接改写 verifier；broker 只接受外部批准的 controller SHA。Actions write token 与签名私钥只允许 repo 外隔离 broker 持有。
 - 修改前确认 canonical `main`、远端 currentness、当前 integration owner 与本任务精确写集。仓库级单一 writer 不是默认门禁；同仓非重叠任务应在独立 worktree 并行，只有重叠写集和 `main` 吸收窗口需要串行协调。
 - 吸收前基于最新 canonical `main` 按 App contracts 和当前产品 truth 解决冲突；禁止用旧分支、旧生成物或上游默认值覆盖新主线。
 - App 产品、合同、release、测试和用户文档改在本仓根；AionUI 实现改在 Shell 仓。

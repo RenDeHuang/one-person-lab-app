@@ -150,7 +150,7 @@ function classifyFailure(): {
     return {
       type: 'opl_command_output_buffer_exhausted',
       boundary: 'guest_opl_command_output_buffer',
-      reason: 'Guest App and OPL command execution reached the runtime evidence stage, but the smoke harness exhausted its bounded command-output buffer. Update the pinned smoke harness and rerun the same artifact.',
+      reason: 'Guest App and OPL command execution reached the runtime evidence stage, but the frozen smoke harness exhausted its bounded command-output buffer. Reconcile the Stable session before deciding whether a newly frozen cohort is required.',
       tartSummary,
       guestSummary,
     };
@@ -210,47 +210,46 @@ function classifyFailure(): {
   };
 }
 
-function retryEntry(failureType: FailureType) {
+function typedControllerAction(failureType: FailureType) {
   const profile = env('PACKAGE_PROFILE') || 'unknown';
-  const diagnosticScope = env('DIAGNOSTIC_SCOPE') || 'release_gate';
-  const repo = env('GITHUB_REPOSITORY') || 'gaofeng21cn/one-person-lab-app';
-  const releaseArtifactName = env('RELEASE_ARTIFACT_NAME');
-  const releaseArtifactRunId =
-    env('RELEASE_ARTIFACT_EFFECTIVE_RUN_ID') || env('RELEASE_ARTIFACT_RUN_ID') || env('GITHUB_RUN_ID');
-  const releaseTag = env('RELEASE_TAG');
-  const args = [
-    'gh workflow run "OPL GUI First-Run VM"',
-    `--repo ${repo}`,
-    `-f package_profile=${profile}`,
-    `-f diagnostic_scope=${diagnosticScope}`,
-  ];
-  const workflowRef = env('GITHUB_REF_NAME');
-  if (workflowRef) args.push(`--ref ${workflowRef}`);
-  if (releaseArtifactName) {
-    args.push(`-f release_artifact_name=${releaseArtifactName}`);
-    args.push(`-f release_artifact_run_id=${releaseArtifactRunId}`);
-  } else if (env('RELEASE_DMG_URL_CONFIGURED') === 'true') {
-    args.push('-f release_dmg_url=<same-dmg-url>');
-  } else if (releaseTag) {
-    args.push(`-f release_tag=${releaseTag}`);
-  }
-  if (env('ARTIFACT_APP_SHA')) args.push(`-f artifact_app_ref=${env('ARTIFACT_APP_SHA')}`);
-  if (env('PRODUCT_SHELL_SHA')) args.push(`-f shell_ref=${env('PRODUCT_SHELL_SHA')}`);
-  if (env('SMOKE_HARNESS_SHELL_SHA')) args.push(`-f smoke_harness_ref=${env('SMOKE_HARNESS_SHELL_SHA')}`);
+  const artifactKind = profile === 'full' ? 'full' : 'standard';
+  const reconcileRequired = new Set<FailureType>([
+    'release_asset_missing',
+    'opl_command_output_buffer_exhausted',
+    'vm_harness_preflight_failed',
+  ]);
   const action = failureType === 'none'
     ? 'none'
-    : failureType === 'release_asset_missing'
-      ? 'provide_existing_dmg_or_release_artifact_then_rerun_vm'
-      : failureType === 'opl_command_output_buffer_exhausted'
-        ? 'update_smoke_harness_then_rerun_same_artifact'
-        : 'rerun_diagnostic_same_artifact';
+    : reconcileRequired.has(failureType)
+      ? 'reconcile_stable_session'
+      : 'retry_qualification_same_artifact';
+  const controllerSubcommand = action === 'retry_qualification_same_artifact'
+    ? 'retry-qualification'
+    : action === 'reconcile_stable_session'
+      ? 'reconcile'
+      : null;
+  const artifactArg = controllerSubcommand === 'retry-qualification'
+    ? ` --artifact-kind ${artifactKind}`
+    : '';
   return {
     action,
     scope: 'vm_qualification_only_same_cohort',
-    workflow: 'OPL GUI First-Run VM',
-    command_hint: action === 'none' ? '' : args.join(' '),
+    controller: action === 'none' ? null : 'release:stable',
+    controller_subcommand: controllerSubcommand,
+    state_ref: action === 'none' ? null : 'original_stable_release_session',
+    command_template: controllerSubcommand
+      ? `npm run release:stable -- ${controllerSubcommand} --state <original-release-session.json>${artifactArg}`
+      : '',
+    execution_mode: 'dry_run',
+    execute_flag_included: false,
+    mutation_authorized: false,
+    direct_workflow_dispatch_allowed: false,
     rebuilds_standard_or_full_artifact: false,
-    uses_existing_release_artifact: Boolean(releaseArtifactName || env('RELEASE_DMG_URL_CONFIGURED') === 'true' || releaseTag),
+    uses_existing_release_artifact: Boolean(
+      env('RELEASE_ARTIFACT_NAME')
+      || env('RELEASE_DMG_URL_CONFIGURED') === 'true'
+      || env('RELEASE_TAG')
+    ),
   };
 }
 
@@ -259,12 +258,12 @@ function main(): void {
   const summaryJsonPath = `${outputDir}/vm-gate-failure-summary.json`;
   const summaryMdPath = `${outputDir}/vm-gate-failure-summary.md`;
   const classification = classifyFailure();
-  const retry = retryEntry(classification.type);
+  const controllerAction = typedControllerAction(classification.type);
   const releaseArtifactRunId =
     env('RELEASE_ARTIFACT_EFFECTIVE_RUN_ID') ||
     env('RELEASE_ARTIFACT_RUN_ID') ||
     env('GITHUB_RUN_ID');
-  const expectedNextAction = retry.action;
+  const expectedNextAction = controllerAction.action;
 
   const summary = {
     schema_version: 2,
@@ -315,7 +314,7 @@ function main(): void {
       step_conclusion: env('VM_SMOKE_CONCLUSION') || 'unknown',
       expected_next_action: expectedNextAction,
     },
-    retry_entry: retry,
+    typed_controller_action: controllerAction,
     artifact_upload_failure_boundary: {
       critical_diagnostics_artifact_name: `opl-first-run-vm-critical-diagnostics-${env('PACKAGE_PROFILE') || 'unknown'}-${env('GITHUB_RUN_ID') || 'unknown'}`,
       critical_diagnostics_paths: [
@@ -347,7 +346,8 @@ function main(): void {
       `- Failure type: ${summary.failure.type}`,
       `- Failure boundary: ${summary.failure.boundary}`,
       `- Expected next action: ${summary.vm_gate.expected_next_action}`,
-      `- Retry command: ${summary.retry_entry.command_hint || 'none'}`,
+      `- Stable controller route: ${summary.typed_controller_action.command_template || 'none'}`,
+      `- Mutation authorized: ${String(summary.typed_controller_action.mutation_authorized)}`,
       `- Artifact upload failure boundary: critical diagnostics use if-no-files-found=error; large VM artifacts use if-no-files-found=warn.`,
       `- Truth boundary: ${summary.artifact_upload_failure_boundary.truth_boundary}.`,
       '',

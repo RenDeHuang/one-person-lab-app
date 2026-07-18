@@ -1,0 +1,24 @@
+{
+  "schema": "opl_app_release_qualification_input_manifest.v1",
+  "runtime_payloads": {
+    "codex_cli": {
+      "package": "@openai/codex",
+      "version": "0.144.5",
+      "npm_integrity": "sha512-jjB+K+OMv572mKhS+2QuLxWXDJNdpwbPenf+V+8bdq7wg4Scqt3cn6WEekD8wPqDVZqck0HSX17K9rD9kbDJQA==",
+      "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.144.5.tgz",
+      "tarball_sha256": "8ef17f44770a72f42f09512dfb748c08729dabc0a6ccd6c68220b0b4449f40c3",
+      "platform": {
+        "package": "@openai/codex",
+        "version": "0.144.5-darwin-arm64",
+        "npm_integrity": "sha512-zcT6NfBCqLFt+BReNSETTZW6v6PdbH0dzNtm9j7l7mDGqwPbKZDGJdnpkBao2389I0ZacyIKgSZoI0vez1d4Dw==",
+        "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.144.5-darwin-arm64.tgz",
+        "tarball_sha256": "2931f22a00e1b52a95416a97db0be3beeb4020924f04eab0d3313f02d0400343"
+      }
+    }
+  },
+  "release_boundary": {
+    "release_qualification_must_consume_exact_identity": true,
+    "moving_npm_dist_tags_forbidden": true,
+    "build_cohort_and_attempt_receipt_binding_required": true
+  }
+}

@@ -133,7 +133,7 @@ test('Framework promotion receipt rejects Base built from a different Framework 
   assert.match(result.stderr, /components\.base\.source_commit does not match the frozen Framework cohort SHA/);
 });
 
-test('Framework promotion dispatch carries the frozen Framework SHA through both targets and receipt validation', () => {
+test('Framework promotion readback carries the frozen Framework SHA through both broker receipts', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
   const helper = fs.readFileSync(path.join(appRoot, 'scripts/framework-release-promotion-step.sh'), 'utf8');
   assert.equal(
@@ -141,11 +141,11 @@ test('Framework promotion dispatch carries the frozen Framework SHA through both
     2,
   );
   assert.match(helper, /OPL_FRAMEWORK_SOURCE_COMMIT:\?OPL_FRAMEWORK_SOURCE_COMMIT is required/);
-  assert.match(helper, /expected_framework_source_commit=\$OPL_FRAMEWORK_SOURCE_COMMIT/);
   assert.match(helper, /--framework-source-commit "\$OPL_FRAMEWORK_SOURCE_COMMIT"/);
+  assert.doesNotMatch(helper, /gh workflow run/);
 });
 
-test('Homebrew Stable dispatch carries the validated Standard VM receipt raw bytes without cross-repo download', () => {
+test('Homebrew Stable readback requires validated Standard VM receipt bytes without cross-repo dispatch', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
   assert.match(
     workflow,
@@ -159,7 +159,8 @@ test('Homebrew Stable dispatch carries the validated Standard VM receipt raw byt
     /STANDARD_VM_EVIDENCE_BASE64: \$\{\{ needs\.prepare\.outputs\.standard_vm_evidence_base64 \}\}/,
   );
   assert.match(workflow, /test -n "\$STANDARD_VM_EVIDENCE_BASE64"/);
-  assert.match(workflow, /--field standard_vm_evidence_base64="\$STANDARD_VM_EVIDENCE_BASE64"/);
+  assert.match(workflow, /Reusing immutable brokered Stable distribution receipt/);
+  assert.doesNotMatch(workflow, /gh workflow run/);
   assert.doesNotMatch(workflow, /repos\/\$TAP_REPO\/actions\/artifacts[\s\S]*artifact-qualification-receipt/);
 });
 
@@ -245,9 +246,11 @@ test('Standard promotion and Full add-on never mutate the independent WebUI Stab
   assert.doesNotMatch(promote, /oras tag [^\n]* stable/);
   assert.doesNotMatch(addon, /oras tag [^\n]* stable/);
   assert.doesNotMatch(addon, /make_latest/);
-  assert.match(promote, /Queue asynchronous same-cohort Full add-on/);
-  assert.match(promote, /continue-on-error: true/);
-  assert.match(promote, /workflow run desktop-release-full-addon\.yml/);
+  assert.doesNotMatch(promote, /workflow run desktop-release-full-addon\.yml/);
+  assert.match(addon, /Build frozen Full add-on/);
+  assert.match(addon, /Resolve signed broker admission for this exact Full add-on run[\s\S]*?--mode lookup/);
+  assert.match(addon, /Verify historical Full add-on broker admission in write job[\s\S]*?--mode historical/);
+  assert.doesNotMatch(addon, /verify-release-session-lease|verify-release-mutation-payload|release_mutation_payload_base64/);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/webui-ghcr-release.yml')), false);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/homebrew-tap-update.yml')), false);
 });

@@ -101,18 +101,18 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       { actual: tapUpdate?.default_workflow, expected: '.github/workflows/sync-from-app-releases.yml' },
       { actual: tapUpdate?.tap_sync_script, expected: 'scripts/sync-cask-from-release.mjs' },
       { actual: tapUpdate?.app_release_promotion_workflow, expected: '.github/workflows/desktop-release-promote.yml' },
-      { actual: tapUpdate?.tap_owned_stable_distribution_workflow, expected: '.github/workflows/stable-distribution.yml' },
+      { actual: tapUpdate?.tap_owned_stable_distribution_workflow, expected: '.github/workflows/stable-standard-distribution.yml' },
       { actual: tapUpdate?.app_release_direct_workflow, expected: null },
-      { actual: tapUpdate?.app_release_direct_token, expected: 'OPL_HOMEBREW_TAP_TOKEN' },
+      { actual: tapUpdate?.app_release_direct_token, expected: null },
       { actual: tapUpdate?.app_release_pull_request_allowed, expected: false },
       {
         actual: tapUpdate?.app_release_workflow_write_mode,
-        expected: 'dispatch_tap_owned_atomic_formula_and_app_cask_distribution_only',
+        expected: 'read_only_receipt_validation_only',
       },
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
         expected:
-          'promotion_saga_dispatches_tap_owned_atomic_formula_and_app_cask_distribution_after_framework_stable_receipt',
+          'isolated_broker_executes_tap_owned_atomic_distribution_then_app_saga_validates_receipt',
       },
       {
         actual: tapUpdate?.direct_commit_conflict_policy,
@@ -125,7 +125,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable?.mode,
         expected:
-          'desktop_promote_dispatches_tap_owned_atomic_formula_and_app_cask_distribution',
+          'isolated_broker_executes_tap_owned_atomic_distribution_then_desktop_promote_validates_receipt',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },

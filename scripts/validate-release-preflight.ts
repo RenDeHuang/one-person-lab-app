@@ -112,7 +112,7 @@ Options:
   --release-operator-plan-ref <ref>
                                    Required sha256 ref emitted by release:cohort-plan.
   --gate-reuse-plan-ref <ref>      Same-cohort reuse plan ref after repeated attempts.
-  --include-full-package <bool>    Whether the Full first-install package is in scope.
+  --include-full-package <bool>    Whether to request a same-cohort non-blocking Full add-on after Standard terminal.
   --run-vm-smoke <bool>            Whether release VM smokes are in scope.
   --publish-docker-webui <bool>    Whether the Docker WebUI image is in scope.
   --docker-webui-clean-windows-evidence-artifact <name>
@@ -383,11 +383,32 @@ function checkReleaseIntent(options: Options, checks: Check[]) {
     return;
   }
   if (options.releaseIntent === 'stable_complete') {
-    if (!options.includeFullPackage || !options.runVmSmoke) {
-      addCheck(checks, 'release_intent', 'failed', 'stable_complete requires include_full_package=true and run_vm_smoke=true.');
+    if (options.fullOmissionReason.trim()) {
+      addCheck(
+        checks,
+        'release_intent',
+        'failed',
+        'stable_complete does not accept a Full omission reason; include_full_package independently declares add-on intent.',
+      );
       return;
     }
-    addCheck(checks, 'release_intent', 'passed', 'stable_complete explicitly includes Full packaging and VM gates.');
+    if (!options.runVmSmoke) {
+      addCheck(
+        checks,
+        'release_intent',
+        'failed',
+        'stable_complete requires run_vm_smoke=true for Standard qualification; Full add-on intent does not change the Standard terminal gate.',
+      );
+      return;
+    }
+    addCheck(
+      checks,
+      'release_intent',
+      'passed',
+      options.includeFullPackage
+        ? 'stable_complete qualifies the independent Standard terminal; Full is requested only as a same-cohort non-blocking add-on after Standard terminal.'
+        : 'stable_complete qualifies the independent Standard terminal; no Full add-on is requested for this cohort.',
+    );
     return;
   }
   if (options.includeFullPackage || !options.fullOmissionReason.trim()) {
@@ -629,18 +650,18 @@ function checkWorkflowShape(options: Options, checks: Check[]) {
     addCheck(checks, 'workflow_preflight_shape', 'passed', 'desktop-release.yml starts with the App release preflight gate.');
   }
 
-  if (!options.includeFullPackage) {
-    addCheck(checks, 'full_workflow_call', 'skipped', 'Full package lane is not requested for this release train.');
-  } else if (!workflow.includes('uses: ./.github/workflows/full-first-install-release.yml')) {
-    addCheck(checks, 'full_workflow_call', 'failed', 'include_full_package requires the reusable Full first-install workflow.');
-  } else {
-    addCheck(checks, 'full_workflow_call', 'passed', 'Full package lane uses the reusable Full first-install workflow.');
-  }
+  addCheck(
+    checks,
+    'full_addon_preflight',
+    'skipped',
+    options.includeFullPackage
+      ? 'Full add-on intent is recorded, but every Full-specific workflow and payload check is deferred to the independent dispatch-full-addon attempt after Standard terminal.'
+      : 'No same-cohort Full add-on is requested; Standard admission contains no Full-specific checks.',
+  );
 }
 
 function checkReleasePlan(options: Options, checks: Check[]) {
   const args = ['--experimental-strip-types', 'scripts/plan-release-candidate.ts', '--version', options.version];
-  if (options.includeFullPackage) args.push('--include-full-package');
   if (!options.runVmSmoke) args.push('--no-settings-vm');
   const planResult = run(process.execPath, args, { allowFailure: true });
   if (planResult.status !== 0) {
@@ -654,24 +675,18 @@ function checkReleasePlan(options: Options, checks: Check[]) {
     'release_boundary',
     'standard_build',
     'publish_standard',
-    'remote_verify_standard_and_full',
+    'remote_verify_standard',
     'release_readiness_summary',
   ];
-  if (options.includeFullPackage) {
-    requiredLanes.push('full_build', 'publish_full_assets');
-  }
   if (options.runVmSmoke) {
     requiredLanes.push('standard_dmg_clean_vm_smoke', 'homebrew_standard_cask_clean_vm_smoke');
-    if (options.includeFullPackage) {
-      requiredLanes.push('full_dmg_clean_vm_smoke');
-    }
   }
   const missing = requiredLanes.filter((lane) => !lanes.has(lane));
   if (missing.length > 0) {
     addCheck(checks, 'release_plan', 'failed', `release plan missing lanes: ${missing.join(', ')}`);
     return;
   }
-  addCheck(checks, 'release_plan', 'passed', `release plan exposes ${requiredLanes.length} required lanes.`);
+  addCheck(checks, 'release_plan', 'passed', `Standard release plan exposes ${requiredLanes.length} required lanes; add-on lanes are outside this admission result.`);
 }
 
 function buildHomebrewVmGateStaticPolicy(): HomebrewVmGateStaticPolicy {
@@ -771,21 +786,12 @@ function buildHomebrewPreflight(
 function checkHomebrewToken(homebrew: HomebrewPreflight, checks: Check[]) {
   if (!homebrew.tap_token_required) {
     const message = homebrew.tap_update_owner === 'desktop_release_promote_after_publish'
-      ? 'Stable Homebrew tap update is owned by the promote workflow after the draft is published; this preflight does not block App, Full, or Docker/WebUI candidate creation on the tap token.'
+      ? 'Stable Homebrew distribution is owned by the isolated mutation broker after Standard publication; this preflight does not require a cross-repository token.'
       : 'Stable Homebrew tap update is not required for this run.';
     addCheck(checks, 'homebrew_tap_token', 'skipped', message);
     return;
   }
-  if (process.env.OPL_HOMEBREW_TAP_TOKEN_PRESENT !== 'true') {
-    addCheck(
-      checks,
-      'homebrew_tap_token',
-      'failed',
-      'Stable Homebrew VM gate requires OPL_HOMEBREW_TAP_TOKEN so the tap can update before the Homebrew smoke.',
-    );
-    return;
-  }
-  addCheck(checks, 'homebrew_tap_token', 'passed', 'Stable Homebrew tap token is present for direct tap update.');
+  addCheck(checks, 'homebrew_tap_token', 'failed', 'A required Homebrew mutation must be admitted by the isolated broker; App workflows cannot use a direct tap token.');
 }
 
 function checkMacosLocalAuthorization(checks: Check[]) {
@@ -813,13 +819,35 @@ function hostOf(rawUrl: unknown): string | null {
 }
 
 function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPackagePreflight {
+  const qualificationInputPath = path.join(appRoot, 'contracts/app-release-qualification-input-manifest.json');
+  let frozen: Record<string, any>;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(qualificationInputPath, 'utf8'));
+    frozen = manifest?.runtime_payloads?.codex_cli;
+    if (
+      manifest?.schema !== 'opl_app_release_qualification_input_manifest.v1' ||
+      typeof frozen?.version !== 'string' || typeof frozen?.npm_integrity !== 'string' ||
+      typeof frozen?.tarball_url !== 'string' || !/^[0-9a-f]{64}$/.test(String(frozen?.tarball_sha256)) ||
+      typeof frozen?.platform?.version !== 'string' || typeof frozen?.platform?.npm_integrity !== 'string' ||
+      typeof frozen?.platform?.tarball_url !== 'string' || !/^[0-9a-f]{64}$/.test(String(frozen?.platform?.tarball_sha256))
+    ) throw new Error('manifest lacks exact Codex package and platform identities');
+  } catch (error) {
+    const reason = `Frozen release qualification input manifest is invalid: ${error instanceof Error ? error.message : String(error)}`;
+    addCheck(checks, 'codex_package_metadata', 'failed', reason);
+    return {
+      status: 'failed', requested_spec: '@openai/codex@<missing-frozen-version>', version: null,
+      platform_spec: null, package_tarball_host: null, platform_tarball_host: null, reason,
+    };
+  }
+  const requestedSpec = `@openai/codex@${frozen.version}`;
+  const platformSpec = `@openai/codex@${frozen.platform.version}`;
   const skipped: CodexPackagePreflight = {
     status: 'skipped',
-    requested_spec: '@openai/codex@latest',
-    version: null,
-    platform_spec: null,
-    package_tarball_host: null,
-    platform_tarball_host: null,
+    requested_spec: requestedSpec,
+    version: frozen.version,
+    platform_spec: platformSpec,
+    package_tarball_host: hostOf(frozen.tarball_url),
+    platform_tarball_host: hostOf(frozen.platform.tarball_url),
     reason: 'VM smoke is disabled; Codex install asset metadata is not required for this run.',
   };
   if (!options.runVmSmoke) {
@@ -835,8 +863,7 @@ function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPack
     return offlineSkipped;
   }
 
-  const requestedSpec = '@openai/codex@latest';
-  const npmView = run('npm', ['view', requestedSpec, 'version', 'dist.tarball', '--json'], {
+  const npmView = run('npm', ['view', requestedSpec, 'version', 'dist.tarball', 'dist.integrity', '--json'], {
     allowFailure: true,
   });
   if (npmView.status !== 0) {
@@ -851,10 +878,11 @@ function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPack
 
   const metadata = parseNpmViewJson(npmView.stdout);
   const version = typeof metadata?.version === 'string' ? metadata.version : null;
-  const packageTarballHost = hostOf(metadata?.['dist.tarball'] ?? objectOrNull(metadata?.dist)?.tarball);
-  const platformSpec = version ? `@openai/codex@${version}-darwin-arm64` : null;
-  if (!version || !packageTarballHost || !platformSpec) {
-    const reason = `${requestedSpec} metadata is missing version or tarball URL.`;
+  const packageTarballUrl = metadata?.['dist.tarball'] ?? objectOrNull(metadata?.dist)?.tarball;
+  const packageIntegrity = metadata?.['dist.integrity'] ?? objectOrNull(metadata?.dist)?.integrity;
+  const packageTarballHost = hostOf(packageTarballUrl);
+  if (version !== frozen.version || packageTarballUrl !== frozen.tarball_url || packageIntegrity !== frozen.npm_integrity || !packageTarballHost) {
+    const reason = `${requestedSpec} metadata does not match the frozen qualification input manifest.`;
     addCheck(checks, 'codex_package_metadata', 'failed', reason);
     return {
       ...skipped,
@@ -866,7 +894,7 @@ function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPack
     };
   }
 
-  const platformView = run('npm', ['view', platformSpec, 'version', 'dist.tarball', '--json'], {
+  const platformView = run('npm', ['view', platformSpec, 'version', 'dist.tarball', 'dist.integrity', '--json'], {
     allowFailure: true,
   });
   if (platformView.status !== 0) {
@@ -884,9 +912,11 @@ function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPack
 
   const platformMetadata = parseNpmViewJson(platformView.stdout);
   const platformVersion = typeof platformMetadata?.version === 'string' ? platformMetadata.version : null;
-  const platformTarballHost = hostOf(platformMetadata?.['dist.tarball'] ?? objectOrNull(platformMetadata?.dist)?.tarball);
-  if (!platformVersion || !platformTarballHost) {
-    const reason = `${platformSpec} metadata is missing version or tarball URL.`;
+  const platformTarballUrl = platformMetadata?.['dist.tarball'] ?? objectOrNull(platformMetadata?.dist)?.tarball;
+  const platformIntegrity = platformMetadata?.['dist.integrity'] ?? objectOrNull(platformMetadata?.dist)?.integrity;
+  const platformTarballHost = hostOf(platformTarballUrl);
+  if (platformVersion !== frozen.platform.version || platformTarballUrl !== frozen.platform.tarball_url || platformIntegrity !== frozen.platform.npm_integrity || !platformTarballHost) {
+    const reason = `${platformSpec} metadata does not match the frozen qualification input manifest.`;
     addCheck(checks, 'codex_package_metadata', 'failed', reason);
     return {
       ...skipped,
@@ -976,11 +1006,19 @@ function checkContract(options: Options, checks: Check[]) {
     addCheck(checks, 'release_preflight_contract', 'failed', `Release contract missing preflight checks: ${missing.join(', ')}`);
     return;
   }
-  if (options.includeFullPackage && !contract.full_first_install?.validation_required) {
-    addCheck(checks, 'release_preflight_contract', 'failed', 'Full package preflight requires full_first_install.validation_required=true.');
+  const fullAddon = contract.release_preflight?.full_addon_preflight;
+  if (
+    contract.release_preflight?.admission_scope !== 'standard_terminal_only' ||
+    fullAddon?.status !== 'deferred_to_independent_addon_attempt' ||
+    fullAddon?.controller_command !== 'release:stable dispatch-full-addon' ||
+    fullAddon?.runs_during_standard_admission !== false ||
+    fullAddon?.may_block_standard_terminal !== false ||
+    fullAddon?.required_before_addon_dispatch !== true
+  ) {
+    addCheck(checks, 'release_preflight_contract', 'failed', 'Release preflight must admit only Standard and defer Full-specific validation to dispatch-full-addon.');
     return;
   }
-  addCheck(checks, 'release_preflight_contract', 'passed', 'Release contract defines the fast preflight boundary.');
+  addCheck(checks, 'release_preflight_contract', 'passed', 'Release contract defines a Standard-only fast preflight boundary and an independent Full add-on admission.');
 }
 
 function appendGithubOutput(summary: {
@@ -1013,6 +1051,9 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
       release_operator_plan_ref: options.releaseOperatorPlanRef,
       gate_reuse_plan_ref: options.gateReusePlanRef.trim() || null,
       include_full_package: options.includeFullPackage,
+      include_full_package_role: 'same_cohort_nonblocking_addon_intent',
+      standard_terminal_requires_full_addon_terminal: false,
+      full_addon_preflight_phase: 'dispatch-full-addon',
       run_vm_smoke: options.runVmSmoke,
       publish_docker_webui: options.publishDockerWebui,
       docker_webui_clean_windows_evidence_artifact: options.dockerWebuiCleanWindowsEvidenceArtifact,

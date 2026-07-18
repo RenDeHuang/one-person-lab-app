@@ -22,7 +22,7 @@ on:
       opl_flow_ref:
         description: 'Immutable opl-flow ref used by product-profile projection in every release job.'
         type: string
-        default: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
+        default: ''
       skip_code_quality:
         description: 'Skip code quality checks (faster builds for debugging)'
         type: boolean
@@ -56,8 +56,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
   AIONUI_HUB_TAG: 'dist-ebc6a2b'
-  # aionrs binary version to bundle (used by scripts/prepareAionrs.js)
-  AIONRS_VERSION: 'latest'
 
 jobs:
   workflow-lint:
@@ -67,14 +65,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
-          go-version: '1.26.x'
+          go-version: '1.26.4'
           cache: false
 
       - name: Install actionlint
@@ -82,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/actionlint-bin"
-          GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
           echo "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
 
       - name: Lint GitHub Actions workflows
@@ -98,7 +96,7 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
@@ -123,12 +121,12 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
           cache: npm
@@ -155,12 +153,12 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
       - name: Checkout OPL Flow policy source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-flow
           ref: ${{ inputs.opl_flow_ref }}
@@ -195,7 +193,7 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
@@ -273,20 +271,29 @@ jobs:
       matrix: ${{ fromJSON(inputs.matrix) }}
 
     steps:
+      - name: Validate immutable release-bound build refs
+        if: ${{ inputs.stable_session_id != '' }}
+        shell: bash
+        run: |
+          [[ '${{ inputs.ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound ref must be the exact frozen App SHA."; exit 1; }
+          [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound shell_ref must be the exact frozen Shell SHA."; exit 1; }
+          [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound framework_ref must be the exact frozen Framework SHA."; exit 1; }
+          [[ '${{ inputs.opl_flow_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound opl_flow_ref must be the exact frozen OPL Flow SHA."; exit 1; }
+
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.ref }}
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
       - name: Checkout OPL Flow policy source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-flow
           ref: ${{ inputs.opl_flow_ref }}
@@ -324,24 +331,24 @@ jobs:
           echo "OPL release version: $version"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
       - name: Setup bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: latest
+          bun-version: '1.3.14'
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.12'
 
       # Restore Electron/Electron-Builder caches before any build-related install
       - name: Cache Electron artifacts
         id: electron-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ${{ runner.temp }}/.cache/electron
@@ -356,7 +363,7 @@ jobs:
 
       - name: Cache Bun install cache
         id: bun-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ~/.bun/install/cache
           key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
@@ -370,7 +377,7 @@ jobs:
           echo "bun-cache-hit=${{ steps.bun-cache.outputs.cache-hit }}"
 
       - name: Install dependencies
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
         with:
           timeout_minutes: 10
           max_attempts: 3
@@ -397,7 +404,7 @@ jobs:
 
       - name: Install MSVC ARM64 toolchain (Windows ARM64 only)
         if: matrix.platform == 'windows-arm64'
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
         with:
           timeout_minutes: 20
           max_attempts: 3
@@ -415,7 +422,7 @@ jobs:
 
       - name: Setup MSBuild (Windows only)
         if: startsWith(matrix.platform, 'windows')
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce
         with:
           vs-version: '17.0'
 
@@ -750,7 +757,7 @@ jobs:
 
       - name: Build with electron-builder (Linux)
         if: startsWith(matrix.platform, 'linux')
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08
         with:
           timeout_minutes: 60
           max_attempts: 2
@@ -852,6 +859,8 @@ jobs:
             --app-profile ../../contracts/app-product-profile.json \
             --gui-contract ../../contracts/app-gui-product-contract.json \
             --smoke-harness scripts/opl-first-run-vm-smoke.mjs \
+            --compiled-expectations ../../contracts/app-first-run-compiled-expectations.json \
+            --qualification-input-manifest ../../contracts/app-release-qualification-input-manifest.json \
             --app-sha "$(git -C ../.. rev-parse HEAD)" \
             --shell-sha "$(git rev-parse HEAD)" \
             --framework-sha "${{ inputs.framework_ref }}" \
@@ -864,7 +873,7 @@ jobs:
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
       - name: Upload build artifact cohort manifest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success() && startsWith(matrix.platform, 'macos')
         with:
           name: ${{ inputs.append_commit_hash && format('{0}-{1}-dmg-cohort', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg-cohort', matrix.artifact-name) }}
@@ -873,7 +882,7 @@ jobs:
           retention-days: 7
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success()
         with:
           name: ${{ inputs.append_commit_hash && format('{0}-{1}', matrix.artifact-name, steps.commit.outputs.short) || matrix.artifact-name }}
@@ -891,7 +900,7 @@ jobs:
           retention-days: 7
 
       - name: Upload macOS DMG-only artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success() && startsWith(matrix.platform, 'macos')
         with:
           name: ${{ inputs.append_commit_hash && format('{0}-{1}-dmg', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg', matrix.artifact-name) }}

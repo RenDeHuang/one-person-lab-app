@@ -14,11 +14,11 @@ on:
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: opl-desktop-release-cleanup-drafts-${{ inputs.opl_version }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -30,14 +30,14 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
-      - name: Cleanup draft candidates
+      - name: Discover draft candidates or request brokered cleanup
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -50,14 +50,15 @@ jobs:
             --summary-path release-draft-cleanup-summary.json
           )
           if [ "${{ inputs.dry_run }}" = "false" ]; then
-            cleanup_args+=(--execute)
+            cleanup_args+=(--request-brokered-execute)
           else
             cleanup_args+=(--dry-run)
           fi
           "${cleanup_args[@]}"
 
       - name: Upload cleanup summary
-        uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-draft-cleanup-summary-${{ inputs.opl_version }}
           path: release-draft-cleanup-summary.json

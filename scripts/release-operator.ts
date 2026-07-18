@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { runGitHubCli as runGh, writeLinesFile } from './release-file-helpers.ts';
+import { writeLinesFile } from './release-file-helpers.ts';
 import {
   arrayOrEmpty as asArray,
   readJsonFile as readJson,
@@ -17,32 +19,47 @@ import {
   type ReleaseCohortPlan,
   type ReleaseCohortPlanOptions,
 } from './plan-release-cohort.ts';
+import {
+  readStableReleaseSession,
+  type StableReleaseSession,
+} from './stable-release-session.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
 const commandMaxBuffer = 16 * 1024 * 1024;
+const defaultGitHubReadTimeoutMs = 30_000;
 
-type DiagnosticTarget = 'opl_first_run_vm' | 'desktop_release_diagnostics';
 type JsonRecord = Record<string, unknown>;
 
-type DiagnosticCommand = {
-  id: DiagnosticTarget;
+type DiagnosticAction = {
+  id: 'reconcile_stable_session' | 'retry_qualification_same_artifact';
+  action: 'reconcile_stable_session' | 'retry_qualification_same_artifact';
+  controller: 'release:stable';
+  controller_subcommand: 'reconcile' | 'retry-qualification';
   publishes_release: false;
-  dispatches_workflow: false;
+  mutation_authorized: false;
+  direct_workflow_dispatch_allowed: false;
+  execute_flag_included: false;
   command: string;
+  evidence: {
+    release_artifact_run_id: string;
+    release_artifact_name: string;
+    package_profile: string;
+    diagnostic_scope: string;
+  };
 };
 
 type OperatorNextAction = {
   action:
     | 'follow_cohort_plan'
-    | 'rerun_diagnostic_same_artifact'
+    | 'retry_qualification_same_artifact'
+    | 'reconcile_stable_session'
     | 'repair_source_gate'
     | 'repair_webui_runtime_image'
     | 'repair_ghcr_publish_access'
     | 'inspect_primary_blocker'
     | 'inspect_current_step_progress'
-    | 'start_new_cohort_from_current_main'
-    | 'inspect_release_closeout_evidence'
+    | 'reconcile_after_hard_stop'
     | 'wait_for_release_run_completion';
   command: string;
   reason: string;
@@ -52,46 +69,50 @@ type OperatorNextAction = {
 
 type OperatorGuidance = {
   currentness_freeze: {
-    required_before_dispatch: true;
-    dispatch_input_source: 'release_cohort_plan_or_lock';
-    manual_long_sha_dispatch_recommended: false;
+    required_before_broker_submission: true;
+    controller_input_source: 'release_cohort_plan_or_lock';
+    direct_workflow_dispatch_allowed: false;
     post_freeze_drift_name: 'post-freeze drift';
     single_desktop_release_per_frozen_cohort: true;
     rule: string;
   };
   post_owner_receipt_fast_path: {
-    default_action: 'verify_owner_candidate_record_then_dispatch_promote';
+    default_action: 'verify_owner_candidate_record_then_use_stable_controller';
     verify_command: string;
-    promote_workflow: '.github/workflows/desktop-release-promote.yml';
-    desktop_release_rerun_required: false;
+    controller_command: string;
+    direct_workflow_dispatch_allowed: false;
+    desktop_release_rebuild_required: false;
     rule: string;
   };
 };
 
 type OperatorStatus =
   | 'planned'
-  | 'diagnostic_command_ready'
+  | 'diagnostic_action_ready'
   | 'failed'
   | 'failed_gate_draining'
   | 'stale_candidate'
   | 'superseded'
   | 'cancelled'
+  | 'hard_stop_exceeded'
   | 'ready_for_closeout_review'
   | 'waiting_for_run_completion';
 
 type OperatorPhase =
   | 'release_plan_ready'
-  | 'release_diagnostic_ready'
+  | 'release_diagnostic_action_ready'
   | 'release_run_failed'
   | 'release_run_failed_draining'
   | 'release_run_stale_candidate'
   | 'release_run_superseded'
   | 'release_run_cancelled'
+  | 'release_run_hard_stop_exceeded'
   | 'release_run_waiting'
   | 'release_closeout_review_ready';
 
 type RunStatusSummary = {
   id: string;
+  attempt: number;
   workflow_name: string | null;
   display_title: string | null;
   status: string | null;
@@ -102,6 +123,7 @@ type RunStatusSummary = {
   completed_at: string | null;
   head_sha: string | null;
   head_branch: string | null;
+  event: string | null;
   url: string | null;
   jobs: Array<{
     name: string;
@@ -158,18 +180,29 @@ type OperatorBudget = {
   run_hard_stop_seconds: number | null;
   run_sla_status: 'unknown' | 'within_sla' | 'attention' | 'exceeded';
   run_sla_reason: string;
+  standard_admission_deadline_at: string;
+  standard_admission_status: 'within_budget' | 'exceeded';
   reason: string;
 };
 
 type ReleaseSessionManifest = {
-  schema: 'opl_app_release_session_manifest.v1';
+  schema: 'opl_app_release_operator_observation.v2';
   id: string;
   generated_at: string;
   version: string;
+  stable_session: {
+    id: string;
+    revision: number;
+    state_path: string;
+    cohort_ref: string;
+  };
+  expected_head: string;
   run_set: {
     current_run_id: string;
     runs: Array<{
       id: string;
+      attempt: number;
+      controller_attempt_id: string;
       workflow_name: string | null;
       status: string | null;
       conclusion: string | null;
@@ -220,7 +253,7 @@ type OperatorState = {
   status: OperatorStatus;
   phase: OperatorPhase;
   cohort_plan?: ReleaseCohortPlan;
-  diagnostic_commands?: DiagnosticCommand[];
+  diagnostic_actions?: DiagnosticAction[];
   run?: RunStatusSummary;
   current_step?: CurrentStep;
   elapsed?: OperatorElapsed;
@@ -231,11 +264,20 @@ type OperatorState = {
   recommended_next_action?: OperatorNextAction;
   next_action: OperatorNextAction;
   session?: ReleaseSessionManifest;
+  stable_session?: {
+    id: string;
+    revision: number;
+    phase: StableReleaseSession['phase'];
+    cohort_ref: string;
+    state_path: string;
+    controller_attempt_id: string;
+  };
   operator_guidance?: OperatorGuidance;
   authority_boundary: {
     operator_can_publish_release: false;
     operator_can_write_runtime_truth: false;
     operator_can_dispatch_workflow_without_explicit_user_action: false;
+    operator_can_authorize_mutation: false;
   };
 };
 
@@ -254,6 +296,7 @@ type DiagnoseVmOptions = OperatorOutputOptions & {
   diagnosticScope: string;
   buildStandardArtifact: boolean;
   runVmDiagnostic: boolean;
+  stableStatePath: string;
 };
 
 type StatusOptions = OperatorOutputOptions & {
@@ -270,28 +313,29 @@ type StatusOptions = OperatorOutputOptions & {
   currentAuthorityRef: string;
   postPublishFollowUpRef: string;
   postPublishFollowUpState: ReleaseSessionManifest['post_publish_follow_up']['state'] | '';
+  stableStatePath: string;
   stdoutFormat: 'json' | 'summary';
 };
 
 function usage(): void {
   process.stdout.write(`Usage:
   npm run release:operator -- plan --version <version> --release-mode <mode>
-  npm run release:operator -- diagnose-vm --version <version> --release-artifact-run-id <run-id>
+  npm run release:operator -- diagnose-vm --version <version> --release-artifact-run-id <run-id> --state <release-session.json>
   npm run release:operator -- status --run-id <id> --version <version> [--repo owner/name] [--expected-head <sha>]
   npm run release:operator -- status --run-json <path> [--expected-head <sha>]
 
 Subcommands:
   plan          Generate release-operator-state.json/md with an embedded cohort plan.
-  diagnose-vm  Generate suggested VM diagnostic workflow commands only; does not dispatch.
+  diagnose-vm  Describe typed Stable-controller qualification actions; never authorizes or dispatches a workflow.
   status       Summarize a GitHub Actions run and recommend the next operator action.
 
 Common options:
   --output <path>      Write release-operator-state.json.
   --markdown <path>    Write release-operator-state.md.
   --session-output <path>
-                       Write release-session.json for status runs.
+                       Write the non-authoritative operator observation manifest. Never pass it to release:stable.
   --session-input <path>
-                       Read an existing release-session.json before updating it.
+                       Read an existing operator observation manifest before updating it.
   --owner-receipt-ref <ref>
                        Record an owner receipt reference in the session manifest.
   --candidate-ref <ref>
@@ -306,6 +350,8 @@ Common options:
                        Record a post-publish follow-up reference.
   --post-publish-follow-up-state <state>
                        Record post-publish follow-up state: pending, completed, or blocked.
+  --stable-state <path>
+                       Exact original Stable controller session consumed by status recommendations.
   --json               Print JSON to stdout.
   --summary            Print a one-screen human summary to stdout.
 `);
@@ -333,6 +379,29 @@ function resolveOutputOptions(options: OperatorOutputOptions): OperatorOutputOpt
   };
 }
 
+function assertOutputPathSafety(
+  options: OperatorOutputOptions,
+  protectedPaths: Array<{ label: string; value: string }> = [],
+): void {
+  const writes = [
+    { label: '--output', value: options.output },
+    { label: '--markdown', value: options.markdown },
+    { label: '--session-output', value: options.sessionOutput ?? '' },
+  ].filter((entry) => entry.value);
+  for (let index = 0; index < writes.length; index += 1) {
+    for (let other = index + 1; other < writes.length; other += 1) {
+      if (writes[index].value === writes[other].value) {
+        throw new Error(`${writes[index].label} and ${writes[other].label} must resolve to different files.`);
+      }
+    }
+    for (const protectedPath of protectedPaths.filter((entry) => entry.value)) {
+      if (writes[index].value === protectedPath.value) {
+        throw new Error(`${writes[index].label} must not overwrite ${protectedPath.label}.`);
+      }
+    }
+  }
+}
+
 function parsePlanArgs(argv: string[]): { cohort: ReleaseCohortPlanOptions; operator: OperatorOutputOptions } {
   const output = defaultOutputOptions();
   const cohortArgs: string[] = [];
@@ -348,9 +417,11 @@ function parsePlanArgs(argv: string[]): { cohort: ReleaseCohortPlanOptions; oper
     }
     cohortArgs.push(token);
   }
+  const operator = resolveOutputOptions(output);
+  assertOutputPathSafety(operator);
   return {
     cohort: parseReleaseCohortPlanArgs(cohortArgs),
-    operator: resolveOutputOptions(output),
+    operator,
   };
 }
 
@@ -365,6 +436,7 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
     diagnosticScope: process.env.OPL_RELEASE_DIAGNOSTIC_SCOPE || 'existing_artifact',
     buildStandardArtifact: false,
     runVmDiagnostic: true,
+    stableStatePath: process.env.OPL_STABLE_RELEASE_SESSION_STATE || '',
   };
   const { values } = parseNodeArgs({
     args: argv,
@@ -378,6 +450,7 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
       'diagnostic-scope': { type: 'string' },
       'build-standard-artifact': { type: 'string' },
       'run-vm-diagnostic': { type: 'string' },
+      state: { type: 'string' },
       output: { type: 'string' },
       markdown: { type: 'string' },
     },
@@ -398,16 +471,23 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
   if (typeof values['run-vm-diagnostic'] === 'string') {
     parsed.runVmDiagnostic = parseBoolean(values['run-vm-diagnostic']);
   }
+  if (typeof values.state === 'string') parsed.stableStatePath = values.state;
   if (typeof values.output === 'string') parsed.output = values.output;
   if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.releaseArtifactRunId.trim()) {
     throw new Error('Pass --release-artifact-run-id <run-id> or set OPL_RELEASE_ARTIFACT_RUN_ID.');
   }
-  return {
+  if (!parsed.stableStatePath.trim()) {
+    throw new Error('Pass --state <original-stable-release-session.json> or set OPL_STABLE_RELEASE_SESSION_STATE.');
+  }
+  const resolved = {
     ...parsed,
+    stableStatePath: path.resolve(parsed.stableStatePath),
     ...resolveOutputOptions(parsed),
   };
+  assertOutputPathSafety(resolved, [{ label: '--state', value: resolved.stableStatePath }]);
+  return resolved;
 }
 
 function parseStatusArgs(argv: string[]): StatusOptions {
@@ -426,6 +506,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     currentAuthorityRef: '',
     postPublishFollowUpRef: '',
     postPublishFollowUpState: '',
+    stableStatePath: process.env.OPL_STABLE_RELEASE_SESSION_STATE || '',
     stdoutFormat: 'json',
   };
   const { values } = parseNodeArgs({
@@ -450,6 +531,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
       'current-authority-ref': { type: 'string' },
       'post-publish-follow-up-ref': { type: 'string' },
       'post-publish-follow-up-state': { type: 'string' },
+      'stable-state': { type: 'string' },
     },
   });
   if (values.help) {
@@ -480,54 +562,92 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     }
     parsed.postPublishFollowUpState = state as StatusOptions['postPublishFollowUpState'];
   }
+  if (typeof values['stable-state'] === 'string') parsed.stableStatePath = values['stable-state'];
   if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
     throw new Error('Pass --run-id <id> or --run-json <path>.');
   }
-  return {
+  if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
+  if (!/^[0-9a-f]{40}$/i.test(parsed.expectedHead.trim())) {
+    throw new Error('Pass --expected-head <40-character-sha> or set OPL_RELEASE_EXPECTED_HEAD.');
+  }
+  if (!parsed.stableStatePath.trim()) {
+    throw new Error('Pass --stable-state <original-stable-release-session.json> or set OPL_STABLE_RELEASE_SESSION_STATE.');
+  }
+  if (parsed.runId && !/^[1-9][0-9]*$/.test(parsed.runId)) {
+    throw new Error('--run-id must be an exact positive numeric GitHub run id.');
+  }
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(parsed.repo)) {
+    throw new Error('--repo must be an exact owner/name GitHub repository.');
+  }
+  const resolved = {
     ...parsed,
+    expectedHead: parsed.expectedHead.toLowerCase(),
     runJsonPath: parsed.runJsonPath ? path.resolve(parsed.runJsonPath) : '',
     sessionInput: parsed.sessionInput ? path.resolve(parsed.sessionInput) : '',
+    stableStatePath: path.resolve(parsed.stableStatePath),
     ...resolveOutputOptions(parsed),
   };
+  assertOutputPathSafety(resolved, [
+    { label: '--run-json', value: resolved.runJsonPath },
+    { label: '--stable-state', value: resolved.stableStatePath },
+    { label: '--session-input', value: resolved.sessionInput === resolved.sessionOutput ? '' : resolved.sessionInput },
+  ]);
+  return resolved;
 }
 
 function quoteField(value: string): string {
-  return JSON.stringify(value);
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function buildDiagnosticCommands(options: DiagnoseVmOptions): DiagnosticCommand[] {
-  const releaseTag = options.version.trim() ? `v${options.version.trim()}` : '';
-  const firstRunVm = [
-    'gh workflow run "OPL GUI First-Run VM"',
-    `--field release_tag=${quoteField(releaseTag)}`,
-    `--field release_artifact_name=${quoteField(options.releaseArtifactName)}`,
-    `--field release_artifact_run_id=${quoteField(options.releaseArtifactRunId)}`,
-    `--field package_profile=${quoteField(options.packageProfile)}`,
-    `--field diagnostic_scope=${quoteField(options.diagnosticScope)}`,
+function stableControllerCommand(
+  subcommand: 'reconcile' | 'retry-qualification' | 'promote',
+  statePath: string,
+  extraArgs: string[] = [],
+): string {
+  return [
+    'npm run release:stable --',
+    subcommand,
+    `--state ${quoteField(statePath || '<original-stable-release-session.json>')}`,
+    ...extraArgs,
   ].join(' ');
-  const diagnostics = [
-    'gh workflow run desktop-release-diagnostics.yml',
-    `--field opl_version=${quoteField(options.version)}`,
-    `--field release_mode=${quoteField(options.releaseMode)}`,
-    `--field diagnostic_scope=${quoteField(options.diagnosticScope)}`,
-    `--field release_artifact_run_id=${quoteField(options.releaseArtifactRunId)}`,
-    `--field release_artifact_name=${quoteField(options.releaseArtifactName)}`,
-    `--field package_profile=${quoteField(options.packageProfile)}`,
-    `--field build_standard_artifact=${String(options.buildStandardArtifact)}`,
-    `--field run_vm_diagnostic=${String(options.runVmDiagnostic)}`,
-  ].join(' ');
+}
+
+function buildDiagnosticActions(options: DiagnoseVmOptions): DiagnosticAction[] {
+  const artifactKind = options.packageProfile === 'full' ? 'full' : 'standard';
+  const evidence = {
+    release_artifact_run_id: options.releaseArtifactRunId,
+    release_artifact_name: options.releaseArtifactName,
+    package_profile: options.packageProfile,
+    diagnostic_scope: options.diagnosticScope,
+  };
   return [
     {
-      id: 'opl_first_run_vm',
+      id: 'reconcile_stable_session',
+      action: 'reconcile_stable_session',
+      controller: 'release:stable',
+      controller_subcommand: 'reconcile',
       publishes_release: false,
-      dispatches_workflow: false,
-      command: firstRunVm,
+      mutation_authorized: false,
+      direct_workflow_dispatch_allowed: false,
+      execute_flag_included: false,
+      command: stableControllerCommand('reconcile', options.stableStatePath),
+      evidence,
     },
     {
-      id: 'desktop_release_diagnostics',
+      id: 'retry_qualification_same_artifact',
+      action: 'retry_qualification_same_artifact',
+      controller: 'release:stable',
+      controller_subcommand: 'retry-qualification',
       publishes_release: false,
-      dispatches_workflow: false,
-      command: diagnostics,
+      mutation_authorized: false,
+      direct_workflow_dispatch_allowed: false,
+      execute_flag_included: false,
+      command: stableControllerCommand(
+        'retry-qualification',
+        options.stableStatePath,
+        [`--artifact-kind ${artifactKind}`],
+      ),
+      evidence,
     },
   ];
 }
@@ -542,22 +662,30 @@ function ownerCandidateRecordVerifyCommand(version: string): string {
   ].join(' ');
 }
 
-function buildOperatorGuidance(version: string): OperatorGuidance {
+function buildOperatorGuidance(version: string, stableStatePath = '<original-stable-release-session.json>'): OperatorGuidance {
   return {
     currentness_freeze: {
-      required_before_dispatch: true,
-      dispatch_input_source: 'release_cohort_plan_or_lock',
-      manual_long_sha_dispatch_recommended: false,
+      required_before_broker_submission: true,
+      controller_input_source: 'release_cohort_plan_or_lock',
+      direct_workflow_dispatch_allowed: false,
       post_freeze_drift_name: 'post-freeze drift',
       single_desktop_release_per_frozen_cohort: true,
-      rule: 'Freeze App/Shell/Framework SHAs before dispatch. Remote movement after freeze is post-freeze drift: choose owner receipt plus promote for the frozen cohort, or freeze and dispatch a new cohort.',
+      rule: 'Freeze App/Shell/Framework SHAs before broker submission. Remote movement after freeze is post-freeze drift: reconcile the frozen Stable session, then either continue it through the controller or create a new controller plan from a newly frozen cohort.',
     },
     post_owner_receipt_fast_path: {
-      default_action: 'verify_owner_candidate_record_then_dispatch_promote',
+      default_action: 'verify_owner_candidate_record_then_use_stable_controller',
       verify_command: ownerCandidateRecordVerifyCommand(version),
-      promote_workflow: '.github/workflows/desktop-release-promote.yml',
-      desktop_release_rerun_required: false,
-      rule: 'When same-cohort evidence is complete and only the release-owner receipt was missing, verify the post-owner candidate record and dispatch the promote workflow; do not rerun desktop-release solely for owner metadata.',
+      controller_command: stableControllerCommand(
+        'promote',
+        stableStatePath,
+        [
+          '--release-set-generation <YY.M.D[-rN]>',
+          '--release-owner-receipt-ref <same-cohort-owner-receipt-ref>',
+        ],
+      ),
+      direct_workflow_dispatch_allowed: false,
+      desktop_release_rebuild_required: false,
+      rule: 'When same-cohort evidence is complete and only the release-owner receipt was missing, verify the post-owner candidate record and use the dry-run Stable controller promotion route. The operator cannot submit the mutation or rebuild the desktop release for owner metadata.',
     },
   };
 }
@@ -580,29 +708,31 @@ function buildPlanState(plan: ReleaseCohortPlan): OperatorState {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
       operator_can_dispatch_workflow_without_explicit_user_action: false,
+      operator_can_authorize_mutation: false,
     },
   };
 }
 
 function buildDiagnoseVmState(options: DiagnoseVmOptions): OperatorState {
-  const diagnosticCommands = buildDiagnosticCommands(options);
+  const diagnosticActions = buildDiagnosticActions(options);
   return {
     schema: 'opl_app_release_operator_state.v1',
     generated_at: new Date().toISOString(),
     command: 'diagnose-vm',
-    status: 'diagnostic_command_ready',
-    phase: 'release_diagnostic_ready',
-    diagnostic_commands: diagnosticCommands,
+    status: 'diagnostic_action_ready',
+    phase: 'release_diagnostic_action_ready',
+    diagnostic_actions: diagnosticActions,
     next_action: {
-      action: 'rerun_diagnostic_same_artifact',
-      command: diagnosticCommands[1].command,
-      reason: 'Diagnose the same release artifact without publishing or writing runtime truth.',
+      action: 'retry_qualification_same_artifact',
+      command: diagnosticActions[1].command,
+      reason: 'Ask the Stable controller to validate a same-artifact qualification attempt in dry-run mode. This diagnostic output cannot authorize or submit the attempt.',
     },
-    operator_guidance: buildOperatorGuidance(options.version),
+    operator_guidance: buildOperatorGuidance(options.version, options.stableStatePath),
     authority_boundary: {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
       operator_can_dispatch_workflow_without_explicit_user_action: false,
+      operator_can_authorize_mutation: false,
     },
   };
 }
@@ -613,9 +743,9 @@ function timestampField(record: JsonRecord | null | undefined, camelKey: string,
 
 function idField(record: JsonRecord | null | undefined): string {
   const value = record?.databaseId ?? record?.database_id ?? record?.id ?? record?.run_id;
-  if (typeof value === 'string' && value.trim()) return value;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return 'local';
+  const id = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : typeof value === 'string' ? value : '';
+  if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Run JSON databaseId must be an exact positive numeric GitHub run id.');
+  return id;
 }
 
 function normalizeRunPayload(payload: unknown): JsonRecord {
@@ -624,9 +754,70 @@ function normalizeRunPayload(payload: unknown): JsonRecord {
   return record;
 }
 
+const allowedRunStatuses = new Set(['requested', 'pending', 'queued', 'waiting', 'in_progress', 'completed']);
+const allowedRunConclusions = new Set([
+  'success',
+  'failure',
+  'neutral',
+  'cancelled',
+  'skipped',
+  'timed_out',
+  'action_required',
+  'stale',
+  'startup_failure',
+]);
+const workflowFilesByName = new Map<string, StableReleaseSession['mutation_attempts'][number]['workflow']>([
+  ['OPL Desktop Release', 'desktop-release.yml'],
+  ['OPL GUI First-Run VM', 'opl-first-run-vm.yml'],
+  ['OPL Desktop Release Promote', 'desktop-release-promote.yml'],
+  ['OPL Desktop Full Add-on', 'desktop-release-full-addon.yml'],
+] as const);
+
+function validateStatusAndConclusion(
+  status: string | null,
+  conclusion: string | null,
+  label: string,
+): void {
+  if (!status || !allowedRunStatuses.has(status)) throw new Error(`${label} status is missing or unsupported.`);
+  if (conclusion !== null && !allowedRunConclusions.has(conclusion)) {
+    throw new Error(`${label} conclusion is unsupported: ${conclusion}.`);
+  }
+  if (status === 'completed' && conclusion === null) throw new Error(`${label} completed without a conclusion.`);
+  if (status !== 'completed' && conclusion !== null) throw new Error(`${label} is nonterminal but carries conclusion ${conclusion}.`);
+}
+
+function validateTimestamp(value: string | null, label: string): void {
+  if (value !== null && !Number.isFinite(Date.parse(value))) throw new Error(`${label} is not a valid timestamp.`);
+}
+
+function githubReadTimeoutMs(): number {
+  const configured = Number(process.env.OPL_RELEASE_GH_TIMEOUT_MS ?? defaultGitHubReadTimeoutMs);
+  if (!Number.isSafeInteger(configured) || configured < 10 || configured > 120_000) {
+    throw new Error('OPL_RELEASE_GH_TIMEOUT_MS must be an integer between 10 and 120000.');
+  }
+  return configured;
+}
+
+function runGitHubRead(args: string[], label: string): string {
+  const result = spawnSync('gh', args, {
+    cwd: appRoot,
+    encoding: 'utf8',
+    maxBuffer: commandMaxBuffer,
+    timeout: githubReadTimeoutMs(),
+  });
+  const error = result.error as NodeJS.ErrnoException | undefined;
+  if (error?.code === 'ETIMEDOUT') throw new Error(`${label} timed out; no operator state was advanced.`);
+  if (error) throw new Error(`${label} failed to start: ${error.message}`);
+  if (result.status !== 0) {
+    const detail = (result.stderr ?? '').trim() || (result.stdout ?? '').trim() || `${label} failed`;
+    throw new Error(`${label} failed: ${detail}`);
+  }
+  return result.stdout ?? '';
+}
+
 function fetchRun(options: StatusOptions): JsonRecord {
   if (options.runJsonPath) return normalizeRunPayload(readJson(options.runJsonPath));
-  const stdout = runGh([
+  const stdout = runGitHubRead([
     'run',
     'view',
     options.runId,
@@ -635,11 +826,13 @@ function fetchRun(options: StatusOptions): JsonRecord {
     '--json',
     [
       'databaseId',
+      'attempt',
       'status',
       'conclusion',
       'createdAt',
       'updatedAt',
       'startedAt',
+      'completedAt',
       'headSha',
       'headBranch',
       'workflowName',
@@ -648,57 +841,178 @@ function fetchRun(options: StatusOptions): JsonRecord {
       'url',
       'jobs',
     ].join(','),
-  ], 'Fetch release run status', {
-    cwd: appRoot,
-    maxBuffer: commandMaxBuffer,
-    prefixErrorWithLabel: true,
-  });
-  return normalizeRunPayload(JSON.parse(stdout));
+  ], 'Fetch release run status');
+  try {
+    return normalizeRunPayload(JSON.parse(stdout));
+  } catch (error) {
+    throw new Error(`Fetch release run status returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function normalizeSteps(job: JsonRecord): RunStatusSummary['jobs'][number]['steps'] {
-  return asArray(job.steps)
-    .map((entry) => asRecord(entry))
-    .filter((entry): entry is JsonRecord => entry !== null)
-    .map((step) => ({
-      name: stringField(step, 'name') ?? stringField(step, 'displayName') ?? 'unknown',
-      status: stringField(step, 'status'),
-      conclusion: stringField(step, 'conclusion'),
-      started_at: timestampField(step, 'startedAt', 'started_at'),
-      completed_at: timestampField(step, 'completedAt', 'completed_at'),
-    }));
+  if (job.steps !== undefined && !Array.isArray(job.steps)) throw new Error('Run JSON job steps must be an array.');
+  return asArray(job.steps).map((entry, index) => {
+    const step = asRecord(entry);
+    if (!step) throw new Error(`Run JSON step ${index} must be an object.`);
+    const name = stringField(step, 'name') ?? stringField(step, 'displayName');
+    if (!name?.trim()) throw new Error(`Run JSON step ${index} requires a non-empty name.`);
+    const status = stringField(step, 'status');
+    const conclusion = stringField(step, 'conclusion');
+    validateStatusAndConclusion(status, conclusion, `Run JSON step ${name}`);
+    const startedAt = timestampField(step, 'startedAt', 'started_at');
+    const completedAt = timestampField(step, 'completedAt', 'completed_at');
+    validateTimestamp(startedAt, `Run JSON step ${name} startedAt`);
+    validateTimestamp(completedAt, `Run JSON step ${name} completedAt`);
+    return {
+      name,
+      status,
+      conclusion,
+      started_at: startedAt,
+      completed_at: completedAt,
+    };
+  });
 }
 
 function normalizeJobs(run: JsonRecord): RunStatusSummary['jobs'] {
-  return asArray(run.jobs ?? run.workflow_jobs)
-    .map((entry) => asRecord(entry))
-    .filter((entry): entry is JsonRecord => entry !== null)
-    .map((job) => ({
-      name: stringField(job, 'name') ?? stringField(job, 'displayName') ?? 'unknown',
-      status: stringField(job, 'status'),
-      conclusion: stringField(job, 'conclusion'),
-      started_at: timestampField(job, 'startedAt', 'started_at'),
-      completed_at: timestampField(job, 'completedAt', 'completed_at'),
+  const jobs = run.jobs ?? run.workflow_jobs;
+  if (!Array.isArray(jobs)) throw new Error('Run JSON jobs must be an array.');
+  return jobs.map((entry, index) => {
+    const job = asRecord(entry);
+    if (!job) throw new Error(`Run JSON job ${index} must be an object.`);
+    const name = stringField(job, 'name') ?? stringField(job, 'displayName');
+    if (!name?.trim()) throw new Error(`Run JSON job ${index} requires a non-empty name.`);
+    const status = stringField(job, 'status');
+    const conclusion = stringField(job, 'conclusion');
+    validateStatusAndConclusion(status, conclusion, `Run JSON job ${name}`);
+    const startedAt = timestampField(job, 'startedAt', 'started_at');
+    const completedAt = timestampField(job, 'completedAt', 'completed_at');
+    validateTimestamp(startedAt, `Run JSON job ${name} startedAt`);
+    validateTimestamp(completedAt, `Run JSON job ${name} completedAt`);
+    return {
+      name,
+      status,
+      conclusion,
+      started_at: startedAt,
+      completed_at: completedAt,
       steps: normalizeSteps(job),
-    }));
+    };
+  });
 }
 
 function summarizeRun(run: JsonRecord, options: StatusOptions): RunStatusSummary {
+  const payloadId = idField(run);
+  if (options.runId && options.runId !== payloadId) {
+    throw new Error(`--run-id ${options.runId} does not match Run JSON databaseId ${payloadId}.`);
+  }
+  const attempt = run.attempt;
+  if (typeof attempt !== 'number' || !Number.isSafeInteger(attempt) || attempt < 1) {
+    throw new Error('Run JSON attempt must be a positive integer.');
+  }
+  const workflowName = stringField(run, 'workflowName') ?? stringField(run, 'workflow_name') ?? stringField(run, 'name');
+  if (!workflowName || !workflowFilesByName.has(workflowName)) {
+    throw new Error(`Run JSON workflowName is missing or unsupported: ${workflowName ?? '<missing>'}.`);
+  }
+  const displayTitle = stringField(run, 'displayTitle') ?? stringField(run, 'display_title');
+  if (!displayTitle?.trim()) throw new Error('Run JSON displayTitle is required.');
+  const status = stringField(run, 'status');
+  const conclusion = stringField(run, 'conclusion');
+  validateStatusAndConclusion(status, conclusion, 'Run JSON');
+  const headSha = stringField(run, 'headSha') ?? stringField(run, 'head_sha');
+  if (!headSha || !/^[0-9a-f]{40}$/i.test(headSha)) {
+    throw new Error('Run JSON headSha must be a 40-character commit SHA.');
+  }
+  const headBranch = stringField(run, 'headBranch') ?? stringField(run, 'head_branch');
+  if (!headBranch?.trim()) throw new Error('Run JSON headBranch is required.');
+  const event = stringField(run, 'event');
+  if (event !== 'workflow_dispatch') throw new Error('Run JSON event must be workflow_dispatch.');
+  const createdAt = timestampField(run, 'createdAt', 'created_at');
+  const startedAt = timestampField(run, 'startedAt', 'started_at');
+  const updatedAt = timestampField(run, 'updatedAt', 'updated_at');
+  const completedAt = timestampField(run, 'completedAt', 'completed_at');
+  for (const [label, value] of [['createdAt', createdAt], ['startedAt', startedAt], ['updatedAt', updatedAt], ['completedAt', completedAt]] as const) {
+    validateTimestamp(value, `Run JSON ${label}`);
+  }
   return {
-    id: options.runId || idField(run),
-    workflow_name: stringField(run, 'workflowName') ?? stringField(run, 'workflow_name') ?? stringField(run, 'name'),
-    display_title: stringField(run, 'displayTitle') ?? stringField(run, 'display_title'),
-    status: stringField(run, 'status'),
-    conclusion: stringField(run, 'conclusion'),
-    created_at: timestampField(run, 'createdAt', 'created_at'),
-    started_at: timestampField(run, 'startedAt', 'started_at'),
-    updated_at: timestampField(run, 'updatedAt', 'updated_at'),
-    completed_at: timestampField(run, 'completedAt', 'completed_at'),
-    head_sha: stringField(run, 'headSha') ?? stringField(run, 'head_sha'),
-    head_branch: stringField(run, 'headBranch') ?? stringField(run, 'head_branch'),
+    id: payloadId,
+    attempt,
+    workflow_name: workflowName,
+    display_title: displayTitle,
+    status,
+    conclusion,
+    created_at: createdAt,
+    started_at: startedAt,
+    updated_at: updatedAt,
+    completed_at: completedAt,
+    head_sha: headSha.toLowerCase(),
+    head_branch: headBranch,
+    event,
     url: stringField(run, 'url'),
     jobs: normalizeJobs(run),
   };
+}
+
+type StableRunBinding = {
+  session: StableReleaseSession;
+  mutationAttempt: StableReleaseSession['mutation_attempts'][number];
+};
+
+function bindRunToStableSession(
+  options: StatusOptions,
+  run: RunStatusSummary,
+): StableRunBinding {
+  const session = readStableReleaseSession(options.stableStatePath);
+  if (session.repo !== options.repo) {
+    throw new Error(`Stable session repo ${session.repo} does not match --repo ${options.repo}.`);
+  }
+  if (session.version !== options.version) {
+    throw new Error(`Stable session version ${session.version} does not match --version ${options.version}.`);
+  }
+  const expectedWorkflow = workflowFilesByName.get(run.workflow_name ?? '');
+  if (!expectedWorkflow) throw new Error(`Run workflow ${run.workflow_name ?? '<missing>'} is not a Stable controller workflow.`);
+  const matches = session.mutation_attempts.filter((attempt) => (
+    attempt.mutation !== 'workflow_cancel'
+    && attempt.workflow === expectedWorkflow
+    && attempt.events.some((event) => event.run_id === run.id)
+  ));
+  if (matches.length !== 1) {
+    throw new Error(`Run ${run.id} must bind to exactly one durable Stable controller mutation attempt; found ${matches.length}.`);
+  }
+  const mutationAttempt = matches[0];
+  if (mutationAttempt.artifact_app_sha.toLowerCase() !== session.cohort_plan.cohort_lock.app.resolved_sha.toLowerCase()) {
+    throw new Error('Stable mutation attempt artifact App SHA does not match the frozen cohort.');
+  }
+  if (mutationAttempt.controller_workflow_sha.toLowerCase() !== options.expectedHead) {
+    throw new Error('--expected-head does not match the durable Stable controller workflow SHA.');
+  }
+  if (run.head_sha !== options.expectedHead) {
+    throw new Error(`Run head ${run.head_sha} does not match --expected-head ${options.expectedHead}.`);
+  }
+  if (run.head_branch !== mutationAttempt.dispatch_fence.workflow_head_branch) {
+    throw new Error('Run headBranch does not match the durable Stable mutation dispatch fence.');
+  }
+  if (!run.display_title?.endsWith(`attempt=${mutationAttempt.attempt_id}`)) {
+    throw new Error('Run displayTitle does not bind the durable Stable controller mutation attempt id.');
+  }
+  return { session, mutationAttempt };
+}
+
+function readDiagnosticStableSession(options: DiagnoseVmOptions): StableReleaseSession {
+  const session = readStableReleaseSession(options.stableStatePath);
+  if (session.version !== options.version) {
+    throw new Error(`Stable session version ${session.version} does not match --version ${options.version}.`);
+  }
+  const artifactKind = options.packageProfile === 'full' ? 'full' : 'standard';
+  const track = session.artifact_tracks[artifactKind];
+  const knownRunIds = new Set([
+    session.release_run.id,
+    track.source_run_id,
+    track.qualification_run.id,
+    ...track.attempts.flatMap((attempt) => attempt.events.map((event) => event.run_id)),
+  ].filter((value): value is string => Boolean(value)));
+  if (!knownRunIds.has(options.releaseArtifactRunId)) {
+    throw new Error(`Release artifact run ${options.releaseArtifactRunId} is not bound to the ${artifactKind} track in the Stable session.`);
+  }
+  return session;
 }
 
 const blockingConclusions = new Set(['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure']);
@@ -734,7 +1048,7 @@ function classifyBlockerAction(blocker: PrimaryBlocker, run: RunStatusSummary): 
   }
   if (text.includes('webui') || text.includes('docker')) return 'repair_webui_runtime_image';
   if (text.includes('first-run vm') || text.includes('first run vm') || text.includes('vm smoke') || text.includes('first launch')) {
-    return 'rerun_diagnostic_same_artifact';
+    return 'retry_qualification_same_artifact';
   }
   return 'inspect_primary_blocker';
 }
@@ -753,30 +1067,25 @@ function inferVmDiagnosticProfile(run: RunStatusSummary, blocker: PrimaryBlocker
   return { packageProfile: 'standard', releaseArtifactName: 'macos-build-arm64-dmg' };
 }
 
-function sameArtifactVmDiagnosticCommand(options: StatusOptions, run: RunStatusSummary, blocker: PrimaryBlocker): string {
+function sameArtifactQualificationCommand(options: StatusOptions, run: RunStatusSummary, blocker: PrimaryBlocker): string {
   const version = options.version.trim() || '<version>';
   const profile = inferVmDiagnosticProfile(run, blocker, version);
-  return [
-    'npm run release:operator -- diagnose-vm --',
-    `--version ${quoteField(version)}`,
-    '--release-mode refresh_existing',
-    `--release-artifact-run-id ${quoteField(run.id)}`,
-    `--release-artifact-name ${quoteField(profile.releaseArtifactName)}`,
-    `--package-profile ${quoteField(profile.packageProfile)}`,
-    '--diagnostic-scope release_gate',
-    '--build-standard-artifact false',
-    '--run-vm-diagnostic true',
-  ].join(' ');
+  return stableControllerCommand(
+    'retry-qualification',
+    options.stableStatePath,
+    [`--artifact-kind ${profile.packageProfile === 'full' ? 'full' : 'standard'}`],
+  );
 }
 
 function phaseForStatus(status: OperatorStatus): OperatorPhase {
   if (status === 'planned') return 'release_plan_ready';
-  if (status === 'diagnostic_command_ready') return 'release_diagnostic_ready';
+  if (status === 'diagnostic_action_ready') return 'release_diagnostic_action_ready';
   if (status === 'failed') return 'release_run_failed';
   if (status === 'failed_gate_draining') return 'release_run_failed_draining';
   if (status === 'stale_candidate') return 'release_run_stale_candidate';
   if (status === 'superseded') return 'release_run_superseded';
   if (status === 'cancelled') return 'release_run_cancelled';
+  if (status === 'hard_stop_exceeded') return 'release_run_hard_stop_exceeded';
   if (status === 'ready_for_closeout_review') return 'release_closeout_review_ready';
   return 'release_run_waiting';
 }
@@ -1132,18 +1441,18 @@ function statusAction(
 ): OperatorNextAction {
   if (status === 'stale_candidate') {
     return {
-      action: 'start_new_cohort_from_current_main',
-      command: 'npm run release:operator -- plan --app-commit <current-origin-main-sha>',
-      reason: `Run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}.`,
+      action: 'reconcile_stable_session',
+      command: stableControllerCommand('reconcile', options.stableStatePath),
+      reason: `Run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}. Reconcile the original Stable session before the controller accepts any newly frozen cohort plan.`,
       publishes_release: false,
       dispatches_workflow: false,
     };
   }
   if (status === 'superseded') {
     return {
-      action: 'start_new_cohort_from_current_main',
-      command: 'npm run release:operator -- plan --app-commit <current-origin-main-sha>',
-      reason: `Cancelled run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}; treat it as an old-cohort stopped run.`,
+      action: 'reconcile_stable_session',
+      command: stableControllerCommand('reconcile', options.stableStatePath),
+      reason: `Cancelled run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}; reconcile the original Stable session and keep this run as old-cohort diagnostics.`,
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -1151,12 +1460,12 @@ function statusAction(
   if (status === 'failed_gate_draining') {
     const action = classifyBlockerAction(blocker, run);
     return {
-      action,
-      command: action === 'rerun_diagnostic_same_artifact'
-        ? sameArtifactVmDiagnosticCommand(options, run, blocker)
+      action: action === 'retry_qualification_same_artifact' ? 'reconcile_stable_session' : action,
+      command: action === 'retry_qualification_same_artifact'
+        ? stableControllerCommand('reconcile', options.stableStatePath)
         : `gh run view ${run.id} --repo ${options.repo} --log-failed`,
-      reason: action === 'rerun_diagnostic_same_artifact'
-        ? `VM gate failed while the workflow is still ${run.status ?? 'running'}; run the same-artifact diagnostic instead of rerunning desktop-release. ${blocker?.reason ?? ''}`.trim()
+      reason: action === 'retry_qualification_same_artifact'
+        ? `VM gate failed while the workflow is still ${run.status ?? 'running'}; reconcile until the Stable session records a terminal qualification failure before planning any targeted recovery. ${blocker?.reason ?? ''}`.trim()
         : `Primary blocker failed while the workflow is still ${run.status ?? 'running'}: ${blocker?.reason ?? 'A gate failed.'}`,
       publishes_release: false,
       dispatches_workflow: false,
@@ -1166,11 +1475,11 @@ function statusAction(
     const action = classifyBlockerAction(blocker, run);
     return {
       action,
-      command: action === 'rerun_diagnostic_same_artifact'
-        ? sameArtifactVmDiagnosticCommand(options, run, blocker)
+      command: action === 'retry_qualification_same_artifact'
+        ? sameArtifactQualificationCommand(options, run, blocker)
         : `gh run view ${run.id} --repo ${options.repo} --log-failed`,
-      reason: action === 'rerun_diagnostic_same_artifact'
-        ? `VM gate failed; run the same-artifact diagnostic instead of rerunning desktop-release. ${blocker?.reason ?? ''}`.trim()
+      reason: action === 'retry_qualification_same_artifact'
+        ? `VM gate failed; ask the Stable controller to validate a bounded same-artifact qualification attempt. This dry-run recommendation cannot authorize the attempt. ${blocker?.reason ?? ''}`.trim()
         : blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
       publishes_release: false,
       dispatches_workflow: false,
@@ -1178,9 +1487,9 @@ function statusAction(
   }
   if (status === 'cancelled') {
     return {
-      action: 'inspect_primary_blocker',
-      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
-      reason: blocker?.reason ?? 'Run was cancelled; inspect the cancellation owner or source gate before redispatch.',
+      action: 'reconcile_stable_session',
+      command: stableControllerCommand('reconcile', options.stableStatePath),
+      reason: blocker?.reason ?? 'Run was cancelled; reconcile the durable Stable session before any later controller plan.',
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -1188,11 +1497,11 @@ function statusAction(
   if (status === 'ready_for_closeout_review') {
     const version = options.version.trim() || '<version>';
     return {
-      action: 'inspect_release_closeout_evidence',
-      command: `npm run release:closeout -- --version ${version} --run-id ${run.id} --repo ${options.repo}`,
+      action: 'reconcile_stable_session',
+      command: stableControllerCommand('reconcile', options.stableStatePath),
       reason: options.version.trim()
-        ? 'Run completed successfully; inspect closeout artifacts before any owner release decision. If only the same-cohort owner receipt is missing, verify the post-owner candidate record and dispatch desktop-release-promote.yml instead of rerunning desktop-release.'
-        : 'Run completed successfully; inspect closeout artifacts before any owner release decision. Replace <version> with the release version. If only the same-cohort owner receipt is missing, verify the post-owner candidate record and dispatch desktop-release-promote.yml instead of rerunning desktop-release.',
+        ? `Run completed successfully for v${version}; reconcile the canonical Stable session so exact receipts, run identity, and the next controller phase are validated.`
+        : 'Run completed successfully; reconcile the canonical Stable session so exact receipts, run identity, and the next controller phase are validated.',
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -1207,9 +1516,9 @@ function statusAction(
     };
   }
   return {
-    action: 'wait_for_release_run_completion',
-    command: `npm run release:operator -- status --run-id ${run.id} --repo ${options.repo}`,
-    reason: `Run is ${run.status ?? 'unknown'} with conclusion ${run.conclusion ?? 'none'}.`,
+    action: 'reconcile_stable_session',
+    command: stableControllerCommand('reconcile', options.stableStatePath),
+    reason: `Run is ${run.status ?? 'unknown'} with conclusion ${run.conclusion ?? 'none'}; use the controller's read-only reconcile path instead of creating another monitor or mutation path.`,
     publishes_release: false,
     dispatches_workflow: false,
   };
@@ -1218,6 +1527,7 @@ function statusAction(
 function buildStatusState(options: StatusOptions): OperatorState {
   const generatedAt = new Date().toISOString();
   const run = summarizeRun(fetchRun(options), options);
+  bindRunToStableSession(options, run);
   const isStale = Boolean(options.expectedHead && run.head_sha && run.head_sha !== options.expectedHead);
   const foundBlocker = findPrimaryBlocker(run);
   const staleBlocker: PrimaryBlocker = isStale
@@ -1245,6 +1555,12 @@ function buildStatusState(options: StatusOptions): OperatorState {
   const elapsed = buildElapsed(run, generatedAt);
   const budget = buildBudget(run, currentStep, elapsed, generatedAt);
   const recommendedNextAction = statusAction(options, run, status, primaryBlocker, budget);
+  if (
+    ['reconcile_stable_session', 'retry_qualification_same_artifact'].includes(recommendedNextAction.action)
+    && !options.stableStatePath.trim()
+  ) {
+    throw new Error('This status requires --stable-state <original-stable-release-session.json>; operator observation manifests are not Stable controller state.');
+  }
   const state: Omit<OperatorState, 'session'> = {
     schema: 'opl_app_release_operator_state.v1',
     generated_at: generatedAt,
@@ -1260,11 +1576,12 @@ function buildStatusState(options: StatusOptions): OperatorState {
     primary_blocker: primaryBlocker,
     recommended_next_action: recommendedNextAction,
     next_action: recommendedNextAction,
-    operator_guidance: buildOperatorGuidance(options.version),
+    operator_guidance: buildOperatorGuidance(options.version, options.stableStatePath),
     authority_boundary: {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
       operator_can_dispatch_workflow_without_explicit_user_action: false,
+      operator_can_authorize_mutation: false,
     },
   };
   const previousSession = readReleaseSessionManifest(options.sessionInput || options.sessionOutput || '');
@@ -1324,12 +1641,12 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       '## Operator guidance',
       '',
       `- Currentness freeze: ${state.operator_guidance.currentness_freeze.rule}`,
-      `- Dispatch input source: ${state.operator_guidance.currentness_freeze.dispatch_input_source}`,
-      `- Manual long-SHA dispatch recommended: ${String(state.operator_guidance.currentness_freeze.manual_long_sha_dispatch_recommended)}`,
+      `- Controller input source: ${state.operator_guidance.currentness_freeze.controller_input_source}`,
+      `- Direct workflow dispatch allowed: ${String(state.operator_guidance.currentness_freeze.direct_workflow_dispatch_allowed)}`,
       `- Post-owner receipt fast path: ${state.operator_guidance.post_owner_receipt_fast_path.default_action}`,
       `- Owner candidate verify command: \`${state.operator_guidance.post_owner_receipt_fast_path.verify_command.replaceAll('|', '\\|')}\``,
-      `- Promote workflow: ${state.operator_guidance.post_owner_receipt_fast_path.promote_workflow}`,
-      `- Desktop release rerun required: ${String(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rerun_required)}`,
+      `- Stable controller command: \`${state.operator_guidance.post_owner_receipt_fast_path.controller_command.replaceAll('|', '\\|')}\``,
+      `- Desktop release rebuild required: ${String(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rebuild_required)}`,
       '',
     );
   }
@@ -1345,11 +1662,11 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       '',
     );
   }
-  if (state.diagnostic_commands) {
-    lines.push('| Diagnostic | Dispatches workflow | Publishes release | Command |');
+  if (state.diagnostic_actions) {
+    lines.push('| Diagnostic action | Controller | Mutation authorized | Command |');
     lines.push('| --- | --- | --- | --- |');
-    for (const command of state.diagnostic_commands) {
-      lines.push(`| ${command.id} | ${String(command.dispatches_workflow)} | ${String(command.publishes_release)} | \`${command.command.replaceAll('|', '\\|')}\` |`);
+    for (const action of state.diagnostic_actions) {
+      lines.push(`| ${action.id} | ${action.controller} | ${String(action.mutation_authorized)} | \`${action.command.replaceAll('|', '\\|')}\` |`);
     }
     lines.push('');
   }

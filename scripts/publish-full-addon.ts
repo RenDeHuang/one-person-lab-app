@@ -43,9 +43,11 @@ function main() {
     'app-sha': { type: 'string' }, 'shell-sha': { type: 'string' }, 'framework-sha': { type: 'string' },
     'qualification-run-id': { type: 'string' }, 'source-artifact-run-id': { type: 'string' },
     'release-set-generation': { type: 'string' }, 'release-set-manifest-digest': { type: 'string' },
+    'qualification-input-manifest-sha256': { type: 'string' }, 'full-input-manifest-sha256': { type: 'string' },
+    'framework-bundled-catalog-sha256': { type: 'string' }, 'full-toolchain-observation-receipt-sha256': { type: 'string' },
     'dry-run': { type: 'boolean' },
   }, strict: true });
-  for (const key of ['version', 'full-package-dir', 'output', 'stable-session-id', 'release-cohort-ref', 'app-sha', 'shell-sha', 'framework-sha', 'qualification-run-id', 'source-artifact-run-id', 'release-set-generation', 'release-set-manifest-digest'] as const) {
+  for (const key of ['version', 'full-package-dir', 'output', 'stable-session-id', 'release-cohort-ref', 'app-sha', 'shell-sha', 'framework-sha', 'qualification-run-id', 'source-artifact-run-id', 'release-set-generation', 'release-set-manifest-digest', 'qualification-input-manifest-sha256', 'full-input-manifest-sha256', 'framework-bundled-catalog-sha256', 'full-toolchain-observation-receipt-sha256'] as const) {
     if (!values[key]) throw new Error(`Missing --${key}.`);
   }
   if (!/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(values.version!)) throw new Error('Full add-on version must use YY.M.D.');
@@ -54,6 +56,9 @@ function main() {
   }
   for (const key of ['app-sha', 'shell-sha', 'framework-sha'] as const) {
     if (!/^[0-9a-f]{40}$/.test(values[key]!)) throw new Error(`--${key} must be a lowercase 40-character Git SHA.`);
+  }
+  for (const key of ['qualification-input-manifest-sha256', 'full-input-manifest-sha256', 'framework-bundled-catalog-sha256', 'full-toolchain-observation-receipt-sha256'] as const) {
+    if (!/^[0-9a-f]{64}$/.test(values[key]!)) throw new Error(`--${key} must be a lowercase SHA-256 digest.`);
   }
   const tag = `v${values.version}`;
   const release = releaseView(values.repo!, tag);
@@ -87,6 +92,12 @@ function main() {
     version: values.version, tag, repo: values.repo, stable_session_id: values['stable-session-id'],
     release_cohort_ref: values['release-cohort-ref'], cohort: { app_sha: values['app-sha'], shell_sha: values['shell-sha'], framework_sha: values['framework-sha'] },
     release_set: { generation: values['release-set-generation'], manifest_digest: values['release-set-manifest-digest'] },
+    source_authority: {
+      qualification_input_manifest_sha256: values['qualification-input-manifest-sha256'],
+      full_input_manifest_sha256: values['full-input-manifest-sha256'],
+      framework_bundled_catalog_sha256: values['framework-bundled-catalog-sha256'],
+      full_toolchain_observation_receipt_sha256: values['full-toolchain-observation-receipt-sha256'],
+    },
     qualification: { run_id: values['qualification-run-id'], source_artifact_run_id: values['source-artifact-run-id'], result: 'passed' },
     mutation_policy: { mode: 'additive_only', standard_assets_modified: false, updater_metadata_modified: false, latest_modified: false, release_notes_modified: false },
     assets: plan.map(({ path: _path, ...asset }) => asset),

@@ -90,9 +90,9 @@ const requiredReleaseMonitorPhaseBudgets = {
     timeout_after_seconds: 4500,
     primary_blocker: 'vm_smoke_timeout_or_failure',
     recommended_next_actions: {
-      warning: 'wait_for_runner_capacity',
-      timeout: 'rerun_diagnostic_same_artifact',
-      diagnostic: 'rerun_diagnostic_same_artifact',
+      warning: 'inspect_current_step_progress',
+      timeout: 'reconcile_stable_session',
+      diagnostic: 'retry_qualification_same_artifact',
     },
   },
   full_build: {
@@ -104,9 +104,9 @@ const requiredReleaseMonitorPhaseBudgets = {
     timeout_after_seconds: 5400,
     primary_blocker: 'full_build_timeout_or_failure',
     recommended_next_actions: {
-      warning: 'inspect_full_build_diagnostics',
-      timeout: 'rerun_full_build_same_cohort',
-      diagnostic: 'inspect_full_build_diagnostics',
+      warning: 'inspect_current_step_progress',
+      timeout: 'reconcile_stable_session',
+      diagnostic: 'inspect_primary_blocker',
     },
   },
   homebrew: {
@@ -120,9 +120,9 @@ const requiredReleaseMonitorPhaseBudgets = {
     timeout_after_seconds: 3600,
     primary_blocker: 'homebrew_tap_or_cask_gate_failure',
     recommended_next_actions: {
-      warning: 'inspect_homebrew_tap_diagnostics',
-      timeout: 'inspect_homebrew_tap_diagnostics',
-      diagnostic: 'inspect_homebrew_tap_diagnostics',
+      warning: 'inspect_current_step_progress',
+      timeout: 'reconcile_stable_session',
+      diagnostic: 'inspect_primary_blocker',
     },
   },
   webui_ghcr: {
@@ -134,9 +134,9 @@ const requiredReleaseMonitorPhaseBudgets = {
     timeout_after_seconds: 3600,
     primary_blocker: 'webui_runtime_image_or_ghcr_publish_failure',
     recommended_next_actions: {
-      warning: 'inspect_webui_runtime_image_diagnostics',
-      timeout: 'inspect_webui_runtime_image_diagnostics',
-      diagnostic: 'inspect_webui_runtime_image_diagnostics',
+      warning: 'inspect_current_step_progress',
+      timeout: 'reconcile_stable_session',
+      diagnostic: 'repair_webui_runtime_image',
     },
   },
 };
@@ -199,7 +199,7 @@ function validateReleaseMonitorPolicy(releaseMonitor: Record<string, any>, typed
     webuiClassification?.classification !== 'runtime_image_publish_gate_failure' ||
     webuiClassification?.source_gate_failure !== false ||
     webuiClassification?.primary_blocker !== 'webui_runtime_image_invalid' ||
-    webuiClassification?.recommended_next_action !== 'inspect_webui_runtime_image_diagnostics'
+    webuiClassification?.recommended_next_action !== 'repair_webui_runtime_image'
   ) {
     console.error('FAIL release_monitor_policy: WebUI Docker runtime image failures must be runtime image publish gate failures, not source gate failures');
     failures += 1;
@@ -321,7 +321,9 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
 
   if (
     releaseContract.release_profiles?.default !== 'stable' ||
-    !sameStringSet(releaseContract.release_profiles?.allowed, ['stable', 'nightly', 'local-install']) ||
+    !sameStringSet(releaseContract.release_profiles?.allowed, ['stable', 'local-install']) ||
+    releaseContract.release_profiles?.unavailable?.nightly?.status !== 'retired_pending_brokered_replacement' ||
+    releaseContract.release_profiles?.unavailable?.nightly?.mutation_available !== false ||
     profile?.plan_profile !== 'local_install' ||
     profile?.version_channel !== 'stable' ||
     profile?.distribution_scope !== 'local_machine_only'
@@ -416,7 +418,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     preflight?.script !== 'scripts/validate-release-preflight.ts' ||
     preflight?.package_script !== 'release:preflight' ||
     preflight?.workflow_job !== 'release-preflight' ||
-    preflight?.failure_budget !== 'fail before standard or Full builds start'
+    preflight?.failure_budget !== 'fail Standard admission before Standard build; evaluate Full-specific failures only in the independent Full add-on attempt'
   ) {
     console.error('FAIL release_preflight_contract: release_preflight must define script, package script, workflow job, and fast failure budget');
     failures += 1;
@@ -475,9 +477,10 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   }
   if (
     typeof preflight?.rule !== 'string' ||
-    !preflight.rule.includes('preflight and the source gate before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs')
+    !preflight.rule.includes('Standard preflight and the standard-source gate validate only the Standard terminal path') ||
+    !preflight.rule.includes('Full and WebUI implementation checks run in their independent add-on scopes after Standard terminal')
   ) {
-    console.error('FAIL release_source_gate_contract: release preflight rule must require source gate before expensive jobs');
+    console.error('FAIL release_source_gate_contract: release preflight must keep Standard admission separate from independent Full and WebUI add-on checks');
     failures += 1;
   }
   return failures;
@@ -579,21 +582,24 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
     stableReleaseStateMachine?.script !== 'scripts/run-stable-release.ts' ||
-    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v2' ||
+    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v3' ||
     stableReleaseStateMachine?.default_mode !== 'dry_run' ||
     stableReleaseStateMachine?.execute_flag !== '--execute' ||
-    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'retry-qualification', 'resume', 'promote', 'complete-local']) ||
+    !sameStringSet(stableReleaseStateMachine?.canonical_commands, [
+      'start', 'retry-qualification', 'reconcile', 'resume', 'promote', 'dispatch-full-addon',
+      'disposition-addon-debt', 'cancel', 'recover-stale-lock', 'complete-local',
+    ]) ||
     !sameStringSet(stableReleaseStateMachine?.phases, [
       'candidate_frozen', 'source_gates_passed', 'source_gate_failed', 'artifact_build_running',
       'artifact_build_failed', 'release_train_failed', 'qualification_failed',
       'retry_failed_gate_same_artifact', 'artifacts_qualified', 'owner_approved',
       'promotion_running', 'promotion_failed', 'release_published_not_latest',
       'distribution_synced', 'homebrew_verified', 'latest_activated',
-      'awaiting_local_activation', 'complete',
+      'awaiting_local_activation', 'standard_stable_terminal', 'addon_train_terminal',
     ]) ||
     stableReleaseStateMachine?.cohort_binding?.desktop_release_dispatch_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.cohort_binding?.cross_cohort_artifact_reuse_allowed !== false ||
-    stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
+    stableReleaseStateMachine?.cohort_binding?.controller_ref_is_canonical_and_separate_from_frozen_artifact_app_sha !== true ||
     stableReleaseStateMachine?.execution_policy?.deduplicate_cheap_source_gates !== true ||
     stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== false ||
     stableReleaseStateMachine?.execution_policy?.monitor_transport_retry_limit !== 3 ||
@@ -602,9 +608,9 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
-    stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== true ||
-    stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
-    stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_retry_may_use_separately_pinned_verification_harness !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== false ||
+    stableReleaseStateMachine?.recovery_policy?.harness_mechanics_only_change_rebuilds_existing_artifact !== false ||
+    stableReleaseStateMachine?.recovery_policy?.harness_mechanics_only_retry_may_use_separately_pinned_verification_harness !== false ||
     stableReleaseStateMachine?.recovery_policy?.separate_verification_harness_requires_changed_path_scope_proof !== true ||
     stableReleaseStateMachine?.recovery_policy?.verification_harness_must_not_replace_artifact_cohort_identity !== true ||
     stableReleaseStateMachine?.recovery_policy?.verification_harness_identity_must_be_recorded_in_qualification_receipt !== true ||
@@ -613,7 +619,80 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
     stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_artifact_kind_per_cohort !== 1 ||
     stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
-    stableReleaseStateMachine?.qualification_receipt?.separate_verification_harness_allowed_only_for !== 'smoke_or_validator_only_change' ||
+    stableReleaseStateMachine?.recovery_policy?.bounded_qualification_attempts_per_artifact_kind !== 2 ||
+    stableReleaseStateMachine?.recovery_policy?.standard_and_full_artifact_tracks_recover_independently !== true ||
+    stableReleaseStateMachine?.attempt_ledger?.workflow_attempt_receipt_is_remote_evidence_not_ledger_precondition !== true ||
+    stableReleaseStateMachine?.attempt_ledger?.monotonic_session_revision_required !== true ||
+    stableReleaseStateMachine?.attempt_ledger?.atomic_write_requires_exclusive_lock_and_expected_revision_cas !== true ||
+    stableReleaseStateMachine?.attempt_ledger?.stale_broker_revision_write_fails_closed !== true ||
+    !sameStringSet(stableReleaseStateMachine?.attempt_ledger?.terminal_states, ['passed', 'failed', 'cancelled']) ||
+    !sameStringSet(stableReleaseStateMachine?.attempt_ledger?.reconcile_only_states, [
+      'runner_lost', 'dispatch_lost', 'reconcile_pending',
+    ]) ||
+    !sameStringSet(stableReleaseStateMachine?.attempt_ledger?.reconcile_inputs, [
+      'github_run_readback', 'optional_typed_attempt_receipt', 'signed_exact_attempt_broker_lookup_v2',
+    ]) ||
+    stableReleaseStateMachine?.signed_mutation_authority?.lease_schema !== 'opl_app_release_session_lease.v2' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.signature_algorithm !== 'Ed25519' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.default_ttl_minutes !== 15 ||
+    stableReleaseStateMachine?.signed_mutation_authority?.one_ticket_per_attempt_and_mutation !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.ticket_issuance_requires_latest_attempt_event_planned !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.duplicate_ticket_for_attempt_rejected !== true ||
+    !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.payload_bindings, [
+      'stable_session_id', 'release_cohort_ref', 'actor', 'issuer', 'attempt_id', 'workflow', 'artifact_kind',
+      'controller_workflow_sha', 'artifact_app_sha', 'mutation_payload_sha256', 'planned_session_revision',
+      'target_attempt_id', 'target_run_id', 'nonce', 'expires_at', 'allowed_mutations',
+    ]) ||
+    stableReleaseStateMachine?.signed_mutation_authority?.allowed_mutations_cardinality !== 1 ||
+    stableReleaseStateMachine?.signed_mutation_authority?.cancel_requires_separate_emergency_ticket !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.cancel_requires_target_attempt_and_run_binding !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.lease_intrinsically_enforces_nonce_single_use !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.broker_durable_nonce_consumption_required !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.nonce_single_use_enforced !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.nonce_consumed_durably_before_api_and_atomically_with_fence !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.same_attempt_replay_returns_original_receipt !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.different_attempt_nonce_reuse_rejected !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.nonce_ownership_survives_lease_expiry !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.ttl_scope !== 'first_pre_api_admission_only' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.historical_acceptance_validation_expires !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.historical_validation_requires_exact_run_attempt_workflow_sha_and_payload_digest !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.historical_authority_epoch_registry !== 'append_only_verify_only' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.retired_authority_epoch_can_authorize_new_admission !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.pre_api_admission_receipt_schema !== 'opl_app_release_mutation_pre_api_fence.v1' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.pre_api_admission_receipt_binds_authority_epoch !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.workflow_dispatch_input !== 'pre_api_admission_receipt_base64' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.post_api_acceptance_must_be_obtained_by_broker_lookup !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.workflow_lookup_response_schema !== 'opl_app_release_mutation_broker_ledger_lookup_result.v2' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.workflow_lookup_transport !== 'https_with_github_oidc_caller_admission' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.workflow_lookup_transport_failure_is_authoritative_not_found !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.workflow_lookup_random_challenge_required !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.signed_complete_version_aggregate_required !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.version_aggregate_partition_complete_from_sequence_one !== true ||
+    !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.global_latest_mutex_applies_to, [
+      'promotion_dispatch',
+    ]) ||
+    !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.version_scoped_mutations, [
+      'desktop_release_dispatch', 'qualification_dispatch', 'full_addon_dispatch', 'release_draft_cleanup',
+    ]) ||
+    stableReleaseStateMachine?.signed_mutation_authority?.promotion_cancel_is_owner_child_and_does_not_advance_head !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.cancel_api_success_does_not_release_latest_mutex !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.latest_mutex_release_requires_target_terminal_readback_and_cas !== true ||
+    !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.standard_admission_deadline_required_for, [
+      'desktop_release_dispatch', 'qualification_dispatch', 'promotion_dispatch', 'full_addon_dispatch',
+    ]) ||
+    stableReleaseStateMachine?.signed_mutation_authority?.approved_controller_workflow_sha_allowlist_required !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.stable_dag_third_party_action_reference_policy !== 'exact_40_hex_commit_sha' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.stable_dag_moving_action_tags_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.stable_dag_bun_version !== '1.3.14' ||
+    stableReleaseStateMachine?.signed_mutation_authority?.controller_sha_alone_freezes_moving_action_tags !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.normal_codex_credential_actions_write_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.normal_codex_protected_main_push_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.normal_codex_release_control_plane_write_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.normal_codex_ruleset_bypass_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.normal_codex_required_review_bypass_allowed !== false ||
+    stableReleaseStateMachine?.signed_mutation_authority?.isolated_release_broker_actions_write_token_required !== true ||
+    stableReleaseStateMachine?.signed_mutation_authority?.repo_local_lease_prevents_same_identity_direct_api_bypass !== false ||
+    stableReleaseStateMachine?.qualification_receipt?.separate_verification_harness_allowed_only_for !== 'exact_artifact_cohort' ||
     !sameStringSet(stableReleaseStateMachine?.qualification_receipt?.verification_harness_required_fields, [
       'app_sha', 'shell_sha', 'smoke_harness_sha256', 'differs_from_artifact_cohort', 'change_scope', 'scope_proof',
     ]) ||
@@ -653,7 +732,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.timing !== 'after_app_latest_activation' ||
     stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.wait_for_completion !== false ||
     stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.dispatch_failure_blocks_standard !== false ||
-    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.manual_same_cohort_retry_allowed !== true ||
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.manual_same_cohort_retry_allowed !== false ||
     tapStandardVmEvidenceTransport?.source !== 'validated_artifact_qualification_receipt_raw_bytes' ||
     tapStandardVmEvidenceTransport?.encoding !== 'canonical_single_line_base64' ||
     tapStandardVmEvidenceTransport?.dispatch_field !== 'standard_vm_evidence_base64' ||
@@ -670,8 +749,11 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.receipts?.promotion !== 'opl_app_promotion_saga_receipt.v2' ||
     stableReleaseStateMachine?.receipts?.full_addon !== 'opl_app_full_addon_receipt.v1' ||
     stableReleaseStateMachine?.receipts?.local_activation !== 'opl_app_local_activation_receipt.v1' ||
-    stableReleaseStateMachine?.profiling?.efficiency_advisory_after_minutes !== 90 ||
-    stableReleaseStateMachine?.profiling?.efficiency_advisory_is_stop_condition !== false ||
+    stableReleaseStateMachine?.profiling?.warning_after_minutes !== 60 ||
+    stableReleaseStateMachine?.profiling?.new_release_train_circuit_breaker_after_minutes !== 90 ||
+    !sameStringSet(stableReleaseStateMachine?.profiling?.circuit_breaker_allows_only, [
+      'same_artifact_targeted_recovery', 'typed_blocker_terminal',
+    ]) ||
     typeof stableReleaseStateMachine?.authority_boundary !== 'string' ||
     !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
   ) {
@@ -724,7 +806,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const stableCandidateFreeze = cohortPrepare?.stable_candidate_freeze;
   if (
     stableCandidateFreeze?.required !== true ||
-    stableCandidateFreeze?.next_action !== 'owner_receipt_then_promote_or_dispatch_new_cohort' ||
+    stableCandidateFreeze?.next_action !== 'reconcile_then_continue_frozen_session_or_plan_new_frozen_cohort' ||
     stableCandidateFreeze?.dispatch_input_source !== 'cohort_plan_with_operator_plan_ref' ||
     !sameStringSet(stableCandidateFreeze?.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']) ||
     !sameStringSet(stableCandidateFreeze?.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']) ||
@@ -759,17 +841,31 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     }
   }
   const intentPolicy = cohortPrepare?.release_intent_policy;
+  const fullAddonTerminal = intentPolicy?.full_addon_terminal_policy;
+  const nextActionPolicy = cohortPrepare?.next_action_policy;
   const operatorPlanPolicy = cohortPrepare?.operator_plan_policy;
   if (
     !sameStringSet(intentPolicy?.allowed_values, ['stable_complete', 'standard_hotfix']) ||
-    intentPolicy?.stable_complete?.include_full_package !== true ||
+    intentPolicy?.stable_complete?.standard_terminal_independent !== true ||
     intentPolicy?.stable_complete?.run_vm_smoke !== true ||
+    intentPolicy?.stable_complete?.include_full_package_required !== false ||
+    intentPolicy?.stable_complete?.include_full_package_role !== 'optional_same_cohort_nonblocking_addon_intent' ||
     intentPolicy?.standard_hotfix?.include_full_package !== false ||
     intentPolicy?.standard_hotfix?.full_omission_reason_required !== true ||
+    intentPolicy?.standard_hotfix?.standard_terminal_independent !== true ||
+    fullAddonTerminal?.intent_input !== 'include_full_package' ||
+    fullAddonTerminal?.intent_role !== 'same_cohort_nonblocking_addon_intent' ||
+    fullAddonTerminal?.dispatch_after !== 'standard_stable_terminal' ||
+    fullAddonTerminal?.completion_required_for_standard_terminal !== false ||
+    fullAddonTerminal?.independent_receipt_required !== true ||
+    nextActionPolicy?.canonical_command_prefix !== 'npm run release:stable -- start' ||
+    nextActionPolicy?.default_mode !== 'dry_run' ||
+    nextActionPolicy?.execute_flag_required_for_broker_submission !== true ||
+    nextActionPolicy?.direct_workflow_dispatch_allowed !== false ||
     operatorPlanPolicy?.required !== true ||
     operatorPlanPolicy?.workflow_input !== 'release_operator_plan_ref'
   ) {
-    console.error('FAIL release_intent_policy: release intent and operator plan ref must gate every Stable dispatch');
+    console.error('FAIL release_intent_policy: Standard terminal must stay independent, Full must remain a non-blocking add-on intent, and cohort plans must route through dry-run release:stable start');
     failures += 1;
   }
 
@@ -787,10 +883,11 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   const activeMonitor = releaseOperator?.active_monitor_policy;
   if (
-    activeMonitor?.command !== 'gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status' ||
-    activeMonitor?.poll_interval_seconds !== 60 ||
-    activeMonitor?.single_monitor_process !== true ||
-    activeMonitor?.terminal_handoff !== 'release_operator_status_once'
+    activeMonitor?.command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>' ||
+    activeMonitor?.poll_interval_seconds !== null ||
+    activeMonitor?.single_monitor_process !== false ||
+    activeMonitor?.terminal_handoff !== 'release_stable_reconcile_once' ||
+    !activeMonitor?.forbidden_patterns?.includes('direct_gh_run_watch')
   ) {
     console.error('FAIL release_operator_policy: active monitoring must use one 60-second gh run watch process');
     failures += 1;
@@ -816,7 +913,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !blockerPolicy.rule.includes('terminal blocker state') ||
     !blockerPolicy.rule.includes('cancelled') ||
     !blockerPolicy.rule.includes('superseded') ||
-    !blockerPolicy.rule.includes('instead of continuing to wait on gh run watch')
+    !blockerPolicy.rule.includes('instead of continuing to wait or issuing a low-level dispatch')
   ) {
     console.error('FAIL release_operator_primary_blocker_policy: operator status must be no-watch and stop on primary gate failures');
     failures += 1;
@@ -846,24 +943,20 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     console.error('FAIL release_operator_primary_blocker_policy: terminal blocker states must include failed, stale, cancelled, and superseded states');
     failures += 1;
   }
-  if (!sameStringSet(blockerPolicy?.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort'])) {
-    console.error('FAIL release_operator_primary_blocker_policy: failed gate next actions must repair source gate or dispatch a new cohort');
+  if (!sameStringSet(blockerPolicy?.failed_gate_next_actions, ['repair_source_gate', 'reconcile_stable_session'])) {
+    console.error('FAIL release_operator_primary_blocker_policy: failed gate next actions must repair source gate or reconcile the stable session');
     failures += 1;
   }
   for (const action of [
+    'follow_cohort_plan',
+    'retry_qualification_same_artifact',
+    'reconcile_stable_session',
     'repair_source_gate',
     'repair_webui_runtime_image',
     'repair_ghcr_publish_access',
-    'dispatch_new_cohort',
-    'rerun_diagnostic_same_artifact',
-    'inspect_full_build_diagnostics',
-    'rerun_full_build_same_cohort',
-    'inspect_homebrew_tap_diagnostics',
-    'inspect_webui_runtime_image_diagnostics',
-    'provide_owner_receipt',
-    'wait_for_runner_capacity',
-    'retry_transient_upload',
-    'promote_candidate',
+    'inspect_primary_blocker',
+    'inspect_current_step_progress',
+    'wait_for_release_run_completion',
   ]) {
     if (!releaseOperator?.typed_next_actions?.includes(action)) {
       console.error(`FAIL release_operator_policy: missing typed next action ${action}`);

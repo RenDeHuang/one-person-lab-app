@@ -146,7 +146,8 @@ that boundary instead of letting Homebrew fail later with an ambiguous
 
 All GitHub Release mutations for one Stable App version use
 `opl-app-release-mutation-<version>`. Desktop and promote hold that lock, and a
-standalone Full run joins it when `publish_to_release=true`. Embedded
+standalone Full build is artifact-only; the brokered `desktop-release-full-addon.yml` writer
+joins verified Full bytes to an already-active Standard release. Embedded
 artifact-only Full builds use a separate build key because they do not mutate a
 release and must not self-block their desktop caller. Immediately before notes
 replacement and before every asset upload attempt, `release:publish` reads the
@@ -333,7 +334,7 @@ Critical-path targets:
 
 | Path | Target wall time | Owner action when exceeded |
 | --- | --- | --- |
-| Stable standard-only candidate | 35-45 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
+| Stable standard-only candidate | 35-45 minutes | Inspect `release-actions-timing-<version>` and reconcile read-only; recovery is a new brokered targeted attempt, never a low-level rerun. |
 | Asynchronous Full/Docker add-ons | 35-50 minutes without extending Stable lead time | Diagnose or retry only the failed same-cohort add-on; do not redispatch or roll back Standard. |
 | Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
 | Promote after owner receipt | 8-12 minutes | Promote from a ready candidate record; inspect at 10 minutes and treat 15 minutes as the hard-stop SLA for the promote workflow. Do not rerun desktop release to carry owner metadata. |
@@ -369,7 +370,9 @@ next action must be a same-artifact diagnostic unless the failure proves the
 artifact, source gate, or pinned refs are invalid. Dispatch a new cohort only
 after that boundary is proven.
 
-Stable release coordination uses `opl_app_stable_release_session.v2`. Every
+Stable release coordination uses `opl_app_stable_release_session.v3`, with
+revision-CAS atomic writes, an append-only mutation/qualification attempt ledger,
+and Standard/Full artifact tracks that reconcile independently. Every
 Standard or Full DMG carries an `opl_app_build_artifact_cohort.v2` manifest
 binding the exact App, Shell, Framework, packaged tree, product profile, GUI
 contract, smoke harness, Actions run, and DMG bytes. A failed Full clean-VM gate
@@ -385,16 +388,16 @@ desktop train only when the diagnostic proves the artifact, source gate, pinned
 cohort, or release-owner decision is invalid.
 
 Promotion is a Standard-only receipt-backed saga: publish the GitHub Release as
-public but not latest, atomically publish the Formula and Standard cask through
-the tap owner, qualify the Standard cask in a clean VM, and only then activate
-App latest. A partial failure
-must rerun failed jobs in the original promotion run and reuse an existing
-immutable distribution receipt; it must not dispatch a second promotion or tap
-mutation. Completion additionally requires the same-version local installation
-receipt and nonblank CDP Home, Settings, and Capabilities readback with zero page
-or console errors. Phase timings and dispatch counts are recorded. Ninety minutes
-is an efficiency advisory that triggers blocker classification and evidence
-reuse, not permission to abandon an authorized release.
+public but not latest, consume the Formula and Standard cask receipt produced by
+the isolated broker, qualify the Standard cask in a clean VM, and only then
+activate App latest. A partial failure is reconciled read-only and may create a
+new signed, targeted broker attempt that reuses immutable receipts; low-level
+workflow rerun and direct tap mutation are forbidden. Completion additionally
+requires the same-version local installation receipt and nonblank CDP Home,
+Settings, and Capabilities readback with zero page or console errors. Phase
+timings and dispatch counts are recorded. At 60 minutes the controller warns;
+at 90:00 the machine circuit breaker forbids every new full train and permits
+only exact-artifact targeted recovery or a typed-blocked terminal.
 
 `desktop-release.yml` is the Standard source/candidate train and never writes
 the tap. `desktop-release-promote.yml` owns Standard promotion after the
@@ -579,9 +582,11 @@ Interpret the result as follows:
 - `ready_for_closeout_review`: inspect closeout, readiness, candidate record,
   and remote verification artifacts before any release-owner decision.
 
-For the full Stable path, 75 minutes is the attention point and 90 minutes is
-the hard-stop SLA for passive waiting. For the promote path, inspect at
-10 minutes and treat 15 minutes as the hard stop. A VM failure after artifact
+For the Standard Stable transaction, the controller warns at 60 minutes and
+the 90:00 circuit breaker forbids another full release train; only exact-artifact
+targeted recovery or a typed blocker may continue. Full and WebUI add-ons have
+independent receipts and cannot extend or revoke the Standard terminal. For the
+promote path, inspect at 10 minutes and treat 15 minutes as the hard stop. A VM failure after artifact
 creation should route to `npm run release:operator -- diagnose-vm ...` or the
 critical-diagnostics `retry_entry`, not to a new `desktop-release` dispatch.
 
@@ -602,7 +607,9 @@ wrapper stdout/stderr logs in `app-wrapper-diagnostics.json` plus companion
 `app-wrapper-*.log` files.
 
 Before launching the clean VM, the workflow performs a host-side Codex npm
-package preflight. It reads `@openai/codex@latest` metadata, records the npm
+package preflight. Release-bound runs read exact Codex package and platform identities
+from `contracts/app-release-qualification-input-manifest.json`, verify registry metadata against
+the frozen version, integrity and tarball URLs, and record the npm
 registry response status, package version, tarball URL host, tarball sha256,
 tarball size, and elapsed time in `codex-package-preflight.json`, stores the
 raw registry response as `codex-package-registry-response.json`, downloads the
@@ -1025,25 +1032,27 @@ cohort as the candidate record. The promote workflow reads
 output, and passes it to `opl-first-run-vm.yml`. The VM workflow checks out that
 Framework SHA, archives it, and passes both `--framework-source-archive` and
 `--framework-install-script` to the Tart harness so the guest receives
-`OPL_INSTALL_SCRIPT_URL=file://...`. Promotion retries rerun failed jobs in the
-same promotion run and reuse the immutable distribution receipt. If workflow
+`OPL_INSTALL_SCRIPT_URL=file://...`. Promotion recovery reconciles the original
+run and immutable distribution receipt, then uses a new signed targeted attempt
+when another mutation is actually required. If workflow
 source bytes must change, freeze a new cohort instead of silently combining the
 old artifact with updated workflow assumptions. A Homebrew VM failure
 that shows packaged `opl-install.sh` falling back to raw GitHub is a workflow
 source-boundary defect, not proof that the cask or release assets are invalid.
 
-The standard clean VM smoke is the fail-fast gate for stable release trains. In
-standard-only runs, `desktop-release.yml` runs
-`standard-first-run-vm-smoke-after-standard-only` immediately after standard
-asset publish and before remote verification, Homebrew updates, operator
-evidence, or readiness aggregation. When `include_full_package=true` and
-`run_vm_smoke=true`, it runs `standard-first-run-vm-smoke-after-full` before
-Full package build, Full publish/remote verification, Homebrew updates,
-operator evidence, or readiness aggregation. If the standard VM fails, stop at
-that diagnostic artifact; the artifact should already include the early
-bootstrap/native-modal summaries needed to classify launch blockers. Do not keep
-queueing Full, Homebrew, operator evidence, or readiness jobs for the same
-cohort.
+The standard clean VM smoke is the fail-fast gate for the independent Standard
+Stable terminal. The canonical controller dispatches the Standard workflow with
+add-ons deferred, so `desktop-release.yml` runs
+`standard-first-run-vm-smoke-after-standard-only` immediately after Standard
+asset publish and before Standard remote verification and readiness admission.
+`include_full_package=true` records only a same-cohort non-blocking Full add-on
+intent; it does not switch Standard to a Full-coupled VM path and Full completion
+is never required for Standard promotion or terminal state. After Standard
+reaches terminal, the controller may dispatch the independent Full add-on, which
+writes its own receipt. If the Standard VM fails, stop at that diagnostic
+artifact; it should already include the early bootstrap/native-modal summaries
+needed to classify launch blockers. Do not start the Full add-on for a
+nonterminal Standard cohort.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:
@@ -1103,11 +1112,11 @@ Pinned cohort runbook:
      checkouts, or release-boundary/source-gate failures. These are root causes
      to repair before dispatch, not reasons to start a full release train.
 
-2. Write the cohort lock:
+2. Inspect the cohort lock and dry-run plan:
 
 ```bash
-npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
-npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --output release-cohort-lock.json --markdown release-cohort-lock.md
+npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --output release-cohort-plan.json --markdown release-cohort-plan.md
 ```
 
 The cohort lock records the immutable App/Shell/Framework SHA tuple. The cohort
@@ -1116,19 +1125,26 @@ next action. For stable candidates, treat those refs as the frozen candidate
 cohort: App SHA, shell SHA, and framework SHA must match all release-ready
 evidence and the candidate record. Neither file is release evidence and neither
 can publish, promote, or claim readiness.
-Use the cohort plan/lock as the source for workflow dispatch inputs. Manual
-long-SHA entry is a diagnostic fallback only, not the recommended release path.
+The cohort plan's only executable next action is a dry-run
+`npm run release:stable -- start ...` command over the frozen SHAs. It must not
+emit or recommend a direct workflow dispatch. A raw `gh workflow run` is not a
+supported release entry.
 
 3. Dispatch and observe through the controller:
 
 ```bash
-npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-operator-state.json --markdown release-operator-state.md
+npm run release:stable -- start --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json
+npm run release:stable -- start --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json --execute
+npm run release:stable -- reconcile --state release-session.json
+npm run release:stable -- resume --state release-session.json
 npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
 ```
 
-`release:operator` is a controller surface over existing scripts, workflows, and
-artifacts. It may emit typed next actions such as
+The first `release:stable start` command is a pure dry-run plan; only the second
+form may submit the persisted request to the isolated broker. `release:operator`
+is a read-only planning/status surface over existing scripts, workflows, and
+artifacts. It may emit typed diagnostic next actions such as
 `rerun_diagnostic_same_artifact`, `repair_source_gate`,
 `dispatch_new_cohort`, or `promote_candidate`; it must not become release truth,
 write runtime/domain truth, or turn a diagnostic rerun into a release-ready
@@ -1299,10 +1315,11 @@ desktop release rerun solely for owner-resolution metadata; it does not skip
 failed gates, invent owner receipts, or bypass candidate-record validation.
 This is the default fast path after owner receipt for a frozen cohort.
 
-`new_release` owns the normal path: draft candidate, same-cohort evidence,
-owner receipt, then promote. `draft_candidate` is diagnostic and does not imply
-stable/latest. `refresh_existing` repairs only an unpublished draft; after the
-complete cohort passes its gates, publish it through the promote workflow.
+`new_release` owns the normal Standard path: draft candidate, exact Standard
+evidence, owner receipt, then promote. `draft_candidate` is diagnostic and does
+not imply stable/latest. `refresh_existing` repairs only an unpublished draft;
+after the Standard cohort passes its gates, publish it through the promote
+workflow. Full remains an independently terminal same-cohort add-on.
 Published Stable and Nightly assets are immutable. A same-cohort Full add-on may
 append only its allowlisted assets; replacing any asset, changing source/BOM,
 or changing release state always requires a new version.

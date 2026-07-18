@@ -130,29 +130,12 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
-
-      - name: Build release closeout diagnostics
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-          OPL_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-          OPL_RELEASE_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          npm run release:closeout -- \
-            --version "$OPL_RELEASE_VERSION" \
-            --run-id "$OPL_RELEASE_RUN_ID" \
-            --repo "$OPL_RELEASE_REPO" \
-            --out-dir release-diagnostics \
-            --artifact-profile diagnostics
-          cat release-diagnostics/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build GitHub Actions timing diagnostics
         shell: bash
@@ -168,17 +151,156 @@ jobs:
             --markdown release-diagnostics/release-actions-timing.md
           cat release-diagnostics/release-actions-timing.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build release closeout diagnostics and completion manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          npm run release:closeout -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --run-id "$OPL_RELEASE_RUN_ID" \
+            --repo "$OPL_RELEASE_REPO" \
+            --out-dir release-diagnostics \
+            --completion-manifest release-diagnostics/release-closeout-completion.json \
+            --artifact-profile diagnostics
+          cat release-diagnostics/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify complete release diagnostics generation
+        shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const manifestPath = 'release-diagnostics/release-closeout-completion.json';
+          const expectedOutputs = new Map([
+            ['closeout_summary', 'release-diagnostics/release-closeout.json'],
+            ['closeout_markdown', 'release-diagnostics/release-closeout.md'],
+            ['release_monitor', 'release-diagnostics/release-monitor.json'],
+            ['release_notification', 'release-diagnostics/release-notification.json'],
+          ]);
+          const requiredAuxiliaryOutputs = [
+            'release-diagnostics/release-actions-timing.json',
+            'release-diagnostics/release-actions-timing.md',
+          ];
+
+          function fail(message) {
+            console.error(`::error::${message}`);
+            process.exit(1);
+          }
+
+          function readRequiredFile(filePath) {
+            let stat;
+            try {
+              stat = fs.lstatSync(filePath);
+            } catch {
+              fail(`Required release diagnostics output is missing: ${filePath}`);
+            }
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size === 0) {
+              fail(`Required release diagnostics output is not a non-empty regular file: ${filePath}`);
+            }
+            return fs.readFileSync(filePath);
+          }
+
+          const manifestBytes = readRequiredFile(manifestPath);
+          let manifest;
+          try {
+            manifest = JSON.parse(manifestBytes.toString('utf8'));
+          } catch {
+            fail(`Release diagnostics completion manifest is not valid JSON: ${manifestPath}`);
+          }
+          if (
+            manifest.schema !== 'opl_release_closeout_completion_manifest.v1'
+            || manifest.status !== 'complete'
+            || manifest.authority !== 'diagnostics_only'
+            || manifest.mutation_authorized !== false
+            || manifest.required_output_count !== expectedOutputs.size
+            || manifest.completed_output_count !== expectedOutputs.size
+            || !Array.isArray(manifest.outputs)
+            || manifest.outputs.length !== expectedOutputs.size
+          ) {
+            fail('Release diagnostics completion manifest does not declare one complete diagnostics-only four-output generation.');
+          }
+          const generationId = manifest.generation?.id;
+          if (typeof generationId !== 'string' || generationId.length === 0) {
+            fail('Release diagnostics completion manifest is missing its generation id.');
+          }
+
+          const observedRoles = new Set();
+          for (const descriptor of manifest.outputs) {
+            const expectedPath = expectedOutputs.get(descriptor?.role);
+            if (!expectedPath || observedRoles.has(descriptor.role)) {
+              fail(`Release diagnostics completion manifest contains an unknown or duplicate role: ${descriptor?.role ?? '<missing>'}`);
+            }
+            observedRoles.add(descriptor.role);
+            if (descriptor.path !== expectedPath) {
+              fail(`Release diagnostics completion manifest path mismatch for ${descriptor.role}.`);
+            }
+            const bytes = readRequiredFile(expectedPath);
+            const digest = crypto.createHash('sha256').update(bytes).digest('hex');
+            if (descriptor.size_bytes !== bytes.byteLength || descriptor.sha256 !== digest) {
+              fail(`Release diagnostics output does not match the completion manifest: ${expectedPath}`);
+            }
+          }
+          if (observedRoles.size !== expectedOutputs.size) {
+            fail('Release diagnostics completion manifest does not cover all four required outputs.');
+          }
+
+          const summaryPath = expectedOutputs.get('closeout_summary');
+          const summary = JSON.parse(readRequiredFile(summaryPath).toString('utf8'));
+          if (
+            summary.version !== process.env.OPL_RELEASE_VERSION
+            || summary.release_repo !== process.env.OPL_RELEASE_REPO
+            || String(summary.run?.id) !== process.env.OPL_RELEASE_RUN_ID
+          ) {
+            fail('Release diagnostics completion generation is not bound to this workflow version, repository, and run id.');
+          }
+
+          for (const filePath of [
+            summaryPath,
+            expectedOutputs.get('release_monitor'),
+            expectedOutputs.get('release_notification'),
+          ]) {
+            const payload = JSON.parse(readRequiredFile(filePath).toString('utf8'));
+            if (payload.output_generation?.id !== generationId) {
+              fail(`Release diagnostics output generation mismatch: ${filePath}`);
+            }
+          }
+          const markdown = readRequiredFile(expectedOutputs.get('closeout_markdown')).toString('utf8');
+          if (!markdown.includes(generationId)) {
+            fail('Release diagnostics markdown does not carry the completion generation id.');
+          }
+          for (const filePath of requiredAuxiliaryOutputs) readRequiredFile(filePath);
+          try {
+            JSON.parse(readRequiredFile(requiredAuxiliaryOutputs[0]).toString('utf8'));
+          } catch {
+            fail(`Release actions timing output is not valid JSON: ${requiredAuxiliaryOutputs[0]}`);
+          }
+          console.log(`Verified complete release diagnostics generation ${generationId}.`);
+          NODE
+
       - name: Upload release diagnostics
-        uses: actions/upload-artifact@v7
+        if: ${{ success() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-diagnostics-${{ inputs.opl_version }}
           path: |
+            release-diagnostics/release-actions-timing.json
+            release-diagnostics/release-actions-timing.md
             release-diagnostics/release-closeout.json
             release-diagnostics/release-closeout.md
             release-diagnostics/release-monitor.json
             release-diagnostics/release-notification.json
-            release-diagnostics/release-actions-timing.json
-            release-diagnostics/release-actions-timing.md
+            release-diagnostics/release-closeout-completion.json
           if-no-files-found: error
 
   standard-dmg-diagnostic-artifact:

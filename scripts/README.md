@@ -28,7 +28,7 @@ should happen only when AGUI replay is explicitly requested.
 | `write-opl-app-component-manifest.ts` | Writes the App-owned immutable standard artifact lock consumed by `opl_release_set.v2`; the App keeps CalVer while the Release Set records its exact source commit and asset digests. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `generate-release-notes.ts` | Builds release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Release publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. |
-| `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
+| `cleanup-draft-release-candidates.ts` | Discovers stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. Deletion is unavailable until a separate signed broker cleanup mutation is provisioned; neither this CLI nor an ordinary release workflow directly deletes a Release or tag. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `cleanup-local-artifacts.ts` | Dry-runs or deletes local ignored generated output: `tmp/`, `docs/site/latest/`, generated Full runtime payload dirs, and stale top-level `artifacts/*` run directories. It never manages tool state or external shell checkouts. |
 | `install-docker-webui.sh` | Linux/macOS Bash entrypoint for starting the Docker/WebUI image with host `/data` and `/projects` mounts through `docker compose`; Ubuntu may install Docker Engine, while macOS only checks for an existing Docker runtime. After compose startup it waits for the local HTTP endpoint and can write a diagnostic directory or `.tar.gz` package without accepting API keys. |
@@ -42,7 +42,7 @@ should happen only when AGUI replay is explicitly requested.
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
-| `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full/VM intent, cheap source gates, and the typed next action that consumes fixed App/Shell/Framework SHAs. This plan/manifest is the same-cohort retry entrypoint for rerunning failed gates or promoting a ready candidate without hand-filling refs. |
+| `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full add-on/VM intent, cheap source gates, and one dry-run `release:stable start` next action over fixed App/Shell/Framework SHAs. It never emits a direct workflow dispatch. The plan/manifest is the same-cohort input for controller-led recovery or promotion without hand-filling refs. |
 | `release-operator.ts` | Thin no-watch controller over existing release scripts, workflows, and artifacts. It can write `release-operator-state.json/md`, report structured status from GitHub run JSON, classify stale, draining, cancelled, or superseded runs, and emit typed next actions such as `repair_source_gate`, `dispatch_new_cohort`, `rerun_diagnostic_same_artifact`, `provide_owner_receipt`, or `promote_candidate`; it is the only no-watch status entrypoint and is not release truth. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
@@ -107,7 +107,7 @@ npm run release:notes -- --version <YY.M.D-nightly-or-rebuild> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
 npm run verify-remote-release -- --version <YY.M.D-nightly-or-rebuild>
 npm run release:cleanup-drafts -- --version <version>
-npm run release:cleanup-drafts -- --version <version> --execute
+npm run release:cleanup-drafts -- --version <version> --request-brokered-execute # typed-blocked until the cleanup mutation is provisioned
 npm run release:cleanup-webui-ghcr -- --summary-path webui-ghcr-cleanup.json
 npm run release:cleanup-webui-ghcr -- --rollback-tag <version> --execute
 npm run cleanup:local-artifacts
@@ -135,18 +135,18 @@ npm run validate:candidate:agui
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
 npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
-npm run release:plan -- --version <version> --profile nightly
+npm run release:plan -- --version <version> --profile nightly # returns typed retired_pending_brokered_replacement until the brokered Nightly replacement exists
 npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
 npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <promote-run-id> --agent-wall-time <duration> --output actions-timing.json --markdown actions-timing.md
 npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
 npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
-npm run release:cohort-plan -- --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-plan.json --markdown release-cohort-plan.md
-npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --state release-session.json
-npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --state release-session.json --execute
+npm run release:cohort-plan -- --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json
+npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json --execute
 npm run release:stable -- resume --state release-session.json
 npm run release:stable -- promote --state release-session.json --release-owner-receipt-ref <same-cohort-owner-receipt-ref> --execute
-npm run release:operator -- plan --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-operator-state.json --markdown release-operator-state.md
+npm run release:operator -- plan --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
 npm run release:readiness-summary -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --artifacts-dir <downloaded-small-artifacts-dir> --job-results release-readiness-job-results.json --output release-readiness-summary.json --markdown release-readiness-summary.md
@@ -388,16 +388,13 @@ shallow checkout, because the App wrapper calls only
 helper. If that smoke helper starts depending on other shell paths, update the
 workflow checkout and the release-boundary check in the same change.
 
-`.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
-publisher. It reuses the standard build workflow, prepares and validates
-standard updater assets, validates the contract-owned canonical Nightly version,
-creates one immutable prerelease for the UTC date and allocates `.r1` through
-`.r9` only for same-day rebuilds, keeps `latest` unchanged, writes release notes
-that compare against the previous Nightly, and runs the remote standard asset
-verifier without Full assets. Version allocation reads both remote Git tags and
-GitHub Releases and fails closed if inventory cannot be read or `.r9` is already
-used. Its operator plan starts with the Nightly version gate and source gate; it
-never calls Stable preflight.
+The former direct Nightly writer is retired. `release:plan -- --profile nightly`
+returns the typed blocker `retired_pending_brokered_replacement` and no publish
+command. Nightly publication can resume only through a separately provisioned
+brokered workflow whose controller and payload inputs are immutable, whose
+write credential is isolated from ordinary Codex tasks, and whose recovery uses
+a new authorized attempt or read-only reconcile. Stable preflight is not a
+substitute for that missing Nightly mutation authority.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
 critical-path work. Stable desktop release jobs prepare release-blocking notes
@@ -441,11 +438,15 @@ Stable cohort preparation is separate from Stable dispatch. Use moving App,
 shell, or framework `main` only to resolve immutable SHAs during sync
 preparation. `release:cohort-lock` records the immutable App/Shell/Framework
 SHA tuple, and `release:cohort-plan` embeds that lock with the release intent
-and next action. `stable_complete` requires Full plus VM gates;
-`standard_hotfix` requires an explicit Full omission reason. The plan emits the
-`release_operator_plan_ref` required by the desktop workflow, so raw dispatches
-that bypass cohort preparation fail before a build starts. The release train
-consumes those fixed SHAs, not moving refs.
+and one dry-run canonical-controller next action. `stable_complete` qualifies an
+independent Standard Stable terminal and requires its Standard VM proof.
+`include_full_package=true` only requests a non-blocking same-cohort Full add-on
+after Standard reaches terminal; it never makes Full completion part of the
+Standard terminal chain. `standard_hotfix` remains an explicitly documented
+expedited Standard-only intent. The plan emits the `release_operator_plan_ref`
+but never emits `gh workflow run`; only `release:stable start` may submit the
+planned request to the isolated broker when separately invoked with `--execute`.
+The release controller consumes the fixed SHAs, not moving refs.
 `release:operator plan` repeats this boundary as machine-readable
 `operator_guidance`: dispatch inputs come from the cohort plan/lock, manual
 long-SHA entry is a diagnostic fallback, and a frozen cohort should run desktop
@@ -453,43 +454,42 @@ release once. Remote movement after the freeze is post-freeze drift; either
 promote the frozen cohort after owner receipt, or freeze a new cohort and
 dispatch a new desktop release.
 
-`release:stable` is the canonical operator entry for a complete Stable train.
-It is dry-run by default and requires `--execute` before any GitHub workflow
-dispatch. `start` resolves the App, Shell, and Framework refs once, deduplicates
+`release:stable` is the canonical controller entry for Standard Stable and its
+independently terminal same-cohort add-on intents.
+It is dry-run by default and requires `--execute` before it can submit a planned
+request to the isolated mutation broker. `start` resolves the App, Shell, and Framework refs once, deduplicates
 and runs the cheap source gates, verifies that the remote App branch still
-points to the frozen SHA, dispatches exactly one desktop release for that
-cohort, discovers its run id from the exact App SHA, and uses one 60-second
-`gh run watch` process. The persisted `opl_app_stable_release_session.v2`
-file carries the run id into `promote`; promotion cannot be dispatched without
+points to the frozen SHA, durably records dispatching, submits exactly one
+request for that cohort, and discovers its run id from broker/GitHub readback.
+Every watch has one absolute wall-clock deadline; timeout returns to read-only
+reconcile without repeating the mutation. The persisted `opl_app_stable_release_session.v3` uses
+revision-CAS atomic writes and append-only qualification/mutation attempts. It
+carries the run id into `promote`; promotion cannot be dispatched without
 a same-cohort release-owner receipt. A validator-only or smoke-only change must
 reuse the existing artifact for diagnosis and does not justify rebuilding it.
-Use `retry-qualification --smoke-harness-app-ref <branch-or-tag>
---smoke-harness-shell-ref <ref>` to pin the verification App/Shell separately
-from the product App/Shell recorded in the artifact cohort. The qualification
-receipt records both identities; the verification harness never replaces the
-product cohort or DMG SHA-256. Before dispatch and again before VM allocation,
-the runner compares artifact and verification commits and fails closed unless
-every changed path belongs to the explicit qualification/diagnostic allowlist;
-the receipt records the exact base, head, changed paths, and classification.
-Only a change to packaged product/runtime bytes freezes and dispatches a new
-cohort. `release:cohort-plan` and `release:operator` remain inspection and
+The qualification receipt records artifact and verification identities; the
+verification harness never replaces the product cohort or DMG SHA-256. Before a
+broker request and again before VM allocation, the runner compares artifact and
+verification commits and durably records base, head, changed paths, digests and
+classification. Any App or Shell verification SHA change is
+`new_cohort_required`; changed-path allowlists cannot authorize exact-artifact
+reuse. Targeted retry is limited to the exact artifact and exact harness cohort.
+`release:cohort-plan` and `release:operator` remain inspection and
 diagnostic components behind this entry, not competing manual release paths.
 If source preparation exposes a stale App head, unresolved shell/framework ref,
 wrong shell type/format, dirty source checkout, or release-boundary/source-gate
-failure, repair that root cause before dispatching the workflow. During an
-active run, use exactly one
-`gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status`
-process, then call `release:operator status` once for terminal routing. Do not
-combine short sleeps with a second polling loop. After three prior attempts for
-the same version inside 90 minutes, generate a same-cohort
-`release:gate-reuse-plan` and pass its ref before starting another full train;
-the time threshold changes strategy but does not abandon the release goal.
+failure, repair that root cause before submitting a broker request. Monitoring
+is controller-owned, read-only and bounded by one absolute deadline. At 60
+minutes it warns; at 90:00 the circuit breaker rejects every new release train.
+Only an exact-artifact targeted recovery request or typed-blocked terminal may
+continue, and neither path repeats an unknown mutation.
 After a primary gate fails, `failed_gate_draining` means
 queued jobs are settling, and `stale_candidate` means the old run is diagnostic
 evidence only. Neither state can be promoted or reinterpreted as release-ready
 for a newer cohort. If the release process must be repaired while a run is in
-flight, stop the old run and dispatch a new pinned cohort; record the stopped
-run as `cancelled` or `superseded`, not as a source-gate failure.
+flight, reconcile it read-only. An emergency cancel is a separate
+broker-authorized mutation with its own durable attempt; ordinary controllers
+must not stop or supersede runs.
 
 ## Release CI operations notes
 
@@ -577,10 +577,10 @@ small release artifacts, rebuilds `release-candidate-record.json`, and runs the
 same promote-ready validator. Its output is a verification artifact only; it
 does not publish a release, mutate updater metadata, claim App release ready, or
 claim OPL family production ready.
-When this is the only missing same-cohort input, the operator fast path is:
-verify the post-owner candidate record, then dispatch
-`.github/workflows/desktop-release-promote.yml`. Do not rerun
-`desktop-release.yml` solely to carry owner receipt metadata.
+When this is the only missing same-cohort input, the controller verifies the
+post-owner candidate record, durably records the planned promotion attempt, and
+submits it to the isolated broker. The operator does not dispatch either
+workflow and must not rerun `desktop-release.yml` to carry owner metadata.
 
 The one-shot installer section records the fixed public entry command, the
 workflow job result as bootstrap status source, the
@@ -588,12 +588,16 @@ workflow job result as bootstrap status source, the
 fields, blockers, next step, retry state, and `--skip-packages` state in JSON and
 the Markdown summary.
 
-Draft candidate cleanup is an explicit metadata-only operator step. Use
+Draft candidate discovery is an explicit read-only metadata operator step. Use
 **OPL Desktop Release Cleanup Drafts** or `release:cleanup-drafts` after the
-stable `v<version>` Release is published to remove stale
-`v<version>-draft.*` and `v<version>-readiness.*` draft Releases and their tags.
-The default is dry-run; pass `--execute` only after reviewing the generated
-summary. This path does not download standard or Full DMG assets.
+stable `v<version>` Release is published to list stale
+`v<version>-draft.*` and `v<version>-readiness.*` drafts. A deletion request is
+typed-blocked while the release broker has no dedicated cleanup mutation. Only
+a separately signed broker attempt may eventually delete a Release and tag;
+ordinary release workflows and this CLI never do so directly. Upload or publish
+failure retains the incomplete draft and writes
+`opl_app_release_publish_recovery_receipt.v1` for same-cohort resume. This path
+does not download standard or Full DMG assets.
 
 WebUI GHCR cleanup is a separate dry-run-first package admin step. Use
 `release:cleanup-webui-ghcr` to read

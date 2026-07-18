@@ -11,6 +11,9 @@ const { values } = parseArgs({
     'qualification-run-id': { type: 'string', default: '' }, 'source-artifact-run-id': { type: 'string', default: '' },
     'source-artifact-name': { type: 'string', default: '' }, 'artifact-sha256': { type: 'string', default: '' },
     'app-sha': { type: 'string', default: '' }, 'shell-sha': { type: 'string', default: '' }, 'framework-sha': { type: 'string', default: '' },
+    'qualification-input-manifest-sha256': { type: 'string', default: '' },
+    'full-input-manifest-sha256': { type: 'string', default: '' }, 'framework-bundled-catalog-sha256': { type: 'string', default: '' },
+    'full-toolchain-observation-receipt-sha256': { type: 'string', default: '' },
   },
   strict: true,
 });
@@ -25,6 +28,10 @@ const errors = validateArtifactQualificationReceipt(receipt, {
   qualificationRunId: values['qualification-run-id'] || undefined, sourceArtifactRunId: values['source-artifact-run-id'] || undefined,
   sourceArtifactName: values['source-artifact-name'] || undefined, artifactSha256: values['artifact-sha256'] || undefined,
   appSha: values['app-sha'] || undefined, shellSha: values['shell-sha'] || undefined, frameworkSha: values['framework-sha'] || undefined,
+  qualificationInputManifestDigest: values['qualification-input-manifest-sha256'] || undefined,
+  fullInputManifestDigest: values['full-input-manifest-sha256'] || undefined,
+  frameworkBundledCatalogDigest: values['framework-bundled-catalog-sha256'] || undefined,
+  fullToolchainObservationReceiptDigest: values['full-toolchain-observation-receipt-sha256'] || undefined,
 });
 if (errors.length > 0) throw new Error(`Artifact qualification receipt invalid: ${errors.join('; ')}`);
 process.stdout.write(`${JSON.stringify({ status: 'verified', receipt: values.receipt })}\n`);

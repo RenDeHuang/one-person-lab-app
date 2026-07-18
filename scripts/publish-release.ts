@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -570,20 +571,138 @@ function replaceReleaseNotes(repo, tag, notes) {
   run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes, '--title', buildReleaseTitle(tag)]);
 }
 
-function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
-  assertRemoteReleaseIsMutableDraft(repo, tag);
-  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--cleanup-tag', '--yes'], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    const detail = `${result.stdout || ''}${result.stderr || ''}`.trim();
-    throw new Error(
-      `Upload failed after creating ${tag}, and cleanup failed. Delete the incomplete release manually before retrying.${detail ? `\ncleanup=${detail}` : ''}`,
-    );
+class ReleaseArtifactUploadError extends Error {
+  failedArtifact: string;
+  uploadedArtifacts: string[];
+
+  constructor(message, failedArtifact, uploadedArtifacts, cause) {
+    super(message, { cause });
+    this.name = 'ReleaseArtifactUploadError';
+    this.failedArtifact = failedArtifact;
+    this.uploadedArtifacts = [...uploadedArtifacts];
   }
-  console.error(`Cleaned up newly created draft release and tag ${tag} after upload failure.`);
+}
+
+function recoveryReceiptOutputPath() {
+  const configured = process.env.OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH?.trim();
+  if (configured) {
+    return path.resolve(configured);
+  }
+  const outputRoot = process.env.RUNNER_TEMP?.trim()
+    || path.join(os.tmpdir(), `opl-release-publish-${process.pid}`);
+  return path.resolve(outputRoot, 'release-publish-recovery-receipt.json');
+}
+
+function writeJsonAtomically(outputPath, payload) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const temporaryPath = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(temporaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+    fs.renameSync(temporaryPath, outputPath);
+  } finally {
+    if (fs.existsSync(temporaryPath)) {
+      fs.unlinkSync(temporaryPath);
+    }
+  }
+}
+
+function readDraftRecoveryState(repo, tag) {
+  try {
+    const state = readMutationReleaseState(repo, tag);
+    if (!state) {
+      return { state: null, readback: 'release_not_found', error: null };
+    }
+    return {
+      state,
+      readback: state.tagName === tag && state.isDraft === true
+        ? 'incomplete_draft_confirmed'
+        : 'release_state_changed',
+      error: null,
+    };
+  } catch (error) {
+    return {
+      state: null,
+      readback: 'readback_unavailable',
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function writePublishRecoveryReceipt({
+  options,
+  tag,
+  stage,
+  error,
+  createdRelease,
+  existingRelease,
+  uploadArtifactPaths,
+}) {
+  const remote = readDraftRecoveryState(options.releaseRepo, tag);
+  const failedAsset = error instanceof ReleaseArtifactUploadError ? error.failedArtifact : null;
+  const uploadedAssets = error instanceof ReleaseArtifactUploadError ? error.uploadedArtifacts : [];
+  const plannedAssets = uploadArtifactPaths.map((artifactPath) => ({
+    name: path.basename(artifactPath),
+    size_bytes: fs.statSync(artifactPath).size,
+    sha256: fileSha256(artifactPath),
+  }));
+  const uploadedSet = new Set(uploadedAssets);
+  const receipt = {
+    schema: 'opl_app_release_publish_recovery_receipt.v1',
+    status: remote.readback === 'incomplete_draft_confirmed'
+      ? 'incomplete_draft'
+      : 'remote_outcome_requires_reconcile',
+    created_at: new Date().toISOString(),
+    repository: options.releaseRepo,
+    version: options.version,
+    tag,
+    failure: {
+      stage,
+      message: error instanceof Error ? error.message : String(error),
+      failed_asset: failedAsset,
+    },
+    draft: {
+      origin: createdRelease
+        ? 'created_by_current_publish_invocation'
+        : existingRelease
+          ? 'preexisting_mutable_draft'
+          : 'creation_outcome_unknown',
+      readback: remote.readback,
+      readback_error: remote.error,
+      tag_name: remote.state?.tagName ?? tag,
+      is_draft: remote.state?.isDraft ?? null,
+      is_prerelease: remote.state?.isPrerelease ?? null,
+      published_at: remote.state?.publishedAt ?? null,
+      automatic_release_delete_attempted: false,
+      automatic_tag_cleanup_attempted: false,
+    },
+    upload: {
+      planned_assets: plannedAssets,
+      uploaded_assets: uploadedAssets,
+      remaining_assets: plannedAssets
+        .map((asset) => asset.name)
+        .filter((name) => !uploadedSet.has(name)),
+    },
+    recovery: {
+      strategy: 'read_back_then_resume_same_draft_same_cohort',
+      matching_asset_policy: 'skip_when_name_size_and_sha256_match',
+      destructive_cleanup_authority: 'independent_isolated_release_mutation_broker_only',
+      brokered_cleanup_mutation_available: false,
+      cleanup_authorization: {
+        required_mutation: 'release_draft_cleanup',
+        release_attempt_id_required: true,
+        broker_acceptance_receipt_required: true,
+        availability: 'unavailable_until_broker_cleanup_mutation_is_provisioned',
+      },
+      next_action: remote.readback === 'incomplete_draft_confirmed'
+        ? 'resume_exact_cohort_upload_against_retained_draft'
+        : 'reconcile_remote_release_state_before_any_mutation',
+    },
+  };
+  const outputPath = recoveryReceiptOutputPath();
+  console.error(`Release publish recovery receipt payload: ${JSON.stringify(receipt)}`);
+  writeJsonAtomically(outputPath, receipt);
+  console.error(`Release publish recovery receipt: ${outputPath}`);
+  return outputPath;
 }
 
 function buildUploadArgs(repo, tag, artifactPath, clobber) {
@@ -659,7 +778,12 @@ function uploadReleaseArtifacts(repo, tag, artifactPaths, options = {}) {
       const uploadedDetail = uploaded.length > 0
         ? ` Uploaded before failure: ${uploaded.join(', ')}.`
         : '';
-      throw new Error(`Failed to upload release asset ${name} to ${tag}.${uploadedDetail}\n${detail}`);
+      throw new ReleaseArtifactUploadError(
+        `Failed to upload release asset ${name} to ${tag}.${uploadedDetail}\n${detail}`,
+        name,
+        uploaded,
+        error,
+      );
     }
   }
 }
@@ -758,36 +882,53 @@ function main() {
   }
 
   let createdRelease = false;
-  if (!existingRelease) {
-    run('gh', [
-      'release',
-      'create',
-      tag,
-      '--repo',
-      options.releaseRepo,
-      '--title',
-      buildReleaseTitle(options.version),
-      '--notes',
-      releaseNotes,
-      ...(options.draft ? ['--draft'] : []),
-    ]);
-    createdRelease = true;
-  } else if (options.includeFullPackage && options.fullPackageOnly) {
-    replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
-  } else if (options.includeFullPackage) {
-    replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
-  }
-  if (uploadPlan.uploadArtifacts.length > 0) {
-    try {
+  let mutationStage = existingRelease ? 'refresh_draft_notes' : 'create_draft';
+  try {
+    if (!existingRelease) {
+      run('gh', [
+        'release',
+        'create',
+        tag,
+        '--repo',
+        options.releaseRepo,
+        '--title',
+        buildReleaseTitle(options.version),
+        '--notes',
+        releaseNotes,
+        ...(options.draft ? ['--draft'] : []),
+      ]);
+      createdRelease = true;
+    } else if (options.includeFullPackage && options.fullPackageOnly) {
+      replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
+    } else if (options.includeFullPackage) {
+      replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
+    }
+    if (uploadPlan.uploadArtifacts.length > 0) {
+      mutationStage = 'upload_assets';
       uploadReleaseArtifacts(options.releaseRepo, tag, uploadPlan.uploadArtifacts, {
         clobber: clobberDraftAssets,
       });
-    } catch (error) {
-      if (createdRelease) {
-        cleanupNewlyCreatedReleaseAfterUploadFailure(options.releaseRepo, tag);
-      }
-      throw error;
     }
+  } catch (error) {
+    let receiptPath = null;
+    try {
+      receiptPath = writePublishRecoveryReceipt({
+        options,
+        tag,
+        stage: mutationStage,
+        error,
+        createdRelease,
+        existingRelease,
+        uploadArtifactPaths: uploadPlan.uploadArtifacts,
+      });
+    } catch (receiptError) {
+      console.error(`Failed to persist release publish recovery receipt: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${detail}\nThe release was not deleted. Reconcile and resume the retained draft; destructive cleanup requires a separate brokered mutation.${receiptPath ? ` Recovery receipt: ${receiptPath}` : ''}`,
+      { cause: error },
+    );
   }
 }
 

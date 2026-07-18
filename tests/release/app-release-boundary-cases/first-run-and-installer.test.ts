@@ -59,10 +59,27 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
     .filter((expectation) => expectation.includes("Packaged GUI launch-gate smoke keeps MAS"));
   assert.equal(launchGateExpectations.length, 2);
   for (const expectation of launchGateExpectations) {
-    assert.match(expectation, /visible but disabled/);
-    assert.match(expectation, /readiness and repair guidance/);
-    assert.match(expectation, /does not claim agent_package_shortcut invocation receipts/);
+    assert.match(expectation, /visible and selectable before selection/);
+    assert.match(expectation, /blocks only that send with typed repair guidance/);
+    assert.doesNotMatch(expectation, /visible but disabled/);
+    assert.match(expectation, /does not claim an agent_package_shortcut invocation receipt/);
   }
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === 'standard_dmg_clean_vm_smoke').compiled_expectation_ref,
+    'contracts/app-first-run-compiled-expectations.json#profiles.standard',
+  );
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === 'homebrew_standard_cask_clean_vm_smoke').compiled_expectation_ref,
+    'contracts/app-first-run-compiled-expectations.json#profiles.standard',
+  );
+  assert.equal(
+    fullDmg.compiled_expectation_ref,
+    'contracts/app-first-run-compiled-expectations.json#profiles.full',
+  );
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === 'full_first_install_clean_machine').compiled_expectation_ref,
+    'contracts/app-first-run-compiled-expectations.json#profiles.full',
+  );
 
   const invalid = structuredClone(matrix);
   invalid.scenarios[0].aliases = ["legacy"];
@@ -100,7 +117,7 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   const release = readJson("contracts/app-release-channel.json");
   const fullPolicy = release.release_acceleration.assistant_route_smoke_policy.full;
 
-  assert.ok(assistantSmoke.required.includes("homeAssistantBlockedReadinessExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantStandardLaunchGateExpression"));
   assert.ok(assistantSmoke.required.includes("homeAssistantWorkspacePreparationExpression"));
   assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendExpression"));
   assert.ok(assistantSmoke.required.includes("activeConversationRouteReceiptExpression"));
@@ -180,7 +197,7 @@ test("reusable release-boundary job checks out its OPL Flow authority source", (
   const job = workflow.slice(jobStart, jobEnd);
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing reusable release-boundary job");
-  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 2c7fad262938fb4295d2bb866f6b955c0aa2361a/);
+  assert.match(workflow, /opl_flow_ref:[\s\S]*Immutable opl-flow ref[\s\S]*default: ''/);
   assert.match(
     job,
     /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/,

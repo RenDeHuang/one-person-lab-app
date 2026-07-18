@@ -6,14 +6,19 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { writeLinesFile } from './release-file-helpers.ts';
 import {
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
 } from './release-readiness-args.ts';
 import {
+  appRefFromEnvironment,
   buildReleaseCohortLock,
+  releaseCohortCanonicalRemotes,
+  releaseCohortLockIdentity,
+  resolveCanonicalGitRef,
+  writeCreateOnceArtifactSet,
+  type ArtifactWriteFailureInjection,
   type CommandRunner,
   type ReleaseCohortLock,
 } from './release-cohort-lock.ts';
@@ -46,9 +51,21 @@ type CheapGate = {
 };
 
 type NextAction = {
-  action: 'run_release_preflight' | 'run_release_train_without_vm_smoke' | 'run_release_train_with_vm_smoke';
+  action: 'plan_stable_release_start';
   command: string;
   reason: string;
+};
+
+export type ReleaseDispatchHandlePlan = {
+  schema: 'opl_app_release_dispatch_handle_plan.v1';
+  repository: 'gaofeng21cn/one-person-lab-app';
+  workflow_ref: 'refs/heads/main';
+  expected_workflow_sha: string;
+  cohort_identity: string;
+  state: 'planned_verified_no_ref_mutation';
+  remote_ref_mutation_allowed: false;
+  verification_required_before_broker_admission: true;
+  mismatch_policy: 'refresh_controller_handle_preserve_frozen_artifact_cohort';
 };
 
 export type ReleaseCohortPlan = {
@@ -65,6 +82,7 @@ export type ReleaseCohortPlan = {
   shell_ref: string;
   framework_ref: string;
   cohort_lock: ReleaseCohortLock;
+  dispatch_handle?: ReleaseDispatchHandlePlan;
   include_full_package: boolean;
   run_vm_smoke: boolean;
   publish_docker_webui: boolean;
@@ -101,21 +119,16 @@ Options:
 `);
 }
 
-function gitHead(): string {
-  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: appRoot,
-    encoding: 'utf8',
-  });
-  return result.status === 0 ? result.stdout.trim() : '';
-}
-
 function defaultOptions(): ReleaseCohortPlanOptions {
   return {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
     releaseIntent: (process.env.OPL_RELEASE_INTENT || 'stable_complete') as ReleaseCohortPlanOptions['releaseIntent'],
     fullOmissionReason: process.env.OPL_FULL_OMISSION_REASON || '',
     gateReusePlanRef: process.env.OPL_RELEASE_GATE_REUSE_PLAN_REF || '',
-    appCommit: process.env.OPL_APP_REF || process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || gitHead(),
+    appCommit: appRefFromEnvironment() || (() => {
+      const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: appRoot, encoding: 'utf8' });
+      return result.status === 0 ? result.stdout.trim() : '';
+    })(),
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     shellRoot: process.env.OPL_SHELL_ROOT || path.join(appRoot, 'shells', 'aionui'),
@@ -167,8 +180,12 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   if (typeof values['publish-docker-webui'] === 'string') {
     parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
   }
-  if (typeof values['app-commit'] === 'string') parsed.appCommit = values['app-commit'];
-  if (typeof values['app-ref'] === 'string') parsed.appCommit = values['app-ref'];
+  const appCommit = values['app-commit']?.trim();
+  const appRef = values['app-ref']?.trim();
+  if (appRef && appCommit && appRef !== appCommit) {
+    throw new Error(`--app-ref and --app-commit disagree: ${appRef} != ${appCommit}.`);
+  }
+  if (appRef || appCommit) parsed.appCommit = appRef || appCommit || '';
   if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
   if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
   if (typeof values['shell-root'] === 'string') parsed.shellRoot = values['shell-root'];
@@ -180,8 +197,15 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   if (!['stable_complete', 'standard_hotfix'].includes(parsed.releaseIntent)) {
     throw new Error('--release-intent must be stable_complete or standard_hotfix.');
   }
-  if (parsed.releaseIntent === 'stable_complete' && !parsed.includeFullPackage) {
-    throw new Error('stable_complete requires --include-full-package true.');
+  if (parsed.releaseIntent === 'stable_complete') {
+    if (!parsed.runVmSmoke) {
+      throw new Error(
+        'stable_complete requires --run-vm-smoke true for Standard qualification; --include-full-package only declares a non-blocking same-cohort add-on intent.',
+      );
+    }
+    if (parsed.fullOmissionReason.trim()) {
+      throw new Error('stable_complete does not accept --full-omission-reason; Full add-on intent is declared only by --include-full-package.');
+    }
   }
   if (parsed.releaseIntent === 'standard_hotfix') {
     if (parsed.includeFullPackage) throw new Error('standard_hotfix requires --include-full-package false.');
@@ -193,12 +217,17 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   if (!parsed.shellRef.trim()) throw new Error('Pass --shell-ref <ref> or set OPL_SHELL_REF.');
   if (!parsed.frameworkRef.trim()) throw new Error('Pass --framework-ref <ref> or set OPL_FRAMEWORK_REF.');
 
+  const output = parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-cohort-plan.json');
+  const markdown = parsed.markdown ? path.resolve(parsed.markdown) : '';
+  if (output && markdown && output === markdown) {
+    throw new Error('--output and --markdown must be different paths.');
+  }
   return {
     ...parsed,
     shellRoot: path.resolve(parsed.shellRoot),
     frameworkRoot: path.resolve(parsed.frameworkRoot),
-    output: parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-cohort-plan.json'),
-    markdown: parsed.markdown ? path.resolve(parsed.markdown) : '',
+    output,
+    markdown,
   };
 }
 
@@ -258,31 +287,27 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function workflowDispatchRef(lock: ReleaseCohortLock): string {
-  const ref = lock.app.requested_ref.trim();
-  if (/^[0-9a-f]{7,40}$/i.test(ref)) {
-    throw new Error(
-      'App release dispatch requires a branch or tag ref; pass --app-ref <branch-or-tag> that resolves to the locked App SHA.',
-    );
-  }
-  return ref;
-}
-
-function releaseCommand(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): string {
+function stableStartPlanCommand(
+  options: ReleaseCohortPlanOptions,
+  lock: ReleaseCohortLock,
+  dispatchHandle: ReleaseDispatchHandlePlan,
+): string {
   return [
-    'gh workflow run "OPL Desktop Release"',
-    `--ref ${workflowDispatchRef(lock)}`,
-    `--field opl_version=${options.version}`,
-    `--field release_mode=${options.releaseMode}`,
-    `--field release_intent=${options.releaseIntent}`,
-    `--field full_omission_reason=${shellQuote(options.fullOmissionReason.trim())}`,
-    `--field release_operator_plan_ref=${operatorPlanRef(options, lock)}`,
-    `--field gate_reuse_plan_ref=${shellQuote(options.gateReusePlanRef.trim())}`,
-    `--field include_full_package=${boolText(options.includeFullPackage)}`,
-    `--field run_vm_smoke=${boolText(options.runVmSmoke)}`,
-    `--field publish_docker_webui=${boolText(options.publishDockerWebui)}`,
-    `--field shell_ref=${lock.shell.resolved_sha}`,
-    `--field framework_ref=${lock.framework.resolved_sha}`,
+    'npm run release:stable -- start',
+    `--version ${shellQuote(options.version)}`,
+    `--release-mode ${shellQuote(options.releaseMode)}`,
+    `--release-intent ${options.releaseIntent}`,
+    `--full-omission-reason ${shellQuote(options.fullOmissionReason.trim())}`,
+    `--gate-reuse-plan-ref ${shellQuote(options.gateReusePlanRef.trim())}`,
+    `--include-full-package ${boolText(options.includeFullPackage)}`,
+    `--run-vm-smoke ${boolText(options.runVmSmoke)}`,
+    `--publish-docker-webui ${boolText(options.publishDockerWebui)}`,
+    `--app-ref ${lock.app.resolved_sha}`,
+    `--shell-ref ${lock.shell.resolved_sha}`,
+    `--framework-ref ${lock.framework.resolved_sha}`,
+    `--shell-root ${shellQuote(options.shellRoot)}`,
+    `--framework-root ${shellQuote(options.frameworkRoot)}`,
+    `--state ${shellQuote(`release-session-v${options.version}.json`)}`,
   ].join(' ');
 }
 
@@ -301,19 +326,6 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
     `--framework-ref ${lock.framework.resolved_sha}`,
   ].join(' ');
   const gates: CheapGate[] = [
-    {
-      id: 'release_cohort_lock',
-      required: true,
-      command: [
-        'npm run release:cohort-lock --',
-        `--app-ref ${lock.app.resolved_sha}`,
-        `--shell-ref ${lock.shell.resolved_sha}`,
-        `--framework-ref ${lock.framework.resolved_sha}`,
-        `--shell-root ${shellQuote(options.shellRoot)}`,
-        `--framework-root ${shellQuote(options.frameworkRoot)}`,
-      ].join(' '),
-      purpose: 'Record the immutable App, shell, and framework SHAs before release dispatch.',
-    },
     {
       id: 'release_source_gate',
       required: true,
@@ -340,10 +352,9 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
       command: [
         'npm run release:plan --',
         `--version ${options.version}`,
-        options.includeFullPackage ? '--include-full-package' : '',
         options.runVmSmoke ? '' : '--no-settings-vm',
       ].filter(Boolean).join(' '),
-      purpose: 'Materialize the deterministic release lane graph for this pinned cohort.',
+      purpose: 'Materialize the deterministic Standard release lane graph for this pinned cohort; add-on planning starts only after Standard terminal.',
     },
   ];
   if (options.runVmSmoke) {
@@ -354,34 +365,20 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
       purpose: 'Keep shell, framework, and Codex package availability failures in the cheap preflight layer.',
     });
   }
-  if (options.includeFullPackage) {
-    gates.push({
-      id: 'full_package_prune_audit',
-      required: true,
-      command: 'npm run release:full:prune-audit -- --markdown',
-      purpose: 'Read back Full runtime prune policy before building the Full first-install cohort.',
-    });
-  }
   return gates;
 }
 
-function buildNextAction(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): NextAction {
-  const cheapGates = buildCheapGates(options, lock);
-  const preflightCommand = cheapGates.find((gate) => gate.id === 'release_preflight')?.command;
-  if (!preflightCommand) throw new Error('release_preflight gate is missing from cohort plan.');
-  if (options.runVmSmoke) {
-    return {
-      action: 'run_release_train_with_vm_smoke',
-      command: releaseCommand(options, lock),
-      reason: 'VM smoke was requested, so the release train must preserve same-cohort VM proof gates.',
-    };
-  }
+function buildNextAction(
+  options: ReleaseCohortPlanOptions,
+  lock: ReleaseCohortLock,
+  dispatchHandle: ReleaseDispatchHandlePlan,
+): NextAction {
   return {
-    action: options.includeFullPackage ? 'run_release_train_without_vm_smoke' : 'run_release_preflight',
-    command: options.includeFullPackage ? releaseCommand(options, lock) : preflightCommand,
+    action: 'plan_stable_release_start',
+    command: stableStartPlanCommand(options, lock, dispatchHandle),
     reason: options.includeFullPackage
-      ? 'Full package was requested without VM smoke; run the release train after cheap gates pass.'
-      : 'Standard-only cohort can start with the cheap release preflight before expensive release work.',
+      ? 'Plan the independent Standard terminal through the canonical dry-run controller; Full is a same-cohort non-blocking add-on intent after Standard reaches terminal.'
+      : 'Plan the independent Standard terminal through the canonical dry-run controller; no Full add-on is requested for this cohort.',
   };
 }
 
@@ -400,6 +397,21 @@ export function buildReleaseCohortPlan(
     output: '',
     markdown: '',
   }, runner, generatedAt);
+  const dispatchResolution = ['main', 'refs/heads/main'].includes(lock.app.requested_ref)
+    && lock.app.resolution_source === 'canonical_remote'
+    ? lock.app
+    : resolveCanonicalGitRef(appRoot, 'main', releaseCohortCanonicalRemotes.app, runner);
+  const dispatchHandle: ReleaseDispatchHandlePlan = {
+    schema: 'opl_app_release_dispatch_handle_plan.v1',
+    repository: 'gaofeng21cn/one-person-lab-app',
+    workflow_ref: 'refs/heads/main',
+    expected_workflow_sha: dispatchResolution.resolved_sha,
+    cohort_identity: releaseCohortLockIdentity(lock),
+    state: 'planned_verified_no_ref_mutation',
+    remote_ref_mutation_allowed: false,
+    verification_required_before_broker_admission: true,
+    mismatch_policy: 'refresh_controller_handle_preserve_frozen_artifact_cohort',
+  };
   return {
     schema: 'opl_app_release_cohort_plan.v1',
     generated_at: generatedAt,
@@ -414,11 +426,12 @@ export function buildReleaseCohortPlan(
     shell_ref: options.shellRef,
     framework_ref: options.frameworkRef,
     cohort_lock: lock,
+    dispatch_handle: dispatchHandle,
     include_full_package: options.includeFullPackage,
     run_vm_smoke: options.runVmSmoke,
     publish_docker_webui: options.publishDockerWebui,
     cheap_gates: buildCheapGates(options, lock),
-    next_action: buildNextAction(options, lock),
+    next_action: buildNextAction(options, lock, dispatchHandle),
     authority_boundary: {
       cohort_plan_can_publish_release: false,
       cohort_plan_can_write_runtime_truth: false,
@@ -427,8 +440,7 @@ export function buildReleaseCohortPlan(
   };
 }
 
-export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCohortPlan): void {
-  if (!filePath) return;
+export function renderReleaseCohortPlanMarkdown(plan: ReleaseCohortPlan): string {
   const lines = [
     '# Release Cohort Plan',
     '',
@@ -445,6 +457,10 @@ export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCo
     `- Shell SHA: ${plan.cohort_lock.shell.resolved_sha}`,
     `- Framework ref: ${plan.framework_ref}`,
     `- Framework SHA: ${plan.cohort_lock.framework.resolved_sha}`,
+    `- Cohort identity: ${releaseCohortLockIdentity(plan.cohort_lock)}`,
+    `- Dispatch workflow ref: ${plan.dispatch_handle?.workflow_ref ?? 'not planned'}`,
+    `- Dispatch expected SHA: ${plan.dispatch_handle?.expected_workflow_sha ?? 'not planned'}`,
+    `- Dispatch handle state: ${plan.dispatch_handle?.state ?? 'not planned'}`,
     `- Include Full package: ${boolText(plan.include_full_package)}`,
     `- Run VM smoke: ${boolText(plan.run_vm_smoke)}`,
     `- Publish Docker WebUI: ${boolText(plan.publish_docker_webui)}`,
@@ -457,13 +473,49 @@ export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCo
     )),
     '',
   ];
-  writeLinesFile(filePath, lines);
+  return `${lines.join('\n')}\n`;
 }
 
-export function writeReleaseCohortPlan(options: ReleaseCohortPlanOptions, plan: ReleaseCohortPlan): void {
-  fs.mkdirSync(path.dirname(options.output), { recursive: true });
-  fs.writeFileSync(options.output, `${JSON.stringify(plan, null, 2)}\n`, 'utf8');
-  writeReleaseCohortPlanMarkdown(options.markdown, plan);
+export function releaseCohortPlanIdentity(plan: ReleaseCohortPlan): string {
+  const canonical = JSON.stringify({
+    schema: plan.schema,
+    version: plan.version,
+    release_mode: plan.release_mode,
+    release_intent: plan.release_intent,
+    operator_plan_ref: plan.operator_plan_ref,
+    gate_reuse_plan_ref: plan.gate_reuse_plan_ref,
+    cohort_identity: releaseCohortLockIdentity(plan.cohort_lock),
+    dispatch_workflow_ref: plan.dispatch_handle?.workflow_ref ?? null,
+    dispatch_expected_sha: plan.dispatch_handle?.expected_workflow_sha ?? null,
+  });
+  return `sha256:${crypto.createHash('sha256').update(canonical).digest('hex')}`;
+}
+
+export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCohortPlan): void {
+  if (!filePath) return;
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(temporaryPath, renderReleaseCohortPlanMarkdown(plan), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+  try {
+    fs.renameSync(temporaryPath, filePath);
+  } finally {
+    fs.rmSync(temporaryPath, { force: true });
+  }
+}
+
+export function writeReleaseCohortPlan(
+  options: ReleaseCohortPlanOptions,
+  plan: ReleaseCohortPlan,
+  failureInjection: ArtifactWriteFailureInjection = {},
+): ReleaseCohortPlan {
+  return writeCreateOnceArtifactSet({
+    output: options.output,
+    markdown: options.markdown,
+    value: plan,
+    identity: releaseCohortPlanIdentity,
+    label: 'Release cohort plan',
+    renderMarkdown: renderReleaseCohortPlanMarkdown,
+  }, failureInjection);
 }
 
 function isMainModule(): boolean {
@@ -473,8 +525,7 @@ function isMainModule(): boolean {
 if (isMainModule()) {
   try {
     const options = parseReleaseCohortPlanArgs(process.argv.slice(2));
-    const plan = buildReleaseCohortPlan(options);
-    writeReleaseCohortPlan(options, plan);
+    const plan = writeReleaseCohortPlan(options, buildReleaseCohortPlan(options));
     process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

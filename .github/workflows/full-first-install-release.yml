@@ -8,20 +8,13 @@ on:
         required: true
         type: string
       framework_ref:
-        description: OPL Framework ref to bundle. Empty means main.
-        required: false
-        default: main
+        description: Exact frozen OPL Framework SHA to bundle
+        required: true
         type: string
       shell_ref:
-        description: opl-aion-shell ref to bundle. Empty means main.
-        required: false
-        default: main
+        description: Exact frozen opl-aion-shell SHA to bundle
+        required: true
         type: string
-      publish_to_release:
-        description: Upload Full first-install assets to an existing unpublished App draft
-        required: false
-        default: false
-        type: boolean
       upload_full_package_artifact:
         description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
         required: false
@@ -47,11 +40,22 @@ on:
         required: false
         default: ''
         type: string
+      operator_actor:
+        description: Human/operator audit identity; broker GitHub App holds mutation authority
+        required: false
+        default: ''
+        type: string
       release_cohort_ref:
         description: Stable release cohort sha256 identity; empty for diagnostic builds.
         required: false
         default: ''
         type: string
+      release_attempt_id: { description: Release broker attempt id, required: false, default: '', type: string }
+      release_session_lease_base64: { description: Signed release broker ticket, required: false, default: '', type: string }
+      release_mutation: { description: Outer controller mutation, required: false, default: '', type: string }
+      release_workflow: { description: Outer controller workflow, required: false, default: '', type: string }
+      controller_workflow_sha: { description: Exact controller workflow SHA, required: false, default: '', type: string }
+      artifact_app_sha: { description: Frozen artifact App SHA, required: false, default: '', type: string }
   workflow_call:
     inputs:
       opl_version:
@@ -59,20 +63,13 @@ on:
         required: true
         type: string
       framework_ref:
-        description: OPL Framework ref to bundle. Empty means main.
-        required: false
-        default: main
+        description: Exact frozen OPL Framework SHA to bundle
+        required: true
         type: string
       shell_ref:
-        description: opl-aion-shell ref to bundle. Empty means main.
-        required: false
-        default: main
+        description: Exact frozen opl-aion-shell SHA to bundle
+        required: true
         type: string
-      publish_to_release:
-        description: Upload Full first-install assets to an existing unpublished App draft
-        required: false
-        default: false
-        type: boolean
       upload_full_package_artifact:
         description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
         required: false
@@ -98,11 +95,27 @@ on:
         required: false
         default: ''
         type: string
+      standard_admission_deadline_at:
+        description: Immutable Standard admission deadline propagated by the brokered caller.
+        required: false
+        default: ''
+        type: string
+      operator_actor:
+        description: Human/operator audit identity; broker GitHub App holds mutation authority
+        required: false
+        default: ''
+        type: string
       release_cohort_ref:
         description: Stable release cohort sha256 identity.
         required: false
         default: ''
         type: string
+      release_attempt_id: { description: Release broker attempt id, required: false, default: '', type: string }
+      release_session_lease_base64: { description: Signed release broker ticket, required: false, default: '', type: string }
+      release_mutation: { description: Outer controller mutation, required: false, default: '', type: string }
+      release_workflow: { description: Outer controller workflow, required: false, default: '', type: string }
+      controller_workflow_sha: { description: Exact controller workflow SHA, required: false, default: '', type: string }
+      artifact_app_sha: { description: Frozen artifact App SHA, required: false, default: '', type: string }
     secrets:
       BUILD_CERTIFICATE_BASE64:
         required: false
@@ -126,8 +139,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Release-mutating Full runs share the Stable version lock. Artifact-only embedded builds do not hold a mutation lock.
-  group: ${{ inputs.publish_to_release && format('opl-app-release-mutation-{0}', inputs.opl_version) || format('opl-full-first-install-build-{0}-{1}', inputs.opl_version, github.run_id) }}
+  group: opl-full-first-install-build-${{ inputs.opl_version }}-${{ github.run_id }}
   cancel-in-progress: false
 
 env:
@@ -172,22 +184,62 @@ jobs:
           echo "Optional Full first-install release signing material is present."
 
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: one-person-lab-app-controller
+          ref: ${{ inputs.controller_workflow_sha || github.sha }}
+
+      - name: Checkout frozen artifact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           path: one-person-lab-app
+          ref: ${{ inputs.artifact_app_sha || github.sha }}
+
+      - name: Setup Node.js for broker verification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Validate frozen Full source SHAs
+        run: |
+          [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
+          [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
+          if [ -n '${{ inputs.stable_session_id }}' ]; then
+            [[ '${{ inputs.controller_workflow_sha }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::controller_workflow_sha must be exact for release-bound Full builds."; exit 1; }
+            [[ '${{ inputs.artifact_app_sha }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::artifact_app_sha must be exact for release-bound Full builds."; exit 1; }
+          fi
+
+      - name: Verify signed release-bound Full build ticket
+        if: ${{ inputs.stable_session_id != '' }}
+        working-directory: one-person-lab-app-controller
+        run: |
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }
+          node --experimental-strip-types scripts/verify-release-session-lease.ts \
+            --lease '${{ inputs.release_session_lease_base64 }}' \
+            --stable-session-id '${{ inputs.stable_session_id }}' \
+            --release-cohort-ref '${{ inputs.release_cohort_ref }}' \
+            --repository '${{ github.repository }}' \
+            --operator-actor '${{ inputs.operator_actor }}' \
+            --broker-actor '${{ github.actor }}' \
+            --mutation '${{ inputs.release_mutation }}' \
+            --attempt-id '${{ inputs.release_attempt_id }}' \
+            --workflow '${{ inputs.release_workflow }}' \
+            --artifact-kind full \
+            --controller-workflow-sha '${{ inputs.controller_workflow_sha || github.sha }}' \
+            --artifact-app-sha '${{ inputs.artifact_app_sha || github.sha }}'
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
+          ref: ${{ inputs.shell_ref }}
           path: one-person-lab-app/shells/aionui
 
       - name: Checkout OPL Framework payload source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: ${{ inputs.framework_ref || 'main' }}
+          ref: ${{ inputs.framework_ref }}
           path: one-person-lab
 
       - name: Resolve managed Full package refs
@@ -196,81 +248,115 @@ jobs:
         run: |
           set -euo pipefail
           catalog="$GITHUB_WORKSPACE/one-person-lab/contracts/opl-framework/bundled-full-runtime-package-catalog.json"
-          mas_scholar_skills_ref="$(jq -er '.packages["mas-scholar-skills"].owner_source_commit' "$catalog")"
-          if [[ ! "$mas_scholar_skills_ref" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Framework MAS Scholar Skills owner_source_commit is missing or invalid."
-            exit 1
-          fi
-          echo "mas_scholar_skills_ref=$mas_scholar_skills_ref" >> "$GITHUB_OUTPUT"
+          third_party="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-full-third-party-source-manifest.json"
+          qualification_inputs="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-release-qualification-input-manifest.json"
+          while IFS='=' read -r output package_id; do
+            ref="$(jq -er --arg id "$package_id" '.packages[$id].owner_source_commit' "$catalog")"
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Framework $package_id owner_source_commit is missing or invalid."; exit 1; }
+            echo "${output}_ref=$ref" >> "$GITHUB_OUTPUT"
+          done <<'REFS'
+          mas=mas
+          mag=mag
+          rca=rca
+          oma=oma
+          obf=obf
+          mas_scholar_skills=mas-scholar-skills
+          opl_flow=opl-flow
+          REFS
+          for output in officecli mineru ui_ux_pro_max; do
+            ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$third_party")"
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Third-party $output ref is missing or invalid."; exit 1; }
+            echo "${output}_ref=$ref" >> "$GITHUB_OUTPUT"
+          done
+          for selector in \
+            bun_version:.toolchain.bun.version go_version:.toolchain.go.version \
+            python_version:.toolchain.python.version uv_version:.toolchain.uv.version zstd_version:.toolchain.zstd.version \
+            temporal_version:.runtime_payloads.temporal_cli.version temporal_sha256:.runtime_payloads.temporal_cli.darwin_arm64_archive_sha256 \
+            officecli_version:.runtime_payloads.officecli.version officecli_sha256:.runtime_payloads.officecli.darwin_arm64_asset_sha256; do
+            output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$third_party")"
+            echo "${output}=$value" >> "$GITHUB_OUTPUT"
+          done
+          for selector in \
+            codex_version:.runtime_payloads.codex_cli.version \
+            codex_integrity:.runtime_payloads.codex_cli.npm_integrity \
+            codex_tarball_url:.runtime_payloads.codex_cli.tarball_url \
+            codex_tarball_sha256:.runtime_payloads.codex_cli.tarball_sha256 \
+            codex_platform_version:.runtime_payloads.codex_cli.platform.version \
+            codex_platform_integrity:.runtime_payloads.codex_cli.platform.npm_integrity \
+            codex_platform_tarball_url:.runtime_payloads.codex_cli.platform.tarball_url \
+            codex_platform_tarball_sha256:.runtime_payloads.codex_cli.platform.tarball_sha256; do
+            output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$qualification_inputs")"
+            echo "${output}=$value" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Checkout MAS
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/med-autoscience
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.mas_ref }}
           path: med-autoscience
 
       - name: Checkout MAS Scholar Skills
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/mas-scholar-skills
           ref: ${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}
           path: mas-scholar-skills
 
       - name: Checkout MAG
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/med-autogrant
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.mag_ref }}
           path: med-autogrant
 
       - name: Checkout RCA
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/redcube-ai
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.rca_ref }}
           path: redcube-ai
 
       - name: Checkout OPL Meta Agent
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-meta-agent
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.oma_ref }}
           path: opl-meta-agent
 
       - name: Checkout OPL BookForge
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-bookforge
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.obf_ref }}
           path: opl-bookforge
 
       - name: Checkout OPL Flow
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-flow
-          ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
+          ref: ${{ steps.managed-package-refs.outputs.opl_flow_ref }}
           path: opl-flow
 
       - name: Checkout OfficeCLI
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: iOfficeAI/OfficeCLI
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.officecli_ref }}
           path: OfficeCLI
 
       - name: Checkout MinerU Ecosystem
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: opendatalab/MinerU-Ecosystem
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.mineru_ref }}
           path: MinerU-Ecosystem
 
       - name: Checkout UI UX Pro Max skill
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nextlevelbuilder/ui-ux-pro-max-skill
-          ref: main
+          ref: ${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}
           path: ui-ux-pro-max-skill
 
       - name: Validate Full source roots
@@ -298,19 +384,43 @@ jobs:
               exit 1
             fi
           done
+          while IFS='=' read -r repo expected; do
+            actual="$(git -C "$GITHUB_WORKSPACE/$repo" rev-parse HEAD)"
+            test "$actual" = "$expected" || { echo "::error::$repo HEAD $actual does not match frozen source $expected"; exit 1; }
+          done <<REFS
+          med-autoscience=${{ steps.managed-package-refs.outputs.mas_ref }}
+          mas-scholar-skills=${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}
+          med-autogrant=${{ steps.managed-package-refs.outputs.mag_ref }}
+          redcube-ai=${{ steps.managed-package-refs.outputs.rca_ref }}
+          opl-meta-agent=${{ steps.managed-package-refs.outputs.oma_ref }}
+          opl-bookforge=${{ steps.managed-package-refs.outputs.obf_ref }}
+          opl-flow=${{ steps.managed-package-refs.outputs.opl_flow_ref }}
+          OfficeCLI=${{ steps.managed-package-refs.outputs.officecli_ref }}
+          MinerU-Ecosystem=${{ steps.managed-package-refs.outputs.mineru_ref }}
+          ui-ux-pro-max-skill=${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}
+          REFS
 
       - name: Resolve release version
         shell: bash
         run: |
           set -euo pipefail
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref || 'main' }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAS_REF=${{ steps.managed-package-refs.outputs.mas_ref }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAG_REF=${{ steps.managed-package-refs.outputs.mag_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_RCA_REF=${{ steps.managed-package-refs.outputs.rca_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_META_AGENT_REF=${{ steps.managed-package-refs.outputs.oma_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_BOOKFORGE_REF=${{ steps.managed-package-refs.outputs.obf_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_OPL_FLOW_REF=${{ steps.managed-package-refs.outputs.opl_flow_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_OFFICECLI_REF=${{ steps.managed-package-refs.outputs.officecli_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MINERU_REF=${{ steps.managed-package-refs.outputs.mineru_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_UI_UX_PRO_MAX_REF=${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         id: node-cache
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
           cache: npm
@@ -322,20 +432,21 @@ jobs:
         working-directory: one-person-lab-app
         run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION"
 
-      - name: Resolve latest stable OfficeCLI release
+      - name: Verify frozen OfficeCLI source
         shell: bash
         run: |
           set -euo pipefail
-          node --experimental-strip-types "$GITHUB_WORKSPACE/one-person-lab-app/scripts/prepare-officecli-release-source.ts" "$GITHUB_WORKSPACE/OfficeCLI"
+          test "$(git -C "$GITHUB_WORKSPACE/OfficeCLI" rev-parse HEAD)" = "${{ steps.managed-package-refs.outputs.officecli_ref }}"
+          test "$OPL_FULL_OFFICECLI_REF" = "${{ steps.managed-package-refs.outputs.officecli_ref }}"
 
       - name: Setup bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: latest
+          bun-version: ${{ steps.managed-package-refs.outputs.bun_version }}
 
       - name: Cache Bun install cache
         id: bun-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ~/.bun/install/cache
           key: full-bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
@@ -345,7 +456,7 @@ jobs:
 
       - name: Cache Electron artifacts
         id: electron-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ${{ runner.temp }}/.cache/electron
@@ -359,13 +470,13 @@ jobs:
             electron-cache-macos-arm64-
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
-          python-version: '3.12'
+          python-version: ${{ steps.managed-package-refs.outputs.python_version }}
 
       - name: Cache uv artifacts
         id: uv-cache
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ~/.cache/uv
@@ -377,9 +488,9 @@ jobs:
 
       - name: Setup Go
         id: go-cache
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
-          go-version: '1.26.x'
+          go-version: ${{ steps.managed-package-refs.outputs.go_version }}
           cache: true
           cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
@@ -387,14 +498,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          brew install zstd temporal || true
-          python -m pip install --upgrade pip uv
-          uv python install 3.12
-          codex_latest="$(npm view @openai/codex version)"
-          npm install -g "@openai/codex@${codex_latest}" --fetch-retries=3 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=20000 --fetch-timeout=60000
+          brew install zstd
+          python -m pip install --upgrade pip "uv==${{ steps.managed-package-refs.outputs.uv_version }}"
+          uv python install '${{ steps.managed-package-refs.outputs.python_version }}'
+          codex_version_frozen='${{ steps.managed-package-refs.outputs.codex_version }}'
+          codex_tarball="$RUNNER_TEMP/openai-codex-${codex_version_frozen}.tgz"
+          codex_platform_tarball="$RUNNER_TEMP/openai-codex-${{ steps.managed-package-refs.outputs.codex_platform_version }}.tgz"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.managed-package-refs.outputs.codex_tarball_url }}' -o "$codex_tarball"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.managed-package-refs.outputs.codex_platform_tarball_url }}' -o "$codex_platform_tarball"
+          echo '${{ steps.managed-package-refs.outputs.codex_tarball_sha256 }}  '"$codex_tarball" | shasum -a 256 -c -
+          echo '${{ steps.managed-package-refs.outputs.codex_platform_tarball_sha256 }}  '"$codex_platform_tarball" | shasum -a 256 -c -
+          test "$(npm view "@openai/codex@${codex_version_frozen}" dist.integrity)" = '${{ steps.managed-package-refs.outputs.codex_integrity }}'
+          test "$(npm view "@openai/codex@${{ steps.managed-package-refs.outputs.codex_platform_version }}" dist.integrity)" = '${{ steps.managed-package-refs.outputs.codex_platform_integrity }}'
+          npm cache add "$codex_platform_tarball"
+          npm install -g "$codex_tarball" --fetch-retries=3 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=20000 --fetch-timeout=60000
           codex_version="$(codex --version)"
-          [[ "$codex_version" == "codex-cli $codex_latest" ]]
-          echo "OPL_FULL_CODEX_VERSION=$codex_latest" >> "$GITHUB_ENV"
+          [[ "$codex_version" == "codex-cli $codex_version_frozen" ]]
+          echo "OPL_FULL_CODEX_VERSION=$codex_version_frozen" >> "$GITHUB_ENV"
           mineru_root="$GITHUB_WORKSPACE/MinerU-Ecosystem/cli/mineru-open-api"
           mineru_version="$(cat "$mineru_root/VERSION")"
           mineru_commit="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" rev-parse --short HEAD)"
@@ -403,29 +523,91 @@ jobs:
             cd "$mineru_root"
             go install -ldflags "-X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.version=$mineru_version -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.commit=$mineru_commit -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.date=$mineru_built_at" .
           )
-          bash "$GITHUB_WORKSPACE/OfficeCLI/install.sh"
+          mkdir -p "$HOME/.local/bin"
+          officecli_bin="$HOME/.local/bin/officecli"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
+            "https://github.com/iOfficeAI/OfficeCLI/releases/download/v${{ steps.managed-package-refs.outputs.officecli_version }}/officecli-mac-arm64" \
+            -o "$officecli_bin"
+          echo '${{ steps.managed-package-refs.outputs.officecli_sha256 }}  '"$officecli_bin" | shasum -a 256 -c -
+          chmod +x "$officecli_bin"
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
           echo "$codex_version"
           officecli --version
           mineru-open-api version
-          temporal --version
-          temporal_version="$(temporal --version | awk '/^temporal version / { print $3; exit }')"
-          if [ -z "$temporal_version" ]; then
-            echo "::error::Unable to parse Temporal CLI version from: $(temporal --version)"
-            exit 1
-          fi
+          temporal_version='${{ steps.managed-package-refs.outputs.temporal_version }}'
           temporal_archive="$RUNNER_TEMP/temporal_cli_${temporal_version}_darwin_arm64.tar.gz"
           curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
             "https://github.com/temporalio/cli/releases/download/v${temporal_version}/temporal_cli_${temporal_version}_darwin_arm64.tar.gz" \
             -o "$temporal_archive"
+          echo '${{ steps.managed-package-refs.outputs.temporal_sha256 }}  '"$temporal_archive" | shasum -a 256 -c -
+          tar -xzf "$temporal_archive" -C "$HOME/.local/bin" temporal
+          temporal --version | grep -F "temporal version $temporal_version"
           uv --version
-          zstd --version
+          uv --version | grep -F 'uv ${{ steps.managed-package-refs.outputs.uv_version }}'
+          zstd --version | grep -F 'v${{ steps.managed-package-refs.outputs.zstd_version }}'
+          bun --version | grep -Fx '${{ steps.managed-package-refs.outputs.bun_version }}'
+          go version | grep -F 'go${{ steps.managed-package-refs.outputs.go_version }}'
+          python --version | grep -F 'Python ${{ steps.managed-package-refs.outputs.python_version }}'
           echo "OPL_FULL_BUN_BIN=$(command -v bun)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TEMPORAL_CLI_ARCHIVE=$temporal_archive" >> "$GITHUB_ENV"
           echo "OPL_FULL_TOOLCHAIN_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Write Full toolchain supply-chain observation receipt
+        shell: bash
+        env:
+          EXPECTED_BUN_VERSION: ${{ steps.managed-package-refs.outputs.bun_version }}
+          EXPECTED_GO_VERSION: ${{ steps.managed-package-refs.outputs.go_version }}
+          EXPECTED_PYTHON_VERSION: ${{ steps.managed-package-refs.outputs.python_version }}
+          EXPECTED_UV_VERSION: ${{ steps.managed-package-refs.outputs.uv_version }}
+          EXPECTED_ZSTD_VERSION: ${{ steps.managed-package-refs.outputs.zstd_version }}
+        run: |
+          set -euo pipefail
+          umask 077
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const path = require('node:path');
+          const commands = [
+            ['bun', ['--version'], process.env.EXPECTED_BUN_VERSION],
+            ['go', ['version'], process.env.EXPECTED_GO_VERSION],
+            ['python', ['--version'], process.env.EXPECTED_PYTHON_VERSION],
+            ['uv', ['--version'], process.env.EXPECTED_UV_VERSION],
+            ['zstd', ['--version'], process.env.EXPECTED_ZSTD_VERSION],
+          ];
+          const sha256File = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const components = Object.fromEntries(commands.map(([command, args, expectedVersion]) => {
+            const executable = execFileSync('which', [command], { encoding: 'utf8' }).trim();
+            const resolvedExecutable = fs.realpathSync(executable);
+            const versionOutput = execFileSync(command, args, { encoding: 'utf8' }).trim();
+            if (!expectedVersion || !versionOutput.includes(expectedVersion)) {
+              throw new Error(`${command} version ${versionOutput} does not contain frozen ${expectedVersion}`);
+            }
+            return [command, {
+              expected_version: expectedVersion,
+              version_output: versionOutput,
+              executable_path: executable,
+              resolved_executable_path: resolvedExecutable,
+              executable_sha256: sha256File(resolvedExecutable),
+            }];
+          }));
+          const appRoot = path.join(process.env.GITHUB_WORKSPACE, 'one-person-lab-app');
+          const sourceManifest = path.join(appRoot, 'contracts/app-full-third-party-source-manifest.json');
+          const qualificationManifest = path.join(appRoot, 'contracts/app-release-qualification-input-manifest.json');
+          const receipt = {
+            schema: 'opl_app_full_toolchain_observation_receipt.v1',
+            observed_at: new Date().toISOString(),
+            source_authority: {
+              full_input_manifest_sha256: sha256File(sourceManifest),
+              qualification_input_manifest_sha256: sha256File(qualificationManifest),
+            },
+            components,
+          };
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'opl-full-toolchain-observation-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
+          NODE
 
       - name: Install Framework dependencies
         working-directory: one-person-lab
@@ -504,7 +686,7 @@ jobs:
 
       - name: Restore Full shell Vite output cache
         id: restore-shell-vite-output
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             one-person-lab-app/shells/aionui/out/main
@@ -596,7 +778,7 @@ jobs:
       - name: Restore Full toolchain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-toolchain
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
@@ -604,7 +786,7 @@ jobs:
       - name: Restore Full domain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-domain
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
@@ -612,7 +794,7 @@ jobs:
       - name: Restore Full OPL runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-opl
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
@@ -620,7 +802,7 @@ jobs:
       - name: Restore Full skills runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-skills
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
@@ -645,7 +827,7 @@ jobs:
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
           set -euo pipefail
-          requires_distributable_assets="${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}"
+          requires_distributable_assets="${{ inputs.upload_full_package_artifact }}"
           echo "OPL_FULL_DISTRIBUTABLE_ASSETS=$requires_distributable_assets" >> "$GITHUB_ENV"
           echo "OPL_MAC_STRICT_SIGNING_CHECKS=false" >> "$GITHUB_ENV"
           echo "OPL_FULL_PACKAGE_NOTARIZED=false" >> "$GITHUB_ENV"
@@ -1014,7 +1196,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Full workflow telemetry
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-workflow-telemetry-${{ env.OPL_RELEASE_VERSION }}
           path: one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
@@ -1022,7 +1204,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full diagnostics artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
           path: |
@@ -1043,8 +1225,8 @@ jobs:
           retention-days: 30
 
       - name: Upload Full local authorization policy
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
-        uses: actions/upload-artifact@v7
+        if: ${{ inputs.upload_full_package_artifact }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-local-authorization-policy-${{ env.OPL_RELEASE_VERSION }}
           path: one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
@@ -1053,7 +1235,7 @@ jobs:
 
       - name: Save Full shell Vite output cache
         if: ${{ steps.restore-shell-vite-output.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: |
@@ -1065,7 +1247,7 @@ jobs:
 
       - name: Save Full toolchain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
@@ -1073,7 +1255,7 @@ jobs:
 
       - name: Save Full domain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-domain.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
@@ -1081,7 +1263,7 @@ jobs:
 
       - name: Save Full OPL runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-opl.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
@@ -1089,29 +1271,14 @@ jobs:
 
       - name: Save Full skills runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-skills.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
 
-      - name: Verify release upload plan
-        if: ${{ inputs.publish_to_release }}
-        working-directory: one-person-lab-app
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OPL_RELEASE_NOTES_MODE: template
-        run: |
-          npm run release:publish -- \
-            --no-build \
-            --dry-run \
-            --version "$OPL_RELEASE_VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
-            --full-package-only \
-            --include-full-package
-
       - name: Verify Full artifact plan without a release mutation
-        if: ${{ !inputs.publish_to_release && inputs.upload_full_package_artifact }}
+        if: ${{ inputs.upload_full_package_artifact }}
         working-directory: one-person-lab-app
         env:
           OPL_RELEASE_EXISTS: '0'
@@ -1124,67 +1291,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --full-package-only \
             --include-full-package
-
-      - name: Verify existing standard updater metadata
-        if: ${{ inputs.publish_to_release }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmpdir="$(mktemp -d)"
-          is_draft="$(gh release view "v${OPL_RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
-          if [ "$is_draft" != "true" ]; then
-            echo "::error::Full assets may be uploaded only before Stable promotion; v${OPL_RELEASE_VERSION} is already published and immutable."
-            exit 1
-          fi
-          gh release download "v${OPL_RELEASE_VERSION}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern 'latest*.yml' \
-            --dir "$tmpdir"
-          if grep -R "One-Person-Lab-Full" "$tmpdir"/latest*.yml; then
-            echo "::error::existing updater metadata must not reference Full assets"
-            exit 1
-          fi
-
-      - name: Prepare Full release notes
-        if: ${{ inputs.publish_to_release }}
-        working-directory: one-person-lab-app
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-          OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.6-luna' }}
-          OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '30'
-        run: |
-          set -euo pipefail
-          npm run release:notes -- \
-            --version "$OPL_RELEASE_VERSION" \
-            --channel stable \
-            --repo "$GITHUB_REPOSITORY" \
-            --shell-root shells/aionui \
-            --include-full-package \
-            --full-package-manifest dist/opl-full-release/full-package-manifest.json \
-            --current-tag "v${OPL_RELEASE_VERSION}" \
-            --evidence-output "$RUNNER_TEMP/full-release-notes-evidence.json" \
-            --output "$RUNNER_TEMP/full-release-notes-template.md"
-          ai_notes_ready=false
-          if npm run release:notes:probe-ai && \
-             npm run release:notes:prepare -- \
-               --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
-               --output "$RUNNER_TEMP/full-release-notes.md"; then
-            ai_notes_ready=true
-          fi
-          if [ "$ai_notes_ready" != "true" ]; then
-            echo "::warning::AI release notes were unavailable; using the deterministic release-note template."
-            OPL_RELEASE_NOTES_MODE=template npm run release:notes:prepare -- \
-              --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
-              --input "$RUNNER_TEMP/full-release-notes-template.md" \
-              --output "$RUNNER_TEMP/full-release-notes.md"
-          fi
 
       - name: Write Full build artifact cohort manifest
         if: ${{ always() && steps.full_package_build.outcome == 'success' }}
@@ -1202,6 +1308,11 @@ jobs:
             --app-profile one-person-lab-app/contracts/app-product-profile.json \
             --gui-contract one-person-lab-app/contracts/app-gui-product-contract.json \
             --smoke-harness one-person-lab-app/shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
+            --compiled-expectations one-person-lab-app/contracts/app-first-run-compiled-expectations.json \
+            --qualification-input-manifest one-person-lab-app/contracts/app-release-qualification-input-manifest.json \
+            --full-input-manifest one-person-lab-app/contracts/app-full-third-party-source-manifest.json \
+            --framework-bundled-catalog one-person-lab/contracts/opl-framework/bundled-full-runtime-package-catalog.json \
+            --full-toolchain-observation-receipt "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" \
             --app-sha "$(git -C one-person-lab-app rev-parse HEAD)" \
             --shell-sha "$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \
             --framework-sha "$(git -C one-person-lab rev-parse HEAD)" \
@@ -1213,10 +1324,11 @@ jobs:
             --stable-session-id "${{ inputs.stable_session_id }}" \
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
           cp "$RUNNER_TEMP/opl-build-cohort.json" one-person-lab-app/dist/opl-full-release/opl-build-cohort.json
+          cp "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" one-person-lab-app/dist/opl-full-release/opl-full-toolchain-observation-receipt.json
 
       - name: Upload Full package workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
-        uses: actions/upload-artifact@v7
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && inputs.upload_full_package_artifact }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
           path: one-person-lab-app/dist/opl-full-release
@@ -1225,7 +1337,7 @@ jobs:
 
       - name: Upload Full build artifact cohort manifest
         if: ${{ always() && steps.full_package_build.outcome == 'success' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
           path: ${{ runner.temp }}/opl-build-cohort.json
@@ -1234,33 +1346,12 @@ jobs:
 
       - name: Upload Full DMG-only workflow artifact
         if: ${{ always() && steps.full_package_build.outcome == 'success' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
           path: one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${{ env.OPL_RELEASE_VERSION }}-mac-arm64.dmg
           if-no-files-found: error
           retention-days: 14
-
-      - name: Upload prepared Full release notes for publish
-        if: ${{ inputs.publish_to_release }}
-        uses: actions/upload-artifact@v7
-        env:
-          OPL_RELEASE_NOTES_FILE: ${{ runner.temp }}/full-release-notes.md
-        with:
-          name: prepared-full-release-notes-${{ env.OPL_RELEASE_VERSION }}
-          path: ${{ env.OPL_RELEASE_NOTES_FILE }}
-          if-no-files-found: error
-
-      - name: Upload Full release-note evidence
-        if: ${{ inputs.publish_to_release }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: full-release-notes-evidence-${{ env.OPL_RELEASE_VERSION }}
-          path: |
-            ${{ runner.temp }}/full-release-notes.md
-            ${{ runner.temp }}/full-release-notes-template.md
-            ${{ runner.temp }}/full-release-notes-evidence.json
-          if-no-files-found: error
 
       - name: Clean up keychain
         if: always()
@@ -1268,51 +1359,3 @@ jobs:
           if security list-keychains | grep -q build.keychain; then
             security delete-keychain build.keychain
           fi
-
-  publish-full-release-assets:
-    name: Publish Full GitHub Release assets
-    needs: full-first-install
-    if: ${{ inputs.publish_to_release }}
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: write
-
-    steps:
-      - name: Checkout App repo
-        uses: actions/checkout@v6
-        with:
-          path: one-person-lab-app
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Download Full package workflow artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
-          path: one-person-lab-app/dist/opl-full-release
-
-      - name: Download prepared Full release notes
-        uses: actions/download-artifact@v8
-        with:
-          name: prepared-full-release-notes-${{ inputs.opl_version }}
-          path: prepared-full-release-notes
-
-      - name: Publish GitHub Release assets
-        working-directory: one-person-lab-app
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-          OPL_RELEASE_NOTES_FILE: ${{ github.workspace }}/prepared-full-release-notes/full-release-notes.md
-        run: |
-          npm run release:publish -- \
-            --no-build \
-            --version "$OPL_RELEASE_VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
-            --full-package-only \
-            --include-full-package \
-            --release-notes-file "$OPL_RELEASE_NOTES_FILE"

@@ -8,6 +8,7 @@ export const guiProductContractPath = path.join(root, 'contracts', 'app-gui-prod
 export const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json');
 export const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 export const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
+export const firstRunCompiledExpectationsPath = path.join(root, 'contracts', 'app-first-run-compiled-expectations.json');
 export const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 export const settingsControlPlanePath = path.join(root, 'contracts', 'app-settings-control-plane.json');
 export const installExposurePolicyPath = path.join(root, 'contracts', 'app-install-exposure-policy.json');

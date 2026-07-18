@@ -1,5 +1,5 @@
 name: OPL Desktop Release
-run-name: OPL Desktop Release v${{ inputs.opl_version }}
+run-name: OPL Desktop Release v${{ inputs.opl_version }} attempt=${{ inputs.release_attempt_id }}
 
 on:
   workflow_dispatch:
@@ -39,6 +39,30 @@ on:
         required: false
         default: ''
         type: string
+      standard_admission_deadline_at:
+        description: Immutable Standard admission deadline as canonical UTC ISO-8601
+        required: true
+        type: string
+      operator_actor:
+        description: Human/operator audit identity; authorization is held by the release broker GitHub App
+        required: true
+        type: string
+      release_attempt_id:
+        description: Signed broker mutation attempt identity
+        required: true
+        type: string
+      pre_api_admission_receipt_base64:
+        description: Signed durable pre-API broker fence containing the exact request and one-use lease
+        required: true
+        type: string
+      release_mutation_payload_sha256:
+        description: Exact digest of the broker-bound desktop release mutation payload
+        required: true
+        type: string
+      artifact_app_sha:
+        description: Frozen product App SHA used for source gates and build bytes
+        required: true
+        type: string
       gate_reuse_plan_ref:
         description: Same-cohort gate reuse plan ref required after repeated release attempts
         required: false
@@ -55,20 +79,13 @@ on:
         default: true
         type: boolean
       framework_ref:
-        description: OPL Framework ref to bundle in the Full package. Prefer a fixed SHA; main is resolved once by the source gate.
-        required: false
-        default: main
+        description: Exact frozen OPL Framework SHA recorded by the release cohort
+        required: true
         type: string
       shell_ref:
-        description: opl-aion-shell ref to build and verify. Prefer a fixed SHA; main is resolved once by the source gate.
-        required: false
-        default: main
+        description: Exact frozen opl-aion-shell SHA recorded by the release cohort
+        required: true
         type: string
-      force_rebuild_runtime_cache:
-        description: Ignore restored Full runtime layer cache and rebuild all Full layers
-        required: false
-        default: false
-        type: boolean
       run_vm_smoke:
         description: Run stable installation smokes after release assets are uploaded
         required: false
@@ -78,26 +95,6 @@ on:
         description: Build, verify, and publish the Docker WebUI image with this release
         required: false
         default: true
-        type: boolean
-      require_addon_gates_for_stable_readiness:
-        description: Legacy audit field only; add-ons cannot block Standard promotion
-        required: false
-        default: false
-        type: boolean
-      docker_webui_clean_linux_evidence_artifact:
-        description: Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow
-        required: false
-        default: ''
-        type: string
-      docker_webui_clean_windows_evidence_artifact:
-        description: Optional same-run artifact name containing clean Windows VM Docker WebUI smoke evidence for diagnostic import
-        required: false
-        default: ''
-        type: string
-      guide_screenshots:
-        description: Capture user-guide screenshots in the clean Full first-run VM smoke artifacts
-        required: false
-        default: false
         type: boolean
       skip_code_quality:
         description: Skip standard App code quality checks for emergency rebuilds
@@ -126,9 +123,7 @@ on:
         type: string
 
 permissions:
-  # Reusable Full/VM workflows contain publish jobs that request contents: write.
-  # GitHub validates the caller permission ceiling before starting any job.
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -143,22 +138,154 @@ jobs:
   release-preflight:
     name: Release preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     outputs:
       release_target_kind: ${{ steps.release-preflight.outputs.release_target_kind }}
       homebrew_tap_update_required: ${{ steps.release-preflight.outputs.homebrew_tap_update_required }}
       homebrew_tap_token_required: ${{ steps.release-preflight.outputs.homebrew_tap_token_required }}
       homebrew_tap_update_owner: ${{ steps.release-preflight.outputs.homebrew_tap_update_owner }}
+      broker_admission_validation_sha256: ${{ steps.broker-admission.outputs.validation_sha256 }}
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
+
+      - name: Resolve signed broker admission for this exact run
+        id: broker-admission
+        env:
+          OPL_VERSION: ${{ inputs.opl_version }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          RELEASE_INTENT: ${{ inputs.release_intent }}
+          FULL_OMISSION_REASON: ${{ inputs.full_omission_reason }}
+          RELEASE_OPERATOR_PLAN_REF: ${{ inputs.release_operator_plan_ref }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+          OPERATOR_ACTOR: ${{ inputs.operator_actor }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          ARTIFACT_APP_SHA: ${{ inputs.artifact_app_sha }}
+          GATE_REUSE_PLAN_REF: ${{ inputs.gate_reuse_plan_ref }}
+          INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
+          RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+          PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
+          DEFER_ADDONS: ${{ inputs.defer_addons }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }
+          [[ "$RELEASE_ATTEMPT_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_attempt_id must be the complete signed sha256 attempt identity; empty or abbreviated values are forbidden."; exit 1; }
+          [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_mutation_payload_sha256 must be exact."; exit 1; }
+          test "$DEFER_ADDONS" = true || { echo "::error::Standard release cannot schedule Full or WebUI work inline; use a brokered add-on attempt after Standard activation."; exit 1; }
+          [[ "$ARTIFACT_APP_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::artifact_app_sha must be the exact frozen App SHA."; exit 1; }
+          [[ "$SHELL_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
+          [[ "$FRAMEWORK_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
+          remaining_seconds="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const deadline = process.env.STANDARD_ADMISSION_DEADLINE_AT || '';
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
+            || new Date(Date.parse(deadline)).toISOString() !== deadline) {
+            throw new Error('standard_admission_deadline_at must be canonical UTC ISO-8601 with millisecond precision.');
+          }
+          const fence = JSON.parse(Buffer.from(process.env.PRE_API_ADMISSION_RECEIPT_BASE64 || '', 'base64').toString('utf8'));
+          const request = fence.request || {};
+          const expectedPayload = {
+            opl_version: process.env.OPL_VERSION,
+            release_mode: process.env.RELEASE_MODE,
+            release_intent: process.env.RELEASE_INTENT,
+            full_omission_reason: process.env.FULL_OMISSION_REASON,
+            release_operator_plan_ref: process.env.RELEASE_OPERATOR_PLAN_REF,
+            stable_session_id: process.env.STABLE_SESSION_ID,
+            standard_admission_deadline_at: deadline,
+            gate_reuse_plan_ref: process.env.GATE_REUSE_PLAN_REF,
+            include_full_package: process.env.INCLUDE_FULL_PACKAGE,
+            run_vm_smoke: process.env.RUN_VM_SMOKE,
+            publish_docker_webui: process.env.PUBLISH_DOCKER_WEBUI,
+            defer_addons: process.env.DEFER_ADDONS,
+            shell_ref: process.env.SHELL_REF,
+            framework_ref: process.env.FRAMEWORK_REF,
+            artifact_app_sha: process.env.ARTIFACT_APP_SHA,
+            operator_actor: process.env.OPERATOR_ACTOR,
+          };
+          if (request.mutation !== 'desktop_release_dispatch' || request.workflow !== 'desktop-release.yml'
+            || request.artifact_kind !== 'standard' || request.attempt_id !== process.env.RELEASE_ATTEMPT_ID
+            || request.github?.repository !== process.env.GITHUB_REPOSITORY
+            || request.controller_workflow_sha !== process.env.GITHUB_SHA
+            || request.artifact_app_sha !== process.env.ARTIFACT_APP_SHA) {
+            throw new Error('Signed pre-API fence does not bind this exact desktop release run identity.');
+          }
+          const canonicalPayload = (value) => JSON.stringify(Object.fromEntries(
+            Object.entries(value || {}).sort(([left], [right]) => left.localeCompare(right)),
+          ));
+          if (request.mutation_payload_sha256 !== process.env.RELEASE_MUTATION_PAYLOAD_SHA256
+            || canonicalPayload(request.mutation_payload) !== canonicalPayload(expectedPayload)) {
+            throw new Error('Signed pre-API fence mutation payload does not match the exact workflow inputs.');
+          }
+          const deadlineMs = Date.parse(deadline);
+          const persistedMs = Date.parse(String(fence.persisted_at || ''));
+          const nowMs = Date.now();
+          if (!Number.isFinite(persistedMs) || persistedMs >= deadlineMs || deadlineMs - persistedMs > 90 * 60_000) {
+            throw new Error('Signed pre-API fence is outside the immutable 90-minute Standard admission window.');
+          }
+          if (nowMs >= deadlineMs) {
+            const failure = {
+              schema: 'opl_app_stable_deadline_failure.v1', status: 'blocked',
+              reason_code: 'standard_admission_deadline_elapsed', deadline_at: deadline,
+              observed_at: new Date(nowMs).toISOString(), run_id: process.env.GITHUB_RUN_ID,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            };
+            fs.writeFileSync('stable-deadline-failure.json', `${JSON.stringify(failure, null, 2)}\n`);
+            console.error(JSON.stringify(failure));
+            process.exit(78);
+          }
+          process.stdout.write(String(Math.max(1, Math.floor((deadlineMs - nowMs) / 1000))));
+          NODE
+          )"
+          set +e
+          timeout --signal=TERM --kill-after=10s "${remaining_seconds}s" \
+            node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+              --mode lookup \
+              --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
+              --expected-repository "$GITHUB_REPOSITORY" \
+              --expected-run-id "$GITHUB_RUN_ID" \
+              --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --expected-workflow desktop-release.yml \
+              --expected-workflow-sha "$GITHUB_SHA" \
+              --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+              --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --output broker-admission-validation.json
+          lookup_status="$?"
+          set -e
+          if [ "$lookup_status" -eq 124 ]; then
+            echo '{"schema":"opl_app_stable_deadline_failure.v1","status":"blocked","reason_code":"standard_admission_deadline_elapsed"}' > stable-deadline-failure.json
+            echo "::error::standard_admission_deadline_elapsed: broker lookup exceeded the immutable Standard deadline."
+            exit 78
+          fi
+          test "$lookup_status" -eq 0
+          validation_sha256="sha256:$(sha256sum broker-admission-validation.json | awk '{print $1}')"
+          echo "validation_sha256=$validation_sha256" >> "$GITHUB_OUTPUT"
+          echo "remaining_seconds=$remaining_seconds" >> "$GITHUB_OUTPUT"
+
+      - name: Persist immutable broker admission validation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission-validation.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Summarize recent release attempts
         env:
@@ -190,8 +317,8 @@ jobs:
             `- Prior attempts in 90 minutes: ${attempts.length}`,
             `- Release intent: ${process.env.RELEASE_INTENT}`,
             `- Gate reuse plan: ${process.env.GATE_REUSE_PLAN_REF || 'not provided'}`,
-            '- Policy: elapsed time never abandons an authorized release, but three repeated attempts force a same-cohort evidence-reuse strategy before another full train.',
-            '- Monitor: use one gh run watch --interval 60 process; do not combine short sleeps with a second polling loop.',
+            '- Policy: at 90:00 the circuit breaker forbids a new release train; only exact-artifact targeted recovery or a typed blocker may continue.',
+            '- Monitor: controller uses a bounded absolute watch deadline and read-only reconcile; never start a second watcher.',
           ];
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n`);
           if (attempts.length >= 3 && !process.env.GATE_REUSE_PLAN_REF?.trim()) {
@@ -207,29 +334,40 @@ jobs:
         id: release-preflight
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN != '' && 'true' || 'false' }}
+          OPL_VERSION: ${{ inputs.opl_version }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          RELEASE_INTENT: ${{ inputs.release_intent }}
+          FULL_OMISSION_REASON: ${{ inputs.full_omission_reason }}
+          RELEASE_OPERATOR_PLAN_REF: ${{ inputs.release_operator_plan_ref }}
+          GATE_REUSE_PLAN_REF: ${{ inputs.gate_reuse_plan_ref }}
+          INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
+          RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+          PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
+          ARTIFACT_APP_SHA: ${{ inputs.artifact_app_sha }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SHELL_REF: ${{ inputs.shell_ref }}
         run: |
           npm run release:preflight -- \
-            --version "${{ inputs.opl_version }}" \
-            --release-mode "${{ inputs.release_mode }}" \
-            --release-intent "${{ inputs.release_intent }}" \
-            --full-omission-reason "${{ inputs.full_omission_reason }}" \
-            --release-operator-plan-ref "${{ inputs.release_operator_plan_ref }}" \
-            --gate-reuse-plan-ref "${{ inputs.gate_reuse_plan_ref }}" \
-            --include-full-package "${{ inputs.include_full_package }}" \
-            --run-vm-smoke "${{ inputs.run_vm_smoke }}" \
-            --publish-docker-webui "${{ inputs.publish_docker_webui }}" \
-            --docker-webui-clean-windows-evidence-artifact "${{ inputs.docker_webui_clean_windows_evidence_artifact }}" \
-            --expected-app-head "$GITHUB_SHA" \
-            --framework-ref "${{ inputs.framework_ref }}" \
-            --shell-ref "${{ inputs.shell_ref }}" \
+            --version "$OPL_VERSION" \
+            --release-mode "$RELEASE_MODE" \
+            --release-intent "$RELEASE_INTENT" \
+            --full-omission-reason "$FULL_OMISSION_REASON" \
+            --release-operator-plan-ref "$RELEASE_OPERATOR_PLAN_REF" \
+            --gate-reuse-plan-ref "$GATE_REUSE_PLAN_REF" \
+            --include-full-package "$INCLUDE_FULL_PACKAGE" \
+            --run-vm-smoke "$RUN_VM_SMOKE" \
+            --publish-docker-webui "$PUBLISH_DOCKER_WEBUI" \
+            --docker-webui-clean-windows-evidence-artifact "" \
+            --expected-app-head "$ARTIFACT_APP_SHA" \
+            --framework-ref "$FRAMEWORK_REF" \
+            --shell-ref "$SHELL_REF" \
             --summary-path release-preflight-summary.json \
             --markdown-path release-preflight-summary.md
           cat release-preflight-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release preflight summary
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-preflight-summary-${{ inputs.opl_version }}
           path: |
@@ -244,12 +382,12 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.release-source-gate.outputs.shell_sha }}
@@ -258,14 +396,14 @@ jobs:
           path: shells/aionui
 
       - name: Checkout OPL Flow policy source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-flow
-          ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
+          ref: ${{ needs.release-source-gate.outputs.opl_flow_sha }}
           path: opl-flow
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -285,34 +423,46 @@ jobs:
       app_sha: ${{ steps.release-source-gate.outputs.app_sha }}
       shell_sha: ${{ steps.release-source-gate.outputs.shell_sha }}
       framework_sha: ${{ steps.release-source-gate.outputs.framework_sha }}
+      opl_flow_sha: ${{ steps.release-source-gate.outputs.opl_flow_sha }}
 
     steps:
-      - name: Checkout App repo
-        uses: actions/checkout@v6
+      - name: Checkout controller App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Setup active shell dependencies
-        uses: ./.github/actions/setup-active-shell-deps
+      - name: Checkout frozen artifact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          shell-ref: ${{ inputs.shell_ref }}
-          run-postinstall: 'false'
+          ref: ${{ inputs.artifact_app_sha }}
+          path: artifact-app
+          fetch-depth: 0
+
+      - name: Checkout frozen active shell
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref }}
+          path: artifact-app/shells/aionui
 
       - name: Checkout OPL Framework payload source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: ${{ inputs.framework_ref || 'main' }}
+          ref: ${{ inputs.framework_ref }}
           path: one-person-lab
 
       - name: Validate release source gate
         id: release-source-gate
         run: |
-          npm run release:source-gate -- \
+          node --experimental-strip-types scripts/validate-release-source-gate.ts \
             --version "${{ inputs.opl_version }}" \
-            --app-ref "$GITHUB_SHA" \
-            --shell-ref "${{ inputs.shell_ref || 'main' }}" \
-            --framework-ref "${{ inputs.framework_ref || 'main' }}" \
+            --app-ref "${{ inputs.artifact_app_sha }}" \
+            --shell-ref "${{ inputs.shell_ref }}" \
+            --framework-ref "${{ inputs.framework_ref }}" \
+            --repo-root artifact-app \
+            --shell-root artifact-app/shells/aionui \
             --framework-root one-person-lab \
             --require-shell-format true \
             --run-shell-tests true \
@@ -333,10 +483,13 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
           }
           NODE
+          opl_flow_sha="$(jq -er '.packages["opl-flow"].owner_source_commit' one-person-lab/contracts/opl-framework/bundled-full-runtime-package-catalog.json)"
+          [[ "$opl_flow_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Frozen Framework catalog has no exact opl-flow owner_source_commit"; exit 1; }
+          echo "opl_flow_sha=$opl_flow_sha" >> "$GITHUB_OUTPUT"
 
       - name: Upload release source gate summary
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-source-gate-${{ inputs.opl_version }}
           path: release-source-gate.json
@@ -353,11 +506,12 @@ jobs:
         {"include":[
           {"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
-      ref: ${{ needs.release-source-gate.outputs.app_sha }}
+      ref: ${{ inputs.artifact_app_sha }}
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
+      opl_flow_ref: ${{ needs.release-source-gate.outputs.opl_flow_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
       require_macos_gatekeeper: false
@@ -371,19 +525,19 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.release-source-gate.outputs.shell_sha }}
           path: shells/aionui
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -410,7 +564,7 @@ jobs:
             --output standard-release-notes.md
 
       - name: Upload prepared standard release notes
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: prepared-standard-release-notes-${{ inputs.opl_version }}
           path: |
@@ -428,6 +582,7 @@ jobs:
       attestations: write
       id-token: write
     needs:
+      - release-preflight
       - prepare-standard-release-notes
       - release-source-gate
       - standard-build
@@ -439,12 +594,44 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
+      - name: Setup Node.js for broker verification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Download immutable broker admission validation
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission
+
+      - name: Verify historical desktop release broker admission in publish job
+        env:
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Write jobs cannot replay a broker ticket."; exit 1; }
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256"
+
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.release-source-gate.outputs.shell_sha }}
@@ -465,19 +652,14 @@ jobs:
           echo "shell_sha=$SHELL_SHA" >> "$GITHUB_OUTPUT"
           echo "framework_sha=$FRAMEWORK_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
       - name: Download standard build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: macos-build-arm64
           path: build-artifacts
 
       - name: Download prepared standard release notes
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: prepared-standard-release-notes-${{ inputs.opl_version }}
           path: prepared-standard-release-notes
@@ -499,8 +681,44 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          ARTIFACT_APP_SHA: ${{ inputs.artifact_app_sha }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
+          verify_standard_mutation_deadline() {
+            local checkpoint="$1"
+            local output="broker-admission/${checkpoint}-historical-validation.json"
+            node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+              --mode historical \
+              --validation broker-admission/broker-admission-validation.json \
+              --expected-repository "$GITHUB_REPOSITORY" \
+              --expected-run-id "$GITHUB_RUN_ID" \
+              --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --expected-workflow desktop-release.yml \
+              --expected-workflow-sha "$GITHUB_SHA" \
+              --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+              --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+              --output "$output" >/dev/null
+            MUTATION_DEADLINE_VALIDATION="$output" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
+          const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
+            ?.request?.mutation_payload?.standard_admission_deadline_at;
+          const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
+          const deadlineMs = Date.parse(String(deadline));
+          if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Signed broker validation does not bind the immutable Standard deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('standard_admission_deadline_elapsed: release mutation is forbidden.');
+          }
+          NODE
+          }
           npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION"
 
           tag="v${OPL_RELEASE_VERSION}"
@@ -518,7 +736,8 @@ jobs:
               fi
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git tag "$tag" "$GITHUB_SHA"
+              git tag "$tag" "$ARTIFACT_APP_SHA"
+              verify_standard_mutation_deadline "tag-push"
               git push origin "$tag"
               ;;
             refresh_existing)
@@ -532,10 +751,11 @@ jobs:
                 echo "::error::Draft release $tag has no matching remote tag."
                 exit 1
               fi
-              if [ "$remote_tag_sha" != "$GITHUB_SHA" ]; then
+              if [ "$remote_tag_sha" != "$ARTIFACT_APP_SHA" ]; then
                 git config user.name "github-actions[bot]"
                 git config user.email "github-actions[bot]@users.noreply.github.com"
-                git tag -f "$tag" "$GITHUB_SHA"
+                git tag -f "$tag" "$ARTIFACT_APP_SHA"
+                verify_standard_mutation_deadline "tag-force-push"
                 git push --force-with-lease="refs/tags/$tag:$remote_tag_sha" origin "refs/tags/$tag"
               fi
               ;;
@@ -554,6 +774,10 @@ jobs:
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
           OPL_RELEASE_NOTES_FILE: prepared-standard-release-notes/standard-release-notes.md
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
           publish_args=(
@@ -567,12 +791,43 @@ jobs:
           if [ "$RELEASE_MODE" = "new_release" ] || [ "$RELEASE_MODE" = "draft_candidate" ]; then
             publish_args+=(--draft)
           fi
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output broker-admission/release-publish-historical-validation.json >/dev/null
+          MUTATION_DEADLINE_VALIDATION=broker-admission/release-publish-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
+          const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
+            ?.request?.mutation_payload?.standard_admission_deadline_at;
+          const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
+          const deadlineMs = Date.parse(String(deadline));
+          if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Signed broker validation does not bind the immutable Standard deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('standard_admission_deadline_elapsed: release mutation is forbidden.');
+          }
+          NODE
           "${publish_args[@]}"
 
       - name: Publish immutable OPL App component manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
           tag="v${OPL_RELEASE_VERSION}"
@@ -585,15 +840,120 @@ jobs:
             --release-json app-release.json \
             --repo "$GITHUB_REPOSITORY" \
             --output opl-app-component-manifest.json
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output broker-admission/component-upload-historical-validation.json >/dev/null
+          MUTATION_DEADLINE_VALIDATION=broker-admission/component-upload-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
+          const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
+            ?.request?.mutation_payload?.standard_admission_deadline_at;
+          const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
+          const deadlineMs = Date.parse(String(deadline));
+          if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Signed broker validation does not bind the immutable Standard deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('standard_admission_deadline_elapsed: release mutation is forbidden.');
+          }
+          NODE
           gh release upload "$tag" opl-app-component-manifest.json --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Gate standard asset attestation before immutable deadline
+        id: standard-asset-attestation-deadline
+        env:
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output broker-admission/standard-asset-attestation-historical-validation.json >/dev/null
+          MUTATION_DEADLINE_VALIDATION=broker-admission/standard-asset-attestation-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
+          const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
+            ?.request?.mutation_payload?.standard_admission_deadline_at;
+          const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
+          const deadlineMs = Date.parse(String(deadline));
+          if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Signed broker validation does not bind the immutable Standard deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('standard_admission_deadline_elapsed: release mutation is forbidden.');
+          }
+          NODE
+          echo "authorized=true" >> "$GITHUB_OUTPUT"
+
       - name: Attest standard release assets
-        uses: actions/attest@v4
+        if: ${{ steps.standard-asset-attestation-deadline.outputs.authorized == 'true' }}
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-path: release-assets/*
 
+      - name: Gate component manifest attestation before immutable deadline
+        id: component-manifest-attestation-deadline
+        env:
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow desktop-release.yml \
+            --expected-workflow-sha "$GITHUB_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output broker-admission/component-manifest-attestation-historical-validation.json >/dev/null
+          MUTATION_DEADLINE_VALIDATION=broker-admission/component-manifest-attestation-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
+          const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
+            ?.request?.mutation_payload?.standard_admission_deadline_at;
+          const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
+          const deadlineMs = Date.parse(String(deadline));
+          if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Signed broker validation does not bind the immutable Standard deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('standard_admission_deadline_elapsed: release mutation is forbidden.');
+          }
+          NODE
+          echo "authorized=true" >> "$GITHUB_OUTPUT"
+
       - name: Attest OPL App component manifest
-        uses: actions/attest@v4
+        if: ${{ steps.component-manifest-attestation-deadline.outputs.authorized == 'true' }}
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-path: opl-app-component-manifest.json
 
@@ -609,11 +969,18 @@ jobs:
       opl_version: ${{ inputs.opl_version }}
       framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
-      publish_to_release: false
       upload_full_package_artifact: true
       stable_session_id: ${{ inputs.stable_session_id }}
+      standard_admission_deadline_at: ${{ inputs.standard_admission_deadline_at }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
-      force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_session_lease_base64: ''
+      operator_actor: ${{ inputs.operator_actor }}
+      release_mutation: desktop_release_dispatch
+      release_workflow: desktop-release.yml
+      controller_workflow_sha: ${{ github.sha }}
+      artifact_app_sha: ${{ inputs.artifact_app_sha }}
+      force_rebuild_runtime_cache: false
     secrets: inherit
 
   prepare-full-release-notes:
@@ -626,24 +993,24 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.publish-standard.outputs.shell_sha }}
           path: shells/aionui
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
       - name: Download Full package workflow artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
           path: full-package-artifacts
@@ -673,7 +1040,7 @@ jobs:
             --output full-release-notes.md
 
       - name: Upload prepared Full release notes
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: prepared-full-release-notes-${{ inputs.opl_version }}
           path: |
@@ -686,37 +1053,35 @@ jobs:
     name: Publish Full first-install assets
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       actions: read
-      attestations: write
-      id-token: write
     needs:
       - prepare-full-release-notes
       - publish-standard
       - full-first-install
       - standard-vm-smoke-gate-after-full
       - full-first-run-vm-smoke
-    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.prepare-full-release-notes.result == 'success' }}
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
       - name: Download Full package workflow artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
           path: full-package-artifacts
 
       - name: Download prepared Full release notes
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: prepared-full-release-notes-${{ inputs.opl_version }}
           path: prepared-full-release-notes
@@ -738,7 +1103,7 @@ jobs:
             --release-notes-file "$OPL_RELEASE_NOTES_FILE"
 
       - name: Attest Full first-install assets
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-path: full-package-artifacts/*
 
@@ -747,16 +1112,15 @@ jobs:
     needs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
-      - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && (!inputs.run_vm_smoke || (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success'))) }}
+    if: ${{ !cancelled() && (!inputs.run_vm_smoke || needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') }}
     runs-on: macos-latest
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -771,7 +1135,7 @@ jobs:
             --summary-path remote-release-verification.json
 
       - name: Upload remote verification summary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: remote-release-verification.json
@@ -787,10 +1151,10 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -806,7 +1170,7 @@ jobs:
             --summary-path remote-release-verification.json
 
       - name: Upload remote verification summary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: remote-release-verification.json
@@ -814,7 +1178,9 @@ jobs:
 
   standard-first-run-vm-smoke-after-standard-only:
     name: Run clean standard first-run VM smoke
-    needs: publish-standard
+    needs:
+      - release-preflight
+      - publish-standard
     if: ${{ (inputs.defer_addons || !inputs.include_full_package) && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
@@ -824,12 +1190,23 @@ jobs:
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
       framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
+      standard_admission_deadline_at: ${{ inputs.standard_admission_deadline_at }}
+      operator_actor: ${{ inputs.operator_actor }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_mutation_payload_sha256: ${{ inputs.release_mutation_payload_sha256 }}
+      broker_admission_validation_sha256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+      release_mutation: desktop_release_dispatch
+      release_workflow: desktop-release.yml
+      controller_workflow_sha: ${{ github.sha }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
+      artifact_app_ref: ${{ inputs.artifact_app_sha }}
     secrets: inherit
 
   standard-first-run-vm-smoke-after-full:
     name: Run clean standard first-run VM smoke
-    needs: publish-standard
+    needs:
+      - release-preflight
+      - publish-standard
     if: ${{ !inputs.defer_addons && inputs.include_full_package && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
@@ -839,7 +1216,16 @@ jobs:
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
       framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
+      standard_admission_deadline_at: ${{ inputs.standard_admission_deadline_at }}
+      operator_actor: ${{ inputs.operator_actor }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_mutation_payload_sha256: ${{ inputs.release_mutation_payload_sha256 }}
+      broker_admission_validation_sha256: ${{ needs.release-preflight.outputs.broker_admission_validation_sha256 }}
+      release_mutation: desktop_release_dispatch
+      release_workflow: desktop-release.yml
+      controller_workflow_sha: ${{ github.sha }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
+      artifact_app_ref: ${{ inputs.artifact_app_sha }}
     secrets: inherit
 
   standard-vm-smoke-gate-after-full:
@@ -896,7 +1282,7 @@ jobs:
       framework_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.framework_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
-      guide_screenshots: ${{ inputs.guide_screenshots }}
+      guide_screenshots: false
     secrets: inherit
 
   one-shot-app-installer-smoke:
@@ -904,24 +1290,25 @@ jobs:
     needs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
-      - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.run_vm_smoke && (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success' }}
     runs-on: macos-latest
     timeout-minutes: 45
 
     steps:
-      - name: Checkout App repo
-        uses: actions/checkout@v6
+      - name: Checkout frozen artifact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.artifact_app_sha }}
 
       - name: Checkout OPL Framework installer source
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ needs.publish-standard.outputs.framework_sha }}
           path: one-person-lab
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -929,15 +1316,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          codex_latest="$(npm view @openai/codex version)"
-          npm install --global "@openai/codex@${codex_latest}" \
+          frozen_manifest=contracts/app-release-qualification-input-manifest.json
+          codex_version_frozen="$(jq -er '.runtime_payloads.codex_cli.version' "$frozen_manifest")"
+          codex_integrity="$(jq -er '.runtime_payloads.codex_cli.npm_integrity' "$frozen_manifest")"
+          codex_tarball_url="$(jq -er '.runtime_payloads.codex_cli.tarball_url' "$frozen_manifest")"
+          codex_tarball_sha256="$(jq -er '.runtime_payloads.codex_cli.tarball_sha256' "$frozen_manifest")"
+          platform_version="$(jq -er '.runtime_payloads.codex_cli.platform.version' "$frozen_manifest")"
+          platform_integrity="$(jq -er '.runtime_payloads.codex_cli.platform.npm_integrity' "$frozen_manifest")"
+          platform_tarball_url="$(jq -er '.runtime_payloads.codex_cli.platform.tarball_url' "$frozen_manifest")"
+          platform_tarball_sha256="$(jq -er '.runtime_payloads.codex_cli.platform.tarball_sha256' "$frozen_manifest")"
+          codex_tarball="$RUNNER_TEMP/openai-codex-${codex_version_frozen}.tgz"
+          platform_tarball="$RUNNER_TEMP/openai-codex-${platform_version}.tgz"
+          curl -fL --retry 5 --retry-all-errors "$codex_tarball_url" -o "$codex_tarball"
+          curl -fL --retry 5 --retry-all-errors "$platform_tarball_url" -o "$platform_tarball"
+          echo "$codex_tarball_sha256  $codex_tarball" | shasum -a 256 -c -
+          echo "$platform_tarball_sha256  $platform_tarball" | shasum -a 256 -c -
+          test "$(npm view "@openai/codex@${codex_version_frozen}" dist.integrity)" = "$codex_integrity"
+          test "$(npm view "@openai/codex@${platform_version}" dist.integrity)" = "$platform_integrity"
+          npm cache add "$platform_tarball"
+          npm install --global "$codex_tarball" \
             --fetch-retries=3 \
             --fetch-retry-mintimeout=2000 \
             --fetch-retry-maxtimeout=20000 \
             --fetch-timeout=60000
           command -v codex
           codex_version="$(codex --version)"
-          [[ "$codex_version" == "codex-cli $codex_latest" ]]
+          [[ "$codex_version" == "codex-cli $codex_version_frozen" ]]
 
       - name: Smoke App one-shot installer
         shell: bash
@@ -984,7 +1388,7 @@ jobs:
 
       - name: Upload one-shot installer smoke artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: one-shot-app-installer-smoke-${{ inputs.opl_version }}
           path: /tmp/opl-one-shot-system-initialize.json
@@ -994,21 +1398,20 @@ jobs:
     name: Run Docker WebUI smoke and stage GHCR publish
     needs:
       - publish-standard
-    if: ${{ !cancelled() && !inputs.defer_addons && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.publish-standard.result == 'success' }}
+      - release-source-gate
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.publish_docker_webui && inputs.run_vm_smoke }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
-      packages: write
-      attestations: write
-      id-token: write
+      packages: read
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Checkout active shell
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.publish-standard.outputs.shell_sha }}
@@ -1023,7 +1426,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_FRAMEWORK_SHA: ${{ needs.publish-standard.outputs.framework_sha }}
-          OPL_FLOW_SHA: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
+          OPL_FLOW_SHA: ${{ needs.release-source-gate.outputs.opl_flow_sha }}
           SHELL_SHA: ${{ needs.publish-standard.outputs.shell_sha }}
         run: |
           set -euo pipefail
@@ -1223,7 +1626,7 @@ jobs:
 
       - name: Attest WebUI full GHCR image
         if: ${{ inputs.release_mode != 'draft_candidate' && steps.build_docker_webui.outputs.full_digest != '' }}
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-name: ${{ steps.build_docker_webui.outputs.ghcr_image }}
           subject-digest: ${{ steps.build_docker_webui.outputs.full_digest }}
@@ -1232,7 +1635,7 @@ jobs:
 
       - name: Attest WebUI slim GHCR image
         if: ${{ inputs.release_mode != 'draft_candidate' && steps.build_docker_webui.outputs.slim_digest != '' }}
-        uses: actions/attest@v4
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6
         with:
           subject-name: ${{ steps.build_docker_webui.outputs.ghcr_image }}
           subject-digest: ${{ steps.build_docker_webui.outputs.slim_digest }}
@@ -1240,7 +1643,7 @@ jobs:
           create-storage-record: false
 
       - name: Upload Docker WebUI smoke artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: docker-webui-smoke-${{ inputs.opl_version }}
           path: |
@@ -1268,7 +1671,7 @@ jobs:
 
       - name: Upload WebUI GHCR publish summary
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: webui-ghcr-publish-${{ inputs.opl_version }}
           path: /tmp/opl-webui-ghcr-publish.json
@@ -1283,10 +1686,10 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Download WebUI GHCR publish summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: webui-ghcr-publish-${{ inputs.opl_version }}
           path: webui-ghcr-publish
@@ -1324,35 +1727,19 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
-
-      - name: Download clean Linux VM Docker WebUI evidence
-        if: ${{ inputs.docker_webui_clean_linux_evidence_artifact != '' }}
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          name: ${{ inputs.docker_webui_clean_linux_evidence_artifact }}
-          path: docker-webui-clean-vm-inputs/clean-linux-vm
-
-      - name: Download clean Windows VM Docker WebUI evidence
-        if: ${{ inputs.docker_webui_clean_windows_evidence_artifact != '' }}
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          name: ${{ inputs.docker_webui_clean_windows_evidence_artifact }}
-          path: docker-webui-clean-vm-inputs/clean-windows-vm
 
       - name: Import and validate clean VM evidence
         id: clean_vm_evidence
         shell: bash
         env:
-          LINUX_ARTIFACT_NAME: ${{ inputs.docker_webui_clean_linux_evidence_artifact }}
-          WINDOWS_ARTIFACT_NAME: ${{ inputs.docker_webui_clean_windows_evidence_artifact }}
+          LINUX_ARTIFACT_NAME: ''
+          WINDOWS_ARTIFACT_NAME: ''
         run: |
           set -euo pipefail
           output_dir="docker-webui-clean-vm-evidence"
@@ -1559,7 +1946,7 @@ jobs:
 
       - name: Upload clean VM evidence validation
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
           path: docker-webui-clean-vm-evidence
@@ -1568,7 +1955,7 @@ jobs:
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && (((inputs.defer_addons || !inputs.include_full_package) && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.run_vm_smoke && inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
     needs:
       - remote-verify-standard
       - remote-verify-full
@@ -1581,17 +1968,17 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Checkout OPL Framework
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ needs.publish-standard.outputs.framework_sha }}
           path: one-person-lab
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
@@ -1600,14 +1987,14 @@ jobs:
         run: npm ci
 
       - name: Download remote verification summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}
 
       - name: Download standard VM smoke summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: opl-first-run-vm-standard-${{ github.run_id }}
@@ -1615,7 +2002,7 @@ jobs:
 
       - name: Download Full VM smoke summary
         if: ${{ inputs.include_full_package }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: opl-first-run-vm-full-${{ github.run_id }}
@@ -1623,7 +2010,7 @@ jobs:
 
       - name: Download Docker WebUI clean VM evidence
         if: ${{ inputs.publish_docker_webui }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
@@ -1727,7 +2114,7 @@ jobs:
 
       - name: Upload operator evidence validation summary
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-evidence-bundle-${{ inputs.opl_version }}
           path: |
@@ -1739,13 +2126,11 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && needs.remote-verify-standard.result == 'success' && (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success' && needs.one-shot-app-installer-smoke.result == 'success' }}
     needs:
       - release-preflight
       - remote-verify-standard
       - standard-first-run-vm-smoke-after-standard-only
-      - standard-first-run-vm-smoke-after-full
-      - standard-vm-smoke-gate-after-full
       - one-shot-app-installer-smoke
 
     steps:
@@ -1753,15 +2138,11 @@ jobs:
         shell: bash
         run: |
           node <<'NODE'
-          const includeFullPackageInline = '${{ inputs.include_full_package }}' === 'true'
-            && '${{ inputs.defer_addons }}' !== 'true';
           const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
           const results = {
             'release-preflight': '${{ needs.release-preflight.result }}',
             'remote-verify-standard': '${{ needs.remote-verify-standard.result }}',
             'standard-first-run-vm-smoke-after-standard-only': '${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}',
-            'standard-first-run-vm-smoke-after-full': '${{ needs.standard-first-run-vm-smoke-after-full.result }}',
-            'standard-vm-smoke-gate-after-full': '${{ needs.standard-vm-smoke-gate-after-full.result }}',
             'one-shot-app-installer-smoke': '${{ needs.one-shot-app-installer-smoke.result }}',
           };
 
@@ -1776,14 +2157,8 @@ jobs:
             failures.push('run_vm_smoke=false prevents release readiness aggregation for stable clean evidence closeout');
           }
           requireSuccess('release-preflight');
-
           requireSuccess('remote-verify-standard');
-          if (includeFullPackageInline) {
-            requireSuccess('standard-vm-smoke-gate-after-full');
-          } else {
-            requireSuccess('standard-first-run-vm-smoke-after-standard-only');
-          }
-
+          requireSuccess('standard-first-run-vm-smoke-after-standard-only');
           requireSuccess('one-shot-app-installer-smoke');
           if (failures.length > 0) {
             console.error('Release readiness aggregation is blocked by failed, skipped, or missing required gates:');
@@ -1802,43 +2177,41 @@ jobs:
       - remote-verify-standard
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
-      - standard-first-run-vm-smoke-after-full
-      - standard-vm-smoke-gate-after-full
       - one-shot-app-installer-smoke
       - release-readiness-admission
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
       - name: Download remote verification summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: release-readiness-inputs/remote-release-verification-${{ inputs.opl_version }}
 
       - name: Download release preflight summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: release-preflight-summary-${{ inputs.opl_version }}
           path: release-readiness-inputs/release-preflight-summary-${{ inputs.opl_version }}
 
       - name: Download standard VM smoke summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: opl-first-run-vm-standard-${{ github.run_id }}
           path: release-readiness-inputs/opl-first-run-vm-standard-${{ github.run_id }}
 
       - name: Download one-shot installer smoke summary
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         continue-on-error: true
         with:
           name: one-shot-app-installer-smoke-${{ inputs.opl_version }}
@@ -1850,9 +2223,7 @@ jobs:
           cat > release-readiness-job-results.json <<'JSON'
           {
             "remote-verify-standard": "${{ needs.remote-verify-standard.result }}",
-            "standard-first-run-vm-smoke-after-standard-only": "${{ (needs.standard-first-run-vm-smoke-after-standard-only.result == 'success' || needs.standard-vm-smoke-gate-after-full.result == 'success') && 'success' || needs.standard-first-run-vm-smoke-after-standard-only.result }}",
-            "standard-first-run-vm-smoke-after-full": "${{ needs.standard-first-run-vm-smoke-after-full.result }}",
-            "standard-vm-smoke-gate-after-full": "${{ needs.standard-vm-smoke-gate-after-full.result }}",
+            "standard-first-run-vm-smoke-after-standard-only": "${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}",
             "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",
             "release-readiness-admission": "${{ needs.release-readiness-admission.result }}"
           }
@@ -1931,7 +2302,7 @@ jobs:
           cat release-cohort-manifest.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release readiness summary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-readiness-summary-${{ inputs.opl_version }}
           path: |
@@ -1940,7 +2311,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release candidate record
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-candidate-record-${{ inputs.opl_version }}
           path: |
@@ -1949,7 +2320,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release cohort manifest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-cohort-manifest-${{ inputs.opl_version }}
           path: |
@@ -1960,7 +2331,7 @@ jobs:
   release-addon-readiness-summary:
     name: Summarize same-cohort add-on readiness
     runs-on: ubuntu-latest
-    if: ${{ always() && !cancelled() && needs.release-readiness-summary.result == 'success' && (inputs.include_full_package || inputs.publish_docker_webui || needs.release-preflight.outputs.homebrew_tap_update_required == 'true') }}
+    if: ${{ always() && !cancelled() && !inputs.defer_addons && needs.release-readiness-summary.result == 'success' && (inputs.include_full_package || inputs.publish_docker_webui || needs.release-preflight.outputs.homebrew_tap_update_required == 'true') }}
     needs:
       - release-preflight
       - release-readiness-summary
@@ -1983,7 +2354,7 @@ jobs:
             version: '${{ inputs.opl_version }}',
             release_mode: '${{ inputs.release_mode }}',
             standard_readiness_artifact: 'release-readiness-summary-${{ inputs.opl_version }}',
-            require_addon_gates_for_stable_readiness: '${{ inputs.require_addon_gates_for_stable_readiness }}' === 'true',
+            require_addon_gates_for_stable_readiness: false,
             addons_deferred: '${{ inputs.defer_addons }}' === 'true',
             homebrew_tap_update_required: '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true',
             status_policy: 'add_on_status_record_only_not_standard_readiness_gate',
@@ -2013,7 +2384,7 @@ jobs:
           NODE
 
       - name: Upload same-cohort add-on readiness summary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-addon-readiness-summary-${{ inputs.opl_version }}
           path: release-addon-readiness-summary.json

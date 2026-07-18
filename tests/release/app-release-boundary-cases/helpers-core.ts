@@ -99,8 +99,13 @@ export function writeAssistantRouteSmokeScreenshots(tempRoot) {
   }
 }
 
-const canonicalAssistantRouteIds = ["med-autoscience", "med-autogrant", "redcube-ai"];
-const canonicalAssistantShortNames = { "med-autoscience": "MAS", "med-autogrant": "MAG", "redcube-ai": "RCA" };
+const canonicalAssistantRouteIds = ["mas", "mag", "rca"];
+const canonicalAssistantShortNames = { mas: "MAS", mag: "MAG", rca: "RCA" };
+const canonicalAssistantTargets = {
+  mas: { assistant_id: "mas", shortcut_id: "research", package_id: "mas", codex_visible_entry: "med-autoscience", required_skill_ids: ["med-autoscience"], badge: "@科研" },
+  mag: { assistant_id: "mag", shortcut_id: "grant", package_id: "mag", codex_visible_entry: "med-autogrant", required_skill_ids: ["med-autogrant"], badge: "@基金" },
+  rca: { assistant_id: "rca", shortcut_id: "ppt", package_id: "rca", codex_visible_entry: "redcube-ai", required_skill_ids: ["redcube-ai"], badge: "@演示" },
+};
 
 function appStateFixture(profile, stageAttemptCount, actions = []) {
   return {
@@ -189,20 +194,23 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
     verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
     assistants: canonicalAssistantRouteIds,
   };
+  const requiredSkillIds = canonicalAssistantRouteIds.flatMap(
+    (id) => canonicalAssistantTargets[id].required_skill_ids,
+  );
   const codexFunctionalCheck = {
     schema: "opl_codex_functional_check_receipt.v1",
     status: "diagnostic_skipped",
     runtime_profile: runtimeProfile,
     assistant_route_receipts_checked: {
       status: fullRuntime ? "passed" : "not_applicable_standard",
-      required: canonicalAssistantRouteIds,
-      checked: fullRuntime ? canonicalAssistantRouteIds : [],
+      required: requiredSkillIds,
+      checked: fullRuntime ? requiredSkillIds : [],
       deterministic: true,
     },
     assistant_launch_gates_checked: {
       status: fullRuntime ? "not_applicable_full" : "passed",
-      required: canonicalAssistantRouteIds,
-      checked: fullRuntime ? [] : canonicalAssistantRouteIds,
+      required: requiredSkillIds,
+      checked: fullRuntime ? [] : requiredSkillIds,
       deterministic: true,
     },
     blocking_release_gate: { deterministic_fields_passed: true, llm_invocation_required: false },
@@ -229,10 +237,12 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
     verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
     assistants: canonicalAssistantRouteIds.map((id) => {
       const shortName = canonicalAssistantShortNames[id];
-      const badge = `@${shortName}`;
+      const target = canonicalAssistantTargets[id];
+      const badge = target.badge;
       return fullRuntime
         ? {
             id,
+            ...target,
             badge,
             verification_mode: "route_receipt",
             ready: { badge, selectors_hidden: true },
@@ -245,14 +255,18 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
           }
         : {
             id,
+            ...target,
             badge,
             verification_mode: "launch_gate",
             launch_gate: {
               visible: true,
-              disabled: true,
+              selectable_before_selection: true,
+              selected: true,
               launch_allowed: false,
+              send_blocked: true,
               readiness_hint: "package_not_installed: status, doctor, repair",
               repair_hint_visible: true,
+              message_visible: true,
             },
           };
     }),

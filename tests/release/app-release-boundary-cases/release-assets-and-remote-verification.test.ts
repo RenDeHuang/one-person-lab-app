@@ -57,13 +57,14 @@ These details are included for operators who audit exactly what was packaged. Th
 `;
 }
 
-test('publish creates immutable releases through drafts and cleans only a newly-created failed draft', () => {
+test('publish retains a failed draft and writes a typed recovery receipt without deleting release or tag', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
   const binDir = path.join(tempRoot, 'bin');
   const ghLogPath = path.join(tempRoot, 'gh.log');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const recoveryReceiptPath = path.join(tempRoot, 'release-publish-recovery-receipt.json');
   const version = '26.5.15-test';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
 
@@ -116,6 +117,7 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
     FAKE_GH_LOG: ghLogPath,
     OPL_RELEASE_NOTES_MODE: 'template',
     OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+    OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH: recoveryReceiptPath,
     OPL_RELEASE_TEST_MODE: '1',
     OPL_RELEASE_MUTATION_STATE_JSON: JSON.stringify({
       tagName: `v${version}`,
@@ -133,18 +135,29 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
   assert.deepEqual(newReleaseLifecycle.map((args) => args.slice(0, 2)), [
     ['release', 'create'],
     ['release', 'upload'],
-    ['release', 'delete'],
-  ]);
-  assert.deepEqual(newReleaseLifecycle.at(-1), [
-    'release',
-    'delete',
-    `v${version}`,
-    '--repo',
-    'gaofeng21cn/one-person-lab-app',
-    '--cleanup-tag',
-    '--yes',
   ]);
   assert.equal(newReleaseLifecycle[1].includes('--clobber'), false);
+  assert.doesNotMatch(fs.readFileSync(ghLogPath, 'utf8'), /cleanup-tag|\["release","delete"/);
+  assert.match(newReleaseFailure.stderr, /The release was not deleted/);
+  const newReleaseRecovery = JSON.parse(fs.readFileSync(recoveryReceiptPath, 'utf8'));
+  assert.equal(newReleaseRecovery.schema, 'opl_app_release_publish_recovery_receipt.v1');
+  assert.equal(newReleaseRecovery.status, 'incomplete_draft');
+  assert.equal(newReleaseRecovery.failure.stage, 'upload_assets');
+  assert.equal(newReleaseRecovery.failure.failed_asset, newReleaseRecovery.upload.planned_assets[0].name);
+  assert.ok(newReleaseRecovery.upload.planned_assets.some((asset) => asset.name === dmgName));
+  assert.equal(newReleaseRecovery.draft.origin, 'created_by_current_publish_invocation');
+  assert.equal(newReleaseRecovery.draft.readback, 'incomplete_draft_confirmed');
+  assert.equal(newReleaseRecovery.draft.automatic_release_delete_attempted, false);
+  assert.equal(newReleaseRecovery.draft.automatic_tag_cleanup_attempted, false);
+  assert.equal(newReleaseRecovery.recovery.strategy, 'read_back_then_resume_same_draft_same_cohort');
+  assert.equal(newReleaseRecovery.recovery.brokered_cleanup_mutation_available, false);
+  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.required_mutation, 'release_draft_cleanup');
+  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.release_attempt_id_required, true);
+  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.broker_acceptance_receipt_required, true);
+  assert.equal(
+    newReleaseRecovery.recovery.cleanup_authorization.availability,
+    'unavailable_until_broker_cleanup_mutation_is_provisioned',
+  );
 
   fs.writeFileSync(ghLogPath, '', 'utf8');
   const existingReleaseFailure = runNode(publishArgs, {
@@ -160,6 +173,11 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
   const existingReleaseLifecycle = existingReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
   assert.deepEqual(existingReleaseLifecycle.map((args) => args.slice(0, 2)), [['release', 'upload']]);
   assert.equal(existingReleaseLifecycle[0].includes('--clobber'), true);
+  const existingReleaseRecovery = JSON.parse(fs.readFileSync(recoveryReceiptPath, 'utf8'));
+  assert.equal(existingReleaseRecovery.status, 'incomplete_draft');
+  assert.equal(existingReleaseRecovery.draft.origin, 'preexisting_mutable_draft');
+  assert.equal(existingReleaseRecovery.draft.automatic_release_delete_attempted, false);
+  assert.equal(existingReleaseRecovery.draft.automatic_tag_cleanup_attempted, false);
 });
 
 test('publish refuses to replace an already published Stable or prerelease release', () => {
@@ -220,6 +238,7 @@ test('publish refuses to replace an already published Stable or prerelease relea
       }),
       OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
       OPL_RELEASE_NOTES_MODE: 'template',
+      OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH: path.join(tempRoot, 'promoted-race-recovery-receipt.json'),
       OPL_RELEASE_TEST_MODE: '1',
     },
   });
@@ -283,6 +302,7 @@ process.exit(0);
       PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
       FAKE_GH_LOG: ghLogPath,
       FAKE_GH_STATE_READS: stateReadsPath,
+      OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH: path.join(tempRoot, 'race-recovery-receipt.json'),
       OPL_RELEASE_STATE_JSON: JSON.stringify({
         tagName: `v${version}`,
         isDraft: true,
@@ -303,7 +323,7 @@ process.exit(0);
     || args[1] === 'edit'
     || args[1] === 'upload'
   ));
-  assert.deepEqual(mutations.map((args) => args[1]), ['view', 'edit', 'view']);
+  assert.deepEqual(mutations.map((args) => args[1]), ['view', 'edit', 'view', 'view']);
   assert.equal(mutations.some((args) => args[1] === 'upload'), false);
   assert.equal(mutations.some((args) => args.includes('--clobber')), false);
 });

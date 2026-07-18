@@ -50,8 +50,8 @@ function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSour
     expectedAppHead: appHead,
     shellRef: 'main',
     frameworkRef: 'main',
-    requireShellFormat: false,
-    runShellTests: false,
+    requireShellFormat: true,
+    runShellTests: true,
     repoRoot,
     shellRoot,
     frameworkRoot,
@@ -91,6 +91,19 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: `${appHead}\n`, stderr: '' };
     }
+    if (command === 'git' && args.join(' ') === 'rev-parse --show-toplevel' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: `${repoRoot}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'remote get-url origin' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: 'https://github.com/gaofeng21cn/one-person-lab-app.git\n', stderr: '' };
+    }
+    if (
+      command === 'git'
+      && args.join(' ') === 'ls-remote --heads origin refs/heads/main'
+      && commandOptions.cwd === repoRoot
+    ) {
+      return { status: 0, stdout: `${appHead}\trefs/heads/main\n`, stderr: '' };
+    }
     if (command === 'git' && args.join(' ') === 'status --porcelain --untracked-files=normal' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: '', stderr: '' };
     }
@@ -106,6 +119,9 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     ) {
       return { status: 0, stdout: `${shellHead}\n`, stderr: '' };
     }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: `${shellHead}\n`, stderr: '' };
+    }
     if (
       command === 'git'
       && args[0] === 'rev-parse'
@@ -113,6 +129,12 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
       && args[2] === '--quiet'
       && commandOptions.cwd === frameworkRoot
     ) {
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === frameworkRoot) {
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === repoLocalFrameworkRoot) {
       return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
     }
     if (command === 'bun' && args.join(' ') === 'run format:check' && commandOptions.cwd === shellRoot) {
@@ -141,6 +163,7 @@ function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
     runner(),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -148,17 +171,158 @@ function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
 }
 
 test('release source gate fails stale expected App HEAD before expensive release work', () => {
-  const report = reportFor({ expectedAppHead: 'fedcba9876543210fedcba9876543210fedcba98' });
+  const calls: string[] = [];
+  const baseRunner = runner();
+  const report = buildReleaseSourceGateReport(
+    options({ expectedAppHead: 'fedcba9876543210fedcba9876543210fedcba98' }),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
 
   assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(checkStatus(report, 'expected_app_head'), 'failed');
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
-test('release source gate passes for clean current App checkout and resolvable source refs', () => {
-  const report = reportFor({ expectedAppHead: appHead.slice(0, 12), shellRef: 'main' });
+test('release source gate rejects an abbreviated expected App SHA', () => {
+  const report = reportFor({ expectedAppHead: appHead.slice(0, 12) });
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'expected_app_head'), 'failed');
+  assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'failed');
+  assert.equal(report.admission.immutable_cohort, null);
+});
+
+test('release source gate blocks when live origin/main has advanced and does not run expensive gates', () => {
+  const remoteMain = 'f'.repeat(40);
+  const calls: string[] = [];
+  const baseRunner = runner({
+    [`${repoRoot} $ git ls-remote --heads origin refs/heads/main`]: {
+      status: 0,
+      stdout: `${remoteMain}\trefs/heads/main\n`,
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'app_remote_main_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'app_current_main_identity'), 'failed');
+  assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
+  assert.equal(calls.some((call) => call.startsWith('npm ') || call.startsWith('bun ')), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source gate rejects a shell checkout that differs from its resolved cohort ref', () => {
+  const report = buildReleaseSourceGateReport(
+    options(),
+    runner({
+      [`${shellRoot} $ git rev-parse HEAD`]: {
+        status: 0,
+        stdout: `${'e'.repeat(40)}\n`,
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_checkout_identity'), 'failed');
+  assert.equal(report.admission.immutable_cohort, null);
+});
+
+test('release source gate rejects environment injection before boundary execution', () => {
+  const calls: string[] = [];
+  const baseRunner = runner();
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: { NODE_OPTIONS: '--require /tmp/injected.js' },
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'release_environment_whitelist'), 'failed');
+  assert.match(report.checks.find((check) => check.id === 'release_environment_whitelist')?.message ?? '', /NODE_OPTIONS/);
+  assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
+  assert.equal(calls.some((call) => call.startsWith('npm ') || call.startsWith('bun ')), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source gate strips ambient controller SHA from required gate commands', () => {
+  let requiredGateEnvironment: NodeJS.ProcessEnv | undefined;
+  const baseRunner = runner();
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      if (command === 'npm' && args.join(' ') === 'run validate:release-boundary') {
+        requiredGateEnvironment = commandOptions.env;
+      }
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {
+        GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
+        GITHUB_SHA: 'c'.repeat(40),
+        PATH: '/usr/bin:/bin',
+      },
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'passed');
+  assert.equal(checkStatus(report, 'release_environment_whitelist'), 'passed');
+  assert.equal(requiredGateEnvironment?.GITHUB_SHA, undefined);
+  assert.equal(requiredGateEnvironment?.OPL_EXPECTED_APP_HEAD, appHead);
+  assert.equal(requiredGateEnvironment?.OPL_SHELL_REF, shellHead);
+  assert.equal(requiredGateEnvironment?.OPL_FRAMEWORK_REF, frameworkHead);
+});
+
+test('release source gate passes for clean canonical main and an immutable source cohort', () => {
+  const report = reportFor({ expectedAppHead: appHead, shellRef: 'main' });
 
   assert.equal(report.status, 'passed');
   assert.equal(report.version, '26.6.99');
@@ -167,11 +331,21 @@ test('release source gate passes for clean current App checkout and resolvable s
   assert.equal(report.framework_sha, frameworkHead);
   assert.equal(checkStatus(report, 'expected_app_head'), 'passed');
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
+  assert.equal(checkStatus(report, 'app_current_main_identity'), 'passed');
+  assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'passed');
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'passed');
+  assert.equal(report.admission.status, 'passed');
+  assert.deepEqual(report.admission.immutable_cohort, {
+    version: '26.6.99',
+    app_sha: appHead,
+    shell_sha: shellHead,
+    framework_sha: frameworkHead,
+  });
+  assert.equal(report.typed_blocker, null);
 });
 
 test('release source gate rejects managed update provider contract drift before packaging', () => {
@@ -180,6 +354,7 @@ test('release source gate rejects managed update provider contract drift before 
     runner(),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => {
         const value = readSourceJson(candidatePath);
@@ -195,14 +370,20 @@ test('release source gate rejects managed update provider contract drift before 
   assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'failed');
 });
 
-test('release source gate emits shell format policy and executes it only when required', () => {
+test('release source gate blocks pre-admission when required shell format is not enabled', () => {
   const policyOnly = reportFor({ requireShellFormat: false });
   const requiredGate = policyOnly.required_gates.find((gate) => gate.id === 'active_shell_format_check');
+  assert.equal(policyOnly.status, 'failed');
+  assert.equal(policyOnly.admission.status, 'blocked');
+  assert.equal(policyOnly.admission.next_action, 'repair_pre_admission');
+  assert.equal(policyOnly.typed_blocker?.phase, 'pre_admission');
+  assert.equal(policyOnly.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(requiredGate?.required, true);
   assert.equal(requiredGate?.command, 'bun run format:check');
   assert.equal(requiredGate?.cwd, shellRoot);
   assert.equal(requiredGate?.executed, false);
-  assert.equal(checkStatus(policyOnly, 'active_shell_format_check'), 'skipped');
+  assert.equal(checkStatus(policyOnly, 'active_shell_format_pre_admission'), 'blocked');
+  assert.equal(checkStatus(policyOnly, 'active_shell_format_check'), 'blocked');
 
   const executed = reportFor({ requireShellFormat: true });
   assert.equal(executed.status, 'passed');
@@ -210,9 +391,12 @@ test('release source gate emits shell format policy and executes it only when re
   assert.equal(checkStatus(executed, 'active_shell_format_check'), 'passed');
 });
 
-test('release source gate runs active shell node/dom tests before expensive release work when required', () => {
+test('release source gate blocks pre-admission when required shell node/dom tests are not enabled', () => {
   const policyOnly = reportFor({ runShellTests: false });
   const requiredGate = policyOnly.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests');
+  assert.equal(policyOnly.status, 'failed');
+  assert.equal(policyOnly.admission.status, 'blocked');
+  assert.equal(policyOnly.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(requiredGate?.required, true);
   assert.equal(
     requiredGate?.command,
@@ -220,12 +404,46 @@ test('release source gate runs active shell node/dom tests before expensive rele
   );
   assert.equal(requiredGate?.cwd, repoRoot);
   assert.equal(requiredGate?.executed, false);
-  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_tests'), 'skipped');
+  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_pre_admission'), 'blocked');
+  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_tests'), 'blocked');
 
   const executed = reportFor({ runShellTests: true });
   assert.equal(executed.status, 'passed');
   assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests')?.executed, true);
   assert.equal(checkStatus(executed, 'active_shell_node_dom_tests'), 'passed');
+});
+
+test('release source gate stops at the first required gate failure', () => {
+  const calls: string[] = [];
+  const baseRunner = runner({
+    [`${repoRoot} $ npm run validate:release-boundary`]: {
+      status: 1,
+      stderr: 'release contract drift\n',
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'passed');
+  assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'failed');
+  assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(report.typed_blocker?.phase, 'required_gate_execution');
+  assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
 test('release source gate fails active shell node/dom regressions before expensive release work', () => {
@@ -240,6 +458,7 @@ test('release source gate fails active shell node/dom regressions before expensi
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -264,6 +483,7 @@ test('release source gate fails dirty App worktree before expensive release work
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -288,6 +508,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -310,6 +531,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -333,6 +555,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
@@ -357,6 +580,7 @@ test('release source gate fails unresolved framework ref and wrong shell type', 
     }),
     '2026-06-30T00:00:00.000Z',
     {
+      variables: {},
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath, 'unexpected-shell'),
     },

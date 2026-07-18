@@ -31,6 +31,7 @@ function writeRootPackage(root: string, overrides = {}): void {
       devDependencies: {
         '@types/node': '22.15.3',
         typescript: '5.8.3',
+        yaml: '2.8.1',
       },
       ...overrides,
     }, null, 2)}\n`,
@@ -69,6 +70,8 @@ test('App verification owns one parallel release plan and one full shell executi
   const releaseCommand = packageJson.scripts['test:release-boundary'];
   assert.match(releaseCommand, /npm run validate:release-boundary/);
   assert.match(releaseCommand, /--test-concurrency=4/);
+  assert.match(releaseCommand, /--test-timeout=120000/);
+  assert.match(releaseCommand, /--test-force-exit/);
   assert.match(releaseCommand, /app-release-boundary-cases\/\*\.test\.ts/);
   assert.equal((releaseCommand.match(/validate:release-boundary/g) ?? []).length, 1);
 

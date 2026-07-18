@@ -1,0 +1,196 @@
+{
+  "schema": "opl_app_release_broker_authority.v1",
+  "status": "unprovisioned_release_blocking",
+  "authority_epoch": 0,
+  "issuer": "opl-release-broker",
+  "allowed_repositories": [
+    "gaofeng21cn/one-person-lab-app"
+  ],
+  "broker_identity": {
+    "github_actor": "opl-release-broker[bot]"
+  },
+  "operator_identity": {
+    "github_actor": "gaofeng21cn",
+    "source": "broker_authenticated_caller"
+  },
+  "mutation_broker": {
+    "protocol_version": 1,
+    "executable_path": "/usr/local/libexec/opl-release-broker",
+    "executable_sha256": null,
+    "executable_codesign_identity": null,
+    "environment_inheritance_allowed": false,
+    "caller_admission_required": true,
+    "verified_open_file_descriptor_execution_required": true,
+    "ledger_lookup_supported": true,
+    "exact_run_id_binding_required": true,
+    "lookup_read_consistency": "linearizable",
+    "lookup_caller_admission_required": true,
+    "lookup_requires_mutation_isolation_receipt": false,
+    "lookup_result_signature_required": true,
+    "outbound_pre_api_fence_input": "pre_api_admission_receipt_base64",
+    "approved_controller_workflow_shas": []
+  },
+  "workflow_lookup": {
+    "protocol_version": 2,
+    "endpoint_url": null,
+    "request_method": "POST",
+    "github_oidc_caller_admission_required": true,
+    "oidc_audience": null,
+    "response_schema": "opl_app_release_mutation_broker_ledger_lookup_result.v2",
+    "random_challenge_required": true,
+    "authority_epoch_required": true,
+    "transport_failure_is_authoritative_not_found": false,
+    "redispatch_allowed_after_lookup_failure": false
+  },
+  "historical_verification_epochs": [],
+  "canonical_workflow_ref": "refs/heads/main",
+  "trusted_ed25519_public_keys": {},
+  "credential_isolation_receipt": {
+    "required": true,
+    "max_age_seconds": 900,
+    "environment_path_variable": "OPL_RELEASE_BROKER_CREDENTIAL_ISOLATION_RECEIPT_PATH"
+  },
+  "credential_isolation": {
+    "observed": {
+      "normal_codex_actions_write_allowed": true,
+      "release_broker_actions_write_token_isolated": false,
+      "normal_codex_protected_main_push_allowed": true,
+      "normal_codex_release_control_plane_write_allowed": true,
+      "normal_codex_ruleset_bypass_allowed": true,
+      "normal_codex_required_review_bypass_allowed": true
+    },
+    "required": {
+      "normal_codex_actions_write_allowed": false,
+      "release_broker_actions_write_token_isolated": true,
+      "same_identity_direct_api_bypass_prevented": true,
+      "normal_codex_protected_main_push_allowed": false,
+      "normal_codex_release_control_plane_write_allowed": false,
+      "normal_codex_ruleset_bypass_allowed": false,
+      "normal_codex_required_review_bypass_allowed": false
+    },
+    "protected_environment_alone_blocks_cancel_or_rerun": false
+  },
+  "global_idempotency_ledger": {
+    "required": true,
+    "key_fields": [
+      "repository",
+      "channel",
+      "version"
+    ],
+    "global_latest_mutation_key_fields": [
+      "repository",
+      "channel"
+    ],
+    "global_latest_mutation_cross_version_mutex": true,
+    "global_latest_mutation_applies_to": [
+      "promotion_dispatch"
+    ],
+    "version_scoped_mutations": [
+      "desktop_release_dispatch",
+      "qualification_dispatch",
+      "full_addon_dispatch",
+      "release_draft_cleanup"
+    ],
+    "version_attempts_strictly_ordered": true,
+    "emergency_cancel_has_distinct_attempt_state": true,
+    "admission_fence_durable_before_api_call": true,
+    "ledger_lookup_by_attempt_required": true,
+    "nonce_single_use_enforced": true,
+    "same_attempt_returns_same_receipt": true,
+    "conflicting_session_or_cohort_rejected": true,
+    "concurrent_different_attempt_rejected": true,
+    "pre_api_planned_fence_required": true,
+    "unknown_api_result_requires_reconcile": true
+  },
+  "version_aggregate": {
+    "schema": "opl_app_release_mutation_version_aggregate.v1",
+    "key_fields": [
+      "repository",
+      "channel",
+      "version"
+    ],
+    "immutable_identity_fields": [
+      "stable_session_id",
+      "release_cohort_ref"
+    ],
+    "signed_complete_snapshot_required": true,
+    "monotonic_revision_required": true,
+    "sequence_starts_at": 1,
+    "sequence_must_be_contiguous": true,
+    "head_record_count_watermark_required": true,
+    "partition_complete_from_sequence_one_required": true,
+    "linearizable_currentness_proof_required": true
+  },
+  "latest_mutation_mutex": {
+    "schema": "opl_app_release_latest_mutation_head.v1",
+    "key_fields": [
+      "repository",
+      "channel"
+    ],
+    "applies_to_mutations": [
+      "promotion_dispatch"
+    ],
+    "states": [
+      "free",
+      "held",
+      "outcome_unknown",
+      "cancel_requested"
+    ],
+    "cross_version_conflict_rejected": true,
+    "emergency_cancel_is_owner_child_operation": true,
+    "emergency_cancel_does_not_advance_head": true,
+    "cancel_binds_owner_attempt_fence_and_exact_run": true,
+    "release_requires_owner_terminal_and_latest_readback": true,
+    "expiry_does_not_release": true
+  },
+  "nonce_ledger": {
+    "consume_before_api": true,
+    "durable_atomic_with_pre_api_fence": true,
+    "single_use": true,
+    "same_attempt_replay_returns_original_receipt": true,
+    "different_attempt_reuse_rejected": true,
+    "lease_expiry_does_not_forget_consumption": true
+  },
+  "durable_lookup": {
+    "schema": "opl_app_release_mutation_broker_ledger_lookup_result.v2",
+    "statuses": [
+      "found",
+      "not_found",
+      "outcome_unknown"
+    ],
+    "signed_response_required": true,
+    "linearizable_read_required": true,
+    "max_currentness_age_seconds": 30,
+    "lookup_by_attempt_required": true,
+    "exact_request_digest_required": true,
+    "not_found_proves_no_durable_fence_or_api_call": true,
+    "outcome_unknown_is_reconcile_only": true,
+    "malformed_or_unavailable_never_downgrades_to_not_found": true
+  },
+  "receipt_lifetime": {
+    "admission_ttl_seconds": 900,
+    "historical_signature_validation_expires": false,
+    "expired_lease_cannot_authorize_new_api_call": true,
+    "expired_lease_does_not_invalidate_historical_acceptance": true
+  },
+  "full_addon_admission_clock": {
+    "duration_seconds": 3000,
+    "standard_admission_deadline_role": "immutable_standard_identity_only",
+    "deadline_field": "full_addon_deadline_at",
+    "pre_api_fence_source": "persisted_at",
+    "acceptance_source": "accepted_at",
+    "workflow_validation_source": "signed_acceptance",
+    "signed_in_pre_api_fence": true,
+    "signed_in_acceptance": true,
+    "expired_workflow_admission_fails_closed": true,
+    "reopens_standard_terminal": false
+  },
+  "pre_api_fence": {
+    "schema": "opl_app_release_mutation_pre_api_fence.v1",
+    "signed": true,
+    "durable_before_api_call": true,
+    "contains_exact_request_and_lease": true,
+    "nonce_consumption_atomic_with_fence": true,
+    "api_outcome_unknown_until_signed_acceptance": true
+  }
+}

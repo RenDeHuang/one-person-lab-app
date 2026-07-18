@@ -19,7 +19,7 @@ function runCohortManifest(args: string[]) {
   );
 }
 
-test('release cohort manifest binds candidate, readiness, remote assets, and retry commands', () => {
+test('release cohort manifest binds evidence and emits non-authorizing Stable controller actions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-manifest-'));
   const fixturePath = (name: string) => path.join(tempRoot, name);
   const candidatePath = fixturePath('release-candidate-record.json');
@@ -124,16 +124,26 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
   );
   assert.equal(manifest.gates.length, 2);
   const gate = (id: string) => manifest.gates.find((entry: { id: string }) => entry.id === id);
-  assert.ok(
-    gate('remote_release_verification')
-      ?.retry_command.includes('npm run verify-remote-release -- --version 26.7.5 --include-full-package'),
+  assert.equal(gate('remote_release_verification')?.recovery_action.action, 'reconcile_stable_session');
+  assert.match(
+    gate('remote_release_verification')?.recovery_action.command_template,
+    /^npm run release:stable -- reconcile --state /,
   );
-  assert.ok(
-    gate('full_dmg_clean_vm')
-      ?.retry_command.includes('release_artifact_name=opl-full-first-install-dmg-26.7.5-mac-arm64'),
+  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.action, 'retry_qualification_same_artifact');
+  assert.match(
+    gate('full_dmg_clean_vm')?.recovery_action.command_template,
+    /^npm run release:stable -- retry-qualification .*--artifact-kind full$/,
   );
+  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.mutation_authorized, false);
+  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.direct_workflow_dispatch_allowed, false);
   assert.equal(manifest.reusable_gates[0].status, 'reuse_allowed');
   assert.equal(manifest.retry_policy.build_once_promote_many, true);
+  assert.equal(manifest.retry_policy.recovery_must_use_stable_controller, true);
+  assert.equal(manifest.retry_policy.manifest_can_authorize_mutation, false);
   assert.equal(manifest.retry_policy.manifest_can_claim_release_ready, false);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release Cohort Manifest/);
+  const serialized = JSON.stringify(manifest);
+  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  assert.doesNotMatch(serialized, /gh workflow run|rerun job|--execute/i);
+  assert.doesNotMatch(markdown, /gh workflow run|rerun job|--execute/i);
+  assert.match(markdown, /Typed recovery action/);
 });
