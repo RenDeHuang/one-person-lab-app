@@ -2589,19 +2589,25 @@ export function validateSettingsExperienceContract(experience) {
       inventory_freshness_fields: ["observed_at", "scan_duration_ms", "stale"],
       inventory_event: "local-data-lifecycle.inventory-updated",
       log_directory_reference: "read_only_link_to_workspace#logs",
-      docker_storage_owner: "desktop_App_carrier_and_Docker_Engine",
-      docker_required_fields: [
-        "engine_status",
-        "image_bytes",
-        "container_bytes",
-        "volume_bytes",
-        "build_cache_bytes",
-        "reclaimable_bytes",
-        "data_volume_source",
-        "data_volume_destination",
+      owner_storage_projection_source: "opl_app_state_fast_owner_projections",
+      owner_storage_sections: [
+        "agent_package_store",
+        "webui_data_volume",
       ],
-      docker_data_volume_mapping: "OnePersonLab/data -> /data",
-      docker_cleanup_policy: "preview_before_prune_no_generic_prune",
+      owner_storage_required_fields: [
+        "status",
+        "observed_at",
+        "stale",
+        "bytes",
+        "reclaimable_bytes",
+        "owner_route",
+        "projected_action",
+      ],
+      owner_storage_missing_policy: "fail_open_keep_shell_owned_categories_available",
+      agent_package_storage_action_policy: "navigate_to_agents_reuse_owner_uninstall_no_duplicate_storage_lifecycle",
+      webui_data_volume_mapping: "OnePersonLab/data -> /data",
+      webui_cleanup_policy: "owner_projected_dry_run_exact_confirmation_fresh_terminal_readback_and_recovery",
+      generic_docker_prune_allowed: false,
     },
     "Settings Storage surface rules",
   );
@@ -2902,30 +2908,39 @@ function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
       "Settings Storage must use the 300-second cache and keep the log directory as a read-only Workspace reference",
     );
   }
-  const docker = storagePage?.docker_storage_projection;
+  const ownerStorage = storagePage?.owner_storage_projections;
   if (
-    docker?.owner !== "desktop_App_carrier_and_Docker_Engine" ||
-    docker?.data_volume_mapping !== "OnePersonLab/data -> /data" ||
-    docker?.preview_before_prune !== true ||
-    docker?.generic_prune_allowed !== false
+    ownerStorage?.projection_source !== "opl app state --profile fast --json" ||
+    ownerStorage?.missing_projection_policy !== "fail_open_keep_shell_owned_categories_available" ||
+    ownerStorage?.unknown_bytes_policy !== "unavailable_never_zero" ||
+    ownerStorage?.agent_package_store?.owner_route !== "/settings/agents" ||
+    ownerStorage?.agent_package_store?.ordinary_action !== "navigate_to_owner_route" ||
+    ownerStorage?.agent_package_store?.direct_storage_mutation_allowed !== false ||
+    ownerStorage?.webui_data_volume?.data_volume_mapping !== "OnePersonLab/data -> /data" ||
+    ownerStorage?.webui_data_volume?.generic_docker_prune_allowed !== false ||
+    ownerStorage?.webui_data_volume?.shell_direct_path_delete_allowed !== false
   ) {
     throw new Error(
-      "Settings Storage must expose typed Docker usage with preview-before-prune and no generic prune",
+      "Settings Storage must consume fail-open owner projections without direct Package or WebUI path mutation",
     );
   }
+  assertDeepEqualJson(
+    ownerStorage?.sections,
+    ["agent_package_store", "webui_data_volume"],
+    "Settings Storage owner projection sections",
+  );
   assertIncludesAll(
-    docker?.required_fields,
+    ownerStorage?.common_required_fields,
     [
-      "engine_status",
-      "image_bytes",
-      "container_bytes",
-      "volume_bytes",
-      "build_cache_bytes",
+      "status",
+      "observed_at",
+      "stale",
+      "bytes",
       "reclaimable_bytes",
-      "data_volume_source",
-      "data_volume_destination",
+      "owner_route",
+      "projected_action",
     ],
-    "Settings Storage Docker projection fields",
+    "Settings Storage owner projection fields",
   );
 }
 

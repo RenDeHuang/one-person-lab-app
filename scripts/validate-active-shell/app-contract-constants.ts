@@ -1275,7 +1275,7 @@ export const appOwnedSettingsProductSystemItemIds = [
   "capabilities_experience",
   "resources_readiness_boundary",
   "data_storage_safety",
-  "docker_storage_projection",
+  "owner_storage_projection",
   "preferences_user_language",
   "maintenance_diagnostics",
   "about_update_summary",

@@ -324,11 +324,33 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
     ['path', 'exists', 'bytes', 'cleanup_mode', 'silent_delete_allowed'],
     'Local data lifecycle storage inventory required fields',
   );
+  const ownerStorage = lifecycle.owner_storage_projections;
+  assertDeepEqualJson(
+    ownerStorage?.sections,
+    ['agent_package_store', 'webui_data_volume'],
+    'Local data lifecycle owner storage sections',
+  );
+  assertDeepEqualJson(
+    ownerStorage?.common_required_fields,
+    ['status', 'observed_at', 'stale', 'bytes', 'reclaimable_bytes', 'owner_route', 'projected_action'],
+    'Local data lifecycle owner storage fields',
+  );
   if (
     lifecycle.storage_inventory?.surface !== 'Settings / Storage' ||
     lifecycle.storage_inventory?.execution_mode !== 'scan_dry_run_first' ||
     lifecycle.storage_inventory?.implementation !==
       'shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts' ||
+    ownerStorage?.projection_source !== 'opl app state --profile fast --json' ||
+    ownerStorage?.missing_projection_policy !== 'fail_open_keep_shell_owned_categories_available' ||
+    ownerStorage?.unknown_bytes_policy !== 'unavailable_never_zero' ||
+    ownerStorage?.agent_package_store?.owner !== 'one-person-lab' ||
+    ownerStorage?.agent_package_store?.ordinary_action !== 'navigate_to_/settings/agents' ||
+    ownerStorage?.agent_package_store?.storage_direct_uninstall_allowed !== false ||
+    ownerStorage?.webui_data_volume?.inventory_owner !== 'one-person-lab' ||
+    ownerStorage?.webui_data_volume?.execution_owner !== 'carrier_host' ||
+    ownerStorage?.webui_data_volume?.webui_container_execution !== 'host_action_required_without_docker_socket' ||
+    ownerStorage?.webui_data_volume?.generic_docker_prune_allowed !== false ||
+    ownerStorage?.webui_data_volume?.shell_direct_path_delete_allowed !== false ||
     lifecycle.updater_cache?.receipt_required !== true ||
     lifecycle.user_data_artifacts?.default_policy !== 'retain_conversations_workspaces_and_artifacts_until_user_cleanup_or_archive' ||
     lifecycle.user_data_artifacts?.silent_delete_allowed !== false ||

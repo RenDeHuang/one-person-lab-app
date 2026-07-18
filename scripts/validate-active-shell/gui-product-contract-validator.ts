@@ -1796,9 +1796,32 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.settings_storage.state_source !==
-      'active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle'
+      'active shell local data lifecycle service + Framework and carrier-host owner projections from opl app state --profile fast --json + contracts/app-release-channel.json#local_data_lifecycle'
   ) {
-    throw new Error('Settings Storage must consume the active shell local data lifecycle service and App release lifecycle contract');
+    throw new Error('Settings Storage must merge Shell lifecycle state with Framework and carrier-host owner projections');
+  }
+  const ownerStorage = pages.settings_storage.owner_storage_projections;
+  assertDeepEqualJson(
+    ownerStorage?.sections,
+    ['agent_package_store', 'webui_data_volume'],
+    'Settings Storage owner projection sections',
+  );
+  assertDeepEqualJson(
+    ownerStorage?.common_required_fields,
+    ['status', 'observed_at', 'stale', 'bytes', 'reclaimable_bytes', 'owner_route', 'projected_action'],
+    'Settings Storage owner projection fields',
+  );
+  if (
+    ownerStorage?.projection_source !== 'opl app state --profile fast --json' ||
+    ownerStorage?.missing_projection_policy !== 'fail_open_keep_shell_owned_categories_available' ||
+    ownerStorage?.unknown_bytes_policy !== 'unavailable_never_zero' ||
+    ownerStorage?.agent_package_store?.owner_route !== '/settings/agents' ||
+    ownerStorage?.agent_package_store?.direct_storage_mutation_allowed !== false ||
+    ownerStorage?.webui_data_volume?.data_volume_mapping !== 'OnePersonLab/data -> /data' ||
+    ownerStorage?.webui_data_volume?.generic_docker_prune_allowed !== false ||
+    ownerStorage?.webui_data_volume?.shell_direct_path_delete_allowed !== false
+  ) {
+    throw new Error('Settings Storage owner projections must remain fail-open and owner-routed without direct Shell cleanup');
   }
   validateReadOnlyStorageLifecycleSurface(
     pages.settings_storage.read_only_lifecycle_surface,

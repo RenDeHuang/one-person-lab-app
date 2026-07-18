@@ -1642,6 +1642,21 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     ),
     storageVisual,
   );
+  const ownerStorage = guiPages.settings_storage.owner_storage_projections;
+  assert.deepStrictEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
+  assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');
+  assert.equal(ownerStorage.agent_package_store.owner_route, '/settings/agents');
+  assert.equal(ownerStorage.agent_package_store.direct_storage_mutation_allowed, false);
+  assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);
+  assert.equal(ownerStorage.webui_data_volume.shell_direct_path_delete_allowed, false);
+  assert.equal(
+    values.controlPlane.product_system_checklist.items.some((entry) => entry.id === 'docker_storage_projection'),
+    false,
+  );
+  assert.equal(
+    values.controlPlane.product_system_checklist.items.some((entry) => entry.id === 'owner_storage_projection'),
+    true,
+  );
 
   const componentAudit = values.controlPlane.visual_qa_policy.component_audit;
   assert.deepStrictEqual(componentAudit.required_color_schemes, ["light", "dark"]);

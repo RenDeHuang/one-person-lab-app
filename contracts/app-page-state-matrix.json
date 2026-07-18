@@ -2045,18 +2045,18 @@
     },
     {
       "id": "storage",
-      "expected_source": "active shell cached local and Docker inventory plus App release lifecycle contract",
+      "expected_source": "active shell cached local inventory plus Framework and carrier-host owner storage projections",
       "must_show": [
         "one merged storage category list with size, safety, and next action",
         "last cached inventory immediately without rendering unknown values as zero bytes",
         "inventory freshness timestamp and non-blocking background refresh",
         "read-only Workspace-owned log path reference",
-        "Docker image, container, volume, build-cache, and reclaimable usage",
+        "Agent Package store and WebUI data volume usage from canonical owner projections",
         "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history"
       ],
-      "machine_source": "active shell local data lifecycle and Docker Engine inventory services",
-      "refresh_source": "last persisted inventory snapshot followed by startup-delayed 300-second-TTL and manual background refresh plus inventory-updated events",
+      "machine_source": "active shell local data lifecycle plus opl app state owner storage projections",
+      "refresh_source": "cached shell and owner snapshots followed by non-blocking TTL/manual refresh; missing owner projections fail open",
       "page_contract": "settings_storage",
       "sections": [
         "storage_categories",
@@ -2180,21 +2180,43 @@
         "push_event": "local-data-lifecycle.inventory-updated",
         "watch_policy": "no_recursive_long_lived_fs_watch_for_large_roots"
       },
-      "docker_storage_projection": {
-        "owner": "desktop_App_carrier_and_Docker_Engine",
-        "required_fields": [
-          "engine_status",
-          "image_bytes",
-          "container_bytes",
-          "volume_bytes",
-          "build_cache_bytes",
-          "reclaimable_bytes",
-          "data_volume_source",
-          "data_volume_destination"
+      "owner_storage_projections": {
+        "projection_source": "opl app state --profile fast --json",
+        "sections": [
+          "agent_package_store",
+          "webui_data_volume"
         ],
-        "data_volume_mapping": "OnePersonLab/data -> /data",
-        "preview_before_prune": true,
-        "generic_prune_allowed": false
+        "common_required_fields": [
+          "status",
+          "observed_at",
+          "stale",
+          "bytes",
+          "reclaimable_bytes",
+          "owner_route",
+          "projected_action"
+        ],
+        "missing_projection_policy": "fail_open_keep_shell_owned_categories_available",
+        "unknown_bytes_policy": "unavailable_never_zero",
+        "agent_package_store": {
+          "owner": "one-person-lab",
+          "source_ref": "app_state.agent_packages.storage_inventory",
+          "owner_route": "/settings/agents",
+          "ordinary_action": "navigate_to_owner_route",
+          "direct_storage_mutation_allowed": false,
+          "lifecycle_action_ref": "app_state.actions#agent_package_uninstall"
+        },
+        "webui_data_volume": {
+          "owner": "one-person-lab_framework_with_carrier_host_execution",
+          "source_ref": "app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume",
+          "owner_route": "/settings/storage#webui-data",
+          "data_volume_mapping": "OnePersonLab/data -> /data",
+          "raw_source_path_visibility": "diagnostics_only",
+          "action_policy": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
+          "execute_payload_policy": "submit_only_projected_action_id_and_dry_run_plan_ref_or_hash",
+          "recovery_policy": "owner_receipt_and_restore_action_required_for_user_data",
+          "generic_docker_prune_allowed": false,
+          "shell_direct_path_delete_allowed": false
+        }
       },
       "log_directory_ref": {
         "mode": "read_only",

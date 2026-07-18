@@ -1116,6 +1116,7 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   const localDataLifecycle = release.local_data_lifecycle;
   const runtime = localDataLifecycle.runtime_substrate;
   const deleteBoundary = localDataLifecycle.user_data_artifacts.delete_execution_boundary;
+  const ownerStorage = localDataLifecycle.owner_storage_projections;
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
   const missingShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-data-shell-'));
@@ -1140,6 +1141,14 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
     'blocked_no_candidates_no_execute',
   );
   assert.equal(deleteBoundary.canonical_verifier, 'verifyConversationArchiveReceipt');
+  assert.deepEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
+  assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');
+  assert.equal(ownerStorage.agent_package_store.ordinary_action, 'navigate_to_/settings/agents');
+  assert.equal(ownerStorage.agent_package_store.storage_direct_uninstall_allowed, false);
+  assert.equal(ownerStorage.webui_data_volume.execution_owner, 'carrier_host');
+  assert.equal(ownerStorage.webui_data_volume.webui_container_execution, 'host_action_required_without_docker_socket');
+  assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);
+  assert.equal(ownerStorage.webui_data_volume.shell_direct_path_delete_allowed, false);
 
   const conflatedRuntimeRoots = structuredClone(release);
   conflatedRuntimeRoots.local_data_lifecycle.runtime_substrate.inventory_roots[0].derivation =
@@ -1162,6 +1171,20 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   assert.throws(
     () => validateReleaseChannelContract(verifierBypassed),
     /canonical archive verifier/,
+  );
+
+  const unsafeWebuiCleanup = structuredClone(release);
+  unsafeWebuiCleanup.local_data_lifecycle.owner_storage_projections.webui_data_volume.generic_docker_prune_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(unsafeWebuiCleanup),
+    /explicit policy surfaces/,
+  );
+
+  const blockingOwnerProjection = structuredClone(release);
+  blockingOwnerProjection.local_data_lifecycle.owner_storage_projections.missing_projection_policy = 'block_storage_page';
+  assert.throws(
+    () => validateReleaseChannelContract(blockingOwnerProjection),
+    /explicit policy surfaces/,
   );
 });
 

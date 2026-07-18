@@ -286,6 +286,43 @@
       ],
       "rule": "Storage inventory must show App-managed local data roots and cleanup modes before any destructive action. It is the required readback surface before archive, prune, rotation, or cache cleanup execution."
     },
+    "owner_storage_projections": {
+      "projection_source": "opl app state --profile fast --json",
+      "sections": [
+        "agent_package_store",
+        "webui_data_volume"
+      ],
+      "common_required_fields": [
+        "status",
+        "observed_at",
+        "stale",
+        "bytes",
+        "reclaimable_bytes",
+        "owner_route",
+        "projected_action"
+      ],
+      "missing_projection_policy": "fail_open_keep_shell_owned_categories_available",
+      "unknown_bytes_policy": "unavailable_never_zero",
+      "agent_package_store": {
+        "owner": "one-person-lab",
+        "readback_ref": "app_state.agent_packages.storage_inventory",
+        "ordinary_action": "navigate_to_/settings/agents",
+        "lifecycle_action_ref": "app_state.actions#agent_package_uninstall",
+        "storage_direct_uninstall_allowed": false
+      },
+      "webui_data_volume": {
+        "inventory_owner": "one-person-lab",
+        "execution_owner": "carrier_host",
+        "readback_ref": "app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume",
+        "data_volume_mapping": "OnePersonLab/data -> /data",
+        "raw_source_path_visibility": "diagnostics_only",
+        "execution_contract": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
+        "recovery_required": true,
+        "webui_container_execution": "host_action_required_without_docker_socket",
+        "generic_docker_prune_allowed": false,
+        "shell_direct_path_delete_allowed": false
+      }
+    },
     "updater_cache": {
       "owner": "active_shell",
       "implementation": "shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts",
