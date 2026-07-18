@@ -48,6 +48,18 @@ export type StandardDeadlineBlocker = {
   legal_next_actions: ['read_only_reconcile', 'emergency_cancel'];
 };
 
+export type FullAddonDeadlineBlocker = {
+  status: 'blocked_with_debt';
+  blocker: 'full_addon_deadline_elapsed';
+  acceptance_attempt_id: string;
+  run_id: string;
+  deadline_at: string;
+  observed_at: string;
+  remote_status: string;
+  remaining_ms: 0;
+  legal_next_actions: ['read_only_reconcile', 'emergency_cancel'];
+};
+
 type ReleaseMetrics = {
   session_started_at: string;
   standard_completed_at: string | null;
@@ -190,6 +202,8 @@ export type StableReleaseSession = {
       receipt_sha256: string | null;
       release_set_generation: string | null;
       release_set_manifest_digest: string | null;
+      deadline_at: string | null;
+      deadline_blocker: FullAddonDeadlineBlocker | null;
     };
     webui: {
       required: boolean;
@@ -271,9 +285,10 @@ function numericRunId(value: string | null): boolean {
   return value === null || /^[1-9][0-9]*$/.test(value);
 }
 
-function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
+export function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
   return `sha256:${crypto.createHash('sha256').update(JSON.stringify({
     version: plan.version,
+    admitted_at: plan.generated_at,
     operator_plan_ref: plan.operator_plan_ref,
     app_sha: plan.cohort_lock.app.resolved_sha,
     shell_sha: plan.cohort_lock.shell.resolved_sha,
@@ -298,11 +313,17 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
   if (!Number.isFinite(createdAt) || createdAt !== startedAt) {
     errors.push('session created_at must equal the immutable metrics session start');
   }
+  if (session.cohort_plan.generated_at !== session.created_at) {
+    errors.push('frozen cohort generated_at must equal the immutable Standard admission start');
+  }
   if (!Number.isFinite(updatedAt) || updatedAt < startedAt) errors.push('session updated_at predates the immutable session start');
   if (!Number.isFinite(startedAt) || !Number.isFinite(deadlineAt) || deadlineAt !== startedAt + 90 * 60 * 1_000) {
     errors.push('Standard admission deadline must be exactly 90 minutes after the immutable session start');
   }
   if (session.version !== session.cohort_plan.version) errors.push('session version does not match the frozen cohort');
+  if (session.terminal_truth.standard_status === 'in_progress' && updatedAt >= deadlineAt) {
+    errors.push('in-progress Standard session cannot remain open at or after its immutable deadline');
+  }
   if (terminalPhase !== (session.terminal_truth.standard_status === 'terminal')) {
     errors.push('Standard terminal truth does not match the session phase');
   }
@@ -358,6 +379,10 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
     }
     if (session.terminal_truth.standard_terminal_at !== session.metrics.standard_completed_at) {
       errors.push('Standard terminal truth and metrics timestamps differ');
+    }
+    const standardTerminalAt = Date.parse(String(session.terminal_truth.standard_terminal_at));
+    if (!Number.isFinite(standardTerminalAt) || standardTerminalAt >= deadlineAt) {
+      errors.push('Standard success terminal must be recorded before the immutable 90-minute deadline');
     }
     for (const [label, receipt] of [
       ['promotion saga', session.receipts.promotion_saga],
@@ -559,6 +584,35 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
     !/^sha256:[0-9a-f]{64}$/.test(session.promotion_progress.release_set_manifest_digest)
   ) errors.push('promotion Release Set manifest digest is invalid');
   const full = session.addon_tracks.full;
+  const fullDeadlineAt = Date.parse(String(full.deadline_at));
+  const fullDispatchAcceptance = session.mutation_acceptances.find((acceptance) =>
+    acceptance.pre_api_fence.request.mutation === 'full_addon_dispatch' && acceptance.github.run_id === full.run_id
+  );
+  if (full.deadline_at !== null && (!Number.isFinite(fullDeadlineAt) || new Date(fullDeadlineAt).toISOString() !== full.deadline_at)) {
+    errors.push('Full add-on deadline is not canonical UTC ISO-8601');
+  }
+  if (fullDispatchAcceptance && full.deadline_at !== fullDispatchAcceptance.full_addon_deadline_at) {
+    errors.push('Full add-on deadline does not match its signed broker acceptance');
+  }
+  if (['running', 'qualified', 'failed'].includes(full.status) && !full.deadline_at) {
+    errors.push(`Full add-on ${full.status} state lacks its signed broker deadline`);
+  }
+  if (full.deadline_blocker) {
+    const blocker = full.deadline_blocker;
+    if (
+      blocker.status !== 'blocked_with_debt' || blocker.blocker !== 'full_addon_deadline_elapsed' ||
+      full.status !== 'blocked_with_debt' || session.terminal_truth.standard_status !== 'terminal' ||
+      blocker.acceptance_attempt_id !== fullDispatchAcceptance?.lease.attempt_id || blocker.run_id !== full.run_id ||
+      blocker.deadline_at !== full.deadline_at ||
+      !Number.isFinite(Date.parse(blocker.observed_at)) || Date.parse(blocker.observed_at) < fullDeadlineAt ||
+      Date.parse(blocker.observed_at) > updatedAt ||
+      typeof blocker.remote_status !== 'string' || !blocker.remote_status || blocker.remaining_ms !== 0 ||
+      JSON.stringify(blocker.legal_next_actions) !== JSON.stringify(['read_only_reconcile', 'emergency_cancel'])
+    ) errors.push('Full add-on deadline blocker is not bound to its signed acceptance, exact run, and terminal debt state');
+  }
+  if (full.status === 'blocked_with_debt' && !full.deadline_blocker && (!full.receipt_ref || !/^[0-9a-f]{64}$/.test(full.receipt_sha256 ?? ''))) {
+    errors.push('Full add-on typed debt state lacks either a deadline blocker or an exact debt receipt');
+  }
   if (full.status === 'qualified' && (!full.receipt_ref || !/^[0-9a-f]{64}$/.test(full.receipt_sha256 ?? ''))) {
     errors.push('qualified Full add-on lacks its exact receipt ref/digest');
   }
@@ -771,6 +825,10 @@ export function readStableReleaseSession(statePath: string): StableReleaseSessio
     throw new Error('Legacy single-complete stable release sessions are not authoritative; migrate to explicit Standard and add-on terminal truth.');
   }
   const artifactTracks = raw.artifact_tracks ?? emptyArtifactTracks();
+  const fullRunId = raw.addon_tracks?.full?.run_id ?? null;
+  const fullAcceptanceDeadline = raw.mutation_acceptances?.find((acceptance) =>
+    acceptance.pre_api_fence.request.mutation === 'full_addon_dispatch' && acceptance.github.run_id === fullRunId
+  )?.full_addon_deadline_at ?? null;
   const session: StableReleaseSession = {
       ...raw,
       revision: raw.revision ?? 0,
@@ -862,6 +920,8 @@ export function readStableReleaseSession(statePath: string): StableReleaseSessio
           ...(raw.addon_tracks?.full ?? { required: raw.cohort_plan.include_full_package, status: raw.cohort_plan.include_full_package ? 'pending' : 'not_requested', run_id: null, run_url: null, conclusion: null, receipt_ref: null, receipt_sha256: null }),
           release_set_generation: raw.addon_tracks?.full?.release_set_generation ?? null,
           release_set_manifest_digest: raw.addon_tracks?.full?.release_set_manifest_digest ?? null,
+          deadline_at: raw.addon_tracks?.full?.deadline_at ?? fullAcceptanceDeadline,
+          deadline_blocker: raw.addon_tracks?.full?.deadline_blocker ?? null,
         },
       },
   };
@@ -872,7 +932,7 @@ export function readStableReleaseSession(statePath: string): StableReleaseSessio
 export function buildStableReleaseSession(
   plan: ReleaseCohortPlan,
   repo = 'gaofeng21cn/one-person-lab-app',
-  generatedAt = new Date().toISOString(),
+  generatedAt = plan.generated_at,
 ): StableReleaseSession {
   const id = stableReleaseSessionIdentity(plan);
   return {
@@ -897,7 +957,7 @@ export function buildStableReleaseSession(
     mutation_attempts: [],
     artifact_tracks: emptyArtifactTracks(),
     addon_tracks: {
-      full: { required: plan.include_full_package, status: plan.include_full_package ? 'pending' : 'not_requested', run_id: null, run_url: null, conclusion: null, receipt_ref: null, receipt_sha256: null, release_set_generation: null, release_set_manifest_digest: null },
+      full: { required: plan.include_full_package, status: plan.include_full_package ? 'pending' : 'not_requested', run_id: null, run_url: null, conclusion: null, receipt_ref: null, receipt_sha256: null, release_set_generation: null, release_set_manifest_digest: null, deadline_at: null, deadline_blocker: null },
       webui: { required: plan.publish_docker_webui, status: plan.publish_docker_webui ? 'pending' : 'not_requested', receipt_ref: null, receipt_sha256: null },
     },
     terminal_truth: {
@@ -975,6 +1035,21 @@ export function transitionStableReleaseSession(
   }
   const started = Date.parse(session.metrics.session_started_at);
   const ended = Date.parse(at);
+  const deadline = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  const updated = Date.parse(session.updated_at);
+  if (!Number.isFinite(ended) || !Number.isFinite(updated) || ended < updated) {
+    throw new Error('Stable release transition timestamp must be valid and monotonic.');
+  }
+  if (
+    session.terminal_truth.standard_status === 'in_progress' &&
+    to !== 'standard_deadline_blocked' &&
+    (!Number.isFinite(deadline) || ended >= deadline)
+  ) {
+    throw new Error('Standard success or non-deadline failure transition cannot occur at or after the immutable 90-minute deadline.');
+  }
+  if (to === 'standard_deadline_blocked' && (!Number.isFinite(deadline) || ended < deadline)) {
+    throw new Error('Standard deadline blocker cannot be recorded before the immutable 90-minute deadline.');
+  }
   const elapsed = Number.isFinite(started) && Number.isFinite(ended) ? Math.max(0, ended - started) : 0;
   const currentTiming = session.metrics.phases[session.phase];
   const currentStarted = Date.parse(currentTiming?.started_at ?? session.updated_at);
@@ -1031,6 +1106,82 @@ export function transitionStableReleaseSession(
   };
   assertStableReleaseSessionInvariants(transitioned);
   return transitioned;
+}
+
+export function blockFullAddonAtDeadline(
+  session: StableReleaseSession,
+  input: {
+    acceptanceAttemptId: string;
+    runId: string;
+    deadlineAt: string;
+    observedAtMs: number;
+    remoteStatus: string;
+  },
+): StableReleaseSession {
+  assertStableReleaseSessionInvariants(session);
+  if (session.terminal_truth.standard_status !== 'terminal') {
+    throw new Error('Full add-on deadline blocker cannot alter a nonterminal Standard session.');
+  }
+  if (session.addon_tracks.full.status === 'qualified') {
+    throw new Error('A qualified Full add-on cannot be replaced by a deadline blocker.');
+  }
+  if (session.addon_tracks.full.deadline_blocker) return session;
+  const acceptance = session.mutation_acceptances.find((candidate) =>
+    candidate.lease.attempt_id === input.acceptanceAttemptId &&
+    candidate.pre_api_fence.request.mutation === 'full_addon_dispatch' &&
+    candidate.github.run_id === input.runId
+  );
+  if (!acceptance || acceptance.full_addon_deadline_at !== input.deadlineAt) {
+    throw new Error('Full add-on deadline blocker lacks its exact signed broker acceptance.');
+  }
+  if (session.addon_tracks.full.run_id !== input.runId || session.addon_tracks.full.deadline_at !== input.deadlineAt) {
+    throw new Error('Full add-on deadline blocker conflicts with the durable add-on track identity.');
+  }
+  const deadlineAtMs = Date.parse(input.deadlineAt);
+  if (!Number.isFinite(deadlineAtMs) || !Number.isFinite(input.observedAtMs) || input.observedAtMs < deadlineAtMs) {
+    throw new Error('Full add-on deadline blocker cannot be recorded before the signed deadline.');
+  }
+  const at = new Date(input.observedAtMs).toISOString();
+  const elapsed = Math.max(0, input.observedAtMs - Date.parse(session.metrics.session_started_at));
+  let blocked: StableReleaseSession = {
+    ...session,
+    updated_at: at,
+    addon_tracks: {
+      ...session.addon_tracks,
+      full: {
+        ...session.addon_tracks.full,
+        status: 'blocked_with_debt',
+        conclusion: 'deadline_blocked',
+        receipt_ref: null,
+        receipt_sha256: null,
+        deadline_blocker: {
+          status: 'blocked_with_debt',
+          blocker: 'full_addon_deadline_elapsed',
+          acceptance_attempt_id: input.acceptanceAttemptId,
+          run_id: input.runId,
+          deadline_at: input.deadlineAt,
+          observed_at: at,
+          remote_status: input.remoteStatus || 'unknown',
+          remaining_ms: 0,
+          legal_next_actions: ['read_only_reconcile', 'emergency_cancel'],
+        },
+      },
+    },
+    terminal_truth: { ...session.terminal_truth, addon_status: 'blocked_with_debt' },
+    metrics: { ...session.metrics, total_wall_time_ms: Math.max(session.metrics.total_wall_time_ms, elapsed) },
+  };
+  const webui = blocked.addon_tracks.webui;
+  const webuiTerminal = !webui.required || ['verified', 'blocked_with_debt'].includes(webui.status);
+  if (webuiTerminal && blocked.phase === 'standard_stable_terminal') {
+    blocked = transitionStableReleaseSession(
+      blocked,
+      'addon_train_terminal',
+      'Full add-on reached its signed 50-minute deadline; Standard remains terminal and add-on debt is durable',
+      at,
+    );
+  }
+  assertStableReleaseSessionInvariants(blocked);
+  return blocked;
 }
 
 export function appendStableReleaseEfficiencyAdvisory(

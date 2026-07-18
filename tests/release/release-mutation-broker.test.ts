@@ -8,6 +8,7 @@ import {
   readReleaseBrokerAuthority,
   releaseBrokerAuthoritySha256,
   resolveHistoricalReleaseBrokerAuthority,
+  validateCredentialIsolationReceipt,
   validateReleaseBrokerAuthority,
   type ReleaseBrokerAuthorityV1,
 } from '../../scripts/release-broker-authority.ts';
@@ -78,17 +79,24 @@ const authority: ReleaseBrokerAuthorityV1 = {
   },
 };
 
-const isolation = buildCredentialIsolationReceipt({
-  authority, observedAt: '2026-07-18T00:00:00.000Z', expiresAt: '2026-07-18T00:15:00.000Z',
-  normalActor: 'codex-read-only', normalTokenFingerprint: `sha256:${'1'.repeat(64)}`,
-  brokerActor: 'opl-release-broker[bot]', brokerTokenFingerprint: `sha256:${'2'.repeat(64)}`,
-  brokerBackend: 'github-app', brokerEndpointPath: authority.mutation_broker.executable_path,
-  brokerEndpointSha256: authority.mutation_broker.executable_sha256!,
-  brokerEndpointCodesignIdentity: authority.mutation_broker.executable_codesign_identity!,
-  privateKeyBackend: 'keychain', callerAdmissionBackend: 'xpc-peer-credential',
-  operatorActor: 'gaofeng21cn', operatorIdentitySource: 'broker_authenticated_caller',
-  keyId: 'test', signingPrivateKeyPem: privateKeyPem,
-});
+function buildIsolationReceipt(
+  overrides: Partial<Parameters<typeof buildCredentialIsolationReceipt>[0]> = {},
+) {
+  return buildCredentialIsolationReceipt({
+    authority, observedAt: '2026-07-18T00:00:00.000Z', expiresAt: '2026-07-18T00:15:00.000Z',
+    normalActor: 'codex-read-only', normalTokenFingerprint: `sha256:${'1'.repeat(64)}`,
+    brokerActor: 'opl-release-broker[bot]', brokerTokenFingerprint: `sha256:${'2'.repeat(64)}`,
+    brokerBackend: 'github-app', brokerEndpointPath: authority.mutation_broker.executable_path,
+    brokerEndpointSha256: authority.mutation_broker.executable_sha256!,
+    brokerEndpointCodesignIdentity: authority.mutation_broker.executable_codesign_identity!,
+    privateKeyBackend: 'keychain', callerAdmissionBackend: 'xpc-peer-credential',
+    operatorActor: 'gaofeng21cn', operatorIdentitySource: 'broker_authenticated_caller',
+    keyId: 'test', signingPrivateKeyPem: privateKeyPem,
+    ...overrides,
+  });
+}
+
+const isolation = buildIsolationReceipt();
 
 function qualificationRequest(input: { version?: string; attemptChar?: string; sessionChar?: string } = {}): ReleaseMutationBrokerRequestV1 {
   const version = input.version ?? '26.7.18';
@@ -234,6 +242,81 @@ test('canonical authority stays unprovisioned while requiring durable global bro
   assert.match(fs.readFileSync('scripts/release-mutation-broker.ts', 'utf8'), /spawnSync\('\/dev\/fd\/3'/);
 });
 
+test('credential isolation requires distinct actors and strict distinct token fingerprints', () => {
+  for (const normalActor of ['', '   ']) {
+    assert.throws(() => buildIsolationReceipt({ normalActor }), /normal credential actor is missing/);
+  }
+  assert.throws(
+    () => buildIsolationReceipt({ normalActor: ` ${authority.broker_identity.github_actor} ` }),
+    /normal credential actor must differ from broker actor/,
+  );
+
+  for (const normalTokenFingerprint of [
+    '',
+    '1'.repeat(64),
+    `sha256:${'1'.repeat(63)}`,
+    `sha256:${'A'.repeat(64)}`,
+  ]) {
+    assert.throws(
+      () => buildIsolationReceipt({ normalTokenFingerprint }),
+      /normal credential token fingerprint must be a lowercase sha256 digest/,
+    );
+  }
+  for (const brokerTokenFingerprint of [
+    '',
+    '2'.repeat(64),
+    `sha256:${'2'.repeat(65)}`,
+    `sha256:${'B'.repeat(64)}`,
+  ]) {
+    assert.throws(
+      () => buildIsolationReceipt({ brokerTokenFingerprint }),
+      /broker credential token fingerprint must be a lowercase sha256 digest/,
+    );
+  }
+  assert.throws(
+    () => buildIsolationReceipt({ brokerTokenFingerprint: `sha256:${'1'.repeat(64)}` }),
+    /normal and broker credential fingerprints must differ/,
+  );
+  assert.deepEqual(validateCredentialIsolationReceipt(
+    isolation,
+    authority,
+    '2026-07-18T00:01:00.000Z',
+  ), []);
+
+  const malformedActorReceipt = structuredClone(isolation);
+  malformedActorReceipt.normal_credential.actor = '   ';
+  assert.match(validateCredentialIsolationReceipt(
+    malformedActorReceipt,
+    authority,
+    '2026-07-18T00:01:00.000Z',
+  ).join('; '), /normal credential actor is missing/);
+
+  const sameIdentityReceipt = structuredClone(isolation);
+  sameIdentityReceipt.normal_credential.actor = authority.broker_identity.github_actor;
+  assert.match(validateCredentialIsolationReceipt(
+    sameIdentityReceipt,
+    authority,
+    '2026-07-18T00:01:00.000Z',
+  ).join('; '), /normal credential actor must differ from broker actor/);
+
+  const malformedFingerprintReceipt = structuredClone(isolation);
+  malformedFingerprintReceipt.normal_credential.token_fingerprint = `sha256:${'A'.repeat(64)}`;
+  assert.match(validateCredentialIsolationReceipt(
+    malformedFingerprintReceipt,
+    authority,
+    '2026-07-18T00:01:00.000Z',
+  ).join('; '), /normal credential token fingerprint must be a lowercase sha256 digest/);
+
+  const sharedFingerprintReceipt = structuredClone(isolation);
+  sharedFingerprintReceipt.normal_credential.token_fingerprint =
+    sharedFingerprintReceipt.broker_credential.token_fingerprint;
+  assert.match(validateCredentialIsolationReceipt(
+    sharedFingerprintReceipt,
+    authority,
+    '2026-07-18T00:01:00.000Z',
+  ).join('; '), /normal and broker credential fingerprints must differ/);
+});
+
 test('acceptance exact run identity and admission freshness are separate from historical validity', () => {
   const record = recordFor();
   assert.deepEqual(validateReleaseMutationBrokerRequest(record.request, authority, '2026-07-18T00:01:00.000Z'), []);
@@ -247,6 +330,16 @@ test('acceptance exact run identity and admission freshness are separate from hi
     tampered.github.run_id = runId;
     assert.match(validateHistoricalReleaseMutationAcceptanceReceipt(tampered, record.request, authority).join('; '), /GitHub mutation acceptance identity/);
   }
+  const malformedBrokerFingerprint = structuredClone(record.acceptance);
+  malformedBrokerFingerprint.broker_token_fingerprint = `sha256:${'A'.repeat(64)}`;
+  assert.match(
+    validateHistoricalReleaseMutationAcceptanceReceipt(
+      malformedBrokerFingerprint,
+      record.request,
+      authority,
+    ).join('; '),
+    /broker acceptance credential fingerprint must be a lowercase sha256 digest/,
+  );
   const missingField = structuredClone(record.request);
   delete missingField.mutation_payload.release_artifact_run_id;
   missingField.mutation_payload_sha256 = releaseMutationPayloadSha256(missingField.mutation_payload);

@@ -1329,6 +1329,7 @@
         "candidate_frozen",
         "source_gates_passed",
         "source_gate_failed",
+        "standard_deadline_blocked",
         "artifact_build_running",
         "artifact_build_failed",
         "release_train_failed",
@@ -1372,6 +1373,74 @@
         "promotion_dispatch_limit_per_cohort": 1,
         "promotion_retry": "new brokered promotion attempt after read-only reconcile",
         "promotion_retry_reuses_original_run_id_and_owner_receipt": false
+      },
+      "standard_deadline_policy": {
+        "clock_start": "session_created_at_equals_cohort_plan_generated_at_before_any_external_mutation",
+        "warning_after_seconds": 3600,
+        "warning_event": "standard_release_elapsed_60m",
+        "deadline_after_seconds": 5400,
+        "deadline_boundary": "at_or_after_90_minutes",
+        "deadline_phase": "standard_deadline_blocked",
+        "deadline_blocker": "standard_admission_deadline_elapsed",
+        "blocker_persisted_before_network_read": true,
+        "absorbing": true,
+        "late_success_policy": "historical_evidence_only_no_phase_or_terminal_upgrade",
+        "legal_after_deadline": [
+          "read_only_reconcile",
+          "emergency_cancel"
+        ],
+        "read_only_reconcile": {
+          "mutation_allowed": false,
+          "exact_attempt_and_run_only": true,
+          "transport_timeout_cap_seconds": 30,
+          "transport_retry_limit": 3
+        },
+        "emergency_cancel": {
+          "separate_signed_ticket_required": true,
+          "exact_attempt_and_run_binding_required": true,
+          "can_release_or_reopen_deadline_blocker": false
+        },
+        "forbidden_after_deadline": [
+          "new_dispatch",
+          "same_artifact_targeted_recovery",
+          "promotion",
+          "local_activation_success",
+          "success_transition",
+          "clock_reset"
+        ],
+        "rule": "At 60 minutes the controller persists one advisory with current stage, status, remaining budget, and legal action. At or after 90:00, before any network read, it persists standard_deadline_blocked. That blocker is absorbing: late remote or local success is historical evidence only and cannot upgrade phase or terminal truth. Only bounded read_only_reconcile and a separately signed exact-attempt exact-run emergency_cancel remain legal."
+      },
+      "full_addon_deadline_policy": {
+        "clock_start": "signed_broker_acceptance.accepted_at",
+        "deadline_after_seconds": 3000,
+        "deadline_source": "signed_broker_acceptance.full_addon_deadline_at",
+        "deadline_signed_in_pre_api_fence": true,
+        "deadline_signed_in_acceptance": true,
+        "deadline_boundary": "at_or_after_50_minutes",
+        "deadline_blocker": "full_addon_deadline_elapsed",
+        "terminal_status": "blocked_with_debt",
+        "absorbing": true,
+        "late_success_policy": "historical_evidence_only_no_addon_status_upgrade",
+        "standard_terminal_reopened": false,
+        "legal_after_deadline": [
+          "read_only_reconcile",
+          "emergency_cancel"
+        ],
+        "rule": "The Full add-on gets one immutable 50-minute deadline from its signed broker acceptance. At or after that deadline it becomes absorbing blocked_with_debt bound to the exact attempt and run. Late success cannot qualify Full or reopen Standard; only bounded read-only reconcile and separately signed exact-run emergency cancel remain legal."
+      },
+      "coordination_boundary": {
+        "conversation_or_agent_tree_can_schedule": false,
+        "conversation_or_agent_tree_can_watch": false,
+        "conversation_or_agent_tree_can_store_state": false,
+        "recursive_monitor_or_audit_agent_trees_allowed": false,
+        "repeated_wait_agent_polling_allowed": false,
+        "canonical_state_stores": [
+          "opl_app_stable_release_session.v3",
+          "durable_release_mutation_broker_ledger",
+          "exact_signed_receipts"
+        ],
+        "handoff_policy": "read_canonical_session_once_then_run_one_typed_reconcile_then_take_the_unique_legal_action_or_stop",
+        "rule": "A conversation or agent tree may explain a canonical state readback, but it is never the release scheduler, watcher, state store, or authority. Context compaction, task handoff, and process restart must not change the legal transition set."
       },
       "recovery_policy": {
         "harness_mechanics_only_change_rebuilds_existing_artifact": false,
@@ -1497,7 +1566,9 @@
         "standard_admission_deadline_required_for": [
           "desktop_release_dispatch",
           "qualification_dispatch",
-          "promotion_dispatch",
+          "promotion_dispatch"
+        ],
+        "full_addon_admission_deadline_required_for": [
           "full_addon_dispatch"
         ],
         "canonical_workflow_ref": "refs/heads/main",
@@ -1616,9 +1687,11 @@
         "warning_after_minutes": 60,
         "new_release_train_circuit_breaker_after_minutes": 90,
         "circuit_breaker_allows_only": [
-          "same_artifact_targeted_recovery",
-          "typed_blocker_terminal"
-        ]
+          "read_only_reconcile",
+          "emergency_cancel"
+        ],
+        "deadline_is_absorbing": true,
+        "late_success_upgrades_terminal": false
       },
       "authority_boundary": "The stable release session coordinates an explicitly authorized release but is not release truth. Same-cohort evidence, candidate validation, owner receipt, promotion readback, Homebrew readback, and installed App verification remain authoritative for their own states."
     },
@@ -1804,7 +1877,12 @@
           "direct_gh_run_watch",
           "sleep_25_plus_second_polling_loop",
           "simultaneous_gh_run_watch_and_manual_polling",
-          "multiple_monitors_for_same_run"
+          "multiple_monitors_for_same_run",
+          "conversation_or_agent_tree_as_scheduler",
+          "conversation_or_agent_tree_as_watcher",
+          "conversation_or_agent_tree_as_state_store",
+          "recursive_monitor_or_audit_agent_tree",
+          "repeated_wait_agent_polling"
         ],
         "terminal_handoff": "release_stable_reconcile_once"
       },
@@ -1976,9 +2054,13 @@
         "prior_attempt_threshold": 3,
         "workflow_input": "gate_reuse_plan_ref",
         "required_before_next_full_train": true,
-        "timeout_is_abandonment_condition": false,
-        "strategy": "same_cohort_evidence_reuse_or_targeted_gate_rerun_before_full_rebuild",
-        "rule": "After three prior attempts for the same version inside 90 minutes, the next dispatch must carry a same-cohort gate reuse plan ref. The time budget changes strategy but never abandons an authorized release goal."
+        "timeout_is_absorbing_blocker": true,
+        "strategy": "same_cohort_evidence_reuse_or_targeted_gate_rerun_before_deadline_only",
+        "after_deadline_legal_actions": [
+          "read_only_reconcile",
+          "emergency_cancel"
+        ],
+        "rule": "Before the immutable 90-minute deadline, three prior attempts require a same-cohort reuse plan before any remaining legal dispatch. At or after 90:00 the Standard blocker is absorbing: no reuse plan, targeted recovery, or new cohort can upgrade that session; only bounded read-only reconcile and exact-run emergency cancel remain legal."
       },
       "authority_boundary": "reuse plan is a decision artifact only; it cannot claim release-ready, publish a release, write runtime truth, or skip a workflow gate unless a workflow explicitly consumes a reuse_allowed decision"
     },
@@ -2283,7 +2365,7 @@
       "required_predecessor": "standard-build",
       "rule": "The expensive Full first-install build starts only after the Standard build workflow, including type, DOM, contract, lint, and package build gates, has succeeded. A cheap or Standard failure must stop Full work before runtime assembly begins."
     },
-    "release_readiness_admission": {
+      "release_readiness_admission": {
         "workflow_job": "release-readiness-admission",
         "preflight_dependency": "release-preflight",
         "addon_requirement_input": "legacy_record_only_no_promotion_effect",
@@ -2300,6 +2382,18 @@
         "diagnostic_gates": [
           "operator-evidence-bundle-validation"
         ],
+        "broker_authority_gate": {
+          "authority_contract": "contracts/app-release-broker-authority.json",
+          "validator": "scripts/release-broker-authority.ts#validateReleaseBrokerAuthority",
+          "validator_capability": "mutation_submit",
+          "required_before_positive_readiness": true,
+          "required_status": "provisioned",
+          "fresh_credential_isolation_receipt_required": true,
+          "readiness_summary_field": "broker_authority_readiness",
+          "unprovisioned_or_invalid_result": "typed_terminal_blocker",
+          "unprovisioned_status_is_release_ready": false,
+          "rule": "Release readiness must consume the canonical broker authority and fail closed unless mutation_submit validation proves provisioned authority plus a fresh credential-isolation receipt. status=unprovisioned_release_blocking is a typed release blocker, never a warning or skippable diagnostic."
+        },
         "same_cohort_addon_status_policy": "success_or_skipped_or_failed_when_not_required",
         "addon_status_artifact": "release-addon-readiness-summary-<version>",
         "rule": "Release readiness admission must fail when Standard stable critical-path gates fail. It must not force Full, Docker/WebUI, or Homebrew add-on gates before Standard promotion; add-on success, skipped, or failed states remain independently recorded and never invalidate published Standard. The legacy requirement input is audit-only and has no promotion effect. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running."

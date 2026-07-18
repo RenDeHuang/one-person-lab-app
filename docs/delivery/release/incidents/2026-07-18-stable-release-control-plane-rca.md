@@ -32,7 +32,7 @@ Two Codex tasks exposed different parts of the same control-plane failure:
 | Evidence source | Observed facts |
 | --- | --- |
 | `019f642d-dc53-71c0-a260-bb8be1e7b80d`, full release window | The Stable target was fixed at `2026-07-15T14:18:49Z`. The first dispatch came `4h16m48.842s` later, and the last VM failure came `67h36m50.842s` after target fixation. The task repeatedly rebuilt and reinstalled moving App/Shell/Framework cohorts, but never executed canonical `release:stable promote --execute` or `complete-local`. |
-| `019f642d-dc53-71c0-a260-bb8be1e7b80d`, focused coordination range `35501-39317` | About 14 hours 21 minutes; 415 custom tool calls; 200 `wait_agent` calls, of which 179 timed out; five context compactions; zero executions of the canonical `release:stable start`, `promote`, or `complete-local` commands in that range. |
+| `019f642d-dc53-71c0-a260-bb8be1e7b80d`, focused coordination range `35501-39317` | `12h17m48s`; 415 custom tool calls; 200 `wait_agent` calls, of which 179 timed out; five context compactions; zero executions of the canonical `release:stable start`, `promote`, or `complete-local` commands in that range. |
 | `019f6df2-d308-7f52-81e3-b0a5eeb1436e`, supervisory RCA window | The conversation became a shadow scheduler: one audited interval alone contained 75 `wait_agent` calls, 68 timeouts, repeated process/status reads, and about 30 route messages. It did not own a durable release transition and could not take over after interruption. |
 | GitHub live run history for `v26.7.18` | Across `10h30m15s`, 12 Desktop Release runs spanned five refs and four App SHAs: 5 failures, 7 cancellations, 0 successes, and about `8h40m10s` of aggregate run wall time. |
 
@@ -172,9 +172,10 @@ The 90-minute SLO covers the Standard Stable critical path.
   publication, queue empty, candidate creation, or a closeout heuristic.
 
 Full and Docker/WebUI are same-cohort add-ons with independent terminal
-receipts. Each add-on clock starts when the broker accepts its independent
-dispatch, targets 35-50 minutes, and cannot block, revoke, or reopen Standard
-Stable.
+receipts. Full has an immutable 50-minute deadline signed into its broker
+pre-API fence and acceptance. At that boundary it becomes absorbing
+`blocked_with_debt`; late success is historical evidence only. No add-on can
+block, revoke, or reopen Standard Stable.
 
 ### Stage budget
 
@@ -188,11 +189,12 @@ Stable.
 | `80-90 min` | `/Applications` activation, nonblank live readback, terminal receipt and final currentness check | Missing exact evidence fails closed; closeout cannot infer success. |
 
 At 60 minutes the controller writes a warning with the current stage, exact
-blocker, remaining budget, and legal next action. At 90 minutes the new-release
-train circuit opens. It forbids another broad dispatch and permits only one
-explicitly bounded same-artifact targeted recovery or a typed blocked terminal
-state. A recovery that continues after 90 minutes remains an SLO miss and is
-recorded as such; it cannot reset the clock by creating another session.
+blocker, remaining budget, and legal next action. At `90:00`, inclusively and
+before any network read, it durably enters `standard_deadline_blocked`. That
+state is absorbing: no dispatch, targeted recovery, promotion, local activation,
+late receipt, or late remote success can upgrade it or reset its clock. Only a
+30-second-bounded read-only reconcile of the exact attempt/run and a separately
+signed exact-run emergency cancel remain legal.
 
 ## Mandatory Machine Invariants
 
@@ -222,16 +224,19 @@ The remediation is acceptable only when all of these are machine-enforced:
    GitHub-OIDC-authenticated lookup bound to its own run ID, run attempt,
    controller SHA, payload digest, and a fresh challenge. A local-only broker
    executable is not an Actions lookup transport.
-8. **Bounded monitor and reconcile.** One absolute-deadline watcher is used.
-   Transport retries are bounded to three. Unknown API outcomes reconcile the
-   broker ledger and exact run before any new mutation.
+8. **Bounded monitor and reconcile.** The controller owns one absolute-deadline
+   watcher; a conversation or agent tree owns none. Transport retries are
+   bounded to three. Unknown API outcomes reconcile the broker ledger and exact
+   run before any new mutation. After `90:00`, each read-only transport call is
+   capped at 30 seconds and cannot authorize a success transition.
 9. **Classified recovery.** Every failure is typed before retry. Product or
    runtime byte changes require a new version/cohort. Fixture, environment, or
    infrastructure recovery must reuse exact artifact bytes and has a bounded
    attempt count.
 10. **Independent terminals.** Standard terminal truth is independent of Full
-    and Docker/WebUI. Each artifact and add-on has its own receipt and debt
-    disposition.
+    and Docker/WebUI. Full's signed 50-minute deadline is absorbing
+    `blocked_with_debt`; late Full success cannot qualify it or reopen Standard.
+    Each artifact and add-on has its own receipt and debt disposition.
 11. **Receipt-only terminal authority.** Only the canonical Stable session plus
     exact qualification, promotion, distribution, Latest, and local activation
     receipts can set terminal state. Closeout, preflight, remote-shape checks,
@@ -240,9 +245,14 @@ The remediation is acceptable only when all of these are machine-enforced:
     one generation identity, and atomically replace prior evidence. A failed
     refresh leaves the last complete generation intact and authorizes no
     mutation.
-13. **Hard SLO.** The warning and circuit-breaker transitions are persisted and
-    cannot be bypassed by a new conversation, context compaction, manual
-    workflow command, or process restart.
+13. **Hard SLO.** The 60-minute warning and inclusive `90:00` blocker are
+    persisted. The blocker is absorbing, and late success remains historical
+    evidence only. A new conversation, context compaction, manual workflow
+    command, process restart, or newly observed green run cannot bypass it.
+14. **No conversational control plane.** A conversation or agent tree is never
+    the scheduler, watcher, state store, or authority. Handoff reads the durable
+    session once, performs one typed reconcile, and takes the unique legal
+    transition or stops.
 
 ## External Broker Provisioning Blocker
 
@@ -275,7 +285,10 @@ Before any successor Stable mutation, an operator outside this repository must:
 
 Repository tests cannot provision or prove these controls. Until a fresh
 readback satisfies every item, release code must fail closed and the current
-draft must remain non-Latest.
+draft must remain non-Latest. The release-readiness contract must consume this
+authority as a required gate: `status=unprovisioned_release_blocking`, malformed
+authority, or a missing fresh credential-isolation receipt is a typed terminal
+blocker, not a warning or diagnostic skip.
 
 ## Remediation Status And Remaining P0 Work
 
@@ -288,17 +301,19 @@ and independent Standard/add-on terminals.
 These mechanisms are not yet authoritative. Before merge or rollout, the
 following P0 gaps must be closed and adversarially tested:
 
-- closeout must become diagnostics-only and must never infer
-  `ready_to_promote` or `published` from source-run or remote heuristics;
-- all planning and dry-run commands must be proven side-effect free;
-- broker acceptance must require a non-null exact run ID; controller
-  time-window discovery must be removed from every dispatch path;
-- cohort planning must emit only the canonical `release:stable start` path, not
-  direct `gh workflow run` instructions;
-- the contract must state one meaning consistently: `include_full_package` is
-  nonblocking add-on intent, not a Standard terminal requirement;
-- closeout evidence refresh must use staging, validation, and atomic generation
-  replacement.
+- every Standard transition and evidence-read path must prove that `90:00`
+  first persists the absorbing blocker and ignores late success;
+- every Full build, VM, publication, and readback path must consume the signed
+  50-minute deadline and end in exact-run debt when it expires;
+- the `desktop-release.yml` readiness job must actually consume the canonical
+  broker-authority gate declared by the App contract; contract-only validation
+  is not runtime enforcement;
+- promotion and Full receipts must bind the exact workflow attempt, source run,
+  controller SHA, cohort, Release Set, deadline, and completion time;
+- closeout must remain diagnostics-only and refresh evidence through staging,
+  validation, and atomic generation replacement;
+- the complete adversarial suite and final canonical-`main` bytes must pass
+  before external provisioning or a canary begins.
 
 No local test result, clean diff, commit, or mainline merge may change the
 broker blocker to release-ready without external provisioning evidence.
@@ -346,8 +361,10 @@ blast radius:
 - attempt a cross-cohort resume and prove it is rejected;
 - interrupt and restart the controller and prove the session resumes from the
   durable ledger;
-- exceed the monitor and 90-minute deadlines and prove only targeted recovery
-  or typed terminal block remains legal;
+- cross the Standard `90:00` boundary during watch and evidence download, then
+  prove the durable blocker wins and late success cannot upgrade it;
+- cross the signed Full 50-minute boundary and prove exact-run
+  `blocked_with_debt` remains absorbing;
 - withhold or corrupt a closeout receipt and prove promotion stays forbidden.
 
 ### 5. Release and close only on live proof
@@ -382,9 +399,9 @@ incident status change from remediation in progress to closed.
 - Delivery metrics report full session wall time, cancelled/failed run tax,
   rebuild count, dispatch count, recovery count, and time spent in each stage.
   Reporting only the final successful workflow duration is prohibited.
-- A 60-minute warning requires a machine-written blocker and remaining-budget
-  report. A 90-minute miss automatically opens the circuit and incident review;
-  it cannot be waived silently.
+- A 60-minute warning requires a machine-written stage/status/remaining-budget
+  report. At `90:00` the durable blocker is absorbing; only bounded exact-run
+  read-only reconcile and separately signed emergency cancel remain legal.
 - Terminal claims always cite fresh same-cohort live evidence. Docs, tests,
   plans, candidate assets, and queue state never substitute for release,
   install, or currentness proof.

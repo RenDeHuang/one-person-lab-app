@@ -300,6 +300,9 @@ export function verifyHistoricalBrokerValidation(input: {
     authority, fence, expected: input.expected, result, verifiedAt: prior.verified_at,
     expectedChallenge: result.lookup.challenge, mode: 'historical',
   });
+  assertFullAddonWorkflowAdmissionDeadline(
+    fence, result.record.acceptance.full_addon_deadline_at, input.verifiedAt,
+  );
   if (
     prior.key_id !== result.signature.key_id || prior.request_sha256 !== releaseMutationBrokerRequestSha256(fence.request) ||
     prior.acceptance_sha256 !== sha256(canonicalJson(result.record.acceptance)) ||

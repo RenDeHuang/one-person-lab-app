@@ -12,9 +12,10 @@ release evidence artifacts.
 The App release path should behave like a release train, not a long interactive
 debugging session. A release attempt must fail before expensive builds whenever
 the requested cohort, workflow shape, secrets, or release target is invalid. It
-must produce small structured evidence at every gate and promote only after
-standard, Full, Homebrew, VM, WebUI, and remote asset gates are coherent for the
-same version cohort.
+must produce small structured evidence at every gate and promote Standard only
+after its own publication, qualification, distribution, Latest, and local
+activation receipts are coherent for the same version cohort. Full and
+Docker/WebUI remain independent add-on receipts and debt.
 
 The target operator experience is:
 
@@ -92,6 +93,13 @@ syntax, release mode, remote tag/release state, workflow shape, release plan
 shape, Homebrew token availability, and the App-owned preflight contract. It
 writes `release-preflight-summary.json` and `release-preflight-summary.md`.
 
+Broker readiness is a mandatory admission input. The readiness validator reads
+`contracts/app-release-broker-authority.json` through the mutation-submit
+validator and fails closed unless authority is provisioned and a fresh
+credential-isolation receipt exists. The checked-in
+`unprovisioned_release_blocking` state is a typed release blocker, not a warning
+or a diagnostic gate that a green source run can bypass.
+
 Docker/WebUI release readiness is scoped to the image and Docker runtime: Docker
 build, GHCR publish, and clean Linux Docker runtime smoke are add-on evidence.
 Clean Windows VM evidence is optional diagnostic input because Windows Docker
@@ -147,6 +155,19 @@ chooses between wait, inspect current step, repair source gate, repair WebUI
 runtime image, repair GHCR access, inspect closeout evidence, or start a new
 cohort.
 
+The durable Standard clock starts when the create-if-absent session freezes its
+identity, before any external mutation. The controller emits one 60-minute
+warning. At or after `90:00`, before a network read, it persists the absorbing
+`standard_deadline_blocked` state. Late success cannot promote, complete local
+activation, or otherwise upgrade terminal truth. The only remaining operations
+are 30-second-bounded exact-attempt/run read-only reconcile and a separately
+signed exact-run emergency cancel.
+
+Full starts a separate immutable 50-minute clock at signed broker acceptance.
+The deadline is signed in both the pre-API fence and acceptance. At or after the
+boundary, the exact run becomes absorbing `blocked_with_debt`; late success does
+not qualify Full and cannot reopen Standard.
+
 `webui_ghcr_publish` must be observable as a pipeline, not a monolith. The
 standalone WebUI lane is split into prepare, build, inspect/readback, smoke,
 tag, publish, and upload steps. Desktop release may still build once and reuse
@@ -163,11 +184,17 @@ independent same-cohort add-on receipts and are never Stable admission inputs.
 may capture and refresh user-guide screenshots from the promoted Stable cohort,
 but it must not become a pre-promotion gate or a release readiness substitute.
 
-Late VM, Homebrew, evidence upload, owner-receipt, or closeout failures are
-same-artifact retry problems first. The retry entrypoint is the cohort/session
-manifest plus the failed gate's small diagnostic artifact. Dispatching a new
-desktop release is correct only when diagnosis proves the artifact, source
-gate, pinned refs, or release-owner decision is invalid.
+Before the Standard deadline, VM, Homebrew, evidence upload, owner-receipt, or
+closeout failures are same-artifact diagnosis/recovery problems first. The
+retry entrypoint is the cohort/session manifest plus the failed gate's small
+diagnostic artifact. At `90:00`, recovery authority ends for that session and
+the durable blocker wins over every late receipt or remote success.
+
+A conversation or agent tree may explain a canonical readback, but is never the
+scheduler, watcher, state store, or authority. It cannot create recursive
+monitor/audit trees or repeated polling loops. Handoff reads the durable session
+once, performs one typed reconcile, and takes the unique legal transition or
+stops.
 
 ## Implementation Surface
 
@@ -180,11 +207,11 @@ records, or `docs/history/process/`.
 | --- | --- | --- |
 | App-owned preflight | Fail fast on release mode, target, workflow shape, release-plan drift, external ref availability, Homebrew token requirements, and VM-smoke package metadata before expensive jobs run. | Preflight is an admission gate only; it does not replace build, VM, remote verification, or owner evidence. |
 | Candidate record and promotion | Join release triggering, readiness, remote verification, owner-resolution refs, and promotion decision through `opl_release_candidate_record.v1`. Stable promotion must read a same-cohort `ready_to_promote` record. | Candidate records cannot skip failed gates, create owner receipts, or claim family/domain production readiness. |
-| Readiness summary and closeout | The final readiness job writes `release-readiness-summary.json`, `release-candidate-record.json`, `release-closeout.json/md`, monitor state, and notification state from small structured artifacts. `npm run release:attestation:verify` produces an optional artifact-attestation verification summary from downloaded release assets or OCI refs, and closeout ingests it when present. | Operators stop at structured blockers, readiness, closeout, remote verification, attestation verification state, or candidate record before opening raw logs. Attestation remains build-integrity evidence only. Missing attestation verification is reported as missing build-integrity evidence, not as release readiness. |
+| Readiness summary and closeout | The final readiness job writes `release-readiness-summary.json`, `release-candidate-record.json`, `release-closeout.json/md`, monitor state, and notification state from small structured artifacts, including broker-authority readiness. | Unprovisioned or invalid broker authority is a typed readiness blocker. Operators stop at structured blockers before opening raw logs; attestation remains build-integrity evidence only. |
 | Release operator status | `npm run release:operator` is the no-watch control surface for current job/step, elapsed time, run update age, stale candidate state, primary blocker, and typed next action. | It is an operator state machine, not a release-ready claim or second release truth source. |
 | WebUI GHCR lane | Standalone WebUI publish is split into prepare, build, inspect/readback, smoke, tag, publish, and upload steps so the slow or failed boundary is visible. | WebUI/container evidence does not replace desktop App install evidence or stable promotion evidence. |
 | Release actions timing | `release-actions-timing.json/md` measures workflow wall time, failed/cancelled run tax, slow jobs, slow steps, and optional operator-loop gap. | Timing artifacts are delivery-health evidence, not release readiness or owner acceptance. |
-| Release-session manifest | `release:operator status` updates `release-session.json` from prior session input, run status, candidate/closeout/readback refs, owner receipt refs, current authority refs, and post-publish follow-up state. | It is a navigation and cost ledger only; release truth stays in same-cohort candidate records, closeout, remote verification, owner receipts, published assets, and tap/readiness readbacks. Old authority refs must not be carried forward unless explicitly supplied for the current run. |
+| Stable session and broker ledger | `opl_app_stable_release_session.v3` plus the durable broker ledger hold immutable identity, deadline state, exact mutation attempts, acceptances, and terminal transitions. | They are the only resumable control state. Conversations, agent trees, operator prose, closeout heuristics, and workflow lists cannot schedule work, store state, or upgrade terminal truth. |
 | Standard/add-on critical path | Standard Stable readiness requires Standard publish, remote verification, Standard VM, Formula/Standard-cask distribution, and local activation. Full and Docker/WebUI start afterward with independent receipts; failures are retried in their own lane. | Add-ons cannot block or revoke Standard, and Standard evidence cannot prove Full or Docker/WebUI readiness. |
 | Artifact attestation / SLSA provenance | Public install/update assets carry attestations for the standard DMG/ZIP/updater metadata, Full DMG/manifest/checksum/offline kit assets, and WebUI OCI image digest when published. Verification uses `npm run release:attestation:verify` over `gh attestation verify` against downloaded assets or OCI digests. | Attestation proves build provenance for bytes; it cannot replace checksums, remote readback, `codesign` / `spctl`, clean install/VM readiness, candidate-record validation, or owner receipt. |
 | Gate reuse plan | `npm run release:gate-reuse-plan` can emit `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable digest. | It is advisory until workflows explicitly consume the artifact; no gate is skipped by prose. |
@@ -230,6 +257,13 @@ Operator stop conditions:
 - Stop as blocked when the candidate record is `blocked`, a required small
   artifact is missing, a gate is failed/cancelled/skipped unexpectedly, or the
   release workflow cannot produce a candidate record.
+- Stop before dispatch or positive readiness when broker authority is not
+  `provisioned` or a fresh credential-isolation receipt is unavailable.
+- At `90:00`, require `standard_deadline_blocked` before any readback. Do not
+  accept late success or attempt another recovery; use only bounded read-only
+  reconcile or separately signed exact-run emergency cancel.
+- At the signed Full 50-minute boundary, require exact-run
+  `blocked_with_debt`; never reinterpret a later green result as qualification.
 - Treat `failed_gate_draining` as a stopped decision with queued jobs still
   settling. Do not wait on broad `gh run watch` once the primary blocker and
   typed next action are known.

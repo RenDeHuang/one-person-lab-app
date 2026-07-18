@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { validateReleaseBrokerAuthority } from '../release-broker-authority.ts';
 
 const requiredHomebrewStandardCaskRef = 'gaofeng21cn/one-person-lab/one-person-lab';
 const requiredHomebrewTrustedCaskRefs = [
@@ -560,7 +561,28 @@ function validateWebuiPackagePolicy(releaseContract: Record<string, any>): numbe
   return failures;
 }
 
-function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>): number {
+export type ReleaseBrokerAuthorityReadiness = {
+  status: 'ready' | 'blocked';
+  blockers: string[];
+};
+
+export function evaluateReleaseBrokerAuthorityReadiness(
+  authority: unknown,
+): ReleaseBrokerAuthorityReadiness {
+  const blockers = validateReleaseBrokerAuthority(authority, {
+    capability: 'mutation_submit',
+    requireCredentialReceipt: false,
+  });
+  return {
+    status: blockers.length === 0 ? 'ready' : 'blocked',
+    blockers,
+  };
+}
+
+export function validateReleaseAccelerationPolicy(
+  releaseContract: Record<string, any>,
+  brokerAuthority: unknown,
+): number {
   let failures = 0;
   const acceleration = releaseContract.release_acceleration;
   const stableReleaseStateMachine = acceleration?.stable_release_state_machine;
@@ -578,6 +600,11 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
   const tapStandardVmEvidenceTransport = stableReleaseStateMachine?.promotion_saga?.tap_standard_vm_evidence_transport;
+  const standardDeadlinePolicy = stableReleaseStateMachine?.standard_deadline_policy;
+  const fullAddonDeadlinePolicy = stableReleaseStateMachine?.full_addon_deadline_policy;
+  const coordinationBoundary = stableReleaseStateMachine?.coordination_boundary;
+  const brokerAuthorityGate = readinessAdmission?.broker_authority_gate;
+  const brokerAuthorityReadiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);
 
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
@@ -590,7 +617,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       'disposition-addon-debt', 'cancel', 'recover-stale-lock', 'complete-local',
     ]) ||
     !sameStringSet(stableReleaseStateMachine?.phases, [
-      'candidate_frozen', 'source_gates_passed', 'source_gate_failed', 'artifact_build_running',
+      'candidate_frozen', 'source_gates_passed', 'source_gate_failed', 'standard_deadline_blocked', 'artifact_build_running',
       'artifact_build_failed', 'release_train_failed', 'qualification_failed',
       'retry_failed_gate_same_artifact', 'artifacts_qualified', 'owner_approved',
       'promotion_running', 'promotion_failed', 'release_published_not_latest',
@@ -678,7 +705,10 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.signed_mutation_authority?.cancel_api_success_does_not_release_latest_mutex !== true ||
     stableReleaseStateMachine?.signed_mutation_authority?.latest_mutex_release_requires_target_terminal_readback_and_cas !== true ||
     !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.standard_admission_deadline_required_for, [
-      'desktop_release_dispatch', 'qualification_dispatch', 'promotion_dispatch', 'full_addon_dispatch',
+      'desktop_release_dispatch', 'qualification_dispatch', 'promotion_dispatch',
+    ]) ||
+    !sameStringSet(stableReleaseStateMachine?.signed_mutation_authority?.full_addon_admission_deadline_required_for, [
+      'full_addon_dispatch',
     ]) ||
     stableReleaseStateMachine?.signed_mutation_authority?.approved_controller_workflow_sha_allowlist_required !== true ||
     stableReleaseStateMachine?.signed_mutation_authority?.stable_dag_third_party_action_reference_policy !== 'exact_40_hex_commit_sha' ||
@@ -752,12 +782,75 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.profiling?.warning_after_minutes !== 60 ||
     stableReleaseStateMachine?.profiling?.new_release_train_circuit_breaker_after_minutes !== 90 ||
     !sameStringSet(stableReleaseStateMachine?.profiling?.circuit_breaker_allows_only, [
-      'same_artifact_targeted_recovery', 'typed_blocker_terminal',
+      'read_only_reconcile', 'emergency_cancel',
     ]) ||
+    stableReleaseStateMachine?.profiling?.deadline_is_absorbing !== true ||
+    stableReleaseStateMachine?.profiling?.late_success_upgrades_terminal !== false ||
     typeof stableReleaseStateMachine?.authority_boundary !== 'string' ||
     !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
   ) {
     console.error('FAIL stable_release_state_machine_policy: Stable must use one dry-run-first, exact-cohort state machine from source gates through promotion');
+    failures += 1;
+  }
+
+  if (
+    standardDeadlinePolicy?.clock_start !== 'session_created_at_equals_cohort_plan_generated_at_before_any_external_mutation' ||
+    standardDeadlinePolicy?.warning_after_seconds !== 3600 ||
+    standardDeadlinePolicy?.warning_event !== 'standard_release_elapsed_60m' ||
+    standardDeadlinePolicy?.deadline_after_seconds !== 5400 ||
+    standardDeadlinePolicy?.deadline_boundary !== 'at_or_after_90_minutes' ||
+    standardDeadlinePolicy?.deadline_phase !== 'standard_deadline_blocked' ||
+    standardDeadlinePolicy?.deadline_blocker !== 'standard_admission_deadline_elapsed' ||
+    standardDeadlinePolicy?.blocker_persisted_before_network_read !== true ||
+    standardDeadlinePolicy?.absorbing !== true ||
+    standardDeadlinePolicy?.late_success_policy !== 'historical_evidence_only_no_phase_or_terminal_upgrade' ||
+    !sameStringSet(standardDeadlinePolicy?.legal_after_deadline, ['read_only_reconcile', 'emergency_cancel']) ||
+    standardDeadlinePolicy?.read_only_reconcile?.mutation_allowed !== false ||
+    standardDeadlinePolicy?.read_only_reconcile?.exact_attempt_and_run_only !== true ||
+    standardDeadlinePolicy?.read_only_reconcile?.transport_timeout_cap_seconds !== 30 ||
+    standardDeadlinePolicy?.read_only_reconcile?.transport_retry_limit !== 3 ||
+    standardDeadlinePolicy?.emergency_cancel?.separate_signed_ticket_required !== true ||
+    standardDeadlinePolicy?.emergency_cancel?.exact_attempt_and_run_binding_required !== true ||
+    standardDeadlinePolicy?.emergency_cancel?.can_release_or_reopen_deadline_blocker !== false ||
+    !stringArrayIncludesAll(standardDeadlinePolicy?.forbidden_after_deadline, [
+      'new_dispatch', 'same_artifact_targeted_recovery', 'promotion', 'local_activation_success',
+      'success_transition', 'clock_reset',
+    ])
+  ) {
+    console.error('FAIL stable_standard_deadline_policy: 60m warning and inclusive 90:00 durable blocker must be absorbing, bounded, and immune to late success');
+    failures += 1;
+  }
+
+  if (
+    fullAddonDeadlinePolicy?.clock_start !== 'signed_broker_acceptance.accepted_at' ||
+    fullAddonDeadlinePolicy?.deadline_after_seconds !== 3000 ||
+    fullAddonDeadlinePolicy?.deadline_source !== 'signed_broker_acceptance.full_addon_deadline_at' ||
+    fullAddonDeadlinePolicy?.deadline_signed_in_pre_api_fence !== true ||
+    fullAddonDeadlinePolicy?.deadline_signed_in_acceptance !== true ||
+    fullAddonDeadlinePolicy?.deadline_boundary !== 'at_or_after_50_minutes' ||
+    fullAddonDeadlinePolicy?.deadline_blocker !== 'full_addon_deadline_elapsed' ||
+    fullAddonDeadlinePolicy?.terminal_status !== 'blocked_with_debt' ||
+    fullAddonDeadlinePolicy?.absorbing !== true ||
+    fullAddonDeadlinePolicy?.late_success_policy !== 'historical_evidence_only_no_addon_status_upgrade' ||
+    fullAddonDeadlinePolicy?.standard_terminal_reopened !== false ||
+    !sameStringSet(fullAddonDeadlinePolicy?.legal_after_deadline, ['read_only_reconcile', 'emergency_cancel'])
+  ) {
+    console.error('FAIL full_addon_deadline_policy: Full must use one signed 50m absorbing debt deadline independent of Standard');
+    failures += 1;
+  }
+
+  if (
+    coordinationBoundary?.conversation_or_agent_tree_can_schedule !== false ||
+    coordinationBoundary?.conversation_or_agent_tree_can_watch !== false ||
+    coordinationBoundary?.conversation_or_agent_tree_can_store_state !== false ||
+    coordinationBoundary?.recursive_monitor_or_audit_agent_trees_allowed !== false ||
+    coordinationBoundary?.repeated_wait_agent_polling_allowed !== false ||
+    !sameStringSet(coordinationBoundary?.canonical_state_stores, [
+      'opl_app_stable_release_session.v3', 'durable_release_mutation_broker_ledger', 'exact_signed_receipts',
+    ]) ||
+    coordinationBoundary?.handoff_policy !== 'read_canonical_session_once_then_run_one_typed_reconcile_then_take_the_unique_legal_action_or_stop'
+  ) {
+    console.error('FAIL release_coordination_boundary: conversations and agent trees must never schedule, watch, or store release state');
     failures += 1;
   }
 
@@ -887,7 +980,14 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     activeMonitor?.poll_interval_seconds !== null ||
     activeMonitor?.single_monitor_process !== false ||
     activeMonitor?.terminal_handoff !== 'release_stable_reconcile_once' ||
-    !activeMonitor?.forbidden_patterns?.includes('direct_gh_run_watch')
+    !stringArrayIncludesAll(activeMonitor?.forbidden_patterns, [
+      'direct_gh_run_watch',
+      'conversation_or_agent_tree_as_scheduler',
+      'conversation_or_agent_tree_as_watcher',
+      'conversation_or_agent_tree_as_state_store',
+      'recursive_monitor_or_audit_agent_tree',
+      'repeated_wait_agent_polling',
+    ])
   ) {
     console.error('FAIL release_operator_policy: active monitoring must use one 60-second gh run watch process');
     failures += 1;
@@ -924,9 +1024,11 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     attemptSwitch?.prior_attempt_threshold !== 3 ||
     attemptSwitch?.workflow_input !== 'gate_reuse_plan_ref' ||
     attemptSwitch?.required_before_next_full_train !== true ||
-    attemptSwitch?.timeout_is_abandonment_condition !== false
+    attemptSwitch?.timeout_is_absorbing_blocker !== true ||
+    attemptSwitch?.strategy !== 'same_cohort_evidence_reuse_or_targeted_gate_rerun_before_deadline_only' ||
+    !sameStringSet(attemptSwitch?.after_deadline_legal_actions, ['read_only_reconcile', 'emergency_cancel'])
   ) {
-    console.error('FAIL release_gate_reuse_policy: repeated attempts must require a same-cohort reuse plan without abandoning the release goal');
+    console.error('FAIL release_gate_reuse_policy: gate reuse must stop at the absorbing 90:00 deadline');
     failures += 1;
   }
   if (!sameStringSet(blockerPolicy?.failed_gate_states, ['failed_gate_draining', 'failed'])) {
@@ -1043,6 +1145,25 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   if (!readinessAdmission?.diagnostic_gates?.includes('operator-evidence-bundle-validation')) {
     console.error('FAIL release_readiness_admission_policy: operator evidence bundle validation must be a diagnostic gate');
+    failures += 1;
+  }
+  if (
+    brokerAuthorityGate?.authority_contract !== 'contracts/app-release-broker-authority.json' ||
+    brokerAuthorityGate?.validator !== 'scripts/release-broker-authority.ts#validateReleaseBrokerAuthority' ||
+    brokerAuthorityGate?.validator_capability !== 'mutation_submit' ||
+    brokerAuthorityGate?.required_before_positive_readiness !== true ||
+    brokerAuthorityGate?.required_status !== 'provisioned' ||
+    brokerAuthorityGate?.fresh_credential_isolation_receipt_required !== true ||
+    brokerAuthorityGate?.readiness_summary_field !== 'broker_authority_readiness' ||
+    brokerAuthorityGate?.unprovisioned_or_invalid_result !== 'typed_terminal_blocker' ||
+    brokerAuthorityGate?.unprovisioned_status_is_release_ready !== false ||
+    typeof brokerAuthorityGate?.rule !== 'string' ||
+    !brokerAuthorityGate.rule.includes('status=unprovisioned_release_blocking') ||
+    !brokerAuthorityGate.rule.includes('typed release blocker') ||
+    ((brokerAuthority as Record<string, any>)?.status === 'unprovisioned_release_blocking' &&
+      brokerAuthorityReadiness.status !== 'blocked')
+  ) {
+    console.error('FAIL release_broker_authority_readiness: unprovisioned or invalid broker authority must be a typed release-readiness blocker');
     failures += 1;
   }
   if (
@@ -1278,6 +1399,7 @@ function validateSourceMaterialRouteContract(appRoot: string): number {
 
 export function validateReleaseContractPolicies(appRoot: string): number {
   const releaseContract = readJson(appRoot, 'contracts/app-release-channel.json');
+  const brokerAuthority = readJson(appRoot, 'contracts/app-release-broker-authority.json');
   const firstRunMatrix = readJson(appRoot, 'contracts/app-first-run-test-matrix.json');
   let failures = 0;
 
@@ -1288,7 +1410,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
-  failures += validateReleaseAccelerationPolicy(releaseContract);
+  failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
   failures += validateSourceMaterialRouteContract(appRoot);
 
   return failures;

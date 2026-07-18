@@ -334,9 +334,10 @@ Critical-path targets:
 
 | Path | Target wall time | Owner action when exceeded |
 | --- | --- | --- |
-| Stable standard-only candidate | 35-45 minutes | Inspect `release-actions-timing-<version>` and reconcile read-only; recovery is a new brokered targeted attempt, never a low-level rerun. |
-| Asynchronous Full/Docker add-ons | 35-50 minutes without extending Stable lead time | Diagnose or retry only the failed same-cohort add-on; do not redispatch or roll back Standard. |
-| Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
+| Stable standard-only candidate | 35-45 minutes; warning at 60 minutes; absorbing blocker at `90:00` | Before the deadline, inspect `release-actions-timing-<version>` and use only a legal brokered same-cohort transition. At or after `90:00`, persist `standard_deadline_blocked`; only bounded exact-run read-only reconcile or signed emergency cancel remains. |
+| Asynchronous Full add-on | 35-50 minutes from signed broker acceptance | At 50 minutes persist exact-run `blocked_with_debt`. Late success is historical only; do not redispatch or roll back Standard. |
+| Asynchronous Docker/WebUI add-on | 35-50 minutes without extending Stable lead time | Diagnose only its independent receipt/debt lane; do not redispatch or roll back Standard. |
+| Same-cohort gate retry | 3-15 minutes before the Standard deadline | Use the cohort manifest to rerun only the failed gate or diagnostic path while admission remains legal. It cannot cross or reset `90:00`. |
 | Promote after owner receipt | 8-12 minutes | Promote from a ready candidate record; inspect at 10 minutes and treat 15 minutes as the hard-stop SLA for the promote workflow. Do not rerun desktop release to carry owner metadata. |
 
 The RCA boundary is mostly process design, not isolated code failure: treat
@@ -365,10 +366,11 @@ only, not runtime truth or release readiness.
 VM smoke is artifact qualification. It qualifies the exact DMG/cask artifact
 for the same cohort and must not be used as a place to rebuild, mutate source,
 or generate missing release material. If VM smoke fails after artifact creation,
-rerun the VM diagnostic or same-cohort gate from the manifest. The operator
-next action must be a same-artifact diagnostic unless the failure proves the
-artifact, source gate, or pinned refs are invalid. Dispatch a new cohort only
-after that boundary is proven.
+rerun the VM diagnostic or same-cohort gate from the manifest only while the
+immutable Standard deadline still permits it. The operator next action must be
+a same-artifact diagnostic unless the failure proves the artifact, source gate,
+or pinned refs are invalid. At or after `90:00`, neither diagnosis nor a new
+cohort may upgrade that session.
 
 Stable release coordination uses `opl_app_stable_release_session.v3`, with
 revision-CAS atomic writes, an append-only mutation/qualification attempt ledger,
@@ -381,11 +383,11 @@ may be retried with those same bytes and may override only the stale
 session, cohort, source run, manifest digest, and DMG SHA-256. It never authorizes
 a rebuild or changes Docker, remote-asset, or Homebrew evidence.
 
-Late Homebrew, VM, evidence upload, closeout, or owner-receipt failures use the
-same rule: retry or diagnose the failed gate against the same published asset,
-tap commit, candidate record, or small evidence artifact first. Rerun the full
-desktop train only when the diagnostic proves the artifact, source gate, pinned
-cohort, or release-owner decision is invalid.
+Homebrew, VM, evidence upload, closeout, or owner-receipt failures use the same
+rule before the deadline: diagnose the failed gate against the same published
+asset, tap commit, candidate record, or small evidence artifact first. At
+`90:00`, the session first persists `standard_deadline_blocked`; late evidence
+is historical only and cannot authorize any success or retry transition.
 
 Promotion is a Standard-only receipt-backed saga: publish the GitHub Release as
 public but not latest, consume the Formula and Standard cask receipt produced by
@@ -396,15 +398,30 @@ workflow rerun and direct tap mutation are forbidden. Completion additionally
 requires the same-version local installation receipt and nonblank CDP Home,
 Settings, and Capabilities readback with zero page or console errors. Phase
 timings and dispatch counts are recorded. At 60 minutes the controller warns;
-at 90:00 the machine circuit breaker forbids every new full train and permits
-only exact-artifact targeted recovery or a typed-blocked terminal.
+at `90:00`, before any network read, it persists an absorbing
+`standard_deadline_blocked`. Only 30-second-bounded `read_only_reconcile` for
+the exact attempt/run and a separately signed exact-run `emergency_cancel`
+remain legal. Late remote or local success cannot upgrade terminal truth.
 
 `desktop-release.yml` is the Standard source/candidate train and never writes
 the tap. `desktop-release-promote.yml` owns Standard promotion after the
 candidate, exact Standard qualification, and owner receipt pass.
 `desktop-release-full-addon.yml` is a later additive-only Full path; it never
 repeats Standard publish, Stable/Release Set promotion, latest activation, or
-updater mutation.
+updater mutation. Its broker acceptance signs one 50-minute deadline. At or
+after that boundary the exact run becomes absorbing `blocked_with_debt`; late
+success cannot qualify Full or reopen Standard.
+
+The canonical broker authority is a required readiness input, not a diagnostic.
+`status=unprovisioned_release_blocking`, malformed authority, or a missing fresh
+credential-isolation receipt returns a typed release blocker. The checked-in
+authority is currently unprovisioned, so local contract/test green is not
+authorization to start, promote, or complete a Stable release.
+
+A conversation or agent tree is never the release scheduler, watcher, state
+store, or authority. It may read the canonical session once and perform one
+typed reconcile. Recursive monitor/audit trees, duplicate supervisors, and
+repeated `wait_agent` polling are forbidden release-control mechanisms.
 
 ## Artifact Attestation And Provenance
 
@@ -583,12 +600,15 @@ Interpret the result as follows:
   and remote verification artifacts before any release-owner decision.
 
 For the Standard Stable transaction, the controller warns at 60 minutes and
-the 90:00 circuit breaker forbids another full release train; only exact-artifact
-targeted recovery or a typed blocker may continue. Full and WebUI add-ons have
-independent receipts and cannot extend or revoke the Standard terminal. For the
+at `90:00` persists an absorbing blocker before any readback; only bounded
+exact-run read-only reconcile or separately signed emergency cancel may
+continue. Full and WebUI add-ons have independent receipts and cannot extend or
+revoke the Standard terminal. Full becomes durable debt at its signed
+50-minute boundary. For the
 promote path, inspect at 10 minutes and treat 15 minutes as the hard stop. A VM failure after artifact
 creation should route to `npm run release:operator -- diagnose-vm ...` or the
-critical-diagnostics `retry_entry`, not to a new `desktop-release` dispatch.
+critical-diagnostics `retry_entry` only before the Standard deadline, not to a
+new `desktop-release` dispatch.
 
 The 2026-06-29/30 stable attempt exposed two design traps that this runbook
 guards against: a WebUI GHCR run can sit inside one opaque Docker step with no

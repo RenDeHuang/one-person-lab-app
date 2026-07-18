@@ -40,7 +40,11 @@ test('Full add-on workflow cannot overwrite release state or existing assets', (
   assert.match(workflow, /Bind add-on inputs to the immutable Standard distribution receipt/);
   assert.match(workflow, /--kind distribution --receipt "\$receipt"/);
   assert.match(workflow, /--release-set-manifest-digest "\$\{\{ inputs\.release_set_manifest_digest \}\}"/);
-  assert.match(publisher, /gh\(\['release', 'upload', tag, asset\.path, '--repo', values\.repo!\]\)/);
+  assert.match(publisher, /remainingFullAddonMutationBudgetMs\(values\['deadline-validation'\]!, deadlineExpected\)/);
+  assert.match(
+    publisher,
+    /gh\(\['release', 'upload', tag, asset\.path, '--repo', values\.repo!\], Math\.max\(1, Math\.min\(15 \* 60 \* 1000, remainingMs\)\)\)/,
+  );
   assert.doesNotMatch(source, /--clobber/);
   assert.doesNotMatch(source, /release', 'edit|release edit/);
   assert.doesNotMatch(source, /make_latest|latest-arm64-mac\.yml|latest-mac\.yml/);

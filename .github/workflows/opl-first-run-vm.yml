@@ -25,6 +25,11 @@ on:
         required: false
         default: ''
         type: string
+      full_addon_deadline_at:
+        description: 'Signed absolute Full add-on deadline propagated by the outer brokered caller.'
+        required: false
+        default: ''
+        type: string
       operator_actor:
         description: 'Human/operator audit identity; broker GitHub App holds mutation authority.'
         required: false
@@ -133,6 +138,11 @@ on:
         type: string
       standard_admission_deadline_at:
         description: 'Immutable Standard admission deadline propagated by a brokered caller.'
+        required: false
+        default: ''
+        type: string
+      full_addon_deadline_at:
+        description: 'Signed absolute Full add-on deadline propagated by the outer brokered caller.'
         required: false
         default: ''
         type: string
@@ -411,6 +421,7 @@ jobs:
           SHELL_REF: ${{ inputs.shell_ref }}
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
           STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+          FULL_ADDON_DEADLINE_AT: ${{ inputs.full_addon_deadline_at }}
           OPERATOR_ACTOR: ${{ inputs.operator_actor }}
           RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
           RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
@@ -448,6 +459,13 @@ jobs:
             || new Date(Date.parse(deadline)).toISOString() !== deadline) {
             throw new Error('Reusable release qualification requires the canonical immutable Standard deadline.');
           }
+          if (process.env.RELEASE_MUTATION === 'full_addon_dispatch') {
+            const fullDeadline = process.env.FULL_ADDON_DEADLINE_AT || '';
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(fullDeadline)
+              || new Date(Date.parse(fullDeadline)).toISOString() !== fullDeadline) {
+              throw new Error('Reusable Full qualification requires the canonical signed Full add-on deadline.');
+            }
+          }
           NODE
           node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
             --mode historical \
@@ -459,7 +477,17 @@ jobs:
             --expected-workflow-sha "$CONTROLLER_WORKFLOW_SHA" \
             --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
             --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
-            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256"
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output broker-admission/reusable-historical-validation.json >/dev/null
+          if [ "$RELEASE_MUTATION" = "full_addon_dispatch" ]; then
+            VALIDATION=broker-admission/reusable-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.VALIDATION, 'utf8'));
+          if (validation.full_addon_deadline_at !== process.env.FULL_ADDON_DEADLINE_AT) {
+            throw new Error('Historical broker validation does not bind the propagated Full add-on deadline.');
+          }
+          NODE
+          fi
 
       - name: Skip scheduled VM while desktop release is active
         id: scheduled_release_guard
@@ -759,7 +787,7 @@ jobs:
     needs: validate-vm-inputs
     if: ${{ needs.validate-vm-inputs.outputs.skip_vm != 'true' }}
     runs-on: ${{ fromJson(vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]') }}
-    timeout-minutes: 75
+    timeout-minutes: ${{ inputs.release_mutation == 'full_addon_dispatch' && 50 || 75 }}
     permissions:
       actions: read
       contents: read
@@ -939,6 +967,7 @@ jobs:
           CODEX_INSTALL_PHASE_TIMEOUT_MS="${{ inputs.codex_install_phase_timeout_ms }}"
           CODEX_READINESS_PHASE_TIMEOUT_MS="${{ inputs.codex_readiness_phase_timeout_ms }}"
           STANDARD_ADMISSION_DEADLINE_AT="${{ inputs.standard_admission_deadline_at }}"
+          FULL_ADDON_DEADLINE_AT="${{ inputs.full_addon_deadline_at }}"
           RELEASE_MUTATION="${{ inputs.release_mutation }}"
 
           if [ -z "$RUN_TIMEOUT_MS" ]; then
@@ -959,8 +988,14 @@ jobs:
           positive_integer "codex_install_phase_timeout_ms" "$CODEX_INSTALL_PHASE_TIMEOUT_MS"
           positive_integer "codex_readiness_phase_timeout_ms" "$CODEX_READINESS_PHASE_TIMEOUT_MS"
 
-          if [ -n "$STANDARD_ADMISSION_DEADLINE_AT" ] && [ "$RELEASE_MUTATION" != "full_addon_dispatch" ]; then
-            deadline_ms="$(DEADLINE="$STANDARD_ADMISSION_DEADLINE_AT" node --input-type=module -e '
+          effective_deadline_at="$STANDARD_ADMISSION_DEADLINE_AT"
+          deadline_reason="standard_admission_deadline_elapsed"
+          if [ "$RELEASE_MUTATION" = "full_addon_dispatch" ]; then
+            effective_deadline_at="$FULL_ADDON_DEADLINE_AT"
+            deadline_reason="full_addon_deadline_elapsed"
+          fi
+          if [ -n "$effective_deadline_at" ]; then
+            deadline_ms="$(DEADLINE="$effective_deadline_at" node --input-type=module -e '
               const value = process.env.DEADLINE || "";
               const parsed = Date.parse(value);
               if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
@@ -971,7 +1006,7 @@ jobs:
             evidence_reserve_ms=300000
             remaining_ms="$((deadline_ms - now_ms - evidence_reserve_ms))"
             if [ "$remaining_ms" -lt 1000 ]; then
-              echo "::error::standard_admission_deadline_elapsed: less than five minutes remain for VM evidence finalization."
+              echo "::error::$deadline_reason: less than five minutes remain for VM evidence finalization."
               exit 78
             fi
             cap_timeout() {
@@ -1993,6 +2028,41 @@ jobs:
           CODEX_PLATFORM_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.platform_tarball_path }}
           CODEX_NPM_CACHE_DIR: ${{ steps.codex_package_preflight.outputs.npm_cache_dir }}
 
+      - name: Recalculate Full add-on budget before expensive smoke
+        id: full_smoke_budget
+        if: ${{ inputs.release_mutation == 'full_addon_dispatch' }}
+        shell: bash
+        env:
+          FULL_ADDON_DEADLINE_AT: ${{ inputs.full_addon_deadline_at }}
+          RUN_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.run_timeout_ms }}
+          SMOKE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}
+          CODEX_INSTALL_PHASE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}
+          CODEX_READINESS_PHASE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}
+        run: |
+          set -euo pipefail
+          deadline_ms="$(DEADLINE="$FULL_ADDON_DEADLINE_AT" node --input-type=module -e '
+            const value = process.env.DEADLINE || "";
+            const parsed = Date.parse(value);
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+              || !Number.isFinite(parsed) || new Date(parsed).toISOString() !== value) process.exit(2);
+            process.stdout.write(String(parsed));
+          ')" || { echo "::error::full_addon_deadline_at must be canonical UTC ISO-8601."; exit 1; }
+          now_ms="$(node -e 'process.stdout.write(String(Date.now()))')"
+          evidence_reserve_ms=300000
+          remaining_ms="$((deadline_ms - now_ms - evidence_reserve_ms))"
+          if [ "$remaining_ms" -lt 1000 ]; then
+            echo "::error::full_addon_deadline_elapsed: expensive VM smoke cannot start without five minutes reserved for durable evidence."
+            exit 78
+          fi
+          cap_timeout() {
+            local value="$1"
+            if [ "$value" -gt "$remaining_ms" ]; then printf '%s' "$remaining_ms"; else printf '%s' "$value"; fi
+          }
+          echo "run_timeout_ms=$(cap_timeout "$RUN_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
+          echo "smoke_timeout_ms=$(cap_timeout "$SMOKE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
+          echo "codex_install_phase_timeout_ms=$(cap_timeout "$CODEX_INSTALL_PHASE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
+          echo "codex_readiness_phase_timeout_ms=$(cap_timeout "$CODEX_READINESS_PHASE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
+
       - name: Run clean VM first launch smoke
         id: vm_smoke
         shell: bash
@@ -2016,10 +2086,10 @@ jobs:
             --source-vm "$SOURCE_VM"
             --guest-user "$GUEST_USER"
             --artifacts artifacts/opl-first-run-vm
-            --timeout-ms "${{ steps.vm_timeouts.outputs.run_timeout_ms }}"
-            --smoke-timeout-ms "${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}"
-            --codex-install-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
-            --codex-readiness-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
+            --timeout-ms "${{ steps.full_smoke_budget.outputs.run_timeout_ms || steps.vm_timeouts.outputs.run_timeout_ms }}"
+            --smoke-timeout-ms "${{ steps.full_smoke_budget.outputs.smoke_timeout_ms || steps.vm_timeouts.outputs.smoke_timeout_ms }}"
+            --codex-install-phase-timeout-ms "${{ steps.full_smoke_budget.outputs.codex_install_phase_timeout_ms || steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
+            --codex-readiness-phase-timeout-ms "${{ steps.full_smoke_budget.outputs.codex_readiness_phase_timeout_ms || steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"

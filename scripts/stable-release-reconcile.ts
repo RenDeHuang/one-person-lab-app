@@ -8,6 +8,7 @@ import {
   appendQualificationAttemptEvent,
   appendReleaseMutationAttemptEvent,
   assertStableReleaseSessionInvariants,
+  blockFullAddonAtDeadline,
   transitionStableReleaseSession,
   type ReleaseMutationAttempt,
   type StableReleaseSession,
@@ -28,6 +29,7 @@ import {
   type ReleaseMutationBrokerRequestV1,
 } from './release-mutation-broker.ts';
 import { readReleaseBrokerAuthority, type ReleaseBrokerAuthorityV1 } from './release-broker-authority.ts';
+import { validateFullAddonReceipt, type FullAddonReceiptV1 } from './full-addon-receipt.ts';
 
 type ArtifactKind = 'standard' | 'full';
 type RemoteRun = {
@@ -45,12 +47,15 @@ type RemoteRun = {
 };
 type EvidenceFile<T> = { value: T; ref: string; sha256: string };
 
+class StandardReconcileDeadlineBlocked extends Error {}
+
 export type QualificationReconcileProvider = {
   readRun(runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null;
   readBrokerRecord(lookup: ReleaseMutationBrokerLedgerLookupV1): ReleaseMutationBrokerLedgerLookupResultV1 | unknown;
   readBuildManifest?(artifactKind: ArtifactKind, sourceRunId: string): EvidenceFile<BuildArtifactCohortV2> | null;
   readStrictQualificationReceipt?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<ArtifactQualificationReceiptV1> | null;
   readSmokeSummary?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<Record<string, unknown>> | null;
+  readFullAddonReceipt?(runId: string): EvidenceFile<FullAddonReceiptV1> | null;
   readAttemptReceipt(
     artifactKind: ArtifactKind,
     runId: string,
@@ -207,7 +212,7 @@ function recoverBrokerAcceptance(
   attempt: ReleaseMutationAttempt,
   provider: QualificationReconcileProvider,
   authority: ReleaseBrokerAuthorityV1,
-  at: string,
+  observeAfterRead: () => string,
 ): {
   session: StableReleaseSession;
   acceptance: ReleaseMutationAcceptanceReceiptV1 | null;
@@ -237,11 +242,13 @@ function recoverBrokerAcceptance(
   try {
     lookupResult = provider.readBrokerRecord(lookup);
   } catch (error) {
+    observeAfterRead();
     return {
       session, acceptance: null, record: null, disposition: 'reconcile_pending', errors: [],
       reason: `broker durable lookup threw safely: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
+  const observedAt = observeAfterRead();
   if (
     lookupResult && typeof lookupResult === 'object' &&
     (lookupResult as { status?: unknown }).status === 'unavailable'
@@ -256,7 +263,7 @@ function recoverBrokerAcceptance(
     ? attempt.broker_lookup.last_status as 'found' | 'not_found' | 'outcome_unknown'
     : undefined;
   const lookupErrors = validateReleaseMutationBrokerLedgerLookupResult(lookupResult, lookup, authority, {
-    now: at,
+    now: observedAt,
     minimumLedgerGeneration: attempt.broker_lookup.ledger_generation ?? 0,
     minimumVersionAggregateRevision: attempt.broker_lookup.version_aggregate_revision ?? 0,
     minimumLatestHeadRevision: attempt.broker_lookup.latest_mutation_head_revision ?? 0,
@@ -385,6 +392,15 @@ function bindRunProjection(session: StableReleaseSession, attempt: ReleaseMutati
     };
   }
   if (attempt.workflow === 'desktop-release-full-addon.yml') {
+    if (session.addon_tracks.full.deadline_blocker) {
+      return {
+        ...session,
+        addon_tracks: {
+          ...session.addon_tracks,
+          full: { ...session.addon_tracks.full, run_url: run.url ?? session.addon_tracks.full.run_url },
+        },
+      };
+    }
     return {
       ...session,
       addon_tracks: {
@@ -446,20 +462,65 @@ function bindArtifactTrack(
 export function reconcileStableReleaseSession(
   session: StableReleaseSession,
   provider: QualificationReconcileProvider,
-  at = new Date().toISOString(),
+  initialAt = new Date().toISOString(),
   authority = readReleaseBrokerAuthority(),
+  clock: () => number = Date.now,
 ): StableReleaseSession {
   assertStableReleaseSessionInvariants(session);
+  if (session.phase === 'addon_train_terminal') return session;
   let reconciled = session;
+  let at = initialAt;
+  const standardDeadlineAtMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+  const observe = (stage: string, runId: string | null, throwWhenBlocked = true): string => {
+    const observedAtMs = clock();
+    if (!Number.isFinite(observedAtMs)) throw new Error('Stable release reconcile clock returned an invalid timestamp.');
+    at = new Date(observedAtMs).toISOString();
+    if (
+      reconciled.terminal_truth.standard_status === 'in_progress' &&
+      (!Number.isFinite(standardDeadlineAtMs) || observedAtMs >= standardDeadlineAtMs)
+    ) {
+      reconciled = transitionStableReleaseSession(
+        reconciled,
+        'standard_deadline_blocked',
+        `immutable 90-minute Standard admission deadline elapsed during ${stage}`,
+        at,
+        { stage, run_id: runId },
+      );
+      if (throwWhenBlocked) throw new StandardReconcileDeadlineBlocked();
+    }
+    return at;
+  };
+  const activeRunId = session.promotion_run.id ?? session.qualification_run.id ?? session.release_run.id;
+  try {
+    const entryWasDeadlineBlocked = reconciled.phase === 'standard_deadline_blocked';
+    observe('reconcile_entry', activeRunId, false);
+    if (!entryWasDeadlineBlocked && reconciled.phase === 'standard_deadline_blocked') return reconciled;
+
   const durableMutations = new Map<string, {
     acceptance: ReleaseMutationAcceptanceReceiptV1;
     record: ReleaseMutationBrokerLedgerRecordV1;
   }>();
   const runObservations = new Map<string, RemoteRun | null>();
   const readRunOnce = (runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null => {
-    if (!runObservations.has(runId)) runObservations.set(runId, provider.readRun(runId, attempt));
+    if (!runObservations.has(runId)) {
+      let observation: RemoteRun | null;
+      try {
+        observation = provider.readRun(runId, attempt);
+      } finally {
+        observe(`run_readback:${attempt.workflow}`, runId);
+      }
+      runObservations.set(runId, observation);
+    }
     return runObservations.get(runId) ?? null;
   };
+  const readEvidence = <T>(stage: string, runId: string, reader: () => T): T => {
+    try {
+      return reader();
+    } finally {
+      observe(stage, runId);
+    }
+  };
+  const fullAbsorbing = () => reconciled.addon_tracks.full.status === 'blocked_with_debt';
   const remoteIdentityErrors = (runId: string, attempt: ReleaseMutationAttempt, remote: RemoteRun): string[] => {
     const expectedRunNameAttempt = attempt.mutation === 'workflow_cancel'
       ? attempt.dispatch_fence.target_attempt_id
@@ -479,11 +540,40 @@ export function reconcileStableReleaseSession(
   };
   for (const snapshot of reconciled.mutation_attempts) {
     const attempt = reconciled.mutation_attempts.find((entry) => entry.attempt_id === snapshot.attempt_id)!;
+    if (attempt.artifact_kind === 'full' && fullAbsorbing()) continue;
     let latest = attempt.events.at(-1)!;
     const locallyTerminal = terminalMutationState(latest.state);
-    const recovered = recoverBrokerAcceptance(reconciled, attempt, provider, authority, at);
+    const recovered = recoverBrokerAcceptance(
+      reconciled,
+      attempt,
+      provider,
+      authority,
+      () => observe(`broker_lookup:${attempt.mutation}`, latest.run_id ?? attempt.dispatch_fence.target_run_id),
+    );
     reconciled = recovered.session;
     const acceptance = recovered.acceptance;
+    if (acceptance && attempt.mutation === 'full_addon_dispatch') {
+      const deadlineAt = acceptance.full_addon_deadline_at;
+      const deadlineAtMs = Date.parse(String(deadlineAt));
+      if (!deadlineAt || !Number.isFinite(deadlineAtMs) || new Date(deadlineAtMs).toISOString() !== deadlineAt) {
+        throw new Error(`Full add-on acceptance ${attempt.attempt_id} lacks a valid signed deadline.`);
+      }
+      const existingDeadline = reconciled.addon_tracks.full.deadline_at;
+      if (existingDeadline && existingDeadline !== deadlineAt) {
+        throw new Error(`Full add-on acceptance ${attempt.attempt_id} conflicts with the durable deadline.`);
+      }
+      reconciled = {
+        ...reconciled,
+        addon_tracks: {
+          ...reconciled.addon_tracks,
+          full: {
+            ...reconciled.addon_tracks.full,
+            run_id: acceptance.github.run_id,
+            deadline_at: deadlineAt,
+          },
+        },
+      };
+    }
     if (locallyTerminal) {
       if (recovered.disposition !== 'found' || !acceptance || !recovered.record) {
         throw new Error(
@@ -609,7 +699,29 @@ export function reconcileStableReleaseSession(
     }
   }
 
+  const fullTrack = reconciled.addon_tracks.full;
+  if (
+    !fullAbsorbing() && fullTrack.run_id && fullTrack.deadline_at && !fullTrack.deadline_blocker &&
+    fullTrack.status !== 'qualified' && Date.parse(at) >= Date.parse(fullTrack.deadline_at)
+  ) {
+    const fullAcceptance = reconciled.mutation_acceptances.find((acceptance) =>
+      acceptance.pre_api_fence.request.mutation === 'full_addon_dispatch' && acceptance.github.run_id === fullTrack.run_id
+    );
+    if (!fullAcceptance) {
+      throw new Error('Full add-on deadline elapsed without its exact durable broker acceptance.');
+    }
+    const observed = runObservations.get(fullTrack.run_id);
+    reconciled = blockFullAddonAtDeadline(reconciled, {
+      acceptanceAttemptId: fullAcceptance.lease.attempt_id,
+      runId: fullTrack.run_id,
+      deadlineAt: fullTrack.deadline_at,
+      observedAtMs: Date.parse(at),
+      remoteStatus: observed?.status ?? 'unknown',
+    });
+  }
+
   for (const artifactKind of ['standard', 'full'] as const) {
+    if (artifactKind === 'full' && (fullAbsorbing() || reconciled.addon_tracks.full.deadline_blocker)) continue;
     for (const snapshot of reconciled.artifact_tracks[artifactKind].attempts) {
       const attempt = reconciled.artifact_tracks[artifactKind].attempts.find((entry) => entry.attempt_id === snapshot.attempt_id)!;
       const latest = attempt.events.at(-1)!;
@@ -712,19 +824,41 @@ export function reconcileStableReleaseSession(
         continue;
       }
 
-      const receiptFile = provider.readAttemptReceipt(artifactKind, runId);
+      const receiptFile = readEvidence(
+        `evidence:${artifactKind}:attempt_receipt`,
+        runId,
+        () => provider.readAttemptReceipt(artifactKind, runId),
+      );
       const receipt = receiptFile?.receipt;
-      const sourceRunId = receipt?.identity?.source_artifact_run_id ?? '';
-      const manifestFile = sourceRunId ? provider.readBuildManifest?.(artifactKind, sourceRunId) ?? null : null;
-      const strictFile = provider.readStrictQualificationReceipt?.(artifactKind, runId) ?? null;
-      const smokeFile = provider.readSmokeSummary?.(artifactKind, runId) ?? null;
+      const fullAddonFile = artifactKind === 'full' && provider.readFullAddonReceipt
+        ? readEvidence(`evidence:${artifactKind}:addon_receipt`, runId, () => provider.readFullAddonReceipt!(runId))
+        : null;
+      const sourceRunId = artifactKind === 'full' ? runId : receipt?.identity?.source_artifact_run_id ?? '';
+      const manifestFile = sourceRunId && provider.readBuildManifest
+        ? readEvidence(`evidence:${artifactKind}:build_manifest`, runId, () => provider.readBuildManifest!(artifactKind, sourceRunId))
+        : null;
+      const strictFile = provider.readStrictQualificationReceipt
+        ? readEvidence(
+          `evidence:${artifactKind}:strict_qualification_receipt`,
+          runId,
+          () => provider.readStrictQualificationReceipt!(artifactKind, runId),
+        )
+        : null;
+      const smokeFile = provider.readSmokeSummary
+        ? readEvidence(`evidence:${artifactKind}:smoke_summary`, runId, () => provider.readSmokeSummary!(artifactKind, runId))
+        : null;
       const evidenceErrors: string[] = [];
       if (!mutationAcceptance) evidenceErrors.push('qualification run has no validated broker acceptance');
       if (remote.runAttempt !== 1) evidenceErrors.push('qualification workflow run attempt is not 1');
       if (!manifestFile) evidenceErrors.push('build cohort manifest is missing');
       if (!strictFile) evidenceErrors.push('strict qualification receipt is missing');
       if (!smokeFile) evidenceErrors.push('smoke summary is missing');
-      if (!receiptFile || !/^[0-9a-f]{64}$/.test(receiptFile.sha256 ?? '')) evidenceErrors.push('attempt receipt or its artifact digest is missing');
+      if (artifactKind === 'standard' && (!receiptFile || !/^[0-9a-f]{64}$/.test(receiptFile.sha256 ?? ''))) {
+        evidenceErrors.push('attempt receipt or its artifact digest is missing');
+      }
+      if (artifactKind === 'full' && (!fullAddonFile || !/^[0-9a-f]{64}$/.test(fullAddonFile.sha256))) {
+        evidenceErrors.push('Full add-on publish receipt or its artifact digest is missing');
+      }
       if (manifestFile) {
         evidenceErrors.push(...validateArtifactCohortV2(manifestFile.value, {
           appSha: reconciled.cohort_plan.cohort_lock.app.resolved_sha,
@@ -738,7 +872,7 @@ export function reconcileStableReleaseSession(
         if (manifestFile.value.build.kind !== artifactKind) evidenceErrors.push('build cohort artifact kind does not match qualification track');
         if (manifestFile.sha256 !== sha256Json(manifestFile.value)) evidenceErrors.push('build cohort manifest bytes digest is invalid');
       }
-      if (receipt && manifestFile) {
+      if (artifactKind === 'standard' && receipt && manifestFile) {
         evidenceErrors.push(...validateQualificationAttemptReceipt(receipt, {
           stableSessionId: reconciled.id,
           releaseCohortRef: reconciled.cohort_plan.operator_plan_ref,
@@ -753,6 +887,25 @@ export function reconcileStableReleaseSession(
           probeDigest: manifestFile.value.digests.compiled_expectation_probe_sha256,
           qualificationInputManifestDigest: manifestFile.value.digests.qualification_input_manifest_sha256,
           observedAt: at,
+        }));
+      }
+      if (artifactKind === 'full' && fullAddonFile && manifestFile) {
+        const generation = reconciled.addon_tracks.full.release_set_generation ?? '';
+        const manifestDigest = reconciled.addon_tracks.full.release_set_manifest_digest ?? '';
+        evidenceErrors.push(...validateFullAddonReceipt(fullAddonFile.value, {
+          version: reconciled.version,
+          stableSessionId: reconciled.id,
+          releaseCohortRef: reconciled.cohort_plan.operator_plan_ref,
+          appSha: reconciled.cohort_plan.cohort_lock.app.resolved_sha,
+          shellSha: reconciled.cohort_plan.cohort_lock.shell.resolved_sha,
+          frameworkSha: reconciled.cohort_plan.cohort_lock.framework.resolved_sha,
+          runId,
+          releaseSetGeneration: generation,
+          releaseSetManifestDigest: manifestDigest,
+          qualificationInputManifestDigest: manifestFile.value.digests.qualification_input_manifest_sha256,
+          fullInputManifestDigest: manifestFile.value.digests.full_input_manifest_sha256 ?? '',
+          frameworkBundledCatalogDigest: manifestFile.value.digests.framework_bundled_catalog_sha256 ?? '',
+          fullToolchainObservationReceiptDigest: manifestFile.value.digests.full_toolchain_observation_receipt_sha256 ?? '',
         }));
       }
       if (strictFile && manifestFile && smokeFile) {
@@ -780,14 +933,23 @@ export function reconcileStableReleaseSession(
         }));
         if (strictFile.value.build_manifest.sha256 !== manifestFile.sha256) evidenceErrors.push('strict receipt does not bind the downloaded manifest bytes');
         if (strictFile.value.smoke_summary.sha256 !== smokeFile.sha256) evidenceErrors.push('strict receipt does not bind the downloaded smoke summary bytes');
-        if (receipt?.evidence.strict_qualification_receipt_sha256 !== strictFile.sha256) evidenceErrors.push('attempt receipt does not bind the downloaded strict receipt bytes');
-        if (receipt?.evidence.smoke_summary_sha256 !== smokeFile.sha256) evidenceErrors.push('attempt receipt does not bind the downloaded smoke summary bytes');
+        if (artifactKind === 'standard' && receipt?.evidence.strict_qualification_receipt_sha256 !== strictFile.sha256) {
+          evidenceErrors.push('attempt receipt does not bind the downloaded strict receipt bytes');
+        }
+        if (artifactKind === 'standard' && receipt?.evidence.smoke_summary_sha256 !== smokeFile.sha256) {
+          evidenceErrors.push('attempt receipt does not bind the downloaded smoke summary bytes');
+        }
       }
 
       const conclusion = remote.conclusion || 'failure';
       const cancelled = conclusion === 'cancelled';
-      const passed = conclusion === 'success' && receipt?.status === 'passed' && evidenceErrors.length === 0;
-      const reconciledState = passed ? 'passed' : cancelled ? 'cancelled' : receipt && evidenceErrors.length === 0 ? 'failed' : 'runner_lost';
+      const authorityReceiptPassed = artifactKind === 'full'
+        ? fullAddonFile?.value.status === 'verified'
+        : receipt?.status === 'passed';
+      const authorityReceiptPresent = artifactKind === 'full' ? Boolean(fullAddonFile) : Boolean(receipt);
+      const terminalEvidence = artifactKind === 'full' ? fullAddonFile : receiptFile;
+      const passed = conclusion === 'success' && authorityReceiptPassed && evidenceErrors.length === 0;
+      const reconciledState = passed ? 'passed' : cancelled ? 'cancelled' : authorityReceiptPresent && evidenceErrors.length === 0 ? 'failed' : 'runner_lost';
       if (locallyTerminal) {
         if (latest.state !== reconciledState || latest.run_id !== runId || latest.conclusion !== conclusion) {
           throw new Error(
@@ -796,15 +958,22 @@ export function reconcileStableReleaseSession(
           );
         }
         if (latest.state === 'passed' && (
-          latest.remote_receipt_ref !== receiptFile?.ref || latest.remote_receipt_sha256 !== receiptFile?.sha256
+          latest.remote_receipt_ref !== terminalEvidence?.ref || latest.remote_receipt_sha256 !== terminalEvidence?.sha256
         )) {
           throw new Error(`Terminal ${artifactKind} qualification ${attempt.attempt_id} receipt binding changed.`);
         }
         continue;
       }
-      if (passed && manifestFile && receiptFile) {
+      if (passed && manifestFile && terminalEvidence && strictFile) {
+        observe(`evidence:${artifactKind}:commit`, runId);
+        const evidenceSha256 = artifactKind === 'full' ? strictFile.sha256 : terminalEvidence.sha256;
+        if (!evidenceSha256) {
+          throw new Error(`Passed ${artifactKind} qualification lacks an exact evidence SHA-256.`);
+        }
         reconciled = bindArtifactTrack(
-          reconciled, artifactKind, manifestFile.value, manifestFile.sha256, runId, receiptFile.ref, receiptFile.sha256!,
+          reconciled, artifactKind, manifestFile.value, manifestFile.sha256, runId,
+          artifactKind === 'full' ? `opl-first-run-vm-full-${runId}` : terminalEvidence.ref,
+          evidenceSha256,
         );
         if (
           artifactKind === 'standard' &&
@@ -818,23 +987,86 @@ export function reconcileStableReleaseSession(
           );
         }
       }
-      reconciled = appendQualificationAttemptEvent(reconciled, artifactKind, attempt.attempt_id, {
+      const failureTaxonomy = passed ? 'none' : cancelled ? 'cancelled' : artifactKind === 'standard'
+        ? receipt?.failure_taxonomy ?? 'infrastructure'
+        : 'infrastructure';
+      const remoteReceiptRef = evidenceErrors.length === 0 ? terminalEvidence?.ref ?? null : null;
+      const remoteReceiptSha256 = evidenceErrors.length === 0 ? terminalEvidence?.sha256 ?? null : null;
+      const retryDisposition = artifactKind === 'standard' ? receipt?.retry.disposition ?? 'reconcile_only' : 'reconcile_only';
+      const retryReason = artifactKind === 'standard' ? receipt?.retry.reason ?? evidenceErrors.join('; ') : evidenceErrors.join('; ');
+      const scopeProof = artifactKind === 'standard' ? receipt?.evidence.scope_proof ?? null : null;
+      const observationReason = passed
+        ? artifactKind === 'full'
+          ? 'broker acceptance, signed deadline, GitHub attempt 1, manifest, strict receipt, smoke summary, and Full publish receipt reconciled'
+          : 'broker acceptance, GitHub attempt 1, manifest, strict receipt, smoke summary, and attempt receipt reconciled'
+        : `qualification evidence failed closed: ${evidenceErrors.join('; ') || `remote conclusion ${conclusion}`}`;
+      const currentLatest = reconciled.artifact_tracks[artifactKind].attempts
+        .find((candidate) => candidate.attempt_id === attempt.attempt_id)!.events.at(-1)!;
+      const observationUnchanged =
+        currentLatest.state === reconciledState && currentLatest.run_id === runId && currentLatest.conclusion === conclusion &&
+        currentLatest.failure_taxonomy === failureTaxonomy && currentLatest.remote_receipt_ref === remoteReceiptRef &&
+        (currentLatest.remote_receipt_sha256 ?? null) === remoteReceiptSha256 &&
+        (currentLatest.retry_disposition ?? null) === retryDisposition && (currentLatest.retry_reason ?? null) === retryReason &&
+        JSON.stringify(currentLatest.scope_proof ?? null) === JSON.stringify(scopeProof) && currentLatest.reason === observationReason;
+      if (!observationUnchanged) reconciled = appendQualificationAttemptEvent(reconciled, artifactKind, attempt.attempt_id, {
         at,
         state: reconciledState,
         run_id: runId,
         conclusion,
-        failure_taxonomy: passed ? 'none' : cancelled ? 'cancelled' : receipt?.failure_taxonomy ?? 'infrastructure',
-        remote_receipt_ref: evidenceErrors.length === 0 ? receiptFile?.ref ?? null : null,
-        remote_receipt_sha256: evidenceErrors.length === 0 ? receiptFile?.sha256 ?? null : null,
-        retry_disposition: receipt?.retry.disposition ?? 'reconcile_only',
-        retry_reason: receipt?.retry.reason ?? evidenceErrors.join('; '),
-        scope_proof: receipt?.evidence.scope_proof ?? null,
-        reason: passed
-          ? 'broker acceptance, GitHub attempt 1, manifest, strict receipt, smoke summary, and attempt receipt reconciled'
-          : `qualification evidence failed closed: ${evidenceErrors.join('; ') || `remote conclusion ${conclusion}`}`,
+        failure_taxonomy: failureTaxonomy,
+        remote_receipt_ref: remoteReceiptRef,
+        remote_receipt_sha256: remoteReceiptSha256,
+        retry_disposition: retryDisposition,
+        retry_reason: retryReason,
+        scope_proof: scopeProof,
+        reason: observationReason,
       });
+      if (artifactKind === 'full' && passed && fullAddonFile) {
+        reconciled = {
+          ...reconciled,
+          addon_tracks: {
+            ...reconciled.addon_tracks,
+            full: {
+              ...reconciled.addon_tracks.full,
+              status: 'qualified',
+              run_id: runId,
+              run_url: remote.url ?? reconciled.addon_tracks.full.run_url,
+              conclusion,
+              receipt_ref: fullAddonFile.ref,
+              receipt_sha256: fullAddonFile.sha256,
+            },
+          },
+        };
+        const webui = reconciled.addon_tracks.webui;
+        const webuiTerminal = !webui.required || ['verified', 'blocked_with_debt'].includes(webui.status);
+        if (webuiTerminal) {
+          reconciled = {
+            ...reconciled,
+            terminal_truth: {
+              ...reconciled.terminal_truth,
+              addon_status: webui.status === 'blocked_with_debt' ? 'blocked_with_debt' : 'terminal',
+            },
+          };
+          if (reconciled.phase === 'standard_stable_terminal') {
+            reconciled = transitionStableReleaseSession(
+              reconciled,
+              'addon_train_terminal',
+              'Full add-on terminal truth rebuilt from broker, deadline, GitHub, and exact receipt evidence',
+              at,
+            );
+          }
+        }
+      }
     }
   }
+  observe('reconcile_commit', activeRunId);
   assertStableReleaseSessionInvariants(reconciled);
   return reconciled;
+  } catch (error) {
+    if (error instanceof StandardReconcileDeadlineBlocked) {
+      assertStableReleaseSessionInvariants(reconciled);
+      return reconciled;
+    }
+    throw error;
+  }
 }

@@ -195,6 +195,37 @@ export type ReleaseBrokerAuthorityV1 = {
   };
 };
 
+const credentialFingerprintPattern = /^sha256:[0-9a-f]{64}$/;
+
+function validateCredentialIdentity(input: {
+  normalActor: unknown;
+  normalTokenFingerprint: unknown;
+  brokerActor: unknown;
+  brokerTokenFingerprint: unknown;
+}): string[] {
+  const errors: string[] = [];
+  const normalActor = typeof input.normalActor === 'string' ? input.normalActor.trim() : '';
+  const brokerActor = typeof input.brokerActor === 'string' ? input.brokerActor.trim() : '';
+  if (!normalActor) errors.push('normal credential actor is missing');
+  if (!brokerActor) errors.push('broker credential actor is missing');
+  if (normalActor && brokerActor && normalActor === brokerActor) {
+    errors.push('normal credential actor must differ from broker actor');
+  }
+  if (!credentialFingerprintPattern.test(String(input.normalTokenFingerprint))) {
+    errors.push('normal credential token fingerprint must be a lowercase sha256 digest');
+  }
+  if (!credentialFingerprintPattern.test(String(input.brokerTokenFingerprint))) {
+    errors.push('broker credential token fingerprint must be a lowercase sha256 digest');
+  }
+  if (
+    typeof input.normalTokenFingerprint === 'string' &&
+    input.normalTokenFingerprint === input.brokerTokenFingerprint
+  ) {
+    errors.push('normal and broker credential fingerprints must differ');
+  }
+  return errors;
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (!value || typeof value !== 'object') return JSON.stringify(value);
@@ -214,6 +245,10 @@ export function buildCredentialIsolationReceipt(input: {
   privateKeyBackend: string; keyId: string; signingPrivateKeyPem: string;
   callerAdmissionBackend: string; operatorActor: string; operatorIdentitySource: string;
 }): CredentialIsolationReceiptV1 {
+  const identityErrors = validateCredentialIdentity(input);
+  if (identityErrors.length > 0) {
+    throw new Error(`Invalid credential isolation identity: ${identityErrors.join('; ')}`);
+  }
   const payload = {
     schema: 'opl_app_release_credential_isolation_receipt.v1' as const,
     status: 'verified' as const,
@@ -282,7 +317,12 @@ export function validateCredentialIsolationReceipt(
     candidate.broker_credential?.endpoint_sha256 !== authority.mutation_broker.executable_sha256 ||
     candidate.broker_credential?.endpoint_codesign_identity !== authority.mutation_broker.executable_codesign_identity
   ) errors.push('credential isolation receipt broker endpoint does not match canonical authority');
-  if (!candidate.normal_credential?.token_fingerprint || !candidate.broker_credential?.token_fingerprint || candidate.normal_credential.token_fingerprint === candidate.broker_credential.token_fingerprint) errors.push('credential fingerprints are missing or not separated');
+  errors.push(...validateCredentialIdentity({
+    normalActor: candidate.normal_credential?.actor,
+    normalTokenFingerprint: candidate.normal_credential?.token_fingerprint,
+    brokerActor: candidate.broker_credential?.actor,
+    brokerTokenFingerprint: candidate.broker_credential?.token_fingerprint,
+  }));
   if (candidate.private_key?.inherited_by_normal_codex_processes !== false || !candidate.private_key?.backend) errors.push('broker private-key isolation is not proven');
   if (
     !candidate.caller_admission?.backend ||

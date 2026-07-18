@@ -100,6 +100,11 @@ on:
         required: false
         default: ''
         type: string
+      full_addon_deadline_at:
+        description: Signed absolute Full add-on deadline propagated by the outer brokered caller.
+        required: false
+        default: ''
+        type: string
       operator_actor:
         description: Human/operator audit identity; broker GitHub App holds mutation authority
         required: false
@@ -112,6 +117,8 @@ on:
         type: string
       release_attempt_id: { description: Release broker attempt id, required: false, default: '', type: string }
       release_session_lease_base64: { description: Signed release broker ticket, required: false, default: '', type: string }
+      release_mutation_payload_sha256: { description: Exact digest of the outer broker mutation payload, required: false, default: '', type: string }
+      broker_admission_validation_sha256: { description: Exact digest of the immutable outer broker validation, required: false, default: '', type: string }
       release_mutation: { description: Outer controller mutation, required: false, default: '', type: string }
       release_workflow: { description: Outer controller workflow, required: false, default: '', type: string }
       controller_workflow_sha: { description: Exact controller workflow SHA, required: false, default: '', type: string }
@@ -149,7 +156,7 @@ jobs:
   full-first-install:
     name: Build App-owned Full first-install DMG
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: ${{ inputs.release_mutation == 'full_addon_dispatch' && 50 || 90 }}
     permissions:
       contents: read
 
@@ -199,6 +206,54 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
+
+      - name: Download immutable outer Full broker admission validation
+        if: ${{ inputs.release_mutation == 'full_addon_dispatch' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-broker-admission-${{ github.run_id }}
+          path: broker-admission
+
+      - name: Verify exact outer Full broker admission and deadline
+        if: ${{ inputs.release_mutation == 'full_addon_dispatch' }}
+        working-directory: one-person-lab-app-controller
+        env:
+          FULL_ADDON_DEADLINE_AT: ${{ inputs.full_addon_deadline_at }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          BROKER_ADMISSION_VALIDATION_SHA256: ${{ inputs.broker_admission_validation_sha256 }}
+          RELEASE_WORKFLOW: ${{ inputs.release_workflow }}
+          CONTROLLER_WORKFLOW_SHA: ${{ inputs.controller_workflow_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Full build requires the exact outer payload digest."; exit 1; }
+          [[ "$BROKER_ADMISSION_VALIDATION_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Full build requires the exact outer broker validation digest."; exit 1; }
+          node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
+            --mode historical \
+            --validation ../broker-admission/broker-admission-validation.json \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow "$RELEASE_WORKFLOW" \
+            --expected-workflow-sha "$CONTROLLER_WORKFLOW_SHA" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256" \
+            --output ../broker-admission/full-build-historical-validation.json >/dev/null
+          VALIDATION=../broker-admission/full-build-historical-validation.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const validation = JSON.parse(fs.readFileSync(process.env.VALIDATION, 'utf8'));
+          const deadline = process.env.FULL_ADDON_DEADLINE_AT || '';
+          const deadlineMs = Date.parse(deadline);
+          if (validation.full_addon_deadline_at !== deadline
+            || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
+            || !Number.isFinite(deadlineMs) || new Date(deadlineMs).toISOString() !== deadline) {
+            throw new Error('Historical broker validation does not bind the propagated Full add-on deadline.');
+          }
+          if (Date.now() >= deadlineMs) {
+            throw new Error('full_addon_deadline_elapsed: Full build cannot start after the signed deadline.');
+          }
+          NODE
 
       - name: Validate frozen Full source SHAs
         run: |
@@ -881,6 +936,8 @@ jobs:
           npm_config_runtime: electron
           npm_config_target: ${{ steps.shell-electron-version.outputs.version }}
           npm_config_target_arch: arm64
+          FULL_ADDON_DEADLINE_AT: ${{ inputs.full_addon_deadline_at }}
+          RELEASE_MUTATION: ${{ inputs.release_mutation }}
         run: |
           set -euo pipefail
           ulimit -n 65536 || true
@@ -902,17 +959,59 @@ jobs:
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
+          FULL_BUILD_CMD=(
+            npm run release:full --
+            --version "$OPL_RELEASE_VERSION"
+            --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
+            --runtime-cache-mode readwrite
+          )
           if [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
-            npm run release:full -- \
-              --version "$OPL_RELEASE_VERSION" \
-              --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
-              --runtime-cache-mode readwrite \
-              --reuse-gui-vite-output
+            FULL_BUILD_CMD+=(--reuse-gui-vite-output)
+          fi
+          if [ "$RELEASE_MUTATION" = "full_addon_dispatch" ]; then
+            full_build_timeout_ms="$(DEADLINE="$FULL_ADDON_DEADLINE_AT" node --input-type=module -e '
+              const deadlineMs = Date.parse(process.env.DEADLINE || "");
+              const nowMs = Date.now();
+              const postBuildReserveMs = 15 * 60_000;
+              const remainingMs = deadlineMs - nowMs - postBuildReserveMs;
+              if (!Number.isFinite(deadlineMs) || remainingMs < 1_000) process.exit(78);
+              process.stdout.write(String(remainingMs));
+            ')" || {
+              echo "::error::full_addon_deadline_elapsed: less than 15 minutes remain for verification, VM evidence, and publication."
+              exit 78
+            }
+            FULL_BUILD_TIMEOUT_MS="$full_build_timeout_ms" node --input-type=module - "${FULL_BUILD_CMD[@]}" <<'NODE'
+          import { spawn } from 'node:child_process';
+          const timeoutMs = Number(process.env.FULL_BUILD_TIMEOUT_MS);
+          const command = process.argv[2];
+          const args = process.argv.slice(3);
+          let deadlineElapsed = false;
+          const child = spawn(command, args, { env: process.env, stdio: 'inherit' });
+          const timer = setTimeout(() => {
+            deadlineElapsed = true;
+            child.kill('SIGTERM');
+            setTimeout(() => child.kill('SIGKILL'), 10_000).unref();
+          }, timeoutMs);
+          child.once('error', (error) => {
+            clearTimeout(timer);
+            console.error(error);
+            process.exit(1);
+          });
+          child.once('exit', (code, signal) => {
+            clearTimeout(timer);
+            if (deadlineElapsed) {
+              console.error('full_addon_deadline_elapsed: npm run release:full exhausted its signed budget.');
+              process.exit(78);
+            }
+            if (signal) {
+              console.error(`npm run release:full terminated by ${signal}.`);
+              process.exit(1);
+            }
+            process.exit(code ?? 1);
+          });
+          NODE
           else
-            npm run release:full -- \
-              --version "$OPL_RELEASE_VERSION" \
-              --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
-              --runtime-cache-mode readwrite
+            "${FULL_BUILD_CMD[@]}"
           fi
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 

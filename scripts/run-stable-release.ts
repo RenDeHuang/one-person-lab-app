@@ -20,7 +20,11 @@ import {
   validateQualificationHarnessScopeProof,
   type QualificationHarnessScopeProof,
 } from './qualification-harness-scope.ts';
-import { validateLocalActivationReceipt, validatePromotionSagaReceipt } from './release-saga-receipts.ts';
+import {
+  validateLocalActivationReceipt,
+  validatePromotionSagaReceipt,
+  type PromotionSagaReceiptV2,
+} from './release-saga-receipts.ts';
 import {
   encodeReleaseSessionLease,
   validateReleaseSessionLease,
@@ -31,6 +35,7 @@ import type { QualificationAttemptReceiptV1 } from './qualification-attempt-rece
 import { validateQualificationAttemptReceipt } from './qualification-attempt-receipt.ts';
 import {
   appendStableReleaseEfficiencyAdvisory,
+  blockFullAddonAtDeadline,
   appendQualificationAttempt,
   appendQualificationAttemptEvent,
   appendReleaseMutationAttemptEvent,
@@ -51,7 +56,7 @@ import {
   resolveHistoricalReleaseBrokerAuthority,
   validateReleaseBrokerAuthority,
 } from './release-broker-authority.ts';
-import { validateFullAddonReceipt } from './full-addon-receipt.ts';
+import { validateFullAddonReceipt, type FullAddonReceiptV1 } from './full-addon-receipt.ts';
 import { validateAddonDebtReceipt } from './addon-debt-receipt.ts';
 import {
   encodeReleaseMutationPayload,
@@ -114,6 +119,11 @@ type FullAddonOptions = {
   execute: boolean; watch: boolean; forceRebuildRuntimeCache: boolean;
 };
 type AddonDebtOptions = { statePath: string; addon: 'full' | 'webui'; receiptPath: string };
+type WorkflowWatchDeadline = {
+  kind: 'full_addon';
+  deadlineAt: string;
+  acceptanceAttemptId: string;
+};
 
 type RetryQualificationOptions = {
   execute: boolean;
@@ -186,6 +196,10 @@ function boundedReleaseTransportTimeoutMs(
     );
   }
   return Math.max(1, Math.min(releaseTransportTimeoutCapMs, remaining));
+}
+
+function readOnlyReleaseTransportTimeoutMs(): number {
+  return releaseTransportTimeoutCapMs;
 }
 
 function assertMutationWithinAdmissionDeadline(
@@ -311,6 +325,7 @@ export function executeBrokeredReleaseMutation(
   broker: ReleaseMutationBroker = externalReleaseMutationBroker,
   authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
   persist: typeof writeSession = writeSession,
+  clock: () => number = Date.now,
 ): { session: StableReleaseSession; receipt: ReleaseMutationAcceptanceReceiptV1 } {
   const attempt = session.mutation_attempts.find((candidate) => candidate.attempt_id === attemptId);
   if (!attempt) {
@@ -383,13 +398,14 @@ export function executeBrokeredReleaseMutation(
     return { session, receipt: existingAcceptance };
   }
   try {
-    assertMutationWithinAdmissionDeadline(session, attempt.mutation);
+    assertMutationWithinAdmissionDeadline(session, attempt.mutation, clock);
   } catch (error) {
+    const observedAtMs = clock();
     const blocked = standardDeadlineBlockedSession(
       session,
       `broker_admission:${attempt.mutation}`,
       attempt.events.at(-1)?.run_id ?? attempt.dispatch_fence.target_run_id,
-      Date.now(),
+      observedAtMs,
     );
     persist(statePath, blocked);
     throw error;
@@ -397,7 +413,7 @@ export function executeBrokeredReleaseMutation(
   if (session.revision !== attempt.planned_session_revision) {
     throw new Error(`Release mutation broker attempt ${attemptId} is not at durable planned revision ${attempt.planned_session_revision}.`);
   }
-  const requestObservedAt = now();
+  const requestObservedAt = new Date(clock()).toISOString();
   const requestErrors = validateReleaseMutationBrokerRequest(request, authority, requestObservedAt);
   if (requestErrors.length > 0) throw new Error(`Release mutation broker request is invalid: ${requestErrors.join('; ')}`);
   session = appendReleaseMutationAttemptEvent(session, attemptId, {
@@ -413,13 +429,27 @@ export function executeBrokeredReleaseMutation(
   };
   persist(statePath, session);
   const receipt = broker(request);
-  const responseObservedAt = now();
+  const responseObservedAtMs = clock();
+  const responseObservedAt = new Date(responseObservedAtMs).toISOString();
   const receiptErrors = validateReleaseMutationAcceptanceReceipt(receipt, request, authority, responseObservedAt);
   if (receiptErrors.length > 0) throw new Error(`Release mutation broker returned an invalid acceptance receipt: ${receiptErrors.join('; ')}`);
-  exactAcceptedRunId(receipt, github);
+  const acceptedRunId = exactAcceptedRunId(receipt, github);
+  const fullAddonDeadlineAt = attempt.mutation === 'full_addon_dispatch'
+    ? receipt.full_addon_deadline_at
+    : null;
+  if (attempt.mutation === 'full_addon_dispatch') {
+    const acceptedAtMs = Date.parse(receipt.accepted_at);
+    const deadlineAtMs = Date.parse(String(fullAddonDeadlineAt));
+    if (
+      !fullAddonDeadlineAt || !Number.isFinite(acceptedAtMs) || !Number.isFinite(deadlineAtMs) ||
+      new Date(deadlineAtMs).toISOString() !== fullAddonDeadlineAt ||
+      deadlineAtMs !== acceptedAtMs + 50 * 60 * 1_000
+    ) {
+      throw new Error('Full add-on broker acceptance lacks its exact signed 50-minute deadline.');
+    }
+  }
   let acceptedSession: StableReleaseSession = {
     ...session,
-    updated_at: responseObservedAt,
     mutation_leases: session.mutation_leases.some((lease) => lease.attempt_id === attemptId)
       ? session.mutation_leases
       : [...session.mutation_leases, receipt.lease],
@@ -432,15 +462,6 @@ export function executeBrokeredReleaseMutation(
       },
     } : candidate),
   };
-  const acceptedRunId = exactAcceptedRunId(receipt, github);
-  acceptedSession = appendReleaseMutationAttemptEvent(acceptedSession, attemptId, {
-    at: responseObservedAt,
-    state: attempt.mutation === 'workflow_cancel' ? 'running' : 'acceptance_pending_visibility',
-    run_id: acceptedRunId,
-    reason: attempt.mutation === 'workflow_cancel'
-      ? `signed broker accepted exact emergency cancel target ${acceptedRunId}`
-      : `signed broker accepted exact workflow run ${acceptedRunId}; GitHub identity readback remains pending`,
-  });
   if (attempt.workflow === 'desktop-release.yml') {
     acceptedSession.release_run = {
       id: acceptedRunId,
@@ -464,9 +485,60 @@ export function executeBrokeredReleaseMutation(
         run_id: acceptedRunId,
         run_url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
         conclusion: null,
+        deadline_at: fullAddonDeadlineAt,
+        deadline_blocker: null,
       },
     };
   }
+  const standardDeadlineElapsed = attempt.mutation !== 'workflow_cancel' &&
+    !(attempt.mutation === 'full_addon_dispatch' && session.terminal_truth.standard_status === 'terminal') &&
+    remainingStandardAdmissionBudgetMs(session, responseObservedAtMs) <= 0;
+  if (standardDeadlineElapsed) {
+    acceptedSession = standardDeadlineBlockedSession(
+      acceptedSession,
+      `broker_response:${attempt.mutation}`,
+      acceptedRunId,
+      responseObservedAtMs,
+    );
+    acceptedSession = appendReleaseMutationAttemptEvent(acceptedSession, attemptId, {
+      at: responseObservedAt,
+      state: 'acceptance_pending_visibility',
+      run_id: acceptedRunId,
+      reason: `signed broker accepted exact workflow run ${acceptedRunId} after the immutable Standard deadline; late acceptance is durable but cannot advance success`,
+    });
+    for (const artifactKind of ['standard', 'full'] as const) {
+      const qualificationAttempt = acceptedSession.artifact_tracks[artifactKind].attempts.find(
+        (candidate) => candidate.mutation_attempt_id === attemptId,
+      );
+      if (qualificationAttempt) {
+        acceptedSession = appendQualificationAttemptEvent(acceptedSession, artifactKind, qualificationAttempt.attempt_id, {
+          at: responseObservedAt,
+          state: 'dispatching',
+          run_id: acceptedRunId,
+          conclusion: null,
+          failure_taxonomy: 'operator',
+          remote_receipt_ref: null,
+          retry_disposition: 'reconcile_only',
+          retry_reason: 'broker acceptance returned after the immutable Standard deadline',
+          reason: 'exact late broker acceptance is preserved for read-only reconcile or emergency cancel only',
+        });
+      }
+    }
+    persist(statePath, acceptedSession);
+    throw new Error(
+      `${attempt.mutation} was accepted as exact run ${acceptedRunId} after the immutable 90-minute Standard deadline; ` +
+      'the acceptance and typed blocker are durable, and only read-only reconcile or emergency cancel may continue.',
+    );
+  }
+  acceptedSession = { ...acceptedSession, updated_at: responseObservedAt };
+  acceptedSession = appendReleaseMutationAttemptEvent(acceptedSession, attemptId, {
+    at: responseObservedAt,
+    state: attempt.mutation === 'workflow_cancel' ? 'running' : 'acceptance_pending_visibility',
+    run_id: acceptedRunId,
+    reason: attempt.mutation === 'workflow_cancel'
+      ? `signed broker accepted exact emergency cancel target ${acceptedRunId}`
+      : `signed broker accepted exact workflow run ${acceptedRunId}; GitHub identity readback remains pending`,
+  });
   persist(statePath, acceptedSession);
   return { receipt, session: acceptedSession };
 }
@@ -1019,11 +1091,30 @@ async function awaitAcceptedWorkflowRun(
   controllerWorkflowSha: string,
   expectedBranch = 'main',
   persist: (session: StableReleaseSession) => void,
+  deadlinePolicy?: WorkflowWatchDeadline,
+  clock: () => number = Date.now,
 ): Promise<WorkflowRun> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (session.terminal_truth.standard_status !== 'terminal' && remainingStandardAdmissionBudgetMs(session) <= 0) {
+    if (deadlinePolicy?.kind === 'full_addon' && clock() >= Date.parse(deadlinePolicy.deadlineAt)) {
+      const observedAtMs = clock();
+      persist(blockFullAddonAtDeadline(session, {
+        acceptanceAttemptId: deadlinePolicy.acceptanceAttemptId,
+        runId,
+        deadlineAt: deadlinePolicy.deadlineAt,
+        observedAtMs,
+        remoteStatus: 'visibility_pending',
+      }));
+      throw new Error(
+        `Full add-on deadline expired while waiting for exact run ${runId}; ` +
+        'the typed add-on debt blocker is durable and Standard remains unchanged.',
+      );
+    }
+    if (
+      session.terminal_truth.standard_status !== 'terminal' &&
+      remainingStandardAdmissionBudgetMs(session, clock()) <= 0
+    ) {
       persist(standardDeadlineBlockedSession(
-        session, `run_visibility:${workflow}`, runId, Date.now(),
+        session, `run_visibility:${workflow}`, runId, clock(),
       ));
       throw new Error(
         `Standard admission deadline expired while waiting for exact run ${runId}; ` +
@@ -1031,6 +1122,32 @@ async function awaitAcceptedWorkflowRun(
       );
     }
     const view = runView(runner, session, runId);
+    const afterViewMs = clock();
+    if (deadlinePolicy?.kind === 'full_addon' && afterViewMs >= Date.parse(deadlinePolicy.deadlineAt)) {
+      persist(blockFullAddonAtDeadline(session, {
+        acceptanceAttemptId: deadlinePolicy.acceptanceAttemptId,
+        runId,
+        deadlineAt: deadlinePolicy.deadlineAt,
+        observedAtMs: afterViewMs,
+        remoteStatus: view.readback?.status ?? 'visibility_pending',
+      }));
+      throw new Error(
+        `Full add-on deadline expired during exact-run ${runId} readback; ` +
+        'the typed add-on debt blocker is durable and Standard remains unchanged.',
+      );
+    }
+    if (
+      session.terminal_truth.standard_status !== 'terminal' &&
+      remainingStandardAdmissionBudgetMs(session, afterViewMs) <= 0
+    ) {
+      persist(standardDeadlineBlockedSession(
+        session, `run_visibility_readback:${workflow}`, runId, afterViewMs,
+      ));
+      throw new Error(
+        `Standard deadline expired during exact-run ${runId} visibility readback; ` +
+        'the durable typed blocker preserves the accepted run for reconcile or emergency cancel only.',
+      );
+    }
     if (view.readback) {
       const errors = validateAcceptedWorkflowRunIdentity(view.readback, {
         runId, attemptId, workflow, controllerWorkflowSha, headBranch: expectedBranch,
@@ -1040,7 +1157,9 @@ async function awaitAcceptedWorkflowRun(
       }
       return view.readback;
     }
-    const remaining = remainingAdmissionBudgetMs(session);
+    const remaining = deadlinePolicy?.kind === 'full_addon'
+      ? Date.parse(deadlinePolicy.deadlineAt) - clock()
+      : remainingAdmissionBudgetMs(session, clock);
     if (remaining <= 0) break;
     await delay(Math.min(3_000, remaining));
   }
@@ -1084,11 +1203,16 @@ function runView(
   session: StableReleaseSession,
   runId: string,
   clock: () => number = Date.now,
+  transportPolicy: 'admission_deadline' | 'read_only_reconcile' = 'admission_deadline',
 ): { readback: WorkflowRun | null; error: string | null } {
   const result = runner('gh', [
     'run', 'view', runId, '--repo', session.repo,
     '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
-  ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, `read workflow run ${runId}`, clock) });
+  ], {
+    timeoutMs: transportPolicy === 'read_only_reconcile'
+      ? readOnlyReleaseTransportTimeoutMs()
+      : boundedReleaseTransportTimeoutMs(session, `read workflow run ${runId}`, clock),
+  });
   return decodeWorkflowRunReadback(result);
 }
 
@@ -1145,7 +1269,7 @@ function createReconcileEvidenceReader(
     const result = runner(
       'gh',
       ['run', 'download', runId, '--repo', session.repo, '--name', artifactName, '--dir', root],
-      { timeoutMs: boundedReleaseTransportTimeoutMs(session, `reconcile artifact ${artifactName}`) },
+      { timeoutMs: readOnlyReleaseTransportTimeoutMs() },
     );
     if (result.status !== 0) {
       fs.rmSync(root, { recursive: true, force: true });
@@ -1205,12 +1329,12 @@ export function classifyWorkflowRunObservation(
 export function standardReleaseCircuitBreaker(
   session: StableReleaseSession,
   observedAtMs = Date.now(),
-): 'new_release_train_allowed' | 'targeted_recovery_or_typed_blocker_only' {
+): 'new_release_train_allowed' | 'typed_blocker_reconcile_or_emergency_cancel_only' {
   const deadlineAtMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
-  if (!Number.isFinite(deadlineAtMs)) return 'targeted_recovery_or_typed_blocker_only';
+  if (!Number.isFinite(deadlineAtMs)) return 'typed_blocker_reconcile_or_emergency_cancel_only';
   return observedAtMs < deadlineAtMs
     ? 'new_release_train_allowed'
-    : 'targeted_recovery_or_typed_blocker_only';
+    : 'typed_blocker_reconcile_or_emergency_cancel_only';
 }
 
 export function remainingStandardAdmissionBudgetMs(
@@ -1227,19 +1351,52 @@ export async function watchRunToTerminal(
   runId: string,
   persist: (session: StableReleaseSession) => void,
   clock: () => number = Date.now,
+  deadlinePolicy?: WorkflowWatchDeadline,
 ): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string; session: StableReleaseSession }> {
   const retryLimit = session.efficiency_policy.monitor_transport_retry_limit ?? 3;
   const standardDeadlineApplies = session.terminal_truth.standard_status !== 'terminal';
+  const fullAddonDeadline = deadlinePolicy?.kind === 'full_addon' ? deadlinePolicy : null;
+  const fullAddonDeadlineApplies = fullAddonDeadline !== null;
   const phaseStartedAtMs = Date.parse(session.metrics.phases[session.phase]?.started_at ?? session.updated_at);
   const terminalTransportWindowMs =
     (session.efficiency_policy.monitor_wall_clock_timeout_seconds[session.phase] ?? 7_200) * 1_000;
-  const deadline = standardDeadlineApplies
-    ? admissionDeadlineMs(session)
-    : phaseStartedAtMs + terminalTransportWindowMs;
+  const deadline = fullAddonDeadlineApplies
+    ? Date.parse(fullAddonDeadline!.deadlineAt)
+    : standardDeadlineApplies
+      ? admissionDeadlineMs(session)
+      : phaseStartedAtMs + terminalTransportWindowMs;
+  if (!Number.isFinite(deadline)) throw new Error('Workflow monitor requires a valid immutable absolute deadline.');
   const warningAt = Date.parse(session.metrics.session_started_at) + 60 * 60 * 1_000;
   let monitoredSession = session;
   let lastReadback: WorkflowRun | null = null;
   let lastReadbackError: string | null = null;
+  const failAtDeadline = (observedAtMs: number, stage: string): never => {
+    if (fullAddonDeadlineApplies) {
+      monitoredSession = blockFullAddonAtDeadline(monitoredSession, {
+        acceptanceAttemptId: fullAddonDeadline!.acceptanceAttemptId,
+        runId,
+        deadlineAt: fullAddonDeadline!.deadlineAt,
+        observedAtMs: Math.max(observedAtMs, deadline),
+        remoteStatus: lastReadback?.status ?? 'unknown',
+      });
+      persist(monitoredSession);
+      throw new Error(
+        `Workflow run ${runId} reached the signed 50-minute Full add-on deadline during ${stage}; ` +
+        'the durable add-on debt blocker is terminal and Standard remains unchanged.',
+      );
+    }
+    if (!standardDeadlineApplies) {
+      throw new Error(`Workflow run ${runId} ${stage} reached its independent post-Standard transport window.`);
+    }
+    monitoredSession = standardDeadlineBlockedSession(
+      monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, observedAtMs,
+    );
+    persist(monitoredSession);
+    throw new Error(
+      `Workflow run ${runId} reached the immutable 90-minute Standard deadline during ${stage}; ` +
+      'the durable typed blocker permits only reconcile or emergency cancel.',
+    );
+  };
   for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
     const observedAtMs = clock();
     if (
@@ -1253,34 +1410,14 @@ export async function watchRunToTerminal(
     }
     const remainingBudgetMs = deadline - observedAtMs;
     if (remainingBudgetMs <= 0) {
-      if (!standardDeadlineApplies) {
-        throw new Error(`Workflow run ${runId} monitor reached its independent post-Standard transport window.`);
-      }
-      monitoredSession = standardDeadlineBlockedSession(
-        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, observedAtMs,
-      );
-      persist(monitoredSession);
-      throw new Error(
-        `Workflow run ${runId} reached the immutable 90-minute Standard deadline before transport attempt ${attempt}; ` +
-        `remote status is ${lastReadback?.status ?? 'unknown'}. The typed blocker permits only reconcile or emergency cancel.`,
-      );
+      failAtDeadline(observedAtMs, `pre-transport attempt ${attempt}`);
     }
     const warningPending = standardDeadlineApplies && monitoredSession.metrics.efficiency_advisories.length === 0 && observedAtMs < warningAt;
     const watchBudgetMs = Math.min(remainingBudgetMs, warningPending ? warningAt - observedAtMs : remainingBudgetMs);
     const watched = watchRun(runner, monitoredSession, runId, watchBudgetMs);
     const afterWatchMs = clock();
     if (afterWatchMs >= deadline) {
-      if (!standardDeadlineApplies) {
-        throw new Error(`Workflow run ${runId} monitor reached its independent post-Standard transport window.`);
-      }
-      monitoredSession = standardDeadlineBlockedSession(
-        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, afterWatchMs,
-      );
-      persist(monitoredSession);
-      throw new Error(
-        `Workflow run ${runId} reached the immutable 90-minute Standard deadline; ` +
-        'the durable typed blocker permits only reconcile or emergency cancel.',
-      );
+      failAtDeadline(afterWatchMs, 'monitor transport');
     }
     if (
       standardDeadlineApplies && afterWatchMs >= warningAt &&
@@ -1296,17 +1433,7 @@ export async function watchRunToTerminal(
     const view = runView(runner, monitoredSession, runId, clock);
     const afterReadbackMs = clock();
     if (afterReadbackMs >= deadline) {
-      if (!standardDeadlineApplies) {
-        throw new Error(`Workflow run ${runId} readback reached its independent post-Standard transport window.`);
-      }
-      monitoredSession = standardDeadlineBlockedSession(
-        monitoredSession, `workflow_watch:${monitoredSession.phase}`, runId, afterReadbackMs,
-      );
-      persist(monitoredSession);
-      throw new Error(
-        `Workflow run ${runId} readback reached the immutable 90-minute Standard deadline; ` +
-        'the durable typed blocker permits only reconcile or emergency cancel.',
-      );
+      failAtDeadline(afterReadbackMs, 'terminal readback');
     }
     if (view.readback) {
       const observation = classifyWorkflowRunObservation(watched, view.readback);
@@ -1368,6 +1495,7 @@ function finalizeReleaseRun(
   runId: string,
   succeeded: boolean,
   runner: StableReleaseCommandRunner,
+  clock: () => number = Date.now,
 ): StableReleaseSession {
   const manifest = readBuildArtifactManifest(runner, session, runId);
   if (manifest) {
@@ -1380,6 +1508,7 @@ function finalizeReleaseRun(
         succeeded
           ? 'build and exact-artifact qualification completed; owner approval is required before promotion'
           : 'exact artifact and qualification passed before a later nonblocking train failure; owner approval is required before promotion',
+        new Date(clock()).toISOString(),
       );
     }
   }
@@ -1397,11 +1526,22 @@ function finalizeReleaseRun(
         session,
         'qualification_failed',
         'the built artifact failed qualification; only a same-artifact qualification retry is allowed',
+        new Date(clock()).toISOString(),
       );
     }
-    return transitionStableReleaseSession(session, 'release_train_failed', 'release train failed outside the exact-artifact qualification gate');
+    return transitionStableReleaseSession(
+      session,
+      'release_train_failed',
+      'release train failed outside the exact-artifact qualification gate',
+      new Date(clock()).toISOString(),
+    );
   }
-  return transitionStableReleaseSession(session, 'artifact_build_failed', 'release run did not produce a valid exact-byte artifact manifest');
+  return transitionStableReleaseSession(
+    session,
+    'artifact_build_failed',
+    'release run did not produce a valid exact-byte artifact manifest',
+    new Date(clock()).toISOString(),
+  );
 }
 
 function promotionSagaArtifactName(session: StableReleaseSession): string {
@@ -1467,21 +1607,69 @@ function readFullAddonReceipt(
   }
 }
 
+function fullAddonWatchDeadline(session: StableReleaseSession, runId: string): WorkflowWatchDeadline {
+  const acceptance = session.mutation_acceptances.find((candidate) =>
+    candidate.pre_api_fence.request.mutation === 'full_addon_dispatch' && candidate.github.run_id === runId
+  );
+  const deadlineAt = acceptance?.full_addon_deadline_at ?? null;
+  const deadlineAtMs = Date.parse(String(deadlineAt));
+  if (
+    !acceptance || !deadlineAt || !Number.isFinite(deadlineAtMs) ||
+    new Date(deadlineAtMs).toISOString() !== deadlineAt || session.addon_tracks.full.deadline_at !== deadlineAt
+  ) {
+    throw new Error('Full add-on monitor requires the exact broker-signed acceptance deadline stored in the durable session.');
+  }
+  return { kind: 'full_addon', deadlineAt, acceptanceAttemptId: acceptance.lease.attempt_id };
+}
+
+function fullAddonDeadlineBlockedIfElapsed(
+  session: StableReleaseSession,
+  runId: string,
+  remoteStatus: string,
+  observedAtMs = Date.now(),
+): StableReleaseSession | null {
+  const policy = fullAddonWatchDeadline(session, runId);
+  if (observedAtMs < Date.parse(policy.deadlineAt)) return null;
+  return blockFullAddonAtDeadline(session, {
+    acceptanceAttemptId: policy.acceptanceAttemptId,
+    runId,
+    deadlineAt: policy.deadlineAt,
+    observedAtMs,
+    remoteStatus,
+  });
+}
+
+const promotionCheckpoints = [
+  { phase: 'release_published_not_latest' as const, job: 'Publish release without changing latest', reason: 'release is public and explicitly not latest' },
+  { phase: 'distribution_synced' as const, job: 'Dispatch atomic Standard distribution', reason: 'tap atomic Standard distribution receipt verified' },
+  { phase: 'homebrew_verified' as const, job: 'Verify Standard Homebrew activation', reason: 'Standard Homebrew clean-VM receipt verified' },
+  { phase: 'latest_activated' as const, job: 'Activate App latest after Standard distribution gates', reason: 'GitHub Stable latest activated after Standard downstream verification' },
+];
+
+export function applyPromotionCheckpointReadback(
+  session: StableReleaseSession,
+  jobs: WorkflowJob[],
+  observedAt = now(),
+): StableReleaseSession {
+  let projected = session;
+  for (const checkpoint of promotionCheckpoints) {
+    const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
+    if (job?.conclusion !== 'success') break;
+    projected = transitionStableReleaseSession(projected, checkpoint.phase, checkpoint.reason, observedAt);
+  }
+  return projected;
+}
+
 function finalizePromotionRun(
   session: StableReleaseSession,
   runId: string,
   succeeded: boolean,
   runner: StableReleaseCommandRunner,
+  clock: () => number = Date.now,
 ): StableReleaseSession {
   const receipt = succeeded ? readPromotionSagaReceipt(runner, session, runId) : null;
   const jobs = runJobs(runner, session, runId);
-  const checkpoints = [
-    { phase: 'release_published_not_latest' as const, job: 'Publish release without changing latest', reason: 'release is public and explicitly not latest' },
-    { phase: 'distribution_synced' as const, job: 'Dispatch atomic Standard distribution', reason: 'tap atomic Standard distribution receipt verified' },
-    { phase: 'homebrew_verified' as const, job: 'Verify Standard Homebrew activation', reason: 'Standard Homebrew clean-VM receipt verified' },
-    { phase: 'latest_activated' as const, job: 'Activate App latest after Standard distribution gates', reason: 'GitHub Stable latest activated after Standard downstream verification' },
-  ];
-  if (succeeded && (!receipt || jobs.length === 0 || checkpoints.some((checkpoint) =>
+  if (succeeded && (!receipt || jobs.length === 0 || promotionCheckpoints.some((checkpoint) =>
     !jobs.some((candidate) => candidate.name.includes(checkpoint.job))
   ))) {
     throw new Error(
@@ -1489,23 +1677,25 @@ function finalizePromotionRun(
       'keep promotion_running and use reconcile or resume without redispatch.',
     );
   }
-  for (const checkpoint of checkpoints) {
-    const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
-    if (job?.conclusion !== 'success') break;
-    session = transitionStableReleaseSession(session, checkpoint.phase, checkpoint.reason, job.completedAt || now());
-  }
+  session = applyPromotionCheckpointReadback(session, jobs, new Date(clock()).toISOString());
   if (!succeeded || !receipt || session.phase !== 'latest_activated') {
     if (session.phase !== 'promotion_failed') {
       session = transitionStableReleaseSession(
         session,
         'promotion_failed',
         succeeded ? 'promotion run did not expose a valid complete saga receipt' : 'promotion saga stopped after its last verified checkpoint',
+        new Date(clock()).toISOString(),
       );
     }
     return session;
   }
   session.receipts = { ...session.receipts, promotion_saga: { ref: promotionSagaArtifactName(session), sha256: receipt.sha256 } };
-  return transitionStableReleaseSession(session, 'awaiting_local_activation', 'same-version local installation and CDP readback receipt remain required');
+  return transitionStableReleaseSession(
+    session,
+    'awaiting_local_activation',
+    'same-version local installation and CDP readback receipt remain required',
+    new Date(clock()).toISOString(),
+  );
 }
 
 async function dispatchAndWatchRelease(
@@ -1519,11 +1709,17 @@ async function dispatchAndWatchRelease(
       session, 'desktop_release_dispatch_admission', session.release_run.id, Date.now(),
     );
     writeSession(statePath, session);
-    throw new Error('The 90-minute Standard circuit breaker forbids a new release train; only same-artifact targeted recovery or a typed blocker may continue.');
+    throw new Error(
+      'The 90-minute Standard circuit breaker forbids release or recovery mutation; ' +
+      'only a durable typed blocker, bounded read-only reconcile, or exact-run emergency cancel may continue.',
+    );
   }
   if (session.release_run.id) throw new Error('This frozen cohort already has a desktop release run; refusing a second dispatch.');
   if (session.metrics.artifact_build_count >= 1) throw new Error('This frozen cohort already consumed its one artifact build.');
   const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
+  assertStandardDeadlineOrPersist(
+    session, statePath, 'desktop_release_controller_readback', session.release_run.id,
+  );
   const dispatchedAt = now();
   const mutationPlanned = planReleaseMutationAttempt(session, {
     mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
@@ -1596,7 +1792,13 @@ async function dispatchAndWatchRelease(
     url: readback.url,
     conclusion: observation.conclusion,
   };
-  session = finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner);
+  session = finalizeStandardEvidenceBeforeDeadline(
+    session,
+    statePath,
+    'desktop_release_finalization',
+    String(readback.databaseId),
+    () => finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner),
+  );
   session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
     at: now(),
     state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
@@ -1648,8 +1850,10 @@ async function dispatchAndWatchPromotion(
       release_set_generation: releaseSetGeneration,
     },
   };
-  const dispatchedAt = now();
+  assertStandardDeadlineOrPersist(session, statePath, 'promotion_dispatch_admission', session.promotion_run.id);
   const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
+  assertStandardDeadlineOrPersist(session, statePath, 'promotion_controller_readback', session.promotion_run.id);
+  const dispatchedAt = now();
   const planned = planReleaseMutationAttempt(session, {
     mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
     controllerWorkflowSha,
@@ -1722,7 +1926,13 @@ async function dispatchAndWatchPromotion(
     attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
     rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
   };
-  session = finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner);
+  session = finalizeStandardEvidenceBeforeDeadline(
+    session,
+    statePath,
+    'promotion_finalization',
+    String(readback.databaseId),
+    () => finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner),
+  );
   session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
     at: now(),
     state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
@@ -1732,19 +1942,156 @@ async function dispatchAndWatchPromotion(
   return session;
 }
 
+type WorkflowTerminalObservation = Awaited<ReturnType<typeof watchRunToTerminal>>;
+
+function fullAddonAttemptIdsForRun(session: StableReleaseSession, runId: string): {
+  mutationAttemptId: string;
+  qualificationAttemptId: string;
+} {
+  if (session.addon_tracks.full.run_id !== runId) {
+    throw new Error(`Full add-on run ${runId} does not match the durable add-on track.`);
+  }
+  const acceptances = session.mutation_acceptances.filter((acceptance) =>
+    acceptance.pre_api_fence.request.mutation === 'full_addon_dispatch' && acceptance.github.run_id === runId
+  );
+  if (acceptances.length !== 1) {
+    throw new Error(`Full add-on run ${runId} requires exactly one durable signed broker acceptance.`);
+  }
+  const mutation = session.mutation_attempts.find((attempt) =>
+    attempt.attempt_id === acceptances[0].lease.attempt_id && attempt.mutation === 'full_addon_dispatch'
+  );
+  const qualification = mutation
+    ? session.artifact_tracks.full.attempts.find((attempt) => attempt.mutation_attempt_id === mutation.attempt_id)
+    : null;
+  if (!mutation || !qualification) {
+    throw new Error('Running Full add-on lacks its durable mutation and qualification attempt identities.');
+  }
+  return { mutationAttemptId: mutation.attempt_id, qualificationAttemptId: qualification.attempt_id };
+}
+
+function finalizeFullAddonObservation(
+  session: StableReleaseSession,
+  observation: WorkflowTerminalObservation,
+  runner: StableReleaseCommandRunner,
+  clock: () => number = Date.now,
+): StableReleaseSession {
+  const runId = String(observation.readback.databaseId);
+  const deadlineBlockedBeforeEvidence = fullAddonDeadlineBlockedIfElapsed(
+    session, runId, observation.readback.status, clock(),
+  );
+  if (deadlineBlockedBeforeEvidence) return deadlineBlockedBeforeEvidence;
+  const releaseSetGeneration = session.addon_tracks.full.release_set_generation;
+  const releaseSetManifestDigest = session.addon_tracks.full.release_set_manifest_digest;
+  if (!releaseSetGeneration || !releaseSetManifestDigest) {
+    throw new Error('Full add-on finalization lacks its frozen Release Set identity.');
+  }
+  const manifest = observation.succeeded ? readBuildArtifactManifest(runner, session, runId, 'full') : null;
+  const sourceDigests = manifest ? {
+    qualificationInputManifestDigest: manifest.manifest.digests.qualification_input_manifest_sha256,
+    fullInputManifestDigest: manifest.manifest.digests.full_input_manifest_sha256 ?? '',
+    frameworkBundledCatalogDigest: manifest.manifest.digests.framework_bundled_catalog_sha256 ?? '',
+    fullToolchainObservationReceiptDigest: manifest.manifest.digests.full_toolchain_observation_receipt_sha256 ?? '',
+  } : null;
+  const strict = observation.succeeded && sourceDigests
+    ? readQualificationReceipt(runner, session, runId, runId, 'passed', 'full', manifest)
+    : null;
+  const receipt = observation.succeeded && sourceDigests
+    ? readFullAddonReceipt(
+      runner, session, runId, releaseSetGeneration, releaseSetManifestDigest,
+      sourceDigests.qualificationInputManifestDigest, sourceDigests.fullInputManifestDigest,
+      sourceDigests.frameworkBundledCatalogDigest, sourceDigests.fullToolchainObservationReceiptDigest,
+    )
+    : null;
+  const completedAtMs = clock();
+  const deadlineBlockedAfterEvidence = fullAddonDeadlineBlockedIfElapsed(
+    session, runId, observation.readback.status, completedAtMs,
+  );
+  if (deadlineBlockedAfterEvidence) return deadlineBlockedAfterEvidence;
+  const passed = Boolean(observation.succeeded && manifest && strict && receipt);
+  if (passed) session = bindQualificationEvidence(session, manifest!, runId, 'success', strict!.sha256, 'full');
+  const completedAt = new Date(completedAtMs).toISOString();
+  session.addon_tracks = {
+    ...session.addon_tracks,
+    full: {
+      ...session.addon_tracks.full,
+      status: passed ? 'qualified' : 'failed',
+      run_id: runId,
+      run_url: observation.readback.url,
+      conclusion: observation.conclusion,
+      receipt_ref: receipt?.ref ?? null,
+      receipt_sha256: receipt?.sha256 ?? null,
+    },
+  };
+  const { mutationAttemptId, qualificationAttemptId } = fullAddonAttemptIdsForRun(session, runId);
+  const mutationLatest = session.mutation_attempts.find((attempt) => attempt.attempt_id === mutationAttemptId)!.events.at(-1)!;
+  const mutationState = passed ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed';
+  if (!['succeeded', 'failed', 'cancelled'].includes(mutationLatest.state)) {
+    session = appendReleaseMutationAttemptEvent(session, mutationAttemptId, {
+      at: completedAt, state: mutationState, run_id: runId,
+      reason: passed
+        ? 'Full build, strict qualification, publish receipt, and remote readback are bound before the signed deadline'
+        : 'Full add-on ended without all required exact-byte evidence',
+    });
+  } else if (mutationLatest.state !== mutationState || mutationLatest.run_id !== runId) {
+    throw new Error('Full add-on terminal mutation projection conflicts with exact run readback.');
+  }
+  const qualificationLatest = session.artifact_tracks.full.attempts
+    .find((attempt) => attempt.attempt_id === qualificationAttemptId)!.events.at(-1)!;
+  const qualificationState = passed ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'failed' : 'runner_lost';
+  if (!['passed', 'failed', 'cancelled'].includes(qualificationLatest.state)) {
+    session = appendQualificationAttemptEvent(session, 'full', qualificationAttemptId, {
+      at: completedAt, state: qualificationState,
+      run_id: runId, conclusion: observation.conclusion,
+      failure_taxonomy: passed ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'product' : 'infrastructure',
+      remote_receipt_ref: receipt?.ref ?? null,
+      remote_receipt_sha256: receipt?.sha256 ?? null,
+      reason: passed
+        ? 'Full add-on exact artifact and durable receipts validated before the signed deadline'
+        : 'Full add-on evidence is incomplete; Standard terminal truth remains unchanged',
+    });
+  } else if (qualificationLatest.state !== qualificationState || qualificationLatest.run_id !== runId) {
+    throw new Error('Full add-on terminal qualification projection conflicts with exact run evidence.');
+  }
+  if (addonTrackIsTerminal(session)) {
+    const hasDebt = session.addon_tracks.full.status === 'blocked_with_debt' ||
+      session.addon_tracks.webui.status === 'blocked_with_debt';
+    session.terminal_truth = {
+      ...session.terminal_truth,
+      addon_status: hasDebt ? 'blocked_with_debt' : 'terminal',
+    };
+    if (session.phase === 'standard_stable_terminal') {
+      session = transitionStableReleaseSession(
+        session, 'addon_train_terminal', 'all declared add-ons reached verified or typed debt states', completedAt,
+      );
+    }
+  }
+  return session;
+}
+
 async function dispatchAndWatchFullAddon(
   session: StableReleaseSession,
   options: FullAddonOptions,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
+  if (!options.watch) {
+    throw new Error('Executing Full add-on without the canonical deadline watcher is forbidden; use read-only status/reconcile in another process.');
+  }
   if (!session.addon_tracks.full.required) throw new Error('This cohort did not declare the Full add-on.');
   if (session.terminal_truth.standard_status !== 'terminal') {
     throw new Error('Full add-on starts only after Standard Stable reaches its independent terminal state.');
   }
-  if (session.addon_tracks.full.status === 'qualified') throw new Error('Full add-on is already terminal and qualified.');
+  if (
+    session.phase !== 'standard_stable_terminal' || session.terminal_truth.addon_status !== 'pending' ||
+    session.addon_tracks.full.status !== 'pending'
+  ) {
+    throw new Error(
+      `Full add-on dispatch requires the original pending add-on state and cannot reopen terminal, failed, ` +
+      `running, qualified, or typed-debt truth (phase=${session.phase}, status=${session.addon_tracks.full.status}).`,
+    );
+  }
   const existingAttempts = session.mutation_attempts.filter((attempt) => attempt.mutation === 'full_addon_dispatch').length;
-  if (existingAttempts >= session.qualification_retry_policy.max_attempts_per_artifact_kind) {
-    throw new Error(`Full add-on reached the bounded attempt limit of ${session.qualification_retry_policy.max_attempts_per_artifact_kind}.`);
+  if (existingAttempts > 0) {
+    throw new Error('Full add-on already has a durable attempt; use resume or reconcile and never refresh its signed clock.');
   }
   const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
   const dispatchedAt = now();
@@ -1791,6 +2138,15 @@ async function dispatchAndWatchFullAddon(
   const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
     repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
   });
+  const fullAddonDeadlineAt = accepted.receipt.full_addon_deadline_at;
+  const fullAddonDeadlineMs = Date.parse(String(fullAddonDeadlineAt));
+  if (
+    !fullAddonDeadlineAt || !Number.isFinite(fullAddonDeadlineMs) ||
+    new Date(fullAddonDeadlineMs).toISOString() !== fullAddonDeadlineAt ||
+    fullAddonDeadlineMs !== Date.parse(accepted.receipt.accepted_at) + 50 * 60 * 1_000
+  ) {
+    throw new Error('Full add-on broker acceptance lacks its exact signed 50-minute deadline.');
+  }
   session = accepted.session;
   session = appendQualificationAttemptEvent(session, 'full', qualification.attemptId, {
     at: accepted.receipt.accepted_at, state: 'dispatching', run_id: acceptedRunId, conclusion: null,
@@ -1812,13 +2168,23 @@ async function dispatchAndWatchFullAddon(
       run_id: acceptedRunId,
       run_url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
       conclusion: null,
+      deadline_at: fullAddonDeadlineAt,
+      deadline_blocker: null,
     },
   };
   writeSession(options.statePath, session);
   const run = await awaitAcceptedWorkflowRun(
     runner, session, acceptedRunId, mutation.attemptId, 'desktop-release-full-addon.yml', controllerWorkflowSha,
-    'main', (next) => writeSession(options.statePath, next),
+    'main', (next) => writeSession(options.statePath, next), fullAddonWatchDeadline(session, acceptedRunId),
   );
+  const visibilityDeadlineBlocker = fullAddonDeadlineBlockedIfElapsed(session, acceptedRunId, run.status);
+  if (visibilityDeadlineBlocker) {
+    writeSession(options.statePath, visibilityDeadlineBlocker);
+    throw new Error(
+      `Full add-on run ${acceptedRunId} reached its signed 50-minute deadline during exact-run visibility; ` +
+      'the durable debt blocker was recorded without changing Standard.',
+    );
+  }
   session.addon_tracks = {
     ...session.addon_tracks,
     full: { ...session.addon_tracks.full, run_url: run.url },
@@ -1834,63 +2200,10 @@ async function dispatchAndWatchFullAddon(
   if (!options.watch) return session;
 
   const observation = await watchRunToTerminal(
-    runner, session, acceptedRunId, (next) => writeSession(options.statePath, next),
+    runner, session, acceptedRunId, (next) => writeSession(options.statePath, next), Date.now,
+    fullAddonWatchDeadline(session, acceptedRunId),
   );
-  session = observation.session;
-  const runId = String(observation.readback.databaseId);
-  const manifest = observation.succeeded ? readBuildArtifactManifest(runner, session, runId, 'full') : null;
-  const sourceDigests = manifest ? {
-    qualificationInputManifestDigest: manifest.manifest.digests.qualification_input_manifest_sha256,
-    fullInputManifestDigest: manifest.manifest.digests.full_input_manifest_sha256 ?? '',
-    frameworkBundledCatalogDigest: manifest.manifest.digests.framework_bundled_catalog_sha256 ?? '',
-    fullToolchainObservationReceiptDigest: manifest.manifest.digests.full_toolchain_observation_receipt_sha256 ?? '',
-  } : null;
-  const strict = observation.succeeded && sourceDigests
-    ? readQualificationReceipt(runner, session, runId, runId, 'passed', 'full', manifest)
-    : null;
-  const receipt = observation.succeeded && sourceDigests
-    ? readFullAddonReceipt(
-      runner, session, runId, options.releaseSetGeneration, options.releaseSetManifestDigest,
-      sourceDigests.qualificationInputManifestDigest, sourceDigests.fullInputManifestDigest,
-      sourceDigests.frameworkBundledCatalogDigest, sourceDigests.fullToolchainObservationReceiptDigest,
-    )
-    : null;
-  const passed = Boolean(observation.succeeded && manifest && strict && receipt);
-  if (passed) {
-    session = bindQualificationEvidence(session, manifest!, runId, 'success', strict!.sha256, 'full');
-  }
-  session.addon_tracks = {
-    ...session.addon_tracks,
-    full: {
-      ...session.addon_tracks.full,
-      status: passed ? 'qualified' : 'failed',
-      run_id: runId,
-      run_url: observation.readback.url,
-      conclusion: observation.conclusion,
-      receipt_ref: receipt?.ref ?? null,
-      receipt_sha256: receipt?.sha256 ?? null,
-    },
-  };
-  session.terminal_truth = {
-    ...session.terminal_truth,
-    addon_status: passed && !session.addon_tracks.webui.required ? 'terminal' : 'pending',
-    addon_terminal_at: passed && !session.addon_tracks.webui.required ? now() : session.terminal_truth.addon_terminal_at,
-  };
-  session = appendReleaseMutationAttemptEvent(session, mutation.attemptId, {
-    at: now(), state: passed ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
-    run_id: runId,
-    reason: passed ? 'Full build, strict qualification, publish receipt, and remote readback are bound' : 'Full add-on ended without all required exact-byte evidence',
-  });
-  session = appendQualificationAttemptEvent(session, 'full', qualification.attemptId, {
-    at: now(), state: passed ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'failed' : 'runner_lost',
-    run_id: runId, conclusion: observation.conclusion,
-    failure_taxonomy: passed ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : receipt ? 'product' : 'infrastructure',
-    remote_receipt_ref: receipt?.ref ?? null,
-    reason: passed ? 'Full add-on exact artifact and durable receipts validated' : 'Full add-on evidence is incomplete; Standard terminal truth remains unchanged',
-  });
-  if (addonTrackIsTerminal(session) && session.phase === 'standard_stable_terminal') {
-    session = transitionStableReleaseSession(session, 'addon_train_terminal', 'all declared add-ons reached verified or typed debt states');
-  }
+  session = finalizeFullAddonObservation(observation.session, observation, runner);
   writeSession(options.statePath, session);
   return session;
 }
@@ -1944,6 +2257,9 @@ async function dispatchAndWatchQualificationRetry(
   options: RetryQualificationOptions,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
+  assertStandardDeadlineOrPersist(
+    session, options.statePath, 'qualification_retry_admission', session.qualification_run.id,
+  );
   const verificationAppRef = options.smokeHarnessAppRef || workflowRef(session.cohort_plan);
   if (verificationAppRef !== 'main') {
     throw new Error('Qualification workflow must execute from canonical main; App changes require a new cohort.');
@@ -1967,6 +2283,9 @@ async function dispatchAndWatchQualificationRetry(
       profile: options.artifactKind,
     }),
   };
+  assertStandardDeadlineOrPersist(
+    session, options.statePath, 'qualification_retry_harness_readback', session.qualification_run.id,
+  );
   const dispatchedAt = now();
   const artifactKind = options.artifactKind;
   const track = session.artifact_tracks[artifactKind];
@@ -2072,27 +2391,34 @@ async function dispatchAndWatchQualificationRetry(
   const { readback } = observation;
   const retryRunId = String(readback.databaseId);
   const sourceRunId = track.source_run_id;
-  const manifest = readBuildArtifactManifest(runner, session, sourceRunId, artifactKind);
-  const expectedResult = observation.succeeded ? 'passed' : 'failed';
-  const qualification = readQualificationReceipt(runner, session, retryRunId, sourceRunId, expectedResult, artifactKind, manifest);
-  if (!manifest || !qualification) {
-    session = transitionStableReleaseSession(session, 'qualification_failed', 'qualification retry did not produce a valid same-artifact receipt');
-  } else {
-    session = bindQualificationEvidence(
-      session,
-      manifest,
-      retryRunId,
-      observation.succeeded ? 'success' : 'failure',
-      qualification.sha256,
-      artifactKind,
-    );
-    session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
-    session = transitionStableReleaseSession(
-      session,
-      observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
-      observation.succeeded ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
-    );
-  }
+  let qualification: { receipt: ArtifactQualificationReceiptV1; sha256: string } | null = null;
+  session = finalizeStandardEvidenceBeforeDeadline(
+    session,
+    options.statePath,
+    'qualification_retry_finalization',
+    retryRunId,
+    () => {
+      const manifest = readBuildArtifactManifest(runner, session, sourceRunId, artifactKind);
+      const expectedResult = observation.succeeded ? 'passed' : 'failed';
+      qualification = readQualificationReceipt(
+        runner, session, retryRunId, sourceRunId, expectedResult, artifactKind, manifest,
+      );
+      if (!manifest || !qualification) {
+        return transitionStableReleaseSession(
+          session, 'qualification_failed', 'qualification retry did not produce a valid same-artifact receipt',
+        );
+      }
+      let finalized = bindQualificationEvidence(
+        session, manifest, retryRunId, observation.succeeded ? 'success' : 'failure', qualification.sha256, artifactKind,
+      );
+      finalized.metrics = { ...finalized.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
+      return transitionStableReleaseSession(
+        finalized,
+        observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
+        observation.succeeded ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
+      );
+    },
+  );
   session = appendQualificationAttemptEvent(session, artifactKind, planned.attemptId, {
     at: now(), state: session.phase === 'artifacts_qualified' ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
     run_id: retryRunId, conclusion: observation.conclusion,
@@ -2109,18 +2435,38 @@ async function dispatchAndWatchQualificationRetry(
   return session;
 }
 
-async function resumeSession(
+export async function resumeSession(
   options: ResumeOptions,
   runner: StableReleaseCommandRunner,
+  clock: () => number = Date.now,
 ): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
   if (!options.execute) return session;
+  const isRunningFullAddon = session.terminal_truth.standard_status === 'terminal' && session.addon_tracks.full.status === 'running';
+  if (isRunningFullAddon) {
+    const runId = session.addon_tracks.full.run_id;
+    if (!runId) throw new Error('Running Full add-on has no exact workflow run id.');
+    const deadlineBlocked = fullAddonDeadlineBlockedIfElapsed(session, runId, 'resume_admission', clock());
+    if (deadlineBlocked) {
+      writeSession(options.statePath, deadlineBlocked);
+      throw new Error('Full add-on resume reached its signed 50-minute deadline; typed debt is durable.');
+    }
+  } else {
+    assertStandardDeadlineOrPersist(
+      session,
+      options.statePath,
+      'resume_admission',
+      session.promotion_run.id ?? session.qualification_run.id ?? session.release_run.id,
+      clock(),
+    );
+  }
   if (session.phase === 'artifact_build_failed') {
     if (!session.release_run.id) throw new Error('Artifact build failure has no original workflow run id.');
     session = transitionStableReleaseSession(
       session,
       'artifact_build_running',
       `reconciling original release run ${session.release_run.id} after a nonterminal monitor exit`,
+      new Date(clock()).toISOString(),
     );
     session.release_run = { ...session.release_run, conclusion: null };
     writeSession(options.statePath, session);
@@ -2131,13 +2477,24 @@ async function resumeSession(
   const isRelease = session.phase === 'artifact_build_running';
   const isQualification = session.phase === 'retry_failed_gate_same_artifact';
   const isPromotion = session.phase === 'promotion_running';
-  if (!isRelease && !isQualification && !isPromotion) {
-    throw new Error(`Resume requires artifact_build_running, retry_failed_gate_same_artifact, or promotion_running state, got ${session.phase}.`);
+  const isFullAddon = session.terminal_truth.standard_status === 'terminal' && session.addon_tracks.full.status === 'running';
+  if (!isRelease && !isQualification && !isPromotion && !isFullAddon) {
+    throw new Error(
+      `Resume requires artifact_build_running, retry_failed_gate_same_artifact, promotion_running, or a running Full add-on, ` +
+      `got phase=${session.phase} full=${session.addon_tracks.full.status}.`,
+    );
   }
-  const runId = isRelease ? session.release_run.id : isQualification ? session.qualification_run.id : session.promotion_run.id;
+  const runId = isRelease
+    ? session.release_run.id
+    : isQualification
+      ? session.qualification_run.id
+      : isPromotion
+        ? session.promotion_run.id
+        : session.addon_tracks.full.run_id;
   if (!runId) throw new Error(`Session phase ${session.phase} has no workflow run id.`);
   const observation = await watchRunToTerminal(
     runner, session, runId, (next) => writeSession(options.statePath, next),
+    clock, isFullAddon ? fullAddonWatchDeadline(session, runId) : undefined,
   );
   session = observation.session;
   const { readback } = observation;
@@ -2147,32 +2504,55 @@ async function resumeSession(
       url: readback.url,
       conclusion: observation.conclusion,
     };
-    session = finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner);
+    session = finalizeStandardEvidenceBeforeDeadline(
+      session,
+      options.statePath,
+      'resume_release_finalization',
+      String(readback.databaseId),
+      () => finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner, clock),
+      clock,
+    );
   } else if (isQualification) {
     const sourceRunId = session.release_run.id!;
     const retryRunId = String(readback.databaseId);
-    const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
-    const qualification = manifest ? readQualificationReceipt(
-      runner,
+    session = finalizeStandardEvidenceBeforeDeadline(
       session,
+      options.statePath,
+      'resume_qualification_finalization',
       retryRunId,
-      sourceRunId,
-      observation.succeeded ? 'passed' : 'failed',
-      'standard',
-      manifest,
-    ) : null;
-    if (!manifest || !qualification) {
-      session = transitionStableReleaseSession(session, 'qualification_failed', 'resumed qualification did not produce a valid same-artifact receipt');
-    } else {
-      session = bindQualificationEvidence(session, manifest, retryRunId, observation.succeeded ? 'success' : 'failure', qualification.sha256);
-      session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
-      session = transitionStableReleaseSession(
-        session,
-        observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
-        observation.succeeded ? 'resumed same-artifact qualification passed' : 'resumed same-artifact qualification failed',
-      );
-    }
-  } else {
+      () => {
+        const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
+        const qualification = manifest ? readQualificationReceipt(
+          runner,
+          session,
+          retryRunId,
+          sourceRunId,
+          observation.succeeded ? 'passed' : 'failed',
+          'standard',
+          manifest,
+        ) : null;
+        if (!manifest || !qualification) {
+          return transitionStableReleaseSession(
+            session,
+            'qualification_failed',
+            'resumed qualification did not produce a valid same-artifact receipt',
+            new Date(clock()).toISOString(),
+          );
+        }
+        let finalized = bindQualificationEvidence(
+          session, manifest, retryRunId, observation.succeeded ? 'success' : 'failure', qualification.sha256,
+        );
+        finalized.metrics = { ...finalized.metrics, reused_artifact_sha256: manifest.manifest.artifact.sha256 };
+        return transitionStableReleaseSession(
+          finalized,
+          observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
+          observation.succeeded ? 'resumed same-artifact qualification passed' : 'resumed same-artifact qualification failed',
+          new Date(clock()).toISOString(),
+        );
+      },
+      clock,
+    );
+  } else if (isPromotion) {
     session.promotion_run = {
       id: String(readback.databaseId),
       url: readback.url,
@@ -2180,7 +2560,16 @@ async function resumeSession(
       attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
       rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
     };
-    session = finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner);
+    session = finalizeStandardEvidenceBeforeDeadline(
+      session,
+      options.statePath,
+      'resume_promotion_finalization',
+      String(readback.databaseId),
+      () => finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner, clock),
+      clock,
+    );
+  } else {
+    session = finalizeFullAddonObservation(session, observation, runner, clock);
   }
   writeSession(options.statePath, session);
   return session;
@@ -2384,6 +2773,78 @@ function persistStandardDeadlineBlocker(
   return blocked;
 }
 
+function assertStandardDeadlineOrPersist(
+  session: StableReleaseSession,
+  statePath: string,
+  stage: string,
+  runId: string | null,
+  observedAtMs = Date.now(),
+): void {
+  if (
+    session.terminal_truth.standard_status === 'in_progress' &&
+    remainingStandardAdmissionBudgetMs(session, observedAtMs) <= 0
+  ) {
+    persistStandardDeadlineBlocker(session, statePath, stage, runId, observedAtMs);
+    throw new Error(
+      `${stage} cannot continue at or after the immutable 90-minute Standard deadline; ` +
+      'the typed blocker is durable and no success transition is permitted.',
+    );
+  }
+}
+
+function finalizeStandardEvidenceBeforeDeadline(
+  session: StableReleaseSession,
+  statePath: string,
+  stage: string,
+  runId: string | null,
+  finalize: () => StableReleaseSession,
+  clock: () => number = Date.now,
+): StableReleaseSession {
+  assertStandardDeadlineOrPersist(session, statePath, `${stage}:before_evidence`, runId, clock());
+  let finalized: StableReleaseSession;
+  try {
+    finalized = finalize();
+  } catch (error) {
+    const failedAtMs = clock();
+    if (
+      session.terminal_truth.standard_status === 'in_progress' &&
+      remainingStandardAdmissionBudgetMs(session, failedAtMs) <= 0
+    ) {
+      persistStandardDeadlineBlocker(session, statePath, `${stage}:evidence_readback`, runId, failedAtMs);
+      throw new Error(
+        `${stage} crossed the immutable 90-minute Standard deadline during evidence readback; ` +
+        'the typed blocker is durable and late success was ignored.',
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  const finalizedAtMs = clock();
+  if (
+    session.terminal_truth.standard_status === 'in_progress' &&
+    remainingStandardAdmissionBudgetMs(session, finalizedAtMs) <= 0
+  ) {
+    persistStandardDeadlineBlocker(session, statePath, `${stage}:after_evidence`, runId, finalizedAtMs);
+    throw new Error(
+      `${stage} crossed the immutable 90-minute Standard deadline during evidence readback; ` +
+      'the typed blocker is durable and late success was ignored.',
+    );
+  }
+  writeSession(statePath, finalized);
+  const durableAtMs = clock();
+  if (
+    finalized.terminal_truth.standard_status === 'in_progress' &&
+    remainingStandardAdmissionBudgetMs(finalized, durableAtMs) <= 0
+  ) {
+    persistStandardDeadlineBlocker(finalized, statePath, `${stage}:durable_commit`, runId, durableAtMs);
+    throw new Error(
+      `${stage} did not become durable before the immutable 90-minute Standard deadline; ` +
+      'the final durable truth is the typed blocker.',
+    );
+  }
+  return finalized;
+}
+
 export async function start(
   options: StartOptions,
   runner: StableReleaseCommandRunner,
@@ -2393,6 +2854,9 @@ export async function start(
   const startedAt = new Date(startedAtMs).toISOString();
   let session = planSession(options, startedAt);
   if (!options.execute) return session;
+  if (!options.watch) {
+    throw new Error('Executing Standard without the canonical 90-minute watcher is forbidden; use read-only status/reconcile in another process.');
+  }
   if (fs.existsSync(options.statePath)) {
     let current = 'unreadable';
     try {
@@ -2473,6 +2937,9 @@ async function promote(options: PromoteOptions, runner: StableReleaseCommandRunn
     throw new Error(`Initial promotion requires artifacts_qualified state, got ${session.phase}. Use resume --execute for a failed promotion run.`);
   }
   if (!options.execute) return session;
+  if (!options.watch) {
+    throw new Error('Executing promotion without the canonical 90-minute watcher is forbidden; use read-only status/reconcile in another process.');
+  }
   return dispatchAndWatchPromotion(
     session,
     options.statePath,
@@ -2492,6 +2959,9 @@ async function retryQualification(
     throw new Error(`Qualification retry requires qualification_failed state, got ${session.phase}.`);
   }
   if (!options.execute) return session;
+  if (!options.watch) {
+    throw new Error('Executing qualification recovery without the canonical 90-minute watcher is forbidden; use read-only status/reconcile in another process.');
+  }
   return dispatchAndWatchQualificationRetry(session, options, runner);
 }
 
@@ -2526,8 +2996,26 @@ export function dispatchEmergencyCancel(
   persist: typeof writeSession = writeSession,
   broker: ReleaseMutationBroker = externalReleaseMutationBroker,
   authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
+  clock: () => number = Date.now,
 ): StableReleaseSession {
   const target = identifyCancelableRun(session, targetRunId);
+  const requestedAtMs = Date.parse(at);
+  if (!Number.isFinite(requestedAtMs)) throw new Error('Emergency cancel timestamp must be valid UTC ISO-8601.');
+  const admissionObservedAtMs = Math.max(requestedAtMs, clock());
+  let effectiveAt = at;
+  if (
+    session.terminal_truth.standard_status === 'in_progress' &&
+    remainingStandardAdmissionBudgetMs(session, admissionObservedAtMs) <= 0
+  ) {
+    session = standardDeadlineBlockedSession(
+      session,
+      'emergency_cancel_admission',
+      targetRunId,
+      admissionObservedAtMs,
+    );
+    persist(statePath, session);
+    effectiveAt = new Date(admissionObservedAtMs).toISOString();
+  }
   const payload: ReleaseMutationPayload = {
     opl_version: session.version,
     stable_session_id: session.id,
@@ -2544,7 +3032,7 @@ export function dispatchEmergencyCancel(
     mutationPayloadSha256: releaseMutationPayloadSha256(payload),
     mutationPayload: payload,
     targetAttemptId: target.targetAttemptId,
-    targetRunId, at, reason: `emergency cancel planned: ${reason}`,
+    targetRunId, at: effectiveAt, reason: `emergency cancel planned: ${reason}`,
   });
   session = planned.session;
   persist(statePath, session);
@@ -2557,15 +3045,32 @@ export function dispatchEmergencyCancel(
     broker,
     authorityOverride,
     persist,
+    clock,
   );
   return accepted.session;
 }
 
-function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSession {
+export function completeLocalActivation(
+  options: CompleteLocalOptions,
+  observedAtMs = Date.now(),
+  clock: () => number = Date.now,
+): StableReleaseSession {
   let session = readSession(options.statePath);
   if (session.phase !== 'awaiting_local_activation') {
     throw new Error(`Local activation completion requires awaiting_local_activation state, got ${session.phase}.`);
   }
+  const blockIfDeadlineElapsed = (stage: string, atMs: number): void => {
+    if (remainingStandardAdmissionBudgetMs(session, atMs) > 0) return;
+    session = standardDeadlineBlockedSession(
+      session, stage, session.promotion_run.id, atMs,
+    );
+    writeSession(options.statePath, session);
+    throw new Error(
+      'Local activation cannot create a successful Standard terminal at or after the immutable 90-minute deadline; ' +
+      'the typed blocker is durable.',
+    );
+  };
+  blockIfDeadlineElapsed('complete_local_activation:entry', observedAtMs);
   const artifactSha256 = session.qualification_run.artifact_sha256;
   if (
     typeof artifactSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(artifactSha256) ||
@@ -2575,6 +3080,7 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
   }
   const receiptBytes = fs.readFileSync(options.receiptPath);
   const policyBytes = fs.readFileSync(options.localAuthorizationPolicyPath);
+  blockIfDeadlineElapsed('complete_local_activation:evidence_read', clock());
   const receipt = JSON.parse(receiptBytes.toString('utf8')) as unknown;
   const policySha256 = crypto.createHash('sha256').update(policyBytes).digest('hex');
   const errors = validateLocalActivationReceipt(receipt, {
@@ -2584,6 +3090,8 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
     localAuthorizationPolicySha256: policySha256,
   });
   if (errors.length > 0) throw new Error(`Local activation receipt invalid: ${errors.join('; ')}`);
+  const finalizedAtMs = clock();
+  blockIfDeadlineElapsed('complete_local_activation:evidence_validation', finalizedAtMs);
   session.receipts = {
     ...session.receipts,
     local_activation: {
@@ -2591,7 +3099,12 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
       sha256: crypto.createHash('sha256').update(receiptBytes).digest('hex'),
     },
   };
-  session = transitionStableReleaseSession(session, 'standard_stable_terminal', 'same-version local installation and CDP Home/Settings/Capabilities readback passed');
+  session = transitionStableReleaseSession(
+    session,
+    'standard_stable_terminal',
+    'same-version local installation and CDP Home/Settings/Capabilities readback passed',
+    new Date(finalizedAtMs).toISOString(),
+  );
   writeSession(options.statePath, session);
   return session;
 }
@@ -2682,6 +3195,11 @@ async function main(): Promise<void> {
           qualificationRunId,
           `opl-first-run-vm-${artifactKind}-${qualificationRunId}`,
           'tart-smoke-summary.json',
+        ),
+        readFullAddonReceipt: (runId) => evidence.readJson<FullAddonReceiptV1>(
+          runId,
+          `opl-app-full-addon-receipt-${current.version}-${runId}`,
+          'opl-app-full-addon-receipt.json',
         ),
         readAttemptReceipt: (artifactKind, runId) => {
           const result = evidence.readJson<QualificationAttemptReceiptV1>(

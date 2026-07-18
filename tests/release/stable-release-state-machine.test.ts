@@ -8,14 +8,17 @@ import test from 'node:test';
 import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import { buildQualificationHarnessScopeProof } from '../../scripts/qualification-harness-scope.ts';
 import {
+  applyPromotionCheckpointReadback,
   buildStableReleaseSession,
   classifyWorkflowRunObservation,
+  completeLocalActivation,
   decodeWorkflowRunReadback,
   desktopReleaseDispatchArgs,
   desktopReleaseMutationPayload,
   dispatchEmergencyCancel,
   executeBrokeredReleaseMutation,
   formatCommandFailure,
+  fullAddonMutationPayload,
   promoteDispatchArgs,
   promotionMutationPayload,
   qualificationMutationPayload,
@@ -29,6 +32,7 @@ import {
   type StableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
 import {
+  appendStableReleaseEfficiencyAdvisory,
   appendReleaseMutationAttemptEvent,
   appendQualificationAttempt,
   appendQualificationAttemptEvent,
@@ -57,6 +61,7 @@ import {
 const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
+const liveAdmissionAt = new Date(Date.now() - 5 * 60_000).toISOString();
 const repositoryHead = spawnSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).stdout.trim();
 const brokerKeys = crypto.generateKeyPairSync('ed25519');
 const brokerPrivateKeyPem = brokerKeys.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
@@ -219,10 +224,10 @@ function acceptanceForRequest(
 const testMutationBroker: ReleaseMutationBroker = (request) =>
   acceptanceForRequest(request, request.github.target_run_id);
 
-function plan(): ReleaseCohortPlan {
+function plan(generatedAt = liveAdmissionAt): ReleaseCohortPlan {
   return {
     schema: 'opl_app_release_cohort_plan.v1',
-    generated_at: '2026-07-12T00:00:00.000Z',
+    generated_at: generatedAt,
     version: '26.7.12',
     tag: 'v26.7.12',
     release_mode: 'new_release',
@@ -238,7 +243,7 @@ function plan(): ReleaseCohortPlan {
     publish_docker_webui: true,
     cohort_lock: {
       schema: 'opl_app_release_cohort_lock.v1',
-      generated_at: '2026-07-12T00:00:00.000Z',
+      generated_at: generatedAt,
       app: { requested_ref: 'main', resolved_sha: appSha, repo_root: '/app' },
       shell: { requested_ref: 'main', resolved_sha: shellSha, repo_root: '/shell' },
       framework: { requested_ref: 'main', resolved_sha: frameworkSha, repo_root: '/framework' },
@@ -262,17 +267,21 @@ function plan(): ReleaseCohortPlan {
   };
 }
 
-function sessionWithActiveReleaseRun(runId: string): StableReleaseSession {
-  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
+function sessionWithActiveReleaseRun(
+  runId: string,
+  admittedAt = '2026-07-18T00:00:00.000Z',
+): StableReleaseSession {
+  const admittedAtMs = Date.parse(admittedAt);
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   const payload = desktopReleaseMutationPayload(session);
   const planned = planReleaseMutationAttempt(session, {
     mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
     controllerWorkflowSha: appSha, artifactAppSha: appSha,
     mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
-    at: '2026-07-18T00:01:00.000Z', reason: 'active release run fixture',
+    at: new Date(admittedAtMs + 60_000).toISOString(), reason: 'active release run fixture',
   });
   session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
-    at: '2026-07-18T00:01:01.000Z', state: 'acceptance_pending_visibility', run_id: runId,
+    at: new Date(admittedAtMs + 61_000).toISOString(), state: 'acceptance_pending_visibility', run_id: runId,
     reason: 'exact active release run fixture',
   });
   session.release_run = { id: runId, url: `https://example.test/${runId}`, conclusion: null };
@@ -301,7 +310,8 @@ function authorize(
 }
 
 test('stable release session freezes one cohort and deduplicates cheap gates', () => {
-  const session = buildStableReleaseSession(plan(), 'gaofeng21cn/one-person-lab-app', '2026-07-12T00:00:00.000Z');
+  const admittedAt = '2026-07-12T00:00:00.000Z';
+  const session = buildStableReleaseSession(plan(admittedAt), 'gaofeng21cn/one-person-lab-app', admittedAt);
   assert.equal(session.version, '26.7.12');
   assert.equal(session.source_gates.length, 2);
   assert.equal(session.efficiency_policy.desktop_release_dispatch_limit_per_cohort, 1);
@@ -357,7 +367,8 @@ test('legacy deadline-blocked sessions recover blocked terminal truth instead of
   try {
     const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
     const deadlineAt = new Date(startedAt + 90 * 60 * 1_000).toISOString();
-    const initial = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+    const admittedAt = new Date(startedAt).toISOString();
+    const initial = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
     const blocked = transitionStableReleaseSession(
       initial, 'standard_deadline_blocked', 'legacy deadline blocker', deadlineAt,
       { stage: 'cohort_planning', run_id: null },
@@ -586,7 +597,8 @@ test('broker admission after 90 minutes durably blocks before any external mutat
   const statePath = path.join(root, 'session.json');
   try {
     const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
-    let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+    const admittedAt = new Date(startedAt).toISOString();
+    let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
     session = transitionStableReleaseSession(
       session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString(),
     );
@@ -628,7 +640,7 @@ test('emergency cancel persists planned state before the isolated broker and nev
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-'));
   const statePath = path.join(root, 'session.json');
   try {
-    const session = sessionWithActiveReleaseRun('12345');
+    const session = sessionWithActiveReleaseRun('12345', liveAdmissionAt);
     writeStableReleaseSessionAtomic(statePath, session);
     let normalRunnerCalls = 0;
     let brokerCalls = 0;
@@ -642,7 +654,7 @@ test('emergency cancel persists planned state before the isolated broker and nev
     const result = dispatchEmergencyCancel(session, statePath, '12345', 'operator detected wrong cohort', () => {
       normalRunnerCalls += 1;
       throw new Error('normal controller runner must remain read-only');
-    }, '2026-07-18T00:02:00.000Z', undefined, broker, brokerAuthority);
+    }, new Date().toISOString(), undefined, broker, brokerAuthority);
     assert.equal(normalRunnerCalls, 0);
     assert.equal(brokerCalls, 1);
     assert.equal(result.mutation_leases.at(-1)?.authorization_class, 'emergency_cancel');
@@ -657,7 +669,7 @@ test('unprovisioned authority leaves emergency cancel planned without calling Gi
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-blocked-'));
   const statePath = path.join(root, 'session.json');
   try {
-    const session = sessionWithActiveReleaseRun('54321');
+    const session = sessionWithActiveReleaseRun('54321', liveAdmissionAt);
     writeStableReleaseSessionAtomic(statePath, session);
     let calls = 0;
     assert.throws(
@@ -676,11 +688,40 @@ test('unprovisioned authority leaves emergency cancel planned without calling Gi
   }
 });
 
+test('deadline materializes before an exact emergency cancel and cancel never reopens Standard', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-expired-emergency-cancel-'));
+  const statePath = path.join(root, 'session.json');
+  try {
+    const admittedAt = new Date(Date.now() - 91 * 60_000).toISOString();
+    const session = sessionWithActiveReleaseRun('54322', admittedAt);
+    writeStableReleaseSessionAtomic(statePath, session);
+    const cancelled = dispatchEmergencyCancel(
+      session,
+      statePath,
+      '54322',
+      'deadline terminal cleanup',
+      () => { throw new Error('normal runner must stay read-only'); },
+      new Date().toISOString(),
+      undefined,
+      testMutationBroker,
+      brokerAuthority,
+    );
+    assert.equal(cancelled.phase, 'standard_deadline_blocked');
+    assert.equal(cancelled.terminal_truth.standard_status, 'blocked');
+    assert.equal(cancelled.standard_deadline_blocker?.stage, 'emergency_cancel_admission');
+    assert.equal(cancelled.mutation_attempts.at(-1)?.mutation, 'workflow_cancel');
+    assert.equal(cancelled.mutation_attempts.at(-1)?.events.at(-1)?.state, 'running');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('durability failure before rename prevents API calls and preserves an exact recoverable lock', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-fsync-'));
   const statePath = path.join(root, 'session.json');
   try {
-    const session = sessionWithActiveReleaseRun('67890');
+    const operationAt = new Date(Date.parse(liveAdmissionAt) + 3 * 60_000).toISOString();
+    const session = sessionWithActiveReleaseRun('67890', liveAdmissionAt);
     writeStableReleaseSessionAtomic(statePath, session);
     let calls = 0;
     assert.throws(
@@ -690,10 +731,13 @@ test('durability failure before rename prevents API calls and preserves an exact
         '67890',
         'durability injection',
         () => { calls += 1; return { status: 0, stdout: '', stderr: '' }; },
-        '2026-07-18T00:03:00.000Z',
+        operationAt,
         (target, value) => writeStableReleaseSessionAtomic(target, value, {
           afterSessionFsync: () => { throw new Error('injected fsync/rename boundary failure'); },
         }),
+        testMutationBroker,
+        brokerAuthority,
+        () => Date.parse(operationAt),
       ),
       /injected fsync\/rename boundary failure/,
     );
@@ -714,7 +758,8 @@ test('parent directory fsync failure after rename prevents API calls and preserv
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-emergency-cancel-parent-fsync-'));
   const statePath = path.join(root, 'session.json');
   try {
-    const session = sessionWithActiveReleaseRun('67891');
+    const operationAt = new Date(Date.parse(liveAdmissionAt) + 4 * 60_000).toISOString();
+    const session = sessionWithActiveReleaseRun('67891', liveAdmissionAt);
     writeStableReleaseSessionAtomic(statePath, session);
     let calls = 0;
     assert.throws(
@@ -724,10 +769,13 @@ test('parent directory fsync failure after rename prevents API calls and preserv
         '67891',
         'after rename durability injection',
         () => { calls += 1; return { status: 0, stdout: '', stderr: '' }; },
-        '2026-07-18T00:04:00.000Z',
+        operationAt,
         (target, value) => writeStableReleaseSessionAtomic(target, value, {
           afterRename: () => { throw new Error('injected parent directory fsync failure'); },
         }),
+        testMutationBroker,
+        brokerAuthority,
+        () => Date.parse(operationAt),
       ),
       /injected parent directory fsync failure/,
     );
@@ -858,7 +906,8 @@ test('stale session lock recovery rejects a live owner and mismatched committed 
 });
 
 function awaitingLocalActivationSession(): StableReleaseSession {
-  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
+  const admittedAt = '2026-07-18T00:00:00.000Z';
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   const artifactSha256 = 'e'.repeat(64);
   session.qualification_run.artifact_sha256 = artifactSha256;
   session.artifact_tracks.standard.artifact_sha256 = artifactSha256;
@@ -909,18 +958,76 @@ test('awaiting and terminal Standard sessions require one exact qualification ar
   );
 });
 
+test('local activation evidence read crossing 90:00 durably blocks and cannot record late success', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-complete-local-deadline-'));
+  const statePath = path.join(root, 'session.json');
+  const receiptPath = path.join(root, 'local-activation.json');
+  const policyPath = path.join(root, 'local-policy.json');
+  try {
+    const session = awaitingLocalActivationSession();
+    session.receipts.promotion_saga = { ref: 'promotion-saga-test', sha256: 'a'.repeat(64) };
+    writeStableReleaseSessionAtomic(statePath, session);
+    fs.writeFileSync(receiptPath, '{}\n');
+    fs.writeFileSync(policyPath, '{}\n');
+    const deadlineAtMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+    assert.throws(
+      () => completeLocalActivation(
+        { statePath, receiptPath, localAuthorizationPolicyPath: policyPath },
+        deadlineAtMs - 1,
+        () => deadlineAtMs + 1,
+      ),
+      /cannot create a successful Standard terminal/,
+    );
+    const blocked = readStableReleaseSession(statePath);
+    assert.equal(blocked.phase, 'standard_deadline_blocked');
+    assert.equal(blocked.standard_deadline_blocker?.stage, 'complete_local_activation:evidence_read');
+    assert.equal(blocked.receipts.local_activation, null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 for (const fullStatus of ['qualified', 'failed'] as const) {
   test(`Standard terminal remains valid when Full is ${fullStatus} and WebUI has typed debt`, () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), `opl-addon-debt-${fullStatus}-`));
     const receiptPath = path.join(root, 'webui-debt.json');
     try {
       let session = standardTerminalSession();
-      session.addon_tracks.full.status = fullStatus;
       if (fullStatus === 'qualified') {
-        session.addon_tracks.full.receipt_ref = 'full-addon-test';
-        session.addon_tracks.full.receipt_sha256 = 'c'.repeat(64);
+        const releaseSetGeneration = '26.7.12-r1';
+        const releaseSetManifestDigest = `sha256:${'7'.repeat(64)}`;
+        session.addon_tracks.full.release_set_generation = releaseSetGeneration;
+        session.addon_tracks.full.release_set_manifest_digest = releaseSetManifestDigest;
+        const payload = fullAddonMutationPayload(session, releaseSetGeneration, releaseSetManifestDigest);
+        const planned = planReleaseMutationAttempt(session, {
+          mutation: 'full_addon_dispatch', workflow: 'desktop-release-full-addon.yml', artifactKind: 'full',
+          controllerWorkflowSha: appSha, artifactAppSha: appSha,
+          mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+          at: new Date().toISOString(), reason: 'qualified Full fixture uses a signed exact-run acceptance',
+        });
+        const fullStatePath = path.join(root, 'full-session.json');
+        session = planned.session;
+        writeStableReleaseSessionAtomic(fullStatePath, session);
+        session = executeBrokeredReleaseMutation(
+          session,
+          fullStatePath,
+          planned.attemptId,
+          payload,
+          { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
+          (request) => acceptanceForRequest(request, '7001'),
+          brokerAuthority,
+        ).session;
+        session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+          at: new Date().toISOString(), state: 'succeeded', run_id: '7001',
+          reason: 'qualified Full fixture exact run completed with bound evidence',
+        });
+        session.addon_tracks.full = {
+          ...session.addon_tracks.full,
+          status: 'qualified', conclusion: 'success', receipt_ref: 'full-addon-test', receipt_sha256: 'c'.repeat(64),
+        };
       }
       if (fullStatus === 'failed') {
+        session.addon_tracks.full.status = fullStatus;
         session.addon_tracks.full.run_id = '7001';
         const fullReceiptPath = path.join(root, 'full-debt.json');
         fs.writeFileSync(fullReceiptPath, `${JSON.stringify({
@@ -1003,7 +1110,8 @@ test('workflow readback transport and JSON failures stay retryable', () => {
 
 test('workflow watch has a finite wall-clock budget and leaves the durable run recoverable', async () => {
   const started = Date.parse('2026-07-18T00:00:00.000Z');
-  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  const admittedAt = new Date(started).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched', new Date(started + 2_000).toISOString());
   session.release_run.id = '123456';
@@ -1029,16 +1137,18 @@ test('workflow watch has a finite wall-clock budget and leaves the durable run r
 });
 
 test('Standard circuit breaker permits 89:59 and blocks new trains at 90:00 and 90:01', () => {
-  const session = buildStableReleaseSession(plan(), '2026-07-18T00:00:00.000Z');
+  const admittedAt = '2026-07-18T00:00:00.000Z';
+  const session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   const started = Date.parse(session.metrics.session_started_at);
   assert.equal(standardReleaseCircuitBreaker(session, started + 5_399_000), 'new_release_train_allowed');
-  assert.equal(standardReleaseCircuitBreaker(session, started + 5_400_000), 'targeted_recovery_or_typed_blocker_only');
-  assert.equal(standardReleaseCircuitBreaker(session, started + 5_401_000), 'targeted_recovery_or_typed_blocker_only');
+  assert.equal(standardReleaseCircuitBreaker(session, started + 5_400_000), 'typed_blocker_reconcile_or_emergency_cancel_only');
+  assert.equal(standardReleaseCircuitBreaker(session, started + 5_401_000), 'typed_blocker_reconcile_or_emergency_cancel_only');
 });
 
 test('watch and resume budget use the immutable admission deadline instead of a fresh phase window', async () => {
   const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
-  let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+  const admittedAt = new Date(startedAt).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString());
   session.release_run.id = '7003';
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(startedAt + 2_000).toISOString());
@@ -1099,7 +1209,8 @@ test('watch and resume budget use the immutable admission deadline instead of a 
 
 test('terminal success returned after the immutable deadline cannot bypass the typed blocker', async () => {
   const startedAt = Date.parse('2026-07-18T00:00:00.000Z');
-  let session = buildStableReleaseSession(plan(), undefined, new Date(startedAt).toISOString());
+  const admittedAt = new Date(startedAt).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(startedAt + 1_000).toISOString());
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(startedAt + 2_000).toISOString());
   session.release_run.id = '7006';
@@ -1126,7 +1237,7 @@ test('terminal success returned after the immutable deadline cannot bypass the t
         stderr: '',
       };
     }, session, '7006', (next) => { persisted.push(structuredClone(next)); }, () => currentTime),
-    /readback reached the immutable 90-minute Standard deadline/,
+    /immutable 90-minute Standard deadline during terminal readback/,
   );
   const blocked = persisted.at(-1);
   assert.equal(blocked?.phase, 'standard_deadline_blocked');
@@ -1138,7 +1249,8 @@ test('terminal success returned after the immutable deadline cannot bypass the t
 test('workflow watcher persists one 60-minute warning and never duplicates it on resume', async () => {
   const started = Date.parse('2026-07-18T00:00:00.000Z');
   const warningAt = started + 60 * 60_000;
-  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  const admittedAt = new Date(started).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(started + 2_000).toISOString());
   session.release_run.id = '7005';
@@ -1190,9 +1302,44 @@ test('workflow watcher persists one 60-minute warning and never duplicates it on
   assert.equal(persisted.length, 1, 'resume must not persist a duplicate 60-minute warning');
 });
 
+test('promotion checkpoint readback uses monotonic local observation time after a 60-minute warning', () => {
+  const admittedAtMs = Date.parse('2026-07-18T00:00:00.000Z');
+  const admittedAt = new Date(admittedAtMs).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
+  const advance = (phase: Parameters<typeof transitionStableReleaseSession>[1], minutes: number) => {
+    session = transitionStableReleaseSession(
+      session,
+      phase,
+      `fixture ${phase}`,
+      new Date(admittedAtMs + minutes * 60_000).toISOString(),
+    );
+  };
+  advance('source_gates_passed', 1);
+  advance('artifact_build_running', 2);
+  advance('artifacts_qualified', 3);
+  advance('owner_approved', 4);
+  advance('promotion_running', 5);
+  session = appendStableReleaseEfficiencyAdvisory(session, {
+    stage: 'promotion_running', status: 'in_progress', observedAtMs: admittedAtMs + 60 * 60_000,
+  });
+  const remoteCompletedAt = new Date(admittedAtMs + 55 * 60_000).toISOString();
+  const jobs = [
+    'Publish release without changing latest',
+    'Dispatch atomic Standard distribution',
+    'Verify Standard Homebrew activation',
+    'Activate App latest after Standard distribution gates',
+  ].map((name) => ({ name, status: 'completed', conclusion: 'success', completedAt: remoteCompletedAt }));
+  const observedAt = new Date(admittedAtMs + 65 * 60_000).toISOString();
+  const projected = applyPromotionCheckpointReadback(session, jobs, observedAt);
+  assert.equal(projected.phase, 'latest_activated');
+  assert.equal(projected.updated_at, observedAt);
+  assert.equal(projected.transitions.at(-1)?.at, observedAt);
+});
+
 test('workflow readback transport consumes the same remaining admission budget with a finite per-call cap', async () => {
   const started = Date.parse('2026-07-18T00:00:00.000Z');
-  let session = buildStableReleaseSession(plan(), undefined, new Date(started).toISOString());
+  const admittedAt = new Date(started).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
   session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
   session = transitionStableReleaseSession(session, 'artifact_build_running', 'accepted', new Date(started + 2_000).toISOString());
   const observedAt = started + 30 * 60_000;

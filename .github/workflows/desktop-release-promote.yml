@@ -889,11 +889,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         shell: bash
         run: |
           set -euo pipefail
           tag="v$OPL_VERSION"
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          node --input-type=module <<'NODE'
+          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
+            throw new Error('standard_admission_deadline_elapsed: latest PATCH is no longer authorized.');
+          }
+          NODE
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -f make_latest=true >/dev/null
           for attempt in $(seq 1 12); do
             latest="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isLatest --jq '.[] | select(.tagName == "'"$tag"'") | .isLatest')"
@@ -907,10 +914,17 @@ jobs:
         env:
           STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
           OPL_VERSION: ${{ inputs.opl_version }}
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
           distribution="$(find saga-inputs/distribution -name opl-stable-distribution-receipt.json -type f | head -n 1)"
           activation="$(find saga-inputs/activation -name opl-app-homebrew-activation-receipt.json -type f | head -n 1)"
+          node --input-type=module <<'NODE'
+          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
+            throw new Error('standard_admission_deadline_elapsed: promotion receipt is no longer authorized.');
+          }
+          NODE
           node --experimental-strip-types scripts/write-release-saga-receipt.ts \
             --kind promotion-saga \
             --output opl-app-promotion-saga-receipt.json \
@@ -918,12 +932,57 @@ jobs:
             --version "$OPL_VERSION" \
             --distribution-receipt "$distribution" \
             --homebrew-activation-receipt "$activation" \
-            --standard-run-id "${{ github.run_id }}"
+            --standard-run-id "${{ github.run_id }}" \
+            --workflow-run-id "${{ github.run_id }}" \
+            --workflow-run-attempt "${{ github.run_attempt }}" \
+            --release-attempt-id "${{ inputs.release_attempt_id }}" \
+            --controller-workflow-sha "${{ github.sha }}" \
+            --source-release-run-id "${{ inputs.release_run_id }}" \
+            --standard-qualification-run-id "${{ inputs.standard_vm_run_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --app-sha "${{ needs.prepare.outputs.app_sha }}" \
+            --shell-sha "${{ needs.prepare.outputs.shell_sha }}" \
+            --framework-sha "${{ needs.prepare.outputs.framework_sha }}" \
+            --release-set-generation "${{ inputs.release_set_generation }}" \
+            --release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}" \
+            --release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"
+          node --input-type=module <<'NODE'
+          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
+            throw new Error('standard_admission_deadline_elapsed: promotion receipt validation is no longer authorized.');
+          }
+          NODE
           node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
             --kind promotion-saga \
             --receipt opl-app-promotion-saga-receipt.json \
             --stable-session-id "$STABLE_SESSION_ID" \
-            --version "$OPL_VERSION"
+            --version "$OPL_VERSION" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --app-sha "${{ needs.prepare.outputs.app_sha }}" \
+            --shell-sha "${{ needs.prepare.outputs.shell_sha }}" \
+            --framework-sha "${{ needs.prepare.outputs.framework_sha }}" \
+            --source-release-run-id "${{ inputs.release_run_id }}" \
+            --release-set-generation "${{ inputs.release_set_generation }}" \
+            --release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}" \
+            --standard-vm-run-id "${{ inputs.standard_vm_run_id }}" \
+            --promotion-run-id "${{ github.run_id }}" \
+            --promotion-run-attempt "${{ github.run_attempt }}" \
+            --promotion-attempt-id "${{ inputs.release_attempt_id }}" \
+            --controller-workflow-sha "${{ github.sha }}" \
+            --release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"
+
+      - name: Recheck immutable Standard deadline before promotion receipt upload
+        shell: bash
+        env:
+          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
+            throw new Error('standard_admission_deadline_elapsed: promotion receipt upload is no longer authorized.');
+          }
+          NODE
 
       - name: Upload promotion saga receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

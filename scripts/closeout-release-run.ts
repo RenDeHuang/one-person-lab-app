@@ -25,7 +25,11 @@ import {
   receiptFileSha256,
   validatePromotionSagaReceipt,
 } from './release-saga-receipts.ts';
-import { readStableReleaseSession, type StableReleaseSession } from './stable-release-session.ts';
+import {
+  readStableReleaseSession,
+  stableReleaseSessionIdentity,
+  type StableReleaseSession,
+} from './stable-release-session.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
@@ -878,28 +882,6 @@ function stableSessionRoutes(options: Options) {
   };
 }
 
-function canonicalSessionId(session: StableReleaseSession): string | null {
-  const plan = asRecord(session.cohort_plan);
-  const cohortLock = asRecord(plan?.cohort_lock);
-  const app = asRecord(cohortLock?.app);
-  const shell = asRecord(cohortLock?.shell);
-  const framework = asRecord(cohortLock?.framework);
-  const version = stringField(plan, 'version');
-  const operatorPlanRef = stringField(plan, 'operator_plan_ref');
-  const appSha = stringField(app, 'resolved_sha');
-  const shellSha = stringField(shell, 'resolved_sha');
-  const frameworkSha = stringField(framework, 'resolved_sha');
-  if (!version || !operatorPlanRef || !appSha || !shellSha || !frameworkSha) return null;
-  const identity = JSON.stringify({
-    version,
-    operator_plan_ref: operatorPlanRef,
-    app_sha: appSha,
-    shell_sha: shellSha,
-    framework_sha: frameworkSha,
-  });
-  return `sha256:${crypto.createHash('sha256').update(identity).digest('hex')}`;
-}
-
 function expectedPromotionSagaArtifactName(session: StableReleaseSession): string {
   return `opl-promotion-saga-receipt-${session.version}-${session.id.slice('sha256:'.length)}`;
 }
@@ -974,7 +956,9 @@ function buildStableTerminalEvidence(options: Options, run: JsonRecord): StableT
 
   if (session.schema !== 'opl_app_stable_release_session.v3') errors.push(`stable session schema is ${session.schema}`);
   if (!Number.isSafeInteger(session.revision) || session.revision < 1) errors.push('stable session revision is not durably persisted');
-  if (session.id !== canonicalSessionId(session)) errors.push('stable session id does not match its frozen cohort identity');
+  if (session.id !== stableReleaseSessionIdentity(session.cohort_plan)) {
+    errors.push('stable session id does not match its frozen cohort identity');
+  }
   if (session.version !== options.version || session.cohort_plan.version !== options.version) errors.push('stable session version does not match closeout version');
   if (session.repo !== options.repo) errors.push('stable session repository does not match closeout repository');
   if (!/^\d+$/.test(sourceRunId ?? '') || session.release_run.conclusion !== 'success') {

@@ -945,8 +945,8 @@ function validateReleaseMutationAcceptanceReceiptAt(
     errors.push(error instanceof Error ? error.message : String(error));
   }
   if (typeof candidate.broker_actor !== 'string' || !candidate.broker_actor) errors.push('broker actor is missing');
-  if (typeof candidate.broker_token_fingerprint !== 'string' || !candidate.broker_token_fingerprint) {
-    errors.push('broker credential fingerprint is missing');
+  if (!digestRefPattern.test(String(candidate.broker_token_fingerprint))) {
+    errors.push('broker acceptance credential fingerprint must be a lowercase sha256 digest');
   }
   if (candidate.broker_actor !== authority.broker_identity.github_actor) {
     errors.push('broker acceptance actor does not match canonical authority');

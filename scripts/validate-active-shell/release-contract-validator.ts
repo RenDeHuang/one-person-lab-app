@@ -82,10 +82,16 @@ function validateReleaseExecutionPolicy(acceleration) {
     attemptSwitch?.prior_attempt_threshold !== 3 ||
     attemptSwitch?.workflow_input !== 'gate_reuse_plan_ref' ||
     attemptSwitch?.required_before_next_full_train !== true ||
-    attemptSwitch?.timeout_is_abandonment_condition !== false
+    attemptSwitch?.timeout_is_absorbing_blocker !== true ||
+    attemptSwitch?.strategy !== 'same_cohort_evidence_reuse_or_targeted_gate_rerun_before_deadline_only'
   ) {
-    throw new Error('Repeated release attempts must switch to same-cohort reuse after the 90-minute threshold');
+    throw new Error('Repeated release attempts must stop at the absorbing 90-minute Standard deadline');
   }
+  assertDeepEqualJson(
+    [...(attemptSwitch.after_deadline_legal_actions ?? [])].sort(),
+    ['emergency_cancel', 'read_only_reconcile'],
+    'Release attempt actions after the 90-minute Standard deadline',
+  );
   if (
     publishResume?.new_release_upload_failure_cleanup !== undefined ||
     publishRecovery?.remote_state !== 'typed_incomplete_draft_retained' ||

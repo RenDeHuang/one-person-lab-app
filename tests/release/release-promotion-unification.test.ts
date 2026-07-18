@@ -17,6 +17,14 @@ const requestId = 'd'.repeat(64);
 const sourceAppRunId = '123456';
 const frameworkRunId = '654321';
 
+function workflowStep(source: string, name: string): string {
+  const marker = `      - name: ${name}`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `workflow step ${name} is missing`);
+  const next = source.indexOf('\n      - name:', start + marker.length);
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
 function packageComponent(packageId: string) {
   return {
     component_id: packageId,
@@ -253,4 +261,77 @@ test('Standard promotion and Full add-on never mutate the independent WebUI Stab
   assert.doesNotMatch(addon, /verify-release-session-lease|verify-release-mutation-payload|release_mutation_payload_base64/);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/webui-ghcr-release.yml')), false);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/homebrew-tap-update.yml')), false);
+});
+
+test('App latest mutation and promotion receipt stay deadline-bound to the exact brokered cohort', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const latestStep = workflowStep(workflow, 'Mark release latest and verify readback');
+  const receiptStep = workflowStep(workflow, 'Write and validate promotion saga receipt');
+  const uploadDeadlineStep = workflowStep(workflow, 'Recheck immutable Standard deadline before promotion receipt upload');
+  const uploadStep = workflowStep(workflow, 'Upload promotion saga receipt');
+  const immutableDeadlineBinding = 'STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}';
+
+  const latestDeadlineCheck = latestStep.indexOf('Date.now() >= deadline');
+  const latestPatch = latestStep.indexOf('gh api --method PATCH');
+  assert.match(latestStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.ok(latestDeadlineCheck >= 0, 'latest mutation must recheck the immutable Standard deadline');
+  assert.ok(latestDeadlineCheck < latestPatch, 'latest mutation deadline check must run immediately before PATCH');
+
+  const receiptWrite = receiptStep.indexOf('scripts/write-release-saga-receipt.ts');
+  const receiptValidate = receiptStep.indexOf('scripts/validate-release-saga-receipt.ts');
+  const receiptDeadlineChecks = [...receiptStep.matchAll(/Date\.now\(\) >= deadline/g)].map((match) => match.index!);
+  assert.match(receiptStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.equal(receiptDeadlineChecks.length, 2, 'receipt write and validation must each recheck the immutable Standard deadline');
+  assert.ok(receiptDeadlineChecks[0] < receiptWrite, 'promotion receipt deadline check must run before receipt creation');
+  assert.ok(receiptWrite < receiptValidate, 'promotion receipt must be written before exact validation');
+  assert.ok(receiptWrite < receiptDeadlineChecks[1], 'promotion receipt validation needs a fresh post-write deadline check');
+  assert.ok(receiptDeadlineChecks[1] < receiptValidate, 'promotion receipt deadline must be rechecked immediately before validation');
+  const writerCommand = receiptStep.slice(receiptWrite, receiptValidate);
+  const validatorCommand = receiptStep.slice(receiptValidate);
+
+  for (const binding of [
+    '--standard-run-id "${{ github.run_id }}"',
+    '--workflow-run-id "${{ github.run_id }}"',
+    '--workflow-run-attempt "${{ github.run_attempt }}"',
+    '--release-attempt-id "${{ inputs.release_attempt_id }}"',
+    '--controller-workflow-sha "${{ github.sha }}"',
+    '--source-release-run-id "${{ inputs.release_run_id }}"',
+    '--standard-qualification-run-id "${{ inputs.standard_vm_run_id }}"',
+    '--release-cohort-ref "${{ inputs.release_cohort_ref }}"',
+    '--app-sha "${{ needs.prepare.outputs.app_sha }}"',
+    '--shell-sha "${{ needs.prepare.outputs.shell_sha }}"',
+    '--framework-sha "${{ needs.prepare.outputs.framework_sha }}"',
+    '--release-set-generation "${{ inputs.release_set_generation }}"',
+    '--release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}"',
+    '--release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"',
+  ]) {
+    assert.match(writerCommand, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  for (const binding of [
+    '--release-cohort-ref "${{ inputs.release_cohort_ref }}"',
+    '--app-sha "${{ needs.prepare.outputs.app_sha }}"',
+    '--shell-sha "${{ needs.prepare.outputs.shell_sha }}"',
+    '--framework-sha "${{ needs.prepare.outputs.framework_sha }}"',
+    '--source-release-run-id "${{ inputs.release_run_id }}"',
+    '--release-set-generation "${{ inputs.release_set_generation }}"',
+    '--release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}"',
+    '--standard-vm-run-id "${{ inputs.standard_vm_run_id }}"',
+    '--promotion-run-id "${{ github.run_id }}"',
+    '--promotion-run-attempt "${{ github.run_attempt }}"',
+    '--promotion-attempt-id "${{ inputs.release_attempt_id }}"',
+    '--controller-workflow-sha "${{ github.sha }}"',
+    '--release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"',
+  ]) {
+    assert.match(validatorCommand, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  assert.match(uploadDeadlineStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(uploadDeadlineStep, /Date\.now\(\) >= deadline/);
+  assert.match(uploadStep, /actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
+  assert.ok(
+    workflow.indexOf('      - name: Recheck immutable Standard deadline before promotion receipt upload')
+      < workflow.indexOf('      - name: Upload promotion saga receipt'),
+    'promotion receipt upload must be immediately preceded by a fresh immutable deadline gate',
+  );
 });
