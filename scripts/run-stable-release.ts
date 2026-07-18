@@ -402,7 +402,8 @@ export function desktopReleaseDispatchArgs(session: StableReleaseSession): strin
     '--field', `include_full_package=${String(plan.include_full_package)}`,
     '--field', `run_vm_smoke=${String(plan.run_vm_smoke)}`,
     '--field', `publish_docker_webui=${String(plan.publish_docker_webui)}`,
-    '--field', `require_addon_gates_for_stable_readiness=${String(plan.release_intent === 'stable_complete')}`,
+    '--field', 'defer_addons=true',
+    '--field', 'require_addon_gates_for_stable_readiness=false',
     '--field', `shell_ref=${plan.cohort_lock.shell.resolved_sha}`,
     '--field', `framework_ref=${plan.cohort_lock.framework.resolved_sha}`,
   ];
@@ -476,9 +477,9 @@ export function promoteDispatchArgs(
   if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(releaseSetGeneration)) {
     throw new Error('Promotion requires an exact Release Set generation in YY.M.D[-rN] form.');
   }
-  const fullVmRunId = session.qualification_run.id;
-  if (session.cohort_plan.include_full_package && (!fullVmRunId || session.qualification_run.conclusion !== 'success')) {
-    throw new Error('Promotion requires a passed Full exact-artifact qualification run.');
+  const standardVmRunId = session.qualification_run.id;
+  if (!standardVmRunId || session.qualification_run.conclusion !== 'success') {
+    throw new Error('Promotion requires a passed Standard exact-artifact qualification run.');
   }
   return [
     'workflow', 'run', 'desktop-release-promote.yml',
@@ -486,12 +487,11 @@ export function promoteDispatchArgs(
     '--ref', workflowRef(session.cohort_plan),
     '--field', `opl_version=${session.version}`,
     '--field', `release_set_generation=${releaseSetGeneration}`,
-    '--field', `include_full_package=${String(session.cohort_plan.include_full_package)}`,
-    '--field', `require_docker_webui=${String(session.cohort_plan.publish_docker_webui)}`,
     '--field', `release_run_id=${session.release_run.id}`,
     '--field', `stable_session_id=${session.id}`,
     '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
-    '--field', `full_vm_run_id=${fullVmRunId ?? ''}`,
+    '--field', `standard_vm_run_id=${standardVmRunId}`,
+    '--field', `schedule_full_addon=${String(session.cohort_plan.include_full_package)}`,
     '--field', `release_owner_receipt_ref=${ownerReceiptRef}`,
     '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
   ];
@@ -537,13 +537,11 @@ type WorkflowJob = {
 };
 
 function expectedQualificationProfile(session: StableReleaseSession): 'full' | 'standard' {
-  return session.cohort_plan.include_full_package ? 'full' : 'standard';
+  return 'standard';
 }
 
 function expectedBuildArtifactName(session: StableReleaseSession): string {
-  return session.cohort_plan.include_full_package
-    ? `opl-full-first-install-dmg-${session.version}-mac-arm64`
-    : 'macos-build-arm64-dmg';
+  return 'macos-build-arm64-dmg';
 }
 
 function findFile(root: string, name: string): string | null {
@@ -593,9 +591,7 @@ function readBuildArtifactManifest(
     const errors = validateArtifactCohortV2(manifest, {
       appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
       shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
-      frameworkSha: session.cohort_plan.include_full_package
-        ? session.cohort_plan.cohort_lock.framework.resolved_sha
-        : undefined,
+      frameworkSha: session.cohort_plan.cohort_lock.framework.resolved_sha,
       version: session.version,
       actionsRunId: runId,
       stableSessionId: session.id,
@@ -637,9 +633,7 @@ function readQualificationReceipt(
       sourceArtifactName: expectedBuildArtifactName(session),
       appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
       shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
-      frameworkSha: session.cohort_plan.include_full_package
-        ? session.cohort_plan.cohort_lock.framework.resolved_sha
-        : undefined,
+      frameworkSha: session.cohort_plan.cohort_lock.framework.resolved_sha,
       verificationAppSha: session.qualification_run.verification_harness?.app_sha,
       verificationShellSha: session.qualification_run.verification_harness?.shell_sha,
       verificationScopeProof: session.qualification_run.verification_harness?.scope_proof,
@@ -885,9 +879,9 @@ function finalizePromotionRun(
   const jobs = runJobs(runner, session, runId);
   const checkpoints = [
     { phase: 'release_published_not_latest' as const, job: 'Publish release without changing latest', reason: 'release is public and explicitly not latest' },
-    { phase: 'distribution_synced' as const, job: 'Dispatch atomic Stable distribution', reason: 'tap atomic Standard and Full distribution receipt verified' },
-    { phase: 'homebrew_verified' as const, job: 'Aggregate both Homebrew VM receipts', reason: 'Standard and Full Homebrew clean-VM receipts verified' },
-    { phase: 'latest_activated' as const, job: 'Activate Stable latest after all distribution gates', reason: 'GitHub Stable latest activated after downstream verification' },
+    { phase: 'distribution_synced' as const, job: 'Dispatch atomic Standard distribution', reason: 'tap atomic Standard distribution receipt verified' },
+    { phase: 'homebrew_verified' as const, job: 'Verify Standard Homebrew activation', reason: 'Standard Homebrew clean-VM receipt verified' },
+    { phase: 'latest_activated' as const, job: 'Activate App latest after Standard distribution gates', reason: 'GitHub Stable latest activated after Standard downstream verification' },
   ];
   for (const checkpoint of checkpoints) {
     const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));

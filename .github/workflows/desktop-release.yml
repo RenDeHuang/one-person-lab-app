@@ -45,7 +45,12 @@ on:
         default: ''
         type: string
       include_full_package:
-        description: Build and publish the Full first-install package after standard assets
+        description: Record that this version plans a same-cohort Full add-on after Standard promotion
+        required: false
+        default: true
+        type: boolean
+      defer_addons:
+        description: Publish and qualify Standard first; Full and Docker/WebUI run in independent add-on workflows
         required: false
         default: true
         type: boolean
@@ -75,7 +80,7 @@ on:
         default: true
         type: boolean
       require_addon_gates_for_stable_readiness:
-        description: Record that the release owner requires Full, Docker/WebUI, and Homebrew add-on gates before promote
+        description: Legacy audit field only; add-ons cannot block Standard promotion
         required: false
         default: false
         type: boolean
@@ -598,7 +603,7 @@ jobs:
       - release-workflow-contract
       - release-source-gate
       - standard-build
-    if: ${{ !cancelled() && inputs.include_full_package && needs.release-workflow-contract.result == 'success' && needs.release-source-gate.result == 'success' && needs.standard-build.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.release-workflow-contract.result == 'success' && needs.release-source-gate.result == 'success' && needs.standard-build.result == 'success' }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
@@ -617,7 +622,7 @@ jobs:
     needs:
       - publish-standard
       - full-first-install
-    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' }}
 
     steps:
       - name: Checkout App repo
@@ -691,7 +696,7 @@ jobs:
       - full-first-install
       - standard-vm-smoke-gate-after-full
       - full-first-run-vm-smoke
-    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
 
     steps:
       - name: Checkout App repo
@@ -743,7 +748,7 @@ jobs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && (!inputs.run_vm_smoke || ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success'))) }}
+    if: ${{ !cancelled() && (!inputs.run_vm_smoke || (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success'))) }}
     runs-on: macos-latest
 
     steps:
@@ -777,7 +782,7 @@ jobs:
     needs:
       - publish-full-assets
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-full-assets.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && needs.publish-full-assets.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     runs-on: macos-latest
 
     steps:
@@ -810,7 +815,7 @@ jobs:
   standard-first-run-vm-smoke-after-standard-only:
     name: Run clean standard first-run VM smoke
     needs: publish-standard
-    if: ${{ !inputs.include_full_package && inputs.run_vm_smoke }}
+    if: ${{ (inputs.defer_addons || !inputs.include_full_package) && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -825,7 +830,7 @@ jobs:
   standard-first-run-vm-smoke-after-full:
     name: Run clean standard first-run VM smoke
     needs: publish-standard
-    if: ${{ inputs.include_full_package && inputs.run_vm_smoke }}
+    if: ${{ !inputs.defer_addons && inputs.include_full_package && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -842,7 +847,7 @@ jobs:
     needs:
       - publish-standard
       - standard-first-run-vm-smoke-after-full
-    if: ${{ !cancelled() && inputs.include_full_package }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package }}
     runs-on: ubuntu-latest
     outputs:
       app_sha: ${{ steps.release-cohort.outputs.app_sha }}
@@ -881,7 +886,7 @@ jobs:
     needs:
       - full-first-install
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.include_full_package && inputs.run_vm_smoke && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.include_full_package && inputs.run_vm_smoke && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -900,7 +905,7 @@ jobs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: macos-latest
     timeout-minutes: 45
 
@@ -989,7 +994,7 @@ jobs:
     name: Run Docker WebUI smoke and stage GHCR publish
     needs:
       - publish-standard
-    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.publish-standard.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.publish-standard.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -1272,7 +1277,7 @@ jobs:
   webui-ghcr-publish:
     name: Verify WebUI GHCR publish
     needs: docker-webui-smoke
-    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -1313,7 +1318,7 @@ jobs:
     needs:
       - docker-webui-smoke
       - webui-ghcr-publish
-    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' }}
+    if: ${{ !cancelled() && !inputs.defer_addons && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -1563,7 +1568,7 @@ jobs:
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && (((inputs.defer_addons || !inputs.include_full_package) && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
     needs:
       - remote-verify-standard
       - remote-verify-full
@@ -1734,7 +1739,7 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && needs.remote-verify-standard.result == 'success' && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && needs.remote-verify-standard.result == 'success' && (((inputs.defer_addons || !inputs.include_full_package) && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (!inputs.defer_addons && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' }}
     needs:
       - release-preflight
       - remote-verify-standard
@@ -1748,7 +1753,8 @@ jobs:
         shell: bash
         run: |
           node <<'NODE'
-          const includeFullPackage = '${{ inputs.include_full_package }}' === 'true';
+          const includeFullPackageInline = '${{ inputs.include_full_package }}' === 'true'
+            && '${{ inputs.defer_addons }}' !== 'true';
           const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
           const results = {
             'release-preflight': '${{ needs.release-preflight.result }}',
@@ -1772,7 +1778,7 @@ jobs:
           requireSuccess('release-preflight');
 
           requireSuccess('remote-verify-standard');
-          if (includeFullPackage) {
+          if (includeFullPackageInline) {
             requireSuccess('standard-vm-smoke-gate-after-full');
           } else {
             requireSuccess('standard-first-run-vm-smoke-after-standard-only');
@@ -1978,6 +1984,7 @@ jobs:
             release_mode: '${{ inputs.release_mode }}',
             standard_readiness_artifact: 'release-readiness-summary-${{ inputs.opl_version }}',
             require_addon_gates_for_stable_readiness: '${{ inputs.require_addon_gates_for_stable_readiness }}' === 'true',
+            addons_deferred: '${{ inputs.defer_addons }}' === 'true',
             homebrew_tap_update_required: '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true',
             status_policy: 'add_on_status_record_only_not_standard_readiness_gate',
             promotion_saga_deferred: {
@@ -1998,7 +2005,8 @@ jobs:
             false_ready_boundary: {
               add_on_summary_can_claim_standard_stable_ready: false,
               add_on_failure_invalidates_standard_readiness: false,
-              release_owner_may_require_addons_before_promote: true,
+              release_owner_may_require_addons_before_promote: false,
+              deferred_addon_failure_invalidates_published_standard: false,
             },
           };
           fs.writeFileSync('release-addon-readiness-summary.json', `${JSON.stringify(summary, null, 2)}\n`);

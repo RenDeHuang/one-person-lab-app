@@ -93,14 +93,11 @@ shape, Homebrew token availability, and the App-owned preflight contract. It
 writes `release-preflight-summary.json` and `release-preflight-summary.md`.
 
 Docker/WebUI release readiness is scoped to the image and Docker runtime: Docker
-build, GHCR publish, and clean Linux Docker runtime smoke are blocking evidence.
+build, GHCR publish, and clean Linux Docker runtime smoke are add-on evidence.
 Clean Windows VM evidence is optional diagnostic input because Windows Docker
 host readiness belongs to Docker and Windows, not the macOS App stable release.
-The Docker/WebUI lane starts after standard asset publish, not after the macOS
-standard VM gate. Standard Stable readiness now admits from the Standard
-critical path by default; Docker/WebUI remains a same-cohort add-on gate whose
-status is recorded and whose failure blocks only when
-`require_addon_gates_for_stable_readiness=true`.
+The Docker/WebUI lane starts after Standard Stable and has its own receipt.
+Its failure never blocks or revokes Standard and never moves App latest.
 
 `release_source_gate` runs after preflight and before expensive lanes. It checks
 the App release-boundary contract, active shell format/type, active shell
@@ -116,19 +113,19 @@ The normal Stable path is `new_release -> draft candidate -> gates -> candidate
 record -> promote`. The candidate record is the only promotion source. Operators should
 not reconstruct promotion readiness from scattered job logs, local notes, or a
 long-running run page. `refresh_existing` is reserved for repair of an
-unpublished draft before promotion. Published Stable and Nightly releases are
-immutable; a changed artifact or cohort requires a new version.
+unpublished draft before promotion. Published Standard and Nightly assets are
+immutable; a changed artifact or cohort requires a new version. The only
+post-publish exception is same-cohort additive Full delivery under strict
+digest-idempotent rules.
 
-`standard_build` and `full_build` are build lanes. They create artifacts and
-diagnostics only. They do not decide release readiness. Full build may start in
-parallel with Standard after preflight/source gate, but Full publish, Full VM,
-and Full readiness remain serialized behind Standard admission for the same
-cohort.
+`standard_build` is the Stable build lane. Full build starts asynchronously
+after Standard promotion and consumes the frozen cohort; it does not decide or
+reopen Standard readiness.
 
-`publish_standard` and `publish_full_assets` are upload lanes. They normalize
-assets, release notes, and manifest evidence, then publish to the selected tag.
-`publish_full_assets` depends on the completed Standard publish path plus
-`full_build`; it is not an independent release path.
+`publish_standard` owns the release, updater metadata, notes, and latest path.
+`publish_full_assets` is an independent additive-only workflow that may append
+the Full DMG and Full manifest after its own VM gate. It cannot overwrite,
+edit notes, move latest, move WebUI stable, or mutate updater metadata.
 
 `remote_verify_*` validates the GitHub Release as the user-facing byte source.
 This is the source for asset size, checksums, updater metadata, Full manifest,
@@ -159,9 +156,8 @@ authentication, or package push.
 
 `release_readiness_summary` is the final judge for the admitted path. It
 downloads only small diagnostic artifacts and fails closed when required
-Standard gates are missing, failed, or inconsistent. Full, Homebrew, and
-Docker/WebUI statuses stay attached to the same cohort as add-on job results
-unless the dispatch explicitly requires add-on gates for Stable readiness.
+Standard gates are missing, failed, or inconsistent. Full and Docker/WebUI use
+independent same-cohort add-on receipts and are never Stable admission inputs.
 
 `post_release_user_guide_screenshots` is a post-promotion documentation lane. It
 may capture and refresh user-guide screenshots from the promoted Stable cohort,
@@ -189,7 +185,7 @@ records, or `docs/history/process/`.
 | WebUI GHCR lane | Standalone WebUI publish is split into prepare, build, inspect/readback, smoke, tag, publish, and upload steps so the slow or failed boundary is visible. | WebUI/container evidence does not replace desktop App install evidence or stable promotion evidence. |
 | Release actions timing | `release-actions-timing.json/md` measures workflow wall time, failed/cancelled run tax, slow jobs, slow steps, and optional operator-loop gap. | Timing artifacts are delivery-health evidence, not release readiness or owner acceptance. |
 | Release-session manifest | `release:operator status` updates `release-session.json` from prior session input, run status, candidate/closeout/readback refs, owner receipt refs, current authority refs, and post-publish follow-up state. | It is a navigation and cost ledger only; release truth stays in same-cohort candidate records, closeout, remote verification, owner receipts, published assets, and tap/readiness readbacks. Old authority refs must not be carried forward unless explicitly supplied for the current run. |
-| Standard/add-on critical path | Standard Stable readiness requires standard publish, standard remote verification, the standard VM gate, and one-shot installer smoke. Full build may run in parallel with read-only repository permission, but Full publish/VM/readiness wait for Standard admission. Full publish owns the narrow contents-write permission and the phase budgets hard-stop Full build at 90 minutes and clean VM at 75 minutes. Homebrew and Docker/WebUI continue as same-cohort add-on gates and block only when explicitly required. | Standard and add-on lanes stay separate; standard evidence cannot prove Full first-install, Homebrew, or Docker/WebUI readiness. |
+| Standard/add-on critical path | Standard Stable readiness requires Standard publish, remote verification, Standard VM, Formula/Standard-cask distribution, and local activation. Full and Docker/WebUI start afterward with independent receipts; failures are retried in their own lane. | Add-ons cannot block or revoke Standard, and Standard evidence cannot prove Full or Docker/WebUI readiness. |
 | Artifact attestation / SLSA provenance | Public install/update assets carry attestations for the standard DMG/ZIP/updater metadata, Full DMG/manifest/checksum/offline kit assets, and WebUI OCI image digest when published. Verification uses `npm run release:attestation:verify` over `gh attestation verify` against downloaded assets or OCI digests. | Attestation proves build provenance for bytes; it cannot replace checksums, remote readback, `codesign` / `spctl`, clean install/VM readiness, candidate-record validation, or owner receipt. |
 | Gate reuse plan | `npm run release:gate-reuse-plan` can emit `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable digest. | It is advisory until workflows explicitly consume the artifact; no gate is skipped by prose. |
 | Tart prebake boundary | The release contract allows only host setup layers such as GUI session readiness, Homebrew prerequisites, Node prerequisites, and Codex install cache seed. | A prebaked base is not current release infrastructure until it has an image receipt, digest, profile, truth boundary, and validation command. |
@@ -226,7 +222,7 @@ Operator stop conditions:
 
 - Promote only when `release-candidate-record.json` has
   `status=ready_to_promote` for the intended version, App commit, shell ref,
-  Full refs, remote verification, readiness summary, and job results.
+  Standard remote verification, readiness summary, and job results.
 - Dispatch Stable only from a pinned cohort lock. Moving `main`, shell `main`,
   and framework `main` may be used to resolve SHA values during sync
   preparation, but the final release train must consume resolved App/Shell/

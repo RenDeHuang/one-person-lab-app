@@ -162,8 +162,9 @@ conflict, not release evidence failure.
 
 Docker/WebUI releases are gated by Docker build, GHCR publish, and clean Linux
 Docker runtime smoke. These gates stay in the same release cohort and remain
-visible in readiness job results, but they are add-on gates for Standard stable
-readiness unless `require_addon_gates_for_stable_readiness=true` is dispatched.
+visible in add-on results, but they never block or revoke Standard Stable. The
+legacy `require_addon_gates_for_stable_readiness` input is audit-only and has no
+promotion effect.
 `docker_webui_clean_windows_evidence_artifact` is optional diagnostic input;
 missing Windows evidence must not block a macOS App stable release or a
 Docker/WebUI image release.
@@ -312,17 +313,28 @@ operator inputs. A later status update must not carry an old current-authority
 or follow-up ref as if it were fresh evidence unless the operator supplies it
 again for that run.
 
-Full build is the only Full lane that may run in parallel with Standard before
-Standard admission. Full publish, Full VM, and Full readiness must wait for the
-Standard gate so a broken Standard path fails fast before expensive add-on
-publication or clean-install proof work expands the run.
+Stable is Standard-first. The Standard build, exact-artifact VM gate, remote
+verification, Formula/Standard-cask distribution, and local activation close
+the Stable critical path without waiting for Full or Docker/WebUI. Full runs
+later through `desktop-release-full-addon.yml` against the exact frozen
+App/Shell/Framework/package BOM. Its build, VM, attestation, upload, and remote
+verification have an independent receipt and cannot revoke an already-published
+Standard Stable.
+
+The only permitted post-publish App release mutation is additive Full delivery:
+append `One-Person-Lab-Full-<version>-mac-arm64.dmg` and
+`opl-release-manifest.json`. An existing same-name asset is reused only when
+size and SHA-256 match; different bytes fail and require a new version. The
+add-on must not overwrite assets, edit release notes, move App latest or WebUI
+stable, or change updater metadata. Any App, Shell, Framework, or package BOM
+change also requires a new version.
 
 Critical-path targets:
 
 | Path | Target wall time | Owner action when exceeded |
 | --- | --- | --- |
 | Stable standard-only candidate | 35-45 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
-| Stable with Full package, Docker/WebUI, and VM gates | 43-50 minutes for the release workflow; 55-70 minutes including normal operator interaction and promote | At 75 minutes, run `release:operator status` and classify the active job/step before waiting longer. At 90 minutes, stop passive waiting and identify the blocker owner or same-cohort retry path. |
+| Asynchronous Full/Docker add-ons | 35-50 minutes without extending Stable lead time | Diagnose or retry only the failed same-cohort add-on; do not redispatch or roll back Standard. |
 | Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
 | Promote after owner receipt | 8-12 minutes | Promote from a ready candidate record; inspect at 10 minutes and treat 15 minutes as the hard-stop SLA for the promote workflow. Do not rerun desktop release to carry owner metadata. |
 
@@ -332,10 +344,10 @@ design, and roughly 30% as implementation bugs. The first repair target is
 therefore shortening the critical path and making retry state explicit before
 adding more scripts.
 
-The expensive Full first-install assembly starts only after the Standard build
-workflow has passed its type, DOM, contract, lint, and package-build gates. A
-failure in that cheaper predecessor must stop Full runtime assembly instead of
-letting it drain for tens of minutes. If the single `gh run watch` process exits
+The expensive Full first-install assembly starts only after Standard is
+published from its exact cohort. A Standard failure therefore stops the core
+release before Full consumes capacity, while a later Full failure remains an
+add-on failure. If the single `gh run watch` process exits
 because of a transport error while GitHub still reports `queued` or
 `in_progress`, or the terminal readback itself is temporarily unavailable, the
 stable session remains in its running phase and reconnects at most three times
@@ -372,9 +384,10 @@ tap commit, candidate record, or small evidence artifact first. Rerun the full
 desktop train only when the diagnostic proves the artifact, source gate, pinned
 cohort, or release-owner decision is invalid.
 
-Promotion is a receipt-backed saga: publish the GitHub Release as public but not
-latest, atomically publish both Standard and Full casks through the tap owner,
-qualify both casks in clean VMs, and only then activate latest. A partial failure
+Promotion is a Standard-only receipt-backed saga: publish the GitHub Release as
+public but not latest, atomically publish the Formula and Standard cask through
+the tap owner, qualify the Standard cask in a clean VM, and only then activate
+App latest. A partial failure
 must rerun failed jobs in the original promotion run and reuse an existing
 immutable distribution receipt; it must not dispatch a second promotion or tap
 mutation. Completion additionally requires the same-version local installation
@@ -383,10 +396,12 @@ or console errors. Phase timings and dispatch counts are recorded. Ninety minute
 is an efficiency advisory that triggers blocker classification and evidence
 reuse, not permission to abandon an authorized release.
 
-`desktop-release.yml` is the source/candidate train and never writes the Stable
-or Full tap. Its add-on summary records Stable distribution plus both Homebrew
-clean-VM gates as deferred. `desktop-release-promote.yml` is their sole App-side
-owner after the candidate, exact Full qualification, and owner receipt pass.
+`desktop-release.yml` is the Standard source/candidate train and never writes
+the tap. `desktop-release-promote.yml` owns Standard promotion after the
+candidate, exact Standard qualification, and owner receipt pass.
+`desktop-release-full-addon.yml` is a later additive-only Full path; it never
+repeats Standard publish, Stable/Release Set promotion, latest activation, or
+updater mutation.
 
 ## Artifact Attestation And Provenance
 
@@ -774,8 +789,13 @@ opl packages reconcile
 opl connect sync-skills
 ```
 
-Stable desktop releases update the stable cask only after the promote workflow publishes the complete draft and reads it back as immutable Stable. Published releases are never refreshed in place. Same-owner App release tap writes use direct commits; do not restore tap pull-request mode as a compatibility path.
-`release-readiness-admission` reads `release-preflight.outputs.homebrew_tap_update_required`. When preflight says the tap update is required, the stable tap update, the Homebrew standard VM gate, and the Full tap update for Full releases must pass before readiness aggregation. When preflight says the tap update is not required, those Homebrew jobs may be `skipped`; readiness must not fail at the summary stage only because the tap was already current.
+Stable desktop releases update only the Formula and Standard cask after the
+promote workflow publishes and reads back the Standard release. Full and
+Nightly casks are outside that transaction. Published Standard assets are
+immutable; the same-cohort Full add-on may only append its two allowlisted
+assets under the digest-conflict rule above. Same-owner App release tap writes
+use direct commits; do not restore tap pull-request mode as a compatibility
+path.
 
 ## Stable macOS Local Authorization
 
@@ -1283,8 +1303,9 @@ This is the default fast path after owner receipt for a frozen cohort.
 owner receipt, then promote. `draft_candidate` is diagnostic and does not imply
 stable/latest. `refresh_existing` repairs only an unpublished draft; after the
 complete cohort passes its gates, publish it through the promote workflow.
-Published Stable and Nightly releases are immutable and always require a new
-version.
+Published Stable and Nightly assets are immutable. A same-cohort Full add-on may
+append only its allowlisted assets; replacing any asset, changing source/BOM,
+or changing release state always requires a new version.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 

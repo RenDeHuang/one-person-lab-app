@@ -146,7 +146,8 @@ test('desktop release dispatch is derived entirely from the frozen cohort', () =
   assert.match(args, new RegExp(`framework_ref=${frameworkSha}`));
   assert.match(args, /include_full_package=true/);
   assert.match(args, /run_vm_smoke=true/);
-  assert.match(args, /require_addon_gates_for_stable_readiness=true/);
+  assert.match(args, /defer_addons=true/);
+  assert.match(args, /require_addon_gates_for_stable_readiness=false/);
   assert.doesNotMatch(args, /shell_ref=main/);
   assert.doesNotMatch(args, /framework_ref=main/);
 });
@@ -164,6 +165,8 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   );
   const args = promoteDispatchArgs(session, 'release_owner_receipt_ref://test', '26.7.12-r2').join(' ');
   assert.match(args, /release_run_id=29211495991/);
+  assert.match(args, /standard_vm_run_id=29211496001/);
+  assert.match(args, /schedule_full_addon=true/);
   assert.match(args, /release_set_generation=26\.7\.12-r2/);
   assert.match(args, /release_owner_receipt_ref=release_owner_receipt_ref:\/\/test/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));

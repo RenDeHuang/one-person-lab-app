@@ -1084,6 +1084,22 @@
       "mode": "unpublished_draft_release_upload_clobber",
       "scope": "Full first-install assets and Full release-note section before Stable promotion only"
     },
+    "published_addon": {
+      "workflow": ".github/workflows/desktop-release-full-addon.yml",
+      "receipt_schema": "opl_app_full_addon_receipt.v1",
+      "mode": "same_cohort_additive_only",
+      "allowed_assets": [
+        "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "opl-release-manifest.json"
+      ],
+      "same_name_same_digest": "idempotent_reuse",
+      "same_name_different_digest": "fail_and_require_new_version",
+      "standard_assets_modified": false,
+      "updater_metadata_modified": false,
+      "release_notes_modified": false,
+      "latest_modified": false,
+      "source_or_bom_change_requires_new_version": true
+    },
     "payload_boundary": {
       "role": "declared_payload_assembly_and_validation",
       "allowed_actions": [
@@ -1315,7 +1331,7 @@
       },
       "execution_policy": {
         "deduplicate_cheap_source_gates": true,
-        "stable_complete_requires_addon_gates": true,
+        "stable_complete_requires_addon_gates": false,
         "run_id_discovered_from_exact_app_sha": true,
         "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
         "monitor_transport_retry_limit": 3,
@@ -1342,7 +1358,7 @@
       "artifact_cohort": {
         "schema": "opl_app_build_artifact_cohort.v2",
         "identity": "exact product App, product Shell, Framework, packaged tree, product profile, GUI contract, build-time smoke harness, DMG SHA-256 and Actions run",
-        "artifact_build_limit_per_cohort": 1
+        "artifact_build_limit_per_artifact_kind_per_cohort": 1
       },
       "qualification_receipt": {
         "schema": "opl_app_artifact_qualification_receipt.v1",
@@ -1385,25 +1401,30 @@
         "owner_workflow": ".github/workflows/desktop-release-promote.yml",
         "framework_owner_workflow": "gaofeng21cn/one-person-lab/.github/workflows/release-package-channel.yml",
         "framework_receipt_schema": "opl_release_set_promotion_receipt.v1",
-        "webui_stable_writer": ".github/workflows/desktop-release-promote.yml",
-        "webui_stable_writer_count": 1,
+        "webui_stable_writer": "independent_webui_release_lane",
+        "webui_stable_writer_count_in_app_promotion": 0,
         "source_desktop_release_mutates_stable_or_full_tap": false,
         "order": [
           "publish_release_nonlatest",
           "framework_candidate_receipt_verified",
           "framework_latest_stable_receipt_verified",
-          "atomic_formula_and_app_cask_distribution",
+          "atomic_formula_and_standard_app_cask_distribution",
           "standard_homebrew_clean_vm",
-          "full_homebrew_clean_vm",
-          "webui_stable_activated",
           "app_latest_activated"
         ],
         "redispatch_after_partial_failure_allowed": false,
         "immutable_distribution_receipt_reuse_required": true,
-        "tap_full_vm_evidence_transport": {
+        "full_addon_dispatch": {
+          "workflow": ".github/workflows/desktop-release-full-addon.yml",
+          "timing": "after_app_latest_activation",
+          "wait_for_completion": false,
+          "dispatch_failure_blocks_standard": false,
+          "manual_same_cohort_retry_allowed": true
+        },
+        "tap_standard_vm_evidence_transport": {
           "source": "validated_artifact_qualification_receipt_raw_bytes",
           "encoding": "canonical_single_line_base64",
-          "dispatch_field": "full_vm_evidence_base64",
+          "dispatch_field": "standard_vm_evidence_base64",
           "required": true,
           "tap_cross_repository_artifact_download_allowed": false,
           "integrity_bindings": [
@@ -1413,8 +1434,8 @@
             "shell_sha",
             "framework_sha",
             "source_release_run_id",
-            "full_vm_run_id",
-            "full_vm_evidence_sha256",
+            "standard_vm_run_id",
+            "standard_vm_evidence_sha256",
             "artifact.sha256",
             "build_manifest.smoke_harness_sha256"
           ]
@@ -1422,10 +1443,10 @@
       },
       "receipts": {
         "framework_promotion": "opl_release_set_promotion_receipt.v1",
-        "distribution": "opl_stable_distribution_receipt.v2",
-        "homebrew_activation": "opl_app_homebrew_activation_receipt.v1",
-        "webui_stable_activation": "opl_webui_stable_activation_receipt.v1",
-        "promotion": "opl_app_promotion_saga_receipt.v1",
+        "distribution": "opl_stable_distribution_receipt.v3",
+        "homebrew_activation": "opl_app_homebrew_activation_receipt.v2",
+        "promotion": "opl_app_promotion_saga_receipt.v2",
+        "full_addon": "opl_app_full_addon_receipt.v1",
         "local_activation": "opl_app_local_activation_receipt.v1",
         "complete_requires_local_install_and_nonblank_cdp_readback": true
       },
@@ -1477,16 +1498,16 @@
       ],
       "same_cohort_addon_gates": [
         "full_first_install_build",
-        "remote_standard_and_full_release_verification",
-        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
+        "remote_full_addon_verification",
+        "full_addon_receipt",
         "docker_webui_smoke",
         "webui_ghcr_publish",
         "docker_webui_clean_vm_evidence"
       ],
       "addon_gate_blocking_default": false,
-      "addon_requirement_input": "require_addon_gates_for_stable_readiness",
-      "rule": "A stable release freezes one App/Shell/Framework cohort, builds and qualifies artifacts once, and uses the cohort manifest, readiness summary, candidate record, owner receipt, and targeted gate reruns for recovery and promote. Standard stable readiness is admitted from the Standard critical path by default; Full, Docker/WebUI, and Homebrew add-on gates stay same-cohort recorded gates in release-addon-readiness-summary and may be required by release owner policy before promote without blocking the Standard readiness record."
+      "addon_requirement_input": "legacy_record_only_no_promotion_effect",
+      "rule": "A stable release freezes one App/Shell/Framework and package BOM cohort, publishes and qualifies Standard first, then promotes Standard independently. Full and Docker/WebUI are asynchronous same-cohort add-ons with independent receipts; their failure cannot block or revoke an already-published Standard Stable. Full may append only allowlisted assets with digest-idempotent reuse and must not modify Standard assets, updater metadata, release notes, App latest, or WebUI stable. Any source or BOM change requires a new version."
     },
     "cohort_prepare": {
       "package_script": "release:cohort-plan",
@@ -2052,7 +2073,7 @@
     "release_readiness_admission": {
         "workflow_job": "release-readiness-admission",
         "preflight_dependency": "release-preflight",
-        "addon_requirement_input": "require_addon_gates_for_stable_readiness",
+        "addon_requirement_input": "legacy_record_only_no_promotion_effect",
         "addon_gate_blocking_default": false,
         "standard_stable_required_jobs": [
           "publish-standard",
@@ -2068,7 +2089,7 @@
         ],
         "same_cohort_addon_status_policy": "success_or_skipped_or_failed_when_not_required",
         "addon_status_artifact": "release-addon-readiness-summary-<version>",
-        "rule": "Release readiness admission must fail when Standard stable critical-path gates fail. By default it must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record; those gates keep running in the same cohort and their success, skipped, or failed statuses remain recorded in the add-on readiness summary. require_addon_gates_for_stable_readiness records the release owner expectation for promote-time policy without delaying the Standard readiness record. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running."
+        "rule": "Release readiness admission must fail when Standard stable critical-path gates fail. It must not force Full, Docker/WebUI, or Homebrew add-on gates before Standard promotion; add-on success, skipped, or failed states remain independently recorded and never invalidate published Standard. The legacy requirement input is audit-only and has no promotion effect. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running."
       },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",

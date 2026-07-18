@@ -145,25 +145,25 @@ test('Framework promotion dispatch carries the frozen Framework SHA through both
   assert.match(helper, /--framework-source-commit "\$OPL_FRAMEWORK_SOURCE_COMMIT"/);
 });
 
-test('Homebrew Stable dispatch carries the validated Full VM receipt raw bytes without cross-repo download', () => {
+test('Homebrew Stable dispatch carries the validated Standard VM receipt raw bytes without cross-repo download', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
   assert.match(
     workflow,
-    /full_vm_evidence_base64: \$\{\{ steps\.full-vm\.outputs\.evidence_base64 \}\}/,
+    /standard_vm_evidence_base64: \$\{\{ steps\.standard-vm\.outputs\.evidence_base64 \}\}/,
   );
   assert.match(workflow, /const bytes = fs\.readFileSync\(receiptPath\)/);
   assert.match(workflow, /const encoded = bytes\.toString\('base64'\)/);
   assert.match(workflow, /evidence_base64=\$\{encoded\}/);
   assert.match(
     workflow,
-    /FULL_VM_EVIDENCE_BASE64: \$\{\{ needs\.prepare\.outputs\.full_vm_evidence_base64 \}\}/,
+    /STANDARD_VM_EVIDENCE_BASE64: \$\{\{ needs\.prepare\.outputs\.standard_vm_evidence_base64 \}\}/,
   );
-  assert.match(workflow, /test -n "\$FULL_VM_EVIDENCE_BASE64"/);
-  assert.match(workflow, /--field full_vm_evidence_base64="\$FULL_VM_EVIDENCE_BASE64"/);
+  assert.match(workflow, /test -n "\$STANDARD_VM_EVIDENCE_BASE64"/);
+  assert.match(workflow, /--field standard_vm_evidence_base64="\$STANDARD_VM_EVIDENCE_BASE64"/);
   assert.doesNotMatch(workflow, /repos\/\$TAP_REPO\/actions\/artifacts[\s\S]*artifact-qualification-receipt/);
 });
 
-test('Homebrew Stable distribution v2 binds Formula and App casks to the Framework Release Set digest', () => {
+test('Homebrew Stable distribution v3 binds Formula and Standard App cask to the Framework Release Set digest', () => {
   const formula = {
     path: 'Formula/opl.rb',
     formula_name: 'opl',
@@ -181,7 +181,7 @@ test('Homebrew Stable distribution v2 binds Formula and App casks to the Framewo
     url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.13/${name}.dmg`,
   });
   const receipt = {
-    schema: 'opl_stable_distribution_receipt.v2',
+    schema: 'opl_stable_distribution_receipt.v3',
     status: 'verified',
     stable_session_id: `sha256:${'2'.repeat(64)}`,
     release_set: {
@@ -213,16 +213,14 @@ test('Homebrew Stable distribution v2 binds Formula and App casks to the Framewo
       release_set_generation: generation,
       release_set_manifest_digest: digest,
     },
-    full_vm: {
+    standard_vm: {
       run_id: frameworkRunId, evidence_ref: 'opl-first-run-vm-full-654321',
       evidence_sha256: '4'.repeat(64), result: 'passed',
     },
     tap: {
       repo: 'gaofeng21cn/homebrew-one-person-lab', commit_sha: sourceCommit,
-      annotated_tag: 'stable-distribution/v26.7.13', formula,
+      annotated_tag: 'stable-standard-distribution/v26.7.13', formula,
       standard_cask: cask('one-person-lab'),
-      full_cask: cask('one-person-lab-full'),
-      nightly_cask: cask('one-person-lab-nightly', '26.7.13-nightly.r1'),
     },
   };
   assert.deepEqual(validateStableDistributionReceipt(receipt, {
@@ -235,15 +233,21 @@ test('Homebrew Stable distribution v2 binds Formula and App casks to the Framewo
     releaseSetGeneration: generation,
     releaseSetManifestDigest: digest,
     sourceReleaseRunId: sourceAppRunId,
-    fullVmRunId: frameworkRunId,
+    standardVmRunId: frameworkRunId,
   }), []);
 });
 
-test('only desktop-release-promote owns the WebUI Stable mutation', () => {
+test('Standard promotion and Full add-on never mutate the independent WebUI Stable channel', () => {
   const source = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release.yml'), 'utf8');
   const promote = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const addon = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-full-addon.yml'), 'utf8');
   assert.doesNotMatch(source, /\$\{ghcr_image\}:stable/);
-  assert.match(promote, /oras tag "\$\{WEBUI_IMAGE\}@\$\{WEBUI_VERSION_DIGEST\}" stable/);
+  assert.doesNotMatch(promote, /oras tag [^\n]* stable/);
+  assert.doesNotMatch(addon, /oras tag [^\n]* stable/);
+  assert.doesNotMatch(addon, /make_latest/);
+  assert.match(promote, /Queue asynchronous same-cohort Full add-on/);
+  assert.match(promote, /continue-on-error: true/);
+  assert.match(promote, /workflow run desktop-release-full-addon\.yml/);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/webui-ghcr-release.yml')), false);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/homebrew-tap-update.yml')), false);
 });

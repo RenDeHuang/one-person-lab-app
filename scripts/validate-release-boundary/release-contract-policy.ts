@@ -239,6 +239,7 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
 function validateReleaseImmutability(releaseContract: Record<string, any>): number {
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
+  const fullAddon = releaseContract.full_first_install?.published_addon;
   const nightly = releaseContract.nightly_standard;
   const sameDayRebuild = nightly?.same_day_rebuild;
   if (
@@ -248,6 +249,20 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.allowed !== true ||
     fullDraft?.published_release_mutation_allowed !== false ||
     fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
+    fullAddon?.workflow !== '.github/workflows/desktop-release-full-addon.yml' ||
+    fullAddon?.receipt_schema !== 'opl_app_full_addon_receipt.v1' ||
+    fullAddon?.mode !== 'same_cohort_additive_only' ||
+    !sameStringSet(fullAddon?.allowed_assets, [
+      'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+      'opl-release-manifest.json',
+    ]) ||
+    fullAddon?.same_name_same_digest !== 'idempotent_reuse' ||
+    fullAddon?.same_name_different_digest !== 'fail_and_require_new_version' ||
+    fullAddon?.standard_assets_modified !== false ||
+    fullAddon?.updater_metadata_modified !== false ||
+    fullAddon?.release_notes_modified !== false ||
+    fullAddon?.latest_modified !== false ||
+    fullAddon?.source_or_bom_change_requires_new_version !== true ||
     nightly?.tag_pattern !== 'v<YY.M.D>-nightly[.r<1-9>]' ||
     sameDayRebuild?.first_release_suffix !== null ||
     sameDayRebuild?.suffix_pattern !== '.r<revision>' ||
@@ -260,7 +275,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.prerelease !== true ||
     nightly?.latest_release_allowed !== false
   ) {
-    console.error('FAIL release_immutability: only unpublished drafts may refresh; Nightly must use an immutable date identity with bounded .r1-.r9 same-day rebuilds');
+    console.error('FAIL release_immutability: drafts may refresh, published Full may only append same-cohort digest-idempotent assets, and Nightly uses bounded immutable date identities');
     return 1;
   }
   return 0;
@@ -559,7 +574,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
-  const tapFullVmEvidenceTransport = stableReleaseStateMachine?.promotion_saga?.tap_full_vm_evidence_transport;
+  const tapStandardVmEvidenceTransport = stableReleaseStateMachine?.promotion_saga?.tap_standard_vm_evidence_transport;
 
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
@@ -580,7 +595,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.cohort_binding?.cross_cohort_artifact_reuse_allowed !== false ||
     stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
     stableReleaseStateMachine?.execution_policy?.deduplicate_cheap_source_gates !== true ||
-    stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
+    stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== false ||
     stableReleaseStateMachine?.execution_policy?.monitor_transport_retry_limit !== 3 ||
     stableReleaseStateMachine?.execution_policy?.monitor_nonterminal_exit_preserves_running_state !== true ||
     stableReleaseStateMachine?.execution_policy?.monitor_readback_failure_preserves_running_state !== true ||
@@ -596,7 +611,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.recovery_policy?.artifact_build_failed_can_reconcile_original_run_without_redispatch !== true ||
     stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
     stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
-    stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_artifact_kind_per_cohort !== 1 ||
     stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
     stableReleaseStateMachine?.qualification_receipt?.separate_verification_harness_allowed_only_for !== 'smoke_or_validator_only_change' ||
     !sameStringSet(stableReleaseStateMachine?.qualification_receipt?.verification_harness_required_fields, [
@@ -630,24 +645,30 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.promotion_saga?.owner_workflow !== '.github/workflows/desktop-release-promote.yml' ||
     stableReleaseStateMachine?.promotion_saga?.framework_owner_workflow !== 'gaofeng21cn/one-person-lab/.github/workflows/release-package-channel.yml' ||
     stableReleaseStateMachine?.promotion_saga?.framework_receipt_schema !== 'opl_release_set_promotion_receipt.v1' ||
-    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer !== '.github/workflows/desktop-release-promote.yml' ||
-    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer_count !== 1 ||
+    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer !== 'independent_webui_release_lane' ||
+    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer_count_in_app_promotion !== 0 ||
     stableReleaseStateMachine?.promotion_saga?.source_desktop_release_mutates_stable_or_full_tap !== false ||
     stableReleaseStateMachine?.promotion_saga?.redispatch_after_partial_failure_allowed !== false ||
-    tapFullVmEvidenceTransport?.source !== 'validated_artifact_qualification_receipt_raw_bytes' ||
-    tapFullVmEvidenceTransport?.encoding !== 'canonical_single_line_base64' ||
-    tapFullVmEvidenceTransport?.dispatch_field !== 'full_vm_evidence_base64' ||
-    tapFullVmEvidenceTransport?.required !== true ||
-    tapFullVmEvidenceTransport?.tap_cross_repository_artifact_download_allowed !== false ||
-    !sameStringSet(tapFullVmEvidenceTransport?.integrity_bindings, [
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.workflow !== '.github/workflows/desktop-release-full-addon.yml' ||
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.timing !== 'after_app_latest_activation' ||
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.wait_for_completion !== false ||
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.dispatch_failure_blocks_standard !== false ||
+    stableReleaseStateMachine?.promotion_saga?.full_addon_dispatch?.manual_same_cohort_retry_allowed !== true ||
+    tapStandardVmEvidenceTransport?.source !== 'validated_artifact_qualification_receipt_raw_bytes' ||
+    tapStandardVmEvidenceTransport?.encoding !== 'canonical_single_line_base64' ||
+    tapStandardVmEvidenceTransport?.dispatch_field !== 'standard_vm_evidence_base64' ||
+    tapStandardVmEvidenceTransport?.required !== true ||
+    tapStandardVmEvidenceTransport?.tap_cross_repository_artifact_download_allowed !== false ||
+    !sameStringSet(tapStandardVmEvidenceTransport?.integrity_bindings, [
       'stable_session_id', 'release_cohort_ref', 'app_sha', 'shell_sha', 'framework_sha',
-      'source_release_run_id', 'full_vm_run_id', 'full_vm_evidence_sha256',
+      'source_release_run_id', 'standard_vm_run_id', 'standard_vm_evidence_sha256',
       'artifact.sha256', 'build_manifest.smoke_harness_sha256',
     ]) ||
     stableReleaseStateMachine?.receipts?.framework_promotion !== 'opl_release_set_promotion_receipt.v1' ||
-    stableReleaseStateMachine?.receipts?.distribution !== 'opl_stable_distribution_receipt.v2' ||
-    stableReleaseStateMachine?.receipts?.webui_stable_activation !== 'opl_webui_stable_activation_receipt.v1' ||
-    stableReleaseStateMachine?.receipts?.homebrew_activation !== 'opl_app_homebrew_activation_receipt.v1' ||
+    stableReleaseStateMachine?.receipts?.distribution !== 'opl_stable_distribution_receipt.v3' ||
+    stableReleaseStateMachine?.receipts?.homebrew_activation !== 'opl_app_homebrew_activation_receipt.v2' ||
+    stableReleaseStateMachine?.receipts?.promotion !== 'opl_app_promotion_saga_receipt.v2' ||
+    stableReleaseStateMachine?.receipts?.full_addon !== 'opl_app_full_addon_receipt.v1' ||
     stableReleaseStateMachine?.receipts?.local_activation !== 'opl_app_local_activation_receipt.v1' ||
     stableReleaseStateMachine?.profiling?.efficiency_advisory_after_minutes !== 90 ||
     stableReleaseStateMachine?.profiling?.efficiency_advisory_is_stop_condition !== false ||
@@ -913,14 +934,15 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     readinessAdmission?.workflow_job !== 'release-readiness-admission' ||
     readinessAdmission?.preflight_dependency !== 'release-preflight' ||
-    readinessAdmission?.addon_requirement_input !== 'require_addon_gates_for_stable_readiness' ||
+    readinessAdmission?.addon_requirement_input !== 'legacy_record_only_no_promotion_effect' ||
     readinessAdmission?.addon_gate_blocking_default !== false ||
     readinessAdmission?.addon_status_artifact !== 'release-addon-readiness-summary-<version>' ||
     !Array.isArray(readinessAdmission?.homebrew_source_run_gate_ids) ||
     readinessAdmission.homebrew_source_run_gate_ids.length !== 0 ||
     readinessAdmission?.homebrew_deferred_to_promotion_saga !== true ||
     readinessAdmission?.homebrew_allowed_in_source_readiness !== 'deferred_to_promotion_saga' ||
-    !readinessAdmission?.rule?.includes('must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record') ||
+    !readinessAdmission?.rule?.includes('must not force Full, Docker/WebUI, or Homebrew add-on gates before Standard promotion') ||
+    !readinessAdmission?.rule?.includes('legacy requirement input is audit-only and has no promotion effect') ||
     !readinessAdmission?.rule?.includes('Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running')
   ) {
     console.error('FAIL release_readiness_admission_policy: readiness admission must keep Standard readiness separate from same-cohort add-on status');

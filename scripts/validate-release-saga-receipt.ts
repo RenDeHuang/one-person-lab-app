@@ -16,7 +16,7 @@ const { values } = parseArgs({
     'app-sha': { type: 'string', default: '' }, 'shell-sha': { type: 'string', default: '' },
     'framework-sha': { type: 'string', default: '' }, 'source-release-run-id': { type: 'string', default: '' },
     'release-set-generation': { type: 'string', default: '' }, 'release-set-manifest-digest': { type: 'string', default: '' },
-    'full-vm-run-id': { type: 'string', default: '' }, 'distribution-receipt-sha256': { type: 'string', default: '' },
+    'standard-vm-run-id': { type: 'string', default: '' }, 'distribution-receipt-sha256': { type: 'string', default: '' },
     'artifact-sha256': { type: 'string', default: '' },
     'local-authorization-policy': { type: 'string', default: '' },
   },
@@ -31,7 +31,7 @@ const expected = {
   shellSha: values['shell-sha'] || undefined, frameworkSha: values['framework-sha'] || undefined,
   releaseSetGeneration: values['release-set-generation'] || undefined,
   releaseSetManifestDigest: values['release-set-manifest-digest'] || undefined,
-  sourceReleaseRunId: values['source-release-run-id'] || undefined, fullVmRunId: values['full-vm-run-id'] || undefined,
+  sourceReleaseRunId: values['source-release-run-id'] || undefined, standardVmRunId: values['standard-vm-run-id'] || undefined,
 };
 const receipt = readReceipt(values.receipt!);
 let errors: string[];

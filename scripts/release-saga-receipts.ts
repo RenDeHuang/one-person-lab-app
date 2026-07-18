@@ -7,8 +7,8 @@ const digestRefPattern = /^sha256:[0-9a-f]{64}$/;
 
 type JsonRecord = Record<string, unknown>;
 
-export type StableDistributionReceiptV2 = {
-  schema: 'opl_stable_distribution_receipt.v2';
+export type StableDistributionReceiptV3 = {
+  schema: 'opl_stable_distribution_receipt.v3';
   status: 'verified';
   stable_session_id: string;
   release_set: {
@@ -37,7 +37,7 @@ export type StableDistributionReceiptV2 = {
     release_set_generation: string;
     release_set_manifest_digest: string;
   };
-  full_vm: {
+  standard_vm: {
     run_id: string;
     evidence_ref: string;
     evidence_sha256: string;
@@ -49,8 +49,6 @@ export type StableDistributionReceiptV2 = {
     annotated_tag: string;
     formula: StableDistributionFormula;
     standard_cask: StableDistributionCask;
-    full_cask: StableDistributionCask;
-    nightly_cask: StableDistributionCask;
   };
 };
 
@@ -80,14 +78,13 @@ export type HomebrewVmActivation = {
   result: 'passed';
 };
 
-export type HomebrewActivationReceiptV1 = {
-  schema: 'opl_app_homebrew_activation_receipt.v1';
+export type HomebrewActivationReceiptV2 = {
+  schema: 'opl_app_homebrew_activation_receipt.v2';
   status: 'verified';
   stable_session_id: string;
   version: string;
   distribution_receipt_sha256: string;
   standard: HomebrewVmActivation;
-  full: HomebrewVmActivation;
 };
 
 export type LocalActivationReceiptV1 = {
@@ -127,8 +124,8 @@ export type LocalActivationReceiptV1 = {
   };
 };
 
-export type PromotionSagaReceiptV1 = {
-  schema: 'opl_app_promotion_saga_receipt.v1';
+export type PromotionSagaReceiptV2 = {
+  schema: 'opl_app_promotion_saga_receipt.v2';
   status: 'verified';
   stable_session_id: string;
   version: string;
@@ -146,7 +143,6 @@ export type PromotionSagaReceiptV1 = {
     receipt_ref: string;
     receipt_sha256: string;
     standard_vm_run_id: string;
-    full_vm_run_id: string;
   };
   stages: Array<{
     id: 'release_public_nonlatest' | 'distribution_synced' | 'homebrew_verified' | 'latest_activated';
@@ -164,7 +160,7 @@ export type ReceiptExpectation = {
   releaseSetGeneration?: string;
   releaseSetManifestDigest?: string;
   sourceReleaseRunId?: string;
-  fullVmRunId?: string;
+  standardVmRunId?: string;
 };
 
 function record(value: unknown): JsonRecord | null {
@@ -212,7 +208,7 @@ export function validateStableDistributionReceipt(
   const receipt = record(value);
   if (!receipt) return ['distribution receipt is not an object'];
   const errors: string[] = [];
-  if (receipt.schema !== 'opl_stable_distribution_receipt.v2') errors.push(`distribution receipt schema is ${string(receipt.schema) || '<missing>'}`);
+  if (receipt.schema !== 'opl_stable_distribution_receipt.v3') errors.push(`distribution receipt schema is ${string(receipt.schema) || '<missing>'}`);
   if (receipt.status !== 'verified') errors.push(`distribution receipt status is ${string(receipt.status) || '<missing>'}`);
   if (receipt.stable_session_id !== expected.stableSessionId || !digestRefPattern.test(string(receipt.stable_session_id))) {
     errors.push(`stable_session_id is ${string(receipt.stable_session_id) || '<missing>'}`);
@@ -255,28 +251,23 @@ export function validateStableDistributionReceipt(
       if (!shaPattern.test(string(cohort[key]))) errors.push(`${key} is not a full Git SHA`);
     }
   }
-  const fullVm = record(receipt.full_vm);
-  if (!fullVm) errors.push('full_vm section is missing');
+  const standardVm = record(receipt.standard_vm);
+  if (!standardVm) errors.push('standard_vm section is missing');
   else {
-    if (expected.fullVmRunId && fullVm.run_id !== expected.fullVmRunId) errors.push(`full VM run is ${string(fullVm.run_id) || '<missing>'}`);
-    if (!/^\d+$/.test(string(fullVm.run_id))) errors.push('full VM run_id is invalid');
-    if (!string(fullVm.evidence_ref)) errors.push('full VM evidence_ref is missing');
-    if (!digestPattern.test(string(fullVm.evidence_sha256))) errors.push('full VM evidence_sha256 is invalid');
-    if (fullVm.result !== 'passed') errors.push(`full VM result is ${string(fullVm.result) || '<missing>'}`);
+    if (expected.standardVmRunId && standardVm.run_id !== expected.standardVmRunId) errors.push(`standard VM run is ${string(standardVm.run_id) || '<missing>'}`);
+    if (!/^\d+$/.test(string(standardVm.run_id))) errors.push('standard VM run_id is invalid');
+    if (!string(standardVm.evidence_ref)) errors.push('standard VM evidence_ref is missing');
+    if (!digestPattern.test(string(standardVm.evidence_sha256))) errors.push('standard VM evidence_sha256 is invalid');
+    if (standardVm.result !== 'passed') errors.push(`standard VM result is ${string(standardVm.result) || '<missing>'}`);
   }
   const tap = record(receipt.tap);
   if (!tap) errors.push('tap section is missing');
   else {
     if (tap.repo !== 'gaofeng21cn/homebrew-one-person-lab') errors.push(`tap repo is ${string(tap.repo) || '<missing>'}`);
     if (!shaPattern.test(string(tap.commit_sha))) errors.push('tap commit_sha is invalid');
-    if (tap.annotated_tag !== `stable-distribution/v${expected.version}`) errors.push(`tap annotated_tag is ${string(tap.annotated_tag) || '<missing>'}`);
+    if (tap.annotated_tag !== `stable-standard-distribution/v${expected.version}`) errors.push(`tap annotated_tag is ${string(tap.annotated_tag) || '<missing>'}`);
     validateFormula(tap.formula, releaseSet, errors);
     validateCask(tap.standard_cask, expected.version, 'Casks/one-person-lab.rb', errors);
-    validateCask(tap.full_cask, expected.version, 'Casks/one-person-lab-full.rb', errors);
-    const nightly = record(tap.nightly_cask);
-    if (!nightly || nightly.path !== 'Casks/one-person-lab-nightly.rb' || !digestPattern.test(string(nightly.sha256))) {
-      errors.push('Casks/one-person-lab-nightly.rb receipt is missing or invalid');
-    }
   }
   return errors;
 }
@@ -298,13 +289,12 @@ export function validateHomebrewActivationReceipt(value: unknown, expected: Rece
   const receipt = record(value);
   if (!receipt) return ['Homebrew activation receipt is not an object'];
   const errors: string[] = [];
-  if (receipt.schema !== 'opl_app_homebrew_activation_receipt.v1') errors.push(`Homebrew activation schema is ${string(receipt.schema) || '<missing>'}`);
+  if (receipt.schema !== 'opl_app_homebrew_activation_receipt.v2') errors.push(`Homebrew activation schema is ${string(receipt.schema) || '<missing>'}`);
   if (receipt.status !== 'verified') errors.push(`Homebrew activation status is ${string(receipt.status) || '<missing>'}`);
   if (receipt.stable_session_id !== expected.stableSessionId) errors.push(`stable_session_id is ${string(receipt.stable_session_id) || '<missing>'}`);
   if (receipt.version !== expected.version) errors.push(`version is ${string(receipt.version) || '<missing>'}`);
   if (receipt.distribution_receipt_sha256 !== expected.distributionReceiptSha256) errors.push(`distribution receipt sha256 is ${string(receipt.distribution_receipt_sha256) || '<missing>'}`);
   validateVmActivation(receipt.standard, 'homebrew-standard', errors);
-  validateVmActivation(receipt.full, 'homebrew-full', errors);
   return errors;
 }
 
@@ -348,7 +338,7 @@ export function validatePromotionSagaReceipt(value: unknown, expected: ReceiptEx
   const receipt = record(value);
   if (!receipt) return ['promotion saga receipt is not an object'];
   const errors: string[] = [];
-  if (receipt.schema !== 'opl_app_promotion_saga_receipt.v1') errors.push(`promotion saga schema is ${string(receipt.schema) || '<missing>'}`);
+  if (receipt.schema !== 'opl_app_promotion_saga_receipt.v2') errors.push(`promotion saga schema is ${string(receipt.schema) || '<missing>'}`);
   if (receipt.status !== 'verified') errors.push(`promotion saga status is ${string(receipt.status) || '<missing>'}`);
   if (receipt.stable_session_id !== expected.stableSessionId) errors.push(`stable_session_id is ${string(receipt.stable_session_id) || '<missing>'}`);
   if (receipt.version !== expected.version) errors.push(`version is ${string(receipt.version) || '<missing>'}`);
@@ -357,7 +347,7 @@ export function validatePromotionSagaReceipt(value: unknown, expected: ReceiptEx
   const distribution = record(receipt.distribution);
   if (!distribution || !string(distribution.receipt_ref) || !digestPattern.test(string(distribution.receipt_sha256))) errors.push('distribution receipt identity is invalid');
   const activation = record(receipt.homebrew_activation);
-  if (!activation || !string(activation.receipt_ref) || !digestPattern.test(string(activation.receipt_sha256)) || !/^\d+$/.test(string(activation.standard_vm_run_id)) || !/^\d+$/.test(string(activation.full_vm_run_id))) errors.push('Homebrew activation receipt identity is invalid');
+  if (!activation || !string(activation.receipt_ref) || !digestPattern.test(string(activation.receipt_sha256)) || !/^\d+$/.test(string(activation.standard_vm_run_id))) errors.push('Homebrew activation receipt identity is invalid');
   const stages = Array.isArray(receipt.stages) ? receipt.stages.map(record) : [];
   const expectedStages = ['release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated'];
   if (stages.length !== expectedStages.length || expectedStages.some((id, index) => stages[index]?.id !== id || stages[index]?.status !== 'verified')) errors.push('promotion saga stages are incomplete or out of order');

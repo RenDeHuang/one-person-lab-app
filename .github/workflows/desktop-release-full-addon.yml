@@ -1,0 +1,179 @@
+name: OPL Desktop Full Add-on
+run-name: OPL Desktop Full Add-on v${{ inputs.opl_version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version: { description: Already-published Stable version, required: true, type: string }
+      stable_session_id: { description: Original Standard Stable session id, required: true, type: string }
+      release_cohort_ref: { description: Original frozen release cohort ref, required: true, type: string }
+      app_sha: { description: Frozen App SHA, required: true, type: string }
+      shell_sha: { description: Frozen Shell SHA, required: true, type: string }
+      framework_sha: { description: Frozen Framework SHA, required: true, type: string }
+      release_set_generation: { description: Immutable Release Set generation promoted by Standard, required: true, type: string }
+      release_set_manifest_digest: { description: Immutable Release Set digest promoted by Standard, required: true, type: string }
+      force_rebuild_runtime_cache: { description: Rebuild all Full layers, required: false, default: false, type: boolean }
+
+permissions:
+  contents: write
+  actions: read
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: opl-app-full-addon-${{ inputs.opl_version }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  preflight:
+    name: Verify published Standard and frozen add-on cohort
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate immutable inputs and Standard release
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:version:validate -- --channel stable --version "${{ inputs.opl_version }}"
+          [[ "${{ inputs.stable_session_id }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${{ inputs.release_cohort_ref }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${{ inputs.release_set_manifest_digest }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          for sha in "${{ inputs.app_sha }}" "${{ inputs.shell_sha }}" "${{ inputs.framework_sha }}"; do [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; done
+          test "$GITHUB_SHA" = "${{ inputs.app_sha }}"
+          tag="v${{ inputs.opl_version }}"
+          test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = false
+          test "$(gh release view "$tag" --json isPrerelease --jq .isPrerelease)" = false
+          test "$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')" = "${{ inputs.app_sha }}"
+
+      - name: Bind add-on inputs to the immutable Standard distribution receipt
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        shell: bash
+        run: |
+          set -euo pipefail
+          session_hex="${{ inputs.stable_session_id }}"; session_hex="${session_hex#sha256:}"
+          artifact="opl-stable-distribution-receipt-${{ inputs.opl_version }}-${session_hex}"
+          matches="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/artifacts" \
+            -f name="$artifact" -f per_page=100 \
+            --jq '[.artifacts[] | select(.expired == false)] | length')"
+          test "$matches" = 1 || {
+            echo "::error::Expected exactly one immutable Standard distribution receipt artifact, found $matches."; exit 1;
+          }
+          run_id="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/artifacts" \
+            -f name="$artifact" -f per_page=100 \
+            --jq '[.artifacts[] | select(.expired == false)][0].workflow_run.id')"
+          mkdir -p standard-receipt
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir standard-receipt
+          receipt="$(find standard-receipt -name opl-stable-distribution-receipt.json -type f | head -n 1)"
+          node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
+            --kind distribution --receipt "$receipt" \
+            --stable-session-id "${{ inputs.stable_session_id }}" --version "${{ inputs.opl_version }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" \
+            --framework-sha "${{ inputs.framework_sha }}" \
+            --release-set-generation "${{ inputs.release_set_generation }}" \
+            --release-set-manifest-digest "${{ inputs.release_set_manifest_digest }}"
+
+  full-build:
+    name: Build frozen Full add-on
+    needs: preflight
+    uses: ./.github/workflows/full-first-install-release.yml
+    with:
+      opl_version: ${{ inputs.opl_version }}
+      framework_ref: ${{ inputs.framework_sha }}
+      shell_ref: ${{ inputs.shell_sha }}
+      publish_to_release: false
+      upload_full_package_artifact: true
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_cohort_ref }}
+      force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
+    secrets: inherit
+
+  full-vm:
+    name: Qualify exact Full add-on artifact
+    needs: full-build
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: v${{ inputs.opl_version }}
+      release_artifact_name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64
+      release_artifact_run_id: ${{ github.run_id }}
+      package_profile: full
+      artifact_app_ref: ${{ inputs.app_sha }}
+      shell_ref: ${{ inputs.shell_sha }}
+      framework_ref: ${{ inputs.framework_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_cohort_ref }}
+    secrets: inherit
+
+  publish:
+    name: Append verified Full assets without changing Standard
+    needs: [full-build, full-vm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: '24' }
+      - name: Download Full release bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
+          path: full-package
+      - name: Download Full build cohort
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64-cohort
+          path: full-cohort
+      - name: Download Full VM qualification receipt
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: full-vm
+      - name: Validate exact build and qualification cohort
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="$(find full-cohort -name opl-build-cohort.json -type f | head -n 1)"
+          receipt="$(find full-vm -name artifact-qualification-receipt.json -type f | head -n 1)"
+          node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
+            --manifest "$manifest" --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" \
+            --framework-sha "${{ inputs.framework_sha }}" --version "${{ inputs.opl_version }}" \
+            --actions-run-id "${{ github.run_id }}" --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}"
+          node --experimental-strip-types scripts/validate-artifact-qualification-receipt.ts \
+            --receipt "$receipt" --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" --version "${{ inputs.opl_version }}" \
+            --package-profile full --result passed --qualification-run-id "${{ github.run_id }}" \
+            --source-artifact-run-id "${{ github.run_id }}" \
+            --source-artifact-name "opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64" \
+            --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" --framework-sha "${{ inputs.framework_sha }}"
+      - name: Attest Full add-on assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            full-package/One-Person-Lab-Full-${{ inputs.opl_version }}-mac-arm64.dmg
+            full-package/opl-release-manifest.json
+      - name: Add Full assets and verify remote digests
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          node --experimental-strip-types scripts/publish-full-addon.ts \
+            --version "${{ inputs.opl_version }}" --full-package-dir full-package \
+            --stable-session-id "${{ inputs.stable_session_id }}" --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --app-sha "${{ inputs.app_sha }}" --shell-sha "${{ inputs.shell_sha }}" --framework-sha "${{ inputs.framework_sha }}" \
+            --qualification-run-id "${{ github.run_id }}" --source-artifact-run-id "${{ github.run_id }}" \
+            --release-set-generation "${{ inputs.release_set_generation }}" \
+            --release-set-manifest-digest "${{ inputs.release_set_manifest_digest }}" \
+            --output opl-app-full-addon-receipt.json
+          npm run verify-remote-release -- --version "${{ inputs.opl_version }}" --include-full-package \
+            --summary-path remote-full-addon-verification.json
+      - name: Upload independent Full add-on receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-app-full-addon-receipt-${{ inputs.opl_version }}-${{ github.run_id }}
+          path: |
+            opl-app-full-addon-receipt.json
+            remote-full-addon-verification.json
+          if-no-files-found: error
+          retention-days: 90
