@@ -477,8 +477,8 @@ export function historicalPromotionRecoveryContext(
   if (Date.parse(dispatching.at) >= deadlineMs) {
     const chain = exactHistoricalPromotionRecoveryChain(session, deadlineMs);
     const predecessorCount = predecessor.dispatch_fence.prior_run_ids.length;
-    if (predecessorCount < 1 || predecessorCount > 4 || !chain || chain.length !== predecessorCount) {
-      throw new Error('Expired promotion recovery permits only the exact root plus at most four failed post-deadline successors.');
+    if (predecessorCount < 1 || predecessorCount > 5 || !chain || chain.length !== predecessorCount) {
+      throw new Error('Expired promotion recovery permits only the exact root plus at most five failed post-deadline successors.');
     }
     root = chain[0]!;
     priorRunIds = [...predecessor.dispatch_fence.prior_run_ids, terminal.run_id];
