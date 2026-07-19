@@ -322,6 +322,7 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
     `--gate-reuse-plan-ref ${shellQuote(options.gateReusePlanRef.trim())}`,
     `--include-full-package ${boolText(options.includeFullPackage)}`,
     `--run-vm-smoke ${boolText(options.runVmSmoke)}`,
+    `--publish-docker-webui ${boolText(options.publishDockerWebui)}`,
     `--shell-ref ${lock.shell.resolved_sha}`,
     `--framework-ref ${lock.framework.resolved_sha}`,
   ].join(' ');

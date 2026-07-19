@@ -68,6 +68,18 @@ test('release cohort plan records a verified immutable dispatch handle without r
   assert.equal(plan.cheap_gates.some((gate) => gate.id === 'release_cohort_lock'), false);
 });
 
+test('release cohort plan passes Docker WebUI intent to every preflight gate', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-preflight-'));
+  const planOptions = options(root, { publishDockerWebui: false });
+  const plan = buildReleaseCohortPlan(planOptions, runner(planOptions.appCommit));
+
+  for (const gateId of ['release_preflight', 'vm_smoke_dependency_preflight']) {
+    const gate = plan.cheap_gates.find(({ id }) => id === gateId);
+    assert.ok(gate, `missing ${gateId}`);
+    assert.match(gate.command, /--publish-docker-webui false(?:\s|$)/);
+  }
+});
+
 test('release cohort plan separates a fresh canonical controller SHA from the frozen App artifact SHA', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-moved-'));
   const planOptions = options(root);
