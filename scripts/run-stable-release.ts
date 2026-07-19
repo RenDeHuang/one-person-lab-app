@@ -3097,8 +3097,8 @@ export async function start(
 
 async function promote(options: PromoteOptions, runner: StableReleaseCommandRunner): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
-  if (session.phase !== 'artifacts_qualified') {
-    throw new Error(`Initial promotion requires artifacts_qualified state, got ${session.phase}. Use resume --execute for a failed promotion run.`);
+  if (session.phase !== 'artifacts_qualified' && session.phase !== 'promotion_failed') {
+    throw new Error(`Promotion requires artifacts_qualified or promotion_failed state, got ${session.phase}.`);
   }
   if (!options.execute) return session;
   if (!options.watch) {

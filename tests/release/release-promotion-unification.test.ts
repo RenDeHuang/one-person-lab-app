@@ -399,3 +399,14 @@ test('App latest mutation and promotion receipt stay bound to the exact historic
 
   assert.match(uploadStep, /actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
 });
+
+test('promotion startup failure creates a fresh controller attempt instead of replaying the workflow ticket', () => {
+  const controller = fs.readFileSync(path.join(appRoot, 'scripts/run-stable-release.ts'), 'utf8');
+  assert.match(
+    controller,
+    /session\.phase !== 'artifacts_qualified' && session\.phase !== 'promotion_failed'/,
+  );
+  assert.match(controller, /const retrying = session\.phase === 'promotion_failed'/);
+  assert.match(controller, /planReleaseMutationAttempt\(session/);
+  assert.doesNotMatch(controller, /gh run rerun/);
+});
