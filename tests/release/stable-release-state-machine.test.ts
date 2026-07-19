@@ -1696,6 +1696,11 @@ test('expired promotion successor requires the exact pre-deadline failed zero-ch
   );
 });
 
+test('reconcile run readback uses the independent read-only transport budget', () => {
+  const controller = fs.readFileSync(path.join(process.cwd(), 'scripts/run-stable-release.ts'), 'utf8');
+  assert.match(controller, /runView\(run, current, runId, Date\.now, 'read_only_reconcile'\)/);
+});
+
 test('same-artifact qualification keeps the verification Shell exact to the artifact cohort', () => {
   const session = buildStableReleaseSession(plan());
   session.release_run.id = '29246288414';

@@ -3471,7 +3471,7 @@ async function main(): Promise<void> {
     try {
       const session = reconcileStableReleaseSession(current, {
         readRun: (runId, attempt) => {
-          const result = runView(run, current, runId).readback;
+          const result = runView(run, current, runId, Date.now, 'read_only_reconcile').readback;
           const workflow = result
             ? Object.entries(workflowNames).find(([, name]) => name === result.workflowName)?.[0] ?? result.workflowName ?? ''
             : '';
