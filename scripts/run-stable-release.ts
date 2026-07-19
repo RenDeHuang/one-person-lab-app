@@ -477,8 +477,8 @@ export function historicalPromotionRecoveryContext(
   if (Date.parse(dispatching.at) >= deadlineMs) {
     const chain = exactHistoricalPromotionRecoveryChain(session, deadlineMs);
     const predecessorCount = predecessor.dispatch_fence.prior_run_ids.length;
-    if (predecessorCount < 1 || predecessorCount > 3 || !chain || chain.length !== predecessorCount) {
-      throw new Error('Expired promotion recovery permits only the exact root plus at most three failed post-deadline successors.');
+    if (predecessorCount < 1 || predecessorCount > 4 || !chain || chain.length !== predecessorCount) {
+      throw new Error('Expired promotion recovery permits only the exact root plus at most four failed post-deadline successors.');
     }
     root = chain[0]!;
     priorRunIds = [...predecessor.dispatch_fence.prior_run_ids, terminal.run_id];
@@ -1390,7 +1390,7 @@ async function discoverAdminOneShotRun(
       'run', 'list', '--repo', session.repo, '--workflow', workflow, '--event', 'workflow_dispatch',
       '--branch', 'main', '--limit', '100',
       '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
-    ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, `discover admin one-shot ${workflow}`) });
+    ], { timeoutMs: readOnlyReleaseTransportTimeoutMs() });
     if (result.status !== 0) failResult(result, `discover admin one-shot ${workflow}`);
     let runs: WorkflowRun[];
     try {

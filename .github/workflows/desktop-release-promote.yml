@@ -626,20 +626,68 @@ jobs:
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
             --json tagName,isDraft,isPrerelease,publishedAt,targetCommitish,assets,url \
             > "$RUNNER_TEMP/app-release.json"
-          npm run release:component-manifest -- \
-            --version "$version" \
-            --source-commit "$app_commit" \
-            --release-json "$RUNNER_TEMP/app-release.json" \
-            --repo "$GITHUB_REPOSITORY" \
-            --output "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
-          cmp "$RUNNER_TEMP/published-component/opl-app-component-manifest.json" \
-            "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
-          COMPONENT="$RUNNER_TEMP/published-component/opl-app-component-manifest.json" node --input-type=module <<'NODE'
+          COMPONENT="$RUNNER_TEMP/published-component/opl-app-component-manifest.json" \
+          RELEASE="$RUNNER_TEMP/app-release.json" APP_COMMIT="$app_commit" \
+          VERSION="$version" REPOSITORY="$GITHUB_REPOSITORY" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
           import fs from 'node:fs';
-          const component = JSON.parse(fs.readFileSync(process.env.COMPONENT, 'utf8'));
-          if (!/^sha256:[0-9a-f]{64}$/.test(component.primary_artifact?.digest || '')
-            || !/^sha256:[0-9a-f]{64}$/.test(component.component_manifest_digest || '')) {
-            throw new Error('OPL App owner component manifest has no immutable artifact locks.');
+          const componentBytes = fs.readFileSync(process.env.COMPONENT);
+          const component = JSON.parse(componentBytes.toString('utf8'));
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE, 'utf8'));
+          const tag = `v${process.env.VERSION}`;
+          const repo = process.env.REPOSITORY;
+          const requiredNames = [
+            'latest-arm64-mac.yml',
+            `One-Person-Lab-${process.env.VERSION}-mac-arm64.dmg`,
+            `One-Person-Lab-${process.env.VERSION}-mac-arm64.zip`,
+            `One-Person-Lab-${process.env.VERSION}-mac-arm64.zip.blockmap`,
+            'standard-local-authorization-policy.json',
+          ];
+          if (
+            component.surface_kind !== 'opl_app_component_manifest.v1' ||
+            component.component_id !== 'opl-app' || component.version !== process.env.VERSION ||
+            component.source_commit !== process.env.APP_COMMIT || component.release_tag !== tag ||
+            component.component_manifest_ref !== `https://github.com/${repo}/releases/download/${tag}/opl-app-component-manifest.json`
+          ) throw new Error('Published OPL App component manifest identity does not match the exact qualified cohort.');
+          const { component_manifest_digest: claimedDigest, ...core } = component;
+          const payloadDigest = `sha256:${crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex')}`;
+          if (claimedDigest !== payloadDigest) {
+            throw new Error('Published OPL App component manifest immutable payload digest does not match its bytes.');
+          }
+          const releasePrefix = `https://github.com/${repo}/releases/tag/`;
+          const releaseRoute = typeof component.release_url === 'string' && component.release_url.startsWith(releasePrefix)
+            ? component.release_url.slice(releasePrefix.length)
+            : '';
+          if (releaseRoute !== tag && !/^untagged-[0-9a-f]+$/.test(releaseRoute)) {
+            throw new Error('Published OPL App component manifest release URL is outside the exact tag or historical Draft alias.');
+          }
+          if (release.tagName !== tag || release.isPrerelease || (releaseRoute === tag && component.release_url !== release.url)) {
+            throw new Error('Published OPL App component manifest release identity conflicts with GitHub readback.');
+          }
+          const remoteAssets = new Map((release.assets || []).map((asset) => [asset.name, asset]));
+          const remoteManifest = remoteAssets.get('opl-app-component-manifest.json');
+          const componentFileDigest = `sha256:${crypto.createHash('sha256').update(componentBytes).digest('hex')}`;
+          if (remoteManifest?.digest !== componentFileDigest || remoteManifest.size !== componentBytes.length) {
+            throw new Error('Published OPL App component manifest bytes do not match the immutable GitHub asset.');
+          }
+          if (!Array.isArray(component.artifacts) || component.artifacts.length !== requiredNames.length) {
+            throw new Error('Published OPL App component manifest does not contain the exact Standard asset set.');
+          }
+          const artifactNames = component.artifacts.map((asset) => asset.name);
+          if (new Set(artifactNames).size !== requiredNames.length || requiredNames.some((name) => !artifactNames.includes(name))) {
+            throw new Error('Published OPL App component manifest Standard asset identities are incomplete or duplicated.');
+          }
+          for (const artifact of component.artifacts) {
+            const remote = remoteAssets.get(artifact.name);
+            const expectedRef = `https://github.com/${repo}/releases/download/${releaseRoute}/${encodeURIComponent(artifact.name)}`;
+            if (
+              !remote || artifact.ref !== expectedRef || artifact.digest !== remote.digest ||
+              artifact.size !== remote.size || artifact.content_type !== remote.contentType
+            ) throw new Error(`Published OPL App component manifest asset does not match GitHub readback: ${artifact.name}`);
+          }
+          const primary = component.artifacts.find((asset) => asset.name === `One-Person-Lab-${process.env.VERSION}-mac-arm64.dmg`);
+          if (!primary || JSON.stringify(component.primary_artifact) !== JSON.stringify(primary)) {
+            throw new Error('Published OPL App component manifest primary artifact is not the exact qualified DMG.');
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `app_artifact_digest=${component.primary_artifact.digest}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `component_manifest_digest=${component.component_manifest_digest}\n`);

@@ -71,3 +71,14 @@ test('App owner manifest fails closed when a standard asset is missing', () => {
     '--output', path.join(root, 'manifest.json'),
   ], { cwd: appRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 });
+
+test('promotion verifies immutable published manifest fields without regenerating Draft URL bytes', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  assert.doesNotMatch(workflow, /expected-opl-app-component-manifest\.json/);
+  assert.doesNotMatch(workflow, /cmp \"\$RUNNER_TEMP\/published-component/);
+  assert.match(workflow, /immutable payload digest does not match its bytes/);
+  assert.match(workflow, /historical Draft alias/);
+  assert.match(workflow, /component manifest bytes do not match the immutable GitHub asset/);
+  assert.match(workflow, /artifact\.digest !== remote\.digest/);
+  assert.match(workflow, /primary artifact is not the exact qualified DMG/);
+});

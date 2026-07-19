@@ -1788,6 +1788,15 @@ test('expired promotion successor requires one exact pre-deadline identity and b
 test('reconcile run readback uses the independent read-only transport budget', () => {
   const controller = fs.readFileSync(path.join(process.cwd(), 'scripts/run-stable-release.ts'), 'utf8');
   assert.match(controller, /runView\(run, current, runId, Date\.now, 'read_only_reconcile'\)/);
+  const discovery = controller.slice(
+    controller.indexOf('async function discoverAdminOneShotRun'),
+    controller.indexOf('function watchRun', controller.indexOf('async function discoverAdminOneShotRun')),
+  );
+  assert.match(discovery, /timeoutMs: readOnlyReleaseTransportTimeoutMs\(\)/);
+  assert.doesNotMatch(discovery, /boundedReleaseTransportTimeoutMs/);
+  assert.match(controller, /predecessorCount > 4/);
+  const sessionSource = fs.readFileSync(path.join(process.cwd(), 'scripts/stable-release-session.ts'), 'utf8');
+  assert.match(sessionSource, /prior_run_ids\.length > 5/);
 });
 
 test('same-artifact qualification keeps the verification Shell exact to the artifact cohort', () => {
