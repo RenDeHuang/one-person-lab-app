@@ -183,6 +183,7 @@ export type AppProductProfile = {
         desktop_context_bar_horizontal_inset_px: number;
         starter_truncation_allowed: boolean;
         selected_starter_visual_policy: string;
+        selected_starter_accessibility_state: string;
         selected_working_directory_visual_policy: string;
         workspace_selector_policy: {
           primary_scope: string;
@@ -205,6 +206,22 @@ export type AppProductProfile = {
         projectless_conversation_supported: boolean;
         text_chat_without_workspace: string;
         workspace_session_rail_default_state: string;
+        active_aionui_primary_navigation: {
+          scope: string;
+          ordered_entry_ids: string[];
+          runtime_entry: {
+            route: string;
+            label_i18n: Record<'zh-CN' | 'en-US', string>;
+            placement: string;
+            visibility: string;
+            expanded_behavior: string;
+            collapsed_behavior: string;
+            narrow_drawer_behavior: string;
+            keyboard_reachable: boolean;
+            home_content_effect: string;
+            route_gate_boundary: string;
+          };
+        };
         right_context_inspector_default_state: string;
         must_not_show: string[];
       };
@@ -312,7 +329,13 @@ export type AppProductProfile = {
           scope: string;
           source?: string;
           source_ref?: string;
+          label_i18n?: Record<'zh-CN' | 'en-US', string>;
+          catalog_membership_source_ref?: string;
+          required_package_ids?: string[];
+          catalog_order_policy?: string;
+          home_shortcut_independence_policy?: string;
           availability_policy?: string;
+          agent_owned_skill_deduplication_policy?: string;
           label_policy?: string;
           mode_deduplication_policy?: string;
           existing_session_rebinding_allowed?: boolean;
@@ -485,6 +508,11 @@ export type AppProductProfile = {
       scope: string;
       authority: string;
       recommendation_authority: string;
+      palette_agent_catalog_source_ref: string;
+      palette_required_agent_package_ids: string[];
+      palette_home_shortcut_independence_policy: string;
+      palette_agent_group_label_i18n: Record<'zh-CN' | 'en-US', string>;
+      agent_owned_skill_deduplication_policy: string;
       agent_reference_admission_policy: {
         active_agent_package_cardinality: string;
         selection_authority: string;
@@ -555,10 +583,12 @@ export type AppProductProfile = {
         package_id: string;
         package_kind: string;
         display_name: string;
+        display_name_i18n: Record<'zh-CN' | 'en-US', string>;
         publisher: string;
         source: 'first_party';
         trust_tier: 'first_party';
         description: string;
+        description_i18n: Record<'zh-CN' | 'en-US', string>;
         tags: string[];
         package_role: 'standard_agent' | 'framework_capability_package' | 'workflow_profile';
         manifest_fixture_ref: string;
@@ -568,6 +598,8 @@ export type AppProductProfile = {
     professional_agent_packages: Array<{
       package_id: string;
       display_name: string;
+      display_name_i18n: Record<'zh-CN' | 'en-US', string>;
+      description_i18n: Record<'zh-CN' | 'en-US', string>;
       short_name: string;
       role: string;
       package_kind: string;

@@ -301,6 +301,19 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     reason: null,
     session_launch_disposition: "ready",
   });
+  assert.equal(lifecycle.user_facing_status_projection.schema, "agent_package_user_status_projection.v1");
+  assert.equal(lifecycle.user_facing_status_projection.per_package_identity_key, "package_id");
+  assert.equal(
+    lifecycle.user_facing_status_projection.aggregate_status_policy,
+    "aggregate_counts_never_override_or_replace_each_projected_package_status",
+  );
+  const deferred = lifecycle.user_facing_status_projection.rules.find(
+    (rule: any) => rule.id === "local_check_not_completed",
+  );
+  assert.equal(deferred.label_i18n["zh-CN"], "首次使用时检查");
+  assert.match(deferred.explanation_i18n["zh-CN"], /首次使用时会自动尝试/);
+  assert.ok(lifecycle.user_facing_status_projection.forbidden_ordinary_labels_zh.includes("待验证"));
+  assert.ok(lifecycle.user_facing_status_projection.forbidden_ordinary_labels_zh.includes("需关注"));
   assert.deepStrictEqual(lifecycle.directory_controls.filters, [
     "package_role",
     "install_or_activation_status",
@@ -367,8 +380,9 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.equal(directory.directory_collection_source, "app_state.agent_packages.directory.entries");
   assert.equal(
     directory.static_metadata_overlay_source,
-    "contracts/app-product-profile.json#gui.professional_agent_packages",
+    "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
   );
+  assert.deepStrictEqual(directory.static_metadata_overlay_fields, ["display_name_i18n", "description_i18n"]);
   assert.equal(directory.workspace_path_source, "app_state.paths.workspace_root_path");
   assert.equal(directory.workspace_path_scope, "only_when_projected_activation_requires_target_workspace");
   assert.equal(directory.scope_inference_allowed, false);
@@ -1089,6 +1103,30 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   writableDiagnostics.controlPlane.experience_contract.page_contracts.maintenance.surface_rules.diagnostic_mutation_controls_allowed =
     true;
   assert.throws(() => validate(writableDiagnostics), /Maintenance surface rules/);
+
+  const maintenance = contracts().controlPlane.experience_contract.page_contracts.maintenance;
+  assert.equal(
+    maintenance.surface_rules.daily_action_surface,
+    "the_Maintenance_page_itself_owns_check_apply_repair_and_rollback_with_per_action_state_confirmation_and_fresh_readback",
+  );
+  assert.equal(maintenance.surface_rules.diagnostic_entry_count, 1);
+  assert.equal(
+    maintenance.surface_rules.large_overlay_policy,
+    "never_open_or_define_overlapping_management_and_diagnostics_modals",
+  );
+  assert.equal(
+    maintenance.surface_rules.raw_internal_status_key_policy,
+    "never_render_raw_internal_status_keys_action_ids_or_payload_fields_as_user_facing_copy",
+  );
+  assert.equal(
+    maintenance.required_dom.conditional.some((entry: any) => entry.when === "management_open"),
+    false,
+  );
+
+  const overlappingMaintenanceModal = contracts();
+  overlappingMaintenanceModal.controlPlane.experience_contract.page_contracts.maintenance.surface_rules.large_overlay_policy =
+    "management_and_diagnostics_modals_may_overlap";
+  assert.throws(() => validate(overlappingMaintenanceModal), /Maintenance surface rules/);
 });
 
 test("Settings rejects a framed Gateway account surface", () => {

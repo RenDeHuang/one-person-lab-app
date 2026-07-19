@@ -47,7 +47,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Environment floating details | 右上 anchored floating surface；窄屏 drawer | Recorded workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
 | OPL secondary refs | Environment 次级 section、preview 或 turn disclosure | Artifacts、Evidence、Runtime、Actions 是按需投影。 | 与环境摘要同权常驻，或取得 artifact/runtime authority。 |
 | Advanced work surfaces | Bottom panel/file tree/Terminal/Browser | 保留高级工作能力，但默认关闭。 | App 启动即打开，遮挡 timeline/composer。 |
-| Runtime overview | X0-01 显式启用时的独立 Runtime page | 条件保留的跨 project/conversation route 需要更大 scope 与筛选，但不构成 core gate。 | 把 Runtime 复活为默认入口，或把 running/queued/attention 混成 Home badge 或 assistant card。 |
+| Runtime overview | Active AionUI 一级“运行状态”入口打开独立 Runtime page | AionUI 持续提供跨 project/conversation route，但不扩张 Native phase-1 或默认 release gate。 | 把 Runtime 内容混成 Home dashboard/badge，或用导航恢复反向扩大 Native/release gate。 |
 | Safe runtime action | 条件 Runtime/Settings 的 action area 与 confirmation surface | Action 需要状态、影响和 receipt context。 | Composer 直接执行隐藏 mutation，或绕过 dry-run/confirmation。 |
 | Settings shell | Full-window return/search/grouped rows | 全局配置需要独立、可扫描 shell，同时保持 OPL IA。 | 塞进 side panel、upstream tabs 自动加入或每个功能新增一级 route。 |
 | Raw diagnostics | Details disclosure / Advanced | 技术信息用于解释异常，不是 ordinary user task。 | Paths、ids、schema、JSON 成为首屏主文案。 |

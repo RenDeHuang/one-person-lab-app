@@ -181,7 +181,8 @@
           "desktop_context_bar_overlap_px": 13,
           "desktop_context_bar_horizontal_inset_px": 12,
           "starter_truncation_allowed": false,
-          "selected_starter_visual_policy": "quiet_fill_and_check_indicator_not_color_alone",
+          "selected_starter_visual_policy": "quiet_fill_with_aria_pressed_without_trailing_selection_glyph",
+          "selected_starter_accessibility_state": "aria_pressed_reflects_active_shortcut",
           "selected_working_directory_visual_policy": "independent_new_session_context_bar_control_with_selected_directory_and_clear_action",
           "workspace_selector_policy": {
             "primary_scope": "active_workspace_only",
@@ -204,6 +205,25 @@
           "projectless_conversation_supported": true,
           "text_chat_without_workspace": "available",
           "workspace_session_rail_default_state": "visible_wide_drawer_narrow",
+          "active_aionui_primary_navigation": {
+            "scope": "active_aionui_current_product_only",
+            "ordered_entry_ids": ["new_task", "runtime", "scheduled_tasks", "archived"],
+            "runtime_entry": {
+              "route": "/runtime",
+              "label_i18n": {
+                "zh-CN": "运行状态",
+                "en-US": "Runtime status"
+              },
+              "placement": "after_new_task_before_scheduled_tasks",
+              "visibility": "always",
+              "expanded_behavior": "icon_and_label",
+              "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+              "narrow_drawer_behavior": "icon_and_label",
+              "keyboard_reachable": true,
+              "home_content_effect": "navigation_only_no_dashboard",
+              "route_gate_boundary": "native_phase_one_and_default_release_gate_remain_optional"
+            }
+          },
           "right_context_inspector_default_state": "collapsed",
           "must_not_show": [
             "dashboard-first home",
@@ -438,7 +458,7 @@
         "prompt, compact shortcuts, and composer share one bottom reading lane",
         "active capability shown by a quiet selected shortcut state without a second composer label",
         "no active professional agent until the user explicitly selects a starter or follows an explicit capability route",
-        "selected starter uses a quiet fill and check indicator rather than color alone",
+        "selected starter preserves the existing quiet fill and aria-pressed without a trailing check or selection glyph",
         "all user-visible configured OPL starters in stable order without silent truncation",
         "assistant-scoped skill menu with required skill checked",
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
@@ -452,6 +472,7 @@
         "exactly one Home root, composer shell, and footer account or Settings entry at every viewport",
         "permission and access mode in user language",
         "workspace/session rail visible on wide desktop and drawer on narrow windows",
+        "active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes",
         "history search as one accessible icon at the trailing edge of the conversation-history heading",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
@@ -654,7 +675,15 @@
             {
               "id": "agent_packages",
               "scope": "new_session_configuration_only",
-              "source_ref": "professional_agent_packages + ordinary_capability_selector_policy",
+              "label_i18n": {
+                "zh-CN": "专业智能体",
+                "en-US": "Professional agents"
+              },
+              "source_ref": "professional_agent_packages",
+              "catalog_membership_source_ref": "professional_agent_packages[].package_id",
+              "required_package_ids": ["mas", "mag", "rca", "obf", "oma"],
+              "catalog_order_policy": "stable_professional_agent_packages_order",
+              "home_shortcut_independence_policy": "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
               "availability_policy": "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
               "existing_session_rebinding_allowed": false,
               "surface_actions": {
@@ -667,6 +696,7 @@
               "scope": "surface_specific_configuration_or_invocation",
               "source_ref": "ordinary_capability_selector_policy",
               "availability_policy": "show_global_app_allowlisted_skills_without_an_agent_then_scope_to_the_selected_professional_agent_profile",
+              "agent_owned_skill_deduplication_policy": "on_home_new_session_exclude_required_skill_ids_owned_by_rendered_professional_agents_from_the_standalone_skills_group",
               "existing_session_rebinding_allowed": false,
               "surface_actions": {
                 "home_new_session": ["configure_new_session_scoped_skill"],
@@ -1753,13 +1783,13 @@
         "Temporal server, worker, and scheduler status with localized reasons plus check, install or configure, start, restart, and fresh readback maintenance",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
-        "apply, repair, rollback, and package maintenance inside an explicit management modal",
-        "module path source explanation in technical details",
+        "check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback",
+        "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence",
         "update status and service status in user language",
         "carrier-neutral Base and Packages reconciliation status after any App install or version change",
         "current, updating in background, restart to finish, refresh Codex, or attention guidance from Framework receipts",
         "update and local-service anchors owned by Maintenance",
-        "Framework and raw working paths inside read-only Maintenance diagnostics"
+        "Framework working paths inside the single read-only Maintenance diagnostics disclosure"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -1771,7 +1801,7 @@
         "services",
         "packages",
         "recommended_action",
-        "management",
+        "actions",
         "diagnostics"
       ],
       "state_sections": [
@@ -1788,6 +1818,8 @@
         "raw action ids, component ids, raw statuses, command mappings, paths, or receipts on the main surface",
         "raw attention_needed, provider_code_landed_unconfigured, or temporal_runtime_not_configured as user-facing status copy",
         "three equal maintenance buttons with shared loading state",
+        "a separate large management modal overlapping the advanced diagnostics disclosure",
+        "raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI",
         "current project or in-progress task list",
         "workspace, storage, or About navigation duplicated as maintenance cards",
         "update or local-services rendered as independent product pages"
@@ -1917,7 +1949,7 @@
           "detect_only_guidance": "show owner guidance without a fake update action"
         },
         "unknown_value_policy": "show not checked or unknown and never synthesize current, missing, or zero values",
-        "diagnostics_boundary": "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+        "diagnostics_boundary": "the single advanced disclosure may show read-only binary paths, shadowed installations, localized component labels, and receipt evidence; raw internal status keys, actions, and catalog payloads are never user-facing",
         "external_installations_policy": {
           "row_key": "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
           "required_fields": [
@@ -2017,7 +2049,7 @@
           "settings-maintenance-temporal-server",
           "settings-maintenance-temporal-worker",
           "settings-maintenance-temporal-scheduler",
-          "settings-maintenance-management-action",
+          "settings-maintenance-daily-actions",
           "settings-maintenance-diagnostics-action"
         ],
         "conditional": [
@@ -2032,10 +2064,6 @@
           {
             "testid": "settings-maintenance-temporal-action",
             "when": "temporal_attention_or_user_requested_maintenance"
-          },
-          {
-            "testid": "settings-maintenance-management-details",
-            "when": "management_open"
           },
           {
             "testid": "settings-maintenance-technical-details",
@@ -2058,7 +2086,7 @@
         "maintenance.diagnostics"
       ],
       "primary_action_id": "run_recommended_maintenance",
-      "technical_details_default": "explicit_action_modal",
+      "technical_details_default": "collapsed",
       "exception_emphasis": "attention_only"
     },
     {
@@ -3654,8 +3682,9 @@
       "current_runtime_projection_boundary": {
         "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
-        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
         "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
+        "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
         "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
         "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
@@ -3682,6 +3711,8 @@
       },
       "status_model": {
         "policy": "multi_axis_package_status_no_single_repair_bucket",
+        "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
+        "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
         "axes": [
           "install_state",
           "activation_state",
@@ -3835,8 +3866,11 @@
         "normal Agent rows visually quiet with package diagnostics collapsed",
         "localized package role labels with no raw internal enum on the ordinary row",
         "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
-        "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
-        "installed activation-required packages with operational_ready and launch_allowed not false shown as neutral not-enabled state rather than attention",
+      "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
+      "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
+      "verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action",
+      "one localized status per package with aggregate counts never replacing item status",
+      "installed activation-required packages with operational_ready and launch_allowed not false shown as neutral not-enabled state rather than attention",
         "scope_materialization_missing and genuinely blocked or failed packages retained as attention or repair"
       ],
       "must_not_show": [
@@ -3851,9 +3885,11 @@
         "professional_agent_packages used as the directory collection, OMA seed, availability source, status source, or action source",
         "Settings global search presented as the package catalog search",
         "registry refresh hidden inside technical details",
-        "package status, ready state, action id, or action payload inferred by the Shell",
-        "manifest URL installation presented as the ordinary primary install path",
-        "hardcoded package parent-child relationships or duplicate dependency rows"
+      "package status, ready state, action id, or action payload inferred by the Shell",
+      "manifest URL installation presented as the ordinary primary install path",
+      "raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows",
+      "aggregate ready or unavailable counts used as the status of every package",
+      "hardcoded package parent-child relationships or duplicate dependency rows"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "agents",
@@ -4034,14 +4070,15 @@
   "settings_shell_navigation": {
     "product_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.return_to_app",
     "required_dom": {
-      "expanded": ["settings-titlebar-history-back", "settings-search-input"],
-      "collapsed": ["settings-titlebar-history-back"],
+      "expanded": ["settings-back-to-app", "settings-search-input"],
+      "collapsed": ["settings-back-to-app"],
       "narrow": ["settings-titlebar-back-to-app"]
     },
-    "forbidden_dom": ["settings-back-to-app"],
-    "destination_behavior": "desktop_titlebar_history_back_or_narrow_last_valid_non_settings_location_preserving_search_and_hash_else_guid",
+    "forbidden_dom": ["settings-titlebar-history-back"],
+    "destination_behavior": "last_valid_non_settings_location_preserving_search_and_hash_else_guid",
     "keyboard_reachable": true,
-    "settings_sider_return_forbidden": true,
+    "same_resolver_for_sider_and_titlebar": true,
+    "desktop_titlebar_return_forbidden": true,
     "footer_update_entry": {
       "required_dom_when_update_available": ["sider-footer-update"],
       "forbidden_dom_when_update_unavailable": ["sider-footer-update"],

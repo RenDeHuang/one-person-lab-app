@@ -229,7 +229,7 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
 ### Rail 与对话历史
 
 - 桌面宽度 `280-340px` 可调；默认 row 高 `30-32px`，section label 高 `24px`。
-- New task、Archived 固定在顶部；Runtime 仅在 X0-01 route 显式启用时出现。账户、help、
+- Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 的 Native/default-release gate 仍保持可选。账户、help、
   Settings 保留在底部。
 - 对话搜索位于“对话历史”标题右侧，使用 `32x32px` icon button；展开/窄窗时均有
   tooltip、accessible name、focus-visible 和 `Cmd/Ctrl+Shift+F`。

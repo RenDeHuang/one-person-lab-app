@@ -54,8 +54,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.equal(homeVisual.starter_typography, '13/18/500');
   assert.equal(
     homeVisual.starter_content_alignment,
-    'icon_label_and_check_share_one_vertical_centerline',
+    'icon_and_label_share_one_vertical_centerline_without_selection_glyph',
   );
+  assert.equal(homeVisual.selected_starter_accessibility_state, 'aria_pressed_reflects_active_shortcut');
   assert.equal(homeVisual.selected_starter_layout_shift_allowed, false);
   assert.deepStrictEqual(guiContract.interaction_baseline.composer.visual_metrics, {
     textarea_typography: '14/20/400',

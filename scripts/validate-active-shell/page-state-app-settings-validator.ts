@@ -387,8 +387,21 @@ function validateEnvironmentPage(matrix, guiContract) {
   if (environmentPage.module_path_source_policy_ref !== 'contracts/app-gui-product-contract.json#module_path_source_policy') {
     throw new Error('Environment page must reference the App GUI module path source policy');
   }
-  if (!environmentPage.must_show?.includes('module path source explanation in technical details')) {
-    throw new Error('Maintenance page must keep module path source explanation in technical details');
+  if (
+    !environmentPage.must_show?.includes(
+      'check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback',
+    ) ||
+    !environmentPage.must_show?.includes(
+      'one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence',
+    ) ||
+    !environmentPage.must_not_show?.includes(
+      'a separate large management modal overlapping the advanced diagnostics disclosure',
+    ) ||
+    !environmentPage.must_not_show?.includes(
+      'raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI',
+    )
+  ) {
+    throw new Error('Maintenance page must own daily actions and one read-only advanced diagnostics disclosure');
   }
   validateEnvironmentModuleMaintenanceEntry(environmentPage.module_maintenance_entry, 'Environment page');
   assertDeepEqualJson(
@@ -415,11 +428,11 @@ function validateEnvironmentPage(matrix, guiContract) {
       'active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface',
     ) ||
     !environmentPage.must_show?.includes(
-      'Framework and raw working paths inside read-only Maintenance diagnostics',
+      'Framework working paths inside the single read-only Maintenance diagnostics disclosure',
     ) ||
     environmentPage.managed_dependency_summary?.required_ids?.some((id) => id.includes('_'))
   ) {
-    throw new Error('Maintenance must own managed dependency currentness and retired Advanced diagnostics');
+    throw new Error('Maintenance must own managed dependency currentness and one read-only diagnostics disclosure');
   }
 }
 

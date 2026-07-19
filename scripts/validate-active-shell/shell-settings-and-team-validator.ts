@@ -282,7 +282,7 @@ const settingsAppearanceExpected = [
 
 const settingsAppearanceForbidden = ['CssThemeSettings', "data-testid='preferences-theme-section'", 'CODEX_THEME_ID'];
 
-const settingsSiderReturnForbidden = [
+const settingsSiderReturnExpected = [
   'resolveSettingsReturnPath',
   'navigate(resolveSettingsReturnPath())',
   "data-testid='settings-back-to-app'",
@@ -293,8 +293,9 @@ const settingsTitlebarReturnExpected = [
   'resolveSettingsReturnPath',
   'navigate(resolveSettingsReturnPath())',
   "data-testid='settings-titlebar-back-to-app'",
-  "'settings-titlebar-history-back'",
 ];
+
+const settingsDesktopTitlebarReturnForbidden = ["'settings-titlebar-history-back'"];
 
 const ordinaryCapabilityFilterExpected = [
   'REQUIRED_ORDINARY_FORBIDDEN_CAPABILITY_POLICY',
@@ -387,20 +388,22 @@ function validateSettingsPartitionImplementation(shellPaths) {
     ['@fortawesome', "size='18'"],
     'Active shell Settings navigation icon library and geometry',
   );
-  const settingsSider = readShellText(
+  assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/components/SettingsSider.tsx',
+    settingsSiderReturnExpected,
+    'Active shell Settings sider Back to app control above search',
   );
-  assertTextExcludesAll(
-    settingsSider,
-    settingsSiderReturnForbidden,
-    'Active shell retired Settings sider Back to app control',
-  );
-  assertShellTextIncludesAll(
+  const titlebar = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/layout/Titlebar/index.tsx',
     settingsTitlebarReturnExpected,
     'Active shell narrow Settings titlebar Back to app resolver',
+  );
+  assertTextExcludesAll(
+    titlebar,
+    settingsDesktopTitlebarReturnForbidden,
+    'Active shell duplicate desktop Settings titlebar Back to app control',
   );
   assertShellTextIncludesAll(
     shellPaths,

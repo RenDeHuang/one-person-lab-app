@@ -1,5 +1,6 @@
 import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 import {
+  appOwnedActiveAionuiPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
   appOwnedExplicitSessionInputPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
@@ -80,6 +81,60 @@ export const requiredSkillByPackageId = {
   obf: ['opl-bookforge'],
   oma: ['opl-meta-agent'],
 };
+export const professionalAgentPresentationByPackageId = {
+  mas: {
+    display_name_i18n: { 'zh-CN': '医学科研智能体', 'en-US': 'Med Auto Science' },
+    description_i18n: {
+      'zh-CN': '用于科研选题、文献分析、数据分析、论文写作、审稿、返修和投稿。',
+      'en-US': 'For research planning, literature review, data analysis, manuscript writing, peer review, revision, and submission.',
+    },
+  },
+  mag: {
+    display_name_i18n: { 'zh-CN': '医学基金智能体', 'en-US': 'Med Auto Grant' },
+    description_i18n: {
+      'zh-CN': '用于基金选题、标书与申请书撰写、预算说明和评审回复。',
+      'en-US': 'For grant topics, proposals and applications, budget narratives, and reviewer responses.',
+    },
+  },
+  rca: {
+    display_name_i18n: { 'zh-CN': '演示与视觉智能体', 'en-US': 'RedCube AI' },
+    description_i18n: {
+      'zh-CN': '用于制作演示文稿、汇报材料、图表和其他专业视觉交付物。',
+      'en-US': 'For presentations, reports, charts, and other professional visual deliverables.',
+    },
+  },
+  obf: {
+    display_name_i18n: { 'zh-CN': '写书智能体', 'en-US': 'OPL Book Forge' },
+    description_i18n: {
+      'zh-CN': '用于书稿规划、章节写作、插图表格、排版、审校和导出。',
+      'en-US': 'For book planning, chapter writing, figures and tables, layout, editing, and export.',
+    },
+  },
+  oma: {
+    display_name_i18n: { 'zh-CN': '元智能体', 'en-US': 'OPL Meta Agent' },
+    description_i18n: {
+      'zh-CN': '用于创建、接管、检查和改进 OPL 专业智能体。',
+      'en-US': 'For creating, taking over, inspecting, and improving OPL professional agents.',
+    },
+  },
+} as const;
+export const firstPartyReleaseSetPresentationByPackageId = {
+  ...professionalAgentPresentationByPackageId,
+  'mas-scholar-skills': {
+    display_name_i18n: { 'zh-CN': 'MAS 学术技能', 'en-US': 'MAS Scholar Skills' },
+    description_i18n: {
+      'zh-CN': '供医学科研智能体使用的可复用医学科研能力。',
+      'en-US': 'Reusable medical research capabilities consumed by Med Auto Science.',
+    },
+  },
+  'opl-flow': {
+    display_name_i18n: { 'zh-CN': 'OPL Flow', 'en-US': 'OPL Flow' },
+    description_i18n: {
+      'zh-CN': 'OPL 推荐工作流配置与受管 Codex 策略。',
+      'en-US': 'Recommended OPL workflow profile and managed Codex policy.',
+    },
+  },
+} as const;
 export const requiredSkillByAssistantId = {
   mas: 'med-autoscience',
   mag: 'med-autogrant',
@@ -197,6 +252,8 @@ type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_mod
 type ProfessionalAgentPackageLike = {
   package_id: string;
   agent_id?: unknown;
+  display_name_i18n?: unknown;
+  description_i18n?: unknown;
   installed_manageable?: unknown;
   codex_visible_entry?: unknown;
   required_skill_ids?: unknown;
@@ -226,7 +283,10 @@ export function assertProfessionalAgentPackagePolicy(
   for (const entry of entries) {
     const requiredSkills = requiredSkillByPackageId[entry.package_id as keyof typeof requiredSkillByPackageId];
     const codexEntry = codexEntryByPackageId[entry.package_id as keyof typeof codexEntryByPackageId];
-    if (!requiredSkills || !codexEntry) {
+    const presentation = professionalAgentPresentationByPackageId[
+      entry.package_id as keyof typeof professionalAgentPresentationByPackageId
+    ];
+    if (!requiredSkills || !codexEntry || !presentation) {
       throw new Error(`${label} professional agent package ${entry.package_id} is not in the App package allowlist`);
     }
     if (
@@ -239,6 +299,24 @@ export function assertProfessionalAgentPackagePolicy(
       entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
     ) {
       throw new Error(`${label} professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
+    }
+    for (const field of ['display_name_i18n', 'description_i18n'] as const) {
+      const localized = entry[field] as Record<string, unknown> | undefined;
+      if (
+        !localized ||
+        typeof localized['zh-CN'] !== 'string' ||
+        !localized['zh-CN'].trim() ||
+        typeof localized['en-US'] !== 'string' ||
+        !localized['en-US'].trim()
+      ) {
+        throw new Error(`${label} professional agent package ${entry.package_id} must declare non-empty zh-CN and en-US ${field}`);
+      }
+    }
+    if (
+      JSON.stringify(entry.display_name_i18n) !== JSON.stringify(presentation.display_name_i18n) ||
+      JSON.stringify(entry.description_i18n) !== JSON.stringify(presentation.description_i18n)
+    ) {
+      throw new Error(`${label} professional agent package ${entry.package_id} must use the App-owned localized name and description`);
     }
     if (starterPackageIds.includes(entry.package_id)) {
       const expectedDefaultVisible = defaultVisibleShortcutPackageIds.includes(entry.package_id);
@@ -372,6 +450,14 @@ export function assertAppProductProfileGuiInteractionBaseline(
     ],
     `${label} GUI interaction profile must match the Codex baseline`,
   );
+  if (
+    JSON.stringify(homeLayout?.active_aionui_primary_navigation) !==
+    JSON.stringify(appOwnedActiveAionuiPrimaryNavigation)
+  ) {
+    throw new Error(
+      `${label} GUI Home must keep Runtime status in the active AionUI primary navigation without expanding Native or release gates`,
+    );
+  }
   assertExactStringArray(
     conversation?.composer_bottom_action_row,
     ['unified_context_menu', 'permission_access_mode', 'model_reasoning', 'send_stop'],

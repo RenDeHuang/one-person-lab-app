@@ -226,24 +226,24 @@ test('GUI design-system validator rejects a Settings return path that can recurs
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry/,
+    /Settings shell must keep one Back to app action above desktop search or in the narrow titlebar without a desktop titlebar duplicate/,
   );
 });
 
-test('GUI design-system validator rejects restoring the duplicate Settings-sider return control', () => {
+test('GUI design-system validator rejects a duplicate desktop titlebar return control', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const pageStatePath = path.join(root, 'contracts/app-page-state-matrix.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   const pageState = JSON.parse(fs.readFileSync(pageStatePath, 'utf8'));
-  contract.settings_navigation.return_to_app.placement = 'settings_sider_first_row_above_search';
-  pageState.settings_shell_navigation.required_dom.expanded = ['settings-back-to-app', 'settings-search-input'];
+  contract.settings_navigation.return_to_app.desktop_titlebar_duplicate_forbidden = false;
+  pageState.settings_shell_navigation.required_dom.expanded = ['settings-titlebar-history-back', 'settings-search-input'];
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   writeJson(root, 'contracts/app-page-state-matrix.json', pageState);
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry/,
+    /Settings shell must keep one Back to app action above desktop search or in the narrow titlebar without a desktop titlebar duplicate/,
   );
 });
 
@@ -402,11 +402,11 @@ test('GUI design-system validator rejects mixing OPL target entries into literal
   assert.throws(() => validateGuiDesignSystem(root), /must separate literal Codex observations from OPL-owned target translation/);
 });
 
-test('GUI design-system validator rejects restoring Runtime as a default rail entry', () => {
+test('GUI design-system validator rejects removing Runtime from the active AionUI primary rail', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.navigation_rail.top_entries.push('runtime');
+  contract.interaction_baseline.navigation_rail.top_entries = ['new_task', 'scheduled_tasks', 'archived'];
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),

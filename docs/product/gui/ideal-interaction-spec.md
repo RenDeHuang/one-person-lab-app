@@ -95,8 +95,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 Rail 负责 navigation，不承担 dashboard：
 
-- 顶部固定 New task 和 Archived；Runtime 仅在 X0-01 route 显式启用时出现，且不是核心
-  navigation 或 release gate。会话级 current-task context 独立成立，不依赖全局 Runtime。Package/capability
+- Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime route
+  仍不扩张 Native phase-1 或默认 release gate。会话级 current-task context 独立成立，不依赖全局 Runtime。Package/capability
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
@@ -157,6 +157,9 @@ Rail 负责 navigation，不承担 dashboard：
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
 affordance，通过 application menu 与现有 conversation header 提供，并保持键盘可达；
 Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 WebUI 产品 IA。
+Active AionUI 的一级导航固定按 New task、运行状态、Scheduled tasks、Archived 排列；
+“运行状态”在展开栏、折叠栏和窄窗口 drawer 中都可见并可键盘访问，目标为 `/runtime`。
+这只恢复 Runtime 导航，不把 Home 改成 dashboard，也不扩张 Native phase-1 或默认 release gate。
 
 ## Home / New Conversation
 
@@ -168,6 +171,7 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - 默认不激活任何专业智能体。历史保存的 preset 不得反向成为 Home 默认值；只有用户点击
   starter 或从明确 capability 路由进入时才设置 active capability。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
+- Starter 选中态保留现有 quiet fill 与 `aria-pressed`，不追加尾部圆圈对号或其它 selection glyph。
 - Package 不可用时 starter 仍可选择；发送时才根据 Framework-owned action 给出用户可理解的
   typed reason 和允许动作，不用 spinner、空白、禁用入口或静默隐藏掩盖 readiness 问题。
 - 点击 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned package launch
@@ -210,6 +214,10 @@ Composer 是普通路径唯一主 command surface：
   以及 adapter 明确报告且不与 permission/access 重复的 mode。Agent Package 不允许在既有会话重绑；
   Skill 在既有会话只调用已加载 allowlist 项，连接只显示已加载状态。
   Working directory 不进入 palette，已选 capability/input 只显示为紧凑 chip。
+- Home starter 只是用户配置的快捷入口；`+` 中“专业智能体”组始终来自完整专业智能体目录，
+  不受 Home visibility 或排序过滤。当前目录包含科研、基金、演示与视觉、写书和元智能体。
+- 已在“专业智能体”组呈现的智能体，其 required Skill 不再作为独立 Skill 重复显示；例如
+  “医学科研智能体”和 `med-autoscience` 不得同时成为普通用户可选择的重复入口。
 - 不存在 workspace/project context preload；attachment、paste/drop 与 `/open` 都是用户在当前 session
   显式加入的 send-scoped 输入，不允许 hidden prompt injection 或 workspace-keyed 持久化。
 - 中层是 textarea；底层 action row 放统一 `+` 菜单、permission/access mode、
@@ -235,6 +243,7 @@ Composer 是普通路径唯一主 command surface：
 - 普通标签描述用户工作：科研、基金、演示、写书等。
 - Purpose 主要从 Home starter 选择；Home/new-session 的 `+` palette 是同一 active capability 的备用入口，
   仅在首次发送前可用。Purpose 不再是 composer 的常驻可变 selector，也不在 rail 建立 Capabilities 主导航。
+- `+` 中的组名使用本地化“专业智能体 / Professional agents”，不向普通用户显示“智能体包”。
 - Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
 - 未选 Agent 时只显示全局 App allowlist Skills；选中 Agent 后收窄为该 profile 的 required/optional
@@ -391,8 +400,10 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
-- Rail 顶部固定 New task、Archived；Runtime 仅在 X0-01 route 显式启用时出现。capability
-  选择在 Home，管理在 Settings。
+- Active AionUI rail 在 New task 之后、Scheduled tasks 之前持续显示“运行状态”，折叠态提供 tooltip
+  与 accessible name，窄窗口 drawer 保留文字标签。
+- Active AionUI Rail 顶部固定 New task、运行状态、Scheduled tasks、Archived；capability
+  选择在 Home，管理在 Settings，Native/default-release 的 Runtime gate 仍保持可选。
 - Environment 首层保持 recorded workspace/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行

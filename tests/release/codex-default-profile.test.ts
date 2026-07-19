@@ -121,6 +121,102 @@ test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and dup
   }
 });
 
+test('Home capability palette is complete, localized, shortcut-independent, and agent-Skill deduplicated', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const registry = readJson('contracts/agent-package-registry.json');
+  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const policy = profile.gui.ordinary_capability_selector_policy;
+  assert.deepStrictEqual(policy.palette_required_agent_package_ids, ['mas', 'mag', 'rca', 'obf', 'oma']);
+  assert.deepStrictEqual(policy.palette_agent_group_label_i18n, {
+    'zh-CN': '专业智能体',
+    'en-US': 'Professional agents',
+  });
+  assert.equal(
+    policy.palette_home_shortcut_independence_policy,
+    'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order',
+  );
+  assert.equal(
+    policy.agent_owned_skill_deduplication_policy,
+    'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills',
+  );
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure, registry));
+
+  profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.filter(
+    (shortcut: any) => shortcut.package_id !== 'obf',
+  );
+  assert.throws(() => validateProductProfile(profile, installExposure, registry));
+
+  const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
+  catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas', 'mag', 'rca', 'oma'];
+  assert.throws(() => validateProductProfile(catalogDrift, installExposure, registry), /ordinary capability selector/);
+});
+
+test('professional Agent metadata requires App-owned localized names and descriptions', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const registry = readJson('contracts/agent-package-registry.json');
+  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const meta = profile.gui.professional_agent_packages.find((entry: any) => entry.package_id === 'oma');
+  assert.equal(meta.display_name_i18n['zh-CN'], '元智能体');
+  assert.match(meta.description_i18n['zh-CN'], /创建、接管、检查和改进/);
+  meta.description_i18n['zh-CN'] = '';
+  assert.throws(
+    () => validateProductProfile(profile, installExposure, registry),
+    /localized name and description|non-empty zh-CN and en-US/,
+  );
+
+  const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const releaseMetadata = completeProfile.gui.agent_package_registry.first_party_release_set_metadata;
+  assert.deepStrictEqual(
+    releaseMetadata.map((entry: any) => entry.package_id),
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+  );
+  for (const entry of releaseMetadata) {
+    assert.ok(entry.display_name_i18n['zh-CN'].trim(), entry.package_id);
+    assert.ok(entry.description_i18n['zh-CN'].trim(), entry.package_id);
+    assert.ok(entry.display_name_i18n['en-US'].trim(), entry.package_id);
+    assert.ok(entry.description_i18n['en-US'].trim(), entry.package_id);
+  }
+  assert.equal(
+    releaseMetadata.find((entry: any) => entry.package_id === 'mas-scholar-skills').display_name_i18n['zh-CN'],
+    'MAS 学术技能',
+  );
+  const dependencyCopyDrift = structuredClone(completeProfile);
+  dependencyCopyDrift.gui.agent_package_registry.first_party_release_set_metadata.find(
+    (entry: any) => entry.package_id === 'mas-scholar-skills',
+  ).description_i18n['zh-CN'] = '';
+  assert.throws(
+    () => validateProductProfile(dependencyCopyDrift, installExposure, registry),
+    /incomplete or not localized/,
+  );
+});
+
+test('active AionUI keeps Runtime status in primary navigation without expanding Native or release gates', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const registry = readJson('contracts/agent-package-registry.json');
+  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const navigation = profile.gui.home.home_layout.active_aionui_primary_navigation;
+  assert.deepStrictEqual(navigation.ordered_entry_ids, ['new_task', 'runtime', 'scheduled_tasks', 'archived']);
+  assert.equal(navigation.runtime_entry.label_i18n['zh-CN'], '运行状态');
+  assert.equal(navigation.runtime_entry.route, '/runtime');
+  assert.equal(navigation.runtime_entry.keyboard_reachable, true);
+  assert.equal(navigation.runtime_entry.home_content_effect, 'navigation_only_no_dashboard');
+
+  profile.gui.home.home_layout.active_aionui_primary_navigation.ordered_entry_ids = [
+    'new_task',
+    'scheduled_tasks',
+    'archived',
+  ];
+  assert.throws(
+    () => validateProductProfile(profile, installExposure, registry),
+    /Runtime status in the active AionUI primary navigation/,
+  );
+
+  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  matrix.pages.find((page: any) => page.id === 'guid_home').home_view_model.home_layout
+    .active_aionui_primary_navigation.runtime_entry.keyboard_reachable = false;
+  assert.throws(() => validatePrimaryInteractionPages(matrix), /Guid home page layout/);
+});
+
 test('product profile rejects pre-Codex-baseline interaction states', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   for (const mutate of [
@@ -196,8 +292,6 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      "data-testid='starter-active-check'",
-      "<CheckOne theme='outline'",
       'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),
@@ -237,7 +331,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,
-      homeStarters: currentSources.homeStarters.replace("data-testid='starter-active-check'", ''),
+      homeStarters: `${currentSources.homeStarters}\n<CheckOne theme='outline' />`,
     }),
   );
   assert.throws(
@@ -250,17 +344,6 @@ test('active-shell source gate requires Home starters and Capabilities routing i
         ),
       }),
     /must include active && styles\.homeStarterActive/,
-  );
-  assert.throws(
-    () =>
-      assertCurrentGuidHomeSelectionSources({
-        ...currentSources,
-        homeStarters: currentSources.homeStarters.replace(
-          "<CheckOne theme='outline'",
-          '<FontAwesomeIcon icon={faCheck}',
-        ),
-      }),
-    /must include <CheckOne theme='outline'/,
   );
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({

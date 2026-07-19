@@ -10,8 +10,8 @@ Machine boundary: 本文是 App-owned historical implementation read model。产
 
 Currentness note: 本文是 `dbff7370f` 与最初 41301 convergence 的历史 disposition 记录，
 不描述 current Shell 或 current product requirement。当时的 New task / Runtime / Archived
-rail 只证明该历史 cohort；当前固定入口为 New task / Archived，Runtime 仅在 X0-01 route
-显式启用时出现。current source/pixel 状态只读取
+rail 只证明该历史 cohort；当前 active AionUI 固定入口为 New task / Runtime / Scheduled tasks /
+Archived，Runtime 的 Native/default-release gate 仍保持可选。current source/pixel 状态只读取
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 Date: `2026-07-11`
 

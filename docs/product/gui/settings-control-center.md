@@ -168,6 +168,9 @@ list wall or nested cards.
   0;
 - raw diagnostics stay out of ordinary pages and open only through an explicit
   Diagnostics action.
+- Settings 侧栏第一行在搜索框上方提供“返回应用 / Back to app”；展开态显示图标与文字，
+  折叠态保留 tooltip 和 accessible name，窄窗口复用标题栏返回并使用同一个非 Settings
+  destination resolver。桌面标题栏不得再渲染第二个重复返回按钮。
 
 The App product profile and active Shell generated profile must project the
 complete visual-system object. A stale generated profile must not restore the
@@ -248,9 +251,10 @@ Maintenance diagnostics.
 Agents is the runnable public Agent Package directory. Its collection is
 exactly `app_state.agent_packages.directory.entries`: every projected entry is
 shown, including uninstalled packages, OPL Meta Agent, all first-party
-packages, Framework capability packages, and workflow profiles. The static
-`professional_agent_packages` profile is an optional `package_id`-keyed UI
-metadata overlay only. It cannot seed or filter the collection and cannot own
+packages, Framework capability packages, and workflow profiles. The complete
+`agent_package_registry.first_party_release_set_metadata` projection is an optional
+`package_id`-keyed localized name and description overlay for current first-party
+rows only. It cannot seed or filter the collection and cannot own
 installation, activation, readiness, status, source, or actions.
 
 The page has its own package-catalog search, separate from Settings global
@@ -300,6 +304,10 @@ not appear here. Ordinary send maps this fast-only uncertainty to `degraded`
 and remains fail-open through the owner-projected package launch adapter / JIT
 prepare; it must not apply a second hard block from the raw fast flags. Only the
 selected package's explicit `package_unavailable` condition may be locally disabled.
+普通行不直接显示 `待验证`、`需关注`、`不可使用` 或 raw readiness flags。每个 package
+独立投影一个本地化用户状态：可以使用、首次使用时检查、需要完成设置、暂时不能使用或
+正在读取状态；聚合计数不能覆盖逐项状态。`首次使用时检查` 仍允许选择和发起对话，App
+在首次发送边界执行 owner-projected JIT 检查，仅在该检查仍失败时阻止启动。
 
 Developer Mode appears here as **允许维护已授权的开发仓库**. The control is
 `auto|off`, defaults to `auto`, and is independent from source selection. A
@@ -313,10 +321,13 @@ login, authorized repository scope, dirty-worktree and branch protection, and
 the inactive reason. Shared runtime mutation still requires
 `enabled=on + mode=developer_apply_safe + source=user_config`.
 
-Agent display verification also covers Chinese names, developer-source state,
-and the product-profile default visibility of OPL Meta Agent. Those values come
-from the generated product profile and Framework projection, not shell-local
-hardcoding.
+Agent display verification covers localized names and descriptions for every
+current first-party row, including OPL Meta Agent, MAS Scholar Skills, and OPL
+Flow, plus developer-source state and the product-profile default visibility of
+OPL Meta Agent. These values come from the generated product profile and
+Framework projection, not shell-local hardcoding. The Chinese OPL Meta Agent
+description explicitly explains that it creates, takes over, inspects, and
+improves OPL professional Agents.
 
 ### Capabilities
 
@@ -384,11 +395,14 @@ Dependency catalogs may provide optional `real_path`. Identity and de-duplicatio
 use normalized `real_path` first and fall back to `binary_path`; shadowed paths
 remain diagnostic detail.
 
-Update channel is the one inline persistent control. Apply, repair, rollback,
-package sync, and other commands live in an explicit management modal.
-Framework paths, raw working directories, ids, command mappings, receipts, and
-payloads live only in read-only Maintenance diagnostics. Retired Advanced
-routes here.
+Update channel is the one inline persistent control. The daily Maintenance page
+itself owns Check, Apply, Repair, Rollback, package sync, per-action progress,
+confirmation, and fresh readback; these actions do not move into a second large
+management modal. One collapsed advanced diagnostics disclosure owns localized
+component labels plus read-only path and receipt evidence. It contains no
+mutation controls, never overlaps another large modal, and never exposes raw
+internal status keys, action ids, command mappings, or payload field names as
+user-facing copy. Retired Advanced routes here.
 
 ### Data & Storage
 

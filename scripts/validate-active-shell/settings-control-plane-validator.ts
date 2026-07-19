@@ -2565,11 +2565,18 @@ export function validateSettingsExperienceContract(experience) {
     {
       configuration_location:
         "update_channel_is_an_inline_persistent_control_in_the_updates_section",
+      daily_action_surface:
+        "the_Maintenance_page_itself_owns_check_apply_repair_and_rollback_with_per_action_state_confirmation_and_fresh_readback",
       management_surface:
-        "component_apply_repair_rollback_and_capability_sync_live_in_an_explicit_management_modal",
+        "inline_page_rows_and_progressive_confirmation_never_a_second_large_management_modal",
       diagnostic_surface:
-        "read_only_status_paths_receipts_and_raw_projection_only",
+        "one_advanced_read_only_disclosure_for_localized_component_path_and_receipt_evidence",
+      diagnostic_entry_count: 1,
+      large_overlay_policy:
+        "never_open_or_define_overlapping_management_and_diagnostics_modals",
       diagnostic_mutation_controls_allowed: false,
+      raw_internal_status_key_policy:
+        "never_render_raw_internal_status_keys_action_ids_or_payload_fields_as_user_facing_copy",
       unknown_state_copy:
         "distinguish_checking_not_checked_not_applicable_and_needs_attention",
       managed_dependency_primary_visibility:
@@ -3044,9 +3051,11 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.directory_collection_policy !==
       "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages" ||
     directory.static_metadata_overlay_source !==
-      "contracts/app-product-profile.json#gui.professional_agent_packages" ||
+      "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata" ||
     directory.static_metadata_overlay_policy !==
       "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority" ||
+    JSON.stringify(directory.static_metadata_overlay_fields) !==
+      JSON.stringify(["display_name_i18n", "description_i18n"]) ||
     directory.runtime_source_projection !==
       "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]" ||
     directory.source_semantics_policy !==
@@ -3087,7 +3096,11 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   const statusModel = directory.status_model;
   if (
-    statusModel?.policy !== "multi_axis_package_status_no_single_repair_bucket"
+    statusModel?.policy !== "multi_axis_package_status_no_single_repair_bucket" ||
+    statusModel?.user_facing_projection_ref !==
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection" ||
+    statusModel?.localized_metadata_source_ref !==
+      "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata"
   ) {
     throw new Error(
       "Settings Agents must keep a multi-axis package status model",

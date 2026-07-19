@@ -192,8 +192,6 @@ export function assertCurrentGuidHomeSelectionSources({
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      "data-testid='starter-active-check'",
-      "<CheckOne theme='outline'",
       'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
@@ -203,6 +201,8 @@ export function assertCurrentGuidHomeSelectionSources({
     homeStarters,
     [
       'FontAwesomeIcon',
+      'CheckOne',
+      "data-testid='starter-active-check'",
       'faChevronRight',
       "!border-primary-5 !bg-primary-1 !text-primary-6",
       '<Right',
@@ -294,7 +294,8 @@ const productProfileDefaultsExpected = [
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"default_active_shortcut": null',
   '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness"',
-  '"selected_starter_visual_policy": "quiet_fill_and_check_indicator_not_color_alone"',
+  '"selected_starter_visual_policy": "quiet_fill_with_aria_pressed_without_trailing_selection_glyph"',
+  '"selected_starter_accessibility_state": "aria_pressed_reflects_active_shortcut"',
   '"zh": "推理最高"',
   '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',
   '"model_catalog_source": "codex_cli_model_list"',
@@ -1196,16 +1197,27 @@ function validateReadOnlySessionEnvironmentImplementation(shellPaths) {
 }
 
 export function validateRuntimePageImplementation(shellPaths) {
-  assertTextExcludesAll(
-    readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx'),
+  const primaryNav = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx',
     ["key: 'runtime'", "t('common.runtime.sidebarEntry')", "active: pathname.startsWith('/runtime')"],
-    'Active shell default rail must keep the optional X0-01 Runtime route hidden',
+    'Active AionUI primary navigation Runtime status entry',
   );
+  const runtimeIndex = primaryNav.indexOf("key: 'runtime'");
+  const scheduledIndex = primaryNav.indexOf("key: 'scheduled'");
+  const archivedIndex = primaryNav.indexOf("key: 'archived'");
+  if (!(runtimeIndex < scheduledIndex && scheduledIndex < archivedIndex)) {
+    throw new Error('Active AionUI primary navigation must order Runtime before Scheduled tasks and Archived');
+  }
   assertShellTextIncludesAll(
     shellPaths,
     'tests/unit/layout/SiderNavigation.dom.test.tsx',
-    ['keeps Runtime fail-closed while Scheduled and Archived remain reachable'],
-    'Active shell default Runtime navigation visibility regression',
+    [
+      'orders primary actions before history utilities and keeps the footer compact',
+      "['New task', 'Runtime', 'Scheduled Tasks', 'Archived', 'Settings']",
+      "getByRole('button', { name: 'Runtime' })",
+    ],
+    'Active AionUI Runtime navigation visibility and order regression',
   );
   assertShellTextIncludesAll(
     shellPaths,

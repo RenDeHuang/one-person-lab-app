@@ -42,6 +42,7 @@ const runtimeSettingsExpected = [
   'maintenanceHubItems',
   "data-testid='opl-maintenance-hub'",
   'settings.oplEnvironmentPage.maintenanceHub.title',
+  "data-testid='settings-maintenance-daily-actions'",
   "data-testid='settings-maintenance-diagnostics-action'",
   "data-testid='settings-maintenance-technical-details'",
   'visible={diagnosticsVisible}',
@@ -194,6 +195,11 @@ function validateRuntimeSettings(shellPaths) {
     runtimeSettings,
     /med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i,
     'Active shell Runtime settings must not default-display Med Deep Scientist/MDS.',
+  );
+  assertTextExcludesAll(
+    runtimeSettings,
+    ["data-testid='settings-maintenance-management-details'"],
+    'Active shell Maintenance must not retain a second large management modal',
   );
   assertShellTextIncludesAll(
     shellPaths,

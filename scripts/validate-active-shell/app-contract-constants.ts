@@ -760,7 +760,7 @@ export const appOwnedSettingsManagedDependencySummary = {
   unknown_value_policy:
     "show not checked or unknown and never synthesize current, missing, or zero values",
   diagnostics_boundary:
-    "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+    "the single advanced disclosure may show read-only binary paths, shadowed installations, localized component labels, and receipt evidence; raw internal status keys, actions, and catalog payloads are never user-facing",
   external_installations_policy: {
     row_key: "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
     required_fields: [
@@ -965,7 +965,7 @@ export const appOwnedSettingsTechnicalDetailsDefault = {
   agents: "collapsed",
   capabilities: "collapsed",
   resources: "explicit_action_modal",
-  maintenance: "explicit_action_modal",
+  maintenance: "collapsed",
   storage: "explicit_action_modal",
   preferences: "not_applicable",
   about: "explicit_action_modal",
@@ -1354,6 +1354,25 @@ export const homeActivityCenterForbiddenDisplays = [
   "quality verdict body",
   "provider implementation details",
 ];
+export const appOwnedActiveAionuiPrimaryNavigation = {
+  scope: "active_aionui_current_product_only",
+  ordered_entry_ids: ["new_task", "runtime", "scheduled_tasks", "archived"],
+  runtime_entry: {
+    route: "/runtime",
+    label_i18n: {
+      "zh-CN": "运行状态",
+      "en-US": "Runtime status",
+    },
+    placement: "after_new_task_before_scheduled_tasks",
+    visibility: "always",
+    expanded_behavior: "icon_and_label",
+    collapsed_behavior: "icon_only_with_tooltip_and_accessible_name",
+    narrow_drawer_behavior: "icon_and_label",
+    keyboard_reachable: true,
+    home_content_effect: "navigation_only_no_dashboard",
+    route_gate_boundary: "native_phase_one_and_default_release_gate_remain_optional",
+  },
+};
 export const appOwnedHomeLayout = {
   default_mode: "composer_first_chat_canvas",
   default_active_shortcut: null,
@@ -1384,7 +1403,9 @@ export const appOwnedHomeLayout = {
   desktop_context_bar_overlap_px: 13,
   desktop_context_bar_horizontal_inset_px: 12,
   starter_truncation_allowed: false,
-  selected_starter_visual_policy: "quiet_fill_and_check_indicator_not_color_alone",
+  selected_starter_visual_policy:
+    "quiet_fill_with_aria_pressed_without_trailing_selection_glyph",
+  selected_starter_accessibility_state: "aria_pressed_reflects_active_shortcut",
   selected_working_directory_visual_policy:
     "independent_new_session_context_bar_control_with_selected_directory_and_clear_action",
   workspace_selector_policy: {
@@ -1408,6 +1429,7 @@ export const appOwnedHomeLayout = {
   projectless_conversation_supported: true,
   text_chat_without_workspace: "available",
   workspace_session_rail_default_state: "visible_wide_drawer_narrow",
+  active_aionui_primary_navigation: appOwnedActiveAionuiPrimaryNavigation,
   right_context_inspector_default_state: "collapsed",
   must_not_show: [
     "dashboard-first home",
@@ -1576,8 +1598,16 @@ export const appOwnedUnifiedContextMenu = {
     {
       id: "agent_packages",
       scope: "new_session_configuration_only",
-      source_ref:
-        "professional_agent_packages + ordinary_capability_selector_policy",
+      label_i18n: {
+        "zh-CN": "专业智能体",
+        "en-US": "Professional agents",
+      },
+      source_ref: "professional_agent_packages",
+      catalog_membership_source_ref: "professional_agent_packages[].package_id",
+      required_package_ids: ["mas", "mag", "rca", "obf", "oma"],
+      catalog_order_policy: "stable_professional_agent_packages_order",
+      home_shortcut_independence_policy:
+        "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
       availability_policy:
         "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
       existing_session_rebinding_allowed: false,
@@ -1592,6 +1622,8 @@ export const appOwnedUnifiedContextMenu = {
       source_ref: "ordinary_capability_selector_policy",
       availability_policy:
         "show_global_app_allowlisted_skills_without_an_agent_then_scope_to_the_selected_professional_agent_profile",
+      agent_owned_skill_deduplication_policy:
+        "on_home_new_session_exclude_required_skill_ids_owned_by_rendered_professional_agents_from_the_standalone_skills_group",
       existing_session_rebinding_allowed: false,
       surface_actions: {
         home_new_session: ["configure_new_session_scoped_skill"],
@@ -1649,6 +1681,82 @@ export const appOwnedUnifiedContextMenu = {
     "raw_mcp",
     "arbitrary_skills",
     "unavailable_or_synthetic_plugins",
+  ],
+};
+export const appOwnedAgentPackageUserStatusProjection = {
+  schema: "agent_package_user_status_projection.v1",
+  locale_policy: "follow_current_app_locale_with_zh_CN_and_en_US_required",
+  primary_status_policy:
+    "one_user_facing_status_per_package_without_a_contradictory_availability_badge",
+  per_package_identity_key: "package_id",
+  aggregate_status_policy:
+    "aggregate_counts_never_override_or_replace_each_projected_package_status",
+  raw_internal_status_visibility: "advanced_diagnostics_only",
+  rules: [
+    {
+      id: "ready",
+      when: "operational_ready_true_and_launch_allowed_true",
+      label_i18n: { "zh-CN": "可以使用", "en-US": "Ready to use" },
+      explanation_i18n: {
+        "zh-CN": "已完成本机检查，可以开始对话。",
+        "en-US": "Local checks are complete and this agent can start a conversation.",
+      },
+    },
+    {
+      id: "local_check_not_completed",
+      when:
+        "readiness_status_verification_deferred_or_reason_live_verification_deferred_with_launch_allowed_false",
+      label_i18n: {
+        "zh-CN": "首次使用时检查",
+        "en-US": "Checked on first use",
+      },
+      explanation_i18n: {
+        "zh-CN": "可以选择并发起对话；首次使用时会自动尝试完成本机检查，只有发送边界检查仍未通过时才会阻止启动。",
+        "en-US": "You can select this agent and start a conversation. The app will attempt the local check on first use and block launch only if the send-boundary check still fails.",
+      },
+      action_policy:
+        "allow_selection_and_JIT_send_attempt_plus_show_only_owner_projected_check_activate_repair_or_manage_action_with_exact_readback",
+    },
+    {
+      id: "setup_required",
+      when:
+        "owner_projection_requires_install_activation_workspace_or_other_explicit_user_setup",
+      label_i18n: { "zh-CN": "需要完成设置", "en-US": "Setup required" },
+      explanation_i18n: {
+        "zh-CN": "按下方操作完成设置后即可使用。",
+        "en-US": "Complete the action shown below before using this agent.",
+      },
+      action_policy: "show_only_exact_owner_projected_action",
+    },
+    {
+      id: "temporarily_unavailable",
+      when: "owner_projection_reports_blocked_failed_or_status_read_error",
+      label_i18n: { "zh-CN": "暂时不能使用", "en-US": "Temporarily unavailable" },
+      explanation_policy:
+        "show_localized_owner_reason_and_exact_owner_projected_recovery_action_when_present",
+    },
+    {
+      id: "checking",
+      when: "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
+      label_i18n: { "zh-CN": "正在读取状态", "en-US": "Checking status" },
+      explanation_i18n: {
+        "zh-CN": "正在读取本机状态，不会把未知状态显示为可用。",
+        "en-US": "Reading local status; unknown state is never presented as ready.",
+      },
+    },
+  ],
+  forbidden_ordinary_labels_zh: ["待验证", "需关注", "对话中可用", "对话中不可用", "不可使用"],
+  forbidden_ordinary_labels_en: [
+    "Verification deferred",
+    "Needs attention",
+    "Available in conversation",
+    "Unavailable in conversation",
+  ],
+  internal_fields_forbidden_as_primary_copy: [
+    "verification_deferred",
+    "operational_ready",
+    "launch_allowed",
+    "live_verification_deferred",
   ],
 };
 export const appOwnedSendFailureInputPolicy = {

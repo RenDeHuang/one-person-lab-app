@@ -194,7 +194,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部固定 New task、Archived；仅在 X0-01 route 显式启用时显示 Runtime。主体按 canonical thread ID 关联的显式
+- Active AionUI Rail 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 的 Native phase-1/default-release gate 仍保持可选。主体按 canonical thread ID 关联的显式
   Project affinity 分组 App Server threads，底部承载 account/help/Settings；App Server canonical overview 可用时是 Codex
   session directory authority，carrier 只保存 affinity、draft、preference 和可重建 cache。Git origin 与 runtime cwd 不作为
   Project identity。Rename/archive/restore/delete 分别映射 `thread/name/set`、

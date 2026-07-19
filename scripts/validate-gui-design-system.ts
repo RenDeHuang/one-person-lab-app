@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
+  appOwnedActiveAionuiPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
@@ -718,29 +719,31 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     returnToApp.label_zh !== '返回应用' ||
     returnToApp.label_en !== 'Back to app' ||
-    returnToApp.placement !== 'top_titlebar_history_back_desktop_and_titlebar_back_narrow' ||
-    returnToApp.destination_source !== 'desktop_navigation_history_or_last_valid_non_settings_location' ||
+    returnToApp.placement !== 'settings_sider_first_row_above_search' ||
+    returnToApp.destination_source !== 'last_valid_non_settings_location' ||
     returnToApp.session_storage_key !== 'aion:last-non-settings-path' ||
     returnToApp.preserve_search_and_hash !== true ||
     returnToApp.settings_destination_forbidden !== true ||
     returnToApp.fallback_path !== '/guid' ||
     returnToApp.keyboard_reachable !== true ||
-    returnToApp.desktop_behavior !== 'existing_top_titlebar_history_back' ||
+    returnToApp.expanded_behavior !== 'icon_and_label' ||
+    returnToApp.collapsed_behavior !== 'icon_only_with_tooltip_and_accessible_name' ||
     returnToApp.narrow_window_behavior !==
-      'existing_titlebar_return_action_uses_last_valid_non_settings_destination_resolver' ||
-    returnToApp.settings_sider_entry !== 'forbidden' ||
+      'existing_titlebar_return_action_uses_same_destination_resolver' ||
+    returnToApp.desktop_titlebar_duplicate_forbidden !== true ||
     settingsShellNavigation.product_contract_ref !==
       'contracts/app-gui-product-contract.json#settings_navigation.return_to_app' ||
-    !sameStrings(settingsShellRequiredDom.expanded, ['settings-titlebar-history-back', 'settings-search-input']) ||
-    !sameStrings(settingsShellRequiredDom.collapsed, ['settings-titlebar-history-back']) ||
+    !sameStrings(settingsShellRequiredDom.expanded, ['settings-back-to-app', 'settings-search-input']) ||
+    !sameStrings(settingsShellRequiredDom.collapsed, ['settings-back-to-app']) ||
     !sameStrings(settingsShellRequiredDom.narrow, ['settings-titlebar-back-to-app']) ||
-    !sameStrings(settingsShellNavigation.forbidden_dom, ['settings-back-to-app']) ||
+    !sameStrings(settingsShellNavigation.forbidden_dom, ['settings-titlebar-history-back']) ||
     settingsShellNavigation.destination_behavior !==
-      'desktop_titlebar_history_back_or_narrow_last_valid_non_settings_location_preserving_search_and_hash_else_guid' ||
+      'last_valid_non_settings_location_preserving_search_and_hash_else_guid' ||
     settingsShellNavigation.keyboard_reachable !== true ||
-    settingsShellNavigation.settings_sider_return_forbidden !== true
+    settingsShellNavigation.same_resolver_for_sider_and_titlebar !== true ||
+    settingsShellNavigation.desktop_titlebar_return_forbidden !== true
   ) {
-    issues.add('Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry');
+    issues.add('Settings shell must keep one Back to app action above desktop search or in the narrow titlebar without a desktop titlebar duplicate');
   }
   if (
     themeAndBranding.default_theme_id !== 'default-theme' ||
@@ -974,12 +977,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'opl_settings',
       'domain_package_entries',
       'bilingual_ui',
+      'runtime_navigation',
     ]) ||
     relocationGate.replacement_reachable_in_same_change !== true ||
     relocationGate.contract_source_tests_updated_together !== true ||
     relocationGate.removal_before_replacement_forbidden !== true ||
-    runtimeSurfaceRoles.navigation_runtime !== 'retained_optional_x0_owner_route' ||
-    runtimeSurfaceRoles.navigation_runtime_default_visible !== false ||
+    runtimeSurfaceRoles.navigation_runtime !== 'active_aionui_primary_navigation' ||
+    runtimeSurfaceRoles.navigation_runtime_default_visible !== true ||
     runtimeSurfaceRoles.context_runtime !== 'selected_conversation_or_task_details' ||
     runtimeSurfaceRoles.context_runtime_independent_of_navigation_runtime !== true ||
     runtimePreservationGate.product_contract_ref !==
@@ -991,6 +995,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     runtimePreservationGate.default_release_gate !== false ||
     runtimePreservationGate.native_phase_one_requirement !== false ||
     runtimePreservationGate.upstream_alignment_may_remove_or_weaken !== true ||
+    runtimePreservationGate.active_aionui_navigation_requirement !== true ||
+    runtimePreservationGate.active_aionui_navigation_may_remove_or_weaken !== false ||
     runtimePreservationGate.explicit_validation_command !== 'npm run validate:runtime-route' ||
     !sameStrings(runtimePreservationGate.route_change_requirements, [
       'product_contract',
@@ -1012,13 +1018,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     navigationRail.narrow_window_mode !== 'drawer' ||
     railWidth.min !== 280 ||
     railWidth.max !== 340 ||
-    !sameStrings(navigationRail.top_entries, ['new_task', 'archived']) ||
-    JSON.stringify(navigationRail.conditional_entries) !== JSON.stringify([{
-      id: 'runtime',
-      role: 'retained_optional_x0_owner_route',
-      when: 'runtime_route_enabled_by_owner_profile',
-    }]) ||
-    navigationRail.runtime_entry_role !== 'retained_optional_x0_owner_route_not_default_navigation' ||
+    navigationRail.top_entries_scope !== 'active_aionui_current_product' ||
+    !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'scheduled_tasks', 'archived']) ||
+    !sameStrings(navigationRail.conditional_entries, []) ||
+    navigationRail.runtime_entry_role !==
+      'active_aionui_primary_navigation_while_route_remains_optional_for_native_and_default_release_gate' ||
+    JSON.stringify(navigationRail.runtime_entry) !==
+      JSON.stringify(appOwnedActiveAionuiPrimaryNavigation.runtime_entry) ||
     navigationRail.capabilities_mapping !==
       'capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page' ||
     navigationRail.legacy_capabilities_route !==

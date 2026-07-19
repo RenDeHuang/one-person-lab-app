@@ -2,6 +2,7 @@ import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll
 import {
   appActionRoute,
   appOwnedSettingsAboutUpdaterStatePolicy,
+  appOwnedAgentPackageUserStatusProjection,
   appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsManagedDependencySummary,
@@ -335,14 +336,19 @@ function validateAgentPackageLifecycleUx(surface, label) {
     directory.consumer_policy !==
       'render every projected entry without a shell allowlist, first-party seed, or installed-only filter' ||
     directory.static_metadata_overlay_source !==
-      'contracts/app-product-profile.json#gui.professional_agent_packages' ||
+      'contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata' ||
     directory.static_metadata_overlay_policy !==
       'package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds' ||
     directory.first_party_policy !==
       'OMA and every first-party package use the same directory entries and action contract as every other package'
   ) {
-    throw new Error(`${label} must keep directory.entries canonical and professional_agent_packages metadata-only`);
+    throw new Error(`${label} must keep directory.entries canonical and first-party release metadata presentation-only`);
   }
+  assertDeepEqualJson(
+    directory.static_metadata_overlay_fields,
+    ['display_name_i18n', 'description_i18n'],
+    `${label} localized metadata overlay fields`,
+  );
   assertDeepEqualJson(surface.shell_consumers, ['aionui', 'opl_native_workbench'], `${label} shell consumers`);
   assertDeepEqualJson(
     directory.required_entry_fields,
@@ -528,9 +534,14 @@ function validateAgentPackageLifecycleUx(surface, label) {
         reason: null,
         session_launch_disposition: 'ready',
       },
-      presentation_policy: 'fast verification_deferred must stay visibly degraded rather than being relabeled ready or repair; session launch may attempt owner-projected JIT activation without a preemptive hard block',
+      presentation_policy: 'fast verification_deferred remains truthful owner state while ordinary UI projects localized local-check-not-completed copy; session launch may attempt owner-projected JIT activation without a preemptive hard block',
     },
     `${label} fast and full readiness policy`,
+  );
+  assertDeepEqualJson(
+    surface.user_facing_status_projection,
+    appOwnedAgentPackageUserStatusProjection,
+    `${label} localized user-facing status projection`,
   );
   assertIncludesAll(
     surface.failure_reason_fields,
@@ -1367,6 +1378,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'each canonical thread ID rendered as at most one conversation row regardless of title',
       'canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows',
       'directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only',
+      'active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes',
     ],
     'App GUI Home session-first identity signals',
   );
@@ -1455,6 +1467,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     guiContract.ordinary_capability_selector_policy?.authority !== 'app_owned_opl_allowlist' ||
+    guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
+    JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_required_agent_package_ids) !==
+      JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
+    JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_agent_group_label_i18n) !==
+      JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
+    guiContract.ordinary_capability_selector_policy?.palette_home_shortcut_independence_policy !==
+      'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
+    guiContract.ordinary_capability_selector_policy?.agent_owned_skill_deduplication_policy !==
+      'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     guiContract.ordinary_capability_selector_policy?.skill_source_ref !==
       'assistant_skill_profiles.required_skills + optional_skills' ||
     guiContract.ordinary_capability_selector_policy?.package_skill_source_ref !==
@@ -1684,6 +1705,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('Settings Capabilities must derive Flow membership from package closure and leave CLI currentness to OPL Base');
   }
   const agentDirectoryTarget = pages.settings_agents.codex_plugin_directory_target;
+  const agentStatusModel = pages.settings_agents.status_model;
   if (
     agentDirectoryTarget?.primary_layout !==
       'compact_grouped_package_list_with_inline_dependency_children_and_right_details_panel' ||
@@ -1695,6 +1717,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy' ||
     pages.settings_agents.list_density_policy?.row_hierarchy_policy !==
       'one_projected_package_one_row_with_single_parent_dependencies_nested_and_shared_dependencies_grouped' ||
+    agentStatusModel?.user_facing_projection_ref !==
+      'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection' ||
+    agentStatusModel?.localized_metadata_source_ref !==
+      'contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata' ||
     pages.settings_agents.developer_mode_control?.default_disclosure !== 'collapsed'
   ) {
     throw new Error('Settings Agents must use the App-owned grouped catalog presentation with collapsed developer controls');
@@ -1705,12 +1731,19 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'localized package role labels with no raw internal enum on the ordinary row',
       'professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
       'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
+      'localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow',
+      'verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action',
+      'one localized status per package with aggregate counts never replacing item status',
     ],
     'Settings Agents grouped catalog signals',
   );
   assertIncludesAll(
     pages.settings_agents.must_not_show,
-    ['hardcoded package parent-child relationships or duplicate dependency rows'],
+    [
+      'hardcoded package parent-child relationships or duplicate dependency rows',
+      'raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows',
+      'aggregate ready or unavailable counts used as the status of every package',
+    ],
     'Settings Agents forbidden dependency synthesis',
   );
   validateAgentPackageLifecycleUx(
@@ -1753,8 +1786,45 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.settings_environment.module_path_source_policy_ref !== 'module_path_source_policy') {
     throw new Error('Settings Environment must reference the App GUI module path source policy');
   }
-  if (!pages.settings_environment.must_show?.includes('module path source explanation in technical details')) {
-    throw new Error('Settings Maintenance must keep module path source explanation in technical details');
+  if (
+    !pages.settings_environment.must_show?.includes(
+      'check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback',
+    ) ||
+    !pages.settings_environment.must_show?.includes(
+      'one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence',
+    ) ||
+    !pages.settings_environment.must_not_show?.includes(
+      'a separate large management modal overlapping the advanced diagnostics disclosure',
+    ) ||
+    !pages.settings_environment.must_not_show?.includes(
+      'raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI',
+    )
+  ) {
+    throw new Error('Settings Maintenance must own daily actions and one read-only diagnostics disclosure without overlapping modals or raw keys');
+  }
+  const maintenanceActionPolicy = pages.settings_environment.maintenance_action_policy;
+  assertDeepEqualJson(
+    maintenanceActionPolicy?.required_action_roles,
+    [
+      'refresh_status',
+      'check_updates',
+      'apply_update',
+      'repair_component',
+      'rollback_component',
+      'bootstrap_missing_opl_base',
+      'update_opl_app',
+      'install_or_update_opl_package',
+      'repair_or_uninstall_opl_package',
+    ],
+    'Settings Maintenance daily action roles',
+  );
+  if (
+    maintenanceActionPolicy?.advanced_actions_policy !==
+      'nonrecommended actions stay in the same page action area or progressive confirmation and never move into diagnostics or a second large management modal' ||
+    maintenanceActionPolicy?.surface_owner_policy !==
+      'daily_Maintenance_page_owns_check_apply_repair_and_rollback'
+  ) {
+    throw new Error('Settings Maintenance actions must stay on the page and outside the read-only diagnostics disclosure');
   }
   validateEnvironmentModuleMaintenanceEntry(pages.settings_environment.module_maintenance_entry, 'Settings Environment');
   if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {

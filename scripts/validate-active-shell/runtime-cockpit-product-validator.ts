@@ -760,6 +760,8 @@ export function validateRuntimeCockpitPreservationPolicy(policy, label) {
       default_release_gate: false,
       native_phase_one_requirement: false,
       upstream_alignment_may_remove_or_weaken: true,
+      active_aionui_navigation_requirement: true,
+      active_aionui_navigation_may_remove_or_weaken: false,
       explicit_validation_command: 'npm run validate:runtime-route',
     },
     label,

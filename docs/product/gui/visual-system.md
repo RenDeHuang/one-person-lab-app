@@ -239,7 +239,7 @@ Composer 是底部唯一主 command surface：
 ## Project / Conversation Rail
 
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
-- 顶部固定 New task、Archived；Runtime 仅在 X0-01 route 显式启用时出现。capability starter
+- Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 不因此进入 Native/default-release gate。capability starter
   属于 Home，package/capability 管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段按显式 Project-affinity metadata 组织 canonical sessions，同时容纳 projectless sessions；分组不拥有
   session、context 或 artifact。只有 `custom_workspace=false` 或无 canonical recorded cwd 的 Projectless row 可经

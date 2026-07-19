@@ -1211,7 +1211,7 @@
             "detect_only_guidance": "show owner guidance without a fake update action"
           },
           "unknown_value_policy": "show not checked or unknown and never synthesize current, missing, or zero values",
-          "diagnostics_boundary": "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+          "diagnostics_boundary": "the single advanced disclosure may show read-only binary paths, shadowed installations, localized component labels, and receipt evidence; raw internal status keys, actions, and catalog payloads are never user-facing",
           "external_installations_policy": {
             "row_key": "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
             "required_fields": [
@@ -1390,8 +1390,9 @@
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
           "directory_collection_source": "app_state.agent_packages.directory.entries",
           "directory_collection_policy": "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages",
-          "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
+          "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
           "static_metadata_overlay_policy": "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority",
+          "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
           "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
           "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
           "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
@@ -1409,6 +1410,8 @@
           "workspace_missing_policy": "disable only an activation whose unresolved required_payload_fields includes target_workspace, with workspace_root_not_configured and route to /settings/workspace#workspace",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
+            "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
+            "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
             "axes": [
               "install_state",
               "activation_state",
@@ -3158,7 +3161,7 @@
           "dedicated package catalog search with package role, install or activation status, and source filters",
           "visible registry refresh and projected per-row install or activation actions",
           "workspace-scoped activation payload from app_state.paths.workspace_root_path with a disabled reason and Workspace route when missing",
-          "professional_agent_packages as package_id-keyed UI metadata only, never directory membership or status truth",
+          "first_party_release_set_metadata as package_id-keyed localized UI metadata only, never directory membership or status truth",
           "global automatic, managed, or developer source mode with selected workspace and authority summary",
           "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
           "per-package automatic, managed, or developer source selection in package details",
@@ -3527,16 +3530,16 @@
           "health summary",
           "direct managed dependency summary for the active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI",
           "updates and local services grouped by user impact",
-          "repair and rollback choices with impact explained before action",
-          "service status and receipts without duplicating capability package management",
+          "check, apply, repair, and rollback actions on the daily Maintenance page with impact explained before mutation",
+          "service status without duplicating capability package management",
           "one recommended maintenance action",
-          "Framework and raw working paths in diagnostics after Advanced is retired"
+          "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence after Advanced is retired"
         ],
         "first_viewport_groups": [
           "health_and_services",
           "managed_dependencies",
           "updates",
-          "repair_rollback_receipts"
+          "maintenance_actions"
         ],
         "surface_inventory": {
           "configuration": [
@@ -3563,16 +3566,20 @@
           ],
           "diagnostic": [
             {
-              "id": "maintenance_receipts_paths_and_raw_details",
+              "id": "maintenance_component_path_and_receipt_evidence",
               "owner": "maintenance"
             }
           ]
         },
         "surface_rules": {
           "configuration_location": "update_channel_is_an_inline_persistent_control_in_the_updates_section",
-          "management_surface": "component_apply_repair_rollback_and_capability_sync_live_in_an_explicit_management_modal",
-          "diagnostic_surface": "read_only_status_paths_receipts_and_raw_projection_only",
+          "daily_action_surface": "the_Maintenance_page_itself_owns_check_apply_repair_and_rollback_with_per_action_state_confirmation_and_fresh_readback",
+          "management_surface": "inline_page_rows_and_progressive_confirmation_never_a_second_large_management_modal",
+          "diagnostic_surface": "one_advanced_read_only_disclosure_for_localized_component_path_and_receipt_evidence",
+          "diagnostic_entry_count": 1,
+          "large_overlay_policy": "never_open_or_define_overlapping_management_and_diagnostics_modals",
           "diagnostic_mutation_controls_allowed": false,
+          "raw_internal_status_key_policy": "never_render_raw_internal_status_keys_action_ids_or_payload_fields_as_user_facing_copy",
           "unknown_state_copy": "distinguish_checking_not_checked_not_applicable_and_needs_attention",
           "managed_dependency_primary_visibility": "managed_dependency_summary_is_visible_without_opening_diagnostics",
           "working_path_owner": "Framework and raw paths live only in Maintenance diagnostics"
@@ -3644,7 +3651,7 @@
           "label_en": "Run recommended action"
         },
         "exception_state": "highlight only components that need action and explain impact before action",
-        "technical_details_boundary": "raw action ids, component ids, statuses, command mappings, paths, and receipts stay collapsed",
+        "technical_details_boundary": "one advanced disclosure shows localized component labels plus read-only paths and receipt evidence; raw internal status keys, action ids, command mappings, and payload fields are never user-facing",
         "required_dom": {
           "always": [
             "settings-page-maintenance",
@@ -3654,7 +3661,7 @@
             "settings-maintenance-temporal-server",
             "settings-maintenance-temporal-worker",
             "settings-maintenance-temporal-scheduler",
-            "settings-maintenance-management-action",
+            "settings-maintenance-daily-actions",
             "settings-maintenance-diagnostics-action"
           ],
           "conditional": [
@@ -3669,10 +3676,6 @@
             {
               "testid": "settings-maintenance-temporal-action",
               "when": "temporal_attention_or_user_requested_maintenance"
-            },
-            {
-              "testid": "settings-maintenance-management-details",
-              "when": "management_open"
             },
             {
               "testid": "settings-maintenance-technical-details",

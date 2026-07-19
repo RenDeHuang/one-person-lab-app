@@ -55,7 +55,8 @@
         "first_run",
         "opl_settings",
         "domain_package_entries",
-        "bilingual_ui"
+        "bilingual_ui",
+        "runtime_navigation"
       ],
       "relocation_gate": {
         "replacement_reachable_in_same_change": true,
@@ -63,8 +64,8 @@
         "removal_before_replacement_forbidden": true
       },
       "runtime_surface_roles": {
-        "navigation_runtime": "retained_optional_x0_owner_route",
-        "navigation_runtime_default_visible": false,
+        "navigation_runtime": "active_aionui_primary_navigation",
+        "navigation_runtime_default_visible": true,
         "context_runtime": "selected_conversation_or_task_details",
         "context_runtime_independent_of_navigation_runtime": true
       },
@@ -76,6 +77,8 @@
         "default_release_gate": false,
         "native_phase_one_requirement": false,
         "upstream_alignment_may_remove_or_weaken": true,
+        "active_aionui_navigation_requirement": true,
+        "active_aionui_navigation_may_remove_or_weaken": false,
         "explicit_validation_command": "npm run validate:runtime-route",
         "route_change_requirements": [
           "product_contract",
@@ -126,18 +129,30 @@
         "min": 280,
         "max": 340
       },
+      "top_entries_scope": "active_aionui_current_product",
       "top_entries": [
         "new_task",
+        "runtime",
+        "scheduled_tasks",
         "archived"
       ],
-      "conditional_entries": [
-        {
-          "id": "runtime",
-          "role": "retained_optional_x0_owner_route",
-          "when": "runtime_route_enabled_by_owner_profile"
-        }
-      ],
-      "runtime_entry_role": "retained_optional_x0_owner_route_not_default_navigation",
+      "conditional_entries": [],
+      "runtime_entry_role": "active_aionui_primary_navigation_while_route_remains_optional_for_native_and_default_release_gate",
+      "runtime_entry": {
+        "route": "/runtime",
+        "label_i18n": {
+          "zh-CN": "运行状态",
+          "en-US": "Runtime status"
+        },
+        "placement": "after_new_task_before_scheduled_tasks",
+        "visibility": "always",
+        "expanded_behavior": "icon_and_label",
+        "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+        "narrow_drawer_behavior": "icon_and_label",
+        "keyboard_reachable": true,
+        "home_content_effect": "navigation_only_no_dashboard",
+        "route_gate_boundary": "native_phase_one_and_default_release_gate_remain_optional"
+      },
       "capabilities_mapping": "capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page",
       "legacy_capabilities_route": "/capabilities redirects to /guid without deleting capability data or Settings management",
       "forbidden_entries_without_opl_product_capability": [
@@ -353,7 +368,8 @@
         "starter_item_width": "content_sized",
         "starter_count_layout": "center_actual_visible_count_and_wrap_without_navigation_chevrons",
         "starter_typography": "13/18/500",
-        "starter_content_alignment": "icon_label_and_check_share_one_vertical_centerline",
+        "starter_content_alignment": "icon_and_label_share_one_vertical_centerline_without_selection_glyph",
+        "selected_starter_accessibility_state": "aria_pressed_reflects_active_shortcut",
         "selected_starter_geometry": "quiet_fill_and_focus_outline_center_around_the_content_box_with_equal_block_insets_and_no_top_edge_alignment",
         "selected_starter_layout_shift_allowed": false,
         "composer": "bottom_reading_lane_with_safe_inset",
@@ -2073,7 +2089,8 @@
     "desktop_context_bar_overlap_px": 13,
     "desktop_context_bar_horizontal_inset_px": 12,
     "starter_truncation_allowed": false,
-    "selected_starter_visual_policy": "quiet_fill_and_check_indicator_not_color_alone",
+    "selected_starter_visual_policy": "quiet_fill_with_aria_pressed_without_trailing_selection_glyph",
+    "selected_starter_accessibility_state": "aria_pressed_reflects_active_shortcut",
     "selected_working_directory_visual_policy": "independent_new_session_context_bar_control_with_selected_directory_and_clear_action",
     "workspace_selector_policy": {
       "primary_scope": "active_workspace_only",
@@ -2096,6 +2113,25 @@
     "projectless_conversation_supported": true,
     "text_chat_without_workspace": "available",
     "workspace_session_rail_default_state": "visible_wide_drawer_narrow",
+    "active_aionui_primary_navigation": {
+      "scope": "active_aionui_current_product_only",
+      "ordered_entry_ids": ["new_task", "runtime", "scheduled_tasks", "archived"],
+      "runtime_entry": {
+        "route": "/runtime",
+        "label_i18n": {
+          "zh-CN": "运行状态",
+          "en-US": "Runtime status"
+        },
+        "placement": "after_new_task_before_scheduled_tasks",
+        "visibility": "always",
+        "expanded_behavior": "icon_and_label",
+        "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+        "narrow_drawer_behavior": "icon_and_label",
+        "keyboard_reachable": true,
+        "home_content_effect": "navigation_only_no_dashboard",
+        "route_gate_boundary": "native_phase_one_and_default_release_gate_remain_optional"
+      }
+    },
     "right_context_inspector_default_state": "collapsed",
     "must_not_show": [
       "dashboard-first home",
@@ -2300,7 +2336,15 @@
         {
           "id": "agent_packages",
           "scope": "new_session_configuration_only",
-          "source_ref": "professional_agent_packages + ordinary_capability_selector_policy",
+          "label_i18n": {
+            "zh-CN": "专业智能体",
+            "en-US": "Professional agents"
+          },
+          "source_ref": "professional_agent_packages",
+          "catalog_membership_source_ref": "professional_agent_packages[].package_id",
+          "required_package_ids": ["mas", "mag", "rca", "obf", "oma"],
+          "catalog_order_policy": "stable_professional_agent_packages_order",
+          "home_shortcut_independence_policy": "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
           "availability_policy": "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
           "existing_session_rebinding_allowed": false,
           "surface_actions": {
@@ -2313,6 +2357,7 @@
           "scope": "surface_specific_configuration_or_invocation",
           "source_ref": "ordinary_capability_selector_policy",
           "availability_policy": "show_global_app_allowlisted_skills_without_an_agent_then_scope_to_the_selected_professional_agent_profile",
+          "agent_owned_skill_deduplication_policy": "on_home_new_session_exclude_required_skill_ids_owned_by_rendered_professional_agents_from_the_standalone_skills_group",
           "existing_session_rebinding_allowed": false,
           "surface_actions": {
             "home_new_session": ["configure_new_session_scoped_skill"],
@@ -3010,6 +3055,14 @@
   "ordinary_capability_selector_policy": {
     "scope": "home_composer_and_ordinary_conversation",
     "authority": "app_owned_opl_allowlist",
+    "palette_agent_catalog_source_ref": "professional_agent_packages",
+    "palette_required_agent_package_ids": ["mas", "mag", "rca", "obf", "oma"],
+    "palette_home_shortcut_independence_policy": "complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order",
+    "palette_agent_group_label_i18n": {
+      "zh-CN": "专业智能体",
+      "en-US": "Professional agents"
+    },
+    "agent_owned_skill_deduplication_policy": "exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills",
     "agent_reference_admission_policy": {
       "active_agent_package_cardinality": "zero_or_one",
       "selection_authority": "home_starter_new_session_capability_palette_or_explicit_capability_route_only",
@@ -3286,6 +3339,14 @@
       "package_id": "mas",
       "agent_id": "mas",
       "display_name": "Med Auto Science",
+      "display_name_i18n": {
+        "zh-CN": "医学科研智能体",
+        "en-US": "Med Auto Science"
+      },
+      "description_i18n": {
+        "zh-CN": "用于科研选题、文献分析、数据分析、论文写作、审稿、返修和投稿。",
+        "en-US": "For research planning, literature review, data analysis, manuscript writing, peer review, revision, and submission."
+      },
       "short_name": "MAS",
       "role": "research_and_paper_agent",
       "package_kind": "starter_professional_agent_package",
@@ -3315,6 +3376,14 @@
       "package_id": "mag",
       "agent_id": "mag",
       "display_name": "Med Auto Grant",
+      "display_name_i18n": {
+        "zh-CN": "医学基金智能体",
+        "en-US": "Med Auto Grant"
+      },
+      "description_i18n": {
+        "zh-CN": "用于基金选题、标书与申请书撰写、预算说明和评审回复。",
+        "en-US": "For grant topics, proposals and applications, budget narratives, and reviewer responses."
+      },
       "short_name": "MAG",
       "role": "grant_authoring_agent",
       "package_kind": "starter_professional_agent_package",
@@ -3344,6 +3413,14 @@
       "package_id": "rca",
       "agent_id": "rca",
       "display_name": "RedCube AI",
+      "display_name_i18n": {
+        "zh-CN": "演示与视觉智能体",
+        "en-US": "RedCube AI"
+      },
+      "description_i18n": {
+        "zh-CN": "用于制作演示文稿、汇报材料、图表和其他专业视觉交付物。",
+        "en-US": "For presentations, reports, charts, and other professional visual deliverables."
+      },
       "short_name": "RCA",
       "role": "presentation_and_visual_deliverable_agent",
       "package_kind": "starter_professional_agent_package",
@@ -3372,6 +3449,14 @@
       "package_id": "obf",
       "agent_id": "obf",
       "display_name": "OPL Book Forge",
+      "display_name_i18n": {
+        "zh-CN": "写书智能体",
+        "en-US": "OPL Book Forge"
+      },
+      "description_i18n": {
+        "zh-CN": "用于书稿规划、章节写作、插图表格、排版、审校和导出。",
+        "en-US": "For book planning, chapter writing, figures and tables, layout, editing, and export."
+      },
       "short_name": "OBF",
       "role": "book_authoring_agent",
       "package_kind": "starter_professional_agent_package",
@@ -3401,6 +3486,14 @@
       "package_id": "oma",
       "agent_id": "oma",
       "display_name": "OPL Meta Agent",
+      "display_name_i18n": {
+        "zh-CN": "元智能体",
+        "en-US": "OPL Meta Agent"
+      },
+      "description_i18n": {
+        "zh-CN": "用于创建、接管、检查和改进 OPL 专业智能体。",
+        "en-US": "For creating, taking over, inspecting, and improving OPL professional agents."
+      },
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
       "package_kind": "managed_professional_agent_package",
@@ -4605,16 +4698,17 @@
     "return_to_app": {
       "label_zh": "返回应用",
       "label_en": "Back to app",
-      "placement": "top_titlebar_history_back_desktop_and_titlebar_back_narrow",
-      "destination_source": "desktop_navigation_history_or_last_valid_non_settings_location",
+      "placement": "settings_sider_first_row_above_search",
+      "destination_source": "last_valid_non_settings_location",
       "session_storage_key": "aion:last-non-settings-path",
       "preserve_search_and_hash": true,
       "settings_destination_forbidden": true,
       "fallback_path": "/guid",
       "keyboard_reachable": true,
-      "desktop_behavior": "existing_top_titlebar_history_back",
-      "narrow_window_behavior": "existing_titlebar_return_action_uses_last_valid_non_settings_destination_resolver",
-      "settings_sider_entry": "forbidden"
+      "expanded_behavior": "icon_and_label",
+      "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+      "narrow_window_behavior": "existing_titlebar_return_action_uses_same_destination_resolver",
+      "desktop_titlebar_duplicate_forbidden": true
     },
     "footer_update_entry": {
       "placement": "account_footer_row_trailing_action",
@@ -5251,7 +5345,7 @@
         "prompt, compact shortcuts, and composer share one bottom reading lane",
         "active capability shown by a quiet selected shortcut state without a second composer label",
         "no active professional agent until the user explicitly selects a starter or follows an explicit capability route",
-        "selected starter uses a quiet fill and check indicator rather than color alone",
+        "selected starter preserves the existing quiet fill and aria-pressed without a trailing check or selection glyph",
         "assistant-scoped skill menu with required skill checked",
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "one composer-width searchable grouped plus palette for files, folders, allowlisted Agent Packages, scoped Skills, adapter-reported nonduplicate modes, and available App connections",
@@ -5264,6 +5358,7 @@
         "exactly one Home root, composer shell, and footer account or Settings entry at every viewport",
         "permission and access mode in user language",
         "workspace/session rail visible on wide desktop and drawer on narrow windows",
+        "active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
         "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
@@ -6745,7 +6840,7 @@
       "primary_identity_policy": {
         "surface": "public_agent_package_directory_entries",
         "collection_source": "app_state.agent_packages.directory.entries",
-        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
         "static_metadata_overlay_policy": "match by package_id to enrich labels and product hints only; never add, remove, seed, hide, install, activate, or assign status to a directory entry",
         "package_identity_fields": [
           "package_id",
@@ -6763,8 +6858,9 @@
       "current_runtime_projection_boundary": {
         "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
-        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
-        "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
+      "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+      "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
+      "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
         "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
         "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
@@ -6810,9 +6906,10 @@
             "available_actions",
             "authority_boundary"
           ],
-          "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
-          "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds",
-          "unavailable_policy": "show loading, empty, stale, or failed canonical directory state; never substitute static professional_agent_packages as directory truth",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+        "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds",
+        "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
+        "unavailable_policy": "show loading, empty, stale, or failed canonical directory state; never substitute static professional_agent_packages as directory truth",
           "first_party_policy": "OMA and every first-party package use the same directory entries and action contract as every other package"
         },
         "runtime_source_surface": "app_state.runtime_source_carriers.items[]",
@@ -6994,8 +7091,80 @@
           "reason": null,
           "session_launch_disposition": "ready"
         },
-        "presentation_policy": "fast verification_deferred must stay visibly degraded rather than being relabeled ready or repair; session launch may attempt owner-projected JIT activation without a preemptive hard block"
-        },
+        "presentation_policy": "fast verification_deferred remains truthful owner state while ordinary UI projects localized local-check-not-completed copy; session launch may attempt owner-projected JIT activation without a preemptive hard block"
+      },
+      "user_facing_status_projection": {
+        "schema": "agent_package_user_status_projection.v1",
+        "locale_policy": "follow_current_app_locale_with_zh_CN_and_en_US_required",
+        "primary_status_policy": "one_user_facing_status_per_package_without_a_contradictory_availability_badge",
+        "per_package_identity_key": "package_id",
+        "aggregate_status_policy": "aggregate_counts_never_override_or_replace_each_projected_package_status",
+        "raw_internal_status_visibility": "advanced_diagnostics_only",
+        "rules": [
+          {
+            "id": "ready",
+            "when": "operational_ready_true_and_launch_allowed_true",
+            "label_i18n": {
+              "zh-CN": "可以使用",
+              "en-US": "Ready to use"
+            },
+            "explanation_i18n": {
+              "zh-CN": "已完成本机检查，可以开始对话。",
+              "en-US": "Local checks are complete and this agent can start a conversation."
+            }
+          },
+          {
+            "id": "local_check_not_completed",
+            "when": "readiness_status_verification_deferred_or_reason_live_verification_deferred_with_launch_allowed_false",
+            "label_i18n": {
+              "zh-CN": "首次使用时检查",
+              "en-US": "Checked on first use"
+            },
+            "explanation_i18n": {
+              "zh-CN": "可以选择并发起对话；首次使用时会自动尝试完成本机检查，只有发送边界检查仍未通过时才会阻止启动。",
+              "en-US": "You can select this agent and start a conversation. The app will attempt the local check on first use and block launch only if the send-boundary check still fails."
+            },
+            "action_policy": "allow_selection_and_JIT_send_attempt_plus_show_only_owner_projected_check_activate_repair_or_manage_action_with_exact_readback"
+          },
+          {
+            "id": "setup_required",
+            "when": "owner_projection_requires_install_activation_workspace_or_other_explicit_user_setup",
+            "label_i18n": {
+              "zh-CN": "需要完成设置",
+              "en-US": "Setup required"
+            },
+            "explanation_i18n": {
+              "zh-CN": "按下方操作完成设置后即可使用。",
+              "en-US": "Complete the action shown below before using this agent."
+            },
+            "action_policy": "show_only_exact_owner_projected_action"
+          },
+          {
+            "id": "temporarily_unavailable",
+            "when": "owner_projection_reports_blocked_failed_or_status_read_error",
+            "label_i18n": {
+              "zh-CN": "暂时不能使用",
+              "en-US": "Temporarily unavailable"
+            },
+            "explanation_policy": "show_localized_owner_reason_and_exact_owner_projected_recovery_action_when_present"
+          },
+          {
+            "id": "checking",
+            "when": "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
+            "label_i18n": {
+              "zh-CN": "正在读取状态",
+              "en-US": "Checking status"
+            },
+            "explanation_i18n": {
+              "zh-CN": "正在读取本机状态，不会把未知状态显示为可用。",
+              "en-US": "Reading local status; unknown state is never presented as ready."
+            }
+          }
+        ],
+        "forbidden_ordinary_labels_zh": ["待验证", "需关注", "对话中可用", "对话中不可用", "不可使用"],
+        "forbidden_ordinary_labels_en": ["Verification deferred", "Needs attention", "Available in conversation", "Unavailable in conversation"],
+        "internal_fields_forbidden_as_primary_copy": ["verification_deferred", "operational_ready", "launch_allowed", "live_verification_deferred"]
+      },
         "failure_reason_fields": [
           "readiness.status",
           "readiness.reason",
@@ -7454,8 +7623,10 @@
           "owner_receipt_authority"
         ]
       },
-      "status_model": {
-        "policy": "multi_axis_package_status_no_single_repair_bucket",
+    "status_model": {
+      "policy": "multi_axis_package_status_no_single_repair_bucket",
+      "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
+      "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
         "axes": [
           "install_state",
           "activation_state",
@@ -7608,8 +7779,11 @@
         "launch readiness and lifecycle actions bound to projected Agent package state",
         "normal Agent rows visually quiet with package diagnostics collapsed",
         "localized package role labels with no raw internal enum on the ordinary row",
-        "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
-        "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default"
+      "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
+      "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
+      "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
+      "verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action",
+      "one localized status per package with aggregate counts never replacing item status"
       ],
       "must_not_show": [
         "Skills, Plugins, tools, MCP helpers, workflows, connectors, or AionUI-native capability catalogs",
@@ -7623,9 +7797,11 @@
         "professional_agent_packages used as the directory collection, OMA seed, availability source, status source, or action source",
         "Settings global search presented as the package catalog search",
         "registry refresh hidden inside technical details",
-        "package status, ready state, action id, or action payload inferred by the Shell",
-        "manifest URL installation presented as the ordinary primary install path",
-        "hardcoded package parent-child relationships or duplicate dependency rows"
+      "package status, ready state, action id, or action payload inferred by the Shell",
+      "manifest URL installation presented as the ordinary primary install path",
+      "raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows",
+      "aggregate ready or unavailable counts used as the status of every package",
+      "hardcoded package parent-child relationships or duplicate dependency rows"
       ],
       "product_page_id": "agents",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.agents"
@@ -7648,7 +7824,7 @@
         "services",
         "packages",
         "recommended_action",
-        "management",
+        "actions",
         "diagnostics"
       ],
       "module_path_source_policy_ref": "module_path_source_policy",
@@ -7657,16 +7833,18 @@
         "active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
-        "apply, repair, rollback, and package maintenance inside an explicit management modal",
-        "module path source explanation in technical details",
+        "check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback",
+        "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence",
         "update status and service status in user language",
         "update and local-service anchors owned by Maintenance",
-        "Framework and raw working paths inside read-only Maintenance diagnostics"
+        "Framework working paths inside the single read-only Maintenance diagnostics disclosure"
       ],
       "must_not_show": [
         "Med Deep Scientist as a default module",
         "raw action ids, component ids, raw statuses, command mappings, paths, or receipts on the main surface",
         "three equal maintenance buttons with shared loading state",
+        "a separate large management modal overlapping the advanced diagnostics disclosure",
+        "raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI",
         "current project or in-progress task list",
         "workspace, storage, or About navigation duplicated as maintenance cards",
         "update or local-services rendered as independent product pages"
@@ -7745,13 +7923,16 @@
           }
         ],
         "diagnostics_disclosure": "collapsed_by_default",
-        "raw_detail_policy": "raw booleans, ids, component ids, receipts, payloads, paths, and command output stay out of ordinary first-screen Local Environment content"
+        "raw_detail_policy": "raw booleans, internal status keys, action ids, payload fields, and command output are never user-facing; the single advanced diagnostics disclosure may show localized component labels plus read-only paths and receipt evidence"
       },
       "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
       "maintenance_action_policy": {
         "required_action_roles": [
           "refresh_status",
           "check_updates",
+          "apply_update",
+          "repair_component",
+          "rollback_component",
           "bootstrap_missing_opl_base",
           "update_opl_app",
           "install_or_update_opl_package",
@@ -7759,7 +7940,8 @@
         ],
         "loading_state_policy": "per_action_per_software_object_and_per_package_only",
         "recommended_action_policy": "single_primary_recommended_action_plus_secondary_refresh",
-        "advanced_actions_policy": "manual check, plan, package repair, and package uninstall move behind disclosure when not the recommended action",
+        "advanced_actions_policy": "nonrecommended actions stay in the same page action area or progressive confirmation and never move into diagnostics or a second large management modal",
+        "surface_owner_policy": "daily_Maintenance_page_owns_check_apply_repair_and_rollback",
         "must_not_render_as": "three_equal_buttons_with_shared_ambiguous_loading"
       },
       "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
@@ -7837,7 +8019,7 @@
           "detect_only_guidance": "show owner guidance without a fake update action"
         },
         "unknown_value_policy": "show not checked or unknown and never synthesize current, missing, or zero values",
-        "diagnostics_boundary": "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+        "diagnostics_boundary": "the single advanced disclosure may show read-only binary paths, shadowed installations, localized component labels, and receipt evidence; raw internal status keys, actions, and catalog payloads are never user-facing",
         "external_installations_policy": {
           "row_key": "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
           "required_fields": [
@@ -7867,7 +8049,7 @@
         "section_presentation": "unframed_heading_plus_flat_rows",
         "row_separation": "section_scoped_hairlines",
         "managed_dependency_presentation": "shared_column_headers_and_flat_component_rows",
-        "management_entry_presentation": "inline_owned_action_or_explicit_modal_trigger_without_card_wall",
+        "management_entry_presentation": "inline_owned_actions_with_progressive_confirmation_no_large_management_modal",
         "nested_card_or_border_wall_allowed": false,
         "bounded_surface_allowed_for": [
           "repeated_entity",

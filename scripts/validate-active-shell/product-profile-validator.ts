@@ -40,6 +40,7 @@ import {
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
+  firstPartyReleaseSetPresentationByPackageId,
   requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
@@ -171,7 +172,9 @@ function validateHomeAssistantDefaults(profile) {
       'localized_choose_project_directory_action_not_projectless_status_placeholder' ||
     homeLayout?.selected_working_directory_visual_policy !==
       'independent_new_session_context_bar_control_with_selected_directory_and_clear_action' ||
-    homeLayout?.selected_starter_visual_policy !== 'quiet_fill_and_check_indicator_not_color_alone'
+    homeLayout?.selected_starter_visual_policy !==
+      'quiet_fill_with_aria_pressed_without_trailing_selection_glyph' ||
+    homeLayout?.selected_starter_accessibility_state !== 'aria_pressed_reflects_active_shortcut'
   ) {
     throw new Error('Product profile Home must default to the base executor and require explicit professional-agent selection');
   }
@@ -322,6 +325,10 @@ function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
     'Product profile first-party release metadata ids',
   );
   for (const entry of metadata) {
+    const localizedPresentation =
+      firstPartyReleaseSetPresentationByPackageId[
+        entry.package_id as keyof typeof firstPartyReleaseSetPresentationByPackageId
+      ];
     if (
       !entry.package_kind ||
       !entry.display_name ||
@@ -331,9 +338,12 @@ function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
       !entry.description?.trim() ||
       !Array.isArray(entry.tags) ||
       entry.tags.length === 0 ||
-      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
+      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json` ||
+      !localizedPresentation ||
+      JSON.stringify(entry.display_name_i18n) !== JSON.stringify(localizedPresentation.display_name_i18n) ||
+      JSON.stringify(entry.description_i18n) !== JSON.stringify(localizedPresentation.description_i18n)
     ) {
-      throw new Error(`Product profile first-party metadata is incomplete for ${entry.package_id}`);
+      throw new Error(`Product profile first-party metadata is incomplete or not localized for ${entry.package_id}`);
     }
   }
   const presentation = projection.catalog_presentation_policy;
@@ -557,6 +567,14 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
   if (
     policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     policy?.authority !== 'app_owned_opl_allowlist' ||
+    policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
+    JSON.stringify(policy?.palette_required_agent_package_ids) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
+    JSON.stringify(policy?.palette_agent_group_label_i18n) !==
+      JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
+    policy?.palette_home_shortcut_independence_policy !==
+      'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
+    policy?.agent_owned_skill_deduplication_policy !==
+      'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     policy?.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
     policy?.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
     policy?.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
