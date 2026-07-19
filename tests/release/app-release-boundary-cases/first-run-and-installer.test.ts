@@ -239,6 +239,30 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
   }
 });
 
+test("release source gate installs frozen App dependencies before boundary validation", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/desktop-release.yml"),
+    "utf8",
+  );
+  const jobStart = workflow.indexOf("  release-source-gate:");
+  const jobEnd = workflow.indexOf("\n  standard-build:", jobStart);
+  const job = workflow.slice(jobStart, jobEnd);
+  const setup = job.indexOf(
+    "uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+  );
+  const install = job.indexOf(
+    "working-directory: artifact-app\n        run: npm ci --ignore-scripts",
+  );
+  const validation = job.indexOf("- name: Validate release source gate");
+
+  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing release source gate job");
+  assert.ok(setup >= 0 && install > setup, "release source gate must install with pinned Node");
+  assert.ok(
+    validation > install,
+    "release source gate must install frozen App dependencies before boundary validation",
+  );
+});
+
 test("reusable build job checks out OPL Flow before preparing the standard payload", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_build-reusable.yml"),

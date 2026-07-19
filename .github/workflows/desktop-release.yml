@@ -474,6 +474,15 @@ jobs:
           ref: ${{ inputs.framework_ref }}
           path: one-person-lab
 
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Install frozen App validation dependencies
+        working-directory: artifact-app
+        run: npm ci --ignore-scripts
+
       - name: Validate release source gate
         id: release-source-gate
         run: |
