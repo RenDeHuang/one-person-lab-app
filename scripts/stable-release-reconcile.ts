@@ -87,6 +87,17 @@ export function reconciledQualificationState(input: {
   return input.authorityReceiptPresent && input.evidenceErrorCount === 0 ? 'failed' : 'runner_lost';
 }
 
+export function qualificationReceiptBindingMatches(
+  event: { remote_receipt_ref: string | null; remote_receipt_sha256?: string | null },
+  durable: { evidence_ref: string | null; evidence_sha256: string | null },
+  observed: { ref: string; sha256: string } | null,
+): boolean {
+  if (!observed || event.remote_receipt_ref !== observed.ref) return false;
+  const durableSha256 = event.remote_receipt_sha256 ??
+    (durable.evidence_ref === event.remote_receipt_ref ? durable.evidence_sha256 : null);
+  return durableSha256 === observed.sha256;
+}
+
 function sha256Json(value: unknown): string {
   return crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
 }
@@ -1064,7 +1075,7 @@ export function reconcileStableReleaseSession(
         ? fullAddonFile?.value.status === 'verified'
         : receipt?.status === 'passed';
       const authorityReceiptPresent = artifactKind === 'full' ? Boolean(fullAddonFile) : Boolean(receipt);
-      const terminalEvidence = artifactKind === 'full' ? fullAddonFile : receiptFile;
+      const terminalEvidence = artifactKind === 'full' ? fullAddonFile : strictFile;
       const reconciledState = reconciledQualificationState({
         artifactKind,
         workflowConclusion: conclusion,
@@ -1080,8 +1091,10 @@ export function reconcileStableReleaseSession(
             `(${reconciledState}, ${runId}, ${conclusion}).`,
           );
         }
-        if (latest.state === 'passed' && (
-          latest.remote_receipt_ref !== terminalEvidence?.ref || latest.remote_receipt_sha256 !== terminalEvidence?.sha256
+        if (latest.state === 'passed' && !qualificationReceiptBindingMatches(
+          latest,
+          reconciled.artifact_tracks[artifactKind].qualification_run,
+          terminalEvidence,
         )) {
           throw new Error(`Terminal ${artifactKind} qualification ${attempt.attempt_id} receipt binding changed.`);
         }

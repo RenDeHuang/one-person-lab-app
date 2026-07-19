@@ -11,6 +11,7 @@ import {
   transitionStableReleaseSession,
 } from '../../scripts/stable-release-session.ts';
 import {
+  qualificationReceiptBindingMatches,
   reconciledQualificationState,
   reconcileStableReleaseSession,
 } from '../../scripts/stable-release-reconcile.ts';
@@ -239,6 +240,17 @@ test('combined Desktop Release preserves exact passed qualification after a late
     artifactKind: 'standard', workflowConclusion: 'failure',
     authorityReceiptPassed: true, authorityReceiptPresent: true, evidenceErrorCount: 1,
   }), 'runner_lost');
+  const event = { remote_receipt_ref: 'opl-first-run-vm-standard-29686334520' };
+  const durable = {
+    evidence_ref: 'opl-first-run-vm-standard-29686334520',
+    evidence_sha256: 'c9bc3352fd8e994e17e584a6817979caefcb20f60e543ebb5715f82e03306c3c',
+  };
+  const observed = { ref: durable.evidence_ref, sha256: durable.evidence_sha256 };
+  assert.equal(qualificationReceiptBindingMatches(event, durable, observed), true);
+  assert.equal(qualificationReceiptBindingMatches(event, durable, { ...observed, sha256: 'f'.repeat(64) }), false);
+  assert.equal(qualificationReceiptBindingMatches(
+    { remote_receipt_ref: 'opl-qualification-attempt-standard-29686334520' }, durable, observed,
+  ), false);
 });
 
 test('legacy qualification state without a broker mutation is not promoted to a false terminal', () => {
