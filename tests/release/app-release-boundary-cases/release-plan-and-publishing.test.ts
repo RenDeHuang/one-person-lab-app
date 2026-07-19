@@ -545,6 +545,10 @@ test('release-bound workflows require frozen SHA inputs and keep diagnostic VM f
   assert.match(vm, /if \[ -n "\$STABLE_SESSION_ID" \]; then[\s\S]*?Release-bound shell_ref must be an exact 40-character SHA/);
   assert.match(vm, /Release-bound framework_ref must be an exact 40-character SHA/);
   assert.match(reusableBuild, /Validate immutable release-bound build refs[\s\S]*?inputs\.stable_session_id != ''/);
+  assert.match(
+    reusableBuild,
+    /Validate immutable release-bound build refs[\s\S]*?working-directory: \$\{\{ github\.workspace \}\}[\s\S]*?- name: Checkout code/,
+  );
   for (const field of ['ref', 'shell_ref', 'framework_ref', 'opl_flow_ref']) {
     assert.match(reusableBuild, new RegExp(`Release-bound ${field} must be the exact frozen`));
   }
