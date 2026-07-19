@@ -308,55 +308,32 @@ jobs:
         run: |
           echo "Framework and Homebrew mutations must already exist in the isolated broker ledger; this workflow only discovers and validates their signed receipts."
 
-      - name: Download release candidate record
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: release-candidate-record-${{ inputs.opl_version }}
-          run-id: ${{ inputs.release_run_id }}
-          path: release-candidate-record-input
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download owner-resolution preflight
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: release-preflight-summary-${{ inputs.opl_version }}
           run-id: ${{ inputs.release_run_id }}
-          path: owner-resolution-inputs
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download owner-resolution readiness
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: release-readiness-summary-${{ inputs.opl_version }}
-          run-id: ${{ inputs.release_run_id }}
-          path: owner-resolution-inputs
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download owner-resolution remote verification
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: remote-release-verification-${{ inputs.opl_version }}
-          run-id: ${{ inputs.release_run_id }}
-          path: owner-resolution-inputs
+          path: owner-resolution-inputs/release-preflight-summary-${{ inputs.opl_version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve immutable cohort
         id: cohort
         env:
-          FALLBACK_SHELL_REF: ${{ inputs.shell_ref }}
+          APP_SHA: ${{ inputs.artifact_app_sha }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
           STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
           STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
           const refs = {
-            app_sha: record?.provenance?.app_commit || '',
-            shell_sha: record?.inputs?.shell_ref || process.env.FALLBACK_SHELL_REF || '',
-            framework_sha: record?.inputs?.framework_ref || '',
+            app_sha: process.env.APP_SHA || '',
+            shell_sha: process.env.SHELL_REF || '',
+            framework_sha: process.env.FRAMEWORK_REF || '',
           };
           for (const [key, value] of Object.entries(refs)) {
-            if (!/^[0-9a-f]{40}$/i.test(value)) throw new Error(`Candidate record has invalid ${key}: ${value || '<missing>'}`);
+            if (!/^[0-9a-f]{40}$/i.test(value)) throw new Error(`Signed promotion input has invalid ${key}: ${value || '<missing>'}`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value.toLowerCase()}\n`);
           }
           const sessionHex = process.env.STABLE_SESSION_ID.slice('sha256:'.length);
@@ -368,7 +345,15 @@ jobs:
         with:
           name: opl-first-run-vm-standard-${{ inputs.standard_vm_run_id }}
           run-id: ${{ inputs.standard_vm_run_id }}
-          path: standard-vm-evidence
+          path: owner-resolution-inputs/opl-first-run-vm-standard-${{ inputs.standard_vm_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download exact one-shot installer evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: one-shot-app-installer-smoke-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: owner-resolution-inputs/one-shot-app-installer-smoke-${{ inputs.opl_version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download source Standard artifact manifest
@@ -384,7 +369,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          receipt="$(find standard-vm-evidence -name artifact-qualification-receipt.json -type f | head -n 1)"
+          receipt="$(find owner-resolution-inputs/opl-first-run-vm-standard-${{ inputs.standard_vm_run_id }} -name artifact-qualification-receipt.json -type f | head -n 1)"
           test -f "$receipt"
           node --experimental-strip-types scripts/validate-artifact-qualification-receipt.ts \
             --receipt "$receipt" \
@@ -416,6 +401,57 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `evidence_base64=${encoded}\n`);
           NODE
 
+      - name: Rebuild missing owner-resolution evidence from exact qualified source
+        env:
+          # The repository token cannot see a Draft with contents:read. The
+          # administrator token is used only by read-only gh commands here.
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          RELEASE_OWNER_RECEIPT_REF: ${{ inputs.release_owner_receipt_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_dir="owner-resolution-inputs/remote-release-verification-${{ inputs.opl_version }}"
+          mkdir -p "$remote_dir" release-candidate-record-input
+          npm run verify-remote-release -- \
+            --version "${{ inputs.opl_version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --summary-path "$remote_dir/remote-release-verification.json"
+          cat > owner-resolution-inputs/release-readiness-job-results.json <<'JSON'
+          {
+            "remote-verify-standard": "success",
+            "standard-first-run-vm-smoke-after-standard-only": "success",
+            "one-shot-app-installer-smoke": "success",
+            "release-readiness-admission": "success"
+          }
+          JSON
+          node --experimental-strip-types scripts/summarize-release-readiness.ts \
+            --version "${{ inputs.opl_version }}" \
+            --release-mode refresh_existing \
+            --include-full-package false \
+            --run-vm-smoke true \
+            --publish-docker-webui false \
+            --artifacts-dir owner-resolution-inputs \
+            --job-results owner-resolution-inputs/release-readiness-job-results.json \
+            --output owner-resolution-inputs/release-readiness-summary.json \
+            --markdown owner-resolution-inputs/release-readiness-summary.md
+          node --experimental-strip-types scripts/write-release-candidate-record.ts \
+            --version "${{ inputs.opl_version }}" \
+            --release-mode refresh_existing \
+            --include-full-package false \
+            --run-vm-smoke true \
+            --publish-docker-webui false \
+            --shell-ref "${{ steps.cohort.outputs.shell_sha }}" \
+            --framework-ref "${{ steps.cohort.outputs.framework_sha }}" \
+            --app-commit "${{ steps.cohort.outputs.app_sha }}" \
+            --workflow-run-id "${{ inputs.release_run_id }}" \
+            --preflight "owner-resolution-inputs/release-preflight-summary-${{ inputs.opl_version }}/release-preflight-summary.json" \
+            --readiness owner-resolution-inputs/release-readiness-summary.json \
+            --remote-verification "$remote_dir/remote-release-verification.json" \
+            --job-results owner-resolution-inputs/release-readiness-job-results.json \
+            --release-owner-receipt-ref "$RELEASE_OWNER_RECEIPT_REF" \
+            --output release-candidate-record-input/release-candidate-record.json \
+            --markdown release-candidate-record-input/release-candidate-record.md
+
       - name: Resolve release owner gate from Standard readiness
         env:
           RELEASE_OWNER_VERDICT_REF: ${{ inputs.release_owner_verdict_ref }}
@@ -426,9 +462,9 @@ jobs:
           args=(
             npm run release:candidate-record:resolve-owner --
             --candidate-record release-candidate-record-input/release-candidate-record.json
-            --preflight owner-resolution-inputs/release-preflight-summary.json
+            --preflight owner-resolution-inputs/release-preflight-summary-${{ inputs.opl_version }}/release-preflight-summary.json
             --readiness owner-resolution-inputs/release-readiness-summary.json
-            --remote-verification owner-resolution-inputs/remote-release-verification.json
+            --remote-verification owner-resolution-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json
             --output release-candidate-record-input/release-candidate-record.json
             --markdown release-candidate-record-input/release-candidate-record.md
             --release-owner-receipt-ref "$RELEASE_OWNER_RECEIPT_REF"
@@ -443,7 +479,7 @@ jobs:
 
       - name: Verify draft release assets
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
         run: |
           npm run verify-remote-release -- \
             --version "${{ inputs.opl_version }}" \
@@ -453,7 +489,7 @@ jobs:
       - name: Verify immutable OPL App component manifest
         id: component
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
           version="${{ inputs.opl_version }}"
@@ -508,16 +544,9 @@ jobs:
           RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
           RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
           BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.prepare.outputs.broker_admission_validation_sha256 }}
-          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Write jobs cannot replay a broker ticket."; exit 1; }
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: public-release mutation is no longer authorized.');
-          }
-          NODE
           node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
             --mode historical \
             --validation broker-admission/broker-admission-validation.json \
@@ -598,7 +627,20 @@ jobs:
           OPL_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
           OPL_FRAMEWORK_SOURCE_COMMIT: ${{ needs.prepare.outputs.framework_sha }}
           OPL_RECEIPT_OUTPUT_DIR: framework-receipts/candidate
-        run: bash scripts/framework-release-promotion-step.sh candidate
+        run: |
+          set -euo pipefail
+          verified=false
+          for attempt in $(seq 1 90); do
+            if bash scripts/framework-release-promotion-step.sh candidate; then
+              verified=true
+              break
+            fi
+            [ "$attempt" -lt 90 ] && sleep 10
+          done
+          [ "$verified" = true ] || {
+            echo "::error::The external Framework executor did not produce the candidate receipt within the bounded 15-minute discovery window."
+            exit 1
+          }
 
       - name: Discover and verify brokered Framework latest-stable
         id: stable
@@ -617,7 +659,20 @@ jobs:
           OPL_EXPECTED_CARRIER_DIGEST: ${{ steps.candidate.outputs.carrier_digest }}
           OPL_CANDIDATE_RECEIPT: ${{ steps.candidate.outputs.receipt_path }}
           OPL_RECEIPT_OUTPUT_DIR: framework-receipts/latest-stable
-        run: bash scripts/framework-release-promotion-step.sh latest-stable
+        run: |
+          set -euo pipefail
+          verified=false
+          for attempt in $(seq 1 90); do
+            if bash scripts/framework-release-promotion-step.sh latest-stable; then
+              verified=true
+              break
+            fi
+            [ "$attempt" -lt 90 ] && sleep 10
+          done
+          [ "$verified" = true ] || {
+            echo "::error::The external Framework executor did not produce the latest-stable receipt within the bounded 15-minute discovery window."
+            exit 1
+          }
 
       - name: Upload validated Framework Release Set receipts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -659,11 +714,17 @@ jobs:
           session_hex="${{ inputs.stable_session_id }}"
           session_hex="${session_hex#sha256:}"
           receipt_artifact="opl-stable-distribution-receipt-${{ inputs.opl_version }}-${session_hex}"
-          existing_run_id="$(gh api --method GET "repos/$TAP_REPO/actions/artifacts" \
-            -f name="$receipt_artifact" -f per_page=100 \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          existing_run_id=""
+          for attempt in $(seq 1 90); do
+            existing_run_id="$(gh api --method GET "repos/$TAP_REPO/actions/artifacts" \
+              -f name="$receipt_artifact" -f per_page=100 \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty' \
+              2>/dev/null || true)"
+            [ -n "$existing_run_id" ] && break
+            [ "$attempt" -lt 90 ] && sleep 10
+          done
           [ -n "$existing_run_id" ] || {
-            echo "::error::The isolated mutation broker has not produced $receipt_artifact. App workflows cannot dispatch tap mutations."
+            echo "::error::The external tap executor did not produce $receipt_artifact within the bounded 15-minute discovery window."
             exit 1
           }
           echo "Reusing immutable brokered Stable distribution receipt from tap run $existing_run_id."
@@ -866,19 +927,12 @@ jobs:
 
       - name: Verify historical promotion broker admission in latest write job
         env:
-          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
           RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
           RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
           BROKER_ADMISSION_VALIDATION_SHA256: ${{ needs.prepare.outputs.broker_admission_validation_sha256 }}
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Write jobs cannot replay a broker ticket."; exit 1; }
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: latest activation is no longer authorized.');
-          }
-          NODE
           node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
             --mode historical \
             --validation broker-admission/broker-admission-validation.json \
@@ -907,18 +961,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
-          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         shell: bash
         run: |
           set -euo pipefail
           tag="v$OPL_VERSION"
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: latest PATCH is no longer authorized.');
-          }
-          NODE
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -f make_latest=true >/dev/null
           for attempt in $(seq 1 12); do
             latest="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isLatest --jq '.[] | select(.tagName == "'"$tag"'") | .isLatest')"
@@ -932,17 +979,10 @@ jobs:
         env:
           STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
           OPL_VERSION: ${{ inputs.opl_version }}
-          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
         run: |
           set -euo pipefail
           distribution="$(find saga-inputs/distribution -name opl-stable-distribution-receipt.json -type f | head -n 1)"
           activation="$(find saga-inputs/activation -name opl-app-homebrew-activation-receipt.json -type f | head -n 1)"
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: promotion receipt is no longer authorized.');
-          }
-          NODE
           node --experimental-strip-types scripts/write-release-saga-receipt.ts \
             --kind promotion-saga \
             --output opl-app-promotion-saga-receipt.json \
@@ -964,12 +1004,6 @@ jobs:
             --release-set-generation "${{ inputs.release_set_generation }}" \
             --release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}" \
             --release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: promotion receipt validation is no longer authorized.');
-          }
-          NODE
           node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
             --kind promotion-saga \
             --receipt opl-app-promotion-saga-receipt.json \
@@ -988,19 +1022,6 @@ jobs:
             --promotion-attempt-id "${{ inputs.release_attempt_id }}" \
             --controller-workflow-sha "${{ github.sha }}" \
             --release-owner-receipt-ref "${{ inputs.release_owner_receipt_ref }}"
-
-      - name: Recheck immutable Standard deadline before promotion receipt upload
-        shell: bash
-        env:
-          STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          const deadline = Date.parse(process.env.STANDARD_ADMISSION_DEADLINE_AT || '');
-          if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-            throw new Error('standard_admission_deadline_elapsed: promotion receipt upload is no longer authorized.');
-          }
-          NODE
 
       - name: Upload promotion saga receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

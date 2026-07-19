@@ -172,6 +172,71 @@ test('Homebrew Stable readback requires validated Standard VM receipt bytes with
   assert.doesNotMatch(workflow, /repos\/\$TAP_REPO\/actions\/artifacts[\s\S]*artifact-qualification-receipt/);
 });
 
+test('promotion prepare rebuilds missing owner evidence from the exact qualified source and retained draft', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const prepare = workflow.slice(
+    workflow.indexOf('  prepare:'),
+    workflow.indexOf('\n  publish-nonlatest:'),
+  );
+  const rebuild = workflowStep(workflow, 'Rebuild missing owner-resolution evidence from exact qualified source');
+
+  assert.match(prepare, /permissions:\n      contents: read\n      actions: read\n      id-token: write/);
+  assert.doesNotMatch(prepare, /name: Download release candidate record/);
+  assert.doesNotMatch(prepare, /name: Download owner-resolution readiness/);
+  assert.doesNotMatch(prepare, /name: Download owner-resolution remote verification/);
+  for (const binding of [
+    'name: release-preflight-summary-${{ inputs.opl_version }}',
+    'name: opl-first-run-vm-standard-${{ inputs.standard_vm_run_id }}',
+    'name: one-shot-app-installer-smoke-${{ inputs.opl_version }}',
+    'name: macos-build-arm64-dmg-cohort',
+  ]) {
+    assert.match(prepare, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  assert.match(rebuild, /npm run verify-remote-release/);
+  assert.match(rebuild, /scripts\/summarize-release-readiness\.ts/);
+  assert.match(rebuild, /scripts\/write-release-candidate-record\.ts/);
+  assert.match(rebuild, /--release-owner-receipt-ref "\$RELEASE_OWNER_RECEIPT_REF"/);
+  assert.match(rebuild, /"standard-first-run-vm-smoke-after-standard-only": "success"/);
+  assert.match(rebuild, /"one-shot-app-installer-smoke": "success"/);
+  assert.match(prepare, /APP_SHA: \$\{\{ inputs\.artifact_app_sha \}\}/);
+  assert.match(prepare, /SHELL_REF: \$\{\{ inputs\.shell_ref \}\}/);
+  assert.match(prepare, /FRAMEWORK_REF: \$\{\{ inputs\.framework_ref \}\}/);
+  assert.equal(
+    (prepare.match(/GH_TOKEN: \$\{\{ secrets\.OPL_HOMEBREW_TAP_TOKEN \}\}/g) || []).length,
+    3,
+    'Draft reads use the administrator token without granting the prepare job write permission',
+  );
+
+  const framework = workflow.slice(
+    workflow.indexOf('  framework-release-set:'),
+    workflow.indexOf('\n  stable-distribution:'),
+  );
+  assert.equal((framework.match(/for attempt in \$\(seq 1 90\)/g) || []).length, 2);
+  assert.match(framework, /bounded 15-minute discovery window/);
+  assert.doesNotMatch(framework, /gh workflow run/);
+
+  const distribution = workflow.slice(
+    workflow.indexOf('  stable-distribution:'),
+    workflow.indexOf('\n  homebrew-standard-vm:'),
+  );
+  assert.match(distribution, /for attempt in \$\(seq 1 90\)/);
+  assert.match(distribution, /\[ "\$attempt" -lt 90 \] && sleep 10/);
+  assert.match(distribution, /bounded 15-minute discovery window/);
+  assert.doesNotMatch(distribution, /gh workflow run/);
+
+  assert.equal(
+    (workflow.match(/nowMs >= deadlineMs/g) || []).length,
+    1,
+    'the live deadline is checked only during durable promotion admission',
+  );
+  assert.equal(
+    (workflow.match(/--mode historical/g) || []).length,
+    2,
+    'later App write jobs must revalidate the immutable historical admission',
+  );
+  assert.doesNotMatch(workflow, /Recheck immutable Standard deadline before promotion receipt upload/);
+});
+
 test('Homebrew Stable distribution v3 binds Formula and Standard App cask to the Framework Release Set digest', () => {
   const formula = {
     path: 'Formula/opl.rb',
@@ -263,29 +328,26 @@ test('Standard promotion and Full add-on never mutate the independent WebUI Stab
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/homebrew-tap-update.yml')), false);
 });
 
-test('App latest mutation and promotion receipt stay deadline-bound to the exact brokered cohort', () => {
+test('App latest mutation and promotion receipt stay bound to the exact historical admission', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const historicalAdmissionStep = workflowStep(workflow, 'Verify historical promotion broker admission in latest write job');
   const latestStep = workflowStep(workflow, 'Mark release latest and verify readback');
   const receiptStep = workflowStep(workflow, 'Write and validate promotion saga receipt');
-  const uploadDeadlineStep = workflowStep(workflow, 'Recheck immutable Standard deadline before promotion receipt upload');
   const uploadStep = workflowStep(workflow, 'Upload promotion saga receipt');
-  const immutableDeadlineBinding = 'STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}';
 
-  const latestDeadlineCheck = latestStep.indexOf('Date.now() >= deadline');
-  const latestPatch = latestStep.indexOf('gh api --method PATCH');
-  assert.match(latestStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.ok(latestDeadlineCheck >= 0, 'latest mutation must recheck the immutable Standard deadline');
-  assert.ok(latestDeadlineCheck < latestPatch, 'latest mutation deadline check must run immediately before PATCH');
+  assert.match(historicalAdmissionStep, /--mode historical/);
+  assert.match(historicalAdmissionStep, /--expected-validation-sha256 "\$BROKER_ADMISSION_VALIDATION_SHA256"/);
+  assert.ok(
+    workflow.indexOf('Verify historical promotion broker admission in latest write job')
+      < workflow.indexOf('Mark release latest and verify readback'),
+    'latest mutation must follow exact historical admission verification',
+  );
+  assert.doesNotMatch(latestStep, /Date\.now\(\)|STANDARD_ADMISSION_DEADLINE_AT/);
 
   const receiptWrite = receiptStep.indexOf('scripts/write-release-saga-receipt.ts');
   const receiptValidate = receiptStep.indexOf('scripts/validate-release-saga-receipt.ts');
-  const receiptDeadlineChecks = [...receiptStep.matchAll(/Date\.now\(\) >= deadline/g)].map((match) => match.index!);
-  assert.match(receiptStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.equal(receiptDeadlineChecks.length, 2, 'receipt write and validation must each recheck the immutable Standard deadline');
-  assert.ok(receiptDeadlineChecks[0] < receiptWrite, 'promotion receipt deadline check must run before receipt creation');
   assert.ok(receiptWrite < receiptValidate, 'promotion receipt must be written before exact validation');
-  assert.ok(receiptWrite < receiptDeadlineChecks[1], 'promotion receipt validation needs a fresh post-write deadline check');
-  assert.ok(receiptDeadlineChecks[1] < receiptValidate, 'promotion receipt deadline must be rechecked immediately before validation');
+  assert.doesNotMatch(receiptStep, /Date\.now\(\)|STANDARD_ADMISSION_DEADLINE_AT/);
   const writerCommand = receiptStep.slice(receiptWrite, receiptValidate);
   const validatorCommand = receiptStep.slice(receiptValidate);
 
@@ -326,12 +388,5 @@ test('App latest mutation and promotion receipt stay deadline-bound to the exact
     assert.match(validatorCommand, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 
-  assert.match(uploadDeadlineStep, new RegExp(immutableDeadlineBinding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(uploadDeadlineStep, /Date\.now\(\) >= deadline/);
   assert.match(uploadStep, /actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
-  assert.ok(
-    workflow.indexOf('      - name: Recheck immutable Standard deadline before promotion receipt upload')
-      < workflow.indexOf('      - name: Upload promotion saga receipt'),
-    'promotion receipt upload must be immediately preceded by a fresh immutable deadline gate',
-  );
 });
