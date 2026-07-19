@@ -306,7 +306,7 @@ export function exactHistoricalPromotionRecoveryChain(
     !current || current.mutation !== 'promotion_dispatch' || current.workflow !== 'desktop-release-promote.yml' ||
     current.artifact_kind !== 'promotion' || current.admission_mode !== 'admin_one_shot_controller' ||
     Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length < 1 ||
-    current.dispatch_fence.prior_run_ids.length > 2 ||
+    current.dispatch_fence.prior_run_ids.length > 3 ||
     new Set(current.dispatch_fence.prior_run_ids).size !== current.dispatch_fence.prior_run_ids.length ||
     !['promotion_failed', 'promotion_running', 'release_published_not_latest', 'distribution_synced',
       'homebrew_verified', 'latest_activated', 'awaiting_local_activation'].includes(session.phase)

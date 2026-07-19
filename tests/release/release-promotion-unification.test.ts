@@ -25,6 +25,13 @@ function workflowStep(source: string, name: string): string {
   return source.slice(start, next === -1 ? source.length : next);
 }
 
+function draftReleaseFilter(source: string): string {
+  const step = workflowStep(source, 'Publish public non-latest release');
+  const match = step.match(/jq -er --arg tag "\$tag" '\n([\s\S]*?)\n\s+' "\$releases_json"/);
+  assert.ok(match, 'Draft release structured filter is missing');
+  return match[1]!;
+}
+
 function packageComponent(packageId: string) {
   return {
     component_id: packageId,
@@ -254,6 +261,27 @@ test('both Draft release mutations use the administrator token', () => {
     assert.match(step, /GH_TOKEN: \$\{\{ secrets\.OPL_HOMEBREW_TAP_TOKEN \}\}/);
     assert.doesNotMatch(step, /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   }
+});
+
+test('public non-latest resolves one retained Draft from the structured release list', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const step = workflowStep(workflow, 'Publish public non-latest release');
+  const filter = draftReleaseFilter(workflow);
+  const assets = Array.from({ length: 6 }, (_, index) => ({ name: `asset-${index}` }));
+  const draft = { id: 355962544, tag_name: 'v26.7.18', draft: true, prerelease: false, assets };
+  const resolve = (pages: unknown) => spawnSync('jq', ['-er', '--arg', 'tag', 'v26.7.18', filter], {
+    input: JSON.stringify(pages),
+    encoding: 'utf8',
+  });
+
+  assert.match(step, /gh api --paginate --slurp "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"/);
+  assert.doesNotMatch(step, /releases\/tags\/\$tag/);
+  assert.match(step, /EXPECTED_APP_ARTIFACT_DIGEST/);
+  assert.match(step, /EXPECTED_COMPONENT_MANIFEST_DIGEST/);
+  assert.equal(resolve([[draft]]).stdout.trim(), '355962544');
+  assert.notEqual(resolve([[]]).status, 0, 'zero exact Draft matches must fail closed');
+  assert.notEqual(resolve([[draft, { ...draft, id: 355962545 }]]).status, 0, 'two exact Draft matches must fail closed');
+  assert.notEqual(resolve([[{ ...draft, assets: assets.slice(1) }]]).status, 0, 'an incomplete Draft asset set must fail closed');
 });
 
 test('Homebrew Stable distribution v3 binds Formula and Standard App cask to the Framework Release Set digest', () => {

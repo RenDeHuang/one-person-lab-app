@@ -635,10 +635,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
+          EXPECTED_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
+          EXPECTED_COMPONENT_MANIFEST_DIGEST: ${{ needs.prepare.outputs.app_component_manifest_digest }}
         run: |
           set -euo pipefail
           tag="v$OPL_VERSION"
-          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          [[ "$EXPECTED_APP_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$EXPECTED_COMPONENT_MANIFEST_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          releases_json="$RUNNER_TEMP/draft-releases.json"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$releases_json"
+          release_id="$(
+            jq -er --arg tag "$tag" '
+              [ .[][] | select(.tag_name == $tag and .draft == true and .prerelease == false) ] as $matches
+              | if ($matches | length) != 1 then
+                  error("expected exactly one retained Draft release for " + $tag)
+                elif ($matches[0].id | type) != "number" then
+                  error("retained Draft release has no numeric id")
+                elif ($matches[0].assets | length) != 6 then
+                  error("retained Draft release does not contain the exact six qualified assets")
+                else
+                  $matches[0].id
+                end
+            ' "$releases_json"
+          )"
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -f make_latest=false >/dev/null
           release_json="$RUNNER_TEMP/release.json"
           list_json="$RUNNER_TEMP/releases.json"

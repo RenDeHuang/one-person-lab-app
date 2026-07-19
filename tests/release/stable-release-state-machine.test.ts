@@ -1677,14 +1677,48 @@ test('expired promotion successor requires the exact pre-deadline failed zero-ch
     priorRunIds: finalRecovery!.priorRunIds, at: '2026-07-18T01:33:01.000Z', reason: 'final closed successor',
   });
   assert.equal(validateStableReleaseSessionInvariants(finalPlan.session).length, 0);
-  const missingIntermediate = structuredClone(finalPlan.session);
+  let failedSecondSuccessor = appendReleaseMutationAttemptEvent(finalPlan.session, finalPlan.attemptId, {
+    at: '2026-07-18T01:33:02.000Z', state: 'dispatching', run_id: null, reason: 'durable second successor',
+  });
+  failedSecondSuccessor = appendReleaseMutationAttemptEvent(failedSecondSuccessor, finalPlan.attemptId, {
+    at: '2026-07-18T01:33:03.000Z', state: 'running', run_id: '303', reason: 'exact second successor run',
+  });
+  failedSecondSuccessor = appendReleaseMutationAttemptEvent(failedSecondSuccessor, finalPlan.attemptId, {
+    at: '2026-07-18T01:34:00.000Z', state: 'failed', run_id: '303', reason: 'Draft lookup failed',
+  });
+  failedSecondSuccessor.promotion_run = {
+    id: '303', url: 'https://example.test/303', conclusion: 'failure', attempt: 1,
+    rerun_requested_from_attempt: null,
+  };
+  const thirdRecovery = historicalPromotionRecoveryContext(
+    failedSecondSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:35:00.000Z'),
+  );
+  assert.equal(thirdRecovery?.predecessorAdmission.request.attempt_id, planned.attemptId);
+  assert.deepEqual(thirdRecovery?.priorRunIds, ['301', '302', '303']);
+  const thirdPlan = planReleaseMutationAttempt(failedSecondSuccessor, {
+    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '8'.repeat(40), artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    priorRunIds: thirdRecovery!.priorRunIds, at: '2026-07-18T01:35:01.000Z', reason: 'fixed three-hop successor',
+  });
+  assert.equal(validateStableReleaseSessionInvariants(thirdPlan.session).length, 0);
+  const dispatchingThird = appendReleaseMutationAttemptEvent(thirdPlan.session, thirdPlan.attemptId, {
+    at: '2026-07-18T01:35:02.000Z', state: 'dispatching', run_id: null, reason: 'durable third successor',
+  });
+  assert.equal(
+    transitionStableReleaseSession(
+      dispatchingThird, 'promotion_running', 'three-hop successor bound', '2026-07-18T01:35:03.000Z',
+    ).phase,
+    'promotion_running',
+  );
+  const missingIntermediate = structuredClone(thirdPlan.session);
   missingIntermediate.mutation_attempts.at(-2)!.events.at(-1)!.run_id = null;
   assert.match(validateStableReleaseSessionInvariants(missingIntermediate).join('; '), /cannot remain open/);
-  const tamperedIntermediate = structuredClone(finalPlan.session);
+  const tamperedIntermediate = structuredClone(thirdPlan.session);
   tamperedIntermediate.mutation_attempts.at(-2)!.dispatch_fence.prior_run_ids = [];
   assert.match(validateStableReleaseSessionInvariants(tamperedIntermediate).join('; '), /cannot remain open/);
-  const unbounded = structuredClone(finalPlan.session);
-  unbounded.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids.push('303');
+  const unbounded = structuredClone(thirdPlan.session);
+  unbounded.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids.push('304');
   assert.match(validateStableReleaseSessionInvariants(unbounded).join('; '), /cannot remain open/);
 
   session.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
