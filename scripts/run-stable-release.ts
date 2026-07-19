@@ -41,6 +41,7 @@ import {
   appendReleaseMutationAttemptEvent,
   buildStableReleaseSession,
   createStableReleaseSessionAtomic as createSession,
+  exactHistoricalPromotionRecoveryChain,
   planReleaseMutationAttempt,
   recoverStaleStableReleaseSessionLock,
   readStableReleaseSession as readSession,
@@ -417,6 +418,17 @@ export function historicalPromotionPredecessorAdmission(
   releaseSetGeneration: string,
   observedAtMs = Date.now(),
 ): AdminOneShotAdmission | null {
+  return historicalPromotionRecoveryContext(
+    session, ownerReceiptRef, releaseSetGeneration, observedAtMs,
+  )?.predecessorAdmission ?? null;
+}
+
+export function historicalPromotionRecoveryContext(
+  session: StableReleaseSession,
+  ownerReceiptRef: string,
+  releaseSetGeneration: string,
+  observedAtMs = Date.now(),
+): { predecessorAdmission: AdminOneShotAdmission; priorRunIds: string[] } | null {
   if (remainingStandardAdmissionBudgetMs(session, observedAtMs) > 0) return null;
   if (
     session.phase !== 'promotion_failed' ||
@@ -440,11 +452,11 @@ export function historicalPromotionPredecessorAdmission(
   const dispatching = dispatchingEvents[0];
   const deadlineMs = admissionDeadlineMs(session);
   if (
-    dispatchingEvents.length !== 1 || !dispatching || Date.parse(dispatching.at) >= deadlineMs ||
+    dispatchingEvents.length !== 1 || !dispatching ||
     !terminal || terminal.state !== 'failed' || terminal.run_id !== session.promotion_run.id ||
     Date.parse(terminal.at) < Date.parse(dispatching.at)
   ) {
-    throw new Error('Expired promotion recovery predecessor is not a unique pre-deadline admission with a terminal failed run.');
+    throw new Error('Expired promotion recovery predecessor is not a unique admission with a terminal failed run.');
   }
   const payload = promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration);
   if (
@@ -455,18 +467,37 @@ export function historicalPromotionPredecessorAdmission(
   ) {
     throw new Error('Expired promotion recovery predecessor does not bind the exact current session payload and artifact cohort.');
   }
+  let root = predecessor;
+  let priorRunIds = [terminal.run_id];
+  if (Date.parse(dispatching.at) >= deadlineMs) {
+    const chain = exactHistoricalPromotionRecoveryChain(session, deadlineMs);
+    if (predecessor.dispatch_fence.prior_run_ids.length !== 1 || !chain || chain.length !== 1) {
+      throw new Error('Expired promotion recovery permits only the exact root plus one failed post-deadline successor.');
+    }
+    root = chain[0]!;
+    priorRunIds = [...predecessor.dispatch_fence.prior_run_ids, terminal.run_id];
+  } else if (predecessor.dispatch_fence.prior_run_ids.length !== 0) {
+    throw new Error('Expired promotion recovery root must be the unique pre-deadline admission.');
+  }
+  const rootDispatching = root.events.filter((event) => event.state === 'dispatching');
+  if (rootDispatching.length !== 1 || Date.parse(rootDispatching[0]!.at) >= deadlineMs) {
+    throw new Error('Expired promotion recovery root is not the unique pre-deadline admission.');
+  }
   const predecessorAtDispatch = {
     ...session,
-    mutation_attempts: session.mutation_attempts.map((attempt) => attempt.attempt_id === predecessor.attempt_id
-      ? { ...attempt, events: [dispatching] }
+    mutation_attempts: session.mutation_attempts.map((attempt) => attempt.attempt_id === root.attempt_id
+      ? { ...attempt, events: [rootDispatching[0]!] }
       : attempt),
   };
-  return buildAdminOneShotAdmission(
-    predecessorAtDispatch,
-    predecessor.attempt_id,
-    payload,
-    dispatching.at,
-  );
+  return {
+    predecessorAdmission: buildAdminOneShotAdmission(
+      predecessorAtDispatch,
+      root.attempt_id,
+      payload,
+      rootDispatching[0]!.at,
+    ),
+    priorRunIds,
+  };
 }
 
 function exactAcceptedRunId(
@@ -2082,9 +2113,10 @@ async function dispatchAndWatchPromotion(
   if (retrying && session.release_owner_receipt_ref !== ownerReceiptRef) {
     throw new Error('Promotion retry must preserve the exact release owner receipt from the failed promotion.');
   }
-  const historicalPredecessor = retrying
-    ? historicalPromotionPredecessorAdmission(session, ownerReceiptRef, releaseSetGeneration)
+  const historicalRecovery = retrying
+    ? historicalPromotionRecoveryContext(session, ownerReceiptRef, releaseSetGeneration)
     : null;
+  const historicalPredecessor = historicalRecovery?.predecessorAdmission ?? null;
   session = {
     ...session,
     promotion_progress: {
@@ -2107,7 +2139,7 @@ async function dispatchAndWatchPromotion(
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
     mutationPayloadSha256: releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
     mutationPayload: promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
-    priorRunIds: historicalPredecessor ? [session.promotion_run.id!] : undefined,
+    priorRunIds: historicalRecovery?.priorRunIds,
     at: dispatchedAt, reason: 'persist promotion mutation before external dispatch',
   });
   session = planned.session;

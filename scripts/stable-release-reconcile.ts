@@ -9,6 +9,7 @@ import {
   appendReleaseMutationAttemptEvent,
   assertStableReleaseSessionInvariants,
   blockFullAddonAtDeadline,
+  hasExactHistoricalPromotionRecovery,
   transitionStableReleaseSession,
   type ReleaseMutationAttempt,
   type StableReleaseSession,
@@ -479,7 +480,8 @@ export function reconcileStableReleaseSession(
     at = new Date(observedAtMs).toISOString();
     if (
       reconciled.terminal_truth.standard_status === 'in_progress' &&
-      (!Number.isFinite(standardDeadlineAtMs) || observedAtMs >= standardDeadlineAtMs)
+      (!Number.isFinite(standardDeadlineAtMs) || observedAtMs >= standardDeadlineAtMs) &&
+      !hasExactHistoricalPromotionRecovery(reconciled, standardDeadlineAtMs)
     ) {
       reconciled = transitionStableReleaseSession(
         reconciled,

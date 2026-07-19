@@ -633,7 +633,7 @@ jobs:
             --expected-validation-sha256 "$BROKER_ADMISSION_VALIDATION_SHA256"
       - name: Publish public non-latest release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
         run: |
           set -euo pipefail
@@ -1036,7 +1036,7 @@ jobs:
 
       - name: Mark release latest and verify readback
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
         shell: bash
         run: |

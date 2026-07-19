@@ -247,6 +247,15 @@ test('promotion prepare rebuilds missing owner evidence from the exact qualified
   assert.doesNotMatch(workflow, /Recheck immutable Standard deadline before promotion receipt upload/);
 });
 
+test('both Draft release mutations use the administrator token', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  for (const stepName of ['Publish public non-latest release', 'Mark release latest and verify readback']) {
+    const step = workflowStep(workflow, stepName);
+    assert.match(step, /GH_TOKEN: \$\{\{ secrets\.OPL_HOMEBREW_TAP_TOKEN \}\}/);
+    assert.doesNotMatch(step, /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  }
+});
+
 test('Homebrew Stable distribution v3 binds Formula and Standard App cask to the Framework Release Set digest', () => {
   const formula = {
     path: 'Formula/opl.rb',
@@ -425,7 +434,8 @@ test('expired promotion recovery binds one exact historical admission and termin
   assert.match(admission, /matches\.length !== 1/);
   assert.match(admission, /\['failure', 'startup_failure'\]/);
   assert.match(admission, /Historical promotion predecessor already crossed a public mutation checkpoint/);
-  assert.match(controller, /historicalPromotionPredecessorAdmission\(session, ownerReceiptRef, releaseSetGeneration\)/);
+  assert.match(controller, /historicalPromotionRecoveryContext\(session, ownerReceiptRef, releaseSetGeneration\)/);
+  assert.match(controller, /priorRunIds: historicalRecovery\?\.priorRunIds/);
   assert.match(controller, /historicalPredecessor \? \{/);
   assert.doesNotMatch(admission, /gh workflow run|gh run rerun|gh run cancel/);
 });

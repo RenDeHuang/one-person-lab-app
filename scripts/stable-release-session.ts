@@ -297,33 +297,61 @@ export function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
   })).digest('hex')}`;
 }
 
-function hasExactHistoricalPromotionRecovery(session: StableReleaseSession, deadlineAt: number): boolean {
+export function exactHistoricalPromotionRecoveryChain(
+  session: StableReleaseSession,
+  deadlineAt: number,
+): ReleaseMutationAttempt[] | null {
   const current = session.mutation_attempts.at(-1);
   if (
     !current || current.mutation !== 'promotion_dispatch' || current.workflow !== 'desktop-release-promote.yml' ||
     current.artifact_kind !== 'promotion' || current.admission_mode !== 'admin_one_shot_controller' ||
-    Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length !== 1 ||
+    Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length < 1 ||
+    current.dispatch_fence.prior_run_ids.length > 2 ||
+    new Set(current.dispatch_fence.prior_run_ids).size !== current.dispatch_fence.prior_run_ids.length ||
     !['promotion_failed', 'promotion_running', 'release_published_not_latest', 'distribution_synced',
       'homebrew_verified', 'latest_activated', 'awaiting_local_activation'].includes(session.phase)
-  ) return false;
-  const predecessorRunId = current.dispatch_fence.prior_run_ids[0];
-  const predecessor = session.mutation_attempts.slice(0, -1).reverse().find((attempt) =>
-    attempt.mutation === 'promotion_dispatch' && attempt.events.at(-1)?.run_id === predecessorRunId
-  );
-  const dispatching = predecessor?.events.filter((event) => event.state === 'dispatching') ?? [];
-  const terminal = predecessor?.events.at(-1);
+  ) return null;
   const payload = current.mutation_payload as Record<string, unknown> | null;
-  return Boolean(
-    predecessor && predecessor.admission_mode === 'admin_one_shot_controller' && dispatching.length === 1 &&
-    Date.parse(dispatching[0].at) < deadlineAt && terminal?.state === 'failed' && terminal.run_id === predecessorRunId &&
-    Date.parse(terminal.at) < Date.parse(current.created_at) &&
-    predecessor.mutation_payload_sha256 === current.mutation_payload_sha256 &&
-    JSON.stringify(predecessor.mutation_payload) === JSON.stringify(current.mutation_payload) &&
-    predecessor.artifact_app_sha === current.artifact_app_sha &&
-    payload?.stable_session_id === session.id && payload?.release_cohort_ref === session.cohort_plan.operator_plan_ref &&
-    payload?.release_owner_receipt_ref === session.release_owner_receipt_ref &&
-    payload?.release_set_generation === session.promotion_progress.release_set_generation,
-  );
+  if (
+    payload?.stable_session_id !== session.id ||
+    payload?.release_cohort_ref !== session.cohort_plan.operator_plan_ref ||
+    payload?.release_owner_receipt_ref !== session.release_owner_receipt_ref ||
+    payload?.release_set_generation !== session.promotion_progress.release_set_generation
+  ) return null;
+
+  const predecessors: ReleaseMutationAttempt[] = [];
+  let priorTerminalAt = Number.NEGATIVE_INFINITY;
+  for (const [index, runId] of current.dispatch_fence.prior_run_ids.entries()) {
+    const matches = session.mutation_attempts.slice(0, -1).filter((attempt) =>
+      attempt.mutation === 'promotion_dispatch' && attempt.events.at(-1)?.run_id === runId
+    );
+    if (matches.length !== 1) return null;
+    const predecessor = matches[0]!;
+    const dispatching = predecessor.events.filter((event) => event.state === 'dispatching');
+    const terminal = predecessor.events.at(-1);
+    const dispatchAt = Date.parse(dispatching[0]?.at ?? '');
+    const terminalAt = Date.parse(terminal?.at ?? '');
+    if (
+      predecessor.workflow !== 'desktop-release-promote.yml' || predecessor.artifact_kind !== 'promotion' ||
+      predecessor.admission_mode !== 'admin_one_shot_controller' || dispatching.length !== 1 ||
+      terminal?.state !== 'failed' || terminal.run_id !== runId ||
+      !Number.isFinite(dispatchAt) || !Number.isFinite(terminalAt) || terminalAt < dispatchAt ||
+      (index === 0 ? dispatchAt >= deadlineAt : dispatchAt < deadlineAt) ||
+      (index > 0 && Date.parse(predecessor.created_at) <= priorTerminalAt) ||
+      JSON.stringify(predecessor.dispatch_fence.prior_run_ids) !==
+        JSON.stringify(current.dispatch_fence.prior_run_ids.slice(0, index)) ||
+      predecessor.mutation_payload_sha256 !== current.mutation_payload_sha256 ||
+      JSON.stringify(predecessor.mutation_payload) !== JSON.stringify(current.mutation_payload) ||
+      predecessor.artifact_app_sha !== current.artifact_app_sha
+    ) return null;
+    predecessors.push(predecessor);
+    priorTerminalAt = terminalAt;
+  }
+  return Date.parse(current.created_at) > priorTerminalAt ? predecessors : null;
+}
+
+export function hasExactHistoricalPromotionRecovery(session: StableReleaseSession, deadlineAt: number): boolean {
+  return exactHistoricalPromotionRecoveryChain(session, deadlineAt) !== null;
 }
 
 export function validateStableReleaseSessionInvariants(session: StableReleaseSession): string[] {
