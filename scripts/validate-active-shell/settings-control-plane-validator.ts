@@ -28,6 +28,8 @@ import {
   appOwnedSettingsProductPageIds,
   appOwnedSettingsResourceActionBehavior,
   appOwnedStorageCarrierBehavior,
+  appOwnedWebuiDataVolumeHostActionAbiRef,
+  appOwnedWebuiDataVolumeHostActionCapabilityId,
   appOwnedSettingsRouteScopes,
   appOwnedSettingsSearchEntryFields,
   appOwnedSettingsSearchProtocol,
@@ -2615,6 +2617,8 @@ export function validateSettingsExperienceContract(experience) {
       agent_package_storage_action_policy: "navigate_to_agents_reuse_owner_uninstall_no_duplicate_storage_lifecycle",
       webui_data_volume_mapping: "OnePersonLab/data -> /data",
       webui_cleanup_policy: "owner_projected_dry_run_exact_confirmation_fresh_terminal_readback_and_recovery",
+      webui_host_action_abi_ref:
+        "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
       generic_docker_prune_allowed: false,
       storage_carrier_behavior: appOwnedStorageCarrierBehavior,
     },
@@ -2926,6 +2930,9 @@ function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
     ownerStorage?.agent_package_store?.ordinary_action !== "navigate_to_owner_route" ||
     ownerStorage?.agent_package_store?.direct_storage_mutation_allowed !== false ||
     ownerStorage?.webui_data_volume?.data_volume_mapping !== "OnePersonLab/data -> /data" ||
+    ownerStorage?.webui_data_volume?.host_action_capability_id !==
+      appOwnedWebuiDataVolumeHostActionCapabilityId ||
+    ownerStorage?.webui_data_volume?.host_action_abi_ref !== appOwnedWebuiDataVolumeHostActionAbiRef ||
     ownerStorage?.webui_data_volume?.generic_docker_prune_allowed !== false ||
     ownerStorage?.webui_data_volume?.shell_direct_path_delete_allowed !== false
   ) {

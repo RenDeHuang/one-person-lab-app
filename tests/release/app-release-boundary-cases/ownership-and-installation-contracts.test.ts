@@ -15,7 +15,10 @@ import {
   readOplFlowFullSkillDependencyClosure,
 } from '../../../scripts/build-full-first-install-package/skills.ts';
 import { forbiddenExternalFirstPartyClaimPattern } from '../../../scripts/app-product-profile-shared-validators.ts';
-import { appOwnedStorageCarrierBehavior } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
+import {
+  appOwnedStorageCarrierBehavior,
+  appOwnedWebuiDataVolumeHostActionCapabilityId,
+} from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
 test('App Full packages the OPL Flow offline skill closure without retired workflow plugins', () => {
   const oplFlowRoot = process.env.OPL_FULL_OPL_FLOW_ROOT?.trim() || path.resolve(appRoot, '..', 'opl-flow');
@@ -1148,9 +1151,35 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   assert.equal(ownerStorage.agent_package_store.storage_direct_uninstall_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.execution_owner, 'carrier_host');
   assert.equal(ownerStorage.webui_data_volume.webui_container_execution, 'host_action_required_without_docker_socket');
+  assert.equal(
+    ownerStorage.webui_data_volume.host_action_abi.capability_id,
+    appOwnedWebuiDataVolumeHostActionCapabilityId,
+  );
+  assert.deepEqual(ownerStorage.webui_data_volume.host_action_abi.execute_request_required_fields, [
+    'plan_id',
+    'plan_hash',
+    'exact_confirmation',
+  ]);
+  assert.deepEqual(ownerStorage.webui_data_volume.host_action_abi.restore_request_required_fields, ['receipt_ref']);
+  assert.deepEqual(ownerStorage.webui_data_volume.host_action_abi.restore_result_required_fields, [
+    'status',
+    'receipt_ref',
+    'restore_receipt_ref',
+    'readback',
+  ]);
+  assert.equal(ownerStorage.webui_data_volume.host_action_abi.renderer_raw_path_allowed, false);
+  assert.equal(
+    ownerStorage.webui_data_volume.host_action_abi.security.duplicate_submission_policy,
+    'idempotent_terminal_readback_or_typed_conflict_only',
+  );
   assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.shell_direct_path_delete_allowed, false);
   assert.deepEqual(localDataLifecycle.storage_carrier_behavior, appOwnedStorageCarrierBehavior);
+
+  const extendedHostAbi = structuredClone(release);
+  extendedHostAbi.local_data_lifecycle.owner_storage_projections.webui_data_volume
+    .host_action_abi.optional_future_metadata = { version: 2 };
+  assert.doesNotThrow(() => validateReleaseChannelContract(extendedHostAbi));
 
   const conflatedRuntimeRoots = structuredClone(release);
   conflatedRuntimeRoots.local_data_lifecycle.runtime_substrate.inventory_roots[0].derivation =
@@ -1195,6 +1224,30 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   assert.throws(
     () => validateReleaseChannelContract(webuiElectronLifecycle),
     /Storage carrier behavior/,
+  );
+
+  const unsafeHostEndpoint = structuredClone(release);
+  unsafeHostEndpoint.local_data_lifecycle.owner_storage_projections.webui_data_volume
+    .host_action_abi.endpoints.execute.method = 'DELETE';
+  assert.throws(
+    () => validateReleaseChannelContract(unsafeHostEndpoint),
+    /carrier-host action ABI/,
+  );
+
+  const rawPathPayload = structuredClone(release);
+  rawPathPayload.local_data_lifecycle.owner_storage_projections.webui_data_volume
+    .host_action_abi.renderer_payload_allowlist.push('raw_path');
+  assert.throws(
+    () => validateReleaseChannelContract(rawPathPayload),
+    /carrier-host action ABI/,
+  );
+
+  const incompleteRestore = structuredClone(release);
+  incompleteRestore.local_data_lifecycle.owner_storage_projections.webui_data_volume
+    .host_action_abi.restore_result_required_fields = ['receipt_ref'];
+  assert.throws(
+    () => validateReleaseChannelContract(incompleteRestore),
+    /carrier-host action ABI/,
   );
 });
 

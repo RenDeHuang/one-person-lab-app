@@ -2051,8 +2051,9 @@
         "last cached inventory immediately without rendering unknown values as zero bytes",
         "inventory freshness timestamp and non-blocking background refresh",
         "read-only Workspace-owned log path reference",
-        "Agent Package store and WebUI data volume usage from canonical owner projections",
-        "user-facing cleanup preview before destructive action",
+      "Agent Package store and WebUI data volume usage from canonical owner projections",
+      "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
+      "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history"
       ],
       "machine_source": "active shell local data lifecycle plus opl app state owner storage projections",
@@ -2071,8 +2072,10 @@
       "must_not_show": [
         "log directory edit control",
         "generic Docker prune",
-        "unknown inventory rendered as zero bytes",
-        "silent user data deletion",
+      "unknown inventory rendered as zero bytes",
+      "WebUI destructive action when the carrier-host ABI is missing or incomplete",
+      "raw host path in a renderer request, receipt, or user-visible error",
+      "silent user data deletion",
         "App-owned runtime or domain data authority"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
@@ -2213,11 +2216,13 @@
           "source_ref": "app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume",
           "owner_route": "/settings/storage#webui-data",
           "data_volume_mapping": "OnePersonLab/data -> /data",
-          "raw_source_path_visibility": "diagnostics_only",
-          "action_policy": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
-          "execute_payload_policy": "submit_only_projected_action_id_and_dry_run_plan_ref_or_hash",
-          "recovery_policy": "owner_receipt_and_restore_action_required_for_user_data",
-          "generic_docker_prune_allowed": false,
+        "raw_source_path_visibility": "diagnostics_only",
+        "action_policy": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
+        "execute_payload_policy": "submit_only_projected_action_id_and_dry_run_plan_ref_or_hash",
+        "recovery_policy": "owner_receipt_and_restore_action_required_for_user_data",
+        "host_action_capability_id": "carrier_host.storage.webui_data_volume.lifecycle",
+        "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+        "generic_docker_prune_allowed": false,
           "shell_direct_path_delete_allowed": false
         }
       },
@@ -2233,15 +2238,16 @@
           ],
           "owner_projection_policy": "merge_valid_sections_non_blocking"
         },
-        "webui": {
-          "core_route": "/settings/storage",
-          "local_lifecycle_transport": "not_available_and_must_not_be_invoked",
+      "webui": {
+        "core_route": "/settings/storage",
+        "local_lifecycle_transport": "owner_projected_host_action_only_no_electron_ipc",
           "local_sections": [],
           "visible_section_source": "valid_owner_projections_only",
           "missing_projection_policy": "fail_open_keep_route_available_and_omit_missing_sections",
           "manual_refresh": "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
           "unknown_bytes_policy": "unavailable_never_zero",
-          "host_action_required_policy": "status_only_without_destructive_cta",
+        "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+        "host_action_policy": "complete_carrier_host_abi_enables_plan_execute_restore_else_status_only_fail_open",
           "shell_or_docker_action_inference_allowed": false,
           "raw_host_paths_visible": false
         }

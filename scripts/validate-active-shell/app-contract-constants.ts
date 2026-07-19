@@ -920,6 +920,10 @@ export const appOwnedSettingsTopLevelLabels = {
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
 };
+export const appOwnedWebuiDataVolumeHostActionCapabilityId =
+  "carrier_host.storage.webui_data_volume.lifecycle";
+export const appOwnedWebuiDataVolumeHostActionAbiRef =
+  "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi";
 export const appOwnedStorageCarrierBehavior = {
   desktop: {
     core_route: "/settings/storage",
@@ -934,7 +938,7 @@ export const appOwnedStorageCarrierBehavior = {
   },
   webui: {
     core_route: "/settings/storage",
-    local_lifecycle_transport: "not_available_and_must_not_be_invoked",
+    local_lifecycle_transport: "owner_projected_host_action_only_no_electron_ipc",
     local_sections: [],
     visible_section_source: "valid_owner_projections_only",
     missing_projection_policy:
@@ -942,7 +946,9 @@ export const appOwnedStorageCarrierBehavior = {
     manual_refresh:
       "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
     unknown_bytes_policy: "unavailable_never_zero",
-    host_action_required_policy: "status_only_without_destructive_cta",
+    host_action_abi_ref: appOwnedWebuiDataVolumeHostActionAbiRef,
+    host_action_policy:
+      "complete_carrier_host_abi_enables_plan_execute_restore_else_status_only_fail_open",
     shell_or_docker_action_inference_allowed: false,
     raw_host_paths_visible: false,
   },

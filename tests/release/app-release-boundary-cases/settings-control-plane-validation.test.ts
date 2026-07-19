@@ -2,7 +2,11 @@ import { appRoot, assert, fs, path, test } from "./helpers.ts";
 import { validateAppGuiProductContract } from "../../../scripts/validate-active-shell/gui-product-contract-validator.ts";
 import { validatePageStateMatrix } from "../../../scripts/validate-active-shell/page-state-matrix-validator.ts";
 import { validateSettingsControlPlane } from "../../../scripts/validate-active-shell/settings-control-plane-validator.ts";
-import { appOwnedStorageCarrierBehavior } from "../../../scripts/validate-active-shell/app-contract-constants.ts";
+import {
+  appOwnedStorageCarrierBehavior,
+  appOwnedWebuiDataVolumeHostActionAbiRef,
+  appOwnedWebuiDataVolumeHostActionCapabilityId,
+} from "../../../scripts/validate-active-shell/app-contract-constants.ts";
 
 function readJson(relativePath: string) {
   return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), "utf8"));
@@ -1650,6 +1654,14 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.equal(ownerStorage.agent_package_store.direct_storage_mutation_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.shell_direct_path_delete_allowed, false);
+  assert.equal(
+    ownerStorage.webui_data_volume.host_action_capability_id,
+    appOwnedWebuiDataVolumeHostActionCapabilityId,
+  );
+  assert.equal(
+    ownerStorage.webui_data_volume.host_action_abi_ref,
+    appOwnedWebuiDataVolumeHostActionAbiRef,
+  );
   assert.deepStrictEqual(guiPages.settings_storage.storage_carrier_behavior, appOwnedStorageCarrierBehavior);
   assert.deepStrictEqual(pageById("storage").storage_carrier_behavior, appOwnedStorageCarrierBehavior);
   assert.deepStrictEqual(
@@ -1688,6 +1700,16 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   guiLocalBridge.guiContract.pages.settings_storage.storage_carrier_behavior.webui.local_lifecycle_transport =
     "electron_ipc";
   assert.throws(() => validateGui(guiLocalBridge.guiContract), /Storage carrier behavior/);
+
+  const wrongHostCapability = contracts();
+  wrongHostCapability.controlPlane.page_adapter_policy.required_pages.storage.owner_storage_projections
+    .webui_data_volume.host_action_capability_id = "shell_owned.storage.cleanup";
+  assert.throws(() => validate(wrongHostCapability), /fail-open owner projections/);
+
+  const missingGuiHostAbi = contracts();
+  missingGuiHostAbi.guiContract.pages.settings_storage.owner_storage_projections.webui_data_volume
+    .host_action_abi_ref = null;
+  assert.throws(() => validateGui(missingGuiHostAbi.guiContract), /owner projections/);
 
   const componentAudit = values.controlPlane.visual_qa_policy.component_audit;
   assert.deepStrictEqual(componentAudit.required_color_schemes, ["light", "dark"]);

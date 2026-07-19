@@ -314,6 +314,116 @@
         "inventory_owner": "one-person-lab",
         "execution_owner": "carrier_host",
         "readback_ref": "app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume",
+        "host_action_abi": {
+          "capability_id": "carrier_host.storage.webui_data_volume.lifecycle",
+          "endpoint_status_values": [
+            "available",
+            "host_action_required"
+          ],
+          "endpoint_availability": "host_owner_injected",
+          "projection_required_fields": [
+            "capability_id",
+            "endpoint_status",
+            "endpoint_availability",
+            "plan_action_id",
+            "execute_action_id",
+            "restore_action_id"
+          ],
+          "endpoints": {
+            "capability": {
+              "method": "POST",
+              "path": "/api/opl-storage/webui-data-volume/capability"
+            },
+            "plan": {
+              "method": "POST",
+              "path": "/api/opl-storage/webui-data-volume/plan"
+            },
+            "execute": {
+              "method": "POST",
+              "path": "/api/opl-storage/webui-data-volume/execute"
+            },
+            "restore": {
+              "method": "POST",
+              "path": "/api/opl-storage/webui-data-volume/restore"
+            }
+          },
+          "action_ids": {
+            "plan_action_id": "settings_plan_webui_data_volume_cleanup",
+            "execute_action_id": "settings_execute_webui_data_volume_cleanup",
+            "restore_action_id": "settings_restore_webui_data_volume_cleanup"
+          },
+          "unavailable_projection_policy": "host_action_required_with_null_action_ids_is_status_only_and_keeps_storage_usable",
+          "available_cta_gate": "endpoint_status_available_and_all_three_exact_action_ids_present",
+          "plan_result_required_fields": [
+            "plan_id",
+            "plan_hash",
+            "exact_confirmation",
+            "estimated_reclaimable_bytes",
+            "candidate_count",
+            "restore_supported",
+            "observed_at",
+            "expires_at"
+          ],
+          "execute_request_required_fields": [
+            "plan_id",
+            "plan_hash",
+            "exact_confirmation"
+          ],
+          "execute_receipt_required_fields": [
+            "receipt_id",
+            "action_id",
+            "status",
+            "plan_id",
+            "plan_hash",
+            "receipt_ref",
+            "restore_action_ref",
+            "archive_ref",
+            "archive_manifest_ref",
+            "archive_sha256",
+            "archived_bytes",
+            "deleted_bytes",
+            "readback"
+          ],
+          "restore_request_required_fields": [
+            "receipt_ref"
+          ],
+          "restore_result_required_fields": [
+            "status",
+            "receipt_ref",
+            "restore_receipt_ref",
+            "readback"
+          ],
+          "terminal_readback_ref": "app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume",
+          "terminal_readback_required_fields": [
+            "status",
+            "terminal",
+            "observed_at",
+            "bytes",
+            "reclaimable_bytes",
+            "receipt_ref",
+            "restore_status"
+          ],
+          "renderer_payload_allowlist": [
+            "plan_id",
+            "plan_hash",
+            "exact_confirmation",
+            "receipt_ref"
+          ],
+          "renderer_raw_path_allowed": false,
+          "security": {
+            "authenticated_principal": "current_backend_authenticated_user_required",
+            "allowed_methods": [
+              "POST"
+            ],
+            "content_type": "application/json",
+            "max_body_bytes": 65536,
+            "origin_policy": "same_origin_or_csrf_equivalent_required",
+            "execute_restore_serialization": "one_in_flight_mutation_per_data_volume",
+            "plan_policy": "ttl_bound_single_use",
+            "duplicate_submission_policy": "idempotent_terminal_readback_or_typed_conflict_only",
+            "error_disclosure_policy": "typed_reason_without_raw_path"
+          }
+        },
         "data_volume_mapping": "OnePersonLab/data -> /data",
         "raw_source_path_visibility": "diagnostics_only",
         "execution_contract": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
@@ -337,13 +447,14 @@
       },
       "webui": {
         "core_route": "/settings/storage",
-        "local_lifecycle_transport": "not_available_and_must_not_be_invoked",
+        "local_lifecycle_transport": "owner_projected_host_action_only_no_electron_ipc",
         "local_sections": [],
         "visible_section_source": "valid_owner_projections_only",
         "missing_projection_policy": "fail_open_keep_route_available_and_omit_missing_sections",
         "manual_refresh": "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
         "unknown_bytes_policy": "unavailable_never_zero",
-        "host_action_required_policy": "status_only_without_destructive_cta",
+        "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+        "host_action_policy": "complete_carrier_host_abi_enables_plan_execute_restore_else_status_only_fail_open",
         "shell_or_docker_action_inference_allowed": false,
         "raw_host_paths_visible": false
       }

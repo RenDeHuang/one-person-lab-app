@@ -1287,10 +1287,12 @@
             "ordinary_action": "navigate_to_owner_route",
             "direct_storage_mutation_allowed": false
           },
-          "webui_data_volume": {
-            "data_volume_mapping": "OnePersonLab/data -> /data",
-            "action_policy": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
-            "generic_docker_prune_allowed": false,
+      "webui_data_volume": {
+        "data_volume_mapping": "OnePersonLab/data -> /data",
+        "action_policy": "owner_projected_dry_run_then_exact_confirmation_then_fresh_terminal_readback",
+        "host_action_capability_id": "carrier_host.storage.webui_data_volume.lifecycle",
+        "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+        "generic_docker_prune_allowed": false,
             "shell_direct_path_delete_allowed": false
           }
         },
@@ -1306,15 +1308,16 @@
             ],
             "owner_projection_policy": "merge_valid_sections_non_blocking"
           },
-          "webui": {
-            "core_route": "/settings/storage",
-            "local_lifecycle_transport": "not_available_and_must_not_be_invoked",
+      "webui": {
+        "core_route": "/settings/storage",
+        "local_lifecycle_transport": "owner_projected_host_action_only_no_electron_ipc",
             "local_sections": [],
             "visible_section_source": "valid_owner_projections_only",
             "missing_projection_policy": "fail_open_keep_route_available_and_omit_missing_sections",
             "manual_refresh": "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
             "unknown_bytes_policy": "unavailable_never_zero",
-            "host_action_required_policy": "status_only_without_destructive_cta",
+        "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+        "host_action_policy": "complete_carrier_host_abi_enables_plan_execute_restore_else_status_only_fail_open",
             "shell_or_docker_action_inference_allowed": false,
             "raw_host_paths_visible": false
           }
@@ -2001,7 +2004,7 @@
         "evidence_required": [
           "common fields cover status/freshness/bytes/reclaimable bytes/owner route/projected action",
           "Agent Package cleanup navigates to Agents and reuses owner uninstall",
-          "WebUI cleanup submits only the owner-projected dry-run plan and exact confirmation payload",
+          "WebUI cleanup CTA appears only for a complete carrier-host ABI, submits only plan/hash/confirmation or receipt refs, and performs fresh terminal readback",
           "missing projections keep existing Storage categories usable",
           "generic prune and Shell-direct path deletion are forbidden"
         ]
@@ -3772,6 +3775,7 @@
           "agent_package_storage_action_policy": "navigate_to_agents_reuse_owner_uninstall_no_duplicate_storage_lifecycle",
           "webui_data_volume_mapping": "OnePersonLab/data -> /data",
           "webui_cleanup_policy": "owner_projected_dry_run_exact_confirmation_fresh_terminal_readback_and_recovery",
+          "webui_host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
           "generic_docker_prune_allowed": false,
           "storage_carrier_behavior": {
             "desktop": {
@@ -3787,13 +3791,14 @@
             },
             "webui": {
               "core_route": "/settings/storage",
-              "local_lifecycle_transport": "not_available_and_must_not_be_invoked",
+              "local_lifecycle_transport": "owner_projected_host_action_only_no_electron_ipc",
               "local_sections": [],
               "visible_section_source": "valid_owner_projections_only",
               "missing_projection_policy": "fail_open_keep_route_available_and_omit_missing_sections",
               "manual_refresh": "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
               "unknown_bytes_policy": "unavailable_never_zero",
-              "host_action_required_policy": "status_only_without_destructive_cta",
+              "host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
+              "host_action_policy": "complete_carrier_host_abi_enables_plan_execute_restore_else_status_only_fail_open",
               "shell_or_docker_action_inference_allowed": false,
               "raw_host_paths_visible": false
             }

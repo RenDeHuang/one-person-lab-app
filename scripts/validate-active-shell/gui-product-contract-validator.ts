@@ -7,6 +7,8 @@ import {
   appOwnedSettingsManagedDependencySummary,
   appOwnedSettingsResourceActionBehavior,
   appOwnedStorageCarrierBehavior,
+  appOwnedWebuiDataVolumeHostActionAbiRef,
+  appOwnedWebuiDataVolumeHostActionCapabilityId,
   appOwnedTaskAwarenessRefFields,
   firstRunModelAccessSetupPolicy,
   focusedFirstRunPresentationPolicy,
@@ -1819,6 +1821,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ownerStorage?.agent_package_store?.owner_route !== '/settings/agents' ||
     ownerStorage?.agent_package_store?.direct_storage_mutation_allowed !== false ||
     ownerStorage?.webui_data_volume?.data_volume_mapping !== 'OnePersonLab/data -> /data' ||
+    ownerStorage?.webui_data_volume?.host_action_capability_id !== appOwnedWebuiDataVolumeHostActionCapabilityId ||
+    ownerStorage?.webui_data_volume?.host_action_abi_ref !== appOwnedWebuiDataVolumeHostActionAbiRef ||
     ownerStorage?.webui_data_volume?.generic_docker_prune_allowed !== false ||
     ownerStorage?.webui_data_volume?.shell_direct_path_delete_allowed !== false
   ) {

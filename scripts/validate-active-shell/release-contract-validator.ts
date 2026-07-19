@@ -3,7 +3,10 @@ import { validateReleaseFullFirstInstallPayloads } from './release-full-first-in
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
-import { appOwnedStorageCarrierBehavior } from './app-contract-constants.ts';
+import {
+  appOwnedStorageCarrierBehavior,
+  appOwnedWebuiDataVolumeHostActionCapabilityId,
+} from './app-contract-constants.ts';
 
 export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -336,6 +339,9 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
     ['status', 'observed_at', 'stale', 'bytes', 'reclaimable_bytes', 'owner_route', 'projected_action'],
     'Local data lifecycle owner storage fields',
   );
+  validateWebuiDataVolumeHostActionAbi(
+    ownerStorage?.webui_data_volume?.host_action_abi,
+  );
   if (
     lifecycle.storage_inventory?.surface !== 'Settings / Storage' ||
     lifecycle.storage_inventory?.execution_mode !== 'scan_dry_run_first' ||
@@ -464,6 +470,112 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
     'Local data lifecycle log rotation execute receipt fields',
   );
   if (shellPaths) validateLocalDataLifecycleImplementation(shellPaths);
+}
+
+function validateWebuiDataVolumeHostActionAbi(abi) {
+  const endpoints = {
+    capability: '/api/opl-storage/webui-data-volume/capability',
+    plan: '/api/opl-storage/webui-data-volume/plan',
+    execute: '/api/opl-storage/webui-data-volume/execute',
+    restore: '/api/opl-storage/webui-data-volume/restore',
+  };
+  const actionIds = {
+    plan_action_id: 'settings_plan_webui_data_volume_cleanup',
+    execute_action_id: 'settings_execute_webui_data_volume_cleanup',
+    restore_action_id: 'settings_restore_webui_data_volume_cleanup',
+  };
+  const exactFields = (actual, expected) =>
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    expected.every((field) => actual.includes(field));
+  const includesFields = (actual, expected) =>
+    Array.isArray(actual) && expected.every((field) => actual.includes(field));
+
+  if (
+    !abi ||
+    abi.capability_id !== appOwnedWebuiDataVolumeHostActionCapabilityId ||
+    abi.endpoint_availability !== 'host_owner_injected' ||
+    !includesFields(abi.endpoint_status_values, ['available', 'host_action_required']) ||
+    !includesFields(abi.projection_required_fields, [
+      'capability_id',
+      'endpoint_status',
+      'endpoint_availability',
+      'plan_action_id',
+      'execute_action_id',
+      'restore_action_id',
+    ]) ||
+    Object.entries(endpoints).some(
+      ([id, path]) => abi.endpoints?.[id]?.method !== 'POST' || abi.endpoints?.[id]?.path !== path,
+    ) ||
+    Object.entries(actionIds).some(([field, value]) => abi.action_ids?.[field] !== value) ||
+    abi.unavailable_projection_policy !==
+      'host_action_required_with_null_action_ids_is_status_only_and_keeps_storage_usable' ||
+    abi.available_cta_gate !== 'endpoint_status_available_and_all_three_exact_action_ids_present' ||
+    !includesFields(abi.plan_result_required_fields, [
+      'plan_id',
+      'plan_hash',
+      'exact_confirmation',
+      'estimated_reclaimable_bytes',
+      'candidate_count',
+      'restore_supported',
+      'observed_at',
+      'expires_at',
+    ]) ||
+    !exactFields(abi.execute_request_required_fields, ['plan_id', 'plan_hash', 'exact_confirmation']) ||
+    !includesFields(abi.execute_receipt_required_fields, [
+      'receipt_id',
+      'action_id',
+      'status',
+      'plan_id',
+      'plan_hash',
+      'receipt_ref',
+      'restore_action_ref',
+      'archive_ref',
+      'archive_manifest_ref',
+      'archive_sha256',
+      'archived_bytes',
+      'deleted_bytes',
+      'readback',
+    ]) ||
+    !exactFields(abi.restore_request_required_fields, ['receipt_ref']) ||
+    !includesFields(abi.restore_result_required_fields, [
+      'status',
+      'receipt_ref',
+      'restore_receipt_ref',
+      'readback',
+    ]) ||
+    abi.terminal_readback_ref !==
+      'app_state.settings_control_center.app_settings_read_model.storage_lifecycle.webui_data_volume' ||
+    !includesFields(abi.terminal_readback_required_fields, [
+      'status',
+      'terminal',
+      'observed_at',
+      'bytes',
+      'reclaimable_bytes',
+      'receipt_ref',
+      'restore_status',
+    ]) ||
+    !exactFields(abi.renderer_payload_allowlist, [
+      'plan_id',
+      'plan_hash',
+      'exact_confirmation',
+      'receipt_ref',
+    ]) ||
+    abi.renderer_raw_path_allowed !== false ||
+    abi.security?.authenticated_principal !== 'current_backend_authenticated_user_required' ||
+    !exactFields(abi.security?.allowed_methods, ['POST']) ||
+    abi.security?.content_type !== 'application/json' ||
+    abi.security?.max_body_bytes !== 65536 ||
+    abi.security?.origin_policy !== 'same_origin_or_csrf_equivalent_required' ||
+    abi.security?.execute_restore_serialization !== 'one_in_flight_mutation_per_data_volume' ||
+    abi.security?.plan_policy !== 'ttl_bound_single_use' ||
+    abi.security?.duplicate_submission_policy !== 'idempotent_terminal_readback_or_typed_conflict_only' ||
+    abi.security?.error_disclosure_policy !== 'typed_reason_without_raw_path'
+  ) {
+    throw new Error(
+      'Local data lifecycle WebUI carrier-host action ABI must preserve its endpoint, action, payload, readback, restore, and security boundaries',
+    );
+  }
 }
 
 function validateLocalDataLifecycleImplementation(shellPaths) {
