@@ -19,7 +19,10 @@ import {
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
 import { assertCommandSurface } from './value-helpers.ts';
-import { assertHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
+import {
+  assertAgentReferenceAdmissionPolicy,
+  assertHomeComposerStateContract,
+} from '../app-product-profile-shared-validators.ts';
 import {
   validateEnvironmentModuleMaintenanceEntry,
 } from './managed-update-plane-validator.ts';
@@ -1464,6 +1467,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'filter_to_visible_mcp_server_ids'
   ) {
     throw new Error('App GUI ordinary capability selector must be an App-owned OPL allowlist');
+  }
+  assertAgentReferenceAdmissionPolicy(
+    guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy,
+    'App GUI Agent reference admission policy',
+  );
+  if (
+    guiContract.interaction_baseline?.capability_selection?.agent_reference_admission_policy_ref !==
+    'ordinary_capability_selector_policy.agent_reference_admission_policy'
+  ) {
+    throw new Error('App GUI capability selection must reference the canonical Agent admission policy');
   }
   assertDeepEqualJson(
     guiContract.ordinary_capability_selector_policy.visible_mcp_server_ids,

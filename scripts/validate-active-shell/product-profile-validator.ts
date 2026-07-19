@@ -27,6 +27,7 @@ import { validateSettingsControlPlaneBehavior } from './settings-control-plane-v
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 import {
+  assertAgentReferenceAdmissionPolicy,
   assertAppProductProfileCodexModelDisplayOptions,
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileGuiInteractionBaseline,
@@ -563,6 +564,10 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
   ) {
     throw new Error('Product profile ordinary capability selector must be an App-owned OPL allowlist');
   }
+  assertAgentReferenceAdmissionPolicy(
+    policy.agent_reference_admission_policy,
+    'Product profile Agent reference admission policy',
+  );
   assertDeepEqualJson(policy.visible_mcp_server_ids, [], 'Product profile ordinary MCP allowlist');
   assertForbiddenCapabilityPolicy(
     policy,

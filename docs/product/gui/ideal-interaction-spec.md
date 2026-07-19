@@ -79,7 +79,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 3. **选择工作目的。** 用户优先从 Home starter 选择科研、基金、演示、写书等能力，也可在首次发送前从
    `+` palette 选择同一 App allowlist Agent Package；两条入口写入同一个 active capability 与 route receipt，
    Home 由 starter 选中态表达当前能力，不在 composer 重复标签。Package 安装、Home 显示与 lifecycle 管理在
-   Settings → Agents 完成 package lifecycle；Settings → Capabilities 完成 Skills/Plugins/Flow 管理。
+   Settings → Agents 完成 package lifecycle；Settings → Capabilities 完成 Skills/Plugins/Flow 管理。普通文本中的
+   Agent 名称和 `@` 提及不改变 active capability；同一 prompt 可引用多个 Agent，但新会话仍只有零或一个 active
+   Agent Package。跨 Agent 准入由目标主 Skill 阅读完整请求做语义判断，不由关键词、文件扩展名或失败码决定。
 4. **提交任务。** 用户输入说明、附加材料、确认模型/推理状态并发送。
 5. **观察执行。** Timeline 显示 pending、elapsed time、assistant output、tool/process
    summary、permission/input prompt 和当前 turn result。

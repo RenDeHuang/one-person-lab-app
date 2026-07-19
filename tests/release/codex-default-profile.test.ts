@@ -138,6 +138,29 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
   }
 });
 
+test('Agent references remain prompt content and cannot become deterministic cross-Agent routes', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  productProfile.gui.ordinary_capability_selector_policy.agent_reference_admission_policy
+    .at_mention_agent_selection_allowed = true;
+  assert.throws(
+    () => validateProductProfile(productProfile, installExposure),
+    /fail-closed semantic Agent admission/,
+  );
+
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy
+    .deterministic_cross_agent_routing_allowed = true;
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      installExposure,
+    ),
+    /fail-closed semantic Agent admission/,
+  );
+});
+
 test('product profile rejects the superseded quiet Settings visual policy', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   for (const mutate of [

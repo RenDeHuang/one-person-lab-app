@@ -461,12 +461,13 @@
       "selection_equivalence_policy": "same_active_capability_route_receipt_and_send_time_readiness_gate",
       "selection_cancellation_policy": "return_to_no_active_capability_without_changing_executor_workspace_or_draft",
       "starter_palette_selection_sync": "one_active_capability_state_bidirectionally_reflected",
-      "management_surface": "settings_agents",
-      "legacy_route_policy": "/capabilities_redirects_to_home_without_mounting_a_selection_page",
-      "composer_persistent_variable_selector": false,
-      "composer_context_surface": "active_capability_chip",
-      "contextual_change_scope": "new_session_before_first_send_only",
-      "backend_or_provider_semantics": false
+    "management_surface": "settings_agents",
+    "legacy_route_policy": "/capabilities_redirects_to_home_without_mounting_a_selection_page",
+    "composer_persistent_variable_selector": false,
+    "composer_context_surface": "active_capability_chip",
+    "contextual_change_scope": "new_session_before_first_send_only",
+    "agent_reference_admission_policy_ref": "ordinary_capability_selector_policy.agent_reference_admission_policy",
+    "backend_or_provider_semantics": false
     },
     "composer": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
@@ -3009,6 +3010,18 @@
   "ordinary_capability_selector_policy": {
     "scope": "home_composer_and_ordinary_conversation",
     "authority": "app_owned_opl_allowlist",
+    "agent_reference_admission_policy": {
+      "active_agent_package_cardinality": "zero_or_one",
+      "selection_authority": "home_starter_new_session_capability_palette_or_explicit_capability_route_only",
+      "at_mention_agent_selection_allowed": false,
+      "plain_text_agent_reference_changes_active_package": false,
+      "multiple_agent_reference_policy": "may_coexist_as_prompt_context_but_never_create_multiple_active_agent_packages",
+      "cross_agent_semantic_admission_owner": "target_primary_skill_over_complete_current_user_request",
+      "deterministic_cross_agent_routing_allowed": false,
+      "oma_engineering_admission": "explicit_target_agent_and_explicit_agent_engineering_objective_required",
+      "deliverable_failure_policy": "repair_current_deliverable_never_authorize_agent_engineering",
+      "existing_conversation_rebinding_allowed": false
+    },
     "skill_source_ref": "assistant_skill_profiles.required_skills + optional_skills",
     "package_skill_source_ref": "professional_agent_packages.required_skill_ids + optional_skill_ids",
     "skill_menu_policy": "assistant_scoped_required_checked_optional_visible",

@@ -1171,6 +1171,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     capabilitySelection.contextual_change_scope !== 'new_session_before_first_send_only' ||
+    capabilitySelection.agent_reference_admission_policy_ref !==
+      'ordinary_capability_selector_policy.agent_reference_admission_policy' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
     !sameStrings(composerTarget.persistent_context, ['active_capability']) ||
     !sameStrings(composerTarget.send_scoped_inputs, ['attachments']) ||

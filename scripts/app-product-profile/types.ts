@@ -485,6 +485,18 @@ export type AppProductProfile = {
       scope: string;
       authority: string;
       recommendation_authority: string;
+      agent_reference_admission_policy: {
+        active_agent_package_cardinality: string;
+        selection_authority: string;
+        at_mention_agent_selection_allowed: boolean;
+        plain_text_agent_reference_changes_active_package: boolean;
+        multiple_agent_reference_policy: string;
+        cross_agent_semantic_admission_owner: string;
+        deterministic_cross_agent_routing_allowed: boolean;
+        oma_engineering_admission: string;
+        deliverable_failure_policy: string;
+        existing_conversation_rebinding_allowed: boolean;
+      };
       skill_source_ref: string;
       skill_menu_policy: string;
       conversation_loaded_skill_display_policy: string;

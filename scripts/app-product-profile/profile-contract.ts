@@ -3,6 +3,7 @@ import path from 'node:path';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 import {
+  assertAgentReferenceAdmissionPolicy,
   assertAppProductProfileCodexModelDisplayOptions,
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileGuiInteractionBaseline,
@@ -708,6 +709,10 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   if (!ordinarySelector || typeof ordinarySelector !== 'object') {
     throw new Error('App product profile must declare ordinary_capability_selector_policy');
   }
+  assertAgentReferenceAdmissionPolicy(
+    ordinarySelector.agent_reference_admission_policy,
+    'App product profile Agent reference admission policy',
+  );
   if (
     ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
     ordinarySelector.authority !== 'app_owned_opl_allowlist' ||

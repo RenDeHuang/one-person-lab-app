@@ -87,6 +87,25 @@ export const requiredSkillByAssistantId = {
   obf: 'opl-bookforge',
 };
 
+export const appOwnedAgentReferenceAdmissionPolicy = {
+  active_agent_package_cardinality: 'zero_or_one',
+  selection_authority: 'home_starter_new_session_capability_palette_or_explicit_capability_route_only',
+  at_mention_agent_selection_allowed: false,
+  plain_text_agent_reference_changes_active_package: false,
+  multiple_agent_reference_policy: 'may_coexist_as_prompt_context_but_never_create_multiple_active_agent_packages',
+  cross_agent_semantic_admission_owner: 'target_primary_skill_over_complete_current_user_request',
+  deterministic_cross_agent_routing_allowed: false,
+  oma_engineering_admission: 'explicit_target_agent_and_explicit_agent_engineering_objective_required',
+  deliverable_failure_policy: 'repair_current_deliverable_never_authorize_agent_engineering',
+  existing_conversation_rebinding_allowed: false,
+} as const;
+
+export function assertAgentReferenceAdmissionPolicy(value: unknown, label: string): void {
+  if (JSON.stringify(value) !== JSON.stringify(appOwnedAgentReferenceAdmissionPolicy)) {
+    throw new Error(`${label} must preserve fail-closed semantic Agent admission`);
+  }
+}
+
 export const expectedHomeComposerStateContract = {
   contract_id: 'opl_home_composer_state.v1',
   executor: 'codex',
