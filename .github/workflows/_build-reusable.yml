@@ -170,6 +170,9 @@ jobs:
           shell-ref: ${{ inputs.shell_ref }}
           install-dependencies: 'false'
 
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
       - name: Run release-boundary tests
         env:
           OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json

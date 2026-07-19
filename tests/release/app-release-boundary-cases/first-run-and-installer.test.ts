@@ -207,6 +207,38 @@ test("reusable release-boundary job checks out its OPL Flow authority source", (
   assert.match(job, /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
 });
 
+test("fresh-runner release-boundary jobs install App root dependencies before validation", () => {
+  const cases = [
+    {
+      path: ".github/workflows/non-release-validation.yml",
+      start: "  release-boundary:",
+      end: null,
+    },
+    {
+      path: ".github/workflows/_build-reusable.yml",
+      start: "  release-boundary:",
+      end: "\n  active-shell-tests:",
+    },
+    {
+      path: ".github/workflows/desktop-release.yml",
+      start: "  release-workflow-contract:",
+      end: "\n  release-source-gate:",
+    },
+  ];
+
+  for (const candidate of cases) {
+    const workflow = fs.readFileSync(path.join(appRoot, candidate.path), "utf8");
+    const jobStart = workflow.indexOf(candidate.start);
+    const jobEnd = candidate.end === null ? workflow.length : workflow.indexOf(candidate.end, jobStart);
+    const job = workflow.slice(jobStart, jobEnd);
+    const install = job.indexOf("run: npm ci --ignore-scripts");
+    const validation = job.indexOf("npm run test:release-boundary");
+
+    assert.ok(jobStart >= 0 && jobEnd > jobStart, `missing release-boundary job in ${candidate.path}`);
+    assert.ok(install >= 0 && validation > install, `${candidate.path} must install App root dependencies before validation`);
+  }
+});
+
 test("reusable build job checks out OPL Flow before preparing the standard payload", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_build-reusable.yml"),
