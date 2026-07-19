@@ -1443,6 +1443,39 @@ test('workflow readback transport consumes the same remaining admission budget w
   assert.equal(result.succeeded, true);
 });
 
+test('historical promotion successor uses read-only terminal readback after the Standard deadline', async () => {
+  const started = Date.parse('2026-07-18T00:00:00.000Z');
+  const admittedAt = new Date(started).toISOString();
+  let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', new Date(started + 1_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched', new Date(started + 2_000).toISOString());
+  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified', new Date(started + 3_000).toISOString());
+  session = transitionStableReleaseSession(session, 'owner_approved', 'approved', new Date(started + 4_000).toISOString());
+  session = transitionStableReleaseSession(session, 'promotion_running', 'historical successor', new Date(started + 5_000).toISOString());
+  const observedAt = Date.parse(session.efficiency_policy.standard_admission_deadline_at) + 1_000;
+  const result = await watchRunToTerminal((command, args, options) => {
+    assert.equal(command, 'gh');
+    if (args[1] === 'watch') {
+      assert.equal(options?.timeoutMs, 60_000);
+      return { status: 1, stdout: '', stderr: 'already terminal' };
+    }
+    assert.equal(options?.timeoutMs, 30_000);
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        databaseId: 7007, attempt: 1, createdAt: '2026-07-18T01:31:00Z', headBranch: 'main',
+        headSha: appSha, status: 'completed', conclusion: 'failure', url: 'https://example.test/7007',
+      }),
+      stderr: '',
+    };
+  }, session, '7007', () => {}, () => observedAt, {
+    kind: 'historical_promotion_recovery',
+    deadlineAt: new Date(observedAt + 60_000).toISOString(),
+    predecessorAttemptId: `sha256:${'7'.repeat(64)}`,
+  });
+  assert.equal(result.conclusion, 'failure');
+});
+
 test('source gate failures prefer structured stdout over runtime warnings', () => {
   assert.equal(
     formatCommandFailure(

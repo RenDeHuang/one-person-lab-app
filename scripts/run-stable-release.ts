@@ -1692,7 +1692,13 @@ export async function watchRunToTerminal(
       });
       persist(monitoredSession);
     }
-    const view = runView(runner, monitoredSession, runId, clock);
+    const view = runView(
+      runner,
+      monitoredSession,
+      runId,
+      clock,
+      historicalPromotionDeadline ? 'read_only_reconcile' : 'admission_deadline',
+    );
     const afterReadbackMs = clock();
     if (afterReadbackMs >= deadline) {
       failAtDeadline(afterReadbackMs, 'terminal readback');
