@@ -777,7 +777,8 @@ function validateComposerCapabilityPaletteImplementation(shellPaths) {
       "id: 'session_modes'",
       "id: 'apps_and_connections'",
       'filterNonPermissionAccessModes',
-      'getOplHomePurposeAssistantIds',
+      'resolveOplProfessionalAgentAssistants',
+      'getOplProfessionalAgentPackages',
       'isGuidSkillChecked',
       'horizontalOffset={-8}',
     ],
@@ -785,7 +786,13 @@ function validateComposerCapabilityPaletteImplementation(shellPaths) {
   );
   assertTextExcludesAll(
     guidPalette,
-    ["key='workspace'", "id: 'working_directory'", '<Dropdown trigger=', 'openWorkspacePicker'],
+    [
+      "key='workspace'",
+      "id: 'working_directory'",
+      '<Dropdown trigger=',
+      'openWorkspacePicker',
+      'getOplHomePurposeAssistantIds',
+    ],
     'Active shell Home capability palette forbidden working-directory and legacy dropdown entries',
   );
 
@@ -1213,7 +1220,7 @@ export function validateRuntimePageImplementation(shellPaths) {
     shellPaths,
     'tests/unit/layout/SiderNavigation.dom.test.tsx',
     [
-      'orders primary actions before history utilities and keeps the footer compact',
+      'keeps Runtime, Scheduled, and Archived visible in the primary navigation order',
       "['New task', 'Runtime', 'Scheduled Tasks', 'Archived', 'Settings']",
       "getByRole('button', { name: 'Runtime' })",
     ],
