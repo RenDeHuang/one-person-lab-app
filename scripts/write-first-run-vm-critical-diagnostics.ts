@@ -157,6 +157,18 @@ function classifyFailure(): {
   }
   if (
     failureStage === 'run_guest_smoke' &&
+    includesAny(errorText, ['runtime status page did not become ready before refresh'])
+  ) {
+    return {
+      type: 'settings_smoke_failed',
+      boundary: 'runtime_return_ready_marker',
+      reason: 'Guest App completed the Settings traversal, but the Runtime return-route ready marker did not pass before refresh.',
+      tartSummary,
+      guestSummary,
+    };
+  }
+  if (
+    failureStage === 'run_guest_smoke' &&
     includesAny(errorText, [
       'could not select opl built-in assistant',
       'selected opl built-in assistant',

@@ -190,6 +190,33 @@ test('VM critical diagnostics keep Settings contract failures out of App readine
   assert.notEqual(summary.failure.type, 'app_ready_failed');
 });
 
+test('VM critical diagnostics classify Runtime return readiness as Settings smoke failure with same-artifact recovery', () => {
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_NAME: 'macos-build-arm64-dmg',
+      RELEASE_ARTIFACT_RUN_ID: '29637293079',
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: 'Runtime status page did not become ready before refresh',
+      guest_summary: null,
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'settings_smoke_failed');
+  assert.equal(summary.failure.boundary, 'runtime_return_ready_marker');
+  assert.notEqual(summary.failure.type, 'app_ready_failed');
+  assert.equal(summary.typed_controller_action.action, 'retry_qualification_same_artifact');
+  assert.equal(summary.typed_controller_action.scope, 'vm_qualification_only_same_cohort');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.execution_mode, 'dry_run');
+  assert.match(summary.typed_controller_action.command_template, /retry-qualification/);
+});
+
 test('VM critical diagnostics keep Home assistant route failures out of App readiness', () => {
   const summary = runDiagnostics(
     {
