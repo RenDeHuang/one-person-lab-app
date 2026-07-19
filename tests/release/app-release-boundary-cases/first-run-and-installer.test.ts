@@ -253,13 +253,24 @@ test("release source gate installs frozen App dependencies before boundary valid
   const install = job.indexOf(
     "working-directory: artifact-app\n        run: npm ci --ignore-scripts",
   );
+  const setupBun = job.indexOf(
+    "uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+  );
+  const installShell = job.indexOf(
+    "working-directory: artifact-app/shells/aionui\n        run: bun install --frozen-lockfile",
+  );
   const validation = job.indexOf("- name: Validate release source gate");
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing release source gate job");
   assert.ok(setup >= 0 && install > setup, "release source gate must install with pinned Node");
   assert.ok(
-    validation > install,
-    "release source gate must install frozen App dependencies before boundary validation",
+    setupBun > install && installShell > setupBun,
+    "release source gate must install the frozen Shell with pinned Bun",
+  );
+  assert.match(job.slice(setupBun, installShell), /bun-version: '1\.3\.14'/);
+  assert.ok(
+    validation > installShell,
+    "release source gate must install frozen App and Shell dependencies before validation",
   );
 });
 
