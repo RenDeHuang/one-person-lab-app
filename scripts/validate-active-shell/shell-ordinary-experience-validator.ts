@@ -708,7 +708,8 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/process/services/codexAppServer/adapter.ts',
     [
-      "workspace: optionalString(raw.cwd) ?? ''",
+      'workspace: recordedCwd(raw.cwd)',
+      "throw new Error('Invalid Codex app-server thread cwd.')",
       "result = await this.rpc.request('thread/read', { threadId, includeTurns: true })",
       "await this.rpc.request('thread/resume', { threadId, excludeTurns: false })",
       "await this.rpc.request('thread/settings/update'",
@@ -784,11 +785,10 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
     [
       'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
-      'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
-      'cached?.extra.custom_workspace === true',
-      'workspace: projectAffinityWorkspace',
+      'workspace: thread.workspace',
+      'custom_workspace: hasCanonicalRecordedCwd',
     ],
-    'Active shell canonical cwd projection and legacy affinity hydration',
+    'Active shell canonical cwd projection and cache hydration',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -963,7 +963,7 @@ export function validateRuntimePageImplementation(shellPaths) {
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
-    ["handlePrimaryNavigate = (path: '/runtime'", "onRuntimeClick={() => handlePrimaryNavigate('/runtime')}"],
+    ['const handlePrimaryNavigate = (path: string)', "onRuntimeClick={() => handlePrimaryNavigate('/runtime')}"],
     'Active shell cross-project Runtime navigation route',
   );
   assertShellTextIncludesAll(
