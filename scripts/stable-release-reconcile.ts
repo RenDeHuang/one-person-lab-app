@@ -869,14 +869,14 @@ export function reconcileStableReleaseSession(
         );
       }
       reconciled = applyPromotionCheckpointReadback(reconciled, jobs, at);
-      if (latestPromotionEvent.state === 'failed' && reconciled.phase !== 'promotion_failed') {
-        reconciled = transitionStableReleaseSession(
-          reconciled,
-          'promotion_failed',
-          'exact failed promotion run stopped after its last remotely verified checkpoint',
-          at,
-        );
-      }
+    }
+    if (latestPromotionEvent.state === 'failed' && reconciled.phase !== 'promotion_failed') {
+      reconciled = transitionStableReleaseSession(
+        reconciled,
+        'promotion_failed',
+        'exact failed promotion run stopped after its last remotely verified checkpoint',
+        at,
+      );
     }
   }
 

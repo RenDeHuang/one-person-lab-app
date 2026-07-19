@@ -744,6 +744,37 @@ test('expired exact historical promotion successor reconciles one terminal run w
   assert.equal(result.promotion_progress.resume_from_checkpoint, 'distribution_synced');
   assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.state, 'failed');
   assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.run_id, '402');
+
+  const staleRunning = transitionStableReleaseSession(
+    result,
+    'promotion_running',
+    'simulate stale local running projection with no new remote checkpoint',
+    '2026-07-18T01:32:01.000Z',
+  );
+  const repeated = reconcileStableReleaseSession(staleRunning, {
+    discoverAdminRuns: (attempt) => {
+      const runId = attempt.attempt_id === root.attemptId ? '401' : '402';
+      return [{
+        databaseId: runId, status: 'completed', conclusion: 'failure', runAttempt: 1,
+        workflow: 'desktop-release-promote.yml', controllerWorkflowSha: attempt.controller_workflow_sha,
+        mutationAttemptId: attempt.attempt_id, headBranch: 'main', event: 'workflow_dispatch',
+        createdAt: attempt.attempt_id === root.attemptId
+          ? '2026-07-18T01:20:02.000Z' : '2026-07-18T01:31:02.000Z',
+        url: `https://example.test/${runId}`,
+      }];
+    },
+    readPromotionJobs: (runId) => runId === '402' ? [{
+      name: 'Publish release without changing latest',
+      status: 'completed',
+      conclusion: 'success',
+      completedAt: '2026-07-18T01:31:30.000Z',
+    }] : [],
+    readBrokerRecord: () => { throw new Error('historical admin reconcile must remain read-only'); },
+    readRun: () => null,
+    readAttemptReceipt: () => null,
+  }, '2026-07-18T01:32:02.000Z', authority, () => Date.parse('2026-07-18T01:32:02.000Z'));
+  assert.equal(repeated.phase, 'promotion_failed');
+  assert.equal(repeated.promotion_progress.last_verified_checkpoint, 'release_public_nonlatest');
 });
 
 test('broker lookup crossing the Standard deadline returns a durable blocker before run readback', () => {
