@@ -5,6 +5,7 @@ import { validateAppGuiProductContract } from '../../scripts/validate-active-she
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 import {
+  assertCanonicalThreadAffinityConvergenceSources,
   assertCurrentGuidHomeSelectionSources,
   assertProjectlessGuidFileAccessSources,
   assertRuntimePageSourceBoundary,
@@ -293,6 +294,109 @@ test('active-shell source gate preserves explicit local file inputs independentl
     ].join('\n'),
   ]) {
     assert.throws(() => assertProjectlessGuidFileAccessSources(`${currentSource}\n${legacyWorkspaceGate}`));
+  }
+});
+
+test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
+  const canonicalProjectionMarkers = [
+    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+    'workspace: thread.workspace',
+    'custom_workspace: hasCanonicalRecordedCwd',
+  ];
+  const focusedTestNames = [
+    'rebuilds a stale projectless cache row from the canonical recorded cwd',
+    'replaces stale bound shell affinity with the canonical recorded cwd',
+    'keeps canonical adoption successful when the rebuildable local projection update fails',
+    'keeps canonical adoption successful when a stub projection cannot be materialized',
+    'requires an exact canonical cwd readback instead of path-normalized equivalence',
+    'rejects malformed canonical cwd instead of treating it as projectless',
+    'rejects a malformed cwd returned by canonical thread read',
+  ];
+  const conversationListSync = canonicalProjectionMarkers.join('\n');
+  const canonicalThreadLifecycle = canonicalProjectionMarkers.join('\n');
+  const focusedTests = focusedTestNames.join('\n');
+  const threadAdapter = [
+    'function recordedCwd(value: unknown): string',
+    "if (value === undefined || value === null) return ''",
+    "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
+    'workspace: recordedCwd(raw.cwd)',
+  ].join('\n');
+
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadAffinityConvergenceSources({
+      canonicalThreadLifecycle,
+      conversationListSync,
+      focusedTests,
+      threadAdapter,
+    }),
+  );
+
+  for (const requiredMarker of canonicalProjectionMarkers) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync: conversationListSync.replace(requiredMarker, ''),
+        focusedTests,
+        threadAdapter,
+      }),
+    );
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle: canonicalThreadLifecycle.replace(requiredMarker, ''),
+        conversationListSync,
+        focusedTests,
+        threadAdapter,
+      }),
+    );
+  }
+
+  for (const cachedOverride of [
+    'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+    'cached?.extra.custom_workspace === true',
+    'workspace: projectAffinityWorkspace',
+    'custom_workspace: customWorkspace',
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync: `${conversationListSync}\n${cachedOverride}`,
+        focusedTests,
+        threadAdapter,
+      }),
+    );
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle: `${canonicalThreadLifecycle}\n${cachedOverride}`,
+        conversationListSync,
+        focusedTests,
+        threadAdapter,
+      }),
+    );
+  }
+
+  for (const focusedTestName of focusedTestNames) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync,
+        focusedTests: focusedTests.replace(focusedTestName, ''),
+        threadAdapter,
+      }),
+    );
+  }
+
+  for (const invalidThreadAdapter of [
+    threadAdapter.replace("if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')", ''),
+    `${threadAdapter}\nworkspace: optionalString(raw.cwd) ?? ''`,
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync,
+        focusedTests,
+        threadAdapter: invalidThreadAdapter,
+      }),
+    );
   }
 });
 

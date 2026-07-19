@@ -31,6 +31,71 @@ const guidHomeExpected = [
 
 const guidHomeSelectionForbidden = ['AssistantSelectionArea', 'MentionSelectorBadge'];
 
+export function assertCanonicalThreadAffinityConvergenceSources({
+  canonicalThreadLifecycle,
+  conversationListSync,
+  focusedTests,
+  threadAdapter,
+}: {
+  canonicalThreadLifecycle: string;
+  conversationListSync: string;
+  focusedTests: string;
+  threadAdapter: string;
+}): void {
+  for (const [label, source] of [
+    ['canonical thread lifecycle', canonicalThreadLifecycle],
+    ['canonical directory merge', conversationListSync],
+  ] as const) {
+    assertTextIncludesAll(
+      source,
+      [
+        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+        'workspace: thread.workspace',
+        'custom_workspace: hasCanonicalRecordedCwd',
+      ],
+      `Active shell ${label} cwd projection`,
+    );
+    assertTextExcludesAll(
+      source,
+      [
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+        'cached?.extra.custom_workspace === true',
+        'workspace: projectAffinityWorkspace',
+        'custom_workspace: customWorkspace',
+      ],
+      `Active shell ${label} cache authority boundary`,
+    );
+  }
+  assertTextIncludesAll(
+    threadAdapter,
+    [
+      'function recordedCwd(value: unknown): string',
+      "if (value === undefined || value === null) return ''",
+      "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
+      'workspace: recordedCwd(raw.cwd)',
+    ],
+    'Active shell canonical cwd parser fail-closed boundary',
+  );
+  assertTextExcludesAll(
+    threadAdapter,
+    ["workspace: optionalString(raw.cwd) ?? ''"],
+    'Active shell canonical cwd parser must not treat malformed values as projectless',
+  );
+  assertTextIncludesAll(
+    focusedTests,
+    [
+      'rebuilds a stale projectless cache row from the canonical recorded cwd',
+      'replaces stale bound shell affinity with the canonical recorded cwd',
+      'keeps canonical adoption successful when the rebuildable local projection update fails',
+      'keeps canonical adoption successful when a stub projection cannot be materialized',
+      'requires an exact canonical cwd readback instead of path-normalized equivalence',
+      'rejects malformed canonical cwd instead of treating it as projectless',
+      'rejects a malformed cwd returned by canonical thread read',
+    ],
+    'Active shell canonical cwd convergence focused regressions',
+  );
+}
+
 export function assertProjectlessGuidFileAccessSources(guidPage: string): void {
   assertTextIncludesAll(
     guidPage,
@@ -708,8 +773,9 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/process/services/codexAppServer/adapter.ts',
     [
+      'function recordedCwd(value: unknown): string',
+      "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
       'workspace: recordedCwd(raw.cwd)',
-      "throw new Error('Invalid Codex app-server thread cwd.')",
       "result = await this.rpc.request('thread/read', { threadId, includeTurns: true })",
       "await this.rpc.request('thread/resume', { threadId, excludeTurns: false })",
       "await this.rpc.request('thread/settings/update'",
@@ -780,15 +846,9 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     ],
     'Active shell explicit projectless marker and affinity isolation',
   );
-  assertShellTextIncludesAll(
+  const conversationListSync = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
-    [
-      'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
-      'workspace: thread.workspace',
-      'custom_workspace: hasCanonicalRecordedCwd',
-    ],
-    'Active shell canonical cwd projection and cache hydration',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -813,6 +873,12 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     readShellText(shellPaths, 'tests/unit/conversation/useConversationActions.dom.test.tsx'),
     readShellText(shellPaths, 'tests/unit/conversation/export/GroupedHistoryExportEntry.dom.test.tsx'),
   ].join('\n');
+  assertCanonicalThreadAffinityConvergenceSources({
+    canonicalThreadLifecycle: projectAffinityLifecycle,
+    conversationListSync,
+    focusedTests: projectAffinityTests,
+    threadAdapter,
+  });
   assertTextIncludesAll(
     projectAffinityTests,
     [
