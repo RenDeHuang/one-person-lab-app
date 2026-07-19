@@ -907,6 +907,7 @@ export function qualificationRetryDispatchArgs(
 function resolveCanonicalControllerWorkflowSha(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
+  historicalPromotionRecovery = false,
 ): string {
   const authority = readReleaseBrokerAuthority();
   const authorityErrors = validateReleaseBrokerAuthority(authority, { requireProvisioned: false });
@@ -914,7 +915,9 @@ function resolveCanonicalControllerWorkflowSha(
   const ref = authority.canonical_workflow_ref.replace(/^refs\/heads\//, '');
   const result = runner('gh', [
     'api', `repos/${session.repo}/commits/${encodeURIComponent(ref)}`, '--jq', '.sha',
-  ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, 'canonical controller ref lookup') });
+  ], { timeoutMs: historicalPromotionRecovery
+    ? readOnlyReleaseTransportTimeoutMs()
+    : boundedReleaseTransportTimeoutMs(session, 'canonical controller ref lookup') });
   if (result.status !== 0) failResult(result, `resolve remote App dispatch ref ${ref}`);
   const actual = result.stdout.trim().toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(actual)) throw new Error(`Canonical controller ref ${authority.canonical_workflow_ref} did not resolve to an exact SHA.`);
@@ -2092,7 +2095,7 @@ async function dispatchAndWatchPromotion(
   if (!historicalPredecessor) {
     assertStandardDeadlineOrPersist(session, statePath, 'promotion_dispatch_admission', session.promotion_run.id);
   }
-  const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
+  const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session, historicalPredecessor !== null);
   if (!historicalPredecessor) {
     assertStandardDeadlineOrPersist(session, statePath, 'promotion_controller_readback', session.promotion_run.id);
   }
