@@ -122,6 +122,10 @@ type WorkflowWatchDeadline = {
   kind: 'full_addon';
   deadlineAt: string;
   acceptanceAttemptId: string;
+} | {
+  kind: 'historical_promotion_recovery';
+  deadlineAt: string;
+  predecessorAttemptId: string;
 };
 
 type RetryQualificationOptions = {
@@ -387,7 +391,10 @@ export function buildAdminOneShotAdmission(
   };
 }
 
-export function adminOneShotDispatchArgs(admission: AdminOneShotAdmission): string[] {
+export function adminOneShotDispatchArgs(
+  admission: AdminOneShotAdmission,
+  historicalPredecessorAdmission?: AdminOneShotAdmission,
+): string[] {
   return [
     'workflow', 'run', admission.request.workflow,
     '--repo', admission.request.github.repository,
@@ -396,8 +403,70 @@ export function adminOneShotDispatchArgs(admission: AdminOneShotAdmission): stri
     '--field', `release_attempt_id=${admission.request.attempt_id}`,
     '--field', `release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`,
     '--field', `pre_api_admission_receipt_base64=${Buffer.from(JSON.stringify(admission), 'utf8').toString('base64')}`,
+    ...(historicalPredecessorAdmission ? [
+      '--field',
+      `historical_predecessor_admission_receipt_base64=${Buffer.from(JSON.stringify(historicalPredecessorAdmission), 'utf8').toString('base64')}`,
+    ] : []),
     ...mutationPayloadArgs(admission.request.mutation_payload),
   ];
+}
+
+export function historicalPromotionPredecessorAdmission(
+  session: StableReleaseSession,
+  ownerReceiptRef: string,
+  releaseSetGeneration: string,
+  observedAtMs = Date.now(),
+): AdminOneShotAdmission | null {
+  if (remainingStandardAdmissionBudgetMs(session, observedAtMs) > 0) return null;
+  if (
+    session.phase !== 'promotion_failed' ||
+    session.release_owner_receipt_ref !== ownerReceiptRef ||
+    session.promotion_progress.release_set_generation !== releaseSetGeneration ||
+    session.promotion_progress.last_verified_checkpoint !== null ||
+    session.promotion_progress.resume_from_checkpoint !== 'release_public_nonlatest' ||
+    session.promotion_run.conclusion !== 'failure' ||
+    !session.promotion_run.id
+  ) {
+    throw new Error('Expired promotion recovery requires the same failed session, owner receipt, r1, and zero verified checkpoints.');
+  }
+  const predecessor = [...session.mutation_attempts].reverse().find((attempt) =>
+    attempt.mutation === 'promotion_dispatch'
+  );
+  if (!predecessor || predecessor.admission_mode !== 'admin_one_shot_controller') {
+    throw new Error('Expired promotion recovery requires a prior admin one-shot promotion admission.');
+  }
+  const dispatchingEvents = predecessor.events.filter((event) => event.state === 'dispatching');
+  const terminal = predecessor.events.at(-1);
+  const dispatching = dispatchingEvents[0];
+  const deadlineMs = admissionDeadlineMs(session);
+  if (
+    dispatchingEvents.length !== 1 || !dispatching || Date.parse(dispatching.at) >= deadlineMs ||
+    !terminal || terminal.state !== 'failed' || terminal.run_id !== session.promotion_run.id ||
+    Date.parse(terminal.at) < Date.parse(dispatching.at)
+  ) {
+    throw new Error('Expired promotion recovery predecessor is not a unique pre-deadline admission with a terminal failed run.');
+  }
+  const payload = promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration);
+  if (
+    !predecessor.mutation_payload ||
+    predecessor.mutation_payload_sha256 !== releaseMutationPayloadSha256(payload) ||
+    canonicalJson(predecessor.mutation_payload) !== canonicalJson(payload) ||
+    predecessor.artifact_app_sha !== session.cohort_plan.cohort_lock.app.resolved_sha
+  ) {
+    throw new Error('Expired promotion recovery predecessor does not bind the exact current session payload and artifact cohort.');
+  }
+  const predecessorAtDispatch = {
+    ...session,
+    mutation_attempts: session.mutation_attempts.map((attempt) => attempt.attempt_id === predecessor.attempt_id
+      ? { ...attempt, events: [dispatching] }
+      : attempt),
+  };
+  return buildAdminOneShotAdmission(
+    predecessorAtDispatch,
+    predecessor.attempt_id,
+    payload,
+    dispatching.at,
+  );
 }
 
 function exactAcceptedRunId(
@@ -1493,7 +1562,8 @@ export async function watchRunToTerminal(
   deadlinePolicy?: WorkflowWatchDeadline,
 ): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string; session: StableReleaseSession }> {
   const retryLimit = session.efficiency_policy.monitor_transport_retry_limit ?? 3;
-  const standardDeadlineApplies = session.terminal_truth.standard_status !== 'terminal';
+  const historicalPromotionDeadline = deadlinePolicy?.kind === 'historical_promotion_recovery' ? deadlinePolicy : null;
+  const standardDeadlineApplies = session.terminal_truth.standard_status !== 'terminal' && historicalPromotionDeadline === null;
   const fullAddonDeadline = deadlinePolicy?.kind === 'full_addon' ? deadlinePolicy : null;
   const fullAddonDeadlineApplies = fullAddonDeadline !== null;
   const phaseStartedAtMs = Date.parse(session.metrics.phases[session.phase]?.started_at ?? session.updated_at);
@@ -1501,6 +1571,8 @@ export async function watchRunToTerminal(
     (session.efficiency_policy.monitor_wall_clock_timeout_seconds[session.phase] ?? 7_200) * 1_000;
   const deadline = fullAddonDeadlineApplies
     ? Date.parse(fullAddonDeadline!.deadlineAt)
+    : historicalPromotionDeadline
+      ? Date.parse(historicalPromotionDeadline.deadlineAt)
     : standardDeadlineApplies
       ? admissionDeadlineMs(session)
       : phaseStartedAtMs + terminalTransportWindowMs;
@@ -1523,6 +1595,16 @@ export async function watchRunToTerminal(
         `Workflow run ${runId} reached the signed 50-minute Full add-on deadline during ${stage}; ` +
         'the durable add-on debt blocker is terminal and Standard remains unchanged.',
       );
+    }
+    if (historicalPromotionDeadline) {
+      monitoredSession = transitionStableReleaseSession(
+        monitoredSession,
+        'promotion_failed',
+        `historical promotion successor exceeded its bounded recovery window from ${historicalPromotionDeadline.predecessorAttemptId}`,
+        new Date(observedAtMs).toISOString(),
+      );
+      persist(monitoredSession);
+      throw new Error(`Workflow run ${runId} ${stage} reached its bounded historical promotion recovery window.`);
     }
     if (!standardDeadlineApplies) {
       throw new Error(`Workflow run ${runId} ${stage} reached its independent post-Standard transport window.`);
@@ -1746,7 +1828,10 @@ function readFullAddonReceipt(
   }
 }
 
-function fullAddonWatchDeadline(session: StableReleaseSession, runId: string): WorkflowWatchDeadline {
+function fullAddonWatchDeadline(
+  session: StableReleaseSession,
+  runId: string,
+): Extract<WorkflowWatchDeadline, { kind: 'full_addon' }> {
   const acceptance = session.mutation_acceptances.find((candidate) =>
     candidate.pre_api_fence.request.mutation === 'full_addon_dispatch' && candidate.github.run_id === runId
   );
@@ -1994,6 +2079,9 @@ async function dispatchAndWatchPromotion(
   if (retrying && session.release_owner_receipt_ref !== ownerReceiptRef) {
     throw new Error('Promotion retry must preserve the exact release owner receipt from the failed promotion.');
   }
+  const historicalPredecessor = retrying
+    ? historicalPromotionPredecessorAdmission(session, ownerReceiptRef, releaseSetGeneration)
+    : null;
   session = {
     ...session,
     promotion_progress: {
@@ -2001,9 +2089,13 @@ async function dispatchAndWatchPromotion(
       release_set_generation: releaseSetGeneration,
     },
   };
-  assertStandardDeadlineOrPersist(session, statePath, 'promotion_dispatch_admission', session.promotion_run.id);
+  if (!historicalPredecessor) {
+    assertStandardDeadlineOrPersist(session, statePath, 'promotion_dispatch_admission', session.promotion_run.id);
+  }
   const controllerWorkflowSha = resolveCanonicalControllerWorkflowSha(runner, session);
-  assertStandardDeadlineOrPersist(session, statePath, 'promotion_controller_readback', session.promotion_run.id);
+  if (!historicalPredecessor) {
+    assertStandardDeadlineOrPersist(session, statePath, 'promotion_controller_readback', session.promotion_run.id);
+  }
   const dispatchedAt = now();
   const planned = planReleaseMutationAttempt(session, {
     mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
@@ -2031,8 +2123,10 @@ async function dispatchAndWatchPromotion(
       : attempt),
   };
   writeSession(statePath, session);
-  const dispatch = runner('gh', adminOneShotDispatchArgs(admission), {
-    timeoutMs: boundedReleaseTransportTimeoutMs(session, 'admin one-shot promotion dispatch'),
+  const dispatch = runner('gh', adminOneShotDispatchArgs(admission, historicalPredecessor ?? undefined), {
+    timeoutMs: historicalPredecessor
+      ? readOnlyReleaseTransportTimeoutMs()
+      : boundedReleaseTransportTimeoutMs(session, 'admin one-shot promotion dispatch'),
   });
   if (dispatch.status !== 0) {
     throw new Error(
@@ -2080,6 +2174,15 @@ async function dispatchAndWatchPromotion(
 
   const observation = await watchRunToTerminal(
     runner, session, acceptedRunId, (next) => writeSession(statePath, next),
+    Date.now,
+    historicalPredecessor ? {
+      kind: 'historical_promotion_recovery',
+      deadlineAt: new Date(
+        Date.parse(dispatchingAt) +
+        (session.efficiency_policy.monitor_wall_clock_timeout_seconds.promotion_running ?? 3_600) * 1_000,
+      ).toISOString(),
+      predecessorAttemptId: historicalPredecessor.request.attempt_id,
+    } : undefined,
   );
   session = observation.session;
   const { readback } = observation;
@@ -2090,13 +2193,15 @@ async function dispatchAndWatchPromotion(
     attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
     rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
   };
-  session = finalizeStandardEvidenceBeforeDeadline(
-    session,
-    statePath,
-    'promotion_finalization',
-    String(readback.databaseId),
-    () => finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner),
-  );
+  session = historicalPredecessor
+    ? finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner)
+    : finalizeStandardEvidenceBeforeDeadline(
+      session,
+      statePath,
+      'promotion_finalization',
+      String(readback.databaseId),
+      () => finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner),
+    );
   session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
     at: now(),
     state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',

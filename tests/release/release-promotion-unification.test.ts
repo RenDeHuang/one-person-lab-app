@@ -194,6 +194,7 @@ test('promotion prepare rebuilds missing owner evidence from the exact qualified
   }
   assert.match(rebuild, /npm run verify-remote-release/);
   assert.match(rebuild, /scripts\/summarize-release-readiness\.ts/);
+  assert.match(rebuild, /GITHUB_RUN_ID='\$\{\{ inputs\.standard_vm_run_id \}\}' node --experimental-strip-types scripts\/summarize-release-readiness\.ts/);
   assert.match(rebuild, /scripts\/write-release-candidate-record\.ts/);
   assert.match(rebuild, /--release-owner-receipt-ref "\$RELEASE_OWNER_RECEIPT_REF"/);
   assert.match(rebuild, /"standard-first-run-vm-smoke-after-standard-only": "success"/);
@@ -409,4 +410,22 @@ test('promotion startup failure creates a fresh controller attempt instead of re
   assert.match(controller, /const retrying = session\.phase === 'promotion_failed'/);
   assert.match(controller, /planReleaseMutationAttempt\(session/);
   assert.doesNotMatch(controller, /gh run rerun/);
+});
+
+test('expired promotion recovery binds one exact historical admission and terminal zero-checkpoint run', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const controller = fs.readFileSync(path.join(appRoot, 'scripts/run-stable-release.ts'), 'utf8');
+  const admission = workflowStep(workflow, 'Resolve signed broker admission for this exact promotion run');
+
+  assert.match(workflow, /historical_predecessor_admission_receipt_base64:/);
+  assert.match(admission, /prior\.stable_session_id !== request\.stable_session_id/);
+  assert.match(admission, /prior\.mutation_payload_sha256 !== request\.mutation_payload_sha256/);
+  assert.match(admission, /canonicalPayload\(prior\.mutation_payload\) !== canonicalPayload\(request\.mutation_payload\)/);
+  assert.match(admission, /priorPersistedMs >= deadlineMs/);
+  assert.match(admission, /matches\.length !== 1/);
+  assert.match(admission, /\['failure', 'startup_failure'\]/);
+  assert.match(admission, /Historical promotion predecessor already crossed a public mutation checkpoint/);
+  assert.match(controller, /historicalPromotionPredecessorAdmission\(session, ownerReceiptRef, releaseSetGeneration\)/);
+  assert.match(controller, /historicalPredecessor \? \{/);
+  assert.doesNotMatch(admission, /gh workflow run|gh run rerun|gh run cancel/);
 });

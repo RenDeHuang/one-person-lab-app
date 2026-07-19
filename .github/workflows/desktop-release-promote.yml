@@ -44,6 +44,11 @@ on:
         description: Signed durable pre-API broker fence containing the exact promotion request and one-use lease
         required: true
         type: string
+      historical_predecessor_admission_receipt_base64:
+        description: Exact prior pre-deadline admin admission for a same-session zero-checkpoint successor
+        required: false
+        default: ''
+        type: string
       release_mutation_payload_sha256:
         description: Exact digest of the broker-bound promotion mutation payload
         required: true
@@ -146,7 +151,9 @@ jobs:
           RELEASE_ADMISSION_MODE: ${{ inputs.release_admission_mode }}
           RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
           PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          HISTORICAL_PREDECESSOR_ADMISSION_RECEIPT_BASE64: ${{ inputs.historical_predecessor_admission_receipt_base64 }}
           RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          GH_TOKEN: ${{ github.token }}
           RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
           ARTIFACT_APP_SHA: ${{ inputs.artifact_app_sha }}
           STANDARD_VM_RUN_ID: ${{ inputs.standard_vm_run_id }}
@@ -163,6 +170,7 @@ jobs:
           [[ "$SHELL_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ "$FRAMEWORK_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
           remaining_seconds="$(node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
           import fs from 'node:fs';
           const deadline = process.env.STANDARD_ADMISSION_DEADLINE_AT || '';
           if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(deadline)
@@ -203,10 +211,51 @@ jobs:
           const deadlineMs = Date.parse(deadline);
           const persistedMs = Date.parse(String(fence.persisted_at || ''));
           const nowMs = Date.now();
-          if (!Number.isFinite(persistedMs) || persistedMs >= deadlineMs || deadlineMs - persistedMs > 90 * 60_000) {
+          const predecessorBase64 = process.env.HISTORICAL_PREDECESSOR_ADMISSION_RECEIPT_BASE64 || '';
+          if (predecessorBase64) {
+            const predecessor = JSON.parse(Buffer.from(predecessorBase64, 'base64').toString('utf8'));
+            const prior = predecessor.request || {};
+            const canonicalJson = (value) => Array.isArray(value)
+              ? `[${value.map(canonicalJson).join(',')}]`
+              : (!value || typeof value !== 'object')
+                ? JSON.stringify(value)
+                : `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+                  .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
+            const priorPersistedMs = Date.parse(String(predecessor.persisted_at || ''));
+            const priorRequestSha = `sha256:${crypto.createHash('sha256').update(canonicalJson(prior)).digest('hex')}`;
+            if (predecessor.schema !== 'opl_app_release_admin_one_shot_admission.v1'
+              || predecessor.status !== 'durable_pre_api_fence'
+              || predecessor.admission_mode !== 'admin_one_shot_controller'
+              || predecessor.request_sha256 !== priorRequestSha
+              || prior.mutation !== 'promotion_dispatch'
+              || prior.workflow !== 'desktop-release-promote.yml'
+              || prior.artifact_kind !== 'promotion'
+              || prior.attempt_id === request.attempt_id
+              || prior.stable_session_id !== request.stable_session_id
+              || prior.release_cohort_ref !== request.release_cohort_ref
+              || prior.operator_actor !== request.operator_actor
+              || prior.artifact_app_sha !== request.artifact_app_sha
+              || prior.mutation_payload_sha256 !== request.mutation_payload_sha256
+              || canonicalPayload(prior.mutation_payload) !== canonicalPayload(request.mutation_payload)
+              || !Number.isFinite(priorPersistedMs)
+              || priorPersistedMs >= deadlineMs
+              || deadlineMs - priorPersistedMs > 90 * 60_000
+              || prior.mutation_payload?.resume_from_checkpoint !== 'release_public_nonlatest'
+              || (prior.mutation_payload?.promotion_checkpoint_receipts_json ?? '[]') !== '[]') {
+              throw new Error('Historical promotion predecessor does not bind the same pre-deadline zero-checkpoint saga.');
+            }
+            if (!Number.isFinite(persistedMs) || persistedMs > nowMs || nowMs - persistedMs > 15 * 60_000) {
+              throw new Error('Historical promotion successor admission is not fresh.');
+            }
+            fs.writeFileSync('historical-promotion-predecessor.json', `${JSON.stringify({
+              attempt_id: prior.attempt_id,
+              controller_workflow_sha: prior.controller_workflow_sha,
+              opl_version: prior.mutation_payload.opl_version,
+            }, null, 2)}\n`);
+            process.stdout.write(String(Math.max(1, Math.floor((persistedMs + 15 * 60_000 - nowMs) / 1000))));
+          } else if (!Number.isFinite(persistedMs) || persistedMs >= deadlineMs || deadlineMs - persistedMs > 90 * 60_000) {
             throw new Error('Signed pre-API fence is outside the immutable 90-minute Standard admission window.');
-          }
-          if (nowMs >= deadlineMs) {
+          } else if (nowMs >= deadlineMs) {
             const failure = {
               schema: 'opl_app_stable_deadline_failure.v1', status: 'blocked',
               reason_code: 'standard_admission_deadline_elapsed', deadline_at: deadline,
@@ -216,10 +265,46 @@ jobs:
             fs.writeFileSync('stable-deadline-failure.json', `${JSON.stringify(failure, null, 2)}\n`);
             console.error(JSON.stringify(failure));
             process.exit(78);
+          } else {
+            process.stdout.write(String(Math.max(1, Math.floor((deadlineMs - nowMs) / 1000))));
           }
-          process.stdout.write(String(Math.max(1, Math.floor((deadlineMs - nowMs) / 1000))));
           NODE
           )"
+          if [ -n "$HISTORICAL_PREDECESSOR_ADMISSION_RECEIPT_BASE64" ]; then
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow desktop-release-promote.yml --limit 100 \
+            --json databaseId,status,conclusion,headSha,displayTitle,event > historical-promotion-runs.json
+          PREDECESSOR=historical-promotion-predecessor.json RUNS=historical-promotion-runs.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const predecessor = JSON.parse(fs.readFileSync(process.env.PREDECESSOR, 'utf8'));
+          const runs = JSON.parse(fs.readFileSync(process.env.RUNS, 'utf8'));
+          const title = `OPL Desktop Release Promote v${predecessor.opl_version} attempt=${predecessor.attempt_id}`;
+          const matches = runs.filter((run) => run.displayTitle === title);
+          if (matches.length !== 1 || matches[0].status !== 'completed'
+            || !['failure', 'startup_failure'].includes(matches[0].conclusion)
+            || matches[0].headSha !== predecessor.controller_workflow_sha
+            || matches[0].event !== 'workflow_dispatch') {
+            throw new Error('Historical promotion predecessor does not resolve to one exact terminal failed run.');
+          }
+          fs.writeFileSync('historical-promotion-run-id.txt', `${matches[0].databaseId}\n`);
+          NODE
+          predecessor_run_id="$(cat historical-promotion-run-id.txt)"
+          gh run view "$predecessor_run_id" --repo "$GITHUB_REPOSITORY" --json jobs > historical-promotion-jobs.json
+          JOBS=historical-promotion-jobs.json node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const jobs = JSON.parse(fs.readFileSync(process.env.JOBS, 'utf8')).jobs || [];
+          const checkpoints = [
+            'Publish release without changing latest',
+            'Publish and promote exact Framework Release Set',
+            'Validate brokered atomic Standard distribution',
+            'Qualify Standard Homebrew installation',
+            'Verify Standard Homebrew activation',
+            'Activate App latest after Standard distribution gates',
+          ];
+          if (jobs.some((job) => checkpoints.includes(job.name) && job.conclusion === 'success')) {
+            throw new Error('Historical promotion predecessor already crossed a public mutation checkpoint.');
+          }
+          NODE
+          fi
           set +e
           verifier_mode=lookup
           if [ "$RELEASE_ADMISSION_MODE" = admin_one_shot_controller ]; then
@@ -424,7 +509,7 @@ jobs:
             "release-readiness-admission": "success"
           }
           JSON
-          node --experimental-strip-types scripts/summarize-release-readiness.ts \
+          GITHUB_RUN_ID='${{ inputs.standard_vm_run_id }}' node --experimental-strip-types scripts/summarize-release-readiness.ts \
             --version "${{ inputs.opl_version }}" \
             --release-mode refresh_existing \
             --include-full-package false \

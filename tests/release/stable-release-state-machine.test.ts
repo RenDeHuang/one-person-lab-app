@@ -21,6 +21,7 @@ import {
   executeBrokeredReleaseMutation,
   formatCommandFailure,
   fullAddonMutationPayload,
+  historicalPromotionPredecessorAdmission,
   promoteDispatchArgs,
   promotionMutationPayload,
   qualificationMutationPayload,
@@ -1560,6 +1561,68 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   assert.match(args, /release_set_generation=26\.7\.12-r2/);
   assert.match(args, /release_owner_receipt_ref=release_owner_receipt_ref:\/\/test/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
+});
+
+test('expired promotion successor requires the exact pre-deadline failed zero-checkpoint admission', () => {
+  const startedAt = '2026-07-18T00:00:00.000Z';
+  const ownerReceipt = 'release_owner_receipt_ref://test/exact-owner';
+  const generation = '26.7.12-r1';
+  let session = buildStableReleaseSession(plan(startedAt), undefined, startedAt);
+  session.phase = 'promotion_failed';
+  session.release_run.id = '29211495991';
+  session.artifact_tracks.standard.qualification_run = {
+    ...session.artifact_tracks.standard.qualification_run,
+    id: '29211496001', conclusion: 'success', artifact_sha256: 'e'.repeat(64),
+  };
+  session.release_owner_receipt_ref = ownerReceipt;
+  session.promotion_progress = {
+    release_set_generation: generation,
+    release_set_manifest_digest: null,
+    last_verified_checkpoint: null,
+    resume_from_checkpoint: 'release_public_nonlatest',
+  };
+  const payload = promotionMutationPayload(session, ownerReceipt, generation);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    at: '2026-07-18T01:20:00.000Z', reason: 'pre-deadline predecessor',
+  });
+  session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: '2026-07-18T01:20:01.000Z', state: 'dispatching', run_id: null, reason: 'durable predecessor',
+  });
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: '2026-07-18T01:20:03.000Z', state: 'running', run_id: '301', reason: 'exact predecessor run',
+  });
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: '2026-07-18T01:21:00.000Z', state: 'failed', run_id: '301', reason: 'prepare failed',
+  });
+  session.promotion_run = {
+    id: '301', url: 'https://example.test/301', conclusion: 'failure', attempt: 1,
+    rerun_requested_from_attempt: null,
+  };
+
+  assert.equal(
+    historicalPromotionPredecessorAdmission(
+      session, ownerReceipt, generation, Date.parse('2026-07-18T01:29:59.000Z'),
+    ),
+    null,
+  );
+  const predecessor = historicalPromotionPredecessorAdmission(
+    session, ownerReceipt, generation, Date.parse('2026-07-18T01:30:01.000Z'),
+  );
+  assert.equal(predecessor?.request.attempt_id, planned.attemptId);
+  assert.equal(predecessor?.persisted_at, '2026-07-18T01:20:01.000Z');
+  const args = adminOneShotDispatchArgs(predecessor!, predecessor!);
+  assert.equal(args.filter((arg) => arg.startsWith('historical_predecessor_admission_receipt_base64=')).length, 1);
+
+  session.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
+  assert.throws(
+    () => historicalPromotionPredecessorAdmission(
+      session, ownerReceipt, generation, Date.parse('2026-07-18T01:30:01.000Z'),
+    ),
+    /zero verified checkpoints/,
+  );
 });
 
 test('same-artifact qualification keeps the verification Shell exact to the artifact cohort', () => {
