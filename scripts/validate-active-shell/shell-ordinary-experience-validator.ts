@@ -1196,22 +1196,16 @@ function validateReadOnlySessionEnvironmentImplementation(shellPaths) {
 }
 
 export function validateRuntimePageImplementation(shellPaths) {
-  assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx',
-    [
-      "key: 'runtime'",
-      "t('common.runtime.sidebarEntry')",
-      "active: pathname.startsWith('/runtime')",
-      'onClick: onRuntimeClick',
-    ],
-    'Active shell cross-project Runtime primary navigation entry',
+  assertTextExcludesAll(
+    readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx'),
+    ["key: 'runtime'", "t('common.runtime.sidebarEntry')", "active: pathname.startsWith('/runtime')"],
+    'Active shell default rail must keep the optional X0-01 Runtime route hidden',
   );
   assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
-    ['const handlePrimaryNavigate = (path: string)', "onRuntimeClick={() => handlePrimaryNavigate('/runtime')}"],
-    'Active shell cross-project Runtime navigation route',
+    'tests/unit/layout/SiderNavigation.dom.test.tsx',
+    ['keeps Runtime fail-closed while Scheduled and Archived remain reachable'],
+    'Active shell default Runtime navigation visibility regression',
   );
   assertShellTextIncludesAll(
     shellPaths,

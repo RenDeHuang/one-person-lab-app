@@ -73,11 +73,17 @@ export function validateFirstRunImplementation(shellPaths) {
   for (const expected of [
     'STARTUP_STATE_SOFT_TIMEOUT_MS = 1500',
     "resolve({ kind: 'timeout' })",
-    'setNeedsFirstRun(false)',
+    'readAuthoritativeInitializeReadiness',
+    'setNeedsFirstRun(!isCoreLaunchReadyFromAppState(startupRead.value))',
+    'setNeedsFirstRun(initializeReady !== true)',
+    'setNeedsFirstRun(true)',
   ]) {
     if (!startupGate.includes(expected)) {
-      throw new Error(`Active shell StartupGate must keep the Framework state read non-blocking: ${expected}`);
+      throw new Error(`Active shell StartupGate must keep the bounded readiness fallback fail-closed: ${expected}`);
     }
+  }
+  if (startupGate.includes('setNeedsFirstRun(false)')) {
+    throw new Error('Active shell StartupGate must not treat an unknown readiness result as ready');
   }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
