@@ -221,9 +221,10 @@ export function assertCurrentGuidHomeSelectionSources({
       '.actionRow',
       'align-items: flex-end',
       'width: 100%',
-      '.workspaceChip',
-      'height: 28px',
-      'background: var(--color-fill-2)',
+      '.workspaceContextBar',
+      'height: 52px',
+      'margin: 0 12px -13px',
+      'padding: 0 12px',
       '.homeStarterGrid',
       'display: flex',
       'flex-wrap: wrap',
@@ -386,6 +387,7 @@ const acpSendBoxExpected = [
   '<AcpModelSelector conversation_id={conversation_id} backend={backend} waitForWarmup />',
   '(showConversationModelSelector || showModeSelector) ?',
   '<ThoughtDisplay running={isBusy}',
+  "placeholder={t('conversation.chat.oplPlaceholder')}",
 ];
 
 const runtimePageExpected = [
@@ -542,7 +544,7 @@ function validateGuidAssistantRegistry(shellPaths) {
 function validateGuidSkillRules(shellPaths, guidPage) {
   assertTextIncludesAll(guidPage, guidPageSkillExpected, 'Active shell Guid page App assistant skill profile rule');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/assistantSkillMenu.ts', ['buildAssistantScopedSkillMenuItems', 'mergeRequiredSkills', 'required_skills', 'locked: isRequired'], 'Active shell Guid skill menu App assistant skill profile rule');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx', ['GuidSkillMenuItem', 'isGuidSkillChecked', 'skill.locked', 'disabled={skill.locked}'], 'Active shell Guid action row required assistant skills');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx', ['GuidSkillMenuItem', 'isGuidSkillChecked', 'skill.locked', 'disabled: skill.locked'], 'Active shell Guid action row required assistant skills');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'buildOplShortcutRouteReceipt', 'buildOplShortcutInvocationReceipt', 'opl_assistant_route', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/activeShortcut.ts', ['OplActiveShortcut', 'resolveOplActiveShortcut', 'required_skill_ids', 'buildOplShortcutInvocationReceipt'], 'Active shell Guid shortcut identity and receipt signal');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/common/utils/buildAgentConversationParams.ts', ['preset_enabled_skills'], 'Active shell create conversation App assistant route/skill signal');
@@ -597,7 +599,38 @@ function validateCodexConversationSurfaces(shellPaths) {
     acpSendBoxExpected,
     'Active shell ordinary Codex conversation composer model and permission selectors',
   );
-  assertTextExcludesAll(acpSendBox, ['getOplModelStatusDisplayText', "data-testid='opl-conversation-model-status'"], 'Active shell ordinary Codex conversation duplicate model status pill');
+  assertTextExcludesAll(
+    acpSendBox,
+    [
+      'getOplModelStatusDisplayText',
+      "data-testid='opl-conversation-model-status'",
+      "t('acp.sendbox.placeholder'",
+    ],
+    'Active shell ordinary Codex conversation duplicate model status or backend-owned placeholder',
+  );
+  const aionrsSendBox = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/aionrs/AionrsSendBox.tsx',
+    ["placeholder={t('conversation.chat.oplPlaceholder')}"],
+    'Active shell ordinary AionRS conversation OPL-owned placeholder',
+  );
+  assertTextExcludesAll(
+    aionrsSendBox,
+    ["t('acp.sendbox.placeholder'"],
+    'Active shell ordinary AionRS conversation backend-owned placeholder',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/services/i18n/locales/zh-CN/conversation.json',
+    ['"oplPlaceholder": "向 One Person Lab 提问或安排任务..."'],
+    'Active shell zh-CN OPL conversation placeholder',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/services/i18n/locales/en-US/conversation.json',
+    ['"oplPlaceholder": "Ask One Person Lab anything..."'],
+    'Active shell en-US OPL conversation placeholder',
+  );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts', ["import { warmupConversation } from '../../utils/warmupConversation'", 'await warmupConversation(conversation_id)', 'ipcBridge.acpConversation.sendMessage.invoke'], 'Active shell ACP initial-message flow warm up before first send');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx', ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime'], 'Active shell ThoughtDisplay elapsed processing feedback');
 }
@@ -688,7 +721,129 @@ function validateCodexConversationImplementation(shellPaths) {
   validateSendFailureDraftPreservation(shellPaths);
 }
 
+function validateComposerCapabilityPaletteImplementation(shellPaths) {
+  const palette = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/chat/composer/ComposerCapabilityPalette/ComposerCapabilityPalette.tsx',
+    [
+      'export type ComposerCapabilityPaletteItem',
+      'export type ComposerCapabilityPaletteGroup',
+      'verticalOffset: Math.max(8, triggerRect.top - composerRect.top + 8)',
+      'item.description',
+      'item.keywords',
+      "role='dialog'",
+      "data-capability-palette-scroll-region='true'",
+      "event.key === 'ArrowDown'",
+      "event.key === 'ArrowUp'",
+      "event.key === 'Home'",
+      "event.key === 'End'",
+      "event.key === 'Escape'",
+      'searchRef.current?.focus()',
+      'focusTrigger()',
+      'data-capability-palette-vertical-offset',
+      'geometry?.verticalOffset ?? 8',
+    ],
+    'Active shell shared composer capability palette behavior',
+  );
+  assertTextExcludesAll(
+    palette,
+    ['openFileSelector', 'openDirectorySelector', 'workspaceDir'],
+    'Active shell shared composer capability palette product-action isolation',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/chat/composer/ComposerCapabilityPalette/ComposerCapabilityPalette.module.css',
+    [
+      'width: min(736px, calc(100vw - 32px))',
+      'box-sizing: border-box',
+      'overflow: hidden',
+      'overflow-y: auto',
+      'scrollbar-gutter: stable',
+      'grid-template-columns: 20px minmax(0, 1fr) auto',
+    ],
+    'Active shell composer-width palette geometry and internal scrolling',
+  );
+
+  const guidPalette = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+    [
+      'ComposerCapabilityPalette',
+      "id: 'local_inputs'",
+      "id: 'agent_packages'",
+      "id: 'skills'",
+      "id: 'session_modes'",
+      "id: 'apps_and_connections'",
+      'filterNonPermissionAccessModes',
+      'getOplHomePurposeAssistantIds',
+      'isGuidSkillChecked',
+      'horizontalOffset={-8}',
+    ],
+    'Active shell Home capability palette machine groups',
+  );
+  assertTextExcludesAll(
+    guidPalette,
+    ["key='workspace'", "id: 'working_directory'", '<Dropdown trigger=', 'openWorkspacePicker'],
+    'Active shell Home capability palette forbidden working-directory and legacy dropdown entries',
+  );
+
+  const conversationPalette = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/media/FileAttachButton.tsx',
+    [
+      'ComposerCapabilityPalette',
+      "id: 'local_inputs'",
+      "id: 'agent_packages'",
+      "id: 'skills'",
+      "id: 'session_modes'",
+      "id: 'apps_and_connections'",
+      'loadedSkills',
+      'loadedMcpStatuses',
+      'filterOplOrdinarySkillNames',
+      'filterOplOrdinaryMcpStatuses',
+      'horizontalOffset={-16}',
+    ],
+    'Active shell existing-conversation capability palette machine groups',
+  );
+  assertTextExcludesAll(
+    conversationPalette,
+    [
+      'if (isDesktop && !hasSkills && !hasMcpServers)',
+      'onClick={openFileSelector}',
+      "id: 'add'",
+      "id: 'capabilities'",
+      "id: 'controls'",
+      'controlItems',
+      "id: 'working_directory'",
+    ],
+    'Active shell existing-conversation palette fallback and legacy grouping',
+  );
+
+  const paletteTests = [
+    readShellText(shellPaths, 'tests/unit/chat/ComposerCapabilityPalette.dom.test.tsx'),
+    readShellText(shellPaths, 'tests/unit/media/FileAttachButton.oplWhitelist.dom.test.tsx'),
+  ].join('\n');
+  assertTextIncludesAll(
+    paletteTests,
+    [
+      'one internal scroll region',
+      'keeps the palette above the composer instead of the trigger button',
+      'native Enter activation, Escape, and focus return',
+      'explicit empty capability state instead of invoking the file picker',
+      'openFileSelector).not.toHaveBeenCalled()',
+      "id: 'local_inputs'",
+      "id: 'agent_packages'",
+      "id: 'skills'",
+      "id: 'session_modes'",
+      "id: 'apps_and_connections'",
+    ],
+    'Active shell capability palette regressions',
+  );
+}
+
 function validateSessionFirstDirectoryImplementation(shellPaths) {
+  const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
   for (const retiredPath of [
     'packages/desktop/src/renderer/components/layout/Sider/ProjectContextSection.tsx',
     'packages/desktop/src/renderer/utils/workspace/projectContext.ts',
@@ -714,22 +869,48 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     );
   }
 
-  assertShellTextIncludesAll(
+  const workspaceContextBar = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceContextBar.tsx',
+    [
+      "data-testid='guid-workspace-context-bar'",
+      "data-testid='guid-workspace-select'",
+      "data-testid='guid-workspace-clear'",
+      "properties: ['openDirectory', 'createDirectory']",
+      'onSelectWorkspace(selectedDirectory)',
+      'onClearWorkspace',
+    ],
+    'Active shell independent new-session working-directory context bar',
+  );
+  assertTextExcludesAll(
+    workspaceContextBar,
+    ['ComposerCapabilityPalette', "key='workspace'", 'workspace.projectContextInputs'],
+    'Active shell working-directory context bar palette isolation',
+  );
+  assertTextIncludesAll(
+    guidPage,
+    [
+      "import GuidWorkspaceContextBar from './components/GuidWorkspaceContextBar'",
+      '<GuidWorkspaceContextBar',
+      'workspaceDir={guidInput.dir}',
+      'onSelectWorkspace={handleWorkspaceSelect}',
+      'onClearWorkspace={handleWorkspaceClear}',
+    ],
+    'Active shell Home working-directory context bar placement',
+  );
+  const guidActionRow = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+  );
+  assertTextExcludesAll(
+    guidActionRow,
     [
-      "key='attach-file'",
-      "key='attach-directory'",
       "key='workspace'",
-      "key='skills'",
-      "key='connections'",
-      "<Dropdown trigger='click'",
-      '<MobileActionSheet',
       "data-testid='guid-workspace-chip'",
       "data-testid='guid-workspace-clear'",
-      "data-testid='opl-guid-workspace-access-disabled'",
+      'openWorkspacePicker',
     ],
-    'Active shell unified Home context menu and selected working-directory chip',
+    'Active shell Home capability palette working-directory isolation',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -1254,6 +1435,7 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   validateProductProfileDefaults(shellPaths);
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
   validateCodexConversationImplementation(shellPaths);
+  validateComposerCapabilityPaletteImplementation(shellPaths);
   validateSessionFirstDirectoryImplementation(shellPaths);
   validateReadOnlySessionEnvironmentImplementation(shellPaths);
   validateRuntimePageImplementation(shellPaths);

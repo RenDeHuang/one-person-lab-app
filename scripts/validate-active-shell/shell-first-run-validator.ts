@@ -27,6 +27,10 @@ export function validateFirstRunImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
   );
+  const guidWorkspaceContextBar = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceContextBar.tsx',
+  );
   const firstRunBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
   for (const expected of [
     "testId='opl-startup-preflight'",
@@ -138,7 +142,7 @@ export function validateFirstRunImplementation(shellPaths) {
       throw new Error(`Active shell Guid progressive first-run recovery must include ${expected}`);
     }
   }
-  if (!guidActionRow.includes("'opl-guid-workspace-access-disabled'")) {
+  if (!guidWorkspaceContextBar.includes("data-testid='opl-guid-workspace-access-disabled'")) {
     throw new Error('Active shell Guid project workspace control must expose the workspace prerequisite disabled state');
   }
   for (const expected of [
@@ -150,7 +154,11 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   for (const testId of progressiveFirstRunRecoveryTestIds) {
-    if (![firstRunSetupEntry, guidPage, guidActionRow, guidSetupNotice].some((source) => source.includes(testId))) {
+    if (
+      ![firstRunSetupEntry, guidPage, guidActionRow, guidWorkspaceContextBar, guidSetupNotice].some((source) =>
+        source.includes(testId),
+      )
+    ) {
       throw new Error(`Active shell progressive first-run recovery must implement ${testId}`);
     }
   }
