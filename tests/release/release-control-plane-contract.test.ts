@@ -41,6 +41,22 @@ test('release control-plane contract enforces absorbing Standard and Full deadli
   assert.equal(stateMachine.full_addon_deadline_policy.deadline_signed_in_acceptance, true);
   assert.equal(stateMachine.full_addon_deadline_policy.terminal_status, 'blocked_with_debt');
   assert.equal(stateMachine.full_addon_deadline_policy.absorbing, true);
+  assert.equal(stateMachine.execution_policy.promotion_minimum_remaining_budget_seconds, 900);
+  assert.equal(stateMachine.execution_policy.promotion_failure_absorbing_for_mutation, true);
+  assert.equal(stateMachine.execution_policy.promotion_same_session_successor_allowed, false);
+  assert.equal(
+    stateMachine.execution_policy.promotion_retry,
+    'new_stable_session_required_after_read_only_reconcile',
+  );
+  assert.equal(stateMachine.latest_monotonicity_policy.target_must_be_newer_than_current_latest, true);
+  assert.equal(stateMachine.latest_monotonicity_policy.equal_target_dispatch_allowed, false);
+  assert.equal(stateMachine.latest_monotonicity_policy.downgrade_dispatch_allowed, false);
+  assert.deepEqual(stateMachine.latest_monotonicity_policy.checks, [
+    'controller_pre_dispatch',
+    'workflow_prepare',
+    'before_public_nonlatest',
+    'before_latest_activation',
+  ]);
 });
 
 test('release boundary rejects deadline, late-success, and conversation authority drift', () => {
@@ -61,6 +77,22 @@ test('release boundary rejects deadline, late-success, and conversation authorit
     (release) => {
       release.release_acceleration.stable_release_state_machine.coordination_boundary
         .conversation_or_agent_tree_can_watch = true;
+    },
+    (release) => {
+      release.release_acceleration.stable_release_state_machine.execution_policy
+        .promotion_same_session_successor_allowed = true;
+    },
+    (release) => {
+      release.release_acceleration.stable_release_state_machine.execution_policy
+        .promotion_minimum_remaining_budget_seconds = 0;
+    },
+    (release) => {
+      release.release_acceleration.stable_release_state_machine.latest_monotonicity_policy
+        .downgrade_dispatch_allowed = true;
+    },
+    (release) => {
+      release.release_acceleration.stable_release_state_machine.latest_monotonicity_policy
+        .checks = ['workflow_prepare'];
     },
     (release) => {
       release.release_acceleration.gate_reuse.attempt_strategy_switch.after_deadline_legal_actions = [

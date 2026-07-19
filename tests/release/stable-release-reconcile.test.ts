@@ -663,118 +663,41 @@ test('Standard deadline is materialized at 90:00 before reconcile performs provi
   }
 });
 
-test('expired exact historical promotion successor reconciles one terminal run without redispatch', () => {
-  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
-  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', '2026-07-18T00:01:00.000Z');
-  session = transitionStableReleaseSession(session, 'artifact_build_running', 'built', '2026-07-18T00:02:00.000Z');
-  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified', '2026-07-18T01:00:00.000Z');
-  session = transitionStableReleaseSession(session, 'owner_approved', 'approved', '2026-07-18T01:01:00.000Z');
-  session = transitionStableReleaseSession(session, 'promotion_running', 'promoting', '2026-07-18T01:10:00.000Z');
-  session = transitionStableReleaseSession(session, 'promotion_failed', 'prepare failed', '2026-07-18T01:19:00.000Z');
-  session.release_owner_receipt_ref = 'release_owner_receipt_ref://test/exact-owner';
-  session.promotion_progress = {
-    release_set_generation: '26.7.18-r1', release_set_manifest_digest: null,
-    last_verified_checkpoint: null, resume_from_checkpoint: 'release_public_nonlatest',
-  };
+test('legacy historical promotion successor is rejected before reconcile provider I/O', () => {
+  const session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
   const payload = {
     stable_session_id: session.id,
     release_cohort_ref: session.cohort_plan.operator_plan_ref,
-    release_owner_receipt_ref: session.release_owner_receipt_ref,
-    release_set_generation: session.promotion_progress.release_set_generation,
+    release_owner_receipt_ref: 'release_owner_receipt_ref://test/exact-owner',
+    release_set_generation: '26.7.18-r1',
     resume_from_checkpoint: 'release_public_nonlatest',
   };
-  const digest = releaseMutationPayloadSha256(payload);
-  const root = planReleaseMutationAttempt(session, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'a'.repeat(40), artifactAppSha: 'a'.repeat(40),
-    mutationPayloadSha256: digest, mutationPayload: payload,
-    at: '2026-07-18T01:20:00.000Z', reason: 'pre-deadline root',
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'promotion_dispatch',
+    workflow: 'desktop-release-promote.yml',
+    artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller',
+    controllerWorkflowSha: 'a'.repeat(40),
+    artifactAppSha: 'a'.repeat(40),
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload),
+    mutationPayload: payload,
+    at: '2026-07-18T01:20:00.000Z',
+    reason: 'sole promotion attempt',
   });
-  session = appendReleaseMutationAttemptEvent(root.session, root.attemptId, {
-    at: '2026-07-18T01:20:01.000Z', state: 'dispatching', run_id: null, reason: 'root dispatch',
-  });
-  session = appendReleaseMutationAttemptEvent(session, root.attemptId, {
-    at: '2026-07-18T01:20:02.000Z', state: 'running', run_id: '401', reason: 'root run',
-  });
-  session = appendReleaseMutationAttemptEvent(session, root.attemptId, {
-    at: '2026-07-18T01:21:00.000Z', state: 'failed', run_id: '401', reason: 'root failure',
-  });
-  const successor = planReleaseMutationAttempt(session, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'b'.repeat(40), artifactAppSha: 'a'.repeat(40),
-    mutationPayloadSha256: digest, mutationPayload: payload, priorRunIds: ['401'],
-    at: '2026-07-18T01:31:00.000Z', reason: 'post-deadline successor',
-  });
-  session = appendReleaseMutationAttemptEvent(successor.session, successor.attemptId, {
-    at: '2026-07-18T01:31:01.000Z', state: 'dispatching', run_id: null, reason: 'successor dispatch',
-  });
-  session.promotion_run = {
-    id: '401', url: 'https://example.test/401', conclusion: 'failure', attempt: 1,
-    rerun_requested_from_attempt: null,
-  };
-  let discoveries = 0;
-  const result = reconcileStableReleaseSession(session, {
-    discoverAdminRuns: (attempt) => {
-      discoveries += 1;
-      const runId = attempt.attempt_id === root.attemptId ? '401' : '402';
-      return [{
-        databaseId: runId, status: 'completed', conclusion: 'failure', runAttempt: 1,
-        workflow: 'desktop-release-promote.yml', controllerWorkflowSha: attempt.controller_workflow_sha,
-        mutationAttemptId: attempt.attempt_id, headBranch: 'main', event: 'workflow_dispatch',
-        createdAt: attempt.attempt_id === root.attemptId
-          ? '2026-07-18T01:20:02.000Z' : '2026-07-18T01:31:02.000Z',
-        url: `https://example.test/${runId}`,
-      }];
-    },
-    readPromotionJobs: (runId) => runId === '402' ? [{
-      name: 'Publish release without changing latest',
-      status: 'completed',
-      conclusion: 'success',
-      completedAt: '2026-07-18T01:31:30.000Z',
-    }] : [],
-    readBrokerRecord: () => { throw new Error('historical admin reconcile must remain read-only'); },
-    readRun: () => null,
-    readAttemptReceipt: () => null,
-  }, '2026-07-18T01:32:00.000Z', authority, () => Date.parse('2026-07-18T01:32:00.000Z'));
-  assert.equal(discoveries, 2);
-  assert.equal(result.phase, 'promotion_failed');
-  assert.equal(result.standard_deadline_blocker, null);
-  assert.equal(result.promotion_run.id, '402');
-  assert.equal(result.promotion_progress.last_verified_checkpoint, 'release_public_nonlatest');
-  assert.equal(result.promotion_progress.resume_from_checkpoint, 'distribution_synced');
-  assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.state, 'failed');
-  assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.run_id, '402');
+  const legacy = structuredClone(planned.session);
+  legacy.mutation_attempts[0]!.dispatch_fence.prior_run_ids = ['401'];
 
-  const staleRunning = transitionStableReleaseSession(
-    result,
-    'promotion_running',
-    'simulate stale local running projection with no new remote checkpoint',
-    '2026-07-18T01:32:01.000Z',
+  let providerCalls = 0;
+  assert.throws(
+    () => reconcileStableReleaseSession(legacy, {
+      discoverAdminRuns: () => { providerCalls += 1; return []; },
+      readBrokerRecord: () => { providerCalls += 1; return { status: 'not_found' }; },
+      readRun: () => { providerCalls += 1; return null; },
+      readAttemptReceipt: () => { providerCalls += 1; return null; },
+    }, '2026-07-18T01:32:00.000Z', authority, () => Date.parse('2026-07-18T01:32:00.000Z')),
+    /promotion mutation attempt cannot carry historical predecessor run ids/,
   );
-  const repeated = reconcileStableReleaseSession(staleRunning, {
-    discoverAdminRuns: (attempt) => {
-      const runId = attempt.attempt_id === root.attemptId ? '401' : '402';
-      return [{
-        databaseId: runId, status: 'completed', conclusion: 'failure', runAttempt: 1,
-        workflow: 'desktop-release-promote.yml', controllerWorkflowSha: attempt.controller_workflow_sha,
-        mutationAttemptId: attempt.attempt_id, headBranch: 'main', event: 'workflow_dispatch',
-        createdAt: attempt.attempt_id === root.attemptId
-          ? '2026-07-18T01:20:02.000Z' : '2026-07-18T01:31:02.000Z',
-        url: `https://example.test/${runId}`,
-      }];
-    },
-    readPromotionJobs: (runId) => runId === '402' ? [{
-      name: 'Publish release without changing latest',
-      status: 'completed',
-      conclusion: 'success',
-      completedAt: '2026-07-18T01:31:30.000Z',
-    }] : [],
-    readBrokerRecord: () => { throw new Error('historical admin reconcile must remain read-only'); },
-    readRun: () => null,
-    readAttemptReceipt: () => null,
-  }, '2026-07-18T01:32:02.000Z', authority, () => Date.parse('2026-07-18T01:32:02.000Z'));
-  assert.equal(repeated.phase, 'promotion_failed');
-  assert.equal(repeated.promotion_progress.last_verified_checkpoint, 'release_public_nonlatest');
+  assert.equal(providerCalls, 0);
 });
 
 test('broker lookup crossing the Standard deadline returns a durable blocker before run readback', () => {

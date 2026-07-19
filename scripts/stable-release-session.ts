@@ -111,54 +111,6 @@ export function promotionCheckpointReceiptsFromJobs(
   return receipts;
 }
 
-function promotionCheckpointPayloadState(payload: ReleaseMutationPayload): {
-  resumeIndex: number;
-  receipts: PromotionCheckpointReceiptDigest[];
-} | null {
-  const resumeIndex = promotionCheckpointIds.indexOf(payload.resume_from_checkpoint as PromotionCheckpointId);
-  if (resumeIndex < 0) return null;
-  let raw: unknown;
-  try {
-    raw = JSON.parse(payload.promotion_checkpoint_receipts_json ?? '[]');
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(raw) || raw.length !== resumeIndex) return null;
-  const receipts: PromotionCheckpointReceiptDigest[] = [];
-  for (const [index, entry] of raw.entries()) {
-    if (!entry || typeof entry !== 'object') return null;
-    const candidate = entry as Record<string, unknown>;
-    if (
-      candidate.checkpoint !== promotionCheckpointIds[index] ||
-      typeof candidate.receipt_sha256 !== 'string' ||
-      !/^sha256:[0-9a-f]{64}$/.test(candidate.receipt_sha256)
-    ) return null;
-    receipts.push({
-      checkpoint: candidate.checkpoint as PromotionCheckpointReceiptDigest['checkpoint'],
-      receipt_sha256: candidate.receipt_sha256,
-    });
-  }
-  return { resumeIndex, receipts };
-}
-
-export function promotionMutationPayloadCheckpointCompatible(
-  predecessor: ReleaseMutationPayload,
-  successor: ReleaseMutationPayload,
-): boolean {
-  const predecessorState = promotionCheckpointPayloadState(predecessor);
-  const successorState = promotionCheckpointPayloadState(successor);
-  if (!predecessorState || !successorState || predecessorState.resumeIndex > successorState.resumeIndex) return false;
-  const withoutCheckpoint = (payload: ReleaseMutationPayload) => Object.fromEntries(
-    Object.entries(payload).filter(([key]) => ![
-      'resume_from_checkpoint', 'promotion_checkpoint_receipts_json',
-    ].includes(key)),
-  );
-  if (canonicalJson(withoutCheckpoint(predecessor)) !== canonicalJson(withoutCheckpoint(successor))) return false;
-  return predecessorState.receipts.every((receipt, index) =>
-    canonicalJson(receipt) === canonicalJson(successorState.receipts[index])
-  );
-}
-
 type PhaseTiming = { started_at: string; ended_at: string | null; duration_ms: number | null };
 
 export type StandardEfficiencyAdvisory = {
@@ -431,65 +383,6 @@ export function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
   })).digest('hex')}`;
 }
 
-export function exactHistoricalPromotionRecoveryChain(
-  session: StableReleaseSession,
-  deadlineAt: number,
-): ReleaseMutationAttempt[] | null {
-  const current = session.mutation_attempts.at(-1);
-  if (
-    !current || current.mutation !== 'promotion_dispatch' || current.workflow !== 'desktop-release-promote.yml' ||
-    current.artifact_kind !== 'promotion' || current.admission_mode !== 'admin_one_shot_controller' ||
-    Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length < 1 ||
-    current.dispatch_fence.prior_run_ids.length > 6 ||
-    new Set(current.dispatch_fence.prior_run_ids).size !== current.dispatch_fence.prior_run_ids.length ||
-    !['promotion_failed', 'promotion_running', 'release_published_not_latest', 'distribution_synced',
-      'homebrew_verified', 'latest_activated', 'awaiting_local_activation'].includes(session.phase)
-  ) return null;
-  const payload = current.mutation_payload as Record<string, unknown> | null;
-  if (
-    payload?.stable_session_id !== session.id ||
-    payload?.release_cohort_ref !== session.cohort_plan.operator_plan_ref ||
-    payload?.release_owner_receipt_ref !== session.release_owner_receipt_ref ||
-    payload?.release_set_generation !== session.promotion_progress.release_set_generation
-  ) return null;
-
-  const predecessors: ReleaseMutationAttempt[] = [];
-  let priorTerminalAt = Number.NEGATIVE_INFINITY;
-  for (const [index, runId] of current.dispatch_fence.prior_run_ids.entries()) {
-    const matches = session.mutation_attempts.slice(0, -1).filter((attempt) =>
-      attempt.mutation === 'promotion_dispatch' && attempt.events.at(-1)?.run_id === runId
-    );
-    if (matches.length !== 1) return null;
-    const predecessor = matches[0]!;
-    const dispatching = predecessor.events.filter((event) => event.state === 'dispatching');
-    const terminal = predecessor.events.at(-1);
-    const dispatchAt = Date.parse(dispatching[0]?.at ?? '');
-    const terminalAt = Date.parse(terminal?.at ?? '');
-    if (
-      predecessor.workflow !== 'desktop-release-promote.yml' || predecessor.artifact_kind !== 'promotion' ||
-      predecessor.admission_mode !== 'admin_one_shot_controller' || dispatching.length !== 1 ||
-      terminal?.state !== 'failed' || terminal.run_id !== runId ||
-      !Number.isFinite(dispatchAt) || !Number.isFinite(terminalAt) || terminalAt < dispatchAt ||
-      (index === 0 ? dispatchAt >= deadlineAt : dispatchAt < deadlineAt) ||
-      (index > 0 && Date.parse(predecessor.created_at) <= priorTerminalAt) ||
-      JSON.stringify(predecessor.dispatch_fence.prior_run_ids) !==
-        JSON.stringify(current.dispatch_fence.prior_run_ids.slice(0, index)) ||
-      !predecessor.mutation_payload || !current.mutation_payload ||
-      predecessor.mutation_payload_sha256 !== releaseMutationPayloadSha256(predecessor.mutation_payload) ||
-      current.mutation_payload_sha256 !== releaseMutationPayloadSha256(current.mutation_payload) ||
-      !promotionMutationPayloadCheckpointCompatible(predecessor.mutation_payload, current.mutation_payload) ||
-      predecessor.artifact_app_sha !== current.artifact_app_sha
-    ) return null;
-    predecessors.push(predecessor);
-    priorTerminalAt = terminalAt;
-  }
-  return Date.parse(current.created_at) > priorTerminalAt ? predecessors : null;
-}
-
-export function hasExactHistoricalPromotionRecovery(session: StableReleaseSession, deadlineAt: number): boolean {
-  return exactHistoricalPromotionRecoveryChain(session, deadlineAt) !== null;
-}
-
 export function validateStableReleaseSessionInvariants(session: StableReleaseSession): string[] {
   const errors: string[] = [];
   const terminalPhase = session.phase === 'standard_stable_terminal' || session.phase === 'addon_train_terminal';
@@ -515,10 +408,7 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
     errors.push('Standard admission deadline must be exactly 90 minutes after the immutable session start');
   }
   if (session.version !== session.cohort_plan.version) errors.push('session version does not match the frozen cohort');
-  if (
-    session.terminal_truth.standard_status === 'in_progress' && updatedAt >= deadlineAt &&
-    !hasExactHistoricalPromotionRecovery(session, deadlineAt)
-  ) {
+  if (session.terminal_truth.standard_status === 'in_progress' && updatedAt >= deadlineAt) {
     errors.push('in-progress Standard session cannot remain open at or after its immutable deadline');
   }
   if (terminalPhase !== (session.terminal_truth.standard_status === 'terminal')) {
@@ -742,6 +632,11 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
     } else if (attempt.dispatch_fence.target_attempt_id !== null) {
       errors.push(`primary mutation attempt ${attempt.attempt_id} unexpectedly targets another attempt`);
     }
+  }
+  const promotionAttempts = session.mutation_attempts.filter((attempt) => attempt.mutation === 'promotion_dispatch');
+  if (promotionAttempts.length > 1) errors.push('stable release session permits exactly one promotion mutation attempt');
+  if (promotionAttempts.some((attempt) => attempt.dispatch_fence.prior_run_ids.length > 0)) {
+    errors.push('promotion mutation attempt cannot carry historical predecessor run ids');
   }
   for (const artifactKind of ['standard', 'full'] as const) {
     const attempts = session.artifact_tracks[artifactKind].attempts;
@@ -1244,8 +1139,7 @@ export function transitionStableReleaseSession(
   if (
     session.terminal_truth.standard_status === 'in_progress' &&
     to !== 'standard_deadline_blocked' &&
-    (!Number.isFinite(deadline) || ended >= deadline) &&
-    !hasExactHistoricalPromotionRecovery(session, deadline)
+    (!Number.isFinite(deadline) || ended >= deadline)
   ) {
     throw new Error('Standard success or non-deadline failure transition cannot occur at or after the immutable 90-minute deadline.');
   }
@@ -1560,6 +1454,14 @@ export function planReleaseMutationAttempt(
   }
   if (input.mutation === 'workflow_cancel' && (!input.targetAttemptId || !input.targetRunId)) {
     throw new Error('Emergency cancel planning requires the exact active target attempt and run id.');
+  }
+  if (input.mutation === 'promotion_dispatch') {
+    if ((input.priorRunIds ?? []).length > 0) {
+      throw new Error('Promotion mutation cannot carry historical predecessor run ids.');
+    }
+    if (session.mutation_attempts.some((attempt) => attempt.mutation === 'promotion_dispatch')) {
+      throw new Error('Stable release session already has its sole promotion attempt; start a new session.');
+    }
   }
   const attemptId = `sha256:${crypto.createHash('sha256').update(JSON.stringify({
     session: session.id, mutation: input.mutation, workflow: input.workflow,

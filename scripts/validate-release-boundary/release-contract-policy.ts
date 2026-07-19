@@ -631,6 +631,7 @@ export function validateReleaseAccelerationPolicy(
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
   const tapStandardVmEvidenceTransport = stableReleaseStateMachine?.promotion_saga?.tap_standard_vm_evidence_transport;
+  const latestMonotonicityPolicy = stableReleaseStateMachine?.latest_monotonicity_policy;
   const standardDeadlinePolicy = stableReleaseStateMachine?.standard_deadline_policy;
   const fullAddonDeadlinePolicy = stableReleaseStateMachine?.full_addon_deadline_policy;
   const coordinationBoundary = stableReleaseStateMachine?.coordination_boundary;
@@ -665,7 +666,19 @@ export function validateReleaseAccelerationPolicy(
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.execution_policy?.promotion_minimum_remaining_budget_seconds !== 900 ||
+    stableReleaseStateMachine?.execution_policy?.promotion_failure_absorbing_for_mutation !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_same_session_successor_allowed !== false ||
+    stableReleaseStateMachine?.execution_policy?.promotion_retry !== 'new_stable_session_required_after_read_only_reconcile' ||
     stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== false ||
+    latestMonotonicityPolicy?.target_must_be_newer_than_current_latest !== true ||
+    latestMonotonicityPolicy?.equal_target_dispatch_allowed !== false ||
+    latestMonotonicityPolicy?.downgrade_dispatch_allowed !== false ||
+    latestMonotonicityPolicy?.same_version_action !== 'read_only_reconcile_existing_public_truth' ||
+    latestMonotonicityPolicy?.older_version_action !== 'fail_closed' ||
+    !sameStringSet(latestMonotonicityPolicy?.checks, [
+      'controller_pre_dispatch', 'workflow_prepare', 'before_public_nonlatest', 'before_latest_activation',
+    ]) ||
     stableReleaseStateMachine?.recovery_policy?.harness_mechanics_only_change_rebuilds_existing_artifact !== false ||
     stableReleaseStateMachine?.recovery_policy?.harness_mechanics_only_retry_may_use_separately_pinned_verification_harness !== false ||
     stableReleaseStateMachine?.recovery_policy?.separate_verification_harness_requires_changed_path_scope_proof !== true ||

@@ -2332,11 +2332,12 @@ jobs:
           merge-multiple: true
 
       - name: Download exact source artifact manifest without making it a receipt prerequisite
+        if: ${{ inputs.release_artifact_name != '' && inputs.release_artifact_run_id != '' }}
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.release_artifact_name }}-cohort
-          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          run-id: ${{ inputs.release_artifact_run_id }}
           github-token: ${{ github.token }}
           path: recovered-artifact-manifest
 
@@ -2344,6 +2345,7 @@ jobs:
         shell: bash
         run: |
           set -u
+          mkdir -p recovered-artifact-manifest recovered-vm-evidence
           profile='${{ needs.validate-vm-inputs.outputs.package_profile || inputs.package_profile || 'full' }}'
           artifact_kind=standard
           case "$profile" in full|homebrew-full) artifact_kind=full ;; esac
@@ -2355,9 +2357,9 @@ jobs:
             failure) status=failed; taxonomy=unknown ;;
             skipped) status=incomplete; taxonomy=operator ;;
           esac
-          manifest="$(find recovered-artifact-manifest recovered-vm-evidence -name opl-build-cohort.json -type f 2>/dev/null | head -n 1)"
-          strict_receipt="$(find recovered-vm-evidence -name artifact-qualification-receipt.json -type f 2>/dev/null | head -n 1)"
-          smoke_summary="$(find recovered-vm-evidence -name tart-smoke-summary.json -type f 2>/dev/null | head -n 1)"
+          manifest="$(find recovered-artifact-manifest recovered-vm-evidence -name opl-build-cohort.json -type f -print -quit 2>/dev/null || true)"
+          strict_receipt="$(find recovered-vm-evidence -name artifact-qualification-receipt.json -type f -print -quit 2>/dev/null || true)"
+          smoke_summary="$(find recovered-vm-evidence -name tart-smoke-summary.json -type f -print -quit 2>/dev/null || true)"
           args=(
             --output qualification-attempt-receipt.json
             --status "$status"

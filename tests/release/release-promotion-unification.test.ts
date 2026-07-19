@@ -438,34 +438,51 @@ test('App latest mutation and promotion receipt stay bound to the exact historic
   assert.match(uploadStep, /actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
 });
 
-test('promotion startup failure creates a fresh controller attempt instead of replaying the workflow ticket', () => {
+test('promotion failure is mutation-absorbing and cannot create a successor attempt', () => {
   const controller = fs.readFileSync(path.join(appRoot, 'scripts/run-stable-release.ts'), 'utf8');
-  assert.match(
-    controller,
-    /session\.phase !== 'artifacts_qualified' && session\.phase !== 'promotion_failed'/,
-  );
-  assert.match(controller, /const retrying = session\.phase === 'promotion_failed'/);
+  const sessionSource = fs.readFileSync(path.join(appRoot, 'scripts/stable-release-session.ts'), 'utf8');
+  assert.match(controller, /Promotion dispatch requires the original artifacts_qualified state/);
   assert.match(controller, /planReleaseMutationAttempt\(session/);
+  assert.doesNotMatch(controller, /const retrying = session\.phase === 'promotion_failed'/);
+  assert.doesNotMatch(controller, /historicalPromotionRecovery|historicalPredecessor/);
   assert.doesNotMatch(controller, /gh run rerun/);
+  assert.match(sessionSource, /already has its sole promotion attempt; start a new session/);
+  assert.match(sessionSource, /Promotion mutation cannot carry historical predecessor run ids/);
 });
 
-test('expired promotion recovery anchors exact identity and admits only broker-bound checkpoint progress', () => {
+test('promotion workflow rejects compatibility recovery inputs and checks Latest before every write', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
   const controller = fs.readFileSync(path.join(appRoot, 'scripts/run-stable-release.ts'), 'utf8');
   const admission = workflowStep(workflow, 'Resolve signed broker admission for this exact promotion run');
 
   assert.match(workflow, /historical_predecessor_admission_receipt_base64:/);
-  assert.match(admission, /prior\.stable_session_id !== request\.stable_session_id/);
-  assert.match(admission, /withoutCheckpoint/);
-  assert.match(admission, /promotion_checkpoint_receipts_json/);
-  assert.match(admission, /priorPersistedMs >= deadlineMs/);
-  assert.match(admission, /matches\.length !== 1/);
-  assert.match(admission, /\['failure', 'startup_failure'\]/);
-  assert.match(admission, /Historical promotion predecessor already crossed a public mutation checkpoint/);
-  assert.match(admission, /promotionCheckpointReceiptsFromJobs/);
-  assert.match(admission, /Public release checkpoint receipt must resolve to one exact failed promotion run/);
-  assert.match(controller, /promotionCheckpointReceiptsJsonForRecovery/);
-  assert.match(controller, /priorRunIds: historicalRecovery\?\.priorRunIds/);
-  assert.match(controller, /historicalPredecessor \? \{/);
+  assert.equal((admission.match(/if \(predecessorBase64\)/g) || []).length, 1);
+  assert.match(admission, /Historical promotion successors are forbidden/);
+  assert.match(admission, /RESUME_FROM_CHECKPOINT !== 'release_public_nonlatest'/);
+  assert.match(admission, /PROMOTION_CHECKPOINT_RECEIPTS_JSON !== '\[\]'/);
+  assert.doesNotMatch(admission, /prior\.stable_session_id|withoutCheckpoint|gh', \[\s*'run', 'list'/);
   assert.doesNotMatch(admission, /gh workflow run|gh run rerun|gh run cancel/);
+
+  assert.equal((workflow.match(/scripts\/stable-release-version-order\.ts/g) || []).length, 3);
+  for (const stepName of [
+    'Reject non-monotonic Stable target',
+    'Publish public non-latest release',
+    'Mark release latest and verify readback',
+  ]) {
+    assert.match(workflowStep(workflow, stepName), /stable-release-version-order\.ts/);
+  }
+  assert.match(controller, /assertRemoteLatestAllowsPromotion\(runner, session\)/);
+  assert.match(controller, /assertPromotionDispatchBudget\(session\)/);
+});
+
+test('VM finalizer skips empty source artifacts and always has safe receipt paths', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
+  const download = workflowStep(workflow, 'Download exact source artifact manifest without making it a receipt prerequisite');
+  const receipt = workflowStep(workflow, 'Write durable typed attempt receipt');
+
+  assert.match(download, /if: \$\{\{ inputs\.release_artifact_name != '' && inputs\.release_artifact_run_id != '' \}\}/);
+  assert.match(download, /run-id: \$\{\{ inputs\.release_artifact_run_id \}\}/);
+  assert.doesNotMatch(download, /github\.run_id|name: \$\{\{ inputs\.release_artifact_name \}\}-cohort[\s\S]*run-id: \$\{\{ inputs\.release_artifact_run_id \|\|/);
+  assert.match(receipt, /mkdir -p recovered-artifact-manifest recovered-vm-evidence/);
+  assert.equal((receipt.match(/-print -quit 2>\/dev\/null \|\| true/g) || []).length, 3);
 });

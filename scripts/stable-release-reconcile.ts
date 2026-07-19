@@ -10,7 +10,6 @@ import {
   applyPromotionCheckpointReadback,
   assertStableReleaseSessionInvariants,
   blockFullAddonAtDeadline,
-  hasExactHistoricalPromotionRecovery,
   promotionCheckpointReceiptsFromJobs,
   transitionStableReleaseSession,
   type ReleaseMutationAttempt,
@@ -513,8 +512,7 @@ export function reconcileStableReleaseSession(
     at = new Date(observedAtMs).toISOString();
     if (
       reconciled.terminal_truth.standard_status === 'in_progress' &&
-      (!Number.isFinite(standardDeadlineAtMs) || observedAtMs >= standardDeadlineAtMs) &&
-      !hasExactHistoricalPromotionRecovery(reconciled, standardDeadlineAtMs)
+      (!Number.isFinite(standardDeadlineAtMs) || observedAtMs >= standardDeadlineAtMs)
     ) {
       reconciled = transitionStableReleaseSession(
         reconciled,

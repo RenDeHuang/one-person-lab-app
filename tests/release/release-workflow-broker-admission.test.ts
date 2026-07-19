@@ -159,16 +159,17 @@ test('the complete Stable action DAG is pinned to immutable action commits', () 
   );
 });
 
-test('promotion resume is derived only from the broker checkpoint authorization', () => {
+test('sole promotion attempt accepts only the broker root checkpoint authorization', () => {
   const source = readWorkflow('desktop-release-promote.yml');
   assert.match(source, /promotion_checkpoint_authorization/);
   assert.match(source, /source_promotion_attempt_id !== process\.env\.EXPECTED_ATTEMPT_ID/);
   assert.match(source, /first_unverified_checkpoint !== process\.env\.EXPECTED_RESUME/);
+  assert.match(source, /authorization\.first_unverified_checkpoint !== 'release_public_nonlatest'/);
+  assert.match(source, /authorization\.last_verified_checkpoint !== null/);
+  assert.match(source, /authorization\.receipt_digests\.length !== 0/);
   assert.match(source, /resume_from_checkpoint=\$\{authorization\.first_unverified_checkpoint\}/);
-  assert.match(source, /receipt_digests/);
-  assert.match(source, /promotion_checkpoint_receipts_json/);
-  assert.match(source, /promotionCheckpointReceiptsFromJobs/);
-  assert.match(source, /listed\?\.isLatest !== false/);
+  assert.match(source, /PROMOTION_CHECKPOINT_RECEIPTS_JSON !== '\[\]'/);
+  assert.doesNotMatch(source, /promotionCheckpointReceiptsFromJobs|Public release checkpoint receipt must resolve/);
 });
 
 test('reusable VM callers bind the outer mutation and cap Standard work to the absolute deadline', () => {

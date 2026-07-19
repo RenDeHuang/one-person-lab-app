@@ -10,6 +10,7 @@ import { buildQualificationHarnessScopeProof } from '../../scripts/qualification
 import {
   adminOneShotDispatchArgs,
   applyPromotionCheckpointReadback,
+  assertPromotionDispatchBudget,
   buildAdminOneShotAdmission,
   buildStableReleaseSession,
   classifyWorkflowRunObservation,
@@ -21,8 +22,7 @@ import {
   executeBrokeredReleaseMutation,
   formatCommandFailure,
   fullAddonMutationPayload,
-  historicalPromotionPredecessorAdmission,
-  historicalPromotionRecoveryContext,
+  minimumPromotionDispatchBudgetMs,
   promoteDispatchArgs,
   promotionMutationPayload,
   promotionCheckpointReceiptsFromJobs,
@@ -36,6 +36,10 @@ import {
   applyAddonDebtDisposition,
   type StableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
+import {
+  assertPromotionTargetIsNewerThanLatest,
+  compareStableReleaseVersions,
+} from '../../scripts/stable-release-version-order.ts';
 import { verifyAdminOneShotAdmission } from '../../scripts/verify-release-broker-acceptance.ts';
 import {
   appendStableReleaseEfficiencyAdvisory,
@@ -1443,7 +1447,7 @@ test('workflow readback transport consumes the same remaining admission budget w
   assert.equal(result.succeeded, true);
 });
 
-test('historical promotion successor uses read-only terminal readback after the Standard deadline', async () => {
+test('promotion watch blocks before network readback after the Standard deadline', async () => {
   const started = Date.parse('2026-07-18T00:00:00.000Z');
   const admittedAt = new Date(started).toISOString();
   let session = buildStableReleaseSession(plan(admittedAt), undefined, admittedAt);
@@ -1453,27 +1457,23 @@ test('historical promotion successor uses read-only terminal readback after the 
   session = transitionStableReleaseSession(session, 'owner_approved', 'approved', new Date(started + 4_000).toISOString());
   session = transitionStableReleaseSession(session, 'promotion_running', 'historical successor', new Date(started + 5_000).toISOString());
   const observedAt = Date.parse(session.efficiency_policy.standard_admission_deadline_at) + 1_000;
-  const result = await watchRunToTerminal((command, args, options) => {
-    assert.equal(command, 'gh');
-    if (args[1] === 'watch') {
-      assert.equal(options?.timeoutMs, 60_000);
-      return { status: 1, stdout: '', stderr: 'already terminal' };
-    }
-    assert.equal(options?.timeoutMs, 30_000);
-    return {
-      status: 0,
-      stdout: JSON.stringify({
-        databaseId: 7007, attempt: 1, createdAt: '2026-07-18T01:31:00Z', headBranch: 'main',
-        headSha: appSha, status: 'completed', conclusion: 'failure', url: 'https://example.test/7007',
-      }),
-      stderr: '',
-    };
-  }, session, '7007', () => {}, () => observedAt, {
-    kind: 'historical_promotion_recovery',
-    deadlineAt: new Date(observedAt + 60_000).toISOString(),
-    predecessorAttemptId: `sha256:${'7'.repeat(64)}`,
-  });
-  assert.equal(result.conclusion, 'failure');
+  let runnerCalls = 0;
+  let persisted: StableReleaseSession | null = null;
+  await assert.rejects(
+    () => watchRunToTerminal(
+      () => {
+        runnerCalls += 1;
+        return { status: 1, stdout: '', stderr: 'must not execute' };
+      },
+      session,
+      '7007',
+      (next) => { persisted = next; },
+      () => observedAt,
+    ),
+    /immutable 90-minute Standard deadline/,
+  );
+  assert.equal(runnerCalls, 0);
+  assert.equal(persisted?.phase, 'standard_deadline_blocked');
 });
 
 test('source gate failures prefer structured stdout over runtime warnings', () => {
@@ -1614,265 +1614,92 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
 });
 
-test('expired promotion successor requires one exact pre-deadline identity and bounded monotonic checkpoints', () => {
+test('promotion permits one non-replayable attempt and rejects historical successors', () => {
   const startedAt = '2026-07-18T00:00:00.000Z';
   const ownerReceipt = 'release_owner_receipt_ref://test/exact-owner';
   const generation = '26.7.12-r1';
-  let session = buildStableReleaseSession(plan(startedAt), undefined, startedAt);
-  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', '2026-07-18T00:01:00.000Z');
-  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched', '2026-07-18T00:02:00.000Z');
-  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified', '2026-07-18T01:00:00.000Z');
-  session = transitionStableReleaseSession(session, 'owner_approved', 'approved', '2026-07-18T01:01:00.000Z');
-  session = transitionStableReleaseSession(session, 'promotion_running', 'promotion', '2026-07-18T01:10:00.000Z');
-  session = transitionStableReleaseSession(session, 'promotion_failed', 'prepare failed', '2026-07-18T01:19:00.000Z');
-  session.release_run.id = '29211495991';
-  session.qualification_run = {
-    ...session.artifact_tracks.standard.qualification_run,
-    id: '29211496001', conclusion: 'success', artifact_sha256: 'e'.repeat(64),
-  };
-  session.artifact_tracks.standard.qualification_run = structuredClone(session.qualification_run);
-  session.release_owner_receipt_ref = ownerReceipt;
-  session.promotion_progress = {
-    release_set_generation: generation,
-    release_set_manifest_digest: null,
-    last_verified_checkpoint: null,
-    resume_from_checkpoint: 'release_public_nonlatest',
-  };
+  const session = buildStableReleaseSession(plan(startedAt), undefined, startedAt);
   const payload = promotionMutationPayload(session, ownerReceipt, generation);
-  const planned = planReleaseMutationAttempt(session, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
-    at: '2026-07-18T01:20:00.000Z', reason: 'pre-deadline predecessor',
-  });
-  session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
-    at: '2026-07-18T01:20:01.000Z', state: 'dispatching', run_id: null, reason: 'durable predecessor',
-  });
-  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
-    at: '2026-07-18T01:20:03.000Z', state: 'running', run_id: '301', reason: 'exact predecessor run',
-  });
-  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
-    at: '2026-07-18T01:21:00.000Z', state: 'failed', run_id: '301', reason: 'prepare failed',
-  });
-  session.promotion_run = {
-    id: '301', url: 'https://example.test/301', conclusion: 'failure', attempt: 1,
-    rerun_requested_from_attempt: null,
+  const input = {
+    mutation: 'promotion_dispatch' as const,
+    workflow: 'desktop-release-promote.yml',
+    artifactKind: 'promotion' as const,
+    admissionMode: 'admin_one_shot_controller' as const,
+    controllerWorkflowSha: appSha,
+    artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload),
+    mutationPayload: payload,
+    at: '2026-07-18T01:00:00.000Z',
+    reason: 'sole promotion attempt',
   };
+  const planned = planReleaseMutationAttempt(session, input);
+  assert.equal(validateStableReleaseSessionInvariants(planned.session).length, 0);
 
-  assert.equal(
-    historicalPromotionPredecessorAdmission(
-      session, ownerReceipt, generation, Date.parse('2026-07-18T01:29:59.000Z'),
-    ),
-    null,
-  );
-  const predecessor = historicalPromotionPredecessorAdmission(
-    session, ownerReceipt, generation, Date.parse('2026-07-18T01:30:01.000Z'),
-  );
-  assert.equal(predecessor?.request.attempt_id, planned.attemptId);
-  assert.equal(predecessor?.persisted_at, '2026-07-18T01:20:01.000Z');
-  const args = adminOneShotDispatchArgs(predecessor!, predecessor!);
-  assert.equal(args.filter((arg) => arg.startsWith('historical_predecessor_admission_receipt_base64=')).length, 1);
-
-  const successorPlan = planReleaseMutationAttempt(session, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'f'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
-    priorRunIds: ['301'], at: '2026-07-18T01:31:00.000Z', reason: 'historical successor',
+  const dispatching = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: '2026-07-18T01:00:01.000Z',
+    state: 'dispatching',
+    run_id: null,
+    reason: 'durable sole promotion fence',
   });
-  const successor = successorPlan.session;
-  assert.equal(
-    validateStableReleaseSessionInvariants(successor).includes(
-      'in-progress Standard session cannot remain open at or after its immutable deadline',
-    ),
-    false,
-  );
-  const tampered = structuredClone(successor);
-  tampered.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids = [];
-  assert.match(validateStableReleaseSessionInvariants(tampered).join('; '), /cannot remain open/);
-  const ordinaryExpired = structuredClone(session);
-  ordinaryExpired.updated_at = '2026-07-18T01:31:00.000Z';
-  assert.match(validateStableReleaseSessionInvariants(ordinaryExpired).join('; '), /cannot remain open/);
-  const dispatchingSuccessor = appendReleaseMutationAttemptEvent(successor, successorPlan.attemptId, {
-    at: '2026-07-18T01:31:01.000Z', state: 'dispatching', run_id: null, reason: 'durable historical successor',
-  });
-  assert.equal(
-    transitionStableReleaseSession(
-      dispatchingSuccessor, 'promotion_running', 'historical successor bound', '2026-07-18T01:31:02.000Z',
-    ).phase,
-    'promotion_running',
+  const admission = buildAdminOneShotAdmission(dispatching, planned.attemptId, payload, '2026-07-18T01:00:01.000Z');
+  assert.doesNotMatch(
+    adminOneShotDispatchArgs(admission).join(' '),
+    /historical_predecessor_admission_receipt_base64/,
   );
 
-  let failedSuccessor = appendReleaseMutationAttemptEvent(successor, successorPlan.attemptId, {
-    at: '2026-07-18T01:31:01.000Z', state: 'dispatching', run_id: null, reason: 'durable historical successor',
+  const idempotent = planReleaseMutationAttempt(planned.session, { ...input, at: '2026-07-18T01:01:00.000Z' });
+  assert.equal(idempotent.attemptId, planned.attemptId);
+  let failed = appendReleaseMutationAttemptEvent(dispatching, planned.attemptId, {
+    at: '2026-07-18T01:00:02.000Z', state: 'running', run_id: '301', reason: 'exact sole promotion run',
   });
-  failedSuccessor = appendReleaseMutationAttemptEvent(failedSuccessor, successorPlan.attemptId, {
-    at: '2026-07-18T01:31:02.000Z', state: 'running', run_id: '302', reason: 'exact successor run',
+  failed = appendReleaseMutationAttemptEvent(failed, planned.attemptId, {
+    at: '2026-07-18T01:00:03.000Z', state: 'failed', run_id: '301', reason: 'sole promotion failed',
   });
-  failedSuccessor = appendReleaseMutationAttemptEvent(failedSuccessor, successorPlan.attemptId, {
-    at: '2026-07-18T01:32:00.000Z', state: 'failed', run_id: '302', reason: 'Draft remained private',
-  });
-  failedSuccessor.promotion_run = {
-    id: '302', url: 'https://example.test/302', conclusion: 'failure', attempt: 1,
-    rerun_requested_from_attempt: null,
-  };
-  const finalRecovery = historicalPromotionRecoveryContext(
-    failedSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:33:00.000Z'),
-  );
-  assert.equal(finalRecovery?.predecessorAdmission.request.attempt_id, planned.attemptId);
-  assert.deepEqual(finalRecovery?.priorRunIds, ['301', '302']);
-  const finalPlan = planReleaseMutationAttempt(failedSuccessor, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '9'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
-    priorRunIds: finalRecovery!.priorRunIds, at: '2026-07-18T01:33:01.000Z', reason: 'final closed successor',
-  });
-  assert.equal(validateStableReleaseSessionInvariants(finalPlan.session).length, 0);
-  let failedSecondSuccessor = appendReleaseMutationAttemptEvent(finalPlan.session, finalPlan.attemptId, {
-    at: '2026-07-18T01:33:02.000Z', state: 'dispatching', run_id: null, reason: 'durable second successor',
-  });
-  failedSecondSuccessor = appendReleaseMutationAttemptEvent(failedSecondSuccessor, finalPlan.attemptId, {
-    at: '2026-07-18T01:33:03.000Z', state: 'running', run_id: '303', reason: 'exact second successor run',
-  });
-  failedSecondSuccessor = appendReleaseMutationAttemptEvent(failedSecondSuccessor, finalPlan.attemptId, {
-    at: '2026-07-18T01:34:00.000Z', state: 'failed', run_id: '303', reason: 'Draft lookup failed',
-  });
-  failedSecondSuccessor.promotion_run = {
-    id: '303', url: 'https://example.test/303', conclusion: 'failure', attempt: 1,
-    rerun_requested_from_attempt: null,
-  };
-  const thirdRecovery = historicalPromotionRecoveryContext(
-    failedSecondSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:35:00.000Z'),
-  );
-  assert.equal(thirdRecovery?.predecessorAdmission.request.attempt_id, planned.attemptId);
-  assert.deepEqual(thirdRecovery?.priorRunIds, ['301', '302', '303']);
-  const thirdPlan = planReleaseMutationAttempt(failedSecondSuccessor, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '8'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
-    priorRunIds: thirdRecovery!.priorRunIds, at: '2026-07-18T01:35:01.000Z', reason: 'fixed three-hop successor',
-  });
-  assert.equal(validateStableReleaseSessionInvariants(thirdPlan.session).length, 0);
-  const dispatchingThird = appendReleaseMutationAttemptEvent(thirdPlan.session, thirdPlan.attemptId, {
-    at: '2026-07-18T01:35:02.000Z', state: 'dispatching', run_id: null, reason: 'durable third successor',
-  });
-  assert.equal(
-    transitionStableReleaseSession(
-      dispatchingThird, 'promotion_running', 'three-hop successor bound', '2026-07-18T01:35:03.000Z',
-    ).phase,
-    'promotion_running',
-  );
-  const missingIntermediate = structuredClone(thirdPlan.session);
-  missingIntermediate.mutation_attempts.at(-2)!.events.at(-1)!.run_id = null;
-  assert.match(validateStableReleaseSessionInvariants(missingIntermediate).join('; '), /cannot remain open/);
-  const tamperedIntermediate = structuredClone(thirdPlan.session);
-  tamperedIntermediate.mutation_attempts.at(-2)!.dispatch_fence.prior_run_ids = [];
-  assert.match(validateStableReleaseSessionInvariants(tamperedIntermediate).join('; '), /cannot remain open/);
-  let failedThirdSuccessor = appendReleaseMutationAttemptEvent(thirdPlan.session, thirdPlan.attemptId, {
-    at: '2026-07-18T01:35:02.000Z', state: 'dispatching', run_id: null, reason: 'durable third successor',
-  });
-  failedThirdSuccessor = appendReleaseMutationAttemptEvent(failedThirdSuccessor, thirdPlan.attemptId, {
-    at: '2026-07-18T01:35:03.000Z', state: 'running', run_id: '304', reason: 'exact third successor run',
-  });
-  failedThirdSuccessor = appendReleaseMutationAttemptEvent(failedThirdSuccessor, thirdPlan.attemptId, {
-    at: '2026-07-18T01:36:00.000Z', state: 'failed', run_id: '304', reason: 'failed after public checkpoint',
-  });
-  failedThirdSuccessor.promotion_run = {
-    id: '304', url: 'https://example.test/304', conclusion: 'failure', attempt: 1,
-    rerun_requested_from_attempt: null,
-  };
-  failedThirdSuccessor.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
-  failedThirdSuccessor.promotion_progress.resume_from_checkpoint = 'distribution_synced';
-  const checkpointReceiptsJson = JSON.stringify([{
-    checkpoint: 'release_public_nonlatest', receipt_sha256: `sha256:${'7'.repeat(64)}`,
-  }]);
-  const checkpointPayload = promotionMutationPayload(
-    failedThirdSuccessor, ownerReceipt, generation, checkpointReceiptsJson,
-  );
-  const checkpointRecovery = historicalPromotionRecoveryContext(
-    failedThirdSuccessor,
-    ownerReceipt,
-    generation,
-    Date.parse('2026-07-18T01:37:00.000Z'),
-    checkpointReceiptsJson,
-  );
-  assert.equal(checkpointRecovery?.predecessorAdmission.request.attempt_id, planned.attemptId);
-  assert.deepEqual(checkpointRecovery?.priorRunIds, ['301', '302', '303', '304']);
-  const checkpointPlan = planReleaseMutationAttempt(failedThirdSuccessor, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '7'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(checkpointPayload), mutationPayload: checkpointPayload,
-    priorRunIds: checkpointRecovery!.priorRunIds, at: '2026-07-18T01:37:01.000Z', reason: 'checkpoint successor',
-  });
-  assert.equal(validateStableReleaseSessionInvariants(checkpointPlan.session).length, 0);
-  const failPromotionAttempt = (
-    source: StableReleaseSession,
-    attemptId: string,
-    runId: string,
-    dispatchAt: string,
-  ): StableReleaseSession => {
-    let failed = appendReleaseMutationAttemptEvent(source, attemptId, {
-      at: dispatchAt, state: 'dispatching', run_id: null, reason: 'durable bounded successor',
-    });
-    failed = appendReleaseMutationAttemptEvent(failed, attemptId, {
-      at: new Date(Date.parse(dispatchAt) + 1_000).toISOString(),
-      state: 'running', run_id: runId, reason: 'exact bounded successor run',
-    });
-    failed = appendReleaseMutationAttemptEvent(failed, attemptId, {
-      at: new Date(Date.parse(dispatchAt) + 60_000).toISOString(),
-      state: 'failed', run_id: runId, reason: 'bounded successor failed',
-    });
-    failed.promotion_run = {
-      id: runId, url: `https://example.test/${runId}`, conclusion: 'failure', attempt: 1,
-      rerun_requested_from_attempt: null,
-    };
-    return failed;
-  };
-  const failedFourthSuccessor = failPromotionAttempt(
-    checkpointPlan.session, checkpointPlan.attemptId, '305', '2026-07-18T01:37:02.000Z',
-  );
-  const fifthRecovery = historicalPromotionRecoveryContext(
-    failedFourthSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:39:00.000Z'), checkpointReceiptsJson,
-  );
-  assert.deepEqual(fifthRecovery?.priorRunIds, ['301', '302', '303', '304', '305']);
-  const fifthPlan = planReleaseMutationAttempt(failedFourthSuccessor, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '6'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(checkpointPayload), mutationPayload: checkpointPayload,
-    priorRunIds: fifthRecovery!.priorRunIds, at: '2026-07-18T01:39:01.000Z', reason: 'fifth bounded successor',
-  });
-  assert.equal(validateStableReleaseSessionInvariants(fifthPlan.session).length, 0);
-  const failedFifthSuccessor = failPromotionAttempt(
-    fifthPlan.session, fifthPlan.attemptId, '306', '2026-07-18T01:39:02.000Z',
-  );
-  const sixthRecovery = historicalPromotionRecoveryContext(
-    failedFifthSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:41:00.000Z'), checkpointReceiptsJson,
-  );
-  assert.deepEqual(sixthRecovery?.priorRunIds, ['301', '302', '303', '304', '305', '306']);
-  const finalBoundedPlan = planReleaseMutationAttempt(failedFifthSuccessor, {
-    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
-    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '5'.repeat(40), artifactAppSha: appSha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(checkpointPayload), mutationPayload: checkpointPayload,
-    priorRunIds: sixthRecovery!.priorRunIds, at: '2026-07-18T01:41:01.000Z', reason: 'final bounded successor',
-  });
-  assert.equal(validateStableReleaseSessionInvariants(finalBoundedPlan.session).length, 0);
-  const failedFinalSuccessor = failPromotionAttempt(
-    finalBoundedPlan.session, finalBoundedPlan.attemptId, '307', '2026-07-18T01:41:02.000Z',
+  assert.throws(
+    () => planReleaseMutationAttempt(failed, {
+      ...input,
+      controllerWorkflowSha: 'f'.repeat(40),
+      at: '2026-07-18T01:01:00.000Z',
+    }),
+    /already has its sole promotion attempt/,
   );
   assert.throws(
-    () => historicalPromotionRecoveryContext(
-      failedFinalSuccessor, ownerReceipt, generation, Date.parse('2026-07-18T01:43:00.000Z'), checkpointReceiptsJson,
-    ),
-    /at most five failed post-deadline successors/,
+    () => planReleaseMutationAttempt(session, { ...input, priorRunIds: ['301'] }),
+    /cannot carry historical predecessor run ids/,
   );
 
-  session.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
-  session.promotion_progress.resume_from_checkpoint = 'distribution_synced';
-  assert.throws(
-    () => historicalPromotionPredecessorAdmission(
-      session, ownerReceipt, generation, Date.parse('2026-07-18T01:30:01.000Z'),
-    ),
-    /monotonic checkpoint successor/,
+  const tampered = structuredClone(planned.session);
+  tampered.mutation_attempts[0]!.dispatch_fence.prior_run_ids = ['301'];
+  assert.match(
+    validateStableReleaseSessionInvariants(tampered).join('; '),
+    /cannot carry historical predecessor run ids/,
   );
+});
+
+test('promotion requires 15 minutes of budget and a strictly newer Stable version', () => {
+  const startedAt = '2026-07-18T00:00:00.000Z';
+  const session = buildStableReleaseSession(plan(startedAt), undefined, startedAt);
+  const deadlineMs = Date.parse(session.efficiency_policy.standard_admission_deadline_at);
+
+  assert.equal(minimumPromotionDispatchBudgetMs, 15 * 60_000);
+  assert.doesNotThrow(() => assertPromotionDispatchBudget(session, deadlineMs - minimumPromotionDispatchBudgetMs));
+  assert.throws(
+    () => assertPromotionDispatchBudget(session, deadlineMs - minimumPromotionDispatchBudgetMs + 1),
+    /at least 15 minutes/,
+  );
+
+  assert.equal(compareStableReleaseVersions('26.7.20', 'v26.7.19'), 1);
+  assert.equal(compareStableReleaseVersions('v26.7.20', '26.7.20'), 0);
+  assert.doesNotThrow(() => assertPromotionTargetIsNewerThanLatest('26.7.20', {
+    tagName: 'v26.7.19', isDraft: false, isPrerelease: false,
+  }));
+  assert.throws(() => assertPromotionTargetIsNewerThanLatest('26.7.20', {
+    tagName: 'v26.7.20', isDraft: false, isPrerelease: false,
+  }), /already GitHub Latest/);
+  assert.throws(() => assertPromotionTargetIsNewerThanLatest('26.7.18', {
+    tagName: 'v26.7.20', isDraft: false, isPrerelease: false,
+  }), /downgrade is forbidden/);
+  assert.throws(() => compareStableReleaseVersions('26.2.30', '26.2.28'), /valid calendar date/);
 });
 
 test('reconcile run readback uses the independent read-only transport budget', () => {
@@ -1884,12 +1711,14 @@ test('reconcile run readback uses the independent read-only transport budget', (
   );
   assert.match(discovery, /timeoutMs: readOnlyReleaseTransportTimeoutMs\(\)/);
   assert.doesNotMatch(discovery, /boundedReleaseTransportTimeoutMs/);
-  assert.match(controller, /predecessorCount > 5/);
-  assert.match(controller, /Checkpoint recovery requires one exact promotion run/);
-  assert.match(controller, /session\.mutation_attempts[\s\S]*attempt\.mutation === 'promotion_dispatch'/);
+  assert.doesNotMatch(controller, /historicalPromotionRecovery|historicalPredecessor/);
+  assert.match(controller, /Promotion dispatch requires the original artifacts_qualified state/);
+  assert.match(controller, /assertRemoteLatestAllowsPromotion\(runner, session\)/);
   assert.doesNotMatch(controller, /const runId = session\.promotion_run\.id;\n  if \(!runId\)/);
   const sessionSource = fs.readFileSync(path.join(process.cwd(), 'scripts/stable-release-session.ts'), 'utf8');
-  assert.match(sessionSource, /prior_run_ids\.length > 6/);
+  assert.match(sessionSource, /permits exactly one promotion mutation attempt/);
+  assert.match(sessionSource, /cannot carry historical predecessor run ids/);
+  assert.doesNotMatch(sessionSource, /exactHistoricalPromotionRecoveryChain/);
 });
 
 test('same-artifact qualification keeps the verification Shell exact to the artifact cohort', () => {
