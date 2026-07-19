@@ -14,6 +14,7 @@ import {
   type ReleaseBrokerAuthorityV1,
 } from './release-broker-authority.ts';
 import {
+  buildPromotionCheckpointAuthorization,
   buildReleaseMutationBrokerLedgerLookup,
   releaseMutationBrokerRequestSha256,
   releaseMutationPreApiFenceSha256,
@@ -23,11 +24,12 @@ import {
   type ReleaseMutationBrokerLedgerLookupResultV1,
   type ReleaseMutationPreApiFenceV1,
 } from './release-mutation-broker.ts';
+import { releaseMutationPayloadSha256 } from './release-mutation-payload.ts';
 
 export type ValidationArtifact = {
   schema: 'opl_app_release_broker_workflow_acceptance_validation.v1';
   status: 'verified';
-  mode: 'lookup' | 'historical' | 'pre-api';
+  mode: 'lookup' | 'historical' | 'pre-api' | 'admin-one-shot';
   verified_at: string;
   authority_epoch: number;
   authority_sha256: string;
@@ -49,7 +51,31 @@ export type ValidationArtifact = {
   lookup_expires_at: string | null;
   full_addon_deadline_at: string | null;
   signed_lookup_envelope: ReleaseMutationBrokerLedgerLookupResultV1 | null;
+  admin_one_shot_admission: AdminOneShotAdmission | null;
   promotion_checkpoint_authorization: ReleaseMutationPreApiFenceV1['promotion_checkpoint_authorization'];
+};
+
+type AdminOneShotAdmission = {
+  schema: 'opl_app_release_admin_one_shot_admission.v1';
+  status: 'durable_pre_api_fence';
+  admission_mode: 'admin_one_shot_controller';
+  persisted_at: string;
+  request_sha256: string;
+  request: {
+    stable_session_id: string;
+    release_cohort_ref: string;
+    operator_actor: string;
+    attempt_id: string;
+    planned_session_revision: number;
+    mutation: string;
+    workflow: string;
+    artifact_kind: string;
+    controller_workflow_sha: string;
+    artifact_app_sha: string;
+    mutation_payload: Record<string, string>;
+    mutation_payload_sha256: string;
+    github: { repository: string; operation: string; workflow_ref: string; target_run_id: null };
+  };
 };
 
 export type BrokerAcceptanceExpectedIdentity = {
@@ -79,6 +105,10 @@ function decodeFence(value: string): ReleaseMutationPreApiFenceV1 {
   return JSON.parse(decoded) as ReleaseMutationPreApiFenceV1;
 }
 
+function decodeAdmission(value: string): AdminOneShotAdmission {
+  return JSON.parse(Buffer.from(value, 'base64').toString('utf8')) as AdminOneShotAdmission;
+}
+
 function required(value: string | undefined, name: string): string {
   if (!value) throw new Error(`missing --${name}`);
   return value;
@@ -94,6 +124,9 @@ function assertExpectedIdentity(
   if (request.workflow !== expected.workflow) mismatches.push('workflow');
   if (request.controller_workflow_sha !== expected.workflowSha) mismatches.push('controller workflow SHA');
   if (request.mutation_payload_sha256 !== expected.payloadSha256) mismatches.push('mutation payload digest');
+  if (request.mutation_payload_sha256 !== releaseMutationPayloadSha256(request.mutation_payload)) {
+    mismatches.push('embedded mutation payload digest');
+  }
   if (request.attempt_id !== expected.attemptId) mismatches.push('attempt id');
   if (mismatches.length > 0) throw new Error(`pre-API fence expected identity mismatch: ${mismatches.join(', ')}`);
 }
@@ -207,7 +240,79 @@ function buildArtifact(input: {
     lookup_expires_at: input.result?.read_proof.expires_at ?? null,
     full_addon_deadline_at: acceptance?.full_addon_deadline_at ?? input.fence.full_addon_deadline_at,
     signed_lookup_envelope: input.result,
+    admin_one_shot_admission: null,
     promotion_checkpoint_authorization: input.fence.promotion_checkpoint_authorization,
+  };
+}
+
+export function verifyAdminOneShotAdmission(input: {
+  authority: ReleaseBrokerAuthorityV1;
+  admission: AdminOneShotAdmission;
+  expected: BrokerAcceptanceExpectedIdentity;
+  operatorActor: string;
+  githubActor: string;
+  verifiedAt: string;
+  mode?: 'admin-one-shot' | 'historical';
+}): ValidationArtifact {
+  const { admission, expected } = input;
+  if (
+    admission.schema !== 'opl_app_release_admin_one_shot_admission.v1' ||
+    admission.status !== 'durable_pre_api_fence' ||
+    admission.admission_mode !== 'admin_one_shot_controller'
+  ) throw new Error('admin one-shot admission schema/status/mode is invalid');
+  const request = admission.request;
+  const routes = new Map([
+    ['desktop-release.yml', ['desktop_release_dispatch', 'standard']],
+    ['desktop-release-promote.yml', ['promotion_dispatch', 'promotion']],
+  ]);
+  const route = routes.get(request.workflow);
+  if (!route || request.mutation !== route[0] || request.artifact_kind !== route[1]) {
+    throw new Error('admin one-shot admission is outside the Standard critical-path allowlist');
+  }
+  const structuralErrors = validateReleaseBrokerAuthority(input.authority, { capability: 'contract_read' });
+  if (structuralErrors.length > 0) throw new Error(`release authority contract is invalid: ${structuralErrors.join('; ')}`);
+  if (
+    input.operatorActor !== input.authority.operator_identity.github_actor ||
+    input.githubActor !== input.operatorActor || request.operator_actor !== input.operatorActor
+  ) throw new Error('admin one-shot admission actor does not match the canonical administrator identity');
+  const mismatches: string[] = [];
+  if (request.github.repository !== expected.repository) mismatches.push('repository');
+  if (request.github.operation !== 'workflow_dispatch' || request.github.workflow_ref !== 'refs/heads/main' || request.github.target_run_id !== null) mismatches.push('GitHub operation');
+  if (request.workflow !== expected.workflow) mismatches.push('workflow');
+  if (request.controller_workflow_sha !== expected.workflowSha) mismatches.push('controller workflow SHA');
+  if (request.mutation_payload_sha256 !== expected.payloadSha256) mismatches.push('mutation payload digest');
+  if (request.mutation_payload_sha256 !== releaseMutationPayloadSha256(request.mutation_payload)) {
+    mismatches.push('embedded mutation payload digest');
+  }
+  if (request.attempt_id !== expected.attemptId) mismatches.push('attempt id');
+  if (!Number.isSafeInteger(request.planned_session_revision) || request.planned_session_revision < 1) mismatches.push('planned revision');
+  if (admission.request_sha256 !== sha256(canonicalJson(request))) mismatches.push('request digest');
+  if (mismatches.length > 0) throw new Error(`admin one-shot expected identity mismatch: ${mismatches.join(', ')}`);
+  const persistedAtMs = Date.parse(admission.persisted_at);
+  const verifiedAtMs = Date.parse(input.verifiedAt);
+  if (!Number.isFinite(persistedAtMs) || !Number.isFinite(verifiedAtMs) || persistedAtMs > verifiedAtMs || verifiedAtMs - persistedAtMs > 90 * 60_000) {
+    throw new Error('admin one-shot admission is outside the immutable 90-minute window');
+  }
+  return {
+    schema: 'opl_app_release_broker_workflow_acceptance_validation.v1',
+    status: 'verified', mode: input.mode ?? 'admin-one-shot', verified_at: input.verifiedAt,
+    authority_epoch: input.authority.authority_epoch,
+    authority_sha256: releaseBrokerAuthoritySha256(input.authority),
+    key_id: 'admin-one-shot-controller', repository: request.github.repository,
+    stable_session_id: request.stable_session_id, release_cohort_ref: request.release_cohort_ref,
+    version: String(request.mutation_payload.opl_version ?? ''), workflow: request.workflow,
+    attempt_id: request.attempt_id, request_sha256: admission.request_sha256,
+    mutation_payload_sha256: request.mutation_payload_sha256,
+    pre_api_fence_sha256: sha256(canonicalJson(admission)), acceptance_sha256: null,
+    exact_run_id: expected.runId ?? null, run_attempt: expected.runAttempt ?? null,
+    controller_sha: request.controller_workflow_sha,
+    lookup_linearized_at: null, lookup_expires_at: null, full_addon_deadline_at: null,
+    signed_lookup_envelope: null, admin_one_shot_admission: admission,
+    promotion_checkpoint_authorization: buildPromotionCheckpointAuthorization({
+      mutation: request.mutation as Parameters<typeof buildPromotionCheckpointAuthorization>[0]['mutation'],
+      attempt_id: request.attempt_id,
+      mutation_payload: request.mutation_payload,
+    }),
   };
 }
 
@@ -287,8 +392,29 @@ export function verifyHistoricalBrokerValidation(input: {
     throw new Error('historical broker validation artifact digest is mismatched');
   }
   const prior = JSON.parse(input.validationBytes.toString('utf8')) as ValidationArtifact;
-  if (prior.schema !== 'opl_app_release_broker_workflow_acceptance_validation.v1' || prior.status !== 'verified' || prior.mode !== 'lookup') {
+  if (
+    prior.schema !== 'opl_app_release_broker_workflow_acceptance_validation.v1' || prior.status !== 'verified' ||
+    !['lookup', 'admin-one-shot'].includes(prior.mode)
+  ) {
     throw new Error('historical broker validation artifact schema/status/mode is invalid');
+  }
+  if (prior.mode === 'admin-one-shot') {
+    if (!prior.admin_one_shot_admission) throw new Error('historical admin one-shot validation lacks its durable admission');
+    const artifact = verifyAdminOneShotAdmission({
+      authority: input.currentAuthority,
+      admission: prior.admin_one_shot_admission,
+      expected: input.expected,
+      operatorActor: prior.admin_one_shot_admission.request.operator_actor,
+      githubActor: prior.admin_one_shot_admission.request.operator_actor,
+      verifiedAt: prior.verified_at,
+      mode: 'historical',
+    });
+    if (
+      prior.exact_run_id !== input.expected.runId || prior.run_attempt !== input.expected.runAttempt ||
+      prior.request_sha256 !== artifact.request_sha256 || prior.pre_api_fence_sha256 !== artifact.pre_api_fence_sha256 ||
+      prior.controller_sha !== artifact.controller_sha || prior.mutation_payload_sha256 !== artifact.mutation_payload_sha256
+    ) throw new Error('historical admin one-shot validation derived summary is mismatched');
+    return { ...artifact, verified_at: input.verifiedAt };
   }
   const result = prior.signed_lookup_envelope;
   if (!result || result.status !== 'found') throw new Error('historical broker validation does not retain a signed found envelope');
@@ -327,13 +453,15 @@ async function main(): Promise<void> {
       'expected-workflow-sha': { type: 'string' },
       'expected-payload-sha256': { type: 'string' },
       'expected-attempt-id': { type: 'string' },
+      'expected-operator-actor': { type: 'string' },
+      'expected-github-actor': { type: 'string' },
       authority: { type: 'string', default: 'contracts/app-release-broker-authority.json' },
       output: { type: 'string' },
     },
     strict: true,
   });
   const mode = required(values.mode, 'mode');
-  if (!['lookup', 'historical', 'pre-api'].includes(mode)) throw new Error(`unsupported --mode ${mode}`);
+  if (!['lookup', 'historical', 'pre-api', 'admin-one-shot'].includes(mode)) throw new Error(`unsupported --mode ${mode}`);
   const expected = {
     repository: required(values['expected-repository'], 'expected-repository'),
     runId: values['expected-run-id'],
@@ -347,7 +475,7 @@ async function main(): Promise<void> {
     throw new Error('--expected-run-attempt must be a positive integer');
   }
   const currentAuthority = readReleaseBrokerAuthority(values.authority);
-  const authorityErrors = mode === 'historical'
+  const authorityErrors = mode === 'historical' || mode === 'admin-one-shot'
     ? validateReleaseBrokerAuthority(currentAuthority, { capability: 'contract_read' })
     : validateReleaseBrokerLookupAuthority(currentAuthority);
   if (authorityErrors.length > 0) throw new Error(`release broker lookup authority is not ready: ${authorityErrors.join('; ')}`);
@@ -359,6 +487,20 @@ async function main(): Promise<void> {
     const artifact = verifyHistoricalBrokerValidation({
       currentAuthority, validationBytes, expectedValidationSha256: expectedValidationSha,
       expected, verifiedAt: new Date().toISOString(),
+    });
+    writeArtifact(artifact, values.output);
+    return;
+  }
+
+  if (mode === 'admin-one-shot') {
+    const admission = decodeAdmission(required(values['pre-api-fence-base64'], 'pre-api-fence-base64'));
+    const artifact = verifyAdminOneShotAdmission({
+      authority: currentAuthority,
+      admission,
+      expected,
+      operatorActor: required(values['expected-operator-actor'], 'expected-operator-actor'),
+      githubActor: required(values['expected-github-actor'], 'expected-github-actor'),
+      verifiedAt: new Date().toISOString(),
     });
     writeArtifact(artifact, values.output);
     return;

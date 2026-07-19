@@ -39,7 +39,11 @@ export function isBrokerLookupOidcOnlyJob(job: Record<string, any>): boolean {
   const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
   const lookupRuns = steps
     .map((step) => typeof step.run === 'string' ? step.run : '')
-    .filter((run) => run.includes('verify-release-broker-acceptance.ts') && run.includes('--mode lookup'));
+    .filter((run) => run.includes('verify-release-broker-acceptance.ts') && (
+      run.includes('--mode lookup') ||
+      (run.includes('verifier_mode=lookup') && run.includes('verifier_mode=admin-one-shot') &&
+        run.includes('--mode "$verifier_mode"'))
+    ));
   if (lookupRuns.length !== 1) return false;
   const lookupRun = lookupRuns[0];
   const requiredBindings = [
@@ -54,6 +58,9 @@ export function isBrokerLookupOidcOnlyJob(job: Record<string, any>): boolean {
     '--expected-attempt-id',
   ];
   if (requiredBindings.some((binding) => !lookupRun.includes(binding))) return false;
+  if (lookupRun.includes('verifier_mode=admin-one-shot') && (
+    !lookupRun.includes('--expected-operator-actor') || !lookupRun.includes('--expected-github-actor')
+  )) return false;
   if (!lookupRun.includes('$GITHUB_REPOSITORY') || !lookupRun.includes('$GITHUB_RUN_ID') ||
       !lookupRun.includes('$GITHUB_RUN_ATTEMPT') || !lookupRun.includes('$GITHUB_SHA')) {
     return false;

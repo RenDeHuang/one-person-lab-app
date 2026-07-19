@@ -13,6 +13,22 @@
     "github_actor": "gaofeng21cn",
     "source": "broker_authenticated_caller"
   },
+  "current_release_admission": {
+    "mode": "admin_one_shot_controller",
+    "allowed_workflows": [
+      "desktop-release.yml",
+      "desktop-release-promote.yml"
+    ],
+    "requires_canonical_main": true,
+    "requires_durable_planned_and_dispatching": true,
+    "requires_exact_payload_digest": true,
+    "requires_run_attempt_one": true,
+    "redispatch_after_unknown_outcome": false,
+    "rerun_allowed": false,
+    "cancel_allowed": false,
+    "isolated_broker_is_current_release_prerequisite": false,
+    "isolated_broker_disposition": "post_release_hardening"
+  },
   "mutation_broker": {
     "protocol_version": 1,
     "executable_path": "/usr/local/libexec/opl-release-broker",

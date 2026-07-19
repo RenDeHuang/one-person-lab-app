@@ -110,6 +110,119 @@ function runningAttempt(runId: string | null) {
   return { session, attemptId: planned.attemptId };
 }
 
+function adminOneShotDispatch(withQualification = false) {
+  let session = buildStableReleaseSession(plan(), undefined, '2026-07-18T00:00:00.000Z');
+  const payload = {
+    opl_version: session.version,
+    stable_session_id: session.id,
+    release_operator_plan_ref: session.cohort_plan.operator_plan_ref,
+    standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
+    artifact_app_sha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    shell_ref: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    framework_ref: session.cohort_plan.cohort_lock.framework.resolved_sha,
+    operator_actor: 'gaofeng21cn',
+  };
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'a'.repeat(40),
+    artifactAppSha: 'a'.repeat(40), mutationPayloadSha256: releaseMutationPayloadSha256(payload),
+    mutationPayload: payload, at: '2026-07-18T00:01:00.000Z', reason: 'admin one-shot test',
+  });
+  session = planned.session;
+  let qualificationId: string | null = null;
+  if (withQualification) {
+    const qualification = appendQualificationAttempt(session, {
+      artifactKind: 'standard', workflow: 'desktop-release.yml', mutation: 'desktop_release_dispatch',
+      mutationAttemptId: planned.attemptId, at: '2026-07-18T00:01:00.000Z', reason: 'linked admin qualification',
+    });
+    session = qualification.session;
+    qualificationId = qualification.attemptId;
+  }
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: '2026-07-18T00:01:01.000Z', state: 'dispatching', run_id: null,
+    reason: 'admin dispatch durably fenced',
+  });
+  return { session, mutationId: planned.attemptId, qualificationId };
+}
+
+function exactAdminRun(attemptId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    databaseId: '301', status: 'in_progress', conclusion: null, runAttempt: 1,
+    workflow: 'desktop-release.yml', controllerWorkflowSha: 'a'.repeat(40),
+    mutationAttemptId: attemptId, headBranch: 'main', event: 'workflow_dispatch',
+    createdAt: '2026-07-18T00:01:02.000Z', url: 'https://github.com/example/actions/runs/301',
+    ...overrides,
+  };
+}
+
+test('admin one-shot reconcile maps 0, 1, N, and discovery failure without any mutation or broker lookup', () => {
+  for (const scenario of ['zero', 'one', 'many', 'failure'] as const) {
+    const fixture = adminOneShotDispatch();
+    let discoveries = 0;
+    let brokerLookups = 0;
+    const result = reconcileAt(fixture.session, {
+      discoverAdminRuns: () => {
+        discoveries += 1;
+        if (scenario === 'failure') throw new Error('read transport unavailable');
+        if (scenario === 'zero') return [];
+        const run = exactAdminRun(fixture.mutationId);
+        return scenario === 'many' ? [run, { ...run, databaseId: '302' }] : [run];
+      },
+      readBrokerRecord: () => { brokerLookups += 1; throw new Error('admin reconcile must not query broker'); },
+      readRun: () => null,
+      readAttemptReceipt: () => null,
+    });
+    const latest = result.mutation_attempts.find((entry) => entry.attempt_id === fixture.mutationId)!.events.at(-1)!;
+    assert.equal(discoveries, 1);
+    assert.equal(brokerLookups, 0);
+    assert.equal(latest.state, scenario === 'one' ? 'running' : scenario === 'many' ? 'ambiguous' : 'acceptance_pending_visibility');
+    assert.equal(latest.run_id, scenario === 'one' ? '301' : null);
+    assert.equal(result.release_run.id, scenario === 'one' ? '301' : null);
+    if (scenario === 'failure') assert.match(latest.reason, /discovery unavailable.*never redispatch/);
+  }
+});
+
+test('admin one-shot reconcile fails closed on every exact run identity axis', () => {
+  const mutations = [
+    { headBranch: 'feature' },
+    { controllerWorkflowSha: 'b'.repeat(40) },
+    { mutationAttemptId: `sha256:${'f'.repeat(64)}` },
+    { createdAt: '2026-07-18T00:00:59.000Z' },
+    { runAttempt: 2 },
+  ];
+  for (const drift of mutations) {
+    const fixture = adminOneShotDispatch();
+    let brokerLookups = 0;
+    const result = reconcileAt(fixture.session, {
+      discoverAdminRuns: () => [exactAdminRun(fixture.mutationId, drift)],
+      readBrokerRecord: () => { brokerLookups += 1; throw new Error('must remain admin read-only'); },
+      readRun: () => null,
+      readAttemptReceipt: () => null,
+    });
+    assert.equal(brokerLookups, 0);
+    const latest = result.mutation_attempts.find((entry) => entry.attempt_id === fixture.mutationId)!.events.at(-1)!;
+    assert.equal(latest.state, 'ambiguous');
+    assert.equal(latest.run_id, null);
+  }
+});
+
+test('admin release run success cannot become qualification success without the complete evidence closure', () => {
+  const fixture = adminOneShotDispatch(true);
+  const terminal = exactAdminRun(fixture.mutationId, { status: 'completed', conclusion: 'success' });
+  const result = reconcileAt(fixture.session, {
+    discoverAdminRuns: () => [terminal],
+    readBrokerRecord: () => { throw new Error('admin reconcile must not query broker'); },
+    readRun: () => terminal,
+    readBuildManifest: () => null,
+    readStrictQualificationReceipt: () => null,
+    readSmokeSummary: () => null,
+    readAttemptReceipt: () => null,
+  });
+  const qualification = result.artifact_tracks.standard.attempts.find((entry) => entry.attempt_id === fixture.qualificationId)!;
+  assert.equal(qualification.events.at(-1)?.state, 'runner_lost');
+  assert.notEqual(result.phase, 'artifacts_qualified');
+});
+
 test('legacy qualification state without a broker mutation is not promoted to a false terminal', () => {
   const { session } = runningAttempt(null);
   const result = reconcileAt(session, {

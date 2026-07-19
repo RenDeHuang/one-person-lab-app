@@ -25,9 +25,17 @@ on:
         required: true
         type: string
       operator_actor:
-        description: Human/operator audit identity; authorization is held by the release broker GitHub App
+        description: Exact administrator identity for the selected release admission mode
         required: true
         type: string
+      release_admission_mode:
+        description: Current direct administrator one-shot path; isolated broker remains optional post-release hardening
+        required: false
+        default: admin_one_shot_controller
+        type: choice
+        options:
+          - admin_one_shot_controller
+          - isolated_broker
       release_attempt_id:
         description: Signed broker mutation attempt identity
         required: true
@@ -135,6 +143,7 @@ jobs:
           STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
           STANDARD_ADMISSION_DEADLINE_AT: ${{ inputs.standard_admission_deadline_at }}
           OPERATOR_ACTOR: ${{ inputs.operator_actor }}
+          RELEASE_ADMISSION_MODE: ${{ inputs.release_admission_mode }}
           RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
           PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
           RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
@@ -212,9 +221,16 @@ jobs:
           NODE
           )"
           set +e
+          verifier_mode=lookup
+          if [ "$RELEASE_ADMISSION_MODE" = admin_one_shot_controller ]; then
+            verifier_mode=admin-one-shot
+          elif [ "$RELEASE_ADMISSION_MODE" != isolated_broker ]; then
+            echo "::error::Unsupported release_admission_mode=$RELEASE_ADMISSION_MODE"
+            exit 1
+          fi
           timeout --signal=TERM --kill-after=10s "${remaining_seconds}s" \
             node --experimental-strip-types scripts/verify-release-broker-acceptance.ts \
-              --mode lookup \
+              --mode "$verifier_mode" \
               --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
               --expected-repository "$GITHUB_REPOSITORY" \
               --expected-run-id "$GITHUB_RUN_ID" \
@@ -223,6 +239,8 @@ jobs:
               --expected-workflow-sha "$GITHUB_SHA" \
               --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
               --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --expected-operator-actor "$OPERATOR_ACTOR" \
+              --expected-github-actor "$GITHUB_ACTOR" \
               --output broker-admission-validation.json
           lookup_status="$?"
           set -e

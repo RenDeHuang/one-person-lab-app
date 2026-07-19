@@ -302,6 +302,108 @@ function releaseOperatorActor(): string {
   return actor;
 }
 
+export type AdminOneShotAdmission = {
+  schema: 'opl_app_release_admin_one_shot_admission.v1';
+  status: 'durable_pre_api_fence';
+  admission_mode: 'admin_one_shot_controller';
+  persisted_at: string;
+  request_sha256: string;
+  request: {
+    stable_session_id: string;
+    release_cohort_ref: string;
+    operator_actor: string;
+    attempt_id: string;
+    planned_session_revision: number;
+    mutation: 'desktop_release_dispatch' | 'promotion_dispatch';
+    workflow: 'desktop-release.yml' | 'desktop-release-promote.yml';
+    artifact_kind: 'standard' | 'promotion';
+    controller_workflow_sha: string;
+    artifact_app_sha: string;
+    mutation_payload: ReleaseMutationPayload;
+    mutation_payload_sha256: string;
+    github: {
+      repository: string;
+      operation: 'workflow_dispatch';
+      workflow_ref: 'refs/heads/main';
+      target_run_id: null;
+    };
+  };
+};
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
+}
+
+function sha256Canonical(value: unknown): string {
+  return `sha256:${crypto.createHash('sha256').update(canonicalJson(value)).digest('hex')}`;
+}
+
+export function buildAdminOneShotAdmission(
+  session: StableReleaseSession,
+  attemptId: string,
+  payload: ReleaseMutationPayload,
+  persistedAt: string,
+): AdminOneShotAdmission {
+  const attempt = session.mutation_attempts.find((candidate) => candidate.attempt_id === attemptId);
+  if (!attempt || !['desktop_release_dispatch', 'promotion_dispatch'].includes(attempt.mutation)) {
+    throw new Error('Admin one-shot admission is limited to the Standard release and exact-artifact promotion paths.');
+  }
+  if (attempt.workflow !== 'desktop-release.yml' && attempt.workflow !== 'desktop-release-promote.yml') {
+    throw new Error('Admin one-shot admission workflow is outside the Stable critical path.');
+  }
+  if (attempt.events.at(-1)?.state !== 'dispatching') {
+    throw new Error('Admin one-shot admission requires a durable dispatching fence before GitHub mutation.');
+  }
+  if (attempt.mutation_payload_sha256 !== releaseMutationPayloadSha256(payload)) {
+    throw new Error('Admin one-shot admission payload does not match the durable mutation attempt.');
+  }
+  const request: AdminOneShotAdmission['request'] = {
+    stable_session_id: session.id,
+    release_cohort_ref: session.cohort_plan.operator_plan_ref,
+    operator_actor: releaseOperatorActor(),
+    attempt_id: attempt.attempt_id,
+    planned_session_revision: attempt.planned_session_revision,
+    mutation: attempt.mutation as AdminOneShotAdmission['request']['mutation'],
+    workflow: attempt.workflow as AdminOneShotAdmission['request']['workflow'],
+    artifact_kind: attempt.artifact_kind as AdminOneShotAdmission['request']['artifact_kind'],
+    controller_workflow_sha: attempt.controller_workflow_sha,
+    artifact_app_sha: attempt.artifact_app_sha,
+    mutation_payload: payload,
+    mutation_payload_sha256: attempt.mutation_payload_sha256,
+    github: {
+      repository: session.repo,
+      operation: 'workflow_dispatch',
+      workflow_ref: 'refs/heads/main',
+      target_run_id: null,
+    },
+  };
+  return {
+    schema: 'opl_app_release_admin_one_shot_admission.v1',
+    status: 'durable_pre_api_fence',
+    admission_mode: 'admin_one_shot_controller',
+    persisted_at: persistedAt,
+    request_sha256: sha256Canonical(request),
+    request,
+  };
+}
+
+export function adminOneShotDispatchArgs(admission: AdminOneShotAdmission): string[] {
+  return [
+    'workflow', 'run', admission.request.workflow,
+    '--repo', admission.request.github.repository,
+    '--ref', 'main',
+    '--field', 'release_admission_mode=admin_one_shot_controller',
+    '--field', `release_attempt_id=${admission.request.attempt_id}`,
+    '--field', `release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`,
+    '--field', `pre_api_admission_receipt_base64=${Buffer.from(JSON.stringify(admission), 'utf8').toString('base64')}`,
+    ...mutationPayloadArgs(admission.request.mutation_payload),
+  ];
+}
+
 function exactAcceptedRunId(
   receipt: ReleaseMutationAcceptanceReceiptV1,
   github: ReleaseMutationBrokerRequestV1['github'],
@@ -1169,6 +1271,47 @@ async function awaitAcceptedWorkflowRun(
   );
 }
 
+async function discoverAdminOneShotRun(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  attemptId: string,
+  workflow: 'desktop-release.yml' | 'desktop-release-promote.yml',
+  controllerWorkflowSha: string,
+  earliestCreatedAt: string,
+): Promise<WorkflowRun> {
+  for (let observation = 0; observation < 20; observation += 1) {
+    const result = runner('gh', [
+      'run', 'list', '--repo', session.repo, '--workflow', workflow, '--event', 'workflow_dispatch',
+      '--branch', 'main', '--limit', '100',
+      '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
+    ], { timeoutMs: boundedReleaseTransportTimeoutMs(session, `discover admin one-shot ${workflow}`) });
+    if (result.status !== 0) failResult(result, `discover admin one-shot ${workflow}`);
+    let runs: WorkflowRun[];
+    try {
+      runs = JSON.parse(result.stdout) as WorkflowRun[];
+    } catch (error) {
+      throw new Error(`admin one-shot run discovery returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const candidates = runs.filter((candidate) =>
+      candidate.displayTitle?.endsWith(` attempt=${attemptId}`) &&
+      candidate.workflowName === workflowNames[workflow] &&
+      candidate.event === 'workflow_dispatch' && candidate.attempt === 1 &&
+      candidate.headBranch === 'main' &&
+      candidate.headSha.toLowerCase() === controllerWorkflowSha.toLowerCase() &&
+      Date.parse(candidate.createdAt) >= Date.parse(earliestCreatedAt),
+    );
+    if (candidates.length > 1) {
+      throw new Error(`Admin one-shot attempt ${attemptId} matched multiple workflow runs; mutation is ambiguous and must not be repeated.`);
+    }
+    if (candidates.length === 1) return candidates[0];
+    await delay(3_000);
+  }
+  throw new Error(
+    `Admin one-shot attempt ${attemptId} is not yet visible; the durable dispatching fence forbids redispatch. ` +
+    'Use read-only reconcile.',
+  );
+}
+
 function watchRun(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
@@ -1723,6 +1866,7 @@ async function dispatchAndWatchRelease(
   const dispatchedAt = now();
   const mutationPlanned = planReleaseMutationAttempt(session, {
     mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    admissionMode: 'admin_one_shot_controller',
     controllerWorkflowSha,
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
     mutationPayloadSha256: releaseMutationPayloadSha256(desktopReleaseMutationPayload(session)),
@@ -1736,21 +1880,37 @@ async function dispatchAndWatchRelease(
   });
   session = planned.session;
   writeSession(statePath, session);
-  const accepted = executeBrokeredReleaseMutation(
-    session,
-    statePath,
-    mutationPlanned.attemptId,
-    desktopReleaseMutationPayload(session),
-    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
-    externalReleaseMutationBroker,
-  );
-  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
-    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  const dispatchingAt = now();
+  session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
+    at: dispatchingAt, state: 'dispatching', run_id: null,
+    reason: 'durable admin one-shot fence persisted before the sole GitHub workflow dispatch',
   });
-  session = accepted.session;
+  const admission = buildAdminOneShotAdmission(
+    session, mutationPlanned.attemptId, desktopReleaseMutationPayload(session), dispatchingAt,
+  );
+  session = {
+    ...session,
+    mutation_attempts: session.mutation_attempts.map((attempt) => attempt.attempt_id === mutationPlanned.attemptId
+      ? { ...attempt, broker_lookup: { ...attempt.broker_lookup, request_sha256: admission.request_sha256 } }
+      : attempt),
+  };
+  writeSession(statePath, session);
+  const dispatch = runner('gh', adminOneShotDispatchArgs(admission), {
+    timeoutMs: boundedReleaseTransportTimeoutMs(session, 'admin one-shot desktop release dispatch'),
+  });
+  if (dispatch.status !== 0) {
+    throw new Error(
+      `${formatCommandFailure(dispatch, 'admin one-shot desktop release dispatch')}; ` +
+      'the durable dispatching fence forbids a second submission, so use read-only reconcile.',
+    );
+  }
+  const releaseRun = await discoverAdminOneShotRun(
+    runner, session, mutationPlanned.attemptId, 'desktop-release.yml', controllerWorkflowSha, dispatchedAt,
+  );
+  const acceptedRunId = String(releaseRun.databaseId);
   session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
-    at: accepted.receipt.accepted_at, state: 'dispatching', run_id: acceptedRunId, conclusion: null, failure_taxonomy: 'none',
-    remote_receipt_ref: null, reason: 'isolated broker accepted and durably bound the exact desktop release run',
+    at: now(), state: 'dispatching', run_id: acceptedRunId, conclusion: null, failure_taxonomy: 'none',
+    remote_receipt_ref: null, reason: 'admin one-shot dispatch discovered and bound the exact desktop release run',
   });
   session.metrics = {
     ...session.metrics,
@@ -1765,19 +1925,14 @@ async function dispatchAndWatchRelease(
     url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
     conclusion: null,
   };
-  session = transitionStableReleaseSession(session, 'artifact_build_running', `broker accepted exact desktop release run ${acceptedRunId}`);
-  writeSession(statePath, session);
-  const releaseRun = await awaitAcceptedWorkflowRun(
-    runner, session, acceptedRunId, mutationPlanned.attemptId, 'desktop-release.yml', controllerWorkflowSha,
-    'main', (next) => writeSession(statePath, next),
-  );
+  session = transitionStableReleaseSession(session, 'artifact_build_running', `admin one-shot bound exact desktop release run ${acceptedRunId}`);
   session.release_run = { id: acceptedRunId, url: releaseRun.url, conclusion: null };
   session = appendReleaseMutationAttemptEvent(session, mutationPlanned.attemptId, {
-    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed desktop release run read back',
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact admin one-shot desktop release run read back',
   });
   session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
     at: now(), state: 'running', run_id: acceptedRunId, conclusion: null,
-    failure_taxonomy: 'none', remote_receipt_ref: null, reason: 'exact broker-attributed workflow run read back',
+    failure_taxonomy: 'none', remote_receipt_ref: null, reason: 'exact admin one-shot workflow run read back',
   });
   writeSession(statePath, session);
   if (!watch) return session;
@@ -1856,6 +2011,7 @@ async function dispatchAndWatchPromotion(
   const dispatchedAt = now();
   const planned = planReleaseMutationAttempt(session, {
     mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller',
     controllerWorkflowSha,
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
     mutationPayloadSha256: releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
@@ -1864,18 +2020,34 @@ async function dispatchAndWatchPromotion(
   });
   session = planned.session;
   writeSession(statePath, session);
-  const accepted = executeBrokeredReleaseMutation(
-    session,
-    statePath,
-    planned.attemptId,
-    promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
-    { repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null },
-    externalReleaseMutationBroker,
-  );
-  const acceptedRunId = exactAcceptedRunId(accepted.receipt, {
-    repository: session.repo, operation: 'workflow_dispatch', workflow_ref: 'refs/heads/main', target_run_id: null,
+  const dispatchingAt = now();
+  session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
+    at: dispatchingAt, state: 'dispatching', run_id: null,
+    reason: 'durable admin one-shot promotion fence persisted before the sole GitHub workflow dispatch',
   });
-  session = accepted.session;
+  const admission = buildAdminOneShotAdmission(
+    session, planned.attemptId, promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration), dispatchingAt,
+  );
+  session = {
+    ...session,
+    mutation_attempts: session.mutation_attempts.map((attempt) => attempt.attempt_id === planned.attemptId
+      ? { ...attempt, broker_lookup: { ...attempt.broker_lookup, request_sha256: admission.request_sha256 } }
+      : attempt),
+  };
+  writeSession(statePath, session);
+  const dispatch = runner('gh', adminOneShotDispatchArgs(admission), {
+    timeoutMs: boundedReleaseTransportTimeoutMs(session, 'admin one-shot promotion dispatch'),
+  });
+  if (dispatch.status !== 0) {
+    throw new Error(
+      `${formatCommandFailure(dispatch, 'admin one-shot promotion dispatch')}; ` +
+      'the durable dispatching fence forbids a second submission, so use read-only reconcile.',
+    );
+  }
+  const promotionRun = await discoverAdminOneShotRun(
+    runner, session, planned.attemptId, 'desktop-release-promote.yml', controllerWorkflowSha, dispatchedAt,
+  );
+  const acceptedRunId = String(promotionRun.databaseId);
   session.release_owner_receipt_ref = ownerReceiptRef;
   if (!retrying) {
     session = transitionStableReleaseSession(session, 'owner_approved', 'same-cohort release owner receipt accepted');
@@ -1887,7 +2059,7 @@ async function dispatchAndWatchPromotion(
     attempt: 1,
     rerun_requested_from_attempt: null,
   };
-  session = transitionStableReleaseSession(session, 'promotion_running', `broker accepted exact promotion run ${acceptedRunId}`);
+  session = transitionStableReleaseSession(session, 'promotion_running', `admin one-shot bound exact promotion run ${acceptedRunId}`);
   session.metrics = {
     ...session.metrics,
     promotion_retry_count: session.metrics.promotion_retry_count + (retrying ? 1 : 0),
@@ -1897,10 +2069,6 @@ async function dispatchAndWatchPromotion(
     },
   };
   writeSession(statePath, session);
-  const promotionRun = await awaitAcceptedWorkflowRun(
-    runner, session, acceptedRunId, planned.attemptId, 'desktop-release-promote.yml', controllerWorkflowSha,
-    'main', (next) => writeSession(statePath, next),
-  );
   session.promotion_run = {
     id: acceptedRunId,
     url: promotionRun.url,
@@ -1909,7 +2077,7 @@ async function dispatchAndWatchPromotion(
     rerun_requested_from_attempt: null,
   };
   session = appendReleaseMutationAttemptEvent(session, planned.attemptId, {
-    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact broker-attributed promotion run read back',
+    at: now(), state: 'running', run_id: acceptedRunId, reason: 'exact admin one-shot promotion run read back',
   });
   writeSession(statePath, session);
   if (!watch) return session;
@@ -2975,6 +3143,9 @@ function identifyCancelableRun(session: StableReleaseSession, runId: string): {
     entry.mutation !== 'workflow_cancel' && entry.events.some((event) => event.run_id === runId),
   );
   if (!attempt) throw new Error(`Workflow run ${runId} has no exact durable mutation attempt in this stable release session.`);
+  if (attempt.admission_mode === 'admin_one_shot_controller') {
+    throw new Error('Admin one-shot release attempts cannot be cancelled; use read-only reconcile until terminal.');
+  }
   if (['succeeded', 'failed', 'cancelled'].includes(attempt.events.at(-1)?.state ?? '')) {
     throw new Error(`Workflow run ${runId} belongs to terminal mutation attempt ${attempt.attempt_id} and cannot be cancelled.`);
   }
@@ -3177,8 +3348,33 @@ async function main(): Promise<void> {
             mutationAttemptId: result.displayTitle?.match(/ attempt=(sha256:[0-9a-f]{64})$/)?.[1] ?? '',
             headBranch: result.headBranch,
             event: result.event ?? '',
+            createdAt: result.createdAt,
             url: result.url,
           } : null;
+        },
+        discoverAdminRuns: (attempt) => {
+          const result = run('gh', [
+            'run', 'list', '--repo', current.repo, '--workflow', attempt.workflow,
+            '--event', 'workflow_dispatch', '--branch', 'main', '--limit', '100',
+            '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
+          ], { timeoutMs: boundedReleaseTransportTimeoutMs(current, `reconcile admin one-shot ${attempt.workflow}`) });
+          if (result.status !== 0) failResult(result, `reconcile admin one-shot ${attempt.workflow}`);
+          let runs: WorkflowRun[];
+          try {
+            runs = JSON.parse(result.stdout) as WorkflowRun[];
+          } catch (error) {
+            throw new Error(`admin one-shot reconcile returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          return runs.filter((candidate) =>
+            candidate.displayTitle?.endsWith(` attempt=${attempt.attempt_id}`),
+          ).map((candidate) => ({
+            databaseId: String(candidate.databaseId), status: candidate.status,
+            conclusion: candidate.conclusion || null, runAttempt: candidate.attempt ?? 0,
+            workflow: attempt.workflow, controllerWorkflowSha: candidate.headSha,
+            mutationAttemptId: candidate.displayTitle?.match(/ attempt=(sha256:[0-9a-f]{64})$/)?.[1] ?? '',
+            headBranch: candidate.headBranch, event: candidate.event ?? '',
+            createdAt: candidate.createdAt, url: candidate.url,
+          }));
         },
         readBrokerRecord: (lookup) => externalReleaseMutationBrokerLedgerLookup(lookup),
         readBuildManifest: (artifactKind, sourceRunId) => evidence.readJson<BuildArtifactCohortV2>(

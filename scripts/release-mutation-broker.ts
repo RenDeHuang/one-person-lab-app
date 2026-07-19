@@ -385,10 +385,10 @@ const promotionCheckpoints = [
   'release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated',
 ] as const;
 
-type PromotionCheckpointAuthorization = NonNullable<PreApiFencePayload['promotion_checkpoint_authorization']>;
+export type PromotionCheckpointAuthorization = NonNullable<PreApiFencePayload['promotion_checkpoint_authorization']>;
 
-function buildPromotionCheckpointAuthorization(
-  request: ReleaseMutationBrokerRequestV1,
+export function buildPromotionCheckpointAuthorization(
+  request: Pick<ReleaseMutationBrokerRequestV1, 'mutation' | 'attempt_id' | 'mutation_payload'>,
 ): PromotionCheckpointAuthorization | null {
   if (request.mutation !== 'promotion_dispatch') return null;
   const firstUnverified = request.mutation_payload.resume_from_checkpoint as PromotionCheckpointAuthorization['first_unverified_checkpoint'];

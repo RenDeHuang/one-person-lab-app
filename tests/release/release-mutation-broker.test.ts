@@ -13,6 +13,7 @@ import {
   type ReleaseBrokerAuthorityV1,
 } from '../../scripts/release-broker-authority.ts';
 import {
+  buildPromotionCheckpointAuthorization,
   buildReleaseMutationAcceptanceReceipt,
   buildReleaseMutationBrokerLedgerFound,
   buildReleaseMutationBrokerLedgerLookup,
@@ -47,6 +48,33 @@ const publicKeyPem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toSt
 const digest = (value: string) => `sha256:${value.repeat(64)}`;
 const sha = (value: string) => value.repeat(40);
 const bytesSha = (value: string | Buffer) => `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
+
+test('promotion checkpoint authorization is present for the first checkpoint and exact for sequential resume', () => {
+  const first = buildPromotionCheckpointAuthorization({
+    mutation: 'promotion_dispatch', attempt_id: digest('1'),
+    mutation_payload: { resume_from_checkpoint: 'release_public_nonlatest' },
+  });
+  assert.equal(first?.last_verified_checkpoint, null);
+  assert.equal(first?.first_unverified_checkpoint, 'release_public_nonlatest');
+  assert.deepEqual(first?.receipt_digests, []);
+  assert.match(first?.bundle_sha256 ?? '', /^sha256:[0-9a-f]{64}$/);
+
+  const receipt = { checkpoint: 'release_public_nonlatest', receipt_sha256: digest('2') };
+  const sequential = buildPromotionCheckpointAuthorization({
+    mutation: 'promotion_dispatch', attempt_id: digest('3'),
+    mutation_payload: {
+      resume_from_checkpoint: 'distribution_synced',
+      promotion_checkpoint_receipts_json: JSON.stringify([receipt]),
+    },
+  });
+  assert.equal(sequential?.last_verified_checkpoint, 'release_public_nonlatest');
+  assert.equal(sequential?.first_unverified_checkpoint, 'distribution_synced');
+  assert.deepEqual(sequential?.receipt_digests, [receipt]);
+  assert.throws(() => buildPromotionCheckpointAuthorization({
+    mutation: 'promotion_dispatch', attempt_id: digest('4'),
+    mutation_payload: { resume_from_checkpoint: 'homebrew_verified', promotion_checkpoint_receipts_json: '[]' },
+  }), /does not cover every checkpoint before resume/);
+});
 
 const canonicalAuthority = readReleaseBrokerAuthority();
 const authority: ReleaseBrokerAuthorityV1 = {

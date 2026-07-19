@@ -107,6 +107,7 @@ export type QualificationAttempt = {
 
 export type ReleaseMutationAttempt = {
   attempt_id: string;
+  admission_mode: 'isolated_broker' | 'admin_one_shot_controller';
   mutation: ReleaseMutation;
   workflow: ReleaseSessionLeaseV2['workflow'];
   artifact_kind: ReleaseSessionLeaseV2['artifact_kind'];
@@ -489,6 +490,9 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
   for (const attempt of session.mutation_attempts) {
     if (mutationAttemptIds.has(attempt.attempt_id)) errors.push(`duplicate mutation attempt ${attempt.attempt_id}`);
     mutationAttemptIds.add(attempt.attempt_id);
+    if (!['isolated_broker', 'admin_one_shot_controller'].includes(attempt.admission_mode)) {
+      errors.push(`mutation attempt ${attempt.attempt_id} admission mode is invalid`);
+    }
     if (attempt.events.length === 0) errors.push(`mutation attempt ${attempt.attempt_id} has no event history`);
     if (attempt.broker_lookup.request_sha256 !== null && !/^sha256:[0-9a-f]{64}$/.test(attempt.broker_lookup.request_sha256)) {
       errors.push(`mutation attempt ${attempt.attempt_id} broker request digest is invalid`);
@@ -857,6 +861,7 @@ export function readStableReleaseSession(statePath: string): StableReleaseSessio
       },
       mutation_attempts: (raw.mutation_attempts ?? []).map((attempt) => ({
         ...attempt,
+        admission_mode: attempt.admission_mode ?? 'isolated_broker',
         mutation_payload: attempt.mutation_payload ?? null,
         broker_lookup: {
           ...(attempt.broker_lookup ?? {}),
@@ -1289,6 +1294,7 @@ export function planReleaseMutationAttempt(
     artifactAppSha: string;
     mutationPayloadSha256: string;
     mutationPayload?: ReleaseMutationPayload;
+    admissionMode?: ReleaseMutationAttempt['admission_mode'];
     priorRunIds?: string[];
     targetAttemptId?: string;
     targetRunId?: string;
@@ -1315,6 +1321,7 @@ export function planReleaseMutationAttempt(
       attempt.controller_workflow_sha === input.controllerWorkflowSha &&
       attempt.artifact_app_sha === input.artifactAppSha &&
       attempt.mutation_payload_sha256 === input.mutationPayloadSha256 &&
+      attempt.admission_mode === (input.admissionMode ?? 'isolated_broker') &&
       JSON.stringify(attempt.mutation_payload) === JSON.stringify(input.mutationPayload ?? {}) &&
       attempt.dispatch_fence.target_attempt_id === (input.targetAttemptId ?? null) &&
       attempt.dispatch_fence.target_run_id === (input.targetRunId ?? null)
@@ -1342,6 +1349,7 @@ export function planReleaseMutationAttempt(
   const attemptId = `sha256:${crypto.createHash('sha256').update(JSON.stringify({
     session: session.id, mutation: input.mutation, workflow: input.workflow,
     artifact_kind: input.artifactKind,
+    admission_mode: input.admissionMode ?? 'isolated_broker',
     controller_workflow_sha: input.controllerWorkflowSha,
     artifact_app_sha: input.artifactAppSha,
     mutation_payload_sha256: input.mutationPayloadSha256,
@@ -1351,6 +1359,7 @@ export function planReleaseMutationAttempt(
   })).digest('hex')}`;
   const attempt: ReleaseMutationAttempt = {
     attempt_id: attemptId,
+    admission_mode: input.admissionMode ?? 'isolated_broker',
     mutation: input.mutation,
     workflow: input.workflow,
     artifact_kind: input.artifactKind,

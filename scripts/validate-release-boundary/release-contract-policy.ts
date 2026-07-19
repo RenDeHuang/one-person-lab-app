@@ -562,20 +562,51 @@ function validateWebuiPackagePolicy(releaseContract: Record<string, any>): numbe
 }
 
 export type ReleaseBrokerAuthorityReadiness = {
-  status: 'ready' | 'blocked';
-  blockers: string[];
+  current_release_admission_readiness: {
+    status: 'ready' | 'blocked';
+    mode: 'admin_one_shot_controller';
+    blockers: string[];
+  };
+  isolated_broker_hardening: {
+    status: 'ready' | 'blocked';
+    disposition: 'post_release_hardening';
+    blockers: string[];
+  };
 };
 
 export function evaluateReleaseBrokerAuthorityReadiness(
   authority: unknown,
 ): ReleaseBrokerAuthorityReadiness {
-  const blockers = validateReleaseBrokerAuthority(authority, {
+  const structuralBlockers = validateReleaseBrokerAuthority(authority, { capability: 'contract_read' });
+  const candidate = authority as Record<string, any> | null;
+  const admission = candidate?.current_release_admission;
+  const admissionBlockers = [...structuralBlockers];
+  if (
+    admission?.mode !== 'admin_one_shot_controller' ||
+    admission?.requires_canonical_main !== true ||
+    admission?.requires_durable_planned_and_dispatching !== true ||
+    admission?.requires_exact_payload_digest !== true ||
+    admission?.requires_run_attempt_one !== true ||
+    admission?.redispatch_after_unknown_outcome !== false ||
+    admission?.rerun_allowed !== false ||
+    admission?.cancel_allowed !== false ||
+    admission?.isolated_broker_is_current_release_prerequisite !== false
+  ) admissionBlockers.push('current admin one-shot admission contract is incomplete');
+  const hardeningBlockers = validateReleaseBrokerAuthority(authority, {
     capability: 'mutation_submit',
     requireCredentialReceipt: false,
   });
   return {
-    status: blockers.length === 0 ? 'ready' : 'blocked',
-    blockers,
+    current_release_admission_readiness: {
+      status: admissionBlockers.length === 0 ? 'ready' : 'blocked',
+      mode: 'admin_one_shot_controller',
+      blockers: admissionBlockers,
+    },
+    isolated_broker_hardening: {
+      status: hardeningBlockers.length === 0 ? 'ready' : 'blocked',
+      disposition: 'post_release_hardening',
+      blockers: hardeningBlockers,
+    },
   };
 }
 
@@ -604,7 +635,6 @@ export function validateReleaseAccelerationPolicy(
   const fullAddonDeadlinePolicy = stableReleaseStateMachine?.full_addon_deadline_policy;
   const coordinationBoundary = stableReleaseStateMachine?.coordination_boundary;
   const brokerAuthorityGate = readinessAdmission?.broker_authority_gate;
-  const brokerAuthorityReadiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);
 
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
@@ -1150,20 +1180,23 @@ export function validateReleaseAccelerationPolicy(
   if (
     brokerAuthorityGate?.authority_contract !== 'contracts/app-release-broker-authority.json' ||
     brokerAuthorityGate?.validator !== 'scripts/release-broker-authority.ts#validateReleaseBrokerAuthority' ||
-    brokerAuthorityGate?.validator_capability !== 'mutation_submit' ||
-    brokerAuthorityGate?.required_before_positive_readiness !== true ||
-    brokerAuthorityGate?.required_status !== 'provisioned' ||
-    brokerAuthorityGate?.fresh_credential_isolation_receipt_required !== true ||
-    brokerAuthorityGate?.readiness_summary_field !== 'broker_authority_readiness' ||
-    brokerAuthorityGate?.unprovisioned_or_invalid_result !== 'typed_terminal_blocker' ||
-    brokerAuthorityGate?.unprovisioned_status_is_release_ready !== false ||
+    brokerAuthorityGate?.current_admission_mode !== 'admin_one_shot_controller' ||
+    brokerAuthorityGate?.validator_capability !== 'contract_read' ||
+    brokerAuthorityGate?.required_before_positive_readiness !== false ||
+    brokerAuthorityGate?.required_status !== 'structurally_valid' ||
+    brokerAuthorityGate?.fresh_credential_isolation_receipt_required !== false ||
+    brokerAuthorityGate?.unprovisioned_or_invalid_result !== 'post_release_hardening_debt' ||
+    brokerAuthorityGate?.current_release_admission_readiness_field !== 'current_release_admission_readiness' ||
+    brokerAuthorityGate?.isolated_broker_hardening_readiness_field !== 'isolated_broker_hardening' ||
     typeof brokerAuthorityGate?.rule !== 'string' ||
-    !brokerAuthorityGate.rule.includes('status=unprovisioned_release_blocking') ||
-    !brokerAuthorityGate.rule.includes('typed release blocker') ||
-    ((brokerAuthority as Record<string, any>)?.status === 'unprovisioned_release_blocking' &&
-      brokerAuthorityReadiness.status !== 'blocked')
+    !brokerAuthorityGate.rule.includes('administrator one-shot controller') ||
+    !brokerAuthorityGate.rule.includes('post-release hardening') ||
+    (brokerAuthority as Record<string, any>)?.current_release_admission?.mode !== 'admin_one_shot_controller' ||
+    (brokerAuthority as Record<string, any>)?.current_release_admission?.isolated_broker_is_current_release_prerequisite !== false ||
+    (brokerAuthority as Record<string, any>)?.current_release_admission?.rerun_allowed !== false ||
+    (brokerAuthority as Record<string, any>)?.current_release_admission?.cancel_allowed !== false
   ) {
-    console.error('FAIL release_broker_authority_readiness: unprovisioned or invalid broker authority must be a typed release-readiness blocker');
+    console.error('FAIL release_broker_authority_readiness: current admin one-shot admission must remain separate from post-release broker hardening');
     failures += 1;
   }
   if (

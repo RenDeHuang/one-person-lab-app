@@ -1162,7 +1162,14 @@ npm run release:operator -- diagnose-vm --version <version> --release-artifact-n
 ```
 
 The first `release:stable start` command is a pure dry-run plan; only the second
-form may submit the persisted request to the isolated broker. `release:operator`
+form may submit the persisted request. The current Stable path is a single
+administrator one-shot controller: it durably records `planned` and
+`dispatching`, binds canonical `main` and the frozen App/Shell/Framework tuple,
+then submits exactly once. A failed or unknown API result must use read-only
+`reconcile`; it must never be re-dispatched, rerun, or cancelled. The isolated
+GitHub App broker, signing service, and global ledger remain reusable
+post-release hardening, but their unprovisioned state is not a prerequisite for
+this release path. `release:operator`
 is a read-only planning/status surface over existing scripts, workflows, and
 artifacts. It may emit typed diagnostic next actions such as
 `rerun_diagnostic_same_artifact`, `repair_source_gate`,

@@ -8,7 +8,9 @@ import test from 'node:test';
 import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import { buildQualificationHarnessScopeProof } from '../../scripts/qualification-harness-scope.ts';
 import {
+  adminOneShotDispatchArgs,
   applyPromotionCheckpointReadback,
+  buildAdminOneShotAdmission,
   buildStableReleaseSession,
   classifyWorkflowRunObservation,
   completeLocalActivation,
@@ -31,6 +33,7 @@ import {
   applyAddonDebtDisposition,
   type StableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
+import { verifyAdminOneShotAdmission } from '../../scripts/verify-release-broker-acceptance.ts';
 import {
   appendStableReleaseEfficiencyAdvisory,
   appendReleaseMutationAttemptEvent,
@@ -266,6 +269,58 @@ function plan(generatedAt = liveAdmissionAt): ReleaseCohortPlan {
     },
   };
 }
+
+test('admin one-shot dispatch passes the exact required digest and verifier rejects embedded payload tampering', () => {
+  let session = buildStableReleaseSession(plan('2026-07-18T00:00:00.000Z'), undefined, '2026-07-18T00:00:00.000Z');
+  const payload = desktopReleaseMutationPayload(session);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    at: '2026-07-18T00:01:00.000Z', reason: 'admin admission test',
+  });
+  session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: '2026-07-18T00:01:01.000Z', state: 'dispatching', run_id: null, reason: 'durable admin fence',
+  });
+  const admission = buildAdminOneShotAdmission(session, planned.attemptId, payload, '2026-07-18T00:01:01.000Z');
+  const args = adminOneShotDispatchArgs(admission);
+  assert.ok(args.includes(`release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`));
+  assert.equal(args.filter((value) => value.startsWith('release_mutation_payload_sha256=')).length, 1);
+  const expected = {
+    repository: session.repo, runId: '301', runAttempt: 1, workflow: 'desktop-release.yml',
+    workflowSha: appSha, payloadSha256: admission.request.mutation_payload_sha256, attemptId: planned.attemptId,
+  };
+  const verified = verifyAdminOneShotAdmission({
+    authority: canonicalBrokerAuthority, admission, expected,
+    operatorActor: 'gaofeng21cn', githubActor: 'gaofeng21cn', verifiedAt: '2026-07-18T00:01:02.000Z',
+  });
+  assert.equal(verified.mode, 'admin-one-shot');
+  const tampered = structuredClone(admission);
+  tampered.request.mutation_payload.shell_ref = 'f'.repeat(40);
+  assert.throws(() => verifyAdminOneShotAdmission({
+    authority: canonicalBrokerAuthority, admission: tampered, expected,
+    operatorActor: 'gaofeng21cn', githubActor: 'gaofeng21cn', verifiedAt: '2026-07-18T00:01:02.000Z',
+  }), /embedded mutation payload digest/);
+});
+
+test('admin one-shot attempts reject the CLI cancel path', () => {
+  let session = buildStableReleaseSession(plan(), undefined, liveAdmissionAt);
+  const payload = desktopReleaseMutationPayload(session);
+  const planned = planReleaseMutationAttempt(session, {
+    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    reason: 'admin cancel rejection',
+  });
+  session = appendReleaseMutationAttemptEvent(planned.session, planned.attemptId, {
+    at: new Date().toISOString(), state: 'running', run_id: '301', reason: 'exact admin run',
+  });
+  assert.throws(() => dispatchEmergencyCancel(
+    session, '/tmp/admin-cancel-must-not-write.json', '301', 'must reject', () => {
+      throw new Error('runner must not be called');
+    },
+  ), /Admin one-shot release attempts cannot be cancelled/);
+});
 
 function sessionWithActiveReleaseRun(
   runId: string,

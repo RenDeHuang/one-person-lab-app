@@ -21,15 +21,16 @@ const jobBlock = (source: string, jobName: string) => {
 
 test('release workflows resolve broker admission once and reuse immutable historical validation', () => {
   const expectations = new Map([
-    ['desktop-release.yml', { lookup: 1, historical: 6 }],
-    ['desktop-release-promote.yml', { lookup: 1, historical: 2 }],
-    ['desktop-release-full-addon.yml', { lookup: 1, historical: 3 }],
-    ['opl-first-run-vm.yml', { lookup: 1, historical: 1 }],
+    ['desktop-release.yml', { lookup: 0, dynamic: 1, historical: 6 }],
+    ['desktop-release-promote.yml', { lookup: 0, dynamic: 1, historical: 2 }],
+    ['desktop-release-full-addon.yml', { lookup: 1, dynamic: 0, historical: 3 }],
+    ['opl-first-run-vm.yml', { lookup: 1, dynamic: 0, historical: 1 }],
   ]);
 
   for (const [name, expected] of expectations) {
     const source = readWorkflow(name);
     assert.equal(count(source, /--mode lookup/g), expected.lookup, `${name} lookup count`);
+    assert.equal(count(source, /--mode "\$verifier_mode"/g), expected.dynamic, `${name} dynamic admission count`);
     assert.equal(count(source, /--mode historical/g), expected.historical, `${name} historical count`);
     assert.match(source, /opl-release-broker-admission-\$\{\{ github\.run_id \}\}/);
     assert.doesNotMatch(source, /verify-release-session-lease|verify-release-mutation-payload|release_mutation_payload_base64/);
@@ -54,7 +55,7 @@ test('only broker lookup and attestation jobs receive GitHub OIDC permission', (
     const source = readWorkflow(name);
     const block = jobBlock(source, lookupJob);
     assert.match(block, /permissions:\n      contents: read\n      actions: read\n      id-token: write/);
-    assert.match(block, /--mode lookup/);
+    assert.match(block, /--mode (?:lookup|"\$verifier_mode")/);
     assert.equal(count(source, /id-token: write/g), expectedOidcCounts.get(name), `${name} OIDC permission count`);
   }
 });
@@ -80,7 +81,7 @@ test('OIDC lookup-only classification is strict and rejects hidden mutation auth
   assert.equal(isBrokerLookupOidcOnlyJob(extraWrite), false);
 
   const missingIdentityBinding = clone();
-  const lookupStep = missingIdentityBinding.steps.find((step) => String(step.run ?? '').includes('--mode lookup'));
+  const lookupStep = missingIdentityBinding.steps.find((step) => String(step.run ?? '').includes('verify-release-broker-acceptance.ts'));
   lookupStep.run = lookupStep.run.replace('--expected-workflow-sha "$GITHUB_SHA"', '');
   assert.equal(isBrokerLookupOidcOnlyJob(missingIdentityBinding), false);
 

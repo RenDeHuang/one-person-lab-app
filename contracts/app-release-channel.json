@@ -2385,14 +2385,15 @@
         "broker_authority_gate": {
           "authority_contract": "contracts/app-release-broker-authority.json",
           "validator": "scripts/release-broker-authority.ts#validateReleaseBrokerAuthority",
-          "validator_capability": "mutation_submit",
-          "required_before_positive_readiness": true,
-          "required_status": "provisioned",
-          "fresh_credential_isolation_receipt_required": true,
-          "readiness_summary_field": "broker_authority_readiness",
-          "unprovisioned_or_invalid_result": "typed_terminal_blocker",
-          "unprovisioned_status_is_release_ready": false,
-          "rule": "Release readiness must consume the canonical broker authority and fail closed unless mutation_submit validation proves provisioned authority plus a fresh credential-isolation receipt. status=unprovisioned_release_blocking is a typed release blocker, never a warning or skippable diagnostic."
+          "current_admission_mode": "admin_one_shot_controller",
+          "validator_capability": "contract_read",
+          "required_before_positive_readiness": false,
+          "required_status": "structurally_valid",
+          "fresh_credential_isolation_receipt_required": false,
+          "current_release_admission_readiness_field": "current_release_admission_readiness",
+          "isolated_broker_hardening_readiness_field": "isolated_broker_hardening",
+          "unprovisioned_or_invalid_result": "post_release_hardening_debt",
+          "rule": "The current Stable critical path uses the canonical administrator one-shot controller with durable planned/dispatching state, exact payload and cohort binding, run_attempt=1, no rerun, no cancel, and read-only reconcile after an unknown outcome. The unprovisioned isolated broker remains tracked post-release hardening and does not block this admission mode."
         },
         "same_cohort_addon_status_policy": "success_or_skipped_or_failed_when_not_required",
         "addon_status_artifact": "release-addon-readiness-summary-<version>",

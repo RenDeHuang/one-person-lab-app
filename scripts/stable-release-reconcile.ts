@@ -43,6 +43,7 @@ type RemoteRun = {
   identityErrors?: string[];
   headBranch: string;
   event: string;
+  createdAt?: string;
   url?: string | null;
 };
 type EvidenceFile<T> = { value: T; ref: string; sha256: string };
@@ -51,6 +52,7 @@ class StandardReconcileDeadlineBlocked extends Error {}
 
 export type QualificationReconcileProvider = {
   readRun(runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null;
+  discoverAdminRuns?(attempt: ReleaseMutationAttempt): RemoteRun[];
   readBrokerRecord(lookup: ReleaseMutationBrokerLedgerLookupV1): ReleaseMutationBrokerLedgerLookupResultV1 | unknown;
   readBuildManifest?(artifactKind: ArtifactKind, sourceRunId: string): EvidenceFile<BuildArtifactCohortV2> | null;
   readStrictQualificationReceipt?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<ArtifactQualificationReceiptV1> | null;
@@ -500,6 +502,7 @@ export function reconcileStableReleaseSession(
     acceptance: ReleaseMutationAcceptanceReceiptV1;
     record: ReleaseMutationBrokerLedgerRecordV1;
   }>();
+  const adminMutationRuns = new Map<string, string>();
   const runObservations = new Map<string, RemoteRun | null>();
   const readRunOnce = (runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null => {
     if (!runObservations.has(runId)) {
@@ -543,6 +546,104 @@ export function reconcileStableReleaseSession(
     if (attempt.artifact_kind === 'full' && fullAbsorbing()) continue;
     let latest = attempt.events.at(-1)!;
     const locallyTerminal = terminalMutationState(latest.state);
+    if (attempt.admission_mode === 'admin_one_shot_controller') {
+      if (
+        !['desktop_release_dispatch', 'promotion_dispatch'].includes(attempt.mutation) ||
+        !['desktop-release.yml', 'desktop-release-promote.yml'].includes(attempt.workflow)
+      ) {
+        reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+          at, state: 'ambiguous', run_id: null,
+          reason: 'admin one-shot attempt is outside the exact Standard release/promotion allowlist',
+        });
+        continue;
+      }
+      if (!provider.discoverAdminRuns) {
+        if (!locallyTerminal && latest.state !== 'acceptance_pending_visibility') {
+          reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+            at, state: 'acceptance_pending_visibility', run_id: null,
+            reason: 'admin one-shot run discovery is unavailable; reconcile only and never redispatch',
+          });
+        }
+        continue;
+      }
+      let candidates: RemoteRun[];
+      try {
+        candidates = provider.discoverAdminRuns(attempt);
+      } catch (error) {
+        const reason = `admin one-shot discovery unavailable: ${error instanceof Error ? error.message : String(error)}; ` +
+          'reconcile only and never redispatch';
+        if (!locallyTerminal && (latest.state !== 'acceptance_pending_visibility' || latest.reason !== reason || latest.run_id !== null)) {
+          reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+            at, state: 'acceptance_pending_visibility', run_id: null, reason,
+          });
+        }
+        continue;
+      } finally {
+        observe(`admin_run_discovery:${attempt.workflow}`, latest.run_id);
+      }
+      if (candidates.length === 0) {
+        if (locallyTerminal) throw new Error(`Terminal admin one-shot attempt ${attempt.attempt_id} has no exact GitHub run.`);
+        if (latest.state !== 'acceptance_pending_visibility' || latest.run_id !== null) {
+          reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+            at, state: 'acceptance_pending_visibility', run_id: null,
+            reason: 'admin one-shot dispatch is not yet visible; reconcile only and never redispatch',
+          });
+        }
+        continue;
+      }
+      if (candidates.length !== 1) {
+        if (locallyTerminal) throw new Error(`Terminal admin one-shot attempt ${attempt.attempt_id} is ambiguous.`);
+        reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+          at, state: 'ambiguous', run_id: null,
+          reason: `admin one-shot attempt matched ${candidates.length} GitHub runs; never redispatch`,
+        });
+        continue;
+      }
+      const remote = candidates[0]!;
+      const runId = remote.databaseId;
+      const createdAtMs = Date.parse(String(remote.createdAt));
+      const identityErrors = remoteIdentityErrors(runId, attempt, remote);
+      if (!Number.isFinite(createdAtMs) || createdAtMs < Date.parse(attempt.dispatch_fence.earliest_created_at)) {
+        identityErrors.push('workflow creation time predates the durable dispatch fence');
+      }
+      if (attempt.dispatch_fence.prior_run_ids.includes(runId)) identityErrors.push('workflow run predates this admin attempt');
+      if (identityErrors.length > 0) {
+        if (locallyTerminal) {
+          throw new Error(`Terminal admin one-shot attempt ${attempt.attempt_id} failed exact identity: ${identityErrors.join('; ')}`);
+        }
+        reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+          at, state: 'ambiguous', run_id: null,
+          reason: `admin one-shot GitHub identity failed closed: ${identityErrors.join('; ')}`,
+        });
+        continue;
+      }
+      adminMutationRuns.set(attempt.attempt_id, runId);
+      reconciled = bindRunProjection(reconciled, attempt, { ...remote, id: runId });
+      if (remote.status !== 'completed') {
+        if (locallyTerminal) throw new Error(`Terminal admin one-shot attempt ${attempt.attempt_id} has nonterminal GitHub readback.`);
+        if (latest.state !== 'running' || latest.run_id !== runId) {
+          reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+            at, state: 'running', run_id: runId,
+            reason: `exact admin one-shot workflow remains ${remote.status}`,
+          });
+        }
+        continue;
+      }
+      const terminalState = remote.conclusion === 'success'
+        ? 'succeeded'
+        : remote.conclusion === 'cancelled' ? 'cancelled' : 'failed';
+      if (locallyTerminal) {
+        if (latest.state !== terminalState || latest.run_id !== runId) {
+          throw new Error(`Terminal admin one-shot attempt ${attempt.attempt_id} conflicts with exact GitHub terminal truth.`);
+        }
+      } else {
+        reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
+          at, state: terminalState, run_id: runId,
+          reason: `exact admin one-shot workflow concluded ${remote.conclusion ?? 'failure'}`,
+        });
+      }
+      continue;
+    }
     const recovered = recoverBrokerAcceptance(
       reconciled,
       attempt,
@@ -730,9 +831,10 @@ export function reconcileStableReleaseSession(
         ? reconciled.mutation_attempts.find((entry) => entry.attempt_id === attempt.mutation_attempt_id)
         : null;
       const durableMutation = mutation ? durableMutations.get(mutation.attempt_id) ?? null : null;
+      const adminRunId = mutation ? adminMutationRuns.get(mutation.attempt_id) ?? null : null;
       const mutationAcceptance = durableMutation?.acceptance ?? null;
       const mutationLatest = mutation?.events.at(-1);
-      const acceptedRunId = mutationAcceptance?.github.run_id ?? null;
+      const acceptedRunId = mutationAcceptance?.github.run_id ?? adminRunId;
       const projectedRunIds = [latest.run_id, mutationLatest?.run_id].filter((value): value is string => Boolean(value));
       if (acceptedRunId && projectedRunIds.some((value) => value !== acceptedRunId)) {
         if (locallyTerminal) {
@@ -746,7 +848,7 @@ export function reconcileStableReleaseSession(
         });
         continue;
       }
-      if (!mutation || !durableMutation) {
+      if (!mutation || (!durableMutation && !adminRunId)) {
         if (locallyTerminal) {
           throw new Error(
             `Terminal ${artifactKind} qualification ${attempt.attempt_id} lacks a broker record validated in this reconcile pass.`,
@@ -848,7 +950,7 @@ export function reconcileStableReleaseSession(
         ? readEvidence(`evidence:${artifactKind}:smoke_summary`, runId, () => provider.readSmokeSummary!(artifactKind, runId))
         : null;
       const evidenceErrors: string[] = [];
-      if (!mutationAcceptance) evidenceErrors.push('qualification run has no validated broker acceptance');
+      if (!mutationAcceptance && !adminRunId) evidenceErrors.push('qualification run has no validated admission');
       if (remote.runAttempt !== 1) evidenceErrors.push('qualification workflow run attempt is not 1');
       if (!manifestFile) evidenceErrors.push('build cohort manifest is missing');
       if (!strictFile) evidenceErrors.push('strict qualification receipt is missing');
