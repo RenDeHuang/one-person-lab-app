@@ -284,8 +284,12 @@ test('admin one-shot dispatch passes the exact required digest and verifier reje
   });
   const admission = buildAdminOneShotAdmission(session, planned.attemptId, payload, '2026-07-18T00:01:01.000Z');
   const args = adminOneShotDispatchArgs(admission);
+  assert.equal(args.some((value) => value.startsWith('release_mutation_payload_base64=')), false);
   assert.ok(args.includes(`release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`));
   assert.equal(args.filter((value) => value.startsWith('release_mutation_payload_sha256=')).length, 1);
+  for (const [key, value] of Object.entries(payload)) {
+    assert.equal(args.filter((arg) => arg === `${key}=${value}`).length, 1, `${key} must be passed exactly once`);
+  }
   const expected = {
     repository: session.repo, runId: '301', runAttempt: 1, workflow: 'desktop-release.yml',
     workflowSha: appSha, payloadSha256: admission.request.mutation_payload_sha256, attemptId: planned.attemptId,

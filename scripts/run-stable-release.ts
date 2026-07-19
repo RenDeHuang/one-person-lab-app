@@ -59,7 +59,6 @@ import {
 import { validateFullAddonReceipt, type FullAddonReceiptV1 } from './full-addon-receipt.ts';
 import { validateAddonDebtReceipt } from './addon-debt-receipt.ts';
 import {
-  encodeReleaseMutationPayload,
   releaseMutationPayloadSha256,
   type ReleaseMutationPayload,
 } from './release-mutation-payload.ts';
@@ -283,10 +282,7 @@ function workflowRef(plan: ReleaseCohortPlan): string {
 }
 
 function mutationPayloadArgs(payload: ReleaseMutationPayload): string[] {
-  return [
-    '--field', `release_mutation_payload_base64=${encodeReleaseMutationPayload(payload)}`,
-    ...Object.entries(payload).flatMap(([key, value]) => ['--field', `${key}=${value}`]),
-  ];
+  return Object.entries(payload).flatMap(([key, value]) => ['--field', `${key}=${value}`]);
 }
 
 function assertLeasePayload(lease: ReleaseSessionLeaseV2, payload: ReleaseMutationPayload): void {
