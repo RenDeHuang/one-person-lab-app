@@ -1568,12 +1568,18 @@ test('expired promotion successor requires the exact pre-deadline failed zero-ch
   const ownerReceipt = 'release_owner_receipt_ref://test/exact-owner';
   const generation = '26.7.12-r1';
   let session = buildStableReleaseSession(plan(startedAt), undefined, startedAt);
-  session.phase = 'promotion_failed';
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed', '2026-07-18T00:01:00.000Z');
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched', '2026-07-18T00:02:00.000Z');
+  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified', '2026-07-18T01:00:00.000Z');
+  session = transitionStableReleaseSession(session, 'owner_approved', 'approved', '2026-07-18T01:01:00.000Z');
+  session = transitionStableReleaseSession(session, 'promotion_running', 'promotion', '2026-07-18T01:10:00.000Z');
+  session = transitionStableReleaseSession(session, 'promotion_failed', 'prepare failed', '2026-07-18T01:19:00.000Z');
   session.release_run.id = '29211495991';
-  session.artifact_tracks.standard.qualification_run = {
+  session.qualification_run = {
     ...session.artifact_tracks.standard.qualification_run,
     id: '29211496001', conclusion: 'success', artifact_sha256: 'e'.repeat(64),
   };
+  session.artifact_tracks.standard.qualification_run = structuredClone(session.qualification_run);
   session.release_owner_receipt_ref = ownerReceipt;
   session.promotion_progress = {
     release_set_generation: generation,
@@ -1615,6 +1621,35 @@ test('expired promotion successor requires the exact pre-deadline failed zero-ch
   assert.equal(predecessor?.persisted_at, '2026-07-18T01:20:01.000Z');
   const args = adminOneShotDispatchArgs(predecessor!, predecessor!);
   assert.equal(args.filter((arg) => arg.startsWith('historical_predecessor_admission_receipt_base64=')).length, 1);
+
+  const successorPlan = planReleaseMutationAttempt(session, {
+    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'f'.repeat(40), artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
+    priorRunIds: ['301'], at: '2026-07-18T01:31:00.000Z', reason: 'historical successor',
+  });
+  const successor = successorPlan.session;
+  assert.equal(
+    validateStableReleaseSessionInvariants(successor).includes(
+      'in-progress Standard session cannot remain open at or after its immutable deadline',
+    ),
+    false,
+  );
+  const tampered = structuredClone(successor);
+  tampered.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids = [];
+  assert.match(validateStableReleaseSessionInvariants(tampered).join('; '), /cannot remain open/);
+  const ordinaryExpired = structuredClone(session);
+  ordinaryExpired.updated_at = '2026-07-18T01:31:00.000Z';
+  assert.match(validateStableReleaseSessionInvariants(ordinaryExpired).join('; '), /cannot remain open/);
+  const dispatchingSuccessor = appendReleaseMutationAttemptEvent(successor, successorPlan.attemptId, {
+    at: '2026-07-18T01:31:01.000Z', state: 'dispatching', run_id: null, reason: 'durable historical successor',
+  });
+  assert.equal(
+    transitionStableReleaseSession(
+      dispatchingSuccessor, 'promotion_running', 'historical successor bound', '2026-07-18T01:31:02.000Z',
+    ).phase,
+    'promotion_running',
+  );
 
   session.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
   assert.throws(

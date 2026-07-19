@@ -2107,6 +2107,7 @@ async function dispatchAndWatchPromotion(
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
     mutationPayloadSha256: releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
     mutationPayload: promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
+    priorRunIds: historicalPredecessor ? [session.promotion_run.id!] : undefined,
     at: dispatchedAt, reason: 'persist promotion mutation before external dispatch',
   });
   session = planned.session;

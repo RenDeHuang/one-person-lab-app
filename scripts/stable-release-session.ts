@@ -297,6 +297,35 @@ export function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
   })).digest('hex')}`;
 }
 
+function hasExactHistoricalPromotionRecovery(session: StableReleaseSession, deadlineAt: number): boolean {
+  const current = session.mutation_attempts.at(-1);
+  if (
+    !current || current.mutation !== 'promotion_dispatch' || current.workflow !== 'desktop-release-promote.yml' ||
+    current.artifact_kind !== 'promotion' || current.admission_mode !== 'admin_one_shot_controller' ||
+    Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length !== 1 ||
+    !['promotion_failed', 'promotion_running', 'release_published_not_latest', 'distribution_synced',
+      'homebrew_verified', 'latest_activated', 'awaiting_local_activation'].includes(session.phase)
+  ) return false;
+  const predecessorRunId = current.dispatch_fence.prior_run_ids[0];
+  const predecessor = session.mutation_attempts.slice(0, -1).reverse().find((attempt) =>
+    attempt.mutation === 'promotion_dispatch' && attempt.events.at(-1)?.run_id === predecessorRunId
+  );
+  const dispatching = predecessor?.events.filter((event) => event.state === 'dispatching') ?? [];
+  const terminal = predecessor?.events.at(-1);
+  const payload = current.mutation_payload as Record<string, unknown> | null;
+  return Boolean(
+    predecessor && predecessor.admission_mode === 'admin_one_shot_controller' && dispatching.length === 1 &&
+    Date.parse(dispatching[0].at) < deadlineAt && terminal?.state === 'failed' && terminal.run_id === predecessorRunId &&
+    Date.parse(terminal.at) < Date.parse(current.created_at) &&
+    predecessor.mutation_payload_sha256 === current.mutation_payload_sha256 &&
+    JSON.stringify(predecessor.mutation_payload) === JSON.stringify(current.mutation_payload) &&
+    predecessor.artifact_app_sha === current.artifact_app_sha &&
+    payload?.stable_session_id === session.id && payload?.release_cohort_ref === session.cohort_plan.operator_plan_ref &&
+    payload?.release_owner_receipt_ref === session.release_owner_receipt_ref &&
+    payload?.release_set_generation === session.promotion_progress.release_set_generation,
+  );
+}
+
 export function validateStableReleaseSessionInvariants(session: StableReleaseSession): string[] {
   const errors: string[] = [];
   const terminalPhase = session.phase === 'standard_stable_terminal' || session.phase === 'addon_train_terminal';
@@ -322,7 +351,10 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
     errors.push('Standard admission deadline must be exactly 90 minutes after the immutable session start');
   }
   if (session.version !== session.cohort_plan.version) errors.push('session version does not match the frozen cohort');
-  if (session.terminal_truth.standard_status === 'in_progress' && updatedAt >= deadlineAt) {
+  if (
+    session.terminal_truth.standard_status === 'in_progress' && updatedAt >= deadlineAt &&
+    !hasExactHistoricalPromotionRecovery(session, deadlineAt)
+  ) {
     errors.push('in-progress Standard session cannot remain open at or after its immutable deadline');
   }
   if (terminalPhase !== (session.terminal_truth.standard_status === 'terminal')) {
@@ -1048,7 +1080,8 @@ export function transitionStableReleaseSession(
   if (
     session.terminal_truth.standard_status === 'in_progress' &&
     to !== 'standard_deadline_blocked' &&
-    (!Number.isFinite(deadline) || ended >= deadline)
+    (!Number.isFinite(deadline) || ended >= deadline) &&
+    !hasExactHistoricalPromotionRecovery(session, deadline)
   ) {
     throw new Error('Standard success or non-deadline failure transition cannot occur at or after the immutable 90-minute deadline.');
   }
