@@ -7,11 +7,14 @@ import {
 import {
   appendQualificationAttemptEvent,
   appendReleaseMutationAttemptEvent,
+  applyPromotionCheckpointReadback,
   assertStableReleaseSessionInvariants,
   blockFullAddonAtDeadline,
   hasExactHistoricalPromotionRecovery,
+  promotionCheckpointReceiptsFromJobs,
   transitionStableReleaseSession,
   type ReleaseMutationAttempt,
+  type PromotionWorkflowJob,
   type StableReleaseSession,
 } from './stable-release-session.ts';
 import {
@@ -54,6 +57,7 @@ class StandardReconcileDeadlineBlocked extends Error {}
 export type QualificationReconcileProvider = {
   readRun(runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null;
   discoverAdminRuns?(attempt: ReleaseMutationAttempt): RemoteRun[];
+  readPromotionJobs?(runId: string): PromotionWorkflowJob[];
   readBrokerRecord(lookup: ReleaseMutationBrokerLedgerLookupV1): ReleaseMutationBrokerLedgerLookupResultV1 | unknown;
   readBuildManifest?(artifactKind: ArtifactKind, sourceRunId: string): EvidenceFile<BuildArtifactCohortV2> | null;
   readStrictQualificationReceipt?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<ArtifactQualificationReceiptV1> | null;
@@ -411,6 +415,10 @@ function bindRunProjection(session: StableReleaseSession, attempt: ReleaseMutati
     return { ...session, release_run: { id: run.id, url: run.url ?? session.release_run.url, conclusion: run.conclusion } };
   }
   if (attempt.workflow === 'desktop-release-promote.yml') {
+    const latestPromotionAttempt = [...session.mutation_attempts].reverse().find((candidate) =>
+      candidate.mutation === 'promotion_dispatch' && candidate.workflow === 'desktop-release-promote.yml'
+    );
+    if (latestPromotionAttempt?.attempt_id !== attempt.attempt_id) return session;
     return {
       ...session,
       promotion_run: {
@@ -823,6 +831,51 @@ export function reconcileStableReleaseSession(
           at, state: 'cancelled', run_id: runId,
           reason: `broker-confirmed emergency cancel reached terminal readback through ${attempt.attempt_id}`,
         });
+      }
+    }
+  }
+
+  const latestPromotionAttempt = [...reconciled.mutation_attempts].reverse().find((attempt) =>
+    attempt.mutation === 'promotion_dispatch' && attempt.workflow === 'desktop-release-promote.yml'
+  );
+  const latestPromotionEvent = latestPromotionAttempt?.events.at(-1);
+  if (
+    provider.readPromotionJobs && latestPromotionEvent?.run_id &&
+    ['failed', 'succeeded'].includes(latestPromotionEvent.state) &&
+    reconciled.promotion_run.id === latestPromotionEvent.run_id &&
+    ['promotion_running', 'promotion_failed'].includes(reconciled.phase)
+  ) {
+    let jobs: PromotionWorkflowJob[];
+    try {
+      jobs = provider.readPromotionJobs(latestPromotionEvent.run_id);
+    } finally {
+      observe('promotion_checkpoint_jobs', latestPromotionEvent.run_id);
+    }
+    const receiptCount = promotionCheckpointReceiptsFromJobs(latestPromotionEvent.run_id, jobs).length;
+    const checkpointIds = [
+      'release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated',
+    ] as const;
+    const verifiedCount = reconciled.promotion_progress.last_verified_checkpoint === null
+      ? 0
+      : checkpointIds.indexOf(reconciled.promotion_progress.last_verified_checkpoint) + 1;
+    if (receiptCount > verifiedCount) {
+      const preserveFailure = reconciled.phase === 'promotion_failed';
+      if (preserveFailure) {
+        reconciled = transitionStableReleaseSession(
+          reconciled,
+          'promotion_running',
+          'reconcile reopened the exact failed promotion run only to persist its verified checkpoints',
+          at,
+        );
+      }
+      reconciled = applyPromotionCheckpointReadback(reconciled, jobs, at);
+      if (latestPromotionEvent.state === 'failed' && reconciled.phase !== 'promotion_failed') {
+        reconciled = transitionStableReleaseSession(
+          reconciled,
+          'promotion_failed',
+          'exact failed promotion run stopped after its last remotely verified checkpoint',
+          at,
+        );
       }
     }
   }

@@ -12,7 +12,7 @@ import {
 import type { QualificationHarnessScopeProof } from './qualification-harness-scope.ts';
 import type { QualificationAttemptReceiptV1, QualificationFailureTaxonomy } from './qualification-attempt-receipt.ts';
 import type { ReleaseMutationAcceptanceReceiptV1 } from './release-mutation-broker.ts';
-import type { ReleaseMutationPayload } from './release-mutation-payload.ts';
+import { releaseMutationPayloadSha256, type ReleaseMutationPayload } from './release-mutation-payload.ts';
 import { readReleaseBrokerAuthority, validateReleaseBrokerAuthority } from './release-broker-authority.ts';
 import type { ReleaseBrokerAuthorityV1 } from './release-broker-authority.ts';
 
@@ -24,6 +24,140 @@ export type StableReleasePhase =
   | 'promotion_running' | 'promotion_failed' | 'release_published_not_latest'
   | 'distribution_synced' | 'homebrew_verified' | 'latest_activated'
   | 'awaiting_local_activation' | 'standard_stable_terminal' | 'addon_train_terminal';
+
+export type PromotionCheckpointId =
+  | 'release_public_nonlatest' | 'distribution_synced' | 'homebrew_verified' | 'latest_activated';
+
+export type PromotionWorkflowJob = {
+  name: string;
+  status: string;
+  conclusion?: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+
+export type PromotionCheckpointReceiptDigest = {
+  checkpoint: Exclude<PromotionCheckpointId, 'latest_activated'>;
+  receipt_sha256: string;
+};
+
+const promotionCheckpointDefinitions = [
+  {
+    checkpoint: 'release_public_nonlatest' as const,
+    phase: 'release_published_not_latest' as const,
+    job: 'Publish release without changing latest',
+    reason: 'release is public and explicitly not latest',
+  },
+  {
+    checkpoint: 'distribution_synced' as const,
+    phase: 'distribution_synced' as const,
+    job: 'Validate brokered atomic Standard distribution',
+    reason: 'tap atomic Standard distribution receipt verified',
+  },
+  {
+    checkpoint: 'homebrew_verified' as const,
+    phase: 'homebrew_verified' as const,
+    job: 'Verify Standard Homebrew activation',
+    reason: 'Standard Homebrew clean-VM receipt verified',
+  },
+  {
+    checkpoint: 'latest_activated' as const,
+    phase: 'latest_activated' as const,
+    job: 'Activate App latest after Standard distribution gates',
+    reason: 'GitHub Stable latest activated after Standard downstream verification',
+  },
+] as const;
+
+const promotionCheckpointIds = promotionCheckpointDefinitions.map((entry) => entry.checkpoint);
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (!value || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+    .join(',')}}`;
+}
+
+export function promotionCheckpointReceiptsFromJobs(
+  runId: string,
+  jobs: PromotionWorkflowJob[],
+): PromotionCheckpointReceiptDigest[] {
+  if (!/^[1-9][0-9]*$/.test(runId)) return [];
+  const receipts: PromotionCheckpointReceiptDigest[] = [];
+  for (const definition of promotionCheckpointDefinitions) {
+    if (definition.checkpoint === 'latest_activated') break;
+    const job = jobs.find((candidate) => candidate.name.includes(definition.job));
+    const completedAtMs = Date.parse(job?.completedAt ?? '');
+    if (
+      job?.status !== 'completed' || job.conclusion !== 'success' ||
+      !Number.isFinite(completedAtMs)
+    ) break;
+    const evidence = {
+      checkpoint: definition.checkpoint,
+      source_promotion_run_id: runId,
+      source_job: {
+        name: job.name,
+        status: job.status,
+        conclusion: job.conclusion,
+        completed_at: new Date(completedAtMs).toISOString(),
+      },
+    };
+    receipts.push({
+      checkpoint: definition.checkpoint,
+      receipt_sha256: `sha256:${crypto.createHash('sha256').update(canonicalJson(evidence)).digest('hex')}`,
+    });
+  }
+  return receipts;
+}
+
+function promotionCheckpointPayloadState(payload: ReleaseMutationPayload): {
+  resumeIndex: number;
+  receipts: PromotionCheckpointReceiptDigest[];
+} | null {
+  const resumeIndex = promotionCheckpointIds.indexOf(payload.resume_from_checkpoint as PromotionCheckpointId);
+  if (resumeIndex < 0) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload.promotion_checkpoint_receipts_json ?? '[]');
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(raw) || raw.length !== resumeIndex) return null;
+  const receipts: PromotionCheckpointReceiptDigest[] = [];
+  for (const [index, entry] of raw.entries()) {
+    if (!entry || typeof entry !== 'object') return null;
+    const candidate = entry as Record<string, unknown>;
+    if (
+      candidate.checkpoint !== promotionCheckpointIds[index] ||
+      typeof candidate.receipt_sha256 !== 'string' ||
+      !/^sha256:[0-9a-f]{64}$/.test(candidate.receipt_sha256)
+    ) return null;
+    receipts.push({
+      checkpoint: candidate.checkpoint as PromotionCheckpointReceiptDigest['checkpoint'],
+      receipt_sha256: candidate.receipt_sha256,
+    });
+  }
+  return { resumeIndex, receipts };
+}
+
+export function promotionMutationPayloadCheckpointCompatible(
+  predecessor: ReleaseMutationPayload,
+  successor: ReleaseMutationPayload,
+): boolean {
+  const predecessorState = promotionCheckpointPayloadState(predecessor);
+  const successorState = promotionCheckpointPayloadState(successor);
+  if (!predecessorState || !successorState || predecessorState.resumeIndex > successorState.resumeIndex) return false;
+  const withoutCheckpoint = (payload: ReleaseMutationPayload) => Object.fromEntries(
+    Object.entries(payload).filter(([key]) => ![
+      'resume_from_checkpoint', 'promotion_checkpoint_receipts_json',
+    ].includes(key)),
+  );
+  if (canonicalJson(withoutCheckpoint(predecessor)) !== canonicalJson(withoutCheckpoint(successor))) return false;
+  return predecessorState.receipts.every((receipt, index) =>
+    canonicalJson(receipt) === canonicalJson(successorState.receipts[index])
+  );
+}
 
 type PhaseTiming = { started_at: string; ended_at: string | null; duration_ms: number | null };
 
@@ -306,7 +440,7 @@ export function exactHistoricalPromotionRecoveryChain(
     !current || current.mutation !== 'promotion_dispatch' || current.workflow !== 'desktop-release-promote.yml' ||
     current.artifact_kind !== 'promotion' || current.admission_mode !== 'admin_one_shot_controller' ||
     Date.parse(current.created_at) < deadlineAt || current.dispatch_fence.prior_run_ids.length < 1 ||
-    current.dispatch_fence.prior_run_ids.length > 3 ||
+    current.dispatch_fence.prior_run_ids.length > 4 ||
     new Set(current.dispatch_fence.prior_run_ids).size !== current.dispatch_fence.prior_run_ids.length ||
     !['promotion_failed', 'promotion_running', 'release_published_not_latest', 'distribution_synced',
       'homebrew_verified', 'latest_activated', 'awaiting_local_activation'].includes(session.phase)
@@ -340,8 +474,10 @@ export function exactHistoricalPromotionRecoveryChain(
       (index > 0 && Date.parse(predecessor.created_at) <= priorTerminalAt) ||
       JSON.stringify(predecessor.dispatch_fence.prior_run_ids) !==
         JSON.stringify(current.dispatch_fence.prior_run_ids.slice(0, index)) ||
-      predecessor.mutation_payload_sha256 !== current.mutation_payload_sha256 ||
-      JSON.stringify(predecessor.mutation_payload) !== JSON.stringify(current.mutation_payload) ||
+      !predecessor.mutation_payload || !current.mutation_payload ||
+      predecessor.mutation_payload_sha256 !== releaseMutationPayloadSha256(predecessor.mutation_payload) ||
+      current.mutation_payload_sha256 !== releaseMutationPayloadSha256(current.mutation_payload) ||
+      !promotionMutationPayloadCheckpointCompatible(predecessor.mutation_payload, current.mutation_payload) ||
       predecessor.artifact_app_sha !== current.artifact_app_sha
     ) return null;
     predecessors.push(predecessor);
@@ -1172,6 +1308,24 @@ export function transitionStableReleaseSession(
   };
   assertStableReleaseSessionInvariants(transitioned);
   return transitioned;
+}
+
+export function applyPromotionCheckpointReadback(
+  session: StableReleaseSession,
+  jobs: PromotionWorkflowJob[],
+  observedAt = new Date().toISOString(),
+): StableReleaseSession {
+  let projected = session;
+  const lastCheckpointIndex = session.promotion_progress.last_verified_checkpoint === null
+    ? -1
+    : promotionCheckpointIds.indexOf(session.promotion_progress.last_verified_checkpoint);
+  for (const [index, checkpoint] of promotionCheckpointDefinitions.entries()) {
+    const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
+    if (job?.status !== 'completed' || job.conclusion !== 'success') break;
+    if (index <= lastCheckpointIndex) continue;
+    projected = transitionStableReleaseSession(projected, checkpoint.phase, checkpoint.reason, observedAt);
+  }
+  return projected;
 }
 
 export function blockFullAddonAtDeadline(

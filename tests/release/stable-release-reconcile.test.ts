@@ -681,6 +681,7 @@ test('expired exact historical promotion successor reconciles one terminal run w
     release_cohort_ref: session.cohort_plan.operator_plan_ref,
     release_owner_receipt_ref: session.release_owner_receipt_ref,
     release_set_generation: session.promotion_progress.release_set_generation,
+    resume_from_checkpoint: 'release_public_nonlatest',
   };
   const digest = releaseMutationPayloadSha256(payload);
   const root = planReleaseMutationAttempt(session, {
@@ -725,6 +726,12 @@ test('expired exact historical promotion successor reconciles one terminal run w
         url: `https://example.test/${runId}`,
       }];
     },
+    readPromotionJobs: (runId) => runId === '402' ? [{
+      name: 'Publish release without changing latest',
+      status: 'completed',
+      conclusion: 'success',
+      completedAt: '2026-07-18T01:31:30.000Z',
+    }] : [],
     readBrokerRecord: () => { throw new Error('historical admin reconcile must remain read-only'); },
     readRun: () => null,
     readAttemptReceipt: () => null,
@@ -733,6 +740,8 @@ test('expired exact historical promotion successor reconciles one terminal run w
   assert.equal(result.phase, 'promotion_failed');
   assert.equal(result.standard_deadline_blocker, null);
   assert.equal(result.promotion_run.id, '402');
+  assert.equal(result.promotion_progress.last_verified_checkpoint, 'release_public_nonlatest');
+  assert.equal(result.promotion_progress.resume_from_checkpoint, 'distribution_synced');
   assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.state, 'failed');
   assert.equal(result.mutation_attempts.at(-1)?.events.at(-1)?.run_id, '402');
 });

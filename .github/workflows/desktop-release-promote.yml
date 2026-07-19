@@ -45,7 +45,7 @@ on:
         required: true
         type: string
       historical_predecessor_admission_receipt_base64:
-        description: Exact prior pre-deadline admin admission for a same-session zero-checkpoint successor
+        description: Exact prior pre-deadline admin admission anchoring a same-session checkpoint successor
         required: false
         default: ''
         type: string
@@ -92,6 +92,11 @@ on:
           - distribution_synced
           - homebrew_verified
           - latest_activated
+      promotion_checkpoint_receipts_json:
+        description: Ordered broker-bound receipt digests for every checkpoint before resume_from_checkpoint
+        required: false
+        default: '[]'
+        type: string
 
 permissions:
   contents: read
@@ -161,6 +166,7 @@ jobs:
           SHELL_REF: ${{ inputs.shell_ref }}
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
           RESUME_FROM_CHECKPOINT: ${{ inputs.resume_from_checkpoint }}
+          PROMOTION_CHECKPOINT_RECEIPTS_JSON: ${{ inputs.promotion_checkpoint_receipts_json }}
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }
@@ -193,6 +199,9 @@ jobs:
             shell_ref: process.env.SHELL_REF,
             framework_ref: process.env.FRAMEWORK_REF,
             resume_from_checkpoint: process.env.RESUME_FROM_CHECKPOINT,
+            ...(process.env.PROMOTION_CHECKPOINT_RECEIPTS_JSON === '[]'
+              ? {}
+              : { promotion_checkpoint_receipts_json: process.env.PROMOTION_CHECKPOINT_RECEIPTS_JSON }),
             operator_actor: process.env.OPERATOR_ACTOR,
           };
           if (request.mutation !== 'promotion_dispatch' || request.workflow !== 'desktop-release-promote.yml'
@@ -224,6 +233,9 @@ jobs:
                   .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
             const priorPersistedMs = Date.parse(String(predecessor.persisted_at || ''));
             const priorRequestSha = `sha256:${crypto.createHash('sha256').update(canonicalJson(prior)).digest('hex')}`;
+            const withoutCheckpoint = (payload) => Object.fromEntries(Object.entries(payload || {}).filter(([key]) =>
+              !['resume_from_checkpoint', 'promotion_checkpoint_receipts_json'].includes(key)
+            ));
             if (predecessor.schema !== 'opl_app_release_admin_one_shot_admission.v1'
               || predecessor.status !== 'durable_pre_api_fence'
               || predecessor.admission_mode !== 'admin_one_shot_controller'
@@ -236,14 +248,13 @@ jobs:
               || prior.release_cohort_ref !== request.release_cohort_ref
               || prior.operator_actor !== request.operator_actor
               || prior.artifact_app_sha !== request.artifact_app_sha
-              || prior.mutation_payload_sha256 !== request.mutation_payload_sha256
-              || canonicalPayload(prior.mutation_payload) !== canonicalPayload(request.mutation_payload)
+              || canonicalPayload(withoutCheckpoint(prior.mutation_payload)) !== canonicalPayload(withoutCheckpoint(request.mutation_payload))
               || !Number.isFinite(priorPersistedMs)
               || priorPersistedMs >= deadlineMs
               || deadlineMs - priorPersistedMs > 90 * 60_000
               || prior.mutation_payload?.resume_from_checkpoint !== 'release_public_nonlatest'
               || (prior.mutation_payload?.promotion_checkpoint_receipts_json ?? '[]') !== '[]') {
-              throw new Error('Historical promotion predecessor does not bind the same pre-deadline zero-checkpoint saga.');
+              throw new Error('Historical promotion predecessor does not bind the same pre-deadline saga identity.');
             }
             if (!Number.isFinite(persistedMs) || persistedMs > nowMs || nowMs - persistedMs > 15 * 60_000) {
               throw new Error('Historical promotion successor admission is not fresh.');
@@ -323,8 +334,10 @@ jobs:
             exit 78
           fi
           test "$lookup_status" -eq 0
-          VALIDATION_PATH=broker-admission-validation.json EXPECTED_ATTEMPT_ID="$RELEASE_ATTEMPT_ID" EXPECTED_RESUME="$RESUME_FROM_CHECKPOINT" node --input-type=module <<'NODE'
+          VALIDATION_PATH=broker-admission-validation.json EXPECTED_ATTEMPT_ID="$RELEASE_ATTEMPT_ID" EXPECTED_RESUME="$RESUME_FROM_CHECKPOINT" node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          import { promotionCheckpointReceiptsFromJobs } from './scripts/stable-release-session.ts';
           const validation = JSON.parse(fs.readFileSync(process.env.VALIDATION_PATH, 'utf8'));
           const authorization = validation.promotion_checkpoint_authorization;
           if (!authorization || typeof authorization !== 'object') {
@@ -347,6 +360,45 @@ jobs:
             : checkpoints[Math.min(checkpoints.indexOf(authorization.last_verified_checkpoint) + 1, checkpoints.length - 1)];
           if (authorization.first_unverified_checkpoint !== expectedFirst) {
             throw new Error('Broker promotion checkpoint authorization is not sequential.');
+          }
+          if (authorization.first_unverified_checkpoint !== checkpoints[0]) {
+            const publicReceipt = authorization.receipt_digests.find((entry) =>
+              entry.checkpoint === 'release_public_nonlatest'
+            );
+            if (!publicReceipt) throw new Error('Public release checkpoint resume lacks its broker-authorized receipt digest.');
+            const runs = JSON.parse(execFileSync('gh', [
+              'run', 'list', '--repo', process.env.GITHUB_REPOSITORY,
+              '--workflow', 'desktop-release-promote.yml', '--event', 'workflow_dispatch', '--branch', 'main', '--limit', '100',
+              '--json', 'databaseId,status,conclusion,displayTitle,event',
+            ], { encoding: 'utf8', env: process.env }));
+            const prefix = `OPL Desktop Release Promote v${process.env.OPL_VERSION} attempt=sha256:`;
+            const receiptMatches = [];
+            for (const run of runs.filter((candidate) =>
+              candidate.status === 'completed' && candidate.event === 'workflow_dispatch' &&
+              ['failure', 'startup_failure'].includes(candidate.conclusion) && candidate.displayTitle?.startsWith(prefix)
+            )) {
+              const view = JSON.parse(execFileSync('gh', [
+                'run', 'view', String(run.databaseId), '--repo', process.env.GITHUB_REPOSITORY, '--json', 'jobs',
+              ], { encoding: 'utf8', env: process.env }));
+              const receipt = promotionCheckpointReceiptsFromJobs(String(run.databaseId), view.jobs || [])[0];
+              if (receipt?.receipt_sha256 === publicReceipt.receipt_sha256) receiptMatches.push(String(run.databaseId));
+            }
+            if (receiptMatches.length !== 1) {
+              throw new Error(`Public release checkpoint receipt must resolve to one exact failed promotion run, got ${receiptMatches.length}.`);
+            }
+            const tag = `v${process.env.OPL_VERSION}`;
+            const release = JSON.parse(execFileSync('gh', [
+              'release', 'view', tag, '--repo', process.env.GITHUB_REPOSITORY,
+              '--json', 'tagName,isDraft,isPrerelease,publishedAt,assets',
+            ], { encoding: 'utf8', env: process.env }));
+            const listed = JSON.parse(execFileSync('gh', [
+              'release', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--limit', '30',
+              '--json', 'tagName,isLatest,isDraft',
+            ], { encoding: 'utf8', env: process.env })).find((entry) => entry.tagName === tag);
+            if (
+              release.tagName !== tag || release.isDraft || release.isPrerelease || !release.publishedAt ||
+              release.assets?.length !== 6 || listed?.isLatest !== false
+            ) throw new Error('Broker-authorized public checkpoint no longer matches one public non-latest six-asset release.');
           }
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `resume_from_checkpoint=${authorization.first_unverified_checkpoint}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `last_verified_checkpoint=${authorization.last_verified_checkpoint || ''}\n`);

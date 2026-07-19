@@ -35,6 +35,7 @@ import type { QualificationAttemptReceiptV1 } from './qualification-attempt-rece
 import { validateQualificationAttemptReceipt } from './qualification-attempt-receipt.ts';
 import {
   appendStableReleaseEfficiencyAdvisory,
+  applyPromotionCheckpointReadback,
   blockFullAddonAtDeadline,
   appendQualificationAttempt,
   appendQualificationAttemptEvent,
@@ -42,12 +43,15 @@ import {
   buildStableReleaseSession,
   createStableReleaseSessionAtomic as createSession,
   exactHistoricalPromotionRecoveryChain,
+  promotionCheckpointReceiptsFromJobs,
+  promotionMutationPayloadCheckpointCompatible,
   planReleaseMutationAttempt,
   recoverStaleStableReleaseSessionLock,
   readStableReleaseSession as readSession,
   transitionStableReleaseSession,
   writeStableReleaseSessionAtomic as writeSession,
   type QualificationArtifactKind,
+  type PromotionWorkflowJob,
   type StableReleaseSession,
 } from './stable-release-session.ts';
 import { reconcileStableReleaseSession } from './stable-release-reconcile.ts';
@@ -428,18 +432,17 @@ export function historicalPromotionRecoveryContext(
   ownerReceiptRef: string,
   releaseSetGeneration: string,
   observedAtMs = Date.now(),
+  promotionCheckpointReceiptsJson = '[]',
 ): { predecessorAdmission: AdminOneShotAdmission; priorRunIds: string[] } | null {
   if (remainingStandardAdmissionBudgetMs(session, observedAtMs) > 0) return null;
   if (
     session.phase !== 'promotion_failed' ||
     session.release_owner_receipt_ref !== ownerReceiptRef ||
     session.promotion_progress.release_set_generation !== releaseSetGeneration ||
-    session.promotion_progress.last_verified_checkpoint !== null ||
-    session.promotion_progress.resume_from_checkpoint !== 'release_public_nonlatest' ||
     session.promotion_run.conclusion !== 'failure' ||
     !session.promotion_run.id
   ) {
-    throw new Error('Expired promotion recovery requires the same failed session, owner receipt, r1, and zero verified checkpoints.');
+    throw new Error('Expired promotion recovery requires the same failed session, owner receipt, and Release Set generation.');
   }
   const predecessor = [...session.mutation_attempts].reverse().find((attempt) =>
     attempt.mutation === 'promotion_dispatch'
@@ -458,22 +461,24 @@ export function historicalPromotionRecoveryContext(
   ) {
     throw new Error('Expired promotion recovery predecessor is not a unique admission with a terminal failed run.');
   }
-  const payload = promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration);
+  const payload = promotionMutationPayload(
+    session, ownerReceiptRef, releaseSetGeneration, promotionCheckpointReceiptsJson,
+  );
   if (
     !predecessor.mutation_payload ||
-    predecessor.mutation_payload_sha256 !== releaseMutationPayloadSha256(payload) ||
-    canonicalJson(predecessor.mutation_payload) !== canonicalJson(payload) ||
+    predecessor.mutation_payload_sha256 !== releaseMutationPayloadSha256(predecessor.mutation_payload) ||
+    !promotionMutationPayloadCheckpointCompatible(predecessor.mutation_payload, payload) ||
     predecessor.artifact_app_sha !== session.cohort_plan.cohort_lock.app.resolved_sha
   ) {
-    throw new Error('Expired promotion recovery predecessor does not bind the exact current session payload and artifact cohort.');
+    throw new Error('Expired promotion recovery predecessor does not bind an exact monotonic checkpoint successor for this artifact cohort.');
   }
   let root = predecessor;
   let priorRunIds = [terminal.run_id];
   if (Date.parse(dispatching.at) >= deadlineMs) {
     const chain = exactHistoricalPromotionRecoveryChain(session, deadlineMs);
     const predecessorCount = predecessor.dispatch_fence.prior_run_ids.length;
-    if (predecessorCount < 1 || predecessorCount > 2 || !chain || chain.length !== predecessorCount) {
-      throw new Error('Expired promotion recovery permits only the exact root plus at most two failed post-deadline successors.');
+    if (predecessorCount < 1 || predecessorCount > 3 || !chain || chain.length !== predecessorCount) {
+      throw new Error('Expired promotion recovery permits only the exact root plus at most three failed post-deadline successors.');
     }
     root = chain[0]!;
     priorRunIds = [...predecessor.dispatch_fence.prior_run_ids, terminal.run_id];
@@ -483,6 +488,9 @@ export function historicalPromotionRecoveryContext(
   const rootDispatching = root.events.filter((event) => event.state === 'dispatching');
   if (rootDispatching.length !== 1 || Date.parse(rootDispatching[0]!.at) >= deadlineMs) {
     throw new Error('Expired promotion recovery root is not the unique pre-deadline admission.');
+  }
+  if (!root.mutation_payload) {
+    throw new Error('Expired promotion recovery root lacks its exact original mutation payload.');
   }
   const predecessorAtDispatch = {
     ...session,
@@ -494,7 +502,7 @@ export function historicalPromotionRecoveryContext(
     predecessorAdmission: buildAdminOneShotAdmission(
       predecessorAtDispatch,
       root.attempt_id,
-      payload,
+      root.mutation_payload,
       rootDispatching[0]!.at,
     ),
     priorRunIds,
@@ -783,6 +791,7 @@ export function promotionMutationPayload(
   session: StableReleaseSession,
   ownerReceiptRef: string,
   releaseSetGeneration: string,
+  promotionCheckpointReceiptsJson = '[]',
 ): ReleaseMutationPayload {
   return {
     opl_version: session.version, release_set_generation: releaseSetGeneration,
@@ -795,6 +804,9 @@ export function promotionMutationPayload(
     shell_ref: session.cohort_plan.cohort_lock.shell.resolved_sha,
     framework_ref: session.cohort_plan.cohort_lock.framework.resolved_sha,
     resume_from_checkpoint: session.promotion_progress.resume_from_checkpoint,
+    ...(promotionCheckpointReceiptsJson === '[]'
+      ? {}
+      : { promotion_checkpoint_receipts_json: promotionCheckpointReceiptsJson }),
     operator_actor: releaseOperatorActor(),
   };
 }
@@ -1046,13 +1058,7 @@ type WorkflowRun = {
   url: string;
 };
 
-type WorkflowJob = {
-  name: string;
-  status: string;
-  conclusion?: string;
-  startedAt?: string;
-  completedAt?: string;
-};
+type WorkflowJob = PromotionWorkflowJob;
 
 function expectedQualificationProfile(artifactKind: QualificationArtifactKind = 'standard'): 'full' | 'standard' {
   return artifactKind;
@@ -1736,7 +1742,7 @@ function runJobs(runner: StableReleaseCommandRunner, session: StableReleaseSessi
   const result = runner(
     'gh',
     ['run', 'view', runId, '--repo', session.repo, '--json', 'jobs', '--jq', '.jobs'],
-    { timeoutMs: boundedReleaseTransportTimeoutMs(session, `read workflow jobs ${runId}`) },
+    { timeoutMs: readOnlyReleaseTransportTimeoutMs() },
   );
   if (result.status !== 0) return [];
   try {
@@ -1898,25 +1904,33 @@ function fullAddonDeadlineBlockedIfElapsed(
   });
 }
 
-const promotionCheckpoints = [
-  { phase: 'release_published_not_latest' as const, job: 'Publish release without changing latest', reason: 'release is public and explicitly not latest' },
-  { phase: 'distribution_synced' as const, job: 'Dispatch atomic Standard distribution', reason: 'tap atomic Standard distribution receipt verified' },
-  { phase: 'homebrew_verified' as const, job: 'Verify Standard Homebrew activation', reason: 'Standard Homebrew clean-VM receipt verified' },
-  { phase: 'latest_activated' as const, job: 'Activate App latest after Standard distribution gates', reason: 'GitHub Stable latest activated after Standard downstream verification' },
-];
+export { applyPromotionCheckpointReadback, promotionCheckpointReceiptsFromJobs };
 
-export function applyPromotionCheckpointReadback(
+const promotionCheckpointJobNames = [
+  'Publish release without changing latest',
+  'Validate brokered atomic Standard distribution',
+  'Verify Standard Homebrew activation',
+  'Activate App latest after Standard distribution gates',
+] as const;
+
+function promotionCheckpointReceiptsJsonForRecovery(
   session: StableReleaseSession,
-  jobs: WorkflowJob[],
-  observedAt = now(),
-): StableReleaseSession {
-  let projected = session;
-  for (const checkpoint of promotionCheckpoints) {
-    const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
-    if (job?.conclusion !== 'success') break;
-    projected = transitionStableReleaseSession(projected, checkpoint.phase, checkpoint.reason, observedAt);
+  runner: StableReleaseCommandRunner,
+): string {
+  const resumeIndex = [
+    'release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated',
+  ].indexOf(session.promotion_progress.resume_from_checkpoint);
+  if (resumeIndex <= 0) return '[]';
+  const runId = session.promotion_run.id;
+  if (!runId) throw new Error('Checkpoint recovery requires the exact prior promotion run id.');
+  const jobs = runJobs(runner, session, runId);
+  const receipts = promotionCheckpointReceiptsFromJobs(runId, jobs).slice(0, resumeIndex);
+  if (receipts.length !== resumeIndex) {
+    throw new Error(
+      `Checkpoint recovery requires ${resumeIndex} contiguous exact job receipts from promotion run ${runId}.`,
+    );
   }
-  return projected;
+  return JSON.stringify(receipts);
 }
 
 function finalizePromotionRun(
@@ -1928,8 +1942,8 @@ function finalizePromotionRun(
 ): StableReleaseSession {
   const receipt = succeeded ? readPromotionSagaReceipt(runner, session, runId) : null;
   const jobs = runJobs(runner, session, runId);
-  if (succeeded && (!receipt || jobs.length === 0 || promotionCheckpoints.some((checkpoint) =>
-    !jobs.some((candidate) => candidate.name.includes(checkpoint.job))
+  if (succeeded && (!receipt || jobs.length === 0 || promotionCheckpointJobNames.some((jobName) =>
+    !jobs.some((candidate) => candidate.name.includes(jobName))
   ))) {
     throw new Error(
       `Promotion run ${runId} succeeded but saga receipt/jobs readback is not yet complete; ` +
@@ -2114,8 +2128,16 @@ async function dispatchAndWatchPromotion(
   if (retrying && session.release_owner_receipt_ref !== ownerReceiptRef) {
     throw new Error('Promotion retry must preserve the exact release owner receipt from the failed promotion.');
   }
+  const promotionCheckpointReceiptsJson = retrying
+    ? promotionCheckpointReceiptsJsonForRecovery(session, runner)
+    : '[]';
+  const mutationPayload = promotionMutationPayload(
+    session, ownerReceiptRef, releaseSetGeneration, promotionCheckpointReceiptsJson,
+  );
   const historicalRecovery = retrying
-    ? historicalPromotionRecoveryContext(session, ownerReceiptRef, releaseSetGeneration)
+    ? historicalPromotionRecoveryContext(
+      session, ownerReceiptRef, releaseSetGeneration, Date.now(), promotionCheckpointReceiptsJson,
+    )
     : null;
   const historicalPredecessor = historicalRecovery?.predecessorAdmission ?? null;
   session = {
@@ -2138,8 +2160,8 @@ async function dispatchAndWatchPromotion(
     admissionMode: 'admin_one_shot_controller',
     controllerWorkflowSha,
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
-    mutationPayloadSha256: releaseMutationPayloadSha256(promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration)),
-    mutationPayload: promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration),
+    mutationPayloadSha256: releaseMutationPayloadSha256(mutationPayload),
+    mutationPayload,
     priorRunIds: historicalRecovery?.priorRunIds,
     at: dispatchedAt, reason: 'persist promotion mutation before external dispatch',
   });
@@ -2151,7 +2173,7 @@ async function dispatchAndWatchPromotion(
     reason: 'durable admin one-shot promotion fence persisted before the sole GitHub workflow dispatch',
   });
   const admission = buildAdminOneShotAdmission(
-    session, planned.attemptId, promotionMutationPayload(session, ownerReceiptRef, releaseSetGeneration), dispatchingAt,
+    session, planned.attemptId, mutationPayload, dispatchingAt,
   );
   session = {
     ...session,
@@ -3513,6 +3535,21 @@ async function main(): Promise<void> {
             headBranch: candidate.headBranch, event: candidate.event ?? '',
             createdAt: candidate.createdAt, url: candidate.url,
           }));
+        },
+        readPromotionJobs: (runId) => {
+          const result = run('gh', [
+            'run', 'view', runId, '--repo', current.repo, '--json', 'jobs', '--jq', '.jobs',
+          ], { timeoutMs: readOnlyReleaseTransportTimeoutMs() });
+          if (result.status !== 0) failResult(result, `reconcile promotion checkpoint jobs ${runId}`);
+          try {
+            const jobs = JSON.parse(result.stdout) as unknown;
+            if (!Array.isArray(jobs)) throw new Error('jobs payload is not an array');
+            return jobs as PromotionWorkflowJob[];
+          } catch (error) {
+            throw new Error(
+              `promotion checkpoint reconcile returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
         },
         readBrokerRecord: (lookup) => externalReleaseMutationBrokerLedgerLookup(lookup),
         readBuildManifest: (artifactKind, sourceRunId) => evidence.readJson<BuildArtifactCohortV2>(

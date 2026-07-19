@@ -25,6 +25,7 @@ import {
   historicalPromotionRecoveryContext,
   promoteDispatchArgs,
   promotionMutationPayload,
+  promotionCheckpointReceiptsFromJobs,
   qualificationMutationPayload,
   qualificationRetryDispatchArgs,
   start as startStableRelease,
@@ -1389,7 +1390,7 @@ test('promotion checkpoint readback uses monotonic local observation time after 
   const remoteCompletedAt = new Date(admittedAtMs + 55 * 60_000).toISOString();
   const jobs = [
     'Publish release without changing latest',
-    'Dispatch atomic Standard distribution',
+    'Validate brokered atomic Standard distribution',
     'Verify Standard Homebrew activation',
     'Activate App latest after Standard distribution gates',
   ].map((name) => ({ name, status: 'completed', conclusion: 'success', completedAt: remoteCompletedAt }));
@@ -1398,6 +1399,22 @@ test('promotion checkpoint readback uses monotonic local observation time after 
   assert.equal(projected.phase, 'latest_activated');
   assert.equal(projected.updated_at, observedAt);
   assert.equal(projected.transitions.at(-1)?.at, observedAt);
+});
+
+test('promotion checkpoint receipt digest is deterministic and bound to the exact source run and completed job', () => {
+  const jobs = [{
+    name: 'Publish release without changing latest',
+    status: 'completed',
+    conclusion: 'success',
+    completedAt: '2026-07-19T15:10:38Z',
+  }];
+  const receipt = promotionCheckpointReceiptsFromJobs('29692260682', jobs);
+  assert.equal(receipt.length, 1);
+  assert.equal(receipt[0]?.checkpoint, 'release_public_nonlatest');
+  assert.match(receipt[0]?.receipt_sha256 ?? '', /^sha256:[0-9a-f]{64}$/);
+  assert.deepEqual(promotionCheckpointReceiptsFromJobs('29692260682', jobs), receipt);
+  assert.notDeepEqual(promotionCheckpointReceiptsFromJobs('29692260683', jobs), receipt);
+  assert.deepEqual(promotionCheckpointReceiptsFromJobs('29692260682', [{ ...jobs[0]!, conclusion: 'failure' }]), []);
 });
 
 test('workflow readback transport consumes the same remaining admission budget with a finite per-call cap', async () => {
@@ -1564,7 +1581,7 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
 });
 
-test('expired promotion successor requires the exact pre-deadline failed zero-checkpoint admission', () => {
+test('expired promotion successor requires one exact pre-deadline identity and bounded monotonic checkpoints', () => {
   const startedAt = '2026-07-18T00:00:00.000Z';
   const ownerReceipt = 'release_owner_receipt_ref://test/exact-owner';
   const generation = '26.7.12-r1';
@@ -1717,16 +1734,54 @@ test('expired promotion successor requires the exact pre-deadline failed zero-ch
   const tamperedIntermediate = structuredClone(thirdPlan.session);
   tamperedIntermediate.mutation_attempts.at(-2)!.dispatch_fence.prior_run_ids = [];
   assert.match(validateStableReleaseSessionInvariants(tamperedIntermediate).join('; '), /cannot remain open/);
-  const unbounded = structuredClone(thirdPlan.session);
-  unbounded.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids.push('304');
+  let failedThirdSuccessor = appendReleaseMutationAttemptEvent(thirdPlan.session, thirdPlan.attemptId, {
+    at: '2026-07-18T01:35:02.000Z', state: 'dispatching', run_id: null, reason: 'durable third successor',
+  });
+  failedThirdSuccessor = appendReleaseMutationAttemptEvent(failedThirdSuccessor, thirdPlan.attemptId, {
+    at: '2026-07-18T01:35:03.000Z', state: 'running', run_id: '304', reason: 'exact third successor run',
+  });
+  failedThirdSuccessor = appendReleaseMutationAttemptEvent(failedThirdSuccessor, thirdPlan.attemptId, {
+    at: '2026-07-18T01:36:00.000Z', state: 'failed', run_id: '304', reason: 'failed after public checkpoint',
+  });
+  failedThirdSuccessor.promotion_run = {
+    id: '304', url: 'https://example.test/304', conclusion: 'failure', attempt: 1,
+    rerun_requested_from_attempt: null,
+  };
+  failedThirdSuccessor.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
+  failedThirdSuccessor.promotion_progress.resume_from_checkpoint = 'distribution_synced';
+  const checkpointReceiptsJson = JSON.stringify([{
+    checkpoint: 'release_public_nonlatest', receipt_sha256: `sha256:${'7'.repeat(64)}`,
+  }]);
+  const checkpointPayload = promotionMutationPayload(
+    failedThirdSuccessor, ownerReceipt, generation, checkpointReceiptsJson,
+  );
+  const checkpointRecovery = historicalPromotionRecoveryContext(
+    failedThirdSuccessor,
+    ownerReceipt,
+    generation,
+    Date.parse('2026-07-18T01:37:00.000Z'),
+    checkpointReceiptsJson,
+  );
+  assert.equal(checkpointRecovery?.predecessorAdmission.request.attempt_id, planned.attemptId);
+  assert.deepEqual(checkpointRecovery?.priorRunIds, ['301', '302', '303', '304']);
+  const checkpointPlan = planReleaseMutationAttempt(failedThirdSuccessor, {
+    mutation: 'promotion_dispatch', workflow: 'desktop-release-promote.yml', artifactKind: 'promotion',
+    admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: '7'.repeat(40), artifactAppSha: appSha,
+    mutationPayloadSha256: releaseMutationPayloadSha256(checkpointPayload), mutationPayload: checkpointPayload,
+    priorRunIds: checkpointRecovery!.priorRunIds, at: '2026-07-18T01:37:01.000Z', reason: 'checkpoint successor',
+  });
+  assert.equal(validateStableReleaseSessionInvariants(checkpointPlan.session).length, 0);
+  const unbounded = structuredClone(checkpointPlan.session);
+  unbounded.mutation_attempts.at(-1)!.dispatch_fence.prior_run_ids.push('305');
   assert.match(validateStableReleaseSessionInvariants(unbounded).join('; '), /cannot remain open/);
 
   session.promotion_progress.last_verified_checkpoint = 'release_public_nonlatest';
+  session.promotion_progress.resume_from_checkpoint = 'distribution_synced';
   assert.throws(
     () => historicalPromotionPredecessorAdmission(
       session, ownerReceipt, generation, Date.parse('2026-07-18T01:30:01.000Z'),
     ),
-    /zero verified checkpoints/,
+    /monotonic checkpoint successor/,
   );
 });
 

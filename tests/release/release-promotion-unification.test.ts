@@ -449,20 +449,22 @@ test('promotion startup failure creates a fresh controller attempt instead of re
   assert.doesNotMatch(controller, /gh run rerun/);
 });
 
-test('expired promotion recovery binds one exact historical admission and terminal zero-checkpoint run', () => {
+test('expired promotion recovery anchors exact identity and admits only broker-bound checkpoint progress', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
   const controller = fs.readFileSync(path.join(appRoot, 'scripts/run-stable-release.ts'), 'utf8');
   const admission = workflowStep(workflow, 'Resolve signed broker admission for this exact promotion run');
 
   assert.match(workflow, /historical_predecessor_admission_receipt_base64:/);
   assert.match(admission, /prior\.stable_session_id !== request\.stable_session_id/);
-  assert.match(admission, /prior\.mutation_payload_sha256 !== request\.mutation_payload_sha256/);
-  assert.match(admission, /canonicalPayload\(prior\.mutation_payload\) !== canonicalPayload\(request\.mutation_payload\)/);
+  assert.match(admission, /withoutCheckpoint/);
+  assert.match(admission, /promotion_checkpoint_receipts_json/);
   assert.match(admission, /priorPersistedMs >= deadlineMs/);
   assert.match(admission, /matches\.length !== 1/);
   assert.match(admission, /\['failure', 'startup_failure'\]/);
   assert.match(admission, /Historical promotion predecessor already crossed a public mutation checkpoint/);
-  assert.match(controller, /historicalPromotionRecoveryContext\(session, ownerReceiptRef, releaseSetGeneration\)/);
+  assert.match(admission, /promotionCheckpointReceiptsFromJobs/);
+  assert.match(admission, /Public release checkpoint receipt must resolve to one exact failed promotion run/);
+  assert.match(controller, /promotionCheckpointReceiptsJsonForRecovery/);
   assert.match(controller, /priorRunIds: historicalRecovery\?\.priorRunIds/);
   assert.match(controller, /historicalPredecessor \? \{/);
   assert.doesNotMatch(admission, /gh workflow run|gh run rerun|gh run cancel/);

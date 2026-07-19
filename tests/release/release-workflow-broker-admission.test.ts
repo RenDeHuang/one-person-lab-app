@@ -49,7 +49,7 @@ test('broker lookup, attestation, and exact reusable VM call edges receive GitHu
   ]);
   const expectedOidcCounts = new Map([
     ['desktop-release.yml', 5],
-    ['desktop-release-promote.yml', 1],
+    ['desktop-release-promote.yml', 2],
     ['desktop-release-full-addon.yml', 2],
     ['opl-first-run-vm.yml', 1],
   ]);
@@ -166,6 +166,9 @@ test('promotion resume is derived only from the broker checkpoint authorization'
   assert.match(source, /first_unverified_checkpoint !== process\.env\.EXPECTED_RESUME/);
   assert.match(source, /resume_from_checkpoint=\$\{authorization\.first_unverified_checkpoint\}/);
   assert.match(source, /receipt_digests/);
+  assert.match(source, /promotion_checkpoint_receipts_json/);
+  assert.match(source, /promotionCheckpointReceiptsFromJobs/);
+  assert.match(source, /listed\?\.isLatest !== false/);
 });
 
 test('reusable VM callers bind the outer mutation and cap Standard work to the absolute deadline', () => {
