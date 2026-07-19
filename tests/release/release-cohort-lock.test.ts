@@ -29,6 +29,7 @@ function cleanEnv() {
     OPL_FRAMEWORK_ROOT,
     OPL_RELEASE_COHORT_LOCK,
     OPL_RELEASE_COHORT_LOCK_MARKDOWN,
+    GITHUB_SHA,
     ...env
   } = process.env;
   return env;
