@@ -746,7 +746,8 @@ jobs:
           import fs from 'node:fs';
           const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
           const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
-            ?.request?.mutation_payload?.standard_admission_deadline_at;
+            ?.request?.mutation_payload?.standard_admission_deadline_at
+            ?? validation.admin_one_shot_admission?.request?.mutation_payload?.standard_admission_deadline_at;
           const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
           const deadlineMs = Date.parse(String(deadline));
           if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
@@ -846,7 +847,8 @@ jobs:
           import fs from 'node:fs';
           const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
           const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
-            ?.request?.mutation_payload?.standard_admission_deadline_at;
+            ?.request?.mutation_payload?.standard_admission_deadline_at
+            ?? validation.admin_one_shot_admission?.request?.mutation_payload?.standard_admission_deadline_at;
           const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
           const deadlineMs = Date.parse(String(deadline));
           if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
@@ -895,7 +897,8 @@ jobs:
           import fs from 'node:fs';
           const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
           const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
-            ?.request?.mutation_payload?.standard_admission_deadline_at;
+            ?.request?.mutation_payload?.standard_admission_deadline_at
+            ?? validation.admin_one_shot_admission?.request?.mutation_payload?.standard_admission_deadline_at;
           const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
           const deadlineMs = Date.parse(String(deadline));
           if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
@@ -933,7 +936,8 @@ jobs:
           import fs from 'node:fs';
           const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
           const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
-            ?.request?.mutation_payload?.standard_admission_deadline_at;
+            ?.request?.mutation_payload?.standard_admission_deadline_at
+            ?? validation.admin_one_shot_admission?.request?.mutation_payload?.standard_admission_deadline_at;
           const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
           const deadlineMs = Date.parse(String(deadline));
           if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected
@@ -977,7 +981,8 @@ jobs:
           import fs from 'node:fs';
           const validation = JSON.parse(fs.readFileSync(process.env.MUTATION_DEADLINE_VALIDATION, 'utf8'));
           const deadline = validation.signed_lookup_envelope?.record?.acceptance?.pre_api_fence
-            ?.request?.mutation_payload?.standard_admission_deadline_at;
+            ?.request?.mutation_payload?.standard_admission_deadline_at
+            ?? validation.admin_one_shot_admission?.request?.mutation_payload?.standard_admission_deadline_at;
           const expected = process.env.STANDARD_ADMISSION_DEADLINE_AT;
           const deadlineMs = Date.parse(String(deadline));
           if (validation.status !== 'verified' || validation.mode !== 'historical' || deadline !== expected

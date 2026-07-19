@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
@@ -223,6 +225,7 @@ test('every Standard publication mutation rechecks the signed immutable deadline
   const publish = jobBlock(readWorkflow('desktop-release.yml'), 'publish-standard');
   assert.equal(count(publish, /--mode historical/g), 6);
   assert.equal(count(publish, /signed_lookup_envelope/g), 5);
+  assert.equal(count(publish, /admin_one_shot_admission/g), 5);
   assert.equal(count(publish, /Date\.now\(\) >= deadlineMs/g), 5);
   assert.match(publish, /verify_standard_mutation_deadline "tag-push"\n\s+git push origin "\$tag"/);
   assert.match(publish, /verify_standard_mutation_deadline "tag-force-push"\n\s+git push --force-with-lease=/);
@@ -230,4 +233,50 @@ test('every Standard publication mutation rechecks the signed immutable deadline
   assert.match(publish, /component-upload-historical-validation\.json[\s\S]*?Date\.now\(\) >= deadlineMs[\s\S]*?gh release upload/);
   assert.match(publish, /id: standard-asset-attestation-deadline[\s\S]*?authorized=true[\s\S]*?if: \$\{\{ steps\.standard-asset-attestation-deadline\.outputs\.authorized == 'true' \}\}/);
   assert.match(publish, /id: component-manifest-attestation-deadline[\s\S]*?authorized=true[\s\S]*?if: \$\{\{ steps\.component-manifest-attestation-deadline\.outputs\.authorized == 'true' \}\}/);
+});
+
+test('every Standard deadline gate accepts historical admin one-shot admission and fails closed without it', (t) => {
+  const workflow = parseYaml(readWorkflow('desktop-release.yml'));
+  const scripts = workflow.jobs['publish-standard'].steps.flatMap((step) => {
+    const run = String(step.run ?? '');
+    return [...run.matchAll(/node --input-type=module <<'NODE'\n([\s\S]*?)\nNODE/g)]
+      .map((match) => match[1])
+      .filter((script) => script.includes('Signed broker validation does not bind the immutable Standard deadline.'));
+  });
+  assert.equal(scripts.length, 5);
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-deadline-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const validationPath = path.join(tempDir, 'historical-validation.json');
+  const deadline = new Date(Date.now() + 60_000).toISOString();
+  const env = {
+    ...process.env,
+    MUTATION_DEADLINE_VALIDATION: validationPath,
+    STANDARD_ADMISSION_DEADLINE_AT: deadline,
+  };
+  fs.writeFileSync(validationPath, `${JSON.stringify({
+    status: 'verified',
+    mode: 'historical',
+    signed_lookup_envelope: null,
+    admin_one_shot_admission: {
+      request: { mutation_payload: { standard_admission_deadline_at: deadline } },
+    },
+  })}\n`);
+
+  for (const script of scripts) {
+    const result = spawnSync(process.execPath, ['--input-type=module'], { input: script, env, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+
+  fs.writeFileSync(validationPath, `${JSON.stringify({
+    status: 'verified',
+    mode: 'historical',
+    signed_lookup_envelope: null,
+    admin_one_shot_admission: null,
+  })}\n`);
+  for (const script of scripts) {
+    const result = spawnSync(process.execPath, ['--input-type=module'], { input: script, env, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Signed broker validation does not bind the immutable Standard deadline\./);
+  }
 });
