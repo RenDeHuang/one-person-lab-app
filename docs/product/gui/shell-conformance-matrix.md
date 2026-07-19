@@ -101,15 +101,15 @@ B0-11 的 execution、metadata intake、canonical discovery 与 ordinary activit
 | `U1-03` | 弹性 Agent 启动适配 / JIT prepare。AI-first 交互不能因普遍 preflight 动辄全局 block。 | `aligned_contract` | `L2 bridge/adapter` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_missing` | `pixel_unverified` | `install_unverified` | `release_unverified` | AionUI 已消费 owner-projected action 和 `ready / degraded / package_unavailable` 三态，移除 `operational_ready=false` 二次一刀切与普遍 Workspace 要求；仍需绑定当前 source 的逐轴证据。 |
 | `U1-04` | App / OPL Base / Packages 三对象 lifecycle。三类 owner 不同，混成一个 updater 会产生假成功。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | AionUI 已按 `opl_base / opl_app / opl_packages` 区分 owner，并覆盖 check/plan/apply/terminal readback、retry 与 failed-apply no-checkpoint；下一步只关三对象各自 Pixel、Install、Release，不反向降级 Source。 |
 | `U1-05` | Docker/WebUI 同产品语义。WebUI 是 OPL 的部署入口，不能成为另一个产品。 | `aligned_contract` | `upstream reuse + L2 transport adapter` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | AionUI Web Storage 使用同一 `/settings/storage` route；Desktop 保留 Electron local lifecycle，WebUI 不调用该 bridge，只消费有效 owner projections并在 refresh 单项失败时 fail-open。浏览器态 DOM 与 Web host SPA fallback 已锁测；exact Docker cohort、Pixel、Install、Release 仍独立未验证。 |
-| `U1-06` | OPL 数据、缓存、包体空间与安全清理。长期使用必须可预览、可确认、可恢复。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_missing` | `pixel_unverified` | `install_unverified` | `release_unverified` | App 已定义 fail-open 的 Agent Package store / WebUI data volume owner envelope、条件性 carrier-host plan/execute/restore ABI、认证/单次计划/幂等冲突/refs-only receipt/readback 边界，并删除通用 Docker inventory 负担；下一步完成 Framework/host/Shell行为，禁止 Shell 直接改 package/path 或调用 generic prune。 |
+| `U1-06` | OPL 数据、缓存、包体空间与安全清理。长期使用必须可预览、可确认、可恢复。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_missing` | `pixel_unverified` | `install_unverified` | Framework 已投影 owner inventory；Web host 已实现认证且有界的 capability/plan/execute/restore、单次确认、opaque archive/manifest/receipt refs、幂等终态回读或 typed conflict 及恢复；薄 Shell/Web consumer 在 owner 或 host capability 缺失时保持 fail-open。Package lifecycle 仍在 Agents，Shell 不得直接改 raw package/path state 或调用 generic prune。 |
 
-Source 状态说明：AionUI `R1-01..05`、`U1-01..05` 为 `source_implemented`；
-`R1-06`、`U1-06` 为 `source_partial`，没有完全 missing。Native 的 `R1-03`、
+Source 状态说明：AionUI `R1-01..05`、`U1-01..06` 为 `source_implemented`；
+`R1-06` 为 `source_partial`，没有完全 missing。Native 的 `R1-03`、
 `U1-03`、`U1-06` 为 `source_missing`，其余为 `source_partial`。这里的 `source_implemented`
 只证明主要源码路径和专项测试存在，不等于本轮 fresh test pass，更不等于 pixels、install 或 release。
 
-下一轮顺序由 Active Truth 的 P0-P7 five-axis ledger 统一维护。U1-04 已关闭 source 轴，
-U1-06 Contract 已 aligned，但 Source 仍 partial；任何实现顺序都不能把不同状态压成一个 aggregate completion 值。
+下一轮顺序由 Active Truth 的 P0-P7 five-axis ledger 统一维护。U1-04 与 AionUI U1-06
+已关闭 source 轴；任何实现顺序都不能把不同状态压成一个 aggregate completion 值。
 
 本矩阵的功能/交互目标来自：
 
