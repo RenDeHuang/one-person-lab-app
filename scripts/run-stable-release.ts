@@ -1921,16 +1921,21 @@ function promotionCheckpointReceiptsJsonForRecovery(
     'release_public_nonlatest', 'distribution_synced', 'homebrew_verified', 'latest_activated',
   ].indexOf(session.promotion_progress.resume_from_checkpoint);
   if (resumeIndex <= 0) return '[]';
-  const runId = session.promotion_run.id;
-  if (!runId) throw new Error('Checkpoint recovery requires the exact prior promotion run id.');
-  const jobs = runJobs(runner, session, runId);
-  const receipts = promotionCheckpointReceiptsFromJobs(runId, jobs).slice(0, resumeIndex);
-  if (receipts.length !== resumeIndex) {
+  const sourceRuns = session.mutation_attempts
+    .filter((attempt) => attempt.mutation === 'promotion_dispatch')
+    .map((attempt) => attempt.events.at(-1)?.run_id ?? null)
+    .filter((runId): runId is string => Boolean(runId));
+  const matches = [...new Set(sourceRuns)].flatMap((runId) => {
+    const receipts = promotionCheckpointReceiptsFromJobs(runId, runJobs(runner, session, runId));
+    return receipts.length >= resumeIndex ? [{ runId, receipts: receipts.slice(0, resumeIndex) }] : [];
+  });
+  if (matches.length !== 1) {
     throw new Error(
-      `Checkpoint recovery requires ${resumeIndex} contiguous exact job receipts from promotion run ${runId}.`,
+      `Checkpoint recovery requires one exact promotion run with ${resumeIndex} contiguous job receipts; ` +
+      `found ${matches.length}.`,
     );
   }
-  return JSON.stringify(receipts);
+  return JSON.stringify(matches[0]!.receipts);
 }
 
 function finalizePromotionRun(

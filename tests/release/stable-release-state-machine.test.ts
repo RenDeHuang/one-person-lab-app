@@ -1795,6 +1795,9 @@ test('reconcile run readback uses the independent read-only transport budget', (
   assert.match(discovery, /timeoutMs: readOnlyReleaseTransportTimeoutMs\(\)/);
   assert.doesNotMatch(discovery, /boundedReleaseTransportTimeoutMs/);
   assert.match(controller, /predecessorCount > 4/);
+  assert.match(controller, /Checkpoint recovery requires one exact promotion run/);
+  assert.match(controller, /session\.mutation_attempts[\s\S]*attempt\.mutation === 'promotion_dispatch'/);
+  assert.doesNotMatch(controller, /const runId = session\.promotion_run\.id;\n  if \(!runId\)/);
   const sessionSource = fs.readFileSync(path.join(process.cwd(), 'scripts/stable-release-session.ts'), 'utf8');
   assert.match(sessionSource, /prior_run_ids\.length > 5/);
 });
