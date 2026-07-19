@@ -31,7 +31,8 @@ type Check = {
 
 type ReleaseTarget = {
   tag: string;
-  kind: 'offline_unknown' | 'unused' | 'published_release' | 'draft_release' | 'prerelease_release';
+  kind: 'offline_unknown' | 'unused' | 'read_only_visibility_deferred' | 'release_lookup_failed' |
+    'published_release' | 'draft_release' | 'prerelease_release';
   release_exists: boolean | null;
   tag_exists: boolean | null;
   tag_sha: string | null;
@@ -316,6 +317,15 @@ function parseReleasePayload(stdout: string) {
   return objectOrNull(JSON.parse(stdout));
 }
 
+function releaseLookupWasNotFound(result: ReturnType<typeof run>): boolean {
+  const detail = [
+    result.stdout,
+    result.stderr,
+    result.error instanceof Error ? result.error.message : '',
+  ].filter(Boolean).join('\n');
+  return /release\s+not found|HTTP 404/i.test(detail);
+}
+
 function normalizeSha(value: string | null | undefined): string | null {
   const sha = value?.trim() ?? '';
   return /^[a-f0-9]{40}$/i.test(sha) ? sha.toLowerCase() : null;
@@ -485,6 +495,7 @@ function resolveReleaseTarget(options: Options): ReleaseTarget {
     allowFailure: true,
   });
   const releaseExists = release.status === 0;
+  const releaseNotFound = !releaseExists && releaseLookupWasNotFound(release);
   const releasePayload = releaseExists ? parseReleasePayload(release.stdout) : null;
   const tagLookup = run('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${tag}`, `refs/tags/${tag}^{}`], {
     allowFailure: true,
@@ -495,7 +506,9 @@ function resolveReleaseTarget(options: Options): ReleaseTarget {
   const isPrerelease = releaseExists && typeof releasePayload?.isPrerelease === 'boolean' ? releasePayload.isPrerelease : null;
   const publishedAt = typeof releasePayload?.publishedAt === 'string' ? releasePayload.publishedAt : null;
   const kind = !releaseExists
-    ? 'unused'
+    ? releaseNotFound
+      ? tagExists ? 'read_only_visibility_deferred' : 'unused'
+      : 'release_lookup_failed'
     : isDraft === true
       ? 'draft_release'
       : isPrerelease === true
@@ -520,13 +533,27 @@ function checkRemoteTarget(options: Options, checks: Check[], target: ReleaseTar
     return;
   }
 
+  if (target.kind === 'release_lookup_failed') {
+    addCheck(checks, 'remote_target', 'failed', `Unable to read GitHub Release ${target.tag}; remote visibility is unknown.`);
+    return;
+  }
+
   if (options.releaseMode === 'refresh_existing') {
-    if (!target.release_exists) {
-      addCheck(checks, 'remote_target', 'failed', `refresh_existing requires GitHub Release ${target.tag} to exist.`);
-      return;
-    }
     if (!target.tag_exists || !target.tag_sha) {
       addCheck(checks, 'remote_target', 'failed', `refresh_existing requires Git tag ${target.tag} to exist and resolve to a commit.`);
+      return;
+    }
+    if (target.kind === 'read_only_visibility_deferred') {
+      addCheck(
+        checks,
+        'remote_target',
+        'warning',
+        `Read-only preflight cannot distinguish an unpublished draft from a tag-only target for ${target.tag}; the contents:write publish job must revalidate the exact mutable draft before its first mutation.`,
+      );
+      return;
+    }
+    if (!target.release_exists) {
+      addCheck(checks, 'remote_target', 'failed', `refresh_existing requires GitHub Release ${target.tag} to exist.`);
       return;
     }
     if (target.kind !== 'draft_release') {

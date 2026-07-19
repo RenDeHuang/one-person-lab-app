@@ -5,7 +5,9 @@ import {
   path,
   test,
   runNode,
+  writeExecutable,
 } from './helpers.ts';
+import { buildReleaseOperatorPlanRef } from '../../../scripts/plan-release-cohort.ts';
 import {
   assertCanonicalReleaseVersion,
   nightlyMaximumRebuildRevision,
@@ -326,6 +328,108 @@ test('release preflight fails fast before expensive release jobs', () => {
   const standardOnlyPayload = JSON.parse(standardOnly.stdout);
   assertCheck(standardOnlyPayload, 'full_addon_preflight', 'skipped');
   assertCheck(standardOnlyPayload, 'release_intent', 'passed', /explicitly omits Full/);
+});
+
+test('refresh preflight defers draft visibility to the exact write job without masking transport failures', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-draft-visibility-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const appSha = '1'.repeat(40);
+  const shellSha = '2'.repeat(40);
+  const frameworkSha = '3'.repeat(40);
+  const version = '26.7.18';
+  const omissionReason = 'test-only visibility fixture';
+  const operatorPlanRef = buildReleaseOperatorPlanRef({
+    version,
+    releaseMode: 'refresh_existing',
+    releaseIntent: 'standard_hotfix',
+    fullOmissionReason: omissionReason,
+    includeFullPackage: false,
+    runVmSmoke: false,
+    publishDockerWebui: false,
+    appSha,
+    shellSha,
+    frameworkSha,
+  });
+
+  writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'release' && args[1] === 'view') {
+  process.stderr.write('release not found\\n');
+  process.exit(1);
+}
+if (args[0] === 'api' && args[1].includes('opl-aion-shell')) {
+  process.stdout.write('${shellSha}\\n');
+  process.exit(0);
+}
+if (args[0] === 'api' && args[1].includes('one-person-lab/commits')) {
+  process.stdout.write('${frameworkSha}\\n');
+  process.exit(0);
+}
+process.exit(2);
+`);
+  writeExecutable(path.join(binDir, 'git'), `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'ls-remote' && args.includes('refs/tags/v${version}')) {
+  process.stdout.write('${appSha}\\trefs/tags/v${version}\\n');
+  process.exit(0);
+}
+process.exit(2);
+`);
+
+  const preflightArgs = [
+    'scripts/validate-release-preflight.ts',
+    '--version', version,
+    '--current-date', '2026-07-19',
+    '--release-mode', 'refresh_existing',
+    '--release-intent', 'standard_hotfix',
+    '--full-omission-reason', omissionReason,
+    '--release-operator-plan-ref', operatorPlanRef,
+    '--include-full-package', 'false',
+    '--run-vm-smoke', 'false',
+    '--publish-docker-webui', 'false',
+    '--expected-app-head', appSha,
+    '--shell-ref', shellSha,
+    '--framework-ref', frameworkSha,
+  ];
+  const result = runNode(preflightArgs, {
+    env: { PATH: `${binDir}${path.delimiter}${process.env.PATH}` },
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_target.kind, 'read_only_visibility_deferred');
+  assertCheck(payload, 'remote_target', 'warning', /contents:write publish job must revalidate/);
+
+  const workflow = fs.readFileSync(path.join(process.cwd(), '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const writerStart = workflow.indexOf('  publish-standard:');
+  const draftReadback = workflow.indexOf('is_draft="$(gh release view', writerStart);
+  const tagRewrite = workflow.indexOf('git tag -f "$tag" "$ARTIFACT_APP_SHA"', writerStart);
+  const tagPush = workflow.indexOf('git push --force-with-lease=', writerStart);
+  assert.ok(writerStart >= 0 && draftReadback > writerStart);
+  assert.ok(tagRewrite > draftReadback && tagPush > draftReadback);
+
+  writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'release' && args[1] === 'view') {
+  process.stderr.write('dial tcp: operation timed out\\n');
+  process.exit(1);
+}
+if (args[0] === 'api' && args[1].includes('opl-aion-shell')) {
+  process.stdout.write('${shellSha}\\n');
+  process.exit(0);
+}
+if (args[0] === 'api' && args[1].includes('one-person-lab/commits')) {
+  process.stdout.write('${frameworkSha}\\n');
+  process.exit(0);
+}
+process.exit(2);
+`);
+  const transportFailure = runNode(preflightArgs, {
+    env: { PATH: `${binDir}${path.delimiter}${process.env.PATH}` },
+  });
+  assert.notEqual(transportFailure.status, 0);
+  const failedPayload = JSON.parse(transportFailure.stdout);
+  assert.equal(failedPayload.release_target.kind, 'release_lookup_failed');
+  assertCheck(failedPayload, 'remote_target', 'failed', /remote visibility is unknown/);
 });
 
 test('release preflight rejects a future-dated Stable version before build dispatch', () => {
