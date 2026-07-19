@@ -3462,7 +3462,7 @@ async function main(): Promise<void> {
             'run', 'list', '--repo', current.repo, '--workflow', attempt.workflow,
             '--event', 'workflow_dispatch', '--branch', 'main', '--limit', '100',
             '--json', 'databaseId,attempt,createdAt,headBranch,headSha,displayTitle,workflowName,event,status,conclusion,url',
-          ], { timeoutMs: boundedReleaseTransportTimeoutMs(current, `reconcile admin one-shot ${attempt.workflow}`) });
+          ], { timeoutMs: readOnlyReleaseTransportTimeoutMs() });
           if (result.status !== 0) failResult(result, `reconcile admin one-shot ${attempt.workflow}`);
           let runs: WorkflowRun[];
           try {
