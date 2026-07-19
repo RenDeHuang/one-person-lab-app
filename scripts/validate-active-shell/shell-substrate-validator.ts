@@ -43,10 +43,12 @@ const runtimeSettingsExpected = [
   "data-testid='opl-maintenance-hub'",
   'settings.oplEnvironmentPage.maintenanceHub.title',
   "data-testid='settings-maintenance-daily-actions'",
+  "data-testid='settings-maintenance-managed-dependencies'",
+  "data-testid='settings-maintenance-inline-updates'",
   "data-testid='settings-maintenance-diagnostics-action'",
   "data-testid='settings-maintenance-technical-details'",
-  'visible={diagnosticsVisible}',
-  'RuntimeReadinessGrid',
+  'open={diagnosticsVisible}',
+  "className='opl-settings-details opl-settings-surface--diagnostic'",
 ];
 
 const runtimeSettingsViewModelExpected = [
@@ -198,7 +200,7 @@ function validateRuntimeSettings(shellPaths) {
   );
   assertTextExcludesAll(
     runtimeSettings,
-    ["data-testid='settings-maintenance-management-details'"],
+    ["data-testid='settings-maintenance-management-details'", 'visible={diagnosticsVisible}', '<RuntimeReadinessGrid'],
     'Active shell Maintenance must not retain a second large management modal',
   );
   assertShellTextIncludesAll(
