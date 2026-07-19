@@ -775,6 +775,10 @@ jobs:
       - prepare
       - stable-distribution
     if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.stable-distribution.result == 'success' && needs.prepare.outputs.resume_from_checkpoint != 'latest_activated' }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}

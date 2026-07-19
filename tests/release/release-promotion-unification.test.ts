@@ -224,6 +224,15 @@ test('promotion prepare rebuilds missing owner evidence from the exact qualified
   assert.match(distribution, /bounded 15-minute discovery window/);
   assert.doesNotMatch(distribution, /gh workflow run/);
 
+  const homebrewVm = workflow.slice(
+    workflow.indexOf('  homebrew-standard-vm:'),
+    workflow.indexOf('\n  homebrew-activation:'),
+  );
+  assert.match(
+    homebrewVm,
+    /permissions:\n      contents: read\n      actions: read\n      id-token: write\n    uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/,
+  );
+
   assert.equal(
     (workflow.match(/nowMs >= deadlineMs/g) || []).length,
     1,
