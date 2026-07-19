@@ -17,12 +17,17 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   const productProfile = JSON.parse(
     readFileSync(join(appRoot, 'contracts/app-product-profile.json'), 'utf8'),
   );
+  const pageStateMatrix = JSON.parse(
+    readFileSync(join(appRoot, 'contracts/app-page-state-matrix.json'), 'utf8'),
+  );
 
   assert.match(readme, /codex-app-visual-parity\.md/);
   assert.match(policy, /visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas/);
   assert.match(policy, /visual_reference=ChatGPT Codex macOS 26\.707\.72221 build 5307/);
   assert.match(policy, /project_owns_session=false/);
   assert.match(policy, /project_context_row=forbidden/);
+  assert.match(policy, /new_session_context_bar=required_above_composer/);
+  assert.match(policy, /composer_capability_palette=searchable_grouped_scrollable/);
   assert.match(policy, /conversation_search_location=rail_history_header_icon_button/);
   assert.match(policy, /composer_resting_shadow=required/);
   assert.match(policy, /home_starter_selected_alignment=centered_no_layout_shift/);
@@ -80,13 +85,71 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
     productProfile.gui.home.utility_icon_policy,
     guiContract.utility_icon_policy,
   );
-  assert.equal(guiContract.home_layout.workspace_selector_visible, false);
-  assert.equal(guiContract.home_layout.projectless_context_placeholder_visible, false);
+  assert.equal(guiContract.home_layout.workspace_selector_visible, true);
+  assert.equal(guiContract.home_layout.workspace_selector_entry, 'home.new_session_context_bar');
+  assert.equal(guiContract.home_layout.unselected_workspace_control_visible, true);
+  assert.equal(
+    guiContract.home_layout.unselected_workspace_control_policy,
+    'localized_choose_project_directory_action_not_projectless_status_placeholder',
+  );
+  assert.equal(guiContract.home_layout.desktop_context_bar_height_px, 52);
+  assert.equal(
+    guiContract.ordinary_conversation.composer_placeholder_policy,
+    'opl_owned_localized_task_prompt_without_backend_name_interpolation',
+  );
+  assert.equal(
+    guiContract.ordinary_conversation.unified_context_menu.presentation,
+    'searchable_grouped_scrollable_capability_palette',
+  );
+  assert.equal(
+    guiContract.ordinary_conversation.unified_context_menu.trigger_dispatch_policy,
+    'always_open_palette_never_directly_invoke_file_picker',
+  );
+  assert.equal(
+    guiContract.ordinary_conversation.unified_context_menu.direct_file_picker_fallback_allowed,
+    false,
+  );
+  assert.equal(guiContract.ordinary_conversation.unified_context_menu.searchable, true);
+  assert.equal(guiContract.ordinary_conversation.unified_context_menu.keyboard_navigation, true);
+  assert.equal(
+    guiContract.ordinary_conversation.unified_context_menu.desktop_panel_width_policy,
+    'match_composer_outer_width',
+  );
+  assert.equal(guiContract.ordinary_conversation.unified_context_menu.desktop_panel_max_width_px, 736);
+  assert.deepStrictEqual(
+    guiContract.ordinary_conversation.unified_context_menu.keyboard_commands,
+    ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape'],
+  );
   assert.deepStrictEqual(
     guiContract.ordinary_conversation.unified_context_menu.groups.map(
       (group: { id: string }) => group.id,
     ),
-    ['local_inputs', 'working_directory', 'skills', 'apps_and_connections'],
+    ['local_inputs', 'agent_packages', 'skills', 'session_modes', 'apps_and_connections'],
+  );
+  const paletteGroups = Object.fromEntries(
+    guiContract.ordinary_conversation.unified_context_menu.groups.map((group: { id: string }) => [group.id, group]),
+  );
+  assert.deepStrictEqual(paletteGroups.agent_packages.surface_actions.existing_conversation, []);
+  assert.deepStrictEqual(
+    paletteGroups.skills.surface_actions.existing_conversation,
+    ['invoke_loaded_allowlisted_skill'],
+  );
+  assert.equal(paletteGroups.session_modes.mode_deduplication_policy, 'exclude_permission_access_equivalent_modes');
+  assert.deepStrictEqual(guiContract.interaction_baseline.capability_selection.selection_surfaces, [
+    'home_starter',
+    'home_new_session_capability_palette',
+  ]);
+  const ordinaryConversationPage = pageStateMatrix.pages.find(
+    (page: { id: string }) => page.id === 'ordinary_conversation',
+  );
+  assert.deepStrictEqual(
+    ordinaryConversationPage.conversation_view_model.unified_context_menu,
+    guiContract.ordinary_conversation.unified_context_menu,
+  );
+  assert.ok(
+    guiContract.ordinary_conversation.unified_context_menu.forbidden_entries.includes(
+      'workspace_or_initial_cwd',
+    ),
   );
   assert.ok(
     guiContract.ordinary_conversation.unified_context_menu.forbidden_entries.includes(

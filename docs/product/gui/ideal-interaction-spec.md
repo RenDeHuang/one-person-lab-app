@@ -54,8 +54,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
   命令或 turn 的实际 `pwd` 可变化，但不反写 affinity 或分组。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
-- Working-directory grouping 位于 rail；locality/branch 位于 Environment。
-  Composer 只保留 active capability、统一 `+` 菜单、当前已选的紧凑上下文 chip、模型/推理和
+- Working-directory grouping 位于 rail；Home/new-session composer 上方保留一个独立 context bar
+  选择初始 cwd；locality/branch 位于 Environment。Composer 只保留 active capability、统一 `+`
+  capability palette、当前已选的紧凑上下文 chip、模型/推理和
   permission/access mode；access mode 使用自动化与文件权限的用户语言。
 - 右上 Environment details 默认关闭；bottom panel、file tree、Terminal、Browser 和
   独立 artifact preview 也默认关闭。
@@ -68,14 +69,15 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 ## 核心用户流程
 
-1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务可通过
-   composer `+` 菜单选择初始 cwd，也可不选目录直接开始 projectless conversation。Projectless 表示没有
+1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务通过
+   composer 上方独立 context bar 选择初始 cwd，也可不选目录直接开始 projectless conversation。Projectless 表示没有
    用户选择的 Project affinity，不表示底层没有 runtime cwd。未选时不显示“不使用项目”占位行；用户可稍后
    把 projectless session 一次性归入一个目录组，保留同一 thread 和 history。命令或 turn 的实际 `pwd` 可按
    任务需要变化，但不会反写 Project affinity 或 rail 分组；已绑定 session 不提供 A→B 任意重分组。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
-3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
+3. **选择工作目的。** 用户优先从 Home starter 选择科研、基金、演示、写书等能力，也可在首次发送前从
+   `+` palette 选择同一 App allowlist Agent Package；两条入口写入同一个 active capability 与 route receipt，
    Home 由 starter 选中态表达当前能力，不在 composer 重复标签。Package 安装、Home 显示与 lifecycle 管理在
    Settings → Agents 完成 package lifecycle；Settings → Capabilities 完成 Skills/Plugins/Flow 管理。
 4. **提交任务。** 用户输入说明、附加材料、确认模型/推理状态并发送。
@@ -118,7 +120,7 @@ Rail 负责 navigation，不承担 dashboard：
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
-- `+` 菜单中的工作目录动作明确说明只设置新 session 的初始工作目录；runtime `pwd` 不反写 App metadata。
+- New-session context bar 的工作目录动作明确说明只设置新 session 的初始工作目录；runtime `pwd` 不反写 App metadata。
 - 目录组提供“使用此工作目录新建对话”和 projectless session adoption。Adoption 支持拖动及键盘可达的等价动作，
   仅 `custom_workspace=false` 或无 canonical recorded cwd 的 thread eligible。Destination 是用户选择的唯一 canonical
   Project directory，不要求覆盖 thread 曾引用的文件或目录；这些显式输入与 writable roots 仍是独立上下文/权限。
@@ -126,8 +128,8 @@ Rail 负责 navigation，不承担 dashboard：
   readback 匹配才持久化本地 `workspace + custom_workspace=true` projection 并移动 row。任一步失败都保持 projectless、
   显示轻提示且不阻止对话。已有 recorded cwd 的 session 不执行更新。目录组无 owner 语义，不提供组级删除，也不得级联
   archive/delete/reset 其下 session。
-- Home 的 New task 只通过统一 `+` 菜单选择初始 cwd；不显示独立 selector、Local/Worktree、starting branch
-  或 managed Worktree create/reuse。
+- Home 的 New task 只通过 composer 上方独立 context bar 选择初始 cwd；Local/Worktree、starting branch
+  仅在 active adapter 有真实 new-session action 时显示，不提供 managed Worktree create/reuse 的假入口。
 - Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供已绑定 session 的目录
   重绑、Local↔Worktree lifecycle、projection transaction 或任意 rail 重分组。Projectless adoption 只走上述
   单向、用户触发、affinity-assignment-backed 的 rail 动作；不能从 thread/runtime cwd 是否存在推断 projectless。
@@ -198,9 +200,14 @@ Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，
 Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
-- 由 41301 reference 翻译出的 OPL-owned target 不在 composer 常驻重复 project/local/branch：目录由 rail 表达，
-  branch/locality 由 Environment 表达；composer 通过统一 `+` 菜单添加文件、文件夹、新 session 初始 cwd、
-  App allowlist 内的 Skill 和真实可用连接，只把已选项显示为紧凑 chip。
+- 由当前 Codex reference 翻译出的 OPL-owned target 不在 composer 内常驻重复 project/local/branch：
+  new-session 初始 cwd 由 composer 上方独立 context bar 表达，branch/locality 由 Environment 表达。
+- `+` 始终先打开与 composer 外边缘对齐、可搜索、分组、viewport-bounded 且内部可滚动的 capability
+  palette，不因 Skill/MCP 目录为空而直接打开文件 picker；它添加文件/文件夹，并按 Home/new-session 与
+  existing conversation 分别呈现 active adapter 可执行的 App allowlist Agent Package、Skill、真实连接，
+  以及 adapter 明确报告且不与 permission/access 重复的 mode。Agent Package 不允许在既有会话重绑；
+  Skill 在既有会话只调用已加载 allowlist 项，连接只显示已加载状态。
+  Working directory 不进入 palette，已选 capability/input 只显示为紧凑 chip。
 - 不存在 workspace/project context preload；attachment、paste/drop 与 `/open` 都是用户在当前 session
   显式加入的 send-scoped 输入，不允许 hidden prompt injection 或 workspace-keyed 持久化。
 - 中层是 textarea；底层 action row 放统一 `+` 菜单、permission/access mode、
@@ -224,16 +231,18 @@ Composer 是普通路径唯一主 command surface：
 ## Purpose 与 Capability 交互
 
 - 普通标签描述用户工作：科研、基金、演示、写书等。
-- Purpose 只从 Home starter 选择；不再是 composer 的常驻可变 selector，也不在 rail
-  建立 Capabilities 主导航。
+- Purpose 主要从 Home starter 选择；Home/new-session 的 `+` palette 是同一 active capability 的备用入口，
+  仅在首次发送前可用。Purpose 不再是 composer 的常驻可变 selector，也不在 rail 建立 Capabilities 主导航。
 - Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
-- Required skills 可见且 locked；optional skills 由 App packaged profile 控制。
+- 未选 Agent 时只显示全局 App allowlist Skills；选中 Agent 后收窄为该 profile 的 required/optional
+  Skills，其中 required 可见且 locked，optional 由 App packaged profile 控制。
 - Package id、MAS/MAG/RCA 等 short name、route id 和 schema refs 进入 receipt/details。
 - OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
   discovery 自动加入。
 - Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
-- `+` 菜单不伪造 Plugin、provider、backend、team 或 raw MCP；无真实可用连接时隐藏对应分组。
+- `+` palette 不伪造 Plugin、provider、backend、team、raw MCP 或 Codex reference 中但当前 adapter
+  不支持的 Chrome/目标/计划动作；无真实可用项时显示明确空态或管理入口，不把管理入口伪装成直接选择。
 - Settings → Agents 负责 package 安装、Home visibility 和 lifecycle；Settings → Capabilities
   负责 Skills/Plugins/Flow 与本机能力；历史
   `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
@@ -374,8 +383,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
 - Projectless session 可一次性归入一个 canonical directory group；已绑定 session 不任意换组，runtime `pwd`
   和额外 writable roots 不改变 Project affinity。
-- Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
-  selector，project/local/branch 不与 rail/Environment 重复。
+- Composer 只有 textarea、send-local controls 和 bottom action row；Home/new-session context bar 是
+  composer stack 的独立上层，purpose 不再常驻可变 selector，既有 conversation 不重复 project/local/branch。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
@@ -386,7 +395,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
   list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
-- Home New task 只用统一 `+` 菜单设置初始 cwd；projectless adoption 从 rail 触发，经
+- Home New task 只用 composer 上方独立 context bar 设置初始 cwd；projectless adoption 从 rail 触发，经
   `thread/settings/update.cwd` 与 exact `thread/read` 成功后持久化本地 projection，后续 conversation
   以 canonical recorded cwd 作为默认 workspace hint。Conversation Environment 保持只读，Shell 不含 managed Worktree/Handoff 或已绑定 session
   的任意目录重绑。Review复用

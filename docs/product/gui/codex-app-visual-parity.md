@@ -42,9 +42,13 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
   stale 文案内联呈现，账户、指标、footer 和操作不再由多层矩形边框包围；
 - Home 的 prompt、content-sized agent shortcuts 与 composer 进入一个 bottom reading lane；入口无
   chevron，所有可见官方智能体都可选择，运行就绪只在发送时以 typed guidance 阻止；
-- Composer leading `+` 是唯一上下文入口：文件、文件夹、新 session 初始 cwd、App allowlist Skill
-  与真实可用连接共享一个菜单；未选 cwd 时不显示“不使用项目”占位，选中后仅显示可移除 chip；
-- Local/Worktree 与 branch 不进入普通 composer，不再形成独立灰色顶栏或第二条能力标签；
+- Home/new-session composer 上方使用与输入 surface 相接的独立 context bar 选择初始 cwd；该入口
+  不进入左下角 `+`，未选时也保持明确可操作；
+- Composer leading `+` 始终先展开与 composer 等宽、可搜索、分组、可滚动的 capability palette，
+  不因动态目录为空而直接调用文件 picker；文件/文件夹、真实 App allowlist Agent Package/Skill、
+  adapter 明确报告且不与 permission/access 重复的模式及真实连接按组显示名称和描述；
+- Local/Worktree 与 branch 只在真实 adapter 支持且属于 new-session context 时进入同一 context bar；
+  既有 conversation 不形成第二条持久项目或能力标签；
 - Workspace 使用 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
 - clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
   `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
@@ -74,6 +78,10 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 - Home 与 conversation composer 均使用 `14/20/400` textarea、`13/18` 底部控件、16px
   图标、32px action height、1px hairline 与 22px radius。Model/reasoning、permission 和
   workspace chrome 不得另起更大字号；resting shadow 在 focus 时仍保留；
+- New-session context bar 使用 `52px` 稳定高度、`12px` 水平内缩并与 composer 重叠 `13px`；
+  `+` palette 桌面宽度与 `736px` composer 外边缘对齐，受 viewport 高度约束、内部滚动、显示
+  group heading 及名称/说明行，并支持键盘搜索、Arrow/Home/End/Enter 选择和 Escape 回焦；空 catalog 不得
+  退化为直接文件按钮，也不得伪造 Plugin、Chrome、目标或计划模式；
 - Settings 普通 section 一律是 unframed heading + flat rows + section-scoped hairline。
   `能力 > 手工添加`、`资源与连接`、`维护` 是本轮强制逐项复核页；只有 repeated entity 和
   confirmation 可以使用一层 bounded group，禁止 ordinary configuration/status/action 的边框墙；
@@ -307,6 +315,8 @@ keyboard traversal、rendered contrast 和安装版 readback 仍分别由 Pixel/
 - `visual_reference=ChatGPT Codex macOS 26.707.72221 build 5307 (2026-07-15)`
 - `project_owns_session=false`
 - `project_context_row=forbidden`
+- `new_session_context_bar=required_above_composer`
+- `composer_capability_palette=searchable_grouped_scrollable`
 - `conversation_search_location=rail_history_header_icon_button`
 - `composer_resting_shadow=required`
 - `home_starter_selected_alignment=centered_no_layout_shift`

@@ -164,7 +164,8 @@ export type AppProductProfile = {
         composer_primary: boolean;
         workspace_selector_visible: boolean;
         workspace_selector_entry: string;
-        projectless_context_placeholder_visible: boolean;
+        unselected_workspace_control_visible: boolean;
+        unselected_workspace_control_policy: string;
         purpose_entries_visible: string[];
         purpose_entry_placement: string;
         dynamic_question_title: boolean;
@@ -261,6 +262,7 @@ export type AppProductProfile = {
       provider_selector_visible: boolean;
       model_status_surface: string;
       technical_details_policy: string;
+      composer_placeholder_policy: string;
       composer_context_strip: string[];
       composer_send_scoped_inputs: string[];
       composer_send_scoped_consumption_policy: string;
@@ -285,22 +287,49 @@ export type AppProductProfile = {
       unified_context_menu: {
         trigger: string;
         placement: string;
+        trigger_dispatch_policy: string;
+        direct_file_picker_fallback_allowed: boolean;
         shared_desktop_mobile_content: boolean;
+        presentation: string;
+        searchable: boolean;
+        search_field_policy: string;
+        keyboard_navigation: boolean;
+        keyboard_commands: string[];
+        escape_focus_return: string;
+        query_fields: string[];
+        desktop_panel_width_policy: string;
+        desktop_panel_max_width_px: number;
+        desktop_panel_alignment: string;
+        mobile_panel_policy: string;
+        item_content_policy: string;
+        group_heading_policy: string;
+        viewport_policy: string;
+        scroll_region_policy: string;
+        empty_state_policy: string;
+        capability_catalog_empty_policy: string;
         groups: Array<{
           id: string;
-          actions: string[];
           scope: string;
           source?: string;
           source_ref?: string;
           availability_policy?: string;
           label_policy?: string;
+          mode_deduplication_policy?: string;
           existing_session_rebinding_allowed?: boolean;
+          surface_actions: {
+            home_new_session: string[];
+            existing_conversation: string[];
+          };
         }>;
         selected_context_presentation: {
-          projectless_placeholder: string;
-          working_directory: string;
+          workspace_or_initial_cwd: string;
           attachments: string;
-          skills_and_connections: string;
+          agent_packages_skills_modes_and_connections: string;
+        };
+        surface_behavior: {
+          home_new_session: string;
+          existing_conversation: string;
+          settings_route_policy: string;
         };
         authority_policy: string;
         forbidden_entries: string[];

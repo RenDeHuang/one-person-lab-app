@@ -63,8 +63,8 @@ contract/实现收敛 lane 处理。
 | Thread directory adapter | Rail 投影 App Server canonical thread directory/actions；canonical recorded cwd 是 Project 分组 authority。List/read/start/resume/fork/archive/restore/settings-update 复用一个 adapter。 | 用 Shell DB 拥有 history、让本地 affinity 覆盖 canonical cwd、把目录分组当 session owner、挂载独立 coordination 页面、第二 JSON-RPC client、audit/idempotency、dynamic tools或cross-host控制面。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、隐式 workspace ref、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Unified context adapter | Composer `+` 菜单复用真实 file/folder picker、新 session 初始 cwd、App allowlist Skill 与可用连接；无选择时不显示 projectless 占位，已选项使用可移除 chip。 | 伪造 Plugin/provider/backend/team/raw MCP、把 cwd 选择升级为 project owner，或让已绑定 session 任意换 Project。 |
-| Session Project-affinity adapter | `+` 菜单中的工作目录动作只设置新 session 初始 cwd；rail 只允许 `custom_workspace=false` 或无 canonical recorded cwd 的 session 通过拖动或键盘等价动作一次归口。Shell 调用现有 `thread/settings/update.cwd`，以 `thread/read` exact readback 成功为提交点，随后才写本地 `workspace + custom_workspace=true` projection 并移动 row；失败保持 projectless 且对话可用。Conversation Environment 只读显示 recorded workspace 与 live Git inspection；turn cwd、shell `pwd`、显式输入和 writable roots 不反写 affinity。 | `bound(A) -> bound(B)` 任意重绑、从 turn/command `pwd` 推断 Project、要求 Project 覆盖显式输入、修改 writable roots、先改本地分组再验证、私有 adoption RPC、第二 App Server client、pending 状态机、Local/Worktree launch mode、starting branch、managed Worktree/Handoff、receipt/rollback ledger 或 `workspace_handoff` metadata。 |
+| Capability palette adapter | Composer `+` 始终先打开与 composer 等宽、可搜索、分组、可滚动且 viewport-bounded 的 palette；条目显示稳定 icon slot、名称和可用说明。按 Home/new-session 与 existing conversation 分别消费真实 file/folder picker、App allowlist Agent Package/Skill/连接及 adapter-reported nonduplicate mode；Agent 不在既有会话重绑。 | 空 catalog 时直接打开文件选择器；220px attachment 小菜单冒充 palette；把 permission/access 重复成 mode；伪造 Plugin/Chrome/目标/计划/provider/backend/team/raw MCP。 |
+| Session Project-affinity adapter | Home/new-session context bar 的工作目录动作只设置初始 cwd；rail 只允许 `custom_workspace=false` 或无 canonical recorded cwd 的 session 通过拖动或键盘等价动作一次归口。Shell 调用现有 `thread/settings/update.cwd`，以 `thread/read` exact readback 成功为提交点，随后才写本地 `workspace + custom_workspace=true` projection 并移动 row；失败保持 projectless 且对话可用。Conversation Environment 只读显示 recorded workspace 与 live Git inspection；turn cwd、shell `pwd`、显式输入和 writable roots 不反写 affinity。 | 把 cwd 放进 `+` palette、`bound(A) -> bound(B)` 任意重绑、从 turn/command `pwd` 推断 Project、要求 Project 覆盖显式输入、修改 writable roots、先改本地分组再验证、私有 adoption RPC、第二 App Server client、pending 状态机、无真实 adapter 的 Local/Worktree/branch、managed Worktree/Handoff、receipt/rollback ledger 或 `workspace_handoff` metadata。 |
 | Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、PR context、stage/commit/push；`gh` 缺失明确 unavailable。协议缺失时显示 truthful unavailable。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、伪造行级成功。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
@@ -202,7 +202,7 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
   使用统一 interaction protocol，不为每页另造 action semantics。
 - Upstream 新增 Settings 页面必须先经过下面的 intake classification，不能自动进入
   ordinary navigation。
-- Capability 选择从 Home starter 进入；package 安装、Home visibility 和 lifecycle 进入
+- Capability 选择优先从 Home starter 进入，Home/new-session `+` palette 作为同一状态的备用入口；package 安装、Home visibility 和 lifecycle 进入
   Settings → Agents 管理 package lifecycle，Settings → Capabilities 管理
   Skills/Plugins/Flow 和本机能力；历史入口只允许 compatibility redirect。
 
@@ -303,7 +303,7 @@ command 和可见状态 anchor。
 - protocol/target failure返回真实错误，普通 conversation 继续走现有 ACP；
 - 当前 session 显式 attachment、可见 conversation result 与用户选择的合法绝对本地路径只在安全解析后
   进入现有 Preview；隐式 workspace ref、traversal、非法 scheme、自动静默读取失败时保留原 ref 且不打开空 preview；
-- Home 统一 `+` 菜单只设置新 session 初始 cwd；Conversation Environment 保持只读并复用
+- Home/new-session 独立 context bar 只设置初始 cwd；`+` 只承载显式输入与真实可选能力；Conversation Environment 保持只读并复用
   `gitWorkspace.inspect` 展示可用的 branch/changes/refs；projectless adoption 是独立、单向的 rail action，
   必须验证 `custom_workspace=false` 或无 canonical recorded cwd、单一 canonical directory 和一次性 transition；turn/command
   `pwd` 不是 eligibility 前提，也不参与 reclassification。Shell 必须完成 `thread/settings/update.cwd` 与 exact

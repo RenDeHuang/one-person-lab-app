@@ -141,7 +141,7 @@ function validateHomeLayout(guiContract) {
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_show, [
     'desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer',
     'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
-    'unified plus menu groups for files, folders, new-session working directory, allowlisted Skills, and available App connections',
+    'composer-width searchable grouped plus palette for files, folders, real allowlisted loaded capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
     'failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',

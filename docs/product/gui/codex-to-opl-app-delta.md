@@ -182,7 +182,8 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 ## Purpose 与 Agent Package 增量
 
 OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts。Purpose 从
-composer 常驻 selector 移出，只从 Home starter 选择；package 安装、Home visibility 与
+composer 常驻 selector 移出，主要从 Home starter 选择；Home/new-session `+` palette 可在首次发送前
+选择同一 allowlist package，两条入口共享 active capability、route receipt 与 readiness gate；package 安装、Home visibility 与
 lifecycle 进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。
 Home 只用 starter 选中态表达 active capability；conversation 可显示低权重 capability chip：
 
@@ -343,7 +344,7 @@ OPL App 应让用户在 Codex-like 低摩擦工作流中：
 - 从 persistent project/conversation rail 进入 workspace conversation；
 - 不依赖 workspace 进入 projectless text conversation，并理解文件/project 能力限制；
 - 使用 single timeline 和 bottom composer 发送任务；
-- 从 Home starter 选择 OPL purpose/package，在 Settings 管理 package/Home visibility；
+- 从 Home starter 或 new-session `+` palette 选择同一 OPL purpose/package，在 Settings 管理 package/Home visibility；
   Home 不在 composer 重复能力标签，conversation 仅显示低权重 active capability chip；
 - 使用 App-profile model/reasoning control，并动态呈现当前默认值；
 - 以用户语言查看 permission/access mode，而不是 provider/backend；

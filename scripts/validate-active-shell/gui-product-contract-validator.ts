@@ -1352,7 +1352,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.guid_home.must_not_show,
     [
       'full-width professional-agent navigation row or inactive-item chevrons',
-      'separate framed project, locality, or capability cap above the composer',
+      'working directory selector inside the composer capability palette',
       'professional-agent selection disabled only because package launch is not ready',
     ],
     'App GUI Home retired agent-portal and context-cap signals',

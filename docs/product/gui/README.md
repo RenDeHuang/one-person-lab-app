@@ -61,9 +61,10 @@ route/state 场景；它证明当前指定画面非空且布局检查通过，�
 release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
 
 此前 App machine authority 同步落在
-`2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：capability 只从 Home starter 选择，管理进入
+`2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：当时 capability 只从 Home starter 选择，管理进入
 Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
-managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
+managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。当前合同已把 Home/new-session `+` palette
+补为同一 active capability 的备用选择入口，既有 conversation 仍禁止 Agent Package 重绑。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
 absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集，以及当时仍启用的
 Runtime cockpit；Runtime V2 现仅作为 X0-01 条件保留 route。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
@@ -71,8 +72,9 @@ codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote c
 promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
 topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
 `ConversationEnvironmentPopover.tsx` 及对应 DOM/source tests 定义，并要求 `WorkspaceHandoffControl.tsx`、
-`ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Composer 的统一 `+` 菜单承载文件、目录、新 session 初始 cwd、
-App allowlist 内的 Skills 与真实可用连接；选中 cwd 后只显示一个可移除的紧凑 chip，未选时不显示“不使用项目”占位行。
+`ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Home/new-session composer 上方独立 context bar 承载初始 cwd；
+Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文件、目录及 active adapter 真正支持的 App allowlist
+Agent Package、Skill、mode 与连接；已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不允许已绑定 session 在 Project 之间任意重分组。只有 `custom_workspace=false` 或无 canonical recorded cwd 的
 projectless session 可执行一次 Project adoption：用户选择唯一 canonical Project directory 后，Shell 通过既有
@@ -261,7 +263,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 只通过 composer `+` 菜单里的工作目录动作设置初始 cwd；projectless session 可从 rail 通过拖动或
+- New session 只通过 composer 上方独立 context bar 的工作目录动作设置初始 cwd；projectless session 可从 rail 通过拖动或
   键盘可达的等价动作一次性归入一个目录组。失败时保持 projectless 和对话可用。Shell 不创建 managed Worktree、
   不保存 `workspace_handoff` metadata，也不提供已绑定 session 的任意目录重绑或 Local↔Worktree handoff。
 - Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex

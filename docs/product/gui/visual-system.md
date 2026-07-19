@@ -73,8 +73,10 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 - Home starter 使用 content-sized 紧凑入口；容器不写死四列或五列、不显示连续 chevron，按当前
   可见入口数量居中并响应式换行。包的运行就绪状态可以在发送时给 typed guidance，但不得让可见
   智能体在选择阶段失去交互。
-- 新 session 的 initial cwd 由 composer `+` 菜单中的紧凑 action/chip 表达；Local/Worktree、
-  starting branch 和既有 session cwd mutation 不进入普通 composer，也不形成独立灰色顶栏或第二条 capability 标签。
+- 新 session 的 initial cwd 由 composer 上方、与输入 surface 相接的独立 context bar 表达；未选时显示
+  可操作的“选择项目目录”control，而不是“无项目”状态行。它不是装饰卡片，也不进入左下角 `+` palette。
+  当前 active adapter 不显示 Local/Worktree、starting branch 或 managed lifecycle；未来新增必须先修改
+  App contract 并提供真实 adapter。既有 session cwd mutation 不进入普通 composer。
 
 ## Typography
 
@@ -207,7 +209,8 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
 Composer 是底部唯一主 command surface：
 
 - Home 桌面参考几何固定为 composer 最大宽度 `736px`、最小高度 `98px`、圆角 `22px`；
-  未选工作目录时不显示占位行，选中后只显示一个可移除的紧凑 chip，不再渲染外置 context cap。
+  new-session context bar 高 `52px`、水平内缩 `12px`、与 composer 重叠 `13px`，未选时仍保留可操作的
+  项目目录入口，选中后显示目录并提供清除动作。
 - 桌面默认高度至少 `104px`，textarea 可见高度至少 `64px`；按内容增长到合理上限后
   内部滚动。
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
@@ -215,9 +218,10 @@ Composer 是底部唯一主 command surface：
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例；
   resize 后必须完整重绘，不能留下旧 composer frame。
-- Home composer 只保留一个统一 `+` 菜单；rail 仅按当前 cwd
-  组织对话，不拥有对话或上下文，Environment 可按需展示同一运行信息。Textarea 承载任务正文；
-  底部 action row 承载统一 `+` 菜单、permission/access mode、单一紧凑 model/reasoning menu、
+- Home 与 ordinary composer 的 `+` 始终打开可搜索、分组、可滚动且受 viewport 约束的 capability
+  palette；working directory 不进入该 palette。Rail 仅按当前 cwd 组织对话，不拥有对话或上下文，
+  Environment 可按需展示同一运行信息。Textarea 承载任务正文；底部 action row 承载 `+` palette、
+  permission/access mode、单一紧凑 model/reasoning menu、
   可选 voice 和 send/stop。
 - 当前 session 的 attachment、paste/drop 与 `/open` 是唯一显式文件输入，不从 rail/workspace
   预载 context，也不做隐藏注入；attachment 使用同一层文件预览，不形成第二层卡片。
@@ -286,8 +290,9 @@ Composer 是底部唯一主 command surface：
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
 - Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
-- Home 只在统一 `+` 菜单中提供新 session 初始 cwd，不显示独立 workspace selector、Local/Worktree、starting branch、
-  managed Worktree、handoff、cleanup、snapshot receipt、restore 或 cross-host 控制面。
+- Home 只在 composer 上方独立 context bar 提供新 session 初始 cwd；Local/Worktree、starting branch
+  仅在 active adapter 有真实 new-session action 时显示，不提供 managed Worktree、handoff、cleanup、
+  snapshot receipt、restore 或 cross-host 控制面。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。
 

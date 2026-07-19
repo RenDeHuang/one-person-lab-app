@@ -160,9 +160,16 @@ function validateHomeAssistantDefaults(profile) {
     homeLayout?.desktop_composer_max_width_px !== 736 ||
     homeLayout?.desktop_composer_min_height_px !== 98 ||
     homeLayout?.desktop_composer_corner_radius_px !== 22 ||
-    homeLayout?.desktop_context_bar_height_px !== 0 ||
-    homeLayout?.desktop_context_bar_overlap_px !== 0 ||
-    homeLayout?.desktop_context_bar_horizontal_inset_px !== 0 ||
+    homeLayout?.desktop_context_bar_height_px !== 52 ||
+    homeLayout?.desktop_context_bar_overlap_px !== 13 ||
+    homeLayout?.desktop_context_bar_horizontal_inset_px !== 12 ||
+    homeLayout?.workspace_selector_visible !== true ||
+    homeLayout?.workspace_selector_entry !== 'home.new_session_context_bar' ||
+    homeLayout?.unselected_workspace_control_visible !== true ||
+    homeLayout?.unselected_workspace_control_policy !==
+      'localized_choose_project_directory_action_not_projectless_status_placeholder' ||
+    homeLayout?.selected_working_directory_visual_policy !==
+      'independent_new_session_context_bar_control_with_selected_directory_and_clear_action' ||
     homeLayout?.selected_starter_visual_policy !== 'quiet_fill_and_check_indicator_not_color_alone'
   ) {
     throw new Error('Product profile Home must default to the base executor and require explicit professional-agent selection');

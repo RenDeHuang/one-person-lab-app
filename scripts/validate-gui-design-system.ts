@@ -11,6 +11,7 @@ import {
   appOwnedExplicitSessionInputPolicy,
   appOwnedSendFailureInputPolicy,
   appOwnedSessionWorkspaceModel,
+  appOwnedUnifiedContextMenu,
 } from './validate-active-shell/app-contract-constants.ts';
 
 type JsonRecord = Record<string, unknown>;
@@ -1134,9 +1135,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     record(homeTarget.visual_structure).desktop_composer_max_width_px !== 736 ||
     record(homeTarget.visual_structure).desktop_composer_min_height_px !== 98 ||
     record(homeTarget.visual_structure).desktop_composer_corner_radius_px !== 22 ||
-    record(homeTarget.visual_structure).desktop_context_bar_height_px !== 0 ||
-    record(homeTarget.visual_structure).desktop_context_bar_overlap_px !== 0 ||
-    record(homeTarget.visual_structure).desktop_context_bar_horizontal_inset_px !== 0 ||
+    record(homeTarget.visual_structure).desktop_context_bar_height_px !== 52 ||
+    record(homeTarget.visual_structure).desktop_context_bar_overlap_px !== 13 ||
+    record(homeTarget.visual_structure).desktop_context_bar_horizontal_inset_px !== 12 ||
     record(homeTarget.visual_structure).single_centered_reading_lane_for_prompt_starters_and_composer !== true ||
     homeTarget.starter_truncation_allowed !== false ||
     record(homeTarget.workspace_selector_policy).primary_scope !== 'active_workspace_only' ||
@@ -1153,11 +1154,23 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     record(homeTarget.home_shortcut_mutation_policy).pending_key !== 'shortcut_id' ||
     record(homeTarget.home_shortcut_mutation_policy).other_shortcuts_remain_interactive !== true ||
     record(homeTarget.home_shortcut_mutation_policy).readback_mode !== 'background_no_page_loading' ||
-    !sameStrings(capabilitySelection.selection_surfaces, ['home_starter']) ||
+    !sameStrings(capabilitySelection.selection_surfaces, [
+      'home_starter',
+      'home_new_session_capability_palette',
+    ]) ||
+    capabilitySelection.primary_selection_surface !== 'home_starter' ||
+    capabilitySelection.palette_selection_scope !== 'new_session_before_first_send_only' ||
+    capabilitySelection.selection_equivalence_policy !==
+      'same_active_capability_route_receipt_and_send_time_readiness_gate' ||
+    capabilitySelection.selection_cancellation_policy !==
+      'return_to_no_active_capability_without_changing_executor_workspace_or_draft' ||
+    capabilitySelection.starter_palette_selection_sync !==
+      'one_active_capability_state_bidirectionally_reflected' ||
     capabilitySelection.management_surface !== 'settings_agents' ||
     capabilitySelection.legacy_route_policy !== '/capabilities_redirects_to_home_without_mounting_a_selection_page' ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
+    capabilitySelection.contextual_change_scope !== 'new_session_before_first_send_only' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
     !sameStrings(composerTarget.persistent_context, ['active_capability']) ||
     !sameStrings(composerTarget.send_scoped_inputs, ['attachments']) ||
@@ -1185,12 +1198,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(mobileActionSheet.forbidden_actions, ['backend', 'provider', 'team', 'raw_mcp', 'arbitrary_skills']) ||
     mobileActionSheet.send_stop_location !== 'composer_primary_action_outside_sheet' ||
     composerTarget.unified_context_menu_ref !== 'ordinary_conversation.unified_context_menu' ||
-    unifiedContextMenu.trigger !== '+' ||
-    unifiedContextMenu.placement !== 'composer_leading_action' ||
-    unifiedContextMenu.shared_desktop_mobile_content !== true ||
-    record(unifiedContextMenu.selected_context_presentation).projectless_placeholder !== 'hidden' ||
-    record(unifiedContextMenu.selected_context_presentation).working_directory !==
-      'compact_removable_chip_only_when_selected_before_thread_start' ||
+    JSON.stringify(unifiedContextMenu) !== JSON.stringify(appOwnedUnifiedContextMenu) ||
+    record(guiContract.ordinary_conversation).composer_placeholder_policy !==
+      'opl_owned_localized_task_prompt_without_backend_name_interpolation' ||
     composerTarget.model_reasoning_control !== 'single_compact_menu' ||
     !sameStrings(permissionTarget.visible_on, ['home_composer', 'conversation_composer']) ||
     permissionTarget.provider_or_backend_terms_visible !== false ||
@@ -1210,6 +1220,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const guidHomePage = pageStates.find((page) => page.id === 'guid_home') ?? {};
   const guidHomeViewModel = record(record(guidHomePage).home_view_model);
   const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
+  const ordinaryConversationPaletteViewModel = record(record(ordinaryConversationPage).conversation_view_model);
+  if (
+    JSON.stringify(record(ordinaryConversationPaletteViewModel.unified_context_menu)) !==
+    JSON.stringify(appOwnedUnifiedContextMenu)
+  ) {
+    issues.add('page-state ordinary conversation must carry the exact App-owned capability palette contract');
+  }
   const subagentPolicyJson = JSON.stringify(appOwnedCodexSubagentActivityPolicy);
   if (
     JSON.stringify(record(record(profile.gui).ordinary_conversation).codex_subagent_activity) !== subagentPolicyJson ||
