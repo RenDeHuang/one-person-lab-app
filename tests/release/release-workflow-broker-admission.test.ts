@@ -5,6 +5,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 import {
   isBrokerLookupOidcOnlyJob,
+  isReusableWorkflowOidcCeilingJob,
   stableReleaseActionPaths,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
@@ -37,7 +38,7 @@ test('release workflows resolve broker admission once and reuse immutable histor
   }
 });
 
-test('only broker lookup and attestation jobs receive GitHub OIDC permission', () => {
+test('broker lookup, attestation, and exact reusable VM call edges receive GitHub OIDC permission', () => {
   const lookupJobs = new Map([
     ['desktop-release.yml', 'release-preflight'],
     ['desktop-release-promote.yml', 'prepare'],
@@ -45,7 +46,7 @@ test('only broker lookup and attestation jobs receive GitHub OIDC permission', (
     ['opl-first-run-vm.yml', 'validate-vm-inputs'],
   ]);
   const expectedOidcCounts = new Map([
-    ['desktop-release.yml', 2],
+    ['desktop-release.yml', 5],
     ['desktop-release-promote.yml', 1],
     ['desktop-release-full-addon.yml', 2],
     ['opl-first-run-vm.yml', 1],
@@ -57,6 +58,22 @@ test('only broker lookup and attestation jobs receive GitHub OIDC permission', (
     assert.match(block, /permissions:\n      contents: read\n      actions: read\n      id-token: write/);
     assert.match(block, /--mode (?:lookup|"\$verifier_mode")/);
     assert.equal(count(source, /id-token: write/g), expectedOidcCounts.get(name), `${name} OIDC permission count`);
+  }
+
+  const desktop = parseYaml(readWorkflow('desktop-release.yml'));
+  assert.deepEqual(desktop.permissions, { contents: 'read', actions: 'read' });
+  for (const jobId of [
+    'standard-first-run-vm-smoke-after-standard-only',
+    'standard-first-run-vm-smoke-after-full',
+    'full-first-run-vm-smoke',
+  ]) {
+    const job = desktop.jobs[jobId];
+    assert.equal(job.uses, './.github/workflows/opl-first-run-vm.yml', `${jobId} callee`);
+    assert.deepEqual(job.permissions, {
+      contents: 'read',
+      actions: 'read',
+      'id-token': 'write',
+    }, `${jobId} permission ceiling`);
   }
 });
 
@@ -92,6 +109,35 @@ test('OIDC lookup-only classification is strict and rejects hidden mutation auth
   const arbitraryAction = clone();
   arbitraryAction.steps.push({ uses: 'example/opaque-action@0123456789012345678901234567890123456789' });
   assert.equal(isBrokerLookupOidcOnlyJob(arbitraryAction), false);
+});
+
+test('reusable VM OIDC ceilings only allow the exact step-free call edge', () => {
+  const workflow = parseYaml(readWorkflow('desktop-release.yml'));
+  const callerIds = [
+    'standard-first-run-vm-smoke-after-standard-only',
+    'standard-first-run-vm-smoke-after-full',
+    'full-first-run-vm-smoke',
+  ];
+  for (const jobId of callerIds) {
+    assert.equal(isReusableWorkflowOidcCeilingJob(workflow.jobs[jobId]), true, jobId);
+  }
+
+  const baseline = workflow.jobs[callerIds[0]];
+  const permissionDrift = structuredClone(baseline);
+  permissionDrift.permissions.actions = 'write';
+  assert.equal(isReusableWorkflowOidcCeilingJob(permissionDrift), false);
+
+  const extraPermission = structuredClone(baseline);
+  extraPermission.permissions.packages = 'read';
+  assert.equal(isReusableWorkflowOidcCeilingJob(extraPermission), false);
+
+  const calleeDrift = structuredClone(baseline);
+  calleeDrift.uses = './.github/workflows/desktop-release-full-addon.yml';
+  assert.equal(isReusableWorkflowOidcCeilingJob(calleeDrift), false);
+
+  const localSteps = structuredClone(baseline);
+  localSteps.steps = [{ run: 'echo hidden-local-step' }];
+  assert.equal(isReusableWorkflowOidcCeilingJob(localSteps), false);
 });
 
 test('the complete Stable action DAG is pinned to immutable action commits', () => {
