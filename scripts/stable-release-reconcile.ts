@@ -73,6 +73,20 @@ function terminalQualificationState(state: string): boolean {
   return ['passed', 'failed', 'cancelled'].includes(state);
 }
 
+export function reconciledQualificationState(input: {
+  artifactKind: ArtifactKind;
+  workflowConclusion: string;
+  authorityReceiptPassed: boolean;
+  authorityReceiptPresent: boolean;
+  evidenceErrorCount: number;
+}): 'passed' | 'failed' | 'cancelled' | 'runner_lost' {
+  const passed = input.authorityReceiptPassed && input.evidenceErrorCount === 0 &&
+    (input.artifactKind === 'standard' || input.workflowConclusion === 'success');
+  if (passed) return 'passed';
+  if (input.workflowConclusion === 'cancelled') return 'cancelled';
+  return input.authorityReceiptPresent && input.evidenceErrorCount === 0 ? 'failed' : 'runner_lost';
+}
+
 function sha256Json(value: unknown): string {
   return crypto.createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex');
 }
@@ -1046,14 +1060,19 @@ export function reconcileStableReleaseSession(
       }
 
       const conclusion = remote.conclusion || 'failure';
-      const cancelled = conclusion === 'cancelled';
       const authorityReceiptPassed = artifactKind === 'full'
         ? fullAddonFile?.value.status === 'verified'
         : receipt?.status === 'passed';
       const authorityReceiptPresent = artifactKind === 'full' ? Boolean(fullAddonFile) : Boolean(receipt);
       const terminalEvidence = artifactKind === 'full' ? fullAddonFile : receiptFile;
-      const passed = conclusion === 'success' && authorityReceiptPassed && evidenceErrors.length === 0;
-      const reconciledState = passed ? 'passed' : cancelled ? 'cancelled' : authorityReceiptPresent && evidenceErrors.length === 0 ? 'failed' : 'runner_lost';
+      const reconciledState = reconciledQualificationState({
+        artifactKind,
+        workflowConclusion: conclusion,
+        authorityReceiptPassed,
+        authorityReceiptPresent,
+        evidenceErrorCount: evidenceErrors.length,
+      });
+      const passed = reconciledState === 'passed';
       if (locallyTerminal) {
         if (latest.state !== reconciledState || latest.run_id !== runId || latest.conclusion !== conclusion) {
           throw new Error(
@@ -1091,7 +1110,7 @@ export function reconcileStableReleaseSession(
           );
         }
       }
-      const failureTaxonomy = passed ? 'none' : cancelled ? 'cancelled' : artifactKind === 'standard'
+      const failureTaxonomy = passed ? 'none' : conclusion === 'cancelled' ? 'cancelled' : artifactKind === 'standard'
         ? receipt?.failure_taxonomy ?? 'infrastructure'
         : 'infrastructure';
       const remoteReceiptRef = evidenceErrors.length === 0 ? terminalEvidence?.ref ?? null : null;

@@ -10,7 +10,10 @@ import {
   planReleaseMutationAttempt,
   transitionStableReleaseSession,
 } from '../../scripts/stable-release-session.ts';
-import { reconcileStableReleaseSession } from '../../scripts/stable-release-reconcile.ts';
+import {
+  reconciledQualificationState,
+  reconcileStableReleaseSession,
+} from '../../scripts/stable-release-reconcile.ts';
 import { buildReleaseSessionLease } from '../../scripts/release-session-lease.ts';
 import {
   buildCredentialIsolationReceipt,
@@ -221,6 +224,21 @@ test('admin release run success cannot become qualification success without the 
   const qualification = result.artifact_tracks.standard.attempts.find((entry) => entry.attempt_id === fixture.qualificationId)!;
   assert.equal(qualification.events.at(-1)?.state, 'runner_lost');
   assert.notEqual(result.phase, 'artifacts_qualified');
+});
+
+test('combined Desktop Release preserves exact passed qualification after a later train failure', () => {
+  assert.equal(reconciledQualificationState({
+    artifactKind: 'standard', workflowConclusion: 'failure',
+    authorityReceiptPassed: true, authorityReceiptPresent: true, evidenceErrorCount: 0,
+  }), 'passed');
+  assert.equal(reconciledQualificationState({
+    artifactKind: 'full', workflowConclusion: 'failure',
+    authorityReceiptPassed: true, authorityReceiptPresent: true, evidenceErrorCount: 0,
+  }), 'failed');
+  assert.equal(reconciledQualificationState({
+    artifactKind: 'standard', workflowConclusion: 'failure',
+    authorityReceiptPassed: true, authorityReceiptPresent: true, evidenceErrorCount: 1,
+  }), 'runner_lost');
 });
 
 test('legacy qualification state without a broker mutation is not promoted to a false terminal', () => {
