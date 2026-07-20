@@ -250,6 +250,53 @@ test('the remote canary has no manual trigger and no write permission', () => {
   assert.doesNotMatch(readWorkflow('release-bundle-canary.yml'), /gh release|release upload|contents: write/);
 });
 
+test('the canary covers every Bundle reusable edge and proves startup permissions before dispatch', () => {
+  const canary = readWorkflow('release-bundle-canary.yml');
+  for (const path of [
+    '.github/workflows/_build-reusable.yml',
+    '.github/workflows/_release-bundle.yml',
+    '.github/workflows/full-first-install-release.yml',
+    '.github/workflows/opl-first-run-vm.yml',
+    '.github/workflows/opl-updater-upgrade-vm.yml',
+    'tests/release/release-workflow-broker-admission.test.ts',
+  ]) {
+    assert.ok(canary.includes(path), `${path} is outside the Canary trigger/test surface`);
+  }
+
+  const bundle = parseWorkflow('_release-bundle.yml');
+  const reusableEdges: Record<string, string> = {
+    'standard-build': '_build-reusable.yml',
+    'standard-qualification': 'opl-first-run-vm.yml',
+    'updater-upgrade-qualification': 'opl-updater-upgrade-vm.yml',
+    'homebrew-standard-vm': 'opl-first-run-vm.yml',
+    'full-build': 'full-first-install-release.yml',
+    'full-qualification': 'opl-first-run-vm.yml',
+    'homebrew-full-vm': 'opl-first-run-vm.yml',
+  };
+
+  for (const [jobId, workflowName] of Object.entries(reusableEdges)) {
+    const caller = bundle.jobs[jobId] as Record<string, any>;
+    assert.equal(caller.uses, `./.github/workflows/${workflowName}`, `${jobId} reusable workflow`);
+    const callerPermissions = caller.permissions ?? bundle.permissions;
+    assert.deepEqual(callerPermissions, { contents: 'read', actions: 'read' }, `${jobId} caller permissions`);
+
+    const reusable = parseWorkflow(workflowName) as Record<string, any>;
+    assert.ok(reusable.on.workflow_call, `${workflowName} must declare workflow_call`);
+    const rootPermissions = reusable.permissions ?? {};
+    for (const [permission, value] of Object.entries(rootPermissions)) {
+      assert.notEqual(value, 'write', `${workflowName} requests ${permission}: write`);
+    }
+    assert.notEqual(rootPermissions['id-token'], 'write', `${workflowName} requests OIDC write`);
+    for (const [nestedJobId, nestedJob] of Object.entries(reusable.jobs ?? {}) as Array<[string, Record<string, any>]>) {
+      const permissions = nestedJob.permissions ?? rootPermissions;
+      for (const [permission, value] of Object.entries(permissions)) {
+        assert.notEqual(value, 'write', `${workflowName}:${nestedJobId} requests ${permission}: write`);
+      }
+      assert.notEqual(permissions['id-token'], 'write', `${workflowName}:${nestedJobId} requests OIDC write`);
+    }
+  }
+});
+
 test('the App adapter freezes schema-valid digest refs and rejects catalog byte drift before build', () => {
   const fixture = adapterFixture();
   try {
