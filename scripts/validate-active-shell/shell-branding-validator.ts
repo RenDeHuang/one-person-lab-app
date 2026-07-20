@@ -71,6 +71,39 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   if (titlebar.includes('https://github.com/gaofeng21cn/one-person-lab-app/issues/new')) {
     throw new Error('Active shell titlebar feedback target must come from the App product profile');
   }
+
+  const startupFailureDialog = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/InstallationIntegrityDialog.tsx',
+  );
+  for (const expected of [
+    'buildStartupSupportIssueUrl',
+    'getDesktopAppInfo.invoke()',
+    'openExternalUrl(buildStartupSupportIssueUrl',
+    'failure={failure}',
+  ]) {
+    if (!startupFailureDialog.includes(expected)) {
+      throw new Error(`Active shell startup failure issue action must include ${expected}`);
+    }
+  }
+  if (startupFailureDialog.includes('ipcBridge.shell.openExternal')) {
+    throw new Error('Active shell startup failure issue action must not depend on the AionCore HTTP shell bridge');
+  }
+
+  const rendererPlatform = readShellText(shellPaths, 'packages/desktop/src/renderer/utils/platform.ts');
+  if (!rendererPlatform.includes('ipcBridge.application.openExternalUrl.invoke({ url })')) {
+    throw new Error('Active shell external browser utility must use the Electron-native application IPC provider');
+  }
+  if (rendererPlatform.includes('ipcBridge.shell.openExternal.invoke(url)')) {
+    throw new Error('Active shell external browser utility must not route Electron opens through AionCore HTTP');
+  }
+
+  const applicationBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/applicationBridge.ts');
+  for (const expected of ['shell.openExternal(normalizeExternalHttpUrl(url))', 'getDesktopAppInfo.provider']) {
+    if (!applicationBridge.includes(expected)) {
+      throw new Error(`Active shell Electron application bridge must include ${expected}`);
+    }
+  }
   const productProfileConsumer = readShellText(
     shellPaths,
     'packages/desktop/src/common/config/oplProductProfile/index.ts',
