@@ -376,7 +376,7 @@ jobs:
           if (validation.full_addon_deadline_at !== process.env.FULL_ADDON_DEADLINE_AT) {
             throw new Error('Historical broker validation does not bind the propagated Full add-on deadline.');
           }
-            NODE
+          NODE
           fi
 
       - name: Validate immutable Release Bundle caller
