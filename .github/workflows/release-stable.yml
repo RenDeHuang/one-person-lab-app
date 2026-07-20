@@ -1,0 +1,38 @@
+name: OPL Stable Release Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable CalVer for the immutable Bundle (YY.M.D)
+        required: true
+        type: string
+      include_full:
+        description: Build and append the optional same-cohort Full assets
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-stable-release-bundle-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-bundle.yml
+    with:
+      channel: stable
+      version: ${{ inputs.version }}
+      include_full: ${{ inputs.include_full }}
+      app_ref: ${{ github.sha }}
+    secrets: inherit

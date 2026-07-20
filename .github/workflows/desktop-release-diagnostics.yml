@@ -1,7 +1,7 @@
 name: OPL Desktop Release Diagnostics
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       opl_version:
         description: OPL version to diagnose, for example 26.6.21
@@ -51,11 +51,7 @@ on:
         description: Install profile to diagnose
         required: false
         default: standard
-        type: choice
-        options:
-          - standard
-          - full
-          - homebrew-standard
+        type: string
       tart_source_vm:
         description: Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.
         required: false
@@ -85,10 +81,7 @@ on:
         description: Diagnostic scope for the first-run VM harness. Use bootstrap_only to capture App launch/bootstrap blockers without Codex asset preseed or secondary route checks.
         required: false
         default: bootstrap_only
-        type: choice
-        options:
-          - bootstrap_only
-          - release_gate
+        type: string
 
 permissions:
   actions: read

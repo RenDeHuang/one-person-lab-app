@@ -1,7 +1,7 @@
 name: OPL Remote Release Verification
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       opl_version:
         description: OPL version to verify, for example 26.5.19

@@ -91,6 +91,21 @@ export function isReusableWorkflowOidcCeilingJob(job: Record<string, any>): bool
     [...expectedPermissions].every(([name, value]) => permissions[name] === value);
 }
 
+function isReleaseBundleEntryJob(workflowPath: string, jobId: string, job: Record<string, any>): boolean {
+  if (workflowPath !== '.github/workflows/release-stable.yml' || jobId !== 'release') return false;
+  const permissions = job.permissions && typeof job.permissions === 'object'
+    ? job.permissions as Record<string, unknown>
+    : null;
+  return job.uses === './.github/workflows/_release-bundle.yml' &&
+    !Object.prototype.hasOwnProperty.call(job, 'steps') &&
+    permissions?.contents === 'write' &&
+    permissions?.actions === 'read' &&
+    Object.keys(permissions).length === 2 &&
+    job.with?.channel === 'stable' &&
+    job.with?.app_ref === '${{ github.sha }}' &&
+    job.secrets === 'inherit';
+}
+
 function validateExactActionPins(
   workflowPath: string,
   jobId: string,
@@ -196,15 +211,7 @@ export function validateStableReleaseActionPinPolicy(appRoot: string): number {
 export function validateWorkflowDispatchWriteAuthority(appRoot: string): number {
   let failures = 0;
   const signedStableWriters = new Set([
-    '.github/workflows/desktop-release.yml',
-    '.github/workflows/desktop-release-promote.yml',
-    '.github/workflows/desktop-release-full-addon.yml',
-  ]);
-  const canonicalBrokeredWorkflows = new Set([
-    '.github/workflows/desktop-release.yml',
-    '.github/workflows/desktop-release-promote.yml',
-    '.github/workflows/desktop-release-full-addon.yml',
-    '.github/workflows/opl-first-run-vm.yml',
+    '.github/workflows/release-stable.yml',
   ]);
   const workflowDirectory = path.join(appRoot, '.github', 'workflows');
   const workflowPaths = fs.readdirSync(workflowDirectory)
@@ -221,18 +228,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       continue;
     }
     if (!workflow?.on?.workflow_dispatch) continue;
-    if (canonicalBrokeredWorkflows.has(workflowPath)) {
-      const attemptInput = workflow.on.workflow_dispatch?.inputs?.release_attempt_id;
-      const runName = workflow['run-name'];
-      if (attemptInput?.required !== true) {
-        console.error(`FAIL workflow_attempt_identity: ${workflowPath} must require workflow_dispatch.inputs.release_attempt_id`);
-        failures += 1;
-      }
-      if (typeof runName !== 'string' || !runName.includes('${{ inputs.release_attempt_id }}')) {
-        console.error(`FAIL workflow_attempt_identity: ${workflowPath} run-name must contain the complete release_attempt_id input`);
-        failures += 1;
-      }
-    }
     const topPermissions = workflow.permissions && typeof workflow.permissions === 'object' ? workflow.permissions : {};
     const topWrites = Object.entries(topPermissions).filter(([, value]) => value === 'write').map(([key]) => key);
     if (signedStableWriters.has(workflowPath) && topWrites.length > 0) {
@@ -251,8 +246,9 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (isReusableWorkflowOidcCeilingJob(job)) continue;
+      if (isReleaseBundleEntryJob(workflowPath, jobId, job)) continue;
       if (!signedStableWriters.has(workflowPath)) {
-        console.error(`FAIL workflow_dispatch_write_authority: ${workflowPath} job ${jobId} has write permission outside the signed broker inventory`);
+        console.error(`FAIL workflow_dispatch_write_authority: ${workflowPath} job ${jobId} has write permission outside the immutable Release Bundle entry`);
         failures += 1;
         continue;
       }

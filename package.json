@@ -84,6 +84,7 @@
     "validate:docker-webui-diagnostics": "node --experimental-strip-types scripts/validate-docker-webui-diagnostics.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
     "release:bundle": "node --experimental-strip-types scripts/release-bundle.ts",
+    "release:framework-adapter": "node --experimental-strip-types scripts/framework-release-adapter.ts",
     "release:version:validate": "node --experimental-strip-types scripts/release-version.ts",
     "release:nightly-version:resolve": "node --experimental-strip-types scripts/resolve-nightly-version.ts",
     "release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts",

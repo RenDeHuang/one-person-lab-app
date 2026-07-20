@@ -1,66 +1,6 @@
 name: OPL Full First-Install Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      opl_version:
-        description: OPL version to publish, for example 26.5.15
-        required: true
-        type: string
-      framework_ref:
-        description: Exact frozen OPL Framework SHA to bundle
-        required: true
-        type: string
-      shell_ref:
-        description: Exact frozen opl-aion-shell SHA to bundle
-        required: true
-        type: string
-      upload_full_package_artifact:
-        description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
-        required: false
-        default: false
-        type: boolean
-      force_rebuild_runtime_cache:
-        description: Ignore restored Full runtime layer cache and rebuild all layers
-        required: false
-        default: false
-        type: boolean
-      cache_only:
-        description: Warm and validate Full runtime layer caches without building release assets
-        required: false
-        default: false
-        type: boolean
-      full_dmg_compression_level:
-        description: zlib level for the Full DMG when full_dmg_format is UDZO.
-        required: false
-        default: '9'
-        type: string
-      full_dmg_format:
-        description: Full DMG compression format. ULMO favors release size; UDZO keeps legacy zlib compatibility.
-        required: false
-        default: ULMO
-        type: string
-      stable_session_id:
-        description: Stable release session sha256 identity; empty for diagnostic builds.
-        required: false
-        default: ''
-        type: string
-      operator_actor:
-        description: Human/operator audit identity; broker GitHub App holds mutation authority
-        required: false
-        default: ''
-        type: string
-      release_cohort_ref:
-        description: Stable release cohort sha256 identity; empty for diagnostic builds.
-        required: false
-        default: ''
-        type: string
-      release_attempt_id: { description: Release broker attempt id, required: false, default: '', type: string }
-      release_session_lease_base64: { description: Signed release broker ticket, required: false, default: '', type: string }
-      release_mutation: { description: Outer controller mutation, required: false, default: '', type: string }
-      release_workflow: { description: Outer controller workflow, required: false, default: '', type: string }
-      controller_workflow_sha: { description: Exact controller workflow SHA, required: false, default: '', type: string }
-      artifact_app_sha: { description: Frozen artifact App SHA, required: false, default: '', type: string }
   workflow_call:
     inputs:
       opl_version:
@@ -101,7 +41,12 @@ on:
         default: ULMO
         type: string
       stable_session_id:
-        description: Stable release session sha256 identity.
+        description: Immutable Release Bundle digest; legacy callers may pass a historical session identity.
+        required: false
+        default: ''
+        type: string
+      release_bundle_digest:
+        description: Exact immutable Framework Release Bundle digest for the live control plane.
         required: false
         default: ''
         type: string
@@ -275,6 +220,17 @@ jobs:
             [[ '${{ inputs.artifact_app_sha }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::artifact_app_sha must be exact for release-bound Full builds."; exit 1; }
           fi
 
+      - name: Validate immutable Release Bundle caller
+        if: ${{ inputs.release_bundle_digest != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_bundle_digest must be exact."; exit 1; }
+          test '${{ inputs.stable_session_id }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::stable_session_id must equal the Bundle digest."; exit 1; }
+          test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
+          test -z '${{ inputs.release_mutation }}' || { echo "::error::Bundle builds cannot carry legacy broker mutation authority."; exit 1; }
+          test -z '${{ inputs.release_session_lease_base64 }}' || { echo "::error::Bundle builds cannot carry a legacy broker lease."; exit 1; }
+
       - name: Enforce cache-only warmup boundary
         if: ${{ inputs.cache_only }}
         shell: bash
@@ -287,7 +243,7 @@ jobs:
           test -z '${{ inputs.release_session_lease_base64 }}' || { echo "::error::Cache-only warmup cannot carry a release session lease."; exit 1; }
 
       - name: Verify signed release-bound Full build ticket
-        if: ${{ inputs.stable_session_id != '' }}
+        if: ${{ inputs.stable_session_id != '' && inputs.release_bundle_digest == '' }}
         working-directory: one-person-lab-app-controller
         run: |
           test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Workflow rerun cannot replace its signed mutation ticket; return to the controller."; exit 1; }

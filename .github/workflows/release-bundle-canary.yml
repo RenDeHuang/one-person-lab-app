@@ -1,0 +1,48 @@
+name: OPL Release Bundle Canary
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/*release-bundle*.yml'
+      - '.github/workflows/release-stable.yml'
+      - '.github/workflows/release-nightly.yml'
+      - 'scripts/framework-release-adapter.ts'
+      - 'tests/release/release-bundle-workflow-cutover.test.ts'
+  pull_request:
+    paths:
+      - '.github/workflows/*release-bundle*.yml'
+      - '.github/workflows/release-stable.yml'
+      - '.github/workflows/release-nightly.yml'
+      - 'scripts/framework-release-adapter.ts'
+      - 'tests/release/release-bundle-workflow-cutover.test.ts'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-release-bundle-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify Bundle cutover without public mutation
+        run: node --experimental-strip-types --test tests/release/release-bundle-workflow-cutover.test.ts

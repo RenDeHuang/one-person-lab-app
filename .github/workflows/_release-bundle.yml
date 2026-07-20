@@ -1,0 +1,849 @@
+name: OPL Immutable Release Bundle Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: Release channel.
+        required: true
+        type: string
+      version:
+        description: Stable version; Nightly resolves today's canonical revision when empty.
+        required: false
+        default: ''
+        type: string
+      include_full:
+        description: Build and append the optional same-cohort Full track.
+        required: false
+        default: false
+        type: boolean
+      app_ref:
+        description: Exact App controller ref.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_RELEASE_BUNDLE_ARTIFACT: opl-release-bundle-${{ github.run_id }}
+  OPL_STANDARD_BOUND_ARTIFACT: opl-release-bundle-standard-${{ github.run_id }}
+  OPL_FULL_BOUND_ARTIFACT: opl-release-bundle-full-${{ github.run_id }}
+
+jobs:
+  freeze-inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.freeze.outputs.version }}
+      tag: ${{ steps.freeze.outputs.tag }}
+      app_sha: ${{ steps.freeze.outputs.app_sha }}
+      shell_sha: ${{ steps.freeze.outputs.shell_sha }}
+      framework_sha: ${{ steps.freeze.outputs.framework_sha }}
+      opl_flow_sha: ${{ steps.freeze.outputs.opl_flow_sha }}
+      release_set_manifest: ${{ steps.freeze.outputs.release_set_manifest }}
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          path: app-source
+          fetch-depth: 0
+
+      - name: Checkout current Shell authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shell-source
+
+      - name: Checkout current Framework authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: main
+          path: framework-source
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Freeze exact source and Package inputs
+        id: freeze
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$CHANNEL" in stable|nightly) ;; *) echo "::error::channel must be stable or nightly"; exit 1 ;; esac
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          shell_sha="$(git -C shell-source rev-parse HEAD)"
+          framework_sha="$(git -C framework-source rev-parse HEAD)"
+          for sha in "$app_sha" "$shell_sha" "$framework_sha"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Source freeze did not resolve exact SHAs."; exit 1; }
+          done
+          canonical_app_sha="$(git -C app-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          [ "$app_sha" = "$canonical_app_sha" ] || {
+            echo "::error::Release Bundle must freeze canonical App main ($canonical_app_sha), not $app_sha."
+            exit 1
+          }
+          if [ "$CHANNEL" = stable ]; then
+            version="$REQUESTED_VERSION"
+            test -n "$version" || { echo "::error::Stable requires an explicit version."; exit 1; }
+          else
+            base="$(TZ=Asia/Shanghai date '+%y.%-m.%-d')-nightly"
+            git -C app-source ls-remote --tags origin 'refs/tags/v*-nightly*' > nightly-tags.txt
+            version="$(BASE="$base" node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { resolveNightlyReleaseVersion } from './app-source/scripts/release-version.ts';
+          const refs = fs.readFileSync('nightly-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean);
+          process.stdout.write(resolveNightlyReleaseVersion(process.env.BASE, refs).version);
+          NODE
+            )"
+          fi
+          node --experimental-strip-types app-source/scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json
+          release_set_manifest="$(find framework-source/release/cohorts -mindepth 2 -maxdepth 2 -type f -name release-set.json -print | sort -V | tail -1)"
+          test -n "$release_set_manifest" || { echo "::error::Framework has no frozen release/cohorts/*/release-set.json."; exit 1; }
+          release_set_manifest="${release_set_manifest#framework-source/}"
+          opl_flow_sha="$(jq -er '.packages["opl-flow"].owner_source_commit' framework-source/contracts/opl-framework/bundled-full-runtime-package-catalog.json)"
+          [[ "$opl_flow_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Framework catalog has no exact opl-flow owner SHA."; exit 1; }
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+            echo "opl_flow_sha=$opl_flow_sha"
+            echo "release_set_manifest=$release_set_manifest"
+          } >> "$GITHUB_OUTPUT"
+
+  cold-preflight:
+    runs-on: ubuntu-latest
+    needs: [freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+
+      - name: Checkout frozen Shell source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+          path: shells/aionui
+
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+          path: framework-source
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install cold-gate dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix framework-source ci --ignore-scripts
+
+      - name: Validate Bundle contracts before paid work
+        run: |
+          npm run typecheck
+          npm run validate:release-boundary
+          node --experimental-strip-types --test tests/release/release-bundle-workflow-cutover.test.ts
+          node --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
+          npm --prefix framework-source run typecheck
+
+  prepare-notes:
+    runs-on: ubuntu-latest
+    needs: [cold-preflight, freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          fetch-depth: 0
+
+      - name: Checkout frozen Shell source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install note preparation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Prepare and validate online AI notes before build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPL_RELEASE_NOTES_MODE: ai
+          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: https://gflabtoken.cn/v1
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_MODEL: gpt-5.6-luna
+        run: |
+          set -euo pipefail
+          test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
+          npm run release:notes -- \
+            --version '${{ needs.freeze-inputs.outputs.version }}' \
+            --channel '${{ inputs.channel }}' \
+            --repo "$GITHUB_REPOSITORY" \
+            --shell-root shells/aionui \
+            --current-tag '${{ needs.freeze-inputs.outputs.tag }}' \
+            --current-app-ref '${{ needs.freeze-inputs.outputs.app_sha }}' \
+            --current-shell-ref '${{ needs.freeze-inputs.outputs.shell_sha }}' \
+            --evidence-output notes-evidence.json \
+            --output notes-template.md
+          npm run release:notes:prepare -- --evidence notes-evidence.json --output notes.md
+          test -s notes.md
+          test -s notes-evidence.json
+
+      - name: Upload prepared notes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-notes-${{ github.run_id }}
+          path: |
+            notes.md
+            notes-evidence.json
+            notes-template.md
+          if-no-files-found: error
+          retention-days: 30
+
+  freeze:
+    runs-on: ubuntu-latest
+    needs: [cold-preflight, prepare-notes, freeze-inputs]
+    outputs:
+      bundle_digest: ${{ steps.bundle.outputs.bundle_digest }}
+      bundle_path: ${{ steps.bundle.outputs.bundle_path }}
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          path: app-source
+
+      - name: Checkout frozen Shell source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+          path: shell-source
+
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+          path: framework-source
+
+      - name: Download prepared notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-bundle-notes-${{ github.run_id }}
+          path: prepared-notes
+
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+
+      - name: Freeze canonical Framework Bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts freeze-request \
+            --channel '${{ inputs.channel }}' \
+            --version '${{ needs.freeze-inputs.outputs.version }}' \
+            --app-root app-source \
+            --shell-root shell-source \
+            --framework-root framework-source \
+            --notes prepared-notes/notes.md \
+            --notes-evidence prepared-notes/notes-evidence.json \
+            --release-set-manifest 'framework-source/${{ needs.freeze-inputs.outputs.release_set_manifest }}' \
+            --output freeze-request.json
+          framework-source/bin/opl release freeze \
+            --request freeze-request.json \
+            --source-root framework-source \
+            --store "$RUNNER_TEMP/release-bundle-store" \
+            --json > freeze-result.json
+          bundle_digest="$(jq -er '.release_bundle_freeze.bundle_digest' freeze-result.json)"
+          bundle_path="$(jq -er '.release_bundle_freeze.bundle_path' freeze-result.json)"
+          [[ "$bundle_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Framework did not freeze a canonical Bundle."; exit 1; }
+          cp "$bundle_path" release-bundle.json
+          echo "bundle_digest=$bundle_digest" >> "$GITHUB_OUTPUT"
+          echo "bundle_path=release-bundle.json" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable Bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
+          path: |
+            release-bundle.json
+            freeze-request.json
+            freeze-result.json
+            prepared-notes/notes.md
+            prepared-notes/notes-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+  standard-build:
+    needs: [freeze, freeze-inputs]
+    uses: ./.github/workflows/_build-reusable.yml
+    with:
+      matrix: >-
+        {"include":[{"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}]}
+      ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      opl_flow_ref: ${{ needs.freeze-inputs.outputs.opl_flow_sha }}
+      opl_release_version: ${{ needs.freeze-inputs.outputs.version }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      require_macos_gatekeeper: true
+    secrets: inherit
+
+  standard-qualification:
+    needs: [freeze, freeze-inputs, standard-build]
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_artifact_name: macos-build-arm64-dmg
+      release_artifact_run_id: ${{ github.run_id }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      package_profile: standard
+      diagnostic_scope: release_gate
+    secrets: inherit
+
+  bind-standard:
+    runs-on: ubuntu-latest
+    needs: [freeze, freeze-inputs, prepare-notes, standard-build, standard-qualification]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          path: app-source
+
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+          path: framework-source
+
+      - name: Download Bundle and exact Standard bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
+          path: bundle
+
+      - name: Download Standard build asset set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: macos-build-arm64
+          path: standard-assets
+
+      - name: Download exact Standard VM qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-standard-${{ github.run_id }}
+          path: standard-qualification
+
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+
+      - name: Complete and bind the closed Standard asset set
+        env:
+          VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          APP_SHA: ${{ needs.freeze-inputs.outputs.app_sha }}
+          CHANNEL: ${{ inputs.channel }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f standard-assets/latest-mac.yml standard-assets/standard-gatekeeper-launch-policy.json
+          VERSION="$VERSION" CHANNEL="$CHANNEL" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const version = process.env.VERSION;
+          const names = [
+            `One-Person-Lab-${version}-mac-arm64.dmg`,
+            `One-Person-Lab-${version}-mac-arm64.zip`,
+            `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+            'latest-arm64-mac.yml',
+            'standard-local-authorization-policy.json',
+          ];
+          const assets = names.map((name) => {
+            const bytes = fs.readFileSync(path.join('standard-assets', name));
+            return {
+              name,
+              url: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${version}/${name}`,
+              digest: `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`,
+              size: bytes.length,
+              contentType: 'application/octet-stream',
+            };
+          });
+          fs.writeFileSync('component-release.json', `${JSON.stringify({
+            tagName: `v${version}`,
+            isPrerelease: process.env.CHANNEL === 'nightly',
+            url: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/tag/v${version}`,
+            assets,
+          }, null, 2)}\n`);
+          NODE
+          node --experimental-strip-types app-source/scripts/write-opl-app-component-manifest.ts \
+            --version "$VERSION" --source-commit "$APP_SHA" \
+            --release-json component-release.json \
+            --output standard-assets/opl-app-component-manifest.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
+            --bundle bundle/release-bundle.json --track standard --outcome complete \
+            --assets-dir standard-assets --output standard-build-receipt.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" \
+            --executor-receipt standard-build-receipt.json --store "$RUNNER_TEMP/store" --json > standard-build-result.json
+          legacy_receipt="$(find standard-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
+          test -n "$legacy_receipt" || { echo "::error::Standard VM produced no exact-artifact qualification receipt."; exit 1; }
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
+            --bundle bundle/release-bundle.json --track standard \
+            --legacy-qualification "$legacy_receipt" --output standard-qualification-receipt.json
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track standard \
+            --qualification-receipt standard-qualification-receipt.json \
+            --store "$RUNNER_TEMP/store" --json > standard-verify-result.json
+
+      - name: Upload bound Standard track
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.OPL_STANDARD_BOUND_ARTIFACT }}
+          path: |
+            standard-assets
+            standard-qualification-receipt.json
+            standard-build-result.json
+            standard-verify-result.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-standard-nonlatest:
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [bind-standard, freeze, freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          path: app-source
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+          path: framework-source
+      - name: Download Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
+          path: bundle
+      - name: Download bound Standard track
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ env.OPL_STANDARD_BOUND_ARTIFACT }}
+          path: bound
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+      - name: Publish missing Standard bytes without making Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
+            --bundle bundle/release-bundle.json --track standard --outcome complete \
+            --assets-dir bound/standard-assets --output build-receipt.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" --executor-receipt build-receipt.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track standard \
+            --qualification-receipt bound/standard-qualification-receipt.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote-before.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-before" \
+            --bundle bundle/release-bundle.json --track standard --outcome complete \
+            --inspection remote-before.json --output remote-before-receipt.json
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" \
+            --executor-receipt remote-before-receipt.json --store "$RUNNER_TEMP/store" --json > publish-plan.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+            --bundle bundle/release-bundle.json --plan publish-plan.json --output publish-apply.json
+          if [ "$(jq -r '.status' publish-apply.json)" != complete ]; then
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-unknown" \
+              --bundle bundle/release-bundle.json --track standard --outcome unknown --output remote-unknown-receipt.json
+            framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" \
+              --executor-receipt remote-unknown-receipt.json --store "$RUNNER_TEMP/store" --json > publish-unknown.json
+            if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+              --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output reconcile-observation.json; then
+              outcome=complete
+            else
+              outcome=unknown
+            fi
+            reconcile_args=(--operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-reconcile" --bundle bundle/release-bundle.json --track standard --outcome "$outcome" --output reconcile-receipt.json)
+            [ "$outcome" = complete ] && reconcile_args+=(--inspection reconcile-observation.json)
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt "${reconcile_args[@]}"
+            framework-source/bin/opl release reconcile --bundle "$BUNDLE_DIGEST" \
+              --executor-receipt reconcile-receipt.json --store "$RUNNER_TEMP/store" --json > reconcile-result.json
+            test "$(jq -r '.release_bundle_reconcile.status' reconcile-result.json)" = complete || {
+              echo "::error::GitHub mutation remains unresolved; no upload retry was attempted."
+              exit 1
+            }
+          fi
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote-after.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-after" \
+            --bundle bundle/release-bundle.json --track standard --outcome complete \
+            --inspection remote-after.json --output remote-after-receipt.json
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" \
+            --executor-receipt remote-after-receipt.json --store "$RUNNER_TEMP/store" --json > standard-published.json
+          test "$(jq -r '.release_bundle_publish.status' standard-published.json)" = complete
+
+      - name: Upload Standard publication receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-standard-published-${{ github.run_id }}
+          path: |
+            publish-plan.json
+            publish-apply.json
+            remote-after.json
+            standard-published.json
+          if-no-files-found: error
+          retention-days: 30
+
+  remote-digest-verify:
+    runs-on: ubuntu-latest
+    needs: [publish-standard-nonlatest, freeze, freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ needs.freeze-inputs.outputs.app_sha }}', path: app-source }
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { repository: gaofeng21cn/one-person-lab, ref: '${{ needs.freeze-inputs.outputs.framework_sha }}', path: framework-source }
+      - name: Download Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}', path: bundle }
+      - name: Download bound Standard track
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_STANDARD_BOUND_ARTIFACT }}', path: bound }
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+      - name: Read back exact remote Standard digests
+        env: { GH_TOKEN: '${{ github.token }}', BUNDLE_DIGEST: '${{ needs.freeze.outputs.bundle_digest }}' }
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" --bundle bundle/release-bundle.json --track standard --outcome complete --assets-dir bound/standard-assets --output build.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" --executor-receipt build.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track standard --qualification-receipt bound/standard-qualification-receipt.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" --bundle bundle/release-bundle.json --track standard --outcome complete --inspection remote.json --output remote.json.receipt
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" --executor-receipt remote.json.receipt --store "$RUNNER_TEMP/store" --json > publication.json
+          test "$(jq -r '.release_bundle_publish.status' publication.json)" = complete
+          framework-source/bin/opl release status --bundle "$BUNDLE_DIGEST" --store "$RUNNER_TEMP/store" --json > bundle-status.json
+          test "$(jq -r '.release_bundle_status.latest_eligible' bundle-status.json)" = true
+
+      - name: Upload remote digest proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-standard-remote-verify-${{ github.run_id }}
+          path: |
+            remote.json
+            publication.json
+            bundle-status.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-latest:
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [remote-digest-verify, freeze, freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ needs.freeze-inputs.outputs.app_sha }}', path: app-source }
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { repository: gaofeng21cn/one-person-lab, ref: '${{ needs.freeze-inputs.outputs.framework_sha }}', path: framework-source }
+      - name: Download Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}', path: bundle }
+      - name: Download bound Standard track
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_STANDARD_BOUND_ARTIFACT }}', path: bound }
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+      - name: Rebuild Framework publication status from exact remote bytes
+        env: { GH_TOKEN: '${{ github.token }}', BUNDLE_DIGEST: '${{ needs.freeze.outputs.bundle_digest }}' }
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest" --bundle bundle/release-bundle.json --track standard --outcome complete --assets-dir bound/standard-assets --output build.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" --executor-receipt build.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track standard --qualification-receipt bound/standard-qualification-receipt.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest" --bundle bundle/release-bundle.json --track standard --outcome complete --inspection remote.json --output remote.json.receipt
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" --executor-receipt remote.json.receipt --store "$RUNNER_TEMP/store" --json > publication.json
+          framework-source/bin/opl release status --bundle "$BUNDLE_DIGEST" --store "$RUNNER_TEMP/store" --json > bundle-status.json
+          test "$(jq -r '.release_bundle_status.latest_eligible' bundle-status.json)" = true
+
+      - name: Activate Stable Latest only after exact remote parity
+        if: ${{ inputs.channel == 'stable' }}
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-activate-latest --bundle bundle/release-bundle.json --status bundle-status.json --output latest-result.json
+
+      - name: Preserve Nightly as prerelease
+        if: ${{ inputs.channel == 'nightly' }}
+        run: echo '{"status":"not_applicable","reason":"nightly_never_activates_latest"}' > latest-result.json
+
+      - name: Upload activation receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-activation-${{ github.run_id }}
+          path: |
+            bundle-status.json
+            latest-result.json
+          if-no-files-found: error
+          retention-days: 30
+
+  installed-updater-readback:
+    needs: [publish-latest, freeze, freeze-inputs]
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: ${{ needs.freeze-inputs.outputs.tag }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      package_profile: standard
+      diagnostic_scope: release_gate
+    secrets: inherit
+
+  full-build:
+    if: ${{ inputs.include_full }}
+    needs: [publish-latest, freeze, freeze-inputs]
+    uses: ./.github/workflows/full-first-install-release.yml
+    with:
+      opl_version: ${{ needs.freeze-inputs.outputs.version }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      upload_full_package_artifact: true
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      controller_workflow_sha: ${{ needs.freeze-inputs.outputs.app_sha }}
+      artifact_app_sha: ${{ needs.freeze-inputs.outputs.app_sha }}
+    secrets: inherit
+
+  full-qualification:
+    if: ${{ inputs.include_full }}
+    needs: [freeze, freeze-inputs, full-build]
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_artifact_name: opl-full-first-install-dmg-${{ needs.freeze-inputs.outputs.version }}-mac-arm64
+      release_artifact_run_id: ${{ github.run_id }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      package_profile: full
+      diagnostic_scope: release_gate
+    secrets: inherit
+
+  bind-full:
+    if: ${{ inputs.include_full }}
+    runs-on: ubuntu-latest
+    needs: [publish-latest, freeze, freeze-inputs, full-build, full-qualification]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ needs.freeze-inputs.outputs.app_sha }}', path: app-source }
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { repository: gaofeng21cn/one-person-lab, ref: '${{ needs.freeze-inputs.outputs.framework_sha }}', path: framework-source }
+      - name: Download Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}', path: bundle }
+      - name: Download Full package asset set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-full-first-install-${{ needs.freeze-inputs.outputs.version }}-mac-arm64
+          path: full-output
+      - name: Download exact Full VM qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: full-qualification
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+      - name: Bind qualified Full bytes without touching updater metadata
+        env: { BUNDLE_DIGEST: '${{ needs.freeze.outputs.bundle_digest }}' }
+        run: |
+          set -euo pipefail
+          mkdir full-assets
+          cp "full-output/One-Person-Lab-Full-${{ needs.freeze-inputs.outputs.version }}-mac-arm64.dmg" full-assets/
+          cp full-output/opl-release-manifest.json full-assets/
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-build" --bundle bundle/release-bundle.json --track full --outcome complete --assets-dir full-assets --output full-build-receipt.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" --executor-receipt full-build-receipt.json --store "$RUNNER_TEMP/store" --json > full-build-result.json
+          legacy_receipt="$(find full-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
+          test -n "$legacy_receipt" || { echo "::error::Full VM produced no exact-artifact qualification receipt."; exit 1; }
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt --bundle bundle/release-bundle.json --track full --legacy-qualification "$legacy_receipt" --output full-qualification-receipt.json
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track full --qualification-receipt full-qualification-receipt.json --store "$RUNNER_TEMP/store" --json > full-verify-result.json
+      - name: Upload bound Full track
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.OPL_FULL_BOUND_ARTIFACT }}
+          path: |
+            full-assets
+            full-qualification-receipt.json
+            full-build-result.json
+            full-verify-result.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-full:
+    if: ${{ inputs.include_full }}
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [bind-full, freeze, freeze-inputs]
+    steps:
+      - name: Checkout frozen App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ needs.freeze-inputs.outputs.app_sha }}', path: app-source }
+      - name: Checkout frozen Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { repository: gaofeng21cn/one-person-lab, ref: '${{ needs.freeze-inputs.outputs.framework_sha }}', path: framework-source }
+      - name: Download Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}', path: bundle }
+      - name: Download bound Full track
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with: { name: '${{ env.OPL_FULL_BOUND_ARTIFACT }}', path: bound }
+      - name: Setup Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+      - name: Install Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+      - name: Append exact Full bytes only
+        env: { GH_TOKEN: '${{ github.token }}', BUNDLE_DIGEST: '${{ needs.freeze.outputs.bundle_digest }}' }
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" --bundle bundle/release-bundle.json --track full --outcome complete --assets-dir bound/full-assets --output build.json
+          framework-source/bin/opl release freeze --request bundle/freeze-request.json --source-root framework-source --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release build --bundle "$BUNDLE_DIGEST" --executor-receipt build.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          framework-source/bin/opl release verify --bundle "$BUNDLE_DIGEST" --track full --qualification-receipt bound/full-qualification-receipt.json --store "$RUNNER_TEMP/store" --json > /dev/null
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote-before.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-before" --bundle bundle/release-bundle.json --track full --outcome complete --inspection remote-before.json --output remote-before.receipt
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt --store "$RUNNER_TEMP/store" --json > publish-plan.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply --bundle bundle/release-bundle.json --plan publish-plan.json --output publish-apply.json
+          if [ "$(jq -r '.status' publish-apply.json)" != complete ]; then
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-unknown" --bundle bundle/release-bundle.json --track full --outcome unknown --output remote-unknown.receipt
+            framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" --executor-receipt remote-unknown.receipt --store "$RUNNER_TEMP/store" --json > publish-unknown.json
+            if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output reconcile-observation.json; then outcome=complete; else outcome=unknown; fi
+            reconcile_args=(--operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" --bundle bundle/release-bundle.json --track full --outcome "$outcome" --output reconcile-receipt.json)
+            [ "$outcome" = complete ] && reconcile_args+=(--inspection reconcile-observation.json)
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt "${reconcile_args[@]}"
+            framework-source/bin/opl release reconcile --bundle "$BUNDLE_DIGEST" --executor-receipt reconcile-receipt.json --store "$RUNNER_TEMP/store" --json > reconcile-result.json
+            test "$(jq -r '.release_bundle_reconcile.status' reconcile-result.json)" = complete || { echo "::error::Full upload remains unresolved; no upload retry was attempted."; exit 1; }
+          fi
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect --repo "$GITHUB_REPOSITORY" --tag "$(jq -r '.release.tag' bundle/release-bundle.json)" --output remote-after.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-after" --bundle bundle/release-bundle.json --track full --outcome complete --inspection remote-after.json --output remote-after.receipt
+          framework-source/bin/opl release publish --bundle "$BUNDLE_DIGEST" --executor-receipt remote-after.receipt --store "$RUNNER_TEMP/store" --json > full-published.json
+          test "$(jq -r '.release_bundle_publish.status' full-published.json)" = complete
+      - name: Upload Full additive publication receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-full-published-${{ github.run_id }}
+          path: |
+            publish-plan.json
+            publish-apply.json
+            remote-after.json
+            full-published.json
+          if-no-files-found: error
+          retention-days: 30

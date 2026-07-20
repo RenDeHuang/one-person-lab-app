@@ -1,7 +1,7 @@
 name: OPL Full Runtime Cache Warmup
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       opl_version:
         description: OPL version stamp for the cache evidence. Empty uses the current UTC date version.
@@ -23,15 +23,13 @@ on:
         required: false
         default: false
         type: boolean
-  schedule:
-    - cron: '0 17 * * 1,4'
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: opl-full-runtime-cache-warmup-${{ github.event_name == 'workflow_dispatch' && inputs.opl_version || 'scheduled' }}-${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}
+  group: opl-full-runtime-cache-warmup-${{ inputs.opl_version || 'current' }}-${{ inputs.framework_ref || 'main' }}
   cancel-in-progress: true
 
 env:
@@ -64,14 +62,14 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.shell_ref || 'main' }}
+          ref: ${{ inputs.shell_ref || 'main' }}
           path: shell-source
 
       - name: Checkout Framework cohort source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}
+          ref: ${{ inputs.framework_ref || 'main' }}
           path: framework-source
 
       - name: Resolve exact cohort SHAs
@@ -95,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ github.event_name == 'workflow_dispatch' && inputs.opl_version || '' }}"
+          version="${{ inputs.opl_version }}"
           if [ -z "$version" ]; then
             version="$(date -u +'%y.%-m.%-d')"
           fi
@@ -117,4 +115,4 @@ jobs:
       controller_workflow_sha: ${{ needs.resolve-version.outputs.app_sha }}
       upload_full_package_artifact: false
       cache_only: true
-      force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache == true }}
+      force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache == true }}

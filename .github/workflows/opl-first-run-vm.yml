@@ -2,118 +2,6 @@ name: OPL GUI First-Run VM
 run-name: OPL GUI First-Run VM attempt=${{ inputs.release_attempt_id }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'GitHub release tag to test. Empty means latest release.'
-        required: false
-        type: string
-      release_artifact_name:
-        description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
-        required: false
-        type: string
-      release_artifact_run_id:
-        description: 'GitHub Actions run id that owns release_artifact_name. Empty means the current workflow run.'
-        required: false
-        type: string
-      stable_session_id:
-        description: 'Stable release session sha256 identity for release-bound qualification.'
-        required: false
-        type: string
-      standard_admission_deadline_at:
-        description: 'Immutable Standard admission deadline propagated by a brokered caller.'
-        required: false
-        default: ''
-        type: string
-      full_addon_deadline_at:
-        description: 'Signed absolute Full add-on deadline propagated by the outer brokered caller.'
-        required: false
-        default: ''
-        type: string
-      operator_actor:
-        description: 'Human/operator audit identity; broker GitHub App holds mutation authority.'
-        required: false
-        default: ''
-        type: string
-      release_attempt_id:
-        description: 'Signed broker mutation attempt identity.'
-        required: true
-        type: string
-      pre_api_admission_receipt_base64:
-        description: 'Signed durable pre-API broker fence for release-bound qualification.'
-        required: false
-        default: ''
-        type: string
-      release_mutation_payload_sha256: { description: Exact digest of the broker-bound qualification payload, required: false, default: '', type: string }
-      release_cohort_ref:
-        description: 'Stable release cohort sha256 identity for release-bound qualification.'
-        required: false
-        type: string
-      artifact_app_ref:
-        description: 'App SHA recorded in the existing build artifact cohort. Empty uses this workflow commit.'
-        required: false
-        type: string
-      shell_ref:
-        description: 'Product opl-aion-shell ref. Release-bound qualification requires the exact cohort SHA; diagnostics may omit it.'
-        required: false
-        type: string
-      smoke_harness_ref:
-        description: 'Separately pinned opl-aion-shell ref containing the verification scripts. Empty uses shell_ref.'
-        required: false
-        type: string
-      framework_ref:
-        description: 'one-person-lab Framework ref to inject into the VM as the standard bootstrap source. Empty keeps the packaged installer default.'
-        required: false
-        type: string
-      package_profile:
-        description: 'Install profile to test.'
-        required: false
-        default: full
-        type: choice
-        options:
-          - full
-          - standard
-          - homebrew-standard
-          - homebrew-full
-      tart_source_vm:
-        description: 'Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.'
-        required: false
-        type: string
-      guest_user:
-        description: 'SSH user inside the VM. Empty means repository variable OPL_FIRST_RUN_GUEST_USER or runner.'
-        required: false
-        type: string
-      guest_ssh_key_path:
-        description: 'SSH private key path on the self-hosted runner.'
-        required: false
-        type: string
-      no_graphics:
-        description: 'Pass --no-graphics to tart run. Use only for VM images with a logged-in GUI session.'
-        required: false
-        type: boolean
-        default: false
-      run_timeout_ms:
-        description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
-        required: false
-        default: '3600000'
-        type: string
-      smoke_timeout_ms:
-        description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
-        required: false
-        default: '3600000'
-        type: string
-      codex_readiness_phase_timeout_ms:
-        description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
-        required: false
-        type: string
-      diagnostic_scope:
-        description: 'VM diagnostic scope. release_gate runs the full release smoke; bootstrap_only skips Codex asset preseed and secondary checks to capture App launch/bootstrap blockers quickly.'
-        required: false
-        default: release_gate
-        type: choice
-        options:
-          - release_gate
-          - bootstrap_only
   workflow_call:
     inputs:
       release_tag:
@@ -133,8 +21,13 @@ on:
         required: false
         type: string
       stable_session_id:
-        description: 'Stable release session sha256 identity for release-bound qualification.'
+        description: 'Immutable Release Bundle digest; legacy callers may pass a historical session identity.'
         required: false
+        type: string
+      release_bundle_digest:
+        description: 'Exact immutable Framework Release Bundle digest for the live control plane.'
+        required: false
+        default: ''
         type: string
       standard_admission_deadline_at:
         description: 'Immutable Standard admission deadline propagated by a brokered caller.'
@@ -240,9 +133,6 @@ on:
         required: false
         default: release_gate
         type: string
-  schedule:
-    - cron: '0 18 * * *'
-
 concurrency:
   # Scheduled runs collapse to the latest queued run; manual and release-called
   # validation runs use caller-run/profile-scoped groups so stable release
@@ -406,14 +296,14 @@ jobs:
           retention-days: 30
 
       - name: Download immutable outer broker admission validation
-        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' }}
+        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' && inputs.release_bundle_digest == '' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-release-broker-admission-${{ github.run_id }}
           path: broker-admission
 
       - name: Validate release-bound reusable caller identity
-        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' }}
+        if: ${{ !startsWith(github.workflow_ref, format('{0}/.github/workflows/opl-first-run-vm.yml@', github.repository)) && inputs.stable_session_id != '' && inputs.release_bundle_digest == '' }}
         env:
           STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
           RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
@@ -486,8 +376,19 @@ jobs:
           if (validation.full_addon_deadline_at !== process.env.FULL_ADDON_DEADLINE_AT) {
             throw new Error('Historical broker validation does not bind the propagated Full add-on deadline.');
           }
-          NODE
+            NODE
           fi
+
+      - name: Validate immutable Release Bundle caller
+        if: ${{ inputs.release_bundle_digest != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_bundle_digest must be exact."; exit 1; }
+          test '${{ inputs.stable_session_id }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::stable_session_id must equal the Bundle digest."; exit 1; }
+          test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
+          test -z '${{ inputs.release_mutation }}' || { echo "::error::Bundle qualification cannot carry legacy broker mutation authority."; exit 1; }
+          test -z '${{ inputs.pre_api_admission_receipt_base64 }}' || { echo "::error::Bundle qualification cannot carry a legacy broker fence."; exit 1; }
 
       - name: Skip scheduled VM while desktop release is active
         id: scheduled_release_guard

@@ -15,22 +15,22 @@ export type ReleaseBoundaryCheck = {
 
 export const releaseWorkflowPaths = [
   ".github/workflows/_build-reusable.yml",
+  ".github/workflows/_release-bundle.yml",
   ".github/workflows/build-manual.yml",
-  ".github/workflows/desktop-release-cleanup-drafts.yml",
-  ".github/workflows/desktop-release-full-addon.yml",
   ".github/workflows/desktop-release-diagnostics.yml",
-  ".github/workflows/desktop-release-promote.yml",
-  ".github/workflows/desktop-release.yml",
   ".github/workflows/docker-webui-clean-linux-vm.yml",
   ".github/workflows/docker-webui-clean-windows-vm.yml",
   ".github/workflows/full-first-install-release.yml",
   ".github/workflows/full-runtime-cache-warmup.yml",
   ".github/workflows/non-release-validation.yml",
   ".github/workflows/opl-first-run-vm.yml",
+  ".github/workflows/release-bundle-canary.yml",
+  ".github/workflows/release-nightly.yml",
+  ".github/workflows/release-stable.yml",
   ".github/workflows/release-verify-remote.yml",
 ];
 
-export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
+const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
     id: "retired_build_and_release_workflow_absent",
     file: ".github/workflows/build-and-release.yml",
@@ -1253,5 +1253,105 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "gh release upload",
       "npm run release:publish",
     ],
+  },
+];
+
+const supersededLiveControlPlaneChecks = new Set([
+  "desktop_release_workflow_uses_app_scripts",
+  "desktop_release_evidence_notes",
+  "desktop_release_promote_verifies_before_publish",
+  "desktop_release_full_addon_is_additive_only",
+  "desktop_release_cleanup_drafts_workflow",
+  "desktop_release_diagnostics_workflow",
+]);
+
+export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
+  ...legacyReleaseBoundaryChecks.filter((check) => !supersededLiveControlPlaneChecks.has(check.id)),
+  {
+    id: "immutable_release_bundle_workflow",
+    file: ".github/workflows/_release-bundle.yml",
+    required: [
+      "workflow_call:",
+      "git -C app-source ls-remote origin refs/heads/main",
+      "git -C app-source ls-remote --tags origin 'refs/tags/v*-nightly*'",
+      "Prepare and validate online AI notes before build",
+      "opl release freeze",
+      "opl release build",
+      "opl release verify",
+      "opl release publish",
+      "opl release reconcile",
+      "opl release status",
+      "environment: release-stable",
+      "Publish missing Standard bytes without making Latest",
+      "Read back exact remote Standard digests",
+      "Activate Stable Latest only after exact remote parity",
+      "installed-updater-readback:",
+      "Append exact Full bytes only",
+      "npm --prefix framework-source ci --ignore-scripts",
+    ],
+    forbidden: [
+      "workflow_dispatch:",
+      "release-broker",
+      "broker-admission",
+      "gh run rerun",
+      "gh run cancel",
+      "--clobber",
+    ],
+  },
+  {
+    id: "stable_release_bundle_entry",
+    file: ".github/workflows/release-stable.yml",
+    required: [
+      "workflow_dispatch:",
+      "uses: ./.github/workflows/_release-bundle.yml",
+      "channel: stable",
+      "app_ref: ${{ github.sha }}",
+      "cancel-in-progress: false",
+    ],
+    forbidden: ["schedule:", "gh release", "gh workflow run", "gh run rerun", "gh run cancel"],
+  },
+  {
+    id: "nightly_release_bundle_entry",
+    file: ".github/workflows/release-nightly.yml",
+    required: [
+      "schedule:",
+      "uses: ./.github/workflows/_release-bundle.yml",
+      "channel: nightly",
+      "include_full: false",
+      "cancel-in-progress: false",
+    ],
+    forbidden: ["workflow_dispatch:", "gh release", "gh workflow run", "gh run rerun", "gh run cancel"],
+  },
+  {
+    id: "release_bundle_no_mutation_canary",
+    file: ".github/workflows/release-bundle-canary.yml",
+    required: [
+      "permissions:",
+      "contents: read",
+      "tests/release/release-bundle-workflow-cutover.test.ts",
+    ],
+    forbidden: ["workflow_dispatch:", "contents: write", "gh release", "gh workflow run"],
+  },
+  ...[
+    ["desktop_release", ".github/workflows/desktop-release.yml"],
+    ["desktop_release_promote", ".github/workflows/desktop-release-promote.yml"],
+    ["desktop_release_full_addon", ".github/workflows/desktop-release-full-addon.yml"],
+    ["desktop_release_cleanup", ".github/workflows/desktop-release-cleanup-drafts.yml"],
+  ].map(([id, file]) => ({
+    id: `${id}_retired_read_only`,
+    file,
+    required: ["workflow_call:", "contents: read", "exit 1", "retired"],
+    forbidden: ["workflow_dispatch:", "contents: write", "gh release", "gh workflow run", "verify-release-broker"],
+  })),
+  {
+    id: "desktop_release_diagnostics_read_only",
+    file: ".github/workflows/desktop-release-diagnostics.yml",
+    required: [
+      "workflow_call:",
+      "actions: read",
+      "contents: read",
+      "uses: ./.github/workflows/opl-first-run-vm.yml",
+    ],
+    forbidden: ["workflow_dispatch:", "contents: write", "packages: write", "gh release upload"],
   },
 ];

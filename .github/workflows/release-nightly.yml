@@ -1,0 +1,29 @@
+name: OPL Nightly Release Bundle
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-nightly-release-bundle
+  cancel-in-progress: false
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-bundle.yml
+    with:
+      channel: nightly
+      version: ''
+      include_full: false
+      app_ref: ${{ github.sha }}
+    secrets: inherit

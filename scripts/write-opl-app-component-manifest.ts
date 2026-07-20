@@ -26,7 +26,7 @@ function options(argv: string[]) {
   });
   const version = values.version?.trim() ?? '';
   const sourceCommit = values['source-commit']?.trim() ?? '';
-  if (!/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(version)
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-nightly(?:\.r[1-9][0-9]*)?)?$/.test(version)
     || !/^[0-9a-f]{40}$/.test(sourceCommit)
     || !values['release-json']
     || !values.output) {
@@ -61,8 +61,9 @@ function main() {
   const input = options(process.argv.slice(2));
   const release = JSON.parse(fs.readFileSync(input.releaseJson, 'utf8')) as Record<string, unknown>;
   const tag = String(release.tagName ?? '');
-  if (tag !== `v${input.version}` || release.isPrerelease === true) {
-    throw new Error(`Release JSON does not describe stable v${input.version}.`);
+  const expectedPrerelease = input.version.includes('-nightly');
+  if (tag !== `v${input.version}` || release.isPrerelease !== expectedPrerelease) {
+    throw new Error(`Release JSON does not describe v${input.version} with the expected channel.`);
   }
   const standardAssetNames = new Set([
     'latest-arm64-mac.yml',

@@ -1,65 +1,16 @@
-name: OPL Desktop Release Cleanup Drafts
+name: OPL Desktop Release Cleanup Drafts (Retired Compatibility Surface)
 
 on:
-  workflow_dispatch:
-    inputs:
-      opl_version:
-        description: Published stable OPL version whose draft candidates should be cleaned up, for example 26.5.28
-        required: true
-        type: string
-      dry_run:
-        description: List matching draft/readiness candidates without deleting them
-        required: false
-        default: true
-        type: boolean
+  workflow_call:
 
 permissions:
   contents: read
 
-concurrency:
-  group: opl-desktop-release-cleanup-drafts-${{ inputs.opl_version }}
-  cancel-in-progress: false
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  cleanup-draft-candidates:
-    name: Cleanup draft release candidates
+  retired:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout App repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: '24'
-
-      - name: Discover draft candidates or request brokered cleanup
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+      - name: Reject retired draft cleanup mutation
         run: |
-          set -euo pipefail
-          cleanup_args=(
-            npm run release:cleanup-drafts --
-            --version "$OPL_RELEASE_VERSION"
-            --repo "$GITHUB_REPOSITORY"
-            --summary-path release-draft-cleanup-summary.json
-          )
-          if [ "${{ inputs.dry_run }}" = "false" ]; then
-            cleanup_args+=(--request-brokered-execute)
-          else
-            cleanup_args+=(--dry-run)
-          fi
-          "${cleanup_args[@]}"
-
-      - name: Upload cleanup summary
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-draft-cleanup-summary-${{ inputs.opl_version }}
-          path: release-draft-cleanup-summary.json
-          if-no-files-found: error
+          echo "::error::desktop-release-cleanup-drafts.yml is retired. Release reconciliation never deletes or guesses remote state."
+          exit 1
