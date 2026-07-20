@@ -154,7 +154,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      id-token: write
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       artifact_app_sha: ${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}

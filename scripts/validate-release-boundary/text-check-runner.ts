@@ -75,22 +75,6 @@ export function isBrokerLookupOidcOnlyJob(job: Record<string, any>): boolean {
   });
 }
 
-export function isReusableWorkflowOidcCeilingJob(job: Record<string, any>): boolean {
-  const permissions = job.permissions && typeof job.permissions === 'object'
-    ? job.permissions as Record<string, unknown>
-    : null;
-  if (!permissions) return false;
-  const expectedPermissions = new Map<string, unknown>([
-    ['contents', 'read'],
-    ['actions', 'read'],
-    ['id-token', 'write'],
-  ]);
-  return job.uses === './.github/workflows/opl-first-run-vm.yml' &&
-    !Object.prototype.hasOwnProperty.call(job, 'steps') &&
-    Object.keys(permissions).length === expectedPermissions.size &&
-    [...expectedPermissions].every(([name, value]) => permissions[name] === value);
-}
-
 function isReleaseBundleEntryJob(workflowPath: string, jobId: string, job: Record<string, any>): boolean {
   if (workflowPath !== '.github/workflows/release-stable.yml' || jobId !== 'release') return false;
   const permissions = job.permissions && typeof job.permissions === 'object'
@@ -245,7 +229,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }
-      if (isReusableWorkflowOidcCeilingJob(job)) continue;
       if (isReleaseBundleEntryJob(workflowPath, jobId, job)) continue;
       if (!signedStableWriters.has(workflowPath)) {
         console.error(`FAIL workflow_dispatch_write_authority: ${workflowPath} job ${jobId} has write permission outside the immutable Release Bundle entry`);

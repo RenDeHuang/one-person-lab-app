@@ -62,6 +62,14 @@ test('reusable VM call edges remain read-only', () => {
   }
 });
 
+test('reusable first-run VM does not request an OIDC permission the caller cannot grant', () => {
+  const vm = readWorkflow('opl-first-run-vm.yml');
+  assert.doesNotMatch(vm, /id-token:\s*write/);
+  const document = parseWorkflow('opl-first-run-vm.yml');
+  const validatePermissions = document.jobs['validate-vm-inputs'].permissions;
+  assert.deepEqual(validatePermissions, { contents: 'read', actions: 'read' });
+});
+
 test('the complete Stable action DAG pins external Actions to immutable commits', () => {
   for (const relativePath of stableReleaseActionPaths) {
     const document = parseYaml(fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8'));
