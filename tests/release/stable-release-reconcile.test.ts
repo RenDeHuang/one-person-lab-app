@@ -127,7 +127,7 @@ function adminOneShotDispatch(withQualification = false) {
     operator_actor: 'gaofeng21cn',
   };
   const planned = planReleaseMutationAttempt(session, {
-    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
     admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: 'a'.repeat(40),
     artifactAppSha: 'a'.repeat(40), mutationPayloadSha256: releaseMutationPayloadSha256(payload),
     mutationPayload: payload, at: '2026-07-18T00:01:00.000Z', reason: 'admin one-shot test',
@@ -136,7 +136,7 @@ function adminOneShotDispatch(withQualification = false) {
   let qualificationId: string | null = null;
   if (withQualification) {
     const qualification = appendQualificationAttempt(session, {
-      artifactKind: 'standard', workflow: 'desktop-release.yml', mutation: 'desktop_release_dispatch',
+      artifactKind: 'standard', workflow: 'release-stable.yml', mutation: 'desktop_release_dispatch',
       mutationAttemptId: planned.attemptId, at: '2026-07-18T00:01:00.000Z', reason: 'linked admin qualification',
     });
     session = qualification.session;
@@ -152,7 +152,7 @@ function adminOneShotDispatch(withQualification = false) {
 function exactAdminRun(attemptId: string, overrides: Record<string, unknown> = {}) {
   return {
     databaseId: '301', status: 'in_progress', conclusion: null, runAttempt: 1,
-    workflow: 'desktop-release.yml', controllerWorkflowSha: 'a'.repeat(40),
+    workflow: 'release-stable.yml', controllerWorkflowSha: 'a'.repeat(40),
     mutationAttemptId: attemptId, headBranch: 'main', event: 'workflow_dispatch',
     createdAt: '2026-07-18T00:01:02.000Z', url: 'https://github.com/example/actions/runs/301',
     ...overrides,

@@ -262,6 +262,7 @@ function recordFor(input: {
 test('canonical authority stays unprovisioned while requiring durable global broker controls', () => {
   const canonical = readReleaseBrokerAuthority();
   assert.equal(canonical.status, 'unprovisioned_release_blocking');
+  assert.deepEqual(canonical.current_release_admission.allowed_workflows, ['release-stable.yml']);
   assert.equal(canonical.global_idempotency_ledger.global_latest_mutation_cross_version_mutex, true);
   assert.equal(canonical.global_idempotency_ledger.nonce_single_use_enforced, true);
   assert.equal(canonical.mutation_broker.verified_open_file_descriptor_execution_required, true);

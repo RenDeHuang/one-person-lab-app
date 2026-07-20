@@ -285,7 +285,7 @@ test('admin one-shot dispatch passes the exact required digest and verifier reje
   let session = buildStableReleaseSession(plan('2026-07-18T00:00:00.000Z'), undefined, '2026-07-18T00:00:00.000Z');
   const payload = desktopReleaseMutationPayload(session);
   const planned = planReleaseMutationAttempt(session, {
-    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
     admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
     mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
     at: '2026-07-18T00:01:00.000Z', reason: 'admin admission test',
@@ -295,15 +295,28 @@ test('admin one-shot dispatch passes the exact required digest and verifier reje
   });
   const admission = buildAdminOneShotAdmission(session, planned.attemptId, payload, '2026-07-18T00:01:01.000Z');
   const args = adminOneShotDispatchArgs(admission);
+  assert.deepEqual(args.slice(0, 7), [
+    'workflow', 'run', 'release-stable.yml', '--repo', session.repo, '--ref', 'main',
+  ]);
   assert.equal(args.some((value) => value.startsWith('release_mutation_payload_base64=')), false);
   assert.ok(args.includes(`release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`));
   assert.equal(args.filter((value) => value.startsWith('release_mutation_payload_sha256=')).length, 1);
-  for (const [key, value] of Object.entries(payload)) {
-    assert.equal(args.filter((arg) => arg === `${key}=${value}`).length, 1, `${key} must be passed exactly once`);
+  for (const field of [
+    `version=${payload.opl_version}`,
+    `include_full=${payload.include_full_package}`,
+    `release_attempt_id=${planned.attemptId}`,
+    `release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`,
+    `shell_ref=${shellSha}`,
+    `framework_ref=${frameworkSha}`,
+  ]) {
+    assert.equal(args.filter((arg) => arg === field).length, 1, `${field} must be passed exactly once`);
   }
+  assert.equal(args.some((value) => value.startsWith('release_mode=')), false);
+  assert.equal(args.some((value) => value.startsWith('operator_actor=')), false);
   const expected = {
-    repository: session.repo, runId: '301', runAttempt: 1, workflow: 'desktop-release.yml',
+    repository: session.repo, runId: '301', runAttempt: 1, workflow: 'release-stable.yml',
     workflowSha: appSha, payloadSha256: admission.request.mutation_payload_sha256, attemptId: planned.attemptId,
+    releaseVersion: session.version, shellRef: shellSha, frameworkRef: frameworkSha, includeFull: 'true' as const,
   };
   const verified = verifyAdminOneShotAdmission({
     authority: canonicalBrokerAuthority, admission, expected,
@@ -322,7 +335,7 @@ test('admin one-shot attempts reject the CLI cancel path', () => {
   let session = buildStableReleaseSession(plan(), undefined, liveAdmissionAt);
   const payload = desktopReleaseMutationPayload(session);
   const planned = planReleaseMutationAttempt(session, {
-    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
     admissionMode: 'admin_one_shot_controller', controllerWorkflowSha: appSha, artifactAppSha: appSha,
     mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
     reason: 'admin cancel rejection',
@@ -561,7 +574,7 @@ test('broker acceptance requires exact run_id and replays without mutation after
     let session = buildStableReleaseSession(plan());
     const payload = desktopReleaseMutationPayload(session);
     const planned = planReleaseMutationAttempt(session, {
-      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
       controllerWorkflowSha: appSha, artifactAppSha: appSha,
       mutationPayloadSha256: releaseMutationPayloadSha256(payload), mutationPayload: payload,
       reason: 'exact acceptance test',
@@ -593,7 +606,7 @@ test('broker acceptance requires exact run_id and replays without mutation after
     session = buildStableReleaseSession(plan());
     const successPayload = desktopReleaseMutationPayload(session);
     const successPlanned = planReleaseMutationAttempt(session, {
-      mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+      mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
       controllerWorkflowSha: appSha, artifactAppSha: appSha,
       mutationPayloadSha256: releaseMutationPayloadSha256(successPayload), mutationPayload: successPayload,
       reason: 'exact acceptance success test',
@@ -1571,21 +1584,12 @@ test('cohort planning time is charged to the immutable deadline and persists a t
   }
 });
 
-test('desktop release dispatch is derived entirely from the frozen cohort', () => {
-  let session = buildStableReleaseSession(plan());
-  session = authorize(
-    session, 'desktop_release_dispatch', 'desktop-release.yml', 'standard', appSha, appSha,
-    releaseMutationPayloadSha256(desktopReleaseMutationPayload(session)),
+test('retired lease-based desktop release dispatch cannot reopen the old workflow', () => {
+  const session = buildStableReleaseSession(plan());
+  assert.throws(
+    () => desktopReleaseDispatchArgs(session, undefined, brokerAuthority),
+    /desktop-release\.yml dispatch is retired.*release-stable\.yml/,
   );
-  const args = desktopReleaseDispatchArgs(session, undefined, brokerAuthority).join(' ');
-  assert.match(args, /--ref main/);
-  assert.match(args, new RegExp(`shell_ref=${shellSha}`));
-  assert.match(args, new RegExp(`framework_ref=${frameworkSha}`));
-  assert.match(args, /include_full_package=true/);
-  assert.match(args, /run_vm_smoke=true/);
-  assert.match(args, /defer_addons=true/);
-  assert.doesNotMatch(args, /shell_ref=main/);
-  assert.doesNotMatch(args, /framework_ref=main/);
 });
 
 test('promotion reuses the source run id and requires an owner receipt', () => {
@@ -1642,10 +1646,9 @@ test('promotion permits one non-replayable attempt and rejects historical succes
     run_id: null,
     reason: 'durable sole promotion fence',
   });
-  const admission = buildAdminOneShotAdmission(dispatching, planned.attemptId, payload, '2026-07-18T01:00:01.000Z');
-  assert.doesNotMatch(
-    adminOneShotDispatchArgs(admission).join(' '),
-    /historical_predecessor_admission_receipt_base64/,
+  assert.throws(
+    () => buildAdminOneShotAdmission(dispatching, planned.attemptId, payload, '2026-07-18T01:00:01.000Z'),
+    /unified Standard Release Bundle path/,
   );
 
   const idempotent = planReleaseMutationAttempt(planned.session, { ...input, at: '2026-07-18T01:01:00.000Z' });

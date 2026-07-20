@@ -16,8 +16,7 @@
   "current_release_admission": {
     "mode": "admin_one_shot_controller",
     "allowed_workflows": [
-      "desktop-release.yml",
-      "desktop-release-promote.yml"
+      "release-stable.yml"
     ],
     "requires_canonical_main": true,
     "requires_durable_planned_and_dispatching": true,

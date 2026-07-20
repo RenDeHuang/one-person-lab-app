@@ -114,8 +114,13 @@ test('Stable is the only manual release entry and Nightly is schedule-only', () 
 
   assert.deepEqual(Object.keys(stable.on), ['workflow_dispatch']);
   assert.ok(stable.on.workflow_dispatch.inputs.version);
+  assert.ok(stable.on.workflow_dispatch.inputs.release_attempt_id);
+  assert.ok(stable.on.workflow_dispatch.inputs.pre_api_admission_receipt_base64);
+  assert.equal(stable['run-name'], 'OPL Stable Release Bundle v${{ inputs.version }} attempt=${{ inputs.release_attempt_id }}');
   assert.equal(stable.jobs.release.uses, './.github/workflows/_release-bundle.yml');
   assert.equal(stable.jobs.release.with.channel, 'stable');
+  assert.equal(stable.jobs.release.with.shell_ref, '${{ inputs.shell_ref }}');
+  assert.equal(stable.jobs.release.with.framework_ref, '${{ inputs.framework_ref }}');
 
   assert.deepEqual(Object.keys(nightly.on), ['schedule']);
   assert.ok(Array.isArray(nightly.on.schedule));
@@ -162,7 +167,7 @@ test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Ho
   assert.match(readWorkflow('_release-bundle.yml'), /release:notes:prepare/);
   assert.match(readWorkflow('_release-bundle.yml'), /opl-updater-upgrade-vm\.yml/);
   assert.match(readWorkflow('_release-bundle.yml'), /OPL_HOMEBREW_TAP_TOKEN/);
-  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /release[_ -]broker|broker[_ -]admission/i);
+  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
 });
 
 test('source freeze is canonical and every Framework CLI job provisions its runtime', () => {

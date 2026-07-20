@@ -86,6 +86,10 @@ export type BrokerAcceptanceExpectedIdentity = {
   workflowSha: string;
   payloadSha256: string;
   attemptId: string;
+  releaseVersion?: string;
+  shellRef?: string;
+  frameworkRef?: string;
+  includeFull?: 'true' | 'false';
 };
 
 function canonicalJson(value: unknown): string {
@@ -261,9 +265,12 @@ export function verifyAdminOneShotAdmission(input: {
     admission.admission_mode !== 'admin_one_shot_controller'
   ) throw new Error('admin one-shot admission schema/status/mode is invalid');
   const request = admission.request;
-  const routes = new Map([
-    ['desktop-release.yml', ['desktop_release_dispatch', 'standard']],
-    ['desktop-release-promote.yml', ['promotion_dispatch', 'promotion']],
+  const routes = new Map<string, [string, string]>([
+    ['release-stable.yml', ['desktop_release_dispatch', 'standard']],
+    ...(input.mode === 'historical' ? [
+      ['desktop-release.yml', ['desktop_release_dispatch', 'standard']] as [string, [string, string]],
+      ['desktop-release-promote.yml', ['promotion_dispatch', 'promotion']] as [string, [string, string]],
+    ] : []),
   ]);
   const route = routes.get(request.workflow);
   if (!route || request.mutation !== route[0] || request.artifact_kind !== route[1]) {
@@ -271,6 +278,10 @@ export function verifyAdminOneShotAdmission(input: {
   }
   const structuralErrors = validateReleaseBrokerAuthority(input.authority, { capability: 'contract_read' });
   if (structuralErrors.length > 0) throw new Error(`release authority contract is invalid: ${structuralErrors.join('; ')}`);
+  if (
+    input.mode !== 'historical' &&
+    !input.authority.current_release_admission.allowed_workflows.includes(request.workflow as 'release-stable.yml')
+  ) throw new Error('admin one-shot admission does not target the current live Stable workflow');
   if (
     input.operatorActor !== input.authority.operator_identity.github_actor ||
     input.githubActor !== input.operatorActor || request.operator_actor !== input.operatorActor
@@ -287,6 +298,22 @@ export function verifyAdminOneShotAdmission(input: {
   if (request.attempt_id !== expected.attemptId) mismatches.push('attempt id');
   if (!Number.isSafeInteger(request.planned_session_revision) || request.planned_session_revision < 1) mismatches.push('planned revision');
   if (admission.request_sha256 !== sha256(canonicalJson(request))) mismatches.push('request digest');
+  if (request.workflow === 'release-stable.yml') {
+    if (!expected.releaseVersion || !expected.shellRef || !expected.frameworkRef || !expected.includeFull) {
+      mismatches.push('frozen Bundle expected identity');
+    }
+    if (request.artifact_app_sha !== expected.workflowSha) mismatches.push('artifact App SHA');
+    if (request.stable_session_id !== request.mutation_payload.stable_session_id) mismatches.push('stable session id');
+    if (request.release_cohort_ref !== request.mutation_payload.release_operator_plan_ref) mismatches.push('release cohort ref');
+    if (request.mutation_payload.opl_version !== expected.releaseVersion) mismatches.push('release version');
+    if (request.mutation_payload.artifact_app_sha !== expected.workflowSha) mismatches.push('payload App SHA');
+    if (request.mutation_payload.shell_ref !== expected.shellRef) mismatches.push('frozen Shell SHA');
+    if (request.mutation_payload.framework_ref !== expected.frameworkRef) mismatches.push('frozen Framework SHA');
+    if (request.mutation_payload.include_full_package !== expected.includeFull) mismatches.push('Full inclusion policy');
+    if (request.mutation_payload.run_vm_smoke !== 'true') mismatches.push('VM qualification policy');
+    if (request.mutation_payload.publish_docker_webui !== 'false') mismatches.push('WebUI independent-lane policy');
+    if (request.mutation_payload.defer_addons !== 'false') mismatches.push('unified Bundle add-on policy');
+  }
   if (mismatches.length > 0) throw new Error(`admin one-shot expected identity mismatch: ${mismatches.join(', ')}`);
   const persistedAtMs = Date.parse(admission.persisted_at);
   const verifiedAtMs = Date.parse(input.verifiedAt);
@@ -453,6 +480,10 @@ async function main(): Promise<void> {
       'expected-workflow-sha': { type: 'string' },
       'expected-payload-sha256': { type: 'string' },
       'expected-attempt-id': { type: 'string' },
+      'expected-release-version': { type: 'string' },
+      'expected-shell-ref': { type: 'string' },
+      'expected-framework-ref': { type: 'string' },
+      'expected-include-full': { type: 'string' },
       'expected-operator-actor': { type: 'string' },
       'expected-github-actor': { type: 'string' },
       authority: { type: 'string', default: 'contracts/app-release-broker-authority.json' },
@@ -470,9 +501,16 @@ async function main(): Promise<void> {
     workflowSha: required(values['expected-workflow-sha'], 'expected-workflow-sha'),
     payloadSha256: required(values['expected-payload-sha256'], 'expected-payload-sha256'),
     attemptId: required(values['expected-attempt-id'], 'expected-attempt-id'),
+    releaseVersion: values['expected-release-version'],
+    shellRef: values['expected-shell-ref'],
+    frameworkRef: values['expected-framework-ref'],
+    includeFull: values['expected-include-full'] as 'true' | 'false' | undefined,
   };
   if (expected.runAttempt !== undefined && (!Number.isSafeInteger(expected.runAttempt) || expected.runAttempt < 1)) {
     throw new Error('--expected-run-attempt must be a positive integer');
+  }
+  if (expected.includeFull !== undefined && !['true', 'false'].includes(expected.includeFull)) {
+    throw new Error('--expected-include-full must be true or false');
   }
   const currentAuthority = readReleaseBrokerAuthority(values.authority);
   const authorityErrors = mode === 'historical' || mode === 'admin-one-shot'

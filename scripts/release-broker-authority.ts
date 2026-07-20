@@ -41,6 +41,19 @@ export type ReleaseBrokerAuthorityV1 = {
   allowed_repositories: ['gaofeng21cn/one-person-lab-app'];
   broker_identity: { github_actor: string };
   operator_identity: { github_actor: string; source: 'broker_authenticated_caller' };
+  current_release_admission: {
+    mode: 'admin_one_shot_controller';
+    allowed_workflows: ['release-stable.yml'];
+    requires_canonical_main: true;
+    requires_durable_planned_and_dispatching: true;
+    requires_exact_payload_digest: true;
+    requires_run_attempt_one: true;
+    redispatch_after_unknown_outcome: false;
+    rerun_allowed: false;
+    cancel_allowed: false;
+    isolated_broker_is_current_release_prerequisite: false;
+    isolated_broker_disposition: 'post_release_hardening';
+  };
   mutation_broker: {
     protocol_version: 1;
     executable_path: string;
@@ -429,6 +442,21 @@ export function validateReleaseBrokerAuthority(
     typeof candidate.operator_identity.github_actor !== 'string' || !candidate.operator_identity.github_actor ||
     candidate.operator_identity.source !== 'broker_authenticated_caller'
   ) errors.push('release operator identity authority is malformed');
+  const currentAdmission = candidate.current_release_admission;
+  if (
+    !currentAdmission || typeof currentAdmission !== 'object' ||
+    currentAdmission.mode !== 'admin_one_shot_controller' ||
+    JSON.stringify(currentAdmission.allowed_workflows) !== JSON.stringify(['release-stable.yml']) ||
+    currentAdmission.requires_canonical_main !== true ||
+    currentAdmission.requires_durable_planned_and_dispatching !== true ||
+    currentAdmission.requires_exact_payload_digest !== true ||
+    currentAdmission.requires_run_attempt_one !== true ||
+    currentAdmission.redispatch_after_unknown_outcome !== false ||
+    currentAdmission.rerun_allowed !== false ||
+    currentAdmission.cancel_allowed !== false ||
+    currentAdmission.isolated_broker_is_current_release_prerequisite !== false ||
+    currentAdmission.isolated_broker_disposition !== 'post_release_hardening'
+  ) errors.push('current Stable release admission authority is malformed or targets a retired workflow');
   const mutationBroker = candidate.mutation_broker;
   if (
     !mutationBroker || typeof mutationBroker !== 'object' || mutationBroker.protocol_version !== 1 ||

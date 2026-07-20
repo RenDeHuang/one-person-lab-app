@@ -318,7 +318,7 @@ export type AdminOneShotAdmission = {
     attempt_id: string;
     planned_session_revision: number;
     mutation: 'desktop_release_dispatch' | 'promotion_dispatch';
-    workflow: 'desktop-release.yml' | 'desktop-release-promote.yml';
+    workflow: 'release-stable.yml' | 'desktop-release.yml' | 'desktop-release-promote.yml';
     artifact_kind: 'standard' | 'promotion';
     controller_workflow_sha: string;
     artifact_app_sha: string;
@@ -352,11 +352,11 @@ export function buildAdminOneShotAdmission(
   persistedAt: string,
 ): AdminOneShotAdmission {
   const attempt = session.mutation_attempts.find((candidate) => candidate.attempt_id === attemptId);
-  if (!attempt || !['desktop_release_dispatch', 'promotion_dispatch'].includes(attempt.mutation)) {
-    throw new Error('Admin one-shot admission is limited to the Standard release and exact-artifact promotion paths.');
+  if (!attempt || attempt.mutation !== 'desktop_release_dispatch' || attempt.artifact_kind !== 'standard') {
+    throw new Error('Admin one-shot admission is limited to the unified Standard Release Bundle path.');
   }
-  if (attempt.workflow !== 'desktop-release.yml' && attempt.workflow !== 'desktop-release-promote.yml') {
-    throw new Error('Admin one-shot admission workflow is outside the Stable critical path.');
+  if (attempt.workflow !== 'release-stable.yml') {
+    throw new Error('Admin one-shot admission must target the live release-stable.yml authority.');
   }
   if (attempt.events.at(-1)?.state !== 'dispatching') {
     throw new Error('Admin one-shot admission requires a durable dispatching fence before GitHub mutation.');
@@ -397,15 +397,36 @@ export function buildAdminOneShotAdmission(
 export function adminOneShotDispatchArgs(
   admission: AdminOneShotAdmission,
 ): string[] {
+  if (admission.request.workflow !== 'release-stable.yml') {
+    throw new Error('Retired release workflows cannot produce a new admin one-shot dispatch.');
+  }
+  const payload = admission.request.mutation_payload;
+  const version = payload.opl_version;
+  const includeFull = payload.include_full_package;
+  const shellRef = payload.shell_ref;
+  const frameworkRef = payload.framework_ref;
+  if (!version || !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-r[1-9])?$/.test(version)) {
+    throw new Error('Live Stable admission requires an exact display version.');
+  }
+  if (!['true', 'false'].includes(includeFull ?? '')) {
+    throw new Error('Live Stable admission requires an exact include_full_package boolean.');
+  }
+  for (const [label, ref] of [['Shell', shellRef], ['Framework', frameworkRef]] as const) {
+    if (!/^[0-9a-f]{40}$/.test(ref ?? '')) {
+      throw new Error(`Live Stable admission requires the exact frozen ${label} SHA.`);
+    }
+  }
   return [
     'workflow', 'run', admission.request.workflow,
     '--repo', admission.request.github.repository,
     '--ref', 'main',
-    '--field', 'release_admission_mode=admin_one_shot_controller',
+    '--field', `version=${version}`,
+    '--field', `include_full=${includeFull}`,
     '--field', `release_attempt_id=${admission.request.attempt_id}`,
     '--field', `release_mutation_payload_sha256=${admission.request.mutation_payload_sha256}`,
     '--field', `pre_api_admission_receipt_base64=${Buffer.from(JSON.stringify(admission), 'utf8').toString('base64')}`,
-    ...mutationPayloadArgs(admission.request.mutation_payload),
+    '--field', `shell_ref=${shellRef}`,
+    '--field', `framework_ref=${frameworkRef}`,
   ];
 }
 
@@ -569,7 +590,7 @@ export function executeBrokeredReleaseMutation(
       },
     } : candidate),
   };
-  if (attempt.workflow === 'desktop-release.yml') {
+  if (attempt.workflow === 'release-stable.yml' || attempt.workflow === 'desktop-release.yml') {
     acceptedSession.release_run = {
       id: acceptedRunId,
       url: `https://github.com/${session.repo}/actions/runs/${acceptedRunId}`,
@@ -659,7 +680,7 @@ export function desktopReleaseMutationPayload(session: StableReleaseSession): Re
     standard_admission_deadline_at: session.efficiency_policy.standard_admission_deadline_at,
     gate_reuse_plan_ref: plan.gate_reuse_plan_ref ?? '',
     include_full_package: String(plan.include_full_package), run_vm_smoke: String(plan.run_vm_smoke),
-    publish_docker_webui: String(plan.publish_docker_webui), defer_addons: 'true',
+    publish_docker_webui: 'false', defer_addons: 'false',
     shell_ref: plan.cohort_lock.shell.resolved_sha,
     framework_ref: plan.cohort_lock.framework.resolved_sha,
     artifact_app_sha: plan.cohort_lock.app.resolved_sha,
@@ -763,22 +784,12 @@ export function desktopReleaseDispatchArgs(
   lease = session.mutation_leases.at(-1),
   authorityOverride?: ReturnType<typeof readReleaseBrokerAuthority>,
 ): string[] {
-  if (!lease) throw new Error('Desktop release dispatch requires a per-attempt broker lease.');
-  const payload = desktopReleaseMutationPayload(session);
-  assertLeasePayload(lease, payload);
-  assertSessionLease(session, 'desktop_release_dispatch', lease, {
-    attemptId: lease.attempt_id, workflow: 'desktop-release.yml', artifactKind: 'standard',
-    controllerWorkflowSha: lease.controller_workflow_sha,
-    artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
-  }, now(), authorityOverride);
-  return [
-    'workflow', 'run', 'desktop-release.yml',
-    '--repo', session.repo,
-    '--ref', 'main',
-    '--field', `release_attempt_id=${lease.attempt_id}`,
-    '--field', `release_session_lease_base64=${encodeReleaseSessionLease(lease)}`,
-    ...mutationPayloadArgs(payload),
-  ];
+  void session;
+  void lease;
+  void authorityOverride;
+  throw new Error(
+    'Lease-based desktop-release.yml dispatch is retired; use the durable admin one-shot release-stable.yml controller.',
+  );
 }
 
 export function qualificationRetryDispatchArgs(
@@ -1151,6 +1162,7 @@ function delay(milliseconds: number): Promise<void> {
 }
 
 const workflowNames: Record<ReleaseSessionLeaseV2['workflow'], string> = {
+  'release-stable.yml': 'OPL Stable Release Bundle',
   'desktop-release.yml': 'OPL Desktop Release',
   'opl-first-run-vm.yml': 'OPL GUI First-Run VM',
   'desktop-release-promote.yml': 'OPL Desktop Release Promote',
@@ -1274,7 +1286,7 @@ async function discoverAdminOneShotRun(
   runner: StableReleaseCommandRunner,
   session: StableReleaseSession,
   attemptId: string,
-  workflow: 'desktop-release.yml' | 'desktop-release-promote.yml',
+  workflow: 'release-stable.yml' | 'desktop-release-promote.yml',
   controllerWorkflowSha: string,
   earliestCreatedAt: string,
 ): Promise<WorkflowRun> {
@@ -1895,7 +1907,7 @@ async function dispatchAndWatchRelease(
   );
   const dispatchedAt = now();
   const mutationPlanned = planReleaseMutationAttempt(session, {
-    mutation: 'desktop_release_dispatch', workflow: 'desktop-release.yml', artifactKind: 'standard',
+    mutation: 'desktop_release_dispatch', workflow: 'release-stable.yml', artifactKind: 'standard',
     admissionMode: 'admin_one_shot_controller',
     controllerWorkflowSha,
     artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
@@ -1904,7 +1916,7 @@ async function dispatchAndWatchRelease(
     at: dispatchedAt, reason: 'persist desktop release mutation before external dispatch',
   });
   const planned = appendQualificationAttempt(mutationPlanned.session, {
-    artifactKind: 'standard', workflow: 'desktop-release.yml', mutation: 'desktop_release_dispatch',
+    artifactKind: 'standard', workflow: 'release-stable.yml', mutation: 'desktop_release_dispatch',
     at: dispatchedAt, reason: 'record Standard qualification before desktop release mutation',
     mutationAttemptId: mutationPlanned.attemptId,
   });
@@ -1935,7 +1947,7 @@ async function dispatchAndWatchRelease(
     );
   }
   const releaseRun = await discoverAdminOneShotRun(
-    runner, session, mutationPlanned.attemptId, 'desktop-release.yml', controllerWorkflowSha, dispatchedAt,
+    runner, session, mutationPlanned.attemptId, 'release-stable.yml', controllerWorkflowSha, dispatchedAt,
   );
   const acceptedRunId = String(releaseRun.databaseId);
   session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {

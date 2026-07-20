@@ -19,7 +19,7 @@ type LeasePayload = {
   operator_actor: string;
   broker_actor: string;
   attempt_id: string;
-  workflow: 'desktop-release.yml' | 'opl-first-run-vm.yml' | 'desktop-release-promote.yml' |
+  workflow: 'release-stable.yml' | 'desktop-release.yml' | 'opl-first-run-vm.yml' | 'desktop-release-promote.yml' |
     'desktop-release-full-addon.yml' | 'desktop-release-cleanup-drafts.yml';
   artifact_kind: 'standard' | 'full' | 'promotion' | 'release_metadata';
   controller_workflow_sha: string;

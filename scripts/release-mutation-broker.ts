@@ -481,8 +481,11 @@ function validateMutationPayload(
     if (payload.package_profile !== request.artifact_kind) errors.push('qualification package profile does not match broker artifact kind');
     if (payload.diagnostic_scope !== 'release_gate') errors.push('qualification diagnostic scope is not release_gate');
   }
-  if (request.mutation === 'desktop_release_dispatch' && payload.defer_addons !== 'true') {
-    errors.push('desktop release mutation must keep add-ons outside the Standard terminal chain');
+  if (
+    request.mutation === 'desktop_release_dispatch' &&
+    payload.defer_addons !== (request.workflow === 'release-stable.yml' ? 'false' : 'true')
+  ) {
+    errors.push('desktop release mutation add-on policy does not match its workflow authority');
   }
   if (['desktop_release_dispatch', 'qualification_dispatch', 'promotion_dispatch', 'full_addon_dispatch'].includes(request.mutation)) {
     const deadline = String(payload.standard_admission_deadline_at ?? '');
@@ -574,7 +577,7 @@ export function validateReleaseMutationBrokerRequest(
   }
   const combination = `${candidate.mutation}|${candidate.workflow}|${candidate.artifact_kind}|${candidate.github.operation}`;
   const allowed = new Set([
-    'desktop_release_dispatch|desktop-release.yml|standard|workflow_dispatch',
+    'desktop_release_dispatch|release-stable.yml|standard|workflow_dispatch',
     'qualification_dispatch|opl-first-run-vm.yml|standard|workflow_dispatch',
     'qualification_dispatch|opl-first-run-vm.yml|full|workflow_dispatch',
     'promotion_dispatch|desktop-release-promote.yml|promotion|workflow_dispatch',

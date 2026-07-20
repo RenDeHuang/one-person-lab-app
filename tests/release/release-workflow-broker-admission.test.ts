@@ -10,14 +10,16 @@ const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
 const parseWorkflow = (name: string) => parseYaml(readWorkflow(name));
 
-test('live Stable authority has no broker admission or OIDC service dependency', () => {
+test('live Stable authority validates the durable controller receipt without an OIDC service dependency', () => {
   const stable = readWorkflow('release-stable.yml');
   const bundle = readWorkflow('_release-bundle.yml');
 
   assert.match(stable, /workflow_dispatch:/);
   assert.match(stable, /uses: \.\/\.github\/workflows\/_release-bundle\.yml/);
+  assert.match(stable, /run-name: OPL Stable Release Bundle v\$\{\{ inputs\.version \}\} attempt=\$\{\{ inputs\.release_attempt_id \}\}/);
   assert.match(bundle, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.doesNotMatch(`${stable}\n${bundle}`, /release[_ -]broker|broker[_ -]admission|id-token: write/i);
+  assert.match(bundle, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
+  assert.doesNotMatch(`${stable}\n${bundle}`, /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
   assert.doesNotMatch(`${stable}\n${bundle}`, /gh run rerun|gh run cancel|--clobber/);
 });
 
@@ -41,8 +43,32 @@ test('Stable dispatch is serialized and cannot cancel or replace an in-flight Bu
   assert.equal(workflow.concurrency.group, 'opl-stable-release-bundle-${{ inputs.version }}');
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).sort(), [
+    'framework_ref',
+    'include_full',
+    'pre_api_admission_receipt_base64',
+    'release_attempt_id',
+    'release_mutation_payload_sha256',
+    'shell_ref',
+    'version',
+  ]);
   assert.equal(workflow.jobs.release.with.app_ref, '${{ github.sha }}');
+  assert.equal(workflow.jobs.release.with.shell_ref, '${{ inputs.shell_ref }}');
+  assert.equal(workflow.jobs.release.with.framework_ref, '${{ inputs.framework_ref }}');
+  assert.equal(workflow.jobs.release.with.release_attempt_id, '${{ inputs.release_attempt_id }}');
   assert.equal(workflow.jobs.release.secrets, 'inherit');
+});
+
+test('Stable freezes exact controller refs and the reusable ABI rejects movable source refs', () => {
+  const workflow = parseWorkflow('_release-bundle.yml');
+  const steps = workflow.jobs['freeze-inputs'].steps as Array<Record<string, any>>;
+  const shell = steps.find((step) => step.name === 'Checkout frozen Shell authority');
+  const framework = steps.find((step) => step.name === 'Checkout frozen Framework authority');
+  assert.equal(shell?.with.ref, "${{ inputs.shell_ref || 'main' }}");
+  assert.equal(framework?.with.ref, "${{ inputs.framework_ref || 'main' }}");
+  assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Shell SHA/);
+  assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Framework SHA/);
+  assert.match(readWorkflow('_release-bundle.yml'), /--expected-workflow release-stable\.yml/);
 });
 
 test('reusable VM call edges remain read-only', () => {

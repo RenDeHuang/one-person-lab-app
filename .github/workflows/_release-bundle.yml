@@ -21,6 +21,31 @@ on:
         description: Exact App controller ref.
         required: true
         type: string
+      release_attempt_id:
+        description: Exact durable Stable controller attempt; empty only for schedule-only Nightly.
+        required: false
+        default: ''
+        type: string
+      release_mutation_payload_sha256:
+        description: Exact Stable controller mutation payload digest.
+        required: false
+        default: ''
+        type: string
+      pre_api_admission_receipt_base64:
+        description: Base64-encoded durable Stable controller admission receipt.
+        required: false
+        default: ''
+        type: string
+      shell_ref:
+        description: Exact frozen Shell SHA for Stable; Nightly resolves main once at freeze.
+        required: false
+        default: ''
+        type: string
+      framework_ref:
+        description: Exact frozen Framework SHA for Stable; Nightly resolves main once at freeze.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -58,18 +83,18 @@ jobs:
           path: app-source
           fetch-depth: 0
 
-      - name: Checkout current Shell authority
+      - name: Checkout frozen Shell authority
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: main
+          ref: ${{ inputs.shell_ref || 'main' }}
           path: shell-source
 
-      - name: Checkout current Framework authority
+      - name: Checkout frozen Framework authority
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: main
+          ref: ${{ inputs.framework_ref || 'main' }}
           path: framework-source
 
       - name: Setup Node.js
@@ -82,6 +107,12 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_INCLUDE_FULL: ${{ inputs.include_full }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -102,6 +133,31 @@ jobs:
           if [ "$CHANNEL" = stable ]; then
             version="$REQUESTED_VERSION"
             test -n "$version" || { echo "::error::Stable requires an explicit version."; exit 1; }
+            [[ "$REQUESTED_SHELL_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable requires an exact frozen Shell SHA."; exit 1; }
+            [[ "$REQUESTED_FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable requires an exact frozen Framework SHA."; exit 1; }
+            [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || { echo "::error::Stable Shell checkout does not match the frozen controller SHA."; exit 1; }
+            [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || { echo "::error::Stable Framework checkout does not match the frozen controller SHA."; exit 1; }
+            [[ "$RELEASE_ATTEMPT_ID" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Stable release attempt id is invalid."; exit 1; }
+            [[ "$RELEASE_MUTATION_PAYLOAD_SHA256" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Stable mutation payload digest is invalid."; exit 1; }
+            test -n "$PRE_API_ADMISSION_RECEIPT_BASE64" || { echo "::error::Stable durable admission receipt is missing."; exit 1; }
+            node --experimental-strip-types app-source/scripts/verify-release-broker-acceptance.ts \
+              --mode admin-one-shot \
+              --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
+              --expected-repository "$GITHUB_REPOSITORY" \
+              --expected-run-id "$GITHUB_RUN_ID" \
+              --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --expected-workflow release-stable.yml \
+              --expected-workflow-sha "$app_sha" \
+              --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+              --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+              --expected-release-version "$version" \
+              --expected-shell-ref "$shell_sha" \
+              --expected-framework-ref "$framework_sha" \
+              --expected-include-full "$REQUESTED_INCLUDE_FULL" \
+              --expected-operator-actor "$GITHUB_ACTOR" \
+              --expected-github-actor "$GITHUB_ACTOR" \
+              --authority app-source/contracts/app-release-broker-authority.json \
+              --output release-admission-validation.json
           else
             base="$(TZ=Asia/Shanghai date '+%y.%-m.%-d')-nightly"
             git -C app-source ls-remote --tags origin 'refs/tags/v*-nightly*' > nightly-tags.txt
@@ -170,6 +226,15 @@ jobs:
             echo "opl_flow_sha=$opl_flow_sha"
             echo "release_set_manifest=$release_set_manifest"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Upload durable Stable admission validation
+        if: ${{ inputs.channel == 'stable' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-admission-${{ github.run_id }}
+          path: release-admission-validation.json
+          if-no-files-found: error
+          retention-days: 30
 
   cold-preflight:
     runs-on: ubuntu-latest

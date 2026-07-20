@@ -410,7 +410,7 @@ function recoverBrokerAcceptance(
 }
 
 function bindRunProjection(session: StableReleaseSession, attempt: ReleaseMutationAttempt, run: RemoteRun & { id: string }): StableReleaseSession {
-  if (attempt.workflow === 'desktop-release.yml') {
+  if (attempt.workflow === 'release-stable.yml' || attempt.workflow === 'desktop-release.yml') {
     return { ...session, release_run: { id: run.id, url: run.url ?? session.release_run.url, conclusion: run.conclusion } };
   }
   if (attempt.workflow === 'desktop-release-promote.yml') {
@@ -581,8 +581,10 @@ export function reconcileStableReleaseSession(
     const locallyTerminal = terminalMutationState(latest.state);
     if (attempt.admission_mode === 'admin_one_shot_controller') {
       if (
-        !['desktop_release_dispatch', 'promotion_dispatch'].includes(attempt.mutation) ||
-        !['desktop-release.yml', 'desktop-release-promote.yml'].includes(attempt.workflow)
+        !(
+          (attempt.mutation === 'desktop_release_dispatch' && attempt.workflow === 'release-stable.yml') ||
+          (attempt.mutation === 'promotion_dispatch' && attempt.workflow === 'desktop-release-promote.yml')
+        )
       ) {
         reconciled = appendReleaseMutationAttemptEvent(reconciled, attempt.attempt_id, {
           at, state: 'ambiguous', run_id: null,

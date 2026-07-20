@@ -183,7 +183,7 @@ export type QualificationAttemptEvent = {
 export type QualificationAttempt = {
   attempt_id: string;
   sequence: number;
-  workflow: 'desktop-release.yml' | 'opl-first-run-vm.yml' | 'desktop-release-full-addon.yml';
+  workflow: 'release-stable.yml' | 'desktop-release.yml' | 'opl-first-run-vm.yml' | 'desktop-release-full-addon.yml';
   mutation: 'desktop_release_dispatch' | 'qualification_dispatch' | 'full_addon_dispatch';
   created_at: string;
   mutation_attempt_id: string | null;

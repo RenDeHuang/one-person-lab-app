@@ -1,4 +1,5 @@
 name: OPL Stable Release Bundle
+run-name: OPL Stable Release Bundle v${{ inputs.version }} attempt=${{ inputs.release_attempt_id }}
 
 on:
   workflow_dispatch:
@@ -12,6 +13,26 @@ on:
         required: false
         default: false
         type: boolean
+      release_attempt_id:
+        description: Exact durable controller mutation attempt digest
+        required: true
+        type: string
+      release_mutation_payload_sha256:
+        description: Exact digest of the frozen controller mutation payload
+        required: true
+        type: string
+      pre_api_admission_receipt_base64:
+        description: Durable controller admission receipt encoded as base64 JSON
+        required: true
+        type: string
+      shell_ref:
+        description: Exact frozen Shell commit SHA
+        required: true
+        type: string
+      framework_ref:
+        description: Exact frozen Framework commit SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -35,4 +56,9 @@ jobs:
       version: ${{ inputs.version }}
       include_full: ${{ inputs.include_full }}
       app_ref: ${{ github.sha }}
+      release_attempt_id: ${{ inputs.release_attempt_id }}
+      release_mutation_payload_sha256: ${{ inputs.release_mutation_payload_sha256 }}
+      pre_api_admission_receipt_base64: ${{ inputs.pre_api_admission_receipt_base64 }}
+      shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
     secrets: inherit
