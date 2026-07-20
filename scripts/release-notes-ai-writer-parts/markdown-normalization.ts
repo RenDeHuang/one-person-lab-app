@@ -427,5 +427,9 @@ export function completeAiReleaseNotesWithEvidence(markdown: string, evidence: R
   if (source.full_changelog_url && !visible.includes(source.full_changelog_url)) {
     visible = `${visible.trimEnd()}\n\nFull Changelog: ${source.full_changelog_url}`;
   }
+  // Evidence-backed fallback sections are inserted after the first cleanup pass.
+  // Normalize the complete public document so those sections cannot reintroduce
+  // maintainer-only wording before the technical boundary.
+  visible = sanitizePreTechnicalDeveloperTerms(visible);
   return restoreLocalizedBlocks(visible, markdown, evidence);
 }

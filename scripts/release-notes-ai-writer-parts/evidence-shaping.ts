@@ -100,16 +100,18 @@ export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
   ].join('\n');
 }
 
-export function buildAiReleaseNotesRepairPrompt(evidence: ReleaseNotesEvidence, markdown: string, failure: unknown) {
+export function buildAiReleaseNotesRepairPrompt(evidence: ReleaseNotesEvidence, markdown: string, _failure: unknown) {
   return [
     'Repair the One Person Lab App GitHub Release notes below.',
     '',
     'Use the compact JSON evidence as the only source of truth.',
-    `Quality gate failure to fix: ${failure instanceof Error ? failure.message : String(failure)}`,
+    'The previous draft did not satisfy the public-copy boundary.',
+    'Do not quote or paraphrase any diagnostic message, this instruction, or maintainer-only wording from the draft.',
     '',
     'Return the full corrected Markdown only, with no code fences.',
     'Keep the same required hidden OPL_RELEASE_NOTES:en-US and OPL_RELEASE_NOTES:zh-CN blocks.',
-    'Before "## Technical details", remove maintainer/process words such as refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate.',
+    'Before "## Technical details", use only concrete user benefits, tasks, installation guidance, and compatibility information.',
+    'Keep maintainer-only process and provenance language after "## Technical details".',
     'For Stable, keep "## Install Stable" and include the install command exactly.',
     'After "## Technical details", include all payload lines, packaged component refs, component updates, OPL family commit counts, and compare links from the evidence.',
     '',
