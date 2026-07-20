@@ -1056,15 +1056,40 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
   });
   assert.deepEqual(carrier.compatibility_handshake, {
     required_before_activation: true,
+    protected_consumer_surface: 'opl app state --profile fast --json',
     producer_owner: 'one-person-lab',
     app_requirement_owner: 'one-person-lab-app',
     required_package_name: 'opl-framework',
+    required_capability_source_ref:
+      'contracts/opl-framework/app-runtime-fast-work-item-projection-contract.json#compatibility_capabilities.ids',
+    required_capability_ids: ['opl_app.domain_detail_views.v2'],
+    required_capability_match: 'all',
+    framework_api_version_policy: {
+      recognized_marker: 'p19.stage-runtime',
+      marker_alone_sufficient: false,
+    },
     fail_closed_on_missing_or_incompatible: true,
+    missing_required_capability_policy: {
+      compatibility_status: 'incompatible_missing_required_capability',
+      app_state_activation_allowed: false,
+      recovery_owner: 'one-person-lab',
+      app_role: 'request_canonical_bootstrap_or_update_and_project_receipts_only',
+      canonical_bootstrap_ref:
+        'contracts/app-release-channel.json#managed_update_plane.software_lifecycle.public_actions.bootstrap_missing_opl_base',
+      canonical_update_ref:
+        'contracts/app-release-channel.json#managed_update_plane.software_lifecycle.public_actions.apply_eligible_updates',
+      canonical_reconciliation_ref:
+        'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation',
+      app_direct_base_mutation_allowed: false,
+    },
     receipt_fields: [
       'selected_carrier',
       'framework_version',
       'framework_api_version',
       'app_required_api_range',
+      'producer_capability_ids',
+      'required_capability_ids',
+      'missing_required_capability_ids',
       'compatibility_status',
       'selection_status',
       'active_framework_count',
@@ -1087,6 +1112,22 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
   assert.throws(
     () => validateInstallExposureRuntimeAndDistribution(splitBrainPolicy),
     /OPL Framework activation invariants/,
+  );
+
+  const markerOnlyPolicy = structuredClone(policy);
+  markerOnlyPolicy.distribution_channels.homebrew.framework_core_carrier
+    .compatibility_handshake.framework_api_version_policy.marker_alone_sufficient = true;
+  assert.throws(
+    () => validateInstallExposureRuntimeAndDistribution(markerOnlyPolicy),
+    /OPL Framework compatibility handshake/,
+  );
+
+  const legacyCarrierPolicy = structuredClone(policy);
+  legacyCarrierPolicy.distribution_channels.homebrew.framework_core_carrier
+    .compatibility_handshake.missing_required_capability_policy.app_state_activation_allowed = true;
+  assert.throws(
+    () => validateInstallExposureRuntimeAndDistribution(legacyCarrierPolicy),
+    /OPL Framework compatibility handshake/,
   );
 });
 
