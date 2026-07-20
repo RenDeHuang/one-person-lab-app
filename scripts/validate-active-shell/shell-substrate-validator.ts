@@ -41,7 +41,8 @@ const runtimeSettingsExpected = [
   'runSettingsControlPlaneAction',
   'maintenanceHubItems',
   "data-testid='opl-maintenance-hub'",
-  'settings.oplEnvironmentPage.maintenanceHub.title',
+  'settings.uiOptimization.maintenance.summaryTitle',
+  'settings.oplEnvironmentPage.maintenanceHub.description',
   "data-testid='settings-maintenance-daily-actions'",
   "data-testid='settings-maintenance-managed-dependencies'",
   "data-testid='settings-maintenance-inline-updates'",
@@ -186,7 +187,7 @@ function validateShellLocalizedRuntimeText(shellPaths, requiresLocale) {
   }
 }
 
-function validateRuntimeSettings(shellPaths) {
+export function validateRuntimeSettings(shellPaths) {
   const runtimeSettings = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx',
