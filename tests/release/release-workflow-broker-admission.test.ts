@@ -4,7 +4,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
-import { stableReleaseActionPaths } from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import {
+  stableReleaseActionPaths,
+  validateWorkflowDispatchWriteAuthority,
+} from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
@@ -17,8 +20,9 @@ test('live Stable authority validates the durable controller receipt without an 
   assert.match(stable, /workflow_dispatch:/);
   assert.match(stable, /uses: \.\/\.github\/workflows\/_release-bundle\.yml/);
   assert.match(stable, /run-name: OPL Stable Release Bundle v\$\{\{ inputs\.version \}\} attempt=\$\{\{ inputs\.release_attempt_id \}\}/);
-  assert.match(bundle, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.match(bundle, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
+  assert.match(stable, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
+  assert.match(stable, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
+  assert.doesNotMatch(bundle, /release[_ -]broker|broker[_ -]admission/i);
   assert.doesNotMatch(`${stable}\n${bundle}`, /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
   assert.doesNotMatch(`${stable}\n${bundle}`, /gh run rerun|gh run cancel|--clobber/);
 });
@@ -52,15 +56,32 @@ test('Stable dispatch is serialized and cannot cancel or replace an in-flight Bu
     'shell_ref',
     'version',
   ]);
-  assert.equal(workflow.jobs.release.with.app_ref, '${{ github.sha }}');
-  assert.equal(workflow.jobs.release.with.shell_ref, '${{ inputs.shell_ref }}');
-  assert.equal(workflow.jobs.release.with.framework_ref, '${{ inputs.framework_ref }}');
-  assert.equal(workflow.jobs.release.with.release_attempt_id, '${{ inputs.release_attempt_id }}');
+  assert.deepEqual(workflow.jobs.admission.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(workflow.jobs.release.needs, ['admission']);
+  assert.deepEqual(Object.keys(workflow.jobs.release.with).sort(), [
+    'app_ref',
+    'channel',
+    'framework_ref',
+    'include_full',
+    'shell_ref',
+    'version',
+  ]);
+  assert.equal(workflow.jobs.release.with.app_ref, '${{ needs.admission.outputs.app_ref }}');
+  assert.equal(workflow.jobs.release.with.shell_ref, '${{ needs.admission.outputs.shell_ref }}');
+  assert.equal(workflow.jobs.release.with.framework_ref, '${{ needs.admission.outputs.framework_ref }}');
   assert.equal(workflow.jobs.release.secrets, 'inherit');
+  assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);
 });
 
-test('Stable freezes exact controller refs and the reusable ABI rejects movable source refs', () => {
+test('Stable admission freezes exact controller refs and the reusable ABI rejects movable source refs', () => {
+  const stable = parseWorkflow('release-stable.yml');
   const workflow = parseWorkflow('_release-bundle.yml');
+  const admissionSteps = stable.jobs.admission.steps as Array<Record<string, any>>;
+  const stableShell = admissionSteps.find((step) => step.name === 'Checkout requested Shell authority');
+  const stableFramework = admissionSteps.find((step) => step.name === 'Checkout requested Framework authority');
+  assert.equal(stableShell?.with.ref, '${{ inputs.shell_ref }}');
+  assert.equal(stableFramework?.with.ref, '${{ inputs.framework_ref }}');
+
   const steps = workflow.jobs['freeze-inputs'].steps as Array<Record<string, any>>;
   const shell = steps.find((step) => step.name === 'Checkout frozen Shell authority');
   const framework = steps.find((step) => step.name === 'Checkout frozen Framework authority');
@@ -68,7 +89,8 @@ test('Stable freezes exact controller refs and the reusable ABI rejects movable 
   assert.equal(framework?.with.ref, "${{ inputs.framework_ref || 'main' }}");
   assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Shell SHA/);
   assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Framework SHA/);
-  assert.match(readWorkflow('_release-bundle.yml'), /--expected-workflow release-stable\.yml/);
+  assert.match(readWorkflow('release-stable.yml'), /--expected-workflow release-stable\.yml/);
+  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--expected-workflow|pre_api_admission_receipt/);
 });
 
 test('reusable VM call edges remain read-only', () => {

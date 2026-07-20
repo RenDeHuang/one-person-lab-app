@@ -111,16 +111,28 @@ test('Stable is the only manual release entry and Nightly is schedule-only', () 
   const stable = parseWorkflow('release-stable.yml');
   const nightly = parseWorkflow('release-nightly.yml');
   const pipeline = parseWorkflow('_release-bundle.yml');
+  const stableSource = readWorkflow('release-stable.yml');
+  const pipelineSource = readWorkflow('_release-bundle.yml');
 
   assert.deepEqual(Object.keys(stable.on), ['workflow_dispatch']);
   assert.ok(stable.on.workflow_dispatch.inputs.version);
   assert.ok(stable.on.workflow_dispatch.inputs.release_attempt_id);
   assert.ok(stable.on.workflow_dispatch.inputs.pre_api_admission_receipt_base64);
   assert.equal(stable['run-name'], 'OPL Stable Release Bundle v${{ inputs.version }} attempt=${{ inputs.release_attempt_id }}');
+  assert.deepEqual(stable.jobs.admission.permissions, { contents: 'read', actions: 'read' });
+  assert.equal(stable.jobs.admission.outputs.app_ref, '${{ steps.admission.outputs.app_ref }}');
+  assert.match(stableSource, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
+  assert.match(stableSource, /canonical_app_sha=.*ls-remote origin refs\/heads\/main/);
+  assert.match(stableSource, /Upload durable admission validation/);
+  assert.deepEqual(stable.jobs.release.needs, ['admission']);
   assert.equal(stable.jobs.release.uses, './.github/workflows/_release-bundle.yml');
   assert.equal(stable.jobs.release.with.channel, 'stable');
-  assert.equal(stable.jobs.release.with.shell_ref, '${{ inputs.shell_ref }}');
-  assert.equal(stable.jobs.release.with.framework_ref, '${{ inputs.framework_ref }}');
+  assert.equal(stable.jobs.release.with.version, '${{ needs.admission.outputs.version }}');
+  assert.equal(stable.jobs.release.with.include_full, '${{ fromJSON(needs.admission.outputs.include_full) }}');
+  assert.equal(stable.jobs.release.with.app_ref, '${{ needs.admission.outputs.app_ref }}');
+  assert.equal(stable.jobs.release.with.shell_ref, '${{ needs.admission.outputs.shell_ref }}');
+  assert.equal(stable.jobs.release.with.framework_ref, '${{ needs.admission.outputs.framework_ref }}');
+  assert.doesNotMatch(pipelineSource, /release[_ -]broker|broker[_ -]admission/i);
 
   assert.deepEqual(Object.keys(nightly.on), ['schedule']);
   assert.ok(Array.isArray(nightly.on.schedule));

@@ -46,19 +46,119 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  admission:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.admission.outputs.version }}
+      include_full: ${{ steps.admission.outputs.include_full }}
+      app_ref: ${{ steps.admission.outputs.app_ref }}
+      shell_ref: ${{ steps.admission.outputs.shell_ref }}
+      framework_ref: ${{ steps.admission.outputs.framework_ref }}
+    steps:
+      - name: Checkout exact App controller
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+          fetch-depth: 0
+
+      - name: Checkout requested Shell authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref }}
+          path: shell-source
+
+      - name: Checkout requested Framework authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ inputs.framework_ref }}
+          path: framework-source
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Validate durable controller admission and freeze source ABI
+        id: admission
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          INCLUDE_FULL: ${{ inputs.include_full }}
+          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
+          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
+          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Stable Bundle runs are one-shot and cannot be rerun."; exit 1; }
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          shell_sha="$(git -C shell-source rev-parse HEAD)"
+          framework_sha="$(git -C framework-source rev-parse HEAD)"
+          for sha in "$app_sha" "$shell_sha" "$framework_sha"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission did not resolve exact source SHAs."; exit 1; }
+          done
+          [[ "$REQUESTED_SHELL_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission requires an exact Shell SHA."; exit 1; }
+          [[ "$REQUESTED_FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission requires an exact Framework SHA."; exit 1; }
+          [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || { echo "::error::Shell checkout differs from the controller receipt."; exit 1; }
+          [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || { echo "::error::Framework checkout differs from the controller receipt."; exit 1; }
+          canonical_app_sha="$(git -C app-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          canonical_shell_sha="$(git -C shell-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          canonical_framework_sha="$(git -C framework-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          [ "$app_sha" = "$canonical_app_sha" ] || { echo "::error::App controller is not canonical main."; exit 1; }
+          [ "$shell_sha" = "$canonical_shell_sha" ] || { echo "::error::Frozen Shell is not canonical main."; exit 1; }
+          [ "$framework_sha" = "$canonical_framework_sha" ] || { echo "::error::Frozen Framework is not canonical main."; exit 1; }
+          node --experimental-strip-types app-source/scripts/verify-release-broker-acceptance.ts \
+            --mode admin-one-shot \
+            --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-workflow release-stable.yml \
+            --expected-workflow-sha "$app_sha" \
+            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
+            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
+            --expected-release-version "$RELEASE_VERSION" \
+            --expected-shell-ref "$shell_sha" \
+            --expected-framework-ref "$framework_sha" \
+            --expected-include-full "$INCLUDE_FULL" \
+            --expected-operator-actor "$GITHUB_ACTOR" \
+            --expected-github-actor "$GITHUB_ACTOR" \
+            --authority app-source/contracts/app-release-broker-authority.json \
+            --output release-admission-validation.json
+          {
+            echo "version=$RELEASE_VERSION"
+            echo "include_full=$INCLUDE_FULL"
+            echo "app_ref=$app_sha"
+            echo "shell_ref=$shell_sha"
+            echo "framework_ref=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload durable admission validation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-admission-${{ github.run_id }}
+          path: release-admission-validation.json
+          if-no-files-found: error
+          retention-days: 30
+
   release:
+    needs: [admission]
     permissions:
       contents: write
       actions: read
     uses: ./.github/workflows/_release-bundle.yml
     with:
       channel: stable
-      version: ${{ inputs.version }}
-      include_full: ${{ inputs.include_full }}
-      app_ref: ${{ github.sha }}
-      release_attempt_id: ${{ inputs.release_attempt_id }}
-      release_mutation_payload_sha256: ${{ inputs.release_mutation_payload_sha256 }}
-      pre_api_admission_receipt_base64: ${{ inputs.pre_api_admission_receipt_base64 }}
-      shell_ref: ${{ inputs.shell_ref }}
-      framework_ref: ${{ inputs.framework_ref }}
+      version: ${{ needs.admission.outputs.version }}
+      include_full: ${{ fromJSON(needs.admission.outputs.include_full) }}
+      app_ref: ${{ needs.admission.outputs.app_ref }}
+      shell_ref: ${{ needs.admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.admission.outputs.framework_ref }}
     secrets: inherit
