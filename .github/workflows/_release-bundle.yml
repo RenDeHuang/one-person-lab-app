@@ -465,6 +465,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -f standard-assets/latest-mac.yml || {
+            echo "::error::Standard build asset set is missing electron-builder updater metadata latest-mac.yml."
+            exit 1
+          }
+          cp standard-assets/latest-mac.yml standard-assets/latest-arm64-mac.yml
           rm -f standard-assets/latest-mac.yml standard-assets/standard-gatekeeper-launch-policy.json
           VERSION="$VERSION" UPDATER_VERSION="$UPDATER_VERSION" python3 <<'PY'
           import pathlib
@@ -481,7 +486,10 @@ jobs:
           metadata = (root / 'latest-arm64-mac.yml').read_text(encoding='utf-8')
           if not re.search(rf'^version:\s*["\']?{re.escape(updater)}["\']?\s*$', metadata, re.MULTILINE):
               raise SystemExit(f'latest-arm64-mac.yml does not declare machine version {updater}')
-          zip_path = root / f'One-Person-Lab-{display}-mac-arm64.zip'
+          expected_zip = f'One-Person-Lab-{display}-mac-arm64.zip'
+          if expected_zip not in metadata:
+              raise SystemExit(f'latest-arm64-mac.yml does not reference exact updater ZIP {expected_zip}')
+          zip_path = root / expected_zip
           with tempfile.TemporaryDirectory(prefix='opl-standard-identity-') as temp:
               with zipfile.ZipFile(zip_path) as archive:
                   archive.extractall(temp)

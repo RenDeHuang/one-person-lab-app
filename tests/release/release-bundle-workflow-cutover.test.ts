@@ -182,6 +182,25 @@ test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Ho
   assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
 });
 
+test('Standard binding canonicalizes electron-builder updater metadata before pruning the generic name', () => {
+  const workflow = parseWorkflow('_release-bundle.yml');
+  const bindStep = workflow.jobs['bind-standard'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Complete and bind the closed Standard asset set',
+  );
+  const source = String(bindStep?.run ?? '');
+  const requireGeneric = source.indexOf('test -f standard-assets/latest-mac.yml');
+  const copyCanonical = source.indexOf('cp standard-assets/latest-mac.yml standard-assets/latest-arm64-mac.yml');
+  const removeGeneric = source.indexOf('rm -f standard-assets/latest-mac.yml');
+  const readCanonical = source.indexOf("metadata = (root / 'latest-arm64-mac.yml').read_text");
+
+  assert.ok(requireGeneric >= 0, 'bind-standard must require electron-builder updater metadata');
+  assert.ok(copyCanonical > requireGeneric, 'canonical metadata must be copied after the generic input is required');
+  assert.ok(removeGeneric > copyCanonical, 'generic metadata must be removed only after canonicalization');
+  assert.ok(readCanonical > removeGeneric, 'identity checks must consume the canonical metadata name');
+  assert.match(source, /if expected_zip not in metadata:/);
+  assert.match(source, /latest-arm64-mac\.yml does not reference exact updater ZIP/);
+});
+
 test('source freeze is canonical and every Framework CLI job provisions its runtime', () => {
   const source = readWorkflow('_release-bundle.yml');
   const jobs = parseWorkflow('_release-bundle.yml').jobs as Record<string, Record<string, any>>;
