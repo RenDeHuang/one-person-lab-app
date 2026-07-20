@@ -261,6 +261,8 @@ test('the canary covers every Bundle reusable edge and proves startup permission
     'tests/release/release-workflow-broker-admission.test.ts',
     'scripts/release-notes-ai-writer-parts/**',
     'tests/release/release-notes.test.ts',
+    'scripts/plan-release-cohort.ts',
+    'tests/release/plan-release-cohort.test.ts',
   ]) {
     assert.ok(canary.includes(path), `${path} is outside the Canary trigger/test surface`);
   }

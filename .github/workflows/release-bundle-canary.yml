@@ -19,9 +19,11 @@ on:
       - 'scripts/release-notes.ts'
       - 'scripts/release-notes/**'
       - 'scripts/generate-release-notes.ts'
+      - 'scripts/plan-release-cohort.ts'
       - 'tests/release/release-bundle-workflow-cutover.test.ts'
       - 'tests/release/release-workflow-broker-admission.test.ts'
       - 'tests/release/release-notes.test.ts'
+      - 'tests/release/plan-release-cohort.test.ts'
   pull_request:
     paths:
       - '.github/workflows/*release-bundle*.yml'
@@ -38,9 +40,11 @@ on:
       - 'scripts/release-notes.ts'
       - 'scripts/release-notes/**'
       - 'scripts/generate-release-notes.ts'
+      - 'scripts/plan-release-cohort.ts'
       - 'tests/release/release-bundle-workflow-cutover.test.ts'
       - 'tests/release/release-workflow-broker-admission.test.ts'
       - 'tests/release/release-notes.test.ts'
+      - 'tests/release/plan-release-cohort.test.ts'
 
 permissions:
   contents: read
