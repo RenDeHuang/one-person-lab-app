@@ -2526,6 +2526,42 @@
       "nightly_standard_release_status": "retired_pending_brokered_replacement",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "cache_policy": {
+        "schema": "opl_github_actions_cache_policy.v1",
+        "purpose": "bounded_reusable_acceleration_not_per_run_transport",
+        "reusable_key_identity": "platform_tool_version_and_content_or_dependency_digest",
+        "forbidden_volatile_key_fields": [
+          "github.run_id",
+          "github.run_attempt",
+          "github.run_number",
+          "timestamp",
+          "random_nonce"
+        ],
+        "explicit_save_policy": "save_only_on_cache_miss_or_explicit_forced_rebuild",
+        "per_run_data_transport": "github_actions_artifacts",
+        "write_scope": {
+          "codex_install_asset_cache": "refs/heads/main_only",
+          "non_main_release_or_diagnostic_refs": "restore_allowed_save_forbidden_for_codex_install_assets"
+        },
+        "first_run_codex_install_asset_cache": {
+          "key_schema": "opl-first-run-codex-install-assets-<runner_os>-<runner_arch>-<codex_version>-<codex_tarball_sha256>-<platform_tarball_sha256>",
+          "digest_policy": "full_sha256",
+          "legacy_restore_prefix_allowed": true,
+          "save_condition": "resolved_key_nonempty_and_no_exact_matched_key",
+          "volatile_run_identity_allowed": false
+        },
+        "obsolete_ref_cleanup": {
+          "trigger": "after_terminal_release_closeout_or_capacity_review",
+          "protect": [
+            "refs/heads/main",
+            "active_or_queued_workflow_refs",
+            "current_frozen_cohort_refs"
+          ],
+          "delete": "exact_cache_ids_for_obsolete_non_main_refs_after_read_only_inventory",
+          "blind_delete_all_allowed": false
+        },
+        "truth_boundary": "Cache presence, restore hits, misses, writes, and cleanup receipts are acceleration evidence only; they cannot claim artifact identity, release readiness, owner approval, stable/latest publication, runtime truth, or domain truth."
+      },
       "release_mode_boundaries": {
         "new_release": "normal stable path: draft candidate, same-cohort evidence, owner receipt, then desktop-release-promote.yml publishes stable/latest",
         "draft_candidate": "diagnostic candidate path only; it does not publish stable/latest and cannot be promoted without a promote-ready candidate record plus owner resolution",

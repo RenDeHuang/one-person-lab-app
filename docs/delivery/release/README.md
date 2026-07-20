@@ -1271,6 +1271,42 @@ Homebrew casks, user workspace state, runtime truth, domain artifact truth, or
 owner receipts. The clean App install, first launch, Settings smoke, assistant
 route smoke, and release readiness still come from the VM smoke artifact.
 
+### GitHub Actions Cache Budget And Key Policy
+
+GitHub Actions caches hold reusable, reproducible acceleration inputs only.
+They are not per-run transport, release evidence, artifact identity, or a
+release-readiness signal. Per-run DMGs, manifests, receipts, diagnostics, and
+logs use GitHub Actions artifacts.
+
+Reusable cache keys must be derived from platform/tool versions plus content or
+dependency-lock digests. They must not contain `github.run_id`,
+`github.run_attempt`, `github.run_number`, timestamps, random values, or another
+identity that guarantees a new entry for unchanged bytes. An explicit
+`actions/cache/save` step runs only for a cache miss or an explicitly contracted
+forced rebuild.
+
+The first-run Codex install seed uses this exact content-addressed shape:
+
+```text
+opl-first-run-codex-install-assets-<runner_os>-<runner_arch>-<codex_version>-<codex_tarball_sha256>-<platform_tarball_sha256>
+```
+
+Both digests are full SHA-256 values. The legacy prefix restore remains only to
+migrate an existing seed once. A matching resolved key suppresses the save, and
+only `refs/heads/main` may write this seed; diagnostic and release branches may
+restore the default-branch seed but do not create branch-scoped copies.
+
+After a release reaches a terminal closeout, capacity review starts with a
+read-only cache inventory grouped by ref, size, and last access. Protect
+`refs/heads/main`, refs with active or queued workflows, and the current frozen
+cohort. Delete only exact cache IDs on obsolete non-main refs. Never use a blind
+all-cache deletion or clean caches while a release cohort is active.
+
+`npm run validate:release-boundary` parses every workflow and fails when a
+cache key contains volatile run identity or an explicit save lacks a miss or
+forced-rebuild guard. Any new cache strategy must update the App release
+contract, this runbook, and the policy tests before changing a workflow.
+
 This follows the same operational shape used by mature cleanup/cache systems:
 Docker prune scopes removal to unused objects, pnpm store prune scopes removal
 to unreferenced packages, Hugging Face cache management exposes scan/delete

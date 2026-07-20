@@ -360,6 +360,15 @@ add failures block the gate, while a registry metadata mirror download timeout
 is recorded as a warning when the exact tarball and npm cache preseed are still
 valid. This surface is not readiness truth, runtime truth, or release-owner
 receipt, and it never replaces the clean VM install smoke.
+The reusable Actions cache for this preseed is keyed by runner OS/architecture,
+the frozen Codex version, and both complete tarball SHA-256 values. It never
+uses a workflow run, attempt, timestamp, or random value. The restore prefix
+keeps one-time compatibility with legacy entries; an exact matched key skips
+the save, and only `refs/heads/main` may write a new preseed cache. Per-run
+tarballs, diagnostics, and receipts remain Actions artifacts. Run
+`npm run validate:release-boundary` after any cache-step change; the validator
+parses every workflow and rejects volatile cache identity or an explicit save
+without a miss/forced-rebuild guard.
 Codex App and Computer Use checks are non-blocking exploratory tools;
 release-blocking App readiness must live in deterministic scripts, contracts,
 or GitHub Actions gates.
