@@ -100,6 +100,16 @@ test('release cohort plan passes Docker WebUI intent to every preflight gate', (
   }
 });
 
+test('release cohort source gate command enables the required shell admission checks', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-source-gate-'));
+  const plan = buildReleaseCohortPlan(options(root), runner(runGit(appRoot, ['rev-parse', 'HEAD'])));
+  const gate = plan.cheap_gates.find(({ id }) => id === 'release_source_gate');
+
+  assert.ok(gate, 'missing release_source_gate');
+  assert.match(gate.command, /--require-shell-format true/);
+  assert.match(gate.command, /--run-shell-tests true/);
+});
+
 test('release cohort plan separates a fresh canonical controller SHA from the frozen App artifact SHA', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-moved-'));
   const planOptions = options(root);

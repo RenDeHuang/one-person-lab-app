@@ -338,6 +338,8 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
         `--app-ref ${lock.app.resolved_sha}`,
         `--shell-ref ${lock.shell.resolved_sha}`,
         `--framework-ref ${lock.framework.resolved_sha}`,
+        '--require-shell-format true',
+        '--run-shell-tests true',
         `--shell-root ${shellQuote(options.shellRoot)}`,
         `--framework-root ${shellQuote(options.frameworkRoot)}`,
       ].join(' '),
