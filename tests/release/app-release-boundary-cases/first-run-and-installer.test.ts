@@ -337,6 +337,122 @@ INNER
   }
 });
 
+test("Stable macOS installer prefers Full, fails open on a missing asset, and honors explicit profiles", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-stable-installer-profile-"));
+  const fakeBin = path.join(tempRoot, "bin");
+  const curlArgsPath = path.join(tempRoot, "curl-args.txt");
+  fs.mkdirSync(fakeBin, { recursive: true });
+
+  writeExecutable(
+    path.join(fakeBin, "uname"),
+    `#!/bin/sh
+printf 'Darwin\\n'
+`,
+  );
+  writeExecutable(
+    path.join(fakeBin, "curl"),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> "$OPL_CURL_ARGS_CAPTURE"
+case "$*" in
+  *One-Person-Lab-Full-*)
+    if [ "$OPL_FAKE_FULL_HTTP" = "200" ]; then
+      printf '200'
+      exit 0
+    fi
+    printf '%s' "$OPL_FAKE_FULL_HTTP"
+    exit 22
+    ;;
+  *)
+    printf '503'
+    exit 22
+    ;;
+esac
+`,
+  );
+  for (const command of ["hdiutil", "ditto", "find", "xattr"]) {
+    writeExecutable(
+      path.join(fakeBin, command),
+      `#!/bin/sh
+exit 1
+`,
+    );
+  }
+
+  try {
+    const runInstaller = (profileArgs: string[], fullHttp = "404") =>
+      spawnSync(
+        "/bin/bash",
+        [
+          path.join(appRoot, "install.sh"),
+          "--stable-macos-install",
+          ...profileArgs,
+          "--release-tag",
+          "v26.7.20",
+          "--yes",
+          "--no-open",
+        ],
+        {
+          cwd: appRoot,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            OPL_CURL_ARGS_CAPTURE: curlArgsPath,
+            OPL_FAKE_FULL_HTTP: fullHttp,
+            PATH: `${fakeBin}:/usr/bin:/bin`,
+          },
+        },
+      );
+
+    const availableFullResult = runInstaller([], "200");
+    assert.notEqual(availableFullResult.status, 0, "fake hdiutil should stop after the Full download");
+    const availableFullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
+    assert.match(
+      availableFullCurlArgs,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.doesNotMatch(
+      availableFullCurlArgs,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+    );
+
+    fs.writeFileSync(curlArgsPath, "");
+    const fallbackResult = runInstaller([]);
+    assert.notEqual(fallbackResult.status, 0, "fake Standard download should stop after the fallback");
+    const fallbackCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
+    assert.match(
+      fallbackCurlArgs,
+      /One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg[\s\S]*One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.match(fallbackResult.stderr, /continuing with the Standard DMG/);
+
+    fs.writeFileSync(curlArgsPath, "");
+    const unavailableResult = runInstaller([], "503");
+    assert.notEqual(unavailableResult.status, 0, "Full server failures must not select a different package");
+    const unavailableCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
+    assert.match(unavailableCurlArgs, /One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/);
+    assert.doesNotMatch(
+      unavailableCurlArgs,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.doesNotMatch(unavailableResult.stderr, /continuing with the Standard DMG/);
+
+    fs.writeFileSync(curlArgsPath, "");
+    const fullResult = runInstaller(["--full"]);
+    assert.notEqual(fullResult.status, 0, "missing explicit Full must fail without fallback");
+    const fullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
+    assert.match(
+      fullCurlArgs,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.doesNotMatch(
+      fullCurlArgs,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("local authorization checks each nested directory symlink path once", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-local-authorization-symlink-"));
   const appPath = path.join(tempRoot, "One Person Lab.app");
