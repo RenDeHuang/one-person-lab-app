@@ -219,7 +219,7 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
     || policy.internal_action_ref !== 'app_state.actions#agent_package_activate'
     || policy.internal_action_route !== 'opl app action execute --action agent_package_activate --payload <json> --json'
     || policy.trigger !== 'immediately_before_a_real_domain_StageRun_or_StageAttempt_launch'
-    || policy.framework_component?.cohort_commit !== '330658e45554894ae6f987d4e39449ac2f6dd53d'
+    || policy.framework_component?.cohort_commit !== '90518c5ae87a67bd1b4cf81c08560f6cb2c315c5'
   ) {
     throw new Error('App GUI Agent Package activation authority must remain Framework Stage runtime-only');
   }

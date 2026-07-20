@@ -112,13 +112,12 @@ Rail 负责 navigation，不承担 dashboard：
   permission/approval/sandbox。
 - Session 输入只从当前 composer 通过 attachment、file/directory picker、paste/drop 或 `/open`
   显式加入，当前 send 消费后不持久化为 workspace defaults；禁止 rail “添加上下文”、workspace-keyed
-  preload 和隐式 prompt injection。Workspace/managed-target readiness 只约束 owner-projected action 的
-  `required_payload_fields` 明确要求该上下文的 Agent/package；Shell 不从 manifest 推断，不约束普通 Codex
-  conversation 或 send-scoped local file inputs；Codex/model prerequisites 不变。
-- 专业智能体的 owner action 仅在 `required_payload_fields` 要求 `target_workspace` 时消费当前
-  session directory。发送边界必须用 normalized current session directory 覆盖 projected
-  payload 中任何 legacy/global `target_workspace` 预填；没有当前 session directory 时即使旧
-  action 带有全局路径也保留 draft 并要求选择项目。Settings 不执行或预填这类 action。
+  preload 和隐式 prompt injection。Workspace/managed-target readiness 不约束普通 Codex conversation
+  或 send-scoped local file inputs；Codex/model prerequisites 不变。
+- 所选项目目录只建立新 session 的初始 cwd 与未来 domain workspace identity，不是 package activation
+  target。Settings、新对话和 ordinary composer send 都不得显示或执行 `agent_package_activate`，也不得
+  用 session cwd 或全局 workspace root 构造 activation payload。真正的 scope activation 只由 Framework
+  在真实 StageRun/StageAttempt 启动前按该 stage 的 `workspace_locator` 执行。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
   Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
@@ -176,11 +175,11 @@ Active AionUI 的一级导航固定按 New task、运行状态、Scheduled tasks
   starter 或从明确 capability 路由进入时才设置 active capability。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
 - Starter 选中态保留现有 quiet fill 与 `aria-pressed`，不追加尾部圆圈对号或其它 selection glyph。
-- Package 不可用时 starter 仍可选择；发送时才根据 Framework-owned action 给出用户可理解的
-  typed reason 和允许动作，不用 spinner、空白、禁用入口或静默隐藏掩盖 readiness 问题。
-- 点击 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned package launch
-  adapter / JIT prepare。`launch_allowed` 为 true 且 owner-projected required payload fields 已满足时才创建/发送
-  conversation；`use_receipt_ref` 是可选 readback。失败时保留输入、普通 Codex fallback 和修复入口。
+- Package 不可用时 starter 仍可选择；只有未安装、被禁用或明确完整性失败时，发送边界才局部阻止
+  所选 Agent，并给出具体安装、启用或修复动作，不用 spinner、空白或静默隐藏掩盖问题。
+- 点击 package starter 只设置 route context 与 active capability；普通 conversation create/send 不执行
+  package activation。已安装且已暴露的 `verification_deferred` 或 `scope_materialization_missing` 不构成
+  预配置门槛。真实 domain stage 的 activation 由 Framework 在 stage runtime 处理，失败只阻止对应 stage。
 - 无 workspace 时仍可发送文字、attachment、任意本地 file/directory picker、paste/drop 与
   `/open`；只有 Codex permission/approval/sandbox 可以阻止真实访问。
 - Home 不查询或渲染跨项目 activity、needs-attention、recent refs 或 per-assistant
@@ -359,8 +358,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Disabled action 显示 disabled reason。
 - Partial/unavailable state 保留可用功能，并说明缺失边界；不使用 silent fallback 假装
   完整。
-- Package starter 的 unavailable/activating/blocked 状态必须来自 App/Framework readback；
-  blocked 时只保留 status、doctor、repair 等 contract 允许动作，不允许绕过 activation 发送。
+- Package starter 的 unavailable/blocked 状态必须来自 App/Framework readback；blocked 时只保留
+  status、doctor、repair 等 contract 允许动作。普通 send 不执行或绕过 activation，真实 stage activation
+  失败只阻止对应 domain stage progression。
 - Failure 保留 typed reason、receipt/ref 和可恢复入口；不能把所有错误压成“重试”。
 
 ## 响应式与 WebUI
@@ -391,9 +391,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
 - Home 使用动态问题标题与全部用户可见 configured starters，不静默截断，也不是
   dashboard/landing。
-- Package starter 始终可选，发送时明确呈现 `ready / degraded / package_unavailable`；degraded
-  允许 JIT prepare、自修复或安全 fallback，只有明确不兼容或不安全边界才局部阻止所选 package。
-  Workspace 仅在 owner-projected action 要求时提供；receipt/binding 有则校验，不作为普遍启动门槛。
+- Package starter 始终可选；已安装且已暴露的 deferred/missing-scope 状态可直接发起普通对话，
+  只有未安装、被禁用或明确完整性失败时才局部阻止所选 package。Settings/new conversation/send 不执行
+  activation；Framework 仅在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 激活。
 - Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
 - Projectless session 可一次性归入一个 canonical directory group；已绑定 session 不任意换组，runtime `pwd`

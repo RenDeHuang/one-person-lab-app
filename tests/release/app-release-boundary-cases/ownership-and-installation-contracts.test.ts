@@ -643,7 +643,7 @@ test('App contracts define one minimal package activation authority', () => {
   assert.equal(policy.workspace_policy.plain_conversation_policy, 'unchanged');
   assert.equal(policy.workspace_policy.selected_project_directory_is_activation_target, false);
   assert.equal(policy.workspace_policy.stage_workspace_locator_is_only_activation_target_source, true);
-  assert.equal(policy.framework_component.cohort_commit, '330658e45554894ae6f987d4e39449ac2f6dd53d');
+  assert.equal(policy.framework_component.cohort_commit, '90518c5ae87a67bd1b4cf81c08560f6cb2c315c5');
 
   const authorityRef = 'contracts/app-gui-product-contract.json#agent_package_activation_policy';
   assert.equal(

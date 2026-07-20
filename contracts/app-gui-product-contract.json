@@ -2986,7 +2986,7 @@
     },
     "framework_component": {
       "repository": "gaofeng21cn/one-person-lab",
-      "cohort_commit": "330658e45554894ae6f987d4e39449ac2f6dd53d"
+      "cohort_commit": "90518c5ae87a67bd1b4cf81c08560f6cb2c315c5"
     },
     "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
     "app_role": "product_contract_and_display_consumer_without_package_activation_execution"

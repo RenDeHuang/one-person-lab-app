@@ -259,7 +259,7 @@ installation, activation, readiness, status, source, or actions.
 
 The page has its own package-catalog search, separate from Settings global
 search, across display name, package id, description, tags, and publisher. The
-ordinary filters are package role, install or activation status, and source.
+ordinary filters are package role, availability status, and source.
 Registry refresh is a visible ordinary action; direct manifest URL installation
 stays in the Agents page's advanced install entry. Loading, refreshing, empty, stale, and failed catalog states
 remain explicit instead of falling back to the static profile.
@@ -277,42 +277,39 @@ advanced disclosure that is collapsed by default.
 
 Each row renders identity, role, publisher, source explanation, versions,
 trust, installability, readiness, and the Framework-projected recommended
-action. Install, activate, update, repair, enable, disable, hide, unhide, and
-uninstall execute only the projected `available_actions[]` or object
+action. Install, update, repair, enable, disable, hide, unhide, and uninstall
+execute only the projected `available_actions[]` or object
 `recommended_action_ref`. Every action object has exactly `action_id`,
 `action_ref`, `payload`, `required_payload_fields`, and
 `confirmation_required`; the scalar `recommended_action` is descriptive and is
 never an action-payload source. The shell does not synthesize enabled state,
 reason codes, action ids, payload fields, or ready/synced/available labels.
 
-Settings executes only exact owner-projected package lifecycle actions that do
-not require `target_workspace`. An activation that requires a workspace is not
-run or preconfigured here; it waits until the user selects a project and sends a
-package-backed conversation. At that send boundary, the Shell starts from the
-exact projected payload, preserves every non-target field, and always writes
-`target_workspace` from the normalized current session directory. This value
-overrides any legacy or global path already present in the projected payload.
-Without a current session directory, the draft stays in place and the selected
-Agent asks for project selection even if the legacy action prefilled a global
-workspace root. Package-id-only actions remain enabled. After a successful
-lifecycle action, the page refreshes fast App state and renders the next
-projected action.
+Settings executes only exact owner-projected non-activation lifecycle actions.
+It never shows or executes `agent_package_activate`; new conversation and
+ordinary composer send follow the same rule. A selected project directory sets
+session cwd and future domain workspace identity only. It is never substituted
+for a Stage workspace locator, and a global workspace root is never an
+activation target. Framework performs scope activation immediately before a
+real domain StageRun or StageAttempt from that stage's `workspace_locator`.
+After a successful Settings lifecycle action, the page refreshes fast App state
+and renders the next projected action.
 
-Fast state deliberately reports an activated package as
+Fast state may report an installed package as
 `readiness.status=verification_deferred`,
 `verification_deferred=true`, `operational_ready=false`,
 `launch_allowed=false`, and `reason=live_verification_deferred`; only a full
 verified read may present verified `ready`. Manifest, receipt, physical
 surface, conditions, and failure diagnostics stay in the detail panel rather
 than becoming invented top-level fast-directory fields. Skills and Plugins do
-not appear here. Ordinary send maps this fast-only uncertainty to `degraded`
-and remains fail-open through the owner-projected package launch adapter / JIT
-prepare; it must not apply a second hard block from the raw fast flags. Only the
-selected package's explicit `package_unavailable` condition may be locally disabled.
+not appear here. Ordinary conversation create/send remains available and never
+executes Shell activation; the raw fast flags must not create a second hard
+block. Only a genuine installation, enablement, integrity, permission, or owner
+failure may locally block the selected package.
 普通行不直接显示 `待验证`、`需关注`、`不可使用`、`需要操作` 或 raw readiness flags。
 已安装且已暴露的 `verification_deferred` 与 `scope_materialization_missing` 都显示为“可用”，
-并说明选择项目、启动智能体时会使用当前会话目录自动确认和准备能力，无需在 Settings
-预先操作。确实需要用户动作时，必须按 exact owner action/reason 显示具体状态，例如
+并说明“已安装，可直接发起对话，无需提前设置”。确实需要用户动作时，必须按 exact owner
+action/reason 显示具体状态，例如
 “需要安装”“需要启用”“需要更新”“需要修复”或“需要重新连接”，每行最多一个最相关
 动作；无法安全本地化时显示“暂时无法使用”并引导打开详情，不使用“完成设置”一类抽象
 文案。聚合计数不能覆盖逐项状态，raw status/reason 只进入详情。
