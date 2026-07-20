@@ -71,7 +71,7 @@ function adapterFixture() {
   fs.writeFileSync(releaseSetPath, '{"surface_kind":"opl_release_set.v2"}\n');
   const notesPath = path.join(root, 'notes.md');
   const evidencePath = path.join(root, 'notes-evidence.json');
-  fs.writeFileSync(notesPath, '# One Person Lab v26.7.20\n\nFixture notes.\n');
+  fs.writeFileSync(notesPath, '# One Person Lab v26.7.20\n\nFixture notes.\n\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n');
   fs.writeFileSync(evidencePath, '{"surface_kind":"opl_app_release_notes_evidence.v1"}\n');
   return { root, appRoot, shellRoot, frameworkRoot, releaseSetPath, notesPath, evidencePath, payloadRoot };
 }
@@ -248,6 +248,14 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     for (const packageId of packageIds) {
       assert.match(request.packages[packageId].manifest_sha256, /^sha256:[0-9a-f]{64}$/);
       assert.match(request.packages[packageId].payload_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
+      assert.equal(
+        request.packages[packageId].manifest_ref,
+        `contracts/opl-framework/packages/${packageId}.json`,
+      );
+      assert.match(
+        request.packages[packageId].payload_manifest_ref,
+        new RegExp(`^contracts/opl-framework/packages/payloads/${packageId}-`),
+      );
     }
 
     const masPayload = fs.readdirSync(fixture.payloadRoot).find((name) => name.startsWith('mas-'))!;
@@ -255,6 +263,18 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     const drifted = runFreezeRequest(fixture, path.join(fixture.root, 'drifted.json'));
     assert.notEqual(drifted.status, 0);
     assert.match(drifted.stderr, /mas payload manifest digest drifted/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('the App adapter rejects notes without online AI provenance before build', () => {
+  const fixture = adapterFixture();
+  try {
+    fs.writeFileSync(fixture.notesPath, '# One Person Lab v26.7.20\n\nTemplate notes.\n');
+    const result = runFreezeRequest(fixture, path.join(fixture.root, 'untrusted-notes.json'));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /not bound to the online AI writer/);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

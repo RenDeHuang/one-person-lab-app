@@ -14,6 +14,14 @@ type ReleaseNotesProvider = 'auto' | 'openai_compatible' | 'codex';
 const defaultOpenAICompatibleModel = 'auto';
 const defaultProviderTimeoutSeconds = 75;
 
+export const aiReleaseNotesProvenanceMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
+
+export function markAiGeneratedReleaseNotes(markdown: string) {
+  return markdown.includes(aiReleaseNotesProvenanceMarker)
+    ? markdown
+    : `${markdown.trimEnd()}\n\n${aiReleaseNotesProvenanceMarker}\n`;
+}
+
 function shellCommandArgs(command: string) {
   return ['-lc', command];
 }
@@ -260,13 +268,13 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
   const command = options.providerCommand || process.env.OPL_RELEASE_NOTES_AI_COMMAND || defaultCodexCommand(options.model || process.env.OPL_RELEASE_NOTES_MODEL);
   const provider = selectedProvider();
   if (provider === 'openai_compatible') {
-    return runOpenAICompatibleProvider(prompt, evidence);
+    return markAiGeneratedReleaseNotes(runOpenAICompatibleProvider(prompt, evidence));
   }
   if (provider === 'codex') {
-    return runCodexProvider(prompt, evidence, command);
+    return markAiGeneratedReleaseNotes(runCodexProvider(prompt, evidence, command));
   }
   if (openAICompatibleConfigured()) {
-    return runOpenAICompatibleProvider(prompt, evidence);
+    return markAiGeneratedReleaseNotes(runOpenAICompatibleProvider(prompt, evidence));
   }
   throw new Error('No online OpenAI-compatible release-note provider is configured. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route. Set OPL_RELEASE_NOTES_PROVIDER=codex only for a local operator fallback.');
 }

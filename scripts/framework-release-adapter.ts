@@ -22,6 +22,7 @@ const packageIds = [
   'mas-scholar-skills',
   'opl-flow',
 ] as const;
+const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 
 function readJson(filePath: string): JsonRecord {
   const stat = fs.lstatSync(filePath);
@@ -65,6 +66,13 @@ function containedFrameworkFile(frameworkRoot: string, catalogRoot: string, ref:
     throw new Error(`Framework catalog ref is not a regular file: ${ref}`);
   }
   return candidate;
+}
+
+function frameworkContractRef(ref: string): string {
+  const normalized = ref.split(path.sep).join('/');
+  return normalized.startsWith('contracts/')
+    ? normalized
+    : path.posix.join('contracts/opl-framework', normalized);
 }
 
 function assertCatalogEntryFiles(
@@ -163,6 +171,10 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
   const notesPath = path.resolve(requireOption(values, 'notes'));
   const evidencePath = path.resolve(requireOption(values, 'notes-evidence'));
+  const preparedNotes = fs.readFileSync(notesPath, 'utf8');
+  if (!preparedNotes.includes(aiNotesMarker)) {
+    throw new Error('Prepared release notes are not bound to the online AI writer.');
+  }
   const releaseSetPath = path.resolve(requireOption(values, 'release-set-manifest'));
   const catalogPath = path.join(
     frameworkRoot,
@@ -179,9 +191,9 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
       package_id: packageId,
       version: entry.package_version,
       owner_source_commit: entry.owner_source_commit,
-      manifest_ref: entry.manifest_ref,
+      manifest_ref: frameworkContractRef(entry.manifest_ref),
       manifest_sha256: entry.manifest_sha256,
-      payload_manifest_ref: entry.payload_manifest_ref,
+      payload_manifest_ref: frameworkContractRef(entry.payload_manifest_ref),
       payload_manifest_sha256: entry.payload_manifest_sha256,
     };
   }
@@ -213,7 +225,7 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
     prepared_notes: {
       source: 'prepared_ai',
       format: 'markdown',
-      markdown: fs.readFileSync(notesPath, 'utf8'),
+      markdown: preparedNotes,
       evidence: readJson(evidencePath),
     },
     tracks: {

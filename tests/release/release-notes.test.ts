@@ -99,7 +99,9 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.str
     contentIncludesEvidence: true,
     hasBearer: true,
   });
-  assert.match(fs.readFileSync(outputPath, 'utf8'), /OPENAI_COMPATIBLE_REMOTE_FIXTURE/);
+  const output = fs.readFileSync(outputPath, 'utf8');
+  assert.match(output, /OPENAI_COMPATIBLE_REMOTE_FIXTURE/);
+  assert.match(output, /<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->/);
 });
 
 test('stable manifest notes expose install, component refs, and version changes', () => {
