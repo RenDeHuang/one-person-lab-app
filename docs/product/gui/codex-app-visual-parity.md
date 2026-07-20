@@ -253,8 +253,8 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
 - Focus 只增强 border/ring，不删除 resting shadow，不改变尺寸。
 - Textarea 使用 `14/20`、正常字重、无私有字距；placeholder 与正文基线必须一致。
 - Model/reasoning 与 permission/access 底部控件使用 `12/18`，不能比 Codex reference 放大一档。
-- Attachment、permission、model/reasoning、voice 和 send/stop 使用稳定 action row；图标
-  `16px`，同层 stroke 视觉重量一致。
+- Attachment、permission、model/reasoning 和 voice 使用稳定 action row；send/stop 使用 `28px`
+  可见圆、至少 `32px` 命中区与 `16px` 图标，outline stroke 与同层 composer 控件视觉重量一致。
 
 ### Settings
 

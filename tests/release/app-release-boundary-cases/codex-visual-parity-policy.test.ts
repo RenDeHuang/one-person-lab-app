@@ -64,6 +64,12 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
     bottom_control_max_font_px: 12,
     icon_size_px: 16,
     action_height_px: 32,
+    send_stop_control: {
+      visible_diameter_px: 28,
+      minimum_hit_target_px: 32,
+      icon_size_px: 16,
+      outline_stroke_policy: 'match_peer_composer_controls',
+    },
     border_px: 1,
     corner_radius_px: 22,
     resting_shadow_source:
