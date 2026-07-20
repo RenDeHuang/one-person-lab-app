@@ -29,11 +29,11 @@ The root design rule is **one user question, one owner page**:
   the background, or after an explicit user action; navigating to a page does
   not silently start them.
 
-These contracts own the ten ordinary product pages, About as the only
-secondary page, compatibility redirects, Settings search, page experience and
-DOM requirements, and the Codex quiet visual grammar. They do not own runtime
-truth, provider implementation, domain truth, release readiness, installed App
-currentness, or owner acceptance.
+These contracts own six user-visible primary groups over ten stable carrier
+routes, About as the bottom auxiliary page, compatibility redirects, Settings
+search, page experience and DOM requirements, and the Codex quiet visual grammar.
+They do not own runtime truth, provider implementation, domain truth, release
+readiness, installed App currentness, or owner acceptance.
 
 ## Startup Performance Boundary
 
@@ -75,25 +75,25 @@ entry does not authorize deletion of AionUI-owned data.
 
 ## Canonical Information Architecture
 
-Product page ids express product semantics. Carrier route ids remain stable
-adapter ids.
+`settings_navigation.settings_ia` owns the visible hierarchy. Product groups express
+user intent; carrier route ids remain stable adapter identities.
 
-| Product page | Chinese label | Carrier route | Path | Scope |
-| --- | --- | --- | --- | --- |
-| `overview` | 概览 | `general` | `/settings/general` | ordinary |
-| `gateway` | 账户与访问 | `gateway` | `/settings/gateway` | ordinary |
-| `models` | 模型 | `access` | `/settings/access` | ordinary |
-| `workspace` | 工作区 | `workspace` | `/settings/workspace` | ordinary |
-| `agents` | 智能体 | `agents` | `/settings/agents` | ordinary |
-| `capabilities` | 能力 | `capabilities` | `/settings/capabilities` | ordinary |
-| `resources` | 资源与连接 | `resources` | `/settings/resources` | ordinary |
-| `maintenance` | 维护 | `environment` | `/settings/environment` | ordinary |
-| `storage` | 数据与存储 | `storage` | `/settings/storage` | ordinary |
-| `preferences` | 偏好 | `appearance` | `/settings/appearance` | ordinary |
-| `about` | 关于 | `about` | `/settings/about` | secondary |
+| Primary group | Second-level destinations | Carrier route / anchor |
+| --- | --- | --- |
+| 概览 | 概览 | `general` |
+| 账户与模型 | 账户与访问；模型；资源与连接 | `gateway`; `access`; `resources` |
+| 工作区 | 工作目录；数据与存储 | `workspace#current-workspace`; `storage` |
+| 智能体与能力 | 智能体；能力；指令与上下文 | `agents`; `capabilities`; `workspace#personalization` |
+| 运行与维护 | 服务与维护；日志与诊断 | `environment`; `environment#diagnostics` |
+| 偏好 | 偏好 | `appearance` |
 
-About is the only independent secondary page. Advanced is retired as a product
-page and remains only as a compatibility route to Maintenance diagnostics.
+“关于”是六组之外唯一的侧栏底部辅助入口。Advanced 退役并重定向到维护诊断。桌面端展开
+当前一级组后显示二级目的地；移动端先显示纵向分类列表，再进入带可见返回控件的二级列表，
+禁止把十个 carrier route 平铺成横向 tab strip。
+
+工作区只组织工作目录、权限、项目/任务产物位置和数据存储。用户级 `AGENTS.md` 与新对话附加说明
+归“智能体与能力 > 指令与上下文”；App 日志目录、服务证据和技术诊断归“运行与维护 > 日志与诊断”。
+现有 route、anchor 和 typed host action 继续作为兼容 transport，但不得反向定义可见归属。
 
 ## Redirects
 
@@ -138,7 +138,9 @@ and a path shown in diagnostics is not a second path configuration.
 | --- | --- | --- | --- |
 | Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Access | Overview: signed-in identity, connection and availability, plus compact today token, cost, and balance summary. Models: access-source summary and owner link. | Full account card, total historical usage or cost, login, Key lifecycle, refresh, or disconnect outside Gateway. |
 | Which model source, default model, and reasoning preference apply? | Models | Overview: overall model-access readiness. | Gateway account and credential controls on Models. |
-| Which workspace is active and writable, where are App logs stored, and what user instructions apply? | Workspace | Overview may count an actionable exception. Storage may link to the resolved log path read-only. | Framework/raw paths, Storage-owned log configuration, Preferences-owned personalization, or four separate normal-state cards. |
+| Which workspace is active and writable, and where are project artifacts stored? | Workspace > Working Directory | Overview may count an actionable exception. | User instructions, App logs, Framework/raw paths, or four separate normal-state cards. |
+| What global instructions and new-conversation context apply? | Agents & Capabilities > Instructions & Context | The existing Workspace personalization route remains a carrier transport only. | Presenting either editor as a Workspace or Preferences child. |
+| Where are App logs and diagnostics, and what needs maintenance? | Runtime & Maintenance > Logs & Diagnostics | Storage may link to the resolved log path read-only. | Presenting logs under Workspace or duplicating the log-directory setting in Storage. |
 | Which Agents are installed and which source is active? | Agents | Home may show an active Agent shortcut. | Skills/Plugins or a separate Developer Profile page. |
 | Which Skills and Plugins are available? | Capabilities | Agent dependency readiness may link here. | A hardcoded Flow list or AionUI-native assistants presented as OPL capabilities. |
 | Which external resources and connections are available? | Resources & Connections | Other pages may link to a resource. | Built-in OPL Gateway connection or Gateway count; selected local workspace controls. |
@@ -235,9 +237,11 @@ and writability once in one normal-state summary. Permission or trust detail
 appears only when attention is required. Filesystem health and writability
 override executor permission mode when deciding usability.
 
-The same page owns the desktop App log directory, the user-level
-`$CODEX_HOME/AGENTS.md` editor, and the OPL App new-conversation context. Log
-changes use the dedicated typed `application.setLogDirectory { path }` action.
+The carrier route continues to host the desktop App log directory, the user-level
+`$CODEX_HOME/AGENTS.md` editor, and the OPL App new-conversation context for
+compatibility. Visible navigation presents the editors under Instructions & Context
+and the log action under Logs & Diagnostics. Log changes use the dedicated typed
+`application.setLogDirectory { path }` action.
 The host persists `hostLogDir` before switching the live writer; if the switch
 fails it rolls the persisted value back and returns a typed failure. The success
 directory value is only `hostLogDir`, `cacheDir` and `workDir` remain unchanged,
@@ -435,8 +439,8 @@ and does not expose generic prune or volume-rewire controls.
 
 Preferences owns application behavior, notifications, performance and waiting,
 display, fonts, and themes. Theme remains an anchor rather than an independent
-page. User instructions and new-conversation additions stay on Workspace
-so paths and personalization are not duplicated across pages.
+page. User instructions and new-conversation additions reuse the Workspace carrier
+route but appear only under Instructions & Context in the visible hierarchy.
 
 ### About
 
@@ -510,6 +514,12 @@ OPL Settings is an App-owned overlay, not an AionUI fork-body redesign.
   become a second authority.
 
 ## Verification Boundary
+
+Cross-page details are not duplicated here. The shared
+`contracts/app-gui-product-contract.json#ui_experience_contract` owns truthful startup
+stages, the single-action First Run completion, composer-first Home, and the context
+action sheet. The latter keeps every action scroll-reachable at `400x600` using
+`100dvh`, safe-area, and virtual-keyboard constraints.
 
 Contract and focused tests prove only their App-owned slices. Shell acceptance
 also requires:

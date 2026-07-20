@@ -67,6 +67,25 @@ Framework raw 文案覆盖。
 raw ID、workflow、receipt、provider、日志和 refs 不参与默认判断。唯一例外是当前 Attempt ID：
 它只在用户点击 Stage 后的弹层和所选任务详情中出现，不污染默认任务行。
 
+## 页面状态与失败投影
+
+`ui_experience_contract.runtime_failure` 与 page-state matrix 共同约束 Runtime。页面任一时刻只能
+处于 `loading / ready / empty / error / unavailable` 之一；加载、空态、错误和不可用态不得叠加，
+尤其禁止并列显示“刷新失败”和“状态不可用”。
+
+错误首屏只回答发生了什么和下一步是什么：
+
+- 使用当前 locale 的用户语言摘要，不显示 transport、contract payload 或原始异常；已知合同不匹配
+  可摘要为“能力目录暂时不可用”。
+- 始终提供“重试”和“打开维护”两个明确动作；后者进入 Maintenance owner surface，不在 Runtime
+  复制诊断或修复控件。
+- “技术详情”默认收起；展开后只显示脱敏原始错误与诊断 refs，并提供复制诊断信息动作。
+- 绝对路径、Node warning 和原始 JSON 默认不可见；在 375 px 与 400 px 下，用户文案和无断点
+  技术 token 均须在容器内换行，不得横向裁切。
+
+这是用户态错误隔离，不改变 producer 合同。Shell 仍须修复真实 contract/transport 阻断，不得
+用友好文案把权威 projection 不兼容解释为已恢复。
+
 ## 产品数据模型
 
 ### WorkItemProjection v2
@@ -350,6 +369,8 @@ installed user path 证据只证明 retained X0-01 route 的对应字节和路�
 - 归档不改变 lifecycle、不停止执行、不删除 evidence；停止任务需前往所属控制面，Runtime 不提供 stop。
 - 七个主状态只能来自 Framework V2 projection，Shell 不做状态或身份推断。
 - `system_attention` 缺任一责任字段、不是当前 generation 或不再阻塞时不能出现。
+- `loading / ready / empty / error / unavailable` 互斥；失败首屏只显示本地化摘要、重试和打开维护。
+- 技术详情默认收起且可复制，原始 JSON、绝对路径和 Node warning 不得进入首屏。
 - Token missing 不显示零，无上限时不出现进度条。
 - 默认页不显示 raw refs、IDs、logs、receipt、provider、operator summary、safe actions、软件更新或平台维护动作。
 - 当前 Stage 可点击；Popover 显示完整 Stage 顺序、当前/下一 Stage 与当前 Attempt，且不打开详情 Drawer。
