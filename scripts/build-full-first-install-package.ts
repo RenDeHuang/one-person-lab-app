@@ -27,6 +27,7 @@ import {
 } from './build-full-first-install-package/manifest-checksum.ts';
 import { appRepoRoot } from './build-full-first-install-package/paths.ts';
 import { durationSeconds, monotonicSeconds, run } from './build-full-first-install-package/process.ts';
+import { runFullPackagePrecompressionGate } from './build-full-first-install-package/precompression.ts';
 import { buildRuntimeCacheKeyReport } from './build-full-first-install-package/runtime-cache.ts';
 import { resolveRuntimeSources } from './build-full-first-install-package/runtime-sources.ts';
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
@@ -62,6 +63,7 @@ function buildFullPublicReleaseManifest(input) {
       runtime_native_trust: input.runtimeNativeTrust,
       app_bundle_trim_report: input.appBundleTrimReport,
       package_boundary_audit: input.packageBoundaryAudit,
+      precompression_gate: input.precompressionGate,
       local_authorization_policy: readJsonIfExists(path.join(input.outDir, 'full-local-authorization-policy.json')),
       readme_asset: input.artifactNames.readme,
     },
@@ -166,10 +168,20 @@ function main() {
     timings.shell_build = 0;
   }
 
-  const packageCompressionStartedAt = monotonicSeconds();
   const dmgFormat = resolveFullDmgFormat();
   process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = resolveFullDmgCompressionLevel();
   const builtApp = findBuiltApp(options.guiRoot);
+  const precompressionGatePath = path.join(options.outDir, 'full-precompression-gate.json');
+  const precompressionStartedAt = monotonicSeconds();
+  const precompressionGate = runFullPackagePrecompressionGate({
+    builtAppPath: builtApp,
+    resolvedRefs: prepared.resolved_refs,
+    runtimeCurrentness: prepared.runtime_cache.currentness,
+    reportPath: precompressionGatePath,
+  });
+  timings.precompression_gate = durationSeconds(precompressionStartedAt, monotonicSeconds());
+
+  const packageCompressionStartedAt = monotonicSeconds();
   ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
   let optimizedPackage = createFullDmgFromVerifiedApp(
@@ -230,6 +242,7 @@ function main() {
     runtimeNativeTrust: prepared.manifest.native_trust,
     appBundleTrimReport: optimizedPackage?.app_bundle_trim ?? null,
     packageBoundaryAudit: optimizedPackage?.package_boundary_audit ?? null,
+    precompressionGate,
   }));
   const checksumPath = writeChecksums(options.outDir, [
     targetDmg,
@@ -268,6 +281,7 @@ function main() {
     runtime_native_trust: runtimeNativeTrustPath,
     app_bundle_trim_report: optimizedPackage?.app_bundle_trim ? appBundleTrimPath : null,
     package_boundary_audit: optimizedPackage?.package_boundary_audit ? packageBoundaryAuditPath : null,
+    precompression_gate: precompressionGatePath,
     timing: timingPath,
     readme: readmePath,
     checksums: checksumPath,

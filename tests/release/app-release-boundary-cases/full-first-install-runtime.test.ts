@@ -574,6 +574,58 @@ test("Full first-install manifest consumes the OPL runtime bundle boundary inste
   );
 });
 
+test("Full runtime wrapper labels only its own Temporal default as packaged local", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-wrapper-"));
+  const runtimeRoot = path.join(tempRoot, "runtime");
+  const runtimeCommand = path.join(runtimeRoot, "opl", "bin", "opl");
+  writeExecutable(
+    runtimeCommand,
+    [
+      "#!/bin/bash",
+      "printf '%s|%s\\n' \"${OPL_TEMPORAL_ADDRESS:-unset}\" \"${OPL_TEMPORAL_ADDRESS_SOURCE:-unset}\"",
+      "",
+    ].join("\n"),
+  );
+
+  try {
+    const { writeRuntimeWrappers } =
+      await import("../../../scripts/full-first-install-runtime-wrappers.ts");
+    writeRuntimeWrappers(runtimeRoot);
+    const wrapperPath = path.join(runtimeRoot, "bin", "opl");
+    const baseEnv = { ...process.env };
+    delete baseEnv.OPL_TEMPORAL_ADDRESS;
+    delete baseEnv.OPL_TEMPORAL_ADDRESS_SOURCE;
+
+    const runWrapper = (overrides = {}) => {
+      const result = spawnSync(wrapperPath, [], {
+        encoding: "utf8",
+        env: { ...baseEnv, ...overrides },
+      });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      return result.stdout.trim();
+    };
+
+    assert.equal(runWrapper(), "127.0.0.1:7233|packaged_local_default");
+    assert.equal(
+      runWrapper({ OPL_TEMPORAL_ADDRESS: "temporal.example:7233" }),
+      "temporal.example:7233|unset",
+    );
+    assert.equal(
+      runWrapper({ OPL_TEMPORAL_ADDRESS: "127.0.0.1:7233" }),
+      "127.0.0.1:7233|unset",
+    );
+    assert.equal(
+      runWrapper({
+        OPL_TEMPORAL_ADDRESS: "temporal.example:7233",
+        OPL_TEMPORAL_ADDRESS_SOURCE: "operator_environment",
+      }),
+      "temporal.example:7233|operator_environment",
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("real Full domain and prepareRuntime builders package the current MAS Scholar Skills closure", async () => {
   const fixture = createFullRuntimeFixture();
   const previousStrictSigning = process.env.OPL_MAC_STRICT_SIGNING_CHECKS;

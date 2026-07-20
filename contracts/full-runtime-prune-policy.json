@@ -198,7 +198,7 @@
         "modules/mas/src/med_autoscience/__init__.py",
         "modules/mas-scholar-skills/runtime/reference-provider-adapters/index.ts",
         "modules/rca/contracts/runtime-program/schema.json",
-        "modules/meta-agent/runtime/authority_functions/meta-agent-authority-functions.json",
+        "modules/meta-agent/contracts/foundry_provider.json",
         "modules/rca/prompts/xiaohongshu/style-references/ref.png",
         "python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/ensurepip/__init__.py"
       ]
