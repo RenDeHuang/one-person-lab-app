@@ -283,12 +283,24 @@ function validateOrdinaryConversationPage(matrix) {
   if (ordinaryConversationPage.page_contract !== 'ordinary_codex_conversation') {
     throw new Error('Ordinary conversation page contract must be ordinary_codex_conversation');
   }
+  const {
+    experience_contract_ref: actionSheetContractRef,
+    minimum_viewport: actionSheetMinimumViewport,
+    height_policy: actionSheetHeightPolicy,
+    single_scroll_owner: actionSheetScrollOwner,
+    all_actions_reachable: actionSheetActionsReachable,
+    horizontal_overflow_allowed: actionSheetHorizontalOverflowAllowed,
+    ...baseMobileActionSheet
+  } = ordinaryConversationPage.conversation_view_model?.mobile_action_sheet ?? {};
   assertDeepEqualJson(
     {
       ...Object.fromEntries(
-        Object.entries(ordinaryConversationPage.conversation_view_model ?? {}).filter(
-          ([key]) => key !== 'agent_package_invocation_receipt_required',
-        ),
+        Object.entries(ordinaryConversationPage.conversation_view_model ?? {})
+          .filter(([key]) => key !== 'agent_package_invocation_receipt_required')
+          .map(([key, value]) => [
+            key,
+            key === 'mobile_action_sheet' ? baseMobileActionSheet : value,
+          ]),
       ),
       current_task_slice: Object.fromEntries(
         Object.entries(ordinaryConversationPage.conversation_view_model?.current_task_slice ?? {}).filter(
@@ -303,6 +315,26 @@ function validateOrdinaryConversationPage(matrix) {
       ),
     },
     'Ordinary conversation view model shell policy',
+  );
+  assertDeepEqualJson(
+    {
+      experience_contract_ref: actionSheetContractRef,
+      minimum_viewport: actionSheetMinimumViewport,
+      height_policy: actionSheetHeightPolicy,
+      single_scroll_owner: actionSheetScrollOwner,
+      all_actions_reachable: actionSheetActionsReachable,
+      horizontal_overflow_allowed: actionSheetHorizontalOverflowAllowed,
+    },
+    {
+      experience_contract_ref:
+        'contracts/app-gui-product-contract.json#ui_experience_contract.context_action_sheet',
+      minimum_viewport: '400x600',
+      height_policy: '100dvh_safe_area_bounded',
+      single_scroll_owner: 'content_pane',
+      all_actions_reachable: true,
+      horizontal_overflow_allowed: false,
+    },
+    'Ordinary conversation mobile action-sheet reachability',
   );
   if (ordinaryConversationPage.conversation_view_model?.agent_package_invocation_receipt_required !== true) {
     throw new Error('Ordinary conversation view model must require agent package invocation receipts');

@@ -843,16 +843,75 @@ export const appActionRoute =
   "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json";
 export const appOwnedSettingsIaGroupIds = [
   "overview",
-  "gateway",
-  "models",
+  "account_models",
   "workspace",
-  "agents",
-  "capabilities",
-  "resources",
-  "maintenance",
-  "storage",
+  "agents_capabilities",
+  "runtime_maintenance",
   "preferences",
 ];
+export const appOwnedSettingsNavigationDestinationIds = [
+  "overview_status",
+  "account_access",
+  "models",
+  "resources_connections",
+  "working_directory",
+  "data_storage",
+  "agents",
+  "capabilities",
+  "instructions_context",
+  "runtime_services",
+  "logs_diagnostics",
+  "preferences",
+];
+export const appOwnedSettingsNavigationGroupLabels = {
+  overview: { label_zh: "概览", label_en: "Overview" },
+  account_models: { label_zh: "账户与模型", label_en: "Account & Models" },
+  workspace: { label_zh: "工作区", label_en: "Workspace" },
+  agents_capabilities: {
+    label_zh: "智能体与能力",
+    label_en: "Agents & Capabilities",
+  },
+  runtime_maintenance: {
+    label_zh: "运行与维护",
+    label_en: "Runtime & Maintenance",
+  },
+  preferences: { label_zh: "偏好", label_en: "Preferences" },
+};
+export const appOwnedSettingsNavigationDestinationOwners = {
+  overview_status: { owner_group_id: "overview", route_id: "general" },
+  account_access: { owner_group_id: "account_models", route_id: "gateway" },
+  models: { owner_group_id: "account_models", route_id: "access" },
+  resources_connections: {
+    owner_group_id: "account_models",
+    route_id: "resources",
+  },
+  working_directory: {
+    owner_group_id: "workspace",
+    route_id: "workspace",
+    anchor: "current-workspace",
+  },
+  data_storage: { owner_group_id: "workspace", route_id: "storage" },
+  agents: { owner_group_id: "agents_capabilities", route_id: "agents" },
+  capabilities: {
+    owner_group_id: "agents_capabilities",
+    route_id: "capabilities",
+  },
+  instructions_context: {
+    owner_group_id: "agents_capabilities",
+    route_id: "workspace",
+    anchor: "personalization",
+  },
+  runtime_services: {
+    owner_group_id: "runtime_maintenance",
+    route_id: "environment",
+  },
+  logs_diagnostics: {
+    owner_group_id: "runtime_maintenance",
+    route_id: "environment",
+    anchor: "diagnostics",
+  },
+  preferences: { owner_group_id: "preferences", route_id: "appearance" },
+};
 export const appOwnedSettingsRouteScopes = {
   settings_general: { route_id: "general", route_scope: "ordinary" },
   gateway: { route_id: "gateway", route_scope: "ordinary" },
@@ -1187,15 +1246,17 @@ export const appOwnedSettingsVisualSystem = {
     "use monochrome utility navigation icons and reserve color for typed warning error success and brand actions",
   footer_layout: "compact",
   footer_controls: [
-    "gateway_account_or_settings_entry",
+    "gateway_account_or_account_access_entry",
     "app_update_status_and_trigger",
   ],
   footer_account_entry_policy:
-    "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
+    "show_gateway_display_name_when_connected_else_account_access_without_a_duplicate_settings_entry",
   footer_update_entry_policy:
     "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
   footer_theme_quick_toggle_allowed: false,
-  footer_secondary_navigation_allowed: false,
+  footer_secondary_navigation_allowed: true,
+  footer_auxiliary_navigation: "about_only_sidebar_bottom",
+  footer_duplicate_settings_entry_allowed: false,
   appearance_mode_values: ["system", "light", "dark"],
   appearance_mode_presentation: "three_visual_preview_cards",
   appearance_mode_preserves_theme_preset: false,

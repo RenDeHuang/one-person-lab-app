@@ -1760,15 +1760,19 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     !pages.settings_workspace.sections?.includes('log_directory') ||
     !pages.settings_workspace.sections?.includes('system_agents') ||
     !pages.settings_workspace.sections?.includes('opl_app_context') ||
-    !pages.settings_workspace.must_show?.includes('Workspace as a top-level Settings entry') ||
+    !pages.settings_workspace.must_show?.includes(
+      'Workspace as a top-level Settings group with Working Directory and Data & Storage destinations',
+    ) ||
     !pages.settings_workspace.must_show?.includes(
       'content-width responsive single-column rows when the Settings reading lane is narrow',
     ) ||
     !pages.settings_workspace.must_show?.includes('Codex instruction editors use unframed field groups without nested cards') ||
     !pages.settings_workspace.must_not_show?.includes('Storage-owned log configuration') ||
+    !pages.settings_workspace.must_not_show?.includes('System AGENTS.md or new-conversation context presented as Workspace children') ||
+    !pages.settings_workspace.must_not_show?.includes('App log directory presented as a Workspace child') ||
     !pages.settings_workspace.must_not_show?.includes('Framework and raw paths duplicated from Maintenance diagnostics')
   ) {
-    throw new Error('Settings Workspace must own workspace, App logs, and Codex instructions without raw Framework path duplication');
+    throw new Error('Settings Workspace must retain carrier transport while exposing only working directory and data storage as Workspace children');
   }
   if (
     pages.settings_storage.sections?.includes('log_directory') ||

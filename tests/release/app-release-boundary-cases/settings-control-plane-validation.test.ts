@@ -105,7 +105,7 @@ test("Settings optional resource groups stay owner-projected and absent by defau
   );
 });
 
-test("Settings contract keeps ten product pages, About as the only secondary page, and anchored compatibility routes", () => {
+test("Settings exposes six primary groups over ten stable carrier pages with bottom About", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -138,6 +138,60 @@ test("Settings contract keeps ten product pages, About as the only secondary pag
       "数据与存储",
       "偏好",
     ],
+  );
+  const navigation = values.controlPlane.user_navigation_projection;
+  assert.deepStrictEqual(navigation.primary_group_order, [
+    "overview",
+    "account_models",
+    "workspace",
+    "agents_capabilities",
+    "runtime_maintenance",
+    "preferences",
+  ]);
+  assert.deepStrictEqual(
+    navigation.destinations.map((entry) => entry.id),
+    [
+      "overview_status",
+      "account_access",
+      "models",
+      "resources_connections",
+      "working_directory",
+      "data_storage",
+      "agents",
+      "capabilities",
+      "instructions_context",
+      "runtime_services",
+      "logs_diagnostics",
+      "preferences",
+    ],
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.ordinary_routes.map((route) => route.ia_group),
+    [
+      "overview",
+      "account_models",
+      "account_models",
+      "workspace",
+      "agents_capabilities",
+      "agents_capabilities",
+      "account_models",
+      "runtime_maintenance",
+      "workspace",
+      "preferences",
+    ],
+  );
+  assert.equal(
+    navigation.responsive_navigation.mobile_horizontal_tab_strip_allowed,
+    false,
+  );
+  assert.equal(navigation.auxiliary_entries[0].placement, "sidebar_bottom");
+  assert.equal(
+    navigation.footer_policy.duplicate_settings_entry,
+    "forbidden_inside_settings",
+  );
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane.user_navigation_projection,
+    navigation,
   );
   assert.deepStrictEqual(
     values.controlPlane.secondary_pages.map((page) => page.id),
@@ -186,6 +240,21 @@ test("Settings contract keeps ten product pages, About as the only secondary pag
       route_or_entry_removal_proves_data_migration: false,
     },
   );
+
+  const tenVisibleGroups = contracts();
+  tenVisibleGroups.controlPlane.user_navigation_projection.primary_group_order =
+    tenVisibleGroups.controlPlane.ordinary_routes.map((route) => route.ia_group);
+  assert.throws(() => validate(tenVisibleGroups), /primary group order/);
+
+  const horizontalMobileTabs = contracts();
+  horizontalMobileTabs.controlPlane.user_navigation_projection.responsive_navigation.mobile_horizontal_tab_strip_allowed =
+    true;
+  assert.throws(() => validate(horizontalMobileTabs), /responsive_navigation/);
+
+  const workspaceOwnsContext = contracts();
+  workspaceOwnsContext.controlPlane.user_navigation_projection.secondary_owner_bindings[0].user_destination_id =
+    "working_directory";
+  assert.throws(() => validate(workspaceOwnsContext), /secondary owner bindings/);
 });
 
 test("Settings validator keeps runnable package lifecycle on Agents", () => {
@@ -779,15 +848,17 @@ test("Settings visual QA enforces Codex quiet grouping, compact footer, and mono
       "use monochrome utility navigation icons and reserve color for typed warning error success and brand actions",
     footer_layout: "compact",
     footer_controls: [
-      "gateway_account_or_settings_entry",
+      "gateway_account_or_account_access_entry",
       "app_update_status_and_trigger",
     ],
     footer_account_entry_policy:
-      "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
+      "show_gateway_display_name_when_connected_else_account_access_without_a_duplicate_settings_entry",
     footer_update_entry_policy:
       "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
     footer_theme_quick_toggle_allowed: false,
-    footer_secondary_navigation_allowed: false,
+    footer_secondary_navigation_allowed: true,
+    footer_auxiliary_navigation: "about_only_sidebar_bottom",
+    footer_duplicate_settings_entry_allowed: false,
     appearance_mode_values: ["system", "light", "dark"],
     appearance_mode_presentation: "three_visual_preview_cards",
     appearance_mode_preserves_theme_preset: false,
@@ -825,16 +896,17 @@ test("Settings visual QA enforces Codex quiet grouping, compact footer, and mono
   assert.deepStrictEqual(visualQa.footer_structure, {
     layout: "compact",
     controls: [
-      "gateway_account_or_settings_entry",
+      "gateway_account_or_account_access_entry",
       "app_update_status_and_trigger",
     ],
     account_entry:
-      "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+      "gateway_display_name_when_connected_else_account_access_entry_without_a_duplicate_settings_entry",
     update_entry:
       "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
     theme_quick_toggle:
       "forbidden_theme_mode_lives_in_settings_preferences",
-    help_navigation: "forbidden",
+    help_navigation: "about_is_the_single_sidebar_bottom_auxiliary_entry",
+    duplicate_settings_entry: "forbidden_inside_settings",
   });
   assert.deepStrictEqual(visualQa.theme_gallery, {
     presentation: "not_exposed",

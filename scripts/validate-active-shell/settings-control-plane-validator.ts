@@ -17,6 +17,9 @@ import {
   appOwnedSettingsManagedDependencySummary,
   appOwnedSettingsManagedUpdateRepairPolicy,
   appOwnedSettingsManagedUpdateRepairPolicyRef,
+  appOwnedSettingsNavigationDestinationIds,
+  appOwnedSettingsNavigationDestinationOwners,
+  appOwnedSettingsNavigationGroupLabels,
   appOwnedSettingsProductSystemItemIds,
   appOwnedSettingsProductSystemTracks,
   appOwnedSettingsProjectionItemFields,
@@ -246,19 +249,36 @@ const matrixRouteScopes = {
 
 const expectedIaGroupByMatrixPageId = {
   settings_general: "overview",
-  gateway: "gateway",
+  gateway: "account_models",
+  access: "account_models",
+  agents: "agents_capabilities",
+  capabilities: "agents_capabilities",
+  settings_resources: "account_models",
+  environment: "runtime_maintenance",
+  settings_local_services: "runtime_maintenance",
+  storage: "workspace",
+  about: "auxiliary",
+  update: "runtime_maintenance",
+  settings_theme: "preferences",
+  settings_personalization: "agents_capabilities",
+  settings_workspace: "workspace",
+};
+
+const expectedDestinationByMatrixPageId = {
+  settings_general: "overview_status",
+  gateway: "account_access",
   access: "models",
   agents: "agents",
   capabilities: "capabilities",
-  settings_resources: "resources",
-  environment: "maintenance",
-  settings_local_services: "maintenance",
-  storage: "storage",
+  settings_resources: "resources_connections",
+  environment: "runtime_services",
+  settings_local_services: "runtime_services",
+  storage: "data_storage",
   about: "about",
-  update: "maintenance",
+  update: "runtime_services",
   settings_theme: "preferences",
-  settings_personalization: "workspace",
-  settings_workspace: "workspace",
+  settings_personalization: "instructions_context",
+  settings_workspace: "working_directory",
 };
 
 export function validateSettingsControlPlane(
@@ -691,6 +711,15 @@ export function validateSettingsControlPlane(
     productProfile,
   );
   validateSettingsIa(guiContract?.settings_navigation?.settings_ia);
+  validateSettingsUserNavigationProjection(
+    controlPlane.user_navigation_projection,
+    guiContract?.settings_navigation?.settings_ia,
+  );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.user_navigation_projection,
+    controlPlane.user_navigation_projection,
+    "Product profile Settings user navigation projection",
+  );
   validateSettingsPageStateMatrix(
     pageStateMatrix,
     controlPlane.experience_contract,
@@ -1183,6 +1212,188 @@ function validateCustomAssistantDataBoundary(controlPlane) {
   );
 }
 
+function validateSettingsUserNavigationProjection(projection, settingsIa) {
+  if (
+    projection?.schema !== "opl_app_settings_user_navigation.v1" ||
+    projection.source_ref !== settingsIaRef ||
+    projection.carrier_route_policy !==
+      "ten_stable_ordinary_route_ids_paths_slots_and_anchors_remain_addressable_but_are_not_rendered_as_ten_primary_navigation_items"
+  ) {
+    throw new Error(
+      "Settings user navigation projection must separate six visible groups from ten stable carrier routes",
+    );
+  }
+  assertDeepEqualJson(
+    projection.primary_group_order,
+    appOwnedSettingsIaGroupIds,
+    "Settings user navigation primary group order",
+  );
+  assertDeepEqualJson(
+    (projection.primary_groups ?? []).map((group) => group.id),
+    appOwnedSettingsIaGroupIds,
+    "Settings user navigation primary group ids",
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(
+      (projection.primary_groups ?? []).map((group) => [
+        group.id,
+        { label_zh: group.label_zh, label_en: group.label_en },
+      ]),
+    ),
+    appOwnedSettingsNavigationGroupLabels,
+    "Settings user navigation primary group labels",
+  );
+  const destinationIds = (projection.destinations ?? []).map(
+    (destination) => destination.id,
+  );
+  assertDeepEqualJson(
+    destinationIds,
+    appOwnedSettingsNavigationDestinationIds,
+    "Settings user navigation destination ids",
+  );
+  for (const group of projection.primary_groups ?? []) {
+    if (
+      !Array.isArray(group.destination_ids) ||
+      !group.destination_ids.includes(group.default_destination_id)
+    ) {
+      throw new Error(
+        `Settings user navigation group ${group.id} must own its default destination`,
+      );
+    }
+  }
+  assertDeepEqualJson(
+    (projection.primary_groups ?? []).flatMap((group) => group.destination_ids),
+    appOwnedSettingsNavigationDestinationIds,
+    "Settings user navigation group destination order",
+  );
+  for (const destination of projection.destinations ?? []) {
+    const expected = appOwnedSettingsNavigationDestinationOwners[destination.id];
+    if (
+      !expected ||
+      destination.owner_group_id !== expected.owner_group_id ||
+      destination.route_id !== expected.route_id ||
+      (destination.anchor ?? null) !== (expected.anchor ?? null)
+    ) {
+      throw new Error(
+        `Settings user navigation destination ${destination.id} must preserve its user owner and carrier route`,
+      );
+    }
+    assertKnownSettingsRoute(
+      destination.route_id,
+      `Settings user navigation destination ${destination.id}`,
+    );
+  }
+  assertDeepEqualJson(
+    projection.secondary_owner_bindings,
+    [
+      {
+        content_id: "codex_user_instructions",
+        user_destination_id: "instructions_context",
+        transport_route_id: "workspace",
+        anchor: "system-agents",
+      },
+      {
+        content_id: "opl_app_session_context",
+        user_destination_id: "instructions_context",
+        transport_route_id: "workspace",
+        anchor: "opl-app-context",
+      },
+      {
+        content_id: "app_log_directory",
+        user_destination_id: "logs_diagnostics",
+        transport_route_id: "workspace",
+        anchor: "logs",
+      },
+    ],
+    "Settings user navigation secondary owner bindings",
+  );
+  assertDeepEqualJson(
+    projection.auxiliary_entries,
+    [
+      {
+        id: "about",
+        route_id: "about",
+        placement: "sidebar_bottom",
+        label_zh: "关于",
+        label_en: "About",
+      },
+    ],
+    "Settings user navigation auxiliary entries",
+  );
+  for (const [field, expected] of Object.entries({
+    desktop:
+      "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+    mobile:
+      "category_list_then_second_level_destination_with_a_visible_back_control",
+    mobile_horizontal_tab_strip_allowed: false,
+    mobile_navigation_scroll_axis: "vertical",
+    keyboard_policy:
+      "all_primary_groups_second_level_destinations_back_and_about_are_reachable_in_logical_order",
+  })) {
+    if (projection.responsive_navigation?.[field] !== expected) {
+      throw new Error(
+        `Settings user navigation responsive_navigation.${field} must be ${expected}`,
+      );
+    }
+  }
+  assertDeepEqualJson(
+    projection.responsive_navigation?.minimum_viewport_px,
+    { width: 400, height: 600 },
+    "Settings user navigation minimum viewport",
+  );
+  if (
+    projection.global_search_policy !==
+      "preserve_one_bilingual_item_level_search_across_all_carrier_routes_and_owner_anchors" ||
+    projection.footer_policy?.duplicate_settings_entry !==
+      "forbidden_inside_settings" ||
+    projection.footer_policy?.about_placement !==
+      "sidebar_bottom_auxiliary_entry"
+  ) {
+    throw new Error(
+      "Settings user navigation must preserve global search, bottom About, and forbid a duplicate Settings footer entry",
+    );
+  }
+  assertDeepEqualJson(
+    projection.primary_group_order,
+    settingsIa?.group_ids,
+    "Settings user navigation vs GUI group order",
+  );
+  assertDeepEqualJson(
+    (projection.primary_groups ?? []).map((group) => ({
+      id: group.id,
+      label_zh: group.label_zh,
+      label_en: group.label_en,
+      default_child_id: group.default_destination_id,
+    })),
+    (settingsIa?.top_level_entries ?? []).map((entry) => ({
+      id: entry.id,
+      label_zh: entry.label_zh,
+      label_en: entry.label_en,
+      default_child_id: entry.default_child_id,
+    })),
+    "Settings user navigation vs GUI primary groups",
+  );
+  assertDeepEqualJson(
+    (projection.destinations ?? []).map((entry) => ({
+      id: entry.id,
+      group_id: entry.owner_group_id,
+      route_id: entry.route_id,
+      anchor: entry.anchor ?? null,
+      label_zh: entry.label_zh,
+      label_en: entry.label_en,
+    })),
+    (settingsIa?.child_entries ?? []).map((entry) => ({
+      id: entry.id,
+      group_id: entry.group_id,
+      route_id: entry.route_id,
+      anchor: entry.anchor ?? null,
+      label_zh: entry.label_zh,
+      label_en: entry.label_en,
+    })),
+    "Settings user navigation vs GUI destinations",
+  );
+}
+
 function validateSettingsIa(settingsIa) {
   if (settingsIa?.schema !== "settings_ia.v1") {
     throw new Error(
@@ -1256,6 +1467,38 @@ function validateSettingsIa(settingsIa) {
     settingsIa.top_level_navigation_policy,
   );
   assertDeepEqualJson(
+    (settingsIa.child_entries ?? []).map((entry) => entry.id),
+    appOwnedSettingsNavigationDestinationIds,
+    "Settings IA second-level destination ids",
+  );
+  for (const entry of settingsIa.child_entries ?? []) {
+    const expected = appOwnedSettingsNavigationDestinationOwners[entry.id];
+    if (
+      !expected ||
+      entry.group_id !== expected.owner_group_id ||
+      entry.route_id !== expected.route_id ||
+      (entry.anchor ?? null) !== (expected.anchor ?? null)
+    ) {
+      throw new Error(
+        `Settings IA destination ${entry.id} must retain its user owner and carrier route`,
+      );
+    }
+  }
+  assertDeepEqualJson(
+    settingsIa.auxiliary_entries,
+    [
+      {
+        id: "about",
+        route_id: "about",
+        route_scope: "secondary_or_deep_link",
+        placement: "sidebar_bottom",
+        label_zh: "关于",
+        label_en: "About",
+      },
+    ],
+    "Settings IA auxiliary entries",
+  );
+  assertDeepEqualJson(
     (settingsIa.user_task_entries ?? []).map((entry) => entry.id),
     appOwnedSettingsTaskEntryIds,
     "Settings control plane user task entries",
@@ -1295,26 +1538,27 @@ function validateSettingsIa(settingsIa) {
 function validateSettingsTopLevelEntries(entries, policy) {
   if (
     policy?.entry_model !==
-      "user_visible_top_level_entries_match_ordinary_navigation_entries" ||
+      "six_user_visible_primary_groups_expand_or_drill_into_second_level_destinations" ||
     policy?.workspace_visibility !==
       "workspace_is_user_visible_top_level_navigation_entry" ||
     policy?.resources_visibility !==
-      "resources_is_user_visible_top_level_navigation_entry" ||
+      "resources_is_a_second_level_destination_under_account_and_models" ||
     policy?.advanced_visibility !==
       "advanced_is_retired_and_redirects_to_maintenance_diagnostics" ||
-    policy?.about_visibility !== "about_is_independent_secondary_page" ||
+    policy?.about_visibility !==
+      "about_is_a_bottom_auxiliary_entry_outside_the_six_primary_groups" ||
     policy?.compatibility_route_policy !==
       "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor" ||
     policy?.shell_route_compatibility !==
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare ten ordinary product pages, independent About, and compatibility anchor routes",
+      "Settings IA must declare six primary groups, bottom auxiliary About, and compatibility carrier routes",
     );
   }
   assertDeepEqualJson(
     (entries ?? []).map((entry) => entry.id),
-    appOwnedSettingsTopLevelEntryIds,
+    appOwnedSettingsIaGroupIds,
     "Settings IA top-level user-visible entries",
   );
   const workspace = (entries ?? []).find((entry) => entry.id === "workspace");
@@ -1327,16 +1571,6 @@ function validateSettingsTopLevelEntries(entries, policy) {
       "Settings IA Workspace must be ordinary top-level navigation",
     );
   }
-  const resources = (entries ?? []).find((entry) => entry.id === "resources");
-  if (
-    resources?.route_id !== "resources" ||
-    resources?.route_scope !== "ordinary" ||
-    resources?.visibility !== "top_level_navigation"
-  ) {
-    throw new Error(
-      "Settings IA Resources must be ordinary top-level navigation",
-    );
-  }
   assertDeepEqualJson(
     Object.fromEntries(
       (entries ?? []).map((entry) => [
@@ -1347,7 +1581,7 @@ function validateSettingsTopLevelEntries(entries, policy) {
         },
       ]),
     ),
-    appOwnedSettingsTopLevelLabels,
+    appOwnedSettingsNavigationGroupLabels,
     "Settings IA top-level product labels",
   );
   for (const entry of entries ?? []) {
@@ -1539,15 +1773,17 @@ function validateSettingsVisualQaExpectations(expectations) {
     {
       layout: "compact",
       controls: [
-        "gateway_account_or_settings_entry",
+        "gateway_account_or_account_access_entry",
         "app_update_status_and_trigger",
       ],
-      account_entry: "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+      account_entry:
+        "gateway_display_name_when_connected_else_account_access_entry_without_a_duplicate_settings_entry",
       update_entry:
         "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
       theme_quick_toggle:
         "forbidden_theme_mode_lives_in_settings_preferences",
-      help_navigation: "forbidden",
+      help_navigation: "about_is_the_single_sidebar_bottom_auxiliary_entry",
+      duplicate_settings_entry: "forbidden_inside_settings",
     },
     "Settings visual QA footer structure",
   );
@@ -1628,6 +1864,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertIncludesAll(
     expectations?.must_check,
     [
+      "ordinary navigation shows six primary groups with ten stable carrier routes reachable as second-level destinations",
+      "About is the single sidebar-bottom auxiliary entry outside the six primary groups",
+      "mobile Settings uses a vertical category list then second-level navigation without a horizontal tab strip",
       "page sections use quiet white bounded groups with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
       "each user question is one quiet bounded section with flat internal rows; page-wide list walls and nested cards are absent",
       "each page first viewport contains two to four independent spatial groups",
@@ -1636,7 +1875,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
-      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, shows the existing App update trigger as a trailing account-row action only when a newer version is confirmed, and never renders a theme quick toggle, return-to-chat, or help navigation",
+      "the compact Settings footer keeps Gateway account or Account & Access reachable without a duplicate Settings entry, shows the existing App update trigger as a trailing account-row action only when a newer version is confirmed, and keeps About as the single bottom auxiliary entry",
       "Preferences exposes System, Light, and Dark appearance modes over one governed visual baseline",
       "the CSS theme preset gallery and custom theme editor are not exposed while legacy user theme data is preserved but not applied",
       "visual assertions verify grouping, the conditional account-row update action, and the single-baseline appearance structure; radius and spacing alone are insufficient",

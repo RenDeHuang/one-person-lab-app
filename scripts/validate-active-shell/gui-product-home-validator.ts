@@ -63,7 +63,14 @@ function validateExecutorPolicy(guiContract) {
 }
 
 function validateHomeLayout(guiContract) {
-  assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
+  const {
+    runtime_notice_policy_ref: runtimeNoticePolicyRef,
+    ...homeLayout
+  } = guiContract.home_layout ?? {};
+  assertDeepEqualJson(homeLayout, appOwnedHomeLayout, 'App GUI home layout');
+  if (runtimeNoticePolicyRef !== 'ui_experience_contract.home.runtime_notice') {
+    throw new Error('App GUI Home Runtime notice must use the exception-only UI experience contract');
+  }
   assertDeepEqualJson(
     guiContract.interaction_baseline?.conversation_scope?.session_workspace_model,
     appOwnedSessionWorkspaceModel,

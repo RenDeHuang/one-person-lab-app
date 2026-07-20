@@ -4,6 +4,7 @@
   "purpose": "page_state_test_matrix",
   "state": "active",
   "interaction_baseline_ref": "contracts/app-gui-product-contract.json#interaction_baseline",
+  "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
   "acceptance_boundary": {
     "human_target_owner": "one-person-lab-app",
     "active_aionui_role": "current_implementation_conformance_only",
@@ -429,6 +430,27 @@
           }
         ],
         "hero_prompt_policy": "modest_dynamic_prompt_in_composer_reading_lane",
+        "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
+        "home_experience": {
+          "layout": "composer_first_single_reading_lane",
+          "shortcut_label_policy": "localized_task_verb_primary",
+          "shortcut_labels_zh": {
+            "research": "开展科研",
+            "ppt": "制作演示",
+            "grant": "撰写基金",
+            "book": "写作书稿",
+            "oma": "构建智能体"
+          },
+          "runtime_notice_visibility": "exception_only"
+        },
+        "context_action_sheet_acceptance": {
+          "minimum_viewport": "400x600",
+          "height_policy": "100dvh_safe_area_bounded",
+          "single_scroll_owner": "content_pane",
+          "all_actions_reachable": true,
+          "horizontal_overflow_allowed": false,
+          "virtual_keyboard_preserves_focused_control_visibility": true
+        },
         "activity_center": {
           "authority": "app_owned_home_minimal_command_surface",
           "source": "not_rendered_on_ordinary_home",
@@ -478,7 +500,10 @@
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
         "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
         "advanced work surfaces closed by default with no third column",
-        "runtime/task progress available from Runtime page, not Home activity grid"
+        "runtime/task progress available from Runtime page, not Home activity grid",
+        "localized task-verb shortcuts 开展科研, 制作演示, 撰写基金, 写作书稿, and 构建智能体",
+        "one compact Runtime notice only when attention or unavailability is present",
+        "all context action-sheet controls remain reachable at 400x600 and with the virtual keyboard"
       ],
       "must_not_show": [
         "executor selector on the home input",
@@ -516,7 +541,9 @@
         "directory-group delete action or cascade deletion of grouped sessions",
         "title-based conversation deduplication",
         "stale Codex ACP cache rows absent from an available canonical App Server overview",
-        "a standalone projectless or no working directory placeholder row"
+        "a standalone projectless or no working directory placeholder row",
+        "normal Runtime status notice on Home",
+        "clipped or unreachable model and reasoning controls in the context action sheet"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -624,6 +651,12 @@
         ],
         "mobile_action_sheet": {
           "trigger": "+",
+          "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.context_action_sheet",
+          "minimum_viewport": "400x600",
+          "height_policy": "100dvh_safe_area_bounded",
+          "single_scroll_owner": "content_pane",
+          "all_actions_reachable": true,
+          "horizontal_overflow_allowed": false,
           "allowed_actions": [
             "unified_context_menu",
             "permission_access_mode",
@@ -1002,6 +1035,7 @@
         "compact active capability chip",
         "desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer",
         "mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions",
+        "400x600 mobile plus sheet with one internal scroll owner and every action reachable",
         "composer-width searchable grouped plus palette for files, folders, real allowlisted loaded capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection",
         "explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only",
         "failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input",
@@ -1033,6 +1067,7 @@
         "workspace-scoped project context inputs or an Add context action in the directory rail",
         "workspaceRootReady or workspace membership used as a file-access gate",
         "backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet",
+        "clipped model or reasoning controls in the mobile plus sheet",
         "bound-session arbitrary project or working-directory reassignment controls",
         "Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls",
         "cross-host task handoff controls",
@@ -1443,6 +1478,25 @@
           "sections": [],
           "owner_surface": "/settings/environment?section=diagnostics"
         },
+        "failure_presentation": {
+          "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.runtime_failure",
+          "mutually_exclusive_states": [
+            "loading",
+            "ready",
+            "empty",
+            "error",
+            "unavailable"
+          ],
+          "main_surface": "localized_summary_plus_retry_and_open_maintenance",
+          "technical_details_default": "collapsed",
+          "copy_diagnostics_action": true,
+          "raw_json_absolute_paths_and_node_warnings_default_visible": false,
+          "horizontal_clipping_allowed": false,
+          "acceptance_widths_px": [
+            375,
+            400
+          ]
+        },
         "action_queue": {
           "runtime_page_allowed_action": "work_item_visibility_set_only",
           "platform_action_catalog_visible": false,
@@ -1722,7 +1776,10 @@
         "Stage click does not open the task detail drawer",
         "selected task detail drawer with Stage Map, heartbeat, Token, and action only",
         "operator summaries, safe actions, software updates, platform repair, module health, and provider diagnostics excluded from Runtime and routed to Settings",
-        "responsive semantic row reflow without horizontal page overflow"
+        "responsive semantic row reflow without horizontal page overflow",
+        "localized failure summary with Retry and Open Maintenance actions",
+        "collapsed copyable technical details that wrap without clipping at 375px and 400px",
+        "mutually exclusive loading, ready, empty, error, and unavailable states"
       ],
       "must_not_show": [
         "operator summary",
@@ -1742,7 +1799,9 @@
         "raw projection",
         "evidence ledger",
         "current_control_state",
-        "release evidence"
+        "release evidence",
+        "raw JSON, absolute paths, or Node warnings on the primary failure surface",
+        "simultaneous refresh-failed and unavailable panels"
       ],
       "must_not_own": [
         "runtime truth",
@@ -1789,7 +1848,9 @@
         "carrier-neutral Base and Packages reconciliation status after any App install or version change",
         "current, updating in background, restart to finish, refresh Codex, or attention guidance from Framework receipts",
         "update and local-service anchors owned by Maintenance",
-        "Framework working paths inside the single read-only Maintenance diagnostics disclosure"
+        "Framework working paths inside the single read-only Maintenance diagnostics disclosure",
+        "normal components collapsed into a compact summary and only attention items expanded",
+        "timestamps in localized absolute and relative time"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -1822,7 +1883,9 @@
         "raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI",
         "current project or in-progress task list",
         "workspace, storage, or About navigation duplicated as maintenance cards",
-        "update or local-services rendered as independent product pages"
+        "update or local-services rendered as independent product pages",
+        "a long wall of unavailable or disabled maintenance actions",
+        "raw ISO timestamps as the only user-facing time"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "software_lifecycle_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
@@ -2032,7 +2095,8 @@
         "success_policy": "service_ready_and_required_platform_supervisor_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
         "failure_policy": "failed_stale_or_guidance_only_results_never_show_success_or_route_to_settings_sync_capabilities"
       },
-      "ia_group": "maintenance",
+      "ia_group": "runtime_maintenance",
+      "user_navigation_destination_id": "runtime_services",
       "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
       "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
       "route_id": "environment",
@@ -2087,7 +2151,13 @@
       ],
       "primary_action_id": "run_recommended_maintenance",
       "technical_details_default": "collapsed",
-      "exception_emphasis": "attention_only"
+      "exception_emphasis": "attention_only",
+      "maintenance_presentation": {
+        "normal_state": "collapsed_summary",
+        "attention_state": "expand_only_items_requiring_action",
+        "time_format": "localized_absolute_time_plus_relative_time",
+        "disabled_action_policy": "hide_or_explain_unavailability"
+      }
     },
     {
       "id": "settings_local_services",
@@ -2107,7 +2177,8 @@
         "Local Services ordinary or secondary navigation entry"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "maintenance",
+      "ia_group": "runtime_maintenance",
+      "user_navigation_destination_id": "runtime_services",
       "route_id": "local-services",
       "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2134,7 +2205,8 @@
       "Agent Package store and WebUI data volume usage from canonical owner projections",
       "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
       "user-facing cleanup preview before destructive action",
-        "plain-language archive, restore, and cleanup history"
+        "plain-language archive, restore, and cleanup history",
+        "localized unavailable reason, responsible owner or missing carrier, and a recovery action when inventory is unavailable"
       ],
       "machine_source": "active shell local data lifecycle plus opl app state owner storage projections",
       "refresh_source": "cached shell and owner snapshots followed by non-blocking TTL/manual refresh; missing owner projections fail open",
@@ -2156,10 +2228,12 @@
       "WebUI destructive action when the carrier-host ABI is missing or incomplete",
       "raw host path in a renderer request, receipt, or user-visible error",
       "silent user data deletion",
-        "App-owned runtime or domain data authority"
+        "App-owned runtime or domain data authority",
+        "an unavailable state containing only Refresh"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "storage",
+      "ia_group": "workspace",
+      "user_navigation_destination_id": "data_storage",
       "route_id": "storage",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2344,6 +2418,14 @@
         "icon_label_gap_px": 8,
         "alignment": "icon_slot_and_label_share_one_vertical_centerline",
         "contrast_policy": "button_foreground_color_applies_to_icon_and_label_together"
+      },
+      "unavailable_state": {
+        "required_fields": [
+          "localized_reason",
+          "owner_or_missing_carrier",
+          "recovery_action"
+        ],
+        "refresh_only_allowed": false
       }
     },
     {
@@ -2387,7 +2469,9 @@
         "manual_check": "refresh_the_same_shared_state",
         "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy"
       },
-      "ia_group": "about",
+      "ia_group": "auxiliary",
+      "user_navigation_destination_id": "about",
+      "user_navigation_placement": "sidebar_bottom",
       "route_id": "about",
       "route_scope": "secondary_or_deep_link",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2445,7 +2529,8 @@
         "Update ordinary or secondary navigation entry"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "maintenance",
+      "ia_group": "runtime_maintenance",
+      "user_navigation_destination_id": "runtime_services",
       "route_id": "update",
       "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2531,7 +2616,10 @@
         "reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group",
         "tray and close-window behavior",
         "System, Light, and Dark appearance choices under the display anchor",
-        "restart-required notice next to the affected setting when applicable"
+        "restart-required notice next to the affected setting when applicable",
+        "localized seconds and minutes for duration values",
+        "accessible names for decrease and increase zoom controls",
+        "restore recommended value when a recommendation exists"
       ],
       "must_not_show": [
         "raw timeout milliseconds",
@@ -2543,7 +2631,9 @@
         "maintenance, account, or About controls",
         "theme as an independent product page",
         "interactive settings inside a Technical details disclosure",
-        "voice input provider configuration"
+        "voice input provider configuration",
+        "raw s or min unit suffixes in localized duration controls",
+        "unlabeled plus or minus zoom controls"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -2555,6 +2645,7 @@
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "preferences",
+      "user_navigation_destination_id": "preferences",
       "route_id": "appearance",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2594,7 +2685,12 @@
       ],
       "primary_action_id": "none",
       "technical_details_default": "not_applicable",
-      "exception_emphasis": "attention_only"
+      "exception_emphasis": "attention_only",
+      "preference_localization": {
+        "duration_units": "localized_seconds_and_minutes",
+        "zoom_accessible_names_required": true,
+        "restore_recommended_value_when_available": true
+      }
     },
     {
       "id": "settings_personalization",
@@ -2610,7 +2706,8 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_personalization",
-      "ia_group": "workspace",
+      "ia_group": "agents_capabilities",
+      "user_navigation_destination_id": "instructions_context",
       "route_id": "personalization",
       "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2633,6 +2730,18 @@
     {
       "id": "first_launch_readiness",
       "expected_source": "pre-/guid first-run wizard and OPL initialize result",
+      "startup_loader": {
+        "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.startup_loader",
+        "visible_product_name": "One Person Lab",
+        "ordered_stages": [
+          "workspace",
+          "local_assistant",
+          "model_access"
+        ],
+        "determinate_progress_policy": "authoritative_progress_only",
+        "timeout_technical_details_default": "collapsed",
+        "raw_logs_default_visible": false
+      },
       "launch_gate": {
         "id": "ready_to_launch",
         "ui_order": "before_first_conversation_not_before_guid",
@@ -2689,7 +2798,9 @@
         "localized accessible names without testid labels",
         "localized inline errors with raw diagnostics only in technical details",
         "background maintenance collapsed technical disclosure",
-        "technical details toggle"
+        "technical details toggle",
+        "branded startup loader with truthful workspace, local assistant, and model access stages",
+        "single completion summary with only the Enter OPL primary action"
       ],
       "progress_model": {
         "source_command": "opl system initialize --json",
@@ -2791,6 +2902,18 @@
         },
         "completion_transition_policy": "replace_current_task_in_place",
         "completion_navigation_policy": "manual_guid_entry_available_before_or_after_ready_no_automatic_route",
+        "completion_state": {
+          "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.first_run_completion",
+          "presentation": "single_completion_summary_with_one_primary_action",
+          "primary_action_id": "enter_opl",
+          "primary_action_visible_count": 1,
+          "hide_when_complete": [
+            "three_step_recap",
+            "3_of_3_counter",
+            "empty_blocking_items",
+            "empty_next_step"
+          ]
+        },
         "defer_navigation_policy": "explicit_enter_guid_available_before_ready_without_mutating_readiness",
         "technical_detail_navigation_policy": "in_place_no_ordinary_settings_route_before_guid",
         "request_exclusivity_policy": "single_inflight_initialize_or_action_across_first_run_controls",
@@ -2895,7 +3018,9 @@
         "ordinary Settings routes from FirstRun technical details",
         "Gateway account device label controls during first-run",
         "Gateway password login in WebUI",
-        "submitted Gateway passwords or access keys in renderer errors or diagnostics"
+        "submitted Gateway passwords or access keys in renderer errors or diagnostics",
+        "indefinite please-wait startup card without a current stage",
+        "three-step recap, 3/3 counter, empty blockers, or empty next step after completion"
       ]
     },
     {
@@ -2949,6 +3074,7 @@
       },
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
+      "user_navigation_destination_id": "overview_status",
       "route_id": "general",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3023,7 +3149,7 @@
         "editable user-level AGENTS.md with stale-write protection and backup",
         "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",
-        "Workspace as a top-level Settings entry",
+        "Workspace as a top-level Settings group with Working Directory and Data & Storage destinations",
         "content-width responsive single-column rows when the Settings reading lane is narrow",
         "Codex instruction editors use unframed field groups without nested cards"
       ],
@@ -3035,10 +3161,35 @@
         "Storage-owned log configuration",
         "generated OPL App base context as editable content",
         "repository AGENTS.md as an App-owned editable file",
-        "Framework and raw paths duplicated from Maintenance diagnostics"
+        "Framework and raw paths duplicated from Maintenance diagnostics",
+        "System AGENTS.md or new-conversation context presented as Workspace children",
+        "App log directory presented as a Workspace child"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "workspace",
+      "user_navigation_destination_id": "working_directory",
+      "secondary_owner_bindings": [
+        {
+          "anchor": "personalization",
+          "owner_group_id": "agents_capabilities",
+          "destination_id": "instructions_context"
+        },
+        {
+          "anchor": "system-agents",
+          "owner_group_id": "agents_capabilities",
+          "destination_id": "instructions_context"
+        },
+        {
+          "anchor": "opl-app-context",
+          "owner_group_id": "agents_capabilities",
+          "destination_id": "instructions_context"
+        },
+        {
+          "anchor": "logs",
+          "owner_group_id": "runtime_maintenance",
+          "destination_id": "logs_diagnostics"
+        }
+      ],
       "route_id": "workspace",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3122,7 +3273,8 @@
         "Repair or Use as model source actions on the account card"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "gateway",
+      "ia_group": "account_models",
+      "user_navigation_destination_id": "account_access",
       "route_id": "gateway",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3239,7 +3391,8 @@
         "Codex CLI update controls owned by Maintenance"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "models",
+      "ia_group": "account_models",
+      "user_navigation_destination_id": "models",
       "route_id": "access",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3399,7 +3552,8 @@
         }
       },
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "resources",
+      "ia_group": "account_models",
+      "user_navigation_destination_id": "resources_connections",
       "route_id": "resources",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3488,7 +3642,8 @@
       ],
       "local_capability_configuration_source": "AionUI local configuration#MCP servers + image generation + voice input",
       "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
-      "ia_group": "capabilities",
+      "ia_group": "agents_capabilities",
+      "user_navigation_destination_id": "capabilities",
       "route_id": "capabilities",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3500,7 +3655,9 @@
         "a non-empty OPL Flow managed group whenever the canonical Flow dependency catalog contains entries",
         "source, owner, version, currentness, and available explicit actions",
         "manual import count and empty state explicitly scoped to the shell manual skill directory rather than total OPL capabilities",
-        "MCP, image generation, and voice input as one aligned flat settings list without nested gray cards"
+        "MCP, image generation, and voice input as one aligned flat settings list without nested gray cards",
+        "one localized user-outcome sentence per capability row with the original trigger description available in details",
+        "frequent, needs-attention, and other capability groups in that default order"
       ],
       "must_not_show": [
         "runnable Agent package lifecycle",
@@ -3512,7 +3669,8 @@
         "silent mutation of manual or third-party Skills and Plugins",
         "voice input configuration on Preferences or Advanced",
         "the manual skill directory labeled as total local or OPL capability readiness",
-        "nested cards or large gray blocks around MCP, image generation, or voice input"
+        "nested cards or large gray blocks around MCP, image generation, or voice input",
+        "raw English trigger instructions as the primary description in a Chinese capability row"
       ],
       "product_page_id": "capabilities",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
@@ -3595,6 +3753,15 @@
             "raw_refs_json"
           ]
         }
+      },
+      "capability_directory_presentation": {
+        "row_summary": "one_localized_user_outcome_sentence",
+        "raw_trigger_description": "details_only",
+        "default_group_order": [
+          "frequent",
+          "needs_attention",
+          "other"
+        ]
       }
     },
     {
@@ -3894,7 +4061,8 @@
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "agents",
+      "ia_group": "agents_capabilities",
+      "user_navigation_destination_id": "agents",
       "route_id": "agents",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -4067,6 +4235,20 @@
   },
   "settings_shell_navigation": {
     "product_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.return_to_app",
+    "user_navigation_projection_ref": "contracts/app-settings-control-plane.json#user_navigation_projection",
+    "primary_group_order": [
+      "overview",
+      "account_models",
+      "workspace",
+      "agents_capabilities",
+      "runtime_maintenance",
+      "preferences"
+    ],
+    "desktop_navigation": "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+    "mobile_navigation": "vertical_category_list_then_second_level_destination_with_visible_back_control",
+    "mobile_horizontal_tab_strip_allowed": false,
+    "about_placement": "sidebar_bottom",
+    "duplicate_settings_footer_entry_allowed": false,
     "required_dom": {
       "expanded": ["settings-back-to-app", "settings-search-input"],
       "collapsed": ["settings-back-to-app"],
