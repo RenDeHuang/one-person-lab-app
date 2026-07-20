@@ -21,7 +21,6 @@ const stableSessionId = `sha256:${'2'.repeat(64)}`;
 const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
-const oplFlowSha = 'd'.repeat(40);
 
 function writeJson(filePath: string, value: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -265,10 +264,6 @@ function writeTrack(root: string, kind: 'standard' | 'full', version: string): v
   });
   writeJson(path.join(trackRoot, 'qualification-receipt.json'), receipt);
   fs.rmSync(smokeSummaryPath);
-  writeJson(path.join(trackRoot, 'provenance.json'), {
-    schema: 'https://slsa.dev/provenance/v1',
-    subject: [{ name: dmgName, digest: { sha256: manifest.artifact.sha256 } }],
-  });
 }
 
 function fixture(options: {
@@ -288,19 +283,7 @@ function fixture(options: {
       app_sha: appSha,
       shell_sha: shellSha,
       framework_sha: frameworkSha,
-      opl_flow_sha: oplFlowSha,
     },
-    builders: {
-      standard: { executor: 'local', run_id: 'local-standard-1' },
-      ...(options.includeFull ? {
-        full: { executor: 'github_actions', run_id: 'github-full-2' },
-      } : {}),
-    },
-  });
-  writeJson(path.join(root, 'toolchain.json'), {
-    schema: 'opl_app_release_toolchain.v1',
-    node: '24.4.1',
-    electron_builder: '26.8.1',
   });
   fs.writeFileSync(path.join(root, 'notes.md'), `# One Person Lab v${version}\n\nRelease notes.\n`);
   writeJson(path.join(root, 'notes-evidence.json'), {
@@ -334,35 +317,39 @@ function runCli(args: string[]) {
   });
 }
 
-test('assembles a deterministic Standard bundle that is Latest eligible without Full', () => {
+test('assembles a deterministic Standard binding without claiming release readiness', () => {
   withFixture(({ root, version }) => {
     const first = assembleReleaseBundle(root);
     const second = assembleReleaseBundle(root);
     assert.deepEqual(first, second);
     assert.equal(first.release.version, version);
-    assert.equal(first.policy.latest.eligible, true);
+    assert.equal(first.policy.latest.channel_allows_promotion, true);
+    assert.equal(first.policy.latest.bundle_can_claim_release_ready, false);
     assert.equal(first.policy.latest.full_required, false);
+    assert.equal(first.tracks.standard.status, 'bound');
+    assert.equal(first.tracks.standard.builder_run_id, 'local-standard-1');
     assert.equal(first.tracks.standard.assets.length, 6);
     assert.deepEqual(first.tracks.full, { status: 'absent' });
     assert.deepEqual(validateReleaseBundle(first), []);
   });
 });
 
-test('assembles a qualified same-cohort Full add-on without changing updater authority', () => {
+test('binds a same-cohort Full add-on without changing updater authority', () => {
   withFixture(({ root }) => {
     const bundle = assembleReleaseBundle(root);
-    assert.equal(bundle.tracks.full.status, 'qualified');
-    assert.equal(bundle.tracks.full.status === 'qualified' && bundle.tracks.full.assets.length, 2);
+    assert.equal(bundle.tracks.full.status, 'bound');
+    assert.equal(bundle.tracks.full.status === 'bound' && bundle.tracks.full.assets.length, 2);
     assert.equal(bundle.policy.updater.track, 'standard');
     assert.equal(bundle.policy.full.updater_metadata_allowed, false);
   }, { includeFull: true });
 });
 
-test('Nightly uses the same bundle contract but is prerelease and never Latest eligible', () => {
+test('Nightly uses the same bundle contract but disallows Latest promotion', () => {
   withFixture(({ root }) => {
     const bundle = assembleReleaseBundle(root);
     assert.equal(bundle.release.prerelease, true);
-    assert.equal(bundle.policy.latest.eligible, false);
+    assert.equal(bundle.policy.latest.channel_allows_promotion, false);
+    assert.equal(bundle.policy.latest.bundle_can_claim_release_ready, false);
     assert.equal(bundle.tracks.standard.assets.length, 6);
   }, { channel: 'nightly' });
 });
@@ -496,10 +483,13 @@ test('schema is Draft 2020-12 and closes every object boundary used by the bundl
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.release.additionalProperties, false);
   assert.equal(schema.properties.tracks.additionalProperties, false);
-  assert.equal(schema.$defs.qualified_track.additionalProperties, false);
+  assert.equal(schema.$defs.bound_track.additionalProperties, false);
   assert.equal(schema.$defs.asset.additionalProperties, false);
   assert.equal(schema.$defs.standard_track.allOf[1].properties.assets.minItems, 6);
   assert.equal(schema.$defs.full_track.allOf[1].properties.assets.maxItems, 2);
   assert.equal(schema.allOf[0].then.properties.release.properties.prerelease.const, false);
-  assert.equal(schema.allOf[0].else.properties.policy.properties.latest.properties.eligible.const, false);
+  assert.equal(
+    schema.allOf[0].else.properties.policy.properties.latest.properties.channel_allows_promotion.const,
+    false,
+  );
 });

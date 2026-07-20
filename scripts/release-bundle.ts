@@ -41,7 +41,6 @@ const fullAssetNames = (version: string) => [
 ] as const;
 
 type JsonRecord = Record<string, unknown>;
-type BuilderExecutor = 'local' | 'github_actions';
 
 export type ReleaseBundleInputV1 = {
   schema: 'opl_app_release_bundle_input.v1';
@@ -52,17 +51,6 @@ export type ReleaseBundleInputV1 = {
     app_sha: string;
     shell_sha: string;
     framework_sha: string;
-    opl_flow_sha: string;
-  };
-  builders: {
-    standard: {
-      executor: BuilderExecutor;
-      run_id: string;
-    };
-    full?: {
-      executor: BuilderExecutor;
-      run_id: string;
-    };
   };
 };
 
@@ -72,12 +60,9 @@ export type ReleaseBundleAssetV1 = {
   sha256: string;
 };
 
-export type ReleaseBundleQualifiedTrackV1 = {
-  status: 'qualified';
-  builder: {
-    executor: BuilderExecutor;
-    run_id: string;
-  };
+export type ReleaseBundleTrackV1 = {
+  status: 'bound';
+  builder_run_id: string;
   build_artifact_cohort: {
     schema: 'opl_app_build_artifact_cohort.v2';
     sha256: string;
@@ -85,9 +70,6 @@ export type ReleaseBundleQualifiedTrackV1 = {
   qualification_receipt: {
     schema: 'opl_app_artifact_qualification_receipt.v1';
     status: 'passed';
-    sha256: string;
-  };
-  provenance: {
     sha256: string;
   };
   assets: ReleaseBundleAssetV1[];
@@ -105,9 +87,6 @@ export type ReleaseBundleV1 = {
     source_input_sha256: string;
   };
   cohort: ReleaseBundleInputV1['cohort'];
-  toolchain: {
-    manifest_sha256: string;
-  };
   notes: {
     source: 'prepared_ai';
     format: 'markdown';
@@ -116,14 +95,15 @@ export type ReleaseBundleV1 = {
     evidence_sha256: string;
   };
   tracks: {
-    standard: ReleaseBundleQualifiedTrackV1;
-    full: ReleaseBundleQualifiedTrackV1 | { status: 'absent' };
+    standard: ReleaseBundleTrackV1;
+    full: ReleaseBundleTrackV1 | { status: 'absent' };
   };
   policy: {
     latest: {
-      eligible: boolean;
+      channel_allows_promotion: boolean;
       required_track: 'standard';
       full_required: false;
+      bundle_can_claim_release_ready: false;
     };
     full: {
       mode: 'same_cohort_additive_only';
@@ -179,17 +159,9 @@ function assertGitSha(value: unknown, label: string): asserts value is string {
   }
 }
 
-function assertBuilder(value: unknown, label: string): asserts value is {
-  executor: BuilderExecutor;
-  run_id: string;
-} {
-  assertRecord(value, label);
-  assertExactKeys(value, label, ['executor', 'run_id']);
-  if (value.executor !== 'local' && value.executor !== 'github_actions') {
-    throw new Error(`${label}.executor must be local or github_actions.`);
-  }
-  if (typeof value.run_id !== 'string' || !builderRunIdPattern.test(value.run_id)) {
-    throw new Error(`${label}.run_id must be a bounded opaque run identity.`);
+function assertBuilderRunId(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || !builderRunIdPattern.test(value)) {
+    throw new Error(`${label} must be a bounded opaque run identity.`);
   }
 }
 
@@ -256,7 +228,6 @@ function assertReleaseBundleInput(value: unknown): asserts value is ReleaseBundl
     'version',
     'release_cohort_ref',
     'cohort',
-    'builders',
   ]);
   if (value.schema !== 'opl_app_release_bundle_input.v1') {
     throw new Error(`release-input.json schema is ${String(value.schema)}.`);
@@ -273,18 +244,11 @@ function assertReleaseBundleInput(value: unknown): asserts value is ReleaseBundl
     'app_sha',
     'shell_sha',
     'framework_sha',
-    'opl_flow_sha',
   ]);
-  for (const key of ['app_sha', 'shell_sha', 'framework_sha', 'opl_flow_sha'] as const) {
+  for (const key of ['app_sha', 'shell_sha', 'framework_sha'] as const) {
     assertGitSha(value.cohort[key], `release-input.json cohort.${key}`);
   }
 
-  assertRecord(value.builders, 'release-input.json builders');
-  assertExactKeys(value.builders, 'release-input.json builders', ['standard'], ['full']);
-  assertBuilder(value.builders.standard, 'release-input.json builders.standard');
-  if (value.builders.full !== undefined) {
-    assertBuilder(value.builders.full, 'release-input.json builders.full');
-  }
 }
 
 function canonicalJson(value: unknown): string {
@@ -332,19 +296,16 @@ function readTrackAssets(
   });
 }
 
-function assembleQualifiedTrack(
+function assembleBoundTrack(
   input: ReleaseBundleInputV1,
   inputRoot: string,
   kind: 'standard' | 'full',
-): ReleaseBundleQualifiedTrackV1 {
+): ReleaseBundleTrackV1 {
   const trackRoot = path.join(inputRoot, kind);
-  const builder = input.builders[kind];
-  if (!builder) throw new Error(`${kind} builder identity is missing.`);
   assertDirectoryEntries(trackRoot, [
     'assets',
     'build-artifact-cohort.json',
     'qualification-receipt.json',
-    'provenance.json',
   ], `${kind} track`);
   const expectedNames = kind === 'standard'
     ? standardAssetNames(input.version)
@@ -354,12 +315,9 @@ function assembleQualifiedTrack(
   const dmgPath = path.join(trackRoot, 'assets', dmgName);
   const cohortPath = path.join(trackRoot, 'build-artifact-cohort.json');
   const receiptPath = path.join(trackRoot, 'qualification-receipt.json');
-  const provenancePath = path.join(trackRoot, 'provenance.json');
   const cohort = readJson(cohortPath, `${kind} build artifact cohort`) as BuildArtifactCohortV2;
   const receipt = readJson(receiptPath, `${kind} qualification receipt`) as ArtifactQualificationReceiptV1;
-  const provenance = readJson(provenancePath, `${kind} provenance`);
-  assertRecord(provenance, `${kind} provenance`);
-  if (Object.keys(provenance).length === 0) throw new Error(`${kind} provenance must not be empty.`);
+  assertBuilderRunId(cohort.actions?.run_id, `${kind} build artifact cohort actions.run_id`);
 
   assertNoErrors(`${kind} build artifact cohort`, validateArtifactCohortV2(cohort, {
     appSha: input.cohort.app_sha,
@@ -367,7 +325,7 @@ function assembleQualifiedTrack(
     frameworkSha: input.cohort.framework_sha,
     version: input.version,
     artifactPath: dmgPath,
-    actionsRunId: builder.run_id,
+    actionsRunId: cohort.actions.run_id,
     releaseCohortRef: input.release_cohort_ref,
   }));
   if (cohort.build.kind !== kind) {
@@ -387,7 +345,7 @@ function assembleQualifiedTrack(
     version: input.version,
     packageProfile: kind,
     result: 'passed',
-    sourceArtifactRunId: builder.run_id,
+    sourceArtifactRunId: cohort.actions.run_id,
     sourceArtifactName: cohort.actions.artifact_name,
     artifactSha256: cohort.artifact.sha256,
     appSha: input.cohort.app_sha,
@@ -411,8 +369,8 @@ function assembleQualifiedTrack(
   }
 
   return {
-    status: 'qualified',
-    builder: { executor: builder.executor, run_id: builder.run_id },
+    status: 'bound',
+    builder_run_id: cohort.actions.run_id,
     build_artifact_cohort: {
       schema: 'opl_app_build_artifact_cohort.v2',
       sha256: cohortSha256,
@@ -422,7 +380,6 @@ function assembleQualifiedTrack(
       status: 'passed',
       sha256: fileSha256(receiptPath),
     },
-    provenance: { sha256: fileSha256(provenancePath) },
     assets,
   };
 }
@@ -450,9 +407,9 @@ export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
   const inputRoot = path.resolve(inputDirectory);
   assertRealDirectory(inputRoot, 'Release Bundle input');
   const releaseInputPath = path.join(inputRoot, 'release-input.json');
-  const toolchainPath = path.join(inputRoot, 'toolchain.json');
   const notesPath = path.join(inputRoot, 'notes.md');
   const notesEvidencePath = path.join(inputRoot, 'notes-evidence.json');
+  const hasFullTrack = fs.existsSync(path.join(inputRoot, 'full'));
   const input = readJson(releaseInputPath, 'release-input.json');
   assertReleaseBundleInput(input);
   assertDirectoryEntries(inputRoot, [
@@ -460,15 +417,9 @@ export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
     'notes.md',
     'release-input.json',
     'standard',
-    'toolchain.json',
-    ...(input.builders.full ? ['full'] : []),
+    ...(hasFullTrack ? ['full'] : []),
   ], 'Release Bundle input');
 
-  const toolchain = readJson(toolchainPath, 'toolchain.json');
-  assertRecord(toolchain, 'toolchain.json');
-  if (typeof toolchain.schema !== 'string' || !toolchain.schema) {
-    throw new Error('toolchain.json must declare its source schema.');
-  }
   assertRegularFile(notesPath, 'notes.md', maxNotesBytes);
   const notes = fs.readFileSync(notesPath, 'utf8').trim();
   if (!notes.includes(`One Person Lab v${input.version}`)) {
@@ -477,9 +428,9 @@ export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
   const notesEvidence = readJson(notesEvidencePath, 'notes-evidence.json');
   assertNotesEvidence(notesEvidence, input);
 
-  const standard = assembleQualifiedTrack(input, inputRoot, 'standard');
-  const full = input.builders.full
-    ? assembleQualifiedTrack(input, inputRoot, 'full')
+  const standard = assembleBoundTrack(input, inputRoot, 'standard');
+  const full = hasFullTrack
+    ? assembleBoundTrack(input, inputRoot, 'full')
     : { status: 'absent' as const };
   const core: Omit<ReleaseBundleV1, 'bundle_id'> = {
     schema: 'opl_app_release_bundle.v1',
@@ -492,7 +443,6 @@ export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
       source_input_sha256: fileSha256(releaseInputPath),
     },
     cohort: { ...input.cohort },
-    toolchain: { manifest_sha256: fileSha256(toolchainPath) },
     notes: {
       source: 'prepared_ai',
       format: 'markdown',
@@ -503,9 +453,10 @@ export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
     tracks: { standard, full },
     policy: {
       latest: {
-        eligible: input.channel === 'stable',
+        channel_allows_promotion: input.channel === 'stable',
         required_track: 'standard',
         full_required: false,
+        bundle_can_claim_release_ready: false,
       },
       full: {
         mode: 'same_cohort_additive_only',
@@ -556,7 +507,7 @@ function validateAssetSet(
   return errors;
 }
 
-function validateQualifiedTrack(
+function validateBoundTrack(
   value: unknown,
   expectedNames: readonly string[],
   label: string,
@@ -566,14 +517,15 @@ function validateQualifiedTrack(
   try {
     assertExactKeys(value, label, [
       'status',
-      'builder',
+      'builder_run_id',
       'build_artifact_cohort',
       'qualification_receipt',
-      'provenance',
       'assets',
     ]);
-    if (value.status !== 'qualified') errors.push(`${label}.status is not qualified`);
-    assertBuilder(value.builder, `${label}.builder`);
+    if (value.status !== 'bound') errors.push(`${label}.status is not bound`);
+    if (typeof value.builder_run_id !== 'string' || !builderRunIdPattern.test(value.builder_run_id)) {
+      errors.push(`${label}.builder_run_id is invalid`);
+    }
     for (const [key, schema] of [
       ['build_artifact_cohort', 'opl_app_build_artifact_cohort.v2'],
       ['qualification_receipt', 'opl_app_artifact_qualification_receipt.v1'],
@@ -591,9 +543,6 @@ function validateQualifiedTrack(
       }
       assertDigest(ref.sha256, `${label}.${key}.sha256`);
     }
-    assertRecord(value.provenance, `${label}.provenance`);
-    assertExactKeys(value.provenance, `${label}.provenance`, ['sha256']);
-    assertDigest(value.provenance.sha256, `${label}.provenance.sha256`);
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
   }
@@ -611,7 +560,6 @@ export function validateReleaseBundle(value: unknown): string[] {
       'bundle_id',
       'release',
       'cohort',
-      'toolchain',
       'notes',
       'tracks',
       'policy',
@@ -641,14 +589,10 @@ export function validateReleaseBundle(value: unknown): string[] {
     assertDigest(bundle.release.source_input_sha256, 'release.source_input_sha256');
 
     assertRecord(bundle.cohort, 'cohort');
-    assertExactKeys(bundle.cohort, 'cohort', ['app_sha', 'shell_sha', 'framework_sha', 'opl_flow_sha']);
-    for (const key of ['app_sha', 'shell_sha', 'framework_sha', 'opl_flow_sha'] as const) {
+    assertExactKeys(bundle.cohort, 'cohort', ['app_sha', 'shell_sha', 'framework_sha']);
+    for (const key of ['app_sha', 'shell_sha', 'framework_sha'] as const) {
       assertGitSha(bundle.cohort[key], `cohort.${key}`);
     }
-
-    assertRecord(bundle.toolchain, 'toolchain');
-    assertExactKeys(bundle.toolchain, 'toolchain', ['manifest_sha256']);
-    assertDigest(bundle.toolchain.manifest_sha256, 'toolchain.manifest_sha256');
 
     assertRecord(bundle.notes, 'notes');
     assertExactKeys(bundle.notes, 'notes', [
@@ -669,7 +613,7 @@ export function validateReleaseBundle(value: unknown): string[] {
 
     assertRecord(bundle.tracks, 'tracks');
     assertExactKeys(bundle.tracks, 'tracks', ['standard', 'full']);
-    errors.push(...validateQualifiedTrack(
+    errors.push(...validateBoundTrack(
       bundle.tracks.standard,
       standardAssetNames(bundle.release.version),
       'tracks.standard',
@@ -677,7 +621,7 @@ export function validateReleaseBundle(value: unknown): string[] {
     if (isRecord(bundle.tracks.full) && bundle.tracks.full.status === 'absent') {
       assertExactKeys(bundle.tracks.full, 'tracks.full', ['status']);
     } else {
-      errors.push(...validateQualifiedTrack(
+      errors.push(...validateBoundTrack(
         bundle.tracks.full,
         fullAssetNames(bundle.release.version),
         'tracks.full',
@@ -687,11 +631,17 @@ export function validateReleaseBundle(value: unknown): string[] {
     assertRecord(bundle.policy, 'policy');
     assertExactKeys(bundle.policy, 'policy', ['latest', 'full', 'updater']);
     assertRecord(bundle.policy.latest, 'policy.latest');
-    assertExactKeys(bundle.policy.latest, 'policy.latest', ['eligible', 'required_track', 'full_required']);
+    assertExactKeys(bundle.policy.latest, 'policy.latest', [
+      'channel_allows_promotion',
+      'required_track',
+      'full_required',
+      'bundle_can_claim_release_ready',
+    ]);
     if (
-      bundle.policy.latest.eligible !== (bundle.release.channel === 'stable') ||
+      bundle.policy.latest.channel_allows_promotion !== (bundle.release.channel === 'stable') ||
       bundle.policy.latest.required_track !== 'standard' ||
-      bundle.policy.latest.full_required !== false
+      bundle.policy.latest.full_required !== false ||
+      bundle.policy.latest.bundle_can_claim_release_ready !== false
     ) errors.push('policy.latest is inconsistent');
     assertRecord(bundle.policy.full, 'policy.full');
     assertExactKeys(bundle.policy.full, 'policy.full', ['mode', 'updater_metadata_allowed']);
@@ -724,19 +674,18 @@ function bundleStatus(bundle: ReleaseBundleV1, contentVerification: 'bundle_only
     version: bundle.release.version,
     tag: bundle.release.tag,
     prerelease: bundle.release.prerelease,
-    latest_eligible: bundle.policy.latest.eligible,
+    channel_allows_latest_promotion: bundle.policy.latest.channel_allows_promotion,
+    bundle_release_ready: false,
     standard: {
       status: bundle.tracks.standard.status,
-      executor: bundle.tracks.standard.builder.executor,
       asset_count: bundle.tracks.standard.assets.length,
     },
-    full: bundle.tracks.full.status === 'qualified'
+    full: bundle.tracks.full.status === 'bound'
       ? {
-          status: 'qualified',
-          executor: bundle.tracks.full.builder.executor,
+          status: 'bound',
           asset_count: bundle.tracks.full.assets.length,
         }
-      : { status: 'absent', executor: null, asset_count: 0 },
+      : { status: 'absent', asset_count: 0 },
     updater_track: bundle.policy.updater.track,
     content_verification: contentVerification,
   };

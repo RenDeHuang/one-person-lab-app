@@ -8,7 +8,6 @@
     "bundle_id",
     "release",
     "cohort",
-    "toolchain",
     "notes",
     "tracks",
     "policy"
@@ -38,20 +37,11 @@
     },
     "cohort": {
       "type": "object",
-      "required": ["app_sha", "shell_sha", "framework_sha", "opl_flow_sha"],
+      "required": ["app_sha", "shell_sha", "framework_sha"],
       "properties": {
         "app_sha": { "$ref": "#/$defs/git_sha" },
         "shell_sha": { "$ref": "#/$defs/git_sha" },
-        "framework_sha": { "$ref": "#/$defs/git_sha" },
-        "opl_flow_sha": { "$ref": "#/$defs/git_sha" }
-      },
-      "additionalProperties": false
-    },
-    "toolchain": {
-      "type": "object",
-      "required": ["manifest_sha256"],
-      "properties": {
-        "manifest_sha256": { "$ref": "#/$defs/digest" }
+        "framework_sha": { "$ref": "#/$defs/git_sha" }
       },
       "additionalProperties": false
     },
@@ -98,11 +88,17 @@
       "properties": {
         "latest": {
           "type": "object",
-          "required": ["eligible", "required_track", "full_required"],
+          "required": [
+            "channel_allows_promotion",
+            "required_track",
+            "full_required",
+            "bundle_can_claim_release_ready"
+          ],
           "properties": {
-            "eligible": { "type": "boolean" },
+            "channel_allows_promotion": { "type": "boolean" },
             "required_track": { "const": "standard" },
-            "full_required": { "const": false }
+            "full_required": { "const": false },
+            "bundle_can_claim_release_ready": { "const": false }
           },
           "additionalProperties": false
         },
@@ -141,18 +137,6 @@
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
     },
-    "builder": {
-      "type": "object",
-      "required": ["executor", "run_id"],
-      "properties": {
-        "executor": { "enum": ["local", "github_actions"] },
-        "run_id": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
-        }
-      },
-      "additionalProperties": false
-    },
     "asset": {
       "type": "object",
       "required": ["name", "size_bytes", "sha256"],
@@ -163,19 +147,21 @@
       },
       "additionalProperties": false
     },
-    "qualified_track": {
+    "bound_track": {
       "type": "object",
       "required": [
         "status",
-        "builder",
+        "builder_run_id",
         "build_artifact_cohort",
         "qualification_receipt",
-        "provenance",
         "assets"
       ],
       "properties": {
-        "status": { "const": "qualified" },
-        "builder": { "$ref": "#/$defs/builder" },
+        "status": { "const": "bound" },
+        "builder_run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
         "build_artifact_cohort": {
           "type": "object",
           "required": ["schema", "sha256"],
@@ -195,14 +181,6 @@
           },
           "additionalProperties": false
         },
-        "provenance": {
-          "type": "object",
-          "required": ["sha256"],
-          "properties": {
-            "sha256": { "$ref": "#/$defs/digest" }
-          },
-          "additionalProperties": false
-        },
         "assets": {
           "type": "array",
           "minItems": 2,
@@ -214,7 +192,7 @@
     },
     "standard_track": {
       "allOf": [
-        { "$ref": "#/$defs/qualified_track" },
+        { "$ref": "#/$defs/bound_track" },
         {
           "type": "object",
           "properties": {
@@ -225,7 +203,7 @@
     },
     "full_track": {
       "allOf": [
-        { "$ref": "#/$defs/qualified_track" },
+        { "$ref": "#/$defs/bound_track" },
         {
           "type": "object",
           "properties": {
@@ -268,7 +246,7 @@
             "properties": {
               "latest": {
                 "type": "object",
-                "properties": { "eligible": { "const": true } }
+                "properties": { "channel_allows_promotion": { "const": true } }
               }
             }
           }
@@ -296,7 +274,7 @@
             "properties": {
               "latest": {
                 "type": "object",
-                "properties": { "eligible": { "const": false } }
+                "properties": { "channel_allows_promotion": { "const": false } }
               }
             }
           }
