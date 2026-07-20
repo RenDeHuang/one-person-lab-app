@@ -51,7 +51,7 @@ const settingsIaRef =
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
 const expectedAgentsStateSource =
-  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts";
+  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts";
 const expectedCapabilitiesStateSource =
   "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries";
 const expectedStartupPerformancePolicy = {
@@ -2535,7 +2535,7 @@ export function validateSettingsExperienceContract(experience) {
   }
   if (
     pageContracts.agents.exception_state !==
-    "highlight failed blocked dependency-broken or scope-materialization-missing Agent packages; installed but not activated packages stay neutral and read as available to enable"
+    "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with send-boundary JIT guidance"
   ) {
     throw new Error(
       "Settings Agents exception state must use Agent package semantics",
@@ -3045,7 +3045,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.canonical_projection !==
-      "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path" ||
+      "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]" ||
     directory.directory_collection_source !==
       "app_state.agent_packages.directory.entries" ||
     directory.directory_collection_policy !==
@@ -3081,14 +3081,17 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract" ||
     directory.required_payload_fields_source !==
       "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields" ||
-    directory.workspace_path_source !== "app_state.paths.workspace_root_path" ||
-    directory.workspace_path_scope !== "only_when_projected_activation_requires_target_workspace" ||
+    directory.settings_action_scope !== "owner_projected_package_id_only_actions" ||
+    directory.target_workspace_action_policy !==
+      "defer_every_action_requiring_target_workspace_to_selected_session_send_boundary_JIT" ||
+    directory.settings_target_workspace_source !== null ||
+    directory.global_workspace_root_activation_target_allowed !== false ||
     directory.scope_inference_allowed !== false ||
     directory.session_launch_authority !== false ||
     directory.session_launch_contract_ref !==
       "contracts/app-gui-product-contract.json#agent_package_activation_policy" ||
-    directory.workspace_missing_policy !==
-      "disable only an activation whose unresolved required_payload_fields includes target_workspace, with workspace_root_not_configured and route to /settings/workspace#workspace"
+    directory.target_workspace_send_boundary_source !==
+      "normalized_current_session_directory_with_legacy_prefill_override"
   ) {
     throw new Error(
       "Settings Agents directory projection must explain canonical projection preference, no-fallback states, and package activation action",

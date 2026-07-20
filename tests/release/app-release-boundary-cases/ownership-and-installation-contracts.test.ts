@@ -615,12 +615,28 @@ test('App contracts define one minimal package activation authority', () => {
   );
   assert.equal(policy.required_payload_fields_source, 'projected_action.required_payload_fields');
   assert.equal(policy.request_policy.package_id_source, 'current_selected_professional_agent.package_id');
-  assert.equal(policy.request_policy.scope_policy, 'use_projected_scope_without_assuming_workspace');
+  assert.equal(
+    policy.request_policy.payload_policy,
+    'start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory',
+  );
+  assert.equal(
+    policy.request_policy.scope_policy,
+    'preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection',
+  );
   assert.equal(
     policy.request_policy.target_workspace_source,
     'normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace',
   );
   assert.equal(policy.request_policy.global_workspace_root_mutation_allowed, false);
+  assert.equal(
+    policy.request_policy.required_target_override_policy,
+    'when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill',
+  );
+  assert.equal(policy.request_policy.legacy_prefilled_target_authority, 'never_session_target_authority');
+  assert.equal(
+    policy.request_policy.missing_required_target_policy,
+    'without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package',
+  );
   assert.deepEqual(policy.optional_diagnostic_binding_fields, ['use_binding', 'package_use_binding']);
   assert.deepEqual(policy.minimal_launch_validation, [
     'activation.package_id_matches_current_selection',
@@ -746,12 +762,10 @@ test('App contracts define one minimal package activation authority', () => {
   );
   assert.deepEqual(activationEntry.recommended_action_ref.payload, {
     package_id: activationEntry.package_id,
-    scope: 'workspace',
-    target_workspace: fastFixture.app_state.paths.workspace_root_path,
   });
   assert.deepEqual(
     activationEntry.recommended_action_ref.required_payload_fields,
-    ['package_id', 'scope', 'target_workspace'],
+    ['package_id', 'target_workspace'],
   );
 
   assert.equal(launchMatrix.read_and_action_sources.status_and_dry_run_write_count, 0);
@@ -867,7 +881,11 @@ test('App contracts define one minimal package activation authority', () => {
   }
   assert.equal(
     launchMatrix.send_target_context_contract.target_workspace_role,
-    'explicit_owner_projected_action_payload_not_project_affinity_mutation',
+    'owner_required_send_context_resolved_from_normalized_current_session_directory_not_project_affinity_or_global_workspace_root',
+  );
+  assert.equal(
+    launchMatrix.send_target_context_contract.legacy_prefill_policy,
+    'when_target_workspace_is_required_override_any_projected_legacy_or_global_prefill_with_the_normalized_current_session_directory',
   );
   assert.equal(
     launchMatrix.send_target_context_contract.runtime_pwd_changes_project_affinity,
@@ -890,6 +908,26 @@ test('App contracts define one minimal package activation authority', () => {
     (workspaceCases.get('package_owner_requires_target_workspace') as any)
       .fresh_minimal_validation_required_before_next_launch,
     true,
+  );
+  assert.deepEqual(
+    {
+      executed_target_workspace: (workspaceCases.get('package_owner_requires_target_workspace_with_legacy_prefill') as any)
+        .executed_target_workspace,
+      legacy_prefill_overridden: (workspaceCases.get('package_owner_requires_target_workspace_with_legacy_prefill') as any)
+        .legacy_prefill_overridden,
+    },
+    {
+      executed_target_workspace: '/Users/example/Projects/Current Session',
+      legacy_prefill_overridden: true,
+    },
+  );
+  assert.deepEqual(
+    {
+      accepted: (workspaceCases.get('package_owner_requires_target_workspace_without_current_session') as any).accepted,
+      reason_code: (workspaceCases.get('package_owner_requires_target_workspace_without_current_session') as any).reason_code,
+      draft_preserved: (workspaceCases.get('package_owner_requires_target_workspace_without_current_session') as any).draft_preserved,
+    },
+    { accepted: false, reason_code: 'project_selection_required', draft_preserved: true },
   );
   assert.equal(
     (workspaceCases.get('package_owner_optional_target_workspace') as any).target_workspace_required,

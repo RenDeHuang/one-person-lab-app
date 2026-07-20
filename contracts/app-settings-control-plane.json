@@ -721,7 +721,7 @@
       "icon_token": "agents",
       "ia_group": "agents",
       "slot_id": "settings_agents",
-      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts",
+      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
       "refresh_source": "opl app state --profile fast --json",
       "scope": "user",
       "intent": "manage",
@@ -1380,14 +1380,14 @@
         "route_id": "agents",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/agentPackagesProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/AgentPackagesSettings.tsx",
-        "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts",
+        "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
         "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.agents",
         "directory_projection_surface": {
           "surface": "settings_agents",
           "primary_identity": "public_agent_package_directory_entries",
           "purpose_role": "secondary_tag_filter_only",
           "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
-          "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
+          "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
           "directory_collection_source": "app_state.agent_packages.directory.entries",
           "directory_collection_policy": "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages",
           "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
@@ -1402,12 +1402,14 @@
           "package_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract",
           "activation_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract",
           "required_payload_fields_source": "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
-          "workspace_path_source": "app_state.paths.workspace_root_path",
-          "workspace_path_scope": "only_when_projected_activation_requires_target_workspace",
+          "settings_action_scope": "owner_projected_package_id_only_actions",
+          "target_workspace_action_policy": "defer_every_action_requiring_target_workspace_to_selected_session_send_boundary_JIT",
+          "settings_target_workspace_source": null,
+          "global_workspace_root_activation_target_allowed": false,
           "scope_inference_allowed": false,
           "session_launch_authority": false,
           "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
-          "workspace_missing_policy": "disable only an activation whose unresolved required_payload_fields includes target_workspace, with workspace_root_not_configured and route to /settings/workspace#workspace",
+          "target_workspace_send_boundary_source": "normalized_current_session_directory_with_legacy_prefill_override",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
             "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
@@ -3160,7 +3162,7 @@
           "all discoverable Agent, Framework capability, and workflow profile packages from app_state.agent_packages.directory.entries",
           "dedicated package catalog search with package role, install or activation status, and source filters",
           "visible registry refresh and projected per-row install or activation actions",
-          "workspace-scoped activation payload from app_state.paths.workspace_root_path with a disabled reason and Workspace route when missing",
+          "package-id-only lifecycle actions in Settings while target-workspace activation waits for a selected project and runs JIT at the conversation send boundary",
           "first_party_release_set_metadata as package_id-keyed localized UI metadata only, never directory membership or status truth",
           "global automatic, managed, or developer source mode with selected workspace and authority summary",
           "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
@@ -3297,7 +3299,7 @@
           "default_tab": "agents",
           "on_demand_tab_ids": []
         },
-        "exception_state": "highlight failed blocked dependency-broken or scope-materialization-missing Agent packages; installed but not activated packages stay neutral and read as available to enable",
+        "exception_state": "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with send-boundary JIT guidance",
         "technical_details_boundary": "package ids, receipts, paths, manifests, and raw status axes stay collapsed",
         "required_dom": {
           "always": [
@@ -3329,10 +3331,10 @@
             "testid": "settings-agents-error",
             "when": "catalog_failed"
           },
-          {
-            "testid": "settings-agents-workspace-required",
-            "when": "activation_recommended_and_workspace_root_missing"
-          }
+            {
+              "testid": "settings-agents-send-boundary-project-required",
+              "when": "selected_package_send_requires_target_workspace_and_current_session_directory_is_missing"
+            }
           ]
         },
         "required_anchors": [

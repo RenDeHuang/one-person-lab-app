@@ -29,9 +29,11 @@ test('Fast App state fixture uses the exact public Agent Package directory and a
     && entry.readiness.launch_allowed === false
   ));
   const activationEntry = directory.entries.find((entry: any) => entry.recommended_action === 'agent_package_activate');
-  assert.equal(activationEntry.recommended_action_ref.payload.package_id, activationEntry.package_id);
-  assert.equal(activationEntry.recommended_action_ref.payload.scope, 'workspace');
-  assert.equal(typeof activationEntry.recommended_action_ref.payload.target_workspace, 'string');
+  assert.deepEqual(activationEntry.recommended_action_ref.payload, { package_id: activationEntry.package_id });
+  assert.deepEqual(
+    activationEntry.recommended_action_ref.required_payload_fields,
+    ['package_id', 'target_workspace'],
+  );
   assert.equal(activationEntry.recommended_action_ref.action_ref, 'app_state.actions#agent_package_activate');
   assert.equal('package_version' in activationEntry.recommended_action_ref.payload, false);
   const packageContract = readJson('contracts/app-runtime-bridge.json')
@@ -64,8 +66,10 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
         (candidate: any) => candidate.recommended_action === 'agent_package_activate',
       );
       const action = entry.available_actions.find((candidate: any) => candidate.action_id === 'agent_package_activate');
-      delete action.payload.target_workspace;
-      delete entry.recommended_action_ref.payload.target_workspace;
+      action.payload.scope = 'workspace';
+      action.payload.target_workspace = fixture.app_state.paths.workspace_root_path;
+      entry.recommended_action_ref.payload.scope = 'workspace';
+      entry.recommended_action_ref.payload.target_workspace = fixture.app_state.paths.workspace_root_path;
     },
     (fixture: any) => {
       const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.activated);

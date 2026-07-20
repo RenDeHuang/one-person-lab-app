@@ -2,6 +2,7 @@ import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll
 import {
   appActionRoute,
   appOwnedSettingsAboutUpdaterStatePolicy,
+  appOwnedAgentPackageOrdinaryStatusInputMapping,
   appOwnedAgentPackageUserStatusProjection,
   appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
@@ -221,11 +222,19 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
     || 'required_payload_fields' in (policy ?? {})
     || policy.request_policy?.action_object_policy !==
       'consume_the_exact_owner_projected_action_id_action_ref_payload_required_payload_fields_and_confirmation_required_without_shell_inference'
-    || policy.request_policy?.scope_policy !== 'use_projected_scope_without_assuming_workspace'
+    || policy.request_policy?.payload_policy !==
+      'start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory'
+    || policy.request_policy?.scope_policy !==
+      'preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection'
     || policy.request_policy?.target_workspace_source !==
       'normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace'
+    || policy.request_policy?.required_target_override_policy !==
+      'when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill'
+    || policy.request_policy?.legacy_prefilled_target_authority !== 'never_session_target_authority'
     || policy.request_policy?.missing_optional_target_policy !==
       'continue_without_target_workspace_when_the_projected_action_does_not_require_it'
+    || policy.request_policy?.missing_required_target_policy !==
+      'without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package'
     || policy.request_policy?.global_workspace_root_mutation_allowed !== false
   ) {
     throw new Error('App GUI Agent Package activation must consume the final Framework owner-projected action without a universal Workspace gate');
@@ -402,7 +411,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority',
       'keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected',
       'refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended',
-      'disable_Settings_global_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing',
+      'defer_every_target_workspace_activation_from_Settings_to_selected_session_send_boundary_JIT_without_using_the_global_workspace_root',
       'keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced',
       'use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch',
       'display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb',
@@ -471,22 +480,16 @@ function validateAgentPackageLifecycleUx(surface, label) {
     surface.workspace_activation_contract,
     {
       action_id: 'agent_package_activate',
-      surface_scope: 'settings_global_package_management_only',
+      surface_scope: 'settings_global_package_management_package_id_only',
       session_launch_authority: false,
       session_launch_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
       payload_source: 'directory.entries[].available_actions[action_id=agent_package_activate].payload',
       required_payload_fields_source: 'directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields',
-      workspace_path_source: 'app_state.paths.workspace_root_path',
-      context_fill_policy: 'fill_target_workspace_from_workspace_path_source_only_when_it_is_an_unresolved_owner_required_payload_field',
+      settings_target_workspace_source: null,
+      target_workspace_action_policy: 'defer_to_selected_session_send_boundary_JIT_using_the_normalized_current_session_directory',
+      global_workspace_root_activation_target_allowed: false,
       scope_inference_allowed: false,
-      compatibility_path_policy: 'legacy workspace paths may be normalized only inside the shell adapter and never become product truth',
-      missing_workspace_policy: {
-        applies_when: 'unresolved_required_payload_fields_contains_target_workspace',
-        enabled: false,
-        reason_code: 'workspace_root_not_configured',
-        route: '/settings/workspace',
-        anchor: 'workspace',
-      },
+      scope_materialization_missing_settings_policy: 'show_available_with_no_preflight_action_and_defer_preparation_to_package_backed_send',
       package_id_only_payload_allowed: true,
     },
     `${label} workspace activation`,
@@ -534,9 +537,14 @@ function validateAgentPackageLifecycleUx(surface, label) {
         reason: null,
         session_launch_disposition: 'ready',
       },
-      presentation_policy: 'fast verification_deferred remains truthful owner state while ordinary UI projects localized local-check-not-completed copy; session launch may attempt owner-projected JIT activation without a preemptive hard block',
+      presentation_policy: 'fast verification_deferred remains truthful owner state while ordinary Settings projects available copy; selected-session launch may attempt owner-projected JIT activation without a preemptive Settings action',
     },
     `${label} fast and full readiness policy`,
+  );
+  assertDeepEqualJson(
+    surface.ordinary_user_status_input_mapping,
+    appOwnedAgentPackageOrdinaryStatusInputMapping,
+    `${label} ordinary status input mapping`,
   );
   assertDeepEqualJson(
     surface.user_facing_status_projection,
@@ -1732,8 +1740,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
       'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
       'localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow',
-      'verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action',
-      'one localized status per package with aggregate counts never replacing item status',
+      'verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action',
+      'one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details',
     ],
     'Settings Agents grouped catalog signals',
   );
@@ -1741,7 +1749,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_agents.must_not_show,
     [
       'hardcoded package parent-child relationships or duplicate dependency rows',
-      'raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows',
+      'raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows',
+      'global workspace root used as a target_workspace activation value from Settings',
+      'scope materialization missing presented as a Settings attention state or preflight action',
       'aggregate ready or unavailable counts used as the status of every package',
     ],
     'Settings Agents forbidden dependency synthesis',

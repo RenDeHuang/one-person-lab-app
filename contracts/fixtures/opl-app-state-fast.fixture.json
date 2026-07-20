@@ -162,11 +162,9 @@
               "action_id": "agent_package_activate",
               "action_ref": "app_state.actions#agent_package_activate",
               "payload": {
-                "package_id": "oma",
-                "scope": "workspace",
-                "target_workspace": "/Users/example/OPL Workspace"
+                "package_id": "oma"
               },
-              "required_payload_fields": ["package_id", "scope", "target_workspace"],
+              "required_payload_fields": ["package_id", "target_workspace"],
               "confirmation_required": false
             },
             "available_actions": [
@@ -174,11 +172,9 @@
                 "action_id": "agent_package_activate",
                 "action_ref": "app_state.actions#agent_package_activate",
                 "payload": {
-                  "package_id": "oma",
-                  "scope": "workspace",
-                  "target_workspace": "/Users/example/OPL Workspace"
+                  "package_id": "oma"
                 },
-                "required_payload_fields": ["package_id", "scope", "target_workspace"],
+                "required_payload_fields": ["package_id", "target_workspace"],
                 "confirmation_required": false
               },
               {

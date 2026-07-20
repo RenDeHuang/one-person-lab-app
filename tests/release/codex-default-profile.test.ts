@@ -156,7 +156,18 @@ test('professional Agent metadata requires App-owned localized names and descrip
   const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const meta = profile.gui.professional_agent_packages.find((entry: any) => entry.package_id === 'oma');
-  assert.equal(meta.display_name_i18n['zh-CN'], '元智能体');
+  assert.deepStrictEqual(
+    Object.fromEntries(
+      profile.gui.professional_agent_packages.map((entry: any) => [entry.package_id, entry.display_name_i18n['zh-CN']]),
+    ),
+    {
+      mas: 'Med Auto Science',
+      mag: 'Med Auto Grant',
+      rca: 'RedCube AI',
+      obf: 'OPL Book Forge',
+      oma: 'OPL Meta Agent',
+    },
+  );
   assert.match(meta.description_i18n['zh-CN'], /创建、接管、检查和改进/);
   meta.description_i18n['zh-CN'] = '';
   assert.throws(

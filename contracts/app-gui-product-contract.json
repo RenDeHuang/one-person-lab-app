@@ -2894,11 +2894,13 @@
     "request_policy": {
       "package_id_source": "current_selected_professional_agent.package_id",
       "action_object_policy": "consume_the_exact_owner_projected_action_id_action_ref_payload_required_payload_fields_and_confirmation_required_without_shell_inference",
-      "payload_policy": "start_from_projected_action.payload_and_fill_only_owner_required_context_fields",
-      "scope_policy": "use_projected_scope_without_assuming_workspace",
+      "payload_policy": "start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory",
+      "scope_policy": "preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection",
       "target_workspace_source": "normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace",
+      "required_target_override_policy": "when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill",
+      "legacy_prefilled_target_authority": "never_session_target_authority",
       "missing_optional_target_policy": "continue_without_target_workspace_when_the_projected_action_does_not_require_it",
-      "missing_required_target_policy": "preserve_draft_and_limit_unavailability_to_the_selected_package_with_a_workspace_selection_route",
+      "missing_required_target_policy": "without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package",
       "global_workspace_root_mutation_allowed": false
     },
     "result_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result",
@@ -3340,7 +3342,7 @@
       "agent_id": "mas",
       "display_name": "Med Auto Science",
       "display_name_i18n": {
-        "zh-CN": "医学科研智能体",
+        "zh-CN": "Med Auto Science",
         "en-US": "Med Auto Science"
       },
       "description_i18n": {
@@ -3377,7 +3379,7 @@
       "agent_id": "mag",
       "display_name": "Med Auto Grant",
       "display_name_i18n": {
-        "zh-CN": "医学基金智能体",
+        "zh-CN": "Med Auto Grant",
         "en-US": "Med Auto Grant"
       },
       "description_i18n": {
@@ -3414,7 +3416,7 @@
       "agent_id": "rca",
       "display_name": "RedCube AI",
       "display_name_i18n": {
-        "zh-CN": "演示与视觉智能体",
+        "zh-CN": "RedCube AI",
         "en-US": "RedCube AI"
       },
       "description_i18n": {
@@ -3450,7 +3452,7 @@
       "agent_id": "obf",
       "display_name": "OPL Book Forge",
       "display_name_i18n": {
-        "zh-CN": "写书智能体",
+        "zh-CN": "OPL Book Forge",
         "en-US": "OPL Book Forge"
       },
       "description_i18n": {
@@ -3487,7 +3489,7 @@
       "agent_id": "oma",
       "display_name": "OPL Meta Agent",
       "display_name_i18n": {
-        "zh-CN": "元智能体",
+        "zh-CN": "OPL Meta Agent",
         "en-US": "OPL Meta Agent"
       },
       "description_i18n": {
@@ -6856,7 +6858,7 @@
         ]
       },
       "current_runtime_projection_boundary": {
-        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
+        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
       "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
       "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
@@ -6942,7 +6944,7 @@
           "keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority",
           "keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected",
           "refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended",
-          "disable_Settings_global_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing",
+          "defer_every_target_workspace_activation_from_Settings_to_selected_session_send_boundary_JIT_without_using_the_global_workspace_root",
           "keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced",
           "use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch",
           "display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb"
@@ -7027,22 +7029,16 @@
         },
         "workspace_activation_contract": {
           "action_id": "agent_package_activate",
-          "surface_scope": "settings_global_package_management_only",
+          "surface_scope": "settings_global_package_management_package_id_only",
           "session_launch_authority": false,
           "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
           "payload_source": "directory.entries[].available_actions[action_id=agent_package_activate].payload",
           "required_payload_fields_source": "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
-          "workspace_path_source": "app_state.paths.workspace_root_path",
-          "context_fill_policy": "fill_target_workspace_from_workspace_path_source_only_when_it_is_an_unresolved_owner_required_payload_field",
+          "settings_target_workspace_source": null,
+          "target_workspace_action_policy": "defer_to_selected_session_send_boundary_JIT_using_the_normalized_current_session_directory",
+          "global_workspace_root_activation_target_allowed": false,
           "scope_inference_allowed": false,
-          "compatibility_path_policy": "legacy workspace paths may be normalized only inside the shell adapter and never become product truth",
-          "missing_workspace_policy": {
-            "applies_when": "unresolved_required_payload_fields_contains_target_workspace",
-            "enabled": false,
-            "reason_code": "workspace_root_not_configured",
-            "route": "/settings/workspace",
-            "anchor": "workspace"
-          },
+          "scope_materialization_missing_settings_policy": "show_available_with_no_preflight_action_and_defer_preparation_to_package_backed_send",
           "package_id_only_payload_allowed": true
         },
         "source_explanation_fields": [
@@ -7091,79 +7087,142 @@
           "reason": null,
           "session_launch_disposition": "ready"
         },
-        "presentation_policy": "fast verification_deferred remains truthful owner state while ordinary UI projects localized local-check-not-completed copy; session launch may attempt owner-projected JIT activation without a preemptive hard block"
+        "presentation_policy": "fast verification_deferred remains truthful owner state while ordinary Settings projects available copy; selected-session launch may attempt owner-projected JIT activation without a preemptive Settings action"
+      },
+      "ordinary_user_status_input_mapping": {
+        "schema": "agent_package_ordinary_status_input_mapping.v1",
+        "visibility": "implementation_and_advanced_diagnostics_only",
+        "precedence": ["temporarily_unavailable", "available_verified", "available_auto_confirm", "localized_owner_action_required", "unlocalized_owner_attention", "checking"],
+        "signals": {
+          "available_verified": "operational_ready_true_and_launch_allowed_true",
+          "available_auto_confirm": "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",
+          "localized_owner_action_required": "owner_projection_requires_one_explicit_non_target_workspace_action_with_an_exact_action_or_reason_copy_mapping",
+          "unlocalized_owner_attention": "owner_projection_requires_user_intervention_but_no_exact_localized_action_or_reason_copy_mapping_exists",
+          "temporarily_unavailable": "owner_projection_reports_blocked_failed_or_status_read_error",
+          "checking": "canonical_directory_or_readiness_state_is_loading_unknown_or_stale"
+        },
+        "scope_materialization_policy": "Settings_projects_available_with_no_preflight_action_and_defers_owner_projected_target_workspace_activation_to_selected_session_send_boundary_JIT",
+        "status_index_repair_action_role": "technical_diagnostics_only_never_ordinary_status_or_action_selection"
       },
       "user_facing_status_projection": {
-        "schema": "agent_package_user_status_projection.v1",
+        "schema": "agent_package_user_status_projection.v2",
         "locale_policy": "follow_current_app_locale_with_zh_CN_and_en_US_required",
-        "primary_status_policy": "one_user_facing_status_per_package_without_a_contradictory_availability_badge",
+        "primary_status_policy": "one_user_facing_status_one_concrete_explanation_and_at_most_one_most_relevant_action_per_package_without_contradictory_badges",
         "per_package_identity_key": "package_id",
         "aggregate_status_policy": "aggregate_counts_never_override_or_replace_each_projected_package_status",
+        "ordinary_row_cardinality": {
+          "user_status": 1,
+          "concrete_explanation": 1,
+          "most_relevant_action_max": 1,
+          "technical_status_fields": "details_only"
+        },
+        "input_mapping_ref": "ordinary_user_status_input_mapping",
         "raw_internal_status_visibility": "advanced_diagnostics_only",
         "rules": [
           {
-            "id": "ready",
-            "when": "operational_ready_true_and_launch_allowed_true",
+            "id": "available_verified",
+            "when": "available_verified",
+            "user_status_id": "available",
             "label_i18n": {
-              "zh-CN": "可以使用",
-              "en-US": "Ready to use"
+              "zh-CN": "可用",
+              "en-US": "Available"
             },
             "explanation_i18n": {
-              "zh-CN": "已完成本机检查，可以开始对话。",
-              "en-US": "Local checks are complete and this agent can start a conversation."
-            }
+              "zh-CN": "可直接发起对话，无需提前操作。",
+              "en-US": "You can start a conversation now; no advance action is required."
+            },
+            "primary_action_policy": "none"
           },
           {
-            "id": "local_check_not_completed",
-            "when": "readiness_status_verification_deferred_or_reason_live_verification_deferred_with_launch_allowed_false",
+            "id": "available_auto_confirm",
+            "when": "available_auto_confirm",
+            "user_status_id": "available",
             "label_i18n": {
-              "zh-CN": "首次使用时检查",
-              "en-US": "Checked on first use"
+              "zh-CN": "可用",
+              "en-US": "Available"
             },
             "explanation_i18n": {
-              "zh-CN": "可以选择并发起对话；首次使用时会自动尝试完成本机检查，只有发送边界检查仍未通过时才会阻止启动。",
-              "en-US": "You can select this agent and start a conversation. The app will attempt the local check on first use and block launch only if the send-boundary check still fails."
+              "zh-CN": "可直接发起对话。选择项目并启动智能体时，App 会使用当前会话目录自动确认并准备所需能力，无需提前操作。",
+              "en-US": "You can start a conversation now. When you choose a project and launch the agent, the App uses the current session directory to confirm and prepare the required capabilities; no advance action is required."
             },
-            "action_policy": "allow_selection_and_JIT_send_attempt_plus_show_only_owner_projected_check_activate_repair_or_manage_action_with_exact_readback"
+            "primary_action_policy": "none"
           },
           {
-            "id": "setup_required",
-            "when": "owner_projection_requires_install_activation_workspace_or_other_explicit_user_setup",
-            "label_i18n": {
-              "zh-CN": "需要完成设置",
-              "en-US": "Setup required"
-            },
-            "explanation_i18n": {
-              "zh-CN": "按下方操作完成设置后即可使用。",
-              "en-US": "Complete the action shown below before using this agent."
-            },
-            "action_policy": "show_only_exact_owner_projected_action"
+            "id": "install_required",
+            "when": "localized_owner_action_required_and_exact_action_id_install_from_manifest_url",
+            "user_status_id": "install_required",
+            "label_i18n": {"zh-CN": "需要安装", "en-US": "Install required"},
+            "explanation_i18n": {"zh-CN": "安装此智能体后即可发起对话。", "en-US": "Install this agent to start a conversation."},
+            "primary_action_policy": "show_the_exact_owner_projected_install_from_manifest_url_action"
+          },
+          {
+            "id": "enable_required",
+            "when": "localized_owner_action_required_and_exact_action_is_package_id_only_activation_or_enable_or_unhide",
+            "user_status_id": "enable_required",
+            "label_i18n": {"zh-CN": "需要启用", "en-US": "Enable required"},
+            "explanation_i18n": {"zh-CN": "启用此智能体后即可发起对话。", "en-US": "Enable this agent to start a conversation."},
+            "primary_action_policy": "show_the_exact_owner_projected_package_id_only_activate_or_preferences_action"
+          },
+          {
+            "id": "update_required",
+            "when": "localized_owner_action_required_and_exact_action_id_agent_package_update",
+            "user_status_id": "update_required",
+            "label_i18n": {"zh-CN": "需要更新", "en-US": "Update required"},
+            "explanation_i18n": {"zh-CN": "更新此智能体后即可继续使用。", "en-US": "Update this agent to continue using it."},
+            "primary_action_policy": "show_the_exact_owner_projected_agent_package_update_action"
+          },
+          {
+            "id": "repair_required",
+            "when": "localized_owner_action_required_and_exact_action_id_agent_package_repair",
+            "user_status_id": "repair_required",
+            "label_i18n": {"zh-CN": "需要修复", "en-US": "Repair required"},
+            "explanation_i18n": {"zh-CN": "修复此智能体后即可继续使用。", "en-US": "Repair this agent to continue using it."},
+            "primary_action_policy": "show_the_exact_owner_projected_agent_package_repair_action"
+          },
+          {
+            "id": "reconnect_required",
+            "when": "localized_owner_action_required_and_exact_owner_reason_maps_to_reconnect_with_an_executable_projected_action",
+            "user_status_id": "reconnect_required",
+            "label_i18n": {"zh-CN": "需要重新连接", "en-US": "Reconnect required"},
+            "explanation_i18n": {"zh-CN": "重新连接所需服务后即可继续使用。", "en-US": "Reconnect the required service to continue using this agent."},
+            "primary_action_policy": "show_only_the_exact_owner_projected_reconnect_action"
+          },
+          {
+            "id": "unlocalized_owner_attention",
+            "when": "unlocalized_owner_attention",
+            "user_status_id": "temporarily_unavailable",
+            "label_i18n": {"zh-CN": "暂时无法使用", "en-US": "Temporarily unavailable"},
+            "explanation_i18n": {"zh-CN": "打开详情查看具体原因和下一步。", "en-US": "Open details to see the specific reason and next step."},
+            "primary_action_policy": "open_details_only_without_a_generic_setup_or_action_label"
           },
           {
             "id": "temporarily_unavailable",
-            "when": "owner_projection_reports_blocked_failed_or_status_read_error",
+            "when": "temporarily_unavailable",
+            "user_status_id": "temporarily_unavailable",
             "label_i18n": {
-              "zh-CN": "暂时不能使用",
+              "zh-CN": "暂时无法使用",
               "en-US": "Temporarily unavailable"
             },
-            "explanation_policy": "show_localized_owner_reason_and_exact_owner_projected_recovery_action_when_present"
+            "explanation_policy": "show_one_localized_owner_reason_and_at_most_one_exact_owner_projected_recovery_action"
           },
           {
             "id": "checking",
-            "when": "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
+            "when": "checking",
+            "user_status_id": "checking",
             "label_i18n": {
-              "zh-CN": "正在读取状态",
-              "en-US": "Checking status"
+              "zh-CN": "正在确认",
+              "en-US": "Checking"
             },
             "explanation_i18n": {
-              "zh-CN": "正在读取本机状态，不会把未知状态显示为可用。",
-              "en-US": "Reading local status; unknown state is never presented as ready."
-            }
+              "zh-CN": "正在确认当前状态，请稍候。",
+              "en-US": "Confirming the current status."
+            },
+            "primary_action_policy": "none"
           }
         ],
-        "forbidden_ordinary_labels_zh": ["待验证", "需关注", "对话中可用", "对话中不可用", "不可使用"],
-        "forbidden_ordinary_labels_en": ["Verification deferred", "Needs attention", "Available in conversation", "Unavailable in conversation"],
-        "internal_fields_forbidden_as_primary_copy": ["verification_deferred", "operational_ready", "launch_allowed", "live_verification_deferred"]
+        "forbidden_ordinary_labels_zh": ["待验证", "需关注", "对话中可用", "对话中不可用", "不可使用", "首次使用时检查", "需要完成设置", "需要操作", "完成下方操作后即可使用", "需要为当前工作区启用", "暂时不能使用", "正在读取状态"],
+        "forbidden_ordinary_labels_en": ["Verification deferred", "Needs attention", "Available in conversation", "Unavailable in conversation", "Checked on first use", "Setup required", "Action required", "Complete the action below", "Enable for this workspace"],
+        "technical_input_policy": "raw readiness fields and reason codes are consumed only through the input mapping and may appear only in advanced details"
       },
         "failure_reason_fields": [
           "readiness.status",
@@ -7771,8 +7830,8 @@
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "the exact owner-projected activation payload, adding target_workspace from app_state.paths.workspace_root_path only when required_payload_fields requires it; otherwise package-id-only activation stays enabled",
-        "Chinese product display names and explicit managed or developer runtime source labels",
+        "package-id-only lifecycle actions may run in Settings while every action requiring target_workspace defers to selected-session send-boundary JIT and never uses a global workspace root",
+        "the five professional Agent display names remain Med Auto Science, Med Auto Grant, RedCube AI, OPL Book Forge, and OPL Meta Agent in Chinese and English while localized descriptions explain their purpose",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
         "Home shortcut visibility and order inline on Agent package rows",
@@ -7782,8 +7841,8 @@
       "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
       "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
       "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
-      "verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action",
-      "one localized status per package with aggregate counts never replacing item status"
+      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action",
+      "one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details"
       ],
       "must_not_show": [
         "Skills, Plugins, tools, MCP helpers, workflows, connectors, or AionUI-native capability catalogs",
@@ -7799,7 +7858,9 @@
         "registry refresh hidden inside technical details",
       "package status, ready state, action id, or action payload inferred by the Shell",
       "manifest URL installation presented as the ordinary primary install path",
-      "raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows",
+      "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
+      "global workspace root used as a target_workspace activation value from Settings",
+      "scope materialization missing presented as a Settings attention state or preflight action",
       "aggregate ready or unavailable counts used as the status of every package",
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],

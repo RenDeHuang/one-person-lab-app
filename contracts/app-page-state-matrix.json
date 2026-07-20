@@ -3599,8 +3599,8 @@
     },
     {
       "id": "agents",
-      "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, workspace activation target, Home shortcut preferences, and readiness refs",
-      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts",
+      "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, Home shortcut preferences, and readiness refs; selected-session directory is supplied only at the send boundary",
+      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_agents",
       "sections": [
@@ -3680,7 +3680,7 @@
         ]
       },
       "current_runtime_projection_boundary": {
-        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
+        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
         "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
         "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
@@ -3857,8 +3857,8 @@
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "the exact owner-projected activation payload, adding target_workspace from app_state.paths.workspace_root_path only when required_payload_fields requires it; otherwise package-id-only activation stays enabled",
-        "Chinese product display names and explicit managed or developer runtime source labels",
+        "package-id-only lifecycle actions may run in Settings while every action requiring target_workspace defers to selected-session send-boundary JIT and never uses a global workspace root",
+        "the five professional Agent display names remain Med Auto Science, Med Auto Grant, RedCube AI, OPL Book Forge, and OPL Meta Agent in Chinese and English while localized descriptions explain their purpose",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
         "Home shortcut visibility and order inline on Agent package rows",
@@ -3868,10 +3868,10 @@
         "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
       "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
       "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
-      "verification deferred with launch_allowed false shown as 首次使用时检查 with truthful first-use JIT guidance and owner-projected check or management action",
-      "one localized status per package with aggregate counts never replacing item status",
-      "installed activation-required packages with operational_ready and launch_allowed not false shown as neutral not-enabled state rather than attention",
-        "scope_materialization_missing and genuinely blocked or failed packages retained as attention or repair"
+      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action",
+      "one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details",
+      "exact owner actions rendered with concrete localized copy such as 需要安装, 需要启用, 需要更新, 需要修复, or 需要重新连接",
+        "genuinely blocked or failed packages retained as temporarily unavailable with a specific reason or details route"
       ],
       "must_not_show": [
         "Skills, Plugins, tools, MCP helpers, workflows, connectors, or AionUI-native capability catalogs",
@@ -3887,7 +3887,9 @@
         "registry refresh hidden inside technical details",
       "package status, ready state, action id, or action payload inferred by the Shell",
       "manifest URL installation presented as the ordinary primary install path",
-      "raw 待验证, 需关注, 对话中可用, 对话中不可用, or contradictory availability labels on ordinary Agent rows",
+      "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
+      "global workspace root used as a target_workspace activation value from Settings",
+      "scope materialization missing presented as a Settings attention state or preflight action",
       "aggregate ready or unavailable counts used as the status of every package",
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],
@@ -3929,8 +3931,8 @@
             "when": "catalog_failed"
           },
           {
-            "testid": "settings-agents-workspace-required",
-            "when": "activation_recommended_and_workspace_root_missing"
+            "testid": "settings-agents-send-boundary-project-required",
+            "when": "selected_package_send_requires_target_workspace_and_current_session_directory_is_missing"
           }
         ]
       },

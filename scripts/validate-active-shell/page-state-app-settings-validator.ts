@@ -188,7 +188,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
   );
   if (
     agentsPage.machine_source !==
-    'opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts'
+    'opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts'
   ) {
     throw new Error('Agents page must read package installation truth, active runtime sources, and Home shortcuts only');
   }

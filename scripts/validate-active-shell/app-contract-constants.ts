@@ -1683,81 +1683,186 @@ export const appOwnedUnifiedContextMenu = {
     "unavailable_or_synthetic_plugins",
   ],
 };
+export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
+  schema: "agent_package_ordinary_status_input_mapping.v1",
+  visibility: "implementation_and_advanced_diagnostics_only",
+  precedence: [
+    "temporarily_unavailable",
+    "available_verified",
+    "available_auto_confirm",
+    "localized_owner_action_required",
+    "unlocalized_owner_attention",
+    "checking",
+  ],
+  signals: {
+    available_verified: "operational_ready_true_and_launch_allowed_true",
+    available_auto_confirm:
+      "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",
+    localized_owner_action_required:
+      "owner_projection_requires_one_explicit_non_target_workspace_action_with_an_exact_action_or_reason_copy_mapping",
+    unlocalized_owner_attention:
+      "owner_projection_requires_user_intervention_but_no_exact_localized_action_or_reason_copy_mapping_exists",
+    temporarily_unavailable: "owner_projection_reports_blocked_failed_or_status_read_error",
+    checking: "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
+  },
+  scope_materialization_policy:
+    "Settings_projects_available_with_no_preflight_action_and_defers_owner_projected_target_workspace_activation_to_selected_session_send_boundary_JIT",
+  status_index_repair_action_role:
+    "technical_diagnostics_only_never_ordinary_status_or_action_selection",
+};
 export const appOwnedAgentPackageUserStatusProjection = {
-  schema: "agent_package_user_status_projection.v1",
+  schema: "agent_package_user_status_projection.v2",
   locale_policy: "follow_current_app_locale_with_zh_CN_and_en_US_required",
   primary_status_policy:
-    "one_user_facing_status_per_package_without_a_contradictory_availability_badge",
+    "one_user_facing_status_one_concrete_explanation_and_at_most_one_most_relevant_action_per_package_without_contradictory_badges",
   per_package_identity_key: "package_id",
   aggregate_status_policy:
     "aggregate_counts_never_override_or_replace_each_projected_package_status",
+  ordinary_row_cardinality: {
+    user_status: 1,
+    concrete_explanation: 1,
+    most_relevant_action_max: 1,
+    technical_status_fields: "details_only",
+  },
+  input_mapping_ref: "ordinary_user_status_input_mapping",
   raw_internal_status_visibility: "advanced_diagnostics_only",
   rules: [
     {
-      id: "ready",
-      when: "operational_ready_true_and_launch_allowed_true",
-      label_i18n: { "zh-CN": "可以使用", "en-US": "Ready to use" },
+      id: "available_verified",
+      when: "available_verified",
+      user_status_id: "available",
+      label_i18n: { "zh-CN": "可用", "en-US": "Available" },
       explanation_i18n: {
-        "zh-CN": "已完成本机检查，可以开始对话。",
-        "en-US": "Local checks are complete and this agent can start a conversation.",
+        "zh-CN": "可直接发起对话，无需提前操作。",
+        "en-US": "You can start a conversation now; no advance action is required.",
       },
+      primary_action_policy: "none",
     },
     {
-      id: "local_check_not_completed",
-      when:
-        "readiness_status_verification_deferred_or_reason_live_verification_deferred_with_launch_allowed_false",
-      label_i18n: {
-        "zh-CN": "首次使用时检查",
-        "en-US": "Checked on first use",
-      },
+      id: "available_auto_confirm",
+      when: "available_auto_confirm",
+      user_status_id: "available",
+      label_i18n: { "zh-CN": "可用", "en-US": "Available" },
       explanation_i18n: {
-        "zh-CN": "可以选择并发起对话；首次使用时会自动尝试完成本机检查，只有发送边界检查仍未通过时才会阻止启动。",
-        "en-US": "You can select this agent and start a conversation. The app will attempt the local check on first use and block launch only if the send-boundary check still fails.",
+        "zh-CN": "可直接发起对话。选择项目并启动智能体时，App 会使用当前会话目录自动确认并准备所需能力，无需提前操作。",
+        "en-US": "You can start a conversation now. When you choose a project and launch the agent, the App uses the current session directory to confirm and prepare the required capabilities; no advance action is required.",
       },
-      action_policy:
-        "allow_selection_and_JIT_send_attempt_plus_show_only_owner_projected_check_activate_repair_or_manage_action_with_exact_readback",
+      primary_action_policy: "none",
     },
     {
-      id: "setup_required",
-      when:
-        "owner_projection_requires_install_activation_workspace_or_other_explicit_user_setup",
-      label_i18n: { "zh-CN": "需要完成设置", "en-US": "Setup required" },
+      id: "install_required",
+      when: "localized_owner_action_required_and_exact_action_id_install_from_manifest_url",
+      user_status_id: "install_required",
+      label_i18n: { "zh-CN": "需要安装", "en-US": "Install required" },
       explanation_i18n: {
-        "zh-CN": "按下方操作完成设置后即可使用。",
-        "en-US": "Complete the action shown below before using this agent.",
+        "zh-CN": "安装此智能体后即可发起对话。",
+        "en-US": "Install this agent to start a conversation.",
       },
-      action_policy: "show_only_exact_owner_projected_action",
+      primary_action_policy: "show_the_exact_owner_projected_install_from_manifest_url_action",
+    },
+    {
+      id: "enable_required",
+      when: "localized_owner_action_required_and_exact_action_is_package_id_only_activation_or_enable_or_unhide",
+      user_status_id: "enable_required",
+      label_i18n: { "zh-CN": "需要启用", "en-US": "Enable required" },
+      explanation_i18n: {
+        "zh-CN": "启用此智能体后即可发起对话。",
+        "en-US": "Enable this agent to start a conversation.",
+      },
+      primary_action_policy:
+        "show_the_exact_owner_projected_package_id_only_activate_or_preferences_action",
+    },
+    {
+      id: "update_required",
+      when: "localized_owner_action_required_and_exact_action_id_agent_package_update",
+      user_status_id: "update_required",
+      label_i18n: { "zh-CN": "需要更新", "en-US": "Update required" },
+      explanation_i18n: {
+        "zh-CN": "更新此智能体后即可继续使用。",
+        "en-US": "Update this agent to continue using it.",
+      },
+      primary_action_policy: "show_the_exact_owner_projected_agent_package_update_action",
+    },
+    {
+      id: "repair_required",
+      when: "localized_owner_action_required_and_exact_action_id_agent_package_repair",
+      user_status_id: "repair_required",
+      label_i18n: { "zh-CN": "需要修复", "en-US": "Repair required" },
+      explanation_i18n: {
+        "zh-CN": "修复此智能体后即可继续使用。",
+        "en-US": "Repair this agent to continue using it.",
+      },
+      primary_action_policy: "show_the_exact_owner_projected_agent_package_repair_action",
+    },
+    {
+      id: "reconnect_required",
+      when: "localized_owner_action_required_and_exact_owner_reason_maps_to_reconnect_with_an_executable_projected_action",
+      user_status_id: "reconnect_required",
+      label_i18n: { "zh-CN": "需要重新连接", "en-US": "Reconnect required" },
+      explanation_i18n: {
+        "zh-CN": "重新连接所需服务后即可继续使用。",
+        "en-US": "Reconnect the required service to continue using this agent.",
+      },
+      primary_action_policy: "show_only_the_exact_owner_projected_reconnect_action",
+    },
+    {
+      id: "unlocalized_owner_attention",
+      when: "unlocalized_owner_attention",
+      user_status_id: "temporarily_unavailable",
+      label_i18n: { "zh-CN": "暂时无法使用", "en-US": "Temporarily unavailable" },
+      explanation_i18n: {
+        "zh-CN": "打开详情查看具体原因和下一步。",
+        "en-US": "Open details to see the specific reason and next step.",
+      },
+      primary_action_policy: "open_details_only_without_a_generic_setup_or_action_label",
     },
     {
       id: "temporarily_unavailable",
-      when: "owner_projection_reports_blocked_failed_or_status_read_error",
-      label_i18n: { "zh-CN": "暂时不能使用", "en-US": "Temporarily unavailable" },
+      when: "temporarily_unavailable",
+      user_status_id: "temporarily_unavailable",
+      label_i18n: { "zh-CN": "暂时无法使用", "en-US": "Temporarily unavailable" },
       explanation_policy:
-        "show_localized_owner_reason_and_exact_owner_projected_recovery_action_when_present",
+        "show_one_localized_owner_reason_and_at_most_one_exact_owner_projected_recovery_action",
     },
     {
       id: "checking",
-      when: "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
-      label_i18n: { "zh-CN": "正在读取状态", "en-US": "Checking status" },
+      when: "checking",
+      user_status_id: "checking",
+      label_i18n: { "zh-CN": "正在确认", "en-US": "Checking" },
       explanation_i18n: {
-        "zh-CN": "正在读取本机状态，不会把未知状态显示为可用。",
-        "en-US": "Reading local status; unknown state is never presented as ready.",
+        "zh-CN": "正在确认当前状态，请稍候。",
+        "en-US": "Confirming the current status.",
       },
+      primary_action_policy: "none",
     },
   ],
-  forbidden_ordinary_labels_zh: ["待验证", "需关注", "对话中可用", "对话中不可用", "不可使用"],
+  forbidden_ordinary_labels_zh: [
+    "待验证",
+    "需关注",
+    "对话中可用",
+    "对话中不可用",
+    "不可使用",
+    "首次使用时检查",
+    "需要完成设置",
+    "需要操作",
+    "完成下方操作后即可使用",
+    "需要为当前工作区启用",
+    "暂时不能使用",
+    "正在读取状态",
+  ],
   forbidden_ordinary_labels_en: [
     "Verification deferred",
     "Needs attention",
     "Available in conversation",
     "Unavailable in conversation",
+    "Checked on first use",
+    "Setup required",
+    "Action required",
+    "Complete the action below",
+    "Enable for this workspace",
   ],
-  internal_fields_forbidden_as_primary_copy: [
-    "verification_deferred",
-    "operational_ready",
-    "launch_allowed",
-    "live_verification_deferred",
-  ],
+  technical_input_policy:
+    "raw readiness fields and reason codes are consumed only through the input mapping and may appear only in advanced details",
 };
 export const appOwnedSendFailureInputPolicy = {
   must_preserve_send_scoped_local_inputs: true,

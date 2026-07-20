@@ -83,35 +83,35 @@ export const requiredSkillByPackageId = {
 };
 export const professionalAgentPresentationByPackageId = {
   mas: {
-    display_name_i18n: { 'zh-CN': '医学科研智能体', 'en-US': 'Med Auto Science' },
+    display_name_i18n: { 'zh-CN': 'Med Auto Science', 'en-US': 'Med Auto Science' },
     description_i18n: {
       'zh-CN': '用于科研选题、文献分析、数据分析、论文写作、审稿、返修和投稿。',
       'en-US': 'For research planning, literature review, data analysis, manuscript writing, peer review, revision, and submission.',
     },
   },
   mag: {
-    display_name_i18n: { 'zh-CN': '医学基金智能体', 'en-US': 'Med Auto Grant' },
+    display_name_i18n: { 'zh-CN': 'Med Auto Grant', 'en-US': 'Med Auto Grant' },
     description_i18n: {
       'zh-CN': '用于基金选题、标书与申请书撰写、预算说明和评审回复。',
       'en-US': 'For grant topics, proposals and applications, budget narratives, and reviewer responses.',
     },
   },
   rca: {
-    display_name_i18n: { 'zh-CN': '演示与视觉智能体', 'en-US': 'RedCube AI' },
+    display_name_i18n: { 'zh-CN': 'RedCube AI', 'en-US': 'RedCube AI' },
     description_i18n: {
       'zh-CN': '用于制作演示文稿、汇报材料、图表和其他专业视觉交付物。',
       'en-US': 'For presentations, reports, charts, and other professional visual deliverables.',
     },
   },
   obf: {
-    display_name_i18n: { 'zh-CN': '写书智能体', 'en-US': 'OPL Book Forge' },
+    display_name_i18n: { 'zh-CN': 'OPL Book Forge', 'en-US': 'OPL Book Forge' },
     description_i18n: {
       'zh-CN': '用于书稿规划、章节写作、插图表格、排版、审校和导出。',
       'en-US': 'For book planning, chapter writing, figures and tables, layout, editing, and export.',
     },
   },
   oma: {
-    display_name_i18n: { 'zh-CN': '元智能体', 'en-US': 'OPL Meta Agent' },
+    display_name_i18n: { 'zh-CN': 'OPL Meta Agent', 'en-US': 'OPL Meta Agent' },
     description_i18n: {
       'zh-CN': '用于创建、接管、检查和改进 OPL 专业智能体。',
       'en-US': 'For creating, taking over, inspecting, and improving OPL professional agents.',
@@ -123,7 +123,7 @@ export const firstPartyReleaseSetPresentationByPackageId = {
   'mas-scholar-skills': {
     display_name_i18n: { 'zh-CN': 'MAS 学术技能', 'en-US': 'MAS Scholar Skills' },
     description_i18n: {
-      'zh-CN': '供医学科研智能体使用的可复用医学科研能力。',
+      'zh-CN': '供 Med Auto Science 使用的可复用医学科研能力。',
       'en-US': 'Reusable medical research capabilities consumed by Med Auto Science.',
     },
   },

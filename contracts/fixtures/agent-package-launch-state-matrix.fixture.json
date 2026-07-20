@@ -290,7 +290,8 @@
   ],
   "send_target_context_contract": {
     "primary_unit": "canonical_session_thread",
-    "target_workspace_role": "explicit_owner_projected_action_payload_not_project_affinity_mutation",
+    "target_workspace_role": "owner_required_send_context_resolved_from_normalized_current_session_directory_not_project_affinity_or_global_workspace_root",
+    "legacy_prefill_policy": "when_target_workspace_is_required_override_any_projected_legacy_or_global_prefill_with_the_normalized_current_session_directory",
     "runtime_pwd_changes_project_affinity": false,
     "project_affinity_changes_writable_roots": false,
     "bound_project_reassignment_allowed": false,
@@ -304,6 +305,32 @@
           "target_workspace"
         ],
         "fresh_minimal_validation_required_before_next_launch": true
+      },
+      {
+        "case_id": "package_owner_requires_target_workspace_with_legacy_prefill",
+        "package_backed": true,
+        "owner_required_payload_fields": [
+          "package_id",
+          "target_workspace"
+        ],
+        "projected_target_workspace": "/Users/example/OPL Workspace",
+        "normalized_current_session_directory": "/Users/example/Projects/Current Session",
+        "executed_target_workspace": "/Users/example/Projects/Current Session",
+        "legacy_prefill_overridden": true,
+        "accepted": true
+      },
+      {
+        "case_id": "package_owner_requires_target_workspace_without_current_session",
+        "package_backed": true,
+        "owner_required_payload_fields": [
+          "package_id",
+          "target_workspace"
+        ],
+        "projected_target_workspace": "/Users/example/OPL Workspace",
+        "normalized_current_session_directory": null,
+        "accepted": false,
+        "reason_code": "project_selection_required",
+        "draft_preserved": true
       },
       {
         "case_id": "package_owner_target_workspace_validation_failure",

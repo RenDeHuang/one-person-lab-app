@@ -356,7 +356,6 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     }
   }
 
-  const workspaceRoot = lookupPath(fixture, 'app_state.paths.workspace_root_path');
   const installEntry = directory.entries.find((entry) =>
     entry.installed === false
     && entry.installability?.installable === true
@@ -377,14 +376,12 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   if (
     !activationEntry
     || activationEntry.recommended_action_ref?.payload?.package_id !== activationEntry.package_id
-    || activationEntry.recommended_action_ref?.payload?.scope !== 'workspace'
-    || activationEntry.recommended_action_ref?.payload?.target_workspace !== workspaceRoot
-    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('scope')
-    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_workspace')
-    || activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_quest')
-    || activationEntry.recommended_action_ref?.required_payload_fields?.includes('use_boundary_id')
+    || Object.hasOwn(activationEntry.recommended_action_ref.payload, 'scope')
+    || Object.hasOwn(activationEntry.recommended_action_ref.payload, 'target_workspace')
+    || JSON.stringify(activationEntry.recommended_action_ref.required_payload_fields) !==
+      JSON.stringify(['package_id', 'target_workspace'])
   ) {
-    throw new Error('Agent Package directory fixture must include a workspace-scoped canonical activation action');
+    throw new Error('Agent Package directory fixture must keep activation generic and scope-less while requiring send-boundary target_workspace context');
   }
   const activatedEntry = directory.entries.find((entry) => entry.installed === true && entry.activated === true);
   if (

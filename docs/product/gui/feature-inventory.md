@@ -168,7 +168,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
 | Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
 | Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
-| 弹性 Agent 启动适配 | 只在所选 directory entry 投影 package launch adapter action 或需要 degraded JIT prepare 时消费该 exact action；`required_payload_fields` 决定是否需要 Workspace。receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须齐备的硬门槛。 | Framework package lifecycle owner；App 只消费 projected action、最小身份/版本/入口/安全目标 readback 并隔离单包失败。 |
+| 弹性 Agent 启动适配 | 只在所选 directory entry 投影 package launch adapter action 或需要 degraded JIT prepare 时消费该 exact action；`required_payload_fields` 决定是否需要当前项目。需要 `target_workspace` 时，发送边界用 normalized current session directory 覆盖任何 legacy/global 预填；缺少 session directory 则保留 draft 并要求选项目。receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须齐备的硬门槛。 | Framework package lifecycle owner；App 只消费 projected action、最小身份/版本/入口/安全目标 readback 并隔离单包失败；Settings 不执行 target-workspace activation。 |
 
 Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
 artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、

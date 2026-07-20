@@ -115,6 +115,10 @@ Rail 负责 navigation，不承担 dashboard：
   preload 和隐式 prompt injection。Workspace/managed-target readiness 只约束 owner-projected action 的
   `required_payload_fields` 明确要求该上下文的 Agent/package；Shell 不从 manifest 推断，不约束普通 Codex
   conversation 或 send-scoped local file inputs；Codex/model prerequisites 不变。
+- 专业智能体的 owner action 仅在 `required_payload_fields` 要求 `target_workspace` 时消费当前
+  session directory。发送边界必须用 normalized current session directory 覆盖 projected
+  payload 中任何 legacy/global `target_workspace` 预填；没有当前 session directory 时即使旧
+  action 带有全局路径也保留 draft 并要求选择项目。Settings 不执行或预填这类 action。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
   Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。

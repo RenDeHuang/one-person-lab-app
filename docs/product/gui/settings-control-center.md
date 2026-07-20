@@ -285,13 +285,18 @@ uninstall execute only the projected `available_actions[]` or object
 never an action-payload source. The shell does not synthesize enabled state,
 reason codes, action ids, payload fields, or ready/synced/available labels.
 
-Activation starts from the exact owner-projected payload and never invents
-`scope=workspace`. Only when an unresolved `required_payload_fields` item names
-`target_workspace` may the shell fill it from `app_state.paths.workspace_root_path`.
-If that required Workspace is absent, only that activation is disabled with
-`workspace_root_not_configured` and routes to `/settings/workspace#workspace`;
-package-id-only actions remain enabled. After a successful install or activation,
-the page refreshes fast App state and renders the next projected action.
+Settings executes only exact owner-projected package lifecycle actions that do
+not require `target_workspace`. An activation that requires a workspace is not
+run or preconfigured here; it waits until the user selects a project and sends a
+package-backed conversation. At that send boundary, the Shell starts from the
+exact projected payload, preserves every non-target field, and always writes
+`target_workspace` from the normalized current session directory. This value
+overrides any legacy or global path already present in the projected payload.
+Without a current session directory, the draft stays in place and the selected
+Agent asks for project selection even if the legacy action prefilled a global
+workspace root. Package-id-only actions remain enabled. After a successful
+lifecycle action, the page refreshes fast App state and renders the next
+projected action.
 
 Fast state deliberately reports an activated package as
 `readiness.status=verification_deferred`,
@@ -304,10 +309,17 @@ not appear here. Ordinary send maps this fast-only uncertainty to `degraded`
 and remains fail-open through the owner-projected package launch adapter / JIT
 prepare; it must not apply a second hard block from the raw fast flags. Only the
 selected package's explicit `package_unavailable` condition may be locally disabled.
-普通行不直接显示 `待验证`、`需关注`、`不可使用` 或 raw readiness flags。每个 package
-独立投影一个本地化用户状态：可以使用、首次使用时检查、需要完成设置、暂时不能使用或
-正在读取状态；聚合计数不能覆盖逐项状态。`首次使用时检查` 仍允许选择和发起对话，App
-在首次发送边界执行 owner-projected JIT 检查，仅在该检查仍失败时阻止启动。
+普通行不直接显示 `待验证`、`需关注`、`不可使用`、`需要操作` 或 raw readiness flags。
+已安装且已暴露的 `verification_deferred` 与 `scope_materialization_missing` 都显示为“可用”，
+并说明选择项目、启动智能体时会使用当前会话目录自动确认和准备能力，无需在 Settings
+预先操作。确实需要用户动作时，必须按 exact owner action/reason 显示具体状态，例如
+“需要安装”“需要启用”“需要更新”“需要修复”或“需要重新连接”，每行最多一个最相关
+动作；无法安全本地化时显示“暂时无法使用”并引导打开详情，不使用“完成设置”一类抽象
+文案。聚合计数不能覆盖逐项状态，raw status/reason 只进入详情。
+
+五个专业智能体在中文和英文界面都保留品牌名 Med Auto Science、Med Auto Grant、
+RedCube AI、OPL Book Forge 与 OPL Meta Agent；中文用途放在 description，不把品牌名改成
+泛化角色名。MAS Scholar Skills 是 Med Auto Science 的依赖能力，不冒充第二个科研智能体。
 
 Developer Mode appears here as **允许维护已授权的开发仓库**. The control is
 `auto|off`, defaults to `auto`, and is independent from source selection. A
