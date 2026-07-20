@@ -75,7 +75,7 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 - Home starter 使用 `13/18/500`，icon、label 与选中 check 共用同一垂直中心线；选中填充、
   focus outline 和未选中内容使用相同 line box 与 block inset，选中不能把文字推到边框顶部，
   也不能改变 row 几何；
-- Home 与 conversation composer 均使用 `14/20/400` textarea、`13/18` 底部控件、16px
+- Home 与 conversation composer 均使用 `14/20/400` textarea、`12/18/400` 底部控件、16px
   图标、32px action height、1px hairline 与 22px radius。Model/reasoning、permission 和
   workspace chrome 不得另起更大字号；resting shadow 在 focus 时仍保留；
 - New-session context bar 使用 `52px` 稳定高度、`12px` 水平内缩并与 composer 重叠 `13px`；
@@ -321,7 +321,7 @@ keyboard traversal、rendered contrast 和安装版 readback 仍分别由 Pixel/
 - `composer_resting_shadow=required`
 - `home_starter_selected_alignment=centered_no_layout_shift`
 - `composer_textarea=14/20/400`
-- `composer_bottom_controls=13/18_max_13px`
+- `composer_bottom_controls=12/18/400`
 - `settings_surface_audit=all_routes_light_dark_desktop_narrow`
 - `settings_icon_text_action=currentColor_stable_slot`
 - `gateway_disconnect=identity_row_trailing`
