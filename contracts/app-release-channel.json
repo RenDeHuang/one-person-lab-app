@@ -2779,21 +2779,22 @@
         "required": [
           "MAS_MAG_RCA_home_starters_visible",
           "starters_launchable",
-          "owner_projected_required_payload_fields_satisfied_before_send",
-          "agent_package_activate_action_per_starter",
-          "real_guid_composer_send_per_starter",
+          "selected_project_directory_applied_to_session_and_domain_workspace_identity",
+          "real_guid_composer_send_without_shell_package_activation_per_starter",
           "conversation_get_readback_per_starter",
-          "agent_package_activation_receipt_per_starter",
+          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter",
+          "Framework_stage_runtime_activation_evidence_per_starter",
           "agent_package_shortcut_route_receipt_per_starter"
         ],
         "forbidden": [
           "direct_conversation_post",
-          "synthetic_agent_package_activation_receipt",
+          "Shell_agent_package_activation_before_or_during_send",
+          "synthetic_Framework_stage_runtime_activation_evidence",
           "synthetic_agent_package_route_receipt"
         ],
         "verification_mode": "route_receipt"
       },
-      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable and selectable while send remains blocked with a repair path. Full satisfies the required payload fields projected by the Framework-owned action, invokes package activation through the production Guid send path, creates the conversation through the visible composer, then reads that same conversation back with matching activation and route receipts. Workspace is required only when the projected action requires target_workspace. Direct conversation POSTs and synthetic receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
+      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable and selectable while send remains blocked with a repair path. Full applies the selected project directory as session cwd and future domain workspace identity, creates the conversation through the visible composer without Shell package activation, then reads that conversation back. Separately, a real Framework domain StageRun or StageAttempt must activate from its own workspace_locator and emit matching runtime evidence. Direct conversation POSTs, Shell send-boundary activation, and synthetic runtime or route receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
     },
     "vm_gates": [
       {

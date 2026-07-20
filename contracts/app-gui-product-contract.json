@@ -2884,126 +2884,81 @@
     "must_not_depend_on_visible_backend_selection": true
   },
   "agent_package_activation_policy": {
-    "release_scope": "trusted_local_thin_shell",
-    "action_id": "agent_package_activate",
-    "action_ref": "app_state.actions#agent_package_activate",
-    "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
-    "trigger": "just_in_time_before_package_backed_send_only_when_the_selected_directory_entry_projects_an_activation_action_or_degraded_preparation_is_needed",
-    "projected_action_source": "app_state.agent_packages.directory.entries[].available_actions[action_id=agent_package_activate]",
-    "required_payload_fields_source": "projected_action.required_payload_fields",
-    "request_policy": {
-      "package_id_source": "current_selected_professional_agent.package_id",
-      "action_object_policy": "consume_the_exact_owner_projected_action_id_action_ref_payload_required_payload_fields_and_confirmation_required_without_shell_inference",
-      "payload_policy": "start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory",
-      "scope_policy": "preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection",
-      "target_workspace_source": "normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace",
-      "required_target_override_policy": "when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill",
-      "legacy_prefilled_target_authority": "never_session_target_authority",
-      "missing_optional_target_policy": "continue_without_target_workspace_when_the_projected_action_does_not_require_it",
-      "missing_required_target_policy": "without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package",
-      "global_workspace_root_mutation_allowed": false
-    },
-    "result_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result",
-    "result_schema_scope": "live_non_dry_package_launch_only",
-    "optional_diagnostic_binding_fields": [
-      "use_binding",
-      "package_use_binding"
+    "release_scope": "framework_stage_runtime_only",
+    "activation_owner": "one-person-lab_family_runtime",
+    "framework_entrypoint": "ensureFamilyRuntimePackageLaunchReady",
+    "framework_entrypoint_ref": "one-person-lab/src/modules/runway/family-runtime-package-readiness.ts#ensureFamilyRuntimePackageLaunchReady",
+    "internal_action_id": "agent_package_activate",
+    "internal_action_ref": "app_state.actions#agent_package_activate",
+    "internal_action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
+    "trigger": "immediately_before_a_real_domain_StageRun_or_StageAttempt_launch",
+    "workspace_locator_sources": [
+      "StageRun.workspace_locator",
+      "StageAttempt.workspace_locator"
     ],
-    "result_contract": {
+    "workspace_scope_resolution_fields": [
+      "workspace_root",
+      "repo_root",
+      "workspace_path",
+      "target_workspace"
+    ],
+    "shell_execution_policy": {
+      "settings_execution_allowed": false,
+      "new_conversation_execution_allowed": false,
+      "ordinary_composer_send_execution_allowed": false,
+      "shell_projected_activation_action_execution_allowed": false,
+      "framework_stage_runtime_execution_allowed": true
+    },
+    "stage_runtime_contract": {
+      "package_id_source": "domainId",
+      "workspace_locator_source": "current_StageRun_or_StageAttempt.workspace_locator",
+      "scope_activation_owner": "Framework_package_readiness_port.ensureScopeActivation",
+      "shell_payload_construction_allowed": false,
+      "shell_session_cwd_substitution_allowed": false,
+      "activation_result_owner": "one-person-lab_family_runtime",
+      "activation_failure_scope": "block_only_the_corresponding_domain_stage_progression",
+      "ordinary_conversation_affected": false,
+      "existing_sessions_affected": false
+    },
+    "runtime_activation_result_compatibility": {
+      "schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result",
+      "scope": "Framework_stage_runtime_and_advanced_diagnostics_only",
+      "ordinary_shell_send_gate_allowed": false,
       "required_fields": [
         "launch_state",
         "launch_allowed",
         "package_id",
         "launch_state_reason"
       ],
-      "optional_audit_or_identity_fields": [
+      "optional_evidence_fields": [
         "package_version",
         "package_lock",
         "use_receipt_ref",
         "use_binding",
         "package_use_binding"
-      ],
-      "state_boolean_consistency": {
-        "ready": true,
-        "degraded": true,
-        "package_unavailable": false
-      },
-      "reason_policy": "ready_requires_null_reason_degraded_requires_visible_nonblocking_reason_and_package_unavailable_requires_visible_typed_blocking_reason"
+      ]
     },
-    "minimal_launch_validation": [
-      "activation.package_id_matches_current_selection",
-      "returned_package_version_is_compatible_with_current_selection_when_present",
-      "selected_package_entrypoint_exists_and_is_callable",
-      "managed_target_is_safe_and_matches_the_owner_required_target_when_present"
-    ],
-    "receipt_policy": "use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition",
-    "binding_policy": "validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch",
-    "closure_policy": "Framework_owned_just_in_time_reconciliation_or_diagnostics_not_a_shell_preflight_gate",
     "home_shortcut_interaction": {
       "configured_shortcut_visible": true,
       "configured_shortcut_selectable_before_selection": true,
       "directory_entry_ordinary_discovery_visible_is_separate": true,
-      "launch_readiness_enforcement_phase": "selected_package_send",
-      "package_unavailable_send_allowed": false,
+      "ordinary_composer_activation_required": false,
+      "ordinary_composer_activation_allowed": false,
+      "installed_exposed_deferred_status_send_allowed": true,
+      "uninstalled_or_disabled_selected_package_send_policy": "block_only_that_send_with_specific_install_or_enable_guidance",
+      "domain_readiness_enforcement_phase": "domain_stage_launch",
       "typed_reason_required": true,
       "draft_preserved": true,
-      "owner_repair_guidance_required": true,
-      "successful_invocation_receipt_expected_before_launch": false
+      "owner_repair_guidance_required_for_genuine_unavailability": true
     },
-    "launch_state_machine": {
-      "states": [
-        "ready",
-        "degraded",
-        "package_unavailable"
-      ],
-      "ready": {
-        "selected_package_send_allowed": true,
-        "policy": "launch_directly_and_refresh_status_in_the_background_when_useful"
-      },
-      "degraded": {
-        "selected_package_send_allowed": true,
-        "policy": "attempt_owner_projected_JIT_prepare_repair_or_safe_fallback_and_continue_with_visible_degradation_without_claiming_full_readiness",
-        "eligible_signals": [
-          "verification_deferred",
-          "stale_status",
-          "update_available",
-          "optional_dependency_missing",
-          "optional_receipt_or_binding_absent"
-        ]
-      },
-      "package_unavailable": {
-        "selected_package_send_allowed": false,
-        "policy": "block_only_the_selected_package_preserve_the_draft_and_offer_plain_Codex_other_Agents_or_an_owner_repair_route",
-        "eligible_signals": [
-          "package_not_installed_or_disabled_without_an_executable_projected_recovery_action",
-          "package_identity_mismatch",
-          "incompatible_package_version",
-          "entrypoint_missing",
-          "unsafe_managed_target",
-          "permission_or_authorization_denied"
-        ]
-      }
-    },
-    "typed_failure_codes": [
-      "agent_package_unavailable",
-      "agent_package_activation_invalid",
-      "agent_package_selection_mismatch",
-      "agent_package_version_mismatch",
-      "agent_package_entrypoint_missing",
-      "agent_package_target_mismatch"
-    ],
     "failure_policy": {
-      "default_interaction_policy": "fail_open",
-      "selected_package_create_allowed_by_state": {
-        "ready": true,
-        "degraded": true,
-        "package_unavailable": false
-      },
-      "plain_codex_create_allowed": true,
-      "other_agent_selection_allowed": true,
+      "stage_activation_failure_scope": "corresponding_domain_stage_only",
+      "ordinary_conversation_send_blocked": false,
+      "plain_conversation_create_allowed": true,
+      "other_agent_conversation_allowed": true,
       "existing_sessions_remain_available": true,
       "draft_preserved": true,
-      "message_source": "typed_shell_failure_or_Framework_launch_blocked_reason"
+      "message_source": "Framework_domain_stage_launch_blocked_reason"
     },
     "workspace_policy": {
       "session_is_primary_unit": true,
@@ -3013,7 +2968,10 @@
       "runtime_pwd_changes_project_affinity": false,
       "project_affinity_changes_writable_roots": false,
       "workspace_is_not_a_universal_agent_launch_precondition": true,
-      "new_package_backed_conversation_uses_current_normalized_directory_only_when_owner_required": true,
+      "selected_project_directory_role": "session_cwd_and_future_domain_workspace_identity_only",
+      "selected_project_directory_is_activation_target": false,
+      "global_workspace_root_is_activation_target": false,
+      "stage_workspace_locator_is_only_activation_target_source": true,
       "plain_conversation_policy": "unchanged"
     },
     "read_policy": {
@@ -3028,10 +2986,10 @@
     },
     "framework_component": {
       "repository": "gaofeng21cn/one-person-lab",
-      "cohort_commit": "e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252"
+      "cohort_commit": "330658e45554894ae6f987d4e39449ac2f6dd53d"
     },
     "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
-    "app_role": "trusted_local_thin_shell_consumer_of_owner_projected_actions_and_minimal_identity_version_entrypoint_and_safe_target_readback"
+    "app_role": "product_contract_and_display_consumer_without_package_activation_execution"
   },
   "builtin_assistant_route_receipt_policy": {
     "migration_alias_for": "agent_package_invocation_receipt_policy",
@@ -6798,7 +6756,7 @@
           "home_shortcut_visibility",
           "home_shortcut_order",
           "launch_shortcut",
-          "projected_install_activate_or_maintenance_action",
+          "projected_install_or_maintenance_action",
           "open_details_panel"
         ],
         "detail_panel_fields": [
@@ -6925,7 +6883,7 @@
         "field_behavior_checklist": [
           "render_every_directory_entry_including_uninstalled_packages_OMA_and_all_first_party_packages",
           "keep_catalog_search_distinct_from_Settings_global_search",
-          "filter_by_package_role_install_or_activation_status_and_source",
+          "filter_by_package_role_availability_status_and_source",
           "search_by_package_name_short_name_tag_source_or_description",
           "filter_by_install_update_source_trust_codex_surface_and_home_visibility_state",
           "distinguish_package_install_source_from_active_runtime_source_in_user_language",
@@ -6937,14 +6895,15 @@
           "keep_package_dependency_materialization_and_runtime_source_readiness_as_lower_level_diagnostics",
           "execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
-          "execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference",
-          "validate_package_id_version_and_normalized_target_before_creating_a_package_backed_conversation",
-          "treat_live_verification_deferred_as_degraded_and_attempt_owner_projected_JIT_activation_without_preemptive_blocking",
+          "execute_only_projected_Settings_action_id_and_payload_without_shell_status_or_payload_inference",
+          "never_execute_agent_package_activate_from_Settings_new_conversation_or_ordinary_composer_send",
+          "show_installed_exposed_verification_deferred_or_scope_materialization_missing_as_available_without_preconfiguration",
           "never_require_complete_receipt_binding_or_dependency_closure_as_a_universal_launch_precondition",
           "keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority",
           "keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected",
-          "refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended",
-          "defer_every_target_workspace_activation_from_Settings_to_selected_session_send_boundary_JIT_without_using_the_global_workspace_root",
+          "refresh_fast_state_after_successful_install_without_exposing_stage_internal_activation_in_Settings",
+          "use_selected_project_only_as_session_cwd_and_future_domain_workspace_identity",
+          "leave_scope_activation_to_Framework_StageRun_or_StageAttempt_workspace_locator",
           "keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced",
           "use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch",
           "display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb"
@@ -6960,12 +6919,11 @@
           ],
           "filters": [
             "package_role",
-            "install_or_activation_status",
+            "availability_status",
             "source"
           ],
           "row_actions": [
             "install",
-            "activate",
             "hide",
             "unhide",
             "disable",
@@ -7029,17 +6987,19 @@
         },
         "workspace_activation_contract": {
           "action_id": "agent_package_activate",
-          "surface_scope": "settings_global_package_management_package_id_only",
-          "session_launch_authority": false,
-          "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
-          "payload_source": "directory.entries[].available_actions[action_id=agent_package_activate].payload",
-          "required_payload_fields_source": "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
+          "surface_scope": "Framework_stage_runtime_only",
+          "activation_owner": "one-person-lab_family_runtime",
+          "framework_entrypoint": "ensureFamilyRuntimePackageLaunchReady",
+          "workspace_locator_source": "StageRun.workspace_locator_or_StageAttempt.workspace_locator",
+          "settings_execution_allowed": false,
+          "new_conversation_shell_execution_allowed": false,
+          "ordinary_send_shell_execution_allowed": false,
           "settings_target_workspace_source": null,
-          "target_workspace_action_policy": "defer_to_selected_session_send_boundary_JIT_using_the_normalized_current_session_directory",
           "global_workspace_root_activation_target_allowed": false,
+          "selected_session_directory_activation_target_allowed": false,
           "scope_inference_allowed": false,
-          "scope_materialization_missing_settings_policy": "show_available_with_no_preflight_action_and_defer_preparation_to_package_backed_send",
-          "package_id_only_payload_allowed": true
+          "scope_materialization_missing_settings_policy": "show_available_with_no_preflight_action_or_activation_CTA",
+          "stage_activation_failure_policy": "block_only_the_corresponding_domain_stage_progression"
         },
         "source_explanation_fields": [
           "kind",
@@ -7077,7 +7037,7 @@
           "launch_allowed": false,
           "verification_deferred": true,
           "reason": "live_verification_deferred",
-          "session_launch_disposition": "degraded_JIT_activation_allowed"
+          "session_launch_disposition": "conversation_available_without_shell_activation"
         },
         "full_verified": {
           "status": "ready",
@@ -7087,7 +7047,7 @@
           "reason": null,
           "session_launch_disposition": "ready"
         },
-        "presentation_policy": "fast verification_deferred remains truthful owner state while ordinary Settings projects available copy; selected-session launch may attempt owner-projected JIT activation without a preemptive Settings action"
+        "presentation_policy": "fast verification_deferred remains truthful owner state while ordinary Settings projects available copy with no preconfiguration action; domain StageRun readiness remains Framework-owned"
       },
       "ordinary_user_status_input_mapping": {
         "schema": "agent_package_ordinary_status_input_mapping.v1",
@@ -7101,7 +7061,7 @@
           "temporarily_unavailable": "owner_projection_reports_blocked_failed_or_status_read_error",
           "checking": "canonical_directory_or_readiness_state_is_loading_unknown_or_stale"
         },
-        "scope_materialization_policy": "Settings_projects_available_with_no_preflight_action_and_defers_owner_projected_target_workspace_activation_to_selected_session_send_boundary_JIT",
+        "scope_materialization_policy": "Settings_projects_available_with_no_preflight_action_and_reserves_scope_activation_for_Framework_domain_StageRun_or_StageAttempt",
         "status_index_repair_action_role": "technical_diagnostics_only_never_ordinary_status_or_action_selection"
       },
       "user_facing_status_projection": {
@@ -7142,8 +7102,8 @@
               "en-US": "Available"
             },
             "explanation_i18n": {
-              "zh-CN": "可直接发起对话。选择项目并启动智能体时，App 会使用当前会话目录自动确认并准备所需能力，无需提前操作。",
-              "en-US": "You can start a conversation now. When you choose a project and launch the agent, the App uses the current session directory to confirm and prepare the required capabilities; no advance action is required."
+              "zh-CN": "已安装，可直接发起对话，无需提前设置。",
+              "en-US": "Installed and ready for conversation; no advance setup is required."
             },
             "primary_action_policy": "none"
           },
@@ -7157,11 +7117,11 @@
           },
           {
             "id": "enable_required",
-            "when": "localized_owner_action_required_and_exact_action_is_package_id_only_activation_or_enable_or_unhide",
+            "when": "localized_owner_action_required_and_exact_action_is_enable_or_unhide",
             "user_status_id": "enable_required",
             "label_i18n": {"zh-CN": "需要启用", "en-US": "Enable required"},
             "explanation_i18n": {"zh-CN": "启用此智能体后即可发起对话。", "en-US": "Enable this agent to start a conversation."},
-            "primary_action_policy": "show_the_exact_owner_projected_package_id_only_activate_or_preferences_action"
+            "primary_action_policy": "show_the_exact_owner_projected_preferences_enable_or_unhide_action"
           },
           {
             "id": "update_required",
@@ -7488,7 +7448,7 @@
             "use_boundary_reconciliation_ready"
           ],
           "status_index_repair_action_id": "agent_package_repair",
-          "status_index_action_execution_policy": "status-index repair_action and activation_action are diagnostics only; lifecycle mutations still execute a complete directory action, while package launch uses the App minimal activation policy",
+          "status_index_action_execution_policy": "status-index repair_action and activation_action are diagnostics only; Settings may execute complete non-activation directory actions while scope activation remains Framework Stage runtime-owned",
           "dependent_guard_missing_policy": {
             "disable_enabled_only_when": "dependent_guard.disable.allowed === true",
             "uninstall_enabled_only_when": "dependent_guard.uninstall.allowed === true",
@@ -7499,7 +7459,7 @@
               "enable"
             ]
           },
-        "launch_gate_policy": "directory readiness is advisory for session launch; use the App ready_degraded_package_unavailable state machine, consume owner-projected JIT actions, and fail closed only for the selected package on identity version entrypoint safe-target permission or authorization boundaries",
+          "launch_gate_policy": "verification_deferred or scope_materialization_missing does not block ordinary conversation creation and never triggers Shell activation; genuine package installation enablement or integrity failures may block only that selected package",
           "launch_pretransition_reason_codes": [
             "package_activation_required",
             "live_verification_deferred",
@@ -7531,7 +7491,7 @@
           "optional_dependency_missing"
         ],
           "role_launch_matrix": {
-            "installed_standard_agent": "minimal_agent_package_activation_supported",
+            "installed_standard_agent": "ordinary_conversation_available_and_domain_stage_activation_Framework_owned",
             "uninstalled_standard_agent": "package_not_installed_and_launch_blocked",
             "framework_capability_package": "no_Agent_launch_entry",
             "workflow_profile": "no_Agent_launch_entry"
@@ -7592,7 +7552,7 @@
               }
             }
           },
-          "minimal_launch_validation_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+          "stage_runtime_activation_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
           "closure_diagnostics_surface": "advanced_diagnostics_only",
           "forbidden_private_fields": [
             "staging_path",
@@ -7613,8 +7573,8 @@
           },
           "receipt_post_state_fields": ["enabled", "visibility"],
           "receipt_binding_policy": "result_package_lock_and_lifecycle_receipt_must_agree_on_both_post_state_axes",
-          "disabled_use_boundary_policy": "both_opl_packages_activate_and_App_agent_package_activate_return_package_disabled_launch_allowed_false_with_no_activation_side_effects",
-          "hidden_enabled_launch_policy": "ordinary_discovery_and Home default hide the package while an explicit retained shortcut may still run the minimal agent_package_activate flow"
+          "disabled_stage_boundary_policy": "Framework_stage_runtime_activation_returns_package_disabled_without_activation_side_effects",
+          "hidden_enabled_conversation_policy": "ordinary discovery and Home default hide the package while an explicit retained shortcut may still start a conversation without Shell activation"
         },
         "receipt_physical_surface_detail_policy": {
           "surface": "details_panel_or_advanced_diagnostics",
@@ -7653,7 +7613,6 @@
           ],
           "lifecycle_actions": [
             "install",
-            "activate",
             "update",
             "repair",
             "uninstall"
@@ -7763,7 +7722,6 @@
           "home_shortcut_visible",
           "home_shortcut_order",
           "install_state",
-          "activation_state",
           "recommended_action"
         ],
         "detail_surface": "desktop_right_side_panel_mobile_drawer",
@@ -7827,10 +7785,10 @@
       "must_show": [
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
-        "a dedicated package catalog search plus package role, install or activation status, and source filters",
+        "a dedicated package catalog search plus package role, availability status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
-        "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "package-id-only lifecycle actions may run in Settings while every action requiring target_workspace defers to selected-session send-boundary JIT and never uses a global workspace root",
+        "row install, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
+        "Settings, new conversation, and ordinary composer send never execute agent_package_activate; selected project directories establish session cwd and future domain workspace identity only",
         "the five professional Agent display names remain Med Auto Science, Med Auto Grant, RedCube AI, OPL Book Forge, and OPL Meta Agent in Chinese and English while localized descriptions explain their purpose",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
@@ -7841,7 +7799,7 @@
       "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
       "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
       "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
-      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action",
+      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned",
       "one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details"
       ],
       "must_not_show": [
@@ -7861,6 +7819,7 @@
       "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
       "global workspace root used as a target_workspace activation value from Settings",
       "scope materialization missing presented as a Settings attention state or preflight action",
+      "agent_package_activate shown or executed as a Settings, new-conversation, or ordinary-send action",
       "aggregate ready or unavailable counts used as the status of every package",
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],

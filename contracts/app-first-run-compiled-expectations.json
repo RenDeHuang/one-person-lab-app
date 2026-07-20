@@ -125,33 +125,35 @@
         "required": [
           "MAS_MAG_RCA_home_starters_visible",
           "starters_launchable",
-          "owner_projected_required_payload_fields_satisfied_before_send",
-          "agent_package_activate_action_per_starter",
-          "real_guid_composer_send_per_starter",
+          "selected_project_directory_applied_to_session_and_domain_workspace_identity",
+          "real_guid_composer_send_without_shell_package_activation_per_starter",
           "conversation_get_readback_per_starter",
-          "agent_package_activation_receipt_per_starter",
+          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter",
+          "Framework_stage_runtime_activation_evidence_per_starter",
           "agent_package_shortcut_route_receipt_per_starter"
         ],
         "forbidden": [
           "direct_conversation_post",
-          "synthetic_agent_package_activation_receipt",
+          "Shell_agent_package_activation_before_or_during_send",
+          "synthetic_Framework_stage_runtime_activation_evidence",
           "synthetic_agent_package_route_receipt"
         ],
         "verification_mode": "route_receipt"
       },
-      "semantic_digest": "83ef68e68c8f21d25cec933b1730015b1ca70827326fb31f91705f67b15d7b7a",
+      "semantic_digest": "fbeede67355d962fa7fd1f9371ae85d43c388a299db5aa93444c0250bf6826fa",
       "probes": {
         "composer_selector": "[data-testid=\"opl-guid-entry\"]",
         "send_selector": "[data-testid=\"guid-send-btn\"]",
         "observation_contract": [
           "selection",
-          "activation",
-          "send",
+          "session_cwd",
+          "composer_send_without_activation",
           "conversation_readback",
+          "Framework_stage_runtime_activation",
           "route_receipt"
         ]
       },
-      "probe_digest": "1a992b5de5b9ddc912b5f1c9237cb09c3c3adbfd7391e531693a6a8014588d7c"
+      "probe_digest": "9acfe2b8c9630dddb388119e92285e0f3a6f8195b4d774adf9502ead668c0bbc"
     }
   }
 }

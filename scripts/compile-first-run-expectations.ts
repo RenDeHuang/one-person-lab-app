@@ -52,12 +52,15 @@ export function buildFirstRunCompiledExpectations(input: {
     configured_shortcut_visible: true,
     configured_shortcut_selectable_before_selection: true,
     directory_entry_ordinary_discovery_visible_is_separate: true,
-    launch_readiness_enforcement_phase: 'selected_package_send',
-    package_unavailable_send_allowed: false,
+    ordinary_composer_activation_required: false,
+    ordinary_composer_activation_allowed: false,
+    installed_exposed_deferred_status_send_allowed: true,
+    uninstalled_or_disabled_selected_package_send_policy:
+      'block_only_that_send_with_specific_install_or_enable_guidance',
+    domain_readiness_enforcement_phase: 'domain_stage_launch',
     typed_reason_required: true,
     draft_preserved: true,
-    owner_repair_guidance_required: true,
-    successful_invocation_receipt_expected_before_launch: false,
+    owner_repair_guidance_required_for_genuine_unavailability: true,
   });
   const shortcutSelectionPolicy =
     'explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness';
@@ -87,16 +90,17 @@ export function buildFirstRunCompiledExpectations(input: {
     required: [
       'MAS_MAG_RCA_home_starters_visible',
       'starters_launchable',
-      'owner_projected_required_payload_fields_satisfied_before_send',
-      'agent_package_activate_action_per_starter',
-      'real_guid_composer_send_per_starter',
+      'selected_project_directory_applied_to_session_and_domain_workspace_identity',
+      'real_guid_composer_send_without_shell_package_activation_per_starter',
       'conversation_get_readback_per_starter',
-      'agent_package_activation_receipt_per_starter',
+      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter',
+      'Framework_stage_runtime_activation_evidence_per_starter',
       'agent_package_shortcut_route_receipt_per_starter',
     ],
     forbidden: [
       'direct_conversation_post',
-      'synthetic_agent_package_activation_receipt',
+      'Shell_agent_package_activation_before_or_during_send',
+      'synthetic_Framework_stage_runtime_activation_evidence',
       'synthetic_agent_package_route_receipt',
     ],
     verification_mode: 'route_receipt',
@@ -189,7 +193,14 @@ export function buildFirstRunCompiledExpectations(input: {
   const fullProbes = {
     composer_selector: '[data-testid="opl-guid-entry"]',
     send_selector: '[data-testid="guid-send-btn"]',
-    observation_contract: ['selection', 'activation', 'send', 'conversation_readback', 'route_receipt'],
+    observation_contract: [
+      'selection',
+      'session_cwd',
+      'composer_send_without_activation',
+      'conversation_readback',
+      'Framework_stage_runtime_activation',
+      'route_receipt',
+    ],
   } as const;
   return {
     schema: 'opl_app_first_run_compiled_expectations.v1',

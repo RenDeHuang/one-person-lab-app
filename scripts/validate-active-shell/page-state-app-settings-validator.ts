@@ -234,8 +234,8 @@ function validateCapabilitiesPage(matrix, guiContract) {
     {
       contract_ref: 'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux',
       primary_state_surface: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
-      required_interactions: ['catalog', 'lifecycle_actions', 'minimal_package_launch'],
-      package_launch_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
+      required_interactions: ['catalog', 'lifecycle_actions', 'stage_runtime_activation_readback'],
+      stage_runtime_activation_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
     },
     'Agents page Agent Package lifecycle authority reference',
   );

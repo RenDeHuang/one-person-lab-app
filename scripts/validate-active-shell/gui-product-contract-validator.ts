@@ -210,104 +210,89 @@ function validateReadOnlyStorageLifecycleSurface(surface, label) {
 
 function validateMinimalAgentPackageActivationPolicy(policy) {
   if (
-    policy?.release_scope !== 'trusted_local_thin_shell'
-    || policy.action_id !== 'agent_package_activate'
-    || policy.action_ref !== 'app_state.actions#agent_package_activate'
-    || policy.action_route !== 'opl app action execute --action agent_package_activate --payload <json> --json'
-    || policy.result_schema_scope !== 'live_non_dry_package_launch_only'
-    || policy.framework_component?.cohort_commit !== 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252'
-    || policy.projected_action_source !==
-      'app_state.agent_packages.directory.entries[].available_actions[action_id=agent_package_activate]'
-    || policy.required_payload_fields_source !== 'projected_action.required_payload_fields'
-    || 'required_payload_fields' in (policy ?? {})
-    || policy.request_policy?.action_object_policy !==
-      'consume_the_exact_owner_projected_action_id_action_ref_payload_required_payload_fields_and_confirmation_required_without_shell_inference'
-    || policy.request_policy?.payload_policy !==
-      'start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory'
-    || policy.request_policy?.scope_policy !==
-      'preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection'
-    || policy.request_policy?.target_workspace_source !==
-      'normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace'
-    || policy.request_policy?.required_target_override_policy !==
-      'when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill'
-    || policy.request_policy?.legacy_prefilled_target_authority !== 'never_session_target_authority'
-    || policy.request_policy?.missing_optional_target_policy !==
-      'continue_without_target_workspace_when_the_projected_action_does_not_require_it'
-    || policy.request_policy?.missing_required_target_policy !==
-      'without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package'
-    || policy.request_policy?.global_workspace_root_mutation_allowed !== false
+    policy?.release_scope !== 'framework_stage_runtime_only'
+    || policy.activation_owner !== 'one-person-lab_family_runtime'
+    || policy.framework_entrypoint !== 'ensureFamilyRuntimePackageLaunchReady'
+    || policy.framework_entrypoint_ref !==
+      'one-person-lab/src/modules/runway/family-runtime-package-readiness.ts#ensureFamilyRuntimePackageLaunchReady'
+    || policy.internal_action_id !== 'agent_package_activate'
+    || policy.internal_action_ref !== 'app_state.actions#agent_package_activate'
+    || policy.internal_action_route !== 'opl app action execute --action agent_package_activate --payload <json> --json'
+    || policy.trigger !== 'immediately_before_a_real_domain_StageRun_or_StageAttempt_launch'
+    || policy.framework_component?.cohort_commit !== '330658e45554894ae6f987d4e39449ac2f6dd53d'
   ) {
-    throw new Error('App GUI Agent Package activation must consume the final Framework owner-projected action without a universal Workspace gate');
+    throw new Error('App GUI Agent Package activation authority must remain Framework Stage runtime-only');
   }
   assertDeepEqualJson(
-    policy.optional_diagnostic_binding_fields,
-    ['use_binding', 'package_use_binding'],
-    'App GUI Agent Package optional binding diagnostics',
+    policy.workspace_locator_sources,
+    ['StageRun.workspace_locator', 'StageAttempt.workspace_locator'],
+    'App GUI Agent Package Stage workspace locator sources',
   );
   assertDeepEqualJson(
-    policy.result_contract?.required_fields,
-    ['launch_state', 'launch_allowed', 'package_id', 'launch_state_reason'],
-    'App GUI Agent Package launch disposition fields',
+    policy.workspace_scope_resolution_fields,
+    ['workspace_root', 'repo_root', 'workspace_path', 'target_workspace'],
+    'App GUI Agent Package Stage workspace scope fields',
   );
   assertDeepEqualJson(
-    policy.result_contract?.optional_audit_or_identity_fields,
-    ['package_version', 'package_lock', 'use_receipt_ref', 'use_binding', 'package_use_binding'],
-    'App GUI Agent Package optional launch evidence',
+    policy.shell_execution_policy,
+    {
+      settings_execution_allowed: false,
+      new_conversation_execution_allowed: false,
+      ordinary_composer_send_execution_allowed: false,
+      shell_projected_activation_action_execution_allowed: false,
+      framework_stage_runtime_execution_allowed: true,
+    },
+    'App GUI Agent Package Shell activation prohibition',
   );
   assertDeepEqualJson(
-    policy.result_contract?.state_boolean_consistency,
-    { ready: true, degraded: true, package_unavailable: false },
-    'App GUI Agent Package state/send consistency',
+    policy.stage_runtime_contract,
+    {
+      package_id_source: 'domainId',
+      workspace_locator_source: 'current_StageRun_or_StageAttempt.workspace_locator',
+      scope_activation_owner: 'Framework_package_readiness_port.ensureScopeActivation',
+      shell_payload_construction_allowed: false,
+      shell_session_cwd_substitution_allowed: false,
+      activation_result_owner: 'one-person-lab_family_runtime',
+      activation_failure_scope: 'block_only_the_corresponding_domain_stage_progression',
+      ordinary_conversation_affected: false,
+      existing_sessions_affected: false,
+    },
+    'App GUI Agent Package Framework Stage activation contract',
+  );
+  assertDeepEqualJson(
+    policy.runtime_activation_result_compatibility,
+    {
+      schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result',
+      scope: 'Framework_stage_runtime_and_advanced_diagnostics_only',
+      ordinary_shell_send_gate_allowed: false,
+      required_fields: ['launch_state', 'launch_allowed', 'package_id', 'launch_state_reason'],
+      optional_evidence_fields: ['package_version', 'package_lock', 'use_receipt_ref', 'use_binding', 'package_use_binding'],
+    },
+    'App GUI Agent Package activation result compatibility',
+  );
+  assertDeepEqualJson(
+    policy.home_shortcut_interaction,
+    {
+      configured_shortcut_visible: true,
+      configured_shortcut_selectable_before_selection: true,
+      directory_entry_ordinary_discovery_visible_is_separate: true,
+      ordinary_composer_activation_required: false,
+      ordinary_composer_activation_allowed: false,
+      installed_exposed_deferred_status_send_allowed: true,
+      uninstalled_or_disabled_selected_package_send_policy:
+        'block_only_that_send_with_specific_install_or_enable_guidance',
+      domain_readiness_enforcement_phase: 'domain_stage_launch',
+      typed_reason_required: true,
+      draft_preserved: true,
+      owner_repair_guidance_required_for_genuine_unavailability: true,
+    },
+    'App GUI Home shortcut activation boundary',
   );
   if (
-    policy.result_contract?.reason_policy !==
-      'ready_requires_null_reason_degraded_requires_visible_nonblocking_reason_and_package_unavailable_requires_visible_typed_blocking_reason'
-  ) {
-    throw new Error('App GUI Agent Package launch states must keep visible truthful reason semantics');
-  }
-  assertDeepEqualJson(
-    policy.minimal_launch_validation,
-    [
-      'activation.package_id_matches_current_selection',
-      'returned_package_version_is_compatible_with_current_selection_when_present',
-      'selected_package_entrypoint_exists_and_is_callable',
-      'managed_target_is_safe_and_matches_the_owner_required_target_when_present',
-    ],
-    'App GUI minimal Agent Package result validation',
-  );
-  if (
-    policy.receipt_policy !== 'use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition'
-    || policy.binding_policy !==
-      'validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch'
-    || policy.closure_policy !==
-      'Framework_owned_just_in_time_reconciliation_or_diagnostics_not_a_shell_preflight_gate'
-  ) {
-    throw new Error('App GUI Agent Package receipt, binding, and closure diagnostics must not become universal launch gates');
-  }
-  assertDeepEqualJson(
-    policy.launch_state_machine?.states,
-    ['ready', 'degraded', 'package_unavailable'],
-    'App GUI Agent Package launch states',
-  );
-  assertDeepEqualJson(
-    policy.typed_failure_codes,
-    [
-      'agent_package_unavailable',
-      'agent_package_activation_invalid',
-      'agent_package_selection_mismatch',
-      'agent_package_version_mismatch',
-      'agent_package_entrypoint_missing',
-      'agent_package_target_mismatch',
-    ],
-    'App GUI Agent Package launch failures',
-  );
-  if (
-    policy.launch_state_machine?.ready?.selected_package_send_allowed !== true
-    || policy.launch_state_machine?.degraded?.selected_package_send_allowed !== true
-    || policy.launch_state_machine?.package_unavailable?.selected_package_send_allowed !== false
-    || policy.failure_policy?.default_interaction_policy !== 'fail_open'
-    || policy.failure_policy?.plain_codex_create_allowed !== true
-    || policy.failure_policy?.other_agent_selection_allowed !== true
+    policy.failure_policy?.stage_activation_failure_scope !== 'corresponding_domain_stage_only'
+    || policy.failure_policy?.ordinary_conversation_send_blocked !== false
+    || policy.failure_policy?.plain_conversation_create_allowed !== true
+    || policy.failure_policy?.other_agent_conversation_allowed !== true
     || policy.failure_policy?.existing_sessions_remain_available !== true
     || policy.failure_policy?.draft_preserved !== true
     || policy.workspace_policy?.session_is_primary_unit !== true
@@ -317,9 +302,14 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
     || policy.workspace_policy?.runtime_pwd_changes_project_affinity !== false
     || policy.workspace_policy?.project_affinity_changes_writable_roots !== false
     || policy.workspace_policy?.workspace_is_not_a_universal_agent_launch_precondition !== true
+    || policy.workspace_policy?.selected_project_directory_role !==
+      'session_cwd_and_future_domain_workspace_identity_only'
+    || policy.workspace_policy?.selected_project_directory_is_activation_target !== false
+    || policy.workspace_policy?.global_workspace_root_is_activation_target !== false
+    || policy.workspace_policy?.stage_workspace_locator_is_only_activation_target_source !== true
     || policy.workspace_policy?.plain_conversation_policy !== 'unchanged'
   ) {
-    throw new Error('App GUI Agent Package activation must isolate package_unavailable while keeping ready, degraded, and plain Codex usable');
+    throw new Error('App GUI Agent Package activation must not run from Settings, new conversation, or ordinary send');
   }
 }
 
@@ -392,7 +382,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     [
       'render_every_directory_entry_including_uninstalled_packages_OMA_and_all_first_party_packages',
       'keep_catalog_search_distinct_from_Settings_global_search',
-      'filter_by_package_role_install_or_activation_status_and_source',
+      'filter_by_package_role_availability_status_and_source',
       'search_by_package_name_short_name_tag_source_or_description',
       'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
       'distinguish_package_install_source_from_active_runtime_source_in_user_language',
@@ -404,14 +394,15 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'keep_package_dependency_materialization_and_runtime_source_readiness_as_lower_level_diagnostics',
       'execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
-      'execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference',
-      'validate_package_id_version_and_normalized_target_before_creating_a_package_backed_conversation',
-      'treat_live_verification_deferred_as_degraded_and_attempt_owner_projected_JIT_activation_without_preemptive_blocking',
+      'execute_only_projected_Settings_action_id_and_payload_without_shell_status_or_payload_inference',
+      'never_execute_agent_package_activate_from_Settings_new_conversation_or_ordinary_composer_send',
+      'show_installed_exposed_verification_deferred_or_scope_materialization_missing_as_available_without_preconfiguration',
       'never_require_complete_receipt_binding_or_dependency_closure_as_a_universal_launch_precondition',
       'keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority',
       'keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected',
-      'refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended',
-      'defer_every_target_workspace_activation_from_Settings_to_selected_session_send_boundary_JIT_without_using_the_global_workspace_root',
+      'refresh_fast_state_after_successful_install_without_exposing_stage_internal_activation_in_Settings',
+      'use_selected_project_only_as_session_cwd_and_future_domain_workspace_identity',
+      'leave_scope_activation_to_Framework_StageRun_or_StageAttempt_workspace_locator',
       'keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced',
       'use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch',
       'display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb',
@@ -425,12 +416,12 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertDeepEqualJson(
     surface.directory_controls?.filters,
-    ['package_role', 'install_or_activation_status', 'source'],
+    ['package_role', 'availability_status', 'source'],
     `${label} filters`,
   );
   assertIncludesAll(
     surface.directory_controls?.row_actions,
-    ['install', 'activate', 'hide', 'unhide', 'disable', 'enable', 'update', 'repair', 'uninstall', 'launch', 'open_details'],
+    ['install', 'hide', 'unhide', 'disable', 'enable', 'update', 'repair', 'uninstall', 'launch', 'open_details'],
     `${label} row actions`,
   );
   assertDeepEqualJson(
@@ -480,17 +471,19 @@ function validateAgentPackageLifecycleUx(surface, label) {
     surface.workspace_activation_contract,
     {
       action_id: 'agent_package_activate',
-      surface_scope: 'settings_global_package_management_package_id_only',
-      session_launch_authority: false,
-      session_launch_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
-      payload_source: 'directory.entries[].available_actions[action_id=agent_package_activate].payload',
-      required_payload_fields_source: 'directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields',
+      surface_scope: 'Framework_stage_runtime_only',
+      activation_owner: 'one-person-lab_family_runtime',
+      framework_entrypoint: 'ensureFamilyRuntimePackageLaunchReady',
+      workspace_locator_source: 'StageRun.workspace_locator_or_StageAttempt.workspace_locator',
+      settings_execution_allowed: false,
+      new_conversation_shell_execution_allowed: false,
+      ordinary_send_shell_execution_allowed: false,
       settings_target_workspace_source: null,
-      target_workspace_action_policy: 'defer_to_selected_session_send_boundary_JIT_using_the_normalized_current_session_directory',
       global_workspace_root_activation_target_allowed: false,
+      selected_session_directory_activation_target_allowed: false,
       scope_inference_allowed: false,
-      scope_materialization_missing_settings_policy: 'show_available_with_no_preflight_action_and_defer_preparation_to_package_backed_send',
-      package_id_only_payload_allowed: true,
+      scope_materialization_missing_settings_policy: 'show_available_with_no_preflight_action_or_activation_CTA',
+      stage_activation_failure_policy: 'block_only_the_corresponding_domain_stage_progression',
     },
     `${label} workspace activation`,
   );
@@ -527,7 +520,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
         launch_allowed: false,
         verification_deferred: true,
         reason: 'live_verification_deferred',
-        session_launch_disposition: 'degraded_JIT_activation_allowed',
+        session_launch_disposition: 'conversation_available_without_shell_activation',
       },
       full_verified: {
         status: 'ready',
@@ -537,7 +530,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
         reason: null,
         session_launch_disposition: 'ready',
       },
-      presentation_policy: 'fast verification_deferred remains truthful owner state while ordinary Settings projects available copy; selected-session launch may attempt owner-projected JIT activation without a preemptive Settings action',
+      presentation_policy: 'fast verification_deferred remains truthful owner state while ordinary Settings projects available copy with no preconfiguration action; domain StageRun readiness remains Framework-owned',
     },
     `${label} fast and full readiness policy`,
   );
@@ -606,7 +599,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     projection?.status_index_package_fields?.launch_blocked_reason !== 'null_or_string' ||
     projection?.status_index_repair_action_id !== 'agent_package_repair' ||
     projection?.status_index_action_execution_policy !==
-      'status-index repair_action and activation_action are diagnostics only; lifecycle mutations still execute a complete directory action, while package launch uses the App minimal activation policy' ||
+      'status-index repair_action and activation_action are diagnostics only; Settings may execute complete non-activation directory actions while scope activation remains Framework Stage runtime-owned' ||
     JSON.stringify(projection?.dependent_guard_missing_policy) !== JSON.stringify({
       disable_enabled_only_when: 'dependent_guard.disable.allowed === true',
       uninstall_enabled_only_when: 'dependent_guard.uninstall.allowed === true',
@@ -614,7 +607,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
       unaffected_actions: ['hide', 'unhide', 'enable'],
     }) ||
     projection?.launch_gate_policy !==
-      'directory readiness is advisory for session launch; use the App ready_degraded_package_unavailable state machine, consume owner-projected JIT actions, and fail closed only for the selected package on identity version entrypoint safe-target permission or authorization boundaries' ||
+      'verification_deferred or scope_materialization_missing does not block ordinary conversation creation and never triggers Shell activation; genuine package installation enablement or integrity failures may block only that selected package' ||
     projection?.closure_diagnostics_surface !== 'advanced_diagnostics_only'
   ) {
     throw new Error(`${label} must define generic dependency closure readiness and repair projection`);
@@ -698,7 +691,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   assertDeepEqualJson(
     projection?.role_launch_matrix,
     {
-      installed_standard_agent: 'minimal_agent_package_activation_supported',
+      installed_standard_agent: 'ordinary_conversation_available_and_domain_stage_activation_Framework_owned',
       uninstalled_standard_agent: 'package_not_installed_and_launch_blocked',
       framework_capability_package: 'no_Agent_launch_entry',
       workflow_profile: 'no_Agent_launch_entry',
@@ -721,16 +714,16 @@ function validateAgentPackageLifecycleUx(surface, label) {
       },
       receipt_post_state_fields: ['enabled', 'visibility'],
       receipt_binding_policy: 'result_package_lock_and_lifecycle_receipt_must_agree_on_both_post_state_axes',
-      disabled_use_boundary_policy: 'both_opl_packages_activate_and_App_agent_package_activate_return_package_disabled_launch_allowed_false_with_no_activation_side_effects',
-      hidden_enabled_launch_policy: 'ordinary_discovery_and Home default hide the package while an explicit retained shortcut may still run the minimal agent_package_activate flow',
+      disabled_stage_boundary_policy: 'Framework_stage_runtime_activation_returns_package_disabled_without_activation_side_effects',
+      hidden_enabled_conversation_policy: 'ordinary discovery and Home default hide the package while an explicit retained shortcut may still start a conversation without Shell activation',
     },
     `${label} orthogonal exposure state`,
   );
   assertDeepEqualJson(projection?.forbidden_private_fields, ['staging_path', 'journal_path'], `${label} private fields`);
   assertDeepEqualJson(
-    projection?.minimal_launch_validation_ref,
+    projection?.stage_runtime_activation_contract_ref,
     'contracts/app-gui-product-contract.json#agent_package_activation_policy',
-    `${label} minimal launch validation authority`,
+    `${label} Stage runtime activation authority`,
   );
   assertIncludesAll(
     detail.physical_surface_fields,
@@ -757,7 +750,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertDeepEqualJson(
     surface.consistent_action_interaction?.lifecycle_actions,
-    ['install', 'activate', 'update', 'repair', 'uninstall'],
+    ['install', 'update', 'repair', 'uninstall'],
     `${label} lifecycle actions`,
   );
   assertIncludesAll(
@@ -1740,7 +1733,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
       'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
       'localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow',
-      'verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action',
+      'verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned',
       'one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details',
     ],
     'Settings Agents grouped catalog signals',
@@ -1752,6 +1745,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows',
       'global workspace root used as a target_workspace activation value from Settings',
       'scope materialization missing presented as a Settings attention state or preflight action',
+      'agent_package_activate shown or executed as a Settings, new-conversation, or ordinary-send action',
       'aggregate ready or unavailable counts used as the status of every package',
     ],
     'Settings Agents forbidden dependency synthesis',

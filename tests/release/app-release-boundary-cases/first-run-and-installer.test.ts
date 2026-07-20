@@ -118,10 +118,15 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   const fullPolicy = release.release_acceleration.assistant_route_smoke_policy.full;
 
   assert.ok(assistantSmoke.required.includes("homeAssistantStandardLaunchGateExpression"));
-  assert.ok(assistantSmoke.required.includes("homeAssistantWorkspacePreparationExpression"));
-  assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantWorkspaceContextExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendWithoutActivationExpression"));
+  assert.ok(assistantSmoke.required.includes("frameworkStageRuntimeActivationExpression"));
   assert.ok(assistantSmoke.required.includes("activeConversationRouteReceiptExpression"));
-  assert.ok(assistantSmoke.required.includes("opl_agent_package_activation"));
+  assert.ok(
+    assistantSmoke.required.includes(
+      "workspace_guid_ui_send_without_shell_activation_then_conversation_get",
+    ),
+  );
   assert.ok(assistantSmoke.required.includes("data-opl-workspace-path"));
   assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
@@ -130,8 +135,9 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
   assert.ok(assistantSmoke.forbidden.includes("createAssistantRouteReceiptConversationExpression"));
   assert.ok(assistantSmoke.forbidden.includes("POST /api/conversations"));
-  assert.ok(fullPolicy.required.includes("agent_package_activate_action_per_starter"));
-  assert.ok(fullPolicy.required.includes("real_guid_composer_send_per_starter"));
+  assert.ok(fullPolicy.required.includes("real_guid_composer_send_without_shell_package_activation_per_starter"));
+  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter"));
+  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_evidence_per_starter"));
   assert.ok(fullPolicy.required.includes("conversation_get_readback_per_starter"));
   assert.ok(fullPolicy.forbidden.includes("direct_conversation_post"));
 

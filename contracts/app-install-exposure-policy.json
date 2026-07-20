@@ -1240,8 +1240,24 @@
         "agent_package_preferences_set"
       ],
       "activation_contract": {
-        "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
+        "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+        "execution_owner": "one-person-lab_family_runtime",
+        "settings_execution_allowed": false,
+        "new_conversation_shell_execution_allowed": false,
+        "ordinary_send_shell_execution_allowed": false,
+        "framework_stage_runtime_execution_allowed": true
       },
+      "settings_executable_actions": [
+        "refresh_registry",
+        "install_from_manifest_url",
+        "agent_package_update",
+        "agent_package_repair",
+        "agent_package_uninstall",
+        "agent_package_preferences_set"
+      ],
+      "framework_stage_runtime_internal_actions": [
+        "agent_package_activate"
+      ],
       "exposure_action_values": [
         "hide",
         "unhide",
@@ -1262,8 +1278,8 @@
         },
         "receipt_post_state_fields": ["enabled", "visibility"],
         "receipt_binding_policy": "result_package_lock_and_lifecycle_receipt_must_agree_on_both_post_state_axes",
-        "disabled_use_boundary_policy": "both_opl_packages_activate_and_App_agent_package_activate_return_package_disabled_launch_allowed_false_with_no_activation_side_effects",
-        "hidden_enabled_launch_policy": "ordinary discovery and Home default hide the package while an explicit retained shortcut may still run the minimal agent_package_activate flow"
+        "disabled_stage_boundary_policy": "Framework_stage_runtime_activation_returns_package_disabled_without_activation_side_effects",
+        "hidden_enabled_conversation_policy": "ordinary discovery and Home default hide the package while an explicit retained shortcut may still start a conversation without Shell activation"
       },
       "manual_check_policy": "automatic_daily_check_plus_explicit_user_refresh",
       "apply_selected_policy": "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",

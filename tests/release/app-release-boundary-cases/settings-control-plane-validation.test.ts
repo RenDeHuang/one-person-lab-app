@@ -200,11 +200,11 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
 
   const staleProfileRef = contracts();
   staleProfileRef.controlPlane.page_adapter_policy.required_pages.agents
-    .directory_projection_surface.activation_action_contract_ref =
+    .directory_projection_surface.stage_runtime_activation_contract_ref =
     "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy";
   assert.throws(
     () => validate(staleProfileRef),
-    /Settings Agents directory projection.*package activation action/,
+    /Settings Agents directory projection.*Framework Stage runtime/,
   );
 
   const packageManagementOnCapabilities = contracts();
@@ -291,7 +291,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     launch_allowed: false,
     verification_deferred: true,
     reason: "live_verification_deferred",
-    session_launch_disposition: "degraded_JIT_activation_allowed",
+    session_launch_disposition: "conversation_available_without_shell_activation",
   });
   assert.deepStrictEqual(lifecycle.readiness_profile_policy.full_verified, {
     status: "ready",
@@ -319,7 +319,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     (rule: any) => rule.id === "available_auto_confirm",
   );
   assert.equal(available.label_i18n["zh-CN"], "可用");
-  assert.match(available.explanation_i18n["zh-CN"], /当前会话目录/);
+  assert.match(available.explanation_i18n["zh-CN"], /已安装，可直接发起对话，无需提前设置/);
   assert.equal(available.primary_action_policy, "none");
   for (const [ruleId, label] of [
     ["install_required", "需要安装"],
@@ -344,13 +344,13 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.ok(lifecycle.user_facing_status_projection.forbidden_ordinary_labels_zh.includes("需要操作"));
   assert.deepStrictEqual(lifecycle.directory_controls.filters, [
     "package_role",
-    "install_or_activation_status",
+    "availability_status",
     "source",
   ]);
   assert.equal(lifecycle.directory_controls.catalog_search_is_settings_global_search, false);
   assert.ok(lifecycle.directory_controls.top_controls.includes("refresh_registry"));
   assert.ok(lifecycle.directory_controls.row_actions.includes("install"));
-  assert.ok(lifecycle.directory_controls.row_actions.includes("activate"));
+  assert.equal(lifecycle.directory_controls.row_actions.includes("activate"), false);
   assert.deepStrictEqual(lifecycle.advanced_manifest_install_contract, {
     action_id: "install_from_manifest_url",
     visibility: "advanced_only",
@@ -360,23 +360,16 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     missing_trust_tier_policy: "disable_submit_and_show_validation",
     registry_selected_install_affected: false,
   });
-  assert.equal(
-    lifecycle.workspace_activation_contract.required_payload_fields_source,
-    "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
-  );
+  assert.equal(lifecycle.workspace_activation_contract.framework_entrypoint, "ensureFamilyRuntimePackageLaunchReady");
+  assert.equal(lifecycle.workspace_activation_contract.workspace_locator_source, "StageRun.workspace_locator_or_StageAttempt.workspace_locator");
+  assert.equal(lifecycle.workspace_activation_contract.settings_execution_allowed, false);
+  assert.equal(lifecycle.workspace_activation_contract.new_conversation_shell_execution_allowed, false);
+  assert.equal(lifecycle.workspace_activation_contract.ordinary_send_shell_execution_allowed, false);
   assert.equal(lifecycle.workspace_activation_contract.scope_inference_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.package_id_only_payload_allowed, true);
-  assert.equal(lifecycle.workspace_activation_contract.surface_scope, "settings_global_package_management_package_id_only");
-  assert.equal(lifecycle.workspace_activation_contract.session_launch_authority, false);
-  assert.equal(
-    lifecycle.workspace_activation_contract.session_launch_contract_ref,
-    "contracts/app-gui-product-contract.json#agent_package_activation_policy",
-  );
+  assert.equal(lifecycle.workspace_activation_contract.surface_scope, "Framework_stage_runtime_only");
+  assert.equal(lifecycle.workspace_activation_contract.selected_session_directory_activation_target_allowed, false);
   assert.equal(lifecycle.workspace_activation_contract.settings_target_workspace_source, null);
-  assert.equal(
-    lifecycle.workspace_activation_contract.target_workspace_action_policy,
-    "defer_to_selected_session_send_boundary_JIT_using_the_normalized_current_session_directory",
-  );
+  assert.equal(lifecycle.workspace_activation_contract.scope_materialization_missing_settings_policy, "show_available_with_no_preflight_action_or_activation_CTA");
   assert.equal(lifecycle.workspace_activation_contract.global_workspace_root_activation_target_allowed, false);
   assert.deepStrictEqual(
     lifecycle.package_projection_contract.dependent_guard_missing_policy,
@@ -410,17 +403,14 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
   );
   assert.deepStrictEqual(directory.static_metadata_overlay_fields, ["display_name_i18n", "description_i18n"]);
-  assert.equal(directory.settings_action_scope, "owner_projected_package_id_only_actions");
-  assert.equal(
-    directory.target_workspace_action_policy,
-    "defer_every_action_requiring_target_workspace_to_selected_session_send_boundary_JIT",
-  );
+  assert.equal(directory.settings_action_scope, "owner_projected_non_activation_actions_only");
+  assert.equal(directory.settings_activation_execution_allowed, false);
+  assert.equal(directory.new_conversation_activation_execution_allowed, false);
+  assert.equal(directory.ordinary_send_activation_execution_allowed, false);
   assert.equal(directory.settings_target_workspace_source, null);
   assert.equal(directory.global_workspace_root_activation_target_allowed, false);
-  assert.equal(
-    directory.target_workspace_send_boundary_source,
-    "normalized_current_session_directory_with_legacy_prefill_override",
-  );
+  assert.equal(directory.stage_runtime_activation_owner, "one-person-lab_family_runtime");
+  assert.equal(directory.stage_runtime_workspace_locator_source, "StageRun.workspace_locator_or_StageAttempt.workspace_locator");
   assert.equal(directory.scope_inference_allowed, false);
   assert.equal(directory.session_launch_authority, false);
 
@@ -454,7 +444,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
 
   const packageIdOnlyRegression = contracts();
   packageIdOnlyRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .workspace_activation_contract.package_id_only_payload_allowed = false;
+    .workspace_activation_contract.settings_execution_allowed = true;
   assert.throws(() => validateGui(packageIdOnlyRegression.guiContract), /workspace activation|lifecycle UX/);
 
   const inferredScopeRegression = contracts();
@@ -462,7 +452,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     .directory_projection_surface.scope_inference_allowed = true;
   assert.throws(
     () => validate(inferredScopeRegression),
-    /Settings Agents directory projection.*package activation action/,
+    /Settings Agents directory projection.*Framework Stage runtime/,
   );
 
   const inferredPageStatePayloadRegression = contracts();
@@ -470,7 +460,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     (page) => page.id === "agents",
   );
   agentsPage.must_show = agentsPage.must_show.filter(
-    (item) => !item.includes("package-id-only lifecycle actions may run in Settings"),
+    (item) => !item.includes("Settings, new conversation, and ordinary composer send never execute agent_package_activate"),
   );
   assert.throws(
     () => validatePageStateMatrix(
@@ -478,7 +468,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
       inferredPageStatePayloadRegression.adapterContract,
       inferredPageStatePayloadRegression.guiContract,
     ),
-    /agents must_show must include package-id-only lifecycle actions may run in Settings/,
+    /agents must_show must include Settings, new conversation, and ordinary composer send never execute agent_package_activate/,
   );
 
   const implicitTrustRegression = contracts();

@@ -605,72 +605,32 @@ test('App contracts define one minimal package activation authority', () => {
   const activationResults = readContract('fixtures/agent-package-activation-results.fixture.json');
 
   const policy = guiProduct.agent_package_activation_policy;
-  assert.equal(policy.release_scope, 'trusted_local_thin_shell');
-  assert.equal(policy.action_id, 'agent_package_activate');
-  assert.equal(policy.action_ref, 'app_state.actions#agent_package_activate');
-  assert.equal(policy.result_schema_scope, 'live_non_dry_package_launch_only');
-  assert.equal(
-    policy.projected_action_source,
-    'app_state.agent_packages.directory.entries[].available_actions[action_id=agent_package_activate]',
-  );
-  assert.equal(policy.required_payload_fields_source, 'projected_action.required_payload_fields');
-  assert.equal(policy.request_policy.package_id_source, 'current_selected_professional_agent.package_id');
-  assert.equal(
-    policy.request_policy.payload_policy,
-    'start_from_the_exact_projected_action_payload_preserve_every_non_target_field_and_when_target_workspace_is_required_overwrite_any_prefill_with_the_normalized_current_session_directory',
-  );
-  assert.equal(
-    policy.request_policy.scope_policy,
-    'preserve_projected_scope_when_present_and_leave_scope_absent_for_a_generic_scope_less_projection',
-  );
-  assert.equal(
-    policy.request_policy.target_workspace_source,
-    'normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace',
-  );
-  assert.equal(policy.request_policy.global_workspace_root_mutation_allowed, false);
-  assert.equal(
-    policy.request_policy.required_target_override_policy,
-    'when_required_payload_fields_contains_target_workspace_the_normalized_current_session_directory_replaces_any_projected_target_workspace_including_a_legacy_or_global_prefill',
-  );
-  assert.equal(policy.request_policy.legacy_prefilled_target_authority, 'never_session_target_authority');
-  assert.equal(
-    policy.request_policy.missing_required_target_policy,
-    'without_a_current_session_directory_preserve_the_draft_and_require_project_selection_even_when_the_projected_payload_prefills_target_workspace_then_limit_unavailability_to_the_selected_package',
-  );
-  assert.deepEqual(policy.optional_diagnostic_binding_fields, ['use_binding', 'package_use_binding']);
-  assert.deepEqual(policy.minimal_launch_validation, [
-    'activation.package_id_matches_current_selection',
-    'returned_package_version_is_compatible_with_current_selection_when_present',
-    'selected_package_entrypoint_exists_and_is_callable',
-    'managed_target_is_safe_and_matches_the_owner_required_target_when_present',
-  ]);
-  assert.equal(
-    policy.receipt_policy,
-    'use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition',
-  );
-  assert.equal(
-    policy.binding_policy,
-    'validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch',
-  );
-  assert.deepEqual(policy.launch_state_machine.states, ['ready', 'degraded', 'package_unavailable']);
-  assert.equal(policy.launch_state_machine.ready.selected_package_send_allowed, true);
-  assert.equal(policy.launch_state_machine.degraded.selected_package_send_allowed, true);
-  assert.equal(policy.launch_state_machine.package_unavailable.selected_package_send_allowed, false);
-  assert.deepEqual(policy.typed_failure_codes, [
-    'agent_package_unavailable',
-    'agent_package_activation_invalid',
-    'agent_package_selection_mismatch',
-    'agent_package_version_mismatch',
-    'agent_package_entrypoint_missing',
-    'agent_package_target_mismatch',
-  ]);
-  assert.deepEqual(policy.failure_policy.selected_package_create_allowed_by_state, {
-    ready: true,
-    degraded: true,
-    package_unavailable: false,
+  assert.equal(policy.release_scope, 'framework_stage_runtime_only');
+  assert.equal(policy.activation_owner, 'one-person-lab_family_runtime');
+  assert.equal(policy.framework_entrypoint, 'ensureFamilyRuntimePackageLaunchReady');
+  assert.equal(policy.internal_action_id, 'agent_package_activate');
+  assert.equal(policy.internal_action_ref, 'app_state.actions#agent_package_activate');
+  assert.equal(policy.shell_execution_policy.settings_execution_allowed, false);
+  assert.equal(policy.shell_execution_policy.new_conversation_execution_allowed, false);
+  assert.equal(policy.shell_execution_policy.ordinary_composer_send_execution_allowed, false);
+  assert.equal(policy.shell_execution_policy.framework_stage_runtime_execution_allowed, true);
+  assert.deepEqual(policy.workspace_locator_sources, ['StageRun.workspace_locator', 'StageAttempt.workspace_locator']);
+  assert.equal(policy.stage_runtime_contract.workspace_locator_source, 'current_StageRun_or_StageAttempt.workspace_locator');
+  assert.equal(policy.stage_runtime_contract.shell_session_cwd_substitution_allowed, false);
+  assert.equal(policy.stage_runtime_contract.ordinary_conversation_affected, false);
+  assert.deepEqual(policy.home_shortcut_interaction, {
+    configured_shortcut_visible: true,
+    configured_shortcut_selectable_before_selection: true,
+    directory_entry_ordinary_discovery_visible_is_separate: true,
+    ordinary_composer_activation_required: false,
+    ordinary_composer_activation_allowed: false,
+    installed_exposed_deferred_status_send_allowed: true,
+    uninstalled_or_disabled_selected_package_send_policy: 'block_only_that_send_with_specific_install_or_enable_guidance',
+    domain_readiness_enforcement_phase: 'domain_stage_launch',
+    typed_reason_required: true,
+    draft_preserved: true,
+    owner_repair_guidance_required_for_genuine_unavailability: true,
   });
-  assert.equal(policy.failure_policy.plain_codex_create_allowed, true);
-  assert.equal(policy.failure_policy.other_agent_selection_allowed, true);
   assert.equal(policy.failure_policy.existing_sessions_remain_available, true);
   assert.equal(policy.failure_policy.draft_preserved, true);
   assert.equal(policy.workspace_policy.session_is_primary_unit, true);
@@ -681,7 +641,9 @@ test('App contracts define one minimal package activation authority', () => {
   assert.equal(policy.workspace_policy.project_affinity_changes_writable_roots, false);
   assert.equal(policy.workspace_policy.workspace_is_not_a_universal_agent_launch_precondition, true);
   assert.equal(policy.workspace_policy.plain_conversation_policy, 'unchanged');
-  assert.equal(policy.framework_component.cohort_commit, 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252');
+  assert.equal(policy.workspace_policy.selected_project_directory_is_activation_target, false);
+  assert.equal(policy.workspace_policy.stage_workspace_locator_is_only_activation_target_source, true);
+  assert.equal(policy.framework_component.cohort_commit, '330658e45554894ae6f987d4e39449ac2f6dd53d');
 
   const authorityRef = 'contracts/app-gui-product-contract.json#agent_package_activation_policy';
   assert.equal(
@@ -695,7 +657,7 @@ test('App contracts define one minimal package activation authority', () => {
     authorityRef,
   );
   const agentsPage = pageState.pages.find((page: { id: string }) => page.id === 'agents');
-  assert.equal(agentsPage.agent_package_lifecycle_ux.package_launch_contract_ref, authorityRef);
+  assert.equal(agentsPage.agent_package_lifecycle_ux.stage_runtime_activation_contract_ref, authorityRef);
   assert.equal(
     agentsPage.agent_package_lifecycle_ux.contract_ref,
     'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux',
@@ -705,9 +667,11 @@ test('App contracts define one minimal package activation authority', () => {
     (row: { semantic_area: string }) => row.semantic_area === 'package',
   );
   assert.equal(packageRow.agent_package_activation_contract.contract_ref, authorityRef);
+  assert.equal(packageRow.agent_package_activation_contract.execution_owner, 'one-person-lab_family_runtime');
+  assert.equal(packageRow.agent_package_activation_contract.settings_execution_allowed, false);
   assert.equal(
     guiProduct.pages.settings_agents.agent_package_lifecycle_ux
-      .package_projection_contract.minimal_launch_validation_ref,
+      .package_projection_contract.stage_runtime_activation_contract_ref,
     authorityRef,
   );
 
@@ -798,9 +762,15 @@ test('App contracts define one minimal package activation authority', () => {
       'version_drift',
       'entrypoint_missing',
       'required_target_drift',
-    ]
-      .map((caseId) => (shellCases.get(caseId) as any).reason_code),
-    policy.typed_failure_codes,
+    ].map((caseId) => (shellCases.get(caseId) as any).reason_code),
+    [
+      'agent_package_unavailable',
+      'agent_package_activation_invalid',
+      'agent_package_selection_mismatch',
+      'agent_package_version_mismatch',
+      'agent_package_entrypoint_missing',
+      'agent_package_target_mismatch',
+    ],
   );
   for (const caseId of [
     'ready_without_optional_evidence',
@@ -880,45 +850,45 @@ test('App contracts define one minimal package activation authority', () => {
     );
   }
   assert.equal(
-    launchMatrix.send_target_context_contract.target_workspace_role,
-    'owner_required_send_context_resolved_from_normalized_current_session_directory_not_project_affinity_or_global_workspace_root',
+    launchMatrix.stage_workspace_locator_contract.target_workspace_role,
+    'Framework_stage_runtime_scope_resolved_from_StageRun_or_StageAttempt_workspace_locator_not_session_cwd_or_global_workspace_root',
   );
   assert.equal(
-    launchMatrix.send_target_context_contract.legacy_prefill_policy,
-    'when_target_workspace_is_required_override_any_projected_legacy_or_global_prefill_with_the_normalized_current_session_directory',
+    launchMatrix.stage_workspace_locator_contract.legacy_prefill_policy,
+    'session_cwd_or_global_workspace_root_never_substitutes_for_StageRun_or_StageAttempt_workspace_locator',
   );
   assert.equal(
-    launchMatrix.send_target_context_contract.runtime_pwd_changes_project_affinity,
+    launchMatrix.stage_workspace_locator_contract.runtime_pwd_changes_project_affinity,
     false,
   );
   assert.equal(
-    launchMatrix.send_target_context_contract.project_affinity_changes_writable_roots,
+    launchMatrix.stage_workspace_locator_contract.project_affinity_changes_writable_roots,
     false,
   );
   assert.equal(
-    launchMatrix.send_target_context_contract.bound_project_reassignment_allowed,
+    launchMatrix.stage_workspace_locator_contract.bound_project_reassignment_allowed,
     false,
   );
   const workspaceCases = new Map(
-    launchMatrix.send_target_context_contract.cases.map(
+    launchMatrix.stage_workspace_locator_contract.cases.map(
       (entry: { case_id: string }) => [entry.case_id, entry],
     ),
   );
   assert.equal(
     (workspaceCases.get('package_owner_requires_target_workspace') as any)
-      .fresh_minimal_validation_required_before_next_launch,
+      .stage_locator_readback_required_before_stage_launch,
     true,
   );
   assert.deepEqual(
     {
       executed_target_workspace: (workspaceCases.get('package_owner_requires_target_workspace_with_legacy_prefill') as any)
         .executed_target_workspace,
-      legacy_prefill_overridden: (workspaceCases.get('package_owner_requires_target_workspace_with_legacy_prefill') as any)
-        .legacy_prefill_overridden,
+      session_cwd_not_used_as_activation_target: (workspaceCases.get('package_owner_requires_target_workspace_with_legacy_prefill') as any)
+        .session_cwd_not_used_as_activation_target,
     },
     {
       executed_target_workspace: '/Users/example/Projects/Current Session',
-      legacy_prefill_overridden: true,
+      session_cwd_not_used_as_activation_target: true,
     },
   );
   assert.deepEqual(
@@ -927,7 +897,7 @@ test('App contracts define one minimal package activation authority', () => {
       reason_code: (workspaceCases.get('package_owner_requires_target_workspace_without_current_session') as any).reason_code,
       draft_preserved: (workspaceCases.get('package_owner_requires_target_workspace_without_current_session') as any).draft_preserved,
     },
-    { accepted: false, reason_code: 'project_selection_required', draft_preserved: true },
+    { accepted: false, reason_code: 'stage_workspace_locator_required', draft_preserved: true },
   );
   assert.equal(
     (workspaceCases.get('package_owner_optional_target_workspace') as any).target_workspace_required,
@@ -1466,7 +1436,7 @@ test('managed update payload and public actions use only the three software obje
   );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.directory_controls.filters,
-    ['package_role', 'install_or_activation_status', 'source'],
+    ['package_role', 'availability_status', 'source'],
   );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.dependency_readiness_status_values,
@@ -1486,7 +1456,7 @@ test('managed update payload and public actions use only the three software obje
   );
   assert.equal(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
-    'directory readiness is advisory for session launch; use the App ready_degraded_package_unavailable state machine, consume owner-projected JIT actions, and fail closed only for the selected package on identity version entrypoint safe-target permission or authorization boundaries',
+    'verification_deferred or scope_materialization_missing does not block ordinary conversation creation and never triggers Shell activation; genuine package installation enablement or integrity failures may block only that selected package',
   );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.package_unavailable_reason_codes,

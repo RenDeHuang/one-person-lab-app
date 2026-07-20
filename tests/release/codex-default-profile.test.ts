@@ -1011,10 +1011,9 @@ test('page-state matrix rejects Codex Auto policy source drift', () => {
   assert.throws(() => validatePrimaryInteractionPages(matrix));
 });
 
-test('GUI contract rejects restoring global fail-closed Agent launch behavior', () => {
+test('GUI contract rejects allowing Settings to execute Agent package activation', () => {
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.agent_package_activation_policy.failure_policy.default_interaction_policy =
-    'fail_closed';
+  guiContract.agent_package_activation_policy.shell_execution_policy.settings_execution_allowed = true;
 
   assert.throws(
     () => validateAppGuiProductContract(
@@ -1022,14 +1021,28 @@ test('GUI contract rejects restoring global fail-closed Agent launch behavior', 
       readJson('contracts/app-release-channel.json'),
       readJson('contracts/app-install-exposure-policy.json'),
     ),
-    /keeping ready, degraded, and plain Codex usable/,
+    /Shell activation prohibition/,
   );
 });
 
-test('GUI contract rejects making Workspace a universal Agent launch prerequisite', () => {
+test('GUI contract rejects allowing ordinary composer send to execute Agent package activation', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.agent_package_activation_policy.shell_execution_policy.ordinary_composer_send_execution_allowed = true;
+
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+    /Shell activation prohibition/,
+  );
+});
+
+test('GUI contract rejects substituting session cwd for StageRun workspace locator', () => {
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
   guiContract.agent_package_activation_policy.workspace_policy
-    .workspace_is_not_a_universal_agent_launch_precondition = false;
+    .selected_project_directory_is_activation_target = true;
 
   assert.throws(
     () => validateAppGuiProductContract(
@@ -1037,21 +1050,6 @@ test('GUI contract rejects making Workspace a universal Agent launch prerequisit
       readJson('contracts/app-release-channel.json'),
       readJson('contracts/app-install-exposure-policy.json'),
     ),
-    /keeping ready, degraded, and plain Codex usable/,
-  );
-});
-
-test('GUI contract rejects blocking sends for degraded Agent launch state', () => {
-  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.agent_package_activation_policy.launch_state_machine.degraded
-    .selected_package_send_allowed = false;
-
-  assert.throws(
-    () => validateAppGuiProductContract(
-      guiContract,
-      readJson('contracts/app-release-channel.json'),
-      readJson('contracts/app-install-exposure-policy.json'),
-    ),
-    /keeping ready, degraded, and plain Codex usable/,
+    /Framework Stage runtime-only|ordinary send/,
   );
 });

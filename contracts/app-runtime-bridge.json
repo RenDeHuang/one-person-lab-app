@@ -257,15 +257,17 @@
         "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "aion_display_role": "Settings Capabilities package directory rows",
         "workbench_display_role": "Packages panel rows",
-        "action_owner_boundary": "App and shells display/trigger Framework action refs only; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
+        "action_owner_boundary": "App and shells display/trigger Framework non-activation lifecycle action refs only; agent_package_activate remains a Framework Stage runtime internal action; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
         "allowed_action_refs": [
           "refresh_registry",
           "install_from_manifest_url",
           "agent_package_update",
           "agent_package_repair",
-          "agent_package_activate",
           "agent_package_uninstall",
           "agent_package_preferences_set"
+        ],
+        "framework_stage_runtime_internal_action_refs": [
+          "agent_package_activate"
         ],
         "required_projection_fields": {
           "directory.entries[]": [
@@ -334,7 +336,12 @@
           ]
         },
         "agent_package_activation_contract": {
-          "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
+          "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+          "execution_owner": "one-person-lab_family_runtime",
+          "workspace_locator_source": "StageRun.workspace_locator_or_StageAttempt.workspace_locator",
+          "settings_execution_allowed": false,
+          "new_conversation_shell_execution_allowed": false,
+          "ordinary_send_shell_execution_allowed": false
         },
         "projection_authority_policy": "directory.entries owns catalog membership plus installed, activated, installability, coarse readiness, orthogonal exposure, and lifecycle actions; status_index adds diagnostics only and cannot override directory lifecycle or action availability",
         "fallback_policy": {

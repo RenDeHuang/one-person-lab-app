@@ -1400,16 +1400,18 @@
           "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or static metadata",
           "catalog_interaction_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.directory_controls",
           "package_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract",
-          "activation_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract",
-          "required_payload_fields_source": "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
-          "settings_action_scope": "owner_projected_package_id_only_actions",
-          "target_workspace_action_policy": "defer_every_action_requiring_target_workspace_to_selected_session_send_boundary_JIT",
+          "stage_runtime_activation_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract",
+          "settings_action_scope": "owner_projected_non_activation_actions_only",
+          "settings_activation_execution_allowed": false,
+          "new_conversation_activation_execution_allowed": false,
+          "ordinary_send_activation_execution_allowed": false,
           "settings_target_workspace_source": null,
           "global_workspace_root_activation_target_allowed": false,
+          "selected_session_directory_activation_target_allowed": false,
           "scope_inference_allowed": false,
           "session_launch_authority": false,
-          "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
-          "target_workspace_send_boundary_source": "normalized_current_session_directory_with_legacy_prefill_override",
+          "stage_runtime_activation_owner": "one-person-lab_family_runtime",
+          "stage_runtime_workspace_locator_source": "StageRun.workspace_locator_or_StageAttempt.workspace_locator",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
             "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
@@ -3160,9 +3162,9 @@
         "label_en": "Agents",
         "primary_information": [
           "all discoverable Agent, Framework capability, and workflow profile packages from app_state.agent_packages.directory.entries",
-          "dedicated package catalog search with package role, install or activation status, and source filters",
-          "visible registry refresh and projected per-row install or activation actions",
-          "package-id-only lifecycle actions in Settings while target-workspace activation waits for a selected project and runs JIT at the conversation send boundary",
+          "dedicated package catalog search with package role, availability status, and source filters",
+          "visible registry refresh and projected per-row non-activation lifecycle actions",
+          "Settings, new conversation, and ordinary composer send never execute package activation; selected project directories establish session cwd and future domain workspace identity only",
           "first_party_release_set_metadata as package_id-keyed localized UI metadata only, never directory membership or status truth",
           "global automatic, managed, or developer source mode with selected workspace and authority summary",
           "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
@@ -3182,7 +3184,6 @@
           ],
           "lifecycle_actions": [
             "install",
-            "activate",
             "update",
             "repair",
             "enable",
@@ -3299,7 +3300,7 @@
           "default_tab": "agents",
           "on_demand_tab_ids": []
         },
-        "exception_state": "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with send-boundary JIT guidance",
+        "exception_state": "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with no preconfiguration action",
         "technical_details_boundary": "package ids, receipts, paths, manifests, and raw status axes stay collapsed",
         "required_dom": {
           "always": [
@@ -3330,11 +3331,7 @@
           {
             "testid": "settings-agents-error",
             "when": "catalog_failed"
-          },
-            {
-              "testid": "settings-agents-send-boundary-project-required",
-              "when": "selected_package_send_requires_target_workspace_and_current_session_directory_is_missing"
-            }
+          }
           ]
         },
         "required_anchors": [

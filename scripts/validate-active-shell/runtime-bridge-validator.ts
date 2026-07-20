@@ -381,7 +381,7 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     || JSON.stringify(activationEntry.recommended_action_ref.required_payload_fields) !==
       JSON.stringify(['package_id', 'target_workspace'])
   ) {
-    throw new Error('Agent Package directory fixture must keep activation generic and scope-less while requiring send-boundary target_workspace context');
+    throw new Error('Agent Package directory fixture must keep the internal activation ABI generic and scope-less while requiring Framework Stage runtime target_workspace context');
   }
   const activatedEntry = directory.entries.find((entry) => entry.installed === true && entry.activated === true);
   if (
@@ -1799,8 +1799,16 @@ function validatePackageReadinessProjection(runtimeBridge) {
   );
   assertIncludesAll(
     packageRow?.allowed_action_refs,
-    ['agent_package_repair', 'agent_package_activate'],
-    'Runtime bridge package repair and activation actions',
+    ['agent_package_repair', 'agent_package_uninstall', 'agent_package_preferences_set'],
+    'Runtime bridge package Settings actions',
+  );
+  if (packageRow?.allowed_action_refs?.includes('agent_package_activate')) {
+    throw new Error('Runtime bridge Settings action refs must exclude Framework Stage runtime activation');
+  }
+  assertDeepEqualJson(
+    packageRow?.framework_stage_runtime_internal_action_refs,
+    ['agent_package_activate'],
+    'Runtime bridge Framework Stage runtime internal actions',
   );
   if (packageRow?.allowed_action_refs?.includes('repair_dependency_closure')) {
     throw new Error('Runtime bridge package actions must not expose legacy repair_dependency_closure');
@@ -1816,8 +1824,15 @@ function validatePackageReadinessProjection(runtimeBridge) {
     'Runtime bridge optional active source diagnostic fields',
   );
   const activation = packageRow?.agent_package_activation_contract;
-  if (activation?.contract_ref !== 'contracts/app-gui-product-contract.json#agent_package_activation_policy') {
-    throw new Error('Runtime bridge package launch must reference the App minimal activation authority');
+  if (
+    activation?.contract_ref !== 'contracts/app-gui-product-contract.json#agent_package_activation_policy'
+    || activation.execution_owner !== 'one-person-lab_family_runtime'
+    || activation.workspace_locator_source !== 'StageRun.workspace_locator_or_StageAttempt.workspace_locator'
+    || activation.settings_execution_allowed !== false
+    || activation.new_conversation_shell_execution_allowed !== false
+    || activation.ordinary_send_shell_execution_allowed !== false
+  ) {
+    throw new Error('Runtime bridge package activation must remain Framework Stage runtime-only');
   }
   if (
     !packageRow?.projection_authority_policy?.includes('directory.entries owns catalog membership')

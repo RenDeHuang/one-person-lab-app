@@ -3599,7 +3599,7 @@
     },
     {
       "id": "agents",
-      "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, Home shortcut preferences, and readiness refs; selected-session directory is supplied only at the send boundary",
+      "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, Home shortcut preferences, and readiness refs; selected project directory is session cwd and future domain workspace identity only",
       "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_agents",
@@ -3645,7 +3645,7 @@
           "home_shortcut_visibility",
           "home_shortcut_order",
           "launch_shortcut",
-          "projected_install_activate_or_maintenance_action",
+          "projected_install_or_maintenance_action",
           "open_details_panel"
         ],
         "detail_panel_fields": [
@@ -3705,9 +3705,9 @@
         "required_interactions": [
           "catalog",
           "lifecycle_actions",
-          "minimal_package_launch"
+          "stage_runtime_activation_readback"
         ],
-        "package_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
+        "stage_runtime_activation_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
       },
       "status_model": {
         "policy": "multi_axis_package_status_no_single_repair_bucket",
@@ -3790,7 +3790,6 @@
           "home_shortcut_visible",
           "home_shortcut_order",
           "install_state",
-          "activation_state",
           "recommended_action"
         ],
         "detail_surface": "desktop_right_side_panel_mobile_drawer",
@@ -3854,10 +3853,10 @@
       "must_show": [
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
-        "a dedicated package catalog search plus package role, install or activation status, and source filters",
+        "a dedicated package catalog search plus package role, availability status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
-        "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "package-id-only lifecycle actions may run in Settings while every action requiring target_workspace defers to selected-session send-boundary JIT and never uses a global workspace root",
+        "row install, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
+        "Settings, new conversation, and ordinary composer send never execute agent_package_activate; selected project directories establish session cwd and future domain workspace identity only",
         "the five professional Agent display names remain Med Auto Science, Med Auto Grant, RedCube AI, OPL Book Forge, and OPL Meta Agent in Chinese and English while localized descriptions explain their purpose",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
@@ -3868,7 +3867,7 @@
         "professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
       "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
       "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
-      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with selected-session launch JIT guidance and no preflight Settings action",
+      "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned",
       "one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details",
       "exact owner actions rendered with concrete localized copy such as 需要安装, 需要启用, 需要更新, 需要修复, or 需要重新连接",
         "genuinely blocked or failed packages retained as temporarily unavailable with a specific reason or details route"
@@ -3890,6 +3889,7 @@
       "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
       "global workspace root used as a target_workspace activation value from Settings",
       "scope materialization missing presented as a Settings attention state or preflight action",
+      "agent_package_activate shown or executed as a Settings, new-conversation, or ordinary-send action",
       "aggregate ready or unavailable counts used as the status of every package",
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],
@@ -3929,10 +3929,6 @@
           {
             "testid": "settings-agents-error",
             "when": "catalog_failed"
-          },
-          {
-            "testid": "settings-agents-send-boundary-project-required",
-            "when": "selected_package_send_requires_target_workspace_and_current_session_directory_is_missing"
           }
         ]
       },

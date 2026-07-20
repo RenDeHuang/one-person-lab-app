@@ -2477,7 +2477,6 @@ export function validateSettingsExperienceContract(experience) {
       primary_row_controls: ["home_visibility", "recommended_action", "manage"],
       lifecycle_actions: [
         "install",
-        "activate",
         "update",
         "repair",
         "enable",
@@ -2535,7 +2534,7 @@ export function validateSettingsExperienceContract(experience) {
   }
   if (
     pageContracts.agents.exception_state !==
-    "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with send-boundary JIT guidance"
+    "highlight only genuinely failed blocked or dependency-broken Agent packages; installed exposed verification-deferred or scope-materialization-missing packages read as available with no preconfiguration action"
   ) {
     throw new Error(
       "Settings Agents exception state must use Agent package semantics",
@@ -3077,24 +3076,23 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.directory_controls" ||
     directory.package_action_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract" ||
-    directory.activation_action_contract_ref !==
+    directory.stage_runtime_activation_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract" ||
-    directory.required_payload_fields_source !==
-      "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields" ||
-    directory.settings_action_scope !== "owner_projected_package_id_only_actions" ||
-    directory.target_workspace_action_policy !==
-      "defer_every_action_requiring_target_workspace_to_selected_session_send_boundary_JIT" ||
+    directory.settings_action_scope !== "owner_projected_non_activation_actions_only" ||
+    directory.settings_activation_execution_allowed !== false ||
+    directory.new_conversation_activation_execution_allowed !== false ||
+    directory.ordinary_send_activation_execution_allowed !== false ||
     directory.settings_target_workspace_source !== null ||
     directory.global_workspace_root_activation_target_allowed !== false ||
+    directory.selected_session_directory_activation_target_allowed !== false ||
     directory.scope_inference_allowed !== false ||
     directory.session_launch_authority !== false ||
-    directory.session_launch_contract_ref !==
-      "contracts/app-gui-product-contract.json#agent_package_activation_policy" ||
-    directory.target_workspace_send_boundary_source !==
-      "normalized_current_session_directory_with_legacy_prefill_override"
+    directory.stage_runtime_activation_owner !== "one-person-lab_family_runtime" ||
+    directory.stage_runtime_workspace_locator_source !==
+      "StageRun.workspace_locator_or_StageAttempt.workspace_locator"
   ) {
     throw new Error(
-      "Settings Agents directory projection must explain canonical projection preference, no-fallback states, and package activation action",
+      "Settings Agents directory projection must keep activation out of Settings and reserve it for Framework Stage runtime",
     );
   }
   const statusModel = directory.status_model;

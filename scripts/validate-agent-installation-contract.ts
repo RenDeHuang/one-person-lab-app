@@ -1998,8 +1998,23 @@ function validatePackageManagerLifecycle(contract: any): void {
     lifecycle?.activation_contract,
     {
       contract_ref: "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+      execution_owner: "one-person-lab_family_runtime",
+      settings_execution_allowed: false,
+      new_conversation_shell_execution_allowed: false,
+      ordinary_send_shell_execution_allowed: false,
+      framework_stage_runtime_execution_allowed: true,
     },
     "package manager lifecycle activation authority reference",
+  );
+  assertArrayEqual(
+    lifecycle?.settings_executable_actions,
+    expectedPackageLifecycleActions.filter((action) => action !== "agent_package_activate"),
+    "package manager Settings executable actions",
+  );
+  assertArrayEqual(
+    lifecycle?.framework_stage_runtime_internal_actions,
+    ["agent_package_activate"],
+    "package manager Framework Stage runtime internal actions",
   );
   const activationContractJson = JSON.stringify(lifecycle?.activation_contract);
   for (const agentId of expectedRequiredAgentIds) {

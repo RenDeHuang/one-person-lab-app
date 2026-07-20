@@ -911,17 +911,18 @@ export function validateReleaseAccelerationPolicy(
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
     !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
-    !assistantRouteSmoke?.full?.required?.includes('owner_projected_required_payload_fields_satisfied_before_send') ||
-    !assistantRouteSmoke?.full?.required?.includes('agent_package_activate_action_per_starter') ||
-    !assistantRouteSmoke?.full?.required?.includes('real_guid_composer_send_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('selected_project_directory_applied_to_session_and_domain_workspace_identity') ||
+    !assistantRouteSmoke?.full?.required?.includes('real_guid_composer_send_without_shell_package_activation_per_starter') ||
     !assistantRouteSmoke?.full?.required?.includes('conversation_get_readback_per_starter') ||
-    !assistantRouteSmoke?.full?.required?.includes('agent_package_activation_receipt_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('Framework_stage_runtime_activation_evidence_per_starter') ||
     !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter') ||
     !assistantRouteSmoke?.full?.forbidden?.includes('direct_conversation_post') ||
-    !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_activation_receipt') ||
+    !assistantRouteSmoke?.full?.forbidden?.includes('Shell_agent_package_activation_before_or_during_send') ||
+    !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_Framework_stage_runtime_activation_evidence') ||
     !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_route_receipt')
   ) {
-    console.error('FAIL assistant_route_smoke_policy: Full receipts must come from the real Guid activation and send path with owner-projected payload requirements satisfied');
+    console.error('FAIL assistant_route_smoke_policy: Full evidence must separate real Guid send without Shell activation from Framework Stage runtime activation');
     failures += 1;
   }
 

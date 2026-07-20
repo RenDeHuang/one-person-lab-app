@@ -1706,7 +1706,7 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
     checking: "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
   },
   scope_materialization_policy:
-    "Settings_projects_available_with_no_preflight_action_and_defers_owner_projected_target_workspace_activation_to_selected_session_send_boundary_JIT",
+    "Settings_projects_available_with_no_preflight_action_and_reserves_scope_activation_for_Framework_domain_StageRun_or_StageAttempt",
   status_index_repair_action_role:
     "technical_diagnostics_only_never_ordinary_status_or_action_selection",
 };
@@ -1744,8 +1744,8 @@ export const appOwnedAgentPackageUserStatusProjection = {
       user_status_id: "available",
       label_i18n: { "zh-CN": "可用", "en-US": "Available" },
       explanation_i18n: {
-        "zh-CN": "可直接发起对话。选择项目并启动智能体时，App 会使用当前会话目录自动确认并准备所需能力，无需提前操作。",
-        "en-US": "You can start a conversation now. When you choose a project and launch the agent, the App uses the current session directory to confirm and prepare the required capabilities; no advance action is required.",
+        "zh-CN": "已安装，可直接发起对话，无需提前设置。",
+        "en-US": "Installed and ready for conversation; no advance setup is required.",
       },
       primary_action_policy: "none",
     },
@@ -1762,15 +1762,14 @@ export const appOwnedAgentPackageUserStatusProjection = {
     },
     {
       id: "enable_required",
-      when: "localized_owner_action_required_and_exact_action_is_package_id_only_activation_or_enable_or_unhide",
+      when: "localized_owner_action_required_and_exact_action_is_enable_or_unhide",
       user_status_id: "enable_required",
       label_i18n: { "zh-CN": "需要启用", "en-US": "Enable required" },
       explanation_i18n: {
         "zh-CN": "启用此智能体后即可发起对话。",
         "en-US": "Enable this agent to start a conversation.",
       },
-      primary_action_policy:
-        "show_the_exact_owner_projected_package_id_only_activate_or_preferences_action",
+      primary_action_policy: "show_the_exact_owner_projected_preferences_enable_or_unhide_action",
     },
     {
       id: "update_required",

@@ -79,7 +79,8 @@
         "visibility": "visible"
       },
       "activation_required_before_launch": false,
-      "jit_activation_attempt_before_send": true,
+      "framework_stage_runtime_activation_may_run": true,
+      "shell_activation_attempt_before_send": false,
       "ordinary_discovery_visible": true,
       "selected_package_send_allowed": true
     },
@@ -94,7 +95,8 @@
         "visibility": "visible"
       },
       "activation_required_before_launch": false,
-      "jit_activation_attempt_before_send": true,
+      "framework_stage_runtime_activation_may_run": true,
+      "shell_activation_attempt_before_send": false,
       "ordinary_discovery_visible": true,
       "selected_package_send_allowed": true
     },
@@ -288,10 +290,10 @@
       "selected_package_send_allowed": false
     }
   ],
-  "send_target_context_contract": {
-    "primary_unit": "canonical_session_thread",
-    "target_workspace_role": "owner_required_send_context_resolved_from_normalized_current_session_directory_not_project_affinity_or_global_workspace_root",
-    "legacy_prefill_policy": "when_target_workspace_is_required_override_any_projected_legacy_or_global_prefill_with_the_normalized_current_session_directory",
+  "stage_workspace_locator_contract": {
+    "primary_unit": "canonical_StageRun_or_StageAttempt",
+    "target_workspace_role": "Framework_stage_runtime_scope_resolved_from_StageRun_or_StageAttempt_workspace_locator_not_session_cwd_or_global_workspace_root",
+    "legacy_prefill_policy": "session_cwd_or_global_workspace_root_never_substitutes_for_StageRun_or_StageAttempt_workspace_locator",
     "runtime_pwd_changes_project_affinity": false,
     "project_affinity_changes_writable_roots": false,
     "bound_project_reassignment_allowed": false,
@@ -304,7 +306,7 @@
           "scope",
           "target_workspace"
         ],
-        "fresh_minimal_validation_required_before_next_launch": true
+        "stage_locator_readback_required_before_stage_launch": true
       },
       {
         "case_id": "package_owner_requires_target_workspace_with_legacy_prefill",
@@ -314,9 +316,9 @@
           "target_workspace"
         ],
         "projected_target_workspace": "/Users/example/OPL Workspace",
-        "normalized_current_session_directory": "/Users/example/Projects/Current Session",
+        "stage_run_workspace_locator": "/Users/example/Projects/Current Session",
         "executed_target_workspace": "/Users/example/Projects/Current Session",
-        "legacy_prefill_overridden": true,
+        "session_cwd_not_used_as_activation_target": true,
         "accepted": true
       },
       {
@@ -327,9 +329,9 @@
           "target_workspace"
         ],
         "projected_target_workspace": "/Users/example/OPL Workspace",
-        "normalized_current_session_directory": null,
+        "stage_run_workspace_locator": null,
         "accepted": false,
-        "reason_code": "project_selection_required",
+        "reason_code": "stage_workspace_locator_required",
         "draft_preserved": true
       },
       {
@@ -364,6 +366,7 @@
     ]
   },
   "normal_shell_launch_contract": {
+    "activation_execution_policy": "Shell_never_executes_agent_package_activate; Framework_stage_runtime_only",
     "cases": [
       {
         "case_id": "package_unavailable",

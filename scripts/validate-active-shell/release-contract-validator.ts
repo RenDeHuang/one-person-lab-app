@@ -175,11 +175,11 @@ function validateReleaseExecutionPolicy(acceleration) {
   assertIncludesAll(
     assistantRouteSmoke?.full?.required,
     [
-      'owner_projected_required_payload_fields_satisfied_before_send',
-      'agent_package_activate_action_per_starter',
-      'real_guid_composer_send_per_starter',
+      'selected_project_directory_applied_to_session_and_domain_workspace_identity',
+      'real_guid_composer_send_without_shell_package_activation_per_starter',
       'conversation_get_readback_per_starter',
-      'agent_package_activation_receipt_per_starter',
+      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter',
+      'Framework_stage_runtime_activation_evidence_per_starter',
       'agent_package_shortcut_route_receipt_per_starter',
     ],
     'Full assistant production launch-path requirements',
@@ -188,7 +188,8 @@ function validateReleaseExecutionPolicy(acceleration) {
     assistantRouteSmoke?.full?.forbidden,
     [
       'direct_conversation_post',
-      'synthetic_agent_package_activation_receipt',
+      'Shell_agent_package_activation_before_or_during_send',
+      'synthetic_Framework_stage_runtime_activation_evidence',
       'synthetic_agent_package_route_receipt',
     ],
     'Full assistant synthetic launch-path prohibitions',
