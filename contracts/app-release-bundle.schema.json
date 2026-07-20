@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/contracts/app-release-bundle.schema.json",
+  "title": "One Person Lab App Release Bundle",
+  "type": "object",
+  "required": [
+    "schema",
+    "bundle_id",
+    "release",
+    "cohort",
+    "toolchain",
+    "notes",
+    "tracks",
+    "policy"
+  ],
+  "properties": {
+    "schema": { "const": "opl_app_release_bundle.v1" },
+    "bundle_id": { "$ref": "#/$defs/digest_ref" },
+    "release": {
+      "type": "object",
+      "required": [
+        "channel",
+        "version",
+        "tag",
+        "prerelease",
+        "release_cohort_ref",
+        "source_input_sha256"
+      ],
+      "properties": {
+        "channel": { "enum": ["stable", "nightly"] },
+        "version": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "pattern": "^v" },
+        "prerelease": { "type": "boolean" },
+        "release_cohort_ref": { "$ref": "#/$defs/digest_ref" },
+        "source_input_sha256": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "cohort": {
+      "type": "object",
+      "required": ["app_sha", "shell_sha", "framework_sha", "opl_flow_sha"],
+      "properties": {
+        "app_sha": { "$ref": "#/$defs/git_sha" },
+        "shell_sha": { "$ref": "#/$defs/git_sha" },
+        "framework_sha": { "$ref": "#/$defs/git_sha" },
+        "opl_flow_sha": { "$ref": "#/$defs/git_sha" }
+      },
+      "additionalProperties": false
+    },
+    "toolchain": {
+      "type": "object",
+      "required": ["manifest_sha256"],
+      "properties": {
+        "manifest_sha256": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "object",
+      "required": [
+        "source",
+        "format",
+        "markdown_sha256",
+        "evidence_schema",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "source": { "const": "prepared_ai" },
+        "format": { "const": "markdown" },
+        "markdown_sha256": { "$ref": "#/$defs/digest" },
+        "evidence_schema": { "const": "opl_app_release_notes_evidence.v1" },
+        "evidence_sha256": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "tracks": {
+      "type": "object",
+      "required": ["standard", "full"],
+      "properties": {
+        "standard": { "$ref": "#/$defs/standard_track" },
+        "full": {
+          "oneOf": [
+            { "$ref": "#/$defs/full_track" },
+            {
+              "type": "object",
+              "required": ["status"],
+              "properties": { "status": { "const": "absent" } },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["latest", "full", "updater"],
+      "properties": {
+        "latest": {
+          "type": "object",
+          "required": ["eligible", "required_track", "full_required"],
+          "properties": {
+            "eligible": { "type": "boolean" },
+            "required_track": { "const": "standard" },
+            "full_required": { "const": false }
+          },
+          "additionalProperties": false
+        },
+        "full": {
+          "type": "object",
+          "required": ["mode", "updater_metadata_allowed"],
+          "properties": {
+            "mode": { "const": "same_cohort_additive_only" },
+            "updater_metadata_allowed": { "const": false }
+          },
+          "additionalProperties": false
+        },
+        "updater": {
+          "type": "object",
+          "required": ["track", "metadata_asset"],
+          "properties": {
+            "track": { "const": "standard" },
+            "metadata_asset": { "const": "latest-arm64-mac.yml" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "digest_ref": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "builder": {
+      "type": "object",
+      "required": ["executor", "run_id"],
+      "properties": {
+        "executor": { "enum": ["local", "github_actions"] },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "asset": {
+      "type": "object",
+      "required": ["name", "size_bytes", "sha256"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "qualified_track": {
+      "type": "object",
+      "required": [
+        "status",
+        "builder",
+        "build_artifact_cohort",
+        "qualification_receipt",
+        "provenance",
+        "assets"
+      ],
+      "properties": {
+        "status": { "const": "qualified" },
+        "builder": { "$ref": "#/$defs/builder" },
+        "build_artifact_cohort": {
+          "type": "object",
+          "required": ["schema", "sha256"],
+          "properties": {
+            "schema": { "const": "opl_app_build_artifact_cohort.v2" },
+            "sha256": { "$ref": "#/$defs/digest" }
+          },
+          "additionalProperties": false
+        },
+        "qualification_receipt": {
+          "type": "object",
+          "required": ["schema", "status", "sha256"],
+          "properties": {
+            "schema": { "const": "opl_app_artifact_qualification_receipt.v1" },
+            "status": { "const": "passed" },
+            "sha256": { "$ref": "#/$defs/digest" }
+          },
+          "additionalProperties": false
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["sha256"],
+          "properties": {
+            "sha256": { "$ref": "#/$defs/digest" }
+          },
+          "additionalProperties": false
+        },
+        "assets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/asset" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "standard_track": {
+      "allOf": [
+        { "$ref": "#/$defs/qualified_track" },
+        {
+          "type": "object",
+          "properties": {
+            "assets": { "type": "array", "minItems": 6, "maxItems": 6 }
+          }
+        }
+      ]
+    },
+    "full_track": {
+      "allOf": [
+        { "$ref": "#/$defs/qualified_track" },
+        {
+          "type": "object",
+          "properties": {
+            "assets": { "type": "array", "minItems": 2, "maxItems": 2 }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "object",
+            "properties": { "channel": { "const": "stable" } }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$"
+              },
+              "tag": {
+                "type": "string",
+                "pattern": "^v[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$"
+              },
+              "prerelease": { "const": false }
+            }
+          },
+          "policy": {
+            "type": "object",
+            "properties": {
+              "latest": {
+                "type": "object",
+                "properties": { "eligible": { "const": true } }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$"
+              },
+              "tag": {
+                "type": "string",
+                "pattern": "^v[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$"
+              },
+              "prerelease": { "const": true }
+            }
+          },
+          "policy": {
+            "type": "object",
+            "properties": {
+              "latest": {
+                "type": "object",
+                "properties": { "eligible": { "const": false } }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

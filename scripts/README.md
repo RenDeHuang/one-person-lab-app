@@ -26,6 +26,7 @@ should happen only when AGUI replay is explicitly requested.
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `write-opl-app-component-manifest.ts` | Writes the App-owned immutable standard artifact lock consumed by `opl_release_set.v2`; the App keeps CalVer while the Release Set records its exact source commit and asset digests. |
+| `release-bundle.ts` | Assembles and verifies the immutable cross-executor Release Bundle. It binds one frozen App/Shell/Framework/OPL Flow cohort, prepared AI notes, toolchain, provenance, existing build-cohort and qualification receipts, Standard six-asset bytes, and optional same-cohort Full two-asset bytes. It never builds, uploads, publishes, dispatches, or changes updater metadata. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `generate-release-notes.ts` | Builds release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Release publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. |
 | `cleanup-draft-release-candidates.ts` | Discovers stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. Deletion is unavailable until a separate signed broker cleanup mutation is provisioned; neither this CLI nor an ordinary release workflow directly deletes a Release or tag. |
@@ -143,6 +144,9 @@ npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <pro
 npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
 npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
 npm run release:cohort-plan -- --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:bundle -- assemble --input <bundle-input-dir> --output release-bundle.json
+npm run release:bundle -- verify --bundle release-bundle.json --input <bundle-input-dir>
+npm run release:bundle -- status --bundle release-bundle.json
 npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json
 npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <app-sha> --shell-ref <shell-sha> --framework-ref <framework-sha> --state release-session.json --execute
 npm run release:stable -- resume --state release-session.json
@@ -163,6 +167,47 @@ npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --with-app --skip-packages
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
+
+## Immutable Release Bundle
+
+Local and GitHub execution consume the same Bundle instead of rebuilding from
+moving source. The input directory has one fixed layout:
+
+```text
+bundle-input/
+  release-input.json
+  toolchain.json
+  notes.md
+  notes-evidence.json
+  standard/
+    build-artifact-cohort.json
+    qualification-receipt.json
+    provenance.json
+    assets/
+  full/                         # optional, same cohort only
+    build-artifact-cohort.json
+    qualification-receipt.json
+    provenance.json
+    assets/
+```
+
+`release-input.json` selects the channel/version, one `sha256:` release cohort,
+exact App/Shell/Framework/OPL Flow commits, and the Standard plus optional Full
+builder identities. Assembly reuses `opl_app_build_artifact_cohort.v2` and
+`opl_app_artifact_qualification_receipt.v1`; it does not create another artifact
+or qualification model. Standard must contain exactly six public assets and is
+the only updater track. A qualified Standard Stable Bundle is Latest-eligible
+without Full. Full may later add exactly its DMG and public manifest from the
+same cohort, never updater metadata. Nightly uses the same Bundle contract with
+`prerelease=true` and is never Latest-eligible.
+
+`verify` without `--input` checks the closed shape and self-computed Bundle ID.
+Passing `--input` additionally re-hashes every manifest, note, receipt,
+provenance document, and public asset byte. Symlinks, missing or extra assets,
+failed receipts, cross-cohort inputs, and unknown authority fields fail closed.
+The read-only `release-pipeline-canary.yml` proves this contract and the release
+boundary on a clean GitHub runner without any Release, tag, package, or workflow
+mutation permission.
 
 ## App root TypeScript gate
 

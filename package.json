@@ -83,6 +83,7 @@
     "smoke:docker-webui:old-data": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate existing_old_onepersonlab_data_dir",
     "validate:docker-webui-diagnostics": "node --experimental-strip-types scripts/validate-docker-webui-diagnostics.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
+    "release:bundle": "node --experimental-strip-types scripts/release-bundle.ts",
     "release:version:validate": "node --experimental-strip-types scripts/release-version.ts",
     "release:nightly-version:resolve": "node --experimental-strip-types scripts/resolve-nightly-version.ts",
     "release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts",
@@ -120,6 +121,7 @@
     "release:full:size": "node --experimental-strip-types scripts/analyze-full-package-size.ts",
     "release:full:prune-audit": "node --experimental-strip-types scripts/audit-full-runtime-prune-policy.ts",
     "release:full": "node --experimental-strip-types scripts/build-full-first-install-package.ts",
-    "release:publish": "node --experimental-strip-types scripts/publish-release.ts"
+    "release:publish": "node --experimental-strip-types scripts/publish-release.ts",
+    "test:release-bundle": "node --experimental-strip-types --test tests/release/release-bundle.test.ts"
   }
 }
