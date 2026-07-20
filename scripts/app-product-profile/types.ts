@@ -258,6 +258,15 @@ export type AppProductProfile = {
           target_url: string;
           open_mode: string;
           prefill_fields: string[];
+          startup_failure_action: {
+            placement: string;
+            delivery_channel: string;
+            backend_dependency: string;
+            submission_policy: string;
+            automatic_submission: boolean;
+            prefill_fields: string[];
+            automatic_attachment_policy: string;
+          };
           shell_local_delivery_forbidden: boolean;
         };
         scope: string;

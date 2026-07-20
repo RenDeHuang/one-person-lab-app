@@ -132,6 +132,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 | Global issue feedback | 标题栏右侧可随时打开预填页面与版本信息的 OPL App GitHub Issue；用户在外部浏览器确认并提交。 | GUI contract、product profile、active shell adapter。 |
+| Startup-failure issue feedback | 本机服务启动失败时，通过不依赖后端的 Electron 主进程通道打开预填版本、平台、架构和失败分类的 OPL App GitHub Issue；不自动提交，也不自动附加日志、路径、凭据或用户内容。 | GUI contract、product profile、active shell process/preload adapter。 |
 
 ## Home 与 Conversation
 

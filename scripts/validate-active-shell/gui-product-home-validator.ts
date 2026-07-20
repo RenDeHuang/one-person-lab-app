@@ -102,6 +102,25 @@ function validateHomeLayout(guiContract) {
       'external_browser_user_review_and_submit' ||
     JSON.stringify(guiContract.utility_icon_policy?.global_feedback_action?.prefill_fields) !==
       JSON.stringify(['localized_title', 'localized_body', 'current_route', 'app_release_version']) ||
+    JSON.stringify(guiContract.utility_icon_policy?.global_feedback_action?.startup_failure_action) !==
+      JSON.stringify({
+        placement: 'blocking_startup_failure_dialog',
+        delivery_channel: 'electron_main_process_native_open_external_via_preload_ipc',
+        backend_dependency: 'none',
+        submission_policy: 'external_browser_user_review_and_submit',
+        automatic_submission: false,
+        prefill_fields: [
+          'localized_title',
+          'localized_body',
+          'app_release_version',
+          'platform',
+          'architecture',
+          'startup_failure_reason',
+          'backend_boundary_code',
+          'backend_boundary_stage',
+        ],
+        automatic_attachment_policy: 'forbidden_no_logs_paths_credentials_or_user_content',
+      }) ||
     guiContract.utility_icon_policy?.global_feedback_action?.shell_local_delivery_forbidden !== true
   ) {
     throw new Error('App GUI utility icon policy must bind the global feedback action to OPL App GitHub issues');
