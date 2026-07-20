@@ -34,12 +34,21 @@ export function validateFirstRunImplementation(shellPaths) {
   const firstRunBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
   for (const expected of [
     "testId='opl-startup-preflight'",
+    'common.uiOptimization.startup.stages.workspace',
+    'common.uiOptimization.startup.stages.assistant',
+    'common.uiOptimization.startup.stages.modelAccess',
+  ]) {
+    if (!rendererMain.includes(expected)) {
+      throw new Error(`Active shell startup preflight must render visible progress before FirstRun: ${expected}`);
+    }
+  }
+  for (const forbidden of [
     'common.startupPreflight.steps.desktopSession',
     'common.startupPreflight.steps.appConfig',
     'common.startupPreflight.steps.firstRunStatus',
   ]) {
-    if (!rendererMain.includes(expected)) {
-      throw new Error(`Active shell startup preflight must render visible progress before FirstRun: ${expected}`);
+    if (rendererMain.includes(forbidden)) {
+      throw new Error(`Active shell startup preflight must not expose technical startup stages: ${forbidden}`);
     }
   }
   for (const expected of ['aria-live', 'steps.map', 'data-state']) {

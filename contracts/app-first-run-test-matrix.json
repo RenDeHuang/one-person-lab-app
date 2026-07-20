@@ -99,7 +99,7 @@
         "opl-first-run-step-codex_config"
       ],
       "expects": [
-        "startup preflight renders visible desktop session, app configuration, and initialization status steps instead of a blank window before FirstRun or /guid",
+        "startup preflight renders visible workspace, local assistant, and model access stages instead of a blank window before FirstRun or /guid",
         "startup readiness uses a bounded opl app state --profile fast --json payload that stays below the desktop bridge output limit; when that command fails, authoritative opl system initialize readiness decides the route instead of treating the command failure as incomplete setup",
         "initialize pending state renders explicit progress copy and item summaries before opl system initialize returns",
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
