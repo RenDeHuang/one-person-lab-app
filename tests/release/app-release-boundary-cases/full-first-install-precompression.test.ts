@@ -64,6 +64,29 @@ if [ "$mode" = "-L" ]; then
     bad-python)
       printf '\t%s (compatibility version 3.12.0, current version 3.12.0)\n' '/opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versions/3.12/Python'
       ;;
+    bad-rpath)
+      printf '\t%s (compatibility version 1.0.0, current version 1.0.0)\n' '@rpath/libbad.dylib'
+      ;;
+  esac
+fi
+if [ "$mode" = "-l" ]; then
+  case "$base" in
+    portable-python)
+      printf '%s\n' 'Load command 0'
+      printf '%s\n' '          cmd LC_RPATH'
+      printf '%s\n' '      cmdsize 48'
+      printf '%s\n' '         path @executable_path/../Frameworks (offset 12)'
+      printf '%s\n' 'Load command 1'
+      printf '%s\n' '          cmd LC_RPATH'
+      printf '%s\n' '      cmdsize 40'
+      printf '%s\n' '         path @loader_path/../lib (offset 12)'
+      ;;
+    bad-rpath)
+      printf '%s\n' 'Load command 0'
+      printf '%s\n' '          cmd LC_RPATH'
+      printf '%s\n' '      cmdsize 80'
+      printf '%s\n' '         path /opt/homebrew/Cellar/example/1.0/lib (offset 12)'
+      ;;
   esac
 fi
 `);
@@ -136,9 +159,41 @@ test('Full precompression gate accepts portable packaged Python load paths and i
     assert.equal(report.rebuild_policy, 'proceed_to_dmg_compression');
     assert.equal(report.gates.resolved_ref_identity.full_sha_requested_ref_count, 1);
     assert.equal(report.gates.macho_portability.macho_file_count, 2);
+    assert.equal(report.gates.macho_portability.rpath_count, 2);
     assert.equal(report.gates.macho_portability.ignored_install_id_count, 1);
     assert.deepEqual(report.issues, []);
     assert.equal(JSON.parse(fs.readFileSync(fixture.reportPath, 'utf8')).status, 'passed');
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('Full precompression gate rejects a host LC_RPATH behind an @rpath dependency', () => {
+  const fixture = createFixture();
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${fixture.binDir}${path.delimiter}${previousPath ?? ''}`;
+  try {
+    writeMachO(path.join(fixture.appPath, 'Contents', 'Resources', 'opl-full-runtime', 'bad-rpath'));
+
+    assert.throws(
+      () => runFullPackagePrecompressionGate({
+        builtAppPath: fixture.appPath,
+        resolvedRefs: fixture.resolvedRefs,
+        runtimeCurrentness: { status: 'passed' },
+        reportPath: fixture.reportPath,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof FullPrecompressionGateError);
+        assert.equal(error.failureClass, 'runtime_source_invalid');
+        assert.match(error.message, /homebrew_cellar_rpath/);
+        return true;
+      },
+    );
+    const report = JSON.parse(fs.readFileSync(fixture.reportPath, 'utf8'));
+    assert.equal(report.gates.macho_portability.rpath_count, 1);
+    assert.equal(report.issues[0].rpath.includes('/opt/homebrew/Cellar/'), true);
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;

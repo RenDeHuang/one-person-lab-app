@@ -23,6 +23,12 @@ const PORTABLE_LOAD_PATH_PREFIXES = [
   '/usr/lib/',
   '/System/Library/',
 ];
+const PORTABLE_RPATH_PREFIXES = [
+  '@loader_path',
+  '@executable_path',
+  '/usr/lib',
+  '/System/Library',
+];
 
 type FailureClass =
   | 'artifact_invalid'
@@ -36,6 +42,7 @@ type GateIssue = {
   component?: string;
   relative_path?: string;
   dependency?: string;
+  rpath?: string;
 };
 
 type ResolvedRef = Partial<{
@@ -160,8 +167,44 @@ function inspectMachO(filePath: string, mode: '-D' | '-L') {
   return parseOtoolPaths(result.stdout ?? '');
 }
 
+function inspectMachORpaths(filePath: string) {
+  const result = spawnSync('otool', ['-l', '-m', filePath], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT') {
+    throw new Error('Full precompression gate requires otool on the macOS build host.');
+  }
+  if (result.status !== 0) {
+    throw new Error([
+      `otool -l failed for ${filePath}`,
+      result.stdout?.trim() ? `stdout:\n${result.stdout.trim()}` : '',
+      result.stderr?.trim() ? `stderr:\n${result.stderr.trim()}` : '',
+    ].filter(Boolean).join('\n'));
+  }
+
+  const lines = (result.stdout ?? '').split(/\r?\n/);
+  const rpaths: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index]?.trim() !== 'cmd LC_RPATH') continue;
+    for (let cursor = index + 1; cursor < Math.min(lines.length, index + 5); cursor += 1) {
+      const match = lines[cursor]?.trim().match(/^path\s+(.+?)\s+\(offset\s+\d+\)$/);
+      if (!match) continue;
+      rpaths.push(match[1]);
+      break;
+    }
+  }
+  return rpaths;
+}
+
 function portableLoadPath(dependency: string) {
   return PORTABLE_LOAD_PATH_PREFIXES.some((prefix) => dependency.startsWith(prefix));
+}
+
+function portableRpath(rpath: string) {
+  return PORTABLE_RPATH_PREFIXES.some(
+    (prefix) => rpath === prefix || rpath.startsWith(`${prefix}/`),
+  );
 }
 
 function dependencyIssueCode(dependency: string) {
@@ -174,6 +217,18 @@ function dependencyIssueCode(dependency: string) {
   return path.isAbsolute(dependency)
     ? 'host_absolute_dependency'
     : 'unsupported_load_path';
+}
+
+function rpathIssueCode(rpath: string) {
+  if (/\/(?:opt\/homebrew|usr\/local|home\/linuxbrew\/\.linuxbrew)\/Cellar\//i.test(rpath)) {
+    return 'homebrew_cellar_rpath';
+  }
+  if (/^\/(?:Users|home)\//.test(rpath)) {
+    return 'user_directory_rpath';
+  }
+  return path.isAbsolute(rpath)
+    ? 'host_absolute_rpath'
+    : 'unsupported_rpath';
 }
 
 function collectResolvedRefIssues(resolvedRefs: Record<string, ResolvedRef>) {
@@ -340,14 +395,17 @@ function collectMachOPortabilityIssues(builtAppPath: string) {
   const issues: GateIssue[] = [];
   const files = listMachOFiles(builtAppPath);
   let dependencyCount = 0;
+  let rpathCount = 0;
   let ignoredInstallIdCount = 0;
   for (const filePath of files) {
     const relativePath = normalizeRelativePath(builtAppPath, filePath);
     let installIds: string[];
     let dependencies: string[];
+    let rpaths: string[];
     try {
       installIds = inspectMachO(filePath, '-D');
       dependencies = inspectMachO(filePath, '-L');
+      rpaths = inspectMachORpaths(filePath);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (/requires otool/.test(message)) throw error;
@@ -376,11 +434,24 @@ function collectMachOPortabilityIssues(builtAppPath: string) {
         message: `${relativePath} loads non-portable dependency ${dependency}.`,
       });
     }
+    for (const rpath of rpaths) {
+      rpathCount += 1;
+      if (portableRpath(rpath)) continue;
+      const code = rpathIssueCode(rpath);
+      issues.push({
+        code,
+        failure_class: 'runtime_source_invalid',
+        relative_path: relativePath,
+        rpath,
+        message: `${relativePath} declares non-portable LC_RPATH ${rpath}.`,
+      });
+    }
   }
   return {
     issues,
     machoFileCount: files.length,
     dependencyCount,
+    rpathCount,
     ignoredInstallIdCount,
   };
 }
@@ -481,8 +552,10 @@ export function runFullPackagePrecompressionGate(input: GateInput) {
         status: machoGate.issues.length === 0 ? 'passed' : 'failed',
         macho_file_count: machoGate.machoFileCount,
         dependency_count: machoGate.dependencyCount,
+        rpath_count: machoGate.rpathCount,
         ignored_install_id_count: machoGate.ignoredInstallIdCount,
         allowed_load_path_prefixes: PORTABLE_LOAD_PATH_PREFIXES,
+        allowed_rpath_prefixes: PORTABLE_RPATH_PREFIXES,
       },
     },
     issues,
