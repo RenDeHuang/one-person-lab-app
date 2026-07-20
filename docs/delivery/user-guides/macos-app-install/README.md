@@ -58,6 +58,8 @@ Long-form HTML/PDF rendering uses Quarto Book with the shared
 [`../../../publishing/templates/opl-guide`](../../../publishing/templates/opl-guide/)
 template. Slides are a special-case static deck: QMD remains the editable
 content source, while `scripts/build-user-guide-slides.ts` compiles that QMD
-through a Marp theme to generate the shareable PDF and PPTX. Do not reintroduce
+through a Marp theme to generate the canonical PDF. The PPTX is then built from
+those rendered PDF pages with OfficeCLI, so PowerPoint receives a validated
+static deck without a second repository-local OOXML writer. Do not reintroduce
 long-form guide prose into JSON or hand-maintain generated outputs as content
 sources.

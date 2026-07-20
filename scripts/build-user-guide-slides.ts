@@ -76,6 +76,7 @@ const generatedThemePath = path.join(deliveryDir, 'generated', 'macos-app-instal
 const marpThemeSourcePath = path.join(appRoot, 'docs', 'publishing', 'templates', 'opl-guide', 'marp-theme.css');
 const verificationPath = path.join(deliveryDir, 'verification', 'macos-app-install-slides-verification.json');
 const marpPackage = process.env.MARP_CLI_PACKAGE || '@marp-team/marp-cli@4.4.0';
+const officeCliBin = process.env.OFFICECLI_BIN || 'officecli';
 const marpThemeName = 'opl-guide';
 
 function expandTemplate(text: string, manifest: GuideManifest) {
@@ -221,6 +222,10 @@ function inlineHtml(value: string) {
   return linked;
 }
 
+function blockHtml(value: string) {
+  return value.split(/\r?\n/).map(inlineHtml).join('<br>');
+}
+
 function markdownComment(value: string) {
   return value.replaceAll('-->', '--&gt;');
 }
@@ -256,7 +261,7 @@ function displayCallouts(slide: SlideBlock, manifest: GuideManifest) {
   return callouts.map((item) => {
     const command = manifest.download?.stable_install_command;
     if (command && item.includes(command)) {
-      return item.replace(command, 'install.sh --stable-macos-install --yes');
+      return item.replace(command, 'install.sh --stable-macos-install --standard --yes');
     }
     return item;
   });
@@ -280,7 +285,7 @@ function coverSlide(slides: SlideBlock[], manifest: GuideManifest, screenshotTag
 <div class="cover-copy">
   <h1>${escapeHtml(title)}</h1>
   <p class="lede">${inlineHtml(description)}</p>
-  <div class="command">${inlineHtml(command)}</div>
+  <div class="command">${blockHtml(command)}</div>
   <div class="checklist">${listHtml(checklist)}</div>
 </div>
 
@@ -334,11 +339,7 @@ ${markdownComment([body, ...callouts, slide.quote ?? ''].filter(Boolean).join(' 
 function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, manifest: GuideManifest) {
   const releaseUrl = manifest.download?.latest_release_url;
   const faqs = [...slide.bullets];
-  const usageNotes = [
-    '更换模型访问方式：打开“设置 -> 模型与访问”。',
-    '检查 App 更新：打开“设置 -> 关于与更新”。',
-    '涉及患者或敏感研究数据时，先完成脱敏并遵守机构要求。',
-  ];
+  const usageNotes = finalUsageNotes();
 
   return `<!-- _class: final -->
 <div class="brand"><strong>One Person Lab App</strong><span>macOS 首次安装与首启</span></div>
@@ -359,7 +360,7 @@ function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, 
   </div>
 </main>
 
-<div class="security">涉及 OPL Gateway 访问权限配置时，可向本团队获取访问密钥。不要截图、转发或保存密钥到研究目录。</div>
+<div class="security">密码只用于本次登录，不会保存在 App 中；不要截图、转发或保存 API Key 到研究目录。</div>
 <div class="footer"><span>GitHub Release 下载入口: ${inlineHtml(releaseUrl ?? '')}</span><span>${slideIndex + 1} / ${totalSlides}</span></div>
 
 <!--
@@ -393,34 +394,23 @@ ${renderedSlides.join('\n\n---\n\n')}
 `;
 }
 
+function finalUsageNotes() {
+  return [
+    '账户与访问：打开“设置 -> 账户与访问”。',
+    '模型选择：打开“设置 -> 模型”。',
+    '工作目录：打开“设置 -> 工作区”。',
+    'App 更新：打开“设置 -> 关于”，点击“检查更新”。',
+  ];
+}
+
 function marp(args: string[]) {
   return run('npx', ['--yes', marpPackage, ...args]);
 }
 
-function normalizePptxPresentationXml() {
-  const unpackDir = path.join(tempDir, 'pptx-normalized');
-  fs.rmSync(unpackDir, { recursive: true, force: true });
-  fs.mkdirSync(unpackDir, { recursive: true });
-  run('unzip', ['-q', outputPptxPath, '-d', unpackDir]);
-
-  const presentationXmlPath = path.join(unpackDir, 'ppt', 'presentation.xml');
-  const presentationXml = fs.readFileSync(presentationXmlPath, 'utf8');
-  const notesMasterMatch = presentationXml.match(/<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>/);
-  if (!notesMasterMatch) return;
-
-  const notesMasterXml = notesMasterMatch[0];
-  const withoutNotesMaster = presentationXml.replace(notesMasterXml, '');
-  const normalizedXml = withoutNotesMaster.replace('<p:sldIdLst>', `${notesMasterXml}<p:sldIdLst>`);
-  if (normalizedXml === presentationXml) {
-    throw new Error('Expected to normalize notesMasterIdLst before sldIdLst in PPTX presentation.xml');
-  }
-  fs.writeFileSync(presentationXmlPath, normalizedXml, 'utf8');
-
-  fs.rmSync(outputPptxPath, { force: true });
-  run('zip', ['-qr', outputPptxPath, '.'], { cwd: unpackDir });
-}
-
-function buildDeckArtifacts() {
+function buildDeckArtifacts(
+  slides: SlideBlock[],
+  manifest: GuideManifest,
+) {
   fs.mkdirSync(path.dirname(outputPdfPath), { recursive: true });
   fs.rmSync(outputPdfPath, { force: true });
   fs.rmSync(outputPptxPath, { force: true });
@@ -434,13 +424,111 @@ function buildDeckArtifacts() {
     '90',
   ];
   marp([...commonArgs, '--pdf', '--pdf-outlines', '--output', outputPdfPath]);
-  marp([...commonArgs, '--pptx', '--output', outputPptxPath]);
-  normalizePptxPresentationXml();
+  const renderedPages = renderPdfPages(outputPdfPath);
+  if (renderedPages.length !== slides.length) {
+    throw new Error(`Expected ${slides.length} rendered pages, got ${renderedPages.length}`);
+  }
+
+  const renderedPagePaths = renderedPages.map((page) => {
+    const pagePath = path.join(renderDir, page);
+    const dimensions = readPngDimensions(pagePath, 'Rendered slide page');
+    if (Math.abs((dimensions.width / dimensions.height) - (16 / 9)) > 0.001) {
+      throw new Error(`Expected 16:9 rendered slide page, got ${dimensions.width}x${dimensions.height}: ${page}`);
+    }
+    return pagePath;
+  });
+  const officeCliVersion = run(officeCliBin, ['--version']).stdout.trim();
+  run(officeCliBin, ['create', outputPptxPath, '--force', '--json']);
+  const commands = [
+    {
+      command: 'set',
+      path: '/',
+      props: {
+        slideSize: 'widescreen',
+        title: manifest.title,
+        subject: slides[0]?.body[0] ?? '',
+        author: manifest.owner ?? 'one-person-lab-app',
+        lastModifiedBy: 'OfficeCLI',
+      },
+    },
+    ...renderedPagePaths.flatMap((pagePath, index) => {
+      const slideNumber = index + 1;
+      return [
+        {
+          command: 'add',
+          parent: '/',
+          type: 'slide',
+          props: { layout: 'Blank', name: `Slide ${slideNumber}` },
+        },
+        {
+          command: 'add',
+          parent: `/slide[${slideNumber}]`,
+          type: 'picture',
+          props: {
+            src: pagePath,
+            name: `Rendered page ${slideNumber}`,
+            alt: `Rendered static page ${slideNumber}`,
+            x: '0pt',
+            y: '0pt',
+            width: '960pt',
+            height: '540pt',
+          },
+        },
+      ];
+    }),
+  ];
+  run(officeCliBin, [
+    'batch',
+    outputPptxPath,
+    '--commands',
+    JSON.stringify(commands),
+    '--stop-on-error',
+    '--json',
+  ]);
+  run(officeCliBin, ['close', outputPptxPath, '--json']);
+
+  const readback = JSON.parse(run(officeCliBin, ['get', outputPptxPath, '/', '--json']).stdout) as {
+    data?: {
+      results?: Array<{
+        childCount?: number;
+        format?: { slideSize?: string };
+      }>;
+    };
+  };
+  const presentation = readback.data?.results?.[0];
+  const pictureOutput = run(officeCliBin, [
+    'query',
+    outputPptxPath,
+    'picture',
+    '--compact',
+  ]).stdout;
+  const pictureCount = Number(pictureOutput.match(/total:\s+(\d+)\s+of/i)?.[1] ?? 0);
+  if (presentation?.childCount !== slides.length || presentation.format?.slideSize !== 'widescreen') {
+    throw new Error(`Unexpected OfficeCLI presentation readback: ${JSON.stringify(readback)}`);
+  }
+  if (pictureCount !== slides.length) {
+    throw new Error(`Expected ${slides.length} full-slide pictures, got ${pictureCount}:\n${pictureOutput}`);
+  }
+
+  const pptxGeneration = {
+    generator: 'officecli',
+    generator_version: officeCliVersion,
+    source: 'marp_pdf_rendered_png_pages',
+    slides: slides.length,
+    pictures: pictureCount,
+    slide_size: presentation.format.slideSize,
+    speaker_notes: 'retained_in_generated_marp_source_not_embedded_in_pptx',
+  };
+  return {
+    renderedPages,
+    pptxGeneration,
+  };
 }
 
 function validatePptx(totalSlides: number, requiredPdfText: string[]) {
-  const schemaValidation = run('officecli', ['validate', outputPptxPath]).stdout.trim();
-  const output = run('officecli', ['view', outputPptxPath, 'issues']).stdout.trim();
+  const schemaValidation = run(officeCliBin, ['validate', outputPptxPath]).stdout.trim();
+  run('unzip', ['-tq', outputPptxPath]);
+  const output = run(officeCliBin, ['view', outputPptxPath, 'issues']).stdout.trim();
   const issueCount = Number(output.match(/Found\s+(\d+)\s+issue\(s\)/i)?.[1] ?? 0);
   if (issueCount > 0) {
     throw new Error(`Marp-generated PPTX has layout issues:\n${output}`);
@@ -483,6 +571,8 @@ function validatePptx(totalSlides: number, requiredPdfText: string[]) {
   return {
     schema_validation_status: 'passed',
     schema_validation_output: schemaValidation,
+    zip_validation_status: 'passed',
+    zip_validation_output: 'unzip -tq completed with exit status 0',
     officecli_issues: output,
     text_status: 'checked_generated_marp_source_and_pdf_text_no_placeholder_tokens',
     roundtrip_pdf: relativeToApp(roundtripPdfPath),
@@ -497,11 +587,12 @@ function pdfInfo(pdfPath: string) {
 function renderPdfPages(pdfPath: string) {
   fs.rmSync(renderDir, { recursive: true, force: true });
   fs.mkdirSync(renderDir, { recursive: true });
-  run('pdftoppm', ['-png', '-r', '120', pdfPath, path.join(renderDir, 'slide')]);
+  run('pdftoppm', ['-png', '-r', '144', pdfPath, path.join(renderDir, 'slide')]);
   return fs.readdirSync(renderDir).filter((name) => name.endsWith('.png')).sort();
 }
 
 function main() {
+  fs.rmSync(verificationPath, { force: true });
   const manifest = readJson<GuideManifest>(manifestPath);
   if (manifest.schema !== 'opl_quarto_user_guide_manifest.v1') {
     throw new Error(`Unsupported guide manifest schema: ${manifest.schema}`);
@@ -541,7 +632,7 @@ function main() {
   writeTheme();
 
   const marpVersion = marp(['--version']).stdout.trim();
-  buildDeckArtifacts();
+  const { renderedPages, pptxGeneration } = buildDeckArtifacts(slides, manifest);
 
   const info = pdfInfo(outputPdfPath);
   const pages = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] ?? 0);
@@ -550,14 +641,13 @@ function main() {
   const pageHeight = Number(pageSizeMatch?.[2] ?? 0);
   if (pages !== expectedSlides) throw new Error(`Expected ${expectedSlides} Marp PDF pages, got ${pages}`);
   if (pageWidth <= pageHeight) throw new Error(`Expected landscape Marp PDF, got ${pageWidth}x${pageHeight} pts`);
-  const renderedPages = renderPdfPages(outputPdfPath);
   const pptxVerification = validatePptx(expectedSlides, [latestReleaseUrl, 'GitHub Release 下载入口']);
 
   const verification = {
     status: 'macos_app_install_slides_ready',
-    generator: 'marp_cli_static_slides',
-    generator_version: marpVersion,
-    source_model: 'qmd_body_manifest_metadata_to_marp_markdown_and_css_theme',
+    generator: 'marp_pdf_plus_officecli_static_slides',
+    generator_version: `${marpVersion}; OfficeCLI ${pptxGeneration.generator_version}`,
+    source_model: 'qmd_body_manifest_metadata_to_marp_pdf_rendered_pages_and_officecli_pptx',
     download_url: latestReleaseUrl,
     stable_install_command: manifest.download?.stable_install_command,
     screenshot_release_run: screenshots.release_run ?? null,
@@ -579,10 +669,13 @@ function main() {
     screenshot_assets: screenshotAssets,
     pptx_schema_validation_status: pptxVerification.schema_validation_status,
     pptx_schema_validation_output: pptxVerification.schema_validation_output,
+    pptx_zip_validation_status: pptxVerification.zip_validation_status,
+    pptx_zip_validation_output: pptxVerification.zip_validation_output,
     pptx_layout_issues: pptxVerification.officecli_issues,
     text_status: pptxVerification.text_status,
     pptx_roundtrip_pdf: pptxVerification.roundtrip_pdf,
     pptx_roundtrip_pages: pptxVerification.roundtrip_pages,
+    pptx_generation: pptxGeneration,
     rendered_pages: renderedPages.length,
     rendered_dir: relativeToApp(renderDir),
     unresolved_templates_status: 'absent',

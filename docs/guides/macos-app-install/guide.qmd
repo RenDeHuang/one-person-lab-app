@@ -6,65 +6,66 @@ lang: zh-CN
 
 适用对象：医生、PI、课题负责人及合作团队成员；不要求计算机基础。
 
-本文按“下载 App、安装、选择模型访问方式、完成首次检查、开始工作”的顺序说明 One Person Lab App 的首次使用。
+本文按“安装 App、完成首次检查、登录或确认模型访问、进入工作台”的顺序说明 One Person Lab App 的首次使用。
 
 下载最新版本：<{{download.latest_release_url}}>
 
-> OPL App 是推荐入口，但 OPL Gateway 不是已有配置用户的首启前置条件。本机已有可用 Codex/OpenAI 登录或其他模型访问方式时，可以直接继续使用；当前没有可用模型来源，或需要团队统一访问时，再配置 OPL Gateway。
+> 推荐优先使用稳定版安装命令。它会把 App 安装到 `/Applications`、清理 macOS quarantine 标记并自动打开 App；DMG 拖拽安装保留为手工备选。
 
 ## 准备清单
 
-- 一台可运行 macOS App 的 Mac，首次安装推荐 Apple Silicon 机型。
+- 一台 Apple Silicon（arm64）Mac；当前 macOS App 不支持 Intel Mac。
 - 稳定网络，用于下载安装包和完成首次检查。
 - 一个本机工作目录，用于保存项目材料和生成结果。
-- 可选：OPL Gateway 访问密钥。只有需要使用 Gateway 时才需要准备。
+- 可选：可用的 OPL Gateway 账户，或兼容方式所需的 API Key。本机已有可用 Codex 配置时可以直接重新检测。
 
-## 1. 下载 One Person Lab
+## 1. 安装 One Person Lab
 
-打开最新 Release 页面，在 **Assets** 区域下载文件名中带有 `mac-arm64.dmg` 的安装包。版本号会随发布更新。
-
-![在最新 Release 的 Assets 区域下载 macOS DMG](screenshots/01-download-release.png){width=96% fig-align="center"}
-
-也可以在“终端”中运行稳定版安装命令：
+推荐打开 macOS“终端”，粘贴并运行下面的稳定版安装命令：
 
 ```bash
 {{download.stable_install_command}}
 ```
 
-选择建议：
+这条命令适用于首次安装和稳定版升级。执行完成后，One Person Lab 会从“应用程序”目录启动；命令安装成功时可直接跳到第 3 步。
 
-- **当前稳定版**：下载 Assets 中提供的 `One-Person-Lab-<版本>-mac-arm64.dmg`。
-- **已经安装过 OPL App**：可以继续使用 DMG，或按 App 内更新提示处理。
-- 如果某次 Release 同时提供 Full 安装包，干净机器可按 Release 说明选择 Full；没有 Full 时直接使用标准 DMG。
-- Release 页面版本号会持续变化，以页面标记的最新稳定版为准。
+不方便使用终端时，打开最新 Release 页面，在 **Assets** 区域下载 `One-Person-Lab-<版本>-mac-arm64.dmg`：
 
-## 2. 安装 App
+![手工安装时在最新 Release 的 Assets 区域下载 macOS arm64 DMG](screenshots/01-download-release.png){width=96% fig-align="center"}
 
-打开下载的 DMG，将 **One Person Lab** 拖到 **Applications**。复制完成后关闭 DMG 窗口，再从“应用程序”启动 App。
+- 当前只提供 Apple Silicon（arm64）安装包。
+- 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
+- Release 页面版本号会持续变化，以标记为 Latest 的稳定版为准。
+- Full 首装包如果尚未出现在 Release 中，不影响使用标准安装命令或标准 DMG。
+
+## 2. 手工安装 DMG（可选）
+
+仅在第 1 步选择手工下载时执行本步。打开 DMG，将 **One Person Lab** 拖到 **Applications**。复制完成后关闭 DMG 窗口，再从“应用程序”启动 App。
 
 ![将 One Person Lab 拖入 Applications](screenshots/02-install-dmg.png){width=82% fig-align="center"}
 
-首次打开如出现 macOS 安全提示，按系统提示确认。不要长期在 DMG 挂载窗口中直接运行 App。
+首次打开如出现 macOS 安全提示，按系统提示确认。不要长期在 DMG 挂载窗口中直接运行 App；如果系统持续阻止打开，可改用第 1 步的稳定版安装命令。
 
-## 3. 选择模型访问方式
+## 3. 完成首次检查
 
-首次启动会检查当前设备是否已有可用模型访问。根据实际情况选择：
-
-1. **已有 Codex 配置**：本机 Codex/OpenAI 已登录，或已有可用模型配置时，选择“已有 Codex 配置”，再点击“重新检测已有配置”。
-2. **OPL Gateway**：当前没有可用模型来源，或希望使用团队统一访问时，向本团队获取 OPL Gateway 访问密钥，粘贴后完成配置。
-3. **暂时不配置**：可以先点击右上角“进入 OPL”。需要模型的功能仍会提示完成访问设置，之后可从“设置 -> 模型与访问”继续配置。
-
-![根据当前情况选择 OPL Gateway 或已有 Codex 配置](screenshots/03-codex-config-needed.png){width=96% fig-align="center"}
-
-请勿把完整访问密钥发送到群聊、公开文档或代码仓库，也不要在截图中展示密钥。
-
-## 4. 完成首次检查
-
-OPL 会检查开始使用所需的关键项目，包括工作目录、本机助手和模型访问。页面会显示当前进度及需要处理的项目。
+首次启动后，OPL 会先检查工作目录、本机助手和模型访问，并显示当前进度。
 
 ![等待 OPL 完成首次检查](screenshots/04-first-run-checking.png){width=96% fig-align="center"}
 
-检查期间可以先进入主界面，但这不会自动完成尚未配置的项目。出现“需要处理”时，按页面给出的下一步操作即可；技术细节默认折叠，不要求普通用户理解底层工具名称。
+检查期间可以先点击右上角“进入 OPL”，但这不会自动完成尚未配置的项目。出现“需要处理”时，按页面给出的下一步操作即可；技术细节默认折叠，不要求普通用户理解底层工具名称。
+
+## 4. 登录或确认模型访问
+
+模型访问显示“缺失”时，根据实际情况处理：
+
+1. **账户登录（默认）**：填写 OPL Gateway 的“邮箱”和“密码”，点击“登录并继续”。密码只用于本次登录，不会保存在 App 中。
+2. **重新检测已有配置**：本机 Codex/OpenAI 已登录或已有可用配置时，点击“重新检测已有配置”。这是独立检测操作，不是第三种登录方式。
+3. **API Key（兼容方式）**：只有需要手工密钥接入时才切换到“API Key”，按团队提供的方式填写。
+4. **暂时进入工作台**：当前没有可用账户或密钥时，可先点击右上角“进入 OPL”；需要模型的功能仍会提示完成访问设置。
+
+![默认使用账户登录，也可切换 API Key 或重新检测已有配置](screenshots/03-codex-config-needed.png){width=96% fig-align="center"}
+
+请勿把密码或完整 API Key 发送到群聊、公开文档或代码仓库，也不要在截图中展示。
 
 ## 5. 开始第一项工作
 
@@ -80,9 +81,10 @@ OPL 会检查开始使用所需的关键项目，包括工作目录、本机助�
 
 ## 6. 后续调整与更新
 
-- 更换模型访问方式：打开“设置 -> 模型与访问”。
-- 调整工作目录：打开“设置 -> 通用”。
-- 检查 App 和能力更新：打开“设置 -> 关于与更新”。
+- 管理 Gateway 账户和访问状态：打开“设置 -> 账户与访问”。
+- 选择模型：打开“设置 -> 模型”。
+- 调整工作目录：打开“设置 -> 工作区”。
+- 检查 App 更新：打开“设置 -> 关于”，再点击“检查更新”。
 - 再次打开 App 时，已经完成的首启设置会保留，不需要重复配置。
 
 ```{=latex}
@@ -91,9 +93,10 @@ OPL 会检查开始使用所需的关键项目，包括工作目录、本机助�
 
 ## 常见问题
 
-- **下载页面里文件很多，应该选哪个？** 选择文件名以 `mac-arm64.dmg` 结尾的安装包，不要下载 ZIP、blockmap 或 Source code。
-- **已经在用 Codex，还需要配置 OPL Gateway 吗？** 不需要。已有可用模型访问时，选择“已有 Codex 配置”并重新检测即可。
-- **暂时没有 Gateway 密钥怎么办？** 可以先进入主界面，后续再从“设置 -> 模型与访问”配置。
-- **打不开 App 怎么办？** 确认 App 已复制到 Applications，并按 macOS 安全提示允许打开；仍无法启动时，重新运行稳定安装命令。
-- **访问密钥无法使用怎么办？** 确认复制完整、密钥仍为启用状态；反馈问题时提供操作系统、发生步骤和已遮挡密钥的报错截图。
-- **需要自己选择具体模型版本吗？** 通常不需要。按当前可用配置使用即可，平台和 App 会随能力更新调整可用模型。
+- **Intel Mac 可以安装吗？** 当前不支持。请使用 Apple Silicon（arm64）Mac。
+- **已经在用 Codex，还需要登录 OPL Gateway 吗？** 不需要。点击“重新检测已有配置”即可确认现有模型访问。
+- **暂时没有 Gateway 账户或 API Key 怎么办？** 可以先“进入 OPL”，后续从“设置 -> 账户与访问”完成配置。
+- **下载页面里文件很多，应该选哪个？** 手工安装时选择 `One-Person-Lab-<版本>-mac-arm64.dmg`，不要下载 ZIP、blockmap、YML、JSON 或 Source code。
+- **打不开 App 怎么办？** 确认 App 已复制到 `/Applications` 并按 macOS 安全提示允许打开；仍无法启动时，重新运行稳定版安装命令。
+- **账户登录失败怎么办？** 确认邮箱和密码正确、网络可用；反馈问题时提供操作系统、发生步骤和不含密码或 API Key 的报错截图。
+- **需要自己选择具体模型版本吗？** 通常不需要；需要调整时打开“设置 -> 模型”。

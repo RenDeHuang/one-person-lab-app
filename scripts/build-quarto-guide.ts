@@ -310,6 +310,13 @@ function trimLineEndings(text: string) {
     .join('\n');
 }
 
+function normalizePdfRequiredTermText(text: string) {
+  return text
+    .normalize('NFKC')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/\s+/g, ' ');
+}
+
 function writeProject(manifest: GuideManifest) {
   const screenshotManifest = loadScreenshotManifest(manifest);
   const sourceAssetsDir = screenshotAssetsDir(manifest);
@@ -481,7 +488,10 @@ function main() {
   scanText('HTML visible text', htmlVisibleText(html), manifest);
   const text = pdfText(pdfOutputPath);
   scanText('PDF text', text, manifest);
-  const missingTerms = manifest.required_terms.filter((term) => !text.includes(term));
+  const normalizedPdfText = normalizePdfRequiredTermText(text);
+  const missingTerms = manifest.required_terms.filter(
+    (term) => !normalizedPdfText.includes(normalizePdfRequiredTermText(term))
+  );
   if (missingTerms.length > 0) {
     throw new Error(`Generated PDF text is missing required terms: ${missingTerms.join(', ')}`);
   }

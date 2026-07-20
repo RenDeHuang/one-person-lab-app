@@ -1,13 +1,13 @@
 {
   "status": "macos_app_install_slides_ready",
-  "generator": "marp_cli_static_slides",
-  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0)",
-  "source_model": "qmd_body_manifest_metadata_to_marp_markdown_and_css_theme",
+  "generator": "marp_pdf_plus_officecli_static_slides",
+  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0); OfficeCLI 1.0.139",
+  "source_model": "qmd_body_manifest_metadata_to_marp_pdf_rendered_pages_and_officecli_pptx",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --standard --yes",
+  "stable_install_command": "curl -fsSL \\\n  https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh |\n  bash -s -- --stable-macos-install \\\n    --standard --yes",
   "screenshot_release_run": {
-    "id": "guide-refresh-2026-07-13",
-    "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
+    "id": "guide-refresh-v26.7.20-d98d6de-2026-07-20",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
     "conclusion": "success"
   },
   "source_qmd": "docs/guides/macos-app-install/slides.qmd",
@@ -28,15 +28,15 @@
   "screenshot_assets": [
     {
       "role": "download_release",
-      "description": "Latest Release Assets list with the macOS arm64 DMG highlighted.",
+      "description": "v26.7.20 Release Assets list with the macOS arm64 DMG highlighted.",
       "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
-      "width": 1206,
-      "height": 362,
-      "sha256": "9fd6f590b3547a59fa0c2b37c157af117de5d9a1d0c983203e938e0d40d7baa9",
+      "width": 1183,
+      "height": 380,
+      "sha256": "0b2182270007e47692f4283d1c451eb3a4a01f037665a72396ae71c3c64b048d",
       "referenced": true,
       "expected_ui_text": [
         "Assets",
-        "One-Person-Lab-26.7.12-mac-arm64.dmg"
+        "One-Person-Lab-26.7.20-mac-arm64.dmg"
       ]
     },
     {
@@ -54,53 +54,72 @@
     },
     {
       "role": "configure_access",
-      "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
+      "description": "First-run model access screen with account login as the default, API Key as a compatibility method, and existing configuration recheck as a separate action.",
       "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
+      "sha256": "df2ca23c8a3989a6e6f39488c53af771fffa15b6a8310f2632bb0f68c224ca0e",
       "referenced": true,
       "expected_ui_text": [
         "连接模型服务",
-        "OPL Gateway",
-        "已有 Codex 配置",
+        "账户登录",
+        "邮箱",
+        "密码",
+        "登录并继续",
+        "API Key",
+        "重新检测已有配置",
         "进入 OPL"
       ]
     },
     {
       "role": "first_run_check",
-      "description": "First-run environment check pending screen.",
+      "description": "First-run device check pending screen from the released Shell cohort.",
       "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
-      "sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
+      "sha256": "d118cd3eee6f474242b034d5ac75dbc45469aac17e31cc2df4e1a3b0d700790f",
       "referenced": true,
       "expected_ui_text": [
         "正在检查这台设备",
         "当前检查",
+        "正在检查",
         "进入 OPL"
       ]
     },
     {
       "role": "workbench_entry",
-      "description": "One Person Lab workbench with professional task entries.",
+      "description": "Ready One Person Lab workbench with professional task entries and no incomplete FirstRun recovery entry.",
       "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
       "width": 1536,
       "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+      "sha256": "0a3b3d22cbc1b271ca22246309ac25f5191637ea0a428f0da57350306c49d8e5",
       "referenced": true,
       "expected_ui_text": [
         "One Person Lab",
-        "科研"
+        "科研",
+        "演示",
+        "基金",
+        "设置"
       ]
     }
   ],
   "pptx_schema_validation_status": "passed",
   "pptx_schema_validation_output": "Validation passed: no errors found.",
+  "pptx_zip_validation_status": "passed",
+  "pptx_zip_validation_output": "unzip -tq completed with exit status 0",
   "pptx_layout_issues": "Found 0 issue(s):",
   "text_status": "checked_generated_marp_source_and_pdf_text_no_placeholder_tokens",
   "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
   "pptx_roundtrip_pages": 7,
+  "pptx_generation": {
+    "generator": "officecli",
+    "generator_version": "1.0.139",
+    "source": "marp_pdf_rendered_png_pages",
+    "slides": 7,
+    "pictures": 7,
+    "slide_size": "widescreen",
+    "speaker_notes": "retained_in_generated_marp_source_not_embedded_in_pptx"
+  },
   "rendered_pages": 7,
   "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered",
   "unresolved_templates_status": "absent",
