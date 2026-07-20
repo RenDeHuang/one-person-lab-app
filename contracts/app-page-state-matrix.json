@@ -375,7 +375,7 @@
             "executor": "codex_cli",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start",
-            "default_visible": false,
+            "default_visible": true,
             "user_configurable": true
           },
           {

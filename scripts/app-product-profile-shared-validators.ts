@@ -65,8 +65,8 @@ export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 export const professionalAgentPackageIds = [...starterPackageIds, 'oma'];
 export const managedShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
 export const managedShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
-export const defaultVisibleShortcutIds = ['research', 'ppt', 'grant', 'oma'];
-export const defaultVisibleShortcutPackageIds = ['mas', 'rca', 'mag', 'oma'];
+export const defaultVisibleShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
+export const defaultVisibleShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
 export const forbiddenExternalFirstPartyClaimPattern =
   '^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]';
 

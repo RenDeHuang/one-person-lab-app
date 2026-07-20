@@ -530,7 +530,7 @@
       "starter_order_policy": "stable_configured_order",
       "starter_layout_policy": "compact_inline_wrap",
       "starter_truncation_allowed": false,
-      "default_visible_shortcut_ids": ["research", "ppt", "grant", "oma"],
+      "default_visible_shortcut_ids": ["research", "ppt", "grant", "book", "oma"],
       "visual_structure": {
         "starter_region": "composer_reading_lane_immediately_above_input_not_page_navigation",
         "starter_item_width": "content_sized",
@@ -3471,7 +3471,7 @@
       "executor": "codex_cli",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start",
-      "default_visible": false,
+      "default_visible": true,
       "user_configurable": true
     },
     {
@@ -3620,7 +3620,7 @@
       "role": "book_authoring_agent",
       "package_kind": "starter_professional_agent_package",
       "installed_manageable": true,
-      "default_home_visible": false,
+      "default_home_visible": true,
       "codex_visible_entry": "opl-bookforge",
       "home_shortcut_ids": [
         "book"

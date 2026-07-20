@@ -176,8 +176,8 @@ function validateDomainExposure(policy) {
     throw new Error('Install exposure policy must expose OMA through its default Home shortcut');
   }
   const bookforgeExposure = expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-bookforge')?.entry;
-  if (bookforgeExposure?.default_home_visible !== false || bookforgeExposure.home_purpose_entry !== null) {
-    throw new Error('Install exposure policy must keep BookForge available but hidden from the default Home shortcuts');
+  if (bookforgeExposure?.default_home_visible !== true || bookforgeExposure.home_purpose_entry !== 'book') {
+    throw new Error('Install exposure policy must expose BookForge through the default configurable Home shortcut');
   }
 }
 

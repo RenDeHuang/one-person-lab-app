@@ -169,9 +169,9 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
   }
   if (
     JSON.stringify(homeAgentShortcuts.filter((entry) => entry.default_visible).map((entry) => entry.shortcut_id)) !==
-    JSON.stringify(['research', 'ppt', 'grant', 'oma'])
+    JSON.stringify(['research', 'ppt', 'grant', 'book', 'oma'])
   ) {
-    throw new Error('Guid home page must default to Research, Presentation, Grant, and Meta Agent shortcuts');
+    throw new Error('Guid home page must default to Research, Presentation, Grant, Book, and Meta Agent shortcuts');
   }
   if (homeAgentShortcuts.some((entry) => entry.user_configurable !== true)) {
     throw new Error('Guid home page package shortcuts must remain user configurable');

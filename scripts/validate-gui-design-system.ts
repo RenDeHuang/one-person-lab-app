@@ -1131,7 +1131,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
     homeTarget.starter_order_policy !== 'stable_configured_order' ||
     homeTarget.starter_layout_policy !== 'compact_inline_wrap' ||
-    !sameStrings(homeTarget.default_visible_shortcut_ids, ['research', 'ppt', 'grant', 'oma']) ||
+    !sameStrings(homeTarget.default_visible_shortcut_ids, ['research', 'ppt', 'grant', 'book', 'oma']) ||
     record(homeTarget.visual_structure).starter_region !==
       'composer_reading_lane_immediately_above_input_not_page_navigation' ||
     record(homeTarget.visual_structure).starter_item_width !== 'content_sized' ||
