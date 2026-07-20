@@ -153,7 +153,7 @@ test('local-install plan stops at exact local build, install handoff, and instal
     '--profile',
     'local-install',
     '--version',
-    '26.7.15',
+    '26.7.20-r1',
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -177,7 +177,10 @@ test('local-install plan stops at exact local build, install handoff, and instal
   assert.match(lanes.get('release_source_gate').command, /--require-shell-format true --run-shell-tests true/);
   assert.deepEqual(lanes.get('release_boundary').depends_on, ['release_source_gate']);
   assert.deepEqual(lanes.get('standard_build').depends_on, ['release_source_gate']);
-  assert.equal(lanes.get('standard_build').command, 'npm run build-mac:arm64');
+  assert.equal(
+    lanes.get('standard_build').command,
+    'env OPL_RELEASE_VERSION=26.7.20-r1 OPL_UPDATER_VERSION=26.7.2001 npm run build-mac:arm64',
+  );
   assert.deepEqual(lanes.get('local_install_handoff').depends_on, ['release_boundary', 'standard_build']);
   assert.deepEqual(lanes.get('installed_app_readback').depends_on, ['local_install_handoff']);
   assert.match(lanes.get('installed_app_readback').command, /app\.asar SHA-256 equality/);

@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { assertReleaseVersionNotFuture } from './release-version.ts';
+import {
+  assertReleaseVersionNotFuture,
+  resolveReleaseVersionIdentity,
+} from './release-version.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContract = JSON.parse(
@@ -137,6 +140,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     if (!profile || !Array.isArray(profile.required_lanes) || !Array.isArray(profile.forbidden_lanes)) {
       throw new Error('Release channel contract is missing release_profiles.local_install.');
     }
+    const versionIdentity = resolveReleaseVersionIdentity('stable', options.version);
     const lanes: Lane[] = [
       {
         id: 'release_source_gate',
@@ -159,7 +163,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         phase: 'parallel_build',
         depends_on: ['release_source_gate'],
         can_run_with: ['release_boundary'],
-        command: profile.build_command,
+        command: `env OPL_RELEASE_VERSION=${versionIdentity.displayVersion} OPL_UPDATER_VERSION=${versionIdentity.updaterVersion} ${profile.build_command}`,
         required_for: ['local_installed_app'],
       },
       {
