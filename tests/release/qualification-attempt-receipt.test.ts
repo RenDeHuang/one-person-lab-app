@@ -65,6 +65,54 @@ test('fixture retry requires the exact unchanged verifier cohort', () => {
   assert.equal(receipt.evidence.scope_proof?.shell_head_sha, '2'.repeat(40));
 });
 
+test('typed VM diagnostics override unknown and force a new cohort for verifier contract drift', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-attempt-critical-diagnostics-'));
+  try {
+    const diagnosticsPath = path.join(root, 'vm-gate-failure-summary.json');
+    fs.writeFileSync(diagnosticsPath, JSON.stringify({
+      purpose: 'first_run_vm_gate_failure_critical_diagnostics',
+      failure: {
+        type: 'settings_smoke_failed',
+        boundary: 'guest_settings_smoke',
+        taxonomy: 'fixture',
+        classification: 'verification_harness_contract_drift',
+      },
+    }));
+    const proof = {
+      classification: 'same_as_artifact_cohort',
+      app: { base_sha: '1'.repeat(40), head_sha: '1'.repeat(40) },
+      shell: { base_sha: '2'.repeat(40), head_sha: '2'.repeat(40) },
+      expectations: {
+        artifact_semantic_digest: '4'.repeat(64),
+        verification_semantic_digest: '4'.repeat(64),
+      },
+      reuse_authorization: { forbidden_paths: { app: [], shell: [] } },
+    };
+    const receipt = buildQualificationAttemptReceipt({
+      status: 'failed',
+      failureTaxonomy: 'unknown',
+      criticalDiagnosticsPath: diagnosticsPath,
+      scopeProofBase64: Buffer.from(JSON.stringify(proof)).toString('base64'),
+    });
+
+    assert.equal(receipt.failure_taxonomy, 'fixture');
+    assert.deepEqual(receipt.failure, {
+      type: 'settings_smoke_failed',
+      boundary: 'guest_settings_smoke',
+      classification: 'verification_harness_contract_drift',
+    });
+    assert.equal(receipt.retry.disposition, 'new_cohort_required');
+    assert.match(receipt.retry.reason, /verifier identity/);
+    assert.equal(receipt.evidence.critical_diagnostics_path, diagnosticsPath);
+    assert.equal(
+      receipt.evidence.critical_diagnostics_sha256,
+      crypto.createHash('sha256').update(fs.readFileSync(diagnosticsPath)).digest('hex'),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('fixture failure with a changed Shell verifier requires a new cohort even when semantic digests match', () => {
   const proof = {
     classification: 'harness_mechanics_only',

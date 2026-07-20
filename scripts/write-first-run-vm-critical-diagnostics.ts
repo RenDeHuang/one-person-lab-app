@@ -18,6 +18,13 @@ type FailureType =
   | 'vm_smoke_failed'
   | 'vm_harness_preflight_failed';
 
+type QualificationFailureTaxonomy =
+  | 'none'
+  | 'product'
+  | 'fixture'
+  | 'environment'
+  | 'infrastructure';
+
 const outputDir = 'artifacts/opl-first-run-vm-critical-diagnostics';
 const vmArtifactDir = 'artifacts/opl-first-run-vm';
 
@@ -57,6 +64,63 @@ function failed(value: string): boolean {
 function includesAny(value: string, needles: string[]): boolean {
   const normalized = value.toLowerCase();
   return needles.some((needle) => normalized.includes(needle));
+}
+
+function failureErrorText(classification: {
+  tartSummary: JsonRecord | null;
+  guestSummary: JsonRecord | null;
+}): string {
+  return [
+    stringField(classification.tartSummary, 'error'),
+    stringField(recordField(classification.tartSummary, 'error_classification'), 'message'),
+    stringField(classification.guestSummary, 'error'),
+    stringField(recordField(classification.guestSummary, 'bootstrap_launch_diagnostics'), 'error'),
+  ].join('\n');
+}
+
+function readSettingsReadinessDiagnostic(errorText: string): JsonRecord | null {
+  const marker = 'Settings readiness diagnostic: ';
+  const markerIndex = errorText.lastIndexOf(marker);
+  if (markerIndex < 0) return null;
+  const payload = errorText.slice(markerIndex + marker.length).split(/\r?\n/, 1)[0]?.trim();
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(payload);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as JsonRecord
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function qualificationFailure(
+  failureType: FailureType,
+  errorText: string,
+): { taxonomy: QualificationFailureTaxonomy; classification: string } {
+  if (failureType === 'none') return { taxonomy: 'none', classification: 'passed' };
+  if (failureType === 'artifact_download_failed' || failureType === 'release_asset_missing') {
+    return { taxonomy: 'infrastructure', classification: failureType };
+  }
+  if (failureType === 'vm_launch_failed') {
+    return { taxonomy: 'environment', classification: 'vm_environment_failure' };
+  }
+  if (failureType === 'vm_harness_preflight_failed' || failureType === 'opl_command_output_buffer_exhausted') {
+    return { taxonomy: 'fixture', classification: failureType };
+  }
+  if (failureType === 'settings_smoke_failed') {
+    const diagnostic = readSettingsReadinessDiagnostic(errorText);
+    const renderedContentWithoutLegacyNavigation =
+      diagnostic?.expectedHash === diagnostic?.hash &&
+      diagnostic?.contentPresent === true &&
+      diagnostic?.navPresent === false &&
+      diagnostic?.loaderVisible === false &&
+      diagnostic?.firstRunWindowVisible === false;
+    if (renderedContentWithoutLegacyNavigation) {
+      return { taxonomy: 'fixture', classification: 'verification_harness_contract_drift' };
+    }
+  }
+  return { taxonomy: 'product', classification: `${failureType}_product_failure` };
 }
 
 function classifyFailure(): {
@@ -222,7 +286,10 @@ function classifyFailure(): {
   };
 }
 
-function typedControllerAction(failureType: FailureType) {
+function typedControllerAction(
+  failureType: FailureType,
+  qualification: { taxonomy: QualificationFailureTaxonomy; classification: string },
+) {
   const profile = env('PACKAGE_PROFILE') || 'unknown';
   const artifactKind = profile === 'full' ? 'full' : 'standard';
   const reconcileRequired = new Set<FailureType>([
@@ -230,14 +297,19 @@ function typedControllerAction(failureType: FailureType) {
     'opl_command_output_buffer_exhausted',
     'vm_harness_preflight_failed',
   ]);
+  const newCohortRequired =
+    qualification.taxonomy === 'product' ||
+    qualification.classification === 'verification_harness_contract_drift';
   const action = failureType === 'none'
     ? 'none'
-    : reconcileRequired.has(failureType)
-      ? 'reconcile_stable_session'
-      : 'retry_qualification_same_artifact';
+    : newCohortRequired
+      ? 'new_cohort_required'
+      : reconcileRequired.has(failureType)
+        ? 'reconcile_stable_session'
+        : 'retry_qualification_same_artifact';
   const controllerSubcommand = action === 'retry_qualification_same_artifact'
     ? 'retry-qualification'
-    : action === 'reconcile_stable_session'
+    : action === 'reconcile_stable_session' || action === 'new_cohort_required'
       ? 'reconcile'
       : null;
   const artifactArg = controllerSubcommand === 'retry-qualification'
@@ -245,7 +317,9 @@ function typedControllerAction(failureType: FailureType) {
     : '';
   return {
     action,
-    scope: 'vm_qualification_only_same_cohort',
+    scope: action === 'new_cohort_required'
+      ? 'new_immutable_cohort_after_reconcile'
+      : 'vm_qualification_only_same_cohort',
     controller: action === 'none' ? null : 'release:stable',
     controller_subcommand: controllerSubcommand,
     state_ref: action === 'none' ? null : 'original_stable_release_session',
@@ -256,11 +330,10 @@ function typedControllerAction(failureType: FailureType) {
     execute_flag_included: false,
     mutation_authorized: false,
     direct_workflow_dispatch_allowed: false,
-    rebuilds_standard_or_full_artifact: false,
+    rebuilds_standard_or_full_artifact: action === 'new_cohort_required',
     uses_existing_release_artifact: Boolean(
-      env('RELEASE_ARTIFACT_NAME')
-      || env('RELEASE_DMG_URL_CONFIGURED') === 'true'
-      || env('RELEASE_TAG')
+      action !== 'new_cohort_required' &&
+      (env('RELEASE_ARTIFACT_NAME') || env('RELEASE_DMG_URL_CONFIGURED') === 'true' || env('RELEASE_TAG'))
     ),
   };
 }
@@ -270,7 +343,8 @@ function main(): void {
   const summaryJsonPath = `${outputDir}/vm-gate-failure-summary.json`;
   const summaryMdPath = `${outputDir}/vm-gate-failure-summary.md`;
   const classification = classifyFailure();
-  const controllerAction = typedControllerAction(classification.type);
+  const qualification = qualificationFailure(classification.type, failureErrorText(classification));
+  const controllerAction = typedControllerAction(classification.type, qualification);
   const releaseArtifactRunId =
     env('RELEASE_ARTIFACT_EFFECTIVE_RUN_ID') ||
     env('RELEASE_ARTIFACT_RUN_ID') ||
@@ -316,6 +390,8 @@ function main(): void {
       type: classification.type,
       boundary: classification.boundary,
       reason: classification.reason,
+      taxonomy: qualification.taxonomy,
+      classification: qualification.classification,
       tart_failure_stage: stringField(classification.tartSummary, 'failure_stage'),
       tart_status: stringField(classification.tartSummary, 'status'),
       guest_status: stringField(classification.guestSummary, 'status'),
@@ -357,6 +433,8 @@ function main(): void {
       `- Smoke step conclusion: ${summary.vm_gate.step_conclusion}`,
       `- Failure type: ${summary.failure.type}`,
       `- Failure boundary: ${summary.failure.boundary}`,
+      `- Failure taxonomy: ${summary.failure.taxonomy}`,
+      `- Failure classification: ${summary.failure.classification}`,
       `- Expected next action: ${summary.vm_gate.expected_next_action}`,
       `- Stable controller route: ${summary.typed_controller_action.command_template || 'none'}`,
       `- Mutation authorized: ${String(summary.typed_controller_action.mutation_authorized)}`,

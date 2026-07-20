@@ -53,6 +53,7 @@ test('VM critical diagnostics classify failed artifact download and route recove
   assert.equal(summary.schema_version, 2);
   assert.equal(summary.failure.type, 'artifact_download_failed');
   assert.equal(summary.failure.boundary, 'workflow_artifact_download');
+  assert.equal(summary.failure.taxonomy, 'infrastructure');
   assert.equal(summary.typed_controller_action.action, 'retry_qualification_same_artifact');
   assert.equal(summary.typed_controller_action.scope, 'vm_qualification_only_same_cohort');
   assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
@@ -97,6 +98,7 @@ test('VM critical diagnostics distinguish Tart launch failure from App readiness
   );
   assert.equal(launchSummary.failure.type, 'vm_launch_failed');
   assert.equal(launchSummary.failure.boundary, 'wait_for_ssh');
+  assert.equal(launchSummary.failure.taxonomy, 'environment');
 
   const appReadySummary = runDiagnostics(
     {
@@ -116,6 +118,7 @@ test('VM critical diagnostics distinguish Tart launch failure from App readiness
   );
   assert.equal(appReadySummary.failure.type, 'app_ready_failed');
   assert.equal(appReadySummary.failure.boundary, 'guest_app_ready');
+  assert.equal(appReadySummary.failure.taxonomy, 'product');
 });
 
 test('VM critical diagnostics classify OPL configure-codex failures before App readiness', () => {
@@ -187,10 +190,47 @@ test('VM critical diagnostics keep Settings contract failures out of App readine
 
   assert.equal(summary.failure.type, 'settings_smoke_failed');
   assert.equal(summary.failure.boundary, 'guest_settings_smoke');
+  assert.equal(summary.failure.taxonomy, 'product');
+  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
   assert.notEqual(summary.failure.type, 'app_ready_failed');
 });
 
-test('VM critical diagnostics classify Runtime return readiness as Settings smoke failure with same-artifact recovery', () => {
+test('VM critical diagnostics classify rendered Settings with a stale navigation probe as verifier drift', () => {
+  const readinessDiagnostic = {
+    id: 'general',
+    expectedHash: '#/settings/general',
+    hash: '#/settings/general',
+    navPresent: false,
+    contentPresent: true,
+    loaderVisible: false,
+    firstRunWindowVisible: false,
+  };
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_NAME: 'macos-build-arm64-dmg',
+      RELEASE_ARTIFACT_RUN_ID: '29765847113',
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: `Settings page did not become ready: general\nSettings readiness diagnostic: ${JSON.stringify(readinessDiagnostic)}\n`,
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'settings_smoke_failed');
+  assert.equal(summary.failure.taxonomy, 'fixture');
+  assert.equal(summary.failure.classification, 'verification_harness_contract_drift');
+  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
+  assert.equal(summary.typed_controller_action.scope, 'new_immutable_cohort_after_reconcile');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, true);
+  assert.equal(summary.typed_controller_action.uses_existing_release_artifact, false);
+  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+});
+
+test('VM critical diagnostics fail closed on Runtime return readiness without verifier-drift proof', () => {
   const summary = runDiagnostics(
     {
       RELEASE_ARTIFACT_NAME: 'macos-build-arm64-dmg',
@@ -209,12 +249,13 @@ test('VM critical diagnostics classify Runtime return readiness as Settings smok
 
   assert.equal(summary.failure.type, 'settings_smoke_failed');
   assert.equal(summary.failure.boundary, 'runtime_return_ready_marker');
+  assert.equal(summary.failure.taxonomy, 'product');
   assert.notEqual(summary.failure.type, 'app_ready_failed');
-  assert.equal(summary.typed_controller_action.action, 'retry_qualification_same_artifact');
-  assert.equal(summary.typed_controller_action.scope, 'vm_qualification_only_same_cohort');
-  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
+  assert.equal(summary.typed_controller_action.scope, 'new_immutable_cohort_after_reconcile');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, true);
   assert.equal(summary.typed_controller_action.execution_mode, 'dry_run');
-  assert.match(summary.typed_controller_action.command_template, /retry-qualification/);
+  assert.match(summary.typed_controller_action.command_template, /reconcile/);
 });
 
 test('VM critical diagnostics keep Home assistant route failures out of App readiness', () => {

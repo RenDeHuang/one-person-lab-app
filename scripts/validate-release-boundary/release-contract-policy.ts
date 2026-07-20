@@ -783,6 +783,9 @@ export function validateReleaseAccelerationPolicy(
     stableReleaseStateMachine?.recovery_policy?.separate_verification_harness_requires_changed_path_scope_proof !== true ||
     stableReleaseStateMachine?.recovery_policy?.verification_harness_must_not_replace_artifact_cohort_identity !== true ||
     stableReleaseStateMachine?.recovery_policy?.verification_harness_identity_must_be_recorded_in_qualification_receipt !== true ||
+    stableReleaseStateMachine?.recovery_policy?.critical_diagnostics_failure_taxonomy_must_feed_attempt_receipt !== true ||
+    stableReleaseStateMachine?.recovery_policy?.unknown_may_not_override_available_typed_diagnostics !== true ||
+    stableReleaseStateMachine?.recovery_policy?.verification_harness_contract_drift_requires_new_cohort !== true ||
     stableReleaseStateMachine?.recovery_policy?.artifact_build_failed_can_reconcile_original_run_without_redispatch !== true ||
     stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
     stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||

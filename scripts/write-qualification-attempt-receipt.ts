@@ -16,7 +16,8 @@ const { values } = parseArgs({
     'qualification-run-id': { type: 'string', default: '' }, 'qualification-run-attempt': { type: 'string', default: '' },
     'source-artifact-run-id': { type: 'string', default: '' }, 'source-artifact-name': { type: 'string', default: '' },
     manifest: { type: 'string', default: '' }, 'strict-receipt': { type: 'string', default: '' },
-    'smoke-summary': { type: 'string', default: '' }, 'scope-proof-base64': { type: 'string', default: '' },
+    'smoke-summary': { type: 'string', default: '' }, 'critical-diagnostics': { type: 'string', default: '' },
+    'scope-proof-base64': { type: 'string', default: '' },
     outcome: { type: 'string', multiple: true, default: [] }, error: { type: 'string', multiple: true, default: [] },
   },
   strict: true,
@@ -36,7 +37,8 @@ const receipt = buildQualificationAttemptReceipt({
   qualificationRunId: values['qualification-run-id'], qualificationRunAttempt: values['qualification-run-attempt'],
   sourceArtifactRunId: values['source-artifact-run-id'], sourceArtifactName: values['source-artifact-name'],
   manifestPath: values.manifest, strictQualificationReceiptPath: values['strict-receipt'],
-  smokeSummaryPath: values['smoke-summary'], scopeProofBase64: values['scope-proof-base64'],
+  smokeSummaryPath: values['smoke-summary'], criticalDiagnosticsPath: values['critical-diagnostics'],
+  scopeProofBase64: values['scope-proof-base64'],
   outcomes, errors: values.error,
 });
 writeQualificationAttemptReceiptAtomic(path.resolve(values.output), receipt);

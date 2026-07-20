@@ -112,5 +112,7 @@ test('VM finalizer skips empty source artifacts and always has safe receipt path
   assert.match(download, /if: \$\{\{ inputs\.release_artifact_name != '' && inputs\.release_artifact_run_id != '' \}\}/);
   assert.match(download, /run-id: \$\{\{ inputs\.release_artifact_run_id \}\}/);
   assert.match(receipt, /mkdir -p recovered-artifact-manifest recovered-vm-evidence/);
-  assert.equal((receipt.match(/-print -quit 2>\/dev\/null \|\| true/g) || []).length, 3);
+  assert.equal((receipt.match(/-print -quit 2>\/dev\/null \|\| true/g) || []).length, 4);
+  assert.match(receipt, /-name vm-gate-failure-summary\.json/);
+  assert.match(receipt, /--critical-diagnostics "\$critical_diagnostics"/);
 });

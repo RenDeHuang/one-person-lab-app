@@ -2270,6 +2270,7 @@ jobs:
           manifest="$(find recovered-artifact-manifest recovered-vm-evidence -name opl-build-cohort.json -type f -print -quit 2>/dev/null || true)"
           strict_receipt="$(find recovered-vm-evidence -name artifact-qualification-receipt.json -type f -print -quit 2>/dev/null || true)"
           smoke_summary="$(find recovered-vm-evidence -name tart-smoke-summary.json -type f -print -quit 2>/dev/null || true)"
+          critical_diagnostics="$(find recovered-vm-evidence -name vm-gate-failure-summary.json -type f -print -quit 2>/dev/null || true)"
           args=(
             --output qualification-attempt-receipt.json
             --status "$status"
@@ -2289,6 +2290,7 @@ jobs:
           [ -n "$manifest" ] && args+=(--manifest "$manifest")
           [ -n "$strict_receipt" ] && args+=(--strict-receipt "$strict_receipt")
           [ -n "$smoke_summary" ] && args+=(--smoke-summary "$smoke_summary")
+          [ -n "$critical_diagnostics" ] && args+=(--critical-diagnostics "$critical_diagnostics")
           node --experimental-strip-types scripts/write-qualification-attempt-receipt.ts "${args[@]}"
 
       - name: Upload durable qualification attempt receipt

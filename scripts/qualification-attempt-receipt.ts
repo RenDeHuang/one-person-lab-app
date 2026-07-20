@@ -20,6 +20,11 @@ export type QualificationAttemptReceiptV1 = {
   written_at: string;
   status: 'passed' | 'failed' | 'cancelled' | 'incomplete';
   failure_taxonomy: QualificationFailureTaxonomy;
+  failure: {
+    type: string | null;
+    boundary: string | null;
+    classification: string | null;
+  };
   retry: {
     disposition: 'new_cohort_required' | 'same_artifact_retry_allowed' | 'reconcile_only' | 'terminal_blocked';
     reason: string;
@@ -51,6 +56,8 @@ export type QualificationAttemptReceiptV1 = {
     strict_qualification_receipt_sha256: string | null;
     smoke_summary_path: string | null;
     smoke_summary_sha256: string | null;
+    critical_diagnostics_path: string | null;
+    critical_diagnostics_sha256: string | null;
     scope_proof: null | {
       classification: string | null;
       app_base_sha: string | null;
@@ -182,6 +189,44 @@ function readManifest(filePath: string | undefined, errors: string[]): Record<st
   }
 }
 
+function readCriticalDiagnostics(
+  filePath: string | undefined,
+  errors: string[],
+): {
+  taxonomy: QualificationFailureTaxonomy;
+  type: string | null;
+  boundary: string | null;
+  classification: string | null;
+} | null {
+  if (!filePath) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Record<string, any>;
+    if (parsed.purpose !== 'first_run_vm_gate_failure_critical_diagnostics') {
+      errors.push('critical VM diagnostics purpose is invalid');
+      return null;
+    }
+    const allowedTaxonomies: QualificationFailureTaxonomy[] = [
+      'none', 'product', 'fixture', 'environment', 'operator', 'infrastructure', 'cancelled', 'unknown',
+    ];
+    const taxonomy = parsed.failure?.taxonomy;
+    if (!allowedTaxonomies.includes(taxonomy)) {
+      errors.push('critical VM diagnostics failure taxonomy is invalid');
+      return null;
+    }
+    return {
+      taxonomy,
+      type: typeof parsed.failure?.type === 'string' ? parsed.failure.type : null,
+      boundary: typeof parsed.failure?.boundary === 'string' ? parsed.failure.boundary : null,
+      classification: typeof parsed.failure?.classification === 'string'
+        ? parsed.failure.classification
+        : null,
+    };
+  } catch (error) {
+    errors.push(`critical VM diagnostics are unavailable or invalid: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 function validateStrictPassedReceipt(input: {
   strictPath?: string;
   strictSha: string | null;
@@ -261,12 +306,14 @@ export function buildQualificationAttemptReceipt(input: {
   manifestPath?: string;
   strictQualificationReceiptPath?: string;
   smokeSummaryPath?: string;
+  criticalDiagnosticsPath?: string;
   scopeProofBase64?: string;
   outcomes?: Record<string, string | undefined>;
   errors?: string[];
 }): QualificationAttemptReceiptV1 {
   const errors = [...(input.errors ?? [])];
   const manifest = readManifest(input.manifestPath, errors);
+  const criticalDiagnostics = readCriticalDiagnostics(input.criticalDiagnosticsPath, errors);
   const status = ['passed', 'failed', 'cancelled', 'incomplete'].includes(input.status ?? '')
     ? input.status as QualificationAttemptReceiptV1['status']
     : 'incomplete';
@@ -280,6 +327,13 @@ export function buildQualificationAttemptReceipt(input: {
       : status === 'cancelled'
         ? 'cancelled'
         : 'unknown';
+  if (
+    failureTaxonomy === 'unknown' &&
+    criticalDiagnostics &&
+    !['none', 'unknown'].includes(criticalDiagnostics.taxonomy)
+  ) {
+    failureTaxonomy = criticalDiagnostics.taxonomy;
+  }
   if (status === 'passed' && failureTaxonomy !== 'none') {
     errors.push(`passed attempt cannot use failure taxonomy ${failureTaxonomy}`);
     failureTaxonomy = 'unknown';
@@ -327,6 +381,11 @@ export function buildQualificationAttemptReceipt(input: {
     'strict qualification receipt',
   );
   const smokeSummarySha = sha256IfFile(input.smokeSummaryPath, errors, 'smoke summary');
+  const criticalDiagnosticsSha = sha256IfFile(
+    input.criticalDiagnosticsPath,
+    errors,
+    'critical VM diagnostics',
+  );
   if (status === 'passed') {
     validateStrictPassedReceipt({
       strictPath: input.strictQualificationReceiptPath,
@@ -349,10 +408,14 @@ export function buildQualificationAttemptReceipt(input: {
     scopeProof?.classification === 'same_as_artifact_cohort' &&
     scopeProof.artifact_semantic_digest != null &&
     scopeProof.artifact_semantic_digest === scopeProof.verification_semantic_digest;
-  const retry = failureTaxonomy === 'product' || (failureTaxonomy === 'fixture' && !sameArtifactFixture)
-    ? { disposition: 'new_cohort_required' as const, reason: failureTaxonomy === 'product'
-      ? 'product failure changes the releasable cohort'
-      : 'fixture failure lacks a semantic-equal harness-mechanics-only scope proof' }
+  const harnessContractDrift =
+    criticalDiagnostics?.classification === 'verification_harness_contract_drift';
+  const retry = failureTaxonomy === 'product' || harnessContractDrift || (failureTaxonomy === 'fixture' && !sameArtifactFixture)
+    ? { disposition: 'new_cohort_required' as const, reason: harnessContractDrift
+      ? 'verification harness contract drift changes the verifier identity and requires a new cohort'
+      : failureTaxonomy === 'product'
+        ? 'product failure changes the releasable cohort'
+        : 'fixture failure lacks a semantic-equal harness-mechanics-only scope proof' }
     : sameArtifactFixture
       ? { disposition: 'same_artifact_retry_allowed' as const, reason: 'fixture failure may retry only with the exact unchanged App and Shell verifier cohort' }
       : failureTaxonomy === 'operator'
@@ -366,6 +429,11 @@ export function buildQualificationAttemptReceipt(input: {
     written_at: input.writtenAt ?? new Date().toISOString(),
     status: finalStatus,
     failure_taxonomy: failureTaxonomy,
+    failure: {
+      type: criticalDiagnostics?.type ?? null,
+      boundary: criticalDiagnostics?.boundary ?? null,
+      classification: criticalDiagnostics?.classification ?? null,
+    },
     retry,
     identity: {
       stable_session_id: input.stableSessionId || manifest?.release?.stable_session_id || null,
@@ -400,6 +468,8 @@ export function buildQualificationAttemptReceipt(input: {
       strict_qualification_receipt_sha256: strictReceiptSha,
       smoke_summary_path: smokeSummarySha ? input.smokeSummaryPath! : null,
       smoke_summary_sha256: smokeSummarySha,
+      critical_diagnostics_path: criticalDiagnosticsSha ? input.criticalDiagnosticsPath! : null,
+      critical_diagnostics_sha256: criticalDiagnosticsSha,
       scope_proof: scopeProof,
     },
     outcomes: Object.fromEntries(
