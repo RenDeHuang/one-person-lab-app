@@ -98,6 +98,208 @@
       "authority_boundary": "The local-install profile builds and verifies one exact local App/Shell/Framework cohort for this Mac only. It cannot publish or promote a release, write GHCR or Homebrew, require notarization, or stand in for public distribution readiness. It cannot claim clean-VM or attestation evidence."
     }
   },
+  "release_bundle_control_plane": {
+    "schema": "opl_app_release_bundle_control_plane.v1",
+    "contract_status": "active",
+    "implementation_status": "cutover_pending_framework_authority_main_and_workflow_activation",
+    "canonical_document": "docs/delivery/release/immutable-release-bundle.md",
+    "framework_authority": {
+      "owner": "gaofeng21cn/one-person-lab",
+      "bundle_schema": "opl_release_bundle.v1",
+      "bundle_schema_owner": "OPL Framework",
+      "app_may_redefine_framework_bundle_closed_shape": false,
+      "store_owner": "OPL Framework",
+      "canonical_digest_owner": "OPL Framework",
+      "cli": "opl release",
+      "commands": [
+        "freeze",
+        "build",
+        "verify",
+        "publish",
+        "reconcile",
+        "status"
+      ],
+      "command_forms": [
+        "opl release freeze --request <request.json>",
+        "opl release build --bundle <bundle.json> --executor-receipt <receipt.json>",
+        "opl release verify --bundle <bundle.json>",
+        "opl release publish --bundle <bundle.json> --track <standard|full> --executor-receipt <remote-inspect-receipt.json>",
+        "opl release reconcile --bundle <bundle.json>",
+        "opl release status --bundle <bundle.json>"
+      ],
+      "receipt_schemas": [
+        "opl_release_bundle_executor_receipt.v1",
+        "opl_release_bundle_operation_receipt.v1"
+      ],
+      "live_mutation_authority": "framework_release_bundle_executor",
+      "rule": "OPL Framework owns the generic immutable Release Bundle schema, store, canonical digest, receipts, and executor ABI. The App consumes that authority and must not fork or redefine its closed shape."
+    },
+    "app_authority": {
+      "owner": "one-person-lab-app",
+      "owns": [
+        "product_release_adapter",
+        "public_asset_policy",
+        "prepared_ai_release_notes_policy",
+        "installed_app_acceptance",
+        "standard_updater_readback"
+      ],
+      "does_not_own": [
+        "generic_release_bundle_schema",
+        "generic_release_bundle_store",
+        "generic_release_bundle_digest",
+        "generic_executor_state_machine",
+        "generic_publisher_ledger"
+      ]
+    },
+    "identity": {
+      "minimum_source_refs": [
+        "app_sha",
+        "shell_sha",
+        "framework_sha"
+      ],
+      "three_repo_sha_tuple_is_sufficient": false,
+      "required_package_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf",
+        "mas-scholar-skills",
+        "opl-flow"
+      ],
+      "accepted_package_binding_modes": {
+        "explicit_members": {
+          "required_per_package_fields": [
+            "package_id",
+            "package_version",
+            "owner_source_commit",
+            "payload_manifest_sha256"
+          ],
+          "exact_required_package_set": true
+        },
+        "framework_release_set": {
+          "required_fields": [
+            "release_set_ref",
+            "release_set_sha256"
+          ],
+          "must_transitively_bind_exact_required_package_set": true,
+          "transitive_member_readback_required": true
+        }
+      },
+      "framework_catalog_or_manifest_digest_required": true,
+      "canonical_digest_covers": [
+        "release_channel_and_version",
+        "app_shell_framework_refs",
+        "package_binding",
+        "prepared_ai_notes_and_evidence",
+        "standard_assets_and_qualification",
+        "optional_full_assets_and_qualification",
+        "product_policy_inputs"
+      ],
+      "prebuild_rule": "Freeze and verify one complete package binding before any expensive build. A source checkout, packaged payload, catalog, manifest, or Release Set mismatch fails closed before compression or publication."
+    },
+    "execution": {
+      "model": "build_once_verify_and_promote_many",
+      "executors": [
+        "local",
+        "github_actions"
+      ],
+      "executors_are_transport_only": true,
+      "same_exact_bundle_required": true,
+      "executor_switch_rebuild_allowed": false,
+      "local_role": "development_debug_fast_build_same_artifact_qualification_and_authorized_publication_fallback",
+      "github_actions_role": "routine_publication_and_continuous_remote_proof",
+      "development_isolation": "release_owned_read_only_worktree_or_detached_checkout",
+      "canonical_main_lock_during_build_verify_or_publish": false
+    },
+    "prepared_notes": {
+      "source": "prepared_ai",
+      "required_before_expensive_build": true,
+      "markdown_and_evidence_digests_in_bundle_identity": true,
+      "publish_may_generate_or_replace": false,
+      "template_fallback_may_publish": false
+    },
+    "publication": {
+      "stable": {
+        "only_manual_dispatch_workflow": ".github/workflows/release-stable.yml",
+        "trigger": "workflow_dispatch",
+        "lower_level_workflows": "workflow_call_only",
+        "latest_requires": [
+          "prepared_ai_release_notes",
+          "One-Person-Lab-<version>-mac-arm64.dmg",
+          "One-Person-Lab-<version>-mac-arm64.zip",
+          "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+          "latest-arm64-mac.yml",
+          "opl-app-component-manifest.json",
+          "standard-local-authorization-policy.json",
+          "standard_exact_byte_qualification",
+          "remote_digest_readback"
+        ]
+      },
+      "nightly": {
+        "workflow": ".github/workflows/release-nightly.yml",
+        "trigger": "schedule_only",
+        "manual_dispatch_allowed": false,
+        "uses_same_framework_cli": true,
+        "uses_same_release_dag": true,
+        "latest_allowed": false
+      },
+      "full": {
+        "mode": "same_bundle_cohort_additive_only",
+        "may_follow_latest": true,
+        "required_assets": [
+          "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+          "opl-release-manifest.json"
+        ],
+        "must_not_modify": [
+          "standard_assets",
+          "latest-arm64-mac.yml",
+          "prepared_ai_release_notes",
+          "latest_selection"
+        ],
+        "updater_metadata_allowed": false
+      }
+    },
+    "publisher_idempotency": {
+      "missing_asset": "upload",
+      "same_name_same_digest": "already_complete",
+      "same_name_different_digest": "fail_closed_require_new_bundle_or_version",
+      "unknown_api_result": "reconcile_only",
+      "redispatch_on_unknown_allowed": false,
+      "rerun_on_unknown_allowed": false,
+      "cancel_on_unknown_allowed": false
+    },
+    "legacy_compatibility": {
+      "mode": "read_only_receipt_parser",
+      "app_schema": "opl_app_release_bundle.v1",
+      "app_schema_contract": "contracts/app-release-bundle.schema.json",
+      "app_parser": "scripts/release-bundle.ts",
+      "accepted_commands": [
+        "assemble",
+        "verify",
+        "status"
+      ],
+      "can_claim_release_ready": false,
+      "legacy_broker_and_stable_state_machine_live_mutation_authority": false,
+      "historical_receipts_remain_readable": true,
+      "new_legacy_dispatch_publish_or_rebuild_allowed": false
+    },
+    "cutover": {
+      "new_external_mutation_allowed_before_framework_cli_and_workflows_activate": false,
+      "activation_requires": [
+        "framework_release_cli_on_framework_main",
+        "app_adapter_on_app_main",
+        "release_stable_workflow_is_only_stable_dispatch",
+        "release_nightly_workflow_is_schedule_only",
+        "lower_level_release_workflows_are_workflow_call_only",
+        "release_stable_protected_environment_readback",
+        "no_public_mutation_canary"
+      ],
+      "rejected_artifact_receipts": [
+        "docs/delivery/release/incidents/2026-07-20-v26.7.20-full-catalog-mismatch.json"
+      ]
+    }
+  },
   "release_execution_tracks": {
     "purpose": "Execution location is an implementation choice, not a product, channel, asset, updater, or release-note difference.",
     "orthogonal_to_release_profiles": true,

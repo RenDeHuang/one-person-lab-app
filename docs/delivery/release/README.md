@@ -8,6 +8,13 @@ Machine boundary: Human-readable release guide. Machine decisions stay in `contr
 ## Read This First
 
 This guide is the release operator map, not a proof ledger. It states the release lanes, stop conditions, required machine surfaces, and verification commands. Dated run ids, branch closeouts, VM transcripts, package-size investigations, candidate smoke logs, GHCR diagnostics, screenshots, and release-by-release evidence belong in release artifacts, CI logs, candidate manifests, or `docs/history/process/`.
+The canonical release control-plane design is now the Framework-owned immutable
+Release Bundle in `docs/delivery/release/immutable-release-bundle.md` and
+`contracts/app-release-channel.json#release_bundle_control_plane`. It supersedes
+the legacy broker and Stable state-machine execution instructions that remain
+later in this guide for receipt compatibility and incident provenance. Those
+legacy surfaces are read-only and must not dispatch, rebuild, publish, promote,
+rerun, or cancel a release.
 The `v26.6.12` same-tag refresh and timing profile is archived at
 `docs/history/process/2026-06-12-stable-release-profile.md`; use it as
 provenance only, not as current release authority.
@@ -21,8 +28,9 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 
 | Theme | Current owner |
 | --- | --- |
+| Generic immutable Release Bundle schema, store, digest, receipts, executor ABI, and `opl release freeze/build/verify/publish/reconcile/status` | OPL Framework `opl_release_bundle.v1`; App product boundary in `contracts/app-release-channel.json#release_bundle_control_plane` |
 | Release channel policy, standard/Full separation, three-object software lifecycle, updater metadata, release evidence requirements | `contracts/app-release-channel.json` |
-| Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
+| Release workflow shape and publish sequencing | `.github/workflows/release-stable.yml` as the only Stable manual entry, `.github/workflows/release-nightly.yml` as schedule-only, and lower-level `workflow_call` implementations |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
 | Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, `contracts/app-release-channel.json#full_first_install.opl_runtime_bundle_consumer`, Full manifest `opl_runtime_bundle_consumer`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |

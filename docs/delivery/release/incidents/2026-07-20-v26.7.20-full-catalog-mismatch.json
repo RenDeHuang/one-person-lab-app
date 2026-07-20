@@ -1,0 +1,57 @@
+{
+  "schema": "opl_app_rejected_release_artifact.v1",
+  "release": {
+    "channel": "stable",
+    "version": "26.7.20",
+    "artifact_kind": "full"
+  },
+  "artifact": {
+    "name": "One-Person-Lab-Full-26.7.20-mac-arm64.dmg",
+    "size_bytes": 708064535,
+    "sha256": "3b34e0831609b9c593798d335a757643c4a7f2cfafbe38b818704c03ea42fb1e",
+    "local_source_path": "/private/tmp/opl-terminal-cohort-20260720/full-output-a80e-standalone/One-Person-Lab-Full-26.7.20-mac-arm64.dmg"
+  },
+  "qualification": {
+    "status": "failed",
+    "surface": "clean_vm_first_run",
+    "stage": "configure_codex",
+    "typed_failure": "catalog/package_ref_mismatch",
+    "underlying_failure_code": "agent_package_bundled_payload_file_sha256_mismatch",
+    "message": "Bundled Full runtime package payload file digest does not match its catalog payload.",
+    "observed_package": {
+      "package_id": "mas",
+      "catalog_package_version": "0.2.12",
+      "catalog_owner_source_commit": "17056c5d3170d945da89e7ac1499f4f952b5d004",
+      "packaged_owner_source_commit": "2ccb8dcded76d8d6ad04634f98e3a757ef7f75da",
+      "packaged_package_version": "0.2.15",
+      "payload_path": ".codex-plugin/plugin.json",
+      "catalog_expected_sha256": "d5a68112ac80bd606d7af775ddd4955599969d7c427f0ead81bdd1616923d3d3",
+      "packaged_actual_sha256": "ee6cc934b3567169e2ee2eb1e26a3a2034273e45a230e6acdd7057226482e690"
+    }
+  },
+  "evidence": {
+    "root": "/private/tmp/opl-terminal-full-a80e-p0",
+    "primary_files": [
+      "artifacts/codex-configure.json.error.json",
+      "artifacts/codex-configure.json.stderr.log",
+      "tart-smoke-summary.json",
+      "tart-run.log"
+    ],
+    "artifact_digest_verified_after_failure": true,
+    "artifact_bytes_changed_by_qualification": false
+  },
+  "disposition": {
+    "status": "permanently_rejected",
+    "publish_allowed": false,
+    "upload_retry_allowed": false,
+    "same_bytes_requalification_allowed": false,
+    "same_bytes_may_enter_release_bundle": false,
+    "replacement_requires": [
+      "new_full_artifact_bytes",
+      "framework_release_bundle_package_binding",
+      "catalog_and_payload_manifest_digest_match",
+      "new_exact_byte_qualification_receipt"
+    ],
+    "rule": "This exact DMG digest is permanently ineligible for publication or upload retry. A replacement must be new bytes built from a frozen Bundle whose seven-package binding is verified before the build."
+  }
+}
