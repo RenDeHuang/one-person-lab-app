@@ -180,22 +180,26 @@ export function validateFirstRunImplementation(shellPaths) {
       );
     }
   }
-  for (const expected of beginnerFirstRunTestIds
-    .filter((id) => id !== 'opl-startup-preflight')
-    .map((id) =>
-      id.startsWith('opl-first-run-step-')
-        ? 'data-testid={`opl-first-run-step-${id}`}'
-        : `data-testid='${id}'`,
-    )) {
-    if (!firstRunPage.includes(expected)) {
-      throw new Error(`Active shell FirstRun page must implement beginner first-run surface ${expected}`);
+  for (const id of beginnerFirstRunTestIds.filter((candidate) => candidate !== 'opl-startup-preflight')) {
+    const expectedExpressions = id.startsWith('opl-first-run-step-')
+      ? ['data-testid={`opl-first-run-step-${id}`}']
+      : id === 'opl-first-run-task-panel'
+        ? [
+            "data-testid='opl-first-run-task-panel'",
+            "data-testid={readyToLaunch ? 'opl-first-run-completion' : 'opl-first-run-task-panel'}",
+          ]
+        : [`data-testid='${id}'`];
+    if (!expectedExpressions.some((expected) => firstRunPage.includes(expected))) {
+      throw new Error(
+        `Active shell FirstRun page must implement beginner first-run surface ${expectedExpressions.join(' or ')}`,
+      );
     }
   }
   for (const expected of [
     "className={styles.firstRunPage}",
-    "className={styles.firstRunWorkspace}",
+    "className={`${styles.firstRunWorkspace} ${readyToLaunch ? styles.firstRunWorkspaceComplete : ''}`}",
     "className={styles.firstRunStepRail}",
-    "className={styles.firstRunTaskPanel}",
+    "className={`${styles.firstRunTaskPanel} ${readyToLaunch ? styles.firstRunTaskPanelComplete : ''}`}",
     "const PRIMARY_FIRST_RUN_ITEM_IDS: FirstRunItemId[] = ['workspace_root', 'codex', 'codex_config'];",
     "data-testid={`opl-first-run-step-${id}`}",
     "showModelAccessTask = codexConfigBlocked && activePrimaryStepId === 'codex_config'",
