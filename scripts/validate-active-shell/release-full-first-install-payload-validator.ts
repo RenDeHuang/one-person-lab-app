@@ -80,6 +80,11 @@ function validateReleaseFullTemporalRuntimeProvider(temporalRuntimeProvider) {
     'Release channel Full Temporal forbidden packages',
   );
   assertDeepEqualJson(
+    temporalRuntimeProvider?.required_native_node_module_paths,
+    ['node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node'],
+    'Release channel Full Temporal native workflow bundler dependencies',
+  );
+  assertDeepEqualJson(
     temporalRuntimeProvider?.native_core_bridge_releases,
     ['aarch64-apple-darwin'],
     'Release channel Full Temporal core bridge target',
@@ -99,8 +104,11 @@ function validateReleaseFullTemporalRuntimeProvider(temporalRuntimeProvider) {
   ) {
     throw new Error('Release channel Full Temporal provider must require a stable login-resident service supervisor');
   }
-  if (!/wrapper must export local Temporal defaults/.test(temporalRuntimeProvider?.verification ?? '')) {
-    throw new Error('Release channel Full Temporal provider verification must include wrapper default exports');
+  if (
+    !/macOS arm64 SWC native binding/.test(temporalRuntimeProvider?.verification ?? '')
+    || !/wrapper must export local Temporal defaults/.test(temporalRuntimeProvider?.verification ?? '')
+  ) {
+    throw new Error('Release channel Full Temporal provider verification must include native workflow bundler and wrapper proofs');
   }
 }
 

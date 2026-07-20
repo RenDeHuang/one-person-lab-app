@@ -14,6 +14,11 @@ import {
   writeExecutable,
   writeReleaseMetadata,
 } from "./helpers.ts";
+import { listFullRuntimeProductionNodeModulePaths } from "../../../scripts/full-first-install-package.ts";
+import {
+  copyOfficeCliUpstreamSkill,
+  copyUiUxProMaxSkill,
+} from "../../../scripts/build-full-first-install-package/skills.ts";
 
 function writeJson(filePath, value) {
   writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -57,6 +62,60 @@ function writeDomainPlugin(root, pluginId) {
   );
 }
 
+test("Full runtime keeps only macOS arm64 platform packages from optional production dependencies", () => {
+  const selected = listFullRuntimeProductionNodeModulePaths({
+    packages: {
+      "": {},
+      "node_modules/@swc/core": {},
+      "node_modules/@swc/core-darwin-arm64": { optional: true, os: ["darwin"], cpu: ["arm64"] },
+      "node_modules/@swc/core-darwin-x64": { optional: true, os: ["darwin"], cpu: ["x64"] },
+      "node_modules/@swc/core-linux-arm64-gnu": { optional: true, os: ["linux"], cpu: ["arm64"] },
+      "node_modules/e2b": { optional: true },
+      "node_modules/test-only": { dev: true },
+    },
+  });
+
+  assert.deepEqual(selected, [
+    "node_modules/@swc/core",
+    "node_modules/@swc/core-darwin-arm64",
+  ]);
+});
+
+test("Full companion skill packaging preserves resource closure and normalizes known upstream frontmatter", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-companion-skills-"));
+  const targetRoot = path.join(tempRoot, "packaged");
+  const uiUxProMaxRoot = path.join(tempRoot, "ui-ux-pro-max-skill");
+  const uiSkillRoot = path.join(uiUxProMaxRoot, ".claude", "skills", "ui-ux-pro-max");
+  const officeCliRoot = path.join(tempRoot, "OfficeCLI");
+  try {
+    writeFile(
+      path.join(uiSkillRoot, "SKILL.md"),
+      "---\nname: ui-ux-pro-max\ndescription: Fixture skill.\n---\n\nRead `references/pro-rules.md` and `references/quick-reference.md`.\n",
+    );
+    writeFile(path.join(uiSkillRoot, "references", "pro-rules.md"), "# Pro rules\n");
+    writeFile(path.join(uiSkillRoot, "references", "quick-reference.md"), "# Quick reference\n");
+    writeFile(path.join(uiSkillRoot, "scripts", "search.py"), "# fixture\n");
+    copyUiUxProMaxSkill(targetRoot, { uiUxProMaxRoot });
+    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "references", "pro-rules.md")), true);
+    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "references", "quick-reference.md")), true);
+    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "scripts", "search.py")), true);
+
+    writeFile(
+      path.join(officeCliRoot, "skills", "officecli-data-dashboard", "SKILL.md"),
+      "---\nname: officecli-data-dashboard\ndescription: Use for a weekly report with ≤ 1 chart and < 10 rows (use xlsx).\n---\n\n# Dashboard\n",
+    );
+    copyOfficeCliUpstreamSkill("officecli-data-dashboard", targetRoot, { officeCliRoot });
+    const packagedDashboard = fs.readFileSync(
+      path.join(targetRoot, "officecli-data-dashboard", "SKILL.md"),
+      "utf8",
+    );
+    assert.match(packagedDashboard, /at most 1 chart and fewer than 10 rows/);
+    assert.doesNotMatch(packagedDashboard.split("---", 3)[1], /[<>]/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function writeFrameworkRuntimeSource(frameworkRoot, catalogEntry) {
   const temporalPackages = [
     "@temporalio/activity",
@@ -70,6 +129,10 @@ function writeFrameworkRuntimeSource(frameworkRoot, catalogEntry) {
     "": { dependencies },
     ...Object.fromEntries(temporalPackages.map((packageName) => [`node_modules/${packageName}`, {}])),
     "node_modules/@temporalio/core-bridge": {},
+    "node_modules/@swc/core": {},
+    "node_modules/@swc/core-darwin-arm64": { optional: true, os: ["darwin"], cpu: ["arm64"] },
+    "node_modules/@swc/core-linux-x64-gnu": { optional: true, os: ["linux"], cpu: ["x64"] },
+    "node_modules/e2b": { optional: true },
   };
   writeJson(path.join(frameworkRoot, "package.json"), {
     name: "fixture-opl-framework",
@@ -99,6 +162,18 @@ function writeFrameworkRuntimeSource(frameworkRoot, catalogEntry) {
       "index.node",
     ),
     "fixture native module",
+  );
+  writeJson(path.join(frameworkRoot, "node_modules", "@swc", "core", "package.json"), {
+    name: "@swc/core",
+    version: "1.0.0",
+  });
+  writeJson(path.join(frameworkRoot, "node_modules", "@swc", "core-darwin-arm64", "package.json"), {
+    name: "@swc/core-darwin-arm64",
+    version: "1.0.0",
+  });
+  writeFile(
+    path.join(frameworkRoot, "node_modules", "@swc", "core-darwin-arm64", "swc.darwin-arm64.node"),
+    "fixture swc native module",
   );
 
   const managedUpdate = {
@@ -418,7 +493,7 @@ test("publish rejects standard App artifacts that contain the Full runtime paylo
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-release-full-leak-"));
   const shellRoot = path.join(tempRoot, "shells", "aionui");
   const outDir = path.join(shellRoot, "out");
-  const version = "26.5.15-test";
+  const version = "26.5.15";
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
 
   writeFile(path.join(outDir, dmgName));
@@ -583,6 +658,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       "offline required payload assertions must have unique paths",
     );
     for (const entryPath of [
+      "opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node",
       "modules/mas-scholar-skills/.codex-plugin/plugin.json",
       "modules/mas-scholar-skills/contracts/opl_capability_package_manifest.json",
       "modules/mas-scholar-skills/runtime/reference-provider-adapters/index.ts",
@@ -1304,6 +1380,10 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
     path.join(runtimeRoot, "vendor", "temporal", "temporal_cli_darwin_arm64.tar.gz"),
     "temporal archive",
   );
+  writeFile(
+    path.join(runtimeRoot, "opl", "node_modules", "@swc", "core-darwin-arm64", "swc.darwin-arm64.node"),
+    "swc native binding",
+  );
   writeExecutable(path.join(runtimeRoot, "uv", "bin", "uv"), "#!/bin/sh\nexit 0\n");
   writeExecutable(path.join(runtimeRoot, "bin", "officecli"), "#!/bin/sh\nexit 0\n");
   writeExecutable(path.join(runtimeRoot, "bin", "mineru-open-api"), "#!/bin/sh\nexit 0\n");
@@ -1370,6 +1450,7 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
   for (const [entryPath, field] of [
     ["vendor/codex/codex_cli_darwin_arm64.tar.gz", "exists"],
     ["vendor/temporal/temporal_cli_darwin_arm64.tar.gz", "exists"],
+    ["opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node", "exists"],
     ["node/bin/npm", "executable"],
     ["modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json", "exists"],
     ["modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md", "exists"],

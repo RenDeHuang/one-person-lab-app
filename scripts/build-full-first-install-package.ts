@@ -32,6 +32,7 @@ import { resolveRuntimeSources } from './build-full-first-install-package/runtim
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
 import { resolveOfficeCliReleaseSource } from './build-full-first-install-package/upstream-release.ts';
 import { fileSha256 } from './release-file-helpers.ts';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 function readJsonIfExists(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -77,6 +78,7 @@ function buildFullPublicReleaseManifest(input) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  assertReleaseVersionNotFuture('stable', options.version);
   const artifactNames = buildFullPackageArtifactNames(options.version);
   fs.mkdirSync(options.outDir, { recursive: true });
 

@@ -65,7 +65,7 @@ test('publish retains a failed draft and writes a typed recovery receipt without
   const ghLogPath = path.join(tempRoot, 'gh.log');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const recoveryReceiptPath = path.join(tempRoot, 'release-publish-recovery-receipt.json');
-  const version = '26.5.15-test';
+  const version = '26.5.15';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
 
   writeFile(path.join(outDir, dmgName));
@@ -331,7 +331,7 @@ process.exit(0);
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-'));
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
-  const version = '26.5.15-test';
+  const version = '26.5.15';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
   const metadata = [

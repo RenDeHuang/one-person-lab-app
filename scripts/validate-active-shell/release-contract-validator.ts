@@ -9,6 +9,7 @@ import {
 } from './app-contract-constants.ts';
 
 export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
+  validateReleaseCalendarGuard(releaseChannel.github_release_name);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
@@ -17,6 +18,30 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateReleaseExecutionPolicy(releaseChannel.release_acceleration);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateReleaseCalendarGuard(releaseName) {
+  const guard = releaseName?.calendar_guard;
+  assertDeepEqualJson(
+    guard?.required_entrypoints,
+    [
+      'release_version_validation',
+      'release_candidate_plan',
+      'release_cohort_plan_and_stable_controller',
+      'standard_publish',
+      'full_first_install_build',
+      'full_addon_publish',
+      'stable_promotion',
+    ],
+    'Release calendar guard entrypoints',
+  );
+  if (
+    guard?.time_zone !== 'Asia/Shanghai'
+    || guard?.future_dated_versions_allowed !== false
+    || guard?.failure_mode !== 'fail_closed_before_build_remote_lookup_or_mutation'
+  ) {
+    throw new Error('Release calendar guard must reject future-dated versions before build, lookup, or mutation');
+  }
 }
 
 function validateStandardUpdater(updater) {

@@ -223,15 +223,28 @@ function validateReleaseMonitorPolicy(releaseMonitor: Record<string, any>, typed
 
 function validateGithubReleaseName(releaseContract: Record<string, any>): number {
   const releaseName = releaseContract.github_release_name;
+  const calendarGuard = releaseName?.calendar_guard;
   if (
     releaseName?.format !== 'One Person Lab v<version>' ||
     releaseName?.stable_example !== 'One Person Lab v26.6.5' ||
     releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly' ||
     releaseName?.stable_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$' ||
     releaseName?.nightly_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$' ||
-    releaseName?.tag_pattern !== 'v<version>'
+    releaseName?.tag_pattern !== 'v<version>' ||
+    calendarGuard?.time_zone !== 'Asia/Shanghai' ||
+    calendarGuard?.future_dated_versions_allowed !== false ||
+    calendarGuard?.failure_mode !== 'fail_closed_before_build_remote_lookup_or_mutation' ||
+    JSON.stringify(calendarGuard?.required_entrypoints) !== JSON.stringify([
+      'release_version_validation',
+      'release_candidate_plan',
+      'release_cohort_plan_and_stable_controller',
+      'standard_publish',
+      'full_first_install_build',
+      'full_addon_publish',
+      'stable_promotion',
+    ])
   ) {
-    console.error('FAIL github_release_name: release names must use One Person Lab v<version> for Stable and Nightly while tags stay v<version>');
+    console.error('FAIL github_release_name: release names must use canonical versions and reject future dates at every build and publish entrypoint');
     return 1;
   }
   return 0;

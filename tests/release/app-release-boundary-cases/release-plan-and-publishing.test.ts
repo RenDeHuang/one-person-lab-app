@@ -10,6 +10,7 @@ import {
 import { buildReleaseOperatorPlanRef } from '../../../scripts/plan-release-cohort.ts';
 import {
   assertCanonicalReleaseVersion,
+  currentReleaseCalendarDate,
   nightlyMaximumRebuildRevision,
   nightlyReleaseVersionPatternSource,
   releaseCalendarParts,
@@ -18,6 +19,14 @@ import {
 } from '../../../scripts/release-version.ts';
 
 const offlineOperatorPlanRef = `sha256:${'a'.repeat(64)}`;
+
+function futureStableVersion(): string {
+  const [year, month, day] = currentReleaseCalendarDate(
+    'Asia/Shanghai',
+    new Date(Date.now() + 24 * 60 * 60 * 1000),
+  ).split('-').map(Number);
+  return `${year - 2000}.${month}.${day}`;
+}
 
 test('Stable and Nightly versions use exact contract-backed canonical regexes', () => {
   assert.equal(
@@ -80,6 +89,49 @@ test('Nightly version resolution keeps the first release clean and allocates bou
     () => resolveNightlyReleaseVersion(`${baseVersion}.r1`, []),
     /must not include a rebuild suffix/,
   );
+});
+
+test('Stable release entrypoints fail closed on a future Shanghai calendar date', () => {
+  const version = futureStableVersion();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-future-release-entrypoints-'));
+  const cohortArgs = [
+    '--version', version,
+    '--release-mode', 'new_release',
+    '--release-intent', 'stable_complete',
+    '--include-full-package', 'true',
+    '--run-vm-smoke', 'true',
+    '--publish-docker-webui', 'false',
+    '--app-ref', 'a'.repeat(40),
+    '--shell-ref', 'b'.repeat(40),
+    '--framework-ref', 'c'.repeat(40),
+  ];
+  try {
+    const commands = [
+      ['scripts/release-version.ts', '--channel', 'stable', '--version', version],
+      ['scripts/plan-release-candidate.ts', '--version', version],
+      ['scripts/plan-release-cohort.ts', ...cohortArgs, '--output', path.join(root, 'cohort.json')],
+      ['scripts/run-stable-release.ts', 'plan', ...cohortArgs, '--state', path.join(root, 'session.json')],
+      [
+        'scripts/publish-release.ts',
+        '--no-build',
+        '--dry-run',
+        '--shell-root',
+        path.join(root, 'missing-shell'),
+        '--version',
+        version,
+      ],
+      ['scripts/publish-full-addon.ts', '--dry-run', '--version', version],
+    ];
+    for (const command of commands) {
+      const result = runNode(command);
+      assert.notEqual(result.status, 0, command.join(' '));
+      assert.match(result.stderr, new RegExp(`Stable version ${version.replaceAll('.', '\\.')} is future-dated`));
+    }
+    assert.equal(fs.existsSync(path.join(root, 'cohort.json')), false);
+    assert.equal(fs.existsSync(path.join(root, 'session.json')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 function assertCheck(payload: { checks: Array<{ id: string; status: string; message?: string }> }, id: string, status: string, message?: RegExp) {

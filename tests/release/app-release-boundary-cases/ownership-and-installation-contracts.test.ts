@@ -1172,6 +1172,12 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   const ownerStorage = localDataLifecycle.owner_storage_projections;
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
+  const futureDatedAllowed = structuredClone(release);
+  futureDatedAllowed.github_release_name.calendar_guard.future_dated_versions_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(futureDatedAllowed),
+    /reject future-dated versions/,
+  );
   const missingShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-data-shell-'));
   try {
     assert.throws(

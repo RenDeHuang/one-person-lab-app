@@ -40,6 +40,7 @@ import {
   assertPromotionTargetIsNewerThanLatest,
   compareStableReleaseVersions,
 } from '../../scripts/stable-release-version-order.ts';
+import { currentReleaseCalendarDate } from '../../scripts/release-version.ts';
 import { verifyAdminOneShotAdmission } from '../../scripts/verify-release-broker-acceptance.ts';
 import {
   appendStableReleaseEfficiencyAdvisory,
@@ -1700,6 +1701,14 @@ test('promotion requires 15 minutes of budget and a strictly newer Stable versio
     tagName: 'v26.7.20', isDraft: false, isPrerelease: false,
   }), /downgrade is forbidden/);
   assert.throws(() => compareStableReleaseVersions('26.2.30', '26.2.28'), /valid calendar date/);
+  const [futureYear, futureMonth, futureDay] = currentReleaseCalendarDate(
+    'Asia/Shanghai',
+    new Date(Date.now() + 24 * 60 * 60 * 1000),
+  ).split('-').map(Number);
+  assert.throws(() => assertPromotionTargetIsNewerThanLatest(
+    `${futureYear - 2000}.${futureMonth}.${futureDay}`,
+    { tagName: 'v26.7.20', isDraft: false, isPrerelease: false },
+  ), /future-dated/);
 });
 
 test('reconcile run readback uses the independent read-only transport budget', () => {

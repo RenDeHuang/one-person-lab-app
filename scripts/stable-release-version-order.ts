@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 export type PublishedLatestRelease = {
   tagName: string;
@@ -33,6 +34,7 @@ export function assertPromotionTargetIsNewerThanLatest(
   targetVersion: string,
   latest: PublishedLatestRelease,
 ): void {
+  assertReleaseVersionNotFuture('stable', targetVersion.replace(/^v/, ''));
   if (!latest || typeof latest !== 'object') throw new Error('Current GitHub Latest readback is missing.');
   if (latest.isDraft || latest.isPrerelease) {
     throw new Error('Current GitHub Latest must be a published non-prerelease Stable release.');

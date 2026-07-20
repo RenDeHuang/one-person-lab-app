@@ -11,6 +11,10 @@ import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-n
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
+import {
+  assertReleaseVersionNotFuture,
+  currentReleaseCalendarDate,
+} from './release-version.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -24,13 +28,10 @@ function resolveShellRootEnv() {
 }
 
 function defaultReleaseVersion() {
-  const now = process.env.OPL_RELEASE_DATE
-    ? new Date(`${process.env.OPL_RELEASE_DATE}T00:00:00Z`)
-    : new Date();
-  if (Number.isNaN(now.getTime())) {
-    throw new Error(`Invalid OPL_RELEASE_DATE: ${process.env.OPL_RELEASE_DATE}`);
-  }
-  return `${String(now.getFullYear()).slice(-2)}.${now.getMonth() + 1}.${now.getDate()}`;
+  const calendarDate = process.env.OPL_RELEASE_DATE || currentReleaseCalendarDate();
+  const match = calendarDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error(`Invalid OPL_RELEASE_DATE: ${calendarDate}`);
+  return `${Number(match[1]) - 2000}.${Number(match[2])}.${Number(match[3])}`;
 }
 
 function parseArgs(argv) {
@@ -790,6 +791,7 @@ function uploadReleaseArtifacts(repo, tag, artifactPaths, options = {}) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  assertReleaseVersionNotFuture(options.version.includes('-nightly') ? 'nightly' : 'stable', options.version);
   const tag = `v${options.version}`;
 
   if (!options.fullPackageOnly && !options.standardArtifactsDir && !fs.existsSync(options.shellRoot)) {

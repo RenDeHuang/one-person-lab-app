@@ -22,6 +22,7 @@ import {
   type CommandRunner,
   type ReleaseCohortLock,
 } from './release-cohort-lock.ts';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -194,6 +195,7 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
 
   assertSharedReleaseReadinessOptions(parsed);
+  assertReleaseVersionNotFuture('stable', parsed.version);
   if (!['stable_complete', 'standard_hotfix'].includes(parsed.releaseIntent)) {
     throw new Error('--release-intent must be stable_complete or standard_hotfix.');
   }
@@ -388,6 +390,7 @@ export function buildReleaseCohortPlan(
   runner?: CommandRunner,
   generatedAt = new Date().toISOString(),
 ): ReleaseCohortPlan {
+  assertReleaseVersionNotFuture('stable', options.version);
   const lock = buildReleaseCohortLock({
     appRef: options.appCommit,
     shellRef: options.shellRef,

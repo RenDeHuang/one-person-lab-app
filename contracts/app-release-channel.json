@@ -11,6 +11,20 @@
     "stable_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$",
     "nightly_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$",
     "tag_pattern": "v<version>",
+    "calendar_guard": {
+      "time_zone": "Asia/Shanghai",
+      "future_dated_versions_allowed": false,
+      "failure_mode": "fail_closed_before_build_remote_lookup_or_mutation",
+      "required_entrypoints": [
+        "release_version_validation",
+        "release_candidate_plan",
+        "release_cohort_plan_and_stable_controller",
+        "standard_publish",
+        "full_first_install_build",
+        "full_addon_publish",
+        "stable_promotion"
+      ]
+    },
     "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
   },
   "release_profiles": {
@@ -1100,6 +1114,9 @@
         "forbidden_packages": [
           "@temporalio/testing"
         ],
+        "required_native_node_module_paths": [
+          "node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node"
+        ],
         "native_core_bridge_releases": [
           "aarch64-apple-darwin"
         ],
@@ -1114,7 +1131,7 @@
           "persistent_database_argument": "--db-filename",
           "configuration_current_required": true
         },
-        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin, wrapper must export local Temporal defaults, and the same-run Full qualification receipt must bind a passed opl_temporal_service_supervisor_proof.v1"
+        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin, runtime_assertions.offline_required_payloads must prove the macOS arm64 SWC native binding, wrapper must export local Temporal defaults, and the same-run Full qualification receipt must bind a passed opl_temporal_service_supervisor_proof.v1"
       }
     },
     "optional_payloads": {

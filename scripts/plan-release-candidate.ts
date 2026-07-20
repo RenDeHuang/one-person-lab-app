@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { assertCanonicalReleaseVersion } from './release-version.ts';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContract = JSON.parse(
@@ -131,7 +131,7 @@ function parseArgs(argv: string[]) {
 }
 
 function buildPlan(options: ReturnType<typeof parseArgs>) {
-  assertCanonicalReleaseVersion(options.profile === 'nightly' ? 'nightly' : 'stable', options.version);
+  assertReleaseVersionNotFuture(options.profile === 'nightly' ? 'nightly' : 'stable', options.version);
   if (options.profile === 'local-install') {
     const profile = releaseContract.release_profiles?.local_install;
     if (!profile || !Array.isArray(profile.required_lanes) || !Array.isArray(profile.forbidden_lanes)) {

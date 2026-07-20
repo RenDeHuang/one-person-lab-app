@@ -77,6 +77,56 @@ export function assertCanonicalReleaseVersion(channel: AppReleaseChannel, versio
   }
 }
 
+export function currentReleaseCalendarDate(
+  timeZone = 'Asia/Shanghai',
+  now = new Date(),
+): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
+  const year = value('year');
+  const month = value('month');
+  const day = value('day');
+  if (!year || !month || !day) throw new Error(`Unable to resolve current calendar date for ${timeZone}.`);
+  return `${year}-${month}-${day}`;
+}
+
+export function assertReleaseVersionNotFuture(
+  channel: AppReleaseChannel,
+  version: string,
+  currentDate = currentReleaseCalendarDate(),
+): void {
+  assertCanonicalReleaseVersion(channel, version);
+  const releaseParts = releaseCalendarParts(channel, version)!;
+  const currentMatch = currentDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!currentMatch) throw new Error(`Current release date must use YYYY-MM-DD, got ${currentDate || '<empty>'}.`);
+  const current = new Date(Date.UTC(
+    Number(currentMatch[1]),
+    Number(currentMatch[2]) - 1,
+    Number(currentMatch[3]),
+  ));
+  if (
+    current.getUTCFullYear() !== Number(currentMatch[1])
+    || current.getUTCMonth() + 1 !== Number(currentMatch[2])
+    || current.getUTCDate() !== Number(currentMatch[3])
+  ) throw new Error(`Current release date is not a valid calendar date: ${currentDate}.`);
+
+  const releaseOrdinal = releaseParts.year * 10_000 + releaseParts.month * 100 + releaseParts.day;
+  const currentOrdinal = current.getUTCFullYear() * 10_000
+    + (current.getUTCMonth() + 1) * 100
+    + current.getUTCDate();
+  if (releaseOrdinal > currentOrdinal) {
+    throw new Error(
+      `${channel === 'stable' ? 'Stable' : 'Nightly'} version ${version} is future-dated for `
+      + `Asia/Shanghai ${currentDate}; use today's version or wait for that calendar date.`,
+    );
+  }
+}
+
 export type NightlyVersionResolution = {
   baseVersion: string;
   version: string;
@@ -96,7 +146,7 @@ export function resolveNightlyReleaseVersion(
   baseVersion: string,
   existingRefs: Iterable<string>,
 ): NightlyVersionResolution {
-  assertCanonicalReleaseVersion('nightly', baseVersion);
+  assertReleaseVersionNotFuture('nightly', baseVersion);
   if (!baseVersion.endsWith('-nightly')) {
     throw new Error(`Nightly base version must not include a rebuild suffix: ${baseVersion}.`);
   }
@@ -162,7 +212,7 @@ function main(): void {
   }
   const version = values.version?.trim() ?? '';
   if (!version) throw new Error('Pass --version <version>.');
-  assertCanonicalReleaseVersion(values.channel, version);
+  assertReleaseVersionNotFuture(values.channel, version);
   const payload = {
     channel: values.channel,
     version,
@@ -170,7 +220,11 @@ function main(): void {
     calendar_date: releaseCalendarParts(values.channel, version),
     status: 'passed',
   };
-  process.stdout.write(values.json ? `${JSON.stringify(payload)}\n` : `${values.channel} App release version ${version} is canonical.\n`);
+  process.stdout.write(
+    values.json
+      ? `${JSON.stringify(payload)}\n`
+      : `${values.channel} App release version ${version} is canonical and not future-dated.\n`,
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

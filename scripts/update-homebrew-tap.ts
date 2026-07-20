@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { assertCanonicalReleaseVersion } from './release-version.ts';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 type Channel = 'stable' | 'nightly';
 type PackageKind = 'app_standard' | 'app_full_first_install';
@@ -171,7 +171,7 @@ function validateOptions(options: Options): ResolvedOptions {
   const packageKind = inferPackageKind(options);
 
   try {
-    assertCanonicalReleaseVersion(options.channel, options.version);
+    assertReleaseVersionNotFuture(options.channel, options.version);
   } catch {
     if (options.channel === 'nightly') {
       throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly or YY.M.D-nightly.r1 through .r9.');

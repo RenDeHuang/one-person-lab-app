@@ -641,15 +641,30 @@ export function shouldExcludeNodeToolchainPackagePath(relativePathInput: string)
 }
 
 export type PackageLockLike = {
-  packages?: Record<string, { dev?: boolean; optional?: boolean }>;
+  packages?: Record<string, {
+    dev?: boolean;
+    optional?: boolean;
+    os?: string[];
+    cpu?: string[];
+  }>;
 };
+
+function isMacosArm64PlatformPackage(metadata: {
+  optional?: boolean;
+  os?: string[];
+  cpu?: string[];
+}) {
+  return metadata.optional === true
+    && metadata.os?.includes('darwin') === true
+    && metadata.cpu?.includes('arm64') === true;
+}
 
 export function listFullRuntimeProductionNodeModulePaths(packageLock: PackageLockLike) {
   return Object.entries(packageLock.packages ?? {})
     .filter(([packagePath, metadata]) =>
       packagePath.startsWith('node_modules/')
       && !metadata.dev
-      && !metadata.optional
+      && (!metadata.optional || isMacosArm64PlatformPackage(metadata))
       && packagePath.split('/').every(Boolean)
     )
     .map(([packagePath]) => normalizeRuntimeRelativePath(packagePath))

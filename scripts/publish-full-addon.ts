@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { assertReleaseVersionNotFuture } from './release-version.ts';
 
 type Asset = { name: string; size: number; digest: string };
 
@@ -89,10 +90,11 @@ function main() {
     'release-attempt-id': { type: 'string' }, 'deadline-validation': { type: 'string' },
     'dry-run': { type: 'boolean' },
   }, strict: true });
-  for (const key of ['version', 'full-package-dir', 'output', 'stable-session-id', 'release-cohort-ref', 'app-sha', 'shell-sha', 'framework-sha', 'qualification-run-id', 'source-artifact-run-id', 'release-set-generation', 'release-set-manifest-digest', 'qualification-input-manifest-sha256', 'full-input-manifest-sha256', 'framework-bundled-catalog-sha256', 'full-toolchain-observation-receipt-sha256'] as const) {
+  if (!values.version) throw new Error('Missing --version.');
+  assertReleaseVersionNotFuture('stable', values.version);
+  for (const key of ['full-package-dir', 'output', 'stable-session-id', 'release-cohort-ref', 'app-sha', 'shell-sha', 'framework-sha', 'qualification-run-id', 'source-artifact-run-id', 'release-set-generation', 'release-set-manifest-digest', 'qualification-input-manifest-sha256', 'full-input-manifest-sha256', 'framework-bundled-catalog-sha256', 'full-toolchain-observation-receipt-sha256'] as const) {
     if (!values[key]) throw new Error(`Missing --${key}.`);
   }
-  if (!/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(values.version!)) throw new Error('Full add-on version must use YY.M.D.');
   if (!values['dry-run']) {
     if (!values['release-attempt-id'] || !/^sha256:[0-9a-f]{64}$/.test(values['release-attempt-id'])) {
       throw new Error('Full add-on publication requires an exact --release-attempt-id.');

@@ -275,24 +275,35 @@ export function assertOfficeCliAtomicSkillSet(options) {
   }
 }
 
-function copyOfficeCliUpstreamSkill(skillId, targetRoot, options) {
-  return copyFirstSkillSource(skillId, targetRoot, [officeCliUpstreamSkillRoot(options, skillId)]);
+const OFFICECLI_SKILL_FRONTMATTER_COMPATIBILITY_REWRITES = {
+  'officecli-data-dashboard': [
+    'a weekly report with ≤ 1 chart and < 10 rows (use xlsx)',
+    'a weekly report with at most 1 chart and fewer than 10 rows (use xlsx)',
+  ],
+};
+
+function applyOfficeCliSkillFrontmatterCompatibility(skillId, targetRoot) {
+  const rewrite = OFFICECLI_SKILL_FRONTMATTER_COMPATIBILITY_REWRITES[skillId];
+  if (!rewrite) return;
+  const skillPath = path.join(targetRoot, skillId, 'SKILL.md');
+  const content = fs.readFileSync(skillPath, 'utf8');
+  if (content.includes(rewrite[0])) {
+    fs.writeFileSync(skillPath, content.replace(rewrite[0], rewrite[1]), 'utf8');
+  }
+}
+
+export function copyOfficeCliUpstreamSkill(skillId, targetRoot, options) {
+  const source = officeCliUpstreamSkillRoot(options, skillId);
+  copySkillDirectory(source, path.join(targetRoot, skillId), skillId);
+  applyOfficeCliSkillFrontmatterCompatibility(skillId, targetRoot);
+  return source;
 }
 
 export function copyUiUxProMaxSkill(targetRoot, options) {
   const target = path.join(targetRoot, 'ui-ux-pro-max');
-  const packagedSkill = path.join(options.uiUxProMaxRoot, '.claude', 'skills', 'ui-ux-pro-max', 'SKILL.md');
-  const packagedPayload = path.join(options.uiUxProMaxRoot, 'src', 'ui-ux-pro-max');
-  if (fs.existsSync(packagedSkill) && fs.existsSync(packagedPayload)) {
-    fs.rmSync(target, { recursive: true, force: true });
-    fs.mkdirSync(target, { recursive: true });
-    fs.copyFileSync(packagedSkill, path.join(target, 'SKILL.md'));
-    for (const entry of ['data', 'scripts', 'templates']) {
-      const source = path.join(packagedPayload, entry);
-      if (fs.existsSync(source)) {
-        copyTreeFiltered(source, path.join(target, entry), `skills/ui-ux-pro-max/${entry}`);
-      }
-    }
+  const packagedSkillRoot = path.join(options.uiUxProMaxRoot, '.claude', 'skills', 'ui-ux-pro-max');
+  if (fs.existsSync(path.join(packagedSkillRoot, 'SKILL.md'))) {
+    copySkillDirectory(packagedSkillRoot, target, 'ui-ux-pro-max');
     return options.uiUxProMaxRoot;
   }
   return copyFirstSkillSource('ui-ux-pro-max', targetRoot, [

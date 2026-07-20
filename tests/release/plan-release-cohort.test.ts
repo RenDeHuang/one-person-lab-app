@@ -10,6 +10,7 @@ import {
   type ReleaseCohortPlanOptions,
 } from '../../scripts/plan-release-cohort.ts';
 import type { CommandRunner } from '../../scripts/release-cohort-lock.ts';
+import { currentReleaseCalendarDate } from '../../scripts/release-version.ts';
 import { appRoot, createGitCheckout, runGit } from './release-readiness/helpers.ts';
 
 function options(root: string, overrides: Partial<ReleaseCohortPlanOptions> = {}): ReleaseCohortPlanOptions {
@@ -66,6 +67,25 @@ test('release cohort plan records a verified immutable dispatch handle without r
   assert.match(plan.next_action.command, new RegExp(`--app-ref ${planOptions.appCommit}`));
   assert.doesNotMatch(plan.next_action.command, /git push|gh api|gh workflow run|--execute/);
   assert.equal(plan.cheap_gates.some((gate) => gate.id === 'release_cohort_lock'), false);
+});
+
+test('release cohort builder rejects future-dated versions before resolving cohort refs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-future-'));
+  const [year, month, day] = currentReleaseCalendarDate(
+    'Asia/Shanghai',
+    new Date(Date.now() + 24 * 60 * 60 * 1000),
+  ).split('-').map(Number);
+  const planOptions = options(root, { version: `${year - 2000}.${month}.${day}` });
+  let commandCount = 0;
+
+  assert.throws(
+    () => buildReleaseCohortPlan(planOptions, (...args) => {
+      commandCount += 1;
+      return runner(planOptions.appCommit)(...args);
+    }),
+    /future-dated/,
+  );
+  assert.equal(commandCount, 0);
 });
 
 test('release cohort plan passes Docker WebUI intent to every preflight gate', () => {

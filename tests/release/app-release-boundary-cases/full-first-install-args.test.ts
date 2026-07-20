@@ -1,6 +1,10 @@
-import { assert, path, test } from './helpers.ts';
+import { assert, path, runNode, test } from './helpers.ts';
 import { parseArgs as parseFullFirstInstallArgs } from '../../../scripts/build-full-first-install-package/env.ts';
 import { parseArgs as parseActiveShellArgs } from '../../../scripts/validate-active-shell/validation-config.ts';
+import {
+  assertReleaseVersionNotFuture,
+  currentReleaseCalendarDate,
+} from '../../../scripts/release-version.ts';
 
 test('Full first-install args parse boolean and value options through one explicit option table', () => {
   const options = parseFullFirstInstallArgs([
@@ -70,6 +74,23 @@ test('Full first-install args reject missing values, unknown options, and unsupp
     () => parseFullFirstInstallArgs(['--runtime-cache-mode', 'writeonly']),
     /Unsupported runtime cache mode: writeonly/,
   );
+});
+
+test('Full artifact entry rejects future-dated Stable versions before touching build inputs', () => {
+  assert.doesNotThrow(() => assertReleaseVersionNotFuture('stable', '26.7.20', '2026-07-20'));
+  assert.throws(
+    () => assertReleaseVersionNotFuture('stable', '26.7.21', '2026-07-20'),
+    /future-dated.*2026-07-20/,
+  );
+
+  const [year, month, day] = currentReleaseCalendarDate(
+    'Asia/Shanghai',
+    new Date(Date.now() + 24 * 60 * 60 * 1000),
+  ).split('-').map(Number);
+  const futureVersion = `${year - 2000}.${month}.${day}`;
+  const result = runNode(['scripts/build-full-first-install-package.ts', '--version', futureVersion]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, new RegExp(`Stable version ${futureVersion.replaceAll('.', '\\.')} is future-dated`));
 });
 
 test('Active shell args parse process argv shape for quick and only filters', () => {
