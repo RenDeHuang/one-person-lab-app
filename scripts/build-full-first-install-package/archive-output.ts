@@ -58,12 +58,40 @@ function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
     dereference: true,
     preserveTimestamps: true,
   });
+  ensurePackagedRuntimeFilesOwnerWritable(path.join(payloadRoot, 'runtime', 'current'));
   fs.mkdirSync(path.join(payloadRoot, 'manifest'), { recursive: true });
   fs.writeFileSync(
     path.join(payloadRoot, 'manifest', 'full-package-manifest.json'),
     `${JSON.stringify(manifest, null, 2)}\n`,
     'utf8',
   );
+}
+
+export function ensurePackagedRuntimeFilesOwnerWritable(runtimeRoot) {
+  const pending = [runtimeRoot];
+  let scannedFiles = 0;
+  let updatedFiles = 0;
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) continue;
+    const stat = fs.lstatSync(current);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(current)) {
+        pending.push(path.join(current, entry));
+      }
+      continue;
+    }
+    if (!stat.isFile()) continue;
+
+    scannedFiles += 1;
+    if ((stat.mode & 0o200) === 0) {
+      fs.chmodSync(current, stat.mode | 0o200);
+      updatedFiles += 1;
+    }
+  }
+
+  return { scanned_files: scannedFiles, updated_files: updatedFiles };
 }
 
 export function syncRuntimePayloadToBuildRoots(runtimeRoot, manifest, guiRoot) {
