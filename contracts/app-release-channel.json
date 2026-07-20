@@ -84,6 +84,70 @@
       "authority_boundary": "The local-install profile builds and verifies one exact local App/Shell/Framework cohort for this Mac only. It cannot publish or promote a release, write GHCR or Homebrew, require notarization, or stand in for public distribution readiness. It cannot claim clean-VM or attestation evidence."
     }
   },
+  "release_execution_tracks": {
+    "purpose": "Execution location is an implementation choice, not a product, channel, asset, updater, or release-note difference.",
+    "orthogonal_to_release_profiles": true,
+    "local_install_profile_is_not_local_publish_track": true,
+    "default_sequence": [
+      "local_development_debug_build_and_same_artifact_qualification",
+      "remote_routine_release_and_continuous_reproducibility_proof"
+    ],
+    "tracks": {
+      "local": {
+        "role": "fast development, debugging, build, same-artifact qualification, and explicitly authorized publication fallback",
+        "routine_during_development": true,
+        "publication_requires_explicit_authorization": true,
+        "may_publish_canonical_release_assets": true,
+        "must_use_frozen_release_worktree": true,
+        "must_not_block_canonical_main_or_unrelated_worktrees": true,
+        "handoff_rule": "Publish or hand off the exact qualified artifact set; do not rebuild merely to change execution track."
+      },
+      "remote": {
+        "role": "routine Stable publication and continuous reproducibility proof after the remote pipeline is stable",
+        "default_publication_track": true,
+        "development_debug_default": false,
+        "must_consume_or_produce_the_same_artifact_contract": true,
+        "must_not_create_track_specific_public_assets": true
+      }
+    },
+    "artifact_parity": {
+      "canonical_public_asset_set_per_version": 1,
+      "same_frozen_cohort_required": true,
+      "track_handoff_requires_exact_asset_digests": true,
+      "same_public_names_roles_and_install_behavior_required": true,
+      "same_standard_updater_metadata_contract_required": true,
+      "same_prepared_ai_release_notes_required": true,
+      "track_specific_user_visible_assets_allowed": false,
+      "standard_latest_activation_requires": [
+        "One-Person-Lab-<version>-mac-arm64.dmg",
+        "One-Person-Lab-<version>-mac-arm64.zip",
+        "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+        "latest-arm64-mac.yml",
+        "opl-app-component-manifest.json",
+        "standard-local-authorization-policy.json",
+        "prepared_ai_release_notes"
+      ],
+      "full_addon_may_follow_latest_asynchronously": true,
+      "full_addon_requires": [
+        "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "opl-release-manifest.json"
+      ],
+      "full_is_standard_updater_target": false,
+      "adding_full_must_not_modify": [
+        "standard_assets",
+        "latest-arm64-mac.yml",
+        "release_notes",
+        "latest_selection"
+      ]
+    },
+    "development_isolation": {
+      "release_source": "immutable detached checkout or release-owned worktree",
+      "canonical_main_write_lock_required_during_build_or_qualification": false,
+      "normal_development_may_continue": true,
+      "release_freeze_scope": "exact cohort checkout, artifact bytes, and bounded remote mutation window only",
+      "rule": "Packaging reads frozen source bytes. It must never reserve the development root, freeze unrelated worktrees, or require normal development to wait for build, VM, upload, or remote verification."
+    }
+  },
   "public_release_notes": {
     "owner": "one-person-lab-app",
     "default_public_writer": "pre_release_prepared_public_copy",

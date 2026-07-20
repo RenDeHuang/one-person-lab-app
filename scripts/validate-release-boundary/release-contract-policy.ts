@@ -372,6 +372,84 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
   return failures;
 }
 
+function validateReleaseExecutionTracks(releaseContract: Record<string, any>): number {
+  const policy = releaseContract.release_execution_tracks;
+  const local = policy?.tracks?.local;
+  const remote = policy?.tracks?.remote;
+  const parity = policy?.artifact_parity;
+  const isolation = policy?.development_isolation;
+  const standardLatestRequirements = [
+    'One-Person-Lab-<version>-mac-arm64.dmg',
+    'One-Person-Lab-<version>-mac-arm64.zip',
+    'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
+    'latest-arm64-mac.yml',
+    'opl-app-component-manifest.json',
+    'standard-local-authorization-policy.json',
+    'prepared_ai_release_notes',
+  ];
+  const fullRequirements = [
+    'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+    'opl-release-manifest.json',
+  ];
+  const fullForbiddenMutations = [
+    'standard_assets',
+    'latest-arm64-mac.yml',
+    'release_notes',
+    'latest_selection',
+  ];
+
+  if (
+    policy?.orthogonal_to_release_profiles !== true ||
+    policy?.local_install_profile_is_not_local_publish_track !== true ||
+    !sameStringSet(policy?.default_sequence, [
+      'local_development_debug_build_and_same_artifact_qualification',
+      'remote_routine_release_and_continuous_reproducibility_proof',
+    ]) ||
+    local?.routine_during_development !== true ||
+    local?.publication_requires_explicit_authorization !== true ||
+    local?.may_publish_canonical_release_assets !== true ||
+    local?.must_use_frozen_release_worktree !== true ||
+    local?.must_not_block_canonical_main_or_unrelated_worktrees !== true ||
+    remote?.default_publication_track !== true ||
+    remote?.must_consume_or_produce_the_same_artifact_contract !== true ||
+    remote?.must_not_create_track_specific_public_assets !== true
+  ) {
+    console.error('FAIL release_execution_tracks: local must accelerate development and authorized fallback publication while remote remains the routine equivalent publication path');
+    return 1;
+  }
+
+  if (
+    parity?.canonical_public_asset_set_per_version !== 1 ||
+    parity?.same_frozen_cohort_required !== true ||
+    parity?.track_handoff_requires_exact_asset_digests !== true ||
+    parity?.same_public_names_roles_and_install_behavior_required !== true ||
+    parity?.same_standard_updater_metadata_contract_required !== true ||
+    parity?.same_prepared_ai_release_notes_required !== true ||
+    parity?.track_specific_user_visible_assets_allowed !== false ||
+    !sameStringSet(parity?.standard_latest_activation_requires, standardLatestRequirements) ||
+    parity?.full_addon_may_follow_latest_asynchronously !== true ||
+    !sameStringSet(parity?.full_addon_requires, fullRequirements) ||
+    parity?.full_is_standard_updater_target !== false ||
+    !sameStringSet(parity?.adding_full_must_not_modify, fullForbiddenMutations)
+  ) {
+    console.error('FAIL release_execution_tracks: both tracks must publish one equivalent Standard release; AI notes and six Standard surfaces gate Latest while Full remains an updater-invisible asynchronous add-on');
+    return 1;
+  }
+
+  if (
+    isolation?.release_source !== 'immutable detached checkout or release-owned worktree' ||
+    isolation?.canonical_main_write_lock_required_during_build_or_qualification !== false ||
+    isolation?.normal_development_may_continue !== true ||
+    typeof isolation?.rule !== 'string' ||
+    !isolation.rule.includes('must never reserve the development root')
+  ) {
+    console.error('FAIL release_execution_tracks: release work must read a frozen checkout without blocking canonical main or unrelated development');
+    return 1;
+  }
+
+  return 0;
+}
+
 function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContract: Record<string, any>): number {
   let failures = 0;
   const compression = releaseContract.standard_updater?.dmg_compression;
@@ -1504,6 +1582,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateGithubReleaseName(releaseContract);
   failures += validateReleaseImmutability(releaseContract);
   failures += validateLocalInstallReleaseProfile(releaseContract);
+  failures += validateReleaseExecutionTracks(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);

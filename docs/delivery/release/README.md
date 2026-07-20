@@ -31,6 +31,39 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | OPL Base artifact gate | `contracts/app-release-channel.json#managed_update_plane.software_lifecycle.objects.opl_base`, Framework artifact channel/readback/checksum/rollback receipts |
 | Release history and retired workflow no-resurrection notes | `docs/history/process/` and `docs/history/process/retired-surface-provenance.md` |
 
+## Local And Remote Execution Tracks
+
+Local and remote are two execution tracks for one release contract. They are
+not separate products or channels, and they must not produce different public
+assets, updater behavior, release notes, installation behavior, or user-visible
+capabilities.
+
+- Use the local track during development for fast builds, debugging, and
+  same-artifact qualification. With explicit release-owner authorization it may
+  also publish the canonical release as a fallback.
+- Use the remote track as the routine Stable publication and continuous
+  reproducibility proof after the workflow is stable.
+- A version has one canonical public artifact set. A track handoff reuses the
+  exact qualified files and SHA-256 digests; it must not rebuild only to move
+  work from local to remote or create track-specific public assets.
+- Packaging reads an immutable detached checkout or release-owned worktree.
+  Build, VM, upload, and remote verification do not reserve canonical `main`,
+  block the development root, or freeze unrelated worktrees.
+
+The release becomes Latest after the prepared AI-written public notes and the
+six Standard surfaces are verified: DMG, ZIP, ZIP blockmap,
+`latest-arm64-mac.yml`, `opl-app-component-manifest.json`, and
+`standard-local-authorization-policy.json`. The same-cohort Full DMG and
+`opl-release-manifest.json` may be appended asynchronously afterward. Full is
+never written to Standard updater metadata, and adding Full must not replace
+Standard assets, edit notes, move Latest, or change online automatic updates.
+
+This execution-track policy is independent of the `local-install` release
+profile. `local-install` means build and install on this Mac for testing only;
+it has no publication authority. The local execution track above is the
+broader build/qualification route and can publish only when explicitly
+authorized.
+
 ## Install And Update Taxonomy
 
 Release docs and user docs expose exactly three software objects. Framework
