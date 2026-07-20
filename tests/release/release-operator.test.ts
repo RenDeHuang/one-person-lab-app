@@ -179,7 +179,7 @@ test('release operator plan routes pinned Full intent through the dry-run Stable
   const result = runScript('scripts/release-operator.ts', [
       'plan',
       '--version',
-      '26.6.99',
+      '26.6.30',
       '--release-mode',
       'new_release',
       '--include-full-package',
@@ -265,7 +265,7 @@ test('release operator plan accepts a frozen App SHA and normal Standard termina
   const result = runScript('scripts/release-operator.ts', [
     'plan',
     '--version',
-    '26.6.99',
+    '26.6.30',
     '--release-mode',
     'new_release',
     '--include-full-package',
@@ -339,7 +339,7 @@ test('release operator status reports successful current run as ready for closeo
   const { state } = runStatus('opl-release-operator-status-ready-', {
     databaseId: 45678,
     workflowName: 'OPL Desktop Release',
-    displayTitle: 'Release v26.6.99',
+    displayTitle: 'Release v26.6.30',
     status: 'completed',
     conclusion: 'success',
     headSha: headE,

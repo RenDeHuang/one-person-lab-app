@@ -46,7 +46,7 @@ function readSourceJson(candidatePath: string, shellName = 'one-person-lab-aion-
 
 function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSourceGateOptions {
   return {
-    version: '26.6.99',
+    version: '26.6.30',
     expectedAppHead: appHead,
     shellRef: 'main',
     frameworkRef: 'main',
@@ -64,7 +64,7 @@ function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSour
 test('release source gate accepts explicit isolated source checkout roots', () => {
   const parsed = parseReleaseSourceGateArgs([
     '--version',
-    '26.6.99',
+    '26.6.30',
     '--app-ref',
     appHead,
     '--shell-root',
@@ -325,7 +325,7 @@ test('release source gate passes for clean canonical main and an immutable sourc
   const report = reportFor({ expectedAppHead: appHead, shellRef: 'main' });
 
   assert.equal(report.status, 'passed');
-  assert.equal(report.version, '26.6.99');
+  assert.equal(report.version, '26.6.30');
   assert.equal(report.app_head, appHead);
   assert.equal(report.shell_sha, shellHead);
   assert.equal(report.framework_sha, frameworkHead);
@@ -340,7 +340,7 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'passed');
   assert.equal(report.admission.status, 'passed');
   assert.deepEqual(report.admission.immutable_cohort, {
-    version: '26.6.99',
+    version: '26.6.30',
     app_sha: appHead,
     shell_sha: shellHead,
     framework_sha: frameworkHead,
