@@ -40,6 +40,7 @@ should happen only when AGUI replay is explicitly requested.
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `verify-release-attestations.ts` | Runs `gh attestation verify` for downloaded release assets or OCI refs and writes `opl_release_attestation_verification.v1` for closeout ingestion. It records build-integrity evidence only and does not replace checksum, remote-readback, VM, or owner evidence. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
+| `write-actions-cache-plan.ts` | Writes `opl_actions_cache_plan.v1` before Full runtime materialization and `opl_actions_cache_receipt.v1` after cache-save attempts, binding the exact App/Shell/Framework cohort and four runtime layer keys without claiming artifact or release readiness. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
 | `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full add-on/VM intent, cheap source gates, and one dry-run `release:stable start` next action over fixed App/Shell/Framework SHAs. It never emits a direct workflow dispatch. The plan/manifest is the same-cohort input for controller-led recovery or promotion without hand-filling refs. |
@@ -233,9 +234,12 @@ For remote diagnosis, prefer the small `opl-full-diagnostics-<version>` artifact
 It contains `full-workflow-telemetry.json`, `full-package-manifest.json`,
 `runtime-cache-events.json`, `SHA256SUMS.txt`, and the Full README, so operators
 can compare recorded hashes, manifest commits, and runtime layer cache status
-without downloading the large Full DMG. Warmup runs disable the large Full
-package artifact; release-called Full builds keep it enabled for publish and VM
-consumers.
+without downloading the large Full DMG. Warmup runs use
+`--warm-runtime-cache-only`: after the four runtime layers pass currentness and
+native-trust validation, the builder writes cache evidence, removes its staging
+tree, and returns before payload sync, Shell/Vite build, DMG compression,
+manifest/checksum generation, or release-artifact upload. Release-called Full
+builds keep the package artifact enabled for publish and VM consumers.
 Published Full release verification prefers the consolidated
 `opl-release-manifest.json` plus the Full DMG. During migration it still accepts
 the legacy separate `full-package-manifest.json`, `runtime-cache-events.json`,
@@ -627,6 +631,26 @@ were restored. `runtime-cache-events.json` carries per-layer keys plus
 `key_inputs`, which should be used to explain Full runtime cache misses before
 changing cache policy. Treat these as cache acceleration signals only, not as
 release truth.
+
+Cache ownership and budgets live in
+`contracts/app-actions-cache-catalog.json`, not in individual workflows. The
+catalog reserves 2 GiB headroom from the repository's 10 GiB allowance and
+separates dependency downloads, first-run install seed, compiled output, and
+four Full runtime layers. Large caches always use explicit restore plus
+`refs/heads/main` miss-only save; branch/PR/release refs are restore-only.
+Cache actions whose key is entirely dynamic declare the catalog class through
+`OPL_ACTIONS_CACHE_CLASS`; the release validator rejects missing or unknown
+class markers.
+Ordinary Actions credentials may inventory cache usage and exact IDs but cannot
+delete them. Cleanup remains plan-only until an isolated cleanup broker accepts
+the protected-key set and exact deletion IDs.
+`npm run release:cache-plan -- plan ...` and `... -- receipt ...` are the CLI
+surfaces used by the Full workflow to make exact-cohort cache decisions and save
+outcomes inspectable. Cache-only warmup runs ahead of a release and is never an
+admission gate; the normal Full builder handles an absent/evicted warmup as a
+validated miss and writes the missing layer on `main`. Run
+`npm run validate:release-boundary` after changing any cache key, prefix, action,
+restore fallback, or write condition.
 
 Composite/setup action reuse is used only where a checked-in composite action is
 tested and the job still keeps release semantics visible. Active-shell

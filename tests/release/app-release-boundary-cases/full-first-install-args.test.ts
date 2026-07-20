@@ -5,6 +5,7 @@ import { parseArgs as parseActiveShellArgs } from '../../../scripts/validate-act
 test('Full first-install args parse boolean and value options through one explicit option table', () => {
   const options = parseFullFirstInstallArgs([
     '--skip-gui-build',
+    '--warm-runtime-cache-only',
     '--split-runtime',
     '--reuse-gui-vite-output',
     '--include-bun-runtime',
@@ -24,6 +25,7 @@ test('Full first-install args parse boolean and value options through one explic
   ]);
 
   assert.equal(options.skipGuiBuild, true);
+  assert.equal(options.warmRuntimeCacheOnly, true);
   assert.equal(options.splitRuntime, true);
   assert.equal(options.reuseGuiViteOutput, true);
   assert.equal(options.includeBunRuntime, true);

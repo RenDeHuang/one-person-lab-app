@@ -115,8 +115,30 @@ function main() {
   }, 0).toFixed(3));
   const runtimeCacheEventsPath = path.join(options.outDir, artifactNames.runtimeCacheEvents);
   writeJsonFile(runtimeCacheEventsPath, prepared.runtime_cache);
+  const runtimeCurrentnessProbePath = path.join(options.outDir, 'full-runtime-currentness-probe.json');
+  writeJsonFile(runtimeCurrentnessProbePath, prepared.runtime_cache.currentness);
   const runtimeNativeTrustPath = path.join(options.outDir, 'full-runtime-native-trust.json');
   writeJsonFile(runtimeNativeTrustPath, prepared.manifest.native_trust);
+
+  if (options.warmRuntimeCacheOnly) {
+    fs.rmSync(prepared.stagingRoot, { recursive: true, force: true });
+    console.log(JSON.stringify({
+      status: 'runtime_cache_warmed',
+      version: options.version,
+      out_dir: options.outDir,
+      runtime_cache_events: runtimeCacheEventsPath,
+      runtime_currentness_probe: runtimeCurrentnessProbePath,
+      runtime_native_trust: runtimeNativeTrustPath,
+      runtime_cache: prepared.runtime_cache,
+      resolved_refs: prepared.resolved_refs,
+      duration_seconds: {
+        runtime_materialize: timings.runtime_materialize,
+        runtime_cache_materialize: timings.runtime_cache_materialize,
+      },
+    }, null, 2));
+    return;
+  }
+
   const cacheEventsWrittenAt = monotonicSeconds();
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
   const payloadSyncedAt = monotonicSeconds();
@@ -202,7 +224,7 @@ function main() {
     fullDmgPath: targetDmg,
     fullPackageManifest: prepared.manifest,
     runtimeCacheEvents: prepared.runtime_cache,
-    runtimeCurrentnessProbePath: path.join(options.outDir, 'full-runtime-currentness-probe.json'),
+    runtimeCurrentnessProbePath,
     runtimeNativeTrust: prepared.manifest.native_trust,
     appBundleTrimReport: optimizedPackage?.app_bundle_trim ?? null,
     packageBoundaryAudit: optimizedPackage?.package_boundary_audit ?? null,

@@ -91,6 +91,7 @@ function defaultToolchainOptions() {
 function defaultRuntimeOptions() {
   return {
     skipGuiBuild: false,
+    warmRuntimeCacheOnly: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
     reuseGuiViteOutput: process.env.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1',
     includeBunRuntime: process.env.OPL_FULL_INCLUDE_BUN_RUNTIME === '1',
@@ -128,6 +129,7 @@ function defaultOptions() {
 
 const booleanOptionSetters = {
   'skip-gui-build': (parsed) => { parsed.skipGuiBuild = true; },
+  'warm-runtime-cache-only': (parsed) => { parsed.warmRuntimeCacheOnly = true; },
   'split-runtime': (parsed) => { parsed.splitRuntime = true; },
   'reuse-gui-vite-output': (parsed) => { parsed.reuseGuiViteOutput = true; },
   'print-runtime-cache-keys': (parsed) => { parsed.printRuntimeCacheKeys = true; },

@@ -1,0 +1,161 @@
+{
+  "schema": "opl_actions_cache_catalog.v1",
+  "purpose": "bounded_default_on_reusable_acceleration",
+  "repository": "gaofeng21cn/one-person-lab-app",
+  "repository_budget_bytes": 10737418240,
+  "minimum_headroom_bytes": 2147483648,
+  "default_writer_ref": "refs/heads/main",
+  "truth_boundary": "Caches are reproducible acceleration inputs only. A cache hit, miss, write, eviction, or cleanup receipt cannot claim artifact identity, release readiness, owner approval, publication state, runtime truth, or domain truth.",
+  "write_policy": {
+    "large_cache_action": "restore_then_explicit_save",
+    "combined_actions_cache_allowed": false,
+    "non_default_refs": "restore_only_from_default_branch",
+    "dynamic_key_class_env": "OPL_ACTIONS_CACHE_CLASS",
+    "save_condition": "default_writer_ref_and_cache_miss_or_contracted_forced_rebuild_after_output_validation"
+  },
+  "restore_policy": {
+    "dependency_download": "prefix_fallback_allowed_package_manager_revalidates_content",
+    "install_seed": "exact_only_after_declared_legacy_migration",
+    "compiled_output": "exact_only",
+    "runtime_layer": "exact_only"
+  },
+  "classes": [
+    {
+      "id": "dependency_download",
+      "kind": "reproducible_download_store",
+      "purpose": "Avoid repeated package manager, tool bootstrap, Electron, and builder downloads.",
+      "key_prefixes": [
+        "bun-install-",
+        "bun-",
+        "node-cache-",
+        "full-uv-",
+        "setup-go-",
+        "electron-cache-"
+      ],
+      "legacy_key_prefixes": [
+        "full-bun-install-",
+        "full-electron-cache-"
+      ],
+      "max_budget_bytes": 3221225472,
+      "keep_generations_per_platform": 2,
+      "restore_mode": "prefix_fallback_allowed",
+      "writer_ref": "refs/heads/main"
+    },
+    {
+      "id": "first_run_install_seed",
+      "kind": "verified_install_asset_seed",
+      "purpose": "Preseed exact Codex npm tarballs and npm cache for clean first-run qualification.",
+      "key_prefixes": [
+        "opl-first-run-codex-install-assets-"
+      ],
+      "max_budget_bytes": 1073741824,
+      "keep_generations_per_platform": 2,
+      "restore_mode": "legacy_prefix_migration_then_exact_only",
+      "writer_ref": "refs/heads/main"
+    },
+    {
+      "id": "compiled_output",
+      "kind": "verified_build_intermediate",
+      "purpose": "Reuse exact version-bound active-shell Vite output without treating it as a release artifact.",
+      "key_prefixes": [
+        "full-shell-vite-output-"
+      ],
+      "max_budget_bytes": 1073741824,
+      "keep_generations_per_platform": 2,
+      "restore_mode": "exact_only",
+      "writer_ref": "refs/heads/main"
+    },
+    {
+      "id": "full_runtime_layer",
+      "kind": "verified_runtime_assembly_layer",
+      "purpose": "Reuse exact Full toolchain, domain runtime, OPL runtime, and skills layer archives.",
+      "key_prefixes": [
+        "opl-full-runtime-layer-"
+      ],
+      "max_budget_bytes": 3221225472,
+      "keep_generations_per_platform": 2,
+      "restore_mode": "exact_only",
+      "writer_ref": "refs/heads/main"
+    }
+  ],
+  "managed_action_cache_exceptions": [
+    {
+      "action": "actions/setup-node",
+      "scope": "small_package_manager_download_cache",
+      "truth_boundary": "download_acceleration_only"
+    },
+    {
+      "action": "actions/setup-go",
+      "scope": "small_module_and_build_download_cache",
+      "truth_boundary": "download_acceleration_only"
+    },
+    {
+      "action": "oven-sh/setup-bun",
+      "scope": "small_tool_bootstrap_cache",
+      "truth_boundary": "download_acceleration_only"
+    }
+  ],
+  "cache_plan": {
+    "schema": "opl_actions_cache_plan.v1",
+    "required_before": "expensive_full_runtime_materialization",
+    "required_fields": [
+      "mode",
+      "workflow",
+      "ref",
+      "writer_eligible",
+      "cohort",
+      "runner",
+      "catalog_sha256",
+      "runtime_layers",
+      "identity"
+    ]
+  },
+  "cache_receipt": {
+    "schema": "opl_actions_cache_receipt.v1",
+    "required_after": "full_runtime_materialization_and_cache_save_attempts",
+    "required_fields": [
+      "plan_identity",
+      "runtime_layer_events",
+      "save_outcomes",
+      "truth_boundary"
+    ]
+  },
+  "cache_only_warmup": {
+    "workflow": ".github/workflows/full-runtime-cache-warmup.yml",
+    "reusable_workflow": ".github/workflows/full-first-install-release.yml",
+    "scheduling": "ahead_of_time_for_current_main_or_planned_exact_cohort",
+    "release_gate": false,
+    "miss_fallback": "full_package_build_materializes_validates_and_main_saves_missing_layers",
+    "requires_exact_app_shell_framework_shas": true,
+    "writer_ref": "refs/heads/main",
+    "allowed_outputs": [
+      "runtime_layer_caches",
+      "runtime-cache-events.json",
+      "full-runtime-currentness-probe.json",
+      "full-runtime-native-trust.json",
+      "actions-cache-plan.json",
+      "actions-cache-receipt.json"
+    ],
+    "forbidden_outputs": [
+      "release_dmg",
+      "release_manifest",
+      "release_owner_receipt",
+      "release_readiness_claim",
+      "stable_or_latest_mutation"
+    ]
+  },
+  "cleanup": {
+    "trigger": "after_terminal_release_closeout_or_capacity_review",
+    "inventory_credentials": "actions_read_only",
+    "mutation_authority": "isolated_cleanup_broker_required",
+    "unprovisioned_behavior": "plan_only_no_delete",
+    "protect": [
+      "keys_reachable_from_current_main",
+      "current_frozen_cohort_keys",
+      "latest_stable_rollback_keys",
+      "active_or_queued_workflow_keys"
+    ],
+    "delete": "exact_cache_ids_outside_protected_generations_including_stale_main_generations",
+    "blind_delete_all_allowed": false
+  }
+}

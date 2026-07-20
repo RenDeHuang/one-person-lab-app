@@ -1692,6 +1692,8 @@ jobs:
 
       - name: Save Codex install asset cache
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && github.ref == 'refs/heads/main' && steps.codex_package_preflight.outputs.cache_save_required == 'true' }}
+        env:
+          OPL_ACTIONS_CACHE_CLASS: first_run_install_seed
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:

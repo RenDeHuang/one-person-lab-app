@@ -95,6 +95,7 @@
     "release:closeout": "node --experimental-strip-types scripts/closeout-release-run.ts",
     "release:attestation:verify": "node --experimental-strip-types scripts/verify-release-attestations.ts",
     "release:actions-timing": "node --experimental-strip-types scripts/summarize-github-actions-timing.ts",
+    "release:cache-plan": "node --experimental-strip-types scripts/write-actions-cache-plan.ts",
     "release:gate-reuse-plan": "node --experimental-strip-types scripts/plan-release-gate-reuse.ts",
     "release:cohort-manifest": "node --experimental-strip-types scripts/write-release-cohort-manifest.ts",
     "release:readiness-summary": "node --experimental-strip-types scripts/summarize-release-readiness.ts",

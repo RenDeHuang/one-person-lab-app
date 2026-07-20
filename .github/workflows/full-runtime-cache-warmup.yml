@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       opl_version:
-        description: OPL version stamp for the warmup package. Empty uses the current UTC date version.
+        description: OPL version stamp for the cache evidence. Empty uses the current UTC date version.
         required: false
         default: ''
         type: string
@@ -39,14 +39,57 @@ env:
 
 jobs:
   resolve-version:
-    name: Resolve warmup version
+    name: Resolve exact warmup cohort
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      framework_ref: ${{ steps.version.outputs.framework_ref }}
-      shell_ref: ${{ steps.version.outputs.shell_ref }}
+      app_sha: ${{ steps.cohort.outputs.app_sha }}
+      framework_sha: ${{ steps.cohort.outputs.framework_sha }}
+      shell_sha: ${{ steps.cohort.outputs.shell_sha }}
 
     steps:
+      - name: Require canonical main writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main' || { echo "::error::Full runtime cache warmup is restricted to refs/heads/main."; exit 1; }
+
+      - name: Checkout App cohort source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+
+      - name: Checkout Shell cohort source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.shell_ref || 'main' }}
+          path: shell-source
+
+      - name: Checkout Framework cohort source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}
+          path: framework-source
+
+      - name: Resolve exact cohort SHAs
+        id: cohort
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          shell_sha="$(git -C shell-source rev-parse HEAD)"
+          framework_sha="$(git -C framework-source rev-parse HEAD)"
+          for sha in "$app_sha" "$shell_sha" "$framework_sha"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Warmup cohort did not resolve to exact SHAs."; exit 1; }
+          done
+          test "$app_sha" = "$GITHUB_SHA" || { echo "::error::Warmup App SHA drifted from the workflow controller SHA."; exit 1; }
+          echo "app_sha=$app_sha" >> "$GITHUB_OUTPUT"
+          echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
+          echo "framework_sha=$framework_sha" >> "$GITHUB_OUTPUT"
+
       - name: Resolve version
         id: version
         shell: bash
@@ -60,17 +103,7 @@ jobs:
             echo "::error::Invalid OPL release version: $version"
             exit 1
           fi
-          framework_ref="${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}"
-          if [ -z "$framework_ref" ]; then
-            framework_ref="main"
-          fi
-          shell_ref="${{ github.event_name == 'workflow_dispatch' && inputs.shell_ref || 'main' }}"
-          if [ -z "$shell_ref" ]; then
-            shell_ref="main"
-          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "framework_ref=$framework_ref" >> "$GITHUB_OUTPUT"
-          echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
 
   warmup:
     name: Warm Full runtime layer cache
@@ -78,14 +111,10 @@ jobs:
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ needs.resolve-version.outputs.version }}
-      framework_ref: ${{ needs.resolve-version.outputs.framework_ref }}
-      shell_ref: ${{ needs.resolve-version.outputs.shell_ref }}
+      framework_ref: ${{ needs.resolve-version.outputs.framework_sha }}
+      shell_ref: ${{ needs.resolve-version.outputs.shell_sha }}
+      artifact_app_sha: ${{ needs.resolve-version.outputs.app_sha }}
+      controller_workflow_sha: ${{ needs.resolve-version.outputs.app_sha }}
       upload_full_package_artifact: false
+      cache_only: true
       force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache == true }}
-    secrets:
-      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      TEAM_ID: ${{ secrets.TEAM_ID }}
-      IDENTITY: ${{ secrets.IDENTITY }}

@@ -25,6 +25,11 @@ on:
         required: false
         default: false
         type: boolean
+      cache_only:
+        description: Warm and validate Full runtime layer caches without building release assets
+        required: false
+        default: false
+        type: boolean
       full_dmg_compression_level:
         description: zlib level for the Full DMG when full_dmg_format is UDZO.
         required: false
@@ -77,6 +82,11 @@ on:
         type: boolean
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
+        required: false
+        default: false
+        type: boolean
+      cache_only:
+        description: Warm and validate Full runtime layer caches without building release assets
         required: false
         default: false
         type: boolean
@@ -162,6 +172,7 @@ jobs:
 
     steps:
       - name: Inspect optional Full release signing secrets
+        if: ${{ !inputs.cache_only }}
         shell: bash
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -259,10 +270,21 @@ jobs:
         run: |
           [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
-          if [ -n '${{ inputs.stable_session_id }}' ]; then
+          if [ -n '${{ inputs.stable_session_id }}' ] || [ '${{ inputs.cache_only }}' = 'true' ]; then
             [[ '${{ inputs.controller_workflow_sha }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::controller_workflow_sha must be exact for release-bound Full builds."; exit 1; }
             [[ '${{ inputs.artifact_app_sha }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::artifact_app_sha must be exact for release-bound Full builds."; exit 1; }
           fi
+
+      - name: Enforce cache-only warmup boundary
+        if: ${{ inputs.cache_only }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main' || { echo "::error::Cache-only warmup is restricted to refs/heads/main."; exit 1; }
+          test '${{ inputs.upload_full_package_artifact }}' = 'false' || { echo "::error::Cache-only warmup cannot upload a Full package."; exit 1; }
+          test -z '${{ inputs.stable_session_id }}' || { echo "::error::Cache-only warmup cannot join a Stable release session."; exit 1; }
+          test -z '${{ inputs.release_mutation }}' || { echo "::error::Cache-only warmup cannot carry release mutation authority."; exit 1; }
+          test -z '${{ inputs.release_session_lease_base64 }}' || { echo "::error::Cache-only warmup cannot carry a release session lease."; exit 1; }
 
       - name: Verify signed release-bound Full build ticket
         if: ${{ inputs.stable_session_id != '' }}
@@ -499,28 +521,29 @@ jobs:
         with:
           bun-version: ${{ steps.managed-package-refs.outputs.bun_version }}
 
-      - name: Cache Bun install cache
+      - name: Restore Bun install cache
+        if: ${{ !inputs.cache_only }}
         id: bun-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ~/.bun/install/cache
-          key: full-bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
           restore-keys: |
-            full-bun-install-${{ runner.os }}-${{ runner.arch }}-
-            full-bun-install-${{ runner.os }}-
+            bun-install-${{ runner.os }}-${{ runner.arch }}-
+            bun-install-${{ runner.os }}-
 
-      - name: Cache Electron artifacts
+      - name: Restore Electron artifacts cache
+        if: ${{ !inputs.cache_only }}
         id: electron-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ${{ runner.temp }}/.cache/electron
             ${{ runner.temp }}/.cache/electron-builder
             ~/.cache/electron
             ~/.cache/electron-builder
-          key: full-electron-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml') }}
+          key: electron-cache-macos-arm64-arm64-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
           restore-keys: |
-            full-electron-cache-${{ runner.os }}-${{ runner.arch }}-
             electron-cache-macos-arm64-arm64-
             electron-cache-macos-arm64-
 
@@ -529,9 +552,9 @@ jobs:
         with:
           python-version: ${{ steps.managed-package-refs.outputs.python_version }}
 
-      - name: Cache uv artifacts
+      - name: Restore uv artifacts cache
         id: uv-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ~/.cache/uv
@@ -677,6 +700,7 @@ jobs:
           echo "OPL_FULL_FRAMEWORK_BUILD_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install App shell dependencies
+        if: ${{ !inputs.cache_only }}
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
         run: |
@@ -686,6 +710,7 @@ jobs:
           echo "OPL_FULL_SHELL_NODE_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify App product profile against Shell consumer
+        if: ${{ !inputs.cache_only }}
         shell: bash
         run: |
           set -euo pipefail
@@ -695,6 +720,7 @@ jobs:
           bun vitest run tests/unit/common-config/oplProductProfile.test.ts
 
       - name: Verify Full bootstrap and Home readiness before packaging
+        if: ${{ !inputs.cache_only }}
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
         run: |
@@ -711,6 +737,7 @@ jobs:
             tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx
 
       - name: Resolve App shell Electron version
+        if: ${{ !inputs.cache_only }}
         id: shell-electron-version
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
@@ -725,6 +752,7 @@ jobs:
           echo "OPL_FULL_SHELL_ELECTRON_VERSION=$electron_version" >> "$GITHUB_ENV"
 
       - name: Rebuild App shell native modules for Electron
+        if: ${{ !inputs.cache_only }}
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
         env:
@@ -740,6 +768,7 @@ jobs:
           echo "OPL_FULL_SHELL_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Restore Full shell Vite output cache
+        if: ${{ !inputs.cache_only }}
         id: restore-shell-vite-output
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
@@ -749,8 +778,6 @@ jobs:
             one-person-lab-app/shells/aionui/out/renderer
             one-person-lab-app/shells/aionui/out/.build-hash
           key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
-          restore-keys: |
-            full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-
 
       - name: Prepare domain runtime dependencies
         shell: bash
@@ -830,9 +857,33 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Write exact-cohort Actions cache plan
+        working-directory: one-person-lab-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode='full_package'
+          if [ '${{ inputs.cache_only }}' = 'true' ]; then
+            mode='cache_only_warmup'
+          fi
+          npm --silent run release:cache-plan -- plan \
+            --output dist/opl-full-release/actions-cache-plan.json \
+            --catalog contracts/app-actions-cache-catalog.json \
+            --runtime-key-report "$RUNNER_TEMP/opl-full-runtime-cache-keys.json" \
+            --mode "$mode" \
+            --workflow full-first-install-release.yml \
+            --ref "$GITHUB_REF" \
+            --app-sha "$(git rev-parse HEAD)" \
+            --shell-sha "$(git -C shells/aionui rev-parse HEAD)" \
+            --framework-sha "$(git -C "$GITHUB_WORKSPACE/one-person-lab" rev-parse HEAD)" \
+            --runner-os "$RUNNER_OS" \
+            --runner-arch "$RUNNER_ARCH"
+
       - name: Restore Full toolchain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-toolchain
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
@@ -841,6 +892,8 @@ jobs:
       - name: Restore Full domain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-domain
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
@@ -849,6 +902,8 @@ jobs:
       - name: Restore Full OPL runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-opl
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
@@ -857,6 +912,8 @@ jobs:
       - name: Restore Full skills runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-skills
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
@@ -871,6 +928,7 @@ jobs:
           mkdir -p "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
 
       - name: Prepare optional macOS code signing
+        if: ${{ !inputs.cache_only }}
         shell: bash
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -965,7 +1023,9 @@ jobs:
             --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
             --runtime-cache-mode readwrite
           )
-          if [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
+          if [ '${{ inputs.cache_only }}' = 'true' ]; then
+            FULL_BUILD_CMD+=(--warm-runtime-cache-only)
+          elif [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
             FULL_BUILD_CMD+=(--reuse-gui-vite-output)
           fi
           if [ "$RELEASE_MUTATION" = "full_addon_dispatch" ]; then
@@ -1015,7 +1075,22 @@ jobs:
           fi
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Verify cache-only warmup emitted no release assets
+        if: ${{ inputs.cache_only }}
+        working-directory: one-person-lab-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir='dist/opl-full-release'
+          for evidence in actions-cache-plan.json runtime-cache-events.json full-runtime-currentness-probe.json full-runtime-native-trust.json; do
+            test -f "$output_dir/$evidence" || { echo "::error::Cache-only evidence is missing: $evidence"; exit 1; }
+          done
+          jq -e '.mode == "cache_only_warmup" and .writer_eligible == true' "$output_dir/actions-cache-plan.json" >/dev/null
+          forbidden="$(find "$output_dir" -maxdepth 1 -type f \( -name '*.dmg' -o -name 'opl-release-manifest.json' -o -name 'full-package-manifest.json' -o -name 'SHA256SUMS.txt' \) -print)"
+          test -z "$forbidden" || { echo "::error::Cache-only warmup emitted forbidden release assets:"; printf '%s\n' "$forbidden"; exit 1; }
+
       - name: Verify Full package checksums and optional signing
+        if: ${{ !inputs.cache_only }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1122,6 +1197,7 @@ jobs:
           echo "OPL_FULL_VERIFY_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Summarize Full package size
+        if: ${{ !inputs.cache_only }}
         working-directory: one-person-lab-app
         shell: bash
         run: |
@@ -1148,6 +1224,7 @@ jobs:
           NODE
 
       - name: Summarize Full caches and timings
+        if: ${{ !inputs.cache_only }}
         shell: bash
         env:
           OPL_FULL_NPM_CACHE_HIT: ${{ steps.node-cache.outputs.cache-hit || 'unknown' }}
@@ -1295,6 +1372,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Full workflow telemetry
+        if: ${{ !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-workflow-telemetry-${{ env.OPL_RELEASE_VERSION }}
@@ -1303,6 +1381,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full diagnostics artifact
+        if: ${{ !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
@@ -1324,7 +1403,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full local authorization policy
-        if: ${{ inputs.upload_full_package_artifact }}
+        if: ${{ !inputs.cache_only && inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-local-authorization-policy-${{ env.OPL_RELEASE_VERSION }}
@@ -1332,8 +1411,38 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Save Full Bun install cache
+        if: ${{ github.ref == 'refs/heads/main' && !inputs.cache_only && steps.bun-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        continue-on-error: true
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
+
+      - name: Save Full Electron artifacts cache
+        if: ${{ github.ref == 'refs/heads/main' && !inputs.cache_only && steps.electron-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        continue-on-error: true
+        with:
+          path: |
+            ${{ runner.temp }}/.cache/electron
+            ${{ runner.temp }}/.cache/electron-builder
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: electron-cache-macos-arm64-arm64-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
+
+      - name: Save Full uv artifacts cache
+        if: ${{ github.ref == 'refs/heads/main' && steps.uv-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cache/uv
+            ~/Library/Caches/uv
+          key: full-uv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('med-autoscience/uv.lock', 'med-autoscience/pyproject.toml', 'med-autogrant/uv.lock', 'med-autogrant/pyproject.toml') }}
+
       - name: Save Full shell Vite output cache
-        if: ${{ steps.restore-shell-vite-output.outputs.cache-hit != 'true' }}
+        if: ${{ github.ref == 'refs/heads/main' && !inputs.cache_only && steps.restore-shell-vite-output.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
@@ -1345,7 +1454,10 @@ jobs:
           key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
 
       - name: Save Full toolchain runtime cache
-        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
+        id: save-runtime-cache-toolchain
+        if: ${{ github.ref == 'refs/heads/main' && (inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true') }}
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
@@ -1353,7 +1465,10 @@ jobs:
           key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
 
       - name: Save Full domain runtime cache
-        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-domain.outputs.cache-hit != 'true' }}
+        id: save-runtime-cache-domain
+        if: ${{ github.ref == 'refs/heads/main' && (inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-domain.outputs.cache-hit != 'true') }}
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
@@ -1361,7 +1476,10 @@ jobs:
           key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
 
       - name: Save Full OPL runtime cache
-        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-opl.outputs.cache-hit != 'true' }}
+        id: save-runtime-cache-opl
+        if: ${{ github.ref == 'refs/heads/main' && (inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-opl.outputs.cache-hit != 'true') }}
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
@@ -1369,15 +1487,47 @@ jobs:
           key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
 
       - name: Save Full skills runtime cache
-        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-skills.outputs.cache-hit != 'true' }}
+        id: save-runtime-cache-skills
+        if: ${{ github.ref == 'refs/heads/main' && (inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-skills.outputs.cache-hit != 'true') }}
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
 
+      - name: Write Actions cache receipt
+        if: ${{ steps.full_package_build.outcome == 'success' }}
+        working-directory: one-person-lab-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --silent run release:cache-plan -- receipt \
+            --output dist/opl-full-release/actions-cache-receipt.json \
+            --plan dist/opl-full-release/actions-cache-plan.json \
+            --runtime-events dist/opl-full-release/runtime-cache-events.json \
+            --save-outcome 'toolchain=${{ steps.save-runtime-cache-toolchain.outcome || 'skipped' }}' \
+            --save-outcome 'domain-runtime=${{ steps.save-runtime-cache-domain.outcome || 'skipped' }}' \
+            --save-outcome 'opl-runtime=${{ steps.save-runtime-cache-opl.outcome || 'skipped' }}' \
+            --save-outcome 'skills=${{ steps.save-runtime-cache-skills.outcome || 'skipped' }}'
+
+      - name: Upload Actions cache plan and receipt
+        if: ${{ steps.full_package_build.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-actions-cache-evidence-${{ env.OPL_RELEASE_VERSION }}-${{ github.run_id }}
+          path: |
+            one-person-lab-app/dist/opl-full-release/actions-cache-plan.json
+            one-person-lab-app/dist/opl-full-release/actions-cache-receipt.json
+            one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
+            one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
+            one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Verify Full artifact plan without a release mutation
-        if: ${{ inputs.upload_full_package_artifact }}
+        if: ${{ !inputs.cache_only && inputs.upload_full_package_artifact }}
         working-directory: one-person-lab-app
         env:
           OPL_RELEASE_EXISTS: '0'
@@ -1392,7 +1542,7 @@ jobs:
             --include-full-package
 
       - name: Write Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1426,7 +1576,7 @@ jobs:
           cp "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" one-person-lab-app/dist/opl-full-release/opl-full-toolchain-observation-receipt.json
 
       - name: Upload Full package workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1435,7 +1585,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
@@ -1444,7 +1594,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1453,7 +1603,7 @@ jobs:
           retention-days: 14
 
       - name: Clean up keychain
-        if: always()
+        if: ${{ always() && !inputs.cache_only }}
         run: |
           if security list-keychains | grep -q build.keychain; then
             security delete-keychain build.keychain

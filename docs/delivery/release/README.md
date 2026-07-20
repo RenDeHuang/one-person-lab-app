@@ -1309,14 +1309,75 @@ route smoke, and release readiness still come from the VM smoke artifact.
 GitHub Actions caches hold reusable, reproducible acceleration inputs only.
 They are not per-run transport, release evidence, artifact identity, or a
 release-readiness signal. Per-run DMGs, manifests, receipts, diagnostics, and
-logs use GitHub Actions artifacts.
+logs use GitHub Actions artifacts. The machine-readable source of truth is
+`contracts/app-actions-cache-catalog.json`; workflow defaults do not define the
+policy.
+
+The repository budget is 10 GiB with 2 GiB reserved headroom. The remaining
+8 GiB is split by reuse behavior instead of by workflow:
+
+| Cache class | Budget | Reused bytes | Restore boundary |
+| --- | ---: | --- | --- |
+| Dependency downloads | 3 GiB | Bun, uv, Electron, builder, and tool download stores | Prefix fallback is allowed because the package manager revalidates content |
+| First-run install seed | 1 GiB | Exact Codex npm tarballs and npm cache used by clean-VM qualification | Exact content identity after the declared legacy migration |
+| Compiled output | 1 GiB | Version/content-bound active-shell Vite output | Exact only |
+| Full runtime layers | 3 GiB | Toolchain, domain runtime, OPL runtime, and skills archives | Exact only |
+
+Caching is useful when the key names bytes that are expensive to download or
+materialize but cheap to validate. A hit avoids repeating that work; a miss
+still follows the canonical builder and validation path, so correctness never
+depends on cache presence. Dependency stores can tolerate prefix fallback and
+revalidation. Compiled output and runtime layers cannot: a near match is a
+different build input and must miss.
+
+Standard and Full workflows share the canonical `bun-install-*` and
+`electron-cache-*` dependency keys. `full-bun-install-*` and
+`full-electron-cache-*` are legacy inventory prefixes only and must not receive
+new writes; this prevents two release lanes from storing the same download bytes
+under different names.
 
 Reusable cache keys must be derived from platform/tool versions plus content or
 dependency-lock digests. They must not contain `github.run_id`,
 `github.run_attempt`, `github.run_number`, timestamps, random values, or another
 identity that guarantees a new entry for unchanged bytes. An explicit
 `actions/cache/save` step runs only for a cache miss or an explicitly contracted
-forced rebuild.
+forced rebuild. Large caches use separate `actions/cache/restore` and
+`actions/cache/save` steps; the combined action is forbidden because its
+post-job implicit save hides write ownership. All large-cache writes are
+restricted to `refs/heads/main`. Pull requests, release refs, and diagnostic
+branches restore default-branch entries but remain restore-only.
+When a cache action receives its key entirely from a prior step output, it must
+declare `OPL_ACTIONS_CACHE_CLASS` with the catalog class ID. The release-boundary
+validator resolves that marker back to the catalog, so a dynamic expression
+cannot bypass prefix ownership or exact-only restore policy.
+
+The default cache-enabled Full release path is structured as follows:
+
+1. Scheduled or manually planned `full-runtime-cache-warmup.yml` warms current
+   `main`, or an exact planned cohort, ahead of release. It resolves App, Shell,
+   and Framework refs to exact SHAs on an Ubuntu job and calls
+   `full-first-install-release.yml` with `cache_only=true`.
+2. The reusable job writes `opl_actions_cache_plan.v1` before runtime
+   materialization, validates and warms the four runtime layers, then writes
+   `opl_actions_cache_receipt.v1` after the guarded save attempts.
+3. Cache-only mode skips Shell dependency install/tests, Electron native
+   rebuild, Vite compilation, signing, DMG compression, release manifests, and
+   release-artifact upload. It may emit only runtime cache/evidence files and
+   never claims release readiness.
+4. The real Full build writes its own exact-cohort plan and restores the same
+   exact layer keys. Warmup is not a release gate: a missing, evicted, or failed
+   warmup becomes an ordinary miss, which the Full builder materializes,
+   validates, and saves on `main` before continuing.
+5. The Full build produces the DMG once and passes that artifact to VM
+   qualification and publication. A failed downstream gate reuses the frozen
+   artifact or runs a same-artifact diagnostic; it does not rebuild merely to
+   obtain cache hits.
+
+`actions-cache-plan.json` binds the mode, ref, catalog digest, runner, exact
+App/Shell/Framework cohort, and ordered runtime keys. The receipt binds that
+plan identity to per-layer hit/build events and the actual cache-save outcomes.
+These files make misses and write failures explainable, but remain acceleration
+evidence only.
 
 The first-run Codex install seed uses this exact content-addressed shape:
 
@@ -1329,16 +1390,31 @@ migrate an existing seed once. A matching resolved key suppresses the save, and
 only `refs/heads/main` may write this seed; diagnostic and release branches may
 restore the default-branch seed but do not create branch-scoped copies.
 
-After a release reaches a terminal closeout, capacity review starts with a
-read-only cache inventory grouped by ref, size, and last access. Protect
-`refs/heads/main`, refs with active or queued workflows, and the current frozen
-cohort. Delete only exact cache IDs on obsolete non-main refs. Never use a blind
-all-cache deletion or clean caches while a release cohort is active.
+After a release reaches a terminal closeout, or when headroom drops below 2 GiB,
+capacity review starts with a read-only cache inventory grouped by class, ref,
+platform, size, and last access. Protect keys reachable from current `main`, the
+current frozen cohort, the latest Stable rollback cohort, and active or queued
+workflows. Keep only the cataloged generations per class/platform. Delete exact
+cache IDs outside that protected set, including stale generations created by an
+older `main`; do not protect every historical `main` entry forever. Never use a
+blind all-cache deletion or clean caches while a protected cohort is active.
+Use the ordinary Actions credential only for the read-only inventory:
 
-`npm run validate:release-boundary` parses every workflow and fails when a
-cache key contains volatile run identity or an explicit save lacks a miss or
-forced-rebuild guard. Any new cache strategy must update the App release
-contract, this runbook, and the policy tests before changing a workflow.
+```bash
+gh api repos/gaofeng21cn/one-person-lab-app/actions/cache/usage
+gh api --paginate 'repos/gaofeng21cn/one-person-lab-app/actions/caches?per_page=100' \
+  --jq '.actions_caches[] | [.id, .ref, .key, .size_in_bytes, .last_accessed_at] | @tsv'
+```
+
+The inventory becomes an exact-ID cleanup plan. Deletion requires the isolated
+cleanup broker; while that authority is unprovisioned, the required behavior is
+plan-only with no `DELETE` request from a development or release session.
+
+`npm run validate:release-boundary` parses every workflow and composite action.
+It fails on combined cache actions, volatile key identity, non-`main` writers,
+unguarded saves, or prefix fallback on exact-only classes. Any new cache class,
+key prefix, restore rule, or writer must first update the cache catalog, App
+release contract, this runbook, and policy tests in the same change.
 
 This follows the same operational shape used by mature cleanup/cache systems:
 Docker prune scopes removal to unused objects, pnpm store prune scopes removal

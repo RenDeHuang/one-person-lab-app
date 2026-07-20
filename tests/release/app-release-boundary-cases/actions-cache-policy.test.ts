@@ -7,8 +7,14 @@ import {
 function policyFixture(workflow: string): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-actions-cache-policy-'));
   const workflowDirectory = path.join(root, '.github', 'workflows');
+  const contractDirectory = path.join(root, 'contracts');
   fs.mkdirSync(workflowDirectory, { recursive: true });
+  fs.mkdirSync(contractDirectory, { recursive: true });
   fs.writeFileSync(path.join(workflowDirectory, 'fixture.yml'), workflow, 'utf8');
+  fs.copyFileSync(
+    path.join(appRoot, 'contracts', 'app-actions-cache-catalog.json'),
+    path.join(contractDirectory, 'app-actions-cache-catalog.json'),
+  );
   return root;
 }
 
@@ -38,6 +44,7 @@ test('first-run Codex install seed uses full content identity and main-only miss
     "${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && github.ref == 'refs/heads/main' && steps.codex_package_preflight.outputs.cache_save_required == 'true' }}",
   );
   assert.equal(saveStep?.with?.key, '${{ steps.codex_package_preflight.outputs.cache_key }}');
+  assert.equal(saveStep?.env?.OPL_ACTIONS_CACHE_CLASS, 'first_run_install_seed');
 });
 
 test('Actions cache policy rejects volatile identities in direct and generated keys', () => {
@@ -88,5 +95,86 @@ jobs:
   assert.match(
     collectActionsCachePolicyViolations(root).join('\n'),
     /explicit cache save must be guarded by a cache miss/,
+  );
+});
+
+test('Actions cache policy rejects combined saves and non-main writers', () => {
+  const combinedRoot = policyFixture(`
+jobs:
+  cache:
+    steps:
+      - uses: actions/cache@0123456789012345678901234567890123456789
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-Linux-X64-lock
+`);
+  assert.match(
+    collectActionsCachePolicyViolations(combinedRoot).join('\n'),
+    /combined actions\/cache restore-save is forbidden/,
+  );
+
+  const branchWriterRoot = policyFixture(`
+jobs:
+  cache:
+    steps:
+      - uses: actions/cache/save@0123456789012345678901234567890123456789
+        if: \${{ steps.restore.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-Linux-X64-lock
+`);
+  assert.match(
+    collectActionsCachePolicyViolations(branchWriterRoot).join('\n'),
+    /explicit cache save must be restricted to refs\/heads\/main/,
+  );
+});
+
+test('Actions cache policy rejects prefix fallback for exact build output', () => {
+  const root = policyFixture(`
+jobs:
+  cache:
+    steps:
+      - uses: actions/cache/restore@0123456789012345678901234567890123456789
+        with:
+          path: shell/out
+          key: full-shell-vite-output-macOS-ARM64-26.7.20-content
+          restore-keys: full-shell-vite-output-macOS-ARM64-26.7.20-
+`);
+  assert.match(
+    collectActionsCachePolicyViolations(root).join('\n'),
+    /exact-only cache class must not declare restore-keys/,
+  );
+});
+
+test('Actions cache policy requires catalog ownership metadata for fully dynamic keys', () => {
+  const missingClassRoot = policyFixture(`
+jobs:
+  cache:
+    steps:
+      - uses: actions/cache/restore@0123456789012345678901234567890123456789
+        with:
+          path: runtime
+          key: \${{ steps.keys.outputs.runtime_key }}
+`);
+  assert.match(
+    collectActionsCachePolicyViolations(missingClassRoot).join('\n'),
+    /fully dynamic cache key must declare a cataloged OPL_ACTIONS_CACHE_CLASS/,
+  );
+
+  const catalogedClassRoot = policyFixture(`
+jobs:
+  cache:
+    steps:
+      - uses: actions/cache/restore@0123456789012345678901234567890123456789
+        env:
+          OPL_ACTIONS_CACHE_CLASS: full_runtime_layer
+        with:
+          path: runtime
+          key: \${{ steps.keys.outputs.runtime_key }}
+          restore-keys: opl-full-runtime-layer-macOS-ARM64-
+`);
+  assert.match(
+    collectActionsCachePolicyViolations(catalogedClassRoot).join('\n'),
+    /exact-only cache class must not declare restore-keys/,
   );
 });

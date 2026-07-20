@@ -1251,9 +1251,13 @@ export function validateReleaseAccelerationPolicy(
 
   if (
     actionsCachePolicy?.schema !== 'opl_github_actions_cache_policy.v1' ||
+    actionsCachePolicy?.catalog_contract !== 'contracts/app-actions-cache-catalog.json' ||
     actionsCachePolicy?.purpose !== 'bounded_reusable_acceleration_not_per_run_transport' ||
     actionsCachePolicy?.reusable_key_identity !== 'platform_tool_version_and_content_or_dependency_digest' ||
     actionsCachePolicy?.explicit_save_policy !== 'save_only_on_cache_miss_or_explicit_forced_rebuild' ||
+    actionsCachePolicy?.large_cache_action_policy !== 'restore_then_explicit_main_only_save' ||
+    actionsCachePolicy?.combined_actions_cache_allowed !== false ||
+    actionsCachePolicy?.dynamic_key_class_env !== 'OPL_ACTIONS_CACHE_CLASS' ||
     actionsCachePolicy?.per_run_data_transport !== 'github_actions_artifacts'
   ) {
     console.error('FAIL actions_cache_contract: Actions caches must be bounded reusable acceleration with content/dependency identity and miss-only saves');
@@ -1272,7 +1276,9 @@ export function validateReleaseAccelerationPolicy(
   const firstRunCache = actionsCachePolicy?.first_run_codex_install_asset_cache;
   if (
     actionsCachePolicy?.write_scope?.codex_install_asset_cache !== 'refs/heads/main_only' ||
-    actionsCachePolicy?.write_scope?.non_main_release_or_diagnostic_refs !== 'restore_allowed_save_forbidden_for_codex_install_assets' ||
+    actionsCachePolicy?.write_scope?.all_large_cache_writers !== 'refs/heads/main_only' ||
+    actionsCachePolicy?.write_scope?.non_main_release_or_diagnostic_refs !== 'restore_allowed_save_forbidden_for_all_large_caches' ||
+    actionsCachePolicy?.write_scope?.managed_action_small_download_caches !== 'cataloged_exception' ||
     firstRunCache?.key_schema !== 'opl-first-run-codex-install-assets-<runner_os>-<runner_arch>-<codex_version>-<codex_tarball_sha256>-<platform_tarball_sha256>' ||
     firstRunCache?.digest_policy !== 'full_sha256' ||
     firstRunCache?.legacy_restore_prefix_allowed !== true ||
@@ -1282,20 +1288,43 @@ export function validateReleaseAccelerationPolicy(
     console.error('FAIL actions_cache_contract: first-run Codex install assets must use full content identity, main-only writes, and exact-match save suppression');
     failures += 1;
   }
+  const fullRuntimeCache = actionsCachePolicy?.full_runtime_cache;
+  if (
+    fullRuntimeCache?.plan_schema !== 'opl_actions_cache_plan.v1' ||
+    fullRuntimeCache?.receipt_schema !== 'opl_actions_cache_receipt.v1' ||
+    !sameStringSet(fullRuntimeCache?.layer_ids, ['toolchain', 'domain-runtime', 'opl-runtime', 'skills']) ||
+    fullRuntimeCache?.restore_policy !== 'exact_only' ||
+    fullRuntimeCache?.writer_ref !== 'refs/heads/main' ||
+    fullRuntimeCache?.cache_only_warmup?.workflow !== '.github/workflows/full-runtime-cache-warmup.yml' ||
+    fullRuntimeCache?.cache_only_warmup?.scheduling !== 'ahead_of_time_for_current_main_or_planned_exact_cohort' ||
+    fullRuntimeCache?.cache_only_warmup?.release_gate !== false ||
+    fullRuntimeCache?.cache_only_warmup?.miss_fallback !== 'full_package_build_materializes_validates_and_main_saves_missing_layers' ||
+    fullRuntimeCache?.cache_only_warmup?.requires_exact_app_shell_framework_shas !== true ||
+    fullRuntimeCache?.cache_only_warmup?.build_cli_flag !== '--warm-runtime-cache-only' ||
+    fullRuntimeCache?.cache_only_warmup?.forbids_release_dmg !== true ||
+    fullRuntimeCache?.cache_only_warmup?.forbids_release_mutation !== true
+  ) {
+    console.error('FAIL actions_cache_contract: Full runtime caches must emit exact-cohort plans and receipts through a DMG-free cache-only warmup');
+    failures += 1;
+  }
   const obsoleteCacheCleanup = actionsCachePolicy?.obsolete_ref_cleanup;
   if (
     obsoleteCacheCleanup?.trigger !== 'after_terminal_release_closeout_or_capacity_review' ||
+    obsoleteCacheCleanup?.inventory_credentials !== 'actions_read_only' ||
+    obsoleteCacheCleanup?.mutation_authority !== 'isolated_cleanup_broker_required' ||
+    obsoleteCacheCleanup?.unprovisioned_behavior !== 'plan_only_no_delete' ||
     !sameStringSet(obsoleteCacheCleanup?.protect, [
-      'refs/heads/main',
-      'active_or_queued_workflow_refs',
-      'current_frozen_cohort_refs',
+      'keys_reachable_from_current_main',
+      'active_or_queued_workflow_keys',
+      'current_frozen_cohort_keys',
+      'latest_stable_rollback_keys',
     ]) ||
-    obsoleteCacheCleanup?.delete !== 'exact_cache_ids_for_obsolete_non_main_refs_after_read_only_inventory' ||
+    obsoleteCacheCleanup?.delete !== 'exact_cache_ids_outside_protected_generations_including_stale_main_generations' ||
     obsoleteCacheCleanup?.blind_delete_all_allowed !== false ||
     typeof actionsCachePolicy?.truth_boundary !== 'string' ||
     !actionsCachePolicy.truth_boundary.includes('cannot claim artifact identity, release readiness')
   ) {
-    console.error('FAIL actions_cache_contract: obsolete cache cleanup must protect main, active runs, and the current frozen cohort and remain non-authoritative');
+    console.error('FAIL actions_cache_contract: cache cleanup must protect reachable main, active cohort, and rollback keys while removing exact stale generations');
     failures += 1;
   }
 

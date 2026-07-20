@@ -350,9 +350,9 @@ jobs:
           python-version: '3.12'
 
       # Restore Electron/Electron-Builder caches before any build-related install
-      - name: Cache Electron artifacts
+      - name: Restore Electron artifacts cache
         id: electron-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ${{ runner.temp }}/.cache/electron
@@ -365,9 +365,9 @@ jobs:
             electron-cache-${{ matrix.platform }}-${{ matrix.arch }}-
             electron-cache-${{ matrix.platform }}-
 
-      - name: Cache Bun install cache
+      - name: Restore Bun install cache
         id: bun-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: ~/.bun/install/cache
           key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
@@ -789,6 +789,25 @@ jobs:
       - name: Verify packaged bundled bun assets
         working-directory: ${{ github.workspace }}
         run: bun run validate:opl-package
+
+      - name: Save Electron artifacts cache
+        if: ${{ github.ref == 'refs/heads/main' && steps.electron-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: |
+            ${{ runner.temp }}/.cache/electron
+            ${{ runner.temp }}/.cache/electron-builder
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ${{ env.LOCALAPPDATA }}\electron-builder\Cache
+          key: electron-cache-${{ matrix.platform }}-${{ matrix.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
+
+      - name: Save Bun install cache
+        if: ${{ github.ref == 'refs/heads/main' && steps.bun-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
 
       # macOS 钥匙串清理
       - name: Clean up keychain (macOS only)

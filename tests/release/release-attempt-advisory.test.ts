@@ -152,12 +152,12 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && inputs\.upload_full_package_artifact \}\}/,
+    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only && inputs\.upload_full_package_artifact \}\}/,
   );
   assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
   assert.match(
     fullWorkflow,
-    /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+    /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
   );
   assert.match(fullWorkflow, /write-build-artifact-cohort\.ts/);
   assert.match(fullWorkflow, /--kind full/);
@@ -169,11 +169,11 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   assert.match(fullWorkflow, /path: \$\{\{ runner\.temp \}\}\/opl-build-cohort\.json/);
   assert.match(
     fullWorkflow,
-    /name: Upload Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+    /name: Upload Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
   );
 });
 
