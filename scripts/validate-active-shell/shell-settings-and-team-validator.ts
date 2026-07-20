@@ -1,6 +1,7 @@
 import {
   assertShellTextIncludesAll,
   assertTextExcludesAll,
+  assertTextIncludesAll,
   readShellText,
 } from './shell-implementation-helpers.ts';
 
@@ -166,8 +167,14 @@ const settingsRegistryExpected = [
   'LEGACY_SETTINGS_ROUTE_REDIRECTS',
   'LEGACY_ANCHOR_REMAP',
   'buildSettingsItemsWithExtensions',
-  "theme='outline'",
   '{icon(16)}',
+];
+
+const oplChromeIconExpected = [
+  'export const OPL_CHROME_ICON_SIZE = 16',
+  'export const OPL_CHROME_ICON_STROKE_WIDTH = 4.5',
+  "theme: 'outline'",
+  "fill: 'currentColor'",
 ];
 
 const conversationMarkdownExpected = [
@@ -336,6 +343,25 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsRegistryExpected,
     'Active shell settings registry App-owned control-plane slot',
   );
+  if (settingsAppearance.includes('OPL_CHROME_ICON_PROPS')) {
+    assertTextIncludesAll(
+      settingsAppearance,
+      ["from '@/renderer/components/opl/oplChromeIcon'", '...OPL_CHROME_ICON_PROPS'],
+      'Active shell settings registry shared OPL chrome icon contract',
+    );
+    assertShellTextIncludesAll(
+      shellPaths,
+      'packages/desktop/src/renderer/components/opl/oplChromeIcon.ts',
+      oplChromeIconExpected,
+      'Active shell OPL-owned chrome icon contract',
+    );
+  } else {
+    assertTextIncludesAll(
+      settingsAppearance,
+      ["theme='outline'"],
+      'Active shell settings registry inline outline icon contract',
+    );
+  }
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx',

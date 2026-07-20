@@ -333,6 +333,12 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     ].join('\n'),
   };
   assert.doesNotThrow(() => assertCurrentGuidHomeSelectionSources(currentSources));
+  assert.doesNotThrow(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      guidStyles: currentSources.guidStyles.replace('align-items: flex-end;', 'align-items: center;'),
+    }),
+  );
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,
