@@ -547,10 +547,11 @@ jobs:
             electron-cache-macos-arm64-arm64-
             electron-cache-macos-arm64-
 
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - name: Setup bootstrap uv
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244
         with:
-          python-version: ${{ steps.managed-package-refs.outputs.python_version }}
+          version: '0.11.29'
+          enable-cache: false
 
       - name: Restore uv artifacts cache
         id: uv-cache
@@ -564,6 +565,29 @@ jobs:
             full-uv-${{ runner.os }}-${{ runner.arch }}-
             full-uv-${{ runner.os }}-
 
+      - name: Setup exact Python and packaged uv
+        shell: bash
+        env:
+          EXPECTED_PYTHON_VERSION: ${{ steps.managed-package-refs.outputs.python_version }}
+          EXPECTED_UV_VERSION: ${{ steps.managed-package-refs.outputs.uv_version }}
+        run: |
+          set -euo pipefail
+          uv python install --managed-python "$EXPECTED_PYTHON_VERSION"
+          python_executable="$(uv python find --managed-python "$EXPECTED_PYTHON_VERSION")"
+          actual_version="$("$python_executable" --version 2>&1)"
+          test "$actual_version" = "Python $EXPECTED_PYTHON_VERSION"
+          python_root="$(cd "$(dirname "$python_executable")/.." && pwd -P)"
+          toolchain_root="$RUNNER_TEMP/opl-python-toolchain"
+          uv venv --python "$python_executable" "$toolchain_root"
+          uv pip install --python "$toolchain_root/bin/python" --no-deps "uv==$EXPECTED_UV_VERSION"
+          "$toolchain_root/bin/uv" --version | grep -F "uv $EXPECTED_UV_VERSION"
+          echo "$toolchain_root/bin" >> "$GITHUB_PATH"
+          echo "OPL_FULL_PYTHON_ROOT=$python_root" >> "$GITHUB_ENV"
+          echo "OPL_FULL_UV_BIN=$toolchain_root/bin/uv" >> "$GITHUB_ENV"
+          export PATH="$toolchain_root/bin:$PATH"
+          python --version | grep -Fx "Python $EXPECTED_PYTHON_VERSION"
+          uv --version | grep -F "uv $EXPECTED_UV_VERSION"
+
       - name: Setup Go
         id: go-cache
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -572,13 +596,11 @@ jobs:
           cache: true
           cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
-      - name: Install uv, zstd, Temporal CLI, Codex CLI, OfficeCLI, and MinerU
+      - name: Install zstd, Temporal CLI, Codex CLI, OfficeCLI, and MinerU
         shell: bash
         run: |
           set -euo pipefail
           brew install zstd
-          python -m pip install --upgrade pip "uv==${{ steps.managed-package-refs.outputs.uv_version }}"
-          uv python install '${{ steps.managed-package-refs.outputs.python_version }}'
           codex_version_frozen='${{ steps.managed-package-refs.outputs.codex_version }}'
           codex_tarball="$RUNNER_TEMP/openai-codex-${codex_version_frozen}.tgz"
           codex_platform_tarball="$RUNNER_TEMP/openai-codex-${{ steps.managed-package-refs.outputs.codex_platform_version }}.tgz"

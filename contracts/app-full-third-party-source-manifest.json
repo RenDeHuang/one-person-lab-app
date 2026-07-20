@@ -28,7 +28,7 @@
     },
     "python": {
       "version": "3.12.13",
-      "source": "actions/setup-python toolcache release",
+      "source": "uv-managed CPython standalone release",
       "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
     },
     "uv": {

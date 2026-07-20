@@ -61,6 +61,27 @@ test("Full workflow checks out MAS Scholar Skills and binds both runtime assembl
   );
 });
 
+test("Full workflow provisions the frozen Python through uv on macOS arm64", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/full-first-install-release.yml"),
+    "utf8",
+  );
+  const sourceManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(appRoot, "contracts/app-full-third-party-source-manifest.json"),
+      "utf8",
+    ),
+  );
+
+  assert.doesNotMatch(workflow, /actions\/setup-python@/);
+  assert.match(
+    workflow,
+    /astral-sh\/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244[\s\S]*version: '0\.11\.29'[\s\S]*uv python install --managed-python "\$EXPECTED_PYTHON_VERSION"[\s\S]*uv python find --managed-python "\$EXPECTED_PYTHON_VERSION"[\s\S]*uv pip install --python "\$toolchain_root\/bin\/python" --no-deps "uv==\$EXPECTED_UV_VERSION"/,
+  );
+  assert.equal(sourceManifest.toolchain.python.source, "uv-managed CPython standalone release");
+  assert.equal(sourceManifest.toolchain.uv.source, "PyPI exact-version distribution");
+});
+
 test("Full runtime cache classifies hit and miss modes from one canonical key", async () => {
   const mod = await import("../../../scripts/full-first-install-package.ts");
   const cacheDir = path.join(os.tmpdir(), "opl-full-runtime-cache-test");
