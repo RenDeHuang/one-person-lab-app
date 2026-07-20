@@ -136,6 +136,7 @@ test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Ho
   assert.deepEqual(jobs['prepare-notes'].needs, ['cold-preflight', 'freeze-inputs']);
   assert.deepEqual(jobs.freeze.needs, ['cold-preflight', 'prepare-notes', 'freeze-inputs']);
   assert.deepEqual(jobs['standard-build'].needs, ['freeze', 'freeze-inputs']);
+  assert.equal(jobs['standard-build'].with.require_macos_gatekeeper, false);
   assert.deepEqual(jobs['standard-qualification'].needs, ['freeze', 'freeze-inputs', 'standard-build']);
   assert.deepEqual(jobs['bind-standard'].needs, ['freeze', 'freeze-inputs', 'prepare-notes', 'standard-build', 'standard-qualification']);
   assert.deepEqual(jobs['publish-standard-nonlatest'].needs, ['bind-standard', 'freeze', 'freeze-inputs']);

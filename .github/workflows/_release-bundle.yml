@@ -372,7 +372,9 @@ jobs:
       opl_updater_version: ${{ needs.freeze-inputs.outputs.updater_version }}
       stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
-      require_macos_gatekeeper: true
+      # Stable Standard uses the contract's App-managed local authorization
+      # path; Developer ID signing/notarization remains optional diagnostics.
+      require_macos_gatekeeper: false
     secrets: inherit
 
   standard-qualification:
