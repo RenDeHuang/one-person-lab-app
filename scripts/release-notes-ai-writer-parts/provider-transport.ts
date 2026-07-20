@@ -13,6 +13,34 @@ type ReleaseNotesProvider = 'auto' | 'openai_compatible' | 'codex';
 
 const defaultOpenAICompatibleModel = 'auto';
 const defaultProviderTimeoutSeconds = 75;
+const defaultProviderTransportAttempts = 3;
+const defaultProviderRetryDelayMs = 2_000;
+
+export type ReleaseNotesProviderFailureType =
+  | 'provider_transport_timeout'
+  | 'provider_transport_error'
+  | 'provider_rate_limited'
+  | 'provider_http_5xx'
+  | 'provider_response_invalid';
+
+export class ReleaseNotesProviderFailure extends Error {
+  readonly failureType: ReleaseNotesProviderFailureType;
+  readonly attempts: number;
+  readonly transportRetryable: boolean;
+
+  constructor(
+    failureType: ReleaseNotesProviderFailureType,
+    attempts: number,
+    transportRetryable: boolean,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ReleaseNotesProviderFailure';
+    this.failureType = failureType;
+    this.attempts = attempts;
+    this.transportRetryable = transportRetryable;
+  }
+}
 
 export const aiReleaseNotesProvenanceMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 
@@ -58,6 +86,23 @@ function providerTimeoutSeconds() {
   return Number.isFinite(value) && value > 0 ? value : defaultProviderTimeoutSeconds;
 }
 
+export function providerTransportAttempts() {
+  const value = Number.parseInt(process.env.OPL_RELEASE_NOTES_AI_TRANSPORT_ATTEMPTS || '', 10);
+  return Number.isFinite(value) && value >= 1 && value <= defaultProviderTransportAttempts
+    ? value
+    : defaultProviderTransportAttempts;
+}
+
+function providerRetryDelayMs() {
+  const value = Number.parseInt(process.env.OPL_RELEASE_NOTES_AI_RETRY_DELAY_MS || '', 10);
+  return Number.isFinite(value) && value >= 0 && value <= 10_000 ? value : defaultProviderRetryDelayMs;
+}
+
+function waitForRetry(delayMs: number) {
+  if (delayMs <= 0) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+}
+
 function redactSecret(value: string, secret: string) {
   return secret ? value.split(secret).join('[redacted]') : value;
 }
@@ -81,11 +126,21 @@ function parseChatCompletionsContent(stdout: string, providerLabel: string, toke
   try {
     payload = JSON.parse(stdout);
   } catch {
-    throw new Error(`${providerLabel} returned invalid JSON: ${redactProviderOutput(stdout, token).slice(0, 400)}`);
+    throw new ReleaseNotesProviderFailure(
+      'provider_response_invalid',
+      1,
+      false,
+      `${providerLabel} returned invalid JSON: ${redactProviderOutput(stdout, token).slice(0, 400)}`,
+    );
   }
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
-    throw new Error(`${providerLabel} response did not include choices[0].message.content.`);
+    throw new ReleaseNotesProviderFailure(
+      'provider_response_invalid',
+      1,
+      false,
+      `${providerLabel} response did not include choices[0].message.content.`,
+    );
   }
   return content;
 }
@@ -102,38 +157,89 @@ function buildChatCompletionsRequest(model: string, prompt: string) {
   });
 }
 
+function splitCurlResponse(stdout: string) {
+  const marker = /\n__OPL_HTTP_STATUS__:(\d{3})\s*$/.exec(stdout);
+  return {
+    body: marker ? stdout.slice(0, marker.index) : stdout,
+    httpStatus: marker ? Number.parseInt(marker[1]!, 10) : null,
+  };
+}
+
+function classifyCurlFailure(
+  result: ReturnType<typeof spawnSync>,
+  httpStatus: number | null,
+): { type: ReleaseNotesProviderFailureType; retryable: boolean } {
+  if (result.error && ['ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes((result.error as NodeJS.ErrnoException).code ?? '')) {
+    return { type: 'provider_transport_timeout', retryable: true };
+  }
+  if (result.status === 28 || /timed out/i.test(String(result.stderr || result.error?.message || ''))) {
+    return { type: 'provider_transport_timeout', retryable: true };
+  }
+  if (httpStatus === 429) return { type: 'provider_rate_limited', retryable: true };
+  if (httpStatus !== null && httpStatus >= 500) return { type: 'provider_http_5xx', retryable: true };
+  if ([5, 6, 7, 18, 35, 52, 55, 56, 92].includes(result.status ?? -1)) {
+    return { type: 'provider_transport_error', retryable: true };
+  }
+  return { type: 'provider_transport_error', retryable: false };
+}
+
 function requestChatCompletions(endpoint: string, token: string, model: string, prompt: string, providerLabel: string) {
   const request = buildChatCompletionsRequest(model, prompt);
   const timeoutSeconds = providerTimeoutSeconds();
-  const result = spawnSync('curl', [
-    '-fsSL',
-    '--connect-timeout',
-    '10',
-    '--max-time',
-    String(timeoutSeconds),
-    endpoint,
-    '-H',
-    'Accept: application/json',
-    '-H',
-    'Content-Type: application/json',
-    '-H',
-    `Authorization: Bearer ${token}`,
-    '-d',
-    request,
-  ], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: process.env,
-    timeout: (timeoutSeconds + 5) * 1000,
-  });
-  if (result.error) {
-    throw new Error(`${providerLabel} failed: ${result.error.message}`);
+  const maxAttempts = providerTransportAttempts();
+  let lastFailure: ReleaseNotesProviderFailure | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = spawnSync('curl', [
+      '-fsSL',
+      '--connect-timeout',
+      '10',
+      '--max-time',
+      String(timeoutSeconds),
+      '--write-out',
+      '\n__OPL_HTTP_STATUS__:%{http_code}',
+      endpoint,
+      '-H',
+      'Accept: application/json',
+      '-H',
+      'Content-Type: application/json',
+      '-H',
+      `Authorization: Bearer ${token}`,
+      '-d',
+      request,
+    ], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: process.env,
+      timeout: (timeoutSeconds + 5) * 1000,
+    });
+    const response = splitCurlResponse(result.stdout || '');
+    if (!result.error && result.status === 0) {
+      try {
+        return extractMarkdown(parseChatCompletionsContent(response.body, providerLabel, token));
+      } catch (error) {
+        if (error instanceof ReleaseNotesProviderFailure) {
+          throw new ReleaseNotesProviderFailure(error.failureType, attempt, false, error.message);
+        }
+        throw error;
+      }
+    }
+    const classification = classifyCurlFailure(result, response.httpStatus);
+    const detail = result.stderr || response.body || result.error?.message || `exit ${result.status}`;
+    lastFailure = new ReleaseNotesProviderFailure(
+      classification.type,
+      attempt,
+      classification.retryable,
+      `${providerLabel} failed after transport attempt ${attempt}/${maxAttempts}: ${redactProviderOutput(detail, token)}`,
+    );
+    if (!classification.retryable || attempt === maxAttempts) throw lastFailure;
+    waitForRetry(providerRetryDelayMs());
   }
-  if (result.status !== 0) {
-    const detail = result.stderr || result.stdout || `exit ${result.status}`;
-    throw new Error(`${providerLabel} failed: ${redactProviderOutput(detail, token)}`);
-  }
-  return extractMarkdown(parseChatCompletionsContent(result.stdout, providerLabel, token));
+  throw lastFailure ?? new ReleaseNotesProviderFailure(
+    'provider_transport_error',
+    maxAttempts,
+    false,
+    `${providerLabel} failed without a transport observation.`,
+  );
 }
 
 function validateOrRepairGeneratedMarkdown(
@@ -198,16 +304,31 @@ function runOpenAICompatibleModels<T>(
   failureMessage: string,
   requestModel: (model: string, providerLabel: string) => T,
 ) {
-  const failures: string[] = [];
+  const failures: Array<{ model: string; error: unknown }> = [];
   for (const model of models) {
     const providerLabel = `OpenAI-compatible ${model}`;
     try {
       return requestModel(model, providerLabel);
     } catch (error) {
-      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+      failures.push({ model, error });
     }
   }
-  throw new Error(`${failureMessage} for ${models.join(', ')}: ${failures.join(' | ')}`);
+  const message = `${failureMessage} for ${models.join(', ')}: ${failures
+    .map(({ model, error }) => `${model}: ${error instanceof Error ? error.message : String(error)}`)
+    .join(' | ')}`;
+  const providerFailures = failures
+    .map(({ error }) => error)
+    .filter((error): error is ReleaseNotesProviderFailure => error instanceof ReleaseNotesProviderFailure);
+  if (providerFailures.length === failures.length && providerFailures.length > 0) {
+    const last = providerFailures.at(-1)!;
+    throw new ReleaseNotesProviderFailure(
+      last.failureType,
+      providerFailures.reduce((sum, error) => sum + error.attempts, 0),
+      last.transportRetryable,
+      `RELEASE_NOTES_PROVIDER_FAILURE type=${last.failureType} ${message}`,
+    );
+  }
+  throw new Error(message);
 }
 
 function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvidence) {

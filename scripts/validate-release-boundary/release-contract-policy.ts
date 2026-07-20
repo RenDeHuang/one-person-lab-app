@@ -470,6 +470,24 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
   return 0;
 }
 
+function validatePreparedNotesTransportPolicy(releaseContract: Record<string, any>): number {
+  const preparedNotes = releaseContract.release_bundle_control_plane?.prepared_notes;
+  if (
+    preparedNotes?.provider_transport_attempt_limit_per_request !== 3 ||
+    !sameStringSet(preparedNotes?.provider_transport_retry_scope, [
+      'timeout', 'connection_error', 'http_429', 'http_5xx',
+    ]) ||
+    preparedNotes?.provider_content_or_quality_failure_may_transport_retry !== false ||
+    preparedNotes?.failure_receipt_schema !== 'opl_app_release_notes_prepare_receipt.v1' ||
+    preparedNotes?.failure_receipt_uploaded_when_writer_started !== true ||
+    preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true
+  ) {
+    console.error('FAIL prepared_notes_transport: bounded transport retry and typed pre-build failure receipt policy are incomplete');
+    return 1;
+  }
+  return 0;
+}
+
 function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContract: Record<string, any>): number {
   let failures = 0;
   const compression = releaseContract.standard_updater?.dmg_compression;
@@ -1654,6 +1672,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateReleaseImmutability(releaseContract);
   failures += validateLocalInstallReleaseProfile(releaseContract);
   failures += validateReleaseExecutionTracks(releaseContract);
+  failures += validatePreparedNotesTransportPolicy(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);

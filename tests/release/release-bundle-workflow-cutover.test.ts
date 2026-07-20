@@ -177,6 +177,15 @@ test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Ho
   assert.match(readWorkflow('_release-bundle.yml'), /opl release publish/);
   assert.match(readWorkflow('_release-bundle.yml'), /opl release reconcile/);
   assert.match(readWorkflow('_release-bundle.yml'), /release:notes:prepare/);
+  assert.match(readWorkflow('_release-bundle.yml'), /--receipt-output notes-prepare-receipt\.json/);
+  const notesReceiptStep = jobs['prepare-notes'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload notes preparation receipt',
+  );
+  assert.equal(notesReceiptStep?.if, "${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}");
+  assert.equal(
+    (notesReceiptStep?.with as Record<string, unknown>)?.name,
+    'opl-release-bundle-notes-prepare-receipt-${{ github.run_id }}',
+  );
   assert.match(readWorkflow('_release-bundle.yml'), /opl-updater-upgrade-vm\.yml/);
   assert.match(readWorkflow('_release-bundle.yml'), /OPL_HOMEBREW_TAP_TOKEN/);
   assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);

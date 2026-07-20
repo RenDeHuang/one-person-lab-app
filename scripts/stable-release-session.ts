@@ -177,6 +177,7 @@ export type QualificationAttemptEvent = {
   retry_disposition?: 'new_cohort_required' | 'same_artifact_retry_allowed' | 'reconcile_only' | 'terminal_blocked' | null;
   retry_reason?: string | null;
   scope_proof?: QualificationAttemptReceiptV1['evidence']['scope_proof'];
+  correction_of_event_index?: number;
   reason: string;
 };
 
@@ -652,7 +653,18 @@ export function validateStableReleaseSessionInvariants(session: StableReleaseSes
           errors.push(`${artifactKind} qualification attempt ${attempt.sequence} event history is non-monotonic`);
         }
         if (!numericRunId(event.run_id)) errors.push(`${artifactKind} qualification attempt ${attempt.sequence} has a nonnumeric run id`);
-        if (eventIndex < attempt.events.length - 1 && ['passed', 'failed', 'cancelled'].includes(event.state)) {
+        const correction = attempt.events[eventIndex + 1];
+        const typedTerminalCorrection =
+          eventIndex + 1 === attempt.events.length - 1 &&
+          event.state === 'failed' && event.failure_taxonomy === 'unknown' && event.remote_receipt_ref === null &&
+          correction?.state === 'failed' && correction.failure_taxonomy !== 'unknown' &&
+          correction.run_id === event.run_id && correction.conclusion === event.conclusion &&
+          correction.correction_of_event_index === eventIndex;
+        if (
+          eventIndex < attempt.events.length - 1 &&
+          ['passed', 'failed', 'cancelled'].includes(event.state) &&
+          !typedTerminalCorrection
+        ) {
           errors.push(`${artifactKind} qualification attempt ${attempt.sequence} has events after a terminal state`);
         }
         eventAt = observedAt;
@@ -1105,7 +1117,7 @@ const allowedTransitions: Record<StableReleasePhase, StableReleasePhase[]> = {
   source_gates_passed: ['artifact_build_running', 'standard_deadline_blocked'], source_gate_failed: [],
   standard_deadline_blocked: [],
   artifact_build_running: ['artifacts_qualified', 'qualification_failed', 'artifact_build_failed', 'release_train_failed', 'standard_deadline_blocked'],
-  artifact_build_failed: ['artifact_build_running', 'standard_deadline_blocked'], release_train_failed: ['artifact_build_running', 'standard_deadline_blocked'],
+  artifact_build_failed: ['artifact_build_running', 'release_train_failed', 'standard_deadline_blocked'], release_train_failed: ['artifact_build_running', 'standard_deadline_blocked'],
   qualification_failed: ['retry_failed_gate_same_artifact', 'standard_deadline_blocked'],
   retry_failed_gate_same_artifact: ['artifacts_qualified', 'qualification_failed', 'standard_deadline_blocked'],
   artifacts_qualified: ['owner_approved', 'standard_deadline_blocked'], owner_approved: ['promotion_running', 'standard_deadline_blocked'],
@@ -1389,6 +1401,35 @@ export function appendQualificationAttemptEvent(
   attempts[index] = { ...attempt, events: [...attempt.events, event] };
   return {
     ...session, updated_at: event.at,
+    artifact_tracks: { ...session.artifact_tracks, [artifactKind]: { ...track, attempts } },
+  };
+}
+
+export function appendQualificationAttemptCorrection(
+  session: StableReleaseSession,
+  artifactKind: QualificationArtifactKind,
+  attemptId: string,
+  event: QualificationAttemptEvent,
+): StableReleaseSession {
+  const track = session.artifact_tracks[artifactKind];
+  const index = track.attempts.findIndex((attempt) => attempt.attempt_id === attemptId);
+  if (index < 0) throw new Error(`Unknown ${artifactKind} qualification attempt ${attemptId}.`);
+  const attempt = track.attempts[index]!;
+  const previous = attempt.events.at(-1)!;
+  if (
+    previous.state !== 'failed' || previous.failure_taxonomy !== 'unknown' ||
+    previous.remote_receipt_ref !== null || event.state !== 'failed' ||
+    event.failure_taxonomy === 'unknown' || event.run_id !== previous.run_id ||
+    event.conclusion !== previous.conclusion
+  ) {
+    throw new Error(`Qualification attempt ${attemptId} is not eligible for a typed terminal correction.`);
+  }
+  const correctedEvent = { ...event, correction_of_event_index: attempt.events.length - 1 };
+  const attempts = [...track.attempts];
+  attempts[index] = { ...attempt, events: [...attempt.events, correctedEvent] };
+  return {
+    ...session,
+    updated_at: correctedEvent.at,
     artifact_tracks: { ...session.artifact_tracks, [artifactKind]: { ...track, attempts } },
   };
 }

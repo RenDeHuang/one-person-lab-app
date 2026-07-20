@@ -52,7 +52,7 @@ import {
   type PromotionWorkflowJob,
   type StableReleaseSession,
 } from './stable-release-session.ts';
-import { reconcileStableReleaseSession } from './stable-release-reconcile.ts';
+import { preQualificationFailureFromJobs, reconcileStableReleaseSession } from './stable-release-reconcile.ts';
 import {
   readReleaseBrokerAuthority,
   readValidatedCredentialIsolationReceipt,
@@ -60,6 +60,7 @@ import {
   validateReleaseBrokerAuthority,
 } from './release-broker-authority.ts';
 import { validateFullAddonReceipt, type FullAddonReceiptV1 } from './full-addon-receipt.ts';
+import type { ReleaseNotesPreparationReceiptV1 } from './release-notes-preparation-receipt.ts';
 import { validateAddonDebtReceipt } from './addon-debt-receipt.ts';
 import {
   releaseMutationPayloadSha256,
@@ -1712,6 +1713,15 @@ function finalizeReleaseRun(
       'keep the durable run in readback_pending and use reconcile or resume without redispatch.',
     );
   }
+  const preQualificationFailure = preQualificationFailureFromJobs(runJobs(runner, session, runId));
+  if (preQualificationFailure) {
+    return transitionStableReleaseSession(
+      session,
+      'release_train_failed',
+      `${preQualificationFailure.name} failed before Standard build/qualification`,
+      new Date(clock()).toISOString(),
+    );
+  }
   if (manifest) {
     const qualification = readQualificationReceipt(runner, session, runId, runId, 'failed', 'standard', manifest);
     if (qualification) {
@@ -2001,14 +2011,31 @@ async function dispatchAndWatchRelease(
     state: observation.succeeded ? 'succeeded' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
     run_id: String(readback.databaseId), reason: `desktop release workflow concluded ${observation.conclusion ?? 'unknown'}`,
   });
+  const preQualificationFailure = session.phase === 'release_train_failed'
+    ? preQualificationFailureFromJobs(runJobs(runner, session, String(readback.databaseId)))
+    : null;
   session = appendQualificationAttemptEvent(session, 'standard', planned.attemptId, {
     at: now(),
-    state: session.phase === 'artifacts_qualified' ? 'passed' : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
+    state: session.phase === 'artifacts_qualified'
+      ? 'passed'
+      : preQualificationFailure
+        ? 'reconcile_pending'
+        : observation.conclusion === 'cancelled' ? 'cancelled' : 'failed',
     run_id: String(readback.databaseId), conclusion: observation.conclusion,
-    failure_taxonomy: session.phase === 'artifacts_qualified' ? 'none' : observation.conclusion === 'cancelled' ? 'cancelled' : 'unknown',
+    failure_taxonomy: session.phase === 'artifacts_qualified'
+      ? 'none'
+      : preQualificationFailure
+        ? 'infrastructure'
+        : observation.conclusion === 'cancelled' ? 'cancelled' : 'unknown',
     remote_receipt_ref: session.qualification_run.evidence_ref,
+    retry_disposition: preQualificationFailure ? 'reconcile_only' : null,
+    retry_reason: preQualificationFailure
+      ? `${preQualificationFailure.name} failed before Standard qualification; read the typed preparation receipt`
+      : null,
     reason: session.phase === 'artifacts_qualified'
       ? 'strict exact-artifact qualification receipt validated'
+      : preQualificationFailure
+        ? 'pre-build failure requires typed receipt reconcile and cannot be projected as runner_lost'
       : 'release terminal state requires reconcile before retry classification',
   });
   writeSession(statePath, session);
@@ -3420,6 +3447,14 @@ async function main(): Promise<void> {
             createdAt: candidate.createdAt, url: candidate.url,
           }));
         },
+        readWorkflowJobs: (runId) => runJobs(run, current, runId),
+        readWorkflowFailureLog: (runId) => {
+          const result = run('gh', [
+            'run', 'view', runId, '--repo', current.repo, '--log-failed',
+          ], { timeoutMs: readOnlyReleaseTransportTimeoutMs() });
+          if (result.status !== 0) failResult(result, `reconcile failed-job log ${runId}`);
+          return result.stdout;
+        },
         readPromotionJobs: (runId) => {
           const result = run('gh', [
             'run', 'view', runId, '--repo', current.repo, '--json', 'jobs', '--jq', '.jobs',
@@ -3455,6 +3490,11 @@ async function main(): Promise<void> {
           runId,
           `opl-app-full-addon-receipt-${current.version}-${runId}`,
           'opl-app-full-addon-receipt.json',
+        ),
+        readNotesPreparationReceipt: (runId) => evidence.readJson<ReleaseNotesPreparationReceiptV1>(
+          runId,
+          `opl-release-bundle-notes-prepare-receipt-${runId}`,
+          'notes-prepare-receipt.json',
         ),
         readAttemptReceipt: (artifactKind, runId) => {
           const result = evidence.readJson<QualificationAttemptReceiptV1>(

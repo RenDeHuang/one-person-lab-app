@@ -11,6 +11,7 @@ import {
   transitionStableReleaseSession,
 } from '../../scripts/stable-release-session.ts';
 import {
+  preQualificationFailureFromJobs,
   qualificationReceiptBindingMatches,
   reconciledQualificationState,
   reconcileStableReleaseSession,
@@ -225,6 +226,95 @@ test('admin release run success cannot become qualification success without the 
   const qualification = result.artifact_tracks.standard.attempts.find((entry) => entry.attempt_id === fixture.qualificationId)!;
   assert.equal(qualification.events.at(-1)?.state, 'runner_lost');
   assert.notEqual(result.phase, 'artifacts_qualified');
+});
+
+test('pre-qualification job classifier ignores failures after Standard qualification', () => {
+  assert.equal(preQualificationFailureFromJobs([
+    { name: 'release / standard-qualification', status: 'completed', conclusion: 'success' },
+    { name: 'release / bind-standard', status: 'completed', conclusion: 'failure' },
+  ]), null);
+});
+
+test('admin Stable reconcile records typed notes transport failure instead of qualification runner_lost', () => {
+  const fixture = adminOneShotDispatch(true);
+  let session = transitionStableReleaseSession(
+    fixture.session,
+    'source_gates_passed',
+    'test source gates',
+    '2026-07-18T00:01:01.100Z',
+  );
+  session = transitionStableReleaseSession(
+    session,
+    'artifact_build_running',
+    'test release run',
+    '2026-07-18T00:01:01.200Z',
+  );
+  session = transitionStableReleaseSession(
+    session,
+    'artifact_build_failed',
+    'legacy controller projection before stage readback',
+    '2026-07-18T00:01:03.000Z',
+  );
+  session = appendQualificationAttemptEvent(session, 'standard', fixture.qualificationId!, {
+    at: '2026-07-18T00:01:03.100Z',
+    state: 'failed',
+    run_id: '301',
+    conclusion: 'failure',
+    failure_taxonomy: 'unknown',
+    remote_receipt_ref: null,
+    reason: 'legacy release terminal state requires reconcile before retry classification',
+  });
+  const terminal = exactAdminRun(fixture.mutationId, { status: 'completed', conclusion: 'failure' });
+  const jobs = [
+    { name: 'release / freeze-inputs', status: 'completed', conclusion: 'success' },
+    { name: 'release / cold-preflight', status: 'completed', conclusion: 'success' },
+    { name: 'release / prepare-notes', status: 'completed', conclusion: 'failure' },
+    { name: 'release / standard-build', status: 'completed', conclusion: 'skipped' },
+    { name: 'release / standard-qualification', status: 'completed', conclusion: 'skipped' },
+  ];
+  const notesReceipt = {
+    schema: 'opl_app_release_notes_prepare_receipt.v1' as const,
+    written_at: '2026-07-18T00:01:02.500Z',
+    status: 'failed' as const,
+    identity: {
+      version: '26.7.18', channel: 'stable', tag: 'v26.7.18', workflow_run_id: '301',
+    },
+    provider: {
+      kind: 'openai_compatible', model: 'gpt-5.6-luna', max_transport_attempts_per_request: 3,
+    },
+    evidence_sha256: 'e'.repeat(64),
+    notes_sha256: null,
+    failure: {
+      taxonomy: 'transport' as const,
+      type: 'provider_transport_timeout',
+      transport_attempts: 3,
+      transport_retry_exhausted: true,
+      message: 'bounded provider transport timeout',
+    },
+  };
+  const provider = {
+    discoverAdminRuns: () => [terminal],
+    readBrokerRecord: () => { throw new Error('admin reconcile must not query broker'); },
+    readRun: () => terminal,
+    readWorkflowJobs: () => jobs,
+    readNotesPreparationReceipt: () => ({
+      value: notesReceipt,
+      ref: 'opl-release-bundle-notes-prepare-receipt-301',
+      sha256: 'f'.repeat(64),
+    }),
+    readAttemptReceipt: () => { throw new Error('pre-build failure must not read qualification receipt'); },
+  };
+
+  const result = reconcileAt(session, provider);
+  const event = result.artifact_tracks.standard.attempts
+    .find((entry) => entry.attempt_id === fixture.qualificationId)!.events.at(-1)!;
+  assert.equal(result.phase, 'release_train_failed');
+  assert.equal(event.state, 'failed');
+  assert.equal(event.failure_taxonomy, 'infrastructure');
+  assert.equal(event.retry_disposition, 'new_cohort_required');
+  assert.equal(event.remote_receipt_ref, 'opl-release-bundle-notes-prepare-receipt-301');
+  assert.match(event.retry_reason ?? '', /prepare-notes.*provider_transport_timeout/);
+  assert.deepEqual(reconcileAt(result, provider), result);
 });
 
 test('combined Desktop Release preserves exact passed qualification after a later train failure', () => {

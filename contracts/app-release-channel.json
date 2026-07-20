@@ -254,7 +254,18 @@
       "required_before_expensive_build": true,
       "markdown_and_evidence_digests_in_bundle_identity": true,
       "publish_may_generate_or_replace": false,
-      "template_fallback_may_publish": false
+      "template_fallback_may_publish": false,
+      "provider_transport_attempt_limit_per_request": 3,
+      "provider_transport_retry_scope": [
+        "timeout",
+        "connection_error",
+        "http_429",
+        "http_5xx"
+      ],
+      "provider_content_or_quality_failure_may_transport_retry": false,
+      "failure_receipt_schema": "opl_app_release_notes_prepare_receipt.v1",
+      "failure_receipt_uploaded_when_writer_started": true,
+      "prebuild_failure_must_not_project_as_qualification_runner_lost": true
     },
     "publication": {
       "stable": {

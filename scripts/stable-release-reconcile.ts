@@ -5,6 +5,7 @@ import {
   type ArtifactQualificationReceiptV1,
 } from './artifact-qualification-receipt.ts';
 import {
+  appendQualificationAttemptCorrection,
   appendQualificationAttemptEvent,
   appendReleaseMutationAttemptEvent,
   applyPromotionCheckpointReadback,
@@ -33,6 +34,10 @@ import {
 } from './release-mutation-broker.ts';
 import { readReleaseBrokerAuthority, type ReleaseBrokerAuthorityV1 } from './release-broker-authority.ts';
 import { validateFullAddonReceipt, type FullAddonReceiptV1 } from './full-addon-receipt.ts';
+import {
+  validateReleaseNotesPreparationReceipt,
+  type ReleaseNotesPreparationReceiptV1,
+} from './release-notes-preparation-receipt.ts';
 
 type ArtifactKind = 'standard' | 'full';
 type RemoteRun = {
@@ -56,17 +61,50 @@ class StandardReconcileDeadlineBlocked extends Error {}
 export type QualificationReconcileProvider = {
   readRun(runId: string, attempt: ReleaseMutationAttempt): RemoteRun | null;
   discoverAdminRuns?(attempt: ReleaseMutationAttempt): RemoteRun[];
+  readWorkflowJobs?(runId: string): PromotionWorkflowJob[];
+  readWorkflowFailureLog?(runId: string): string;
   readPromotionJobs?(runId: string): PromotionWorkflowJob[];
   readBrokerRecord(lookup: ReleaseMutationBrokerLedgerLookupV1): ReleaseMutationBrokerLedgerLookupResultV1 | unknown;
   readBuildManifest?(artifactKind: ArtifactKind, sourceRunId: string): EvidenceFile<BuildArtifactCohortV2> | null;
   readStrictQualificationReceipt?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<ArtifactQualificationReceiptV1> | null;
   readSmokeSummary?(artifactKind: ArtifactKind, qualificationRunId: string): EvidenceFile<Record<string, unknown>> | null;
   readFullAddonReceipt?(runId: string): EvidenceFile<FullAddonReceiptV1> | null;
+  readNotesPreparationReceipt?(runId: string): EvidenceFile<ReleaseNotesPreparationReceiptV1> | null;
   readAttemptReceipt(
     artifactKind: ArtifactKind,
     runId: string,
   ): { receipt: QualificationAttemptReceiptV1; ref: string; sha256?: string } | null;
 };
+
+export function preQualificationFailureFromJobs(jobs: PromotionWorkflowJob[]): PromotionWorkflowJob | null {
+  const qualification = jobs.find((job) => job.name.includes('standard-qualification'));
+  if (qualification?.conclusion !== 'skipped') return null;
+  const preQualificationJobs = [
+    'admission',
+    'freeze-inputs',
+    'cold-preflight',
+    'prepare-notes',
+    'freeze',
+    'standard-build',
+  ];
+  return jobs.find((job) =>
+    preQualificationJobs.some((name) => job.name === name || job.name.endsWith(`/ ${name}`)) &&
+    ['failure', 'cancelled', 'timed_out', 'startup_failure'].includes(job.conclusion ?? '')
+  ) ?? null;
+}
+
+function legacyNotesFailureFromLog(log: string): { taxonomy: 'transport' | 'quality' | 'configuration'; type: string } | null {
+  if (/curl:\s*\(28\)|operation timed out|timed out after \d+ milliseconds/i.test(log)) {
+    return { taxonomy: 'transport', type: 'provider_transport_timeout' };
+  }
+  if (/AI release notes failed (?:quality|localization) gate/i.test(log)) {
+    return { taxonomy: 'quality', type: 'notes_quality_validation_failed' };
+  }
+  if (/release-note credential is missing|missing .*provider config|no online .*provider/i.test(log)) {
+    return { taxonomy: 'configuration', type: 'notes_provider_configuration_invalid' };
+  }
+  return null;
+}
 
 function terminalMutationState(state: string): boolean {
   return ['succeeded', 'failed', 'cancelled'].includes(state);
@@ -1002,6 +1040,94 @@ export function reconcileStableReleaseSession(
             at, state: 'running', run_id: runId, conclusion: null, failure_taxonomy: 'none',
             remote_receipt_ref: null, reason: `broker-attributed qualification workflow remains ${remote.status}`,
           });
+        }
+        continue;
+      }
+
+      const workflowJobs = artifactKind === 'standard' && mutation.workflow === 'release-stable.yml' && provider.readWorkflowJobs
+        ? readEvidence(`evidence:${artifactKind}:workflow_jobs`, runId, () => provider.readWorkflowJobs!(runId))
+        : [];
+      const preQualificationFailure = preQualificationFailureFromJobs(workflowJobs);
+      if (preQualificationFailure) {
+        const notesReceiptFile = preQualificationFailure.name.includes('prepare-notes') && provider.readNotesPreparationReceipt
+          ? readEvidence(
+            `evidence:${artifactKind}:notes_preparation_receipt`,
+            runId,
+            () => provider.readNotesPreparationReceipt!(runId),
+          )
+          : null;
+        const notesReceiptErrors = notesReceiptFile
+          ? validateReleaseNotesPreparationReceipt(notesReceiptFile.value, {
+            version: reconciled.version,
+            runId,
+            status: 'failed',
+          })
+          : [];
+        const legacyFailureLog = preQualificationFailure.name.includes('prepare-notes') &&
+            (!notesReceiptFile || notesReceiptErrors.length > 0) && provider.readWorkflowFailureLog
+          ? readEvidence(
+            `evidence:${artifactKind}:failed_job_log`,
+            runId,
+            () => provider.readWorkflowFailureLog!(runId),
+          )
+          : '';
+        const notesFailure = notesReceiptErrors.length === 0 && notesReceiptFile
+          ? notesReceiptFile.value.failure
+          : legacyNotesFailureFromLog(legacyFailureLog);
+        const failureTaxonomy = notesFailure?.taxonomy === 'transport'
+          ? 'infrastructure' as const
+          : notesFailure?.taxonomy === 'configuration'
+            ? 'operator' as const
+            : notesFailure?.taxonomy === 'quality'
+              ? 'product' as const
+              : 'unknown' as const;
+        const remoteReceiptRef = notesReceiptFile && notesReceiptErrors.length === 0 ? notesReceiptFile.ref : null;
+        const remoteReceiptSha256 = notesReceiptFile && notesReceiptErrors.length === 0 ? notesReceiptFile.sha256 : null;
+        const retryReason = notesFailure
+          ? `${preQualificationFailure.name} failed before Standard build/qualification: ${notesFailure.type}`
+          : `${preQualificationFailure.name} failed before Standard build/qualification`;
+        const currentLatest = reconciled.artifact_tracks.standard.attempts
+          .find((candidate) => candidate.attempt_id === attempt.attempt_id)!.events.at(-1)!;
+        const observationReason = 'release workflow failed in a typed pre-build stage; qualification did not run';
+        const observationUnchanged =
+          currentLatest.state === 'failed' && currentLatest.run_id === runId &&
+          currentLatest.conclusion === (remote.conclusion || 'failure') &&
+          currentLatest.failure_taxonomy === failureTaxonomy &&
+          currentLatest.remote_receipt_ref === remoteReceiptRef &&
+          (currentLatest.remote_receipt_sha256 ?? null) === remoteReceiptSha256 &&
+          currentLatest.retry_disposition === 'new_cohort_required' &&
+          currentLatest.retry_reason === retryReason && currentLatest.reason === observationReason;
+        const legacyUnknownProjection =
+          currentLatest.state === 'failed' && currentLatest.run_id === runId &&
+          currentLatest.conclusion === (remote.conclusion || 'failure') &&
+          currentLatest.failure_taxonomy === 'unknown' && currentLatest.remote_receipt_ref === null;
+        if (locallyTerminal && !observationUnchanged && !legacyUnknownProjection) {
+          throw new Error(`Terminal Standard pre-build failure ${attempt.attempt_id} changed during reconcile.`);
+        }
+        if (!observationUnchanged) {
+          const event = {
+            at,
+            state: 'failed' as const,
+            run_id: runId,
+            conclusion: remote.conclusion || 'failure',
+            failure_taxonomy: failureTaxonomy,
+            remote_receipt_ref: remoteReceiptRef,
+            remote_receipt_sha256: remoteReceiptSha256,
+            retry_disposition: 'new_cohort_required' as const,
+            retry_reason: retryReason,
+            reason: observationReason,
+          };
+          reconciled = legacyUnknownProjection
+            ? appendQualificationAttemptCorrection(reconciled, 'standard', attempt.attempt_id, event)
+            : appendQualificationAttemptEvent(reconciled, 'standard', attempt.attempt_id, event);
+        }
+        if (reconciled.phase === 'artifact_build_failed') {
+          reconciled = transitionStableReleaseSession(
+            reconciled,
+            'release_train_failed',
+            `${preQualificationFailure.name} failed before Standard build/qualification`,
+            at,
+          );
         }
         continue;
       }

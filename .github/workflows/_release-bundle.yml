@@ -276,9 +276,21 @@ jobs:
             --current-shell-ref '${{ needs.freeze-inputs.outputs.shell_sha }}' \
             --evidence-output notes-evidence.json \
             --output notes-template.md
-          npm run release:notes:prepare -- --evidence notes-evidence.json --output notes.md
+          npm run release:notes:prepare -- \
+            --evidence notes-evidence.json \
+            --output notes.md \
+            --receipt-output notes-prepare-receipt.json
           test -s notes.md
           test -s notes-evidence.json
+
+      - name: Upload notes preparation receipt
+        if: ${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-notes-prepare-receipt-${{ github.run_id }}
+          path: notes-prepare-receipt.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload prepared notes
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

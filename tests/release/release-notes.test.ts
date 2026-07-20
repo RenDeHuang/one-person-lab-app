@@ -78,6 +78,26 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content } }] }));
 `, { mode: 0o755 });
 }
 
+function writeTransientOpenAiCompatibleCurl(
+  binDir: string,
+  attemptPath: string,
+  failuresBeforeSuccess: number,
+  successMarkdown: string,
+) {
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(path.join(binDir, 'curl'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const attemptPath = ${JSON.stringify(attemptPath)};
+const attempt = fs.existsSync(attemptPath) ? Number(fs.readFileSync(attemptPath, 'utf8')) + 1 : 1;
+fs.writeFileSync(attemptPath, String(attempt));
+if (attempt <= ${failuresBeforeSuccess}) {
+  process.stderr.write('curl: (28) Operation timed out with 0 bytes received\\n');
+  process.exit(28);
+}
+process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.stringify(successMarkdown)} } }] }));
+`, { mode: 0o755 });
+}
+
 function runWithFakeOpenAiNotes(evidence: any, responses: string[]) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-notes-repair-'));
   const binDir = path.join(tempRoot, 'bin');
@@ -190,6 +210,90 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.str
   const output = fs.readFileSync(outputPath, 'utf8');
   assert.match(output, /OPENAI_COMPATIBLE_REMOTE_FIXTURE/);
   assert.match(output, /<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->/);
+});
+
+test('online AI notes retries bounded transport timeouts in the same job and writes a passed receipt', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-transport-retry-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const attemptPath = path.join(tempRoot, 'attempt.txt');
+  const evidencePath = path.join(tempRoot, 'evidence.json');
+  const outputPath = path.join(tempRoot, 'notes.md');
+  const receiptPath = path.join(tempRoot, 'notes-prepare-receipt.json');
+  const evidence = standardEvidence('26.9.6');
+  writeTransientOpenAiCompatibleCurl(binDir, attemptPath, 2, validStandardAiReleaseNotes('26.9.6'));
+  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence', evidencePath,
+    '--output', outputPath,
+    '--receipt-output', receiptPath,
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_PROVIDER: 'openai_compatible',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+      OPL_RELEASE_NOTES_AI_RETRY_DELAY_MS: '0',
+      GITHUB_RUN_ID: '789',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(attemptPath, 'utf8'), '3');
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.equal(receipt.status, 'passed');
+  assert.equal(receipt.identity.workflow_run_id, '789');
+  assert.equal(receipt.provider.max_transport_attempts_per_request, 3);
+  assert.match(receipt.notes_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(receipt.failure, null);
+});
+
+test('online AI notes exhausts bounded timeout retries and writes a typed failure receipt', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-transport-failure-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const attemptPath = path.join(tempRoot, 'attempt.txt');
+  const evidencePath = path.join(tempRoot, 'evidence.json');
+  const outputPath = path.join(tempRoot, 'notes.md');
+  const receiptPath = path.join(tempRoot, 'notes-prepare-receipt.json');
+  const evidence = standardEvidence('26.9.7');
+  writeTransientOpenAiCompatibleCurl(binDir, attemptPath, 3, validStandardAiReleaseNotes('26.9.7'));
+  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence', evidencePath,
+    '--output', outputPath,
+    '--receipt-output', receiptPath,
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_PROVIDER: 'openai_compatible',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+      OPL_RELEASE_NOTES_AI_RETRY_DELAY_MS: '0',
+      GITHUB_RUN_ID: '790',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.readFileSync(attemptPath, 'utf8'), '3');
+  assert.match(result.stderr, /provider_transport_timeout.*transport attempt 3\/3/s);
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.identity.workflow_run_id, '790');
+  assert.deepEqual(receipt.failure, {
+    taxonomy: 'transport',
+    type: 'provider_transport_timeout',
+    transport_attempts: 3,
+    transport_retry_exhausted: true,
+    message: receipt.failure.message,
+  });
+  assert.match(receipt.failure.message, /transport attempt 3\/3/);
+  assert.equal(receipt.notes_sha256, null);
+  assert.equal(fs.existsSync(outputPath), false);
 });
 
 test('stable manifest notes expose install, component refs, and version changes', () => {
