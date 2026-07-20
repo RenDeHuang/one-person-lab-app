@@ -170,9 +170,6 @@ export function assertCurrentGuidHomeSelectionSources({
   guidStyles: string;
   capabilitiesPage: string;
 }): void {
-  const actionRowAlignment = guidStyles.includes('align-items: center')
-    ? 'align-items: center'
-    : 'align-items: flex-end';
   assertTextIncludesAll(
     guidPage,
     [
@@ -222,7 +219,7 @@ export function assertCurrentGuidHomeSelectionSources({
       'min-height: 98px',
       'border-radius: 22px',
       '.actionRow',
-      actionRowAlignment,
+      'align-items: center',
       'width: 100%',
       '.workspaceContextBar',
       'height: 52px',

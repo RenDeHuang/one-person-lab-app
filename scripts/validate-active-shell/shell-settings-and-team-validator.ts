@@ -343,25 +343,17 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsRegistryExpected,
     'Active shell settings registry App-owned control-plane slot',
   );
-  if (settingsAppearance.includes('OPL_CHROME_ICON_PROPS')) {
-    assertTextIncludesAll(
-      settingsAppearance,
-      ["from '@/renderer/components/opl/oplChromeIcon'", '...OPL_CHROME_ICON_PROPS'],
-      'Active shell settings registry shared OPL chrome icon contract',
-    );
-    assertShellTextIncludesAll(
-      shellPaths,
-      'packages/desktop/src/renderer/components/opl/oplChromeIcon.ts',
-      oplChromeIconExpected,
-      'Active shell OPL-owned chrome icon contract',
-    );
-  } else {
-    assertTextIncludesAll(
-      settingsAppearance,
-      ["theme='outline'"],
-      'Active shell settings registry inline outline icon contract',
-    );
-  }
+  assertTextIncludesAll(
+    settingsAppearance,
+    ["from '@/renderer/components/opl/oplChromeIcon'", '...OPL_CHROME_ICON_PROPS'],
+    'Active shell settings registry shared OPL chrome icon contract',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/opl/oplChromeIcon.ts',
+    oplChromeIconExpected,
+    'Active shell OPL-owned chrome icon contract',
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx',
