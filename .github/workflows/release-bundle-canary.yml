@@ -14,8 +14,14 @@ on:
       - '.github/workflows/release-stable.yml'
       - '.github/workflows/release-nightly.yml'
       - 'scripts/framework-release-adapter.ts'
+      - 'scripts/release-notes-ai-writer.ts'
+      - 'scripts/release-notes-ai-writer-parts/**'
+      - 'scripts/release-notes.ts'
+      - 'scripts/release-notes/**'
+      - 'scripts/generate-release-notes.ts'
       - 'tests/release/release-bundle-workflow-cutover.test.ts'
       - 'tests/release/release-workflow-broker-admission.test.ts'
+      - 'tests/release/release-notes.test.ts'
   pull_request:
     paths:
       - '.github/workflows/*release-bundle*.yml'
@@ -27,8 +33,14 @@ on:
       - '.github/workflows/release-stable.yml'
       - '.github/workflows/release-nightly.yml'
       - 'scripts/framework-release-adapter.ts'
+      - 'scripts/release-notes-ai-writer.ts'
+      - 'scripts/release-notes-ai-writer-parts/**'
+      - 'scripts/release-notes.ts'
+      - 'scripts/release-notes/**'
+      - 'scripts/generate-release-notes.ts'
       - 'tests/release/release-bundle-workflow-cutover.test.ts'
       - 'tests/release/release-workflow-broker-admission.test.ts'
+      - 'tests/release/release-notes.test.ts'
 
 permissions:
   contents: read
