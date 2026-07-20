@@ -294,6 +294,62 @@ esac
   });
 }
 
+function writeCompleteFrameworkPackageCatalog(frameworkRoot, input) {
+  const catalogRoot = path.join(frameworkRoot, "contracts", "opl-framework");
+  const packageDefinitions = {
+    mas: { version: "0.2.6", role: "standard_agent", modulePath: "modules/mas" },
+    mag: { version: "1.0.0", role: "standard_agent", modulePath: "modules/mag" },
+    rca: { version: "1.0.0", role: "standard_agent", modulePath: "modules/rca" },
+    oma: { version: "1.0.0", role: "standard_agent", modulePath: "modules/meta-agent" },
+    obf: { version: "1.0.0", role: "standard_agent", modulePath: "modules/bookforge" },
+    "mas-scholar-skills": {
+      version: "0.2.3",
+      role: "framework_capability_package",
+      modulePath: "modules/mas-scholar-skills",
+    },
+    "opl-flow": { version: "1.0.0", role: "workflow_profile", modulePath: "modules/opl-flow" },
+  };
+  const packages = Object.fromEntries(Object.entries(packageDefinitions).map(([packageId, definition]) => {
+    const manifestRef = `packages/${packageId}.json`;
+    const payloadManifestRef = `packages/payloads/${packageId}-${definition.version}.json`;
+    const manifestPath = path.join(catalogRoot, ...manifestRef.split("/"));
+    const payloadManifestPath = path.join(catalogRoot, ...payloadManifestRef.split("/"));
+    if (!fs.existsSync(manifestPath)) {
+      writeJson(manifestPath, {
+        surface_kind: "opl_agent_package_manifest.v1",
+        package_id: packageId,
+        version: definition.version,
+      });
+    }
+    if (packageId === "mas-scholar-skills") {
+      writeJson(payloadManifestPath, input.scholarPayloadManifest);
+    } else {
+      writeJson(payloadManifestPath, {
+        surface_kind: "opl_package_payload_manifest.v2",
+        package_id: packageId,
+        package_version: definition.version,
+        source_commit: input.sourceCommits[packageId],
+        files: [],
+      });
+    }
+    return [packageId, {
+      package_id: packageId,
+      package_role: definition.role,
+      package_version: definition.version,
+      owner_source_commit: input.sourceCommits[packageId],
+      manifest_ref: manifestRef,
+      manifest_sha256: fileSha256Ref(manifestPath),
+      payload_manifest_ref: payloadManifestRef,
+      payload_manifest_sha256: fileSha256Ref(payloadManifestPath),
+      runtime_module_relative_path: definition.modulePath,
+    }];
+  }));
+  writeJson(path.join(catalogRoot, "bundled-full-runtime-package-catalog.json"), {
+    surface_kind: "opl_bundled_full_runtime_package_catalog.v1",
+    packages,
+  });
+}
+
 function createFullRuntimeFixture() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-scholar-runtime-"));
   const scholarRoot = path.join(tempRoot, "mas-scholar-skills");
@@ -367,7 +423,7 @@ function createFullRuntimeFixture() {
   const frameworkRoot = path.join(tempRoot, "one-person-lab");
   initializeGitRepo(frameworkRoot);
   writeFrameworkRuntimeSource(frameworkRoot, { payloadManifest, sourceCommit });
-  const frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture framework source");
+  let frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture framework source");
 
   const masRoot = path.join(tempRoot, "med-autoscience");
   const magRoot = path.join(tempRoot, "med-autogrant");
@@ -392,6 +448,27 @@ function createFullRuntimeFixture() {
   });
   writeFile(path.join(oplFlowRoot, "templates", "AGENTS.md"), "# OPL Flow fixture\n");
   writeFile(path.join(oplFlowRoot, "skills", "opl-flow", "SKILL.md"), "# OPL Flow\n");
+
+  const packageRoots = {
+    mas: masRoot,
+    mag: magRoot,
+    rca: rcaRoot,
+    oma: metaAgentRoot,
+    obf: bookforgeRoot,
+    "mas-scholar-skills": scholarRoot,
+    "opl-flow": oplFlowRoot,
+  };
+  const sourceCommits = { "mas-scholar-skills": sourceCommit };
+  for (const [packageId, sourceRoot] of Object.entries(packageRoots)) {
+    if (packageId === "mas-scholar-skills") continue;
+    initializeGitRepo(sourceRoot);
+    sourceCommits[packageId] = commitFixtureRepo(sourceRoot, `fixture ${packageId} source`);
+  }
+  writeCompleteFrameworkPackageCatalog(frameworkRoot, {
+    scholarPayloadManifest: payloadManifest,
+    sourceCommits,
+  });
+  frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture complete package catalog");
 
   const officeCliRoot = path.join(tempRoot, "OfficeCLI");
   const mineruRoot = path.join(tempRoot, "MinerU-Ecosystem");
@@ -724,10 +801,21 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     }
 
     const domainCacheInputs = prepared.runtime_cache.key_inputs["domain-runtime"];
-    assert.equal(domainCacheInputs.mas_scholar_skills_ref, "scholar-fixture-ref");
-    assert.equal(domainCacheInputs.mas_scholar_skills_commit, fixture.sourceCommit);
-    assert.match(domainCacheInputs.mas_scholar_skills_source_manifest_sha256, /^[a-f0-9]{64}$/);
-    assert.match(domainCacheInputs.mas_scholar_skills_fingerprint, /^[a-f0-9]{64}$/);
+    assert.equal(domainCacheInputs.framework_package_set.packages.length, 7);
+    assert.equal(
+      domainCacheInputs.framework_package_set.packages.find(
+        (entry) => entry.package_id === "mas-scholar-skills",
+      ).owner_source_commit,
+      fixture.sourceCommit,
+    );
+    assert.match(
+      domainCacheInputs.source_fingerprints["mas-scholar-skills"],
+      /^[a-f0-9]{64}$/,
+    );
+    assert.equal(
+      prepared.runtime_cache.framework_package_set.identity,
+      domainCacheInputs.framework_package_set.identity,
+    );
     assert.equal(prepared.runtime_cache.currentness.framework_commit, fixture.frameworkCommit);
     assert.equal(
       prepared.runtime_cache.currentness.mas_scholar_skills_commit,

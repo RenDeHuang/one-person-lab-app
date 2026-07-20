@@ -12,7 +12,7 @@ export const FULL_FIRST_INSTALL_OUTPUT_DIR = '/Users/gaofeng/Downloads/One-Perso
 export const FULL_RELEASE_OUTPUT_DIR = 'dist/opl-full-release';
 export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
-const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
+const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 2;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
 const OPL_RUNTIME_BUNDLE_LAYER_IDS = [
   'base-toolchain',
@@ -584,6 +584,96 @@ const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERNS =
 
 export function buildFullRuntimePrunePolicyHash() {
   return crypto.createHash('sha256').update(JSON.stringify(FULL_RUNTIME_PRUNE_POLICY)).digest('hex');
+}
+
+const FULL_RUNTIME_CACHE_LAYER_ROOTS: Record<FullRuntimeCacheLayerId, readonly string[]> = {
+  toolchain: ['bin', 'node', 'python', 'uv', 'vendor'],
+  'domain-runtime': ['modules'],
+  'opl-runtime': ['opl'],
+  skills: ['skills'],
+};
+
+const FULL_RUNTIME_CACHE_KNOWN_ROOTS = new Set(
+  Object.values(FULL_RUNTIME_CACHE_LAYER_ROOTS).flat(),
+);
+
+function runtimePatternRoot(pattern: string): string | null {
+  if (!pattern.startsWith('^')) return null;
+  const normalized = pattern.slice(1).replaceAll('\\/', '/');
+  return normalized.match(/^([A-Za-z0-9_-]+)\//)?.[1] ?? null;
+}
+
+function runtimePatternsForCacheLayer(
+  patterns: string[],
+  layerId: FullRuntimeCacheLayerId,
+): string[] {
+  const layerRoots = FULL_RUNTIME_CACHE_LAYER_ROOTS[layerId];
+  return patterns.filter((pattern) => {
+    const root = runtimePatternRoot(pattern);
+    return root === null || !FULL_RUNTIME_CACHE_KNOWN_ROOTS.has(root) || layerRoots.includes(root);
+  });
+}
+
+export function buildFullRuntimePrunePolicyCacheInput(
+  layerId: FullRuntimeCacheLayerId,
+  policy: Record<string, any> = FULL_RUNTIME_PRUNE_POLICY,
+) {
+  if (!FULL_RUNTIME_CACHE_LAYER_IDS.includes(layerId)) {
+    throw new Error(`Unsupported Full runtime cache layer for prune projection: ${String(layerId)}`);
+  }
+  const runtimeTree = policy.runtime_tree ?? {};
+  const projection: Record<string, unknown> = {
+    schema: 'opl_full_runtime_prune_policy_cache_input.v1',
+    policy_schema: policy.schema,
+    policy_id: policy.id,
+    policy_mode: policy.mode,
+    layer_id: layerId,
+    runtime_tree: {
+      excluded_path_segments: runtimeTree.excluded_path_segments ?? [],
+      excluded_basenames: runtimeTree.excluded_basenames ?? [],
+      excluded_basename_suffixes: runtimeTree.excluded_basename_suffixes ?? [],
+      excluded_path_patterns: runtimePatternsForCacheLayer(
+        runtimeTree.excluded_path_patterns ?? [],
+        layerId,
+      ),
+      included_path_patterns: runtimePatternsForCacheLayer(
+        runtimeTree.included_path_patterns ?? [],
+        layerId,
+      ),
+    },
+  };
+  if (layerId === 'toolchain') {
+    projection.node_toolchain_global_packages = policy.node_toolchain_global_packages ?? null;
+  }
+  if (layerId === 'opl-runtime') {
+    projection.production_node_modules = policy.production_node_modules ?? null;
+  }
+  return projection;
+}
+
+export function buildFullRuntimePrunePolicyCacheHash(
+  layerId: FullRuntimeCacheLayerId,
+  policy: Record<string, any> = FULL_RUNTIME_PRUNE_POLICY,
+) {
+  return crypto.createHash('sha256')
+    .update(JSON.stringify(buildFullRuntimePrunePolicyCacheInput(layerId, policy)))
+    .digest('hex');
+}
+
+export function buildFullRuntimePruneImplementationHash() {
+  return crypto.createHash('sha256').update([
+    normalizeRuntimeRelativePath,
+    hasPathSegment,
+    hasExcludedRuntimePathSegment,
+    isExcludedRuntimeBaseName,
+    matchesExcludedRuntimePathPattern,
+    matchesIncludedRuntimePathPattern,
+    shouldExcludeRuntimePath,
+    shouldExcludeProductionNodeModulePath,
+    shouldExcludeNodeToolchainPackagePath,
+    isMacosArm64PlatformPackage,
+    listFullRuntimeProductionNodeModulePaths,
+  ].map((fn) => fn.toString()).join('\n\n')).digest('hex');
 }
 
 function hasExcludedRuntimePathSegment(relativePath: string) {

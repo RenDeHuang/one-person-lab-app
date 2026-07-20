@@ -174,12 +174,29 @@ function collectCacheCatalogViolations(catalog: CacheCatalog | null): string[] {
     violations.push(`${cacheCatalogPath}: catalog must declare all canonical cache classes`);
   }
   if (
-    catalog.cache_plan?.schema !== 'opl_actions_cache_plan.v1' ||
-    catalog.cache_receipt?.schema !== 'opl_actions_cache_receipt.v1' ||
+    catalog.documentation_ref !== 'docs/delivery/actions-cache-architecture.md' ||
+    catalog.cache_plan?.schema !== 'opl_actions_cache_plan.v2' ||
+    catalog.cache_plan?.framework_package_set_schema !== 'opl_full_runtime_framework_package_set.v1' ||
+    !Array.isArray(catalog.cache_plan?.required_fields) ||
+    !catalog.cache_plan.required_fields.includes('framework_package_set') ||
+    !catalog.cache_plan.required_fields.includes('runtime_cache_aggregate_key_input') ||
+    !Array.isArray(catalog.cache_plan?.runtime_layer_required_fields) ||
+    !catalog.cache_plan.runtime_layer_required_fields.includes('key_input_digest') ||
+    catalog.cache_receipt?.schema !== 'opl_actions_cache_receipt.v2' ||
+    catalog.cache_receipt?.required_currentness_status !== 'passed' ||
+    !Array.isArray(catalog.cache_receipt?.required_fields) ||
+    !catalog.cache_receipt.required_fields.includes('identity') ||
+    !catalog.cache_receipt.required_fields.includes('runtime_currentness') ||
+    !catalog.cache_receipt.required_fields.includes('metrics') ||
+    !Array.isArray(catalog.cache_receipt?.required_metrics) ||
+    !catalog.cache_receipt.required_metrics.includes('hit_ratio') ||
+    !catalog.cache_receipt.required_metrics.includes('total_duration_seconds') ||
+    !catalog.cache_receipt.required_metrics.includes('save_failure_count') ||
     catalog.cache_only_warmup?.scheduling !== 'ahead_of_time_for_current_main_or_planned_exact_cohort' ||
     catalog.cache_only_warmup?.release_gate !== false ||
     catalog.cache_only_warmup?.miss_fallback !== 'full_package_build_materializes_validates_and_main_saves_missing_layers' ||
     catalog.cache_only_warmup?.requires_exact_app_shell_framework_shas !== true ||
+    catalog.cache_only_warmup?.requires_exact_framework_package_set !== true ||
     !Array.isArray(catalog.cache_only_warmup?.forbidden_outputs) ||
     !catalog.cache_only_warmup.forbidden_outputs.includes('release_dmg')
   ) {

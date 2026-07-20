@@ -4,61 +4,30 @@ import path from 'node:path';
 
 import {
   FULL_RUNTIME_CACHE_LAYER_IDS,
-  buildFullRuntimePrunePolicyHash,
   buildFullRuntimeAggregateCacheKeyInput,
   buildFullRuntimeCacheArchivePath,
   buildFullRuntimeCacheKey,
+  buildFullRuntimePruneImplementationHash,
+  buildFullRuntimePrunePolicyCacheHash,
   classifyFullRuntimeLayerCache,
+  type FullRuntimeCacheLayerId,
 } from '../full-first-install-package.ts';
 import { archiveLayer, extractLayer } from './archive-output.ts';
-import {
-  assertNoExternalSymlinks,
-  copyExecutableOrSymlinkTarget,
-  copyNodeRuntimePayload,
-  copyPathContents,
-  copyPortableTree,
-  copyProductionNodeModules,
-  copySingleFile,
-  copyTreeFiltered,
-} from './filesystem.ts';
+import { copyPathContents } from './filesystem.ts';
 import { readGitHead } from './git.ts';
 import {
+  completeDirectoryFingerprint,
   directoryFingerprint,
   existingFileSha256,
-  functionSourceSha256,
-  hashFiles,
   packageJsonVersion,
   productionNodeModulesFingerprint,
 } from './hashing.ts';
 import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
+import { resolveFrameworkPackageSetInput } from './runtime-cache-package-set.ts';
+import { buildRuntimeLayerImplementationHash } from './runtime-layers.ts';
 import {
-  findBunBinary,
-  findTemporalCliArchive,
-  findTemporalCliBinary,
-} from './runtime-sources.ts';
-import {
-  buildDomainLayer,
-  buildOplLayer,
-  buildSkillsLayer,
-  buildToolchainLayer,
-  createCodexCliArchive,
-  pruneTemporalCoreBridgeReleases,
-  writeCodexCliWrapper,
-  writeTemporalCliWrapper,
-} from './runtime-layers.ts';
-import {
-  appCompanionSkillCandidates,
-  appCompanionSkillRoot,
   bookforgeSkillSnapshot,
-  copyFirstSkillSource,
-  copyOfficeCliCoreSkill,
-  copyOplBookforgeSkill,
-  copyOplMetaAgentSkill,
-  copyPackagedSkills,
-  copySkillDirectory,
-  copyUiUxProMaxSkill,
-  firstExistingSkillSource,
   magSkillCandidates,
   masSkillCandidates,
   metaAgentSkillSnapshot,
@@ -66,80 +35,39 @@ import {
   officeCliCoreSkillCandidates,
   officeCliCoreSkillSnapshot,
   officeCliSkillCandidates,
-  packagedSkillCopyHandlers,
   rcaSkillCandidates,
-  skillFileSourceSnapshot,
   skillSourceSnapshot,
 } from './skills.ts';
 
-function buildRuntimeLayerPackagerInputs() {
+function buildLayerImplementationInput(layerId: FullRuntimeCacheLayerId) {
   return {
-    support_files: hashFiles(appRepoRoot, [
-      'contracts/full-runtime-prune-policy.json',
-      'contracts/app-product-profile.json',
-      'scripts/build-full-first-install-package/filesystem.ts',
-      'scripts/build-full-first-install-package/hashing.ts',
-      'scripts/build-full-first-install-package/package-optimization.ts',
-      'scripts/build-full-first-install-package/paths.ts',
-      'scripts/build-full-first-install-package/runtime-cache.ts',
-      'scripts/build-full-first-install-package/runtime-layers.ts',
-      'scripts/build-full-first-install-package/runtime-sources.ts',
-      'scripts/build-full-first-install-package/skills.ts',
-      'scripts/full-first-install-package.ts',
-      'scripts/full-first-install-runtime-wrappers.ts',
-    ]),
-    runtime_layer_builder_source_hash: functionSourceSha256([
-      buildToolchainLayer,
-      buildDomainLayer,
-      buildOplLayer,
-      buildSkillsLayer,
-      copyPackagedSkills,
-      ...Object.values(packagedSkillCopyHandlers),
-      findBunBinary,
-      findTemporalCliBinary,
-      findTemporalCliArchive,
-      copyOplBookforgeSkill,
-      copyOplMetaAgentSkill,
-      copyOfficeCliCoreSkill,
-      copyUiUxProMaxSkill,
-      copyFirstSkillSource,
-      copySkillDirectory,
-      firstExistingSkillSource,
-      skillSourceSnapshot,
-      skillFileSourceSnapshot,
-      appCompanionSkillRoot,
-      appCompanionSkillCandidates,
-      officeCliSkillCandidates,
-      bookforgeSkillSnapshot,
-      metaAgentSkillSnapshot,
-      officeCliCoreSkillSnapshot,
-      masSkillCandidates,
-      magSkillCandidates,
-      rcaSkillCandidates,
-      officeCliCoreSkillCandidates,
-      mineruDocumentExtractorSkillCandidates,
-      copyTreeFiltered,
-      copySingleFile,
-      copyPortableTree,
-      copyExecutableOrSymlinkTarget,
-      copyNodeRuntimePayload,
-      writeCodexCliWrapper,
-      createCodexCliArchive,
-      writeTemporalCliWrapper,
-      assertNoExternalSymlinks,
-      copyProductionNodeModules,
-      pruneTemporalCoreBridgeReleases,
-    ]),
+    schema: 'opl_full_runtime_layer_implementation_input.v1',
+    layer_id: layerId,
+    layer_builder_sha256: buildRuntimeLayerImplementationHash(layerId),
+    prune_implementation_sha256: buildFullRuntimePruneImplementationHash(),
+    prune_policy_sha256: buildFullRuntimePrunePolicyCacheHash(layerId),
   };
 }
 
-function buildRuntimeExcludePolicyHash() {
-  return buildFullRuntimePrunePolicyHash();
+function domainSourceFingerprints(options) {
+  return {
+    mas: directoryFingerprint(options.masRoot, 'modules/mas'),
+    mag: directoryFingerprint(options.magRoot, 'modules/mag'),
+    rca: directoryFingerprint(options.rcaRoot, 'modules/rca'),
+    oma: directoryFingerprint(options.metaAgentRoot, 'modules/meta-agent'),
+    obf: directoryFingerprint(options.bookforgeRoot, 'modules/bookforge'),
+    'mas-scholar-skills': directoryFingerprint(
+      options.masScholarSkillsRoot,
+      'modules/mas-scholar-skills',
+    ),
+    'opl-flow': directoryFingerprint(options.oplFlowRoot, 'modules/opl-flow'),
+  };
 }
 
-export function buildRuntimeCacheKeyInputs(options, sources) {
-  const packagerInputs = buildRuntimeLayerPackagerInputs();
-  const excludePolicyHash = buildRuntimeExcludePolicyHash();
+export function buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet = null) {
+  const packageSet = frameworkPackageSet ?? resolveFrameworkPackageSetInput(options);
+  const nodeRoot = path.dirname(path.dirname(sources.nodeToolchain.nodeBin));
+  const pythonRootName = path.basename(sources.pythonRoot);
 
   return {
     toolchain: {
@@ -151,6 +79,8 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
         npx_bin_sha256: existingFileSha256(sources.nodeToolchain.npxBin),
         npm_package_version: packageJsonVersion(path.join(sources.nodeToolchain.npmRoot, 'package.json')),
         npm_package_fingerprint: directoryFingerprint(sources.nodeToolchain.npmRoot, 'node/lib/node_modules/npm'),
+        node_runtime_fingerprint: directoryFingerprint(nodeRoot, 'node'),
+        codex_vendor_fingerprint: completeDirectoryFingerprint(sources.codexBinaries.vendorRoot),
         bun_runtime_included: options.includeBunRuntime,
         bun_sha256: sources.bunBin ? existingFileSha256(sources.bunBin) : null,
         uv_sha256: existingFileSha256(sources.uvBin),
@@ -161,40 +91,37 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
         officecli_version: commandOutput(sources.officeCliBin, ['--version']),
         mineru_open_api_sha256: existingFileSha256(sources.mineruOpenApiBin),
         mineru_open_api_version: commandOutput(sources.mineruOpenApiBin, ['version']),
-        python_root_name: path.basename(sources.pythonRoot),
+        python_root_name: pythonRootName,
         python_version: commandOutput(path.join(sources.pythonRoot, 'bin', 'python3'), ['--version']),
-        packager_inputs: packagerInputs,
-        exclude_policy_hash: excludePolicyHash,
+        python_runtime_fingerprint: directoryFingerprint(
+          sources.pythonRoot,
+          `python/${pythonRootName}`,
+        ),
+        implementation: buildLayerImplementationInput('toolchain'),
     },
     'domain-runtime': {
-        mas_commit: readGitHead(options.masRoot),
-        mas_scholar_skills_ref: options.masScholarSkillsRef,
-        mas_scholar_skills_commit: readGitHead(options.masScholarSkillsRoot),
-        mas_scholar_skills_source_manifest_sha256: existingFileSha256(
-          path.join(options.masScholarSkillsRoot, 'contracts', 'opl_capability_package_manifest.json'),
-        ),
-        mas_scholar_skills_fingerprint: directoryFingerprint(
-          options.masScholarSkillsRoot,
-          'modules/mas-scholar-skills',
-        ),
-        mag_commit: readGitHead(options.magRoot),
-        rca_commit: readGitHead(options.rcaRoot),
-        meta_agent_commit: readGitHead(options.metaAgentRoot),
-        bookforge_commit: readGitHead(options.bookforgeRoot),
-        opl_flow_commit: readGitHead(options.oplFlowRoot),
-        packager_inputs: packagerInputs,
-        exclude_policy_hash: excludePolicyHash,
+        framework_package_set: packageSet,
+        source_fingerprints: domainSourceFingerprints(options),
+        implementation: buildLayerImplementationInput('domain-runtime'),
     },
     'opl-runtime': {
         opl_commit: readGitHead(options.frameworkRoot),
+        framework_runtime_fingerprint: directoryFingerprint(options.frameworkRoot, 'opl'),
         package_json_sha256: existingFileSha256(path.join(options.frameworkRoot, 'package.json')),
         package_lock_sha256: existingFileSha256(path.join(options.frameworkRoot, 'package-lock.json')),
         production_node_modules_fingerprint: productionNodeModulesFingerprint(options.frameworkRoot),
         tsconfig_sha256: existingFileSha256(path.join(options.frameworkRoot, 'tsconfig.json')),
-        packager_inputs: packagerInputs,
-        exclude_policy_hash: excludePolicyHash,
+        implementation: buildLayerImplementationInput('opl-runtime'),
     },
     skills: {
+        framework_package_set_identity: packageSet.identity,
+        opl_flow_commit: readGitHead(options.oplFlowRoot),
+        opl_flow_workflow_policy_sha256: existingFileSha256(
+          path.join(options.oplFlowRoot, 'contracts', 'workflow-policy.json'),
+        ),
+        app_product_profile_sha256: existingFileSha256(
+          path.join(appRepoRoot, 'contracts', 'app-product-profile.json'),
+        ),
         med_autoscience_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/med-autoscience'),
         med_autogrant_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/med-autogrant'),
         redcube_ai_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/redcube-ai'),
@@ -213,8 +140,10 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
         mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
         ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
         ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
-        packager_inputs: packagerInputs,
-        exclude_policy_hash: excludePolicyHash,
+        skills_packager_sha256: existingFileSha256(
+          path.join(appRepoRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
+        ),
+        implementation: buildLayerImplementationInput('skills'),
     },
   };
 }
@@ -240,6 +169,16 @@ export function buildRuntimeCacheKeysFromInputs(layerInputs) {
   };
 }
 
+export function buildRuntimeCacheContext(options, sources) {
+  const frameworkPackageSet = resolveFrameworkPackageSetInput(options);
+  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet);
+  return {
+    frameworkPackageSet,
+    layerKeyInputs,
+    layers: buildRuntimeCacheKeysFromInputs(layerKeyInputs),
+  };
+}
+
 function cacheLayerArchivePath(options, layerId, key) {
   return buildFullRuntimeCacheArchivePath({
     cacheDir: options.runtimeCacheDir,
@@ -249,13 +188,13 @@ function cacheLayerArchivePath(options, layerId, key) {
 }
 
 export function buildRuntimeCacheKeyReport(options, sources) {
-  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources);
-  const layers = buildRuntimeCacheKeysFromInputs(layerKeyInputs);
+  const { frameworkPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(options, sources);
   return {
     status: 'runtime_cache_keys',
     version: options.version,
     runtime_cache_mode: options.runtimeCacheMode,
     runtime_cache_dir: options.runtimeCacheDir || null,
+    framework_package_set: frameworkPackageSet,
     aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers }),
     layer_key_inputs: layerKeyInputs,
     layers,

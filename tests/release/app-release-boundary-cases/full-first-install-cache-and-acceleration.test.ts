@@ -129,7 +129,7 @@ test("Full runtime cache classifies hit and miss modes from one canonical key", 
   }
 
   const layers = Object.fromEntries(
-    mod.FULL_RUNTIME_CACHE_LAYER_IDS.map((id) => [id, `full-runtime-v1-${id}-test`]),
+    mod.FULL_RUNTIME_CACHE_LAYER_IDS.map((id) => [id, `full-runtime-v2-${id}-test`]),
   );
   const aggregate = mod.buildFullRuntimeAggregateCacheKeyInput({ layers });
   assert.equal(aggregate.schema, "opl_full_runtime_cache_aggregate_key.v1");

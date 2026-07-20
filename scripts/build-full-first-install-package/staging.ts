@@ -14,8 +14,7 @@ import {
 import { commandOutput } from './process.ts';
 import { assertOfficeCliBinaryMatchesRelease } from './upstream-release.ts';
 import {
-  buildRuntimeCacheKeyInputs,
-  buildRuntimeCacheKeysFromInputs,
+  buildRuntimeCacheContext,
   runCachedLayer,
 } from './runtime-cache.ts';
 import {
@@ -36,8 +35,11 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   fs.mkdirSync(path.join(runtimeRoot, 'bin'), { recursive: true });
 
   const packagedAt = new Date().toISOString();
-  const cacheKeyInputs = buildRuntimeCacheKeyInputs(options, sources);
-  const cacheKeys = buildRuntimeCacheKeysFromInputs(cacheKeyInputs);
+  const {
+    frameworkPackageSet,
+    layerKeyInputs: cacheKeyInputs,
+    layers: cacheKeys,
+  } = buildRuntimeCacheContext(options, sources);
   const cacheEvents = [
     runCachedLayer(options, 'toolchain', cacheKeys.toolchain, runtimeRoot, (layerRoot) => {
       buildToolchainLayer(layerRoot, sources);
@@ -137,6 +139,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       dir: options.runtimeCacheDir || null,
       keys: cacheKeys,
       key_inputs: cacheKeyInputs,
+      framework_package_set: frameworkPackageSet,
       events: cacheEvents,
       currentness,
     },

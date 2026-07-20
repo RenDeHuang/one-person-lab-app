@@ -1303,8 +1303,27 @@ export function validateReleaseAccelerationPolicy(
   }
   const fullRuntimeCache = actionsCachePolicy?.full_runtime_cache;
   if (
-    fullRuntimeCache?.plan_schema !== 'opl_actions_cache_plan.v1' ||
-    fullRuntimeCache?.receipt_schema !== 'opl_actions_cache_receipt.v1' ||
+    fullRuntimeCache?.plan_schema !== 'opl_actions_cache_plan.v2' ||
+    fullRuntimeCache?.receipt_schema !== 'opl_actions_cache_receipt.v2' ||
+    fullRuntimeCache?.framework_package_set_schema !== 'opl_full_runtime_framework_package_set.v1' ||
+    !sameStringSet(fullRuntimeCache?.framework_package_ids, [
+      'mas',
+      'mag',
+      'rca',
+      'oma',
+      'obf',
+      'mas-scholar-skills',
+      'opl-flow',
+    ]) ||
+    fullRuntimeCache?.plan_requires_layer_key_input_digest !== true ||
+    fullRuntimeCache?.receipt_requires_currentness_passed !== true ||
+    !sameStringSet(fullRuntimeCache?.receipt_metrics, [
+      'hit_count',
+      'miss_count',
+      'hit_ratio',
+      'total_duration_seconds',
+      'save_failure_count',
+    ]) ||
     !sameStringSet(fullRuntimeCache?.layer_ids, ['toolchain', 'domain-runtime', 'opl-runtime', 'skills']) ||
     fullRuntimeCache?.restore_policy !== 'exact_only' ||
     fullRuntimeCache?.writer_ref !== 'refs/heads/main' ||

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -7,6 +8,7 @@ import {
   PACKAGED_MODULE_MARKER_FILE,
   buildPackagedModuleMarker,
   listFullRuntimeProductionNodeModulePaths,
+  type FullRuntimeCacheLayerId,
 } from '../full-first-install-package.ts';
 import { writeRuntimeWrappers } from '../full-first-install-runtime-wrappers.ts';
 import {
@@ -531,4 +533,33 @@ export function buildOplLayer(layerRoot, options) {
 
 export function buildSkillsLayer(layerRoot, options) {
   copyPackagedSkills(path.join(layerRoot, 'skills'), options);
+}
+
+export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLayerId) {
+  type LayerImplementation = (...args: any[]) => unknown;
+  const functions: Record<FullRuntimeCacheLayerId, LayerImplementation[]> = {
+    toolchain: [
+      shellSingleQuote,
+      writeTemporalCliWrapper,
+      writeCodexCliWrapper,
+      createCodexCliArchive,
+      copySingleFile,
+      copyNodeRuntimePayload,
+      copyTreeFiltered,
+      writeRuntimeWrappers,
+      buildToolchainLayer,
+    ],
+    'domain-runtime': [copyTreeFiltered, buildDomainLayer],
+    'opl-runtime': [
+      temporalCoreBridgeReleasesRoot,
+      pruneTemporalCoreBridgeReleases,
+      copyTreeFiltered,
+      copyProductionNodeModules,
+      buildOplLayer,
+    ],
+    skills: [copyPackagedSkills, buildSkillsLayer],
+  };
+  return crypto.createHash('sha256')
+    .update(functions[layerId].map((fn) => fn.toString()).join('\n\n'))
+    .digest('hex');
 }

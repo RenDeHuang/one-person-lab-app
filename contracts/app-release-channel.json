@@ -2579,12 +2579,19 @@
         "skills"
       ],
       "restore_prefixes": {
-        "toolchain": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-toolchain-",
-        "domain-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-domain-runtime-",
-        "opl-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-opl-runtime-",
-        "skills": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-skills-"
+        "toolchain": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v2-toolchain-",
+        "domain-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v2-domain-runtime-",
+        "opl-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v2-opl-runtime-",
+        "skills": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v2-skills-"
       },
       "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts",
+      "key_invalidation_scope": {
+        "toolchain": "toolchain bytes, versions, source-tree fingerprints, toolchain builder implementation, and toolchain prune projection",
+        "domain-runtime": "Framework seven-package set, copied owner source fingerprints, domain builder implementation, and modules prune projection",
+        "opl-runtime": "Framework runtime bytes, production dependency closure, OPL builder implementation, and opl prune projection",
+        "skills": "Framework package-set identity, OPL Flow workflow policy, App product profile, selected skill bytes, skills packager implementation, and skills prune projection",
+        "unknown_prune_root": "conservative_all_layers"
+      },
       "opl_runtime_bundle_consumer": {
         "schema": "opl_runtime_bundle_manifest_consumer.v1",
         "app_repo_role": "consumer_only",
@@ -2840,8 +2847,27 @@
           "volatile_run_identity_allowed": false
         },
         "full_runtime_cache": {
-          "plan_schema": "opl_actions_cache_plan.v1",
-          "receipt_schema": "opl_actions_cache_receipt.v1",
+          "plan_schema": "opl_actions_cache_plan.v2",
+          "receipt_schema": "opl_actions_cache_receipt.v2",
+          "framework_package_set_schema": "opl_full_runtime_framework_package_set.v1",
+          "framework_package_ids": [
+            "mas",
+            "mag",
+            "rca",
+            "oma",
+            "obf",
+            "mas-scholar-skills",
+            "opl-flow"
+          ],
+          "plan_requires_layer_key_input_digest": true,
+          "receipt_requires_currentness_passed": true,
+          "receipt_metrics": [
+            "hit_count",
+            "miss_count",
+            "hit_ratio",
+            "total_duration_seconds",
+            "save_failure_count"
+          ],
           "layer_ids": [
             "toolchain",
             "domain-runtime",

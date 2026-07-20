@@ -36,6 +36,13 @@ export function directoryFingerprint(root, runtimePrefix) {
   return treeFingerprint(root, (relative) => shouldExcludeRuntimePath(path.posix.join(runtimePrefix, relative)));
 }
 
+export function completeDirectoryFingerprint(root) {
+  if (!fs.existsSync(root)) {
+    return null;
+  }
+  return treeFingerprint(root, () => false);
+}
+
 function treeFingerprint(root, shouldExcludeRelativePath) {
   const hash = crypto.createHash('sha256');
   const stack = [['', root]];

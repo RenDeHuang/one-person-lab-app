@@ -6,10 +6,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-const PLAN_SCHEMA = 'opl_actions_cache_plan.v1';
-const RECEIPT_SCHEMA = 'opl_actions_cache_receipt.v1';
+import {
+  FULL_RUNTIME_CACHE_LAYER_IDS,
+  buildFullRuntimeAggregateCacheKeyInput,
+  buildFullRuntimeCacheKey,
+} from './full-first-install-package.ts';
+import { validateFrameworkPackageSetInput } from './build-full-first-install-package/runtime-cache-package-set.ts';
+
+const PLAN_SCHEMA = 'opl_actions_cache_plan.v2';
+const RECEIPT_SCHEMA = 'opl_actions_cache_receipt.v2';
 const DEFAULT_WRITER_REF = 'refs/heads/main';
-const RUNTIME_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
+const RUNTIME_LAYER_IDS = FULL_RUNTIME_CACHE_LAYER_IDS;
 const SAVE_OUTCOMES = ['success', 'failure', 'skipped'] as const;
 const shaPattern = /^[0-9a-f]{40}$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
@@ -70,15 +77,43 @@ function requireSha(value: string, label: string): string {
   return normalized;
 }
 
+function requireDuration(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${label} must be a finite non-negative number`);
+  }
+  return value;
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function runtimeLayersFromReport(report: JsonRecord, runnerOs: string, runnerArch: string) {
   const layers = report.layers as JsonRecord | undefined;
   if (!layers) throw new Error('runtime key report must contain layers');
+  const layerKeyInputs = report.layer_key_inputs as JsonRecord | undefined;
+  if (!layerKeyInputs) throw new Error('runtime key report must contain layer_key_inputs');
+  const expectedAggregate = buildFullRuntimeAggregateCacheKeyInput({
+    layers: layers as Record<RuntimeLayerId, string>,
+  });
+  if (!sameJson(report.aggregate_key_input, expectedAggregate)) {
+    throw new Error('runtime key report aggregate key input does not match canonical runtime layers');
+  }
   return RUNTIME_LAYER_IDS.map((layerId) => {
     const runtimeKey = requireString(layers[layerId], `runtime key ${layerId}`);
+    const keyInput = layerKeyInputs[layerId];
+    if (!keyInput || typeof keyInput !== 'object' || Array.isArray(keyInput)) {
+      throw new Error(`runtime key input ${layerId} must be an object`);
+    }
+    const expectedRuntimeKey = buildFullRuntimeCacheKey({ layerId, parts: keyInput });
+    if (runtimeKey !== expectedRuntimeKey) {
+      throw new Error(`runtime key ${layerId} does not match its structured key input`);
+    }
     return {
       layer_id: layerId,
       runtime_key: runtimeKey,
       actions_key: `opl-full-runtime-layer-${runnerOs}-${runnerArch}-${runtimeKey}`,
+      key_input_digest: digestJson(keyInput),
       restore_mode: 'exact_only',
     };
   });
@@ -99,6 +134,15 @@ export function buildActionsCachePlan(input: ActionsCachePlanInput): JsonRecord 
     os: requireString(input.runnerOs, 'runnerOs'),
     arch: requireString(input.runnerArch, 'runnerArch'),
   };
+  const frameworkPackageSet = input.runtimeKeyReport.framework_package_set as JsonRecord | undefined;
+  if (!frameworkPackageSet) {
+    throw new Error('runtime key report must contain framework_package_set');
+  }
+  validateFrameworkPackageSetInput(frameworkPackageSet);
+  const frameworkSha = requireSha(input.frameworkSha, 'frameworkSha');
+  if (frameworkPackageSet.framework_sha !== frameworkSha) {
+    throw new Error('Framework package set does not match the cache plan cohort');
+  }
   const payload = {
     schema: PLAN_SCHEMA,
     mode: input.mode,
@@ -108,11 +152,12 @@ export function buildActionsCachePlan(input: ActionsCachePlanInput): JsonRecord 
     cohort: {
       app_sha: requireSha(input.appSha, 'appSha'),
       shell_sha: requireSha(input.shellSha, 'shellSha'),
-      framework_sha: requireSha(input.frameworkSha, 'frameworkSha'),
+      framework_sha: frameworkSha,
     },
     runner,
     catalog_sha256: input.catalogSha256,
-    runtime_cache_aggregate_key_input: input.runtimeKeyReport.aggregate_key_input ?? null,
+    framework_package_set: frameworkPackageSet,
+    runtime_cache_aggregate_key_input: input.runtimeKeyReport.aggregate_key_input,
     runtime_layers: runtimeLayersFromReport(
       input.runtimeKeyReport,
       runner.os,
@@ -120,10 +165,12 @@ export function buildActionsCachePlan(input: ActionsCachePlanInput): JsonRecord 
     ),
     truth_boundary: truthBoundary,
   };
-  return {
+  const plan = {
     ...payload,
     identity: digestJson(payload),
   };
+  validateActionsCachePlan(plan);
+  return plan;
 }
 
 export function validateActionsCachePlan(plan: JsonRecord): void {
@@ -153,6 +200,17 @@ export function validateActionsCachePlan(plan: JsonRecord): void {
       throw new Error(`cache plan cohort ${field} must be an exact Git SHA`);
     }
   }
+  if (
+    !plan.framework_package_set ||
+    typeof plan.framework_package_set !== 'object' ||
+    Array.isArray(plan.framework_package_set)
+  ) {
+    throw new Error('cache plan Framework package set must be an object');
+  }
+  validateFrameworkPackageSetInput(plan.framework_package_set as JsonRecord);
+  if (plan.framework_package_set.framework_sha !== plan.cohort.framework_sha) {
+    throw new Error('cache plan Framework package set does not match its cohort');
+  }
   if (!/^[0-9a-f]{64}$/.test(String(plan.catalog_sha256 ?? ''))) {
     throw new Error('cache plan catalog digest is invalid');
   }
@@ -161,11 +219,20 @@ export function validateActionsCachePlan(plan: JsonRecord): void {
   if (JSON.stringify(layerIds) !== JSON.stringify(RUNTIME_LAYER_IDS)) {
     throw new Error('cache plan runtime layers must use the canonical ordered layer set');
   }
+  const expectedAggregate = buildFullRuntimeAggregateCacheKeyInput({
+    layers: Object.fromEntries(
+      layers.map((layer) => [layer.layer_id, layer.runtime_key]),
+    ) as Record<RuntimeLayerId, string>,
+  });
+  if (!sameJson(plan.runtime_cache_aggregate_key_input, expectedAggregate)) {
+    throw new Error('cache plan aggregate key input does not match its runtime layers');
+  }
   for (const layer of layers) {
-    const runtimeKeyPattern = new RegExp(`^full-runtime-v[0-9]+-${layer.layer_id}-[0-9a-f]{24}$`);
+    const runtimeKeyPattern = new RegExp(`^full-runtime-v2-${layer.layer_id}-[0-9a-f]{24}$`);
     if (
       typeof layer.runtime_key !== 'string' || !runtimeKeyPattern.test(layer.runtime_key) ||
       layer.actions_key !== `opl-full-runtime-layer-${runnerOs}-${runnerArch}-${layer.runtime_key}` ||
+      !digestPattern.test(String(layer.key_input_digest ?? '')) ||
       layer.restore_mode !== 'exact_only'
     ) {
       throw new Error(`cache plan runtime layer ${String(layer.layer_id)} is invalid`);
@@ -176,8 +243,72 @@ export function validateActionsCachePlan(plan: JsonRecord): void {
   }
 }
 
+function assertSaveOutcome(
+  layerId: RuntimeLayerId,
+  outcome: unknown,
+  status: unknown,
+  writerEligible: boolean,
+): asserts outcome is SaveOutcome {
+  if (!SAVE_OUTCOMES.includes(outcome as SaveOutcome)) {
+    throw new Error(`save outcome for ${layerId} must be success, failure, or skipped`);
+  }
+  if (!writerEligible && outcome !== 'skipped') {
+    throw new Error(`save outcome for ${layerId} must be skipped when the plan is not writer eligible`);
+  }
+  if (writerEligible && status === 'hit' && outcome !== 'skipped') {
+    throw new Error(`save outcome for ${layerId} must be skipped after an exact cache hit`);
+  }
+  if (
+    writerEligible &&
+    status === 'miss_written' &&
+    outcome !== 'success' &&
+    outcome !== 'failure'
+  ) {
+    throw new Error(`save outcome for ${layerId} must record the save attempt after a cache miss`);
+  }
+}
+
+function buildReceiptMetrics(
+  runtimeLayerEvents: Array<JsonRecord>,
+  saveOutcomes: Record<string, unknown>,
+) {
+  const hitCount = runtimeLayerEvents.filter((event) => event.status === 'hit').length;
+  const missCount = runtimeLayerEvents.filter((event) => event.status === 'miss_written').length;
+  const saveValues = Object.values(saveOutcomes);
+  return {
+    layer_count: runtimeLayerEvents.length,
+    hit_count: hitCount,
+    miss_count: missCount,
+    hit_ratio: Number((hitCount / runtimeLayerEvents.length).toFixed(4)),
+    total_duration_seconds: Number(runtimeLayerEvents
+      .reduce((sum, event) => sum + Number(event.duration_seconds), 0)
+      .toFixed(3)),
+    save_attempt_count: saveValues.filter((outcome) => outcome === 'success' || outcome === 'failure').length,
+    save_success_count: saveValues.filter((outcome) => outcome === 'success').length,
+    save_failure_count: saveValues.filter((outcome) => outcome === 'failure').length,
+    save_skipped_count: saveValues.filter((outcome) => outcome === 'skipped').length,
+  };
+}
+
 export function buildActionsCacheReceipt(input: ActionsCacheReceiptInput): JsonRecord {
   validateActionsCachePlan(input.plan);
+  const currentness = input.runtimeEvents.currentness as JsonRecord | undefined;
+  if (
+    !currentness ||
+    currentness.schema !== 'opl_full_runtime_currentness_probe.v1' ||
+    currentness.status !== 'passed'
+  ) {
+    throw new Error('runtime currentness must be a passed Full runtime currentness probe');
+  }
+  if (currentness.framework_commit !== input.plan.cohort.framework_sha) {
+    throw new Error('runtime currentness Framework commit does not match the cache plan cohort');
+  }
+  const runtimePackageSet = input.runtimeEvents.framework_package_set as JsonRecord | undefined;
+  if (!runtimePackageSet) throw new Error('runtime events must contain framework_package_set');
+  validateFrameworkPackageSetInput(runtimePackageSet);
+  if (!sameJson(runtimePackageSet, input.plan.framework_package_set)) {
+    throw new Error('runtime Framework package set does not match the cache plan');
+  }
   const events = Array.isArray(input.runtimeEvents.events) ? input.runtimeEvents.events : [];
   if (events.length !== RUNTIME_LAYER_IDS.length) {
     throw new Error('runtime events must contain exactly one event for each canonical cache layer');
@@ -193,8 +324,16 @@ export function buildActionsCacheReceipt(input: ActionsCacheReceiptInput): JsonR
   const planLayers = input.plan.runtime_layers as Array<JsonRecord>;
   const runtimeLayerEvents = planLayers.map((layer) => {
     const event = eventByLayer.get(layer.layer_id) as JsonRecord | undefined;
-    if (!event || event.key !== layer.runtime_key) {
+    if (
+      !event ||
+      event.key !== layer.runtime_key ||
+      input.runtimeEvents.keys?.[layer.layer_id] !== layer.runtime_key
+    ) {
       throw new Error(`runtime event for ${layer.layer_id} is missing or does not match the cache plan`);
+    }
+    const keyInput = input.runtimeEvents.key_inputs?.[layer.layer_id];
+    if (!keyInput || digestJson(keyInput) !== layer.key_input_digest) {
+      throw new Error(`runtime key input for ${layer.layer_id} does not match the cache plan`);
     }
     const validEventShape =
       (event.status === 'hit' && event.read_archive === true && event.write_archive === false) ||
@@ -206,43 +345,126 @@ export function buildActionsCacheReceipt(input: ActionsCacheReceiptInput): JsonR
       layer_id: layer.layer_id,
       runtime_key: layer.runtime_key,
       actions_key: layer.actions_key,
+      key_input_digest: layer.key_input_digest,
       status: event.status,
-      duration_seconds: event.duration_seconds ?? null,
+      duration_seconds: requireDuration(event.duration_seconds, `runtime event duration for ${layer.layer_id}`),
       read_archive: event.read_archive === true,
       write_archive: event.write_archive === true,
     };
   });
   const saveOutcomes = Object.fromEntries(RUNTIME_LAYER_IDS.map((layerId) => {
     const outcome = input.saveOutcomes[layerId];
-    if (!SAVE_OUTCOMES.includes(outcome)) {
-      throw new Error(`save outcome for ${layerId} must be success, failure, or skipped`);
-    }
     const event = eventByLayer.get(layerId) as JsonRecord;
-    if (!input.plan.writer_eligible && outcome !== 'skipped') {
-      throw new Error(`save outcome for ${layerId} must be skipped when the plan is not writer eligible`);
-    }
-    if (input.plan.writer_eligible && event.status === 'hit' && outcome !== 'skipped') {
-      throw new Error(`save outcome for ${layerId} must be skipped after an exact cache hit`);
-    }
-    if (
-      input.plan.writer_eligible &&
-      event.status === 'miss_written' &&
-      outcome !== 'success' &&
-      outcome !== 'failure'
-    ) {
-      throw new Error(`save outcome for ${layerId} must record the save attempt after a cache miss`);
-    }
+    assertSaveOutcome(layerId, outcome, event.status, input.plan.writer_eligible);
     return [layerId, outcome];
-  }));
-  return {
+  })) as Record<RuntimeLayerId, SaveOutcome>;
+  const payload = {
     schema: RECEIPT_SCHEMA,
     plan_identity: input.plan.identity,
     mode: input.plan.mode,
     writer_eligible: input.plan.writer_eligible,
+    framework_package_set_identity: input.plan.framework_package_set.identity,
+    runtime_currentness: currentness,
     runtime_layer_events: runtimeLayerEvents,
     save_outcomes: saveOutcomes,
+    metrics: buildReceiptMetrics(runtimeLayerEvents, saveOutcomes),
     truth_boundary: truthBoundary,
   };
+  const receipt = {
+    ...payload,
+    identity: digestJson(payload),
+  };
+  validateActionsCacheReceipt(receipt, input.plan);
+  return receipt;
+}
+
+export function validateActionsCacheReceipt(receipt: JsonRecord, plan?: JsonRecord): void {
+  if (receipt.schema !== RECEIPT_SCHEMA) {
+    throw new Error(`cache receipt schema must be ${RECEIPT_SCHEMA}`);
+  }
+  if (!digestPattern.test(String(receipt.identity ?? ''))) {
+    throw new Error('cache receipt identity must be sha256:<digest>');
+  }
+  const { identity, ...payload } = receipt;
+  if (digestJson(payload) !== identity) {
+    throw new Error('cache receipt identity does not match its payload');
+  }
+  if (!['cache_only_warmup', 'full_package'].includes(receipt.mode)) {
+    throw new Error('cache receipt mode is unsupported');
+  }
+  if (typeof receipt.writer_eligible !== 'boolean') {
+    throw new Error('cache receipt writer eligibility must be boolean');
+  }
+  if (!digestPattern.test(String(receipt.plan_identity ?? ''))) {
+    throw new Error('cache receipt plan identity must be exact');
+  }
+  const currentness = receipt.runtime_currentness as JsonRecord | undefined;
+  if (
+    !currentness ||
+    currentness.schema !== 'opl_full_runtime_currentness_probe.v1' ||
+    currentness.status !== 'passed' ||
+    !shaPattern.test(String(currentness.framework_commit ?? ''))
+  ) {
+    throw new Error('cache receipt runtime currentness is invalid');
+  }
+  const events = Array.isArray(receipt.runtime_layer_events)
+    ? receipt.runtime_layer_events as JsonRecord[]
+    : [];
+  if (!sameJson(events.map((event) => event.layer_id), RUNTIME_LAYER_IDS)) {
+    throw new Error('cache receipt runtime layers must use the canonical ordered layer set');
+  }
+  if (!sameJson(Object.keys(receipt.save_outcomes ?? {}), RUNTIME_LAYER_IDS)) {
+    throw new Error('cache receipt save outcomes must use the canonical ordered layer set');
+  }
+  for (const event of events) {
+    const layerId = event.layer_id as RuntimeLayerId;
+    const runtimeKeyPattern = new RegExp(`^full-runtime-v2-${layerId}-[0-9a-f]{24}$`);
+    const validEventShape =
+      (event.status === 'hit' && event.read_archive === true && event.write_archive === false) ||
+      (event.status === 'miss_written' && event.read_archive === false && event.write_archive === true);
+    if (
+      !runtimeKeyPattern.test(String(event.runtime_key ?? '')) ||
+      !digestPattern.test(String(event.key_input_digest ?? '')) ||
+      !validEventShape
+    ) {
+      throw new Error(`cache receipt runtime event ${layerId} is invalid`);
+    }
+    requireString(event.actions_key, `cache receipt actions key for ${layerId}`);
+    requireDuration(event.duration_seconds, `cache receipt duration for ${layerId}`);
+    assertSaveOutcome(layerId, receipt.save_outcomes?.[layerId], event.status, receipt.writer_eligible);
+  }
+  const expectedMetrics = buildReceiptMetrics(events, receipt.save_outcomes ?? {});
+  if (!sameJson(receipt.metrics, expectedMetrics)) {
+    throw new Error('cache receipt metrics do not match runtime events and save outcomes');
+  }
+  if (!digestPattern.test(String(receipt.framework_package_set_identity ?? ''))) {
+    throw new Error('cache receipt Framework package set identity is invalid');
+  }
+  if (receipt.truth_boundary !== truthBoundary) {
+    throw new Error('cache receipt truth boundary is invalid');
+  }
+  if (plan) {
+    validateActionsCachePlan(plan);
+    if (
+      receipt.plan_identity !== plan.identity ||
+      receipt.mode !== plan.mode ||
+      receipt.writer_eligible !== plan.writer_eligible ||
+      receipt.framework_package_set_identity !== plan.framework_package_set.identity ||
+      currentness.framework_commit !== plan.cohort.framework_sha
+    ) {
+      throw new Error('cache receipt does not match its cache plan');
+    }
+    for (const [index, event] of events.entries()) {
+      const planLayer = plan.runtime_layers[index];
+      if (
+        event.runtime_key !== planLayer.runtime_key ||
+        event.actions_key !== planLayer.actions_key ||
+        event.key_input_digest !== planLayer.key_input_digest
+      ) {
+        throw new Error(`cache receipt runtime event ${event.layer_id} does not match its cache plan`);
+      }
+    }
+  }
 }
 
 function parseSaveOutcomes(values: string[] | undefined): Record<RuntimeLayerId, SaveOutcome> {

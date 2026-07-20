@@ -41,7 +41,7 @@ should happen only when AGUI replay is explicitly requested.
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `verify-release-attestations.ts` | Runs `gh attestation verify` for downloaded release assets or OCI refs and writes `opl_release_attestation_verification.v1` for closeout ingestion. It records build-integrity evidence only and does not replace checksum, remote-readback, VM, or owner evidence. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
-| `write-actions-cache-plan.ts` | Writes `opl_actions_cache_plan.v1` before Full runtime materialization and `opl_actions_cache_receipt.v1` after cache-save attempts, binding the exact App/Shell/Framework cohort and four runtime layer keys without claiming artifact or release readiness. |
+| `write-actions-cache-plan.ts` | Writes `opl_actions_cache_plan.v2` before Full runtime materialization and `opl_actions_cache_receipt.v2` after cache-save attempts. It binds the exact App/Shell/Framework cohort, Framework seven-package identity, canonical aggregate input, and per-layer key-input digests; receipt generation additionally requires passed runtime currentness and records hit, duration, and save-failure metrics without claiming artifact or release readiness. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
 | `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full add-on/VM intent, cheap source gates, and one dry-run `release:stable start` next action over fixed App/Shell/Framework SHAs. It never emits a direct workflow dispatch. The plan/manifest is the same-cohort input for controller-led recovery or promotion without hand-filling refs. |
@@ -689,7 +689,12 @@ delete them. Cleanup remains plan-only until an isolated cleanup broker accepts
 the protected-key set and exact deletion IDs.
 `npm run release:cache-plan -- plan ...` and `... -- receipt ...` are the CLI
 surfaces used by the Full workflow to make exact-cohort cache decisions and save
-outcomes inspectable. Cache-only warmup runs ahead of a release and is never an
+outcomes inspectable. Plan/receipt v2 bind the Framework seven-package catalog,
+each layer's structured key-input digest, and passed runtime currentness. The
+receipt reports hit/miss counts, hit ratio, total layer duration, and save
+failures; use those metrics to diagnose acceleration only. The layer ownership,
+invalidation matrix, default-on flow, and change rules are documented in
+`docs/delivery/actions-cache-architecture.md`. Cache-only warmup runs ahead of a release and is never an
 admission gate; the normal Full builder handles an absent/evicted warmup as a
 validated miss and writes the missing layer on `main`. Run
 `npm run validate:release-boundary` after changing any cache key, prefix, action,

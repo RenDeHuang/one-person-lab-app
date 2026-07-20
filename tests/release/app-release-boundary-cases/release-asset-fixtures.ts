@@ -309,7 +309,7 @@ export function writeFullRemoteAssets(outDir, version) {
     events: [
       {
         layer_id: "toolchain",
-        key: "full-runtime-v1-toolchain-test",
+        key: "full-runtime-v2-toolchain-test",
         status: "hit",
         read_archive: true,
         write_archive: false,

@@ -2,93 +2,200 @@ import crypto from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
 import { appRoot, assert, fs, path, test } from './helpers.ts';
 import {
+  FULL_RUNTIME_CACHE_LAYER_IDS,
+  buildFullRuntimeAggregateCacheKeyInput,
+  buildFullRuntimeCacheKey,
+} from '../../../scripts/full-first-install-package.ts';
+import {
+  buildFrameworkPackageSetInput,
+  FULL_RUNTIME_PACKAGE_IDS,
+} from '../../../scripts/build-full-first-install-package/runtime-cache-package-set.ts';
+import {
   buildActionsCachePlan,
   buildActionsCacheReceipt,
   validateActionsCachePlan,
+  validateActionsCacheReceipt,
 } from '../../../scripts/write-actions-cache-plan.ts';
 
-const runtimeKeys = {
-  toolchain: `full-runtime-v1-toolchain-${'a'.repeat(24)}`,
-  'domain-runtime': `full-runtime-v1-domain-runtime-${'b'.repeat(24)}`,
-  'opl-runtime': `full-runtime-v1-opl-runtime-${'c'.repeat(24)}`,
-  skills: `full-runtime-v1-skills-${'d'.repeat(24)}`,
-};
+function digestJson(value: unknown) {
+  return `sha256:${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
 
-test('Actions cache plan binds exact cohort and canonical runtime layer keys', () => {
+function resign(value: Record<string, any>) {
+  const { identity: _identity, ...payload } = value;
+  value.identity = digestJson(payload);
+  return value;
+}
+
+function testFrameworkPackageSet(frameworkSha: string) {
+  const sourceCommits = Object.fromEntries(FULL_RUNTIME_PACKAGE_IDS.map((packageId, index) => [
+    packageId,
+    ((index + 1).toString(16)).repeat(40),
+  ]));
+  const referencedFileSha256: Record<string, string> = {};
+  const packages = Object.fromEntries(FULL_RUNTIME_PACKAGE_IDS.map((packageId, index) => {
+    const manifestRef = `packages/${packageId}.json`;
+    const payloadManifestRef = `packages/payloads/${packageId}-1.0.0.json`;
+    const manifestSha256 = `sha256:${((index + 1).toString(16)).repeat(64)}`;
+    const payloadManifestSha256 = `sha256:${((index + 8).toString(16)).repeat(64)}`;
+    referencedFileSha256[manifestRef] = manifestSha256;
+    referencedFileSha256[payloadManifestRef] = payloadManifestSha256;
+    return [packageId, {
+      package_id: packageId,
+      package_role: packageId === 'opl-flow' ? 'workflow_profile' : 'standard_agent',
+      package_version: '1.0.0',
+      owner_source_commit: sourceCommits[packageId],
+      runtime_module_relative_path: `modules/${packageId}`,
+      manifest_ref: manifestRef,
+      manifest_sha256: manifestSha256,
+      payload_manifest_ref: payloadManifestRef,
+      payload_manifest_sha256: payloadManifestSha256,
+    }];
+  }));
+  return buildFrameworkPackageSetInput({
+    frameworkSha,
+    catalogSha256: 'f'.repeat(64),
+    catalog: {
+      surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
+      packages,
+    },
+    sourceCommits: sourceCommits as never,
+    referencedFileSha256,
+  });
+}
+
+function testRuntimeReport(frameworkSha: string) {
+  const layerKeyInputs = Object.fromEntries(FULL_RUNTIME_CACHE_LAYER_IDS.map((layerId, index) => [
+    layerId,
+    {
+      schema: 'opl_full_runtime_layer_key_input.test.v1',
+      layer_id: layerId,
+      source_digest: `sha256:${((index + 1).toString(16)).repeat(64)}`,
+    },
+  ]));
+  const layers = Object.fromEntries(FULL_RUNTIME_CACHE_LAYER_IDS.map((layerId) => [
+    layerId,
+    buildFullRuntimeCacheKey({ layerId, parts: layerKeyInputs[layerId] }),
+  ]));
+  return {
+    framework_package_set: testFrameworkPackageSet(frameworkSha),
+    layer_key_inputs: layerKeyInputs,
+    layers,
+    aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers: layers as never }),
+  };
+}
+
+function testPlan(input: {
+  mode?: 'cache_only_warmup' | 'full_package';
+  ref?: string;
+  frameworkSha?: string;
+} = {}) {
+  const frameworkSha = input.frameworkSha ?? '3'.repeat(40);
+  return buildActionsCachePlan({
+    mode: input.mode ?? 'full_package',
+    workflow: 'full-first-install-release.yml',
+    ref: input.ref ?? 'refs/heads/main',
+    appSha: '1'.repeat(40),
+    shellSha: '2'.repeat(40),
+    frameworkSha,
+    runnerOs: 'macOS',
+    runnerArch: 'ARM64',
+    catalogSha256: '4'.repeat(64),
+    runtimeKeyReport: testRuntimeReport(frameworkSha),
+  });
+}
+
+function testRuntimeEvents(plan: Record<string, any>) {
+  const report = testRuntimeReport(plan.cohort.framework_sha);
+  return {
+    keys: report.layers,
+    key_inputs: report.layer_key_inputs,
+    framework_package_set: report.framework_package_set,
+    currentness: {
+      schema: 'opl_full_runtime_currentness_probe.v1',
+      status: 'passed',
+      framework_commit: plan.cohort.framework_sha,
+    },
+    events: FULL_RUNTIME_CACHE_LAYER_IDS.map((layerId, index) => ({
+      layer_id: layerId,
+      key: report.layers[layerId],
+      status: index === 0 ? 'hit' : 'miss_written',
+      duration_seconds: index + 0.25,
+      read_archive: index === 0,
+      write_archive: index !== 0,
+    })),
+  };
+}
+
+test('Actions cache plan binds exact cohort, seven packages, and structured runtime keys', () => {
+  const frameworkSha = 'c'.repeat(40);
+  const report = testRuntimeReport(frameworkSha);
   const plan = buildActionsCachePlan({
     mode: 'cache_only_warmup',
     workflow: 'full-runtime-cache-warmup.yml',
     ref: 'refs/heads/main',
     appSha: 'a'.repeat(40),
     shellSha: 'b'.repeat(40),
-    frameworkSha: 'c'.repeat(40),
+    frameworkSha,
     runnerOs: 'macOS',
     runnerArch: 'ARM64',
     catalogSha256: 'd'.repeat(64),
-    runtimeKeyReport: {
-      aggregate_key_input: { schema: 'opl_full_runtime_cache_aggregate_key.v1' },
-      layers: runtimeKeys,
-    },
+    runtimeKeyReport: report,
   });
 
   validateActionsCachePlan(plan);
+  assert.equal(plan.schema, 'opl_actions_cache_plan.v2');
   assert.equal(plan.writer_eligible, true);
+  assert.equal(plan.framework_package_set.packages.length, 7);
   assert.deepEqual(plan.runner, { os: 'macOS', arch: 'ARM64' });
   assert.equal(plan.runtime_layers.length, 4);
   assert.equal(
     plan.runtime_layers[0].actions_key,
-    `opl-full-runtime-layer-macOS-ARM64-${runtimeKeys.toolchain}`,
+    `opl-full-runtime-layer-macOS-ARM64-${report.layers.toolchain}`,
   );
+  assert.match(plan.runtime_layers[0].key_input_digest, /^sha256:[0-9a-f]{64}$/);
   assert.match(plan.identity, /^sha256:[0-9a-f]{64}$/);
 });
 
-test('Actions cache receipt rejects layer drift and records save outcomes', () => {
-  const plan = buildActionsCachePlan({
-    mode: 'full_package',
-    workflow: 'full-first-install-release.yml',
-    ref: 'refs/heads/main',
-    appSha: '1'.repeat(40),
-    shellSha: '2'.repeat(40),
-    frameworkSha: '3'.repeat(40),
-    runnerOs: 'macOS',
-    runnerArch: 'ARM64',
-    catalogSha256: '4'.repeat(64),
-    runtimeKeyReport: { layers: runtimeKeys },
-  });
-  const events = {
-    events: Object.entries(runtimeKeys).map(([layerId, key]) => ({
-      layer_id: layerId,
-      key,
-      status: 'miss_written',
-      duration_seconds: 1,
-      read_archive: false,
-      write_archive: true,
-    })),
-  };
+test('Actions cache receipt requires current evidence and records reuse metrics', () => {
+  const plan = testPlan();
+  const events = testRuntimeEvents(plan);
   const receipt = buildActionsCacheReceipt({
     plan,
     runtimeEvents: events,
     saveOutcomes: {
-      toolchain: 'success',
+      toolchain: 'skipped',
       'domain-runtime': 'failure',
       'opl-runtime': 'success',
       skills: 'success',
     },
   });
 
+  validateActionsCacheReceipt(receipt, plan);
+  assert.equal(receipt.schema, 'opl_actions_cache_receipt.v2');
   assert.equal(receipt.plan_identity, plan.identity);
   assert.equal(receipt.runtime_layer_events.length, 4);
-  assert.equal(receipt.save_outcomes.toolchain, 'success');
-  assert.equal(receipt.save_outcomes['domain-runtime'], 'failure');
+  assert.deepEqual(receipt.metrics, {
+    layer_count: 4,
+    hit_count: 1,
+    miss_count: 3,
+    hit_ratio: 0.25,
+    total_duration_seconds: 7,
+    save_attempt_count: 3,
+    save_success_count: 2,
+    save_failure_count: 1,
+    save_skipped_count: 1,
+  });
+  assert.match(receipt.identity, /^sha256:[0-9a-f]{64}$/);
 
   const driftedEvents = structuredClone(events);
-  driftedEvents.events[0].key = 'full-runtime-v1-toolchain-drifted';
+  driftedEvents.events[0].key = 'full-runtime-v2-toolchain-drifted';
   assert.throws(
     () => buildActionsCacheReceipt({
       plan,
       runtimeEvents: driftedEvents,
       saveOutcomes: {
-        toolchain: 'success',
+        toolchain: 'skipped',
         'domain-runtime': 'success',
         'opl-runtime': 'success',
         skills: 'success',
@@ -97,74 +204,98 @@ test('Actions cache receipt rejects layer drift and records save outcomes', () =
     /does not match the cache plan/,
   );
 
-  assert.throws(
-    () => buildActionsCacheReceipt({ plan, runtimeEvents: events, saveOutcomes: {} as never }),
-    /save outcome for toolchain/,
-  );
-
-  const hitEvents = structuredClone(events);
-  hitEvents.events[0] = {
-    ...hitEvents.events[0],
-    status: 'hit',
-    read_archive: true,
-    write_archive: false,
-  };
+  const staleEvents = structuredClone(events);
+  staleEvents.currentness.status = 'failed';
   assert.throws(
     () => buildActionsCacheReceipt({
       plan,
-      runtimeEvents: hitEvents,
+      runtimeEvents: staleEvents,
       saveOutcomes: {
-        toolchain: 'success',
+        toolchain: 'skipped',
         'domain-runtime': 'success',
         'opl-runtime': 'success',
         skills: 'success',
       },
     }),
-    /must be skipped after an exact cache hit/,
+    /runtime currentness must be a passed/,
+  );
+
+  const keyInputDrift = structuredClone(events);
+  keyInputDrift.key_inputs.skills.source_digest = `sha256:${'e'.repeat(64)}`;
+  assert.throws(
+    () => buildActionsCacheReceipt({
+      plan,
+      runtimeEvents: keyInputDrift,
+      saveOutcomes: {
+        toolchain: 'skipped',
+        'domain-runtime': 'success',
+        'opl-runtime': 'success',
+        skills: 'success',
+      },
+    }),
+    /runtime key input for skills/,
+  );
+
+  const invalidDuration = structuredClone(events);
+  invalidDuration.events[1].duration_seconds = -1;
+  assert.throws(
+    () => buildActionsCacheReceipt({
+      plan,
+      runtimeEvents: invalidDuration,
+      saveOutcomes: {
+        toolchain: 'skipped',
+        'domain-runtime': 'success',
+        'opl-runtime': 'success',
+        skills: 'success',
+      },
+    }),
+    /finite non-negative number/,
+  );
+
+  const tamperedReceipt = structuredClone(receipt);
+  tamperedReceipt.metrics.hit_count = 4;
+  resign(tamperedReceipt);
+  assert.throws(
+    () => validateActionsCacheReceipt(tamperedReceipt, plan),
+    /metrics do not match/,
   );
 });
 
-test('Actions cache plan validation rejects writer and exact-cohort drift', () => {
+test('Actions cache plan rejects writer, aggregate, and package identity drift', () => {
   assert.throws(
-    () => buildActionsCachePlan({
+    () => testPlan({
       mode: 'cache_only_warmup',
-      workflow: 'full-runtime-cache-warmup.yml',
       ref: 'refs/heads/feature/cache-test',
-      appSha: '5'.repeat(40),
-      shellSha: '6'.repeat(40),
       frameworkSha: '7'.repeat(40),
-      runnerOs: 'macOS',
-      runnerArch: 'ARM64',
-      catalogSha256: '8'.repeat(64),
-      runtimeKeyReport: { layers: runtimeKeys },
     }),
     /cache-only warmup plans must use refs\/heads\/main/,
   );
 
-  const plan = buildActionsCachePlan({
-    mode: 'full_package',
-    workflow: 'full-first-install-release.yml',
+  const plan = testPlan({
     ref: 'refs/heads/feature/cache-test',
-    appSha: '5'.repeat(40),
-    shellSha: '6'.repeat(40),
     frameworkSha: '7'.repeat(40),
-    runnerOs: 'macOS',
-    runnerArch: 'ARM64',
-    catalogSha256: '8'.repeat(64),
-    runtimeKeyReport: { layers: runtimeKeys },
   });
   assert.equal(plan.writer_eligible, false);
 
   const drifted = structuredClone(plan);
   drifted.writer_eligible = true;
-  const { identity: _identity, ...payload } = drifted;
-  drifted.identity = `sha256:${crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex')}`;
+  resign(drifted);
   assert.throws(() => validateActionsCachePlan(drifted), /writer eligibility/);
+
+  const aggregateDrifted = structuredClone(plan);
+  aggregateDrifted.runtime_cache_aggregate_key_input.layers.skills =
+    aggregateDrifted.runtime_layers[0].runtime_key;
+  resign(aggregateDrifted);
+  assert.throws(() => validateActionsCachePlan(aggregateDrifted), /aggregate key input/);
+
+  const packageDrifted = structuredClone(plan);
+  packageDrifted.framework_package_set.packages[0].owner_source_commit = 'e'.repeat(40);
+  resign(packageDrifted);
+  assert.throws(() => validateActionsCachePlan(packageDrifted), /package set identity|owner source/);
 
   const runnerDrifted = structuredClone(plan);
   runnerDrifted.runner.arch = 'X64';
-  const { identity: _runnerIdentity, ...runnerPayload } = runnerDrifted;
-  runnerDrifted.identity = `sha256:${crypto.createHash('sha256').update(JSON.stringify(runnerPayload)).digest('hex')}`;
+  resign(runnerDrifted);
   assert.throws(() => validateActionsCachePlan(runnerDrifted), /runtime layer toolchain is invalid/);
 });
 
