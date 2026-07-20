@@ -266,6 +266,10 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
+          notes_intent_args=()
+          if [[ '${{ inputs.include_full }}' == 'true' ]]; then
+            notes_intent_args+=(--include-full-package)
+          fi
           npm run release:notes -- \
             --version '${{ needs.freeze-inputs.outputs.version }}' \
             --channel '${{ inputs.channel }}' \
@@ -274,6 +278,7 @@ jobs:
             --current-tag '${{ needs.freeze-inputs.outputs.tag }}' \
             --current-app-ref '${{ needs.freeze-inputs.outputs.app_sha }}' \
             --current-shell-ref '${{ needs.freeze-inputs.outputs.shell_sha }}' \
+            "${notes_intent_args[@]}" \
             --evidence-output notes-evidence.json \
             --output notes-template.md
           npm run release:notes:prepare -- \
@@ -359,6 +364,7 @@ jobs:
             --framework-root framework-source \
             --notes prepared-notes/notes.md \
             --notes-evidence prepared-notes/notes-evidence.json \
+            --include-full-package '${{ inputs.include_full }}' \
             --release-set-manifest 'framework-source/${{ needs.freeze-inputs.outputs.release_set_manifest }}' \
             --output freeze-request.json
           framework-source/bin/opl release freeze \

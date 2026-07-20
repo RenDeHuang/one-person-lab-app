@@ -129,6 +129,12 @@ function requireOption(values: Record<string, string | boolean | undefined>, key
   return value.trim();
 }
 
+function requireBooleanOption(values: Record<string, string | boolean | undefined>, key: string): boolean {
+  const value = requireOption(values, key);
+  if (value !== 'true' && value !== 'false') throw new Error(`--${key} must be true or false.`);
+  return value === 'true';
+}
+
 function parseCommon(argv: string[]) {
   return parseArgs({
     args: argv,
@@ -141,6 +147,7 @@ function parseCommon(argv: string[]) {
       'framework-root': { type: 'string' },
       notes: { type: 'string' },
       'notes-evidence': { type: 'string' },
+      'include-full-package': { type: 'string' },
       'release-set-manifest': { type: 'string' },
       output: { type: 'string' },
       operation: { type: 'string' },
@@ -175,9 +182,16 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
   const notesPath = path.resolve(requireOption(values, 'notes'));
   const evidencePath = path.resolve(requireOption(values, 'notes-evidence'));
+  const includeFullPackage = requireBooleanOption(values, 'include-full-package');
   const preparedNotes = fs.readFileSync(notesPath, 'utf8');
   if (!preparedNotes.includes(aiNotesMarker)) {
     throw new Error('Prepared release notes are not bound to the online AI writer.');
+  }
+  const notesEvidence = readJson(evidencePath);
+  if (notesEvidence.payload?.include_full_package !== includeFullPackage) {
+    throw new Error(
+      'Prepared release notes Full intent does not match the admitted Release Bundle request.',
+    );
   }
   const releaseSetPath = path.resolve(requireOption(values, 'release-set-manifest'));
   const catalogPath = path.join(
@@ -232,7 +246,7 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
       source: 'prepared_ai',
       format: 'markdown',
       markdown: preparedNotes,
-      evidence: readJson(evidencePath),
+      evidence: notesEvidence,
     },
     tracks: {
       standard: {

@@ -472,6 +472,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
 
 function validatePreparedNotesTransportPolicy(releaseContract: Record<string, any>): number {
   const preparedNotes = releaseContract.release_bundle_control_plane?.prepared_notes;
+  const environmentControl = releaseContract.release_bundle_control_plane?.protected_environment_control;
   if (
     preparedNotes?.provider_transport_attempt_limit_per_request !== 3 ||
     !sameStringSet(preparedNotes?.provider_transport_retry_scope, [
@@ -480,9 +481,42 @@ function validatePreparedNotesTransportPolicy(releaseContract: Record<string, an
     preparedNotes?.provider_content_or_quality_failure_may_transport_retry !== false ||
     preparedNotes?.failure_receipt_schema !== 'opl_app_release_notes_prepare_receipt.v1' ||
     preparedNotes?.failure_receipt_uploaded_when_writer_started !== true ||
-    preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true
+    preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true ||
+    preparedNotes?.full_intent_evidence_path !== 'payload.include_full_package' ||
+    preparedNotes?.full_intent_admitted_input !== 'include_full' ||
+    preparedNotes?.full_intent_must_match_before_framework_freeze !== true
   ) {
-    console.error('FAIL prepared_notes_transport: bounded transport retry and typed pre-build failure receipt policy are incomplete');
+    console.error('FAIL prepared_notes_transport: bounded transport retry, typed failure receipts, and admitted Full intent binding are incomplete');
+    return 1;
+  }
+  if (
+    environmentControl?.environment !== 'release-stable' ||
+    environmentControl?.canonical_branch_policy !== 'main' ||
+    environmentControl?.canonical_branch_policy_count !== 1 ||
+    environmentControl?.daily_codex_credential_may_mutate !== false ||
+    environmentControl?.temporary_policy_rewrite_as_circuit_breaker_allowed !== false ||
+    environmentControl?.workflow_or_adapter_fail_close_required !== true ||
+    environmentControl?.admin_one_shot_cancel_allowed !== false ||
+    environmentControl?.new_session_while_noncanonical_allowed !== false ||
+    environmentControl?.deviation_requires_durable_emergency_containment_receipt !== true ||
+    !sameStringSet(environmentControl?.historical_deviation_receipts, [
+      'docs/delivery/release/incidents/2026-07-21-v26.7.21-notes-intent-containment.json',
+    ]) ||
+    !sameStringSet(environmentControl?.emergency_containment_receipt_required_fields, [
+      'actor',
+      'recorded_at',
+      'policy_change.previous',
+      'policy_change.temporary',
+      'run.id',
+      'reason',
+    ]) ||
+    environmentControl?.temporary_policy_must_be_removed_after_first_protected_publish_failure !== true ||
+    environmentControl?.restoration_requires_get_readback !== true ||
+    typeof environmentControl?.rule !== 'string' ||
+    !environmentControl.rule.includes('cannot rewrite this verifier') ||
+    !environmentControl.rule.includes('or cancel an administrator one-shot run')
+  ) {
+    console.error('FAIL protected_environment_control: release-stable must retain one main policy and forbid daily-credential verifier rewrites or one-shot cancellation');
     return 1;
   }
   return 0;

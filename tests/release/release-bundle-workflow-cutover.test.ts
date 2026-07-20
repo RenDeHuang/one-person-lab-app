@@ -72,7 +72,10 @@ function adapterFixture() {
   const notesPath = path.join(root, 'notes.md');
   const evidencePath = path.join(root, 'notes-evidence.json');
   fs.writeFileSync(notesPath, '# One Person Lab v26.7.20\n\nFixture notes.\n\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n');
-  fs.writeFileSync(evidencePath, '{"surface_kind":"opl_app_release_notes_evidence.v1"}\n');
+  fs.writeFileSync(evidencePath, `${JSON.stringify({
+    surface_kind: 'opl_app_release_notes_evidence.v1',
+    payload: { include_full_package: false },
+  })}\n`);
   return { root, appRoot, shellRoot, frameworkRoot, releaseSetPath, notesPath, evidencePath, payloadRoot };
 }
 
@@ -89,6 +92,7 @@ function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: st
     '--framework-root', fixture.frameworkRoot,
     '--notes', fixture.notesPath,
     '--notes-evidence', fixture.evidencePath,
+    '--include-full-package', 'false',
     '--release-set-manifest', fixture.releaseSetPath,
     '--output', output,
   ], { cwd: process.cwd(), encoding: 'utf8' });
@@ -113,6 +117,10 @@ test('Stable is the only manual release entry and Nightly is schedule-only', () 
   const pipeline = parseWorkflow('_release-bundle.yml');
   const stableSource = readWorkflow('release-stable.yml');
   const pipelineSource = readWorkflow('_release-bundle.yml');
+  const releaseContract = JSON.parse(fs.readFileSync(
+    path.join(process.cwd(), 'contracts', 'app-release-channel.json'),
+    'utf8',
+  ));
 
   assert.deepEqual(Object.keys(stable.on), ['workflow_dispatch']);
   assert.ok(stable.on.workflow_dispatch.inputs.version);
@@ -133,6 +141,29 @@ test('Stable is the only manual release entry and Nightly is schedule-only', () 
   assert.equal(stable.jobs.release.with.shell_ref, '${{ needs.admission.outputs.shell_ref }}');
   assert.equal(stable.jobs.release.with.framework_ref, '${{ needs.admission.outputs.framework_ref }}');
   assert.doesNotMatch(pipelineSource, /release[_ -]broker|broker[_ -]admission/i);
+  assert.doesNotMatch(`${stableSource}\n${pipelineSource}`, /gh run (?:cancel|rerun)|deployment-branch-policies/);
+
+  const environmentControl = releaseContract.release_bundle_control_plane.protected_environment_control;
+  assert.equal(environmentControl.canonical_branch_policy, 'main');
+  assert.equal(environmentControl.canonical_branch_policy_count, 1);
+  assert.equal(environmentControl.daily_codex_credential_may_mutate, false);
+  assert.equal(environmentControl.temporary_policy_rewrite_as_circuit_breaker_allowed, false);
+  assert.equal(environmentControl.admin_one_shot_cancel_allowed, false);
+  assert.equal(environmentControl.new_session_while_noncanonical_allowed, false);
+  assert.equal(environmentControl.deviation_requires_durable_emergency_containment_receipt, true);
+  assert.equal(environmentControl.restoration_requires_get_readback, true);
+  const incident = JSON.parse(fs.readFileSync(
+    path.join(process.cwd(), environmentControl.historical_deviation_receipts[0]),
+    'utf8',
+  ));
+  assert.equal(incident.run.id, '29781234190');
+  assert.equal(incident.contract_deviation.authorized_canonical_path_used, false);
+  assert.equal(incident.typed_reconcile.failure_taxonomy, 'control_plane_emergency_containment');
+  assert.equal(incident.typed_reconcile.retry_disposition, 'new_cohort_required');
+  assert.equal(incident.public_mutation.release_exists, false);
+  assert.equal(incident.public_mutation.tag_exists, false);
+  assert.equal(incident.restoration.only_policy_name, 'main');
+  assert.equal(incident.restoration.only_policy_count, 1);
 
   assert.deepEqual(Object.keys(nightly.on), ['schedule']);
   assert.ok(Array.isArray(nightly.on.schedule));
@@ -178,6 +209,19 @@ test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Ho
   assert.match(readWorkflow('_release-bundle.yml'), /opl release reconcile/);
   assert.match(readWorkflow('_release-bundle.yml'), /release:notes:prepare/);
   assert.match(readWorkflow('_release-bundle.yml'), /--receipt-output notes-prepare-receipt\.json/);
+  const prepareNotesRun = String(jobs['prepare-notes'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Prepare and validate online AI notes before build',
+  )?.run ?? '');
+  assert.match(prepareNotesRun, /if \[\[ '\$\{\{ inputs\.include_full \}\}' == 'true' \]\]/);
+  assert.match(prepareNotesRun, /notes_intent_args\+=\(--include-full-package\)/);
+  const freezeRun = String(jobs.freeze.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Freeze canonical Framework Bundle',
+  )?.run ?? '');
+  assert.match(freezeRun, /--include-full-package '\$\{\{ inputs\.include_full \}\}'/);
+  assert.ok(
+    freezeRun.indexOf('--include-full-package') < freezeRun.indexOf('framework-source/bin/opl release freeze'),
+    'notes intent mismatch must fail before Framework freeze',
+  );
   const notesReceiptStep = jobs['prepare-notes'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload notes preparation receipt',
   );
@@ -375,6 +419,21 @@ test('the App adapter rejects notes without online AI provenance before build', 
     const result = runFreezeRequest(fixture, path.join(fixture.root, 'untrusted-notes.json'));
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /not bound to the online AI writer/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('the App adapter rejects prepared notes whose Full intent differs from the admitted Bundle request', () => {
+  const fixture = adapterFixture();
+  try {
+    fs.writeFileSync(fixture.evidencePath, `${JSON.stringify({
+      surface_kind: 'opl_app_release_notes_evidence.v1',
+      payload: { include_full_package: true },
+    })}\n`);
+    const result = runFreezeRequest(fixture, path.join(fixture.root, 'mismatched-notes-intent.json'));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Full intent does not match the admitted Release Bundle request/);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

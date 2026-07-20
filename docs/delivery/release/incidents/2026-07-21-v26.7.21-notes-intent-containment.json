@@ -1,0 +1,77 @@
+{
+  "schema": "opl_app_release_control_plane_deviation.v1",
+  "recorded_at": "2026-07-20T22:19:38Z",
+  "actor": "gaofeng21cn",
+  "repository": "gaofeng21cn/one-person-lab-app",
+  "run": {
+    "id": "29781234190",
+    "attempt": 1,
+    "controller_sha": "4f09919da0da1e5915231acfbef301d5c7c2f2f2",
+    "bundle_digest": "sha256:2bf5b0df5ab59c12b05c323f35a9005361aab6280c686016e4805c17cd878904"
+  },
+  "intent_mismatch": {
+    "admitted_include_full_package": true,
+    "notes_evidence_include_full_package": false,
+    "notes_sha256": "1695f449d2059c1970fc5f2f8055f2450a8fa8e718b7295be9e5f84f1d1f4f19",
+    "notes_receipt_artifact_digest": "sha256:3d8e368c673f5ef6524e5fb7ef71309107cb2e123a22f6ead40910d237cd7c67"
+  },
+  "contract_deviation": {
+    "type": "daily_credential_environment_verifier_mutation",
+    "authorized_canonical_path_used": false,
+    "actions_cancel_requested": false,
+    "workflow_rerun_requested": false,
+    "duplicate_dispatch_requested": false
+  },
+  "containment": {
+    "environment": "release-stable",
+    "previous_policy": {
+      "id": 55127333,
+      "name": "main",
+      "type": "branch"
+    },
+    "temporary_policy": {
+      "id": 55164270,
+      "name": "codex-notes-intent-block-29781234190",
+      "type": "branch"
+    },
+    "first_protected_publish_job": {
+      "id": "88488607007",
+      "name": "release / publish-standard-nonlatest",
+      "conclusion": "failure",
+      "runner_id": 0,
+      "steps": []
+    }
+  },
+  "typed_reconcile": {
+    "failure_taxonomy": "control_plane_emergency_containment",
+    "retry_disposition": "new_cohort_required",
+    "legacy_session_projection": "unknown",
+    "legacy_projection_correction_required": true
+  },
+  "public_mutation": {
+    "release_exists": false,
+    "tag_exists": false,
+    "latest_tag": "v26.7.20",
+    "homebrew_mutated": false,
+    "full_mutated": false
+  },
+  "restoration": {
+    "restored_at": "2026-07-20T22:19:38Z",
+    "removed_temporary_policy_id": 55164270,
+    "restored_policy_id": 55165008,
+    "only_policy_name": "main",
+    "only_policy_count": 1,
+    "get_readback_completed": true
+  },
+  "durable_session_receipt": {
+    "ref": "release-sessions/v26.7.21-app-4f09919d/emergency-containment-receipt.json",
+    "sha256": "1ed3c486187c6bc21584808042b57e474be98a3914a64958b3de40fd31f44215"
+  },
+  "source_correction": {
+    "notes_full_intent_must_match_admitted_request": true,
+    "mismatch_must_fail_before_framework_freeze": true,
+    "environment_policy_rewrite_as_circuit_breaker_allowed": false,
+    "administrator_one_shot_cancel_allowed": false,
+    "new_cohort_required": true
+  }
+}

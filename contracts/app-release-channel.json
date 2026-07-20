@@ -265,7 +265,35 @@
       "provider_content_or_quality_failure_may_transport_retry": false,
       "failure_receipt_schema": "opl_app_release_notes_prepare_receipt.v1",
       "failure_receipt_uploaded_when_writer_started": true,
-      "prebuild_failure_must_not_project_as_qualification_runner_lost": true
+      "prebuild_failure_must_not_project_as_qualification_runner_lost": true,
+      "full_intent_evidence_path": "payload.include_full_package",
+      "full_intent_admitted_input": "include_full",
+      "full_intent_must_match_before_framework_freeze": true
+    },
+    "protected_environment_control": {
+      "environment": "release-stable",
+      "canonical_branch_policy": "main",
+      "canonical_branch_policy_count": 1,
+      "daily_codex_credential_may_mutate": false,
+      "temporary_policy_rewrite_as_circuit_breaker_allowed": false,
+      "workflow_or_adapter_fail_close_required": true,
+      "admin_one_shot_cancel_allowed": false,
+      "new_session_while_noncanonical_allowed": false,
+      "deviation_requires_durable_emergency_containment_receipt": true,
+      "historical_deviation_receipts": [
+        "docs/delivery/release/incidents/2026-07-21-v26.7.21-notes-intent-containment.json"
+      ],
+      "emergency_containment_receipt_required_fields": [
+        "actor",
+        "recorded_at",
+        "policy_change.previous",
+        "policy_change.temporary",
+        "run.id",
+        "reason"
+      ],
+      "temporary_policy_must_be_removed_after_first_protected_publish_failure": true,
+      "restoration_requires_get_readback": true,
+      "rule": "The release-stable environment must retain exactly one main branch policy. Daily Codex credentials cannot rewrite this verifier or cancel an administrator one-shot run; deterministic workflow or adapter fail-close is required. Any historical deviation requires a durable containment receipt and immediate GET-verified restoration before another session."
     },
     "publication": {
       "stable": {
