@@ -242,6 +242,8 @@ test('retired broker workflows are read-only rejection surfaces', () => {
 test('the remote canary has no manual trigger and no write permission', () => {
   const canary = parseWorkflow('release-bundle-canary.yml');
   assert.ok(canary.on.push);
+  assert.equal(canary.on.push.paths, undefined);
+  assert.equal(canary.on.pull_request?.paths, undefined);
   assert.equal(canary.on.workflow_dispatch, undefined);
   assert.deepEqual(canary.permissions, { contents: 'read' });
   for (const job of Object.values(canary.jobs) as Array<Record<string, any>>) {
@@ -250,22 +252,9 @@ test('the remote canary has no manual trigger and no write permission', () => {
   assert.doesNotMatch(readWorkflow('release-bundle-canary.yml'), /gh release|release upload|contents: write/);
 });
 
-test('the canary covers every Bundle reusable edge and proves startup permissions before dispatch', () => {
+test('the canary runs for every main/PR change and proves Bundle reusable startup permissions', () => {
   const canary = readWorkflow('release-bundle-canary.yml');
-  for (const path of [
-    '.github/workflows/_build-reusable.yml',
-    '.github/workflows/_release-bundle.yml',
-    '.github/workflows/full-first-install-release.yml',
-    '.github/workflows/opl-first-run-vm.yml',
-    '.github/workflows/opl-updater-upgrade-vm.yml',
-    'tests/release/release-workflow-broker-admission.test.ts',
-    'scripts/release-notes-ai-writer-parts/**',
-    'tests/release/release-notes.test.ts',
-    'scripts/plan-release-cohort.ts',
-    'tests/release/plan-release-cohort.test.ts',
-  ]) {
-    assert.ok(canary.includes(path), `${path} is outside the Canary trigger/test surface`);
-  }
+  assert.doesNotMatch(canary, /^\s+paths:/m);
 
   const bundle = parseWorkflow('_release-bundle.yml');
   const reusableEdges: Record<string, string> = {
