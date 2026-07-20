@@ -563,7 +563,7 @@ export function assertAppProductProfileSettingsVisualSystem(
       {
         actual: visualSystem?.footer_account_entry_policy,
         expected:
-          'show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview',
+          'show_gateway_display_name_when_connected_else_account_access_without_a_duplicate_settings_entry',
       },
       {
         actual: visualSystem?.footer_update_entry_policy,
@@ -571,7 +571,9 @@ export function assertAppProductProfileSettingsVisualSystem(
           'show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth',
       },
       { actual: visualSystem?.footer_theme_quick_toggle_allowed, expected: false },
-      { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
+      { actual: visualSystem?.footer_secondary_navigation_allowed, expected: true },
+      { actual: visualSystem?.footer_auxiliary_navigation, expected: 'about_only_sidebar_bottom' },
+      { actual: visualSystem?.footer_duplicate_settings_entry_allowed, expected: false },
       { actual: visualSystem?.appearance_mode_presentation, expected: 'three_visual_preview_cards' },
       { actual: visualSystem?.appearance_mode_preserves_theme_preset, expected: false },
       { actual: visualSystem?.theme_gallery_presentation, expected: 'not_exposed' },
@@ -582,7 +584,7 @@ export function assertAppProductProfileSettingsVisualSystem(
   );
   if (
     JSON.stringify(visualSystem?.footer_controls) !==
-      JSON.stringify(['gateway_account_or_settings_entry', 'app_update_status_and_trigger']) ||
+      JSON.stringify(['gateway_account_or_account_access_entry', 'app_update_status_and_trigger']) ||
     JSON.stringify(visualSystem?.appearance_mode_values) !== JSON.stringify(['system', 'light', 'dark'])
   ) {
     throw new Error(
