@@ -355,10 +355,10 @@ function resolveExpectedAppHead(options: Options): string | null {
 
 function checkVersion(options: Options, checks: Check[]) {
   if (!matchesCanonicalReleaseVersion('stable', options.version)) {
-    addCheck(checks, 'version', 'failed', `Invalid Stable CalVer: ${options.version}; expected YY.M.D without a same-day suffix.`);
+    addCheck(checks, 'version', 'failed', `Invalid Stable CalVer: ${options.version}; expected YY.M.D or YY.M.D-r1 through r9.`);
     return;
   }
-  addCheck(checks, 'version', 'passed', `Stable CalVer ${options.version} uses the canonical YY.M.D form.`);
+  addCheck(checks, 'version', 'passed', `Stable CalVer ${options.version} uses the canonical display-version form.`);
 }
 
 function checkReleaseDate(options: Options, checks: Check[]) {
@@ -658,23 +658,22 @@ function checkReleaseRefs(options: Options, checks: Check[]) {
 }
 
 function checkWorkflowShape(options: Options, checks: Check[]) {
-  const workflow = readText('.github/workflows/desktop-release.yml');
+  const workflow = readText('.github/workflows/_release-bundle.yml');
   const required = [
-    'release-preflight:',
-    'name: Release preflight',
-    'release_intent:',
-    'release_operator_plan_ref:',
-    'gate_reuse_plan_ref:',
-    'npm run release:preflight --',
-    'release-preflight-summary.json',
-    'release-preflight-summary.md',
-    'needs: release-preflight',
+    'cold-preflight:',
+    'name: Install cold-gate dependencies',
+    'npm ci --ignore-scripts',
+    'npm --prefix framework-source ci --ignore-scripts',
+    'name: Validate Bundle contracts before paid work',
+    'npm run typecheck',
+    'npm run validate:release-boundary',
+    'needs: [cold-preflight, freeze-inputs]',
   ];
   const missing = required.filter((needle) => !workflow.includes(needle));
   if (missing.length > 0) {
-    addCheck(checks, 'workflow_preflight_shape', 'failed', `desktop-release.yml missing: ${missing.join(', ')}`);
+    addCheck(checks, 'workflow_preflight_shape', 'failed', `_release-bundle.yml missing: ${missing.join(', ')}`);
   } else {
-    addCheck(checks, 'workflow_preflight_shape', 'passed', 'desktop-release.yml starts with the App release preflight gate.');
+    addCheck(checks, 'workflow_preflight_shape', 'passed', '_release-bundle.yml runs dependency-backed cold gates before paid work.');
   }
 
   addCheck(
@@ -682,7 +681,7 @@ function checkWorkflowShape(options: Options, checks: Check[]) {
     'full_addon_preflight',
     'skipped',
     options.includeFullPackage
-      ? 'Full add-on intent is recorded, but every Full-specific workflow and payload check is deferred to the independent dispatch-full-addon attempt after Standard terminal.'
+      ? 'Full intent is recorded in the same one-shot Bundle run, but Full-specific work starts only after the Standard Latest terminal.'
       : 'No same-cohort Full add-on is requested; Standard admission contains no Full-specific checks.',
   );
 }

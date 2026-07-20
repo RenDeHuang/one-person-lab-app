@@ -43,6 +43,7 @@ function defaultOutputDir() {
 function defaultReleaseOptions() {
   return {
     version: process.env.OPL_RELEASE_VERSION || '26.5.1',
+    updaterVersion: process.env.OPL_UPDATER_VERSION || process.env.OPL_RELEASE_VERSION || '26.5.1',
     outDir: defaultOutputDir(),
   };
 }
@@ -138,6 +139,7 @@ const booleanOptionSetters = {
 
 const valueOptionSetters = {
   version: (parsed, value) => { parsed.version = value; },
+  'updater-version': (parsed, value) => { parsed.updaterVersion = value; },
   'out-dir': (parsed, value) => { parsed.outDir = path.resolve(value); },
   'framework-root': (parsed, value) => { parsed.frameworkRoot = path.resolve(value); },
   'opl-root': (parsed, value) => { parsed.frameworkRoot = path.resolve(value); },

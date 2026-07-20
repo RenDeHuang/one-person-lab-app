@@ -31,7 +31,7 @@ function futureStableVersion(): string {
 test('Stable and Nightly versions use exact contract-backed canonical regexes', () => {
   assert.equal(
     stableReleaseVersionPatternSource,
-    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$`,
+    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9])?$`,
   );
   assert.equal(
     nightlyReleaseVersionPatternSource,
@@ -39,6 +39,8 @@ test('Stable and Nightly versions use exact contract-backed canonical regexes', 
   );
   assert.equal(nightlyMaximumRebuildRevision, 9);
   assert.doesNotThrow(() => assertCanonicalReleaseVersion('stable', '26.7.13'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('stable', '26.7.13-r1'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('stable', '26.7.13-r9'));
   assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly'));
   assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.r1'));
   assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.r9'));
@@ -48,6 +50,8 @@ test('Stable and Nightly versions use exact contract-backed canonical regexes', 
     ['stable', '026.07.013'],
     ['stable', '26.7.13-nightly.r1'],
     ['stable', '26.2.30'],
+    ['stable', '26.7.13-r0'],
+    ['stable', '26.7.13-r10'],
     ['nightly', '26.7.13'],
     ['nightly', '26.07.13-nightly.r1'],
     ['nightly', '26.7.13-nightly.r0'],
@@ -451,13 +455,13 @@ process.exit(2);
   assert.equal(payload.release_target.kind, 'read_only_visibility_deferred');
   assertCheck(payload, 'remote_target', 'warning', /contents:write publish job must revalidate/);
 
-  const workflow = fs.readFileSync(path.join(process.cwd(), '.github', 'workflows', 'desktop-release.yml'), 'utf8');
-  const writerStart = workflow.indexOf('  publish-standard:');
-  const draftReadback = workflow.indexOf('is_draft="$(gh release view', writerStart);
-  const tagRewrite = workflow.indexOf('git tag -f "$tag" "$ARTIFACT_APP_SHA"', writerStart);
-  const tagPush = workflow.indexOf('git push --force-with-lease=', writerStart);
-  assert.ok(writerStart >= 0 && draftReadback > writerStart);
-  assert.ok(tagRewrite > draftReadback && tagPush > draftReadback);
+  const workflow = fs.readFileSync(path.join(process.cwd(), '.github', 'workflows', '_release-bundle.yml'), 'utf8');
+  const writerStart = workflow.indexOf('  publish-standard-nonlatest:');
+  const remoteReadback = workflow.indexOf('framework-release-adapter.ts github-inspect', writerStart);
+  const mutation = workflow.indexOf('framework-release-adapter.ts github-apply', writerStart);
+  assert.ok(writerStart >= 0 && remoteReadback > writerStart);
+  assert.ok(mutation > remoteReadback);
+  assert.doesNotMatch(workflow.slice(writerStart, mutation), /git tag -f|git push --force|--clobber/);
 
   writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
 const args = process.argv.slice(2);
@@ -511,7 +515,7 @@ test('release preflight rejects a future-dated Stable version before build dispa
   assertCheck(payload, 'release_date', 'failed', /future-dated.*2026-07-12/);
 });
 
-test('release preflight rejects same-day Stable suffixes', () => {
+test('release preflight rejects non-canonical same-day Stable suffixes', () => {
   const result = runNode([
     'scripts/validate-release-preflight.ts',
     '--version',
@@ -535,7 +539,7 @@ test('release preflight rejects same-day Stable suffixes', () => {
 
   assert.notEqual(result.status, 0);
   const payload = JSON.parse(result.stdout);
-  assertCheck(payload, 'version', 'failed', /expected YY\.M\.D without a same-day suffix/);
+  assertCheck(payload, 'version', 'failed', /expected YY\.M\.D or YY\.M\.D-r1 through r9/);
 });
 
 test('Nightly plan is typed-blocked while its brokered replacement is unprovisioned', () => {
@@ -577,23 +581,23 @@ test('Nightly plan is typed-blocked while its brokered replacement is unprovisio
   }
 });
 
-test('release-bound workflows require frozen SHA inputs and keep diagnostic VM fallback out of release sessions', () => {
+test('Bundle workflow carries exact frozen SHAs into build and qualification jobs', () => {
   const readWorkflow = (name: string) => fs.readFileSync(
     path.join(process.cwd(), '.github', 'workflows', name),
     'utf8',
   );
-  const desktop = readWorkflow('desktop-release.yml');
-  const full = readWorkflow('full-first-install-release.yml');
-  const promote = readWorkflow('desktop-release-promote.yml');
+  const bundle = readWorkflow('_release-bundle.yml');
   const vm = readWorkflow('opl-first-run-vm.yml');
   const reusableBuild = readWorkflow('_build-reusable.yml');
 
-  for (const workflow of [desktop, full, promote]) {
-    assert.doesNotMatch(workflow, /default: main|\|\| 'main'/);
+  for (const output of ['app_sha', 'shell_sha', 'framework_sha', 'opl_flow_sha']) {
+    assert.match(bundle, new RegExp(`echo "${output}=\\$${output}"`));
   }
-  assert.match(desktop, /framework_ref:[\s\S]*?required: true[\s\S]*?shell_ref:[\s\S]*?required: true/);
-  assert.match(full, /Validate frozen Full source SHAs[\s\S]*?shell_ref must be the exact frozen Shell SHA/);
-  assert.match(promote, /shell_ref:[\s\S]*?required: true/);
+  assert.match(bundle, /ref: \$\{\{ needs\.freeze-inputs\.outputs\.app_sha \}\}/);
+  assert.match(bundle, /ref: \$\{\{ needs\.freeze-inputs\.outputs\.shell_sha \}\}/);
+  assert.match(bundle, /ref: \$\{\{ needs\.freeze-inputs\.outputs\.framework_sha \}\}/);
+  assert.match(bundle, /artifact_app_ref: \$\{\{ needs\.freeze-inputs\.outputs\.app_sha \}\}/);
+  assert.match(bundle, /smoke_harness_ref: \$\{\{ needs\.freeze-inputs\.outputs\.shell_sha \}\}/);
   assert.match(vm, /if \[ -n "\$STABLE_SESSION_ID" \]; then[\s\S]*?Release-bound shell_ref must be an exact 40-character SHA/);
   assert.match(vm, /Release-bound framework_ref must be an exact 40-character SHA/);
   assert.match(reusableBuild, /Validate immutable release-bound build refs[\s\S]*?inputs\.stable_session_id != ''/);
@@ -606,29 +610,29 @@ test('release-bound workflows require frozen SHA inputs and keep diagnostic VM f
   }
 });
 
-test('release workflows use broker CAS plus narrow GitHub concurrency backstops', () => {
+test('Stable Bundle is one-shot and retired broker workflows cannot mutate', () => {
   const readWorkflow = (name: string) => fs.readFileSync(
     path.join(process.cwd(), '.github', 'workflows', name),
     'utf8',
   );
-  const desktop = readWorkflow('desktop-release.yml');
-  const promote = readWorkflow('desktop-release-promote.yml');
-  const full = readWorkflow('full-first-install-release.yml');
-  const fullAddon = readWorkflow('desktop-release-full-addon.yml');
-  const qualification = readWorkflow('opl-first-run-vm.yml');
-  const sharedGroup = 'group: opl-app-release-mutation-${{ inputs.opl_version }}';
+  const stable = readWorkflow('release-stable.yml');
+  const bundle = readWorkflow('_release-bundle.yml');
+  assert.match(stable, /group: opl-stable-release-bundle-\$\{\{ inputs\.version \}\}/);
+  assert.match(stable, /cancel-in-progress: false/);
+  assert.match(bundle, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
+  assert.doesNotMatch(bundle, /gh run rerun|gh run cancel|--clobber/);
 
-  assert.match(desktop, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(promote, /group: opl-app-stable-latest-mutation/);
-  assert.match(fullAddon, /group: opl-app-full-addon-\$\{\{ inputs\.opl_version \}\}/);
-  assert.doesNotMatch(desktop, /group: opl-desktop-release-\$\{\{ inputs\.release_mode/);
-  assert.match(promote, /concurrency:[\s\S]*?cancel-in-progress: false/);
-  assert.match(full, /group: opl-full-first-install-build-\$\{\{ inputs\.opl_version \}\}-\$\{\{ github\.run_id \}\}/);
-  assert.doesNotMatch(full, /release_mutation_owned_by_caller/);
-  assert.doesNotMatch(full, /publish_to_release/);
-  assert.match(desktop, /defer_addons:[\s\S]*default: true/);
-  for (const workflow of [desktop, promote, full, fullAddon, qualification]) {
-    assert.doesNotMatch(workflow, /gh release delete|gh api[^\n]*-X DELETE|--cleanup-tag/);
+  for (const name of [
+    'desktop-release.yml',
+    'desktop-release-promote.yml',
+    'desktop-release-full-addon.yml',
+    'desktop-release-cleanup-drafts.yml',
+  ]) {
+    const workflow = readWorkflow(name);
+    assert.match(workflow, /workflow_call:/);
+    assert.match(workflow, /contents: read/);
+    assert.match(workflow, /exit 1/);
+    assert.doesNotMatch(workflow, /workflow_dispatch:|contents: write|verify-release-broker/);
   }
 });
 

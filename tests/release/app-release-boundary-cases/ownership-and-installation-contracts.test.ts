@@ -54,6 +54,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     channel = 'stable',
     packageKind,
     version = '26.6.4',
+    updaterVersion = version,
     targetFlag = '--cask',
     target,
     manifest,
@@ -63,6 +64,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     channel?: string;
     packageKind?: string;
     version?: string;
+    updaterVersion?: string;
     targetFlag?: '--cask' | '--formula';
     target: string;
     manifest: string;
@@ -75,6 +77,8 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     ...(packageKind ? ['--package-kind', packageKind] : []),
     '--version',
     version,
+    '--updater-version',
+    updaterVersion,
     '--tap-root',
     tapRoot,
     targetFlag,
@@ -119,6 +123,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, /package_specific_formula_allowed: false/);
   assert.match(stableCask, /package_specific_cask_allowed: false/);
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
+  assert.match(stableCask, /depends_on formula: "opl"/);
 
   const fullResult = runTap({
     packageKind: 'app_full_first_install',
@@ -137,7 +142,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(fullPlan.policy.bundled_full_runtime_payload_allowed, true);
   assert.equal(fullPlan.policy.opl_packages_lifecycle_owned_by_homebrew, false);
   const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
-  assert.match(fullCask, /One-Person-Lab-Full-#\{version\}-mac-arm64\.dmg/);
+  assert.match(fullCask, /releases\/download\/v26\.6\.4\/One-Person-Lab-Full-26\.6\.4-mac-arm64\.dmg/);
   assert.match(fullCask, /opl-release-manifest\.json/);
   assert.match(fullCask, /package_kind: app_full_first_install/);
   assert.match(fullCask, /full_first_install_allowed: true/);
@@ -146,6 +151,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
   assert.match(fullCask, /opl_packages_lifecycle_owned_by_homebrew: false/);
   assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
+  assert.match(fullCask, /depends_on formula: "opl"/);
   assert.match(fullCask, /Full assets stay outside standard updater metadata/);
 
   const stableRefresh = runTap({
@@ -158,6 +164,21 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
   const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
   assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
+
+  const revisionResult = runTap({
+    version: '26.7.20-r1',
+    updaterVersion: '26.7.2001',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.7.20-r1'),
+    write: true,
+  });
+  assert.equal(revisionResult.status, 0, revisionResult.stderr || revisionResult.stdout);
+  const revisionCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
+  assert.match(revisionCask, /version "26\.7\.2001"/);
+  assert.match(revisionCask, /releases\/download\/v26\.7\.20-r1\/One-Person-Lab-26\.7\.20-r1-mac-arm64\.dmg/);
+  assert.match(revisionCask, /display_version: 26\.7\.20-r1/);
+  assert.match(revisionCask, /updater_version: 26\.7\.2001/);
 
   const packageBundleKind = runTap({
     packageKind: 'package_bundle',

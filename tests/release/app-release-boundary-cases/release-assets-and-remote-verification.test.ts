@@ -466,3 +466,37 @@ test('remote release verifier rejects standard updater metadata that references 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
 });
+
+test('remote release verifier separates revision asset names from updater and CFBundle identity', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-revision-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.7.20-r1';
+  const updaterVersion = '26.7.2001';
+  const names = writeStandardRemoteAssets(tempRoot, version, { updaterVersion });
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version', version,
+    '--updater-version', updaterVersion,
+    '--repo', 'gaofeng21cn/one-person-lab-app',
+    '--download-dir', tempRoot,
+    '--summary-path', summaryPath,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(summary.display_version, version);
+  assert.equal(summary.updater_version, updaterVersion);
+  assert.equal(summary.standard_updater_app_bundle_trust.display_version, version);
+  assert.equal(summary.standard_updater_app_bundle_trust.updater_version, updaterVersion);
+  assert.ok(summary.verified_assets.some((asset) => asset.name === `One-Person-Lab-${version}-mac-arm64.zip`));
+});

@@ -83,6 +83,7 @@ function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: st
     'freeze-request',
     '--channel', 'stable',
     '--version', '26.7.20',
+    '--updater-version', '26.7.20',
     '--app-root', fixture.appRoot,
     '--shell-root', fixture.shellRoot,
     '--framework-root', fixture.frameworkRoot,
@@ -103,6 +104,7 @@ const legacyReleaseWorkflows = [
   'full-runtime-cache-warmup.yml',
   'opl-first-run-vm.yml',
   'release-verify-remote.yml',
+  'opl-updater-upgrade-vm.yml',
 ] as const;
 
 test('Stable is the only manual release entry and Nightly is schedule-only', () => {
@@ -127,7 +129,7 @@ test('Stable is the only manual release entry and Nightly is schedule-only', () 
   }
 });
 
-test('the reusable DAG prepares notes before build and promotes exact Standard bytes before updater readback', () => {
+test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Homebrew readback', () => {
   const jobs = parseWorkflow('_release-bundle.yml').jobs;
 
   assert.deepEqual(jobs['cold-preflight'].needs, ['freeze-inputs']);
@@ -138,8 +140,18 @@ test('the reusable DAG prepares notes before build and promotes exact Standard b
   assert.deepEqual(jobs['bind-standard'].needs, ['freeze', 'freeze-inputs', 'prepare-notes', 'standard-build', 'standard-qualification']);
   assert.deepEqual(jobs['publish-standard-nonlatest'].needs, ['bind-standard', 'freeze', 'freeze-inputs']);
   assert.deepEqual(jobs['remote-digest-verify'].needs, ['publish-standard-nonlatest', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['publish-latest'].needs, ['remote-digest-verify', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['installed-updater-readback'].needs, ['publish-latest', 'freeze', 'freeze-inputs']);
+  assert.deepEqual(jobs['updater-upgrade-qualification'].needs, ['remote-digest-verify', 'freeze', 'freeze-inputs']);
+  assert.deepEqual(jobs['publish-homebrew-standard'].needs, ['updater-upgrade-qualification', 'freeze', 'freeze-inputs']);
+  assert.deepEqual(jobs['homebrew-standard-vm'].needs, ['publish-homebrew-standard', 'freeze', 'freeze-inputs']);
+  assert.deepEqual(jobs['homebrew-standard-readback'].needs, ['homebrew-standard-vm', 'publish-homebrew-standard', 'freeze', 'freeze-inputs']);
+  assert.deepEqual(jobs['publish-latest'].needs, [
+    'remote-digest-verify',
+    'updater-upgrade-qualification',
+    'homebrew-standard-readback',
+    'freeze',
+    'freeze-inputs',
+  ]);
+  assert.equal(jobs['installed-updater-readback'], undefined);
 
   assert.match(readWorkflow('_release-bundle.yml'), /opl release freeze/);
   assert.match(readWorkflow('_release-bundle.yml'), /opl release build/);
@@ -147,6 +159,8 @@ test('the reusable DAG prepares notes before build and promotes exact Standard b
   assert.match(readWorkflow('_release-bundle.yml'), /opl release publish/);
   assert.match(readWorkflow('_release-bundle.yml'), /opl release reconcile/);
   assert.match(readWorkflow('_release-bundle.yml'), /release:notes:prepare/);
+  assert.match(readWorkflow('_release-bundle.yml'), /opl-updater-upgrade-vm\.yml/);
+  assert.match(readWorkflow('_release-bundle.yml'), /OPL_HOMEBREW_TAP_TOKEN/);
   assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /release[_ -]broker|broker[_ -]admission/i);
 });
 

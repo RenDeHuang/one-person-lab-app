@@ -19,7 +19,7 @@ test("Framework owns the live immutable Release Bundle and App remains a product
   assert.equal(control.contract_status, "active");
   assert.equal(
     control.implementation_status,
-    "cutover_pending_framework_authority_main_and_workflow_activation",
+    "bundle_authority_active_first_stable_terminal_proof_pending",
   );
   assert.deepEqual(control.framework_authority, {
     owner: "gaofeng21cn/one-person-lab",
@@ -51,6 +51,8 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     "prepared_ai_release_notes_policy",
     "installed_app_acceptance",
     "standard_updater_readback",
+    "predecessor_to_candidate_updater_qualification",
+    "homebrew_cask_publication_and_clean_vm_readback",
   ]);
   assert.ok(control.app_authority.does_not_own.includes("generic_release_bundle_schema"));
   assert.ok(control.app_authority.does_not_own.includes("generic_publisher_ledger"));
@@ -100,7 +102,11 @@ test("Standard may become Latest before additive Full and Nightly is schedule-on
   );
   assert.equal(control.publication.stable.trigger, "workflow_dispatch");
   assert.equal(control.publication.stable.lower_level_workflows, "workflow_call_only");
-  assert.equal(control.publication.stable.latest_requires.length, 9);
+  assert.deepEqual(control.publication.stable.latest_requires.slice(-3), [
+    "previous_latest_to_candidate_exact_zip_updater_upgrade",
+    "standard_homebrew_digest_bound_publication",
+    "standard_homebrew_clean_vm_install_and_readback",
+  ]);
   assert.deepEqual(control.publication.full.required_assets, [
     "One-Person-Lab-Full-<version>-mac-arm64.dmg",
     "opl-release-manifest.json",
@@ -113,6 +119,8 @@ test("Standard may become Latest before additive Full and Nightly is schedule-on
     "latest_selection",
   ]);
   assert.equal(control.publication.full.updater_metadata_allowed, false);
+  assert.equal(control.publication.ghcr.stable_critical_path, false);
+  assert.equal(control.publication.ghcr.desktop_release_bundle_asset, false);
   assert.equal(control.publication.nightly.trigger, "schedule_only");
   assert.equal(control.publication.nightly.manual_dispatch_allowed, false);
   assert.equal(control.publication.nightly.uses_same_framework_cli, true);

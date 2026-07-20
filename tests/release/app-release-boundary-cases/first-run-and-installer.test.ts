@@ -239,16 +239,19 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
       path: ".github/workflows/non-release-validation.yml",
       start: "  release-boundary:",
       end: null,
+      validation: "npm run test:release-boundary",
     },
     {
       path: ".github/workflows/_build-reusable.yml",
       start: "  release-boundary:",
       end: "\n  active-shell-tests:",
+      validation: "npm run test:release-boundary",
     },
     {
-      path: ".github/workflows/desktop-release.yml",
-      start: "  release-workflow-contract:",
-      end: "\n  release-source-gate:",
+      path: ".github/workflows/_release-bundle.yml",
+      start: "  cold-preflight:",
+      end: "\n  prepare-notes:",
+      validation: "npm run validate:release-boundary",
     },
   ];
 
@@ -257,46 +260,34 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
     const jobStart = workflow.indexOf(candidate.start);
     const jobEnd = candidate.end === null ? workflow.length : workflow.indexOf(candidate.end, jobStart);
     const job = workflow.slice(jobStart, jobEnd);
-    const install = job.indexOf("run: npm ci --ignore-scripts");
-    const validation = job.indexOf("npm run test:release-boundary");
+    const install = job.indexOf("npm ci --ignore-scripts");
+    const validation = job.indexOf(candidate.validation);
 
     assert.ok(jobStart >= 0 && jobEnd > jobStart, `missing release-boundary job in ${candidate.path}`);
     assert.ok(install >= 0 && validation > install, `${candidate.path} must install App root dependencies before validation`);
   }
 });
 
-test("release source gate installs frozen App dependencies before boundary validation", () => {
+test("Bundle cold gate installs frozen App and Framework dependencies before validation", () => {
   const workflow = fs.readFileSync(
-    path.join(appRoot, ".github/workflows/desktop-release.yml"),
+    path.join(appRoot, ".github/workflows/_release-bundle.yml"),
     "utf8",
   );
-  const jobStart = workflow.indexOf("  release-source-gate:");
-  const jobEnd = workflow.indexOf("\n  standard-build:", jobStart);
+  const jobStart = workflow.indexOf("  cold-preflight:");
+  const jobEnd = workflow.indexOf("\n  prepare-notes:", jobStart);
   const job = workflow.slice(jobStart, jobEnd);
   const setup = job.indexOf(
     "uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
   );
-  const install = job.indexOf(
-    "working-directory: artifact-app\n        run: npm ci --ignore-scripts",
-  );
-  const setupBun = job.indexOf(
-    "uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
-  );
-  const installShell = job.indexOf(
-    "working-directory: artifact-app/shells/aionui\n        run: bun install --frozen-lockfile",
-  );
-  const validation = job.indexOf("- name: Validate release source gate");
+  const install = job.indexOf("npm ci --ignore-scripts");
+  const installFramework = job.indexOf("npm --prefix framework-source ci --ignore-scripts");
+  const validation = job.indexOf("- name: Validate Bundle contracts before paid work");
 
-  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing release source gate job");
-  assert.ok(setup >= 0 && install > setup, "release source gate must install with pinned Node");
+  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing Bundle cold-preflight job");
+  assert.ok(setup >= 0 && install > setup, "Bundle cold gate must install with pinned Node");
   assert.ok(
-    setupBun > install && installShell > setupBun,
-    "release source gate must install the frozen Shell with pinned Bun",
-  );
-  assert.match(job.slice(setupBun, installShell), /bun-version: '1\.3\.14'/);
-  assert.ok(
-    validation > installShell,
-    "release source gate must install frozen App and Shell dependencies before validation",
+    installFramework > install && validation > installFramework,
+    "Bundle cold gate must install frozen App and Framework dependencies before validation",
   );
 });
 

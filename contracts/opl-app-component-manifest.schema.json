@@ -7,6 +7,8 @@
     "surface_kind",
     "component_id",
     "version",
+    "release_version",
+    "updater_version",
     "source_commit",
     "release_tag",
     "release_url",
@@ -18,9 +20,17 @@
   "properties": {
     "surface_kind": { "const": "opl_app_component_manifest.v1" },
     "component_id": { "const": "opl-app" },
-    "version": { "type": "string", "pattern": "^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}$" },
+    "version": { "$ref": "#/$defs/release_version" },
+    "release_version": { "$ref": "#/$defs/release_version" },
+    "updater_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
     "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "release_tag": { "type": "string", "pattern": "^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}$" },
+    "release_tag": {
+      "type": "string",
+      "pattern": "^v[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?))?$"
+    },
     "release_url": { "type": "string", "minLength": 1 },
     "primary_artifact": { "$ref": "#/$defs/artifact" },
     "artifacts": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/artifact" } },
@@ -28,6 +38,10 @@
     "component_manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
   },
   "$defs": {
+    "release_version": {
+      "type": "string",
+      "pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?))?$"
+    },
     "artifact": {
       "type": "object",
       "required": ["name", "ref", "digest", "size", "content_type"],

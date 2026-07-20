@@ -8,9 +8,44 @@
     "format": "One Person Lab v<version>",
     "stable_example": "One Person Lab v26.6.5",
     "nightly_example": "One Person Lab v26.6.5-nightly",
-    "stable_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$",
+    "stable_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9])?$",
     "nightly_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$",
     "tag_pattern": "v<version>",
+    "stable_revision": {
+      "enabled": true,
+      "suffix_pattern": "-r<revision>",
+      "first_revision": 1,
+      "maximum_revision": 9,
+      "allocation": "explicit_base_plus_highest_existing_remote_revision_plus_one",
+      "base_tag_absent_selects_base": true,
+      "base_tag_present_selects_next_revision": true,
+      "independent_immutable_release_per_revision": true,
+      "wall_clock_role": "reject_future_base_only"
+    },
+    "machine_version": {
+      "legacy_stable_last_display_version": "26.7.20",
+      "legacy_versions_keep_recorded_machine_identity": true,
+      "stable_patch_formula": "day_times_100_plus_revision",
+      "stable_base_revision": 0,
+      "nightly_patch_offset": 90,
+      "comparison": "semver_core_decimal_integer_segments",
+      "zero_padding_or_string_comparison_allowed": false,
+      "display_identity_surfaces": [
+        "github_release_tag",
+        "github_release_name",
+        "asset_names",
+        "renderer_ui"
+      ],
+      "updater_identity_surfaces": [
+        "electron_package_version",
+        "app_get_version",
+        "cfbundle_versions",
+        "latest_arm64_mac_yml",
+        "manual_update_comparison",
+        "homebrew_cask_version"
+      ],
+      "bundle_must_bind_both_identities": true
+    },
     "calendar_guard": {
       "time_zone": "Asia/Shanghai",
       "future_dated_versions_allowed": false,
@@ -25,7 +60,7 @@
         "stable_promotion"
       ]
     },
-    "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
+    "rule": "GitHub Release names, tags, assets, and UI use the display version. Updater, app package metadata, CFBundle versions, and Homebrew ordering use the separately bound machine version; Stable revisions are independent immutable releases."
   },
   "release_profiles": {
     "default": "stable",
@@ -101,7 +136,7 @@
   "release_bundle_control_plane": {
     "schema": "opl_app_release_bundle_control_plane.v1",
     "contract_status": "active",
-    "implementation_status": "cutover_pending_framework_authority_main_and_workflow_activation",
+    "implementation_status": "bundle_authority_active_first_stable_terminal_proof_pending",
     "canonical_document": "docs/delivery/release/immutable-release-bundle.md",
     "framework_authority": {
       "owner": "gaofeng21cn/one-person-lab",
@@ -141,7 +176,9 @@
         "public_asset_policy",
         "prepared_ai_release_notes_policy",
         "installed_app_acceptance",
-        "standard_updater_readback"
+        "standard_updater_readback",
+        "predecessor_to_candidate_updater_qualification",
+        "homebrew_cask_publication_and_clean_vm_readback"
       ],
       "does_not_own": [
         "generic_release_bundle_schema",
@@ -188,7 +225,7 @@
       },
       "framework_catalog_or_manifest_digest_required": true,
       "canonical_digest_covers": [
-        "release_channel_and_version",
+      "release_channel_display_version_and_updater_version",
         "app_shell_framework_refs",
         "package_binding",
         "prepared_ai_notes_and_evidence",
@@ -232,8 +269,11 @@
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
           "standard-local-authorization-policy.json",
-          "standard_exact_byte_qualification",
-          "remote_digest_readback"
+        "standard_exact_byte_qualification",
+        "remote_digest_readback",
+        "previous_latest_to_candidate_exact_zip_updater_upgrade",
+        "standard_homebrew_digest_bound_publication",
+        "standard_homebrew_clean_vm_install_and_readback"
         ]
       },
       "nightly": {
@@ -257,8 +297,15 @@
           "prepared_ai_release_notes",
           "latest_selection"
         ],
-        "updater_metadata_allowed": false
-      }
+      "updater_metadata_allowed": false
+    },
+    "ghcr": {
+      "stable_critical_path": false,
+      "desktop_release_bundle_asset": false,
+      "owner": "one-person-lab-app_webui_distribution",
+      "disposition": "independent_continuous_server_image_publication_and_readback",
+      "rule": "GHCR WebUI publication is not silently omitted: it is explicitly outside the desktop Stable Latest gate and retains its independent App-owned publication and runtime readback."
+    }
     },
     "publisher_idempotency": {
       "missing_asset": "upload",
@@ -1165,34 +1212,41 @@
     "tap_update_policy": {
       "discovery_model": "user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask",
       "download_source": "app_owned_github_release_asset_url",
-      "default_remote_write_path": "tap_repo_github_actions_self_sync_direct_commit_after_tap_check",
-      "default_workflow_repo": "gaofeng21cn/homebrew-one-person-lab",
-      "default_workflow": ".github/workflows/sync-from-app-releases.yml",
-      "tap_sync_script": "scripts/sync-cask-from-release.mjs",
-      "app_release_promotion_workflow": ".github/workflows/desktop-release-promote.yml",
-      "tap_owned_stable_distribution_workflow": ".github/workflows/stable-standard-distribution.yml",
-      "app_release_direct_workflow": null,
-      "app_release_direct_token": null,
+      "default_remote_write_path": "release_bundle_protected_job_digest_bound_direct_commit",
+      "default_workflow_repo": "gaofeng21cn/one-person-lab-app",
+      "default_workflow": ".github/workflows/_release-bundle.yml",
+      "tap_sync_script": null,
+      "app_release_promotion_workflow": ".github/workflows/release-stable.yml",
+      "tap_owned_stable_distribution_workflow": null,
+      "app_release_direct_workflow": ".github/workflows/_release-bundle.yml",
+      "app_release_direct_token": "release-stable.OPL_HOMEBREW_TAP_TOKEN",
       "app_release_pull_request_allowed": false,
-      "app_release_workflow_write_mode": "read_only_receipt_validation_only",
-      "stable_release_workflow_write_mode": "isolated_broker_executes_tap_owned_atomic_distribution_then_app_saga_validates_receipt",
-      "direct_commit_conflict_policy": "App never commits to the tap; the tap-owned workflow serializes and atomically pushes the OPL Formula, App casks, and its immutable receipt tag",
+      "app_release_workflow_write_mode": "protected_environment_single_attempt_digest_bound_direct_commit",
+      "stable_release_workflow_write_mode": "release_bundle_standard_before_latest_and_full_after_additive_publish",
+      "direct_commit_conflict_policy": "Push once, then compare exact local and remote tap commits; an unknown or mismatched result fails closed without retry, rerun, or redispatch",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
-        "mode": "tap_repo_scheduled_self_sync_to_nightly_cask",
+        "mode": "not_part_of_desktop_stable_homebrew_critical_path",
         "may_update_stable": false
       },
       "stable": {
-        "mode": "isolated_broker_executes_tap_owned_atomic_distribution_then_desktop_promote_validates_receipt",
+        "mode": "release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest",
         "may_consume_nightly_directly": false
       },
       "full": {
-        "mode": "stable_full_first_install_cask_after_full_release_gates",
+        "mode": "release_bundle_publishes_full_cask_then_clean_vm_readback_after_full_asset_publish",
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
         "manifest": "opl-release-manifest.json",
         "asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
-        "standard_updater_visible": false
+        "standard_updater_visible": false,
+        "standard_assets_notes_updater_or_latest_may_change": false
+      },
+      "version_identity": {
+        "cask_version": "updater_version",
+        "release_tag_and_asset_url": "display_version",
+        "formula_dependency_required": "opl",
+        "receipt_binds": ["display_version", "updater_version", "bundle_digest", "artifact_sha256", "tap_commit"]
       },
       "required_manifest_fields": [
         "channel",

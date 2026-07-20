@@ -8,11 +8,11 @@ import test from "node:test";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflow = fs.readFileSync(
-  path.join(appRoot, ".github", "workflows", "desktop-release.yml"),
+  path.join(appRoot, ".github", "workflows", "_release-bundle.yml"),
   "utf8",
 );
-const readinessSummarizer = fs.readFileSync(
-  path.join(appRoot, "scripts", "summarize-release-readiness.ts"),
+const stableWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "release-stable.yml"),
   "utf8",
 );
 const fullWorkflow = fs.readFileSync(
@@ -32,18 +32,11 @@ const reusableBuildWorkflow = fs.readFileSync(
   "utf8",
 );
 
-test("release attempt telemetry exposes the 90-minute circuit breaker and bounded monitor", () => {
-  assert.match(workflow, /name: Summarize recent release attempts/);
-  assert.doesNotMatch(
-    workflow,
-    /name: Summarize recent release attempts\n\s+continue-on-error: true/,
-  );
-  assert.match(workflow, /attempts\.length >= 3 && !process\.env\.GATE_REUSE_PLAN_REF/);
-  assert.match(workflow, /Generate release:gate-reuse-plan for the same cohort/);
-  assert.match(workflow, /at 90:00 the circuit breaker forbids a new release train/);
-  assert.match(workflow, /controller uses a bounded absolute watch deadline and read-only reconcile/);
-  assert.doesNotMatch(workflow, /gh run watch --interval 60/);
-  assert.doesNotMatch(workflow, /sleep 25/);
+test("live Bundle is one-shot and serialized without a monitor-owned retry loop", () => {
+  assert.match(workflow, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
+  assert.match(stableWorkflow, /group: opl-stable-release-bundle-\$\{\{ inputs\.version \}\}/);
+  assert.match(stableWorkflow, /cancel-in-progress: false/);
+  assert.doesNotMatch(workflow, /gh run watch|gh run rerun|gh run cancel/);
 });
 
 test("gate reuse planning rejects a stale current preflight from another cohort", () => {
@@ -132,23 +125,18 @@ test("gate reuse planning rejects a stale current preflight from another cohort"
   assert.equal(plan.must_run_count, 11);
 });
 
-test("source readiness defers all Stable Homebrew mutation and VM gates to promotion", () => {
-  assert.match(
-    workflow,
-    /name: Build final release readiness summary[\s\S]*--include-full-package false[\s\S]*--publish-docker-webui false/,
-  );
-  assert.match(readinessSummarizer, /const stableHomebrewRequired = false/);
-  assert.match(workflow, /promotion_saga_deferred:[\s\S]*source_run_mutates_tap: false/);
-  assert.doesNotMatch(workflow, /\n  stable-homebrew-tap-update:/);
-  assert.doesNotMatch(workflow, /\n  full-homebrew-tap-update:/);
-  assert.doesNotMatch(workflow, /\n  homebrew-standard-first-run-vm-smoke:/);
+test("Standard Homebrew publication and clean-VM readback are hard gates before Latest", () => {
+  assert.match(workflow, /publish-homebrew-standard:[\s\S]*needs: \[updater-upgrade-qualification, freeze, freeze-inputs\]/);
+  assert.match(workflow, /homebrew-standard-vm:[\s\S]*needs: \[publish-homebrew-standard, freeze, freeze-inputs\]/);
+  assert.match(workflow, /homebrew-standard-readback:[\s\S]*needs: \[homebrew-standard-vm, publish-homebrew-standard, freeze, freeze-inputs\]/);
+  assert.match(workflow, /publish-latest:[\s\S]*homebrew-standard-readback\.result == 'success'/);
 });
 
 test("Full DMG artifacts carry the cohort manifest required by the VM gate", () => {
   assert.equal(
     (fullWorkflow.match(/upload_full_package_artifact:[\s\S]*?default: false/g) ?? []).length,
-    2,
-    "large Full package uploads should be opt-in for dispatch and reusable calls",
+    1,
+    "large Full package uploads should be opt-in for the reusable build call",
   );
   assert.match(
     fullWorkflow,
@@ -185,14 +173,14 @@ test("Standard DMG cohort binds the Framework used by first-run qualification", 
   assert.match(reusableBuildWorkflow, /--framework-sha "\$\{\{ inputs\.framework_ref \}\}"/);
   assert.match(
     workflow,
-    /standard-build:[\s\S]*framework_ref: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}/,
+    /standard-build:[\s\S]*framework_ref: \$\{\{ needs\.freeze-inputs\.outputs\.framework_sha \}\}/,
   );
 });
 
-test("Full assembly waits for the Standard build gates instead of wasting a failed cohort", () => {
+test("Full assembly starts only after the Standard release becomes Latest", () => {
   assert.match(
     workflow,
-    /full-first-install:[\s\S]*needs:[\s\S]*- standard-build[\s\S]*needs\.standard-build\.result == 'success'/,
+    /full-build:[\s\S]*needs: \[publish-latest, freeze, freeze-inputs\]/,
   );
 });
 
@@ -246,16 +234,8 @@ test("Full build verifies managed carrier and Home readiness before expensive pa
   assert.ok(carrierGate < packageBuild, "managed carrier gate must run before Full package build");
 });
 
-test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
-  assert.match(workflow, /OPL_FLOW_SHA: \$\{\{ needs\.release-source-gate\.outputs\.opl_flow_sha \}\}/);
-  assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
-  assert.match(workflow, /write_publish_summary "started"/);
-  assert.match(workflow, /webui_smoke_or_publish_failed/);
-  assert.match(workflow, /docker compose -p "\$compose_project" -f "\$compose_file" down/);
-  assert.match(
-    workflow,
-    /sudo rm -rf "\$linux_generated_dir\/home\/OnePersonLab\/data" "\$linux_generated_dir\/home\/OnePersonLab\/projects"/,
-  );
+test("desktop Stable leaves WebUI GHCR independent while Docker evidence still prunes seeded data", () => {
+  assert.doesNotMatch(workflow, /docker build|docker push|oras tag|ghcr\.io/);
   assert.match(
     dockerCleanLinuxWorkflow,
     /name: Stop Docker\/WebUI smoke container and prune generated volumes[\s\S]*sudo rm -rf[\s\S]*OnePersonLab\/data[\s\S]*OnePersonLab\/projects[\s\S]*name: Upload clean Linux VM Docker\/WebUI evidence/,

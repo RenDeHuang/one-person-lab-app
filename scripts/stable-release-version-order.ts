@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { assertReleaseVersionNotFuture } from './release-version.ts';
+import {
+  assertReleaseVersionNotFuture,
+  matchesCanonicalReleaseVersion,
+  releaseCalendarParts,
+  stableReleaseRevision,
+} from './release-version.ts';
 
 export type PublishedLatestRelease = {
   tagName: string;
@@ -8,17 +13,16 @@ export type PublishedLatestRelease = {
   isPrerelease: boolean;
 };
 
-function stableVersionTuple(value: string): [number, number, number] {
-  const match = value.trim().match(/^v?(\d{2})\.(\d{1,2})\.(\d{1,2})$/);
-  if (!match) throw new Error(`Stable version must use YY.M.D, got ${value || '<empty>'}.`);
-  const tuple: [number, number, number] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const date = new Date(Date.UTC(2000 + tuple[0], tuple[1] - 1, tuple[2]));
-  if (
-    date.getUTCFullYear() !== 2000 + tuple[0] ||
-    date.getUTCMonth() !== tuple[1] - 1 ||
-    date.getUTCDate() !== tuple[2]
-  ) throw new Error(`Stable version is not a valid calendar date: ${value}.`);
-  return tuple;
+function stableVersionTuple(value: string): [number, number, number, number] {
+  const normalized = value.trim().replace(/^v/, '');
+  if (!matchesCanonicalReleaseVersion('stable', normalized)) {
+    throw new Error(`Stable version must use YY.M.D or YY.M.D-r1 through r9, got ${value || '<empty>'}.`);
+  }
+  const calendar = releaseCalendarParts('stable', normalized);
+  if (!calendar) {
+    throw new Error(`Stable version is not a valid calendar date: ${value}.`);
+  }
+  return [calendar.year - 2000, calendar.month, calendar.day, stableReleaseRevision(normalized)];
 }
 
 export function compareStableReleaseVersions(left: string, right: string): number {
@@ -61,7 +65,7 @@ function cli(): void {
   const target = targetIndex >= 0 ? args[targetIndex + 1] : undefined;
   const latestJsonPath = latestJsonIndex >= 0 ? args[latestJsonIndex + 1] : undefined;
   if (!target || !latestJsonPath) {
-    throw new Error('Usage: stable-release-version-order.ts --target <YY.M.D> --latest-json <path>');
+    throw new Error('Usage: stable-release-version-order.ts --target <YY.M.D[-rN]> --latest-json <path>');
   }
   const latest = JSON.parse(fs.readFileSync(latestJsonPath, 'utf8')) as PublishedLatestRelease;
   assertPromotionTargetIsNewerThanLatest(target, latest);

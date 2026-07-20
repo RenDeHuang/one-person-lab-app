@@ -32,21 +32,20 @@ test('same Full add-on name with different bytes requires a new version', () => 
 });
 
 test('Full add-on workflow cannot overwrite release state or existing assets', () => {
-  const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/desktop-release-full-addon.yml'), 'utf8');
+  const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/_release-bundle.yml'), 'utf8');
   const publisher = fs.readFileSync(path.join(process.cwd(), 'scripts/publish-full-addon.ts'), 'utf8');
-  const source = `${workflow}\n${publisher}`;
+  const fullStart = workflow.indexOf('  publish-full:');
+  assert.ok(fullStart >= 0);
+  const full = workflow.slice(fullStart);
+  const source = `${full}\n${publisher}`;
 
-  assert.match(workflow, /release_artifact_run_id: \$\{\{ github\.run_id \}\}/);
-  assert.match(workflow, /Bind add-on inputs to the immutable Standard distribution receipt/);
-  assert.match(workflow, /--kind distribution --receipt "\$receipt"/);
-  assert.match(workflow, /--release-set-manifest-digest "\$\{\{ inputs\.release_set_manifest_digest \}\}"/);
-  assert.match(publisher, /remainingFullAddonMutationBudgetMs\(values\['deadline-validation'\]!, deadlineExpected\)/);
-  assert.match(
-    publisher,
-    /gh\(\['release', 'upload', tag, asset\.path, '--repo', values\.repo!\], Math\.max\(1, Math\.min\(15 \* 60 \* 1000, remainingMs\)\)\)/,
-  );
+  assert.match(workflow, /full-build:[\s\S]*needs: \[publish-latest, freeze, freeze-inputs\]/);
+  assert.match(workflow, /full-qualification:[\s\S]*release_artifact_run_id: \$\{\{ github\.run_id \}\}/);
+  assert.match(full, /Append exact Full bytes only/);
+  assert.match(full, /framework-source\/bin\/opl release publish/);
+  assert.match(full, /framework-source\/bin\/opl release reconcile/);
   assert.doesNotMatch(source, /--clobber/);
   assert.doesNotMatch(source, /release', 'edit|release edit/);
-  assert.doesNotMatch(source, /make_latest|latest-arm64-mac\.yml|latest-mac\.yml/);
+  assert.doesNotMatch(full, /make_latest|github-activate-latest|latest-arm64-mac\.yml|latest-mac\.yml/);
   assert.doesNotMatch(source, /release notes|notes-file|generate-notes/);
 });

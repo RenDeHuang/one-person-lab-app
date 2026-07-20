@@ -4,7 +4,11 @@ on:
   workflow_call:
     inputs:
       opl_version:
-        description: OPL version to publish, for example 26.5.15
+        description: OPL display version used by the release tag and Full asset names
+        required: true
+        type: string
+      opl_updater_version:
+        description: Monotonic machine SemVer stamped into the Full App bundle
         required: true
         type: string
       framework_ref:
@@ -438,6 +442,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
+          echo "OPL_UPDATER_VERSION=${{ inputs.opl_updater_version }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_MAS_REF=${{ steps.managed-package-refs.outputs.mas_ref }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}" >> "$GITHUB_ENV"
@@ -463,7 +468,7 @@ jobs:
 
       - name: Validate canonical Stable version
         working-directory: one-person-lab-app
-        run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION"
+        run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION" --updater-version "$OPL_UPDATER_VERSION"
 
       - name: Verify frozen OfficeCLI source
         shell: bash
@@ -950,6 +955,7 @@ jobs:
         shell: bash
         env:
           OPL_RELEASE_VERSION: ${{ env.OPL_RELEASE_VERSION }}
+          OPL_UPDATER_VERSION: ${{ env.OPL_UPDATER_VERSION }}
           APP_ID: ${{ secrets.APP_ID }}
           appleId: ${{ secrets.APPLE_ID }}
           appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -998,6 +1004,7 @@ jobs:
           FULL_BUILD_CMD=(
             npm run release:full --
             --version "$OPL_RELEASE_VERSION"
+            --updater-version "$OPL_UPDATER_VERSION"
             --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
             --runtime-cache-mode readwrite
           )

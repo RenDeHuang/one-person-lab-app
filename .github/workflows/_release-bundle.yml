@@ -37,7 +37,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.freeze.outputs.version }}
+      updater_version: ${{ steps.freeze.outputs.updater_version }}
       tag: ${{ steps.freeze.outputs.tag }}
+      previous_latest_tag: ${{ steps.freeze.outputs.previous_latest_tag }}
+      previous_latest_display_version: ${{ steps.freeze.outputs.previous_latest_display_version }}
+      previous_latest_updater_version: ${{ steps.freeze.outputs.previous_latest_updater_version }}
+      previous_latest_dmg_url: ${{ steps.freeze.outputs.previous_latest_dmg_url }}
+      previous_latest_dmg_sha256: ${{ steps.freeze.outputs.previous_latest_dmg_sha256 }}
+      previous_latest_dmg_size: ${{ steps.freeze.outputs.previous_latest_dmg_size }}
       app_sha: ${{ steps.freeze.outputs.app_sha }}
       shell_sha: ${{ steps.freeze.outputs.shell_sha }}
       framework_sha: ${{ steps.freeze.outputs.framework_sha }}
@@ -79,6 +86,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Release Bundle runs are one-shot and cannot be rerun."; exit 1; }
           case "$CHANNEL" in stable|nightly) ;; *) echo "::error::channel must be stable or nightly"; exit 1 ;; esac
           app_sha="$(git -C app-source rev-parse HEAD)"
           shell_sha="$(git -C shell-source rev-parse HEAD)"
@@ -105,7 +113,42 @@ jobs:
           NODE
             )"
           fi
-          node --experimental-strip-types app-source/scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json
+          version_json="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
+          updater_version="$(jq -er '.updater_version' <<<"$version_json")"
+          previous_latest_tag=""
+          previous_latest_display_version=""
+          previous_latest_updater_version=""
+          previous_latest_dmg_url=""
+          previous_latest_dmg_sha256=""
+          previous_latest_dmg_size=""
+          if [ "$CHANNEL" = stable ]; then
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" >/dev/null 2>&1; then
+              echo "::error::Stable v$version already exists; immutable releases require a new revision."
+              exit 1
+            fi
+            if git -C app-source ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then
+              echo "::error::Stable tag v$version already exists without an admissible new Bundle."
+              exit 1
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/latest" > previous-latest.json
+            previous_latest_tag="$(jq -er '.tag_name' previous-latest.json)"
+            previous_latest_display_version="${previous_latest_tag#v}"
+            previous_json="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel stable --version "$previous_latest_display_version" --json)"
+            previous_latest_updater_version="$(jq -er '.updater_version' <<<"$previous_json")"
+            TARGET="$updater_version" CURRENT="$previous_latest_updater_version" node --experimental-strip-types --input-type=module <<'NODE'
+          import { compareUpdaterMachineVersions } from './app-source/scripts/release-version.ts';
+          if (compareUpdaterMachineVersions(process.env.TARGET, process.env.CURRENT) <= 0) {
+            throw new Error(`Stable updater version ${process.env.TARGET} is not newer than current Latest ${process.env.CURRENT}.`);
+          }
+          NODE
+            previous_dmg_name="One-Person-Lab-${previous_latest_display_version}-mac-arm64.dmg"
+            previous_latest_dmg_url="$(jq -er --arg name "$previous_dmg_name" '.assets[] | select(.name == $name) | .browser_download_url' previous-latest.json)"
+            previous_latest_dmg_digest="$(jq -er --arg name "$previous_dmg_name" '.assets[] | select(.name == $name) | .digest' previous-latest.json)"
+            [[ "$previous_latest_dmg_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Current Latest DMG has no authoritative SHA-256 digest."; exit 1; }
+            previous_latest_dmg_sha256="${previous_latest_dmg_digest#sha256:}"
+            previous_latest_dmg_size="$(jq -er --arg name "$previous_dmg_name" '.assets[] | select(.name == $name) | .size' previous-latest.json)"
+            test "$previous_latest_dmg_size" -gt 0
+          fi
           release_set_manifest="$(find framework-source/release/cohorts -mindepth 2 -maxdepth 2 -type f -name release-set.json -print | sort -V | tail -1)"
           test -n "$release_set_manifest" || { echo "::error::Framework has no frozen release/cohorts/*/release-set.json."; exit 1; }
           release_set_manifest="${release_set_manifest#framework-source/}"
@@ -113,7 +156,14 @@ jobs:
           [[ "$opl_flow_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Framework catalog has no exact opl-flow owner SHA."; exit 1; }
           {
             echo "version=$version"
+            echo "updater_version=$updater_version"
             echo "tag=v$version"
+            echo "previous_latest_tag=$previous_latest_tag"
+            echo "previous_latest_display_version=$previous_latest_display_version"
+            echo "previous_latest_updater_version=$previous_latest_updater_version"
+            echo "previous_latest_dmg_url=$previous_latest_dmg_url"
+            echo "previous_latest_dmg_sha256=$previous_latest_dmg_sha256"
+            echo "previous_latest_dmg_size=$previous_latest_dmg_size"
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
@@ -275,6 +325,7 @@ jobs:
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts freeze-request \
             --channel '${{ inputs.channel }}' \
             --version '${{ needs.freeze-inputs.outputs.version }}' \
+            --updater-version '${{ needs.freeze-inputs.outputs.updater_version }}' \
             --app-root app-source \
             --shell-root shell-source \
             --framework-root framework-source \
@@ -318,6 +369,7 @@ jobs:
       framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
       opl_flow_ref: ${{ needs.freeze-inputs.outputs.opl_flow_sha }}
       opl_release_version: ${{ needs.freeze-inputs.outputs.version }}
+      opl_updater_version: ${{ needs.freeze-inputs.outputs.updater_version }}
       stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
       require_macos_gatekeeper: true
@@ -388,6 +440,7 @@ jobs:
       - name: Complete and bind the closed Standard asset set
         env:
           VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          UPDATER_VERSION: ${{ needs.freeze-inputs.outputs.updater_version }}
           APP_SHA: ${{ needs.freeze-inputs.outputs.app_sha }}
           CHANNEL: ${{ inputs.channel }}
           BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
@@ -395,6 +448,37 @@ jobs:
         run: |
           set -euo pipefail
           rm -f standard-assets/latest-mac.yml standard-assets/standard-gatekeeper-launch-policy.json
+          VERSION="$VERSION" UPDATER_VERSION="$UPDATER_VERSION" python3 <<'PY'
+          import pathlib
+          import plistlib
+          import re
+          import tempfile
+          import zipfile
+
+          import os
+
+          root = pathlib.Path('standard-assets')
+          display = os.environ['VERSION']
+          updater = os.environ['UPDATER_VERSION']
+          metadata = (root / 'latest-arm64-mac.yml').read_text(encoding='utf-8')
+          if not re.search(rf'^version:\s*["\']?{re.escape(updater)}["\']?\s*$', metadata, re.MULTILINE):
+              raise SystemExit(f'latest-arm64-mac.yml does not declare machine version {updater}')
+          zip_path = root / f'One-Person-Lab-{display}-mac-arm64.zip'
+          with tempfile.TemporaryDirectory(prefix='opl-standard-identity-') as temp:
+              with zipfile.ZipFile(zip_path) as archive:
+                  archive.extractall(temp)
+              plist_paths = list(pathlib.Path(temp).glob('*.app/Contents/Info.plist'))
+              if len(plist_paths) != 1:
+                  raise SystemExit(f'expected one App Info.plist in {zip_path}, found {len(plist_paths)}')
+              with plist_paths[0].open('rb') as handle:
+                  info = plistlib.load(handle)
+              observed = {
+                  'CFBundleShortVersionString': str(info.get('CFBundleShortVersionString', '')),
+                  'CFBundleVersion': str(info.get('CFBundleVersion', '')),
+              }
+              if any(value != updater for value in observed.values()):
+                  raise SystemExit(f'candidate App machine version mismatch: expected {updater}, got {observed}')
+          PY
           VERSION="$VERSION" CHANNEL="$CHANNEL" node --input-type=module <<'NODE'
           import crypto from 'node:crypto';
           import fs from 'node:fs';
@@ -419,15 +503,33 @@ jobs:
           });
           fs.writeFileSync('component-release.json', `${JSON.stringify({
             tagName: `v${version}`,
+            updaterVersion: process.env.UPDATER_VERSION,
             isPrerelease: process.env.CHANNEL === 'nightly',
             url: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/tag/v${version}`,
             assets,
           }, null, 2)}\n`);
           NODE
           node --experimental-strip-types app-source/scripts/write-opl-app-component-manifest.ts \
-            --version "$VERSION" --source-commit "$APP_SHA" \
+            --version "$VERSION" --updater-version "$UPDATER_VERSION" --source-commit "$APP_SHA" \
             --release-json component-release.json \
             --output standard-assets/opl-app-component-manifest.json
+          VERSION="$VERSION" UPDATER_VERSION="$UPDATER_VERSION" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const digest = (name) => `sha256:${crypto.createHash('sha256').update(fs.readFileSync(path.join('standard-assets', name))).digest('hex')}`;
+          const display = process.env.VERSION;
+          const receipt = {
+            schema: 'opl_standard_release_identity_receipt.v1',
+            status: 'passed',
+            release_version: display,
+            updater_version: process.env.UPDATER_VERSION,
+            updater_metadata: { name: 'latest-arm64-mac.yml', sha256: digest('latest-arm64-mac.yml') },
+            updater_zip: { name: `One-Person-Lab-${display}-mac-arm64.zip`, sha256: digest(`One-Person-Lab-${display}-mac-arm64.zip`) },
+            component_manifest: { name: 'opl-app-component-manifest.json', sha256: digest('opl-app-component-manifest.json') },
+          };
+          fs.writeFileSync('standard-identity-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --bundle bundle/release-bundle.json --track standard --outcome complete \
@@ -451,6 +553,7 @@ jobs:
           path: |
             standard-assets
             standard-qualification-receipt.json
+            standard-identity-receipt.json
             standard-build-result.json
             standard-verify-result.json
           if-no-files-found: error
@@ -612,13 +715,217 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  updater-upgrade-qualification:
+    if: ${{ inputs.channel == 'stable' }}
+    needs: [remote-digest-verify, freeze, freeze-inputs]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-updater-upgrade-vm.yml
+    with:
+      candidate_artifact_name: opl-release-bundle-standard-${{ github.run_id }}
+      candidate_artifact_run_id: ${{ github.run_id }}
+      baseline_dmg_url: ${{ needs.freeze-inputs.outputs.previous_latest_dmg_url }}
+      baseline_dmg_sha256: ${{ needs.freeze-inputs.outputs.previous_latest_dmg_sha256 }}
+      baseline_display_version: ${{ needs.freeze-inputs.outputs.previous_latest_display_version }}
+      baseline_updater_version: ${{ needs.freeze-inputs.outputs.previous_latest_updater_version }}
+      candidate_display_version: ${{ needs.freeze-inputs.outputs.version }}
+      candidate_updater_version: ${{ needs.freeze-inputs.outputs.updater_version }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+    secrets: inherit
+
+  publish-homebrew-standard:
+    if: ${{ inputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    needs: [updater-upgrade-qualification, freeze, freeze-inputs]
+    steps:
+      - name: Require protected Homebrew publication credential
+        env:
+          TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        run: test -n "$TAP_TOKEN" || { echo "::error::OPL_HOMEBREW_TAP_TOKEN is missing from release-stable."; exit 1; }
+
+      - name: Checkout frozen App adapter
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          path: app-source
+
+      - name: Checkout canonical Homebrew tap
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/homebrew-one-person-lab
+          ref: main
+          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          path: tap-source
+          fetch-depth: 0
+
+      - name: Download bound Standard bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ env.OPL_STANDARD_BOUND_ARTIFACT }}
+          path: bound
+
+      - name: Publish one digest-bound Standard cask commit
+        env:
+          VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          UPDATER_VERSION: ${{ needs.freeze-inputs.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="bound/standard-assets/One-Person-Lab-${VERSION}-mac-arm64.dmg"
+          test -s "$dmg"
+          dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+          release_base="https://github.com/$GITHUB_REPOSITORY/releases/download/v${VERSION}"
+          node --experimental-strip-types app-source/scripts/update-homebrew-tap.ts \
+            --channel stable \
+            --package-kind app_standard \
+            --version "$VERSION" \
+            --updater-version "$UPDATER_VERSION" \
+            --tap-root tap-source \
+            --cask Casks/one-person-lab.rb \
+            --manifest-url "$release_base/opl-app-component-manifest.json" \
+            --checksum-sha256 "$dmg_sha" \
+            --download-url "$release_base/One-Person-Lab-${VERSION}-mac-arm64.dmg" \
+            --remote-write-mode direct_commit \
+            --summary-path homebrew-standard-plan.json \
+            --write > /dev/null
+          git -C tap-source diff --check
+          git -C tap-source config user.name github-actions[bot]
+          git -C tap-source config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if ! git -C tap-source diff --quiet -- Casks/one-person-lab.rb; then
+            git -C tap-source add Casks/one-person-lab.rb
+            git -C tap-source commit -m "chore(cask): publish One Person Lab v${VERSION}"
+            set +e
+            push_output="$(git -C tap-source push origin HEAD:main 2>&1)"
+            push_status="$?"
+            set -e
+          else
+            push_output="idempotent: cask bytes already present"
+            push_status=0
+          fi
+          tap_commit="$(git -C tap-source rev-parse HEAD)"
+          remote_commit="$(git -C tap-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          if [ "$remote_commit" != "$tap_commit" ]; then
+            echo "$push_output" >&2
+            echo "::error::Homebrew Standard push outcome is not exact; no retry was attempted (status=$push_status local=$tap_commit remote=$remote_commit)."
+            exit 1
+          fi
+          cask_sha="$(git -C tap-source show "$tap_commit:Casks/one-person-lab.rb" | shasum -a 256 | awk '{print $1}')"
+          VERSION="$VERSION" UPDATER_VERSION="$UPDATER_VERSION" BUNDLE_DIGEST="$BUNDLE_DIGEST" \
+          TAP_COMMIT="$tap_commit" CASK_SHA="$cask_sha" DMG_SHA="$dmg_sha" RELEASE_BASE="$release_base" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const version = process.env.VERSION;
+          fs.writeFileSync('homebrew-standard-publication-receipt.json', `${JSON.stringify({
+            schema: 'opl_bundle_homebrew_publication_receipt.v1',
+            status: 'passed',
+            track: 'standard',
+            bundle_digest: process.env.BUNDLE_DIGEST,
+            release_version: version,
+            updater_version: process.env.UPDATER_VERSION,
+            tap_repository: 'gaofeng21cn/homebrew-one-person-lab',
+            tap_commit: process.env.TAP_COMMIT,
+            cask: { path: 'Casks/one-person-lab.rb', sha256: `sha256:${process.env.CASK_SHA}` },
+            artifact: {
+              name: `One-Person-Lab-${version}-mac-arm64.dmg`,
+              sha256: `sha256:${process.env.DMG_SHA}`,
+              url: `${process.env.RELEASE_BASE}/One-Person-Lab-${version}-mac-arm64.dmg`,
+            },
+            component_manifest_url: `${process.env.RELEASE_BASE}/opl-app-component-manifest.json`,
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload Standard Homebrew publication receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-homebrew-standard-${{ github.run_id }}
+          path: |
+            homebrew-standard-plan.json
+            homebrew-standard-publication-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  homebrew-standard-vm:
+    if: ${{ inputs.channel == 'stable' }}
+    needs: [publish-homebrew-standard, freeze, freeze-inputs]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: ${{ needs.freeze-inputs.outputs.tag }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      package_profile: homebrew-standard
+      diagnostic_scope: release_gate
+    secrets: inherit
+
+  homebrew-standard-readback:
+    if: ${{ inputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    needs: [homebrew-standard-vm, publish-homebrew-standard, freeze, freeze-inputs]
+    steps:
+      - name: Download Standard Homebrew publication receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-bundle-homebrew-standard-${{ github.run_id }}
+          path: homebrew-publication
+      - name: Download Standard Homebrew clean-VM evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
+          path: homebrew-vm
+      - name: Bind public cask and installed-App readback
+        env:
+          VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          UPDATER_VERSION: ${{ needs.freeze-inputs.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        run: |
+          set -euo pipefail
+          publication="$(find homebrew-publication -name homebrew-standard-publication-receipt.json -type f -print -quit)"
+          vm="$(find homebrew-vm -name tart-smoke-summary.json -type f -print -quit)"
+          test -n "$publication" && test -n "$vm"
+          test "$(jq -r '.status' "$publication")" = passed
+          test "$(jq -r '.release_version' "$publication")" = "$VERSION"
+          test "$(jq -r '.updater_version' "$publication")" = "$UPDATER_VERSION"
+          test "$(jq -r '.bundle_digest' "$publication")" = "$BUNDLE_DIGEST"
+          test "$(jq -r '.status' "$vm")" = passed
+          publication_sha="$(shasum -a 256 "$publication" | awk '{print $1}')"
+          vm_sha="$(shasum -a 256 "$vm" | awk '{print $1}')"
+          jq -n \
+            --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+            --arg publication "sha256:$publication_sha" --arg vm "sha256:$vm_sha" \
+            '{schema:"opl_bundle_homebrew_readback_receipt.v1",status:"passed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,publication_receipt_sha256:$publication,clean_vm_receipt_sha256:$vm}' \
+            > homebrew-standard-readback.json
+      - name: Upload Standard Homebrew readback
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-homebrew-standard-readback-${{ github.run_id }}
+          path: homebrew-standard-readback.json
+          if-no-files-found: error
+          retention-days: 30
+
   publish-latest:
+    if: ${{ always() && needs.remote-digest-verify.result == 'success' && (inputs.channel == 'nightly' || (needs.updater-upgrade-qualification.result == 'success' && needs.homebrew-standard-readback.result == 'success')) }}
     runs-on: ubuntu-latest
     environment: release-stable
     permissions:
       contents: write
       actions: read
-    needs: [remote-digest-verify, freeze, freeze-inputs]
+    needs: [remote-digest-verify, updater-upgrade-qualification, homebrew-standard-readback, freeze, freeze-inputs]
     steps:
       - name: Checkout frozen App source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -673,28 +980,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  installed-updater-readback:
-    needs: [publish-latest, freeze, freeze-inputs]
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      release_tag: ${{ needs.freeze-inputs.outputs.tag }}
-      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
-      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
-      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
-      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
-      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
-      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
-      package_profile: standard
-      diagnostic_scope: release_gate
-    secrets: inherit
-
   full-build:
     if: ${{ inputs.include_full }}
     needs: [publish-latest, freeze, freeze-inputs]
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ needs.freeze-inputs.outputs.version }}
+      opl_updater_version: ${{ needs.freeze-inputs.outputs.updater_version }}
       framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
       shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
       upload_full_package_artifact: true
@@ -845,5 +1137,189 @@ jobs:
             publish-apply.json
             remote-after.json
             full-published.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-homebrew-full:
+    if: ${{ inputs.include_full && inputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    needs: [publish-full, freeze, freeze-inputs]
+    steps:
+      - name: Require protected Homebrew publication credential
+        env:
+          TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        run: test -n "$TAP_TOKEN" || { echo "::error::OPL_HOMEBREW_TAP_TOKEN is missing from release-stable."; exit 1; }
+
+      - name: Checkout frozen App adapter
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+          path: app-source
+
+      - name: Checkout canonical Homebrew tap
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/homebrew-one-person-lab
+          ref: main
+          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          path: tap-source
+          fetch-depth: 0
+
+      - name: Download bound Full bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ env.OPL_FULL_BOUND_ARTIFACT }}
+          path: bound
+
+      - name: Publish one digest-bound Full cask commit
+        env:
+          VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          UPDATER_VERSION: ${{ needs.freeze-inputs.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="bound/full-assets/One-Person-Lab-Full-${VERSION}-mac-arm64.dmg"
+          manifest="bound/full-assets/opl-release-manifest.json"
+          test -s "$dmg" && test -s "$manifest"
+          dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+          release_base="https://github.com/$GITHUB_REPOSITORY/releases/download/v${VERSION}"
+          node --experimental-strip-types app-source/scripts/update-homebrew-tap.ts \
+            --channel stable \
+            --package-kind app_full_first_install \
+            --version "$VERSION" \
+            --updater-version "$UPDATER_VERSION" \
+            --tap-root tap-source \
+            --cask Casks/one-person-lab-full.rb \
+            --manifest-url "$release_base/opl-release-manifest.json" \
+            --checksum-sha256 "$dmg_sha" \
+            --download-url "$release_base/One-Person-Lab-Full-${VERSION}-mac-arm64.dmg" \
+            --remote-write-mode direct_commit \
+            --summary-path homebrew-full-plan.json \
+            --write > /dev/null
+          git -C tap-source diff --check
+          git -C tap-source config user.name github-actions[bot]
+          git -C tap-source config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if ! git -C tap-source diff --quiet -- Casks/one-person-lab-full.rb; then
+            git -C tap-source add Casks/one-person-lab-full.rb
+            git -C tap-source commit -m "chore(cask): publish One Person Lab Full v${VERSION}"
+            set +e
+            push_output="$(git -C tap-source push origin HEAD:main 2>&1)"
+            push_status="$?"
+            set -e
+          else
+            push_output="idempotent: Full cask bytes already present"
+            push_status=0
+          fi
+          tap_commit="$(git -C tap-source rev-parse HEAD)"
+          remote_commit="$(git -C tap-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          if [ "$remote_commit" != "$tap_commit" ]; then
+            echo "$push_output" >&2
+            echo "::error::Homebrew Full push outcome is not exact; no retry was attempted (status=$push_status local=$tap_commit remote=$remote_commit)."
+            exit 1
+          fi
+          cask_sha="$(git -C tap-source show "$tap_commit:Casks/one-person-lab-full.rb" | shasum -a 256 | awk '{print $1}')"
+          VERSION="$VERSION" UPDATER_VERSION="$UPDATER_VERSION" BUNDLE_DIGEST="$BUNDLE_DIGEST" \
+          TAP_COMMIT="$tap_commit" CASK_SHA="$cask_sha" DMG_SHA="$dmg_sha" RELEASE_BASE="$release_base" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const version = process.env.VERSION;
+          fs.writeFileSync('homebrew-full-publication-receipt.json', `${JSON.stringify({
+            schema: 'opl_bundle_homebrew_publication_receipt.v1',
+            status: 'passed',
+            track: 'full',
+            bundle_digest: process.env.BUNDLE_DIGEST,
+            release_version: version,
+            updater_version: process.env.UPDATER_VERSION,
+            tap_repository: 'gaofeng21cn/homebrew-one-person-lab',
+            tap_commit: process.env.TAP_COMMIT,
+            cask: { path: 'Casks/one-person-lab-full.rb', sha256: `sha256:${process.env.CASK_SHA}` },
+            artifact: {
+              name: `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
+              sha256: `sha256:${process.env.DMG_SHA}`,
+              url: `${process.env.RELEASE_BASE}/One-Person-Lab-Full-${version}-mac-arm64.dmg`,
+            },
+            public_manifest_url: `${process.env.RELEASE_BASE}/opl-release-manifest.json`,
+            standard_updater_metadata_modified: false,
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload Full Homebrew publication receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-homebrew-full-${{ github.run_id }}
+          path: |
+            homebrew-full-plan.json
+            homebrew-full-publication-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  homebrew-full-vm:
+    if: ${{ inputs.include_full && inputs.channel == 'stable' }}
+    needs: [publish-homebrew-full, freeze, freeze-inputs]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: ${{ needs.freeze-inputs.outputs.tag }}
+      stable_session_id: ${{ needs.freeze.outputs.bundle_digest }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze-inputs.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze-inputs.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze-inputs.outputs.framework_sha }}
+      package_profile: homebrew-full
+      diagnostic_scope: release_gate
+    secrets: inherit
+
+  homebrew-full-readback:
+    if: ${{ inputs.include_full && inputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    needs: [homebrew-full-vm, publish-homebrew-full, freeze, freeze-inputs]
+    steps:
+      - name: Download Full Homebrew publication receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-bundle-homebrew-full-${{ github.run_id }}
+          path: homebrew-publication
+      - name: Download Full Homebrew clean-VM evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-homebrew-full-${{ github.run_id }}
+          path: homebrew-vm
+      - name: Bind public Full cask and installed-App readback
+        env:
+          VERSION: ${{ needs.freeze-inputs.outputs.version }}
+          UPDATER_VERSION: ${{ needs.freeze-inputs.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+        run: |
+          set -euo pipefail
+          publication="$(find homebrew-publication -name homebrew-full-publication-receipt.json -type f -print -quit)"
+          vm="$(find homebrew-vm -name tart-smoke-summary.json -type f -print -quit)"
+          test -n "$publication" && test -n "$vm"
+          test "$(jq -r '.status' "$publication")" = passed
+          test "$(jq -r '.release_version' "$publication")" = "$VERSION"
+          test "$(jq -r '.updater_version' "$publication")" = "$UPDATER_VERSION"
+          test "$(jq -r '.bundle_digest' "$publication")" = "$BUNDLE_DIGEST"
+          test "$(jq -r '.standard_updater_metadata_modified' "$publication")" = false
+          test "$(jq -r '.status' "$vm")" = passed
+          publication_sha="$(shasum -a 256 "$publication" | awk '{print $1}')"
+          vm_sha="$(shasum -a 256 "$vm" | awk '{print $1}')"
+          jq -n \
+            --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+            --arg publication "sha256:$publication_sha" --arg vm "sha256:$vm_sha" \
+            '{schema:"opl_bundle_homebrew_readback_receipt.v1",status:"passed",track:"full",bundle_digest:$bundle,release_version:$release,updater_version:$updater,publication_receipt_sha256:$publication,clean_vm_receipt_sha256:$vm,standard_updater_metadata_modified:false}' \
+            > homebrew-full-readback.json
+      - name: Upload Full Homebrew readback
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-bundle-homebrew-full-readback-${{ github.run_id }}
+          path: homebrew-full-readback.json
           if-no-files-found: error
           retention-days: 30

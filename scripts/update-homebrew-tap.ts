@@ -5,7 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { assertReleaseVersionNotFuture } from './release-version.ts';
+import {
+  assertReleaseVersionNotFuture,
+  assertUpdaterVersionMatchesDisplay,
+  resolveReleaseVersionIdentity,
+} from './release-version.ts';
 
 type Channel = 'stable' | 'nightly';
 type PackageKind = 'app_standard' | 'app_full_first_install';
@@ -14,6 +18,7 @@ type Options = {
   channel: Channel;
   packageKind: PackageKind | null;
   version: string;
+  updaterVersion: string;
   tapRoot: string;
   manifestUrl: string;
   checksumSha256: string;
@@ -64,6 +69,7 @@ function parseArgs(argv: string[]): Options {
       channel: { type: 'string' },
       'package-kind': { type: 'string' },
       version: { type: 'string' },
+      'updater-version': { type: 'string' },
       'tap-root': { type: 'string' },
       formula: { type: 'string', multiple: true },
       cask: { type: 'string', multiple: true },
@@ -81,6 +87,7 @@ function parseArgs(argv: string[]): Options {
     channel: 'stable',
     packageKind: null,
     version: '',
+    updaterVersion: '',
     tapRoot: defaultTapRoot,
     manifestUrl: '',
     checksumSha256: '',
@@ -105,6 +112,7 @@ function parseArgs(argv: string[]): Options {
     parsed.packageKind = values['package-kind'];
   }
   if (values.version !== undefined) parsed.version = values.version;
+  if (values['updater-version'] !== undefined) parsed.updaterVersion = values['updater-version'];
   if (values['tap-root'] !== undefined) parsed.tapRoot = path.resolve(values['tap-root']);
   if (values['manifest-url'] !== undefined) parsed.manifestUrl = values['manifest-url'];
   if (values['checksum-sha256'] !== undefined) parsed.checksumSha256 = values['checksum-sha256'];
@@ -159,6 +167,7 @@ function validateOptions(options: Options): ResolvedOptions {
     return { ...options, packageKind: options.packageKind ?? 'app_standard' };
   }
   if (!options.version) throw new Error('Missing required --version.');
+  if (!options.updaterVersion) throw new Error('Missing required --updater-version.');
   if (!options.manifestUrl) throw new Error('Missing required --manifest-url.');
   if (!options.downloadUrl) throw new Error('Missing required --download-url.');
   if (!sha256Pattern.test(options.checksumSha256)) {
@@ -176,8 +185,9 @@ function validateOptions(options: Options): ResolvedOptions {
     if (options.channel === 'nightly') {
       throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly or YY.M.D-nightly.r1 through .r9.');
     }
-    throw new Error('Stable Homebrew tap updates must use YY.M.D without a same-day suffix.');
+    throw new Error('Stable Homebrew tap updates must use YY.M.D or YY.M.D-r1 through r9.');
   }
+  assertUpdaterVersionMatchesDisplay(options.channel, options.version, options.updaterVersion);
   if (packageKind === 'app_full_first_install' && options.channel !== 'stable') {
     throw new Error('Full first-install Homebrew cask updates must stay on the stable channel.');
   }
@@ -226,6 +236,8 @@ function boundaryBlock(options: ResolvedOptions): string {
     `# channel: ${options.channel}`,
     `# package_kind: ${options.packageKind}`,
     `# version: ${options.version}`,
+    `# display_version: ${options.version}`,
+    `# updater_version: ${options.updaterVersion}`,
     `# manifest: ${options.manifestUrl}`,
     `# checksum: sha256:${options.checksumSha256}`,
     `# full_first_install_allowed: ${fullFirstInstall ? 'true' : 'false'}`,
@@ -251,19 +263,7 @@ function boundaryBlock(options: ResolvedOptions): string {
 }
 
 function renderHomebrewDownloadUrl(targetPath: string, options: ResolvedOptions): string {
-  if (options.packageKind === 'app_full_first_install') {
-    const fullDownloadUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${options.version}/One-Person-Lab-Full-${options.version}-mac-arm64.dmg`;
-    if (classifyTarget(targetPath) === 'cask' && options.downloadUrl === fullDownloadUrl) {
-      return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/One-Person-Lab-Full-#{version}-mac-arm64.dmg';
-    }
-    return options.downloadUrl;
-  }
-
-  const appDownloadUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${options.version}/One-Person-Lab-${options.version}-mac-arm64.dmg`;
-  if (options.packageKind === 'app_standard' && classifyTarget(targetPath) === 'cask' && options.downloadUrl === appDownloadUrl) {
-    return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/One-Person-Lab-#{version}-mac-arm64.dmg';
-  }
-
+  void targetPath;
   return options.downloadUrl;
 }
 
@@ -276,7 +276,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
   }
   return [
     `cask "${token}" do`,
-    `  version "${options.version}"`,
+    `  version "${options.updaterVersion}"`,
     `  sha256 "${options.checksumSha256}"`,
     '',
     `  url "${renderHomebrewDownloadUrl(targetPath, options)}"`,
@@ -284,20 +284,12 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
     `  desc "${fullFirstInstall ? 'Complete first-install package for One Person Lab' : 'AI-first desktop research and agent orchestration app'}"`,
     '  homepage "https://github.com/gaofeng21cn/one-person-lab-app"',
     '',
-    ...(options.channel === 'stable' || fullFirstInstall
-      ? [
-          '  livecheck do',
-          '    url "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest"',
-          '    regex(%r{/releases/tag/v?(\\d+(?:\\.\\d+)*)}i)',
-          '  end',
-          '',
-        ]
-      : [
-          '  livecheck do',
-          '    skip "Nightly casks track prerelease cohorts through App release automation"',
-          '  end',
-          '',
-    ]),
+    '  livecheck do',
+    `    skip "${options.channel === 'nightly'
+      ? 'Nightly casks track prerelease cohorts through App release automation'
+      : 'The immutable Release Bundle maps display tags to monotonic machine versions'}"`,
+    '  end',
+    '',
     ...(conflicts.length > 0
       ? [
           `  conflicts_with cask: ${conflicts.length === 1
@@ -305,6 +297,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
             : `[${conflicts.map((conflict) => `"${conflict}"`).join(', ')}]`}`,
         ]
       : []),
+    '  depends_on formula: "opl"',
     '  depends_on macos: :big_sur',
     '  depends_on arch: :arm64',
     '',
@@ -341,7 +334,7 @@ function updateContent(content: string, targetPath: string, options: ResolvedOpt
     : content.trim()
       ? replaceOrAppendBoundaryBlock(content, options)
       : skeletonContent(targetPath, options);
-  next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${options.version}"`);
+  next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${options.updaterVersion}"`);
   next = next.replace(/(sha256\s+)["'][^"']+["']/, `$1"${options.checksumSha256}"`);
   next = next.replace(/(url\s+)["'][^"']+["']/, `$1"${renderHomebrewDownloadUrl(targetPath, options)}"`);
   if (!next.endsWith('\n')) next += '\n';
@@ -349,6 +342,17 @@ function updateContent(content: string, targetPath: string, options: ResolvedOpt
 }
 
 function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOptions): void {
+  if (!target.content.includes(`version "${options.updaterVersion}"`)) {
+    throw new Error(`${target.path} must use updater_version for Homebrew ordering.`);
+  }
+  for (const identityLine of [
+    `display_version: ${options.version}`,
+    `updater_version: ${options.updaterVersion}`,
+  ]) {
+    if (!target.content.includes(identityLine)) {
+      throw new Error(`${target.path} must bind both display and updater versions.`);
+    }
+  }
   if (options.packageKind === 'app_full_first_install') {
     assertFullPayloadReference('Homebrew tap content', target.content);
   } else {
@@ -356,6 +360,9 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
   }
   if (target.kind !== 'cask') {
     throw new Error(`${target.path} must be an App cask target.`);
+  }
+  if (!target.content.includes('depends_on formula: "opl"')) {
+    throw new Error(`${target.path} must install the Framework-owned opl formula carrier.`);
   }
   if (!target.content.includes(options.manifestUrl)) {
     throw new Error(`${target.path} must reference the release manifest URL.`);
@@ -412,6 +419,8 @@ function buildPlan(inputOptions: Options): {
   channel: Channel;
   package_kind: PackageKind;
   version: string;
+  display_version: string;
+  updater_version: string;
   dry_run: boolean;
   manifest_url: string;
   checksum_sha256: string;
@@ -443,6 +452,8 @@ function buildPlan(inputOptions: Options): {
     channel: options.channel,
     package_kind: options.packageKind,
     version: options.version,
+    display_version: options.version,
+    updater_version: options.updaterVersion,
     dry_run: !options.write,
     manifest_url: options.manifestUrl,
     checksum_sha256: options.checksumSha256,
@@ -480,6 +491,7 @@ function runSelfCheck(): void {
     channel: 'stable',
     packageKind: 'app_standard',
     version: '26.6.4',
+    updaterVersion: resolveReleaseVersionIdentity('stable', '26.6.4').updaterVersion,
     tapRoot: tempRoot,
     manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
     checksumSha256: digest,
@@ -497,6 +509,7 @@ function runSelfCheck(): void {
     channel: 'stable',
     packageKind: 'app_full_first_install',
     version: '26.6.4',
+    updaterVersion: resolveReleaseVersionIdentity('stable', '26.6.4').updaterVersion,
     tapRoot: tempRoot,
     manifestUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/${fullReleaseManifestName}`,
     checksumSha256: digest,
@@ -524,6 +537,7 @@ function runSelfCheck(): void {
     channel: 'nightly',
     packageKind: 'app_standard',
     version: '26.6.4-nightly.r1',
+    updaterVersion: resolveReleaseVersionIdentity('nightly', '26.6.4-nightly.r1').updaterVersion,
     tapRoot: tempRoot,
     manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.r1/latest-arm64-mac.yml',
     checksumSha256: digest,
@@ -611,6 +625,7 @@ function runSelfCheck(): void {
         channel: blocked.channel,
         packageKind: blocked.packageKind,
         version: blocked.version,
+        updaterVersion: blocked.version,
         tapRoot: tempRoot,
         manifestUrl: blocked.manifestUrl ?? (blocked.packageKind === 'app_full_first_install'
           ? `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/${fullReleaseManifestName}`

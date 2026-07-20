@@ -7,6 +7,11 @@ on:
         description: OPL version to verify, for example 26.5.19
         required: true
         type: string
+      opl_updater_version:
+        description: Machine SemVer carried by updater metadata and the App; defaults to opl_version for legacy releases
+        required: false
+        default: ''
+        type: string
       include_full_package:
         description: Verify Full first-install assets in addition to standard updater assets
         required: false
@@ -41,10 +46,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_UPDATER_VERSION: ${{ inputs.opl_updater_version }}
         run: |
           verify_args=(
             npm run verify-remote-release --
             --version "$OPL_RELEASE_VERSION"
+            --updater-version "${OPL_UPDATER_VERSION:-$OPL_RELEASE_VERSION}"
             --repo "$GITHUB_REPOSITORY"
             --summary-path remote-release-verification.json
           )

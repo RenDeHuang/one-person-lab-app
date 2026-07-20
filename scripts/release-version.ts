@@ -7,6 +7,54 @@ import { parseArgs } from 'node:util';
 
 export type AppReleaseChannel = 'stable' | 'nightly';
 
+export type ReleaseVersionIdentity = {
+  channel: AppReleaseChannel;
+  displayVersion: string;
+  updaterVersion: string;
+  tag: string;
+  revision: number;
+  legacyMachineVersion: boolean;
+};
+
+const updaterVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?$/;
+
+function comparePrereleaseIdentifiers(left: string, right: string): number {
+  const leftParts = left ? left.split('.') : [];
+  const rightParts = right ? right.split('.') : [];
+  if (leftParts.length === 0 || rightParts.length === 0) {
+    if (leftParts.length === rightParts.length) return 0;
+    return leftParts.length === 0 ? 1 : -1;
+  }
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftParts[index];
+    const rightPart = rightParts[index];
+    if (leftPart === undefined || rightPart === undefined) {
+      return leftPart === rightPart ? 0 : leftPart === undefined ? -1 : 1;
+    }
+    if (leftPart === rightPart) continue;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) return Number(leftPart) - Number(rightPart);
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return leftPart.localeCompare(rightPart);
+  }
+  return 0;
+}
+
+export function compareUpdaterMachineVersions(left: string, right: string): number {
+  const leftMatch = updaterVersionPattern.exec(left);
+  const rightMatch = updaterVersionPattern.exec(right);
+  if (!leftMatch || !rightMatch) {
+    throw new Error(`Updater versions must be valid SemVer values: ${left || '<empty>'}, ${right || '<empty>'}.`);
+  }
+  for (let index = 1; index <= 3; index += 1) {
+    const difference = Number(leftMatch[index]) - Number(rightMatch[index]);
+    if (difference !== 0) return difference;
+  }
+  return comparePrereleaseIdentifiers(leftMatch[4] ?? '', rightMatch[4] ?? '');
+}
+
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -35,6 +83,39 @@ function contractNightlyMaximumRebuildRevision(): number {
 
 export const nightlyMaximumRebuildRevision = contractNightlyMaximumRebuildRevision();
 
+function contractStableMaximumRevision(): number {
+  const value = releaseContract?.github_release_name?.stable_revision?.maximum_revision;
+  if (!Number.isInteger(value) || value < 1 || value > 9) {
+    throw new Error('App release contract must set github_release_name.stable_revision.maximum_revision from 1 through 9.');
+  }
+  return value;
+}
+
+function contractLegacyStableMachineVersionLastDisplay(): string {
+  const value = releaseContract?.github_release_name?.machine_version?.legacy_stable_last_display_version;
+  if (typeof value !== 'string' || !/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(value)) {
+    throw new Error('App release contract must set github_release_name.machine_version.legacy_stable_last_display_version.');
+  }
+  return value;
+}
+
+function contractNightlyPatchOffset(): number {
+  const value = releaseContract?.github_release_name?.machine_version?.nightly_patch_offset;
+  if (!Number.isInteger(value) || value < 10 || value > 90) {
+    throw new Error('App release contract must set github_release_name.machine_version.nightly_patch_offset from 10 through 90.');
+  }
+  return value;
+}
+
+export const stableMaximumRevision = contractStableMaximumRevision();
+export const legacyStableMachineVersionLastDisplay = contractLegacyStableMachineVersionLastDisplay();
+export const nightlyMachinePatchOffset = contractNightlyPatchOffset();
+
+if (nightlyMachinePatchOffset <= stableMaximumRevision
+  || nightlyMachinePatchOffset + nightlyMaximumRebuildRevision >= 100) {
+  throw new Error('Nightly machine patch slots must follow Stable revisions and remain below the next calendar day.');
+}
+
 export function releaseVersionPattern(channel: AppReleaseChannel): RegExp {
   return channel === 'stable' ? stableReleaseVersionPattern : nightlyReleaseVersionPattern;
 }
@@ -53,7 +134,9 @@ export function releaseCalendarParts(channel: AppReleaseChannel, version: string
   day: number;
 } | null {
   if (!matchesCanonicalReleaseVersion(channel, version)) return null;
-  const datePart = channel === 'nightly' ? version.slice(0, version.indexOf('-nightly')) : version;
+  const datePart = channel === 'nightly'
+    ? version.slice(0, version.indexOf('-nightly'))
+    : version.replace(/-r[1-9][0-9]*$/, '');
   const [year, month, day] = datePart.split('.').map(Number);
   const date = new Date(Date.UTC(2000 + year, month - 1, day));
   if (
@@ -64,6 +147,106 @@ export function releaseCalendarParts(channel: AppReleaseChannel, version: string
     return null;
   }
   return { year: 2000 + year, month, day };
+}
+
+export function stableReleaseRevision(version: string): number {
+  assertCanonicalReleaseVersion('stable', version);
+  const match = /-r([1-9][0-9]*)$/.exec(version);
+  return match ? Number(match[1]) : 0;
+}
+
+function nightlyReleaseRevision(version: string): number {
+  assertCanonicalReleaseVersion('nightly', version);
+  const match = /\.r([1-9][0-9]*)$/.exec(version);
+  return match ? Number(match[1]) : 0;
+}
+
+function calendarTuple(version: string): [number, number, number] {
+  const parts = releaseCalendarParts('stable', version);
+  if (!parts) throw new Error(`Stable version is not a valid calendar date: ${version}.`);
+  return [parts.year - 2000, parts.month, parts.day];
+}
+
+function compareCalendarVersions(left: string, right: string): number {
+  const leftTuple = calendarTuple(left);
+  const rightTuple = calendarTuple(right);
+  for (let index = 0; index < leftTuple.length; index += 1) {
+    if (leftTuple[index] !== rightTuple[index]) return leftTuple[index]! - rightTuple[index]!;
+  }
+  return 0;
+}
+
+export function encodeStableMachineVersion(displayVersion: string): string {
+  assertCanonicalReleaseVersion('stable', displayVersion);
+  const calendar = releaseCalendarParts('stable', displayVersion)!;
+  const revision = stableReleaseRevision(displayVersion);
+  if (revision > stableMaximumRevision) {
+    throw new Error(`Stable revision r${revision} exceeds r${stableMaximumRevision}.`);
+  }
+  return `${calendar.year - 2000}.${calendar.month}.${calendar.day * 100 + revision}`;
+}
+
+export function resolveReleaseVersionIdentity(
+  channel: AppReleaseChannel,
+  displayVersion: string,
+): ReleaseVersionIdentity {
+  assertCanonicalReleaseVersion(channel, displayVersion);
+  const calendar = releaseCalendarParts(channel, displayVersion)!;
+  const year = calendar.year - 2000;
+  const baseDisplayVersion = `${year}.${calendar.month}.${calendar.day}`;
+
+  if (channel === 'stable') {
+    const revision = stableReleaseRevision(displayVersion);
+    if (revision > stableMaximumRevision) {
+      throw new Error(
+        `Stable revision r${revision} exceeds r${stableMaximumRevision}; allocate a new calendar base instead.`,
+      );
+    }
+    const legacyMachineVersion = revision === 0
+      && compareCalendarVersions(baseDisplayVersion, legacyStableMachineVersionLastDisplay) <= 0;
+    return {
+      channel,
+      displayVersion,
+      updaterVersion: legacyMachineVersion
+        ? baseDisplayVersion
+        : encodeStableMachineVersion(displayVersion),
+      tag: `v${displayVersion}`,
+      revision,
+      legacyMachineVersion,
+    };
+  }
+
+  const revision = nightlyReleaseRevision(displayVersion);
+  if (revision > nightlyMaximumRebuildRevision) {
+    throw new Error(
+      `Nightly revision r${revision} exceeds r${nightlyMaximumRebuildRevision}.`,
+    );
+  }
+  const legacyMachineVersion = compareCalendarVersions(baseDisplayVersion, legacyStableMachineVersionLastDisplay) <= 0;
+  return {
+    channel,
+    displayVersion,
+    updaterVersion: legacyMachineVersion
+      ? displayVersion
+      : `${year}.${calendar.month}.${calendar.day * 100 + nightlyMachinePatchOffset + revision}-nightly.${revision}`,
+    tag: `v${displayVersion}`,
+    revision,
+    legacyMachineVersion,
+  };
+}
+
+export function assertUpdaterVersionMatchesDisplay(
+  channel: AppReleaseChannel,
+  displayVersion: string,
+  updaterVersion: string,
+): ReleaseVersionIdentity {
+  const identity = resolveReleaseVersionIdentity(channel, displayVersion);
+  if (identity.updaterVersion !== updaterVersion) {
+    throw new Error(
+      `Updater version ${updaterVersion || '<empty>'} does not match ${displayVersion}; expected ${identity.updaterVersion}.`,
+    );
+  }
+  return identity;
 }
 
 export function assertCanonicalReleaseVersion(channel: AppReleaseChannel, version: string): void {
@@ -134,6 +317,14 @@ export type NightlyVersionResolution = {
   observedSameDayVersions: string[];
 };
 
+export type StableVersionResolution = {
+  baseVersion: string;
+  version: string;
+  revision: number;
+  updaterVersion: string;
+  observedSameDayVersions: string[];
+};
+
 function normalizeReleaseRef(rawRef: string): string {
   const token = rawRef.trim().split(/\s+/).at(-1) ?? '';
   return token
@@ -197,11 +388,49 @@ export function resolveNightlyReleaseVersion(
   };
 }
 
+export function resolveStableReleaseVersion(
+  baseVersion: string,
+  existingRefs: Iterable<string>,
+): StableVersionResolution {
+  assertReleaseVersionNotFuture('stable', baseVersion);
+  if (stableReleaseRevision(baseVersion) !== 0) {
+    throw new Error(`Stable base version must not include a revision suffix: ${baseVersion}.`);
+  }
+
+  const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const canonicalPattern = new RegExp(`^${escapedBase}(?:-r([1-9][0-9]*))?$`);
+  const observed = new Set<string>();
+  let highestRevision = -1;
+  for (const rawRef of existingRefs) {
+    const version = normalizeReleaseRef(rawRef);
+    const match = canonicalPattern.exec(version);
+    if (!match) continue;
+    observed.add(version);
+    highestRevision = Math.max(highestRevision, match[1] ? Number(match[1]) : 0);
+  }
+
+  const revision = highestRevision < 0 ? 0 : highestRevision + 1;
+  if (revision > stableMaximumRevision) {
+    throw new Error(
+      `Stable ${baseVersion} already reached r${highestRevision}; revisions stop at r${stableMaximumRevision}.`,
+    );
+  }
+  const version = revision === 0 ? baseVersion : `${baseVersion}-r${revision}`;
+  return {
+    baseVersion,
+    version,
+    revision,
+    updaterVersion: resolveReleaseVersionIdentity('stable', version).updaterVersion,
+    observedSameDayVersions: [...observed].sort(),
+  };
+}
+
 function main(): void {
   const { values } = parseArgs({
     options: {
       channel: { type: 'string' },
       version: { type: 'string' },
+      'updater-version': { type: 'string' },
       json: { type: 'boolean' },
     },
     strict: true,
@@ -213,9 +442,18 @@ function main(): void {
   const version = values.version?.trim() ?? '';
   if (!version) throw new Error('Pass --version <version>.');
   assertReleaseVersionNotFuture(values.channel, version);
+  const identity = resolveReleaseVersionIdentity(values.channel, version);
+  if (values['updater-version'] !== undefined) {
+    assertUpdaterVersionMatchesDisplay(values.channel, version, values['updater-version'].trim());
+  }
   const payload = {
     channel: values.channel,
     version,
+    display_version: identity.displayVersion,
+    updater_version: identity.updaterVersion,
+    revision: identity.revision,
+    legacy_machine_version: identity.legacyMachineVersion,
+    tag: identity.tag,
     pattern: releaseVersionPatternSource(values.channel),
     calendar_date: releaseCalendarParts(values.channel, version),
     status: 'passed',

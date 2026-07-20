@@ -9,6 +9,7 @@ import {
   validateArtifactQualificationReceipt,
   type ArtifactQualificationReceiptV1,
 } from './artifact-qualification-receipt.ts';
+import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
 
 type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
@@ -134,6 +135,7 @@ function parseCommon(argv: string[]) {
     options: {
       channel: { type: 'string' },
       version: { type: 'string' },
+      'updater-version': { type: 'string' },
       'app-root': { type: 'string' },
       'shell-root': { type: 'string' },
       'framework-root': { type: 'string' },
@@ -166,6 +168,8 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
   const channel = requireOption(values, 'channel');
   if (channel !== 'stable' && channel !== 'nightly') throw new Error('--channel must be stable or nightly.');
   const version = requireOption(values, 'version');
+  const updaterVersion = requireOption(values, 'updater-version');
+  assertUpdaterVersionMatchesDisplay(channel, version, updaterVersion);
   const appRoot = path.resolve(requireOption(values, 'app-root'));
   const shellRoot = path.resolve(requireOption(values, 'shell-root'));
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
@@ -208,6 +212,8 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
     release: {
       channel,
       version,
+      display_version: version,
+      updater_version: updaterVersion,
       tag: `v${version}`,
       prerelease: channel === 'nightly',
     },

@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      updater_version: ${{ steps.version.outputs.updater_version }}
       app_sha: ${{ steps.cohort.outputs.app_sha }}
       framework_sha: ${{ steps.cohort.outputs.framework_sha }}
       shell_sha: ${{ steps.cohort.outputs.shell_sha }}
@@ -72,6 +73,11 @@ jobs:
           ref: ${{ inputs.framework_ref || 'main' }}
           path: framework-source
 
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
       - name: Resolve exact cohort SHAs
         id: cohort
         shell: bash
@@ -101,7 +107,9 @@ jobs:
             echo "::error::Invalid OPL release version: $version"
             exit 1
           fi
+          updater_version="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel stable --version "$version" --json | jq -er '.updater_version')"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "updater_version=$updater_version" >> "$GITHUB_OUTPUT"
 
   warmup:
     name: Warm Full runtime layer cache
@@ -109,6 +117,7 @@ jobs:
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ needs.resolve-version.outputs.version }}
+      opl_updater_version: ${{ needs.resolve-version.outputs.updater_version }}
       framework_ref: ${{ needs.resolve-version.outputs.framework_sha }}
       shell_ref: ${{ needs.resolve-version.outputs.shell_sha }}
       artifact_app_sha: ${{ needs.resolve-version.outputs.app_sha }}

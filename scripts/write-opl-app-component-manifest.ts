@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
 
 type ReleaseAsset = {
   name?: string;
@@ -17,6 +18,7 @@ function options(argv: string[]) {
     args: argv,
     options: {
       version: { type: 'string' },
+      'updater-version': { type: 'string' },
       'source-commit': { type: 'string' },
       'release-json': { type: 'string' },
       output: { type: 'string' },
@@ -25,15 +27,23 @@ function options(argv: string[]) {
     strict: true,
   });
   const version = values.version?.trim() ?? '';
+  const updaterVersion = values['updater-version']?.trim() ?? '';
   const sourceCommit = values['source-commit']?.trim() ?? '';
-  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-nightly(?:\.r[1-9][0-9]*)?)?$/.test(version)
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:(?:-r[1-9][0-9]*)|-nightly(?:\.r[1-9][0-9]*)?)?$/.test(version)
+    || !updaterVersion
     || !/^[0-9a-f]{40}$/.test(sourceCommit)
     || !values['release-json']
     || !values.output) {
-    throw new Error('Pass --version <YY.M.D> --source-commit <sha> --release-json <json> --output <json>.');
+    throw new Error('Pass --version <display-version> --updater-version <machine-semver> --source-commit <sha> --release-json <json> --output <json>.');
   }
+  assertUpdaterVersionMatchesDisplay(
+    version.includes('-nightly') ? 'nightly' : 'stable',
+    version,
+    updaterVersion,
+  );
   return {
     version,
+    updaterVersion,
     sourceCommit,
     releaseJson: path.resolve(values['release-json']),
     output: path.resolve(values.output),
@@ -83,6 +93,8 @@ function main() {
     surface_kind: 'opl_app_component_manifest.v1',
     component_id: 'opl-app',
     version: input.version,
+    release_version: input.version,
+    updater_version: input.updaterVersion,
     source_commit: input.sourceCommit,
     release_tag: tag,
     release_url: String(release.url ?? ''),

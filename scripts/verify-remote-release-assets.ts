@@ -14,6 +14,7 @@ function parseArgs(argv) {
   const parsed = {
     repo: process.env.OPL_RELEASE_REPO || "gaofeng21cn/one-person-lab-app",
     version: process.env.OPL_RELEASE_VERSION || "",
+    updaterVersion: process.env.OPL_UPDATER_VERSION || "",
     tag: process.env.OPL_RELEASE_TAG || "",
     includeFullPackage: false,
     downloadDir: process.env.OPL_REMOTE_RELEASE_DOWNLOAD_DIR || "",
@@ -44,6 +45,7 @@ function parseArgs(argv) {
     index += 1;
     if (token === "--repo") parsed.repo = value;
     else if (token === "--version") parsed.version = value;
+    else if (token === "--updater-version") parsed.updaterVersion = value;
     else if (token === "--tag") parsed.tag = value;
     else if (token === "--download-dir") parsed.downloadDir = path.resolve(value);
     else if (token === "--summary-path") parsed.summaryPath = path.resolve(value);
@@ -61,6 +63,12 @@ function parseArgs(argv) {
   }
   if (!/^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$/.test(parsed.version)) {
     throw new Error(`Invalid OPL release version: ${parsed.version}`);
+  }
+  if (!parsed.updaterVersion) {
+    parsed.updaterVersion = parsed.version;
+  }
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(parsed.updaterVersion)) {
+    throw new Error(`Invalid OPL updater machine version: ${parsed.updaterVersion}`);
   }
   return parsed;
 }
@@ -267,10 +275,10 @@ function readFullLocalAuthorizationPolicy(downloadDir) {
   );
 }
 
-function assertStandardMetadata(downloadDir, version) {
+function assertStandardMetadata(downloadDir, displayVersion, updaterVersion) {
   const expectedAssets = [
-    `One-Person-Lab-${version}-mac-arm64.dmg`,
-    `One-Person-Lab-${version}-mac-arm64.zip`,
+    `One-Person-Lab-${displayVersion}-mac-arm64.dmg`,
+    `One-Person-Lab-${displayVersion}-mac-arm64.zip`,
   ];
   const metadataNames = ["latest-arm64-mac.yml"];
   const legacyMetadataPath = path.join(downloadDir, "latest-mac.yml");
@@ -285,11 +293,11 @@ function assertStandardMetadata(downloadDir, version) {
     }
     if (
       !new RegExp(
-        `^version:\\s*['"]?${version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]?\\s*$`,
+        `^version:\\s*['"]?${updaterVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]?\\s*$`,
         "m",
       ).test(text)
     ) {
-      throw new Error(`${name} does not declare version ${version}.`);
+      throw new Error(`${name} does not declare updater version ${updaterVersion}.`);
     }
     for (const expectedAsset of expectedAssets) {
       if (!text.includes(expectedAsset)) {
@@ -369,8 +377,8 @@ function readPlistStringValue(plistPath, key) {
   return match?.[1] ? decodeXmlText(match[1].trim()) : "";
 }
 
-function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthorizationPolicy) {
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, updaterVersion, localAuthorizationPolicy) {
+  const zipName = `One-Person-Lab-${displayVersion}-mac-arm64.zip`;
   const zipPath = path.join(downloadDir, zipName);
   const unzipDir = fs.mkdtempSync(path.join(os.tmpdir(), "opl-standard-updater-app-"));
   try {
@@ -382,9 +390,9 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
     }
     const shortVersion = readPlistStringValue(infoPlistPath, "CFBundleShortVersionString");
     const bundleVersion = readPlistStringValue(infoPlistPath, "CFBundleVersion");
-    if (shortVersion !== version && bundleVersion !== version) {
+    if (shortVersion !== updaterVersion || bundleVersion !== updaterVersion) {
       throw new Error(
-        `standard updater ZIP App bundle version mismatch: expected ${version}, got CFBundleShortVersionString=${shortVersion || "(empty)"} CFBundleVersion=${bundleVersion || "(empty)"}.`,
+        `standard updater ZIP App bundle version mismatch: expected updater version ${updaterVersion}, got CFBundleShortVersionString=${shortVersion || "(empty)"} CFBundleVersion=${bundleVersion || "(empty)"}.`,
       );
     }
 
@@ -417,7 +425,9 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
           ? "passed"
           : "local_authorized_unsigned",
       asset: zipName,
-      version,
+      version: displayVersion,
+      display_version: displayVersion,
+      updater_version: updaterVersion,
       bundle_version: bundleVersion || null,
       short_version: shortVersion || null,
       signature: signature.signature,
@@ -1005,7 +1015,7 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
     });
   }
 
-  assertStandardMetadata(downloadDir, options.version);
+  assertStandardMetadata(downloadDir, options.version, options.updaterVersion);
   const standardLocalAuthorizationPolicy = assertStableLocalAuthorizationPolicy(
     downloadDir,
     "standard-local-authorization-policy.json",
@@ -1014,6 +1024,7 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(
     downloadDir,
     options.version,
+    options.updaterVersion,
     standardLocalAuthorizationPolicy,
   );
   let fullFirstInstallBudget = null;
@@ -1055,6 +1066,8 @@ function main() {
     repo: options.repo,
     tag: options.tag,
     version: options.version,
+    display_version: options.version,
+    updater_version: options.updaterVersion,
     include_full_package: options.includeFullPackage,
     download_dir: options.keepDownload || options.noDownload ? downloadDir : null,
     verified_asset_count: verification.verified.length,

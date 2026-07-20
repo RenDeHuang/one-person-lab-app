@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Stable CalVer for the immutable Bundle (YY.M.D)
+        description: Stable display version for the immutable Bundle (YY.M.D or YY.M.D-r1 through r9)
         required: true
         type: string
       include_full:

@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app` for product policy
 Generic authority: OPL Framework
-Status: contract active, implementation cutover pending
+Status: Bundle authority active; first terminal Stable proof pending
 
 ## Decision
 
@@ -33,10 +33,10 @@ Framework receipts use `opl_release_bundle_executor_receipt.v1` and
 `opl_release_bundle_operation_receipt.v1`; the App references those schemas and
 does not duplicate their closed shapes.
 
-Until that CLI, the App adapter, the new workflows, and the protected
-environment are active on their authority mains, no new external release
-mutation is admitted. Existing broker and Stable state-machine receipts remain
-readable for audit, but they are not a live mutation authority.
+The Framework CLI, App adapter, Bundle workflows, and `release-stable`
+environment are the live authority. Existing broker and Stable state-machine
+receipts remain readable for audit, but they are not a live mutation authority
+and cannot dispatch, rerun, cancel, publish, or promote.
 
 ## Bundle Identity
 
@@ -57,7 +57,8 @@ whose readback transitively proves those same members. The Framework catalog or
 manifest digest is also frozen. A source checkout, packaged payload, catalog,
 manifest, or Release Set mismatch fails before an expensive build.
 
-The canonical Bundle digest also covers the release channel and version,
+The canonical Bundle digest also covers the release channel, display version,
+updater version,
 prepared AI notes plus evidence, Standard assets and qualification, optional
 Full assets and qualification, and relevant App product-policy inputs.
 
@@ -67,8 +68,10 @@ Prepared AI notes are generated and validated before the expensive build and
 become immutable Bundle inputs. Publish and promote may not regenerate notes or
 use a template fallback.
 
-Stable may become Latest after the prepared notes, all six Standard assets,
-exact-byte qualification, and remote digest readback pass:
+Stable may become Latest only after the prepared English AI notes, all six
+Standard assets, exact-byte qualification, remote digest readback, a real
+upgrade from the public predecessor using the same candidate ZIP, and the
+Standard Homebrew cask publication plus clean-VM readback pass:
 
 1. Standard DMG
 2. Standard ZIP
@@ -77,10 +80,32 @@ exact-byte qualification, and remote digest readback pass:
 5. `opl-app-component-manifest.json`
 6. `standard-local-authorization-policy.json`
 
+The updater hard gate installs the previous Latest DMG, discovers and downloads
+the same ZIP bound above, applies it without `allowDowngrade`, restarts, proves
+`app.getVersion()` equals the Bundle `updater_version`, and then proves a second
+check reports no update. The Homebrew cask uses `updater_version` for ordering,
+but its URL, Release tag, and asset name use `display_version`; it must retain
+`depends_on formula: "opl"`.
+
 Full is an additive same-Bundle-cohort track. Its DMG and
 `opl-release-manifest.json` may be added after Latest. Adding Full must not
 change Standard assets, updater metadata, prepared notes, or Latest selection.
 Full is never a Standard updater target.
+
+After Full assets pass and are appended, the Bundle may update only
+`one-person-lab-full`, then run its own Homebrew clean-VM readback. This cannot
+change the Standard cask, Standard assets, updater metadata, notes, or Latest.
+
+## Display And Machine Versions
+
+Tags, Release names, asset names, and UI use `display_version`, for example
+`26.7.20-r1`. `app.getVersion()`, both CFBundle versions,
+`latest-arm64-mac.yml`, manual/automatic updater comparison, and Homebrew cask
+ordering use `updater_version`, for example `26.7.2001`. SemVer compares the
+three core segments as decimal integers; no zero padding or string ordering is
+allowed. Historical `26.7.20` keeps machine version `26.7.20`. New Stable
+versions encode patch as `day * 100 + revision`, with revisions limited to
+`r1` through `r9`.
 
 ## Workflow Boundary
 
@@ -95,6 +120,12 @@ Only the publish job may receive bounded write permission, under the protected
 digest-idempotent: upload a missing asset, treat the same name and digest as
 complete, and fail closed on the same name with a different digest. An unknown
 API result permits reconcile only, never redispatch, rerun, or cancel.
+
+Homebrew mutations are performed inside protected Bundle jobs with the scoped
+tap credential. Each cask push is attempted once and accepted only after exact
+remote commit readback. GHCR WebUI publishing is explicitly not a desktop
+Stable critical-path asset; it remains a separate App-owned continuous server
+image publication and runtime-readback path.
 
 ## Compatibility And Cutover
 

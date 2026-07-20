@@ -228,9 +228,16 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
     releaseName?.format !== 'One Person Lab v<version>' ||
     releaseName?.stable_example !== 'One Person Lab v26.6.5' ||
     releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly' ||
-    releaseName?.stable_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$' ||
+    releaseName?.stable_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9])?$' ||
     releaseName?.nightly_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$' ||
     releaseName?.tag_pattern !== 'v<version>' ||
+    releaseName?.stable_revision?.maximum_revision !== 9 ||
+    releaseName?.stable_revision?.allocation !== 'explicit_base_plus_highest_existing_remote_revision_plus_one' ||
+    releaseName?.machine_version?.legacy_stable_last_display_version !== '26.7.20' ||
+    releaseName?.machine_version?.stable_patch_formula !== 'day_times_100_plus_revision' ||
+    releaseName?.machine_version?.nightly_patch_offset !== 90 ||
+    releaseName?.machine_version?.comparison !== 'semver_core_decimal_integer_segments' ||
+    releaseName?.machine_version?.bundle_must_bind_both_identities !== true ||
     calendarGuard?.time_zone !== 'Asia/Shanghai' ||
     calendarGuard?.future_dated_versions_allowed !== false ||
     calendarGuard?.failure_mode !== 'fail_closed_before_build_remote_lookup_or_mutation' ||

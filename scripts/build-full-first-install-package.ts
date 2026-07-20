@@ -33,7 +33,10 @@ import { resolveRuntimeSources } from './build-full-first-install-package/runtim
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
 import { resolveOfficeCliReleaseSource } from './build-full-first-install-package/upstream-release.ts';
 import { fileSha256 } from './release-file-helpers.ts';
-import { assertReleaseVersionNotFuture } from './release-version.ts';
+import {
+  assertReleaseVersionNotFuture,
+  assertUpdaterVersionMatchesDisplay,
+} from './release-version.ts';
 
 function readJsonIfExists(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -47,6 +50,8 @@ function buildFullPublicReleaseManifest(input) {
     schema: 'opl_public_release_manifest.v1',
     package_kind: 'opl_full_first_install_macos_arm64',
     version: input.version,
+    release_version: input.version,
+    updater_version: input.updaterVersion,
     primary_install_asset: input.artifactNames.dmg,
     assets: [
       {
@@ -81,6 +86,7 @@ function buildFullPublicReleaseManifest(input) {
 function main() {
   const options = parseArgs(process.argv.slice(2));
   assertReleaseVersionNotFuture('stable', options.version);
+  assertUpdaterVersionMatchesDisplay('stable', options.version, options.updaterVersion);
   const artifactNames = buildFullPackageArtifactNames(options.version);
   fs.mkdirSync(options.outDir, { recursive: true });
 
@@ -160,6 +166,7 @@ function main() {
       env: {
         ...process.env,
         OPL_RELEASE_VERSION: options.version,
+        OPL_UPDATER_VERSION: options.updaterVersion,
         OPL_REQUIRE_FULL_RUNTIME: '1',
       },
     });
@@ -233,6 +240,7 @@ function main() {
   const releaseManifestPath = path.join(options.outDir, artifactNames.releaseManifest);
   writeJsonFile(releaseManifestPath, buildFullPublicReleaseManifest({
     version: options.version,
+    updaterVersion: options.updaterVersion,
     artifactNames,
     outDir: options.outDir,
     fullDmgPath: targetDmg,

@@ -1,286 +1,76 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
-import {
-  isBrokerLookupOidcOnlyJob,
-  isReusableWorkflowOidcCeilingJob,
-  stableReleaseActionPaths,
-} from '../../scripts/validate-release-boundary/text-check-runner.ts';
+
+import { stableReleaseActionPaths } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
-const count = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
-const jobBlock = (source: string, jobName: string) => {
-  const start = source.indexOf(`  ${jobName}:\n`);
-  assert.ok(start >= 0, `missing job ${jobName}`);
-  const rest = source.slice(start + 1);
-  const next = rest.search(/^  [a-z0-9][a-z0-9-]*:\n/m);
-  return next < 0 ? source.slice(start) : source.slice(start, start + 1 + next);
-};
+const parseWorkflow = (name: string) => parseYaml(readWorkflow(name));
 
-test('release workflows resolve broker admission once and reuse immutable historical validation', () => {
-  const expectations = new Map([
-    ['desktop-release.yml', { lookup: 0, dynamic: 1, historical: 6 }],
-    ['desktop-release-promote.yml', { lookup: 0, dynamic: 1, historical: 2 }],
-    ['desktop-release-full-addon.yml', { lookup: 1, dynamic: 0, historical: 3 }],
-    ['opl-first-run-vm.yml', { lookup: 1, dynamic: 0, historical: 1 }],
-  ]);
+test('live Stable authority has no broker admission or OIDC service dependency', () => {
+  const stable = readWorkflow('release-stable.yml');
+  const bundle = readWorkflow('_release-bundle.yml');
 
-  for (const [name, expected] of expectations) {
-    const source = readWorkflow(name);
-    assert.equal(count(source, /--mode lookup/g), expected.lookup, `${name} lookup count`);
-    assert.equal(count(source, /--mode "\$verifier_mode"/g), expected.dynamic, `${name} dynamic admission count`);
-    assert.equal(count(source, /--mode historical/g), expected.historical, `${name} historical count`);
-    assert.match(source, /opl-release-broker-admission-\$\{\{ github\.run_id \}\}/);
-    assert.doesNotMatch(source, /verify-release-session-lease|verify-release-mutation-payload|release_mutation_payload_base64/);
-  }
+  assert.match(stable, /workflow_dispatch:/);
+  assert.match(stable, /uses: \.\/\.github\/workflows\/_release-bundle\.yml/);
+  assert.match(bundle, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
+  assert.doesNotMatch(`${stable}\n${bundle}`, /release[_ -]broker|broker[_ -]admission|id-token: write/i);
+  assert.doesNotMatch(`${stable}\n${bundle}`, /gh run rerun|gh run cancel|--clobber/);
 });
 
-test('broker lookup, attestation, and exact reusable VM call edges receive GitHub OIDC permission', () => {
-  const lookupJobs = new Map([
-    ['desktop-release.yml', 'release-preflight'],
-    ['desktop-release-promote.yml', 'prepare'],
-    ['desktop-release-full-addon.yml', 'preflight'],
-    ['opl-first-run-vm.yml', 'validate-vm-inputs'],
-  ]);
-  const expectedOidcCounts = new Map([
-    ['desktop-release.yml', 5],
-    ['desktop-release-promote.yml', 2],
-    ['desktop-release-full-addon.yml', 2],
-    ['opl-first-run-vm.yml', 1],
-  ]);
-
-  for (const [name, lookupJob] of lookupJobs) {
-    const source = readWorkflow(name);
-    const block = jobBlock(source, lookupJob);
-    assert.match(block, /permissions:\n      contents: read\n      actions: read\n      id-token: write/);
-    assert.match(block, /--mode (?:lookup|"\$verifier_mode")/);
-    assert.equal(count(source, /id-token: write/g), expectedOidcCounts.get(name), `${name} OIDC permission count`);
-  }
-
-  const desktop = parseYaml(readWorkflow('desktop-release.yml'));
-  assert.deepEqual(desktop.permissions, { contents: 'read', actions: 'read' });
-  for (const jobId of [
-    'standard-first-run-vm-smoke-after-standard-only',
-    'standard-first-run-vm-smoke-after-full',
-    'full-first-run-vm-smoke',
+test('legacy broker workflows reject every call with read-only permissions', () => {
+  for (const name of [
+    'desktop-release.yml',
+    'desktop-release-promote.yml',
+    'desktop-release-full-addon.yml',
+    'desktop-release-cleanup-drafts.yml',
   ]) {
-    const job = desktop.jobs[jobId];
-    assert.equal(job.uses, './.github/workflows/opl-first-run-vm.yml', `${jobId} callee`);
-    assert.deepEqual(job.permissions, {
-      contents: 'read',
-      actions: 'read',
-      'id-token': 'write',
-    }, `${jobId} permission ceiling`);
+    const workflow = parseWorkflow(name);
+    assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
+    assert.deepEqual(workflow.permissions, { contents: 'read' });
+    assert.match(readWorkflow(name), /exit 1/);
+    assert.doesNotMatch(readWorkflow(name), /workflow_dispatch:|contents: write|id-token: write/);
   }
 });
 
-test('OIDC lookup-only classification is strict and rejects hidden mutation authority', () => {
-  const lookupJobs = new Map([
-    ['desktop-release.yml', 'release-preflight'],
-    ['desktop-release-promote.yml', 'prepare'],
-    ['desktop-release-full-addon.yml', 'preflight'],
-    ['opl-first-run-vm.yml', 'validate-vm-inputs'],
-  ]);
-  for (const [name, jobId] of lookupJobs) {
-    const workflow = parseYaml(readWorkflow(name));
-    assert.equal(isBrokerLookupOidcOnlyJob(workflow.jobs[jobId]), true, `${name}/${jobId}`);
-  }
-
-  const workflow = parseYaml(readWorkflow('desktop-release.yml'));
-  const baseline = workflow.jobs['release-preflight'];
-  const clone = () => structuredClone(baseline);
-
-  const extraWrite = clone();
-  extraWrite.permissions.contents = 'write';
-  assert.equal(isBrokerLookupOidcOnlyJob(extraWrite), false);
-
-  const missingIdentityBinding = clone();
-  const lookupStep = missingIdentityBinding.steps.find((step) => String(step.run ?? '').includes('verify-release-broker-acceptance.ts'));
-  lookupStep.run = lookupStep.run.replace('--expected-workflow-sha "$GITHUB_SHA"', '');
-  assert.equal(isBrokerLookupOidcOnlyJob(missingIdentityBinding), false);
-
-  const hiddenMutation = clone();
-  hiddenMutation.steps.push({ run: 'git push origin refs/tags/v1.0.0' });
-  assert.equal(isBrokerLookupOidcOnlyJob(hiddenMutation), false);
-
-  const arbitraryAction = clone();
-  arbitraryAction.steps.push({ uses: 'example/opaque-action@0123456789012345678901234567890123456789' });
-  assert.equal(isBrokerLookupOidcOnlyJob(arbitraryAction), false);
+test('Stable dispatch is serialized and cannot cancel or replace an in-flight Bundle', () => {
+  const workflow = parseWorkflow('release-stable.yml');
+  assert.equal(workflow.concurrency.group, 'opl-stable-release-bundle-${{ inputs.version }}');
+  assert.equal(workflow.concurrency['cancel-in-progress'], false);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.equal(workflow.jobs.release.with.app_ref, '${{ github.sha }}');
+  assert.equal(workflow.jobs.release.secrets, 'inherit');
 });
 
-test('reusable VM OIDC ceilings only allow the exact step-free call edge', () => {
-  const workflow = parseYaml(readWorkflow('desktop-release.yml'));
-  const callerIds = [
-    'standard-first-run-vm-smoke-after-standard-only',
-    'standard-first-run-vm-smoke-after-full',
-    'full-first-run-vm-smoke',
-  ];
-  for (const jobId of callerIds) {
-    assert.equal(isReusableWorkflowOidcCeilingJob(workflow.jobs[jobId]), true, jobId);
+test('reusable VM call edges remain read-only', () => {
+  const jobs = parseWorkflow('_release-bundle.yml').jobs;
+  for (const jobId of [
+    'standard-qualification',
+    'updater-upgrade-qualification',
+    'homebrew-standard-vm',
+    'full-qualification',
+    'homebrew-full-vm',
+  ]) {
+    const job = jobs[jobId];
+    const permissions = job.permissions ?? parseWorkflow('_release-bundle.yml').permissions;
+    assert.equal(permissions.contents, 'read', jobId);
+    assert.equal(permissions.actions, 'read', jobId);
+    assert.equal(job.steps, undefined, `${jobId} must stay a step-free reusable call edge`);
   }
-
-  const baseline = workflow.jobs[callerIds[0]];
-  const permissionDrift = structuredClone(baseline);
-  permissionDrift.permissions.actions = 'write';
-  assert.equal(isReusableWorkflowOidcCeilingJob(permissionDrift), false);
-
-  const extraPermission = structuredClone(baseline);
-  extraPermission.permissions.packages = 'read';
-  assert.equal(isReusableWorkflowOidcCeilingJob(extraPermission), false);
-
-  const calleeDrift = structuredClone(baseline);
-  calleeDrift.uses = './.github/workflows/desktop-release-full-addon.yml';
-  assert.equal(isReusableWorkflowOidcCeilingJob(calleeDrift), false);
-
-  const localSteps = structuredClone(baseline);
-  localSteps.steps = [{ run: 'echo hidden-local-step' }];
-  assert.equal(isReusableWorkflowOidcCeilingJob(localSteps), false);
 });
 
-test('the complete Stable action DAG is pinned to immutable action commits', () => {
+test('the complete Stable action DAG pins external Actions to immutable commits', () => {
   for (const relativePath of stableReleaseActionPaths) {
     const document = parseYaml(fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8'));
     const steps = relativePath.includes('/actions/')
       ? document.runs.steps
-      : Object.values(document.jobs).flatMap((job) => job.steps ?? []);
+      : Object.values(document.jobs).flatMap((job: any) => job.steps ?? []);
     for (const step of steps) {
       if (typeof step.uses !== 'string' || step.uses.startsWith('./')) continue;
       assert.match(step.uses, /@[0-9a-f]{40}$/, `${relativePath}: ${step.uses}`);
     }
-  }
-  assert.match(
-    fs.readFileSync(path.join(process.cwd(), '.github/actions/setup-active-shell-deps/action.yml'), 'utf8'),
-    /bun-version: '1\.3\.14'/,
-  );
-});
-
-test('sole promotion attempt accepts only the broker root checkpoint authorization', () => {
-  const source = readWorkflow('desktop-release-promote.yml');
-  assert.match(source, /promotion_checkpoint_authorization/);
-  assert.match(source, /source_promotion_attempt_id !== process\.env\.EXPECTED_ATTEMPT_ID/);
-  assert.match(source, /first_unverified_checkpoint !== process\.env\.EXPECTED_RESUME/);
-  assert.match(source, /authorization\.first_unverified_checkpoint !== 'release_public_nonlatest'/);
-  assert.match(source, /authorization\.last_verified_checkpoint !== null/);
-  assert.match(source, /authorization\.receipt_digests\.length !== 0/);
-  assert.match(source, /resume_from_checkpoint=\$\{authorization\.first_unverified_checkpoint\}/);
-  assert.match(source, /PROMOTION_CHECKPOINT_RECEIPTS_JSON !== '\[\]'/);
-  assert.doesNotMatch(source, /promotionCheckpointReceiptsFromJobs|Public release checkpoint receipt must resolve/);
-});
-
-test('reusable VM callers bind the outer mutation and cap Standard work to the absolute deadline', () => {
-  const vm = readWorkflow('opl-first-run-vm.yml');
-  for (const mapping of [
-    'desktop-release.yml:desktop_release_dispatch',
-    'desktop-release-promote.yml:promotion_dispatch',
-    'desktop-release-full-addon.yml:full_addon_dispatch',
-  ]) assert.match(vm, new RegExp(mapping.replace('.', '\\.')));
-  assert.match(vm, /--expected-validation-sha256 "\$BROKER_ADMISSION_VALIDATION_SHA256"/);
-  assert.match(vm, /deadline_ms - now_ms - evidence_reserve_ms/);
-  assert.match(vm, /RUN_TIMEOUT_MS="\$\(cap_timeout "\$RUN_TIMEOUT_MS"\)"/);
-  assert.match(vm, /CODEX_READINESS_PHASE_TIMEOUT_MS="\$\(cap_timeout "\$CODEX_READINESS_PHASE_TIMEOUT_MS"\)"/);
-  assert.doesNotMatch(vm, /RELEASE_MUTATION" != "full_addon_dispatch/);
-  assert.match(vm, /effective_deadline_at="\$FULL_ADDON_DEADLINE_AT"/);
-  assert.match(vm, /Recalculate Full add-on budget before expensive smoke/);
-  assert.match(vm, /steps\.full_smoke_budget\.outputs\.run_timeout_ms \|\| steps\.vm_timeouts\.outputs\.run_timeout_ms/);
-
-  const full = readWorkflow('desktop-release-full-addon.yml');
-  assert.match(full, /broker_admission_validation_sha256: \$\{\{ needs\.preflight\.outputs\.broker_admission_validation_sha256 \}\}/);
-  assert.match(full, /full_addon_deadline_at: \$\{\{ needs\.preflight\.outputs\.full_addon_deadline_at \}\}/);
-  assert.match(full, /release_mutation: full_addon_dispatch/);
-  assert.match(full, /release_workflow: desktop-release-full-addon\.yml/);
-});
-
-test('Full add-on deadline and broker evidence reach the nested builder and VM without changing diagnostics', () => {
-  const addon = readWorkflow('desktop-release-full-addon.yml');
-  const builder = readWorkflow('full-first-install-release.yml');
-  const vm = readWorkflow('opl-first-run-vm.yml');
-  const diagnostics = readWorkflow('desktop-release-diagnostics.yml');
-
-  assert.match(addon, /full_addon_deadline_at: \$\{\{ steps\.broker-admission\.outputs\.full_addon_deadline_at \}\}/);
-  assert.equal(count(addon, /full_addon_deadline_at: \$\{\{ needs\.preflight\.outputs\.full_addon_deadline_at \}\}/g), 2);
-  assert.equal(count(addon, /release_mutation_payload_sha256: \$\{\{ inputs\.release_mutation_payload_sha256 \}\}/g), 2);
-
-  for (const input of ['full_addon_deadline_at', 'release_mutation_payload_sha256', 'broker_admission_validation_sha256']) {
-    assert.match(builder, new RegExp(`${input}:`));
-  }
-  assert.match(builder, /Download immutable outer Full broker admission validation/);
-  assert.match(builder, /--expected-run-id "\$GITHUB_RUN_ID"/);
-  assert.match(builder, /--expected-run-attempt "\$GITHUB_RUN_ATTEMPT"/);
-  assert.match(builder, /--expected-validation-sha256 "\$BROKER_ADMISSION_VALIDATION_SHA256"/);
-  assert.match(builder, /validation\.full_addon_deadline_at !== deadline/);
-  assert.match(builder, /timeout-minutes: \$\{\{ inputs\.release_mutation == 'full_addon_dispatch' && 50 \|\| 90 \}\}/);
-  assert.match(builder, /const remainingMs = deadlineMs - nowMs - postBuildReserveMs/);
-  assert.match(builder, /FULL_BUILD_TIMEOUT_MS="\$full_build_timeout_ms"/);
-
-  assert.equal(count(vm, /^\s{6}full_addon_deadline_at:/gm), 2);
-  assert.match(vm, /validation\.full_addon_deadline_at !== process\.env\.FULL_ADDON_DEADLINE_AT/);
-  assert.match(vm, /timeout-minutes: \$\{\{ inputs\.release_mutation == 'full_addon_dispatch' && 50 \|\| 75 \}\}/);
-  assert.match(vm, /full_addon_deadline_elapsed: expensive VM smoke cannot start/);
-
-  assert.doesNotMatch(diagnostics, /full_addon_deadline_at|release_mutation: full_addon_dispatch/);
-});
-
-test('every Standard publication mutation rechecks the signed immutable deadline', () => {
-  const publish = jobBlock(readWorkflow('desktop-release.yml'), 'publish-standard');
-  assert.equal(count(publish, /--mode historical/g), 6);
-  assert.equal(count(publish, /signed_lookup_envelope/g), 5);
-  assert.equal(count(publish, /admin_one_shot_admission/g), 5);
-  assert.equal(count(publish, /Date\.now\(\) >= deadlineMs/g), 5);
-  assert.match(publish, /verify_standard_mutation_deadline "tag-push"\n\s+git push origin "\$tag"/);
-  assert.match(publish, /verify_standard_mutation_deadline "tag-force-push"\n\s+git push --force-with-lease=/);
-  assert.match(publish, /release-publish-historical-validation\.json[\s\S]*?Date\.now\(\) >= deadlineMs[\s\S]*?"\$\{publish_args\[@\]\}"/);
-  assert.match(publish, /component-upload-historical-validation\.json[\s\S]*?Date\.now\(\) >= deadlineMs[\s\S]*?gh release upload/);
-  assert.match(publish, /id: standard-asset-attestation-deadline[\s\S]*?authorized=true[\s\S]*?if: \$\{\{ steps\.standard-asset-attestation-deadline\.outputs\.authorized == 'true' \}\}/);
-  assert.match(publish, /id: component-manifest-attestation-deadline[\s\S]*?authorized=true[\s\S]*?if: \$\{\{ steps\.component-manifest-attestation-deadline\.outputs\.authorized == 'true' \}\}/);
-});
-
-test('every Standard deadline gate accepts historical admin one-shot admission and fails closed without it', (t) => {
-  const workflow = parseYaml(readWorkflow('desktop-release.yml'));
-  const scripts = workflow.jobs['publish-standard'].steps.flatMap((step) => {
-    const run = String(step.run ?? '');
-    return [...run.matchAll(/node --input-type=module <<'NODE'\n([\s\S]*?)\nNODE/g)]
-      .map((match) => match[1])
-      .filter((script) => script.includes('Signed broker validation does not bind the immutable Standard deadline.'));
-  });
-  assert.equal(scripts.length, 5);
-
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-deadline-'));
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
-  const validationPath = path.join(tempDir, 'historical-validation.json');
-  const deadline = new Date(Date.now() + 60_000).toISOString();
-  const env = {
-    ...process.env,
-    MUTATION_DEADLINE_VALIDATION: validationPath,
-    STANDARD_ADMISSION_DEADLINE_AT: deadline,
-  };
-  fs.writeFileSync(validationPath, `${JSON.stringify({
-    status: 'verified',
-    mode: 'historical',
-    signed_lookup_envelope: null,
-    admin_one_shot_admission: {
-      request: { mutation_payload: { standard_admission_deadline_at: deadline } },
-    },
-  })}\n`);
-
-  for (const script of scripts) {
-    const result = spawnSync(process.execPath, ['--input-type=module'], { input: script, env, encoding: 'utf8' });
-    assert.equal(result.status, 0, result.stderr);
-  }
-
-  fs.writeFileSync(validationPath, `${JSON.stringify({
-    status: 'verified',
-    mode: 'historical',
-    signed_lookup_envelope: null,
-    admin_one_shot_admission: null,
-  })}\n`);
-  for (const script of scripts) {
-    const result = spawnSync(process.execPath, ['--input-type=module'], { input: script, env, encoding: 'utf8' });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Signed broker validation does not bind the immutable Standard deadline\./);
   }
 });

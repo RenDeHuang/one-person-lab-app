@@ -152,15 +152,16 @@ function writeStandardUpdaterZip(zipPath, version) {
 }
 
 export function writeStandardRemoteAssets(outDir, version, options = {}) {
+  const updaterVersion = options.updaterVersion ?? version;
   const names = standardRemoteAssetNames(version);
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
   writeFile(path.join(outDir, dmgName), "standard-dmg");
-  writeStandardUpdaterZip(path.join(outDir, zipName), version);
+  writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
   writeStandardLocalAuthorizationPolicy(outDir);
   const metadata = [
-    `version: ${version}`,
+    `version: ${updaterVersion}`,
     "files:",
     `  - url: ${dmgName}`,
     "    sha512: test-dmg",
