@@ -168,8 +168,17 @@ test('Stable is the only manual entry and all channels share one non-cancelling 
   assert.equal(nightly.jobs.release.uses, './.github/workflows/_release-bundle.yml');
   const stableSource = readWorkflow('release-stable.yml');
   assert.match(stableSource, /if \[ "\$OPERATION" = standard \] \|\| \[ "\$OPERATION" = append_full \]; then[\s\S]*actions\/runs\/\$GITHUB_RUN_ID" --jq \.created_at/);
+  assert.match(stableSource, /--started-at "\$operation_created_at"/);
+  assert.match(stableSource, /operation_started_at="\$\(jq -er \.started_at release-operation-admission\.json\)"/);
+  assert.match(stableSource, /operation_deadline_at="\$\(jq -er \.deadline_at release-operation-admission\.json\)"/);
+  assert.doesNotMatch(stableSource, /operation_started_at="\$\(timeout[\s\S]*actions\/runs\/\$GITHUB_RUN_ID/);
   assert.match(stableSource, /if: \$\{\{ steps\.admission\.outputs\.operation != 'resume_standard' \}\}/);
   assert.doesNotMatch(stableSource, /run_started_at/);
+  const bundleSource = readWorkflow('_release-bundle.yml');
+  assert.match(bundleSource, /--started-at "\$operation_created_at"/);
+  assert.match(bundleSource, /operation_started_at="\$\(jq -er \.started_at nightly-operation-request\.json\)"/);
+  assert.match(bundleSource, /operation_deadline_at="\$\(jq -er \.deadline_at nightly-operation-request\.json\)"/);
+  assert.doesNotMatch(bundleSource, /operation_started_at="\$\(timeout[\s\S]*actions\/runs\/\$GITHUB_RUN_ID/);
   for (const workflow of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
     assert.doesNotMatch(readWorkflow(workflow), /opl-release-bundle-global/);
   }

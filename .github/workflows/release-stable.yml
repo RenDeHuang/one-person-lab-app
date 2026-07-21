@@ -152,12 +152,12 @@ jobs:
           operation_started_at=''
           operation_deadline_at=''
           if [ "$OPERATION" = standard ] || [ "$OPERATION" = append_full ]; then
-            operation_started_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
-            operation_deadline_at="$(
-              node --experimental-strip-types app-source/scripts/release-operation-deadline.ts resolve \
-                --operation "$OPERATION" --started-at "$operation_started_at" \
-                --output release-operation-admission.json | jq -r .deadline_at
-            )"
+            operation_created_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
+            node --experimental-strip-types app-source/scripts/release-operation-deadline.ts resolve \
+              --operation "$OPERATION" --started-at "$operation_created_at" \
+              --output release-operation-admission.json > /dev/null
+            operation_started_at="$(jq -er .started_at release-operation-admission.json)"
+            operation_deadline_at="$(jq -er .deadline_at release-operation-admission.json)"
           fi
           {
             echo "operation=$OPERATION"

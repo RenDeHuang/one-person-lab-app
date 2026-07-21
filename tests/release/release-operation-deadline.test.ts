@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
@@ -6,6 +10,7 @@ import {
   remainingReleaseOperationMilliseconds,
   releaseOperationDeadline,
   releaseOperationDeadlineTimestamp,
+  resolveReleaseOperationWindow,
 } from '../../scripts/release-operation-deadline.ts';
 
 const startedAt = '2026-07-21T00:00:00.000Z';
@@ -23,6 +28,45 @@ test('release operations have bounded independent clocks', () => {
     releaseOperationDeadline({ operation: 'append_full', startedAt }),
     '2026-07-21T00:50:00.000Z',
   );
+});
+
+test('GitHub created_at is canonicalized once before operation control is derived', () => {
+  const operationWindow = resolveReleaseOperationWindow({
+    operation: 'standard',
+    startedAt: '2026-07-21T23:20:33Z',
+  });
+  assert.deepEqual(operationWindow, {
+    startedAt: '2026-07-21T23:20:33.000Z',
+    deadlineAt: '2026-07-22T00:50:33.000Z',
+  });
+});
+
+test('resolve CLI writes the canonical operation start and matching deadline to its admission receipt', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-operation-admission-'));
+  const output = path.join(root, 'release-operation-admission.json');
+  try {
+    const result = spawnSync(process.execPath, [
+      '--experimental-strip-types',
+      'scripts/release-operation-deadline.ts',
+      'resolve',
+      '--operation',
+      'standard',
+      '--started-at',
+      '2026-07-21T23:20:33Z',
+      '--output',
+      output,
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const expected = {
+      operation: 'standard',
+      started_at: '2026-07-21T23:20:33.000Z',
+      deadline_at: '2026-07-22T00:50:33.000Z',
+    };
+    assert.deepEqual(JSON.parse(result.stdout), expected);
+    assert.deepEqual(JSON.parse(fs.readFileSync(output, 'utf8')), expected);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('deadline checks reject refreshed or elapsed clocks', () => {

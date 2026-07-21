@@ -152,8 +152,9 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'actions/runs/$GITHUB_RUN_ID" --jq .created_at',
     'release-operation-deadline.ts resolve',
-    '--started-at "$operation_started_at"',
-    'operation_deadline_at=',
+    '--started-at "$operation_created_at"',
+    'operation_started_at="$(jq -er .started_at release-operation-admission.json)"',
+    'operation_deadline_at="$(jq -er .deadline_at release-operation-admission.json)"',
   ]) {
     if (!admissionRun.includes(binding)) {
       failures += reportFailure(id, `admission is missing immutable attempt/deadline binding ${binding}`);

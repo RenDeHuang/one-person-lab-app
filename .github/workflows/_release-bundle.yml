@@ -462,13 +462,13 @@ jobs:
           operation_started_at='${{ inputs.operation_started_at }}'
           operation_deadline_at='${{ inputs.operation_deadline_at }}'
           if [ '${{ inputs.channel }}' = nightly ]; then
-            operation_started_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+            operation_created_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
-            operation_deadline_at="$(
-              node --experimental-strip-types scripts/release-operation-deadline.ts resolve \
-                --operation standard --started-at "$operation_started_at" \
-                --output nightly-operation-request.json | jq -er .deadline_at
-            )"
+            node --experimental-strip-types scripts/release-operation-deadline.ts resolve \
+              --operation standard --started-at "$operation_created_at" \
+              --output nightly-operation-request.json > /dev/null
+            operation_started_at="$(jq -er .started_at nightly-operation-request.json)"
+            operation_deadline_at="$(jq -er .deadline_at nightly-operation-request.json)"
           fi
           framework-source/bin/opl release operation admit \
             --bundle "$bundle_digest" --operation standard \

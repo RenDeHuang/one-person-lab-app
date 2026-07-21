@@ -39,8 +39,18 @@ export function releaseOperationDeadline(input: {
   operation: ReleaseOperation;
   startedAt: string;
 }): string {
+  return resolveReleaseOperationWindow(input).deadlineAt;
+}
+
+export function resolveReleaseOperationWindow(input: {
+  operation: ReleaseOperation;
+  startedAt: string;
+}): { startedAt: string; deadlineAt: string } {
   const startedAt = timestamp(input.startedAt, 'Operation start');
-  return new Date(startedAt + operationBudgetMinutes[input.operation] * 60_000).toISOString();
+  return {
+    startedAt: new Date(startedAt).toISOString(),
+    deadlineAt: new Date(startedAt + operationBudgetMinutes[input.operation] * 60_000).toISOString(),
+  };
 }
 
 export function assertReleaseOperationDeadline(input: {
@@ -89,8 +99,15 @@ function main(argv: string[]): void {
   const releaseOperation = operation(values.operation);
   const startedAt = values['started-at'];
   if (command === 'resolve') {
-    const deadlineAt = releaseOperationDeadline({ operation: releaseOperation, startedAt: startedAt ?? '' });
-    const payload = `${JSON.stringify({ operation: releaseOperation, started_at: startedAt, deadline_at: deadlineAt })}\n`;
+    const operationWindow = resolveReleaseOperationWindow({
+      operation: releaseOperation,
+      startedAt: startedAt ?? '',
+    });
+    const payload = `${JSON.stringify({
+      operation: releaseOperation,
+      started_at: operationWindow.startedAt,
+      deadline_at: operationWindow.deadlineAt,
+    })}\n`;
     if (values.output) fs.writeFileSync(values.output, payload);
     process.stdout.write(payload);
     return;
