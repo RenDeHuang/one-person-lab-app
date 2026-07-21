@@ -42,6 +42,24 @@ const payloadComponentSpecs = [
     user_value_hint: 'Helps users design, test, and improve OPL-compatible agents from inside the App.',
   },
   {
+    label: 'OPL Book Forge',
+    key: 'bookforge',
+    role: 'long-form book and publication workflow agent',
+    user_value_hint: 'Helps users structure, draft, and validate long-form book projects.',
+  },
+  {
+    label: 'MAS Scholar Skills',
+    key: 'mas_scholar_skills',
+    role: 'workspace-bound medical research capability package',
+    user_value_hint: 'Adds the evidence, analysis, writing, table, and figure skills used inside bound MAS workspaces.',
+  },
+  {
+    label: 'OPL Flow',
+    key: 'opl_flow',
+    role: 'workflow profile and conflict policy package',
+    user_value_hint: 'Keeps recommended OPL workflows and package conflict handling aligned across installed agents.',
+  },
+  {
     label: 'OfficeCLI',
     key: 'officecli',
     role: 'Office document generation and editing tool',
@@ -103,12 +121,9 @@ export function buildBundledVersionLines(manifest: any) {
 
 function buildFullPayloadDescription(bundledVersions: string[]) {
   const labels = bundledVersions.map((line) => line.replace(/\s+(?:@|[0-9v]).*$/, '').trim());
-  const requiredBase = ['OPL Framework', 'Codex CLI', 'MAS', 'MAG', 'RCA'];
-  if (requiredBase.every((label) => labels.includes(label))
-    && labels.includes('OPL Meta Agent')
-    && labels.includes('OfficeCLI')
-    && labels.includes('MinerU')) {
-    return 'Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.';
+  const completePayloadLabels = payloadComponentSpecs.map(({ label }) => label);
+  if (completePayloadLabels.every((label) => labels.includes(label))) {
+    return 'Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OPL Book Forge, MAS Scholar Skills, OPL Flow, OfficeCLI, MinerU, and packaged Codex skills.';
   }
   const payloads = labels.length > 0
     ? labels.join(', ')

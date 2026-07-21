@@ -226,6 +226,34 @@ test('new Standard binds fresh remote Framework main while Canary uses only a mi
   );
 });
 
+test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without consuming build artifacts', () => {
+  const source = readWorkflow('_release-bundle.yml');
+  const step = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Prepare and validate online AI notes',
+  );
+  const script = String(step.run);
+  assert.match(script, /if \[\[ '\$\{\{ inputs\.include_full \}\}' == true \]\]; then/);
+  assert.match(script, /scripts\/prepare-release-notes-full-payload-authority\.ts/);
+  for (const required of [
+    "--app-ref '${{ steps.identity.outputs.app_sha }}'",
+    "--shell-ref '${{ steps.identity.outputs.shell_sha }}'",
+    "--framework-ref '${{ steps.identity.outputs.framework_sha }}'",
+    "--release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}'",
+    '--third-party-source-manifest contracts/app-full-third-party-source-manifest.json',
+    '--output notes-full-payload-authority.json',
+    '--full-package-manifest notes-full-payload-authority.json',
+  ]) {
+    assert.ok(script.includes(required), `prepared notes step is missing ${required}`);
+  }
+  assert.doesNotMatch(script, /One-Person-Lab-Manual|dist\/opl-full-release|full-package-manifest\.json/);
+  assert.ok(
+    source.indexOf('prepare-release-notes-full-payload-authority.ts')
+      < source.indexOf('- name: Freeze canonical Framework Bundle'),
+  );
+});
+
 test('every release-bound low-level admission rejects missing, invalid, or permanently rejected identity', () => {
   const digest = `sha256:${'a'.repeat(64)}`;
   const baseInputs = {

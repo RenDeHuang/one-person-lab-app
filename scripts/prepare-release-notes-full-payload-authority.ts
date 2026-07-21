@@ -1,0 +1,426 @@
+#!/usr/bin/env node
+
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
+import { validateFrozenCodexCliIdentity } from './build-artifact-cohort.ts';
+
+type JsonRecord = Record<string, any>;
+
+const shaPattern = /^[0-9a-f]{40}$/;
+const packageSpecs = [
+  { packageId: 'mas', componentKey: 'mas', resolvedRefKey: 'mas', repository: 'gaofeng21cn/med-autoscience' },
+  { packageId: 'mag', componentKey: 'mag', resolvedRefKey: 'mag', repository: 'gaofeng21cn/med-autogrant' },
+  { packageId: 'rca', componentKey: 'rca', resolvedRefKey: 'rca', repository: 'gaofeng21cn/redcube-ai' },
+  { packageId: 'oma', componentKey: 'meta_agent', resolvedRefKey: 'opl_meta_agent', repository: 'gaofeng21cn/opl-meta-agent' },
+  { packageId: 'obf', componentKey: 'bookforge', resolvedRefKey: 'opl_bookforge', repository: 'gaofeng21cn/opl-bookforge' },
+  { packageId: 'mas-scholar-skills', componentKey: 'mas_scholar_skills', resolvedRefKey: 'mas_scholar_skills', repository: 'gaofeng21cn/mas-scholar-skills' },
+  { packageId: 'opl-flow', componentKey: 'opl_flow', resolvedRefKey: 'opl_flow', repository: 'gaofeng21cn/opl-flow' },
+] as const;
+
+function requiredString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing ${label}.`);
+  return value.trim();
+}
+
+function requiredObject(value: unknown, label: string): JsonRecord {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Missing ${label}.`);
+  }
+  return value as JsonRecord;
+}
+
+function readRegularJson(filePath: string, label: string): JsonRecord {
+  const stat = fs.lstatSync(filePath, { throwIfNoEntry: false });
+  if (!stat?.isFile() || stat.isSymbolicLink()) {
+    throw new Error(`${label} must be a regular non-symlink file: ${filePath}`);
+  }
+  return requiredObject(JSON.parse(fs.readFileSync(filePath, 'utf8')), label);
+}
+
+function sha256File(filePath: string): string {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function digestRef(filePath: string): string {
+  return `sha256:${sha256File(filePath)}`;
+}
+
+function gitSha(root: string, label: string): string {
+  const result = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  const value = result.stdout.trim();
+  if (result.status !== 0 || !shaPattern.test(value)) {
+    throw new Error(`Cannot resolve exact ${label} Git SHA: ${result.stderr.trim()}`);
+  }
+  return value;
+}
+
+function assertExactGitSha(root: string, expected: string, label: string): string {
+  if (!shaPattern.test(expected)) throw new Error(`${label} ref must be an exact 40-character Git SHA.`);
+  const actual = gitSha(root, label);
+  if (actual !== expected) throw new Error(`${label} checkout drifted: expected ${expected}, got ${actual}.`);
+  const status = spawnSync('git', ['-C', root, 'status', '--porcelain'], { encoding: 'utf8' });
+  if (status.status !== 0 || status.stdout.trim()) {
+    throw new Error(`${label} checkout must be clean before release-note authority is derived.`);
+  }
+  return actual;
+}
+
+function assertContainedFile(root: string, candidate: string, label: string): string {
+  const candidateStat = fs.lstatSync(candidate, { throwIfNoEntry: false });
+  if (!candidateStat?.isFile() || candidateStat.isSymbolicLink()) {
+    throw new Error(`${label} must be a regular non-symlink file: ${candidate}`);
+  }
+  const rootRealpath = fs.realpathSync(root);
+  const candidateRealpath = fs.realpathSync(candidate);
+  const relative = path.relative(rootRealpath, candidateRealpath);
+  if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`${label} escapes its authority checkout: ${candidate}`);
+  }
+  return candidateRealpath;
+}
+
+function assertExactIds(actual: unknown, expected: readonly string[], label: string): void {
+  if (!Array.isArray(actual) || actual.some((value) => typeof value !== 'string')) {
+    throw new Error(`${label} must be a string array.`);
+  }
+  const normalized = [...actual].sort();
+  const expectedNormalized = [...expected].sort();
+  if (JSON.stringify(normalized) !== JSON.stringify(expectedNormalized)) {
+    throw new Error(`${label} must contain exactly ${expected.join(', ')}.`);
+  }
+}
+
+function frameworkContractRef(ref: string): string {
+  const normalized = ref.split(path.sep).join('/');
+  return normalized.startsWith('contracts/')
+    ? normalized
+    : path.posix.join('contracts/opl-framework', normalized);
+}
+
+function resolveCatalogFile(frameworkRoot: string, catalogRoot: string, ref: string, label: string): string {
+  const candidate = path.resolve(ref.startsWith('contracts/') ? frameworkRoot : catalogRoot, ref);
+  return assertContainedFile(frameworkRoot, candidate, label);
+}
+
+export async function buildReleaseNotesFullPayloadAuthority(input: {
+  appRoot: string;
+  appRef: string;
+  shellRoot: string;
+  shellRef: string;
+  frameworkRoot: string;
+  frameworkRef: string;
+  releaseSetManifestPath: string;
+  thirdPartySourceManifestPath: string;
+}): Promise<JsonRecord> {
+  const appRoot = fs.realpathSync(input.appRoot);
+  const shellRoot = fs.realpathSync(input.shellRoot);
+  const frameworkRoot = fs.realpathSync(input.frameworkRoot);
+  const appRef = assertExactGitSha(appRoot, input.appRef, 'App');
+  const shellRef = assertExactGitSha(shellRoot, input.shellRef, 'Shell');
+  const frameworkRef = assertExactGitSha(frameworkRoot, input.frameworkRef, 'Framework');
+
+  const releaseSetPath = assertContainedFile(
+    frameworkRoot,
+    input.releaseSetManifestPath,
+    'Framework Release Set manifest',
+  );
+  const releaseSet = readRegularJson(releaseSetPath, 'Framework Release Set manifest');
+  if (releaseSet.surface_kind !== 'opl_release_set.v2') {
+    throw new Error('Framework Release Set manifest has an unsupported surface_kind.');
+  }
+  const releasePackages = requiredObject(
+    requiredObject(releaseSet.components, 'Framework Release Set components').packages,
+    'Framework Release Set packages',
+  );
+  if (releasePackages.package_count !== packageSpecs.length) {
+    throw new Error(`Framework Release Set must declare exactly ${packageSpecs.length} packages.`);
+  }
+  const packageIds = packageSpecs.map(({ packageId }) => packageId);
+  assertExactIds(releasePackages.package_ids, packageIds, 'Framework Release Set package_ids');
+  assertExactIds(
+    requiredObject(releaseSet.owner_cohort_lock, 'Framework owner cohort lock').package_ids,
+    packageIds,
+    'Framework owner cohort package_ids',
+  );
+
+  const catalogPath = assertContainedFile(
+    frameworkRoot,
+    path.join(frameworkRoot, 'contracts', 'opl-framework', 'bundled-full-runtime-package-catalog.json'),
+    'Framework bundled package catalog',
+  );
+  const catalog = readRegularJson(catalogPath, 'Framework bundled package catalog');
+  if (catalog.surface_kind !== 'opl_bundled_full_runtime_package_catalog.v1') {
+    throw new Error('Framework bundled package catalog has an unsupported surface_kind.');
+  }
+  const catalogPackages = requiredObject(catalog.packages, 'Framework bundled package catalog packages');
+  assertExactIds(Object.keys(catalogPackages), packageIds, 'Framework bundled package catalog package ids');
+  const releaseMembers = requiredObject(releasePackages.members, 'Framework Release Set package members');
+  assertExactIds(Object.keys(releaseMembers), packageIds, 'Framework Release Set package member ids');
+  const catalogRoot = path.dirname(catalogPath);
+
+  const components: JsonRecord = {
+    opl: { git_commit: frameworkRef },
+  };
+  const resolvedRefs: JsonRecord = {
+    opl_framework: {
+      label: 'OPL Framework',
+      repository: 'gaofeng21cn/one-person-lab',
+      resolved_commit: frameworkRef,
+    },
+  };
+  const packageAuthority: JsonRecord = {};
+
+  for (const spec of packageSpecs) {
+    const entry = requiredObject(catalogPackages[spec.packageId], `Framework catalog ${spec.packageId}`);
+    const member = requiredObject(releaseMembers[spec.packageId], `Framework Release Set ${spec.packageId}`);
+    const version = requiredString(entry.package_version, `${spec.packageId} package version`);
+    const ownerSourceCommit = requiredString(entry.owner_source_commit, `${spec.packageId} owner source commit`);
+    if (!shaPattern.test(ownerSourceCommit)) throw new Error(`${spec.packageId} owner source commit is invalid.`);
+    const manifestRef = frameworkContractRef(requiredString(entry.manifest_ref, `${spec.packageId} manifest ref`));
+    const payloadManifestRef = frameworkContractRef(
+      requiredString(entry.payload_manifest_ref, `${spec.packageId} payload manifest ref`),
+    );
+    const expectedFields = {
+      version,
+      source_commit: ownerSourceCommit,
+      manifest_ref: manifestRef,
+      manifest_sha256: requiredString(entry.manifest_sha256, `${spec.packageId} manifest digest`),
+      payload_manifest_ref: payloadManifestRef,
+      payload_manifest_sha256: requiredString(
+        entry.payload_manifest_sha256,
+        `${spec.packageId} payload manifest digest`,
+      ),
+    };
+    for (const [field, expected] of Object.entries(expectedFields)) {
+      if (member[field] !== expected) {
+        throw new Error(`Framework Release Set ${spec.packageId}.${field} does not match the bundled catalog.`);
+      }
+    }
+
+    const manifestPath = resolveCatalogFile(
+      frameworkRoot,
+      catalogRoot,
+      requiredString(entry.manifest_ref, `${spec.packageId} manifest ref`),
+      `${spec.packageId} package manifest`,
+    );
+    const payloadManifestPath = resolveCatalogFile(
+      frameworkRoot,
+      catalogRoot,
+      requiredString(entry.payload_manifest_ref, `${spec.packageId} payload manifest ref`),
+      `${spec.packageId} payload manifest`,
+    );
+    if (digestRef(manifestPath) !== expectedFields.manifest_sha256) {
+      throw new Error(`${spec.packageId} package manifest bytes drifted from the Framework authority.`);
+    }
+    if (digestRef(payloadManifestPath) !== expectedFields.payload_manifest_sha256) {
+      throw new Error(`${spec.packageId} payload manifest bytes drifted from the Framework authority.`);
+    }
+    const manifest = readRegularJson(manifestPath, `${spec.packageId} package manifest`);
+    const payloadManifest = readRegularJson(payloadManifestPath, `${spec.packageId} payload manifest`);
+    if (manifest.package_id !== spec.packageId || manifest.version !== version) {
+      throw new Error(`${spec.packageId} package manifest identity does not match the Framework authority.`);
+    }
+    if (
+      payloadManifest.package_id !== spec.packageId
+      || payloadManifest.package_version !== version
+      || payloadManifest.source_commit !== ownerSourceCommit
+    ) {
+      throw new Error(`${spec.packageId} payload manifest identity does not match the Framework authority.`);
+    }
+
+    components[spec.componentKey] = { version, git_commit: ownerSourceCommit };
+    resolvedRefs[spec.resolvedRefKey] = {
+      label: spec.packageId,
+      repository: spec.repository,
+      resolved_commit: ownerSourceCommit,
+      version,
+    };
+    packageAuthority[spec.packageId] = {
+      version,
+      owner_source_commit: ownerSourceCommit,
+      manifest_ref: manifestRef,
+      manifest_sha256: expectedFields.manifest_sha256,
+      payload_manifest_ref: payloadManifestRef,
+      payload_manifest_sha256: expectedFields.payload_manifest_sha256,
+    };
+  }
+
+  const thirdPartyManifestPath = assertContainedFile(
+    appRoot,
+    input.thirdPartySourceManifestPath,
+    'App Full third-party source manifest',
+  );
+  const thirdPartyManifest = readRegularJson(
+    thirdPartyManifestPath,
+    'App Full third-party source manifest',
+  );
+  if (thirdPartyManifest.schema !== 'opl_app_full_third_party_source_manifest.v1') {
+    throw new Error('App Full third-party source manifest has an unsupported schema.');
+  }
+  const thirdPartySources = requiredObject(thirdPartyManifest.sources, 'App Full third-party sources');
+  const runtimePayloads = requiredObject(thirdPartyManifest.runtime_payloads, 'App Full runtime payloads');
+  const codexPayload = requiredObject(runtimePayloads.codex_cli, 'Codex CLI runtime authority');
+  const officeSource = requiredObject(thirdPartySources.officecli, 'OfficeCLI source authority');
+  const mineruSource = requiredObject(thirdPartySources.mineru, 'MinerU source authority');
+  const officePayload = requiredObject(runtimePayloads.officecli, 'OfficeCLI runtime authority');
+  const codexQualificationRef = requiredString(
+    codexPayload.qualification_input_ref,
+    'Codex CLI qualification input ref',
+  );
+  const qualificationRefMatch = /^([^#]+)#runtime_payloads\.codex_cli$/.exec(codexQualificationRef);
+  if (!qualificationRefMatch) {
+    throw new Error('Codex CLI qualification input ref must select runtime_payloads.codex_cli.');
+  }
+  const qualificationInputPath = assertContainedFile(
+    appRoot,
+    path.resolve(appRoot, qualificationRefMatch[1]),
+    'App Codex qualification input manifest',
+  );
+  const qualificationInput = readRegularJson(
+    qualificationInputPath,
+    'App Codex qualification input manifest',
+  );
+  if (qualificationInput.schema !== 'opl_app_release_qualification_input_manifest.v1') {
+    throw new Error('App Codex qualification input manifest has an unsupported schema.');
+  }
+  const codexIdentity = requiredObject(
+    requiredObject(qualificationInput.runtime_payloads, 'App qualification runtime payloads').codex_cli,
+    'App frozen Codex CLI identity',
+  );
+  const codexErrors = validateFrozenCodexCliIdentity(codexIdentity);
+  if (codexErrors.length > 0) {
+    throw new Error(`App frozen Codex CLI identity is invalid: ${codexErrors.join('; ')}.`);
+  }
+  const codexVersion = requiredString(codexIdentity.version, 'frozen Codex CLI version');
+  if (codexPayload.version !== codexVersion) {
+    throw new Error('App Full third-party manifest Codex version does not match the qualification input.');
+  }
+  components.codex = { version: `codex-cli ${codexVersion}` };
+  resolvedRefs.codex_cli = {
+    label: 'Codex CLI',
+    repository: 'npm:@openai/codex',
+    resolved_version: codexVersion,
+    npm_integrity: codexIdentity.npm_integrity,
+    tarball_sha256: codexIdentity.tarball_sha256,
+    platform_version: codexIdentity.platform.version,
+    platform_npm_integrity: codexIdentity.platform.npm_integrity,
+    platform_tarball_sha256: codexIdentity.platform.tarball_sha256,
+  };
+  const officeRef = requiredString(officeSource.ref, 'OfficeCLI source ref');
+  const mineruRef = requiredString(mineruSource.ref, 'MinerU source ref');
+  if (!shaPattern.test(officeRef) || !shaPattern.test(mineruRef)) {
+    throw new Error('OfficeCLI and MinerU source refs must be exact 40-character Git SHAs.');
+  }
+  const officeVersion = requiredString(officePayload.version, 'OfficeCLI runtime version');
+  if (requiredString(officeSource.release_tag, 'OfficeCLI release tag') !== `v${officeVersion}`) {
+    throw new Error('OfficeCLI source tag and runtime version do not match.');
+  }
+  components.officecli = { version: officeVersion, git_commit: officeRef };
+  components.mineru_open_api = { git_commit: mineruRef };
+  resolvedRefs.officecli = {
+    label: 'OfficeCLI',
+    repository: requiredString(officeSource.repository, 'OfficeCLI repository'),
+    resolved_commit: officeRef,
+    version: officeVersion,
+  };
+  resolvedRefs.mineru = {
+    label: 'MinerU',
+    repository: requiredString(mineruSource.repository, 'MinerU repository'),
+    resolved_commit: mineruRef,
+  };
+
+  return {
+    schema: 'opl_app_release_notes_full_payload_authority.v1',
+    intent: {
+      include_full_package: true,
+      phase: 'prebuild',
+      build_artifact_bytes_known: false,
+      usage: 'prepared_release_notes_evidence',
+    },
+    sources: {
+      app: { source_commit: appRef },
+      shell: { source_commit: shellRef },
+      framework: { source_commit: frameworkRef },
+    },
+    framework_release_set: {
+      generation: requiredString(releaseSet.generation, 'Framework Release Set generation'),
+      manifest_ref: path.relative(frameworkRoot, releaseSetPath).split(path.sep).join('/'),
+      manifest_sha256: digestRef(releaseSetPath),
+      catalog_ref: 'contracts/opl-framework/bundled-full-runtime-package-catalog.json',
+      catalog_sha256: digestRef(catalogPath),
+    },
+    packages: packageAuthority,
+    runtime_authority: {
+      codex_cli: {
+        source: 'frozen_app_release_qualification_input',
+        shell_source_commit: shellRef,
+        qualification_input_ref: codexQualificationRef,
+        qualification_input_manifest_sha256: digestRef(qualificationInputPath),
+        package: codexIdentity.package,
+        version: codexVersion,
+        npm_integrity: codexIdentity.npm_integrity,
+        tarball_url: codexIdentity.tarball_url,
+        tarball_sha256: codexIdentity.tarball_sha256,
+        platform: codexIdentity.platform,
+        postbuild_manifest_version_and_bytes_required: true,
+      },
+      officecli: { source_commit: officeRef, version: officeVersion },
+      mineru: { source_commit: mineruRef },
+      app_third_party_source_manifest_sha256: digestRef(thirdPartyManifestPath),
+    },
+    components,
+    resolved_refs: resolvedRefs,
+  };
+}
+
+function parseCli(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      'app-root': { type: 'string' },
+      'app-ref': { type: 'string' },
+      'shell-root': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-root': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'release-set-manifest': { type: 'string' },
+      'third-party-source-manifest': { type: 'string' },
+      output: { type: 'string' },
+    },
+    allowPositionals: false,
+    strict: true,
+  });
+  return {
+    appRoot: path.resolve(requiredString(values['app-root'], '--app-root')),
+    appRef: requiredString(values['app-ref'], '--app-ref'),
+    shellRoot: path.resolve(requiredString(values['shell-root'], '--shell-root')),
+    shellRef: requiredString(values['shell-ref'], '--shell-ref'),
+    frameworkRoot: path.resolve(requiredString(values['framework-root'], '--framework-root')),
+    frameworkRef: requiredString(values['framework-ref'], '--framework-ref'),
+    releaseSetManifestPath: path.resolve(
+      requiredString(values['release-set-manifest'], '--release-set-manifest'),
+    ),
+    thirdPartySourceManifestPath: path.resolve(
+      requiredString(values['third-party-source-manifest'], '--third-party-source-manifest'),
+    ),
+    output: path.resolve(requiredString(values.output, '--output')),
+  };
+}
+
+async function main(): Promise<void> {
+  const options = parseCli(process.argv.slice(2));
+  const output = await buildReleaseNotesFullPayloadAuthority(options);
+  fs.mkdirSync(path.dirname(options.output), { recursive: true });
+  fs.writeFileSync(options.output, `${JSON.stringify(output, null, 2)}\n`);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

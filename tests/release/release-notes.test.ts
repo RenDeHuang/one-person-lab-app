@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,6 +22,184 @@ function runNode(args, options = {}) {
     encoding: 'utf8',
     env: { ...process.env, ...(options.env ?? {}) },
   });
+}
+
+const fullPayloadPackages = [
+  { packageId: 'mas', componentLabel: 'MAS' },
+  { packageId: 'mag', componentLabel: 'MAG' },
+  { packageId: 'rca', componentLabel: 'RCA' },
+  { packageId: 'oma', componentLabel: 'OPL Meta Agent' },
+  { packageId: 'obf', componentLabel: 'OPL Book Forge' },
+  { packageId: 'mas-scholar-skills', componentLabel: 'MAS Scholar Skills' },
+  { packageId: 'opl-flow', componentLabel: 'OPL Flow' },
+] as const;
+
+function jsonFile(filePath: string, value: unknown) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function sha256Ref(filePath: string) {
+  return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
+}
+
+function gitFixture(root: string, name: string, setup: (directory: string) => void) {
+  const directory = path.join(root, name);
+  fs.mkdirSync(directory, { recursive: true });
+  setup(directory);
+  for (const args of [
+    ['init', '-q'],
+    ['config', 'user.email', 'fixture@example.invalid'],
+    ['config', 'user.name', 'Fixture'],
+    ['add', '.'],
+    ['commit', '-qm', 'fixture'],
+  ]) {
+    const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  return {
+    root: directory,
+    ref: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' }).stdout.trim(),
+  };
+}
+
+function commitFixtureChange(root: string, message: string) {
+  for (const args of [
+    ['add', '-A'],
+    ['commit', '-qm', message],
+  ]) {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  return spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+}
+
+function fullPayloadAuthorityFixture() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-full-authority-'));
+  const codexVersion = '0.144.5';
+  const officeRef = 'a'.repeat(40);
+  const mineruRef = 'b'.repeat(40);
+  const app = gitFixture(root, 'app', (directory) => {
+    jsonFile(path.join(directory, 'contracts', 'app-release-qualification-input-manifest.json'), {
+      schema: 'opl_app_release_qualification_input_manifest.v1',
+      runtime_payloads: {
+        codex_cli: {
+          package: '@openai/codex',
+          version: codexVersion,
+          npm_integrity: 'sha512-YWJjZA==',
+          tarball_url: `https://registry.npmjs.org/@openai/codex/-/codex-${codexVersion}.tgz`,
+          tarball_sha256: 'c'.repeat(64),
+          platform: {
+            package: '@openai/codex',
+            version: `${codexVersion}-darwin-arm64`,
+            npm_integrity: 'sha512-ZWZnaA==',
+            tarball_url: `https://registry.npmjs.org/@openai/codex/-/codex-${codexVersion}-darwin-arm64.tgz`,
+            tarball_sha256: 'd'.repeat(64),
+          },
+        },
+      },
+    });
+    jsonFile(path.join(directory, 'contracts', 'app-full-third-party-source-manifest.json'), {
+      schema: 'opl_app_full_third_party_source_manifest.v1',
+      sources: {
+        officecli: { repository: 'iOfficeAI/OfficeCLI', ref: officeRef, release_tag: 'v1.2.3' },
+        mineru: { repository: 'opendatalab/MinerU-Ecosystem', ref: mineruRef },
+      },
+      runtime_payloads: {
+        codex_cli: {
+          version: codexVersion,
+          qualification_input_ref: 'contracts/app-release-qualification-input-manifest.json#runtime_payloads.codex_cli',
+        },
+        officecli: { version: '1.2.3' },
+      },
+    });
+  });
+  const shell = gitFixture(root, 'shell', (directory) => {
+    fs.writeFileSync(path.join(directory, 'package.json'), '{"name":"fixture-shell"}\n');
+  });
+  let releaseSetPath = '';
+  const ownerRefs: Record<string, string> = {};
+  const framework = gitFixture(root, 'framework', (directory) => {
+    const catalogRoot = path.join(directory, 'contracts', 'opl-framework');
+    const catalogPackages: Record<string, unknown> = {};
+    const releaseMembers: Record<string, unknown> = {};
+    for (const [index, spec] of fullPayloadPackages.entries()) {
+      const version = `0.${index + 1}.0`;
+      const ownerRef = (index + 2).toString(16).repeat(40).slice(0, 40);
+      ownerRefs[spec.packageId] = ownerRef;
+      const manifestRef = `packages/${spec.packageId}.json`;
+      const payloadManifestRef = `packages/payloads/${spec.packageId}-${version}.json`;
+      const manifestPath = path.join(catalogRoot, manifestRef);
+      const payloadPath = path.join(catalogRoot, payloadManifestRef);
+      jsonFile(manifestPath, { package_id: spec.packageId, version });
+      jsonFile(payloadPath, {
+        package_id: spec.packageId,
+        package_version: version,
+        source_commit: ownerRef,
+      });
+      const authority = {
+        package_version: version,
+        owner_source_commit: ownerRef,
+        manifest_ref: manifestRef,
+        manifest_sha256: sha256Ref(manifestPath),
+        payload_manifest_ref: payloadManifestRef,
+        payload_manifest_sha256: sha256Ref(payloadPath),
+      };
+      catalogPackages[spec.packageId] = authority;
+      releaseMembers[spec.packageId] = {
+        version,
+        source_commit: ownerRef,
+        manifest_ref: `contracts/opl-framework/${manifestRef}`,
+        manifest_sha256: authority.manifest_sha256,
+        payload_manifest_ref: `contracts/opl-framework/${payloadManifestRef}`,
+        payload_manifest_sha256: authority.payload_manifest_sha256,
+      };
+    }
+    jsonFile(path.join(catalogRoot, 'bundled-full-runtime-package-catalog.json'), {
+      surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
+      packages: catalogPackages,
+    });
+    releaseSetPath = path.join(directory, 'release', 'cohorts', 'fixture', 'release-set.json');
+    jsonFile(releaseSetPath, {
+      surface_kind: 'opl_release_set.v2',
+      generation: 'fixture',
+      owner_cohort_lock: { package_ids: fullPayloadPackages.map(({ packageId }) => packageId) },
+      components: {
+        packages: {
+          package_count: fullPayloadPackages.length,
+          package_ids: fullPayloadPackages.map(({ packageId }) => packageId),
+          members: releaseMembers,
+        },
+      },
+    });
+  });
+  return {
+    root,
+    app,
+    shell,
+    framework,
+    releaseSetPath,
+    thirdPartyManifestPath: path.join(app.root, 'contracts', 'app-full-third-party-source-manifest.json'),
+    codexVersion,
+    officeRef,
+    mineruRef,
+    ownerRefs,
+  };
+}
+
+function fullPayloadAuthorityArgs(fixture: ReturnType<typeof fullPayloadAuthorityFixture>, output: string) {
+  return [
+    'scripts/prepare-release-notes-full-payload-authority.ts',
+    '--app-root', fixture.app.root,
+    '--app-ref', fixture.app.ref,
+    '--shell-root', fixture.shell.root,
+    '--shell-ref', fixture.shell.ref,
+    '--framework-root', fixture.framework.root,
+    '--framework-ref', fixture.framework.ref,
+    '--release-set-manifest', fixture.releaseSetPath,
+    '--third-party-source-manifest', fixture.thirdPartyManifestPath,
+    '--output', output,
+  ];
 }
 
 function standardEvidence(version = '26.9.1', overrides: any = {}) {
@@ -328,6 +507,99 @@ test('stable manifest notes expose install, component refs, and version changes'
   assert.ok(result.stdout.includes(stableInstallCommand));
   assert.match(result.stdout, /Packaged component refs: MAS @ aaaaaaa; OfficeCLI 1\.2\.3/);
   assert.match(result.stdout, /Component updates since previous Stable: MAS bbbbbbb -> aaaaaaa; OfficeCLI 1\.2\.2 -> 1\.2\.3/);
+});
+
+test('Full notes derive every prebuild payload ref from exact App, Shell, and Framework authorities', () => {
+  const fixture = fullPayloadAuthorityFixture();
+  const authorityPath = path.join(fixture.root, 'full-payload-authority.json');
+  const evidencePath = path.join(fixture.root, 'notes-evidence.json');
+  const authorityResult = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.equal(authorityResult.status, 0, authorityResult.stderr);
+
+  const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  assert.deepEqual(authority.intent, {
+    include_full_package: true,
+    phase: 'prebuild',
+    build_artifact_bytes_known: false,
+    usage: 'prepared_release_notes_evidence',
+  });
+  assert.deepEqual(authority.components.codex, { version: `codex-cli ${fixture.codexVersion}` });
+  assert.equal(authority.runtime_authority.codex_cli.shell_source_commit, fixture.shell.ref);
+  assert.equal(authority.runtime_authority.codex_cli.tarball_sha256, 'c'.repeat(64));
+  assert.deepEqual(Object.keys(authority.packages), fullPayloadPackages.map(({ packageId }) => packageId));
+  assert.doesNotMatch(JSON.stringify(authority), /size_bytes|dmg_sha256|artifact_sha256/);
+
+  const notesResult = runNode([
+    'scripts/generate-release-notes.ts',
+    '--version', '26.9.8',
+    '--channel', 'stable',
+    '--previous-tag', 'v26.9.7',
+    '--current-tag', 'v26.9.8',
+    '--shell-root', fixture.shell.root,
+    '--previous-app-ref', 'HEAD',
+    '--current-app-ref', 'HEAD',
+    '--previous-shell-ref', fixture.shell.ref,
+    '--current-shell-ref', fixture.shell.ref,
+    '--include-full-package',
+    '--full-package-manifest', authorityPath,
+    '--previous-full-package-manifest', authorityPath,
+    '--evidence-output', evidencePath,
+  ], { env: { OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1' } });
+  assert.equal(notesResult.status, 0, notesResult.stderr);
+
+  const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+  const expectedRefs = [
+    `OPL Framework @ ${fixture.framework.ref.slice(0, 7)}`,
+    `Codex CLI ${fixture.codexVersion}`,
+    ...fullPayloadPackages.map(
+      ({ packageId, componentLabel }) => `${componentLabel} @ ${fixture.ownerRefs[packageId].slice(0, 7)}`,
+    ),
+    `OfficeCLI @ ${fixture.officeRef.slice(0, 7)}`,
+    `MinerU @ ${fixture.mineruRef.slice(0, 7)}`,
+  ];
+  assert.equal(evidence.payload.include_full_package, true);
+  assert.deepEqual(evidence.payload.bundled_refs, expectedRefs);
+  assert.match(evidence.payload.lines[0], /Full first-install package includes the OPL Framework runtime/);
+  assert.equal(evidence.payload.lines[1], `- Packaged component refs: ${expectedRefs.join('; ')}.`);
+});
+
+test('prebuild Full notes authority rejects missing Release Set input before writing evidence', () => {
+  const fixture = fullPayloadAuthorityFixture();
+  const authorityPath = path.join(fixture.root, 'missing-release-set-authority.json');
+  const args = fullPayloadAuthorityArgs(fixture, authorityPath);
+  const optionIndex = args.indexOf('--release-set-manifest');
+  args.splice(optionIndex, 2);
+  const result = runNode(args);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Missing --release-set-manifest/);
+  assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects a missing frozen Codex input before writing evidence', () => {
+  const fixture = fullPayloadAuthorityFixture();
+  const thirdParty = JSON.parse(fs.readFileSync(fixture.thirdPartyManifestPath, 'utf8'));
+  thirdParty.runtime_payloads.codex_cli.qualification_input_ref =
+    'contracts/missing-qualification-input.json#runtime_payloads.codex_cli';
+  jsonFile(fixture.thirdPartyManifestPath, thirdParty);
+  fixture.app.ref = commitFixtureChange(fixture.app.root, 'remove Codex qualification authority');
+  const authorityPath = path.join(fixture.root, 'missing-codex-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /App Codex qualification input manifest must be a regular non-symlink file/);
+  assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects a Release Set owner ref that drifted from the catalog', () => {
+  const fixture = fullPayloadAuthorityFixture();
+  const releaseSet = JSON.parse(fs.readFileSync(fixture.releaseSetPath, 'utf8'));
+  releaseSet.components.packages.members.mas.source_commit = 'f'.repeat(40);
+  jsonFile(fixture.releaseSetPath, releaseSet);
+  fixture.framework.ref = commitFixtureChange(fixture.framework.root, 'drift release set');
+  const authorityPath = path.join(fixture.root, 'drifted-release-set-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Release Set mas\.source_commit does not match the bundled catalog/);
+  assert.equal(fs.existsSync(authorityPath), false);
 });
 
 test('final notes normalization sanitizes evidence sections added after model cleanup', () => {

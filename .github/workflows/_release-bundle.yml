@@ -291,7 +291,22 @@ jobs:
           set -euo pipefail
           test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
           notes_intent_args=()
-          [[ '${{ inputs.include_full }}' == true ]] && notes_intent_args+=(--include-full-package)
+          if [[ '${{ inputs.include_full }}' == true ]]; then
+            node --experimental-strip-types scripts/prepare-release-notes-full-payload-authority.ts \
+              --app-root . \
+              --app-ref '${{ steps.identity.outputs.app_sha }}' \
+              --shell-root shells/aionui \
+              --shell-ref '${{ steps.identity.outputs.shell_sha }}' \
+              --framework-root framework-source \
+              --framework-ref '${{ steps.identity.outputs.framework_sha }}' \
+              --release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}' \
+              --third-party-source-manifest contracts/app-full-third-party-source-manifest.json \
+              --output notes-full-payload-authority.json
+            notes_intent_args+=(
+              --include-full-package
+              --full-package-manifest notes-full-payload-authority.json
+            )
+          fi
           npm run release:notes -- \
             --version '${{ steps.identity.outputs.version }}' \
             --channel '${{ inputs.channel }}' \
