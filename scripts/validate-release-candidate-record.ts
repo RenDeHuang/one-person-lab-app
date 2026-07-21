@@ -1,34 +1,46 @@
 #!/usr/bin/env node
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const expectedSchema = 'opl_release_candidate_record.v1';
-const readyStatus = 'ready_to_promote';
-const ownerResolutionRefShapes = ['release_owner_verdict_ref', 'release_owner_receipt_ref'];
+const expectedLegacySchema = 'opl_release_candidate_record.v1';
 const statusFlag = '--status';
-const promoteReadyFlag = '--promote-ready';
-
-function optionName(flag: string) {
-  return flag.slice(2);
-}
+const retiredAdmissionFlag = '--promote-ready';
+const frameworkHandoff = {
+  state_authority: 'framework_opl_release_portable_checkpoint_and_receipt',
+  checkpoint_schema_ref: 'opl_release_bundle_checkpoint.v1',
+  receipt_schema_refs: [
+    'opl_release_bundle_executor_receipt.v1',
+    'opl_release_bundle_operation_receipt.v1',
+    'opl_release_bundle_qualification_receipt.v1',
+  ],
+  status_command: 'opl release status --bundle <sha256:digest> --store <directory>',
+  required_handoff: ['portable_framework_checkpoint', 'original_framework_receipts'],
+  inspect_only: true,
+  mutation_authorized: false,
+} as const;
 
 type Options = {
-  mode: 'validate' | 'status';
+  mode: 'inspect' | 'retired_admission';
   recordPath: string;
   version: string;
   format: 'json' | 'markdown';
 };
+
+function optionName(flag: string) {
+  return flag.slice(2);
+}
 
 function parseArgs(argv: string[]): Options {
   const { values, tokens } = parseNodeArgs({
     args: argv,
     options: {
       [optionName(statusFlag)]: { type: 'boolean' },
-      [optionName(promoteReadyFlag)]: { type: 'boolean' },
+      [optionName(retiredAdmissionFlag)]: { type: 'boolean' },
       record: { type: 'string' },
       version: { type: 'string' },
       format: { type: 'string' },
@@ -37,10 +49,10 @@ function parseArgs(argv: string[]): Options {
     tokens: true,
   });
 
-  let mode: Options['mode'] = 'validate';
+  let mode: Options['mode'] = 'inspect';
   for (const token of tokens) {
-    if (token.kind === 'option' && token.name === optionName(statusFlag)) mode = 'status';
-    if (token.kind === 'option' && token.name === optionName(promoteReadyFlag)) mode = 'validate';
+    if (token.kind === 'option' && token.name === optionName(statusFlag)) mode = 'inspect';
+    if (token.kind === 'option' && token.name === optionName(retiredAdmissionFlag)) mode = 'retired_admission';
   }
   const format = values.format ?? 'json';
   if (format !== 'json' && format !== 'markdown') {
@@ -49,7 +61,11 @@ function parseArgs(argv: string[]): Options {
 
   return {
     mode,
-    recordPath: path.resolve(values.record ?? process.env.OPL_RELEASE_CANDIDATE_RECORD ?? path.resolve(appRoot, 'release-candidate-record.json')),
+    recordPath: path.resolve(
+      values.record
+        ?? process.env.OPL_RELEASE_CANDIDATE_RECORD
+        ?? path.resolve(appRoot, 'release-candidate-record.json'),
+    ),
     version: values.version ?? process.env.OPL_RELEASE_VERSION ?? '',
     format,
   };
@@ -61,115 +77,74 @@ function objectOrNull(value: unknown) {
     : null;
 }
 
-function stringArray(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+function stringOrNull(value: unknown) {
+  return typeof value === 'string' ? value : null;
 }
 
-function readRecord(filePath: string) {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const record = objectOrNull(JSON.parse(raw));
-  if (!record) throw new Error(`Release candidate record must be a JSON object: ${filePath}`);
-  return record;
-}
-
-function evaluateRecord(record: Record<string, unknown>, options: Options) {
+function inspectRecord(options: Options) {
+  const bytes = fs.readFileSync(options.recordPath);
+  const record = objectOrNull(JSON.parse(bytes.toString('utf8')));
+  if (!record) throw new Error(`Historical release candidate record must be a JSON object: ${options.recordPath}`);
   const decision = objectOrNull(record.decision);
   const releaseOwnerVerdict = objectOrNull(record.release_owner_verdict);
-  const blockedReasons = stringArray(record.blocked_reasons);
   const errors: string[] = [];
-  const promoteCommand = typeof decision?.promote_command === 'string' ? decision.promote_command : '';
 
-  if (record.schema !== expectedSchema) {
-    errors.push(`Unexpected candidate record schema: ${String(record.schema)}`);
+  if (record.schema !== expectedLegacySchema) {
+    errors.push(`Unexpected historical candidate record schema: ${String(record.schema)}`);
   }
   if (options.version && record.version !== options.version) {
-    errors.push(`Candidate record version ${String(record.version)} does not match ${options.version}`);
-  }
-  if (record.status !== readyStatus) {
-    const reasonText = blockedReasons.length > 0 ? `; blocked_reasons=${JSON.stringify(blockedReasons)}` : '';
-    errors.push(`Release candidate status is ${String(record.status)}${reasonText}`);
-  }
-  if (decision?.can_promote !== true) {
-    errors.push(`Release candidate decision.can_promote is ${String(decision?.can_promote)}`);
-  }
-  if (!promoteCommand.includes('release:stable -- promote')
-    || !promoteCommand.includes('--release-set-generation')
-    || promoteCommand.includes('gh release edit')) {
-    errors.push('Release candidate decision.promote_command must route through the receipt-gated stable promotion state machine');
-  }
-  if (!releaseOwnerVerdict) {
-    errors.push('Release candidate record is missing release_owner_verdict');
-  } else {
-    if (releaseOwnerVerdict.schema !== 'opl_app_release_owner_verdict_readout.v1') {
-      errors.push(`Release owner verdict schema is ${String(releaseOwnerVerdict.schema)}`);
-    }
-    if (releaseOwnerVerdict.release_ready_claim !== false) {
-      errors.push(`Release owner verdict release_ready_claim is ${String(releaseOwnerVerdict.release_ready_claim)}`);
-    }
-    if (releaseOwnerVerdict.stable_latest_promotion_claim !== false) {
-      errors.push(
-        `Release owner verdict stable_latest_promotion_claim is ${String(releaseOwnerVerdict.stable_latest_promotion_claim)}`,
-      );
-    }
-    if (
-      releaseOwnerVerdict.status !== 'release_owner_verdict_recorded'
-      && releaseOwnerVerdict.status !== 'release_owner_receipt_recorded'
-    ) {
-      errors.push(`Release owner verdict status is ${String(releaseOwnerVerdict.status)}; expected recorded owner verdict or receipt`);
-    }
-    const hasOwnerResolution = ownerResolutionRefShapes.some((shape) => {
-      const value = releaseOwnerVerdict[shape];
-      return typeof value === 'string' && value.trim().length > 0;
-    });
-    if (!hasOwnerResolution) {
-      errors.push(`Release owner verdict is missing ${ownerResolutionRefShapes.join(' or ')}`);
-    }
+    errors.push(`Historical candidate record version ${String(record.version)} does not match ${options.version}`);
   }
 
   return {
-    schema: record.schema ?? null,
-    version: record.version ?? null,
-    tag: record.tag ?? null,
-    status: record.status ?? null,
-    can_promote: decision?.can_promote === true,
-    promote_command: promoteCommand || null,
-    promote_ready: errors.length === 0,
-    release_owner_verdict_status: typeof releaseOwnerVerdict?.status === 'string'
-      ? releaseOwnerVerdict.status
-      : null,
-    release_owner_typed_blocker_ref: typeof releaseOwnerVerdict?.release_owner_typed_blocker_ref === 'string'
-      ? releaseOwnerVerdict.release_owner_typed_blocker_ref
-      : null,
-    release_owner_verdict_ref: typeof releaseOwnerVerdict?.release_owner_verdict_ref === 'string'
-      ? releaseOwnerVerdict.release_owner_verdict_ref
-      : null,
-    release_owner_receipt_ref: typeof releaseOwnerVerdict?.release_owner_receipt_ref === 'string'
-      ? releaseOwnerVerdict.release_owner_receipt_ref
-      : null,
-    blocked_reasons: blockedReasons,
+    schema: 'opl_app_historical_release_candidate_inspection.v1',
+    status: 'historical_read_only',
+    lifecycle: 'historical_read_only',
+    source_path: options.recordPath,
+    source_sha256: `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`,
+    source_size_bytes: bytes.byteLength,
+    source: {
+      schema: stringOrNull(record.schema),
+      version: stringOrNull(record.version),
+      tag: stringOrNull(record.tag),
+      status: stringOrNull(record.status),
+    },
+    historical_claims: {
+      promotion_status_present: record.status === 'ready_to_promote',
+      promotion_decision_present: decision?.can_promote === true,
+      promotion_command_present: typeof decision?.promote_command === 'string'
+        && decision.promote_command.trim().length > 0,
+      release_owner_verdict_status: stringOrNull(releaseOwnerVerdict?.status),
+      release_owner_verdict_ref_present: typeof releaseOwnerVerdict?.release_owner_verdict_ref === 'string'
+        && releaseOwnerVerdict.release_owner_verdict_ref.trim().length > 0,
+      release_owner_receipt_ref_present: typeof releaseOwnerVerdict?.release_owner_receipt_ref === 'string'
+        && releaseOwnerVerdict.release_owner_receipt_ref.trim().length > 0,
+    },
+    inspection_valid: errors.length === 0,
+    authoritative_for_new_release: false,
+    promote_ready: false,
+    mutation_authorized: false,
+    next_action: 'inspect_framework_checkpoint_and_receipts',
+    framework_handoff: frameworkHandoff,
     errors,
   };
 }
 
-function formatMarkdown(summary: ReturnType<typeof evaluateRecord>) {
+function formatMarkdown(summary: ReturnType<typeof inspectRecord>) {
   const lines = [
-    '## Release Candidate Status',
+    '## Historical Release Candidate Inspection',
     '',
-    `- Schema: ${String(summary.schema)}`,
-    `- Version: ${String(summary.version)}`,
-    `- Status: ${String(summary.status)}`,
-    `- Can promote: ${summary.can_promote}`,
-    `- Promote ready: ${summary.promote_ready}`,
-    `- Release owner verdict: ${String(summary.release_owner_verdict_status)}`,
-    `- Release owner verdict ref: ${String(summary.release_owner_verdict_ref)}`,
-    `- Release owner receipt ref: ${String(summary.release_owner_receipt_ref)}`,
+    `- Lifecycle: ${summary.lifecycle}`,
+    `- Source schema: ${String(summary.source.schema)}`,
+    `- Source version: ${String(summary.source.version)}`,
+    `- Source status: ${String(summary.source.status)}`,
+    `- Source SHA-256: ${summary.source_sha256}`,
+    `- Inspection valid: ${summary.inspection_valid}`,
+    `- Mutation authorized: ${summary.mutation_authorized}`,
+    `- Framework status: ${summary.framework_handoff.status_command}`,
   ];
-  if (summary.blocked_reasons.length > 0) {
-    lines.push('', '### Blocked reasons', '');
-    for (const reason of summary.blocked_reasons) lines.push(`- ${reason}`);
-  }
   if (summary.errors.length > 0) {
-    lines.push('', '### Validation errors', '');
+    lines.push('', '### Inspection errors', '');
     for (const error of summary.errors) lines.push(`- ${error}`);
   }
   return `${lines.join('\n')}\n`;
@@ -177,17 +152,17 @@ function formatMarkdown(summary: ReturnType<typeof evaluateRecord>) {
 
 try {
   const options = parseArgs(process.argv.slice(2));
-  const record = readRecord(options.recordPath);
-  const summary = evaluateRecord(record, options);
+  const summary = inspectRecord(options);
   const output = options.format === 'markdown'
     ? formatMarkdown(summary)
     : `${JSON.stringify(summary, null, 2)}\n`;
   process.stdout.write(output);
-  if (options.mode === 'validate' && !summary.promote_ready) {
-    console.error(`Release candidate record is not promote-ready: ${summary.errors.join('; ')}`);
-    process.exit(1);
+  if (!summary.inspection_valid) process.exitCode = 1;
+  if (options.mode === 'retired_admission') {
+    console.error('Candidate-record promotion admission is retired; inspect the Framework checkpoint and receipts.');
+    process.exitCode = 2;
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+  process.exitCode = 1;
 }

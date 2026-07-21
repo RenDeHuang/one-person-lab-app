@@ -1,37 +1,47 @@
 name: OPL Stable Release Bundle
-run-name: OPL Stable Release Bundle v${{ inputs.version }} attempt=${{ inputs.release_attempt_id }}
+run-name: OPL Stable ${{ inputs.operation }} ${{ inputs.version || inputs.source_run_id }}
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Stable display version for the immutable Bundle (YY.M.D or YY.M.D-r1 through r9)
+      operation:
+        description: One bounded operation over an immutable Framework Bundle
         required: true
+        default: standard
+        type: choice
+        options:
+          - standard
+          - resume_standard
+          - append_full
+      version:
+        description: Stable display version; required only for a new Standard Bundle
+        required: false
+        default: ''
         type: string
       include_full:
-        description: Build and append the optional same-cohort Full assets
+        description: Bind the intent to append Full later; Full never runs in the Standard operation
         required: false
-        default: false
+        default: true
         type: boolean
-      release_attempt_id:
-        description: Exact durable controller mutation attempt digest
-        required: true
-        type: string
-      release_mutation_payload_sha256:
-        description: Exact digest of the frozen controller mutation payload
-        required: true
-        type: string
-      pre_api_admission_receipt_base64:
-        description: Durable controller admission receipt encoded as base64 JSON
-        required: true
-        type: string
       shell_ref:
-        description: Exact frozen Shell commit SHA
-        required: true
+        description: Exact Shell main SHA; required only for a new Standard Bundle
+        required: false
+        default: ''
         type: string
       framework_ref:
-        description: Exact frozen Framework commit SHA
-        required: true
+        description: Exact Framework main SHA for a new Standard Bundle; optional expected Bundle binding for resume/append
+        required: false
+        default: ''
+        type: string
+      source_run_id:
+        description: Exact run containing the Framework portable checkpoint
+        required: false
+        default: ''
+        type: string
+      source_artifact:
+        description: Exact Framework portable checkpoint artifact name
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -42,123 +52,184 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-stable-release-bundle-${{ inputs.version }}
+  group: opl-release-bundle-global
   cancel-in-progress: false
 
 jobs:
   admission:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
     outputs:
+      operation: ${{ steps.admission.outputs.operation }}
       version: ${{ steps.admission.outputs.version }}
       include_full: ${{ steps.admission.outputs.include_full }}
       app_ref: ${{ steps.admission.outputs.app_ref }}
       shell_ref: ${{ steps.admission.outputs.shell_ref }}
       framework_ref: ${{ steps.admission.outputs.framework_ref }}
+      framework_executor_ref: ${{ steps.admission.outputs.framework_executor_ref }}
+      source_run_id: ${{ steps.admission.outputs.source_run_id }}
+      source_artifact: ${{ steps.admission.outputs.source_artifact }}
+      operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
     steps:
-      - name: Checkout exact App controller
+      - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.sha }}
           path: app-source
           fetch-depth: 0
 
-      - name: Checkout requested Shell authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref }}
-          path: shell-source
-
-      - name: Checkout requested Framework authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/one-person-lab
-          ref: ${{ inputs.framework_ref }}
-          path: framework-source
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: '24'
-
-      - name: Validate durable controller admission and freeze source ABI
+      - name: Admit one bounded Bundle operation
         id: admission
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          OPERATION: ${{ inputs.operation }}
+          VERSION: ${{ inputs.version }}
           INCLUDE_FULL: ${{ inputs.include_full }}
-          RELEASE_ATTEMPT_ID: ${{ inputs.release_attempt_id }}
-          RELEASE_MUTATION_PAYLOAD_SHA256: ${{ inputs.release_mutation_payload_sha256 }}
-          PRE_API_ADMISSION_RECEIPT_BASE64: ${{ inputs.pre_api_admission_receipt_base64 }}
-          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
-          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Stable Bundle runs are one-shot and cannot be rerun."; exit 1; }
+          test "$GITHUB_RUN_ATTEMPT" = 1 || {
+            echo "::error::Stable operations are one-shot; use resume_standard with the portable checkpoint."
+            exit 1
+          }
           app_sha="$(git -C app-source rev-parse HEAD)"
-          shell_sha="$(git -C shell-source rev-parse HEAD)"
-          framework_sha="$(git -C framework-source rev-parse HEAD)"
-          for sha in "$app_sha" "$shell_sha" "$framework_sha"; do
-            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission did not resolve exact source SHAs."; exit 1; }
-          done
-          [[ "$REQUESTED_SHELL_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission requires an exact Shell SHA."; exit 1; }
-          [[ "$REQUESTED_FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Stable admission requires an exact Framework SHA."; exit 1; }
-          [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || { echo "::error::Shell checkout differs from the controller receipt."; exit 1; }
-          [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || { echo "::error::Framework checkout differs from the controller receipt."; exit 1; }
-          canonical_app_sha="$(git -C app-source ls-remote origin refs/heads/main | awk '{print $1}')"
-          canonical_shell_sha="$(git -C shell-source ls-remote origin refs/heads/main | awk '{print $1}')"
-          canonical_framework_sha="$(git -C framework-source ls-remote origin refs/heads/main | awk '{print $1}')"
-          [ "$app_sha" = "$canonical_app_sha" ] || { echo "::error::App controller is not canonical main."; exit 1; }
-          [ "$shell_sha" = "$canonical_shell_sha" ] || { echo "::error::Frozen Shell is not canonical main."; exit 1; }
-          [ "$framework_sha" = "$canonical_framework_sha" ] || { echo "::error::Frozen Framework is not canonical main."; exit 1; }
-          node --experimental-strip-types app-source/scripts/verify-release-broker-acceptance.ts \
-            --mode admin-one-shot \
-            --pre-api-fence-base64 "$PRE_API_ADMISSION_RECEIPT_BASE64" \
-            --expected-repository "$GITHUB_REPOSITORY" \
-            --expected-run-id "$GITHUB_RUN_ID" \
-            --expected-run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --expected-workflow release-stable.yml \
-            --expected-workflow-sha "$app_sha" \
-            --expected-payload-sha256 "$RELEASE_MUTATION_PAYLOAD_SHA256" \
-            --expected-attempt-id "$RELEASE_ATTEMPT_ID" \
-            --expected-release-version "$RELEASE_VERSION" \
-            --expected-shell-ref "$shell_sha" \
-            --expected-framework-ref "$framework_sha" \
-            --expected-include-full "$INCLUDE_FULL" \
-            --expected-operator-actor "$GITHUB_ACTOR" \
-            --expected-github-actor "$GITHUB_ACTOR" \
-            --authority app-source/contracts/app-release-broker-authority.json \
-            --output release-admission-validation.json
+          canonical_app_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git -C app-source ls-remote origin refs/heads/main | awk '{print $1}')"
+          [ "$app_sha" = "$canonical_app_sha" ] || {
+            echo "::error::Stable operation executor must be canonical App main."
+            exit 1
+          }
+          case "$OPERATION" in
+            standard)
+              canonical_shell_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git ls-remote https://github.com/gaofeng21cn/opl-aion-shell.git refs/heads/main | awk '{print $1}')"
+              canonical_framework_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git ls-remote https://github.com/gaofeng21cn/one-person-lab.git refs/heads/main | awk '{print $1}')"
+              [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-r[1-9][0-9]*)?$ ]] || {
+                echo "::error::A new Standard Bundle requires an exact CalVer display version."
+                exit 1
+              }
+              [[ "$SHELL_REF" =~ ^[0-9a-f]{40}$ && "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
+                echo "::error::A new Standard Bundle requires exact Shell and Framework SHAs."
+                exit 1
+              }
+              [ "$SHELL_REF" = "$canonical_shell_sha" ] || {
+                echo "::error::A new Standard Bundle requires canonical Shell main."
+                exit 1
+              }
+              [ "$FRAMEWORK_REF" = "$canonical_framework_sha" ] || {
+                echo "::error::A new Standard Bundle requires the fresh canonical Framework main SHA."
+                exit 1
+              }
+              test -z "$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
+                echo "::error::A new Standard Bundle cannot consume a previous run."
+                exit 1
+              }
+              ;;
+            resume_standard|append_full)
+              [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+                echo "::error::$OPERATION requires an exact source run id."
+                exit 1
+              }
+              [[ "$SOURCE_ARTIFACT" =~ ^[A-Za-z0-9._-]+$ ]] || {
+                echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
+                exit 1
+              }
+              if [ -n "$FRAMEWORK_REF" ]; then
+                [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
+                  echo "::error::$OPERATION optional Framework expectation must be an exact lowercase SHA."
+                  exit 1
+                }
+              fi
+              ;;
+            *) exit 1 ;;
+          esac
+          operation_started_at=''
+          operation_deadline_at=''
+          if [ "$OPERATION" = standard ] || [ "$OPERATION" = append_full ]; then
+            operation_started_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
+            operation_deadline_at="$(
+              node --experimental-strip-types app-source/scripts/release-operation-deadline.ts resolve \
+                --operation "$OPERATION" --started-at "$operation_started_at" \
+                --output release-operation-admission.json | jq -r .deadline_at
+            )"
+          fi
           {
-            echo "version=$RELEASE_VERSION"
+            echo "operation=$OPERATION"
+            echo "version=$VERSION"
             echo "include_full=$INCLUDE_FULL"
             echo "app_ref=$app_sha"
-            echo "shell_ref=$shell_sha"
-            echo "framework_ref=$framework_sha"
+            echo "shell_ref=$SHELL_REF"
+            echo "framework_ref=$FRAMEWORK_REF"
+            echo "framework_executor_ref=$FRAMEWORK_REF"
+            echo "source_run_id=$SOURCE_RUN_ID"
+            echo "source_artifact=$SOURCE_ARTIFACT"
+            echo "operation_started_at=$operation_started_at"
+            echo "operation_deadline_at=$operation_deadline_at"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upload durable admission validation
+      - name: Upload immutable operation admission
+        if: ${{ steps.admission.outputs.operation != 'resume_standard' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: opl-release-admission-${{ github.run_id }}
-          path: release-admission-validation.json
+          name: opl-release-operation-admission-${{ github.run_id }}
+          path: release-operation-admission.json
           if-no-files-found: error
           retention-days: 30
 
-  release:
+  standard:
+    if: ${{ needs.admission.outputs.operation == 'standard' }}
     needs: [admission]
     permissions:
       contents: write
       actions: read
     uses: ./.github/workflows/_release-bundle.yml
     with:
+      mode: execute
+      operation: standard
       channel: stable
       version: ${{ needs.admission.outputs.version }}
       include_full: ${{ fromJSON(needs.admission.outputs.include_full) }}
       app_ref: ${{ needs.admission.outputs.app_ref }}
       shell_ref: ${{ needs.admission.outputs.shell_ref }}
       framework_ref: ${{ needs.admission.outputs.framework_ref }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
+    secrets: inherit
+
+  resume-standard:
+    if: ${{ needs.admission.outputs.operation == 'resume_standard' }}
+    needs: [admission]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-standard-publish.yml
+    with:
+      mode: execute
+      operation: resume_standard
+      source_run_id: ${{ needs.admission.outputs.source_run_id }}
+      source_artifact: ${{ needs.admission.outputs.source_artifact }}
+      framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
+    secrets: inherit
+
+  append-full:
+    if: ${{ needs.admission.outputs.operation == 'append_full' }}
+    needs: [admission]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-full-addon.yml
+    with:
+      mode: execute
+      operation: append_full
+      source_run_id: ${{ needs.admission.outputs.source_run_id }}
+      source_artifact: ${{ needs.admission.outputs.source_artifact }}
+      framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit

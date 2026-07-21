@@ -12,7 +12,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-nightly-release-bundle
+  group: opl-release-bundle-global
   cancel-in-progress: false
 
 jobs:

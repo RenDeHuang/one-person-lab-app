@@ -49,7 +49,6 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   const releaseUrl = (version: string, assetName: string) =>
     `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/${assetName}`;
   const standardDmg = (version: string) => `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const fullDmg = (version: string) => `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const runTap = ({
     channel = 'stable',
     packageKind,
@@ -59,6 +58,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     target,
     manifest,
     download,
+    checksum = digest,
+    remoteWriteMode,
+    expectedCurrentCaskSha256,
     write = false,
   }: {
     channel?: string;
@@ -69,6 +71,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     target: string;
     manifest: string;
     download: string;
+    checksum?: string;
+    remoteWriteMode?: string;
+    expectedCurrentCaskSha256?: string;
     write?: boolean;
   }) => runNode([
     'scripts/update-homebrew-tap.ts',
@@ -86,9 +91,13 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--manifest-url',
     releaseUrl(version, manifest),
     '--checksum-sha256',
-    digest,
+    checksum,
     '--download-url',
     releaseUrl(version, download),
+    ...(remoteWriteMode ? ['--remote-write-mode', remoteWriteMode] : []),
+    ...(expectedCurrentCaskSha256
+      ? ['--expected-current-cask-sha256', expectedCurrentCaskSha256]
+      : []),
     ...(write ? ['--write'] : []),
   ]);
 
@@ -101,6 +110,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(stableResult.status, 0, stableResult.stderr || stableResult.stdout);
   const stablePlan = JSON.parse(stableResult.stdout);
   assert.equal(stablePlan.channel, 'stable');
+  assert.equal(stablePlan.schema, 'opl_homebrew_tap_cas_plan.v1');
+  assert.equal(stablePlan.cas.decision, 'write_once');
+  assert.equal(stablePlan.cas.write_performed, true);
   assert.equal(stablePlan.package_kind, 'app_standard');
   assert.equal(stablePlan.policy.manifest_required, true);
   assert.equal(stablePlan.policy.checksum_required, true);
@@ -124,44 +136,96 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, /package_specific_cask_allowed: false/);
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
   assert.match(stableCask, /depends_on formula: "opl"/);
+  const stableCaskSha = stablePlan.targets[0].expected_cask_sha256;
 
-  const fullResult = runTap({
-    packageKind: 'app_full_first_install',
-    target: 'Casks/one-person-lab-full.rb',
-    manifest: 'opl-release-manifest.json',
-    download: fullDmg('26.6.4'),
+  const idempotentInspect = runTap({
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4'),
+    remoteWriteMode: 'inspect_only',
+  });
+  assert.equal(idempotentInspect.status, 0, idempotentInspect.stderr || idempotentInspect.stdout);
+  const idempotentPlan = JSON.parse(idempotentInspect.stdout);
+  assert.equal(idempotentPlan.cas.decision, 'idempotent');
+  assert.equal(idempotentPlan.cas.write_performed, false);
+  assert.equal(idempotentPlan.targets[0].current_cask_sha256, stableCaskSha);
+  assert.equal(idempotentPlan.targets[0].expected_cask_sha256, stableCaskSha);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8'), stableCask);
+
+  const conflictingDigestInspect = runTap({
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4'),
+    checksum: 'c'.repeat(64),
+    remoteWriteMode: 'inspect_only',
+  });
+  assert.equal(conflictingDigestInspect.status, 0, conflictingDigestInspect.stderr || conflictingDigestInspect.stdout);
+  assert.equal(JSON.parse(conflictingDigestInspect.stdout).cas.decision, 'version_conflict');
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8'), stableCask);
+
+  const conflictingDigestWrite = runTap({
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4'),
+    checksum: 'c'.repeat(64),
+    remoteWriteMode: 'direct_commit',
+    expectedCurrentCaskSha256: stableCaskSha,
     write: true,
   });
-  assert.equal(fullResult.status, 0, fullResult.stderr || fullResult.stdout);
-  const fullPlan = JSON.parse(fullResult.stdout);
-  assert.equal(fullPlan.channel, 'stable');
-  assert.equal(fullPlan.package_kind, 'app_full_first_install');
-  assert.equal(fullPlan.policy.full_first_install_allowed, true);
-  assert.equal(fullPlan.policy.standard_updater_visible, false);
-  assert.equal(fullPlan.policy.full_cask_install_surface, true);
-  assert.equal(fullPlan.policy.bundled_full_runtime_payload_allowed, true);
-  assert.equal(fullPlan.policy.opl_packages_lifecycle_owned_by_homebrew, false);
-  const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
-  assert.match(fullCask, /releases\/download\/v26\.6\.4\/One-Person-Lab-Full-26\.6\.4-mac-arm64\.dmg/);
-  assert.match(fullCask, /opl-release-manifest\.json/);
-  assert.match(fullCask, /package_kind: app_full_first_install/);
-  assert.match(fullCask, /full_first_install_allowed: true/);
-  assert.match(fullCask, /standard_updater_visible: false/);
-  assert.match(fullCask, /cohort: full_first_install_homebrew_distribution/);
-  assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
-  assert.match(fullCask, /opl_packages_lifecycle_owned_by_homebrew: false/);
-  assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
-  assert.match(fullCask, /depends_on formula: "opl"/);
-  assert.match(fullCask, /Full assets stay outside standard updater metadata/);
+  assert.notEqual(conflictingDigestWrite.status, 0);
+  assert.match(conflictingDigestWrite.stderr, /freeze a new release revision/);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8'), stableCask);
+
+  const directWriteWithoutCas = runTap({
+    version: '26.6.5',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.5'),
+    remoteWriteMode: 'direct_commit',
+    write: true,
+  });
+  assert.notEqual(directWriteWithoutCas.status, 0);
+  assert.match(directWriteWithoutCas.stderr, /require exact --expected-current-cask-sha256/);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8'), stableCask);
+
+  const staleCaskCas = runTap({
+    version: '26.6.5',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.5'),
+    remoteWriteMode: 'direct_commit',
+    expectedCurrentCaskSha256: `sha256:${'f'.repeat(64)}`,
+    write: true,
+  });
+  assert.notEqual(staleCaskCas.status, 0);
+  assert.match(staleCaskCas.stderr, /Homebrew Cask CAS mismatch/);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8'), stableCask);
+
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const homebrew = releaseContract.homebrew_tap_distribution;
+  assert.deepEqual(homebrew.full_casks, []);
+  assert.deepEqual(homebrew.excluded_casks, ['one-person-lab-full']);
+  assert.equal(homebrew.allowed_casks.includes('one-person-lab-full'), false);
+  assert.equal(homebrew.casks.includes('one-person-lab-full'), false);
+  assert.equal(homebrew.initial_live_targets.includes('Casks/one-person-lab-full.rb'), false);
+  assert.equal(homebrew.tap_update_policy.full.homebrew_publish_allowed, false);
+  assert.equal(homebrew.tap_update_policy.full.homebrew_clean_vm_gate_required, false);
+  assert.equal(fs.existsSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb')), false);
 
   const stableRefresh = runTap({
     version: '26.6.5',
     target: 'Casks/one-person-lab.rb',
     manifest: 'latest-arm64-mac.yml',
     download: standardDmg('26.6.5'),
+    remoteWriteMode: 'direct_commit',
+    expectedCurrentCaskSha256: stableCaskSha,
     write: true,
   });
   assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
+  assert.equal(JSON.parse(stableRefresh.stdout).cas.decision, 'write_once');
+  assert.equal(JSON.parse(stableRefresh.stdout).cas.write_performed, true);
   const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
   assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
 
@@ -240,35 +304,6 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   });
   assert.notEqual(fullLeakInStandardPlan.status, 0);
   assert.match(fullLeakInStandardPlan.stderr, /Full first-install payloads/);
-
-  const fullNightly = runTap({
-    channel: 'nightly',
-    packageKind: 'app_full_first_install',
-    version: '26.6.4-nightly.r1',
-    target: 'Casks/one-person-lab-full.rb',
-    manifest: 'opl-release-manifest.json',
-    download: fullDmg('26.6.4-nightly.r1'),
-  });
-  assert.notEqual(fullNightly.status, 0);
-  assert.match(fullNightly.stderr, /Full first-install Homebrew cask updates must stay on the stable channel/);
-
-  const fullToStandard = runTap({
-    packageKind: 'app_full_first_install',
-    target: 'Casks/one-person-lab.rb',
-    manifest: 'opl-release-manifest.json',
-    download: fullDmg('26.6.4'),
-  });
-  assert.notEqual(fullToStandard.status, 0);
-  assert.match(fullToStandard.stderr, /Full first-install Homebrew cask updates may only update Casks\/one-person-lab-full\.rb/);
-
-  const legacyFullManifestForFullCask = runTap({
-    packageKind: 'app_full_first_install',
-    target: 'Casks/one-person-lab-full.rb',
-    manifest: 'full-package-manifest.json',
-    download: fullDmg('26.6.4'),
-  });
-  assert.notEqual(legacyFullManifestForFullCask.status, 0);
-  assert.match(legacyFullManifestForFullCask.stderr, /opl-release-manifest\.json/);
 
   const selfCheck = runNode(['scripts/update-homebrew-tap.ts', '--self-check']);
   assert.equal(selfCheck.status, 0, selfCheck.stderr || selfCheck.stdout);
@@ -1327,76 +1362,109 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   );
 });
 
-test('release contract keeps Standard terminal independent and cohort plans behind the canonical controller', () => {
+test('release contract keeps Standard independent behind Framework checkpoint authority', () => {
   const release = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
   );
-  const prepare = release.release_acceleration.cohort_prepare;
-  const intent = prepare.release_intent_policy;
-  const publishRecovery = release.release_acceleration.publish_resume.release_upload_failure_recovery;
-  const draftCleanup = release.release_acceleration.publish_resume.draft_candidate_cleanup;
+  const control = release.release_bundle_control_plane;
+  const legacy = control.legacy_compatibility;
 
-  assert.equal(prepare.next_action_policy.canonical_command_prefix, 'npm run release:stable -- start');
-  assert.equal(prepare.next_action_policy.default_mode, 'dry_run');
-  assert.equal(prepare.next_action_policy.direct_workflow_dispatch_allowed, false);
-  assert.equal(intent.stable_complete.standard_terminal_independent, true);
-  assert.equal(intent.stable_complete.include_full_package_required, false);
-  assert.equal(
-    intent.stable_complete.include_full_package_role,
-    'optional_same_cohort_nonblocking_addon_intent',
-  );
-  assert.equal(intent.full_addon_terminal_policy.dispatch_after, 'standard_stable_terminal');
-  assert.equal(intent.full_addon_terminal_policy.completion_required_for_standard_terminal, false);
-  assert.equal(publishRecovery.remote_state, 'typed_incomplete_draft_retained');
-  assert.equal(publishRecovery.receipt_schema, 'opl_app_release_publish_recovery_receipt.v1');
-  assert.equal(publishRecovery.automatic_release_delete_allowed, false);
-  assert.equal(publishRecovery.automatic_tag_cleanup_allowed, false);
-  assert.equal(publishRecovery.ordinary_release_workflow_delete_allowed, false);
-  assert.equal(draftCleanup.execution_authority, 'independent_isolated_release_mutation_broker');
-  assert.equal(draftCleanup.required_broker_mutation, 'release_draft_cleanup');
-  assert.equal(draftCleanup.broker_mutation, null);
-  assert.equal(draftCleanup.direct_github_release_delete_allowed, false);
-  assert.equal(draftCleanup.direct_tag_cleanup_allowed, false);
+  assert.deepEqual(control.live_authority.stable_operations, [
+    'standard',
+    'resume_standard',
+    'append_full',
+  ]);
+  assert.equal(control.live_authority.single_live_mutation_authority, true);
+  assert.equal(control.live_authority.app_session_broker_or_operator_may_authorize_mutation, false);
+  assert.equal(control.checkpoint_transport.import_never_rebuilds, true);
+  assert.equal(control.checkpoint_transport.unknown_build_or_publish_outcome_export_allowed, true);
+  assert.deepEqual(control.checkpoint_transport.active_unknown_markers.allowed_commands, [
+    'status',
+    'exact_reconcile',
+  ]);
+  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, undefined);
+  assert.equal(control.operation_control.stable_operations.resume_standard.control, 'reuse_exact_standard_control');
+  assert.equal(control.operation_control.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
+  assert.equal(control.operation_control.elapsed_deadline.exact_reconcile_result, 'late_observation');
+  assert.equal(control.checkpoint_transport.publish_or_promotion_state_imported, false);
+  assert.equal(control.publication.full.may_follow_latest, true);
+  assert.equal(control.publication.full.updater_metadata_allowed, false);
+  assert.equal(legacy.historical_receipts_remain_readable, true);
+  assert.equal(legacy.new_legacy_dispatch_publish_or_rebuild_allowed, false);
+  assert.equal(release.release_acceleration.new_session_or_dispatch_allowed, false);
 
-  const coupledFullTerminal = structuredClone(release);
-  coupledFullTerminal.release_acceleration.cohort_prepare.release_intent_policy
-    .full_addon_terminal_policy.completion_required_for_standard_terminal = true;
+  const competingAuthority = structuredClone(release);
+  competingAuthority.release_bundle_control_plane.live_authority
+    .app_session_broker_or_operator_may_authorize_mutation = true;
   assert.throws(
-    () => validateReleaseChannelContract(coupledFullTerminal),
-    /Standard terminal independent.*Full only as a same-cohort non-blocking add-on intent/,
-  );
-
-  const directWorkflowPlan = structuredClone(release);
-  directWorkflowPlan.release_acceleration.cohort_prepare.next_action_policy.direct_workflow_dispatch_allowed = true;
-  assert.throws(
-    () => validateReleaseChannelContract(directWorkflowPlan),
-    /dry-run canonical Stable controller/,
+    () => validateReleaseChannelContract(competingAuthority),
+    /one Framework checkpoint and App executor mutation authority/,
   );
 
-  const implicitFailureCleanup = structuredClone(release);
-  implicitFailureCleanup.release_acceleration.publish_resume
-    .release_upload_failure_recovery.automatic_release_delete_allowed = true;
+  const rebuiltCheckpoint = structuredClone(release);
+  rebuiltCheckpoint.release_bundle_control_plane.checkpoint_transport.import_never_rebuilds = false;
   assert.throws(
-    () => validateReleaseChannelContract(implicitFailureCleanup),
-    /retain a typed incomplete draft.*without implicit deletion/,
+    () => validateReleaseChannelContract(rebuiltCheckpoint),
+    /preserve exact controls and unknown markers/,
   );
 
-  const legacyImplicitCleanup = structuredClone(release);
-  legacyImplicitCleanup.release_acceleration.publish_resume.new_release_upload_failure_cleanup = {
-    enabled: true,
-    command: 'direct destructive cleanup',
-  };
+  const missingOperationId = structuredClone(release);
+  missingOperationId.release_bundle_control_plane.operation_control.operation_admission_identity_fields = [
+    'operation',
+    'operation_started_at',
+    'operation_deadline_at',
+  ];
   assert.throws(
-    () => validateReleaseChannelContract(legacyImplicitCleanup),
-    /retain a typed incomplete draft.*without implicit deletion/,
+    () => validateReleaseChannelContract(missingOperationId),
+    /Standard immutable, resume exact, append independent/,
   );
 
-  const directDraftCleanup = structuredClone(release);
-  directDraftCleanup.release_acceleration.publish_resume
-    .draft_candidate_cleanup.direct_github_release_delete_allowed = true;
+  for (const field of ['new_operation_id_allowed', 'start_refresh_allowed', 'deadline_refresh_allowed']) {
+    const refreshedResume = structuredClone(release);
+    refreshedResume.release_bundle_control_plane.operation_control.stable_operations.resume_standard[field] = true;
+    assert.throws(
+      () => validateReleaseChannelContract(refreshedResume),
+      /Standard immutable, resume exact, append independent/,
+    );
+  }
+
+  for (const field of ['standard_operation_id_reuse_allowed', 'standard_deadline_inheritance_allowed']) {
+    const reusedAppendControl = structuredClone(release);
+    reusedAppendControl.release_bundle_control_plane.operation_control.stable_operations.append_full[field] = true;
+    assert.throws(
+      () => validateReleaseChannelContract(reusedAppendControl),
+      /Standard immutable, resume exact, append independent/,
+    );
+  }
+
+  const mismatchedMarker = structuredClone(release);
+  mismatchedMarker.release_bundle_control_plane.checkpoint_transport.active_unknown_markers
+    .exact_reconcile_match_fields = ['bundle_digest', 'track'];
   assert.throws(
-    () => validateReleaseChannelContract(directDraftCleanup),
-    /fail closed until an independent signed broker mutation/,
+    () => validateReleaseChannelContract(mismatchedMarker),
+    /exact reconcile marker fields/,
+  );
+
+  const activeMarkerMutation = structuredClone(release);
+  activeMarkerMutation.release_bundle_control_plane.checkpoint_transport.active_unknown_markers
+    .ordinary_mutations_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(activeMarkerMutation),
+    /preserve exact controls and unknown markers/,
+  );
+
+  const latePromotion = structuredClone(release);
+  latePromotion.release_bundle_control_plane.operation_control.elapsed_deadline.stage_advanced = true;
+  assert.throws(
+    () => validateReleaseChannelContract(latePromotion),
+    /late reconcile evidence-only/,
+  );
+
+  const legacyMutation = structuredClone(release);
+  legacyMutation.release_acceleration.new_session_or_dispatch_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(legacyMutation),
+    /historical receipt readers only/,
   );
 });
 

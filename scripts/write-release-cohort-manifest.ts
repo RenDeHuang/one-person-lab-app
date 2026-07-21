@@ -109,24 +109,12 @@ function sortedAssets(remote: Record<string, unknown>) {
 }
 
 function recoveryAction(gateId: string) {
-  const qualificationGates = new Set([
-    'standard_dmg_clean_vm',
-    'full_dmg_clean_vm',
-    'homebrew_standard_cask_clean_vm',
-  ]);
-  const isQualification = qualificationGates.has(gateId);
-  const artifactKind = gateId === 'full_dmg_clean_vm' ? 'full' : 'standard';
-  const subcommand = isQualification ? 'retry-qualification' : 'reconcile';
-  const artifactArg = isQualification ? ` --artifact-kind ${artifactKind}` : '';
   return {
-    action: isQualification
-      ? 'retry_qualification_same_artifact'
-      : 'reconcile_stable_session',
-    controller: 'release:stable',
-    controller_subcommand: subcommand,
-    state_ref: 'original_stable_release_session',
-    command_template: `npm run release:stable -- ${subcommand} --state <original-release-session.json>${artifactArg}`,
-    execution_mode: 'dry_run',
+    action: 'inspect_framework_bundle_status',
+    historical_gate_id: gateId,
+    state_authority: 'opl_release_bundle_checkpoint.v1',
+    command_template: 'opl release status --bundle <sha256:digest> --store <directory>',
+    execution_mode: 'read_only',
     execute_flag_included: false,
     mutation_authorized: false,
     direct_workflow_dispatch_allowed: false,
@@ -151,8 +139,10 @@ function buildManifest(options: Options) {
 
   return {
     schema: 'opl_release_cohort_manifest.v1',
+    lifecycle: 'retired_historical_evidence_projection',
     generated_at: new Date().toISOString(),
-    status: String(candidate.status ?? 'unknown'),
+    status: 'historical_read_only',
+    historical_claimed_status: String(candidate.status ?? 'unknown'),
     version: options.version,
     release_mode: options.releaseMode || String(candidate.release_mode ?? ''),
     tag: `v${options.version}`,
@@ -176,12 +166,16 @@ function buildManifest(options: Options) {
     },
     assets: sortedAssets(remote),
     gates,
-    reusable_gates: Array.isArray(reusable) ? reusable : [],
+    reusable_gates: Array.isArray(reusable) ? reusable.map((entry) => ({
+      ...(recordOrNull(entry) ?? {}),
+      status: 'historical_observation_only',
+      skip_authorized: false,
+    })) : [],
     retry_policy: {
-      build_once_promote_many: true,
-      failed_gate_retry_should_consume_this_manifest: true,
-      retry_must_not_rebuild_verified_assets_when_asset_sha256_matches: true,
-      recovery_must_use_stable_controller: true,
+      build_once_verify_many: true,
+      failed_gate_retry_should_consume_this_manifest: false,
+      completed_stage_skip_authority: 'framework_checkpoint_only',
+      recovery_route: 'read_only_status_then_framework_reconcile_by_authorized_executor',
       direct_workflow_dispatch_allowed: false,
       manifest_can_authorize_mutation: false,
       manifest_can_publish_release: false,
@@ -202,7 +196,7 @@ function writeMarkdown(filePath: string, manifest: ReturnType<typeof buildManife
     `- Assets: ${manifest.assets.length}`,
     `- Gates: ${manifest.gates.length}`,
     '',
-    '| Gate | Status | Typed recovery action | Stable controller route |',
+    '| Gate | Status | Read-only handoff | Framework status route |',
     '| --- | --- | --- | --- |',
     ...manifest.gates.map((gate) => (
       `| ${gate.id} | ${gate.status} | ${gate.recovery_action.action} | \`${gate.recovery_action.command_template.replaceAll('`', '\\`')}\` |`

@@ -34,7 +34,11 @@ const requiredRootScripts = {
   'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
   'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
   'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',
-  'release:closeout': 'node --experimental-strip-types scripts/closeout-release-run.ts',
+  'release:framework-adapter': 'node --experimental-strip-types scripts/framework-release-adapter.ts',
+  'release:deadline': 'node --experimental-strip-types scripts/release-operation-deadline.ts',
+  'release:bind-standard': 'node --experimental-strip-types scripts/bind-standard-release-track.ts',
+  'release:historical-candidate-record:status': 'node --experimental-strip-types scripts/validate-release-candidate-record.ts --status',
+  'release:historical-bundle:status': 'node --experimental-strip-types scripts/release-bundle.ts status',
   'build-mac:arm64': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:arm64',
 };
 

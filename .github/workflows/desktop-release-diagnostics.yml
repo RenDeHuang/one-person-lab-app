@@ -153,7 +153,7 @@ jobs:
           OPL_RELEASE_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          npm run release:closeout -- \
+          node --experimental-strip-types scripts/closeout-release-run.ts \
             --version "$OPL_RELEASE_VERSION" \
             --run-id "$OPL_RELEASE_RUN_ID" \
             --repo "$OPL_RELEASE_REPO" \

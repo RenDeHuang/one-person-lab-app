@@ -403,7 +403,7 @@ function assertNotesEvidence(
   }
 }
 
-export function assembleReleaseBundle(inputDirectory: string): ReleaseBundleV1 {
+function assembleHistoricalBundleForVerification(inputDirectory: string): ReleaseBundleV1 {
   const inputRoot = path.resolve(inputDirectory);
   assertRealDirectory(inputRoot, 'Release Bundle input');
   const releaseInputPath = path.join(inputRoot, 'release-input.json');
@@ -698,18 +698,6 @@ function readBundle(bundlePath: string): ReleaseBundleV1 {
   return bundle as ReleaseBundleV1;
 }
 
-function writeJsonAtomic(outputPath: string, value: unknown): void {
-  const resolved = path.resolve(outputPath);
-  fs.mkdirSync(path.dirname(resolved), { recursive: true });
-  const temporary = `${resolved}.tmp-${process.pid}`;
-  try {
-    fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o644 });
-    fs.renameSync(temporary, resolved);
-  } finally {
-    fs.rmSync(temporary, { force: true });
-  }
-}
-
 function main(): void {
   const { values, positionals } = parseArgs({
     options: {
@@ -722,15 +710,27 @@ function main(): void {
   });
   const [command, ...extra] = positionals;
   if (extra.length > 0 || !['assemble', 'verify', 'status'].includes(command || '')) {
-    throw new Error('Usage: release:bundle <assemble|verify|status> [--input <dir>] [--output <file>] [--bundle <file>].');
+    throw new Error('Usage: release-bundle.ts <assemble|verify|status> [--input <dir>] [--output <file>] [--bundle <file>].');
   }
   if (command === 'assemble') {
-    if (!values.input || !values.output || values.bundle) {
-      throw new Error('assemble requires --input <dir> and --output <bundle.json>.');
-    }
-    const bundle = assembleReleaseBundle(values.input);
-    writeJsonAtomic(values.output, bundle);
-    process.stdout.write(`${JSON.stringify(bundleStatus(bundle, 'exact_input'))}\n`);
+    const message = 'App-owned Release Bundle assembly is retired; OPL Framework opl release freeze owns new Bundle creation.';
+    process.stdout.write(`${JSON.stringify({
+      schema: 'opl_app_historical_release_bundle_assemble_retired.v1',
+      status: 'retired_fail_closed',
+      lifecycle: 'historical_read_only',
+      input_digest: `sha256:${sha256Text(JSON.stringify(process.argv.slice(2)))}`,
+      bundle_generated: false,
+      output_written: false,
+      mutation_authorized: false,
+      accepted_read_only_commands: ['verify', 'status'],
+      framework_handoff: {
+        state_authority: 'opl_release_bundle_checkpoint.v1',
+        command: 'opl release freeze',
+      },
+      failure: { kind: 'retired_assemble_entrypoint', stdout: '', stderr: message },
+    }, null, 2)}\n`);
+    console.error(message);
+    process.exitCode = 2;
     return;
   }
   if (!values.bundle || values.output) {
@@ -739,7 +739,7 @@ function main(): void {
   const bundle = readBundle(values.bundle);
   let contentVerification: 'bundle_only' | 'exact_input' = 'bundle_only';
   if (command === 'verify' && values.input) {
-    const expected = assembleReleaseBundle(values.input);
+    const expected = assembleHistoricalBundleForVerification(values.input);
     if (canonicalJson(bundle) !== canonicalJson(expected)) {
       throw new Error('Release Bundle does not match the exact input bytes.');
     }

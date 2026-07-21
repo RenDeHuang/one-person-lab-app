@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
@@ -14,7 +14,7 @@ import {
 } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const reusableGateIds = [
+const historicalGateIds = [
   'remote_release_verification',
   'standard_dmg_clean_vm',
   'stable_homebrew_tap_update',
@@ -28,33 +28,10 @@ const reusableGateIds = [
   'operator_evidence_bundle',
 ];
 
-type Options = {
-  version: string;
-  releaseMode: string;
-  includeFullPackage: boolean;
-  runVmSmoke: boolean;
-  appCommit: string;
-  shellRef: string;
-  frameworkRef: string;
-  currentPreflightPath: string;
-  currentRemoteVerificationPath: string;
-  previousCandidateRecordPath: string;
-  previousReadinessPath: string;
-  previousRemoteVerificationPath: string;
-  output: string;
-  markdown: string;
-};
+type Options = ReturnType<typeof parseOptions>;
 
-type ReuseDecision = {
-  gate_id: string;
-  status: 'reuse_allowed' | 'must_run';
-  reason: string;
-  previous_status: string | null;
-  evidence_refs: Record<string, unknown>;
-};
-
-function parseArgs(argv: string[]): Options {
-  const parsed: Options = {
+function parseOptions(argv: string[]) {
+  const parsed = {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
     appCommit: process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
@@ -67,7 +44,6 @@ function parseArgs(argv: string[]): Options {
     output: process.env.OPL_RELEASE_GATE_REUSE_PLAN || '',
     markdown: process.env.OPL_RELEASE_GATE_REUSE_MARKDOWN || '',
   };
-
   const { values } = parseNodeArgs({
     args: argv,
     options: {
@@ -88,44 +64,31 @@ function parseArgs(argv: string[]): Options {
       markdown: { type: 'string' },
     },
   });
-  if (typeof values.version === 'string') parsed.version = values.version;
-  if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
-  if (typeof values['include-full-package'] === 'string') {
-    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
-  }
-  if (typeof values['run-vm-smoke'] === 'string') parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
-  if (typeof values['publish-docker-webui'] === 'string') {
-    parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
-  }
-  if (typeof values['app-commit'] === 'string') parsed.appCommit = values['app-commit'];
-  if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
-  if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
-  if (typeof values['current-preflight'] === 'string') parsed.currentPreflightPath = values['current-preflight'];
-  if (typeof values['current-remote-verification'] === 'string') {
-    parsed.currentRemoteVerificationPath = values['current-remote-verification'];
-  }
-  if (typeof values['previous-candidate-record'] === 'string') {
-    parsed.previousCandidateRecordPath = values['previous-candidate-record'];
-  }
-  if (typeof values['previous-readiness'] === 'string') parsed.previousReadinessPath = values['previous-readiness'];
-  if (typeof values['previous-remote-verification'] === 'string') {
-    parsed.previousRemoteVerificationPath = values['previous-remote-verification'];
-  }
-  if (typeof values.output === 'string') parsed.output = values.output;
-  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
-
+  if (values.version) parsed.version = values.version;
+  if (values['release-mode']) parsed.releaseMode = values['release-mode'];
+  if (values['include-full-package']) parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
+  if (values['run-vm-smoke']) parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  if (values['publish-docker-webui']) parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
+  if (values['app-commit']) parsed.appCommit = values['app-commit'];
+  if (values['shell-ref']) parsed.shellRef = values['shell-ref'];
+  if (values['framework-ref']) parsed.frameworkRef = values['framework-ref'];
+  if (values['current-preflight']) parsed.currentPreflightPath = values['current-preflight'];
+  if (values['current-remote-verification']) parsed.currentRemoteVerificationPath = values['current-remote-verification'];
+  if (values['previous-candidate-record']) parsed.previousCandidateRecordPath = values['previous-candidate-record'];
+  if (values['previous-readiness']) parsed.previousReadinessPath = values['previous-readiness'];
+  if (values['previous-remote-verification']) parsed.previousRemoteVerificationPath = values['previous-remote-verification'];
+  if (values.output) parsed.output = values.output;
+  if (values.markdown) parsed.markdown = values.markdown;
   assertSharedReleaseReadinessOptions(parsed);
-  const requiredPaths = [
+  for (const [label, value] of [
     ['--current-preflight', parsed.currentPreflightPath],
     ['--current-remote-verification', parsed.currentRemoteVerificationPath],
     ['--previous-candidate-record', parsed.previousCandidateRecordPath],
     ['--previous-readiness', parsed.previousReadinessPath],
     ['--previous-remote-verification', parsed.previousRemoteVerificationPath],
-  ];
-  for (const [label, value] of requiredPaths) {
+  ]) {
     if (!String(value).trim()) throw new Error(`Pass ${label} <path>.`);
   }
-
   return {
     ...parsed,
     currentPreflightPath: path.resolve(parsed.currentPreflightPath),
@@ -133,7 +96,7 @@ function parseArgs(argv: string[]): Options {
     previousCandidateRecordPath: path.resolve(parsed.previousCandidateRecordPath),
     previousReadinessPath: path.resolve(parsed.previousReadinessPath),
     previousRemoteVerificationPath: path.resolve(parsed.previousRemoteVerificationPath),
-    output: parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-gate-reuse-plan.json'),
+    output: parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-gate-reuse-inspection.json'),
     markdown: parsed.markdown ? path.resolve(parsed.markdown) : '',
   };
 }
@@ -142,255 +105,102 @@ function readRecord(filePath: string) {
   return asRecord(readJsonFile(filePath), filePath);
 }
 
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function gateStatus(readiness: Record<string, unknown>, gateId: string) {
-  const gates = recordOrNull(readiness.gates);
-  return recordOrNull(gates?.[gateId]);
-}
-
-function sortedRemoteAssets(record: Record<string, unknown>) {
-  return arrayOrEmpty(record.verified_assets)
-    .map((entry) => recordOrNull(entry))
-    .filter((entry): entry is Record<string, unknown> => entry !== null)
-    .map((entry) => ({
-      name: String(entry.name ?? ''),
-      size: typeof entry.size === 'number' ? entry.size : null,
-      sha256: String(entry.sha256 ?? ''),
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function sameJson(left: unknown, right: unknown) {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function stableDigest(value: unknown) {
-  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
-}
-
 function currentRefSha(preflight: Record<string, unknown>, repository: string) {
   const refs = arrayOrEmpty(preflight.release_refs)
     .map((entry) => recordOrNull(entry))
     .filter((entry): entry is Record<string, unknown> => entry !== null);
-  return stringValue(refs.find((entry) => entry.repository === repository)?.resolved_sha);
+  const value = refs.find((entry) => entry.repository === repository)?.resolved_sha;
+  return typeof value === 'string' ? value : '';
 }
 
-function currentPreflightAppCommit(preflight: Record<string, unknown>) {
-  return stringValue(recordOrNull(preflight.inputs)?.expected_app_head);
+function currentAppSha(preflight: Record<string, unknown>) {
+  const value = recordOrNull(preflight.inputs)?.expected_app_head;
+  return typeof value === 'string' ? value : '';
 }
 
-function previousFrameworkSha(candidate: Record<string, unknown>) {
-  const refs = recordOrNull(candidate.resolved_refs);
-  const framework = recordOrNull(refs?.opl_framework);
-  return stringValue(framework?.commit);
-}
-
-function collectGlobalBlockers(options: Options, inputs: {
-  currentPreflight: Record<string, unknown>;
-  currentRemote: Record<string, unknown>;
-  previousCandidate: Record<string, unknown>;
-  previousReadiness: Record<string, unknown>;
-  previousRemote: Record<string, unknown>;
-}) {
-  const blockers: string[] = [];
-  const previousInputs = recordOrNull(inputs.previousCandidate.inputs);
-  const previousProvenance = recordOrNull(inputs.previousCandidate.provenance);
-
-  if (inputs.currentPreflight.status !== 'passed') blockers.push(`current preflight status is ${String(inputs.currentPreflight.status)}`);
-  if (inputs.currentRemote.status !== 'passed') blockers.push(`current remote verification status is ${String(inputs.currentRemote.status)}`);
-  if (inputs.previousCandidate.status !== 'ready_to_promote') blockers.push(`previous candidate status is ${String(inputs.previousCandidate.status)}`);
-  if (inputs.previousReadiness.status !== 'passed') blockers.push(`previous readiness status is ${String(inputs.previousReadiness.status)}`);
-  if (inputs.previousRemote.status !== 'passed') blockers.push(`previous remote verification status is ${String(inputs.previousRemote.status)}`);
-  if (inputs.previousCandidate.version !== options.version) blockers.push(`previous candidate version is ${String(inputs.previousCandidate.version)}`);
-  if (inputs.previousCandidate.release_mode !== options.releaseMode) blockers.push(`previous candidate release_mode is ${String(inputs.previousCandidate.release_mode)}`);
-  if (previousInputs?.include_full_package !== options.includeFullPackage) blockers.push('include_full_package does not match previous candidate');
-  if (previousInputs?.run_vm_smoke !== options.runVmSmoke) blockers.push('run_vm_smoke does not match previous candidate');
-  if (previousInputs?.shell_ref !== options.shellRef) blockers.push(`shell_ref does not match previous candidate (${String(previousInputs?.shell_ref)})`);
-  if (previousInputs?.framework_ref !== options.frameworkRef) blockers.push(`framework_ref does not match previous candidate (${String(previousInputs?.framework_ref)})`);
-  if (options.appCommit && previousProvenance?.app_commit !== options.appCommit) {
-    blockers.push(`app_commit does not match previous candidate (${String(previousProvenance?.app_commit)})`);
-  }
-
-  const currentShellSha = currentRefSha(inputs.currentPreflight, 'gaofeng21cn/opl-aion-shell');
-  const currentFrameworkSha = currentRefSha(inputs.currentPreflight, 'gaofeng21cn/one-person-lab');
-  const currentAppCommit = currentPreflightAppCommit(inputs.currentPreflight);
-  const previousFrameworkCommit = previousFrameworkSha(inputs.previousCandidate);
-  if (currentFrameworkSha && previousFrameworkCommit && currentFrameworkSha !== previousFrameworkCommit) {
-    blockers.push(`framework commit changed from ${previousFrameworkCommit} to ${currentFrameworkSha}`);
-  }
-  if (!currentAppCommit) blockers.push('current preflight did not record app commit');
-  else if (options.appCommit && currentAppCommit !== options.appCommit) {
-    blockers.push(`current preflight app commit ${currentAppCommit} does not match requested app commit ${options.appCommit}`);
-  }
-  if (!currentShellSha) blockers.push('current preflight did not resolve shell ref sha');
-  else if (currentShellSha !== options.shellRef) {
-    blockers.push(`current preflight shell sha ${currentShellSha} does not match requested shell ref ${options.shellRef}`);
-  }
-  if (options.includeFullPackage && !currentFrameworkSha) blockers.push('current preflight did not resolve framework ref sha');
-  else if (currentFrameworkSha && currentFrameworkSha !== options.frameworkRef) {
-    blockers.push(
-      `current preflight framework sha ${currentFrameworkSha} does not match requested framework ref ${options.frameworkRef}`,
-    );
-  }
-
-  if (!sameJson(sortedRemoteAssets(inputs.currentRemote), sortedRemoteAssets(inputs.previousRemote))) {
-    blockers.push('remote verified asset name/size/sha256 set changed');
-  }
-  return blockers;
-}
-
-function buildDecision(gateId: string, blockers: string[], previousReadiness: Record<string, unknown>, inputs: Options): ReuseDecision {
-  const gate = gateStatus(previousReadiness, gateId);
-  const previousStatus = stringValue(gate?.status) || null;
-  const artifactName = gate?.artifact_name ?? null;
-  const artifactPath = gate?.artifact_path ?? null;
-  if (!gate) {
-    return {
-      gate_id: gateId,
-      status: 'must_run',
-      reason: `previous readiness is missing gate ${gateId}`,
-      previous_status: null,
-      evidence_refs: {},
-    };
-  }
-  if (previousStatus !== 'passed') {
-    return {
-      gate_id: gateId,
-      status: 'must_run',
-      reason: `previous gate status is ${previousStatus}`,
-      previous_status: previousStatus,
-      evidence_refs: { artifact_name: artifactName, artifact_path: artifactPath },
-    };
-  }
-  if (blockers.length > 0) {
-    return {
-      gate_id: gateId,
-      status: 'must_run',
-      reason: blockers.join('; '),
-      previous_status: previousStatus,
-      evidence_refs: { artifact_name: artifactName, artifact_path: artifactPath },
-    };
-  }
-  return {
-    gate_id: gateId,
-    status: 'reuse_allowed',
-    reason: 'same version, release mode, inputs, app commit, resolved refs, remote asset digests, and previous passed gate evidence',
-    previous_status: previousStatus,
-    evidence_refs: {
-      candidate_record: inputs.previousCandidateRecordPath,
-      readiness_summary: inputs.previousReadinessPath,
-      remote_verification: inputs.previousRemoteVerificationPath,
-      artifact_name: artifactName,
-      artifact_path: artifactPath,
-    },
-  };
-}
-
-function writeMarkdown(filePath: string, summary: ReturnType<typeof buildPlan>) {
-  if (!filePath) return;
-  const lines = [
-    '# Release Gate Reuse Plan',
-    '',
-    `- Status: ${summary.status}`,
-    `- Version: ${summary.version}`,
-    `- Reuse allowed: ${summary.reuse_allowed_count}`,
-    `- Must run: ${summary.must_run_count}`,
-    '',
-    '| Gate | Decision | Reason |',
-    '| --- | --- | --- |',
-    ...summary.decisions.map((decision) => (
-      `| ${decision.gate_id} | ${decision.status} | ${decision.reason.replaceAll('|', '\\|')} |`
-    )),
-    '',
-  ];
-  writeLinesFile(filePath, lines);
-}
-
-function buildPlan(options: Options) {
+function buildInspection(options: Options) {
   const currentPreflight = readRecord(options.currentPreflightPath);
-  const currentRemote = readRecord(options.currentRemoteVerificationPath);
-  const previousCandidate = readRecord(options.previousCandidateRecordPath);
-  const previousReadiness = readRecord(options.previousReadinessPath);
-  const previousRemote = readRecord(options.previousRemoteVerificationPath);
-  const cohort = {
-    version: options.version,
-    release_mode: options.releaseMode,
-    include_full_package: options.includeFullPackage,
-    run_vm_smoke: options.runVmSmoke,
-    app_commit: options.appCommit,
-    shell_ref: options.shellRef,
-    framework_ref: options.frameworkRef,
-    current_app_commit: currentPreflightAppCommit(currentPreflight),
-    current_shell_sha: currentRefSha(currentPreflight, 'gaofeng21cn/opl-aion-shell'),
-    current_framework_sha: currentRefSha(currentPreflight, 'gaofeng21cn/one-person-lab'),
-    remote_asset_name_size_sha256: sortedRemoteAssets(currentRemote),
+  const currentAppCommit = currentAppSha(currentPreflight);
+  const currentShellSha = currentRefSha(currentPreflight, 'gaofeng21cn/opl-aion-shell');
+  const currentFrameworkSha = currentRefSha(currentPreflight, 'gaofeng21cn/one-person-lab');
+  const blockers = ['App gate-reuse planning is retired; Framework checkpoint receipts decide completed-stage skips.'];
+  if (currentAppCommit !== options.appCommit) blockers.push(`current preflight app commit ${currentAppCommit || '(missing)'} does not match requested app commit ${options.appCommit}`);
+  if (currentShellSha !== options.shellRef) blockers.push(`current preflight shell sha ${currentShellSha || '(missing)'} does not match requested shell ref ${options.shellRef}`);
+  if (currentFrameworkSha !== options.frameworkRef) blockers.push(`current preflight framework sha ${currentFrameworkSha || '(missing)'} does not match requested framework ref ${options.frameworkRef}`);
+  const sourceFiles = {
+    current_preflight: options.currentPreflightPath,
+    current_preflight_sha256: fileSha256(options.currentPreflightPath),
+    current_remote_verification: options.currentRemoteVerificationPath,
+    current_remote_verification_sha256: fileSha256(options.currentRemoteVerificationPath),
+    previous_candidate_record: options.previousCandidateRecordPath,
+    previous_candidate_record_sha256: fileSha256(options.previousCandidateRecordPath),
+    previous_readiness: options.previousReadinessPath,
+    previous_readiness_sha256: fileSha256(options.previousReadinessPath),
+    previous_remote_verification: options.previousRemoteVerificationPath,
+    previous_remote_verification_sha256: fileSha256(options.previousRemoteVerificationPath),
   };
-  const blockers = collectGlobalBlockers(options, {
-    currentPreflight,
-    currentRemote,
-    previousCandidate,
-    previousReadiness,
-    previousRemote,
-  });
-  const decisions = reusableGateIds.map((gateId) => buildDecision(gateId, blockers, previousReadiness, options));
+  const decisions = historicalGateIds.map((gateId) => ({
+    gate_id: gateId,
+    status: 'must_run' as const,
+    reason: 'Historical App evidence cannot skip a Framework Bundle stage.',
+    previous_status: null,
+    evidence_refs: {},
+  }));
   return {
-    schema: 'opl_release_gate_reuse_plan.v1',
-    status: decisions.every((decision) => decision.status === 'reuse_allowed') ? 'reuse_available' : 'partial_or_blocked',
+    schema: 'opl_app_release_gate_reuse_inspection.v1',
+    lifecycle: 'retired_read_only',
+    status: 'retired_no_reuse_authority',
     generated_at: new Date().toISOString(),
     version: options.version,
     release_mode: options.releaseMode,
-    inputs: {
-      include_full_package: options.includeFullPackage,
-      run_vm_smoke: options.runVmSmoke,
-      app_commit: options.appCommit,
-      shell_ref: options.shellRef,
-      framework_ref: options.frameworkRef,
+    cohort: {
+      requested_app_commit: options.appCommit,
+      requested_shell_ref: options.shellRef,
+      requested_framework_ref: options.frameworkRef,
+      current_app_commit: currentAppCommit,
+      current_shell_sha: currentShellSha,
+      current_framework_sha: currentFrameworkSha,
     },
-    cohort,
-    reuse_digest: stableDigest({
-      schema: 'opl_release_gate_reuse_digest.v1',
-      cohort,
-      previous_candidate_record_sha256: fileSha256(options.previousCandidateRecordPath),
-      previous_readiness_sha256: fileSha256(options.previousReadinessPath),
-      previous_remote_verification_sha256: fileSha256(options.previousRemoteVerificationPath),
-    }),
-    source_files: {
-      current_preflight: options.currentPreflightPath,
-      current_preflight_sha256: fileSha256(options.currentPreflightPath),
-      current_remote_verification: options.currentRemoteVerificationPath,
-      current_remote_verification_sha256: fileSha256(options.currentRemoteVerificationPath),
-      previous_candidate_record: options.previousCandidateRecordPath,
-      previous_candidate_record_sha256: fileSha256(options.previousCandidateRecordPath),
-      previous_readiness: options.previousReadinessPath,
-      previous_readiness_sha256: fileSha256(options.previousReadinessPath),
-      previous_remote_verification: options.previousRemoteVerificationPath,
-      previous_remote_verification_sha256: fileSha256(options.previousRemoteVerificationPath),
-    },
+    inspection_digest: `sha256:${crypto.createHash('sha256').update(JSON.stringify(sourceFiles)).digest('hex')}`,
+    source_files: sourceFiles,
     global_blockers: blockers,
-    reuse_allowed_count: decisions.filter((decision) => decision.status === 'reuse_allowed').length,
-    must_run_count: decisions.filter((decision) => decision.status === 'must_run').length,
+    reuse_allowed_count: 0,
+    must_run_count: decisions.length,
     decisions,
     authority_boundary: {
-      reuse_plan_can_skip_release_gate_by_itself: false,
-      workflow_must_explicitly_consume_reuse_allowed_decision: true,
-      reuse_plan_can_claim_release_ready: false,
-      reuse_plan_can_publish_release: false,
-      reuse_plan_can_write_runtime_truth: false,
+      inspection_can_skip_release_gate: false,
+      inspection_can_claim_release_ready: false,
+      inspection_can_publish_release: false,
+      inspection_can_write_runtime_truth: false,
+      completed_stage_authority: 'OPL Framework checkpoint and receipts only',
     },
   };
 }
 
+function writeMarkdown(filePath: string, inspection: ReturnType<typeof buildInspection>) {
+  if (!filePath) return;
+  writeLinesFile(filePath, [
+    '# Historical Release Gate Inspection',
+    '',
+    `- Status: ${inspection.status}`,
+    `- Version: ${inspection.version}`,
+    '- Reuse authority: none',
+    '',
+    '| Gate | Decision |',
+    '| --- | --- |',
+    ...inspection.decisions.map((decision) => `| ${decision.gate_id} | ${decision.status} |`),
+    '',
+  ]);
+}
+
 try {
-  const options = parseArgs(process.argv.slice(2));
-  const plan = buildPlan(options);
+  const options = parseOptions(process.argv.slice(2));
+  const inspection = buildInspection(options);
   fs.mkdirSync(path.dirname(options.output), { recursive: true });
-  fs.writeFileSync(options.output, `${JSON.stringify(plan, null, 2)}\n`, 'utf8');
-  writeMarkdown(options.markdown, plan);
-  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+  fs.writeFileSync(options.output, `${JSON.stringify(inspection, null, 2)}\n`, 'utf8');
+  writeMarkdown(options.markdown, inspection);
+  process.stdout.write(`${JSON.stringify(inspection, null, 2)}\n`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+  process.exitCode = 1;
 }

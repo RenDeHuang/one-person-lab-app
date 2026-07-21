@@ -9,7 +9,11 @@ import {
   resolveReleaseVersionIdentity,
   resolveStableReleaseVersion,
 } from '../../scripts/release-version.ts';
-import { compareStableReleaseVersions } from '../../scripts/stable-release-version-order.ts';
+import {
+  assertPromotionTargetIsNewerThanPublishedStable,
+  compareStableReleaseVersions,
+  highestPublishedStableRelease,
+} from '../../scripts/stable-release-version-order.ts';
 
 test('legacy Stable base keeps its historical installed machine version', () => {
   assert.deepEqual(resolveReleaseVersionIdentity('stable', '26.7.20'), {
@@ -85,5 +89,23 @@ test('revision overflow, future dates, and display to updater collisions fail cl
   assert.throws(
     () => assertUpdaterVersionMatchesDisplay('stable', '26.7.20-r1', '26.7.20-r1'),
     /expected 26\.7\.2001/,
+  );
+});
+
+test('Stable promotion compares every published Stable rather than GitHub Latest alone', () => {
+  const releases = [
+    { tag_name: 'v26.7.20', draft: false, prerelease: false },
+    { tag_name: 'v26.7.21', draft: false, prerelease: false },
+    { tag_name: 'v26.7.22-nightly', draft: false, prerelease: true },
+    { tag_name: 'v26.7.23', draft: true, prerelease: false },
+  ];
+  assert.equal(highestPublishedStableRelease(releases).tagName, 'v26.7.21');
+  assert.throws(
+    () => assertPromotionTargetIsNewerThanPublishedStable('26.7.20-r1', releases),
+    /older than highest published Stable v26\.7\.21/,
+  );
+  assert.equal(
+    assertPromotionTargetIsNewerThanPublishedStable('26.7.21-r1', releases).tagName,
+    'v26.7.21',
   );
 });

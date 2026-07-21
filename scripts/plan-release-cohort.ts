@@ -14,9 +14,7 @@ import {
 import {
   appRefFromEnvironment,
   buildReleaseCohortLock,
-  releaseCohortCanonicalRemotes,
   releaseCohortLockIdentity,
-  resolveCanonicalGitRef,
   writeCreateOnceArtifactSet,
   type ArtifactWriteFailureInjection,
   type CommandRunner,
@@ -52,25 +50,17 @@ type CheapGate = {
 };
 
 type NextAction = {
-  action: 'plan_stable_release_start';
+  action: 'framework_checkpoint_read_only_handoff';
   command: string;
+  operation: 'standard';
+  mutation_authorized: false;
+  manual_handoff_required: true;
   reason: string;
-};
-
-export type ReleaseDispatchHandlePlan = {
-  schema: 'opl_app_release_dispatch_handle_plan.v1';
-  repository: 'gaofeng21cn/one-person-lab-app';
-  workflow_ref: 'refs/heads/main';
-  expected_workflow_sha: string;
-  cohort_identity: string;
-  state: 'planned_verified_no_ref_mutation';
-  remote_ref_mutation_allowed: false;
-  verification_required_before_broker_admission: true;
-  mismatch_policy: 'refresh_controller_handle_preserve_frozen_artifact_cohort';
 };
 
 export type ReleaseCohortPlan = {
   schema: 'opl_app_release_cohort_plan.v1';
+  lifecycle?: 'retired_read_only_handoff';
   generated_at: string;
   version: string;
   tag: string;
@@ -83,13 +73,13 @@ export type ReleaseCohortPlan = {
   shell_ref: string;
   framework_ref: string;
   cohort_lock: ReleaseCohortLock;
-  dispatch_handle?: ReleaseDispatchHandlePlan;
   include_full_package: boolean;
   run_vm_smoke: boolean;
   publish_docker_webui: boolean;
   cheap_gates: CheapGate[];
   next_action: NextAction;
   authority_boundary: {
+    cohort_plan_can_start_release?: false;
     cohort_plan_can_publish_release: false;
     cohort_plan_can_write_runtime_truth: false;
     cohort_plan_can_claim_release_ready: false;
@@ -98,7 +88,7 @@ export type ReleaseCohortPlan = {
 
 function usage(): void {
   process.stdout.write(`Usage:
-  npm run release:cohort-plan -- --version <version> --release-mode <mode>
+  node --experimental-strip-types scripts/plan-release-cohort.ts --version <version> --release-mode <mode>
 
 Options:
   --version <version>              OPL release version, for example 26.6.20.
@@ -289,30 +279,6 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function stableStartPlanCommand(
-  options: ReleaseCohortPlanOptions,
-  lock: ReleaseCohortLock,
-  dispatchHandle: ReleaseDispatchHandlePlan,
-): string {
-  return [
-    'npm run release:stable -- start',
-    `--version ${shellQuote(options.version)}`,
-    `--release-mode ${shellQuote(options.releaseMode)}`,
-    `--release-intent ${options.releaseIntent}`,
-    `--full-omission-reason ${shellQuote(options.fullOmissionReason.trim())}`,
-    `--gate-reuse-plan-ref ${shellQuote(options.gateReusePlanRef.trim())}`,
-    `--include-full-package ${boolText(options.includeFullPackage)}`,
-    `--run-vm-smoke ${boolText(options.runVmSmoke)}`,
-    `--publish-docker-webui ${boolText(options.publishDockerWebui)}`,
-    `--app-ref ${lock.app.resolved_sha}`,
-    `--shell-ref ${lock.shell.resolved_sha}`,
-    `--framework-ref ${lock.framework.resolved_sha}`,
-    `--shell-root ${shellQuote(options.shellRoot)}`,
-    `--framework-root ${shellQuote(options.frameworkRoot)}`,
-    `--state ${shellQuote(`release-session-v${options.version}.json`)}`,
-  ].join(' ');
-}
-
 function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): CheapGate[] {
   const preflight = [
     'npm run release:preflight --',
@@ -351,16 +317,6 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
       command: preflight,
       purpose: 'Validate the requested release cohort before expensive build, publish, Homebrew, or VM gates.',
     },
-    {
-      id: 'release_plan',
-      required: true,
-      command: [
-        'npm run release:plan --',
-        `--version ${options.version}`,
-        options.runVmSmoke ? '' : '--no-settings-vm',
-      ].filter(Boolean).join(' '),
-      purpose: 'Materialize the deterministic Standard release lane graph for this pinned cohort; add-on planning starts only after Standard terminal.',
-    },
   ];
   if (options.runVmSmoke) {
     gates.push({
@@ -375,15 +331,16 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
 
 function buildNextAction(
   options: ReleaseCohortPlanOptions,
-  lock: ReleaseCohortLock,
-  dispatchHandle: ReleaseDispatchHandlePlan,
 ): NextAction {
   return {
-    action: 'plan_stable_release_start',
-    command: stableStartPlanCommand(options, lock, dispatchHandle),
+    action: 'framework_checkpoint_read_only_handoff',
+    command: 'opl release status --bundle <sha256:digest> --store <directory>',
+    operation: 'standard',
+    mutation_authorized: false,
+    manual_handoff_required: true,
     reason: options.includeFullPackage
-      ? 'Plan the independent Standard terminal through the canonical dry-run controller; Full is a same-cohort non-blocking add-on intent after Standard reaches terminal.'
-      : 'Plan the independent Standard terminal through the canonical dry-run controller; no Full add-on is requested for this cohort.',
+      ? 'This legacy cohort plan is read-only. Hand the pinned refs to Framework opl release for Standard; Full may later use append_full on the same portable checkpoint.'
+      : 'This legacy cohort plan is read-only. Hand the pinned refs to Framework opl release for Standard and inspect the resulting portable checkpoint.',
   };
 }
 
@@ -403,23 +360,9 @@ export function buildReleaseCohortPlan(
     output: '',
     markdown: '',
   }, runner, generatedAt);
-  const dispatchResolution = ['main', 'refs/heads/main'].includes(lock.app.requested_ref)
-    && lock.app.resolution_source === 'canonical_remote'
-    ? lock.app
-    : resolveCanonicalGitRef(appRoot, 'main', releaseCohortCanonicalRemotes.app, runner);
-  const dispatchHandle: ReleaseDispatchHandlePlan = {
-    schema: 'opl_app_release_dispatch_handle_plan.v1',
-    repository: 'gaofeng21cn/one-person-lab-app',
-    workflow_ref: 'refs/heads/main',
-    expected_workflow_sha: dispatchResolution.resolved_sha,
-    cohort_identity: releaseCohortLockIdentity(lock),
-    state: 'planned_verified_no_ref_mutation',
-    remote_ref_mutation_allowed: false,
-    verification_required_before_broker_admission: true,
-    mismatch_policy: 'refresh_controller_handle_preserve_frozen_artifact_cohort',
-  };
   return {
     schema: 'opl_app_release_cohort_plan.v1',
+    lifecycle: 'retired_read_only_handoff',
     generated_at: generatedAt,
     version: options.version,
     tag: releaseTag(options.version),
@@ -432,13 +375,13 @@ export function buildReleaseCohortPlan(
     shell_ref: options.shellRef,
     framework_ref: options.frameworkRef,
     cohort_lock: lock,
-    dispatch_handle: dispatchHandle,
     include_full_package: options.includeFullPackage,
     run_vm_smoke: options.runVmSmoke,
     publish_docker_webui: options.publishDockerWebui,
     cheap_gates: buildCheapGates(options, lock),
-    next_action: buildNextAction(options, lock, dispatchHandle),
+    next_action: buildNextAction(options),
     authority_boundary: {
+      cohort_plan_can_start_release: false,
       cohort_plan_can_publish_release: false,
       cohort_plan_can_write_runtime_truth: false,
       cohort_plan_can_claim_release_ready: false,
@@ -464,9 +407,7 @@ export function renderReleaseCohortPlanMarkdown(plan: ReleaseCohortPlan): string
     `- Framework ref: ${plan.framework_ref}`,
     `- Framework SHA: ${plan.cohort_lock.framework.resolved_sha}`,
     `- Cohort identity: ${releaseCohortLockIdentity(plan.cohort_lock)}`,
-    `- Dispatch workflow ref: ${plan.dispatch_handle?.workflow_ref ?? 'not planned'}`,
-    `- Dispatch expected SHA: ${plan.dispatch_handle?.expected_workflow_sha ?? 'not planned'}`,
-    `- Dispatch handle state: ${plan.dispatch_handle?.state ?? 'not planned'}`,
+    `- Lifecycle: ${plan.lifecycle ?? 'historical_snapshot'}`,
     `- Include Full package: ${boolText(plan.include_full_package)}`,
     `- Run VM smoke: ${boolText(plan.run_vm_smoke)}`,
     `- Publish Docker WebUI: ${boolText(plan.publish_docker_webui)}`,
@@ -491,8 +432,7 @@ export function releaseCohortPlanIdentity(plan: ReleaseCohortPlan): string {
     operator_plan_ref: plan.operator_plan_ref,
     gate_reuse_plan_ref: plan.gate_reuse_plan_ref,
     cohort_identity: releaseCohortLockIdentity(plan.cohort_lock),
-    dispatch_workflow_ref: plan.dispatch_handle?.workflow_ref ?? null,
-    dispatch_expected_sha: plan.dispatch_handle?.expected_workflow_sha ?? null,
+    lifecycle: plan.lifecycle ?? null,
   });
   return `sha256:${crypto.createHash('sha256').update(canonical).digest('hex')}`;
 }
@@ -529,12 +469,13 @@ function isMainModule(): boolean {
 }
 
 if (isMainModule()) {
-  try {
-    const options = parseReleaseCohortPlanArgs(process.argv.slice(2));
-    const plan = writeReleaseCohortPlan(options, buildReleaseCohortPlan(options));
-    process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  process.stdout.write(`${JSON.stringify({
+    schema: 'opl_app_retired_release_cohort_plan.v1',
+    status: 'retired_fail_closed',
+    lifecycle: 'historical_projection_only',
+    authoritative_for_new_release: false,
+    mutation_authorized: false,
+    next_action: 'inspect_framework_checkpoint_and_receipts',
+  }, null, 2)}\n`);
+  process.exitCode = 2;
 }

@@ -29,21 +29,43 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     store_owner: "OPL Framework",
     canonical_digest_owner: "OPL Framework",
     cli: "opl release",
-    commands: ["freeze", "build", "verify", "publish", "reconcile", "status"],
+    commands: [
+      "freeze",
+      "operation admit",
+      "build",
+      "checkpoint export",
+      "checkpoint import",
+      "verify",
+      "publish",
+      "reconcile",
+      "status",
+    ],
     command_forms: [
-      "opl release freeze --request <request.json>",
-      "opl release build --bundle <bundle.json> --executor-receipt <receipt.json>",
-      "opl release verify --bundle <bundle.json>",
-      "opl release publish --bundle <bundle.json> --track <standard|full> --executor-receipt <remote-inspect-receipt.json>",
-      "opl release reconcile --bundle <bundle.json>",
-      "opl release status --bundle <bundle.json>",
+      "opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]",
+      "opl release operation admit --bundle <sha256:digest> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
+      "opl release build --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
+      "opl release checkpoint export --bundle <sha256:digest> --output <directory> [--store <directory>]",
+      "opl release checkpoint import --checkpoint <checkpoint.json> [--store <directory>]",
+      "opl release verify --bundle <sha256:digest> --qualification-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--track standard|full] [--store <directory>]",
+      "opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
+      "opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
+      "opl release status --bundle <sha256:digest> [--store <directory>]",
     ],
     receipt_schemas: [
       "opl_release_bundle_executor_receipt.v1",
       "opl_release_bundle_operation_receipt.v1",
+      "opl_release_bundle_qualification_receipt.v1",
     ],
+    checkpoint_schema: "opl_release_bundle_checkpoint.v1",
+    operation_control_schema: "opl_release_bundle_operation_control.v1",
+    unknown_outcome_schema: "opl_release_bundle_unknown_outcome.v1",
     live_mutation_authority: "framework_release_bundle_executor",
+    checkpoint_and_receipt_state_authority_exclusive: true,
+    app_may_define_checkpoint_or_receipt_schema: false,
+    app_may_derive_or_project_release_stage_state: false,
     rule: control.framework_authority.rule,
+    portable_checkpoint_authority_first_landed_sha: "f785cda96",
+    consumed_abi_sha: "27d87877518bdf70b474b648d46a8c573f43bf40",
   });
   assert.deepEqual(control.app_authority.owns, [
     "product_release_adapter",
@@ -90,6 +112,36 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
   assert.equal(control.execution.same_exact_bundle_required, true);
   assert.equal(control.execution.executor_switch_rebuild_allowed, false);
   assert.equal(control.execution.canonical_main_lock_during_build_verify_or_publish, false);
+  assert.deepEqual(control.checkpoint_transport.stages, [
+    "frozen",
+    "standard_built",
+    "standard_qualified",
+    "full_built",
+    "full_qualified",
+  ]);
+  assert.equal(control.checkpoint_transport.import_never_rebuilds, true);
+  assert.equal(
+    control.checkpoint_transport.completed_stage_behavior,
+    "skip_with_rebuild_performed_false",
+  );
+  assert.deepEqual(control.checkpoint_transport.source_build_provenance_fields, [
+    "source_build_executor",
+    "source_build_run_id",
+  ]);
+  assert.deepEqual(control.checkpoint_transport.transport_provenance_fields, [
+    "checkpoint_transport_executor",
+    "transport_run_id",
+  ]);
+  assert.equal(control.checkpoint_transport.operation_controls_preserved_exactly, true);
+  assert.equal(control.checkpoint_transport.unknown_build_or_publish_outcome_export_allowed, true);
+  assert.deepEqual(control.checkpoint_transport.active_unknown_markers.allowed_commands, [
+    "status",
+    "exact_reconcile",
+  ]);
+  assert.equal(
+    control.checkpoint_transport.active_unknown_markers.resolved_marker_reimport_behavior,
+    "must_not_resurrect",
+  );
   assert.equal(control.prepared_notes.required_before_expensive_build, true);
   assert.equal(control.prepared_notes.publish_may_generate_or_replace, false);
   assert.equal(control.prepared_notes.template_fallback_may_publish, false);
@@ -126,8 +178,8 @@ test("Standard may become Latest before additive Full and Nightly is schedule-on
   assert.equal(control.publication.nightly.uses_same_framework_cli, true);
   assert.equal(control.publication.nightly.uses_same_release_dag, true);
   assert.equal(control.publication.nightly.latest_allowed, false);
-  assert.equal(release.nightly_standard.status, "retired_pending_brokered_replacement");
-  assert.equal(release.nightly_standard.workflow, null);
+  assert.equal(release.nightly_standard.status, "active_schedule_only_framework_bundle");
+  assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
 });
 
 test("publisher is digest-idempotent and unknown API results only reconcile", () => {
@@ -139,23 +191,186 @@ test("publisher is digest-idempotent and unknown API results only reconcile", ()
     redispatch_on_unknown_allowed: false,
     rerun_on_unknown_allowed: false,
     cancel_on_unknown_allowed: false,
+    reconcile_admission: {
+      persistent_unknown_framework_receipt_required: true,
+      unknown_marker_schema: "opl_release_bundle_unknown_outcome.v1",
+      fresh_framework_status_required: true,
+      framework_status_surface: "release_bundle_status",
+      framework_status_marker_field: "active_unknown_markers",
+      framework_status_reconcile_field: "tracks.<track>.reconcile_required",
+      framework_status_reconcile_required_value: true,
+      exact_marker_match_fields: [
+        "bundle_digest",
+        "operation_id",
+        "operation_kind",
+        "stage_operation",
+        "publication_scope",
+        "track",
+        "remote_target",
+        "prior_mutation_attempt_id",
+      ],
+      app_may_infer_reconcile_required: false,
+      required_sequence: [
+        "persist_framework_unknown_outcome_marker",
+        "read_fresh_framework_status",
+        "require_exact_active_unknown_marker",
+        "bounded_read_only_remote_inspect",
+        "framework_exact_reconcile",
+      ],
+      active_marker_ordinary_mutation_allowed: false,
+      app_local_reconcile_loop_allowed: false,
+      deadline_elapsed_allows_bounded_read_only_inspect: true,
+      deadline_elapsed_allows_framework_reconcile: true,
+      deadline_elapsed_reconcile_result: "late_observation",
+      deadline_elapsed_reconcile_may_advance_stage: false,
+      create_upload_latest_or_homebrew_retry_allowed: false,
+    },
   });
 });
 
 test("legacy App Bundle and broker/state-machine surfaces are read-only compatibility", () => {
-  assert.equal(control.legacy_compatibility.mode, "read_only_receipt_parser");
-  assert.equal(control.legacy_compatibility.app_schema, "opl_app_release_bundle.v1");
-  assert.deepEqual(control.legacy_compatibility.accepted_commands, [
-    "assemble",
-    "verify",
-    "status",
-  ]);
-  assert.equal(control.legacy_compatibility.can_claim_release_ready, false);
+  const legacy = control.legacy_compatibility;
+  assert.equal(legacy.lifecycle, "retired_historical_receipt_compatibility");
+  assert.equal(legacy.authority_class, "historical_read_only");
+  assert.equal(legacy.broker_session_operator_authority, "historical_read_only");
+  assert.equal(legacy.access, "read_only");
+  assert.equal(legacy.authoritative, false);
+  assert.equal(legacy.mode, "read_only_receipt_parser");
+  assert.equal(legacy.historical_app_schema, "opl_app_release_bundle.v1");
+  assert.deepEqual(legacy.accepted_read_only_commands, ["verify", "status"]);
+  assert.equal(legacy.new_state_creation_allowed, false);
+  assert.equal(legacy.can_claim_release_ready, false);
   assert.equal(
-    control.legacy_compatibility.legacy_broker_and_stable_state_machine_live_mutation_authority,
+    legacy.legacy_broker_and_stable_state_machine_live_mutation_authority,
     false,
   );
-  assert.equal(control.legacy_compatibility.new_legacy_dispatch_publish_or_rebuild_allowed, false);
+  assert.equal(legacy.new_legacy_dispatch_publish_or_rebuild_allowed, false);
+  assert.deepEqual(legacy.retired_package_scripts, [
+    "release:stable",
+    "release:operator",
+    "release:publish",
+    "release:bundle",
+    "release:plan",
+    "release:preflight",
+    "release:cohort-lock",
+    "release:cohort-plan",
+    "release:closeout",
+    "release:cleanup-drafts",
+    "release:gate-reuse-plan",
+    "release:cohort-manifest",
+    "release:candidate-record",
+    "release:candidate-record:resolve-owner",
+    "release:candidate-record:validate",
+    "release:candidate-record:status",
+    "release:owner-candidate-record:verify",
+  ]);
+  assert.deepEqual(legacy.retained_read_only_package_scripts, [
+    "release:historical-candidate-record:status",
+    "release:historical-bundle:status",
+  ]);
+  assert.ok(legacy.parser_forbidden_capabilities.includes("authorize_mutation"));
+  assert.ok(legacy.parser_forbidden_capabilities.includes("reconcile_live_state"));
+  assert.equal(legacy.retired_scripts_may_parse_historical_receipts, true);
+  assert.equal(
+    legacy.retired_scripts_may_be_package_or_workflow_mutation_entrypoints,
+    false,
+  );
+});
+
+test("old session, broker, operator, writer map, and owner fast path are absent", () => {
+  const forbiddenKeys = [
+    "stable_release_state_machine",
+    "cohort_prepare",
+    "release_operator",
+    "release_monitor",
+    "gate_reuse",
+    "publish_resume",
+    "post_owner_receipt_fast_path",
+    "broker_authority_gate",
+    "promotion_saga",
+    "attempt_ledger",
+    "signed_mutation_authority",
+  ];
+  const serialized = JSON.stringify(release);
+
+  for (const key of forbiddenKeys) assert.doesNotMatch(serialized, new RegExp(`"${key}"\\s*:`));
+  for (const workflow of [
+    ".github/workflows/desktop-release.yml",
+    ".github/workflows/desktop-release-promote.yml",
+    ".github/workflows/desktop-release-full-addon.yml",
+  ]) assert.doesNotMatch(serialized, new RegExp(workflow.replaceAll(".", "\\.")));
+  assert.doesNotMatch(serialized, /"release_operator_plan"/);
+  assert.equal(release.release_acceleration.live_state_authority, false);
+  assert.equal(release.release_acceleration.live_mutation_authority, false);
+  assert.equal(release.operator_evidence_bundle.release_owner_verdict.framework_bundle_state_effect, "none");
+});
+
+test("append_full is a checkpoint capability and not a Standard Latest requirement", () => {
+  const full = release.full_first_install.published_addon;
+  assert.equal(full.operation, "append_full");
+  assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
+  assert.equal(full.checkpoint_minimum_stage, "standard_qualified");
+  assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");
+  assert.equal(full.standard_assets_modified, false);
+  assert.equal(full.latest_modified, false);
+  assert.ok(!control.publication.stable.latest_requires.includes("append_full"));
+  assert.deepEqual(release.homebrew_tap_distribution.full_casks, []);
+  assert.deepEqual(release.homebrew_tap_distribution.excluded_casks, ["one-person-lab-full"]);
+  assert.equal(
+    release.homebrew_tap_distribution.tap_update_policy.full.mode,
+    "github_release_assets_only_no_homebrew_target",
+  );
+  assert.equal(release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed, false);
+});
+
+test("operation safety is explicit in the machine contract", () => {
+  assert.equal(control.operation_control.schema, "opl_release_bundle_operation_control.v1");
+  assert.equal(
+    control.operation_control.all_channel_mutation_mutex,
+    "one_repository_release_mutation_group_for_stable_and_nightly",
+  );
+  assert.equal(control.operation_control.partial_workflow_rerun_allowed, false);
+  assert.equal(control.operation_control.github_run_attempt_required, 1);
+  assert.equal(
+    control.operation_control.deadline_clock,
+    "github_actions_created_at_resolved_once_by_controller",
+  );
+  assert.equal(control.operation_control.deadline_source_field, "github.created_at");
+  assert.equal(control.operation_control.deadline_frozen_at_controller_admission, true);
+  assert.equal(control.operation_control.deadline_may_be_rebased_on_queue_start_resume_or_rerun, false);
+  assert.deepEqual(control.operation_control.operation_admission_identity_fields, [
+    "operation",
+    "operation_id",
+    "operation_started_at",
+    "operation_deadline_at",
+  ]);
+  assert.equal(
+    control.operation_control.stable_operations.resume_standard.control,
+    "reuse_exact_standard_control",
+  );
+  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, undefined);
+  assert.equal(control.operation_control.stable_operations.resume_standard.new_operation_id_allowed, false);
+  assert.equal(control.operation_control.stable_operations.resume_standard.start_refresh_allowed, false);
+  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_refresh_allowed, false);
+  assert.equal(control.operation_control.stable_operations.append_full.standard_qualified_required, true);
+  assert.equal(control.operation_control.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
+  assert.equal(control.operation_control.elapsed_deadline.exact_reconcile_result, "late_observation");
+  assert.equal(control.operation_control.elapsed_deadline.stage_advanced, false);
+  assert.equal(control.operation_control.typed_failure_evidence_persisted_before_job_exit_or_cleanup, true);
+  assert.equal(
+    control.resilience_policy.stable_version_comparison_scope,
+    "all_public_stable_releases_not_latest_only",
+  );
+  assert.deepEqual(control.resilience_policy.updater_baseline_sources, [
+    "current_latest",
+    "highest_public_stable",
+  ]);
+  assert.deepEqual(control.resilience_policy.updater_zip_identity_fields, ["size_bytes", "sha256"]);
+  assert.equal(control.resilience_policy.homebrew_single_writer, true);
+  assert.equal(control.resilience_policy.homebrew_reconcile_owner, "OPL Framework opl release");
+  assert.equal(control.resilience_policy.homebrew_app_local_reconcile_loop_allowed, false);
+  assert.equal(control.resilience_policy.homebrew_reconcile_max_attempts, undefined);
+  assert.equal(control.resilience_policy.homebrew_retry_push_on_unknown_allowed, false);
 });
 
 test("failed v26.7.20 Full digest is permanently excluded from every Bundle", () => {
@@ -177,6 +392,9 @@ test("failed v26.7.20 Full digest is permanently excluded from every Bundle", ()
       "docs/delivery/release/incidents/2026-07-20-v26.7.20-full-catalog-mismatch.json",
     ),
   );
+  assert.deepEqual(control.cutover.permanently_rejected_bundle_digests, [
+    "sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49",
+  ]);
 });
 
 test("release guide points to the Bundle authority before legacy instructions", () => {

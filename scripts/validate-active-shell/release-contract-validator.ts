@@ -1,12 +1,164 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
-import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
 import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
 } from './app-contract-constants.ts';
+
+const retiredReleasePackageScripts = [
+  'release:stable',
+  'release:operator',
+  'release:publish',
+  'release:bundle',
+  'release:plan',
+  'release:preflight',
+  'release:cohort-lock',
+  'release:cohort-plan',
+  'release:closeout',
+  'release:cleanup-drafts',
+  'release:gate-reuse-plan',
+  'release:cohort-manifest',
+  'release:candidate-record',
+  'release:candidate-record:resolve-owner',
+  'release:candidate-record:validate',
+  'release:candidate-record:status',
+  'release:owner-candidate-record:verify',
+];
+const standardLatestAdmissionContract = {
+  validator: 'scripts/validate-standard-latest-admission.ts',
+  receipt_schema: 'opl_standard_latest_admission_receipt.v1',
+  required_status: 'passed',
+  latest_activation_admitted_required: true,
+  framework_latest_eligible_alone_is_sufficient: false,
+  required_predecessor_display_versions: ['v26.7.20', 'v26.7.21'],
+  required_predecessor_receipt_count: 2,
+  predecessor_receipt_schema: 'opl_updater_upgrade_qualification_receipt.v1',
+  predecessor_receipts_must_be_real_updater_vm_evidence: true,
+  synthetic_or_canary_predecessor_receipts_allowed: false,
+  predecessor_receipt_digest_fields: [
+    'updater_receipts[].operation_input_digest',
+    'updater_receipts[].updater_receipt_sha256',
+    'updater_receipts[].candidate_identity_sha256',
+  ],
+  required_exact_identity_fields: [
+    'bundle_digest',
+    'candidate.app_sha',
+    'candidate.shell_sha',
+    'candidate.framework_sha',
+  ],
+  same_candidate_zip_required_for_all_predecessors: true,
+  candidate_zip_identity_fields: ['candidate.zip.sha256', 'candidate.zip.size_bytes'],
+  homebrew_evidence: {
+    publication_schema: 'opl_bundle_homebrew_publication_receipt.v1',
+    clean_vm_surface_id: 'opl_tart_gui_first_run_smoke',
+    readback_schema: 'opl_bundle_homebrew_readback_receipt.v1',
+    required_digest_fields: [
+      'homebrew.publication_receipt_sha256',
+      'homebrew.clean_vm_receipt_sha256',
+      'homebrew.readback_receipt_sha256',
+    ],
+    readback_must_bind_publication_and_clean_vm_actual_file_digests: true,
+  },
+  failure_mode: 'fail_closed_before_latest_patch',
+};
+const publisherReconcileAdmissionContract = {
+  persistent_unknown_framework_receipt_required: true,
+  unknown_marker_schema: 'opl_release_bundle_unknown_outcome.v1',
+  fresh_framework_status_required: true,
+  framework_status_surface: 'release_bundle_status',
+  framework_status_marker_field: 'active_unknown_markers',
+  framework_status_reconcile_field: 'tracks.<track>.reconcile_required',
+  framework_status_reconcile_required_value: true,
+  exact_marker_match_fields: [
+    'bundle_digest',
+    'operation_id',
+    'operation_kind',
+    'stage_operation',
+    'publication_scope',
+    'track',
+    'remote_target',
+    'prior_mutation_attempt_id',
+  ],
+  app_may_infer_reconcile_required: false,
+  required_sequence: [
+    'persist_framework_unknown_outcome_marker',
+    'read_fresh_framework_status',
+    'require_exact_active_unknown_marker',
+    'bounded_read_only_remote_inspect',
+    'framework_exact_reconcile',
+  ],
+  active_marker_ordinary_mutation_allowed: false,
+  app_local_reconcile_loop_allowed: false,
+  deadline_elapsed_allows_bounded_read_only_inspect: true,
+  deadline_elapsed_allows_framework_reconcile: true,
+  deadline_elapsed_reconcile_result: 'late_observation',
+  deadline_elapsed_reconcile_may_advance_stage: false,
+  create_upload_latest_or_homebrew_retry_allowed: false,
+};
+const frameworkReleaseAbiSha = '27d87877518bdf70b474b648d46a8c573f43bf40';
+const frameworkReleaseCommands = [
+  'freeze',
+  'operation admit',
+  'build',
+  'checkpoint export',
+  'checkpoint import',
+  'verify',
+  'publish',
+  'reconcile',
+  'status',
+];
+const frameworkReleaseCommandForms = [
+  'opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]',
+  'opl release operation admit --bundle <sha256:digest> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
+  'opl release build --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
+  'opl release checkpoint export --bundle <sha256:digest> --output <directory> [--store <directory>]',
+  'opl release checkpoint import --checkpoint <checkpoint.json> [--store <directory>]',
+  'opl release verify --bundle <sha256:digest> --qualification-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--track standard|full] [--store <directory>]',
+  'opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
+  'opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
+  'opl release status --bundle <sha256:digest> [--store <directory>]',
+];
+const immutableOperationControlFields = [
+  'control_digest',
+  'bundle_digest',
+  'operation_id',
+  'operation_kind',
+  'track',
+  'operation_started_at',
+  'operation_deadline_at',
+];
+const exactUnknownMarkerFields = [
+  'bundle_digest',
+  'operation_id',
+  'operation_kind',
+  'stage_operation',
+  'publication_scope',
+  'track',
+  'remote_target',
+  'prior_mutation_attempt_id',
+];
+const validationCanaryContract = {
+  workflow: '.github/workflows/release-bundle-canary.yml',
+  mode: 'validation_only',
+  triggers: ['push_main', 'pull_request'],
+  starts_reusable_topology: [
+    '_release-bundle.yml',
+    '_release-standard-publish.yml',
+    '_release-full-addon.yml',
+    '_build-reusable.yml',
+    'opl-first-run-vm.yml',
+    'opl-updater-upgrade-vm.yml',
+    'full-first-install-release.yml',
+  ],
+  permissions: { contents: 'read', actions: 'read' },
+  secrets_allowed: false,
+  build_or_vm_execution_allowed: false,
+  external_write_allowed: false,
+  stable_mutation_allowed: false,
+  synthetic_identity_may_authorize_release: false,
+};
 
 export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
@@ -15,8 +167,8 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
-  validateReleaseExecutionPolicy(releaseChannel.release_acceleration);
-  validateReleaseHomebrewDistribution(releaseChannel);
+  validateReleaseExecutionPolicy(releaseChannel);
+  validateTerminalReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
 }
 
@@ -26,12 +178,12 @@ function validateReleaseCalendarGuard(releaseName) {
     guard?.required_entrypoints,
     [
       'release_version_validation',
-      'release_candidate_plan',
-      'release_cohort_plan_and_stable_controller',
-      'standard_publish',
-      'full_first_install_build',
-      'full_addon_publish',
-      'stable_promotion',
+      'framework_release_freeze',
+      'framework_release_checkpoint_export_import',
+      'standard_operation',
+      'resume_standard_operation',
+      'append_full_operation',
+      'latest_activation',
     ],
     'Release calendar guard entrypoints',
   );
@@ -55,128 +207,404 @@ function validateStandardUpdater(updater) {
   }
 }
 
-function validateReleaseExecutionPolicy(acceleration) {
-  const prepare = acceleration?.cohort_prepare;
-  const intent = prepare?.release_intent_policy;
-  const fullAddonTerminal = intent?.full_addon_terminal_policy;
-  const nextAction = prepare?.next_action_policy;
-  const operatorPlan = prepare?.operator_plan_policy;
-  const attemptSwitch = acceleration?.gate_reuse?.attempt_strategy_switch;
-  const monitor = acceleration?.release_operator?.active_monitor_policy;
-  const settingsReadiness = acceleration?.settings_page_readiness_policy;
-  const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
-  const publishResume = acceleration?.publish_resume;
-  const publishRecovery = publishResume?.release_upload_failure_recovery;
-  const draftCleanup = publishResume?.draft_candidate_cleanup;
-  assertDeepEqualJson(intent?.allowed_values, ['stable_complete', 'standard_hotfix'], 'Release intent allowed values');
+function validateTerminalReleaseHomebrewDistribution(releaseChannel) {
+  const homebrew = releaseChannel?.homebrew_tap_distribution;
   if (
-    intent?.workflow_input !== 'release_intent' ||
-    intent?.stable_complete?.standard_terminal_independent !== true ||
-    intent?.stable_complete?.run_vm_smoke !== true ||
-    intent?.stable_complete?.include_full_package_required !== false ||
-    intent?.stable_complete?.include_full_package_role !== 'optional_same_cohort_nonblocking_addon_intent' ||
-    intent?.standard_hotfix?.include_full_package !== false ||
-    intent?.standard_hotfix?.full_omission_reason_required !== true ||
-    intent?.standard_hotfix?.standard_terminal_independent !== true ||
-    fullAddonTerminal?.intent_input !== 'include_full_package' ||
-    fullAddonTerminal?.intent_role !== 'same_cohort_nonblocking_addon_intent' ||
-    fullAddonTerminal?.dispatch_after !== 'standard_stable_terminal' ||
-    fullAddonTerminal?.completion_required_for_standard_terminal !== false ||
-    fullAddonTerminal?.independent_receipt_required !== true
+    homebrew?.owner !== 'one-person-lab-app' ||
+    homebrew?.tap_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
+    homebrew?.role !== 'downstream_opl_base_formula_and_app_cask_index' ||
+    homebrew?.cohort_manifest_required !== true
   ) {
-    throw new Error('Release intent must keep Standard terminal independent and treat Full only as a same-cohort non-blocking add-on intent');
+    throw new Error('Release channel Homebrew distribution must remain an App-owned cask index');
   }
-  if (
-    nextAction?.canonical_command_prefix !== 'npm run release:stable -- start' ||
-    nextAction?.default_mode !== 'dry_run' ||
-    nextAction?.execute_flag_required_for_broker_submission !== true ||
-    nextAction?.direct_workflow_dispatch_allowed !== false
-  ) {
-    throw new Error('Release cohort planning must route only through the dry-run canonical Stable controller');
-  }
-  if (
-    operatorPlan?.workflow_input !== 'release_operator_plan_ref' ||
-    operatorPlan?.required !== true ||
-    operatorPlan?.format !== 'sha256:<64-lowercase-hex>'
-  ) {
-    throw new Error('Release dispatch must require a cohort-bound release operator plan ref');
-  }
-  assertIncludesAll(
-    operatorPlan.binds,
-    ['release_intent', 'full_omission_reason', 'app_sha', 'shell_sha', 'framework_sha'],
-    'Release operator plan binding fields',
+  assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
+  assertDeepEqualJson(homebrew.allowed_formulae, ['opl'], 'Release channel allowed Homebrew formulae');
+  assertDeepEqualJson(
+    homebrew.allowed_casks,
+    ['one-person-lab', 'one-person-lab-nightly'],
+    'Release channel allowed Homebrew casks',
   );
+  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel live Stable Homebrew casks');
+  assertDeepEqualJson(
+    homebrew.initial_live_targets,
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    'Release channel Homebrew live targets',
+  );
+  assertDeepEqualJson(homebrew.excluded_casks, ['one-person-lab-full'], 'Release channel retired Homebrew casks');
+  assertDeepEqualJson(homebrew.full_casks, [], 'Release channel Full Homebrew casks');
+  assertDeepEqualJson(homebrew.nightly_formulae, [], 'Release channel nightly formulae');
+  assertDeepEqualJson(homebrew.nightly_casks, ['one-person-lab-nightly'], 'Release channel nightly casks');
+  assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
+    formula: {
+      software_object: 'opl_base',
+      formula: 'opl',
+      lifecycle_owner: 'one-person-lab',
+      app_tap_manages_formula: false,
+      opl_packages_allowed: false,
+    },
+    cask: {
+      software_object: 'opl_app',
+      lifecycle_owner: 'one-person-lab-app',
+      base_or_packages_mutation_allowed: false,
+    },
+    equivalent_direct_carriers: {
+      opl_base: 'framework_installer',
+      opl_app: 'signed_installer_or_dmg',
+    },
+    carrier_choice_changes_lifecycle_owner: false,
+  }, 'Release channel Homebrew carrier adapter semantics');
   if (
-    attemptSwitch?.window_minutes !== 90 ||
-    attemptSwitch?.prior_attempt_threshold !== 3 ||
-    attemptSwitch?.workflow_input !== 'gate_reuse_plan_ref' ||
-    attemptSwitch?.required_before_next_full_train !== true ||
-    attemptSwitch?.timeout_is_absorbing_blocker !== true ||
-    attemptSwitch?.strategy !== 'same_cohort_evidence_reuse_or_targeted_gate_rerun_before_deadline_only'
+    homebrew.cask_install_policy?.standard_cask !== 'one-person-lab' ||
+    homebrew.cask_install_policy?.standard_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
+    homebrew.cask_install_policy?.fully_qualified_cask_install !== true ||
+    homebrew.cask_install_policy?.trust_scope !== 'explicit_standard_and_conflicting_cask_refs_not_whole_tap'
   ) {
-    throw new Error('Repeated release attempts must stop at the absorbing 90-minute Standard deadline');
+    throw new Error('Release channel Homebrew installs must use the fully qualified Standard cask');
   }
   assertDeepEqualJson(
-    [...(attemptSwitch.after_deadline_legal_actions ?? [])].sort(),
-    ['emergency_cancel', 'read_only_reconcile'],
-    'Release attempt actions after the 90-minute Standard deadline',
+    homebrew.cask_install_policy.standard_install_trusted_cask_refs,
+    [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    'Release channel Homebrew trusted current and historical conflicting casks',
+  );
+  const tap = homebrew.tap_update_policy;
+  if (
+    tap?.default_remote_write_path !== 'release_bundle_protected_job_digest_bound_direct_commit' ||
+    tap?.default_workflow !== '.github/workflows/_release-bundle.yml' ||
+    tap?.app_release_promotion_workflow !== '.github/workflows/release-stable.yml' ||
+    tap?.app_release_direct_token !== 'release-stable.OPL_HOMEBREW_TAP_TOKEN' ||
+    tap?.app_release_pull_request_allowed !== false ||
+    tap?.app_release_workflow_write_mode !== 'protected_environment_single_attempt_digest_bound_direct_commit' ||
+    tap?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
+    tap?.planner_script !== 'scripts/update-homebrew-tap.ts' ||
+    tap?.stable?.mode !== 'release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest' ||
+    tap?.full?.mode !== 'github_release_assets_only_no_homebrew_target' ||
+    tap?.full?.homebrew_publish_allowed !== false ||
+    tap?.full?.homebrew_clean_vm_gate_required !== false ||
+    tap?.full?.may_update_standard_cask !== false ||
+    tap?.full?.may_update_nightly_cask !== false ||
+    tap?.full?.standard_updater_visible !== false ||
+    tap?.full?.standard_assets_notes_updater_or_latest_may_change !== false
+  ) {
+    throw new Error('Release channel Full must remain GitHub-assets-only with no live Homebrew target');
+  }
+  if (homebrew.full_first_install_policy !== 'github_release_full_dmg_only; never Homebrew cask or standard updater metadata') {
+    throw new Error('Release channel Full first install must use the GitHub Release DMG, not Homebrew');
+  }
+  assertDeepEqualJson(
+    homebrew.opl_packages_boundary?.allowed_homebrew_casks,
+    ['one-person-lab', 'one-person-lab-nightly'],
+    'Release channel Homebrew OPL Packages cask boundary',
   );
   if (
-    publishResume?.new_release_upload_failure_cleanup !== undefined ||
-    publishRecovery?.remote_state !== 'typed_incomplete_draft_retained' ||
-    publishRecovery?.receipt_schema !== 'opl_app_release_publish_recovery_receipt.v1' ||
-    publishRecovery?.receipt_default_path !== 'release-publish-recovery-receipt.json' ||
-    publishRecovery?.resume_strategy !== 'read_back_then_resume_same_draft_same_cohort' ||
-    publishRecovery?.automatic_release_delete_allowed !== false ||
-    publishRecovery?.automatic_tag_cleanup_allowed !== false ||
-    publishRecovery?.ordinary_release_workflow_delete_allowed !== false
+    homebrew.opl_packages_boundary?.homebrew_distribution_allowed !== false ||
+    homebrew.opl_packages_boundary?.homebrew_formula_allowed !== false ||
+    homebrew.opl_packages_boundary?.homebrew_cask_allowed !== false ||
+    homebrew.codex_temporal_policy?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
+    homebrew.codex_temporal_policy?.prefer_valid_newer_system_tool !== true ||
+    homebrew.codex_temporal_policy?.bundled_fallback_allowed !== true
   ) {
-    throw new Error('Release upload failure must retain a typed incomplete draft and write a recovery receipt without implicit deletion');
+    throw new Error('Release channel Homebrew must not own OPL Packages and must retain compatible tool fallback');
+  }
+}
+
+function validateReleaseExecutionPolicy(releaseChannel) {
+  const control = releaseChannel?.release_bundle_control_plane;
+  const framework = control?.framework_authority;
+  const live = control?.live_authority;
+  const checkpoint = control?.checkpoint_transport;
+  const operations = control?.operation_control;
+  const markerPolicy = checkpoint?.active_unknown_markers;
+  const standardOperation = operations?.stable_operations?.standard;
+  const resumeStandardOperation = operations?.stable_operations?.resume_standard;
+  const appendFullOperation = operations?.stable_operations?.append_full;
+  const resilience = control?.resilience_policy;
+  const publication = control?.publication;
+  const publisher = control?.publisher_idempotency;
+  const legacy = control?.legacy_compatibility;
+  const validationCanary = control?.validation_canary;
+  const acceleration = releaseChannel?.release_acceleration;
+  const settingsReadiness = acceleration?.settings_page_readiness_policy;
+  const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
+
+  assertRetiredReleaseControlPlaneAbsent(releaseChannel);
+
+  if (
+    control?.schema !== 'opl_app_release_bundle_control_plane.v1' ||
+    control?.contract_status !== 'active' ||
+    framework?.owner !== 'gaofeng21cn/one-person-lab' ||
+    framework?.cli !== 'opl release' ||
+    framework?.bundle_schema !== 'opl_release_bundle.v1' ||
+    framework?.checkpoint_schema !== 'opl_release_bundle_checkpoint.v1' ||
+    framework?.operation_control_schema !== 'opl_release_bundle_operation_control.v1' ||
+    framework?.unknown_outcome_schema !== 'opl_release_bundle_unknown_outcome.v1' ||
+    framework?.portable_checkpoint_authority_first_landed_sha !== 'f785cda96' ||
+    framework?.consumed_abi_sha !== frameworkReleaseAbiSha ||
+    framework?.live_mutation_authority !== 'framework_release_bundle_executor' ||
+    framework?.checkpoint_and_receipt_state_authority_exclusive !== true ||
+    framework?.app_may_define_checkpoint_or_receipt_schema !== false ||
+    framework?.app_may_derive_or_project_release_stage_state !== false
+  ) {
+    throw new Error('Release control plane must use the Framework Release Bundle and checkpoint executor authority');
+  }
+  assertDeepEqualJson(
+    framework.commands,
+    frameworkReleaseCommands,
+    'Framework release commands',
+  );
+  assertDeepEqualJson(
+    framework.receipt_schemas,
+    [
+      'opl_release_bundle_executor_receipt.v1',
+      'opl_release_bundle_operation_receipt.v1',
+      'opl_release_bundle_qualification_receipt.v1',
+    ],
+    'Framework release receipt schemas',
+  );
+  assertDeepEqualJson(
+    framework.command_forms,
+    frameworkReleaseCommandForms,
+    'Framework release command forms',
+  );
+  if (
+    live?.single_live_mutation_authority !== true ||
+    live?.state_owner !== 'OPL Framework opl release' ||
+    live?.state_surface !== 'opl_release_bundle_checkpoint.v1' ||
+    live?.mutation_executor_owner !== 'one-person-lab-app' ||
+    live?.state_authority_ref !== 'release_bundle_control_plane.framework_authority' ||
+    live?.app_executor_consumes_framework_cli_results_without_state_projection !== true ||
+    live?.stable_manual_entry !== '.github/workflows/release-stable.yml' ||
+    live?.nightly_entry !== '.github/workflows/release-nightly.yml_schedule_only' ||
+    live?.app_session_broker_or_operator_may_authorize_mutation !== false ||
+    live?.framework_checkpoint_required_for_resume_or_executor_switch !== true
+  ) {
+    throw new Error('Release control plane must have one Framework checkpoint and App executor mutation authority');
+  }
+  assertDeepEqualJson(
+    live.stable_operations,
+    ['standard', 'resume_standard', 'append_full'],
+    'Stable release operations',
+  );
+  assertDeepEqualJson(
+    checkpoint?.stages,
+    ['frozen', 'standard_built', 'standard_qualified', 'full_built', 'full_qualified'],
+    'Framework checkpoint stages',
+  );
+  if (
+    checkpoint?.schema !== 'opl_release_bundle_checkpoint.v1' ||
+    checkpoint?.portable_between_executors !== true ||
+    checkpoint?.import_never_rebuilds !== true ||
+    checkpoint?.completed_stage_behavior !== 'skip_with_rebuild_performed_false' ||
+    checkpoint?.asset_and_receipt_digest_revalidation_required !== true ||
+    checkpoint?.transport_must_not_replace_source_build_provenance !== true ||
+    checkpoint?.operation_controls_preserved_exactly !== true ||
+    checkpoint?.same_output_idempotency_requires_complete_store_state_unchanged !== true ||
+    checkpoint?.state_change_at_existing_output_fails_stale !== true ||
+    checkpoint?.unknown_build_or_publish_outcome_export_allowed !== true ||
+    checkpoint?.unknown_outcome_required_action !== 'status_then_exact_reconcile' ||
+    markerPolicy?.schema !== 'opl_release_bundle_unknown_outcome.v1' ||
+    markerPolicy?.maximum_count !== 1 ||
+    markerPolicy?.checkpoint_export_preserves_exact_marker !== true ||
+    markerPolicy?.checkpoint_import_preserves_exact_marker !== true ||
+    markerPolicy?.checkpoint_import_required_next_action !== 'status_then_exact_reconcile' ||
+    markerPolicy?.ordinary_mutations_allowed !== false ||
+    markerPolicy?.resolved_marker_reimport_behavior !== 'must_not_resurrect' ||
+    markerPolicy?.different_marker_overwrite_or_omission_allowed !== false ||
+    checkpoint?.publish_or_promotion_state_imported !== false ||
+    checkpoint?.recipient_remote_readback !== 'fresh_remote_inspect_before_any_upload_or_promotion'
+  ) {
+    throw new Error('Release checkpoint transport must preserve exact controls and unknown markers without rebuilding or resurrecting outcomes');
+  }
+  assertDeepEqualJson(
+    checkpoint.source_build_provenance_fields,
+    ['source_build_executor', 'source_build_run_id'],
+    'Release source build provenance fields',
+  );
+  assertDeepEqualJson(
+    checkpoint.transport_provenance_fields,
+    ['checkpoint_transport_executor', 'transport_run_id'],
+    'Release checkpoint transport provenance fields',
+  );
+  assertDeepEqualJson(
+    markerPolicy.checkpoint_import_result_fields,
+    ['unknown_outcomes_imported', 'active_unknown_marker_count', 'reconcile_required'],
+    'Release checkpoint unknown import result fields',
+  );
+  assertDeepEqualJson(
+    markerPolicy.allowed_commands,
+    ['status', 'exact_reconcile'],
+    'Release checkpoint active unknown allowed commands',
+  );
+  assertDeepEqualJson(
+    markerPolicy.exact_reconcile_match_fields,
+    exactUnknownMarkerFields,
+    'Release checkpoint exact reconcile marker fields',
+  );
+  if (
+    operations?.schema !== 'opl_release_bundle_operation_control.v1' ||
+    operations?.all_channel_mutation_mutex !== 'one_repository_release_mutation_group_for_stable_and_nightly' ||
+    standardOperation?.source !== 'new_framework_bundle' ||
+    standardOperation?.control !== 'new_immutable_standard_control' ||
+    standardOperation?.deadline_minutes !== 90 ||
+    resumeStandardOperation?.source !== 'portable_framework_checkpoint' ||
+    resumeStandardOperation?.control !== 'reuse_exact_standard_control' ||
+    resumeStandardOperation?.deadline_minutes !== undefined ||
+    resumeStandardOperation?.new_operation_id_allowed !== false ||
+    resumeStandardOperation?.start_refresh_allowed !== false ||
+    resumeStandardOperation?.deadline_refresh_allowed !== false ||
+    resumeStandardOperation?.rebuild_allowed !== false ||
+    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_qualified' ||
+    appendFullOperation?.control !== 'new_independent_append_full_control' ||
+    appendFullOperation?.deadline_minutes !== 50 ||
+    appendFullOperation?.standard_qualified_required !== true ||
+    appendFullOperation?.standard_rebuild_allowed !== false ||
+    appendFullOperation?.standard_operation_id_reuse_allowed !== false ||
+    appendFullOperation?.standard_deadline_inheritance_allowed !== false ||
+    operations?.job_admission !== 'every_mutating_job_checks_exact_operation_and_absolute_deadline_before_first_remote_api' ||
+    operations?.deadline_clock !== 'github_actions_created_at_resolved_once_by_controller' ||
+    operations?.deadline_source_field !== 'github.created_at' ||
+    operations?.deadline_frozen_at_controller_admission !== true ||
+    operations?.deadline_may_be_rebased_on_queue_start_resume_or_rerun !== false ||
+    JSON.stringify(operations?.operation_admission_identity_fields) !== JSON.stringify([
+      'operation', 'operation_id', 'operation_started_at', 'operation_deadline_at',
+    ]) ||
+    operations?.operation_id_required_for_admit_build_verify_publish_and_reconcile !== true ||
+    operations?.same_operation_jobs_and_mutations_share_exact_deadline !== true ||
+    operations?.each_external_mutation_rechecks_remaining_deadline !== true ||
+    operations?.append_full_uses_new_operation_admission !== true ||
+    operations?.append_full_may_inherit_standard_deadline !== false ||
+    operations?.deadline_refresh_allowed !== false ||
+    operations?.partial_workflow_rerun_allowed !== false ||
+    operations?.github_run_attempt_required !== 1 ||
+    operations?.recovery_entry !== 'status_then_exact_reconcile_for_active_unknown_else_resume_exact_standard_or_admit_independent_append_full' ||
+    operations?.elapsed_deadline?.ordinary_mutation_allowed !== false ||
+    operations?.elapsed_deadline?.status_allowed !== true ||
+    operations?.elapsed_deadline?.exact_reconcile_allowed !== true ||
+    operations?.elapsed_deadline?.exact_reconcile_result !== 'late_observation' ||
+    operations?.elapsed_deadline?.stage_advanced !== false ||
+    operations?.elapsed_deadline?.evidence_only !== true ||
+    operations?.typed_failure_evidence_required !== true ||
+    operations?.typed_failure_evidence_persisted_before_job_exit_or_cleanup !== true ||
+    operations?.typed_failure_evidence_uploaded_on_failure !== true
+  ) {
+    throw new Error('Release operations must keep Standard immutable, resume exact, append independent, and late reconcile evidence-only');
+  }
+  assertDeepEqualJson(
+    resumeStandardOperation.reused_control_fields,
+    immutableOperationControlFields,
+    'resume_standard immutable control fields',
+  );
+  if (
+    publication?.stable?.only_manual_dispatch_workflow !== '.github/workflows/release-stable.yml' ||
+    publication?.stable?.trigger !== 'workflow_dispatch' ||
+    publication?.stable?.lower_level_workflows !== 'workflow_call_only'
+  ) {
+    throw new Error('Stable must have one manual dispatch entry and workflow_call-only lower-level topology');
+  }
+  assertDeepEqualJson(
+    publication?.stable?.latest_admission,
+    standardLatestAdmissionContract,
+    'Standard Latest admission',
+  );
+  if (
+    publisher?.missing_asset !== 'upload' ||
+    publisher?.same_name_same_digest !== 'already_complete' ||
+    publisher?.same_name_different_digest !== 'fail_closed_require_new_bundle_or_version' ||
+    publisher?.unknown_api_result !== 'reconcile_only' ||
+    publisher?.redispatch_on_unknown_allowed !== false ||
+    publisher?.rerun_on_unknown_allowed !== false ||
+    publisher?.cancel_on_unknown_allowed !== false
+  ) {
+    throw new Error('Release publisher must be digest-idempotent and reconcile-only after an unknown result');
+  }
+  assertDeepEqualJson(
+    publisher?.reconcile_admission,
+    publisherReconcileAdmissionContract,
+    'Release publisher reconcile admission',
+  );
+  if (
+    resilience?.same_day_revision_allocation_ref !== 'github_release_name.stable_revision' ||
+    resilience?.machine_version_monotonicity_ref !== 'github_release_name.machine_version' ||
+    resilience?.stable_version_comparison_scope !== 'all_public_stable_releases_not_latest_only' ||
+    resilience?.display_and_machine_versions_both_must_increase !== true ||
+    resilience?.source_and_remote_version_checks_required_before_build !== true ||
+    JSON.stringify(resilience?.updater_baseline_sources) !== JSON.stringify(['current_latest', 'highest_public_stable']) ||
+    resilience?.updater_qualification_order !== 'exact_previous_latest_to_candidate_zip_upgrade_before_first_public_release_mutation' ||
+    resilience?.updater_zip_digest_source !== 'sha256_of_actual_candidate_zip_bytes' ||
+    JSON.stringify(resilience?.updater_zip_identity_fields) !== JSON.stringify(['size_bytes', 'sha256']) ||
+    resilience?.updater_metadata_declared_digest_is_not_sufficient !== true ||
+    resilience?.homebrew_single_writer !== true ||
+    resilience?.homebrew_unknown_outcome !== 'framework_durable_marker_status_then_exact_reconcile' ||
+    resilience?.homebrew_reconcile_owner !== 'OPL Framework opl release' ||
+    resilience?.homebrew_app_local_reconcile_loop_allowed !== false ||
+    resilience?.homebrew_reconcile_max_attempts !== undefined ||
+    resilience?.homebrew_retry_push_on_unknown_allowed !== false ||
+    resilience?.homebrew_success_requires_exact_remote_commit_and_cask_digest_readback !== true ||
+    resilience?.partial_publication_unknown_result !== 'framework_reconcile_before_any_new_mutation'
+  ) {
+    throw new Error('Release resilience must prove monotonic versions, pre-public updater bytes, and Framework-owned exact Homebrew reconcile');
+  }
+  if (
+    !control?.cutover?.permanently_rejected_bundle_digests?.includes(
+      'sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49',
+    )
+  ) {
+    throw new Error('Release control plane must permanently reject the known failed Bundle digest');
+  }
+  if (
+    legacy?.lifecycle !== 'retired_historical_receipt_compatibility' ||
+    legacy?.authority_class !== 'historical_read_only' ||
+    legacy?.broker_session_operator_authority !== 'historical_read_only' ||
+    legacy?.access !== 'read_only' ||
+    legacy?.authoritative !== false ||
+    legacy?.mode !== 'read_only_receipt_parser' ||
+    legacy?.new_state_creation_allowed !== false ||
+    legacy?.legacy_broker_and_stable_state_machine_live_mutation_authority !== false ||
+    legacy?.historical_receipts_remain_readable !== true ||
+    legacy?.new_legacy_dispatch_publish_or_rebuild_allowed !== false ||
+    JSON.stringify(legacy?.accepted_read_only_commands) !== JSON.stringify(['verify', 'status']) ||
+    legacy?.retired_scripts_may_parse_historical_receipts !== true ||
+    legacy?.retired_scripts_may_be_package_or_workflow_mutation_entrypoints !== false ||
+    legacy?.legacy_contract_role !== 'historical_receipt_verification_only' ||
+    acceleration?.scope !== 'product_build_qualification_vm_and_cache_policy_only' ||
+    acceleration?.product_policy_only !== true ||
+    acceleration?.live_state_authority !== false ||
+    acceleration?.live_mutation_authority !== false ||
+    acceleration?.new_session_or_dispatch_allowed !== false ||
+    acceleration?.state_authority_ref !== 'release_bundle_control_plane.framework_authority' ||
+    acceleration?.github_actions?.live_release_mutation_authority !== false
+  ) {
+    throw new Error('Legacy release broker, session, and operator surfaces must remain historical receipt readers only');
   }
   assertIncludesAll(
-    publishRecovery.receipt_required_fields,
+    legacy.parser_forbidden_capabilities,
     [
-      'repository',
-      'version',
-      'tag',
-      'failure.stage',
-      'draft.origin',
-      'draft.readback',
-      'draft.automatic_release_delete_attempted',
-      'draft.automatic_tag_cleanup_attempted',
-      'upload.planned_assets',
-      'upload.uploaded_assets',
-      'upload.remaining_assets',
-      'recovery.strategy',
-      'recovery.destructive_cleanup_authority',
+      'create_release_state',
+      'authorize_mutation',
+      'dispatch',
+      'rerun',
+      'cancel',
+      'build',
+      'qualify',
+      'publish',
+      'promote',
+      'reconcile_live_state',
     ],
-    'Release publish recovery receipt required fields',
+    'Legacy parser forbidden capabilities',
   );
-  if (
-    draftCleanup?.workflow !== '.github/workflows/desktop-release-cleanup-drafts.yml' ||
-    draftCleanup?.summary_schema !== 'opl_release_draft_candidate_cleanup.v2' ||
-    draftCleanup?.discovery_mode !== 'read_only' ||
-    draftCleanup?.execution_authority !== 'independent_isolated_release_mutation_broker' ||
-    draftCleanup?.required_broker_mutation !== 'release_draft_cleanup' ||
-    draftCleanup?.broker_mutation !== null ||
-    draftCleanup?.availability !== 'unavailable_until_broker_cleanup_mutation_is_provisioned' ||
-    draftCleanup?.broker_acceptance_receipt_required !== true ||
-    draftCleanup?.command !== undefined ||
-    draftCleanup?.direct_github_release_delete_allowed !== false ||
-    draftCleanup?.direct_tag_cleanup_allowed !== false ||
-    draftCleanup?.ordinary_release_workflow_cleanup_allowed !== false
-  ) {
-    throw new Error('Draft cleanup must fail closed until an independent signed broker mutation is provisioned');
-  }
-  if (
-    monitor?.command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>' ||
-    monitor?.poll_interval_seconds !== null ||
-    monitor?.single_monitor_process !== false ||
-    monitor?.terminal_handoff !== 'release_stable_reconcile_once' ||
-    !monitor?.forbidden_patterns?.includes('direct_gh_run_watch')
-  ) {
-    throw new Error('Release monitoring must use read-only operator status followed by one typed Stable reconcile');
-  }
+  assertDeepEqualJson(
+    legacy.retired_package_scripts,
+    retiredReleasePackageScripts,
+    'Retired release package scripts',
+  );
+  assertDeepEqualJson(
+    validationCanary,
+    validationCanaryContract,
+    'Release validation-only Canary contract',
+  );
   assertIncludesAll(
     settingsReadiness?.required_signals,
     ['expected_route_hash', 'stable_page_data_testid', 'nonempty_page_text', 'app_loader_not_visible'],
@@ -229,6 +657,50 @@ function validateReleaseExecutionPolicy(acceleration) {
   }
 }
 
+function assertRetiredReleaseControlPlaneAbsent(releaseChannel) {
+  const forbiddenKeys = new Set([
+    'stable_release_state_machine',
+    'cohort_prepare',
+    'release_operator',
+    'release_monitor',
+    'gate_reuse',
+    'publish_resume',
+    'post_owner_receipt_fast_path',
+    'broker_authority_gate',
+    'promotion_saga',
+    'attempt_ledger',
+    'signed_mutation_authority',
+  ]);
+  const forbiddenWorkflowValues = new Set([
+    '.github/workflows/desktop-release.yml',
+    '.github/workflows/desktop-release-promote.yml',
+    '.github/workflows/desktop-release-full-addon.yml',
+  ]);
+
+  const visit = (value, path = 'release_channel') => {
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => visit(entry, `${path}[${index}]`));
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    for (const [key, entry] of Object.entries(value)) {
+      const entryPath = `${path}.${key}`;
+      if (forbiddenKeys.has(key)) {
+        throw new Error(`Retired release control-plane field remains live at ${entryPath}`);
+      }
+      if (typeof entry === 'string' && forbiddenWorkflowValues.has(entry)) {
+        throw new Error(`Retired release writer workflow remains live at ${entryPath}`);
+      }
+      if (entry === 'release_operator_plan') {
+        throw new Error(`Retired release operator admission remains live at ${entryPath}`);
+      }
+      visit(entry, entryPath);
+    }
+  };
+
+  visit(releaseChannel);
+}
+
 function validateWebuiGhcrImage(webuiImage) {
   const contract = webuiImage?.runtime_image_contract;
   if (
@@ -240,9 +712,9 @@ function validateWebuiGhcrImage(webuiImage) {
     contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||
     contract?.profiles?.webui_slim?.stable_channel_allowed !== false ||
     contract?.profiles?.webui_slim?.moving_tags_allowed !== false ||
-    webuiImage?.immutable_version_writer !== '.github/workflows/desktop-release.yml' ||
-    webuiImage?.stable_promotion_workflow !== '.github/workflows/desktop-release-promote.yml' ||
-    webuiImage?.stable_writer_count !== 1
+    webuiImage?.publication_route !== 'independent_webui_lane_outside_desktop_release_bundle' ||
+    webuiImage?.desktop_release_bundle_may_publish_or_move_tags !== false ||
+    webuiImage?.current_writer_declared_by_desktop_release_contract !== false
   ) {
     throw new Error('Release channel must declare Docker/WebUI full and slim image profile boundaries');
   }

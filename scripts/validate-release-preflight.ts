@@ -1128,24 +1128,13 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
   }
 }
 
-const options = parseArgs(process.argv.slice(2));
-const checks: Check[] = [];
-checkVersion(options, checks);
-checkReleaseDate(options, checks);
-checkReleaseMode(options, checks);
-checkReleaseIntent(options, checks);
-checkContract(options, checks);
-checkWorkflowShape(options, checks);
-checkReleasePlan(options, checks);
-const homebrewVmGateStaticPolicy = buildHomebrewVmGateStaticPolicy();
-checkHomebrewVmGateStaticPolicy(homebrewVmGateStaticPolicy, checks);
-const releaseTarget = resolveReleaseTarget(options);
-checkRemoteTarget(options, checks, releaseTarget);
-const releaseRefs = checkReleaseRefs(options, checks);
-checkReleaseOperatorPlan(options, releaseRefs, checks);
-const codexPackageMetadata = checkCodexPackageMetadata(options, checks);
-checkDockerWebuiCleanWindowsEvidence(options, checks);
-const homebrew = buildHomebrewPreflight(options, releaseTarget, homebrewVmGateStaticPolicy);
-checkHomebrewToken(homebrew, checks);
-checkMacosLocalAuthorization(checks);
-writeSummary(options, checks, releaseTarget, homebrew);
+process.stdout.write(`${JSON.stringify({
+  schema: 'opl_app_retired_release_preflight.v1',
+  status: 'retired_fail_closed',
+  lifecycle: 'historical_diagnostic_only',
+  authoritative_for_new_release: false,
+  mutation_authorized: false,
+  replacement: 'scripts/framework-release-adapter.ts freeze-request',
+  next_action: 'use_framework_release_bundle_freeze_admission',
+}, null, 2)}\n`);
+process.exitCode = 2;

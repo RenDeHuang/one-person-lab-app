@@ -1,0 +1,846 @@
+name: OPL Full Bundle Add-on
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: execute or canary
+        required: false
+        default: execute
+        type: string
+      operation:
+        description: append_full for the independent Full operation
+        required: false
+        default: append_full
+        type: string
+      source_run_id:
+        description: Exact run containing the verified Standard checkpoint
+        required: true
+        type: string
+      source_artifact:
+        description: Exact verified Standard checkpoint artifact
+        required: true
+        type: string
+      source_format:
+        description: Must be checkpoint_v1
+        required: false
+        default: checkpoint_v1
+        type: string
+      framework_executor_ref:
+        description: Optional exact Framework SHA expectation; the checkpoint Bundle selects the executor checkout
+        required: false
+        default: ''
+        type: string
+      operation_started_at:
+        description: Full append operation start
+        required: false
+        default: ''
+        type: string
+      operation_deadline_at:
+        description: Full append mutation deadline
+        required: false
+        default: ''
+        type: string
+    outputs:
+      checkpoint_transport_executor:
+        description: Executor that transported the checkpoint into this run
+        value: ${{ jobs.provenance.outputs.checkpoint_transport_executor }}
+      transport_run_id:
+        description: Run that transported the checkpoint into this run
+        value: ${{ jobs.provenance.outputs.transport_run_id }}
+      completed_stage:
+        description: Highest completed Framework checkpoint stage
+        value: ${{ jobs.provenance.outputs.completed_stage }}
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
+  OPL_FULL_CHECKPOINT_ARTIFACT: opl-release-full-checkpoint-${{ github.run_id }}
+
+jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove reusable Full add-on topology starts
+        run: |
+          test '${{ inputs.operation }}' = append_full
+          test '${{ inputs.source_run_id }}' = 424242
+          test '${{ inputs.source_artifact }}' = opl-release-canary-checkpoint-424242
+          test '${{ inputs.source_format }}' = checkpoint_v1
+          test '${{ inputs.framework_executor_ref }}' = "$OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF"
+          checkpoint_transport_executor=github_actions
+          transport_run_id=424242
+          test "$checkpoint_transport_executor/$transport_run_id" = github_actions/424242
+
+  admission:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Admit one-shot Full append operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n '${{ inputs.framework_executor_ref }}' ]; then
+            [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::Optional Framework expectation must be an exact lowercase SHA."
+              exit 1
+            }
+          fi
+          test '${{ inputs.source_format }}' = checkpoint_v1
+          mkdir -p release-failure-evidence
+          status=passed
+          reason=admitted
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
+          if [ -n '${{ inputs.operation_started_at }}' ] || [ -n '${{ inputs.operation_deadline_at }}' ]; then
+            node <<'NODE' || { status=failed; reason=deadline_invalid; }
+          const started = Date.parse('${{ inputs.operation_started_at }}');
+          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          if (!Number.isFinite(started) || !Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+          fi
+          jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' \
+            '{schema:"opl_release_operation_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,run_id:$GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
+            > release-failure-evidence/operation-admission.json
+          test "$status" = passed
+      - name: Upload Full admission evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-full-admission-${{ github.run_id }}
+          path: release-failure-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  restore-standard:
+    if: ${{ inputs.mode == 'execute' && needs.admission.result == 'success' }}
+    needs: [admission]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      updater_version: ${{ steps.identity.outputs.updater_version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
+      app_ref: ${{ steps.identity.outputs.app_ref }}
+      shell_ref: ${{ steps.identity.outputs.shell_ref }}
+      framework_source_ref: ${{ steps.identity.outputs.framework_source_ref }}
+      completed_stage: ${{ steps.identity.outputs.completed_stage }}
+      checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
+      transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
+      source_run_id: ${{ steps.operation.outputs.source_run_id }}
+      source_artifact: ${{ steps.operation.outputs.source_artifact }}
+      operation_id: ${{ steps.operation.outputs.operation_id }}
+      operation_started_at: ${{ steps.operation.outputs.operation_started_at }}
+      operation_deadline_at: ${{ steps.operation.outputs.operation_deadline_at }}
+    steps:
+      - name: Recheck one-shot deadline before checkpoint transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          node <<'NODE'
+          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Download checkpoint identity bootstrap
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.source_artifact }}
+          path: checkpoint-identity-bootstrap
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Resolve Bundle-bound Framework identity
+        id: framework-binding
+        env:
+          EXPECTED_FRAMEWORK_REF: ${{ inputs.framework_executor_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t checkpoints < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
+          [ "${#checkpoints[@]}" -eq 1 ] || {
+            echo "::error::Portable checkpoint artifact must contain exactly one checkpoint.json."
+            exit 1
+          }
+          bundle="$(dirname "${checkpoints[0]}")/bundle.json"
+          test -f "$bundle" || { echo "::error::Portable checkpoint contains no bundle.json."; exit 1; }
+          framework_source_ref="$(jq -er '.sources.framework.source_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$bundle")"
+          if [ -n "$EXPECTED_FRAMEWORK_REF" ]; then
+            [ "$EXPECTED_FRAMEWORK_REF" = "$framework_source_ref" ] || {
+              echo "::error::Checkpoint Framework source differs from the optional caller expectation."
+              exit 1
+            }
+          fi
+          echo "framework_source_ref=$framework_source_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ steps.framework-binding.outputs.framework_source_ref }}
+          source-run-id: ${{ inputs.source_run_id }}
+          source-artifact: ${{ inputs.source_artifact }}
+          github-token: ${{ github.token }}
+          allow-reconcile-required: 'true'
+
+      - name: Require a verified Standard checkpoint and fresh Full eligibility
+        env:
+          CHECKPOINT_IMPORT: ${{ steps.checkpoint.outputs.checkpoint_import_json }}
+          BUNDLE_DIGEST: ${{ steps.checkpoint.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CHECKPOINT_IMPORT"
+          test "$(jq -r .rebuild_performed <<<"$CHECKPOINT_IMPORT")" = false
+          test "$(jq -r .publish_state_imported <<<"$CHECKPOINT_IMPORT")" = false
+          test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
+          test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
+
+      - name: Reconcile imported outcome and admit independent Full control
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ steps.checkpoint.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > append-operation-status-before.json
+          operation_id="$(jq -r '.release_bundle_status.operation_controls.append_full.operation_id // ""' append-operation-status-before.json)"
+          operation_started_at="$(jq -r '.release_bundle_status.operation_controls.append_full.operation_started_at // ""' append-operation-status-before.json)"
+          operation_deadline_at="$(jq -r '.release_bundle_status.operation_controls.append_full.operation_deadline_at // ""' append-operation-status-before.json)"
+          if [ -z "$operation_id" ]; then
+            operation_id="gha-${GITHUB_RUN_ID}-append-full"
+            operation_started_at='${{ inputs.operation_started_at }}'
+            operation_deadline_at='${{ inputs.operation_deadline_at }}'
+          fi
+          [[ "$operation_id" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$ ]]
+          operation_args=(
+            --operation append_full
+            --operation-id "$operation_id"
+            --operation-started-at "$operation_started_at"
+            --operation-deadline-at "$operation_deadline_at"
+          )
+          marker_count="$(jq -er '.release_bundle_status.active_unknown_markers | length' append-operation-status-before.json)"
+          if [ "$marker_count" -gt 0 ]; then
+            test "$marker_count" -eq 1
+            marker="$(jq -cer '.release_bundle_status.active_unknown_markers[0]' append-operation-status-before.json)"
+            test "$(jq -r .operation_kind <<<"$marker")" = append_full
+            test "$(jq -r .track <<<"$marker")" = full
+            test "$(jq -r .stage_operation <<<"$marker")" = publish
+            test "$(jq -r .publication_scope <<<"$marker")" = track_assets
+            target="$(jq -er .remote_target <<<"$marker")"
+            prior_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
+            repo="$(jq -er .sources.app.repo "$bundle")"
+            tag="$(jq -er .release.tag "$bundle")"
+            test "$target" = "github-release:${repo}@${tag}"
+            reconcile_attempt="gha-${GITHUB_RUN_ID}-full-resume-reconcile"
+            outcome=unknown
+            if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+              --repo "$repo" --tag "$tag" --output full-resume-observation.json; then
+              outcome=complete
+            fi
+            receipt_args=(
+              --operation remote_inspect
+              --executor remote
+              --attempt-id "$reconcile_attempt"
+              --release-operation append_full
+              --operation-id "$operation_id"
+              --remote-target "$target"
+              --prior-attempt-id "$prior_attempt"
+              --publication-scope track_assets
+              --bundle "$bundle"
+              --track full
+              --outcome "$outcome"
+              --output full-resume-reconcile.receipt.json
+            )
+            if [ "$outcome" = complete ]; then
+              receipt_args+=(--inspection full-resume-observation.json)
+            fi
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              "${receipt_args[@]}"
+            framework-executor/bin/opl release reconcile \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt full-resume-reconcile.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > full-resume-reconcile-result.json
+          fi
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > append-operation-status-after-reconcile.json
+          test "$(jq -r '.release_bundle_status.active_unknown_markers | length' append-operation-status-after-reconcile.json)" -eq 0 || {
+            framework-executor/bin/opl release checkpoint export \
+              --bundle "$BUNDLE_DIGEST" --output append-full-operation-checkpoint \
+              --store "$store" --json > append-operation-checkpoint-export.json
+            echo "::error::Exact Full read-only reconcile did not resolve the imported outcome; no mutation is authorized."
+            exit 1
+          }
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > append-operation-admit.json
+          test "$(jq -r .release_bundle_operation_admit.operation_control.operation_id append-operation-admit.json)" = "$operation_id"
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output append-full-operation-checkpoint \
+            --store "$store" --json > append-operation-checkpoint-export.json
+          original_standard_receipt="$(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print -quit)"
+          test -n "$original_standard_receipt"
+          cp "$original_standard_receipt" standard-build-receipt.json
+          original_full_receipt="$(find checkpoint-identity-bootstrap -type f -name full-build-receipt.json -print -quit || true)"
+          if [ -n "$original_full_receipt" ]; then cp "$original_full_receipt" full-build-receipt.json; fi
+          {
+            echo "source_run_id=$GITHUB_RUN_ID"
+            echo "source_artifact=opl-release-append-full-operation-checkpoint-${GITHUB_RUN_ID}"
+            echo "operation_id=$operation_id"
+            echo "operation_started_at=$operation_started_at"
+            echo "operation_deadline_at=$operation_deadline_at"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload independent Full operation checkpoint
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-append-full-operation-checkpoint-${{ github.run_id }}
+          path: |
+            append-full-operation-checkpoint
+            standard-build-receipt.json
+            full-build-receipt.json
+            append-operation-status-before.json
+            append-operation-status-after-reconcile.json
+            append-operation-admit.json
+            append-operation-checkpoint-export.json
+            full-resume-observation.json
+            full-resume-reconcile.receipt.json
+            full-resume-reconcile-result.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Require a Stable Latest Bundle that admitted Full intent
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.source_format }}' = checkpoint_v1
+          completed_stage='${{ steps.checkpoint.outputs.completed_stage }}'
+          case "$completed_stage" in
+            standard_qualified|full_built|full_qualified) ;;
+            *)
+              echo "::error::Full append requires standard_qualified, full_built, or full_qualified, got $completed_stage."
+              exit 1
+              ;;
+          esac
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          test "$(jq -r .release.channel "$bundle")" = stable
+          test "$(jq -r .prepared_notes.evidence.payload.include_full_package "$bundle")" = true
+          latest_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
+          bundle_tag="$(jq -r .release.tag "$bundle")"
+          [ "$latest_tag" = "$bundle_tag" ] || {
+            echo "::error::Full may append only after the same Bundle is current Stable Latest."
+            exit 1
+          }
+          {
+            echo "version=$(jq -r .release.version "$bundle")"
+            echo "updater_version=$(jq -r .release.updater_version "$bundle")"
+            echo "tag=$bundle_tag"
+            echo "bundle_digest=$(jq -r .bundle_digest "$bundle")"
+            echo "app_ref=$(jq -r .sources.app.source_commit "$bundle")"
+            echo "shell_ref=$(jq -r .sources.shell.source_commit "$bundle")"
+            echo "framework_source_ref=$(jq -r .sources.framework.source_commit "$bundle")"
+            echo "completed_stage=$completed_stage"
+            echo "checkpoint_transport_executor=github_actions"
+            echo "transport_run_id=$GITHUB_RUN_ID"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Persist typed checkpoint restore failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p checkpoint-restore-failure
+          printf '%s\n' 'checkpoint restore did not complete; see immutable Actions step log' > checkpoint-restore-failure/stdout.txt
+          printf '%s\n' 'restore, digest, ABI, stage, or Latest identity validation failed' > checkpoint-restore-failure/stderr.txt
+          input_digest="$(printf '%s\0' '${{ inputs.source_run_id }}' '${{ inputs.source_artifact }}' '${{ inputs.framework_executor_ref }}' '${{ inputs.operation }}' '${{ inputs.operation_deadline_at }}' | shasum -a 256 | awk '{print $1}')"
+          jq -n --arg digest "sha256:$input_digest" --arg run '${{ inputs.source_run_id }}' --arg artifact '${{ inputs.source_artifact }}' \
+            '{schema:"opl_release_checkpoint_restore_failure_receipt.v1",status:"failed",input_digest:$digest,source:{run_id:$run,artifact:$artifact},retry_disposition:"correct_checkpoint_or_freeze_new_bundle"}' \
+            > checkpoint-restore-failure/receipt.json
+
+      - name: Upload checkpoint restore failure evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-full-restore-failure-${{ github.run_id }}
+          path: checkpoint-restore-failure
+          if-no-files-found: error
+          retention-days: 30
+
+  full-build:
+    if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'standard_qualified' }}
+    needs: [restore-standard]
+    uses: ./.github/workflows/full-first-install-release.yml
+    with:
+      mode: execute
+      opl_version: ${{ needs.restore-standard.outputs.version }}
+      opl_updater_version: ${{ needs.restore-standard.outputs.updater_version }}
+      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      upload_full_package_artifact: true
+      release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
+      artifact_app_sha: ${{ needs.restore-standard.outputs.app_ref }}
+      operation: ${{ inputs.operation }}
+      operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+
+  materialize-full-build:
+    if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'full_built' }}
+    needs: [restore-standard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore existing Full build without rebuilding
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore-standard.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore-standard.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Materialize exact Full assets for qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.checkpoint.outputs.completed_stage }}' = full_built
+          source='${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/full/assets'
+          mkdir -p full-output
+          cp "$source/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg" full-output/
+          cp "$source/opl-release-manifest.json" full-output/
+
+      - name: Upload materialized Full package artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-first-install-${{ needs.restore-standard.outputs.version }}-mac-arm64
+          path: full-output
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload materialized Full DMG-only artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64
+          path: full-output/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  full-qualification:
+    if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
+    needs: [restore-standard, full-build, materialize-full-build]
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_artifact_name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64
+      release_artifact_run_id: ${{ github.run_id }}
+      release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
+      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      smoke_harness_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+      package_profile: full
+      diagnostic_scope: release_gate
+      operation: ${{ inputs.operation }}
+      operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+
+  checkpoint-full:
+    if: ${{ always() && inputs.mode == 'execute' && needs.restore-standard.result == 'success' && needs.restore-standard.outputs.completed_stage != 'full_qualified' && needs.full-qualification.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [restore-standard, full-build, materialize-full-build, full-qualification]
+    outputs:
+      source_run_id: ${{ steps.provenance.outputs.source_run_id }}
+      source_artifact: ${{ steps.provenance.outputs.source_artifact }}
+    steps:
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore verified Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore-standard.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore-standard.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Download Full package asset set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-full-first-install-${{ needs.restore-standard.outputs.version }}-mac-arm64
+          path: full-output
+
+      - name: Download exact Full qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: full-qualification
+
+      - name: Bind Full bytes and export additive checkpoint
+        env:
+          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir full-assets
+          cp "full-output/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg" full-assets/
+          cp full-output/opl-release-manifest.json full-assets/
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore-standard.outputs.operation_id }}'
+          operation_args=(
+            --operation append_full
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}'
+            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
+          )
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > append-operation-admit.json
+          stage='${{ needs.restore-standard.outputs.completed_stage }}'
+          case "$stage" in
+            standard_qualified)
+              node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-build" \
+                --release-operation append_full --operation-id "$operation_id" \
+                --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/full-build" \
+                --bundle "$bundle" --track full --outcome complete \
+                --assets-dir full-assets --output full-build-receipt.json
+              framework-executor/bin/opl release build \
+                --bundle "$BUNDLE_DIGEST" --executor-receipt full-build-receipt.json \
+                "${operation_args[@]}" \
+                --store "$store" --json > full-build-result.json
+              ;;
+            full_built)
+              original_full_receipt="$(find imported-checkpoint -type f -name full-build-receipt.json -print -quit)"
+              test -n "$original_full_receipt"
+              cp "$original_full_receipt" full-build-receipt.json
+              ;;
+            *) exit 1 ;;
+          esac
+          original_standard_receipt="$(find imported-checkpoint -type f -name standard-build-receipt.json -print -quit)"
+          test -n "$original_standard_receipt"
+          cp "$original_standard_receipt" standard-build-receipt.json
+          legacy_receipt="$(find full-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
+          test -n "$legacy_receipt"
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
+            --bundle "$bundle" --track full --legacy-qualification "$legacy_receipt" \
+            --output full-qualification.receipt.json
+          framework-executor/bin/opl release verify \
+            --bundle "$BUNDLE_DIGEST" --track full \
+            --qualification-receipt full-qualification.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > full-verify-result.json
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output full-checkpoint \
+            --store "$store" --json > full-checkpoint-export.json
+
+      - name: Bind additive checkpoint transport identity
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(jq -r .release_bundle_checkpoint_export.checkpoint_stage full-checkpoint-export.json)" = full_qualified
+          {
+            echo "source_run_id=$GITHUB_RUN_ID"
+            echo "source_artifact=opl-release-full-checkpoint-${GITHUB_RUN_ID}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload additive Full checkpoint
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.OPL_FULL_CHECKPOINT_ARTIFACT }}
+          path: |
+            full-checkpoint
+            standard-build-receipt.json
+            full-build-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  provenance:
+    if: ${{ always() && inputs.mode == 'execute' && needs.restore-standard.result == 'success' && (needs.restore-standard.outputs.completed_stage == 'full_qualified' || needs.checkpoint-full.result == 'success') }}
+    needs: [restore-standard, checkpoint-full]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      source_run_id: ${{ steps.identity.outputs.source_run_id }}
+      source_artifact: ${{ steps.identity.outputs.source_artifact }}
+      checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
+      transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
+      completed_stage: ${{ steps.identity.outputs.completed_stage }}
+    steps:
+      - name: Preserve checkpoint transport provenance
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_stage='${{ needs.restore-standard.outputs.completed_stage }}'
+          source_run_id='${{ needs.restore-standard.outputs.source_run_id }}'
+          source_artifact='${{ needs.restore-standard.outputs.source_artifact }}'
+          checkpoint_transport_executor='${{ needs.restore-standard.outputs.checkpoint_transport_executor }}'
+          transport_run_id='${{ needs.restore-standard.outputs.transport_run_id }}'
+          if [ "$source_stage" = standard_qualified ]; then
+            source_run_id="$GITHUB_RUN_ID"
+            source_artifact="opl-release-full-checkpoint-${GITHUB_RUN_ID}"
+            checkpoint_transport_executor=github_actions
+            transport_run_id="$GITHUB_RUN_ID"
+          elif [ "$source_stage" = full_built ]; then
+            source_run_id="$GITHUB_RUN_ID"
+            source_artifact="opl-release-full-checkpoint-${GITHUB_RUN_ID}"
+            checkpoint_transport_executor=github_actions
+            transport_run_id="$GITHUB_RUN_ID"
+          fi
+          {
+            echo "source_run_id=$source_run_id"
+            echo "source_artifact=$source_artifact"
+            echo "checkpoint_transport_executor=$checkpoint_transport_executor"
+            echo "transport_run_id=$transport_run_id"
+            echo "completed_stage=full_qualified"
+          } >> "$GITHUB_OUTPUT"
+
+  publish-full:
+    if: ${{ always() && inputs.mode == 'execute' && needs.provenance.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [restore-standard, checkpoint-full, provenance]
+    steps:
+      - name: Reject partial rerun before Full GitHub mutation
+        shell: bash
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then
+            mkdir -p release-failure-evidence
+            printf '%s\0' github_full_publish '${{ needs.restore-standard.outputs.bundle_digest }}' '${{ needs.restore-standard.outputs.operation_deadline_at }}' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+              | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+            touch release-failure-evidence/stdout.txt
+            jq -n --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+              '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",failure_taxonomy:"workflow_rerun",mutation:"github_full_publish",input_digest:$input_digest,retry_disposition:"inspect_only_no_redispatch"}' \
+              > release-failure-evidence/stderr.txt
+            cat release-failure-evidence/stderr.txt >&2
+            exit 1
+          fi
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore additive Full checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.provenance.outputs.source_run_id }}
+          source-artifact: ${{ needs.provenance.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Append only exact Full bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-failure-evidence
+          exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.provenance.outputs.source_run_id }}' '${{ needs.provenance.outputs.source_artifact }}' '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation append_full --started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
+            --deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore-standard.outputs.operation_id }}'
+          operation_args=(
+            --operation append_full
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}'
+            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
+          )
+          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore-standard.outputs.tag }}"
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > publish-operation-admit.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' --output remote-before.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-before" \
+            --release-operation append_full --operation-id "$operation_id" \
+            --remote-target "$remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track full --outcome complete \
+            --inspection remote-before.json --output remote-before.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > publish-plan.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+            --bundle "$bundle" --plan publish-plan.json \
+            --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
+            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --output publish-apply.json
+          apply_status="$(jq -er .status publish-apply.json)"
+          if [ "$apply_status" != complete ]; then
+            case "$apply_status" in
+              outcome_unknown)
+                unknown_attempt="$(jq -er '.mutation_attempt_id | strings | select(length > 0)' publish-apply.json)"
+                unknown_target="$(jq -er '.remote_target | strings | select(length > 0)' publish-apply.json)"
+                test "$unknown_target" = "$remote_target"
+                node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                  --operation remote_inspect --executor remote --attempt-id "$unknown_attempt" \
+                  --release-operation append_full --operation-id "$operation_id" \
+                  --remote-target "$unknown_target" --publication-scope track_assets \
+                  --bundle "$bundle" --track full --outcome unknown --output unknown.receipt.json
+                framework-executor/bin/opl release publish \
+                  --bundle "$BUNDLE_DIGEST" --executor-receipt unknown.receipt.json \
+                  "${operation_args[@]}" \
+                  --store "$store" --json > unknown-persisted.json
+                test "$(jq -r .release_bundle_publish.status unknown-persisted.json)" = reconcile_only
+                framework-executor/bin/opl release checkpoint export \
+                  --bundle "$BUNDLE_DIGEST" --output full-github-unknown-checkpoint \
+                  --store "$store" --json > unknown-checkpoint-export.json
+                ;;
+              reconcile_only) ;;
+              deadline_elapsed)
+                echo "::error::The absolute deadline elapsed before another mutation; reconcile is not authorized without a persisted unknown outcome."
+                exit 1
+                ;;
+              *)
+                echo "::error::Unsupported GitHub mutation result: $apply_status"
+                exit 1
+                ;;
+            esac
+            framework-executor/bin/opl release status \
+              --bundle "$BUNDLE_DIGEST" --store "$store" --json > reconcile-admission-status.json
+            test "$(jq -r .release_bundle_status.tracks.full.reconcile_required reconcile-admission-status.json)" = true || {
+              echo "::error::Framework did not persist an unknown Full publish outcome; reconcile is forbidden."
+              exit 1
+            }
+            test "$(jq -r '.release_bundle_status.active_unknown_markers | length' reconcile-admission-status.json)" -eq 1
+            marker="$(jq -cer '.release_bundle_status.active_unknown_markers[0]' reconcile-admission-status.json)"
+            test "$(jq -r .operation_kind <<<"$marker")" = append_full
+            test "$(jq -r .track <<<"$marker")" = full
+            test "$(jq -r .stage_operation <<<"$marker")" = publish
+            test "$(jq -r .publication_scope <<<"$marker")" = track_assets
+            unknown_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
+            unknown_target="$(jq -er .remote_target <<<"$marker")"
+            test "$unknown_target" = "$remote_target"
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+              --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' \
+              --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' --output reconcile-observation.json
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
+              --release-operation append_full --operation-id "$operation_id" \
+              --remote-target "$unknown_target" --prior-attempt-id "$unknown_attempt" \
+              --publication-scope track_assets \
+              --bundle "$bundle" --track full --outcome complete \
+              --inspection reconcile-observation.json --output reconcile.receipt.json
+            framework-executor/bin/opl release reconcile \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt reconcile.receipt.json \
+              "${operation_args[@]}" \
+              --store "$store" --json > reconcile-result.json
+            test "$(jq -r .release_bundle_reconcile.status reconcile-result.json)" = complete || {
+              echo "::error::Full publish remains incomplete after read-only reconcile; no upload was retried."
+              exit 1
+            }
+          fi
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' --output remote-after.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-after" \
+            --release-operation append_full --operation-id "$operation_id" \
+            --remote-target "$remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track full --outcome complete \
+            --inspection remote-after.json --output remote-after.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote-after.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > full-published.json
+          test "$(jq -r .release_bundle_publish.status full-published.json)" = complete
+          jq -n --arg bundle "$BUNDLE_DIGEST" \
+            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",bundle_digest:$bundle,standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
+            > append-full-boundary.json
+
+      - name: Persist typed Full publication failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p release-failure-evidence
+          apply_status="$(jq -r '.status // empty' publish-apply.json 2>/dev/null || true)"
+          framework_reconcile_authorized=false
+          retry_disposition=start_new_admitted_operation_no_framework_reconcile
+          if [ "$apply_status" = deadline_elapsed ]; then
+            retry_disposition=bounded_read_only_inspect_only_no_framework_reconcile
+          elif [ "$apply_status" = outcome_unknown ] || [ "$apply_status" = reconcile_only ]; then
+            if [ "$(jq -r '.release_bundle_status.tracks.full.reconcile_required // false' reconcile-admission-status.json 2>/dev/null || true)" = true ]; then
+              framework_reconcile_authorized=true
+              retry_disposition=fresh_bounded_read_only_inspect_then_framework_reconcile
+            else
+              retry_disposition=persist_unknown_then_require_fresh_framework_status_no_mutation_retry
+            fi
+          fi
+          jq -n \
+            --arg bundle '${{ needs.restore-standard.outputs.bundle_digest }}' \
+            --arg source_run '${{ needs.provenance.outputs.source_run_id }}' \
+            --arg source_artifact '${{ needs.provenance.outputs.source_artifact }}' \
+            --arg apply_status "$apply_status" \
+            --arg retry_disposition "$retry_disposition" \
+            --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+            --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_full_publish",operation:"append_full",bundle_digest:$bundle,input_digest:$input_digest,source:{run_id:$source_run,artifact:$source_artifact},adapter_status:($apply_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition}' \
+            > release-failure-evidence/full-publication-failure.json
+
+      - name: Upload Full publication receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-full-published-${{ github.run_id }}
+          path: |
+            publish-plan.json
+            publish-apply.json
+            unknown-persisted.json
+            unknown-checkpoint-export.json
+            full-github-unknown-checkpoint
+            reconcile-admission-status.json
+            remote-after.json
+            full-published.json
+            append-full-boundary.json
+            reconcile-observation.json
+            reconcile-result.json
+            release-failure-evidence
+          if-no-files-found: warn
+          retention-days: 30

@@ -41,7 +41,7 @@ function writeJson(cwd: string, relativePath: string, payload: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
-test('VM critical diagnostics classify failed artifact download and route recovery through Stable controller only', () => {
+test('VM critical diagnostics classify failed artifact download and route recovery through Framework status only', () => {
   const summary = runDiagnostics({
     RELEASE_ARTIFACT_NAME: 'macos-build-arm64-dmg',
     RELEASE_ARTIFACT_RUN_ID: '777',
@@ -54,14 +54,14 @@ test('VM critical diagnostics classify failed artifact download and route recove
   assert.equal(summary.failure.type, 'artifact_download_failed');
   assert.equal(summary.failure.boundary, 'workflow_artifact_download');
   assert.equal(summary.failure.taxonomy, 'infrastructure');
-  assert.equal(summary.typed_controller_action.action, 'retry_qualification_same_artifact');
-  assert.equal(summary.typed_controller_action.scope, 'vm_qualification_only_same_cohort');
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(summary.typed_controller_action.scope, 'framework_checkpoint_read_only');
   assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
   assert.equal(summary.typed_controller_action.mutation_authorized, false);
   assert.equal(summary.typed_controller_action.direct_workflow_dispatch_allowed, false);
-  assert.match(
+  assert.equal(
     summary.typed_controller_action.command_template,
-    /^npm run release:stable -- retry-qualification .*--artifact-kind standard$/,
+    'opl release status --bundle <sha256:bundle> --store <bundle-store> --json',
   );
   assert.equal(summary.release_inputs.release_artifact_name, 'macos-build-arm64-dmg');
   assert.equal(summary.release_inputs.release_artifact_run_id, '777');
@@ -78,8 +78,8 @@ test('VM critical diagnostics classify missing release asset before VM work', ()
 
   assert.equal(summary.failure.type, 'release_asset_missing');
   assert.equal(summary.failure.boundary, 'resolve_release_dmg');
-  assert.equal(summary.typed_controller_action.action, 'reconcile_stable_session');
-  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(summary.typed_controller_action.controller_subcommand, 'status');
   assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
 });
 
@@ -161,8 +161,8 @@ test('VM critical diagnostics classify OPL output buffer exhaustion as a harness
   );
 
   assert.equal(summary.failure.type, 'opl_command_output_buffer_exhausted');
-  assert.equal(summary.typed_controller_action.action, 'reconcile_stable_session');
-  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(summary.typed_controller_action.controller, 'framework_opl_release');
   assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
   assert.equal(summary.release_inputs.artifact_app_sha, 'a'.repeat(40));
   assert.equal(summary.release_inputs.product_shell_sha, 'b'.repeat(40));
@@ -191,7 +191,11 @@ test('VM critical diagnostics keep Settings contract failures out of App readine
   assert.equal(summary.failure.type, 'settings_smoke_failed');
   assert.equal(summary.failure.boundary, 'guest_settings_smoke');
   assert.equal(summary.failure.taxonomy, 'product');
-  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(
+    summary.typed_controller_action.post_inspection_disposition,
+    'freeze_new_bundle_if_framework_status_is_conclusive',
+  );
   assert.notEqual(summary.failure.type, 'app_ready_failed');
 });
 
@@ -223,11 +227,11 @@ test('VM critical diagnostics classify rendered Settings with a stale navigation
   assert.equal(summary.failure.type, 'settings_smoke_failed');
   assert.equal(summary.failure.taxonomy, 'fixture');
   assert.equal(summary.failure.classification, 'verification_harness_contract_drift');
-  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
-  assert.equal(summary.typed_controller_action.scope, 'new_immutable_cohort_after_reconcile');
-  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, true);
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(summary.typed_controller_action.scope, 'framework_checkpoint_read_only');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
   assert.equal(summary.typed_controller_action.uses_existing_release_artifact, false);
-  assert.match(summary.typed_controller_action.command_template, /^npm run release:stable -- reconcile /);
+  assert.match(summary.typed_controller_action.command_template, /^opl release status /);
 });
 
 test('VM critical diagnostics fail closed on Runtime return readiness without verifier-drift proof', () => {
@@ -251,11 +255,11 @@ test('VM critical diagnostics fail closed on Runtime return readiness without ve
   assert.equal(summary.failure.boundary, 'runtime_return_ready_marker');
   assert.equal(summary.failure.taxonomy, 'product');
   assert.notEqual(summary.failure.type, 'app_ready_failed');
-  assert.equal(summary.typed_controller_action.action, 'new_cohort_required');
-  assert.equal(summary.typed_controller_action.scope, 'new_immutable_cohort_after_reconcile');
-  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, true);
-  assert.equal(summary.typed_controller_action.execution_mode, 'dry_run');
-  assert.match(summary.typed_controller_action.command_template, /reconcile/);
+  assert.equal(summary.typed_controller_action.action, 'inspect_framework_checkpoint');
+  assert.equal(summary.typed_controller_action.scope, 'framework_checkpoint_read_only');
+  assert.equal(summary.typed_controller_action.rebuilds_standard_or_full_artifact, false);
+  assert.equal(summary.typed_controller_action.execution_mode, 'read_only');
+  assert.match(summary.typed_controller_action.command_template, /^opl release status /);
 });
 
 test('VM critical diagnostics keep Home assistant route failures out of App readiness', () => {

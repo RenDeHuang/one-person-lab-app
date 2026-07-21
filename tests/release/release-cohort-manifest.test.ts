@@ -19,7 +19,7 @@ function runCohortManifest(args: string[]) {
   );
 }
 
-test('release cohort manifest binds evidence and emits non-authorizing Stable controller actions', () => {
+test('historical cohort manifest projects evidence without Bundle state or mutation authority', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-manifest-'));
   const fixturePath = (name: string) => path.join(tempRoot, name);
   const candidatePath = fixturePath('release-candidate-record.json');
@@ -113,7 +113,9 @@ test('release cohort manifest binds evidence and emits non-authorizing Stable co
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const manifest = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(manifest.schema, 'opl_release_cohort_manifest.v1');
-  assert.equal(manifest.status, 'ready_to_promote');
+  assert.equal(manifest.lifecycle, 'retired_historical_evidence_projection');
+  assert.equal(manifest.status, 'historical_read_only');
+  assert.equal(manifest.historical_claimed_status, 'ready_to_promote');
   assert.equal(manifest.version, '26.7.5');
   assert.equal(manifest.tag, 'v26.7.5');
   assert.equal(manifest.source_files.candidate_record, candidatePath);
@@ -124,26 +126,30 @@ test('release cohort manifest binds evidence and emits non-authorizing Stable co
   );
   assert.equal(manifest.gates.length, 2);
   const gate = (id: string) => manifest.gates.find((entry: { id: string }) => entry.id === id);
-  assert.equal(gate('remote_release_verification')?.recovery_action.action, 'reconcile_stable_session');
+  assert.equal(gate('remote_release_verification')?.recovery_action.action, 'inspect_framework_bundle_status');
   assert.match(
     gate('remote_release_verification')?.recovery_action.command_template,
-    /^npm run release:stable -- reconcile --state /,
+    /^opl release status --bundle /,
   );
-  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.action, 'retry_qualification_same_artifact');
-  assert.match(
-    gate('full_dmg_clean_vm')?.recovery_action.command_template,
-    /^npm run release:stable -- retry-qualification .*--artifact-kind full$/,
-  );
+  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.action, 'inspect_framework_bundle_status');
+  assert.equal(gate('full_dmg_clean_vm')?.recovery_action.execution_mode, 'read_only');
   assert.equal(gate('full_dmg_clean_vm')?.recovery_action.mutation_authorized, false);
   assert.equal(gate('full_dmg_clean_vm')?.recovery_action.direct_workflow_dispatch_allowed, false);
-  assert.equal(manifest.reusable_gates[0].status, 'reuse_allowed');
-  assert.equal(manifest.retry_policy.build_once_promote_many, true);
-  assert.equal(manifest.retry_policy.recovery_must_use_stable_controller, true);
+  assert.equal(manifest.reusable_gates[0].status, 'historical_observation_only');
+  assert.equal(manifest.reusable_gates[0].skip_authorized, false);
+  assert.equal(manifest.retry_policy.build_once_verify_many, true);
+  assert.equal(manifest.retry_policy.failed_gate_retry_should_consume_this_manifest, false);
+  assert.equal(manifest.retry_policy.completed_stage_skip_authority, 'framework_checkpoint_only');
+  assert.match(manifest.retry_policy.recovery_route, /read_only_status_then_framework_reconcile/);
+  assert.equal(manifest.retry_policy.direct_workflow_dispatch_allowed, false);
   assert.equal(manifest.retry_policy.manifest_can_authorize_mutation, false);
+  assert.equal(manifest.retry_policy.manifest_can_publish_release, false);
   assert.equal(manifest.retry_policy.manifest_can_claim_release_ready, false);
+  assert.equal(manifest.retry_policy.manifest_can_write_runtime_truth, false);
   const serialized = JSON.stringify(manifest);
   const markdown = fs.readFileSync(markdownPath, 'utf8');
-  assert.doesNotMatch(serialized, /gh workflow run|rerun job|--execute/i);
-  assert.doesNotMatch(markdown, /gh workflow run|rerun job|--execute/i);
-  assert.match(markdown, /Typed recovery action/);
+  assert.doesNotMatch(serialized, /gh workflow run|rerun job|release:stable|--execute/i);
+  assert.doesNotMatch(markdown, /gh workflow run|rerun job|release:stable|--execute/i);
+  assert.match(markdown, /Read-only handoff/);
+  assert.match(markdown, /opl release status --bundle/);
 });

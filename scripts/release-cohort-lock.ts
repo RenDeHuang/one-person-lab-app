@@ -578,12 +578,13 @@ function isMainModule(): boolean {
 }
 
 if (isMainModule()) {
-  try {
-    const options = parseReleaseCohortLockArgs(process.argv.slice(2));
-    const lock = writeReleaseCohortLock(options, buildReleaseCohortLock(options));
-    process.stdout.write(`${JSON.stringify(lock, null, 2)}\n`);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  process.stdout.write(`${JSON.stringify({
+    schema: 'opl_app_retired_release_cohort_lock.v1',
+    status: 'retired_fail_closed',
+    lifecycle: 'historical_projection_only',
+    authoritative_for_new_release: false,
+    mutation_authorized: false,
+    next_action: 'inspect_framework_checkpoint_and_receipts',
+  }, null, 2)}\n`);
+  process.exitCode = 2;
 }

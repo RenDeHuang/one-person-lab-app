@@ -11,6 +11,20 @@ const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
 const parseWorkflow = (name: string) => parseYaml(readWorkflow(name));
 const packageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'] as const;
+const minimumCompatibleFrameworkAbiRef = 'ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc';
+const rejectedBundle = 'sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49';
+const transportProvenanceFields = [
+  'checkpoint_transport_executor',
+  'transport_run_id',
+] as const;
+const frameworkOwnedLineageFields = [
+  'source_build_executor',
+  'source_build_run_id',
+  'standard_source_build_executor',
+  'standard_source_build_run_id',
+  'full_source_build_executor',
+  'full_source_build_run_id',
+] as const;
 
 function sha256(filePath: string) {
   return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
@@ -98,284 +112,584 @@ function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: st
   ], { cwd: process.cwd(), encoding: 'utf8' });
 }
 
-const legacyReleaseWorkflows = [
-  'desktop-release-cleanup-drafts.yml',
-  'desktop-release-diagnostics.yml',
-  'desktop-release-full-addon.yml',
-  'desktop-release-promote.yml',
-  'desktop-release.yml',
-  'full-first-install-release.yml',
-  'full-runtime-cache-warmup.yml',
-  'opl-first-run-vm.yml',
-  'release-verify-remote.yml',
-  'opl-updater-upgrade-vm.yml',
-] as const;
+function workflowStep(workflowName: string, jobName: string, stepName: string): Record<string, any> {
+  const workflow = parseWorkflow(workflowName);
+  const step = workflow.jobs[jobName].steps.find((candidate: Record<string, unknown>) => candidate.name === stepName);
+  assert.ok(step, `${workflowName}:${jobName} is missing ${stepName}`);
+  return step;
+}
 
-test('Stable is the only manual release entry and Nightly is schedule-only', () => {
+function runAdmissionGate(
+  workflowName: string,
+  jobName: string,
+  stepName: string,
+  inputs: Record<string, string>,
+) {
+  const step = workflowStep(workflowName, jobName, stepName);
+  const script = String(step.run).replace(
+    /\$\{\{\s*inputs\.([A-Za-z0-9_]+)\s*\}\}/g,
+    (_match, name: string) => inputs[name] ?? '',
+  );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-workflow-gate-'));
+  try {
+    return spawnSync('bash', ['-euo', 'pipefail', '-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_RUN_ATTEMPT: '1',
+        GITHUB_RUN_ID: '424242',
+        RUNNER_TEMP: root,
+      },
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('Stable is the only manual entry and all channels share one non-cancelling mutex', () => {
   const stable = parseWorkflow('release-stable.yml');
   const nightly = parseWorkflow('release-nightly.yml');
-  const pipeline = parseWorkflow('_release-bundle.yml');
-  const stableSource = readWorkflow('release-stable.yml');
-  const pipelineSource = readWorkflow('_release-bundle.yml');
-  const releaseContract = JSON.parse(fs.readFileSync(
-    path.join(process.cwd(), 'contracts', 'app-release-channel.json'),
-    'utf8',
-  ));
 
   assert.deepEqual(Object.keys(stable.on), ['workflow_dispatch']);
-  assert.ok(stable.on.workflow_dispatch.inputs.version);
-  assert.ok(stable.on.workflow_dispatch.inputs.release_attempt_id);
-  assert.ok(stable.on.workflow_dispatch.inputs.pre_api_admission_receipt_base64);
-  assert.equal(stable['run-name'], 'OPL Stable Release Bundle v${{ inputs.version }} attempt=${{ inputs.release_attempt_id }}');
-  assert.deepEqual(stable.jobs.admission.permissions, { contents: 'read', actions: 'read' });
-  assert.equal(stable.jobs.admission.outputs.app_ref, '${{ steps.admission.outputs.app_ref }}');
-  assert.match(stableSource, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
-  assert.match(stableSource, /canonical_app_sha=.*ls-remote origin refs\/heads\/main/);
-  assert.match(stableSource, /Upload durable admission validation/);
-  assert.deepEqual(stable.jobs.release.needs, ['admission']);
-  assert.equal(stable.jobs.release.uses, './.github/workflows/_release-bundle.yml');
-  assert.equal(stable.jobs.release.with.channel, 'stable');
-  assert.equal(stable.jobs.release.with.version, '${{ needs.admission.outputs.version }}');
-  assert.equal(stable.jobs.release.with.include_full, '${{ fromJSON(needs.admission.outputs.include_full) }}');
-  assert.equal(stable.jobs.release.with.app_ref, '${{ needs.admission.outputs.app_ref }}');
-  assert.equal(stable.jobs.release.with.shell_ref, '${{ needs.admission.outputs.shell_ref }}');
-  assert.equal(stable.jobs.release.with.framework_ref, '${{ needs.admission.outputs.framework_ref }}');
-  assert.doesNotMatch(pipelineSource, /release[_ -]broker|broker[_ -]admission/i);
-  assert.doesNotMatch(`${stableSource}\n${pipelineSource}`, /gh run (?:cancel|rerun)|deployment-branch-policies/);
-
-  const environmentControl = releaseContract.release_bundle_control_plane.protected_environment_control;
-  assert.equal(environmentControl.canonical_branch_policy, 'main');
-  assert.equal(environmentControl.canonical_branch_policy_count, 1);
-  assert.equal(environmentControl.daily_codex_credential_may_mutate, false);
-  assert.equal(environmentControl.temporary_policy_rewrite_as_circuit_breaker_allowed, false);
-  assert.equal(environmentControl.admin_one_shot_cancel_allowed, false);
-  assert.equal(environmentControl.new_session_while_noncanonical_allowed, false);
-  assert.equal(environmentControl.deviation_requires_durable_emergency_containment_receipt, true);
-  assert.equal(environmentControl.restoration_requires_get_readback, true);
-  const incident = JSON.parse(fs.readFileSync(
-    path.join(process.cwd(), environmentControl.historical_deviation_receipts[0]),
-    'utf8',
-  ));
-  assert.equal(incident.run.id, '29781234190');
-  assert.equal(incident.contract_deviation.authorized_canonical_path_used, false);
-  assert.equal(incident.typed_reconcile.failure_taxonomy, 'control_plane_emergency_containment');
-  assert.equal(incident.typed_reconcile.retry_disposition, 'new_cohort_required');
-  assert.equal(incident.public_mutation.release_exists, false);
-  assert.equal(incident.public_mutation.tag_exists, false);
-  assert.equal(incident.restoration.only_policy_name, 'main');
-  assert.equal(incident.restoration.only_policy_count, 1);
-
+  assert.deepEqual(stable.on.workflow_dispatch.inputs.operation.options, [
+    'standard',
+    'resume_standard',
+    'append_full',
+  ]);
   assert.deepEqual(Object.keys(nightly.on), ['schedule']);
-  assert.ok(Array.isArray(nightly.on.schedule));
+  assert.deepEqual(stable.concurrency, { group: 'opl-release-bundle-global', 'cancel-in-progress': false });
+  assert.deepEqual(nightly.concurrency, stable.concurrency);
+  assert.equal(stable.jobs.standard.uses, './.github/workflows/_release-bundle.yml');
+  assert.equal(stable.jobs['resume-standard'].uses, './.github/workflows/_release-standard-publish.yml');
+  assert.equal(stable.jobs['append-full'].uses, './.github/workflows/_release-full-addon.yml');
+  assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_started_at'), false);
+  assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_deadline_at'), false);
   assert.equal(nightly.jobs.release.uses, './.github/workflows/_release-bundle.yml');
-  assert.equal(nightly.jobs.release.with.channel, 'nightly');
-
-  assert.deepEqual(Object.keys(pipeline.on), ['workflow_call']);
-  for (const name of legacyReleaseWorkflows) {
-    const source = readWorkflow(name);
-    assert.doesNotMatch(source, /^\s*workflow_dispatch:/m, `${name} retains a manual entry`);
+  const stableSource = readWorkflow('release-stable.yml');
+  assert.match(stableSource, /if \[ "\$OPERATION" = standard \] \|\| \[ "\$OPERATION" = append_full \]; then[\s\S]*actions\/runs\/\$GITHUB_RUN_ID" --jq \.created_at/);
+  assert.match(stableSource, /if: \$\{\{ steps\.admission\.outputs\.operation != 'resume_standard' \}\}/);
+  assert.doesNotMatch(stableSource, /run_started_at/);
+  for (const workflow of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
+    assert.doesNotMatch(readWorkflow(workflow), /opl-release-bundle-global/);
   }
 });
 
-test('the reusable DAG gates Latest on exact predecessor upgrade and Standard Homebrew readback', () => {
-  const jobs = parseWorkflow('_release-bundle.yml').jobs;
-
-  assert.deepEqual(jobs['cold-preflight'].needs, ['freeze-inputs']);
-  assert.deepEqual(jobs['prepare-notes'].needs, ['cold-preflight', 'freeze-inputs']);
-  assert.deepEqual(jobs.freeze.needs, ['cold-preflight', 'prepare-notes', 'freeze-inputs']);
-  assert.deepEqual(jobs['standard-build'].needs, ['freeze', 'freeze-inputs']);
-  assert.equal(jobs['standard-build'].with.require_macos_gatekeeper, false);
-  assert.deepEqual(jobs['standard-qualification'].needs, ['freeze', 'freeze-inputs', 'standard-build']);
-  assert.deepEqual(jobs['bind-standard'].needs, ['freeze', 'freeze-inputs', 'prepare-notes', 'standard-build', 'standard-qualification']);
-  assert.deepEqual(jobs['publish-standard-nonlatest'].needs, ['bind-standard', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['remote-digest-verify'].needs, ['publish-standard-nonlatest', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['updater-upgrade-qualification'].needs, ['remote-digest-verify', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['publish-homebrew-standard'].needs, ['updater-upgrade-qualification', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['homebrew-standard-vm'].needs, ['publish-homebrew-standard', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['homebrew-standard-readback'].needs, ['homebrew-standard-vm', 'publish-homebrew-standard', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['publish-latest'].needs, [
-    'remote-digest-verify',
-    'updater-upgrade-qualification',
-    'homebrew-standard-readback',
-    'freeze',
-    'freeze-inputs',
-  ]);
-  assert.equal(jobs['installed-updater-readback'], undefined);
-
-  assert.match(readWorkflow('_release-bundle.yml'), /opl release freeze/);
-  assert.match(readWorkflow('_release-bundle.yml'), /opl release build/);
-  assert.match(readWorkflow('_release-bundle.yml'), /opl release verify/);
-  assert.match(readWorkflow('_release-bundle.yml'), /opl release publish/);
-  assert.match(readWorkflow('_release-bundle.yml'), /opl release reconcile/);
-  assert.match(readWorkflow('_release-bundle.yml'), /release:notes:prepare/);
-  assert.match(readWorkflow('_release-bundle.yml'), /--receipt-output notes-prepare-receipt\.json/);
-  const prepareNotesRun = String(jobs['prepare-notes'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Prepare and validate online AI notes before build',
+test('new Standard binds fresh remote Framework main while Canary uses only a minimum compatible ABI', () => {
+  const stable = parseWorkflow('release-stable.yml');
+  assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
+  const stableAdmission = String(stable.jobs.admission.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
-  assert.match(prepareNotesRun, /if \[\[ '\$\{\{ inputs\.include_full \}\}' == 'true' \]\]/);
-  assert.match(prepareNotesRun, /notes_intent_args\+=\(--include-full-package\)/);
-  const freezeRun = String(jobs.freeze.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Freeze canonical Framework Bundle',
-  )?.run ?? '');
-  assert.match(freezeRun, /--include-full-package '\$\{\{ inputs\.include_full \}\}'/);
-  assert.ok(
-    freezeRun.indexOf('--include-full-package') < freezeRun.indexOf('framework-source/bin/opl release freeze'),
-    'notes intent mismatch must fail before Framework freeze',
+  assert.match(stableAdmission, /standard\)\n\s+canonical_shell_sha=/);
+  assert.match(stableAdmission, /canonical_framework_sha=.*one-person-lab\.git refs\/heads\/main/);
+  assert.match(stableAdmission, /\[ "\$FRAMEWORK_REF" = "\$canonical_framework_sha" \]/);
+  assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
+  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$FRAMEWORK_REF" \]/);
+  assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_REF/);
+  assert.doesNotMatch(
+    stableAdmission.slice(stableAdmission.indexOf('resume_standard|append_full)')),
+    /canonical_framework_sha|OPL_FRAMEWORK_RELEASE_ABI_REF/,
   );
-  const notesReceiptStep = jobs['prepare-notes'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload notes preparation receipt',
-  );
-  assert.equal(notesReceiptStep?.if, "${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}");
-  assert.equal(
-    (notesReceiptStep?.with as Record<string, unknown>)?.name,
-    'opl-release-bundle-notes-prepare-receipt-${{ github.run_id }}',
-  );
-  assert.match(readWorkflow('_release-bundle.yml'), /opl-updater-upgrade-vm\.yml/);
-  assert.match(readWorkflow('_release-bundle.yml'), /OPL_HOMEBREW_TAP_TOKEN/);
-  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
-});
 
-test('Standard binding canonicalizes electron-builder updater metadata before pruning the generic name', () => {
-  const workflow = parseWorkflow('_release-bundle.yml');
-  const bindStep = workflow.jobs['bind-standard'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Complete and bind the closed Standard asset set',
-  );
-  const source = String(bindStep?.run ?? '');
-  const requireGeneric = source.indexOf('test -f standard-assets/latest-mac.yml');
-  const copyCanonical = source.indexOf('cp standard-assets/latest-mac.yml standard-assets/latest-arm64-mac.yml');
-  const removeGeneric = source.indexOf('rm -f standard-assets/latest-mac.yml');
-  const readCanonical = source.indexOf("metadata = (root / 'latest-arm64-mac.yml').read_text");
-
-  assert.ok(requireGeneric >= 0, 'bind-standard must require electron-builder updater metadata');
-  assert.ok(copyCanonical > requireGeneric, 'canonical metadata must be copied after the generic input is required');
-  assert.ok(removeGeneric > copyCanonical, 'generic metadata must be removed only after canonicalization');
-  assert.ok(readCanonical > removeGeneric, 'identity checks must consume the canonical metadata name');
-  assert.match(source, /if expected_zip not in metadata:/);
-  assert.match(source, /latest-arm64-mac\.yml does not reference exact updater ZIP/);
-});
-
-test('source freeze is canonical and every Framework CLI job provisions its runtime', () => {
-  const source = readWorkflow('_release-bundle.yml');
-  const jobs = parseWorkflow('_release-bundle.yml').jobs as Record<string, Record<string, any>>;
-
-  assert.match(source, /git -C app-source ls-remote origin refs\/heads\/main/);
-  assert.match(source, /git -C app-source ls-remote --tags origin 'refs\/tags\/v\*-nightly\*'/);
-  assert.doesNotMatch(source, /(?:^|\s)git ls-remote --tags origin/m);
-
-  for (const [jobId, job] of Object.entries(jobs)) {
-    if (!Array.isArray(job.steps)) continue;
-    const serialized = JSON.stringify(job.steps);
-    if (!serialized.includes('framework-source/bin/opl release')) continue;
-    assert.match(serialized, /actions\/setup-node@/u, `${jobId} must provision Node for the Framework CLI`);
-    assert.match(
-      serialized,
-      /npm --prefix framework-source ci --ignore-scripts/u,
-      `${jobId} must install Framework runtime dependencies`,
-    );
-    if (serialized.includes('framework-source/bin/opl release freeze')) {
-      assert.match(
-        serialized,
-        /--source-root framework-source/u,
-        `${jobId} must resolve Release Set and Package refs under the frozen Framework checkout`,
-      );
-    }
-  }
-});
-
-test('Full is additive and only protected publish jobs receive contents write', () => {
-  const workflow = parseWorkflow('_release-bundle.yml');
-  const jobs = workflow.jobs;
-
-  assert.deepEqual(jobs['full-build'].needs, ['publish-latest', 'freeze', 'freeze-inputs']);
-  assert.deepEqual(jobs['full-qualification'].needs, ['freeze', 'freeze-inputs', 'full-build']);
-  assert.deepEqual(jobs['bind-full'].needs, ['publish-latest', 'freeze', 'freeze-inputs', 'full-build', 'full-qualification']);
-  assert.deepEqual(jobs['publish-full'].needs, ['bind-full', 'freeze', 'freeze-inputs']);
-
-  const writeJobs = new Set([
-    'publish-standard-nonlatest',
-    'publish-latest',
-    'publish-full',
-  ]);
-  assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
-  for (const [jobId, job] of Object.entries(jobs) as Array<[string, Record<string, any>]>) {
-    const contents = job.permissions?.contents ?? 'read';
-    if (writeJobs.has(jobId)) {
-      assert.equal(contents, 'write', `${jobId} must own its explicit mutation permission`);
-      assert.equal(job.environment, 'release-stable', `${jobId} must use the protected environment`);
-    } else {
-      assert.notEqual(contents, 'write', `${jobId} must remain read-only`);
-    }
-  }
-
-  const source = readWorkflow('_release-bundle.yml');
-  assert.match(source, /release_bundle_digest/);
-  assert.match(source, /Append exact Full bytes only/);
-  assert.doesNotMatch(source, /publish-full[\s\S]*latest-arm64-mac\.yml/);
-});
-
-test('retired broker workflows are read-only rejection surfaces', () => {
-  for (const name of [
-    'desktop-release-cleanup-drafts.yml',
-    'desktop-release-full-addon.yml',
-    'desktop-release-promote.yml',
-    'desktop-release.yml',
-  ]) {
+  for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
     const workflow = parseWorkflow(name);
-    assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
-    assert.deepEqual(workflow.permissions, { contents: 'read' });
-    assert.match(readWorkflow(name), /exit 1/);
-    assert.doesNotMatch(readWorkflow(name), /contents: write|workflow_dispatch|verify-release-broker/);
+    const input = workflow.on.workflow_call.inputs.framework_executor_ref;
+    assert.equal(input.required, false);
+    assert.equal(input.default, '');
+    assert.equal(workflow.env.OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF, minimumCompatibleFrameworkAbiRef);
+    const source = readWorkflow(name);
+    assert.match(source, /Download checkpoint identity bootstrap/);
+    assert.match(source, /Resolve Bundle-bound Framework identity/);
+    assert.match(source, /framework_source_ref=.*sources\.framework\.source_commit/);
+    assert.match(source, /Checkpoint Framework source differs from the optional caller expectation/);
+    assert.doesNotMatch(source, /OPL_FRAMEWORK_CHECKPOINT_ABI/);
+  }
+
+  const standardRestore = workflowStep(
+    '_release-standard-publish.yml',
+    'restore',
+    'Restore portable checkpoint',
+  );
+  assert.equal(
+    standardRestore.with['framework-executor-ref'],
+    '${{ steps.framework-binding.outputs.framework_source_ref }}',
+  );
+  const fullRestore = workflowStep(
+    '_release-full-addon.yml',
+    'restore-standard',
+    'Restore verified Standard checkpoint',
+  );
+  assert.equal(
+    fullRestore.with['framework-executor-ref'],
+    '${{ steps.framework-binding.outputs.framework_source_ref }}',
+  );
+});
+
+test('every release-bound low-level admission rejects missing, invalid, or permanently rejected identity', () => {
+  const digest = `sha256:${'a'.repeat(64)}`;
+  const baseInputs = {
+    operation_started_at: '2026-07-21T00:00:00.000Z',
+    operation_deadline_at: '2099-07-21T00:00:00.000Z',
+    release_bundle_digest: digest,
+    ref: '1'.repeat(40),
+    artifact_app_ref: '1'.repeat(40),
+    app_ref: '1'.repeat(40),
+    artifact_app_sha: '1'.repeat(40),
+    shell_ref: '2'.repeat(40),
+    framework_ref: '3'.repeat(40),
+    baseline_dmg_sha256: '4'.repeat(64),
+  };
+  const gates = [
+    {
+      workflow: '_build-reusable.yml',
+      job: 'build',
+      step: 'Admit one-shot release-bound build',
+      operation: 'standard',
+      fields: ['release_bundle_digest', 'ref', 'shell_ref', 'framework_ref'],
+    },
+    {
+      workflow: 'opl-first-run-vm.yml',
+      job: 'validate-vm-inputs',
+      step: 'Admit one-shot release-bound qualification',
+      operation: 'standard',
+      fields: ['release_bundle_digest', 'artifact_app_ref', 'shell_ref', 'framework_ref'],
+    },
+    {
+      workflow: 'opl-updater-upgrade-vm.yml',
+      job: 'upgrade',
+      step: 'Reject replay and invalid frozen identities',
+      operation: 'resume_standard',
+      fields: ['release_bundle_digest', 'app_ref', 'shell_ref', 'framework_ref'],
+    },
+    {
+      workflow: 'full-first-install-release.yml',
+      job: 'full-first-install',
+      step: 'Admit one-shot release-bound Full build',
+      operation: 'append_full',
+      fields: ['release_bundle_digest', 'artifact_app_sha', 'shell_ref', 'framework_ref'],
+    },
+  ] as const;
+
+  for (const gate of gates) {
+    const admission = workflowStep(gate.workflow, gate.job, gate.step);
+    const source = String(admission.run);
+    assert.match(source, /opl_release_nested_admission_receipt\.v1/);
+    assert.match(source, /input-digest\.txt/);
+    assert.match(source, /stdout\.txt/);
+    assert.match(source, /stderr\.txt/);
+    assert.match(source, /input_digest:\$input_digest/);
+    assert.match(source, new RegExp(rejectedBundle));
+    const validInputs = { ...baseInputs, operation: gate.operation };
+    const valid = runAdmissionGate(gate.workflow, gate.job, gate.step, validInputs);
+    assert.equal(valid.status, 0, `${gate.workflow} valid gate failed: ${valid.stderr}`);
+
+    for (const field of gate.fields) {
+      const missing = runAdmissionGate(gate.workflow, gate.job, gate.step, { ...validInputs, [field]: '' });
+      assert.notEqual(missing.status, 0, `${gate.workflow} accepted missing ${field}`);
+      const invalidValue = field === 'release_bundle_digest' ? 'sha256:not-exact' : 'A'.repeat(40);
+      const invalid = runAdmissionGate(gate.workflow, gate.job, gate.step, {
+        ...validInputs,
+        [field]: invalidValue,
+      });
+      assert.notEqual(invalid.status, 0, `${gate.workflow} accepted invalid ${field}`);
+    }
+
+    const rejected = runAdmissionGate(gate.workflow, gate.job, gate.step, {
+      ...validInputs,
+      release_bundle_digest: rejectedBundle,
+    });
+    assert.notEqual(rejected.status, 0, `${gate.workflow} accepted the permanently rejected Bundle`);
+  }
+
+  for (const [workflow, job, step] of [
+    ['_build-reusable.yml', 'build', 'Admit one-shot release-bound build'],
+    ['opl-first-run-vm.yml', 'validate-vm-inputs', 'Admit one-shot release-bound qualification'],
+    ['full-first-install-release.yml', 'full-first-install', 'Admit one-shot release-bound Full build'],
+  ]) {
+    assert.equal(workflowStep(workflow, job, step).if, "${{ inputs.operation != '' }}");
   }
 });
 
-test('the remote canary has no manual trigger and no write permission', () => {
+test('the live control plane is split into Standard build, Standard publish, and additive Full workflows', () => {
+  const bundle = parseWorkflow('_release-bundle.yml');
+  const standard = parseWorkflow('_release-standard-publish.yml');
+  const full = parseWorkflow('_release-full-addon.yml');
+
+  assert.deepEqual(Object.keys(bundle.on), ['workflow_call']);
+  assert.deepEqual(Object.keys(standard.on), ['workflow_call']);
+  assert.deepEqual(Object.keys(full.on), ['workflow_call']);
+  assert.deepEqual(bundle.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(standard.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(full.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(Object.keys(bundle.jobs), [
+    'startup-canary',
+    'admission',
+    'freeze',
+    'standard-build',
+    'standard-qualification',
+    'checkpoint-standard',
+    'publish-standard',
+  ]);
+  assert.ok(standard.jobs.restore);
+  assert.ok(standard.jobs['updater-upgrade-qualification']);
+  assert.ok(standard.jobs['publish-standard-nonlatest']);
+  assert.ok(standard.jobs['activate-latest']);
+  assert.ok(full.jobs['restore-standard']);
+  assert.ok(full.jobs['materialize-full-build']);
+  assert.ok(full.jobs['checkpoint-full']);
+  assert.ok(full.jobs.provenance);
+  assert.ok(full.jobs['publish-full']);
+  assert.doesNotMatch(`${readWorkflow('_release-bundle.yml')}\n${readWorkflow('_release-standard-publish.yml')}\n${readWorkflow('_release-full-addon.yml')}`, /release[_ -]broker|stable[_ -]session[_ -]lease/i);
+});
+
+test('checkpoint state lineage remains Framework-owned while App exposes transport provenance only', () => {
+  for (const name of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const workflow = parseWorkflow(name);
+    const inputs = workflow.on.workflow_call.inputs;
+    const outputs = workflow.on.workflow_call.outputs;
+    for (const field of [...transportProvenanceFields, ...frameworkOwnedLineageFields]) {
+      assert.equal(inputs[field], undefined, `${name} must not accept operator-supplied ${field}`);
+    }
+    for (const field of transportProvenanceFields) {
+      assert.ok(outputs[field], `${name} must expose ${field}`);
+    }
+    for (const field of frameworkOwnedLineageFields) {
+      assert.equal(outputs[field], undefined, `${name} must not project Framework-owned ${field}`);
+    }
+    assert.match(readWorkflow(name), new RegExp(minimumCompatibleFrameworkAbiRef));
+    assert.match(readWorkflow(name), new RegExp(rejectedBundle));
+  }
+
+  const bundleSource = readWorkflow('_release-bundle.yml');
+  assert.match(bundleSource, /standard-build-receipt\.json/);
+  assert.match(bundleSource, /checkpoint_transport_executor=github_actions/);
+  const fullSource = readWorkflow('_release-full-addon.yml');
+  assert.match(fullSource, /standard-build-receipt\.json/);
+  assert.match(fullSource, /full-build-receipt\.json/);
+  assert.doesNotMatch(readWorkflow('_release-standard-publish.yml'), /bound_standard_v1|checkpoint-migration/);
+
+  const action = fs.readFileSync(path.join(process.cwd(), '.github', 'actions', 'restore-release-checkpoint', 'action.yml'), 'utf8');
+  assert.match(action, /rebuild_performed/);
+  assert.match(action, /publish_state_imported/);
+  assert.match(action, /opl release checkpoint import/);
+  assert.match(action, /opl release status/);
+  assert.doesNotMatch(action, /standard-build-receipt\.json|full-build-receipt\.json/);
+  for (const field of transportProvenanceFields) assert.match(action, new RegExp(field));
+  for (const field of frameworkOwnedLineageFields) assert.doesNotMatch(action, new RegExp(field));
+});
+
+test('completed Full stages skip work already proven by the checkpoint', () => {
+  const full = parseWorkflow('_release-full-addon.yml');
+  assert.match(String(full.jobs['full-build'].if), /standard_qualified/);
+  assert.match(String(full.jobs['materialize-full-build'].if), /full_built/);
+  assert.match(String(full.jobs['full-qualification'].if), /standard_qualified/);
+  assert.match(String(full.jobs['full-qualification'].if), /full_built/);
+  assert.match(String(full.jobs['checkpoint-full'].if), /full_qualified/);
+  assert.match(String(full.jobs.provenance.if), /full_qualified/);
+
+  const bind = full.jobs['checkpoint-full'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Bind Full bytes and export additive checkpoint',
+  );
+  const run = String(bind?.run ?? '');
+  assert.match(run, /standard_qualified\)/);
+  assert.match(run, /full_built\)/);
+  assert.match(run, /cp "\$original_full_receipt" full-build-receipt\.json/);
+  assert.equal((run.match(/opl release build/g) ?? []).length, 1);
+  assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
+});
+
+test('every Stable updater baseline passes before the first public release mutation', () => {
+  const standard = parseWorkflow('_release-standard-publish.yml');
+  const publish = standard.jobs['publish-standard-nonlatest'];
+  const homebrew = standard.jobs['publish-homebrew-standard'];
+  const latest = standard.jobs['activate-latest'];
+
+  assert.deepEqual(standard.jobs['updater-upgrade-qualification'].needs, ['restore']);
+  assert.deepEqual(standard.jobs['updater-upgrade-qualification-highest'].needs, ['restore']);
+  assert.ok(publish.needs.includes('updater-upgrade-qualification'));
+  assert.ok(publish.needs.includes('updater-upgrade-qualification-highest'));
+  assert.ok(homebrew.needs.includes('remote-digest-verify'));
+  assert.ok(latest.needs.includes('updater-upgrade-qualification-highest'));
+  assert.match(readWorkflow('_release-standard-publish.yml'), /highest_public_stable/);
+  assert.match(readWorkflow('_release-bundle.yml'), /resolveStableReleaseVersion/);
+  assert.match(readWorkflow('_release-bundle.yml'), /--published-releases-json/);
+
+  const updater = readWorkflow('opl-updater-upgrade-vm.yml');
+  assert.match(updater, /candidate_zip_size/);
+  assert.match(updater, /candidate_zip_sha256/);
+  assert.match(updater, /tracks\/standard\/assets\.json/);
+  assert.match(updater, /candidate ZIP entry must be unique/);
+  assert.match(updater, /sha256:\$candidate_zip_sha256.*\$checkpoint_zip_sha256/);
+  assert.match(updater, /candidate_zip_size.*checkpoint_zip_size/);
+  assert.match(updater, /metadata_declared_sha512/);
+  assert.match(updater, /metadata_declared_size/);
+  assert.match(updater, /same_candidate_zip_downloaded/);
+});
+
+test('mutation unknown states persist evidence and only use bounded read-only reconciliation', () => {
+  for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const source = readWorkflow(name);
+    assert.match(source, /input-digest\.txt/);
+    assert.match(source, /stdout\.txt/);
+    assert.match(source, /stderr\.txt/);
+    assert.match(source, /if: \$\{\{ always\(\) \}\}/);
+    assert.match(source, /--operation-id/);
+    assert.match(source, /--operation-started-at/);
+    assert.match(source, /--operation-deadline-at/);
+  }
+  const homebrew = readWorkflow('_release-standard-publish.yml');
+  assert.match(homebrew, /timeout --foreground --signal=TERM --kill-after=5s/);
+  assert.match(homebrew, /readonly_timeout_seconds=30/);
+  assert.match(homebrew, /git -C tap-source ls-remote origin refs\/heads\/main/);
+  assert.doesNotMatch(homebrew, /for attempt in 1 2 3|three read-only reconciliations/);
+  assert.match(homebrew, /push_count=0/);
+  assert.match(homebrew, /test "\$push_count" -eq 1/);
+  assert.equal((homebrew.match(/git -C tap-source push --no-force origin/g) ?? []).length, 1);
+  const standardSource = readWorkflow('_release-standard-publish.yml');
+  const fullSource = readWorkflow('_release-full-addon.yml');
+  assert.match(standardSource, /release_bundle_status\.tracks\.standard\.reconcile_required/);
+  assert.match(fullSource, /release_bundle_status\.tracks\.full\.reconcile_required/);
+  for (const source of [standardSource, fullSource]) {
+    assert.match(source, /release_bundle_status\.active_unknown_markers/);
+    assert.match(source, /prior_mutation_attempt_id/);
+    assert.match(source, /publication_scope/);
+    assert.match(source, /outcome_unknown[\s\S]*--outcome unknown[\s\S]*opl release publish[\s\S]*opl release status[\s\S]*opl release reconcile/);
+    assert.match(source, /deadline_elapsed[\s\S]*reconcile is not authorized without a persisted unknown outcome/);
+  }
+  assert.equal((standardSource.match(/framework-release-adapter\.ts github-activate-latest/g) ?? []).length, 1);
+  assert.match(standardSource, /case "\$latest_status" in[\s\S]*complete\|idempotent/);
+  assert.match(standardSource, /Latest activation was not conclusively read back; no retry was attempted/);
+  assert.match(readWorkflow('_release-standard-publish.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
+  assert.match(readWorkflow('_release-full-addon.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
+});
+
+test('every real release build, VM, and mutation job rejects a partial rerun locally', () => {
+  const guardedJobs = [
+    ['_build-reusable.yml', 'build'],
+    ['full-first-install-release.yml', 'full-first-install'],
+    ['opl-first-run-vm.yml', 'clean-vm-first-run'],
+    ['_release-standard-publish.yml', 'publish-standard-nonlatest'],
+    ['_release-standard-publish.yml', 'publish-homebrew-standard'],
+    ['_release-standard-publish.yml', 'activate-latest'],
+    ['_release-full-addon.yml', 'publish-full'],
+  ] as const;
+
+  for (const [workflowName, jobName] of guardedJobs) {
+    const workflow = parseWorkflow(workflowName);
+    const source = JSON.stringify(workflow.jobs[jobName].steps ?? []);
+    assert.match(source, /GITHUB_RUN_ATTEMPT/, `${workflowName}:${jobName}`);
+    assert.match(source, /workflow_rerun|Partial rerun/, `${workflowName}:${jobName}`);
+  }
+  for (const workflowName of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const source = readWorkflow(workflowName);
+    assert.match(source, /failure_taxonomy:\"workflow_rerun\"/);
+    assert.match(source, /input-digest\.txt/);
+  }
+});
+
+test('the remote Canary starts all three reusable workflows with one synthetic checkpoint handle', () => {
   const canary = parseWorkflow('release-bundle-canary.yml');
   assert.ok(canary.on.push);
-  assert.equal(canary.on.push.paths, undefined);
-  assert.equal(canary.on.pull_request?.paths, undefined);
+  assert.ok(canary.on.pull_request !== undefined);
   assert.equal(canary.on.workflow_dispatch, undefined);
-  assert.deepEqual(canary.permissions, { contents: 'read' });
+  assert.deepEqual(canary.permissions, { contents: 'read', actions: 'read' });
+  assert.equal(canary.jobs.standard.uses, './.github/workflows/_release-bundle.yml');
+  assert.equal(canary.jobs['resume-standard'].uses, './.github/workflows/_release-standard-publish.yml');
+  assert.equal(canary.jobs['append-full'].uses, './.github/workflows/_release-full-addon.yml');
+  assert.equal(canary.jobs['nested-standard-build'].uses, './.github/workflows/_build-reusable.yml');
+  assert.equal(canary.jobs['nested-standard-qualification'].uses, './.github/workflows/opl-first-run-vm.yml');
+  assert.equal(canary.jobs['nested-updater-qualification'].uses, './.github/workflows/opl-updater-upgrade-vm.yml');
+  assert.equal(canary.jobs['nested-full-build'].uses, './.github/workflows/full-first-install-release.yml');
+  assert.equal(canary.jobs['resume-standard'].with.source_run_id, '424242');
+  assert.equal(canary.jobs['append-full'].with.source_run_id, '424242');
+  assert.equal(canary.jobs['resume-standard'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
+  assert.equal(canary.jobs['append-full'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
   for (const job of Object.values(canary.jobs) as Array<Record<string, any>>) {
-    assert.notEqual(job.permissions?.contents, 'write');
+    const permissions = job.permissions ?? canary.permissions;
+    assert.equal(permissions.contents, 'read');
+    assert.notEqual(permissions['id-token'], 'write');
   }
-  assert.doesNotMatch(readWorkflow('release-bundle-canary.yml'), /gh release|release upload|contents: write/);
+  assert.doesNotMatch(readWorkflow('release-bundle-canary.yml'), /secrets:\s+inherit/);
+  for (const name of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const workflow = parseWorkflow(name);
+    assert.equal(workflow.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
+  }
+  for (const name of [
+    '_build-reusable.yml',
+    'full-first-install-release.yml',
+    'opl-first-run-vm.yml',
+    'opl-updater-upgrade-vm.yml',
+  ]) {
+    const workflow = parseWorkflow(name);
+    assert.equal(workflow.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
+    assert.match(readWorkflow(name), new RegExp(minimumCompatibleFrameworkAbiRef));
+  }
 });
 
-test('the canary runs for every main/PR change and proves Bundle reusable startup permissions', () => {
-  const canary = readWorkflow('release-bundle-canary.yml');
-  assert.doesNotMatch(canary, /^\s+paths:/m);
-
-  const bundle = parseWorkflow('_release-bundle.yml');
-  const reusableEdges: Record<string, string> = {
-    'standard-build': '_build-reusable.yml',
-    'standard-qualification': 'opl-first-run-vm.yml',
-    'updater-upgrade-qualification': 'opl-updater-upgrade-vm.yml',
-    'homebrew-standard-vm': 'opl-first-run-vm.yml',
-    'full-build': 'full-first-install-release.yml',
-    'full-qualification': 'opl-first-run-vm.yml',
-    'homebrew-full-vm': 'opl-first-run-vm.yml',
-  };
-
-  for (const [jobId, workflowName] of Object.entries(reusableEdges)) {
-    const caller = bundle.jobs[jobId] as Record<string, any>;
-    assert.equal(caller.uses, `./.github/workflows/${workflowName}`, `${jobId} reusable workflow`);
-    const callerPermissions = caller.permissions ?? bundle.permissions;
-    assert.deepEqual(callerPermissions, { contents: 'read', actions: 'read' }, `${jobId} caller permissions`);
-
-    const reusable = parseWorkflow(workflowName) as Record<string, any>;
-    assert.ok(reusable.on.workflow_call, `${workflowName} must declare workflow_call`);
-    const rootPermissions = reusable.permissions ?? {};
-    for (const [permission, value] of Object.entries(rootPermissions)) {
-      assert.notEqual(value, 'write', `${workflowName} requests ${permission}: write`);
+test('release-bound nested workflows inherit one operation and absolute deadline', () => {
+  for (const name of [
+    '_build-reusable.yml',
+    'full-first-install-release.yml',
+    'opl-first-run-vm.yml',
+    'opl-updater-upgrade-vm.yml',
+  ]) {
+    const workflow = parseWorkflow(name);
+    for (const input of ['operation', 'operation_started_at', 'operation_deadline_at']) {
+      assert.ok(workflow.on.workflow_call.inputs[input], `${name} is missing ${input}`);
     }
-    assert.notEqual(rootPermissions['id-token'], 'write', `${workflowName} requests OIDC write`);
-    for (const [nestedJobId, nestedJob] of Object.entries(reusable.jobs ?? {}) as Array<[string, Record<string, any>]>) {
-      const permissions = nestedJob.permissions ?? rootPermissions;
-      for (const [permission, value] of Object.entries(permissions)) {
-        assert.notEqual(value, 'write', `${workflowName}:${nestedJobId} requests ${permission}: write`);
-      }
-      assert.notEqual(permissions['id-token'], 'write', `${workflowName}:${nestedJobId} requests OIDC write`);
+    const source = readWorkflow(name);
+    assert.match(source, /GITHUB_RUN_ATTEMPT/);
+    assert.match(source, /operation_deadline_at/);
+    assert.match(source, /opl_release_nested_admission_receipt\.v1/);
+  }
+
+  const bundle = readWorkflow('_release-bundle.yml');
+  const standard = readWorkflow('_release-standard-publish.yml');
+  const full = readWorkflow('_release-full-addon.yml');
+  for (const input of ['operation:', 'operation_started_at:', 'operation_deadline_at:']) {
+    assert.match(bundle, new RegExp(input));
+    assert.match(standard, new RegExp(input));
+    assert.match(full, new RegExp(input));
+  }
+  const bundleWorkflow = parseWorkflow('_release-bundle.yml');
+  assert.equal(
+    bundleWorkflow.jobs['standard-build'].with.operation,
+    "${{ inputs.channel == 'stable' && inputs.operation || '' }}",
+  );
+  assert.equal(
+    bundleWorkflow.jobs['standard-qualification'].with.operation,
+    "${{ inputs.channel == 'stable' && inputs.operation || '' }}",
+  );
+});
+
+test('real build and qualification calls recalculate and consume the same remaining operation budget', () => {
+  const build = parseWorkflow('_build-reusable.yml');
+  const buildBudget = build.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Recalculate immutable operation budget before release build',
+  );
+  assert.equal(buildBudget.if, "${{ inputs.operation != '' && startsWith(matrix.platform, 'macos') }}");
+  assert.match(String(buildBudget.run), /release-operation-deadline\.ts check/);
+  assert.match(String(buildBudget.run), /deadlineMs - Date\.now\(\) - evidenceReserveMs/);
+  const macBuild = build.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Build with electron-builder (macOS)',
+  );
+  assert.match(String(macBuild.run), /RELEASE_BUILD_TIMEOUT_MS/);
+  assert.match(String(macBuild.run), /process\.kill\(-child\.pid, signal\)/);
+  assert.match(String(macBuild.run), /operation_deadline_elapsed/);
+
+  const updater = parseWorkflow('opl-updater-upgrade-vm.yml');
+  const updaterBudget = updater.jobs.upgrade.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Recalculate immutable operation budget before updater qualification',
+  );
+  assert.match(String(updaterBudget.run), /release-operation-deadline\.ts check/);
+  assert.match(String(updaterBudget.run), /Math\.min\(1_500_000, remainingMs\)/);
+  const updaterRun = updater.jobs.upgrade.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Run real predecessor-to-candidate updater qualification',
+  );
+  assert.match(String(updaterRun.run), /steps\.updater_budget\.outputs\.timeout_ms/);
+  assert.doesNotMatch(String(updaterRun.run), /--timeout-ms 1500000/);
+
+  const vm = parseWorkflow('opl-first-run-vm.yml');
+  const vmBudget = vm.jobs['clean-vm-first-run'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Recalculate immutable operation budget before expensive smoke',
+  );
+  assert.equal(vmBudget.if, "${{ inputs.operation != '' }}");
+  assert.match(String(vmBudget.run), /release-operation-deadline\.ts check/);
+  const vmRun = vm.jobs['clean-vm-first-run'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Run clean VM first launch smoke',
+  );
+  assert.match(String(vmRun.run), /steps\.operation_smoke_budget\.outputs\.run_timeout_ms/);
+});
+
+test('deadline failures never authorize Framework reconcile without persisted unknown state', () => {
+  const standard = readWorkflow('_release-standard-publish.yml');
+  const full = readWorkflow('_release-full-addon.yml');
+  assert.match(standard, /bounded_read_only_inspect_only_no_framework_reconcile/);
+  assert.match(standard, /framework_reconcile_authorized:false/);
+  assert.match(full, /framework_reconcile_authorized=false/);
+  assert.match(full, /--argjson framework_reconcile_authorized "\$framework_reconcile_authorized"/);
+  assert.match(standard, /push_count:0/);
+  assert.match(standard, /bounded_read_only_latest_readback_only_no_second_patch_no_framework_reconcile/);
+  assert.match(standard, /--latest-admission standard-latest-admission\.json/);
+});
+
+test('append_full cannot mutate Homebrew or any Standard publication surface', () => {
+  const full = parseWorkflow('_release-full-addon.yml');
+  const source = readWorkflow('_release-full-addon.yml');
+  for (const retiredJob of ['publish-homebrew-full', 'homebrew-full-vm', 'homebrew-full-readback']) {
+    assert.equal(full.jobs[retiredJob], undefined, retiredJob);
+  }
+  assert.doesNotMatch(
+    source,
+    /publish-homebrew-full|homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/,
+  );
+  assert.doesNotMatch(source, /github-activate-latest|opl-updater-upgrade-vm\.yml|latest-arm64-mac\.yml/);
+  for (const immutableSurface of [
+    'standard_assets_modified:false',
+    'prepared_notes_modified:false',
+    'standard_updater_metadata_modified:false',
+    'homebrew_modified:false',
+    'latest_modified:false',
+  ]) {
+    assert.match(source, new RegExp(immutableSurface));
+  }
+});
+
+test('Standard Homebrew uses inspect-before-write CAS and one bounded non-force push', () => {
+  const workflow = parseWorkflow('_release-standard-publish.yml');
+  const source = String(
+    workflow.jobs['publish-homebrew-standard'].steps.find(
+      (step: Record<string, unknown>) => step.name === 'Publish one digest-bound Standard cask commit',
+    )?.run ?? '',
+  );
+  assert.ok(source.indexOf('preplan_remote_commit="$(inspect_remote_head)"') < source.indexOf('--remote-write-mode inspect_only'));
+  assert.ok(source.indexOf('--remote-write-mode inspect_only') < source.indexOf('--remote-write-mode direct_commit'));
+  assert.match(source, /case "\$cas_decision" in[\s\S]*idempotent\)[\s\S]*write_homebrew_success idempotent "\$base_commit" 0[\s\S]*exit 0/);
+  assert.ok(source.indexOf('write_homebrew_success idempotent "$base_commit" 0') < source.indexOf('git -C tap-source commit '));
+  assert.ok(source.indexOf('write_homebrew_success idempotent "$base_commit" 0') < source.indexOf('git -C tap-source push --no-force'));
+  assert.match(source, /version_conflict\)[\s\S]*new_release_revision_required[\s\S]*exit 1/);
+  assert.match(source, /--expected-current-cask-sha256 "\$current_cask_sha"/);
+  assert.equal((source.match(/git -C tap-source commit /g) ?? []).length, 1);
+  assert.equal((source.match(/git -C tap-source push --no-force/g) ?? []).length, 1);
+  assert.match(source, /push_count=\$\(\(push_count \+ 1\)\)[\s\S]*test "\$push_count" -eq 1/);
+  assert.doesNotMatch(source, /for attempt in 1 2 3|three read-only reconciliations/);
+  assert.match(source, /write_framework_homebrew_receipt unknown/);
+  assert.match(source, /opl release publish[\s\S]*homebrew-unknown-persisted\.json/);
+  assert.match(source, /opl release checkpoint export[\s\S]*homebrew-unknown-checkpoint/);
+  assert.match(source, /opl release status[\s\S]*active_unknown_markers/);
+  assert.match(source, /write_framework_homebrew_receipt complete[\s\S]*opl release reconcile/);
+  assert.match(source, /--prior-attempt-id/);
+  assert.match(source, /--publication-scope external_target/);
+  assert.match(source, /push_exit_status/);
+  assert.match(source, /release-failure-evidence\/stdout\.txt/);
+  assert.match(source, /release-failure-evidence\/stderr\.txt/);
+});
+
+test('new Bundle callers do not activate legacy broker or Stable-session admission', () => {
+  for (const name of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const workflow = parseWorkflow(name);
+    for (const job of Object.values(workflow.jobs) as Array<Record<string, any>>) {
+      if (!job.uses || !String(job.uses).startsWith('./.github/workflows/')) continue;
+      assert.equal(job.with?.stable_session_id, undefined, `${name} must not pass legacy stable_session_id`);
+      assert.equal(job.with?.release_mutation, undefined, `${name} must not pass legacy release_mutation`);
+      assert.equal(job.with?.release_session_lease_base64, undefined, `${name} must not pass a broker lease`);
     }
+  }
+  for (const name of ['_build-reusable.yml', 'full-first-install-release.yml', 'opl-first-run-vm.yml']) {
+    const workflow = parseWorkflow(name);
+    const inputs = workflow.on.workflow_call.inputs;
+    for (const legacyInput of [
+      'stable_session_id',
+      'release_session_lease_base64',
+      'release_attempt_id',
+      'pre_api_admission_receipt_base64',
+      'release_mutation',
+      'broker_admission_validation_sha256',
+    ]) {
+      assert.equal(inputs[legacyInput], undefined, `${name} must not declare legacy ${legacyInput}`);
+    }
+    assert.doesNotMatch(readWorkflow(name), /verify-release-(?:broker-acceptance|session-lease)\.ts/);
   }
 });
 
@@ -392,10 +706,7 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     for (const packageId of packageIds) {
       assert.match(request.packages[packageId].manifest_sha256, /^sha256:[0-9a-f]{64}$/);
       assert.match(request.packages[packageId].payload_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
-      assert.equal(
-        request.packages[packageId].manifest_ref,
-        `contracts/opl-framework/packages/${packageId}.json`,
-      );
+      assert.equal(request.packages[packageId].manifest_ref, `contracts/opl-framework/packages/${packageId}.json`);
       assert.match(
         request.packages[packageId].payload_manifest_ref,
         new RegExp(`^contracts/opl-framework/packages/payloads/${packageId}-`),

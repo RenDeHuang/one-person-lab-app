@@ -291,48 +291,29 @@ function typedControllerAction(
   qualification: { taxonomy: QualificationFailureTaxonomy; classification: string },
 ) {
   const profile = env('PACKAGE_PROFILE') || 'unknown';
-  const artifactKind = profile === 'full' ? 'full' : 'standard';
-  const reconcileRequired = new Set<FailureType>([
-    'release_asset_missing',
-    'opl_command_output_buffer_exhausted',
-    'vm_harness_preflight_failed',
-  ]);
   const newCohortRequired =
     qualification.taxonomy === 'product' ||
     qualification.classification === 'verification_harness_contract_drift';
-  const action = failureType === 'none'
-    ? 'none'
-    : newCohortRequired
-      ? 'new_cohort_required'
-      : reconcileRequired.has(failureType)
-        ? 'reconcile_stable_session'
-        : 'retry_qualification_same_artifact';
-  const controllerSubcommand = action === 'retry_qualification_same_artifact'
-    ? 'retry-qualification'
-    : action === 'reconcile_stable_session' || action === 'new_cohort_required'
-      ? 'reconcile'
-      : null;
-  const artifactArg = controllerSubcommand === 'retry-qualification'
-    ? ` --artifact-kind ${artifactKind}`
-    : '';
+  const action = failureType === 'none' ? 'none' : 'inspect_framework_checkpoint';
   return {
     action,
-    scope: action === 'new_cohort_required'
-      ? 'new_immutable_cohort_after_reconcile'
-      : 'vm_qualification_only_same_cohort',
-    controller: action === 'none' ? null : 'release:stable',
-    controller_subcommand: controllerSubcommand,
-    state_ref: action === 'none' ? null : 'original_stable_release_session',
-    command_template: controllerSubcommand
-      ? `npm run release:stable -- ${controllerSubcommand} --state <original-release-session.json>${artifactArg}`
-      : '',
-    execution_mode: 'dry_run',
+    scope: action === 'none' ? 'none' : 'framework_checkpoint_read_only',
+    controller: action === 'none' ? null : 'framework_opl_release',
+    controller_subcommand: action === 'none' ? null : 'status',
+    state_ref: action === 'none' ? null : 'framework_portable_checkpoint',
+    command_template: action === 'none'
+      ? ''
+      : 'opl release status --bundle <sha256:bundle> --store <bundle-store> --json',
+    execution_mode: 'read_only',
     execute_flag_included: false,
     mutation_authorized: false,
     direct_workflow_dispatch_allowed: false,
-    rebuilds_standard_or_full_artifact: action === 'new_cohort_required',
+    rebuilds_standard_or_full_artifact: false,
+    post_inspection_disposition: newCohortRequired
+      ? 'freeze_new_bundle_if_framework_status_is_conclusive'
+      : 'follow_framework_status_without_retry_or_redispatch',
     uses_existing_release_artifact: Boolean(
-      action !== 'new_cohort_required' &&
+      !newCohortRequired &&
       (env('RELEASE_ARTIFACT_NAME') || env('RELEASE_DMG_URL_CONFIGURED') === 'true' || env('RELEASE_TAG'))
     ),
   };

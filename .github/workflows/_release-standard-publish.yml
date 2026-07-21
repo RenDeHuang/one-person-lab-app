@@ -1,0 +1,1546 @@
+name: OPL Standard Bundle Publish
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: execute or canary
+        required: false
+        default: execute
+        type: string
+      operation:
+        description: standard or resume_standard
+        required: false
+        default: standard
+        type: string
+      source_run_id:
+        description: Exact run containing the Standard checkpoint source
+        required: true
+        type: string
+      source_artifact:
+        description: Exact portable Framework checkpoint artifact
+        required: true
+        type: string
+      source_format:
+        description: Must be checkpoint_v1; legacy bound artifacts are read-only history
+        required: false
+        default: checkpoint_v1
+        type: string
+      framework_executor_ref:
+        description: Optional exact Framework SHA expectation; the checkpoint Bundle selects the executor checkout
+        required: false
+        default: ''
+        type: string
+      operation_started_at:
+        description: Stable operation start; empty for Nightly
+        required: false
+        default: ''
+        type: string
+      operation_deadline_at:
+        description: Stable operation mutation deadline; empty for Nightly
+        required: false
+        default: ''
+        type: string
+    outputs:
+      checkpoint_transport_executor:
+        description: Executor that transported the checkpoint into this run
+        value: ${{ jobs.restore.outputs.checkpoint_transport_executor }}
+      transport_run_id:
+        description: Run that transported the checkpoint into this run
+        value: ${{ jobs.restore.outputs.transport_run_id }}
+      completed_stage:
+        description: Highest completed Framework checkpoint stage
+        value: ${{ jobs.restore.outputs.completed_stage }}
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
+
+jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove reusable Standard publish topology starts
+        run: |
+          test '${{ inputs.operation }}' = resume_standard
+          test '${{ inputs.source_run_id }}' = 424242
+          test '${{ inputs.source_artifact }}' = opl-release-canary-checkpoint-424242
+          test '${{ inputs.source_format }}' = checkpoint_v1
+          test '${{ inputs.framework_executor_ref }}' = "$OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF"
+          checkpoint_transport_executor=github_actions
+          transport_run_id=424242
+          test "$checkpoint_transport_executor/$transport_run_id" = github_actions/424242
+
+  admission:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Admit one-shot Standard publish operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n '${{ inputs.framework_executor_ref }}' ]; then
+            [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::Optional Framework expectation must be an exact lowercase SHA."
+              exit 1
+            }
+          fi
+          test '${{ inputs.source_format }}' = checkpoint_v1
+          mkdir -p release-failure-evidence
+          status=passed
+          reason=admitted
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
+          if [ -n '${{ inputs.operation_started_at }}' ] || [ -n '${{ inputs.operation_deadline_at }}' ]; then
+            node <<'NODE' || { status=failed; reason=deadline_invalid; }
+          const started = Date.parse('${{ inputs.operation_started_at }}');
+          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          if (!Number.isFinite(started) || !Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+          fi
+          jq -n --arg status "$status" --arg reason "$reason" \
+            --arg operation '${{ inputs.operation }}' --arg run_id "$GITHUB_RUN_ID" \
+            '{schema:"opl_release_operation_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,run_id:$run_id,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
+            > release-failure-evidence/operation-admission.json
+          test "$status" = passed
+      - name: Upload Standard admission evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-admission-${{ github.run_id }}
+          path: release-failure-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  restore:
+    if: ${{ inputs.mode == 'execute' && needs.admission.result == 'success' }}
+    needs: [admission]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      source_run_id: ${{ steps.identity.outputs.source_run_id }}
+      source_artifact: ${{ steps.identity.outputs.source_artifact }}
+      channel: ${{ steps.identity.outputs.channel }}
+      version: ${{ steps.identity.outputs.version }}
+      updater_version: ${{ steps.identity.outputs.updater_version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
+      app_ref: ${{ steps.identity.outputs.app_ref }}
+      shell_ref: ${{ steps.identity.outputs.shell_ref }}
+      framework_source_ref: ${{ steps.identity.outputs.framework_source_ref }}
+      previous_latest_tag: ${{ steps.identity.outputs.previous_latest_tag }}
+      previous_latest_display_version: ${{ steps.identity.outputs.previous_latest_display_version }}
+      previous_latest_updater_version: ${{ steps.identity.outputs.previous_latest_updater_version }}
+      previous_latest_dmg_url: ${{ steps.identity.outputs.previous_latest_dmg_url }}
+      previous_latest_dmg_sha256: ${{ steps.identity.outputs.previous_latest_dmg_sha256 }}
+      previous_latest_dmg_size: ${{ steps.identity.outputs.previous_latest_dmg_size }}
+      highest_public_stable_tag: ${{ steps.identity.outputs.highest_public_stable_tag }}
+      highest_public_stable_display_version: ${{ steps.identity.outputs.highest_public_stable_display_version }}
+      highest_public_stable_updater_version: ${{ steps.identity.outputs.highest_public_stable_updater_version }}
+      highest_public_stable_dmg_url: ${{ steps.identity.outputs.highest_public_stable_dmg_url }}
+      highest_public_stable_dmg_sha256: ${{ steps.identity.outputs.highest_public_stable_dmg_sha256 }}
+      completed_stage: ${{ steps.identity.outputs.completed_stage }}
+      checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
+      transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
+      operation_id: ${{ steps.operation.outputs.operation_id }}
+      operation_started_at: ${{ steps.operation.outputs.operation_started_at }}
+      operation_deadline_at: ${{ steps.operation.outputs.operation_deadline_at }}
+    steps:
+      - name: Recheck one-shot deadline before checkpoint transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          if [ -n '${{ inputs.operation_deadline_at }}' ]; then
+            node <<'NODE'
+          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+          fi
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+
+      - name: Download checkpoint identity bootstrap
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.source_artifact }}
+          path: checkpoint-identity-bootstrap
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Resolve Bundle-bound Framework identity
+        id: framework-binding
+        env:
+          EXPECTED_FRAMEWORK_REF: ${{ inputs.framework_executor_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t checkpoints < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
+          [ "${#checkpoints[@]}" -eq 1 ] || {
+            echo "::error::Portable checkpoint artifact must contain exactly one checkpoint.json."
+            exit 1
+          }
+          bundle="$(dirname "${checkpoints[0]}")/bundle.json"
+          test -f "$bundle" || { echo "::error::Portable checkpoint contains no bundle.json."; exit 1; }
+          framework_source_ref="$(jq -er '.sources.framework.source_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$bundle")"
+          if [ -n "$EXPECTED_FRAMEWORK_REF" ]; then
+            [ "$EXPECTED_FRAMEWORK_REF" = "$framework_source_ref" ] || {
+              echo "::error::Checkpoint Framework source differs from the optional caller expectation."
+              exit 1
+            }
+          fi
+          echo "framework_source_ref=$framework_source_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Restore portable checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ steps.framework-binding.outputs.framework_source_ref }}
+          source-run-id: ${{ inputs.source_run_id }}
+          source-artifact: ${{ inputs.source_artifact }}
+          github-token: ${{ github.token }}
+          allow-reconcile-required: 'true'
+
+      - name: Require an immutable, non-rejected checkpoint import
+        env:
+          CHECKPOINT_IMPORT: ${{ steps.checkpoint.outputs.checkpoint_import_json }}
+          BUNDLE_DIGEST: ${{ steps.checkpoint.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CHECKPOINT_IMPORT"
+          test "$(jq -r .rebuild_performed <<<"$CHECKPOINT_IMPORT")" = false
+          test "$(jq -r .publish_state_imported <<<"$CHECKPOINT_IMPORT")" = false
+          test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
+          test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
+
+      - name: Reconcile imported outcome and reuse immutable Standard control
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ steps.checkpoint.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          release_operation='${{ inputs.operation }}'
+          case "$release_operation" in standard|resume_standard) ;; *) exit 1 ;; esac
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-before.json
+          operation_id="$(jq -er '.release_bundle_status.operation_controls.standard.operation_id | strings | select(length > 0)' operation-status-before.json)"
+          operation_started_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_started_at | strings | select(length > 0)' operation-status-before.json)"
+          operation_deadline_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_deadline_at | strings | select(length > 0)' operation-status-before.json)"
+          operation_args=(
+            --operation "$release_operation"
+            --operation-id "$operation_id"
+            --operation-started-at "$operation_started_at"
+            --operation-deadline-at "$operation_deadline_at"
+          )
+          marker_count="$(jq -er '.release_bundle_status.active_unknown_markers | length' operation-status-before.json)"
+          if [ "$marker_count" -gt 0 ]; then
+            test "$marker_count" -eq 1
+            marker="$(jq -cer '.release_bundle_status.active_unknown_markers[0]' operation-status-before.json)"
+            test "$(jq -r .operation_kind <<<"$marker")" = standard
+            test "$(jq -r .track <<<"$marker")" = standard
+            test "$(jq -r .stage_operation <<<"$marker")" = publish
+            target="$(jq -er .remote_target <<<"$marker")"
+            prior_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
+            publication_scope="$(jq -er .publication_scope <<<"$marker")"
+            reconcile_attempt="gha-${GITHUB_RUN_ID}-standard-resume-reconcile"
+            outcome=unknown
+            case "$target" in
+              github-release:*)
+                repo="$(jq -er .sources.app.repo "$bundle")"
+                tag="$(jq -er .release.tag "$bundle")"
+                test "$target" = "github-release:${repo}@${tag}"
+                if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+                  --repo "$repo" --tag "$tag" --output resume-observation.json; then
+                  node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                    --operation remote_inspect --executor remote --attempt-id "$reconcile_attempt" \
+                    --release-operation "$release_operation" --operation-id "$operation_id" \
+                    --remote-target "$target" --prior-attempt-id "$prior_attempt" \
+                    --publication-scope "$publication_scope" \
+                    --bundle "$bundle" --track standard --outcome complete \
+                    --inspection resume-observation.json --output resume-reconcile.receipt.json
+                  outcome=complete
+                fi
+                ;;
+              github-latest:*)
+                repo="$(jq -er .sources.app.repo "$bundle")"
+                tag="$(jq -er .release.tag "$bundle")"
+                test "$target" = "github-latest:${repo}@${tag}"
+                if observed_tag="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+                  gh api "repos/${repo}/releases/latest" --jq .tag_name)" && [ "$observed_tag" = "$tag" ]; then
+                  outcome=complete
+                fi
+                ;;
+              homebrew:*)
+                expected_cask_sha="${target##*/}"
+                test "$target" = "homebrew:gaofeng21cn/homebrew-one-person-lab/Casks/one-person-lab.rb/${expected_cask_sha}"
+                [[ "$expected_cask_sha" =~ ^sha256:[0-9a-f]{64}$ ]]
+                if timeout --foreground --signal=TERM --kill-after=5s 30s \
+                  gh api 'repos/gaofeng21cn/homebrew-one-person-lab/contents/Casks/one-person-lab.rb?ref=main' \
+                  > homebrew-resume-observation.json; then
+                  jq -er .content homebrew-resume-observation.json | tr -d '\n' | base64 --decode > observed-cask.rb
+                  observed_cask_sha="$(shasum -a 256 observed-cask.rb | awk '{print "sha256:"$1}')"
+                  if [ "$observed_cask_sha" = "$expected_cask_sha" ]; then outcome=complete; fi
+                fi
+                ;;
+              *)
+                echo "::error::Unsupported portable unknown target: $target"
+                exit 1
+                ;;
+            esac
+            if [ ! -s resume-reconcile.receipt.json ]; then
+              node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                --operation remote_inspect --executor remote --attempt-id "$reconcile_attempt" \
+                --release-operation "$release_operation" --operation-id "$operation_id" \
+                --remote-target "$target" --prior-attempt-id "$prior_attempt" \
+                --publication-scope "$publication_scope" \
+                --bundle "$bundle" --track standard --outcome "$outcome" \
+                --output resume-reconcile.receipt.json
+            fi
+            framework-executor/bin/opl release reconcile \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt resume-reconcile.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > resume-reconcile-result.json
+          fi
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-after-reconcile.json
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output standard-operation-checkpoint \
+            --store "$store" --json > operation-checkpoint-export.json
+          test "$(jq -r '.release_bundle_status.active_unknown_markers | length' operation-status-after-reconcile.json)" -eq 0 || {
+            echo "::error::Exact read-only reconcile did not resolve the imported outcome; no mutation is authorized."
+            exit 1
+          }
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > operation-admit-result.json
+          test "$(jq -r .release_bundle_operation_admit.operation_control.operation_id operation-admit-result.json)" = "$operation_id"
+          original_standard_receipt="$(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print -quit)"
+          test -n "$original_standard_receipt"
+          cp "$original_standard_receipt" standard-build-receipt.json
+          {
+            echo "source_run_id=$GITHUB_RUN_ID"
+            echo "source_artifact=opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
+            echo "operation_id=$operation_id"
+            echo "operation_started_at=$operation_started_at"
+            echo "operation_deadline_at=$operation_deadline_at"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload reconciled operation checkpoint
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-operation-checkpoint-${{ github.run_id }}
+          path: |
+            standard-operation-checkpoint
+            standard-build-receipt.json
+            operation-status-before.json
+            operation-status-after-reconcile.json
+            operation-admit-result.json
+            operation-checkpoint-export.json
+            resume-observation.json
+            resume-reconcile.receipt.json
+            resume-reconcile-result.json
+            homebrew-resume-observation.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Resolve checkpoint and predecessor identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          source_run_id='${{ steps.operation.outputs.source_run_id }}'
+          source_artifact='${{ steps.operation.outputs.source_artifact }}'
+          completed_stage='${{ steps.checkpoint.outputs.completed_stage }}'
+          checkpoint_transport_executor='${{ steps.checkpoint.outputs.checkpoint_transport_executor }}'
+          transport_run_id='${{ steps.checkpoint.outputs.transport_run_id }}'
+          bundle="$checkpoint_dir/bundle.json"
+          test -f "$bundle"
+          case "$completed_stage" in
+            standard_qualified|full_built|full_qualified) ;;
+            *)
+              echo "::error::Standard publish requires a checkpoint at or after standard_qualified, got $completed_stage."
+              exit 1
+              ;;
+          esac
+          test "$(jq -r .bundle_digest "$bundle")" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
+          channel="$(jq -r .release.channel "$bundle")"
+          version="$(jq -r .release.version "$bundle")"
+          updater_version="$(jq -r .release.updater_version "$bundle")"
+          previous_latest_tag=''
+          previous_latest_display_version=''
+          previous_latest_updater_version=''
+          previous_latest_dmg_url=''
+          previous_latest_dmg_sha256=''
+          previous_latest_dmg_size=''
+          highest_public_stable_tag=''
+          highest_public_stable_display_version=''
+          highest_public_stable_updater_version=''
+          highest_public_stable_dmg_url=''
+          highest_public_stable_dmg_sha256=''
+          if [ "$channel" = stable ]; then
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > public-releases.json
+            git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" 'refs/tags/v*' > public-tags.txt
+            if [ '${{ inputs.operation }}' = standard ]; then
+              BASE_VERSION="${version%-r*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { resolveStableReleaseVersion } from './app-source/scripts/release-version.ts';
+          const pages = JSON.parse(fs.readFileSync('public-releases.json', 'utf8'));
+          const refs = [...(Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [])];
+          refs.push(...fs.readFileSync('public-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean));
+          const resolved = resolveStableReleaseVersion(process.env.BASE_VERSION, refs);
+          if (resolved.version !== process.env.VERSION) {
+            throw new Error(`Stable version collision: expected next immutable revision ${resolved.version}, got ${process.env.VERSION}.`);
+          }
+          NODE
+            fi
+            highest_public_stable_tag="$(node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { highestPublishedStableRelease } from './app-source/scripts/stable-release-version-order.ts';
+          const pages = JSON.parse(fs.readFileSync('public-releases.json', 'utf8'));
+          process.stdout.write(highestPublishedStableRelease(Array.isArray(pages) ? pages.flat() : []).tagName);
+          NODE
+            )"
+            highest_release_json="$(jq -cer --arg tag "$highest_public_stable_tag" '[.[][] | select(.tag_name == $tag)] | first' public-releases.json)"
+            highest_public_stable_display_version="${highest_public_stable_tag#v}"
+            highest_json="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel stable --version "$highest_public_stable_display_version" --json)"
+            highest_public_stable_updater_version="$(jq -er .updater_version <<<"$highest_json")"
+            highest_dmg_name="One-Person-Lab-${highest_public_stable_display_version}-mac-arm64.dmg"
+            highest_public_stable_dmg_url="$(jq -er --arg name "$highest_dmg_name" '.assets[] | select(.name == $name) | .browser_download_url' <<<"$highest_release_json")"
+            highest_digest="$(jq -er --arg name "$highest_dmg_name" '.assets[] | select(.name == $name) | .digest' <<<"$highest_release_json")"
+            [[ "$highest_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            highest_public_stable_dmg_sha256="${highest_digest#sha256:}"
+            gh api "repos/$GITHUB_REPOSITORY/releases/latest" > previous-latest.json
+            previous_latest_tag="$(jq -er .tag_name previous-latest.json)"
+            previous_latest_display_version="${previous_latest_tag#v}"
+            previous_json="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel stable --version "$previous_latest_display_version" --json)"
+            previous_latest_updater_version="$(jq -er .updater_version <<<"$previous_json")"
+            dmg_name="One-Person-Lab-${previous_latest_display_version}-mac-arm64.dmg"
+            previous_latest_dmg_url="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .browser_download_url' previous-latest.json)"
+            digest="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .digest' previous-latest.json)"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            previous_latest_dmg_sha256="${digest#sha256:}"
+            previous_latest_dmg_size="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .size' previous-latest.json)"
+          fi
+          {
+            echo "source_run_id=$source_run_id"
+            echo "source_artifact=$source_artifact"
+            echo "channel=$channel"
+            echo "version=$version"
+            echo "updater_version=$updater_version"
+            echo "tag=$(jq -r .release.tag "$bundle")"
+            echo "bundle_digest=$(jq -r .bundle_digest "$bundle")"
+            echo "app_ref=$(jq -r .sources.app.source_commit "$bundle")"
+            echo "shell_ref=$(jq -r .sources.shell.source_commit "$bundle")"
+            echo "framework_source_ref=$(jq -r .sources.framework.source_commit "$bundle")"
+            echo "previous_latest_tag=$previous_latest_tag"
+            echo "previous_latest_display_version=$previous_latest_display_version"
+            echo "previous_latest_updater_version=$previous_latest_updater_version"
+            echo "previous_latest_dmg_url=$previous_latest_dmg_url"
+            echo "previous_latest_dmg_sha256=$previous_latest_dmg_sha256"
+            echo "previous_latest_dmg_size=$previous_latest_dmg_size"
+            echo "highest_public_stable_tag=$highest_public_stable_tag"
+            echo "highest_public_stable_display_version=$highest_public_stable_display_version"
+            echo "highest_public_stable_updater_version=$highest_public_stable_updater_version"
+            echo "highest_public_stable_dmg_url=$highest_public_stable_dmg_url"
+            echo "highest_public_stable_dmg_sha256=$highest_public_stable_dmg_sha256"
+            echo "completed_stage=$completed_stage"
+            echo "checkpoint_transport_executor=$checkpoint_transport_executor"
+            echo "transport_run_id=$transport_run_id"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Persist typed checkpoint restore failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p checkpoint-restore-failure
+          printf '%s\n' 'checkpoint restore did not complete; see immutable Actions step log' > checkpoint-restore-failure/stdout.txt
+          printf '%s\n' 'restore, digest, ABI, stage, or predecessor identity validation failed' > checkpoint-restore-failure/stderr.txt
+          input_digest="$(printf '%s\0' '${{ inputs.source_run_id }}' '${{ inputs.source_artifact }}' '${{ inputs.framework_executor_ref }}' '${{ inputs.operation }}' '${{ inputs.operation_deadline_at }}' | shasum -a 256 | awk '{print $1}')"
+          jq -n --arg digest "sha256:$input_digest" --arg run '${{ inputs.source_run_id }}' --arg artifact '${{ inputs.source_artifact }}' \
+            '{schema:"opl_release_checkpoint_restore_failure_receipt.v1",status:"failed",input_digest:$digest,source:{run_id:$run,artifact:$artifact},retry_disposition:"correct_checkpoint_or_freeze_new_bundle"}' \
+            > checkpoint-restore-failure/receipt.json
+
+      - name: Upload checkpoint restore failure evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-restore-failure-${{ github.run_id }}
+          path: checkpoint-restore-failure
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-standard-nonlatest:
+    if: ${{ always() && needs.restore.result == 'success' && (needs.restore.outputs.channel == 'nightly' || (needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [restore, updater-upgrade-qualification, updater-upgrade-qualification-highest]
+    steps:
+      - name: Reject partial rerun before Standard GitHub mutation
+        shell: bash
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then
+            mkdir -p release-failure-evidence
+            printf '%s\0' github_standard_publish '${{ needs.restore.outputs.bundle_digest }}' '${{ needs.restore.outputs.operation_deadline_at }}' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+              | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+            touch release-failure-evidence/stdout.txt
+            jq -n --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+              '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",failure_taxonomy:"workflow_rerun",mutation:"github_standard_publish",input_digest:$input_digest,retry_disposition:"inspect_only_no_redispatch"}' \
+              > release-failure-evidence/stderr.txt
+            cat release-failure-evidence/stderr.txt >&2
+            exit 1
+          fi
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Publish only missing Standard bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-failure-evidence
+          exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+              --operation '${{ inputs.operation }}' \
+              --started-at '${{ needs.restore.outputs.operation_started_at }}' \
+              --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
+          fi
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore.outputs.operation_id }}'
+          operation_args=(
+            --operation '${{ inputs.operation }}'
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
+          )
+          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore.outputs.tag }}"
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > publish-operation-admit.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-before.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-before" \
+            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --remote-target "$remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track standard --outcome complete \
+            --inspection remote-before.json --output remote-before.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > publish-plan.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+            --bundle "$bundle" --plan publish-plan.json \
+            --operation '${{ inputs.operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            --output publish-apply.json
+          apply_status="$(jq -er .status publish-apply.json)"
+          if [ "$apply_status" != complete ]; then
+            case "$apply_status" in
+              outcome_unknown)
+                unknown_attempt="$(jq -er '.mutation_attempt_id | strings | select(length > 0)' publish-apply.json)"
+                unknown_target="$(jq -er '.remote_target | strings | select(length > 0)' publish-apply.json)"
+                test "$unknown_target" = "$remote_target"
+                node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                  --operation remote_inspect --executor remote --attempt-id "$unknown_attempt" \
+                  --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                  --remote-target "$unknown_target" --publication-scope track_assets \
+                  --bundle "$bundle" --track standard --outcome unknown --output unknown.receipt.json
+                framework-executor/bin/opl release publish \
+                  --bundle "$BUNDLE_DIGEST" --executor-receipt unknown.receipt.json \
+                  "${operation_args[@]}" \
+                  --store "$store" --json > unknown-persisted.json
+                test "$(jq -r .release_bundle_publish.status unknown-persisted.json)" = reconcile_only
+                framework-executor/bin/opl release checkpoint export \
+                  --bundle "$BUNDLE_DIGEST" --output standard-github-unknown-checkpoint \
+                  --store "$store" --json > unknown-checkpoint-export.json
+                ;;
+              reconcile_only)
+                echo "::error::An ordinary publish plan cannot inherit unresolved state; resume must reconcile it first."
+                exit 1
+                ;;
+              deadline_elapsed)
+                echo "::error::The absolute deadline elapsed before another mutation; reconcile is not authorized without a persisted unknown outcome."
+                exit 1
+                ;;
+              *)
+                echo "::error::Unsupported GitHub mutation result: $apply_status"
+                exit 1
+                ;;
+            esac
+            framework-executor/bin/opl release status \
+              --bundle "$BUNDLE_DIGEST" --store "$store" --json > reconcile-admission-status.json
+            test "$(jq -r .release_bundle_status.tracks.standard.reconcile_required reconcile-admission-status.json)" = true || {
+              echo "::error::Framework did not persist an unknown Standard publish outcome; reconcile is forbidden."
+              exit 1
+            }
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+              --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' \
+              --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' --output reconcile-observation.json
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-reconcile" \
+              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+              --remote-target "$unknown_target" --prior-attempt-id "$unknown_attempt" \
+              --publication-scope track_assets \
+              --bundle "$bundle" --track standard --outcome complete \
+              --inspection reconcile-observation.json --output reconcile.receipt.json
+            framework-executor/bin/opl release reconcile \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt reconcile.receipt.json \
+              "${operation_args[@]}" \
+              --store "$store" --json > reconcile-result.json
+            test "$(jq -r .release_bundle_reconcile.status reconcile-result.json)" = complete || {
+              echo "::error::GitHub mutation remains unknown; no retry was attempted."
+              exit 1
+            }
+          fi
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-after.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-after" \
+            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --remote-target "$remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track standard --outcome complete \
+            --inspection remote-after.json --output remote-after.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote-after.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > standard-published.json
+          test "$(jq -r .release_bundle_publish.status standard-published.json)" = complete
+
+      - name: Persist typed Standard publication failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p release-failure-evidence
+          apply_status="$(jq -r '.status // empty' publish-apply.json 2>/dev/null || true)"
+          framework_reconcile_authorized=false
+          retry_disposition=start_new_admitted_operation_no_framework_reconcile
+          if [ "$apply_status" = deadline_elapsed ]; then
+            retry_disposition=bounded_read_only_inspect_only_no_framework_reconcile
+          elif [ "$apply_status" = outcome_unknown ] || [ "$apply_status" = reconcile_only ]; then
+            if [ "$(jq -r '.release_bundle_status.tracks.standard.reconcile_required // false' reconcile-admission-status.json 2>/dev/null || true)" = true ]; then
+              framework_reconcile_authorized=true
+              retry_disposition=fresh_bounded_read_only_inspect_then_framework_reconcile
+            else
+              retry_disposition=persist_unknown_then_require_fresh_framework_status_no_mutation_retry
+            fi
+          fi
+          jq -n \
+            --arg operation '${{ inputs.operation }}' \
+            --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
+            --arg source_run '${{ needs.restore.outputs.source_run_id }}' \
+            --arg source_artifact '${{ needs.restore.outputs.source_artifact }}' \
+            --arg apply_status "$apply_status" \
+            --arg retry_disposition "$retry_disposition" \
+            --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+            --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_standard_publish",operation:$operation,bundle_digest:$bundle,input_digest:$input_digest,source:{run_id:$source_run,artifact:$source_artifact},adapter_status:($apply_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition}' \
+            > release-failure-evidence/standard-publication-failure.json
+
+      - name: Upload Standard publication receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-published-${{ github.run_id }}
+          path: |
+            publish-plan.json
+            publish-apply.json
+            unknown-persisted.json
+            unknown-checkpoint-export.json
+            standard-github-unknown-checkpoint
+            reconcile-admission-status.json
+            remote-after.json
+            standard-published.json
+            reconcile-observation.json
+            reconcile-result.json
+            release-failure-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  remote-digest-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [restore, publish-standard-nonlatest]
+    steps:
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Read back exact remote Standard digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
+        run: |
+          set -euo pipefail
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore.outputs.operation_id }}'
+          operation_args=(
+            --operation '${{ inputs.operation }}'
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
+          )
+          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore.outputs.tag }}"
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > operation-admit.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" \
+            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --remote-target "$remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track standard --outcome complete \
+            --inspection remote.json --output remote.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > publication.json
+          test "$(jq -r .release_bundle_publish.status publication.json)" = complete
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
+          test "$(jq -r .release_bundle_status.latest_eligible bundle-status.json)" = true
+
+      - name: Upload remote digest proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-remote-verify-${{ github.run_id }}
+          path: |
+            remote.json
+            operation-admit.json
+            publication.json
+            bundle-status.json
+          if-no-files-found: error
+          retention-days: 30
+
+  updater-upgrade-qualification:
+    if: ${{ needs.restore.outputs.channel == 'stable' }}
+    needs: [restore]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-updater-upgrade-vm.yml
+    with:
+      mode: execute
+      candidate_artifact_name: ${{ needs.restore.outputs.source_artifact }}
+      candidate_artifact_run_id: ${{ needs.restore.outputs.source_run_id }}
+      baseline_dmg_url: ${{ needs.restore.outputs.previous_latest_dmg_url }}
+      baseline_dmg_sha256: ${{ needs.restore.outputs.previous_latest_dmg_sha256 }}
+      baseline_display_version: ${{ needs.restore.outputs.previous_latest_display_version }}
+      baseline_updater_version: ${{ needs.restore.outputs.previous_latest_updater_version }}
+      candidate_display_version: ${{ needs.restore.outputs.version }}
+      candidate_updater_version: ${{ needs.restore.outputs.updater_version }}
+      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
+      app_ref: ${{ needs.restore.outputs.app_ref }}
+      shell_ref: ${{ needs.restore.outputs.shell_ref }}
+      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
+      operation: ${{ inputs.operation }}
+      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
+
+  updater-upgrade-qualification-highest:
+    if: ${{ needs.restore.outputs.channel == 'stable' && needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
+    needs: [restore]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-updater-upgrade-vm.yml
+    with:
+      mode: execute
+      candidate_artifact_name: ${{ needs.restore.outputs.source_artifact }}
+      candidate_artifact_run_id: ${{ needs.restore.outputs.source_run_id }}
+      baseline_dmg_url: ${{ needs.restore.outputs.highest_public_stable_dmg_url }}
+      baseline_dmg_sha256: ${{ needs.restore.outputs.highest_public_stable_dmg_sha256 }}
+      baseline_display_version: ${{ needs.restore.outputs.highest_public_stable_display_version }}
+      baseline_updater_version: ${{ needs.restore.outputs.highest_public_stable_updater_version }}
+      candidate_display_version: ${{ needs.restore.outputs.version }}
+      candidate_updater_version: ${{ needs.restore.outputs.updater_version }}
+      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
+      app_ref: ${{ needs.restore.outputs.app_ref }}
+      shell_ref: ${{ needs.restore.outputs.shell_ref }}
+      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
+      operation: ${{ inputs.operation }}
+      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
+
+  publish-homebrew-standard:
+    if: ${{ always() && needs.restore.outputs.channel == 'stable' && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest]
+    steps:
+      - name: Reject partial rerun before Standard Homebrew mutation
+        shell: bash
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then
+            printf '%s\0' homebrew_standard_publish '${{ needs.restore.outputs.bundle_digest }}' '${{ needs.restore.outputs.operation_deadline_at }}' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+              | shasum -a 256 | awk '{print "sha256:"$1}' > homebrew-standard-input-digest.txt
+            jq -n --arg input_digest "$(cat homebrew-standard-input-digest.txt)" \
+              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",failure_taxonomy:"workflow_rerun",input_digest:$input_digest,push_count:0,retry_disposition:"inspect_only_no_second_push"}' \
+              > homebrew-standard-failure.json
+            cat homebrew-standard-failure.json >&2
+            exit 1
+          fi
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Checkout canonical Homebrew tap
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/homebrew-one-person-lab
+          ref: main
+          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          path: tap-source
+          fetch-depth: 0
+
+      - name: Publish one digest-bound Standard cask commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.restore.outputs.version }}
+          UPDATER_VERSION: ${{ needs.restore.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
+          OPERATION_DEADLINE_AT: ${{ needs.restore.outputs.operation_deadline_at }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-failure-evidence
+          exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          assets='${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets'
+          dmg="$assets/One-Person-Lab-${VERSION}-mac-arm64.dmg"
+          test -s "$dmg"
+          dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+          release_base="https://github.com/$GITHUB_REPOSITORY/releases/download/v${VERSION}"
+          base_commit="$(git -C tap-source rev-parse HEAD)"
+          test -z "$(git -C tap-source status --porcelain)"
+          readonly_timeout_seconds=30
+
+          inspect_remote_head() {
+            local remote_output
+            remote_output="$(timeout --foreground --signal=TERM --kill-after=5s "${readonly_timeout_seconds}s" \
+              git -C tap-source ls-remote origin refs/heads/main)" || return 1
+            awk 'NF == 2 && $2 == "refs/heads/main" { print $1 }' <<<"$remote_output"
+          }
+
+          cask_path=tap-source/Casks/one-person-lab.rb
+          preplan_cask_sha=absent
+          if [ -f "$cask_path" ]; then
+            preplan_cask_sha="$(shasum -a 256 "$cask_path" | awk '{print "sha256:"$1}')"
+          fi
+          printf '%s\0' "$BUNDLE_DIGEST" standard "$VERSION" "$UPDATER_VERSION" \
+            "sha256:$dmg_sha" "$preplan_cask_sha" "$base_commit" "$OPERATION_DEADLINE_AT" \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+          preplan_remote_commit="$(inspect_remote_head)" || {
+            jq -n --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+              --arg dmg "sha256:$dmg_sha" --arg cask "$preplan_cask_sha" --arg base_commit "$base_commit" \
+              --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" --arg operation_deadline_at "$OPERATION_DEADLINE_AT" \
+              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,failure_taxonomy:"homebrew_remote_inspect_failed",input_digest:$input_digest,operation_deadline_at:$operation_deadline_at,base_commit:$base_commit,result_commit:null,push_count:0,push_exit_status:null,dmg_sha256:$dmg,cask_sha256:$cask,retry_disposition:"bounded_read_only_inspect_only_no_framework_reconcile",framework_reconcile_authorized:false,evidence:{stdout:"release-failure-evidence/stdout.txt",stderr:"release-failure-evidence/stderr.txt",input_digest:"release-failure-evidence/input-digest.txt"}}' \
+              > homebrew-standard-failure.json
+            exit 1
+          }
+          if [ -z "$preplan_remote_commit" ] || [ "$preplan_remote_commit" != "$base_commit" ]; then
+            jq -n --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+              --arg dmg "sha256:$dmg_sha" --arg cask "$preplan_cask_sha" --arg base_commit "$base_commit" \
+              --arg result_commit "$preplan_remote_commit" --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" --arg operation_deadline_at "$OPERATION_DEADLINE_AT" \
+              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,failure_taxonomy:"homebrew_remote_head_drift",input_digest:$input_digest,operation_deadline_at:$operation_deadline_at,base_commit:$base_commit,result_commit:$result_commit,push_count:0,push_exit_status:null,dmg_sha256:$dmg,cask_sha256:$cask,retry_disposition:"new_operation_required_no_mutation",framework_reconcile_authorized:false,evidence:{stdout:"release-failure-evidence/stdout.txt",stderr:"release-failure-evidence/stderr.txt",input_digest:"release-failure-evidence/input-digest.txt"}}' \
+              > homebrew-standard-failure.json
+            exit 1
+          fi
+
+          # Render and validate expected bytes without touching the tap worktree.
+          node --experimental-strip-types app-source/scripts/update-homebrew-tap.ts \
+            --channel stable --package-kind app_standard \
+            --version "$VERSION" --updater-version "$UPDATER_VERSION" \
+            --tap-root tap-source --cask Casks/one-person-lab.rb \
+            --manifest-url "$release_base/opl-app-component-manifest.json" \
+            --checksum-sha256 "$dmg_sha" \
+            --download-url "$release_base/One-Person-Lab-${VERSION}-mac-arm64.dmg" \
+            --remote-write-mode inspect_only --summary-path homebrew-standard-plan.json > /dev/null
+          test "$(jq -r .schema homebrew-standard-plan.json)" = opl_homebrew_tap_cas_plan.v1
+          cas_decision="$(jq -er .cas.decision homebrew-standard-plan.json)"
+          current_cask_sha="$(jq -er 'if (.targets | length) == 1 then (.targets[0].current_cask_sha256 // "absent") else error("exactly one target required") end' homebrew-standard-plan.json)"
+          expected_cask_sha="$(jq -er 'if (.targets | length) == 1 then .targets[0].expected_cask_sha256 else error("exactly one target required") end' homebrew-standard-plan.json)"
+          test "$current_cask_sha" = "$preplan_cask_sha"
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore.outputs.operation_id }}'
+          operation_args=(
+            --operation '${{ inputs.operation }}'
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
+            --operation-deadline-at "$OPERATION_DEADLINE_AT"
+          )
+          homebrew_remote_target="homebrew:gaofeng21cn/homebrew-one-person-lab/Casks/one-person-lab.rb/${expected_cask_sha}"
+          github_remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore.outputs.tag }}"
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > homebrew-operation-admit.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' \
+            --output homebrew-github-assets.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-homebrew-github-assets" \
+            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --remote-target "$github_remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track standard --outcome complete \
+            --inspection homebrew-github-assets.json --output homebrew-github-assets.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt homebrew-github-assets.receipt.json \
+            "${operation_args[@]}" --store "$store" --json > homebrew-track-assets.json
+          test "$(jq -r .release_bundle_publish.status homebrew-track-assets.json)" = complete
+          printf '%s\0' "$BUNDLE_DIGEST" standard "$VERSION" "$UPDATER_VERSION" \
+            "sha256:$dmg_sha" "$expected_cask_sha" "$base_commit" "$OPERATION_DEADLINE_AT" \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+
+          write_homebrew_failure() {
+            local taxonomy="$1"
+            local retry_disposition="$2"
+            local push_count="$3"
+            local result_commit="${4:-}"
+            local push_exit_status="${5:-}"
+            local framework_reconcile_authorized="${6:-false}"
+            local resume_source_artifact="${7:-}"
+            jq -n \
+              --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+              --arg dmg "sha256:$dmg_sha" --arg cask "$expected_cask_sha" \
+              --arg base_commit "$base_commit" --arg result_commit "$result_commit" \
+              --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+              --arg operation_deadline_at "$OPERATION_DEADLINE_AT" \
+              --arg failure_taxonomy "$taxonomy" --arg retry_disposition "$retry_disposition" \
+              --arg push_exit_status "$push_exit_status" --argjson push_count "$push_count" \
+              --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+              --arg resume_source_artifact "$resume_source_artifact" \
+              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,failure_taxonomy:$failure_taxonomy,input_digest:$input_digest,operation_deadline_at:$operation_deadline_at,base_commit:$base_commit,result_commit:(if $result_commit == "" then null else $result_commit end),push_count:$push_count,push_exit_status:(if $push_exit_status == "" then null else ($push_exit_status|tonumber) end),dmg_sha256:$dmg,cask_sha256:$cask,retry_disposition:$retry_disposition,framework_reconcile_authorized:$framework_reconcile_authorized,resume_source_artifact:(if $resume_source_artifact == "" then null else $resume_source_artifact end),evidence:{stdout:"release-failure-evidence/stdout.txt",stderr:"release-failure-evidence/stderr.txt",input_digest:"release-failure-evidence/input-digest.txt"}}' \
+              > homebrew-standard-failure.json
+          }
+
+          write_homebrew_success() {
+            local outcome="$1"
+            local result_commit="$2"
+            local push_count="$3"
+            jq -n \
+              --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+              --arg base_commit "$base_commit" --arg result_commit "$result_commit" \
+              --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+              --arg cask "$expected_cask_sha" --arg dmg "sha256:$dmg_sha" --arg base "$release_base" \
+              --arg outcome "$outcome" --argjson push_count "$push_count" \
+              '{schema:"opl_bundle_homebrew_publication_receipt.v1",status:"passed",track:"standard",outcome:$outcome,bundle_digest:$bundle,release_version:$release,updater_version:$updater,tap_repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$base_commit,result_commit:$result_commit,tap_commit:$result_commit,push_count:$push_count,input_digest:$input_digest,cask:{path:"Casks/one-person-lab.rb",sha256:$cask},artifact:{name:("One-Person-Lab-"+$release+"-mac-arm64.dmg"),sha256:$dmg,url:($base+"/One-Person-Lab-"+$release+"-mac-arm64.dmg")},component_manifest_url:($base+"/opl-app-component-manifest.json")}' \
+              > homebrew-standard-publication-receipt.json
+          }
+
+          write_framework_homebrew_receipt() {
+            local outcome="$1"
+            local attempt_id="$2"
+            local prior_attempt_id="$3"
+            local receipt_args=(
+              --operation remote_inspect --executor remote --attempt-id "$attempt_id"
+              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id"
+              --remote-target "$homebrew_remote_target" --publication-scope external_target
+              --bundle "$bundle" --track standard --outcome "$outcome"
+              --output homebrew-framework.receipt.json
+            )
+            if [ -n "$prior_attempt_id" ]; then
+              receipt_args+=(--prior-attempt-id "$prior_attempt_id")
+            fi
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              "${receipt_args[@]}"
+          }
+
+          remote_commit="$(inspect_remote_head)" || {
+            write_homebrew_failure homebrew_remote_inspect_failed bounded_read_only_inspect_only_no_framework_reconcile 0
+            exit 1
+          }
+          if [ -z "$remote_commit" ] || [ "$remote_commit" != "$base_commit" ]; then
+            write_homebrew_failure homebrew_remote_head_drift new_operation_required_no_mutation 0 "$remote_commit"
+            echo "::error::Homebrew remote HEAD drifted before mutation; no Cask bytes were written."
+            exit 1
+          fi
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation '${{ inputs.operation }}' \
+            --started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --deadline-at "$OPERATION_DEADLINE_AT" || {
+              write_homebrew_failure homebrew_push_deadline_elapsed bounded_read_only_inspect_only_no_framework_reconcile 0 "$base_commit"
+              exit 78
+            }
+
+          case "$cas_decision" in
+            idempotent)
+              test "$current_cask_sha" = "$expected_cask_sha"
+              test -z "$(git -C tap-source status --porcelain)"
+              write_framework_homebrew_receipt complete "gha-${GITHUB_RUN_ID}-homebrew-idempotent" ''
+              framework-executor/bin/opl release publish \
+                --bundle "$BUNDLE_DIGEST" --executor-receipt homebrew-framework.receipt.json \
+                "${operation_args[@]}" --store "$store" --json > homebrew-framework-result.json
+              test "$(jq -r .release_bundle_publish.status homebrew-framework-result.json)" = complete
+              write_homebrew_success idempotent "$base_commit" 0
+              exit 0
+              ;;
+            version_conflict)
+              write_homebrew_failure homebrew_candidate_version_conflict new_release_revision_required 0 "$base_commit"
+              echo "::error::The candidate version already exists with different Cask or DMG bytes; freeze a new revision."
+              exit 1
+              ;;
+            write_once) ;;
+            *)
+              write_homebrew_failure homebrew_invalid_cas_plan fail_closed 0 "$base_commit"
+              exit 1
+              ;;
+          esac
+
+          test -n "$TAP_TOKEN" || {
+            write_homebrew_failure homebrew_token_missing fail_closed_no_mutation 0 "$base_commit"
+            exit 1
+          }
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation '${{ inputs.operation }}' \
+            --started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --deadline-at "$OPERATION_DEADLINE_AT" || {
+              write_homebrew_failure homebrew_push_deadline_elapsed bounded_read_only_inspect_only_no_framework_reconcile 0 "$base_commit"
+              exit 78
+            }
+          remote_commit="$(inspect_remote_head)" || {
+            write_homebrew_failure homebrew_remote_inspect_failed bounded_read_only_inspect_only_no_framework_reconcile 0
+            exit 1
+          }
+          if [ "$remote_commit" != "$base_commit" ]; then
+            write_homebrew_failure homebrew_remote_head_drift new_operation_required_no_mutation 0 "$remote_commit"
+            exit 1
+          fi
+
+          node --experimental-strip-types app-source/scripts/update-homebrew-tap.ts \
+            --channel stable --package-kind app_standard \
+            --version "$VERSION" --updater-version "$UPDATER_VERSION" \
+            --tap-root tap-source --cask Casks/one-person-lab.rb \
+            --manifest-url "$release_base/opl-app-component-manifest.json" \
+            --checksum-sha256 "$dmg_sha" \
+            --download-url "$release_base/One-Person-Lab-${VERSION}-mac-arm64.dmg" \
+            --remote-write-mode direct_commit --expected-current-cask-sha256 "$current_cask_sha" \
+            --summary-path homebrew-standard-apply.json --write > /dev/null
+          test "$(jq -r .cas.decision homebrew-standard-apply.json)" = write_once
+          test "$(jq -r .cas.write_performed homebrew-standard-apply.json)" = true
+          test "$(jq -r .targets[0].expected_cask_sha256 homebrew-standard-apply.json)" = "$expected_cask_sha"
+          git -C tap-source diff --check
+          test "$(git -C tap-source diff --name-only)" = Casks/one-person-lab.rb
+          git -C tap-source config user.name github-actions[bot]
+          git -C tap-source config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C tap-source add Casks/one-person-lab.rb
+          git -C tap-source commit -m "chore(cask): publish One Person Lab v${VERSION}"
+          expected_commit="$(git -C tap-source rev-parse HEAD)"
+          test "$expected_commit" != "$base_commit"
+
+          remote_commit="$(inspect_remote_head)" || {
+            write_homebrew_failure homebrew_remote_inspect_failed bounded_read_only_inspect_only_no_framework_reconcile 0
+            exit 1
+          }
+          if [ "$remote_commit" != "$base_commit" ]; then
+            write_homebrew_failure homebrew_remote_head_drift new_operation_required_no_mutation 0 "$remote_commit"
+            exit 1
+          fi
+          push_timeout_seconds="$(node -e '
+          const remaining = Date.parse(process.argv[1]) - Date.now();
+          const reserve = 4 * 60_000;
+          const bounded = Math.min(5 * 60_000, remaining - reserve);
+          if (!Number.isFinite(remaining) || bounded < 1_000) process.exit(1);
+          process.stdout.write((bounded / 1000).toFixed(3));
+          ' "$OPERATION_DEADLINE_AT")" || {
+            write_homebrew_failure homebrew_push_deadline_elapsed bounded_read_only_inspect_only_no_framework_reconcile 0 "$base_commit"
+            exit 78
+          }
+          push_count=0
+          push_status=0
+          push_count=$((push_count + 1))
+          timeout --foreground --signal=TERM --kill-after=5s "${push_timeout_seconds}s" \
+            git -C tap-source push --no-force origin "$expected_commit:refs/heads/main" || push_status=$?
+          test "$push_count" -eq 1
+          homebrew_push_attempt="gha-${GITHUB_RUN_ID}-homebrew-push"
+          write_framework_homebrew_receipt unknown "$homebrew_push_attempt" ''
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt homebrew-framework.receipt.json \
+            "${operation_args[@]}" --store "$store" --json > homebrew-unknown-persisted.json
+          test "$(jq -r .release_bundle_publish.status homebrew-unknown-persisted.json)" = reconcile_only
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output homebrew-unknown-checkpoint \
+            --store "$store" --json > homebrew-unknown-checkpoint-export.json
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > homebrew-reconcile-status.json
+          test "$(jq -r '.release_bundle_status.active_unknown_markers | length' homebrew-reconcile-status.json)" -eq 1
+          reconciled=false
+          result_commit=''
+          reconciled_outcome=''
+          observed_remote_drift=false
+          remote_commit="$(inspect_remote_head)" || remote_commit=''
+          if [ -n "$remote_commit" ] && timeout --foreground --signal=TERM --kill-after=5s "${readonly_timeout_seconds}s" git -C tap-source fetch --quiet origin main; then
+            fetched_commit="$(git -C tap-source rev-parse FETCH_HEAD)"
+            if [ "$fetched_commit" = "$remote_commit" ]; then
+              remote_cask_sha=absent
+              if git -C tap-source cat-file -e FETCH_HEAD:Casks/one-person-lab.rb 2>/dev/null; then
+                remote_cask_sha="$(git -C tap-source show FETCH_HEAD:Casks/one-person-lab.rb | shasum -a 256 | awk '{print "sha256:"$1}')"
+              fi
+              if [ "$remote_cask_sha" = "$expected_cask_sha" ]; then
+                reconciled=true
+                result_commit="$remote_commit"
+                reconciled_outcome=idempotent_concurrent
+                if [ "$remote_commit" = "$expected_commit" ]; then reconciled_outcome=committed; fi
+              elif [ "$remote_commit" != "$base_commit" ]; then
+                observed_remote_drift=true
+              fi
+            fi
+          fi
+          if [ "$reconciled" != true ]; then
+            taxonomy=homebrew_push_outcome_unknown
+            if [ "$observed_remote_drift" = true ]; then taxonomy=homebrew_remote_head_drift; fi
+            write_homebrew_failure "$taxonomy" read_only_reconcile_only_no_second_push "$push_count" "$remote_commit" "$push_status" \
+              true "opl-release-homebrew-standard-${GITHUB_RUN_ID}"
+            echo "::error::Homebrew push outcome remains unknown after one bounded read-only inspection; push was not retried."
+            exit 1
+          fi
+          write_framework_homebrew_receipt complete "gha-${GITHUB_RUN_ID}-homebrew-reconcile" "$homebrew_push_attempt"
+          framework-executor/bin/opl release reconcile \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt homebrew-framework.receipt.json \
+            "${operation_args[@]}" --store "$store" --json > homebrew-framework-result.json
+          test "$(jq -r .release_bundle_reconcile.status homebrew-framework-result.json)" = complete
+          write_homebrew_success "$reconciled_outcome" "$result_commit" "$push_count"
+
+      - name: Upload Standard Homebrew publication receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-homebrew-standard-${{ github.run_id }}
+          path: |
+            homebrew-standard-plan.json
+            homebrew-standard-apply.json
+            homebrew-standard-publication-receipt.json
+            homebrew-standard-failure.json
+            homebrew-operation-admit.json
+            homebrew-track-assets.json
+            homebrew-framework.receipt.json
+            homebrew-framework-result.json
+            homebrew-unknown-persisted.json
+            homebrew-unknown-checkpoint-export.json
+            homebrew-unknown-checkpoint
+            homebrew-reconcile-status.json
+            release-failure-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  homebrew-standard-vm:
+    if: ${{ needs.restore.outputs.channel == 'stable' }}
+    needs: [restore, publish-homebrew-standard]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.restore.outputs.tag }}
+      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.restore.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.restore.outputs.app_ref }}
+      shell_ref: ${{ needs.restore.outputs.shell_ref }}
+      smoke_harness_ref: ${{ needs.restore.outputs.shell_ref }}
+      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
+      package_profile: homebrew-standard
+      diagnostic_scope: release_gate
+      operation: ${{ inputs.operation }}
+      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
+
+  homebrew-standard-readback:
+    if: ${{ needs.restore.outputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [restore, homebrew-standard-vm, publish-homebrew-standard]
+    steps:
+      - name: Download Standard Homebrew publication receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-homebrew-standard-${{ github.run_id }}
+          path: homebrew-publication
+
+      - name: Download Standard Homebrew clean-VM evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
+          path: homebrew-vm
+
+      - name: Bind public cask and installed-App readback
+        env:
+          VERSION: ${{ needs.restore.outputs.version }}
+          UPDATER_VERSION: ${{ needs.restore.outputs.updater_version }}
+          BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
+        run: |
+          publication="$(find homebrew-publication -name homebrew-standard-publication-receipt.json -type f -print -quit)"
+          vm="$(find homebrew-vm -name tart-smoke-summary.json -type f -print -quit)"
+          test -n "$publication" && test -n "$vm"
+          test "$(jq -r .schema "$publication")" = opl_bundle_homebrew_publication_receipt.v1
+          test "$(jq -r .status "$publication")" = passed
+          test "$(jq -r .track "$publication")" = standard
+          test "$(jq -r .bundle_digest "$publication")" = "$BUNDLE_DIGEST"
+          test "$(jq -r .release_version "$publication")" = "$VERSION"
+          test "$(jq -r .updater_version "$publication")" = "$UPDATER_VERSION"
+          [[ "$(jq -r .tap_commit "$publication")" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(jq -r .cask.sha256 "$publication")" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$(jq -r .artifact.sha256 "$publication")" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$(jq -r .surface_id "$vm")" = opl_tart_gui_first_run_smoke
+          test "$(jq -r .status "$vm")" = passed
+          test "$(jq '[.homebrew_install_attempts[]? | select(.status == "passed")] | length' "$vm")" -ge 1
+          publication_sha="$(shasum -a 256 "$publication" | awk '{print $1}')"
+          vm_sha="$(shasum -a 256 "$vm" | awk '{print $1}')"
+          jq -n \
+            --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
+            --arg publication "sha256:$publication_sha" --arg vm "sha256:$vm_sha" \
+            '{schema:"opl_bundle_homebrew_readback_receipt.v1",status:"passed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,publication_receipt_sha256:$publication,clean_vm_receipt_sha256:$vm}' \
+            > homebrew-standard-readback.json
+
+      - name: Upload Standard Homebrew readback
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-homebrew-standard-readback-${{ github.run_id }}
+          path: homebrew-standard-readback.json
+          if-no-files-found: error
+          retention-days: 30
+
+  activate-latest:
+    if: ${{ always() && needs.restore.outputs.channel == 'stable' && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') && needs.homebrew-standard-readback.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest, homebrew-standard-readback]
+    steps:
+      - name: Reject partial rerun before Latest mutation
+        shell: bash
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then
+            mkdir -p release-failure-evidence
+            printf '%s\0' github_latest_activation '${{ needs.restore.outputs.bundle_digest }}' '${{ needs.restore.outputs.operation_deadline_at }}' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+              | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+            touch release-failure-evidence/stdout.txt
+            jq -n --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+              '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",failure_taxonomy:"workflow_rerun",mutation:"github_latest_activation",input_digest:$input_digest,retry_disposition:"inspect_only_no_second_patch"}' \
+              > release-failure-evidence/stderr.txt
+            cat release-failure-evidence/stderr.txt >&2
+            exit 1
+          fi
+
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Download previous-Latest updater receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-updater-upgrade-${{ needs.restore.outputs.previous_latest_display_version }}-${{ github.run_id }}
+          path: latest-admission/updater-previous-latest
+
+      - name: Download highest-Stable updater receipt
+        if: ${{ needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-updater-upgrade-${{ needs.restore.outputs.highest_public_stable_display_version }}-${{ github.run_id }}
+          path: latest-admission/updater-highest-stable
+
+      - name: Download Standard Homebrew publication receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-homebrew-standard-${{ github.run_id }}
+          path: latest-admission/homebrew-publication
+
+      - name: Download Standard Homebrew clean-VM receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
+          path: latest-admission/homebrew-vm
+
+      - name: Download Standard Homebrew readback receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-homebrew-standard-readback-${{ github.run_id }}
+          path: latest-admission/homebrew-readback
+
+      - name: Activate Latest after exact remote parity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-failure-evidence
+          exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.tag }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation '${{ inputs.operation }}' \
+            --started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          operation_id='${{ needs.restore.outputs.operation_id }}'
+          operation_args=(
+            --operation '${{ inputs.operation }}'
+            --operation-id "$operation_id"
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
+          )
+          github_remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore.outputs.tag }}"
+          latest_remote_target="github-latest:${GITHUB_REPOSITORY}@${{ needs.restore.outputs.tag }}"
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > latest-operation-admit.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest" \
+            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --remote-target "$github_remote_target" --publication-scope track_assets \
+            --bundle "$bundle" --track standard --outcome complete \
+            --inspection remote.json --output remote.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt remote.receipt.json \
+            "${operation_args[@]}" \
+            --store "$store" --json > publication.json
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
+          test "$(jq -r .release_bundle_status.latest_eligible bundle-status.json)" = true
+          test "$(jq -r .release_bundle_status.tracks.standard.reconcile_required bundle-status.json)" = false
+          one_file() {
+            local root="$1" name="$2"
+            mapfile -t matches < <(find "$root" -type f -name "$name" -print)
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::$root must contain exactly one $name."
+              return 1
+            }
+            printf '%s\n' "${matches[0]}"
+          }
+          publication_receipt="$(one_file latest-admission/homebrew-publication homebrew-standard-publication-receipt.json)"
+          homebrew_vm_receipt="$(one_file latest-admission/homebrew-vm tart-smoke-summary.json)"
+          homebrew_readback_receipt="$(one_file latest-admission/homebrew-readback homebrew-standard-readback.json)"
+          admission_args=(
+            --bundle "$BUNDLE_DIGEST"
+            --candidate-display-version '${{ needs.restore.outputs.version }}'
+            --candidate-updater-version '${{ needs.restore.outputs.updater_version }}'
+            --app-sha '${{ needs.restore.outputs.app_ref }}'
+            --shell-sha '${{ needs.restore.outputs.shell_ref }}'
+            --framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
+            --standard-assets '${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets.json'
+            --expected-current-latest-tag '${{ needs.restore.outputs.previous_latest_tag }}'
+            --predecessor '${{ needs.restore.outputs.previous_latest_display_version }}=${{ needs.restore.outputs.previous_latest_updater_version }}'
+            --updater-evidence latest-admission/updater-previous-latest
+            --homebrew-publication "$publication_receipt"
+            --homebrew-vm "$homebrew_vm_receipt"
+            --homebrew-readback "$homebrew_readback_receipt"
+            --output standard-latest-admission.json
+          )
+          if [ '${{ needs.restore.outputs.highest_public_stable_tag }}' != '${{ needs.restore.outputs.previous_latest_tag }}' ]; then
+            admission_args+=(
+              --predecessor '${{ needs.restore.outputs.highest_public_stable_display_version }}=${{ needs.restore.outputs.highest_public_stable_updater_version }}'
+              --updater-evidence latest-admission/updater-highest-stable
+            )
+          fi
+          node --experimental-strip-types app-source/scripts/validate-standard-latest-admission.ts "${admission_args[@]}"
+          test "$(jq -r .latest_activation_admitted standard-latest-admission.json)" = true
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-activate-latest \
+            --bundle "$bundle" --status bundle-status.json \
+            --latest-admission standard-latest-admission.json \
+            --operation '${{ inputs.operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-latest-activation" \
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            --output latest-result.json
+          latest_status="$(jq -er .status latest-result.json)"
+          case "$latest_status" in
+            complete|idempotent)
+              node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-complete" \
+                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --remote-target "$latest_remote_target" --publication-scope external_target \
+                --bundle "$bundle" --track standard --outcome complete \
+                --output latest-framework.receipt.json
+              framework-executor/bin/opl release publish \
+                --bundle "$BUNDLE_DIGEST" --executor-receipt latest-framework.receipt.json \
+                "${operation_args[@]}" --store "$store" --json > latest-framework-result.json
+              test "$(jq -r .release_bundle_publish.status latest-framework-result.json)" = complete
+              ;;
+            outcome_unknown)
+              latest_unknown_attempt="$(jq -er '.mutation_attempt_id | strings | select(length > 0)' latest-result.json)"
+              latest_unknown_target="$(jq -er '.remote_target | strings | select(length > 0)' latest-result.json)"
+              test "$latest_unknown_target" = "$latest_remote_target"
+              node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                --operation remote_inspect --executor remote --attempt-id "$latest_unknown_attempt" \
+                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --remote-target "$latest_unknown_target" --publication-scope external_target \
+                --bundle "$bundle" --track standard --outcome unknown \
+                --output latest-unknown.receipt.json
+              framework-executor/bin/opl release publish \
+                --bundle "$BUNDLE_DIGEST" --executor-receipt latest-unknown.receipt.json \
+                "${operation_args[@]}" --store "$store" --json > latest-unknown-persisted.json
+              test "$(jq -r .release_bundle_publish.status latest-unknown-persisted.json)" = reconcile_only
+              framework-executor/bin/opl release checkpoint export \
+                --bundle "$BUNDLE_DIGEST" --output latest-unknown-checkpoint \
+                --store "$store" --json > latest-unknown-checkpoint-export.json
+              framework-executor/bin/opl release status \
+                --bundle "$BUNDLE_DIGEST" --store "$store" --json > latest-reconcile-status.json
+              test "$(jq -r '.release_bundle_status.active_unknown_markers | length' latest-reconcile-status.json)" -eq 1
+              latest_reconcile_outcome=unknown
+              if observed_latest="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" \
+                && [ "$observed_latest" = '${{ needs.restore.outputs.tag }}' ]; then
+                latest_reconcile_outcome=complete
+              fi
+              node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-reconcile" \
+                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --remote-target "$latest_unknown_target" --prior-attempt-id "$latest_unknown_attempt" \
+                --publication-scope external_target --bundle "$bundle" --track standard \
+                --outcome "$latest_reconcile_outcome" --output latest-reconcile.receipt.json
+              framework-executor/bin/opl release reconcile \
+                --bundle "$BUNDLE_DIGEST" --executor-receipt latest-reconcile.receipt.json \
+                "${operation_args[@]}" --store "$store" --json > latest-framework-result.json
+              test "$(jq -r .release_bundle_reconcile.status latest-framework-result.json)" = complete || {
+                echo "::error::Latest activation was not conclusively read back; no retry was attempted."
+                exit 1
+              }
+              ;;
+            *)
+              echo "::error::Latest activation was not conclusively read back; no retry was attempted."
+              exit 1
+              ;;
+          esac
+
+      - name: Persist typed Latest activation failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p release-failure-evidence
+          latest_status="$(jq -r '.status // empty' latest-result.json 2>/dev/null || true)"
+          retry_disposition=start_new_admitted_operation_no_framework_reconcile
+          framework_reconcile_authorized=false
+          case "$latest_status" in
+            deadline_elapsed)
+              retry_disposition=bounded_read_only_inspect_only_no_second_patch_no_framework_reconcile
+              ;;
+            outcome_unknown)
+              if [ "$(jq -r '.release_bundle_status.active_unknown_markers | length' latest-reconcile-status.json 2>/dev/null || true)" = 1 ]; then
+                retry_disposition=resume_from_portable_checkpoint_status_then_exact_reconcile_no_second_patch
+                framework_reconcile_authorized=true
+              else
+                retry_disposition=bounded_read_only_latest_readback_only_no_second_patch_no_framework_reconcile
+              fi
+              ;;
+          esac
+          jq -n --arg bundle '${{ needs.restore.outputs.bundle_digest }}' --arg tag '${{ needs.restore.outputs.tag }}' \
+            --arg adapter_status "$latest_status" --arg retry_disposition "$retry_disposition" \
+            --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+            --arg resume_source_artifact "opl-release-activation-${GITHUB_RUN_ID}" \
+            --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
+            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_latest_activation",bundle_digest:$bundle,tag:$tag,input_digest:$input_digest,adapter_status:($adapter_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition,resume_source_artifact:(if $framework_reconcile_authorized then $resume_source_artifact else null end)}' \
+            > release-failure-evidence/latest-activation-failure.json
+
+      - name: Upload Latest activation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-activation-${{ github.run_id }}
+          path: |
+            bundle-status.json
+            standard-latest-admission.json
+            latest-result.json
+            latest-operation-admit.json
+            latest-framework.receipt.json
+            latest-framework-result.json
+            latest-unknown.receipt.json
+            latest-unknown-persisted.json
+            latest-unknown-checkpoint-export.json
+            latest-unknown-checkpoint
+            latest-reconcile-status.json
+            latest-reconcile.receipt.json
+            release-failure-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  nightly-terminal:
+    if: ${{ needs.restore.outputs.channel == 'nightly' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [restore, remote-digest-verify]
+    steps:
+      - run: echo 'Nightly Standard published and digest-verified; Latest and Homebrew remain untouched.'

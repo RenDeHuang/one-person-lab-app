@@ -52,20 +52,20 @@ function runner(canonicalMainSha: string): CommandRunner {
   };
 }
 
-test('release cohort plan records a verified immutable dispatch handle without remote mutation', () => {
+test('retired cohort plan emits a Framework checkpoint read-only handoff without dispatch authority', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-handle-'));
   const planOptions = options(root);
   const plan = buildReleaseCohortPlan(planOptions, runner(planOptions.appCommit), '2026-07-18T00:00:00.000Z');
 
-  assert.equal(plan.dispatch_handle?.workflow_ref, 'refs/heads/main');
-  assert.equal(plan.dispatch_handle?.expected_workflow_sha, planOptions.appCommit);
-  assert.equal(plan.dispatch_handle?.state, 'planned_verified_no_ref_mutation');
-  assert.equal(plan.dispatch_handle?.remote_ref_mutation_allowed, false);
-  assert.equal(plan.dispatch_handle?.verification_required_before_broker_admission, true);
-  assert.equal(plan.dispatch_handle?.mismatch_policy, 'refresh_controller_handle_preserve_frozen_artifact_cohort');
-  assert.equal(plan.next_action.action, 'plan_stable_release_start');
-  assert.match(plan.next_action.command, new RegExp(`--app-ref ${planOptions.appCommit}`));
-  assert.doesNotMatch(plan.next_action.command, /git push|gh api|gh workflow run|--execute/);
+  assert.equal(plan.lifecycle, 'retired_read_only_handoff');
+  assert.equal('dispatch_handle' in plan, false);
+  assert.equal(plan.next_action.action, 'framework_checkpoint_read_only_handoff');
+  assert.equal(plan.next_action.command, 'opl release status --bundle <sha256:digest> --store <directory>');
+  assert.equal(plan.next_action.operation, 'standard');
+  assert.equal(plan.next_action.mutation_authorized, false);
+  assert.equal(plan.next_action.manual_handoff_required, true);
+  assert.equal(plan.authority_boundary.cohort_plan_can_start_release, false);
+  assert.doesNotMatch(JSON.stringify(plan.next_action), /git push|gh api|gh workflow run|--execute|release:stable/);
   assert.equal(plan.cheap_gates.some((gate) => gate.id === 'release_cohort_lock'), false);
 });
 
@@ -110,16 +110,21 @@ test('release cohort source gate command enables the required shell admission ch
   assert.match(gate.command, /--run-shell-tests true/);
 });
 
-test('release cohort plan separates a fresh canonical controller SHA from the frozen App artifact SHA', () => {
+test('release cohort plan no longer resolves a live controller dispatch handle', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-cohort-plan-moved-'));
   const planOptions = options(root);
   const controllerSha = 'd'.repeat(40);
-  const plan = buildReleaseCohortPlan(planOptions, runner(controllerSha));
+  let remoteLookupCount = 0;
+  const baseRunner = runner(controllerSha);
+  const plan = buildReleaseCohortPlan(planOptions, (command, args, commandOptions) => {
+    if (args[0] === 'ls-remote') remoteLookupCount += 1;
+    return baseRunner(command, args, commandOptions);
+  });
 
   assert.equal(plan.cohort_lock.app.resolved_sha, planOptions.appCommit);
-  assert.equal(plan.dispatch_handle?.expected_workflow_sha, controllerSha);
-  assert.match(plan.next_action.command, new RegExp(`--app-ref ${planOptions.appCommit}`));
-  assert.doesNotMatch(plan.next_action.command, /--app-ref 'main'/);
+  assert.equal('dispatch_handle' in plan, false);
+  assert.notEqual(controllerSha, plan.cohort_lock.app.resolved_sha);
+  assert.equal(remoteLookupCount, 0);
 });
 
 test('release cohort plan rejects conflicting App aliases', () => {

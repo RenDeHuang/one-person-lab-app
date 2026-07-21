@@ -267,8 +267,8 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
     },
     {
       path: ".github/workflows/_release-bundle.yml",
-      start: "  cold-preflight:",
-      end: "\n  prepare-notes:",
+      start: "  freeze:",
+      end: "\n  standard-build:",
       validation: "npm run validate:release-boundary",
     },
   ];
@@ -286,13 +286,13 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
   }
 });
 
-test("Bundle cold gate installs frozen App and Framework dependencies before validation", () => {
+test("Bundle freeze gate installs frozen App and Framework dependencies before validation", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_release-bundle.yml"),
     "utf8",
   );
-  const jobStart = workflow.indexOf("  cold-preflight:");
-  const jobEnd = workflow.indexOf("\n  prepare-notes:", jobStart);
+  const jobStart = workflow.indexOf("  freeze:");
+  const jobEnd = workflow.indexOf("\n  standard-build:", jobStart);
   const job = workflow.slice(jobStart, jobEnd);
   const setup = job.indexOf(
     "uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
@@ -301,7 +301,7 @@ test("Bundle cold gate installs frozen App and Framework dependencies before val
   const installFramework = job.indexOf("npm --prefix framework-source ci --ignore-scripts");
   const validation = job.indexOf("- name: Validate Bundle contracts before paid work");
 
-  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing Bundle cold-preflight job");
+  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing Bundle freeze job");
   assert.ok(setup >= 0 && install > setup, "Bundle cold gate must install with pinned Node");
   assert.ok(
     installFramework > install && validation > installFramework,

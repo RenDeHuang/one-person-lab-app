@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +28,7 @@ type Options = {
   write: boolean;
   summaryPath: string | null;
   remoteWriteMode: string;
+  expectedCurrentCaskSha256: string | null;
   selfCheck: boolean;
 };
 
@@ -39,8 +41,16 @@ type TapUpdateTarget = {
   kind: 'formula' | 'cask';
   previous_exists: boolean;
   changed: boolean;
+  same_candidate_version: boolean;
+  current_display_version: string | null;
+  current_updater_version: string | null;
+  current_dmg_sha256: string | null;
+  current_cask_sha256: string | null;
+  expected_cask_sha256: string;
   content: string;
 };
+
+type TapCasDecision = 'idempotent' | 'write_once' | 'version_conflict';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultTapRoot = path.join(appRoot, 'dist', 'homebrew-tap-plan');
@@ -78,6 +88,7 @@ function parseArgs(argv: string[]): Options {
       'download-url': { type: 'string' },
       'summary-path': { type: 'string' },
       'remote-write-mode': { type: 'string' },
+      'expected-current-cask-sha256': { type: 'string' },
     },
     strict: true,
     allowPositionals: false,
@@ -96,6 +107,7 @@ function parseArgs(argv: string[]): Options {
     write: false,
     summaryPath: null,
     remoteWriteMode: 'none',
+    expectedCurrentCaskSha256: null,
     selfCheck: false,
   };
 
@@ -119,6 +131,9 @@ function parseArgs(argv: string[]): Options {
   if (values['download-url'] !== undefined) parsed.downloadUrl = values['download-url'];
   if (values['summary-path'] !== undefined) parsed.summaryPath = path.resolve(values['summary-path']);
   if (values['remote-write-mode'] !== undefined) parsed.remoteWriteMode = values['remote-write-mode'];
+  if (values['expected-current-cask-sha256'] !== undefined) {
+    parsed.expectedCurrentCaskSha256 = values['expected-current-cask-sha256'];
+  }
   parsed.selfCheck = values['self-check'] === true;
   for (const token of tokens) {
     if (token.kind !== 'option') continue;
@@ -134,6 +149,28 @@ function parseArgs(argv: string[]): Options {
 
 function classifyTarget(targetPath: string): 'formula' | 'cask' {
   return targetPath.startsWith('Formula/') ? 'formula' : 'cask';
+}
+
+function sha256(value: string): string {
+  return `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
+}
+
+function boundaryValue(content: string, name: string): string | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return content.match(new RegExp(`^\\s*#\\s*${escaped}:\\s*(\\S+)\\s*$`, 'm'))?.[1] ?? null;
+}
+
+function rubyValue(content: string, name: 'version' | 'sha256'): string | null {
+  return content.match(new RegExp(`^\\s*${name}\\s+["']([^"']+)["']`, 'm'))?.[1] ?? null;
+}
+
+function normalizeOptionalSha256(value: string | null): string | null {
+  if (value === null || value === 'absent') return value;
+  const normalized = value.startsWith('sha256:') ? value : `sha256:${value}`;
+  if (!/^sha256:[a-f0-9]{64}$/i.test(normalized)) {
+    throw new Error('--expected-current-cask-sha256 must be absent or an exact SHA-256 digest.');
+  }
+  return normalized.toLowerCase();
 }
 
 function assertNoFullPayloadReference(label: string, value: string): void {
@@ -175,6 +212,13 @@ function validateOptions(options: Options): ResolvedOptions {
   }
   if (options.targets.length === 0) {
     throw new Error('Pass at least one --formula or --cask target.');
+  }
+  if (!['none', 'inspect_only', 'direct_commit'].includes(options.remoteWriteMode)) {
+    throw new Error('--remote-write-mode must be none, inspect_only, or direct_commit.');
+  }
+  const expectedCurrentCaskSha256 = normalizeOptionalSha256(options.expectedCurrentCaskSha256);
+  if (options.write && options.remoteWriteMode === 'direct_commit' && expectedCurrentCaskSha256 === null) {
+    throw new Error('Direct-commit writes require exact --expected-current-cask-sha256 (or absent) for CAS.');
   }
 
   const packageKind = inferPackageKind(options);
@@ -226,7 +270,7 @@ function validateOptions(options: Options): ResolvedOptions {
     }
   }
 
-  return { ...options, packageKind };
+  return { ...options, packageKind, expectedCurrentCaskSha256 };
 }
 
 function boundaryBlock(options: ResolvedOptions): string {
@@ -416,6 +460,7 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
 }
 
 function buildPlan(inputOptions: Options): {
+  schema: 'opl_homebrew_tap_cas_plan.v1';
   channel: Channel;
   package_kind: PackageKind;
   version: string;
@@ -426,29 +471,74 @@ function buildPlan(inputOptions: Options): {
   checksum_sha256: string;
   download_url: string;
   targets: Array<Omit<TapUpdateTarget, 'content'>>;
+  cas: {
+    decision: TapCasDecision;
+    reason: string;
+    expected_current_cask_sha256: string | null;
+    write_performed: boolean;
+  };
   policy: Record<string, boolean | string>;
 } {
   const options = validateOptions(inputOptions);
   const targets = options.targets.map((targetPath): TapUpdateTarget => {
     const absolutePath = path.join(options.tapRoot, targetPath);
-    const previous = fs.existsSync(absolutePath) ? fs.readFileSync(absolutePath, 'utf8') : '';
+    const previousExists = fs.existsSync(absolutePath);
+    const previous = previousExists ? fs.readFileSync(absolutePath, 'utf8') : '';
     const content = updateContent(previous, targetPath, options);
+    const currentDisplayVersion = boundaryValue(previous, 'display_version');
+    const currentUpdaterVersion = boundaryValue(previous, 'updater_version') ?? rubyValue(previous, 'version');
     const target = {
       path: targetPath,
       kind: classifyTarget(targetPath),
-      previous_exists: Boolean(previous),
+      previous_exists: previousExists,
       changed: previous !== content,
+      same_candidate_version: currentDisplayVersion === options.version || currentUpdaterVersion === options.updaterVersion,
+      current_display_version: currentDisplayVersion,
+      current_updater_version: currentUpdaterVersion,
+      current_dmg_sha256: rubyValue(previous, 'sha256')
+        ? `sha256:${rubyValue(previous, 'sha256')}`
+        : null,
+      current_cask_sha256: previousExists ? sha256(previous) : null,
+      expected_cask_sha256: sha256(content),
       content,
     };
     validateUpdatedContent(target, options);
-    if (options.write) {
-      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-      fs.writeFileSync(absolutePath, content, 'utf8');
-    }
     return target;
   });
 
+  const decision: TapCasDecision = targets.some((target) => target.changed && target.same_candidate_version)
+    ? 'version_conflict'
+    : targets.some((target) => target.changed)
+      ? 'write_once'
+      : 'idempotent';
+  const reason = decision === 'version_conflict'
+    ? 'candidate_version_conflicts_with_existing_bytes_require_new_revision'
+    : decision === 'write_once'
+      ? 'different_or_missing_version_requires_one_write'
+      : 'exact_candidate_bytes_already_present';
+
+  if (options.write) {
+    if (decision === 'version_conflict') {
+      throw new Error('Homebrew candidate version already exists with different Cask or DMG bytes; freeze a new release revision.');
+    }
+    if (options.expectedCurrentCaskSha256 !== null) {
+      if (targets.length !== 1) {
+        throw new Error('--expected-current-cask-sha256 requires exactly one Cask target.');
+      }
+      const actual = targets[0]?.current_cask_sha256 ?? 'absent';
+      if (actual !== options.expectedCurrentCaskSha256) {
+        throw new Error(`Homebrew Cask CAS mismatch: expected ${options.expectedCurrentCaskSha256}, found ${actual}.`);
+      }
+    }
+    for (const target of targets.filter((candidate) => candidate.changed)) {
+      const absolutePath = path.join(options.tapRoot, target.path);
+      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+      fs.writeFileSync(absolutePath, target.content, 'utf8');
+    }
+  }
+
   return {
+    schema: 'opl_homebrew_tap_cas_plan.v1',
     channel: options.channel,
     package_kind: options.packageKind,
     version: options.version,
@@ -459,6 +549,12 @@ function buildPlan(inputOptions: Options): {
     checksum_sha256: options.checksumSha256,
     download_url: options.downloadUrl,
     targets: targets.map(({ content: _content, ...target }) => target),
+    cas: {
+      decision,
+      reason,
+      expected_current_cask_sha256: options.expectedCurrentCaskSha256,
+      write_performed: options.write && decision === 'write_once',
+    },
     policy: {
       cohort: options.packageKind === 'app_full_first_install'
         ? 'full_first_install_homebrew_distribution'
@@ -499,6 +595,8 @@ function runSelfCheck(): void {
     targets: ['Casks/one-person-lab.rb'],
     write: true,
     summaryPath: null,
+    remoteWriteMode: 'none',
+    expectedCurrentCaskSha256: null,
     selfCheck: false,
   });
   if (stablePlan.dry_run || !stablePlan.policy.manifest_required || !stablePlan.policy.checksum_required) {
@@ -517,6 +615,8 @@ function runSelfCheck(): void {
     targets: ['Casks/one-person-lab-full.rb'],
     write: true,
     summaryPath: null,
+    remoteWriteMode: 'none',
+    expectedCurrentCaskSha256: null,
     selfCheck: false,
   });
   if (!fullPlan.policy.full_first_install_allowed || fullPlan.policy.standard_updater_visible) {
@@ -545,6 +645,8 @@ function runSelfCheck(): void {
     targets: ['Casks/one-person-lab-nightly.rb'],
     write: false,
     summaryPath: null,
+    remoteWriteMode: 'none',
+    expectedCurrentCaskSha256: null,
     selfCheck: false,
   });
   if (!nightlyPlan.dry_run || nightlyPlan.targets[0]?.path !== 'Casks/one-person-lab-nightly.rb') {
@@ -637,6 +739,8 @@ function runSelfCheck(): void {
         targets: blocked.targets,
         write: false,
         summaryPath: null,
+        remoteWriteMode: 'none',
+        expectedCurrentCaskSha256: null,
         selfCheck: false,
       });
     } catch (error) {

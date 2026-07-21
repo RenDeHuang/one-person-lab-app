@@ -76,16 +76,31 @@ test('App owner manifest fails closed when a standard asset is missing', () => {
   ], { cwd: appRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 });
 
-test('Bundle promotion binds the component manifest before remote digest verification', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_release-bundle.yml'), 'utf8');
-  const bind = workflow.indexOf('  bind-standard:');
-  const publish = workflow.indexOf('  publish-standard-nonlatest:');
-  const remoteVerify = workflow.indexOf('  remote-digest-verify:');
-  const latest = workflow.indexOf('  publish-latest:');
-  assert.ok(bind >= 0 && bind < publish && publish < remoteVerify && remoteVerify < latest);
-  assert.match(workflow, /write-opl-app-component-manifest\.ts/);
-  assert.match(workflow, /--updater-version \"\$UPDATER_VERSION\"/);
-  assert.match(workflow, /opl_standard_release_identity_receipt\.v1/);
-  assert.match(workflow, /release_bundle_status\.latest_eligible/);
-  assert.doesNotMatch(workflow, /desktop-release-promote\.yml/);
+test('Bundle topology binds the component manifest before remote digest verification and Latest activation', () => {
+  const bundleWorkflow = fs.readFileSync(
+    path.join(appRoot, '.github/workflows/_release-bundle.yml'),
+    'utf8',
+  );
+  const publishWorkflow = fs.readFileSync(
+    path.join(appRoot, '.github/workflows/_release-standard-publish.yml'),
+    'utf8',
+  );
+  const bindScript = fs.readFileSync(
+    path.join(appRoot, 'scripts/bind-standard-release-track.ts'),
+    'utf8',
+  );
+  const checkpoint = bundleWorkflow.indexOf('  checkpoint-standard:');
+  const publishReusable = bundleWorkflow.indexOf('  publish-standard:');
+  const publish = publishWorkflow.indexOf('  publish-standard-nonlatest:');
+  const remoteVerify = publishWorkflow.indexOf('  remote-digest-verify:');
+  const latest = publishWorkflow.indexOf('  activate-latest:');
+
+  assert.ok(checkpoint >= 0 && checkpoint < publishReusable);
+  assert.ok(publish >= 0 && publish < remoteVerify && remoteVerify < latest);
+  assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /write-opl-app-component-manifest\.ts/);
+  assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /--updater-version '\$\{\{ needs\.freeze\.outputs\.updater_version \}\}'/);
+  assert.match(bundleWorkflow.slice(publishReusable), /uses: \.\/\.github\/workflows\/_release-standard-publish\.yml/);
+  assert.match(bindScript, /opl_standard_release_identity_receipt\.v1/);
+  assert.match(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);
+  assert.doesNotMatch(`${bundleWorkflow}\n${publishWorkflow}`, /desktop-release-promote\.yml/);
 });

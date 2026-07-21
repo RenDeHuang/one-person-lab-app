@@ -3,31 +3,62 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
-
-import {
-  stableReleaseActionPaths,
-  validateWorkflowDispatchWriteAuthority,
-} from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import { stableReleaseActionPaths } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
 const parseWorkflow = (name: string) => parseYaml(readWorkflow(name));
 
-test('live Stable authority validates the durable controller receipt without an OIDC service dependency', () => {
-  const stable = readWorkflow('release-stable.yml');
-  const bundle = readWorkflow('_release-bundle.yml');
+test('Stable has one dispatch and exactly three Framework Bundle operations', () => {
+  const source = readWorkflow('release-stable.yml');
+  const workflow = parseWorkflow('release-stable.yml');
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.operation.options, [
+    'standard',
+    'resume_standard',
+    'append_full',
+  ]);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).sort(), [
+    'framework_ref',
+    'include_full',
+    'operation',
+    'shell_ref',
+    'source_artifact',
+    'source_run_id',
+    'version',
+  ]);
+  assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
+  assert.doesNotMatch(source, /broker|session|operator|pre_api_admission|release_mutation_payload/i);
+  assert.doesNotMatch(source, /gh run rerun|gh run cancel/);
+});
 
-  assert.match(stable, /workflow_dispatch:/);
-  assert.match(stable, /uses: \.\/\.github\/workflows\/_release-bundle\.yml/);
-  assert.match(stable, /run-name: OPL Stable Release Bundle v\$\{\{ inputs\.version \}\} attempt=\$\{\{ inputs\.release_attempt_id \}\}/);
-  assert.match(stable, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.match(stable, /verify-release-broker-acceptance\.ts[\s\S]*--mode admin-one-shot/);
-  assert.doesNotMatch(bundle, /release[_ -]broker|broker[_ -]admission/i);
-  assert.doesNotMatch(`${stable}\n${bundle}`, /--mode lookup|ACTION[S_]+ID_TOKEN|id-token: write/i);
-  assert.doesNotMatch(`${stable}\n${bundle}`, /gh run rerun|gh run cancel|--clobber/);
+test('Stable serialization is repository-wide and never cancels an in-flight operation', () => {
+  const workflow = parseWorkflow('release-stable.yml');
+  assert.equal(workflow.concurrency.group, 'opl-release-bundle-global');
+  assert.equal(workflow.concurrency['cancel-in-progress'], false);
+  assert.deepEqual(workflow.jobs.admission.permissions, { contents: 'read', actions: 'read' });
+});
+
+test('the three operation jobs are step-free reusable calls behind admission', () => {
+  const jobs = parseWorkflow('release-stable.yml').jobs;
+  const expected = {
+    standard: './.github/workflows/_release-bundle.yml',
+    'resume-standard': './.github/workflows/_release-standard-publish.yml',
+    'append-full': './.github/workflows/_release-full-addon.yml',
+  };
+  for (const [jobId, reusable] of Object.entries(expected)) {
+    assert.deepEqual(jobs[jobId].needs, ['admission']);
+    assert.equal(jobs[jobId].uses, reusable);
+    assert.equal(jobs[jobId].steps, undefined);
+    assert.equal(jobs[jobId].secrets, 'inherit');
+  }
 });
 
 test('legacy broker workflows reject every call with read-only permissions', () => {
+  const release = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'contracts/app-release-channel.json'), 'utf8'));
+  const legacy = release.release_bundle_control_plane.legacy_compatibility;
+  assert.equal(legacy.authority_class, 'historical_read_only');
+  assert.equal(legacy.broker_session_operator_authority, 'historical_read_only');
   for (const name of [
     'desktop-release.yml',
     'desktop-release-promote.yml',
@@ -42,80 +73,37 @@ test('legacy broker workflows reject every call with read-only permissions', () 
   }
 });
 
-test('Stable dispatch is serialized and cannot cancel or replace an in-flight Bundle', () => {
-  const workflow = parseWorkflow('release-stable.yml');
-  assert.equal(workflow.concurrency.group, 'opl-stable-release-bundle-${{ inputs.version }}');
-  assert.equal(workflow.concurrency['cancel-in-progress'], false);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).sort(), [
-    'framework_ref',
-    'include_full',
+test('new low-level qualification call edges have no live broker admission dependency', () => {
+  const forbiddenInputs = new Set([
     'pre_api_admission_receipt_base64',
-    'release_attempt_id',
     'release_mutation_payload_sha256',
-    'shell_ref',
-    'version',
+    'broker_admission_validation_sha256',
+    'release_mutation',
+    'release_workflow',
   ]);
-  assert.deepEqual(workflow.jobs.admission.permissions, { contents: 'read', actions: 'read' });
-  assert.deepEqual(workflow.jobs.release.needs, ['admission']);
-  assert.deepEqual(Object.keys(workflow.jobs.release.with).sort(), [
-    'app_ref',
-    'channel',
-    'framework_ref',
-    'include_full',
-    'shell_ref',
-    'version',
-  ]);
-  assert.equal(workflow.jobs.release.with.app_ref, '${{ needs.admission.outputs.app_ref }}');
-  assert.equal(workflow.jobs.release.with.shell_ref, '${{ needs.admission.outputs.shell_ref }}');
-  assert.equal(workflow.jobs.release.with.framework_ref, '${{ needs.admission.outputs.framework_ref }}');
-  assert.equal(workflow.jobs.release.secrets, 'inherit');
-  assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);
-});
-
-test('Stable admission freezes exact controller refs and the reusable ABI rejects movable source refs', () => {
-  const stable = parseWorkflow('release-stable.yml');
-  const workflow = parseWorkflow('_release-bundle.yml');
-  const admissionSteps = stable.jobs.admission.steps as Array<Record<string, any>>;
-  const stableShell = admissionSteps.find((step) => step.name === 'Checkout requested Shell authority');
-  const stableFramework = admissionSteps.find((step) => step.name === 'Checkout requested Framework authority');
-  assert.equal(stableShell?.with.ref, '${{ inputs.shell_ref }}');
-  assert.equal(stableFramework?.with.ref, '${{ inputs.framework_ref }}');
-
-  const steps = workflow.jobs['freeze-inputs'].steps as Array<Record<string, any>>;
-  const shell = steps.find((step) => step.name === 'Checkout frozen Shell authority');
-  const framework = steps.find((step) => step.name === 'Checkout frozen Framework authority');
-  assert.equal(shell?.with.ref, "${{ inputs.shell_ref || 'main' }}");
-  assert.equal(framework?.with.ref, "${{ inputs.framework_ref || 'main' }}");
-  assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Shell SHA/);
-  assert.match(readWorkflow('_release-bundle.yml'), /Stable requires an exact frozen Framework SHA/);
-  assert.match(readWorkflow('release-stable.yml'), /--expected-workflow release-stable\.yml/);
-  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /--expected-workflow|pre_api_admission_receipt/);
-});
-
-test('reusable VM call edges remain read-only', () => {
-  const jobs = parseWorkflow('_release-bundle.yml').jobs;
-  for (const jobId of [
-    'standard-qualification',
-    'updater-upgrade-qualification',
-    'homebrew-standard-vm',
-    'full-qualification',
-    'homebrew-full-vm',
-  ]) {
-    const job = jobs[jobId];
-    const permissions = job.permissions ?? parseWorkflow('_release-bundle.yml').permissions;
-    assert.equal(permissions.contents, 'read', jobId);
-    assert.equal(permissions.actions, 'read', jobId);
-    assert.equal(job.steps, undefined, `${jobId} must stay a step-free reusable call edge`);
+  for (const name of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
+    const jobs = parseWorkflow(name).jobs;
+    for (const job of Object.values(jobs) as Array<any>) {
+      for (const key of Object.keys(job.with ?? {})) {
+        assert.equal(forbiddenInputs.has(key), false, `${name}:${key}`);
+      }
+    }
+  }
+  for (const name of ['opl-first-run-vm.yml', 'full-first-install-release.yml']) {
+    const jobs = parseWorkflow(name).jobs;
+    const admission = (Object.values(jobs) as Array<any>)
+      .flatMap((job) => job.steps ?? [])
+      .find((step) => /Admit one-shot release-bound/.test(step.name ?? ''));
+    assert.ok(admission, `${name} admission step`);
+    assert.doesNotMatch(admission.run, /broker|pre_api_admission|release_mutation_payload/i, name);
   }
 });
 
-test('reusable first-run VM does not request an OIDC permission the caller cannot grant', () => {
+test('reusable first-run VM does not request OIDC write permission', () => {
   const vm = readWorkflow('opl-first-run-vm.yml');
   assert.doesNotMatch(vm, /id-token:\s*write/);
   const document = parseWorkflow('opl-first-run-vm.yml');
-  const validatePermissions = document.jobs['validate-vm-inputs'].permissions;
-  assert.deepEqual(validatePermissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(document.jobs['validate-vm-inputs'].permissions, { contents: 'read', actions: 'read' });
 });
 
 test('the complete Stable action DAG pins external Actions to immutable commits', () => {

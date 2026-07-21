@@ -5559,12 +5559,17 @@
     "nightly": {
       "channel_id": "nightly_standard",
       "source": "contracts/app-release-channel.json#release_validation_profiles.nightly_standard",
-      "status": "retired_pending_brokered_replacement",
+      "status": "active_schedule_only_framework_bundle",
       "selectable": false,
-      "publication_available": false,
-      "mutation_available": false,
-      "display_policy": "status_only_not_channel_option",
-      "must_gate": [],
+      "publication_available": true,
+      "mutation_available": true,
+      "display_policy": "schedule_only_status_not_channel_option",
+      "must_gate": [
+        "release_boundary_contract",
+        "standard_macos_arm64_build",
+        "local_standard_asset_validation",
+        "remote_standard_release_verification"
+      ],
       "must_not_gate": [
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
@@ -5574,7 +5579,7 @@
         "docker_webui_smoke",
         "operator_evidence_bundle"
       ],
-      "latest_policy": "unavailable"
+      "latest_policy": "never_mark_latest"
     }
   },
   "retired_domain_agents": [

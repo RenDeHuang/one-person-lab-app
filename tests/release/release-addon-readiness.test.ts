@@ -605,7 +605,7 @@ test('Full qualification override rejects a receipt for a different build smoke 
   }
 });
 
-test('owner resolution accepts a failed source readiness only through the exact retry receipt', () => {
+test('exact retry evidence cannot restore retired owner-resolution promotion authority', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-owner-override-'));
   try {
     const fixture = writeFixture(root);
@@ -613,7 +613,7 @@ test('owner resolution accepts a failed source readiness only through the exact 
     const preflightPath = path.join(root, 'release-preflight-summary.json');
     const readinessPath = path.join(root, 'release-readiness-summary.json');
     const remotePath = path.join(root, 'remote-release-verification.json');
-    fs.writeFileSync(candidatePath, `${JSON.stringify({
+    const historicalCandidate = {
       schema: 'opl_release_candidate_record.v1',
       status: 'blocked',
       version: '26.7.13',
@@ -621,7 +621,8 @@ test('owner resolution accepts a failed source readiness only through the exact 
       inputs: { include_full_package: true, run_vm_smoke: true, shell_ref: 'b'.repeat(40), framework_ref: 'c'.repeat(40) },
       provenance: { app_commit: 'a'.repeat(40), workflow_run_id: '101' },
       job_results: { 'full-first-run-vm-smoke': 'failure' },
-    }, null, 2)}\n`);
+    };
+    fs.writeFileSync(candidatePath, `${JSON.stringify(historicalCandidate, null, 2)}\n`);
     fs.writeFileSync(preflightPath, `${JSON.stringify({ status: 'passed' })}\n`);
     fs.writeFileSync(remotePath, `${JSON.stringify({ status: 'passed', version: '26.7.13' })}\n`);
     fs.writeFileSync(readinessPath, `${JSON.stringify({
@@ -656,13 +657,11 @@ test('owner resolution accepts a failed source readiness only through the exact 
       '--source-artifact-run-id', '101',
       '--source-artifact-name', sourceArtifactName,
     ], { cwd: path.resolve(import.meta.dirname, '../..'), encoding: 'utf8' });
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const resolved = JSON.parse(fs.readFileSync(candidatePath, 'utf8'));
-    assert.equal(resolved.status, 'ready_to_promote');
-    assert.equal(resolved.job_results['full-first-run-vm-smoke'], 'success');
-    assert.equal(resolved.qualification_override.original_job_result, 'failure');
-    assert.equal(resolved.qualification_override.artifact_sha256, artifactSha256);
-    assert.equal(resolved.provenance.original_readiness_summary, 'release-readiness-summary.json');
+    assert.equal(result.status, 1, result.stderr || result.stdout);
+    assert.match(result.stderr, /opl_app_release_candidate_record_writer_retired\.v1/);
+    assert.match(result.stderr, /retired_fail_closed/);
+    assert.match(result.stderr, /framework_opl_release_portable_checkpoint_and_receipt/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(candidatePath, 'utf8')), historicalCandidate);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

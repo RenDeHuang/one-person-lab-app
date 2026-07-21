@@ -57,14 +57,13 @@ These details are included for operators who audit exactly what was packaged. Th
 `;
 }
 
-test('publish retains a failed draft and writes a typed recovery receipt without deleting release or tag', () => {
+test('retired direct publisher only renders dry-run asset plans and attempts no mutation', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
   const binDir = path.join(tempRoot, 'bin');
   const ghLogPath = path.join(tempRoot, 'gh.log');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
-  const recoveryReceiptPath = path.join(tempRoot, 'release-publish-recovery-receipt.json');
   const version = '26.5.15';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
 
@@ -116,71 +115,26 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
     PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
     FAKE_GH_LOG: ghLogPath,
     OPL_RELEASE_NOTES_MODE: 'template',
-    OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
-    OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH: recoveryReceiptPath,
     OPL_RELEASE_TEST_MODE: '1',
-    OPL_RELEASE_MUTATION_STATE_JSON: JSON.stringify({
-      tagName: `v${version}`,
-      isDraft: true,
-      isPrerelease: false,
-      publishedAt: null,
-    }),
   };
-  const newReleaseFailure = runNode(publishArgs, {
+  const retired = runNode(publishArgs, {
     env: { ...publishEnv, OPL_RELEASE_EXISTS: '0' },
   });
-  assert.notEqual(newReleaseFailure.status, 0);
-  const newReleaseCommands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  const newReleaseLifecycle = newReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
-  assert.deepEqual(newReleaseLifecycle.map((args) => args.slice(0, 2)), [
-    ['release', 'create'],
-    ['release', 'upload'],
+  assert.equal(retired.status, 2, retired.stderr || retired.stdout);
+  const retirement = JSON.parse(retired.stdout);
+  assert.equal(retirement.schema, 'opl_app_direct_release_publisher_retired.v1');
+  assert.equal(retirement.status, 'retired_fail_closed');
+  assert.equal(retirement.mutation_authorized, false);
+  assert.equal(retirement.release_mutation_attempted, false);
+  assert.deepEqual(retirement.framework_handoff.allowed_stable_operations, [
+    'standard',
+    'resume_standard',
+    'append_full',
   ]);
-  assert.equal(newReleaseLifecycle[1].includes('--clobber'), false);
-  assert.doesNotMatch(fs.readFileSync(ghLogPath, 'utf8'), /cleanup-tag|\["release","delete"/);
-  assert.match(newReleaseFailure.stderr, /The release was not deleted/);
-  const newReleaseRecovery = JSON.parse(fs.readFileSync(recoveryReceiptPath, 'utf8'));
-  assert.equal(newReleaseRecovery.schema, 'opl_app_release_publish_recovery_receipt.v1');
-  assert.equal(newReleaseRecovery.status, 'incomplete_draft');
-  assert.equal(newReleaseRecovery.failure.stage, 'upload_assets');
-  assert.equal(newReleaseRecovery.failure.failed_asset, newReleaseRecovery.upload.planned_assets[0].name);
-  assert.ok(newReleaseRecovery.upload.planned_assets.some((asset) => asset.name === dmgName));
-  assert.equal(newReleaseRecovery.draft.origin, 'created_by_current_publish_invocation');
-  assert.equal(newReleaseRecovery.draft.readback, 'incomplete_draft_confirmed');
-  assert.equal(newReleaseRecovery.draft.automatic_release_delete_attempted, false);
-  assert.equal(newReleaseRecovery.draft.automatic_tag_cleanup_attempted, false);
-  assert.equal(newReleaseRecovery.recovery.strategy, 'read_back_then_resume_same_draft_same_cohort');
-  assert.equal(newReleaseRecovery.recovery.brokered_cleanup_mutation_available, false);
-  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.required_mutation, 'release_draft_cleanup');
-  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.release_attempt_id_required, true);
-  assert.equal(newReleaseRecovery.recovery.cleanup_authorization.broker_acceptance_receipt_required, true);
-  assert.equal(
-    newReleaseRecovery.recovery.cleanup_authorization.availability,
-    'unavailable_until_broker_cleanup_mutation_is_provisioned',
-  );
-
-  fs.writeFileSync(ghLogPath, '', 'utf8');
-  const existingReleaseFailure = runNode(publishArgs, {
-    env: {
-      ...publishEnv,
-      OPL_RELEASE_EXISTS: '1',
-      OPL_RELEASE_IS_DRAFT: '1',
-      OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
-    },
-  });
-  assert.notEqual(existingReleaseFailure.status, 0);
-  const existingReleaseCommands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  const existingReleaseLifecycle = existingReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
-  assert.deepEqual(existingReleaseLifecycle.map((args) => args.slice(0, 2)), [['release', 'upload']]);
-  assert.equal(existingReleaseLifecycle[0].includes('--clobber'), true);
-  const existingReleaseRecovery = JSON.parse(fs.readFileSync(recoveryReceiptPath, 'utf8'));
-  assert.equal(existingReleaseRecovery.status, 'incomplete_draft');
-  assert.equal(existingReleaseRecovery.draft.origin, 'preexisting_mutable_draft');
-  assert.equal(existingReleaseRecovery.draft.automatic_release_delete_attempted, false);
-  assert.equal(existingReleaseRecovery.draft.automatic_tag_cleanup_attempted, false);
+  assert.equal(fs.existsSync(ghLogPath), false);
 });
 
-test('publish refuses to replace an already published Stable or prerelease release', () => {
+test('retired publisher dry-run never interprets remote state as mutation admission', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-immutable-release-'));
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
   const version = '26.5.16';
@@ -210,8 +164,11 @@ test('publish refuses to replace an already published Stable or prerelease relea
         OPL_RELEASE_NOTES_MODE: 'template',
       },
     });
-    assert.notEqual(result.status, 0, `${label} release mutation should fail`);
-    assert.match(result.stderr, new RegExp(`already published ${label} release and is immutable`));
+    assert.equal(result.status, 0, `${label}: ${result.stderr || result.stdout}`);
+    const inspection = JSON.parse(result.stdout);
+    assert.equal(inspection.remote_inspection_performed, false);
+    assert.equal(inspection.remote_mutation_attempted, false);
+    assert.equal(inspection.mutation_authorized, false);
   }
 
   const promotedBetweenPlanAndUpload = runNode([
@@ -242,14 +199,14 @@ test('publish refuses to replace an already published Stable or prerelease relea
       OPL_RELEASE_TEST_MODE: '1',
     },
   });
-  assert.notEqual(promotedBetweenPlanAndUpload.status, 0);
-  assert.match(
-    promotedBetweenPlanAndUpload.stderr,
-    /already published stable release and is immutable/,
-  );
+  assert.equal(promotedBetweenPlanAndUpload.status, 2);
+  const retirement = JSON.parse(promotedBetweenPlanAndUpload.stdout);
+  assert.equal(retirement.status, 'retired_fail_closed');
+  assert.equal(retirement.remote_read_attempted, false);
+  assert.equal(retirement.remote_write_attempted, false);
 });
 
-test('publish rechecks the draft after notes and before any clobber upload', () => {
+test('retired direct publisher rejects non-dry Full requests before any remote read or write', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-race-'));
   const fullDir = path.join(tempRoot, 'full');
   const binDir = path.join(tempRoot, 'bin');
@@ -315,17 +272,12 @@ process.exit(0);
     },
   });
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /already published stable release and is immutable/);
-  const commands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  const mutations = commands.filter((args) => (
-    (args[1] === 'view' && args.includes('tagName,isDraft,isPrerelease,publishedAt'))
-    || args[1] === 'edit'
-    || args[1] === 'upload'
-  ));
-  assert.deepEqual(mutations.map((args) => args[1]), ['view', 'edit', 'view', 'view']);
-  assert.equal(mutations.some((args) => args[1] === 'upload'), false);
-  assert.equal(mutations.some((args) => args.includes('--clobber')), false);
+  assert.equal(result.status, 2, result.stderr || result.stdout);
+  const retirement = JSON.parse(result.stdout);
+  assert.equal(retirement.status, 'retired_fail_closed');
+  assert.equal(retirement.release_mutation_attempted, false);
+  assert.equal(fs.existsSync(ghLogPath), false);
+  assert.equal(fs.existsSync(stateReadsPath), false);
 });
 
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
@@ -372,9 +324,10 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   assert.equal(payload.release_notes_mode, 'template');
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith(dmgName)));
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith('latest-arm64-mac.yml')));
-  assert.equal(payload.upload_command.includes('--clobber'), false);
-  assert.ok(payload.upload_commands.every((command) => !command.includes('--clobber')));
-  assert.equal(payload.upload_commands.length, payload.upload_command.filter((part) => String(part).startsWith(releaseAssetsDir)).length);
+  assert.equal(payload.remote_inspection_performed, false);
+  assert.equal(payload.remote_mutation_attempted, false);
+  assert.equal(payload.build_performed, false);
+  assert.ok(payload.asset_identities.every((asset) => /^sha256:[0-9a-f]{64}$/.test(asset.sha256)));
 });
 
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {

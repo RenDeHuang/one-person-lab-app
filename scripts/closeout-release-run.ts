@@ -3,7 +3,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { findFileByName, runGitHubCli as runGh } from './release-file-helpers.ts';
@@ -81,14 +80,6 @@ type ArtifactJson = {
   payload: JsonRecord | null;
 };
 
-type CandidatePromotionValidation = {
-  command: string;
-  exit_status: number | null;
-  promote_ready: boolean;
-  summary: JsonRecord | null;
-  errors: string[];
-};
-
 type AttestationVerificationSummary = {
   state: 'verified' | 'failed' | 'missing';
   role: 'build_integrity_evidence';
@@ -100,8 +91,8 @@ type AttestationVerificationSummary = {
 };
 
 type StableTerminalEvidence = {
-  status: 'unavailable' | 'invalid' | 'published_verified' | 'standard_terminal_verified';
-  authority: 'canonical_stable_session_and_exact_promotion_saga_receipt';
+  status: 'unavailable' | 'invalid' | 'historical_receipts_valid';
+  authority: 'framework_release_checkpoint_only';
   diagnostics_only: true;
   stable_session_path: string | null;
   promotion_saga_receipt_path: string | null;
@@ -158,8 +149,8 @@ function defaultOptions(): Options {
 
 function usage(): void {
   process.stdout.write(`Usage:
-  npm run release:closeout -- --version <version> --run-id <github-actions-run-id>
-  npm run release:closeout -- --version <version> --run-json <path> --jobs-json <path> --artifacts-dir <path> --no-download
+  node --experimental-strip-types scripts/closeout-release-run.ts --version <version> --run-id <github-actions-run-id>
+  node --experimental-strip-types scripts/closeout-release-run.ts --version <version> --run-json <path> --jobs-json <path> --artifacts-dir <path> --no-download
 
 Options:
   --version <version>              OPL release version, for example 26.6.20.
@@ -176,7 +167,7 @@ Options:
   --artifacts-json <path>          Read saved artifact list JSON.
   --artifacts-dir <path>           Directory containing downloaded small release artifacts.
   --stable-session <path>          Canonical opl_app_stable_release_session.v3 state (diagnostic read only).
-  --promotion-saga-receipt <path>  Exact receipt bytes bound by the canonical stable session.
+  --promotion-saga-receipt <path>  Optional historical receipt bytes for read-only inspection.
   --completion-manifest <path>     Write the output-generation completion manifest last.
   --artifact-profile <profile>     primary, diagnostics, or readiness-inputs. Default: primary.
   --no-download                    Do not download artifacts; read --artifacts-dir only.
@@ -786,86 +777,6 @@ function shellArg(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function validatorCommand(options: Options, candidatePath: string): string {
-  return [
-    'node',
-    '--experimental-strip-types',
-    'scripts/validate-release-candidate-record.ts',
-    '--promote-ready',
-    '--version',
-    options.version,
-    '--record',
-    candidatePath,
-  ].map(shellArg).join(' ');
-}
-
-function validateCandidatePromotion(options: Options, candidatePath: string | null): CandidatePromotionValidation {
-  const command = candidatePath
-    ? validatorCommand(options, candidatePath)
-    : `npm run release:candidate-record:validate -- --version ${options.version} --record <release-candidate-record.json>`;
-  if (!candidatePath) {
-    return {
-      command,
-      exit_status: 1,
-      promote_ready: false,
-      summary: null,
-      errors: ['Release candidate record path is missing.'],
-    };
-  }
-
-  const result = spawnSync(process.execPath, [
-    '--experimental-strip-types',
-    'scripts/validate-release-candidate-record.ts',
-    '--promote-ready',
-    '--version',
-    options.version,
-    '--record',
-    candidatePath,
-  ], {
-    cwd: appRoot,
-    encoding: 'utf8',
-    maxBuffer: commandMaxBuffer,
-  });
-  const summary = asRecord(result.stdout.trim() ? JSON.parse(result.stdout) : null);
-  const summaryErrors = asArray(summary?.errors).map((entry) => String(entry));
-  const stderr = result.stderr.trim();
-  const errors = summaryErrors.length > 0
-    ? summaryErrors
-    : stderr ? [stderr] : [];
-  return {
-    command,
-    exit_status: result.status,
-    promote_ready: result.status === 0 && summary?.promote_ready === true,
-    summary,
-    errors,
-  };
-}
-
-function ownerResolutionDecision(validation: CandidatePromotionValidation) {
-  const releaseOwnerVerdictStatus = stringField(validation.summary, 'release_owner_verdict_status');
-  const typedBlockerRef = stringField(validation.summary, 'release_owner_typed_blocker_ref');
-  return {
-    next_action: 'owner_needed_release_owner_resolution',
-    reason: [
-      'Candidate record is not promote-ready until the App release owner records a same-cohort owner-resolution ref.',
-      ...validation.errors,
-    ].join(' '),
-    command: validation.command,
-    owner_resolution: {
-      promote_ready: validation.promote_ready,
-      validator_exit_status: validation.exit_status,
-      release_owner_verdict_status: releaseOwnerVerdictStatus,
-      release_owner_verdict_ref: stringField(validation.summary, 'release_owner_verdict_ref'),
-      release_owner_receipt_ref: stringField(validation.summary, 'release_owner_receipt_ref'),
-      typed_blocker_ref: typedBlockerRef,
-      errors: validation.errors,
-      next_owner_action: typedBlockerRef
-        ? `Resolve ${typedBlockerRef} by recording a same-cohort release_owner_verdict_ref or release_owner_receipt_ref.`
-        : 'Record a same-cohort release_owner_verdict_ref or release_owner_receipt_ref before promotion.',
-    },
-  };
-}
-
 function runDatabaseId(options: Options, run: JsonRecord): string | null {
   if (options.runId) return options.runId;
   const stringId = stringField(run, 'databaseId') ?? stringField(run, 'id');
@@ -874,11 +785,14 @@ function runDatabaseId(options: Options, run: JsonRecord): string | null {
   return numberId === null ? null : String(numberId);
 }
 
-function stableSessionRoutes(options: Options) {
-  const statePath = options.stableSessionPath || '<canonical-release-session.json>';
+function stableSessionRoutes() {
   return {
-    status: `npm run release:stable -- reconcile --state ${shellArg(statePath)}`,
-    resume: `npm run release:stable -- resume --state ${shellArg(statePath)} --execute`,
+    status: 'opl release status --bundle <sha256:digest> --store <directory>',
+    resume: [
+      'manual handoff only:',
+      'select Stable operation resume_standard with the exact Framework portable checkpoint;',
+      'this diagnostics artifact cannot authorize or execute release mutation',
+    ].join(' '),
   };
 }
 
@@ -887,9 +801,9 @@ function expectedPromotionSagaArtifactName(session: StableReleaseSession): strin
 }
 
 function buildStableTerminalEvidence(options: Options, run: JsonRecord): StableTerminalEvidence {
-  const routes = stableSessionRoutes(options);
+  const routes = stableSessionRoutes();
   const base = {
-    authority: 'canonical_stable_session_and_exact_promotion_saga_receipt' as const,
+    authority: 'framework_release_checkpoint_only' as const,
     diagnostics_only: true as const,
     stable_session_path: options.stableSessionPath || null,
     promotion_saga_receipt_path: options.promotionSagaReceiptPath || null,
@@ -906,7 +820,7 @@ function buildStableTerminalEvidence(options: Options, run: JsonRecord): StableT
       ...base,
       status: 'unavailable',
       errors: [
-        'Canonical stable session and exact promotion saga receipt were not supplied; closeout artifact observations are diagnostics only.',
+        'Historical App session receipts were not supplied; closeout artifact observations remain diagnostics only.',
       ],
     };
   }
@@ -1004,19 +918,16 @@ function buildStableTerminalEvidence(options: Options, run: JsonRecord): StableT
     version: session.version,
   }));
 
-  const published = errors.length === 0;
-  const standardTerminal = published
-    && session.terminal_truth?.standard_status === 'terminal'
-    && ['standard_stable_terminal', 'addon_train_terminal'].includes(session.phase);
+  const historicalReceiptsValid = errors.length === 0;
   return {
     ...base,
     stable_session_id: session.id,
     session_revision: session.revision,
     session_phase: session.phase,
     observed_run_role: observedRole,
-    status: standardTerminal ? 'standard_terminal_verified' : published ? 'published_verified' : 'invalid',
-    published,
-    standard_terminal: standardTerminal,
+    status: historicalReceiptsValid ? 'historical_receipts_valid' : 'invalid',
+    published: false,
+    standard_terminal: false,
     errors,
   };
 }
@@ -1040,66 +951,18 @@ function buildDecision(inputs: {
 
   if (runStatus !== 'completed') {
     return {
-      next_action: 'reconcile_canonical_stable_session',
-      reason: `Observed source run status is ${runStatus}; candidate/preflight/remote observations cannot authorize promotion while the source run is nonterminal.`,
+      next_action: 'inspect_framework_bundle_status',
+      reason: `Observed source run status is ${runStatus}; historical App observations cannot authorize any release transition.`,
       command: inputs.terminalEvidence.routes.status,
       routes: inputs.terminalEvidence.routes,
       diagnostics_only: true,
       mutation_authorized: false,
-    };
-  }
-  if (inputs.terminalEvidence.standard_terminal) {
-    return {
-      next_action: 'stable_terminal_verified',
-      reason: 'Canonical stable session and its exact validated promotion saga receipt prove the Standard Stable terminal state.',
-      command: inputs.terminalEvidence.routes.status,
-      routes: inputs.terminalEvidence.routes,
-      diagnostics_only: true,
-      mutation_authorized: false,
-    };
-  }
-  if (inputs.terminalEvidence.published) {
-    return {
-      next_action: 'complete_local_activation_from_canonical_session',
-      reason: 'Publication is receipt-verified, but the canonical stable session has not reached the independent Standard terminal state.',
-      command: inputs.terminalEvidence.routes.status,
-      routes: inputs.terminalEvidence.routes,
-      diagnostics_only: true,
-      mutation_authorized: false,
-    };
-  }
-
-  if (candidateStatus === 'ready_to_promote') {
-    const validation = validateCandidatePromotion(inputs.options, inputs.candidatePath);
-    if (!validation.promote_ready) {
-      return {
-        ...ownerResolutionDecision(validation),
-        diagnostics_only: true,
-        mutation_authorized: false,
-        routes: inputs.terminalEvidence.routes,
-      };
-    }
-    return {
-      next_action: 'reconcile_canonical_stable_session',
-      reason: 'Candidate record passed its diagnostic validator, but closeout never authorizes promotion; reconcile the canonical stable session before any resume decision.',
-      command: inputs.terminalEvidence.routes.status,
-      routes: inputs.terminalEvidence.routes,
-      diagnostics_only: true,
-      mutation_authorized: false,
-      owner_resolution: {
-        promote_ready: false,
-        candidate_validation_passed: true,
-        validator_exit_status: validation.exit_status,
-        release_owner_verdict_status: stringField(validation.summary, 'release_owner_verdict_status'),
-        release_owner_verdict_ref: stringField(validation.summary, 'release_owner_verdict_ref'),
-        release_owner_receipt_ref: stringField(validation.summary, 'release_owner_receipt_ref'),
-      },
     };
   }
   if (candidateStatus === 'blocked') {
     return {
-      next_action: 'resolve_candidate_record_blockers',
-      reason: 'Candidate record is blocked; use blocked_reasons before inspecting raw logs.',
+      next_action: 'inspect_historical_candidate_blockers',
+      reason: 'Historical candidate evidence is blocked; inspect it without treating it as Framework state.',
       command: `jq '.blocked_reasons, .required_gate_failures' ${path.join(inputs.options.artifactsDir, `release-candidate-record-${inputs.options.version}`, 'release-candidate-record.json')}`,
       diagnostics_only: true,
       mutation_authorized: false,
@@ -1108,7 +971,7 @@ function buildDecision(inputs: {
   }
   if (readinessStatus === 'failed') {
     return {
-      next_action: 'resolve_readiness_failed_gates',
+      next_action: 'inspect_historical_readiness_failures',
       reason: 'Readiness summary failed; inspect failed_required_gates before job logs.',
       command: `jq '.failed_required_gates' ${path.join(inputs.options.artifactsDir, `release-readiness-summary-${inputs.options.version}`, 'release-readiness-summary.json')}`,
       diagnostics_only: true,
@@ -1127,8 +990,8 @@ function buildDecision(inputs: {
     };
   }
   return {
-    next_action: 'inspect_missing_candidate_record',
-    reason: `Run ${tag} completed but release-candidate-record is ${candidateStatus}.`,
+    next_action: 'inspect_historical_release_evidence',
+    reason: `Run ${tag} completed; historical candidate status is ${candidateStatus} and is non-authoritative.`,
     command: `gh run download ${inputs.options.runId} --repo ${inputs.options.repo} --name release-candidate-record-${inputs.options.version} --dir ${inputs.options.artifactsDir}`,
     diagnostics_only: true,
     mutation_authorized: false,
@@ -1145,13 +1008,10 @@ function monitorState(input: {
   const runStatus = input.run.status ?? 'unknown';
   const conclusion = input.run.conclusion ?? 'unknown';
   const nextAction = stringField(input.decision, 'next_action') ?? 'unknown';
-  if (input.terminalEvidence.standard_terminal) return 'terminal';
-  if (input.terminalEvidence.published) return 'published_awaiting_local_activation';
   if (runStatus !== 'completed') return 'running';
   if (
-    nextAction === 'owner_needed_release_owner_resolution'
-    || nextAction === 'resolve_candidate_record_blockers'
-    || nextAction === 'resolve_readiness_failed_gates'
+    nextAction === 'inspect_historical_candidate_blockers'
+    || nextAction === 'inspect_historical_readiness_failures'
     || nextAction === 'inspect_failed_jobs'
     || input.jobs.failed_jobs.length > 0
   ) {
@@ -1221,7 +1081,7 @@ function buildSummary(options: Options, outputGeneration: OutputGeneration) {
     authority_boundary: {
       mode: 'diagnostics_only',
       mutation_authorized: false,
-      terminal_or_published_authority: 'canonical stable session joined to exact validated promotion saga receipt only',
+      terminal_or_published_authority: 'OPL Framework portable checkpoint and operation receipts only',
       candidate_preflight_remote_artifacts_can_authorize_terminal_state: false,
     },
     run: {
@@ -1303,7 +1163,7 @@ function buildSummary(options: Options, outputGeneration: OutputGeneration) {
     jobs: jobSummary,
     decision,
     operator_loop_optimization: {
-      implemented_by: 'desktop-release.yml default release closeout artifact and npm run release:closeout rerun',
+      implemented_by: 'historical closeout artifact inspection only; no package or workflow mutation entrypoint',
       workflow_default_release_summary: 'release-readiness-summary job uploads release-closeout-<version> after the candidate record is written',
       reduced_manual_steps: [
         'repeated gh run watch / gh run view polling',

@@ -1,6 +1,12 @@
 {
   "schema": "opl_app_release_broker_authority.v1",
   "status": "unprovisioned_release_blocking",
+  "status_scope": "retained_v1_parser_enum_only_not_current_release_status",
+  "lifecycle": "retired_historical_receipt_verification_only",
+  "live_mutation_authority": false,
+  "new_admission_allowed": false,
+  "new_dispatch_publish_promote_rebuild_or_cancel_allowed": false,
+  "replacement_authority_ref": "contracts/app-release-channel.json#release_bundle_control_plane.live_authority",
   "authority_epoch": 0,
   "issuer": "opl-release-broker",
   "allowed_repositories": [
@@ -14,6 +20,10 @@
     "source": "broker_authenticated_caller"
   },
   "current_release_admission": {
+    "lifecycle": "retired_historical_projection",
+    "live_admission_authority": false,
+    "historical_receipt_verification_only": true,
+    "new_admission_allowed": false,
     "mode": "admin_one_shot_controller",
     "allowed_workflows": [
       "release-stable.yml"
@@ -29,6 +39,9 @@
     "isolated_broker_disposition": "post_release_hardening"
   },
   "mutation_broker": {
+    "lifecycle": "retired_historical_projection",
+    "execution_allowed": false,
+    "receipt_verification_only": true,
     "protocol_version": 1,
     "executable_path": "/usr/local/libexec/opl-release-broker",
     "executable_sha256": null,
@@ -46,6 +59,9 @@
     "approved_controller_workflow_shas": []
   },
   "workflow_lookup": {
+    "lifecycle": "retired_historical_projection",
+    "new_lookup_or_mutation_allowed": false,
+    "historical_receipt_verification_only": true,
     "protocol_version": 2,
     "endpoint_url": null,
     "request_method": "POST",

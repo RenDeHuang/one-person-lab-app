@@ -6,8 +6,6 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import {
   appRoot,
-  createGitCheckout,
-  runGit,
 } from './release-readiness/helpers.ts';
 import {
   parseReleaseCohortLockArgs,
@@ -82,44 +80,26 @@ function writeOptions(root: string): ReleaseCohortLockOptions {
   };
 }
 
-test('release cohort lock resolves requested refs to immutable SHAs', () => {
+test('retired release cohort lock CLI cannot create a new App-owned authority record', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-lock-'));
-  const shell = createGitCheckout('opl-release-lock-shell-');
-  const framework = createGitCheckout('opl-release-lock-framework-');
-  const appHead = runGit(appRoot, ['rev-parse', 'HEAD']);
   const outputPath = path.join(tempRoot, 'release-cohort-lock.json');
   const markdownPath = path.join(tempRoot, 'release-cohort-lock.md');
 
   const result = runScript([
-    '--app-ref',
-    appHead,
-    '--shell-ref',
-    shell.head,
-    '--framework-ref',
-    framework.head,
-    '--shell-root',
-    shell.root,
-    '--framework-root',
-    framework.root,
     '--output',
     outputPath,
     '--markdown',
     markdownPath,
   ]);
 
-  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.status, 2, result.stderr || result.stdout);
   const stdout = JSON.parse(result.stdout);
-  const lock = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(stdout.schema, 'opl_app_release_cohort_lock.v1');
-  assert.equal(lock.schema, 'opl_app_release_cohort_lock.v1');
-  assert.equal(lock.app.requested_ref, appHead);
-  assert.equal(lock.app.resolved_sha, appHead);
-  assert.equal(lock.shell.requested_ref, shell.head);
-  assert.equal(lock.shell.resolved_sha, shell.head);
-  assert.equal(lock.framework.requested_ref, framework.head);
-  assert.equal(lock.framework.resolved_sha, framework.head);
-  assert.equal(lock.authority_boundary.cohort_lock_can_dispatch_workflow, false);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), new RegExp(`Shell resolved SHA: ${shell.head}`));
+  assert.equal(stdout.schema, 'opl_app_retired_release_cohort_lock.v1');
+  assert.equal(stdout.status, 'retired_fail_closed');
+  assert.equal(stdout.authoritative_for_new_release, false);
+  assert.equal(stdout.mutation_authorized, false);
+  assert.equal(fs.existsSync(outputPath), false);
+  assert.equal(fs.existsSync(markdownPath), false);
 });
 
 test('release cohort lock resolves mutable refs from the live canonical remote, not stale local tracking refs', () => {
@@ -146,59 +126,6 @@ test('release cohort lock resolves mutable refs from the live canonical remote, 
   assert.match(calls[0], new RegExp(`^git ls-remote ${releaseCohortCanonicalRemotes.shell}`));
   assert.deepEqual(calls.slice(1), [`git cat-file -e ${remoteSha}^{commit}`]);
   assert.equal(calls.some((call) => call.includes('refs/remotes/origin/main')), false);
-});
-
-test('release cohort lock fails unresolved source refs before emitting dispatch inputs', () => {
-  const shell = createGitCheckout('opl-release-lock-missing-shell-');
-  const framework = createGitCheckout('opl-release-lock-missing-framework-');
-  const appHead = runGit(appRoot, ['rev-parse', 'HEAD']);
-  const result = runScript([
-    '--app-ref',
-    appHead,
-    '--shell-ref',
-    'f'.repeat(40),
-    '--framework-ref',
-    framework.head,
-    '--shell-root',
-    shell.root,
-    '--framework-root',
-    framework.root,
-  ]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Unable to resolve f{40}/);
-  assert.equal(result.stdout, '');
-});
-
-test('release cohort lock derives default source roots from an explicit repo root', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-lock-repo-root-'));
-  const parentRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-lock-parent-'));
-  const app = createGitCheckout('explicit-app-root', path.join(parentRoot, 'app'));
-  const shellRoot = path.join(app.root, 'shells', 'aionui');
-  const frameworkRoot = path.join(parentRoot, 'one-person-lab');
-  fs.mkdirSync(path.dirname(shellRoot), { recursive: true });
-  const shell = createGitCheckout('nested-shell-root', shellRoot);
-  const framework = createGitCheckout('sibling-framework-root', frameworkRoot);
-
-  const outputPath = path.join(tempRoot, 'release-cohort-lock.json');
-  const result = runScript([
-    '--repo-root',
-    app.root,
-    '--shell-ref',
-    shell.head,
-    '--framework-ref',
-    framework.head,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const lock = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(lock.app.requested_ref, app.head);
-  assert.equal(lock.app.resolved_sha, app.head);
-  assert.equal(lock.app.repo_root, app.root);
-  assert.equal(lock.shell.repo_root, shellRoot);
-  assert.equal(lock.framework.repo_root, frameworkRoot);
 });
 
 test('release cohort lock rejects conflicting App ref aliases', () => {

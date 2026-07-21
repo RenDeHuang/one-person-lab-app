@@ -21,22 +21,46 @@ updater readback.
 The Framework command surface is:
 
 ```text
-opl release freeze --request <request.json>
-opl release build --bundle <bundle.json> --executor-receipt <receipt.json>
-opl release verify --bundle <bundle.json>
-opl release publish --bundle <bundle.json> --track <standard|full> --executor-receipt <remote-inspect-receipt.json>
-opl release reconcile --bundle <bundle.json>
-opl release status --bundle <bundle.json>
+opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]
+opl release build --bundle <sha256:digest> --executor-receipt <receipt.json> [--store <directory>]
+opl release checkpoint export --bundle <sha256:digest> --output <directory> [--store <directory>]
+opl release checkpoint import --checkpoint <checkpoint.json> [--store <directory>]
+opl release verify --bundle <sha256:digest> --qualification-receipt <receipt.json> [--track <standard|full>] [--store <directory>]
+opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> [--store <directory>]
+opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> [--store <directory>]
+opl release status --bundle <sha256:digest> [--store <directory>]
 ```
 
 Framework receipts use `opl_release_bundle_executor_receipt.v1` and
-`opl_release_bundle_operation_receipt.v1`; the App references those schemas and
-does not duplicate their closed shapes.
+`opl_release_bundle_operation_receipt.v1`, qualifications use
+`opl_release_bundle_qualification_receipt.v1`, and transport uses
+`opl_release_bundle_checkpoint.v1`. The App references those schemas and does
+not duplicate their closed shapes.
 
-The Framework CLI, App adapter, Bundle workflows, and `release-stable`
-environment are the live authority. Existing broker and Stable state-machine
-receipts remain readable for audit, but they are not a live mutation authority
-and cannot dispatch, rerun, cancel, publish, or promote.
+Framework checkpoint state plus one App product executor is the only live
+mutation authority. The protected `release-stable` environment constrains the
+executor but is not a second state authority. Existing broker, Stable-session,
+and operator receipts remain readable for audit, but they cannot admit,
+schedule, dispatch, rebuild, rerun, cancel, publish, promote, or reconcile a new
+release.
+
+## Portable Checkpoints
+
+The five portable stages are `frozen`, `standard_built`,
+`standard_qualified`, `full_built`, and `full_qualified`. Local and GitHub
+executors may switch at any completed stage by transferring only the checkpoint,
+exact assets, and receipts. Import revalidates every size and SHA-256, skips
+completed work, and records `rebuild_performed=false`.
+
+`source_build_executor` and `source_build_run_id` remain the byte provenance.
+`checkpoint_transport_executor` and `transport_run_id` describe only the
+handoff; moving an artifact to another run cannot rewrite its build provenance.
+
+Checkpoint import never imports publish or promotion state. The recipient does
+a fresh remote inspection, uploads only missing names, treats matching names and
+digests as complete, and fails closed on a same-name digest mismatch. An unknown
+build or publish outcome blocks export and executor switching until inspect and
+Framework reconcile resolve it.
 
 ## Bundle Identity
 
@@ -80,10 +104,14 @@ Standard Homebrew cask publication plus clean-VM readback pass:
 5. `opl-app-component-manifest.json`
 6. `standard-local-authorization-policy.json`
 
-The updater hard gate installs the previous Latest DMG, discovers and downloads
-the same ZIP bound above, applies it without `allowDowngrade`, restarts, proves
+The updater hard gate uses both current Latest and the highest public Stable as
+its baseline, installs the public predecessor DMG, discovers and downloads the
+same ZIP bound above, applies it without `allowDowngrade`, restarts, proves
 `app.getVersion()` equals the Bundle `updater_version`, and then proves a second
-check reports no update. The Homebrew cask uses `updater_version` for ordering,
+check reports no update. Its receipt binds the actual ZIP `size_bytes` and
+SHA-256 computed from the file; metadata alone is insufficient. This gate passes
+before the first public GitHub Release mutation. The Homebrew cask uses
+`updater_version` for ordering,
 but its URL, Release tag, and asset name use `display_version`; it must retain
 `depends_on formula: "opl"`.
 
@@ -105,7 +133,8 @@ ordering use `updater_version`, for example `26.7.2001`. SemVer compares the
 three core segments as decimal integers; no zero padding or string ordering is
 allowed. Historical `26.7.20` keeps machine version `26.7.20`. New Stable
 versions encode patch as `day * 100 + revision`, with revisions limited to
-`r1` through `r9`.
+`r1` through `r9`. Allocation compares every public Stable release, not only
+Latest, and both display and machine versions must increase.
 
 ## Workflow Boundary
 
@@ -115,6 +144,13 @@ versions encode patch as `day * 100 + revision`, with revisions limited to
 release DAG through `.github/workflows/release-nightly.yml`, is schedule-only,
 publishes a prerelease, and can never become Latest.
 
+Stable exposes exactly `standard`, `resume_standard`, and `append_full`.
+Stable and Nightly share one repository-wide mutation mutex. Each operation
+derives one absolute deadline from the GitHub run start, every mutating job
+checks it before its first remote API, and partial `github.run_attempt` reruns
+are rejected. Typed failure evidence is persisted before a failing job exits or
+cleans its workspace.
+
 Only the publish job may receive bounded write permission, under the protected
 `release-stable` environment. Every other job is read-only. The publisher is
 digest-idempotent: upload a missing asset, treat the same name and digest as
@@ -123,14 +159,16 @@ API result permits reconcile only, never redispatch, rerun, or cancel.
 
 Homebrew mutations are performed inside protected Bundle jobs with the scoped
 tap credential. Each cask push is attempted once and accepted only after exact
-remote commit readback. GHCR WebUI publishing is explicitly not a desktop
+remote commit and cask digest readback. An unknown result permits at most three
+read-only reconciliations and never a second push. GHCR WebUI publishing is explicitly not a desktop
 Stable critical-path asset; it remains a separate App-owned continuous server
 image publication and runtime-readback path.
 
 ## Compatibility And Cutover
 
 `opl_app_release_bundle.v1`, `scripts/release-bundle.ts`, the previous Stable
-state machine, and broker receipts are compatibility inputs only. Their parsers
+state machine, operator projection, and broker receipts are historical receipt
+compatibility inputs only. Their parsers
 may assemble, verify, or report historical state, but they cannot dispatch,
 publish, rebuild, promote, or claim release readiness.
 
@@ -140,6 +178,17 @@ complete only after Framework and App authority mains contain their respective
 interfaces, the Stable and Nightly workflow entrypoints match this document,
 the `release-stable` protected environment is configured and read back, and a
 no-public-mutation canary passes.
+
+Contract or canary success does not itself admit a release or prove a Bundle is
+publishable. The live executor performs independent admission and remote
+readback.
+
+## Permanently Rejected Bundle
+
+Bundle
+`sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49`
+is permanently ineligible for checkpoint import, executor handoff, publication,
+promotion, or reuse.
 
 ## Rejected v26.7.20 Full Artifact
 

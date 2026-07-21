@@ -1,31 +1,33 @@
 #!/usr/bin/env node
+
+import crypto from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
-import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle } from './release-notes.ts';
-import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
+import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
-import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
-import {
-  assertReleaseVersionNotFuture,
-  currentReleaseCalendarDate,
-} from './release-version.ts';
+import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
+import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
+import { assertReleaseVersionNotFuture, currentReleaseCalendarDate } from './release-version.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
-const defaultUploadAttempts = 3;
-const defaultUploadTimeoutMs = 5 * 60 * 1000;
-const forceUploadFlag = '--force-upload';
-const forceUploadOption = forceUploadFlag.slice(2);
+const canonicalRepository = 'gaofeng21cn/one-person-lab-app';
 
-function resolveShellRootEnv() {
-  return process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot;
-}
+type Options = {
+  shellRoot: string;
+  releaseRepo: string;
+  version: string;
+  macArch: string;
+  standardArtifactsDir: string;
+  fullPackageDir: string;
+  releaseNotesFile: string;
+  includeFullPackage: boolean;
+  fullPackageOnly: boolean;
+  dryRun: boolean;
+};
 
 function defaultReleaseVersion() {
   const calendarDate = process.env.OPL_RELEASE_DATE || currentReleaseCalendarDate();
@@ -34,29 +36,13 @@ function defaultReleaseVersion() {
   return `${Number(match[1]) - 2000}.${Number(match[2])}.${Number(match[3])}`;
 }
 
-function parseArgs(argv) {
-  const parsed = {
-    shellRoot: resolveShellRootEnv(),
-    releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
-    version: process.env.OPL_RELEASE_VERSION || '',
-    macArch: process.env.OPL_RELEASE_MAC_ARCH || 'arm64',
-    standardArtifactsDir: process.env.OPL_STANDARD_ARTIFACTS_DIR || '',
-    fullPackageDir: process.env.OPL_FULL_PACKAGE_DIR || '',
-    releaseNotesFile: process.env.OPL_RELEASE_NOTES_FILE || '',
-    build: true,
-    includeFullPackage: false,
-    fullPackageOnly: false,
-    dryRun: false,
-    forceUpload: false,
-    draft: false,
-  };
-
+function parseArgs(argv: string[]): Options {
   const { values } = parseNodeArgs({
     args: argv,
     options: {
       'no-build': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
-      [forceUploadOption]: { type: 'boolean' },
+      'force-upload': { type: 'boolean' },
       draft: { type: 'boolean' },
       'include-full-package': { type: 'boolean' },
       'full-package-only': { type: 'boolean' },
@@ -71,80 +57,99 @@ function parseArgs(argv) {
     allowPositionals: false,
     strict: true,
   });
-
-  if (values['no-build']) parsed.build = false;
-  if (values['dry-run']) parsed.dryRun = true;
-  if (values[forceUploadOption]) parsed.forceUpload = true;
-  if (values.draft) parsed.draft = true;
-  if (values['include-full-package']) {
-    parsed.includeFullPackage = true;
-    if (!parsed.fullPackageDir) parsed.fullPackageDir = defaultFullPackageDir;
+  const shellRoot = path.resolve(
+    values['shell-root']
+      || process.env.OPL_APP_SHELL_ROOT
+      || process.env.OPL_AION_SHELL_ROOT
+      || resolveActiveShellPaths().shellRoot,
+  );
+  const fullPackageOnly = values['full-package-only'] === true;
+  const fullPackageDir = path.resolve(
+    values['full-package-dir']
+      || process.env.OPL_FULL_PACKAGE_DIR
+      || path.join(repoRoot, 'dist', 'opl-full-release'),
+  );
+  const macArch = values['mac-arch'] || process.env.OPL_RELEASE_MAC_ARCH || 'arm64';
+  if (!['arm64', 'x64', 'universal'].includes(macArch)) {
+    throw new Error(`Unsupported macOS release architecture: ${macArch}`);
   }
-  if (values['full-package-only']) {
-    parsed.fullPackageOnly = true;
-    parsed.includeFullPackage = true;
-    parsed.build = false;
-    if (!parsed.fullPackageDir) parsed.fullPackageDir = defaultFullPackageDir;
-  }
-  if (values['shell-root']) parsed.shellRoot = path.resolve(values['shell-root']);
-  if (values.repo) parsed.releaseRepo = values.repo;
-  if (values.version) {
-    parsed.version = values.version;
-  }
-  if (values['mac-arch']) parsed.macArch = values['mac-arch'];
-  if (values['standard-artifacts-dir']) {
-    parsed.standardArtifactsDir = path.resolve(values['standard-artifacts-dir']);
-    parsed.build = false;
-  }
-  if (values['full-package-dir']) {
-    parsed.fullPackageDir = path.resolve(values['full-package-dir']);
-    parsed.includeFullPackage = true;
-  }
-  if (values['release-notes-file']) parsed.releaseNotesFile = path.resolve(values['release-notes-file']);
-  if (!['arm64', 'x64', 'universal'].includes(parsed.macArch)) {
-    throw new Error(`Unsupported macOS release architecture: ${parsed.macArch}`);
-  }
-  if (parsed.fullPackageOnly && !parsed.includeFullPackage) {
-    throw new Error('--full-package-only requires --include-full-package or --full-package-dir.');
-  }
-  if (!parsed.version) {
-    parsed.version = defaultReleaseVersion();
-  }
-  return parsed;
+  return {
+    shellRoot,
+    releaseRepo: values.repo || process.env.OPL_RELEASE_REPO || canonicalRepository,
+    version: values.version || process.env.OPL_RELEASE_VERSION || defaultReleaseVersion(),
+    macArch,
+    standardArtifactsDir: values['standard-artifacts-dir']
+      ? path.resolve(values['standard-artifacts-dir'])
+      : process.env.OPL_STANDARD_ARTIFACTS_DIR
+        ? path.resolve(process.env.OPL_STANDARD_ARTIFACTS_DIR)
+        : '',
+    fullPackageDir,
+    releaseNotesFile: values['release-notes-file']
+      ? path.resolve(values['release-notes-file'])
+      : process.env.OPL_RELEASE_NOTES_FILE
+        ? path.resolve(process.env.OPL_RELEASE_NOTES_FILE)
+        : '',
+    includeFullPackage: values['include-full-package'] === true || fullPackageOnly || values['full-package-dir'] !== undefined,
+    fullPackageOnly,
+    dryRun: values['dry-run'] === true,
+  };
 }
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
-    encoding: 'utf8',
-    stdio: options.capture ? 'pipe' : 'inherit',
-    env: process.env,
-    timeout: options.timeoutMs,
-  });
-  if (result.status !== 0) {
-    const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    const timedOut = result.error?.code === 'ETIMEDOUT' ? '\nreason=timeout' : '';
-    throw new Error(`Command failed: ${command} ${args.join(' ')}${timedOut}${detail}`);
+function retirementReceipt(argv: string[]) {
+  const message = 'Direct release publication is retired; only local --dry-run asset inspection remains available.';
+  return {
+    schema: 'opl_app_direct_release_publisher_retired.v1',
+    status: 'retired_fail_closed',
+    lifecycle: 'historical_dry_run_asset_inspector_only',
+    failure: {
+      kind: 'retired_direct_entrypoint',
+      input_digest: `sha256:${crypto.createHash('sha256').update(JSON.stringify(argv)).digest('hex')}`,
+      stdout: '',
+      stderr: message,
+    },
+    mutation_authorized: false,
+    remote_read_attempted: false,
+    remote_write_attempted: false,
+    release_mutation_attempted: false,
+    framework_handoff: {
+      state_authority: 'opl_release_bundle_checkpoint.v1',
+      executor: 'scripts/framework-release-adapter.ts',
+      allowed_stable_operations: ['standard', 'resume_standard', 'append_full'],
+    },
+  };
+}
+
+function readJson(filePath: string) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function assertUpdaterMetadataDoesNotReferenceFull(releaseDir: string, names: string[]) {
+  for (const name of names.filter((entry) => /^latest.*\.yml$/.test(entry))) {
+    if (/One[ .-]Person[ .-]Lab[ .-]Full-|One-Person-Lab-Full-/.test(fs.readFileSync(path.join(releaseDir, name), 'utf8'))) {
+      throw new Error(`${name} must not reference One Person Lab Full assets.`);
+    }
   }
-  return result;
 }
 
-const guiArtifactPrefixes = ['One Person Lab-', 'One.Person.Lab-', 'One-Person-Lab-'];
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function metadataMatchesMacArch(metadata, macArch) {
-  return metadata.includes(`-mac-${macArch}.`);
-}
-
-function assertStandardArtifactDoesNotContainFullRuntime(shellRoot, version, macArch) {
-  const appPath = path.join(resolveActiveShellPaths({ shellRoot }).buildOutputDir, `mac-${macArch}`, 'One Person Lab.app');
-  if (!fs.existsSync(appPath)) {
-    return;
-  }
-  const fullRuntimePath = path.join(appPath, 'Contents', 'Resources', 'opl-full-runtime', 'runtime', 'current');
+function assertStandardArtifactDoesNotContainFullRuntime(
+  shellRoot: string,
+  version: string,
+  macArch: string,
+) {
+  const appPath = path.join(
+    resolveActiveShellPaths({ shellRoot }).buildOutputDir,
+    `mac-${macArch}`,
+    'One Person Lab.app',
+  );
+  if (!fs.existsSync(appPath)) return;
+  const fullRuntimePath = path.join(
+    appPath,
+    'Contents',
+    'Resources',
+    'opl-full-runtime',
+    'runtime',
+    'current',
+  );
   if (fs.existsSync(fullRuntimePath)) {
     throw new Error(
       `Standard App release ${version} ${macArch} contains Full runtime payload at ${fullRuntimePath}; run release:prepare-standard before building standard assets.`,
@@ -152,791 +157,178 @@ function assertStandardArtifactDoesNotContainFullRuntime(shellRoot, version, mac
   }
 }
 
-function assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files) {
-  for (const name of files) {
-    if (!/^latest.*\.yml$/.test(name)) {
-      continue;
-    }
-    const metadata = fs.readFileSync(path.join(releaseDir, name), 'utf8');
-    if (/One[ .-]Person[ .-]Lab[ .-]Full-|One-Person-Lab-Full-/.test(metadata)) {
-      throw new Error(`${name} must not reference One Person Lab Full assets; Full packages are first-install downloads only.`);
-    }
-  }
+function assertStandardAuthorization(releaseDir: string) {
+  const policyPath = path.join(releaseDir, 'standard-local-authorization-policy.json');
+  if (!fs.existsSync(policyPath)) throw new Error(`Missing Stable local-authorization evidence: ${policyPath}`);
+  assertLocalAuthorizationPolicy(readJson(policyPath), 'app_standard', 'standard-local-authorization-policy.json');
 }
 
-function assertStableLocalAuthorizationPolicy(releaseDir, name, packageKind) {
-  const policyPath = path.join(releaseDir, name);
-  if (!fs.existsSync(policyPath)) {
-    throw new Error(`Missing Stable local-authorization evidence: ${policyPath}`);
-  }
-  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  assertLocalAuthorizationPolicy(policy, packageKind, name);
-}
-
-function readJsonFile(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function isGuiArtifact(name, version, extension, macArch) {
-  const baseNames = guiArtifactPrefixes.map((prefix) => `${prefix}${version}-mac-${macArch}`);
-  if (extension === '.blockmap') {
-    return baseNames.some((baseName) => name === `${baseName}.zip.blockmap`);
-  }
-  return baseNames.some((baseName) => name === `${baseName}${extension}`);
-}
-
-function isLatestMetadataForVersion(releaseDir, name, version, macArch) {
-  if (!/^latest.*\.yml$/.test(name)) {
-    return false;
-  }
-  const source = path.join(releaseDir, name);
-  const metadata = fs.readFileSync(source, 'utf8');
-  return new RegExp(`^version:\\s*['"]?${escapeRegExp(version)}['"]?\\s*$`, 'm').test(metadata)
-    && metadataMatchesMacArch(metadata, macArch);
-}
-
-function isStandardReleaseAssetName(releaseDir, name, version, macArch) {
-  if (isGuiArtifact(name, version, '.dmg', macArch)) {
-    return true;
-  }
-  if (isGuiArtifact(name, version, '.zip', macArch)) {
-    return true;
-  }
-  if (isGuiArtifact(name, version, '.blockmap', macArch)) {
-    return true;
-  }
-  if (name === 'standard-local-authorization-policy.json') {
-    return true;
-  }
-  return name === `latest-${macArch}-mac.yml` && isLatestMetadataForVersion(releaseDir, name, version, macArch);
-}
-
-function listStandardReleaseAssetNames(releaseDir, version, macArch) {
+function standardArtifactNames(releaseDir: string, version: string, macArch: string) {
+  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const artifact = new RegExp(`^One(?:[ .-])Person(?:[ .-])Lab-${escaped}-mac-${macArch}\\.(?:dmg|zip|zip\\.blockmap)$`);
+  const metadata = new RegExp(`^latest-${macArch}-mac\\.yml$`);
   return fs.readdirSync(releaseDir).filter((name) => (
-    isStandardReleaseAssetName(releaseDir, name, version, macArch)
+    artifact.test(name)
+    || metadata.test(name)
+    || name === 'standard-local-authorization-policy.json'
   ));
 }
 
-function findArtifacts(shellRoot, version, macArch) {
-  const shellPaths = resolveActiveShellPaths({ shellRoot });
-  const releaseDir = [path.join(shellRoot, 'release'), shellPaths.buildOutputDir]
-    .find((candidate) => fs.existsSync(candidate));
-  if (!releaseDir) {
-    throw new Error(`Missing GUI artifact directory: expected ${path.join(shellRoot, 'release')} or ${shellPaths.buildOutputDir}`);
+function inspectStandardArtifacts(options: Options) {
+  if (options.fullPackageOnly) return [];
+  const shellPaths = resolveActiveShellPaths({ shellRoot: options.shellRoot });
+  const releaseDir = options.standardArtifactsDir || [
+    path.join(options.shellRoot, 'release'),
+    shellPaths.buildOutputDir,
+  ].find((candidate) => fs.existsSync(candidate));
+  if (!releaseDir || !fs.existsSync(releaseDir)) {
+    throw new Error('Missing prebuilt Standard asset directory; this retired inspector never builds assets.');
   }
-  const files = listStandardReleaseAssetNames(releaseDir, version, macArch);
-  if (!files.some((name) => name.endsWith('.dmg'))) {
-    throw new Error(`No One Person Lab ${version} ${macArch} DMG found under ${releaseDir}`);
+  const names = standardArtifactNames(releaseDir, options.version, options.macArch);
+  for (const [label, predicate] of [
+    ['DMG', (name: string) => name.endsWith('.dmg')],
+    ['ZIP', (name: string) => name.endsWith('.zip')],
+    [`latest-${options.macArch}-mac.yml`, (name: string) => name === `latest-${options.macArch}-mac.yml`],
+  ] as const) {
+    if (!names.some(predicate)) throw new Error(`Missing prebuilt Standard asset: ${label}`);
   }
-  assertStandardArtifactDoesNotContainFullRuntime(shellRoot, version, macArch);
-  assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
-  assertStableLocalAuthorizationPolicy(releaseDir, 'standard-local-authorization-policy.json', 'app_standard');
-  files.push('standard-local-authorization-policy.json');
-  const canonicalMetadataName = `latest-${macArch}-mac.yml`;
-  if (!files.includes(canonicalMetadataName)) {
-    const legacyMetadataName = 'latest-mac.yml';
-    const legacyMetadataPath = path.join(releaseDir, legacyMetadataName);
-    if (macArch === 'arm64' && fs.existsSync(legacyMetadataPath) && isLatestMetadataForVersion(releaseDir, legacyMetadataName, version, macArch)) {
-      fs.copyFileSync(legacyMetadataPath, path.join(releaseDir, canonicalMetadataName));
-      files.push(canonicalMetadataName);
-    }
-  }
-  const artifacts = files.map((name) => {
-    const source = path.join(releaseDir, name);
-    if (/^latest.*\.yml$/.test(name)) {
-      const uploadPath = path.join(releaseDir, name);
-      if (name.includes(' ')) {
-        fs.copyFileSync(source, uploadPath);
-      }
-      return uploadPath;
-    }
-    if (!name.includes(' ')) {
-      return source;
-    }
-    const uploadName = name.replaceAll(' ', '.');
-    const uploadPath = path.join(releaseDir, uploadName);
-    fs.copyFileSync(source, uploadPath);
-    return uploadPath;
-  });
-  return [...new Set(artifacts)];
+  assertStandardArtifactDoesNotContainFullRuntime(
+    options.shellRoot,
+    options.version,
+    options.macArch,
+  );
+  assertUpdaterMetadataDoesNotReferenceFull(releaseDir, names);
+  assertStandardAuthorization(releaseDir);
+  return names.map((name) => path.join(releaseDir, name)).sort();
 }
 
-function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
-  const releaseDir = path.resolve(standardArtifactsDir);
-  if (!fs.existsSync(releaseDir)) {
-    throw new Error(`Missing prebuilt standard release asset directory: ${releaseDir}`);
+function inspectFullArtifacts(options: Options) {
+  if (!options.includeFullPackage) return [];
+  if (options.macArch !== 'arm64') throw new Error('Full first-install assets support macOS arm64 only.');
+  const dmgName = `One-Person-Lab-Full-${options.version}-mac-arm64.dmg`;
+  const manifestPath = path.join(options.fullPackageDir, 'opl-release-manifest.json');
+  const dmgPath = path.join(options.fullPackageDir, dmgName);
+  if (!fs.existsSync(dmgPath) || !fs.existsSync(manifestPath)) {
+    throw new Error(`Missing Full asset pair under ${options.fullPackageDir}.`);
   }
-  const files = listStandardReleaseAssetNames(releaseDir, version, macArch);
-  const requiredKinds = [
-    ['DMG', (name) => name.endsWith('.dmg')],
-    ['ZIP', (name) => name.endsWith('.zip')],
-    [`latest-${macArch}-mac.yml`, (name) => name === `latest-${macArch}-mac.yml`],
-    ['standard-local-authorization-policy.json', (name) => name === 'standard-local-authorization-policy.json'],
-  ];
-  for (const [label, predicate] of requiredKinds) {
-    if (!files.some(predicate)) {
-      throw new Error(`Missing prebuilt One Person Lab ${version} ${macArch} standard release asset: ${label}`);
-    }
+  const releaseManifest = readJson(manifestPath);
+  if (releaseManifest.schema !== 'opl_public_release_manifest.v1'
+    || releaseManifest.package_kind !== 'opl_full_first_install_macos_arm64'
+    || releaseManifest.version !== options.version
+    || releaseManifest.primary_install_asset !== dmgName) {
+    throw new Error('Full public release manifest identity is invalid.');
   }
-  assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
-  assertStableLocalAuthorizationPolicy(releaseDir, 'standard-local-authorization-policy.json', 'app_standard');
-  return [...new Set(files.map((name) => path.join(releaseDir, name)))];
-}
-
-function findFullPackageArtifacts(fullPackageDir, version, macArch) {
-  if (macArch !== 'arm64') {
-    throw new Error(`Full first-install package is only supported for macOS arm64, not ${macArch}`);
+  const asset = Array.isArray(releaseManifest.assets)
+    ? releaseManifest.assets.find((entry: any) => entry?.name === dmgName)
+    : null;
+  if (!asset
+    || asset.size_bytes !== fs.statSync(dmgPath).size
+    || asset.sha256 !== fileSha256(dmgPath)) {
+    throw new Error(`Full public release manifest does not bind ${dmgName} bytes.`);
   }
-  if (!fullPackageDir || !fs.existsSync(fullPackageDir)) {
-    throw new Error(`Missing Full package directory: ${fullPackageDir || '(empty)'}`);
-  }
-
-  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
-  const required = [fullDmgName, 'opl-release-manifest.json'];
-
-  const files = fs.readdirSync(fullPackageDir);
-  for (const name of required) {
-    if (!files.includes(name)) {
-      throw new Error(`Missing Full package release asset: ${path.join(fullPackageDir, name)}`);
-    }
-  }
-
-  const fullDmgPath = path.join(fullPackageDir, fullDmgName);
-  const releaseManifestPath = path.join(fullPackageDir, 'opl-release-manifest.json');
-  const releaseManifest = readJsonFile(releaseManifestPath);
-  if (releaseManifest?.schema !== 'opl_public_release_manifest.v1') {
-    throw new Error('Full public release manifest must declare schema=opl_public_release_manifest.v1.');
-  }
-  if (releaseManifest.package_kind !== 'opl_full_first_install_macos_arm64') {
-    throw new Error('Full public release manifest must declare package_kind=opl_full_first_install_macos_arm64.');
-  }
-  if (releaseManifest.version !== version) {
-    throw new Error(`Full public release manifest version mismatch: expected ${version}, got ${releaseManifest.version || '(empty)'}.`);
-  }
-  if (releaseManifest.primary_install_asset !== fullDmgName) {
-    throw new Error(`Full public release manifest primary_install_asset must be ${fullDmgName}.`);
-  }
-  if (!Array.isArray(releaseManifest.assets) || !releaseManifest.assets.some((asset) => (
-    asset?.name === fullDmgName
-    && asset.role === 'full_first_install_carrier'
-    && asset.size_bytes === fs.statSync(fullDmgPath).size
-    && asset.sha256 === fileSha256(fullDmgPath)
-  ))) {
-    throw new Error(`Full public release manifest must record size and sha256 for ${fullDmgName}.`);
-  }
-
-  const manifest = releaseManifest.manifest;
-  if (manifest?.distribution?.updater_metadata_allowed !== false) {
-    throw new Error('Full package manifest must declare distribution.updater_metadata_allowed=false.');
+  if (releaseManifest.manifest?.distribution?.updater_metadata_allowed !== false) {
+    throw new Error('Full first-install assets cannot supply updater metadata.');
   }
   assertLocalAuthorizationPolicy(
-    releaseManifest?.evidence?.local_authorization_policy,
+    releaseManifest.evidence?.local_authorization_policy,
     'app_full_first_install',
     'opl-release-manifest.json#evidence.local_authorization_policy',
   );
-  assertFullRuntimeNativeTrustObject(releaseManifest?.evidence?.runtime_native_trust, manifest, {
-    missingMessage: 'Full public release manifest is missing evidence.runtime_native_trust.',
-  });
-  assertFullPackageManifestHasReleaseNotesMetadata(manifest);
-
-  return required.map((name) => path.join(fullPackageDir, name));
-}
-
-function assertFullPackageManifestHasReleaseNotesMetadata(manifest) {
-  const missing = [];
-  for (const key of ['mas', 'mag', 'rca', 'meta_agent']) {
-    const gitCommit = manifest?.components?.[key]?.git_commit;
-    if (typeof gitCommit !== 'string' || !gitCommit.trim()) {
-      missing.push(`components.${key}.git_commit`);
-    }
-  }
-  const officeCliVersion = manifest?.components?.officecli?.version;
-  if (typeof officeCliVersion !== 'string' || !officeCliVersion.trim()) {
-    missing.push('components.officecli.version');
-  }
-  const mineruOpenApiVersion = manifest?.components?.mineru_open_api?.version;
-  if (typeof mineruOpenApiVersion !== 'string' || !mineruOpenApiVersion.trim()) {
-    missing.push('components.mineru_open_api.version');
-  }
-  if (missing.length > 0) {
-    throw new Error(`Full package manifest is missing release-note metadata: ${missing.join(', ')}`);
-  }
-}
-
-function readFullPackageManifest(fullPackageDir) {
-  const releaseManifestPath = path.join(fullPackageDir || defaultFullPackageDir, 'opl-release-manifest.json');
-  if (!fs.existsSync(releaseManifestPath)) {
-    return null;
-  }
-  return readJsonFile(releaseManifestPath).manifest ?? null;
-}
-
-function queryReleaseState(repo, tag) {
-  const result = spawnSync('gh', [
-    'release',
-    'view',
-    tag,
-    '--repo',
-    repo,
-    '--json',
-    'tagName,isDraft,isPrerelease,publishedAt',
-  ], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-  if (result.status !== 0) {
-    return null;
-  }
-  try {
-    return JSON.parse(result.stdout);
-  } catch {
-    throw new Error(`GitHub returned invalid release state for ${tag}.`);
-  }
-}
-
-function readReleaseState(repo, tag) {
-  if (process.env.OPL_RELEASE_STATE_JSON?.trim()) {
-    return JSON.parse(process.env.OPL_RELEASE_STATE_JSON);
-  }
-  if (process.env.OPL_RELEASE_EXISTS === '0') {
-    return null;
-  }
-  if (process.env.OPL_RELEASE_EXISTS === '1') {
-    return {
-      tagName: tag,
-      isDraft: process.env.OPL_RELEASE_IS_DRAFT === '1',
-      isPrerelease: process.env.OPL_RELEASE_IS_PRERELEASE === '1',
-      publishedAt: process.env.OPL_RELEASE_IS_DRAFT === '1' ? null : 'fixture-published',
-    };
-  }
-  return queryReleaseState(repo, tag);
-}
-
-function readMutationReleaseState(repo, tag) {
-  if (process.env.OPL_RELEASE_MUTATION_STATE_JSON?.trim()) {
-    if (process.env.OPL_RELEASE_TEST_MODE !== '1') {
-      throw new Error('OPL_RELEASE_MUTATION_STATE_JSON is a test-only fixture and cannot replace remote draft readback.');
-    }
-    return JSON.parse(process.env.OPL_RELEASE_MUTATION_STATE_JSON);
-  }
-  return queryReleaseState(repo, tag);
-}
-
-function assertExistingReleaseIsMutableDraft(releaseState, tag) {
-  if (!releaseState) {
-    return;
-  }
-  if (releaseState.tagName !== tag) {
-    throw new Error(`GitHub release state mismatch: expected ${tag}, got ${releaseState.tagName || '(missing tag)'}.`);
-  }
-  if (releaseState.isDraft !== true) {
-    const channel = releaseState.isPrerelease ? 'prerelease' : 'stable';
-    throw new Error(
-      `Release ${tag} is an already published ${channel} release and is immutable; create a new version instead of replacing its notes or assets.`,
-    );
-  }
-}
-
-function assertRemoteReleaseIsMutableDraft(repo, tag) {
-  const releaseState = readMutationReleaseState(repo, tag);
-  if (!releaseState) {
-    throw new Error(`Release ${tag} disappeared before mutation; stop and rebuild the release plan.`);
-  }
-  assertExistingReleaseIsMutableDraft(releaseState, tag);
-}
-
-function readExistingReleaseAssets(repo, tag) {
-  if (process.env.OPL_RELEASE_EXISTING_ASSETS_JSON?.trim()) {
-    const parsed = JSON.parse(process.env.OPL_RELEASE_EXISTING_ASSETS_JSON);
-    return Array.isArray(parsed) ? parsed : [];
-  }
-  const result = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'assets'], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-  if (result.status !== 0) {
-    return [];
-  }
-  try {
-    const payload = JSON.parse(result.stdout);
-    return Array.isArray(payload.assets) ? payload.assets : [];
-  } catch {
-    return [];
-  }
-}
-
-function assetDigestMatches(asset, filePath) {
-  const digest = typeof asset?.digest === 'string' ? asset.digest.trim() : '';
-  if (!digest) {
-    return false;
-  }
-  const match = digest.match(/^sha256:(?<hash>[a-f0-9]{64})$/i);
-  if (!match?.groups?.hash) {
-    return false;
-  }
-  const local = fileSha256(filePath);
-  return local.toLowerCase() === match.groups.hash.toLowerCase();
-}
-
-function partitionArtifactsForUpload(artifacts, existingAssets, options) {
-  const orderUploadArtifacts = (artifactPaths) => [...artifactPaths].sort((left, right) => {
-    const sizeDelta = fs.statSync(right).size - fs.statSync(left).size;
-    if (sizeDelta !== 0) {
-      return sizeDelta;
-    }
-    return path.basename(left).localeCompare(path.basename(right));
-  });
-
-  if (options.forceUpload) {
-    return { uploadArtifacts: orderUploadArtifacts(artifacts), skippedArtifacts: [] };
-  }
-  const assetsByName = new Map(existingAssets.map((asset) => [asset?.name, asset]));
-  const uploadArtifacts = [];
-  const skippedArtifacts = [];
-  for (const artifactPath of artifacts) {
-    const name = path.basename(artifactPath);
-    const existing = assetsByName.get(name);
-    if (!existing) {
-      uploadArtifacts.push(artifactPath);
-      continue;
-    }
-    const localSize = fs.statSync(artifactPath).size;
-    const sizeMatches = Number(existing.size) === localSize;
-    const digestMatches = assetDigestMatches(existing, artifactPath);
-    if (sizeMatches && digestMatches) {
-      skippedArtifacts.push({
-        path: artifactPath,
-        name,
-        reason: 'matching_sha256_and_size',
-      });
-      continue;
-    }
-    uploadArtifacts.push(artifactPath);
-  }
-  return { uploadArtifacts: orderUploadArtifacts(uploadArtifacts), skippedArtifacts };
+  assertFullRuntimeNativeTrustObject(
+    releaseManifest.evidence?.runtime_native_trust,
+    releaseManifest.manifest,
+    { missingMessage: 'Full public release manifest is missing runtime native trust evidence.' },
+  );
+  return [dmgPath, manifestPath];
 }
 
 function releaseNotesMode() {
   const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
-  if (mode !== 'ai' && mode !== 'template') {
-    throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
-  }
+  if (!['ai', 'template'].includes(mode)) throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${mode}`);
   return mode;
 }
 
-function writeReleaseNotesEvidence(evidence) {
-  const outputPath = process.env.OPL_RELEASE_NOTES_EVIDENCE_OUTPUT?.trim();
-  if (!outputPath) {
-    return;
-  }
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
-}
-
-function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageManifest = null, options = {}) {
-  const releaseNoteOptions = {
-    version,
-    channel: version.includes('-nightly') ? 'nightly' : 'stable',
-    releaseRepo: options.releaseRepo || process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
-    shellRoot,
-    includeFullPackage,
-    fullPackageManifest,
-    currentTag: `v${version}`,
+function inspectPreparedNotes(options: Options, fullManifest: unknown) {
+  const input = {
+    version: options.version,
+    channel: options.version.includes('-nightly') ? 'nightly' : 'stable',
+    releaseRepo: options.releaseRepo,
+    shellRoot: options.shellRoot,
+    includeFullPackage: options.includeFullPackage,
+    fullPackageManifest: fullManifest,
+    currentTag: `v${options.version}`,
   };
-  const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
-  writeReleaseNotesEvidence(evidence);
-  const releaseNotesFile = options.releaseNotesFile || process.env.OPL_RELEASE_NOTES_FILE?.trim();
-  if (releaseNotesFile) {
-    const notes = fs.readFileSync(path.resolve(releaseNotesFile), 'utf8');
+  const evidence = buildReleaseNotesEvidence(input);
+  if (options.releaseNotesFile) {
+    const notes = fs.readFileSync(options.releaseNotesFile, 'utf8');
     validateAiReleaseNotes(notes, evidence);
-    return {
-      mode: 'file',
-      notes,
-    };
+    return { mode: 'file', notes };
   }
   const mode = releaseNotesMode();
-  if (mode === 'template') {
-    return {
-      mode,
-      notes: buildReleaseNotesDocument(releaseNoteOptions),
-    };
-  }
   return {
     mode,
-    notes: buildAiReleaseNotesDocument(evidence),
+    notes: mode === 'template' ? buildReleaseNotesDocument(input) : buildAiReleaseNotesDocument(evidence),
   };
 }
 
-function replaceReleaseNotes(repo, tag, notes) {
-  assertRemoteReleaseIsMutableDraft(repo, tag);
-  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes, '--title', buildReleaseTitle(tag)]);
-}
-
-class ReleaseArtifactUploadError extends Error {
-  failedArtifact: string;
-  uploadedArtifacts: string[];
-
-  constructor(message, failedArtifact, uploadedArtifacts, cause) {
-    super(message, { cause });
-    this.name = 'ReleaseArtifactUploadError';
-    this.failedArtifact = failedArtifact;
-    this.uploadedArtifacts = [...uploadedArtifacts];
-  }
-}
-
-function recoveryReceiptOutputPath() {
-  const configured = process.env.OPL_RELEASE_PUBLISH_RECOVERY_RECEIPT_PATH?.trim();
-  if (configured) {
-    return path.resolve(configured);
-  }
-  const outputRoot = process.env.RUNNER_TEMP?.trim()
-    || path.join(os.tmpdir(), `opl-release-publish-${process.pid}`);
-  return path.resolve(outputRoot, 'release-publish-recovery-receipt.json');
-}
-
-function writeJsonAtomically(outputPath, payload) {
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  const temporaryPath = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    fs.writeFileSync(temporaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-    fs.renameSync(temporaryPath, outputPath);
-  } finally {
-    if (fs.existsSync(temporaryPath)) {
-      fs.unlinkSync(temporaryPath);
-    }
-  }
-}
-
-function readDraftRecoveryState(repo, tag) {
-  try {
-    const state = readMutationReleaseState(repo, tag);
-    if (!state) {
-      return { state: null, readback: 'release_not_found', error: null };
-    }
-    return {
-      state,
-      readback: state.tagName === tag && state.isDraft === true
-        ? 'incomplete_draft_confirmed'
-        : 'release_state_changed',
-      error: null,
-    };
-  } catch (error) {
-    return {
-      state: null,
-      readback: 'readback_unavailable',
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-function writePublishRecoveryReceipt({
-  options,
-  tag,
-  stage,
-  error,
-  createdRelease,
-  existingRelease,
-  uploadArtifactPaths,
-}) {
-  const remote = readDraftRecoveryState(options.releaseRepo, tag);
-  const failedAsset = error instanceof ReleaseArtifactUploadError ? error.failedArtifact : null;
-  const uploadedAssets = error instanceof ReleaseArtifactUploadError ? error.uploadedArtifacts : [];
-  const plannedAssets = uploadArtifactPaths.map((artifactPath) => ({
-    name: path.basename(artifactPath),
-    size_bytes: fs.statSync(artifactPath).size,
-    sha256: fileSha256(artifactPath),
-  }));
-  const uploadedSet = new Set(uploadedAssets);
-  const receipt = {
-    schema: 'opl_app_release_publish_recovery_receipt.v1',
-    status: remote.readback === 'incomplete_draft_confirmed'
-      ? 'incomplete_draft'
-      : 'remote_outcome_requires_reconcile',
-    created_at: new Date().toISOString(),
-    repository: options.releaseRepo,
-    version: options.version,
-    tag,
-    failure: {
-      stage,
-      message: error instanceof Error ? error.message : String(error),
-      failed_asset: failedAsset,
-    },
-    draft: {
-      origin: createdRelease
-        ? 'created_by_current_publish_invocation'
-        : existingRelease
-          ? 'preexisting_mutable_draft'
-          : 'creation_outcome_unknown',
-      readback: remote.readback,
-      readback_error: remote.error,
-      tag_name: remote.state?.tagName ?? tag,
-      is_draft: remote.state?.isDraft ?? null,
-      is_prerelease: remote.state?.isPrerelease ?? null,
-      published_at: remote.state?.publishedAt ?? null,
-      automatic_release_delete_attempted: false,
-      automatic_tag_cleanup_attempted: false,
-    },
-    upload: {
-      planned_assets: plannedAssets,
-      uploaded_assets: uploadedAssets,
-      remaining_assets: plannedAssets
-        .map((asset) => asset.name)
-        .filter((name) => !uploadedSet.has(name)),
-    },
-    recovery: {
-      strategy: 'read_back_then_resume_same_draft_same_cohort',
-      matching_asset_policy: 'skip_when_name_size_and_sha256_match',
-      destructive_cleanup_authority: 'independent_isolated_release_mutation_broker_only',
-      brokered_cleanup_mutation_available: false,
-      cleanup_authorization: {
-        required_mutation: 'release_draft_cleanup',
-        release_attempt_id_required: true,
-        broker_acceptance_receipt_required: true,
-        availability: 'unavailable_until_broker_cleanup_mutation_is_provisioned',
-      },
-      next_action: remote.readback === 'incomplete_draft_confirmed'
-        ? 'resume_exact_cohort_upload_against_retained_draft'
-        : 'reconcile_remote_release_state_before_any_mutation',
-    },
+function assetIdentity(filePath: string) {
+  return {
+    name: path.basename(filePath),
+    path: filePath,
+    size_bytes: fs.statSync(filePath).size,
+    sha256: `sha256:${fileSha256(filePath)}`,
   };
-  const outputPath = recoveryReceiptOutputPath();
-  console.error(`Release publish recovery receipt payload: ${JSON.stringify(receipt)}`);
-  writeJsonAtomically(outputPath, receipt);
-  console.error(`Release publish recovery receipt: ${outputPath}`);
-  return outputPath;
-}
-
-function buildUploadArgs(repo, tag, artifactPath, clobber) {
-  return [
-    'release',
-    'upload',
-    tag,
-    artifactPath,
-    '--repo',
-    repo,
-    ...(clobber ? ['--clobber'] : []),
-  ];
-}
-
-function releaseUploadAttempts() {
-  const value = process.env.OPL_RELEASE_UPLOAD_ATTEMPTS?.trim();
-  if (!value) {
-    return defaultUploadAttempts;
-  }
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new Error(`OPL_RELEASE_UPLOAD_ATTEMPTS must be a positive integer, got ${value}`);
-  }
-  return parsed;
-}
-
-function releaseUploadTimeoutMs() {
-  const value = process.env.OPL_RELEASE_UPLOAD_TIMEOUT_MS?.trim();
-  if (!value) {
-    return defaultUploadTimeoutMs;
-  }
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1000) {
-    throw new Error(`OPL_RELEASE_UPLOAD_TIMEOUT_MS must be an integer >= 1000, got ${value}`);
-  }
-  return parsed;
-}
-
-function uploadReleaseArtifact(repo, tag, artifactPath, options) {
-  let lastError = null;
-  for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
-    try {
-      assertRemoteReleaseIsMutableDraft(repo, tag);
-      run('gh', buildUploadArgs(repo, tag, artifactPath, options.clobber), { timeoutMs: options.timeoutMs });
-      return;
-    } catch (error) {
-      lastError = error;
-      const detail = error instanceof Error ? error.message : String(error);
-      if (attempt >= options.attempts) {
-        break;
-      }
-      console.error(`Release asset upload attempt ${attempt}/${options.attempts} failed; retrying ${path.basename(artifactPath)}.\n${detail}`);
-    }
-  }
-  throw lastError;
-}
-
-function uploadReleaseArtifacts(repo, tag, artifactPaths, options = {}) {
-  const uploaded = [];
-  const uploadOptions = {
-    attempts: releaseUploadAttempts(),
-    timeoutMs: releaseUploadTimeoutMs(),
-    clobber: options.clobber === true,
-  };
-  for (const artifactPath of artifactPaths) {
-    const name = path.basename(artifactPath);
-    console.error(`Uploading release asset ${name} (${uploaded.length + 1}/${artifactPaths.length}).`);
-    try {
-      uploadReleaseArtifact(repo, tag, artifactPath, uploadOptions);
-      uploaded.push(name);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      const uploadedDetail = uploaded.length > 0
-        ? ` Uploaded before failure: ${uploaded.join(', ')}.`
-        : '';
-      throw new ReleaseArtifactUploadError(
-        `Failed to upload release asset ${name} to ${tag}.${uploadedDetail}\n${detail}`,
-        name,
-        uploaded,
-        error,
-      );
-    }
-  }
 }
 
 function main() {
-  const options = parseArgs(process.argv.slice(2));
-  assertReleaseVersionNotFuture(options.version.includes('-nightly') ? 'nightly' : 'stable', options.version);
-  const tag = `v${options.version}`;
-
-  if (!options.fullPackageOnly && !options.standardArtifactsDir && !fs.existsSync(options.shellRoot)) {
-    throw new Error(`Missing One Person Lab App active shell checkout: ${options.shellRoot}`);
-  }
-
-  if (options.build && !options.fullPackageOnly && !options.standardArtifactsDir) {
-    run('bun', ['run', `build-mac:${options.macArch}`], { cwd: options.shellRoot });
-  }
-
-  const artifacts = options.fullPackageOnly
-    ? []
-    : options.standardArtifactsDir
-      ? findPrebuiltStandardArtifacts(options.standardArtifactsDir, options.version, options.macArch)
-      : findArtifacts(options.shellRoot, options.version, options.macArch);
-  const fullPackageArtifacts = options.includeFullPackage
-    ? findFullPackageArtifacts(options.fullPackageDir, options.version, options.macArch)
-    : [];
-  const fullPackageManifest = options.includeFullPackage ? readFullPackageManifest(options.fullPackageDir) : null;
-  const allArtifacts = [...artifacts, ...fullPackageArtifacts];
-  const existingReleaseState = readReleaseState(options.releaseRepo, tag);
-  assertExistingReleaseIsMutableDraft(existingReleaseState, tag);
-  const existingRelease = existingReleaseState !== null;
-  const existingAssets = existingRelease ? readExistingReleaseAssets(options.releaseRepo, tag) : [];
-  const uploadPlan = partitionArtifactsForUpload(allArtifacts, existingAssets, options);
-  const clobberDraftAssets = existingRelease;
-  const uploadArgs = [
-    'release',
-    'upload',
-    tag,
-    ...uploadPlan.uploadArtifacts,
-    '--repo',
-    options.releaseRepo,
-    ...(clobberDraftAssets ? ['--clobber'] : []),
-  ];
-  const uploadCommands = uploadPlan.uploadArtifacts.map((artifactPath) => [
-    'gh',
-    ...buildUploadArgs(options.releaseRepo, tag, artifactPath, clobberDraftAssets),
-  ]);
-  const releaseNotesResult = buildReleaseNotes(
-    options.version,
-    options.includeFullPackage,
-    options.shellRoot,
-    fullPackageManifest,
-    {
-      allowTemplate: options.dryRun,
-      fullPackageOnly: options.fullPackageOnly,
-      releaseRepo: options.releaseRepo,
-      releaseNotesFile: options.releaseNotesFile,
-    },
-  );
-  const releaseNotes = releaseNotesResult.notes;
-
-  if (options.dryRun) {
-    console.log(JSON.stringify({
-      release_repo: options.releaseRepo,
-      tag,
-      shell_root: options.shellRoot,
-      mac_arch: options.macArch,
-      build: options.build,
-      standard_artifacts_dir: options.standardArtifactsDir || null,
-      full_package_only: options.fullPackageOnly,
-      release_notes_file: options.releaseNotesFile || null,
-      artifacts: allArtifacts,
-      standard_artifacts: artifacts,
-      full_package_artifacts: fullPackageArtifacts,
-      release_exists: existingRelease,
-      existing_release_state: existingReleaseState,
-      create_release: !options.fullPackageOnly && !existingRelease,
-      draft: options.draft,
-      force_upload: options.forceUpload,
-      skipped_existing_artifacts: uploadPlan.skippedArtifacts,
-      release_notes_mode: releaseNotesResult.mode,
-      release_notes: releaseNotes,
-      upload_command: ['gh', ...uploadArgs],
-      upload_commands: uploadCommands,
-    }, null, 2));
+  const argv = process.argv.slice(2);
+  const options = parseArgs(argv);
+  if (!options.dryRun) {
+    const receipt = retirementReceipt(argv);
+    process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
+    console.error(receipt.failure.stderr);
+    process.exitCode = 2;
     return;
   }
-
-  if (options.releaseRepo !== 'gaofeng21cn/one-person-lab-app') {
-    throw new Error(`One Person Lab App releases must publish to gaofeng21cn/one-person-lab-app, got ${options.releaseRepo}.`);
+  assertReleaseVersionNotFuture(options.version.includes('-nightly') ? 'nightly' : 'stable', options.version);
+  if (options.releaseRepo !== canonicalRepository) {
+    throw new Error(`Asset inspection is restricted to ${canonicalRepository}.`);
   }
-
-  if (options.fullPackageOnly && !existingRelease) {
-    throw new Error(`Release ${tag} does not exist in ${options.releaseRepo}; publish the standard release before uploading Full first-install assets.`);
-  }
-  if (!existingRelease && !options.draft) {
-    throw new Error(`New release ${tag} must be created as a draft and promoted only after asset verification.`);
-  }
-
-  let createdRelease = false;
-  let mutationStage = existingRelease ? 'refresh_draft_notes' : 'create_draft';
-  try {
-    if (!existingRelease) {
-      run('gh', [
-        'release',
-        'create',
-        tag,
-        '--repo',
-        options.releaseRepo,
-        '--title',
-        buildReleaseTitle(options.version),
-        '--notes',
-        releaseNotes,
-        ...(options.draft ? ['--draft'] : []),
-      ]);
-      createdRelease = true;
-    } else if (options.includeFullPackage && options.fullPackageOnly) {
-      replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
-    } else if (options.includeFullPackage) {
-      replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
-    }
-    if (uploadPlan.uploadArtifacts.length > 0) {
-      mutationStage = 'upload_assets';
-      uploadReleaseArtifacts(options.releaseRepo, tag, uploadPlan.uploadArtifacts, {
-        clobber: clobberDraftAssets,
-      });
-    }
-  } catch (error) {
-    let receiptPath = null;
-    try {
-      receiptPath = writePublishRecoveryReceipt({
-        options,
-        tag,
-        stage: mutationStage,
-        error,
-        createdRelease,
-        existingRelease,
-        uploadArtifactPaths: uploadPlan.uploadArtifacts,
-      });
-    } catch (receiptError) {
-      console.error(`Failed to persist release publish recovery receipt: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
-    }
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `${detail}\nThe release was not deleted. Reconcile and resume the retained draft; destructive cleanup requires a separate brokered mutation.${receiptPath ? ` Recovery receipt: ${receiptPath}` : ''}`,
-      { cause: error },
-    );
-  }
+  const standardArtifacts = inspectStandardArtifacts(options);
+  const fullArtifacts = inspectFullArtifacts(options);
+  const fullManifest = options.includeFullPackage
+    ? readJson(path.join(options.fullPackageDir, 'opl-release-manifest.json')).manifest ?? null
+    : null;
+  const releaseNotes = inspectPreparedNotes(options, fullManifest);
+  const assets = [...standardArtifacts, ...fullArtifacts].map(assetIdentity);
+  process.stdout.write(`${JSON.stringify({
+    schema: 'opl_app_release_asset_inspection.v1',
+    status: 'dry_run_complete',
+    lifecycle: 'historical_non_authoritative',
+    release_repo: options.releaseRepo,
+    version: options.version,
+    tag: `v${options.version}`,
+    shell_root: options.shellRoot,
+    mac_arch: options.macArch,
+    standard_artifacts_dir: options.standardArtifactsDir || null,
+    full_package_only: options.fullPackageOnly,
+    release_notes_file: options.releaseNotesFile || null,
+    artifacts: assets.map((asset) => asset.path),
+    standard_artifacts: standardArtifacts,
+    full_package_artifacts: fullArtifacts,
+    asset_identities: assets,
+    release_notes_mode: releaseNotes.mode,
+    release_notes: releaseNotes.notes,
+    build_performed: false,
+    remote_inspection_performed: false,
+    remote_mutation_attempted: false,
+    mutation_authorized: false,
+  }, null, 2)}\n`);
 }
 
 try {
   main();
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+  process.exitCode = 1;
 }

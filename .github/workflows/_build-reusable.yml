@@ -3,6 +3,10 @@ name: Build Pipeline (Reusable)
 on:
   workflow_call:
     inputs:
+      mode:
+        description: execute or canary validation-only startup.
+        type: string
+        default: execute
       matrix:
         description: 'Build matrix as JSON string (passed via fromJSON in caller)'
         type: string
@@ -47,12 +51,24 @@ on:
         description: 'Fail macOS release builds unless the packaged app passes codesign and Gatekeeper assessment'
         type: boolean
         default: false
-      stable_session_id:
-        description: Stable release session sha256 identity; empty for non-release builds.
+      release_bundle_digest:
+        description: Exact immutable Framework Bundle digest for the live release path.
         type: string
         default: ''
       release_cohort_ref:
         description: Stable release cohort sha256 identity; empty for non-release builds.
+        type: string
+        default: ''
+      operation:
+        description: Release operation inherited from the outer Bundle controller.
+        type: string
+        default: ''
+      operation_started_at:
+        description: Immutable outer operation start timestamp.
+        type: string
+        default: ''
+      operation_deadline_at:
+        description: Immutable outer operation deadline; never recomputed here.
         type: string
         default: ''
 
@@ -62,10 +78,21 @@ env:
   AIONUI_HUB_TAG: 'dist-ebc6a2b'
 
 jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove reusable build validation-only topology starts
+        run: |
+          test '${{ inputs.release_bundle_digest }}' = sha256:canary
+          test '${{ inputs.operation }}' = standard
+          test '${{ inputs.framework_ref }}' = ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
+
   workflow-lint:
     name: GitHub Actions workflow lint
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_code_quality }}
+    if: ${{ inputs.mode != 'canary' && !inputs.skip_code_quality }}
 
     steps:
       - name: Checkout code
@@ -93,7 +120,7 @@ jobs:
   lint-format:
     name: Lint and format
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_code_quality }}
+    if: ${{ inputs.mode != 'canary' && !inputs.skip_code_quality }}
     defaults:
       run:
         working-directory: shells/aionui
@@ -118,7 +145,7 @@ jobs:
   typecheck:
     name: TypeScript type check
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_code_quality }}
+    if: ${{ inputs.mode != 'canary' && !inputs.skip_code_quality }}
     defaults:
       run:
         working-directory: .
@@ -153,7 +180,7 @@ jobs:
   release-boundary:
     name: App release-boundary tests
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_code_quality }}
+    if: ${{ inputs.mode != 'canary' && !inputs.skip_code_quality }}
 
     steps:
       - name: Checkout App repo
@@ -189,7 +216,7 @@ jobs:
   active-shell-tests:
     name: Active shell tests (${{ matrix.project }})
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_code_quality }}
+    if: ${{ inputs.mode != 'canary' && !inputs.skip_code_quality }}
 
     strategy:
       fail-fast: false
@@ -216,6 +243,7 @@ jobs:
   macos-signing-preflight:
     name: macOS release signing preflight
     runs-on: ubuntu-latest
+    if: ${{ inputs.mode != 'canary' }}
 
     steps:
       - name: Record local authorization mode
@@ -265,7 +293,7 @@ jobs:
       - release-boundary
       - active-shell-tests
       - macos-signing-preflight
-    if: ${{ always() && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
+    if: ${{ always() && inputs.mode != 'canary' && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
     defaults:
       run:
         working-directory: shells/aionui
@@ -278,15 +306,59 @@ jobs:
       matrix: ${{ fromJSON(inputs.matrix) }}
 
     steps:
-      - name: Validate immutable release-bound build refs
-        if: ${{ inputs.stable_session_id != '' }}
+      - name: Admit one-shot release-bound build
+        if: ${{ inputs.operation != '' }}
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
-          [[ '${{ inputs.ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound ref must be the exact frozen App SHA."; exit 1; }
-          [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound shell_ref must be the exact frozen Shell SHA."; exit 1; }
-          [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound framework_ref must be the exact frozen Framework SHA."; exit 1; }
-          [[ '${{ inputs.opl_flow_ref }}' =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound opl_flow_ref must be the exact frozen OPL Flow SHA."; exit 1; }
+          set -euo pipefail
+          mkdir -p release-admission
+          touch release-admission/stdout.txt release-admission/stderr.txt
+          exec > >(tee -a release-admission/stdout.txt) 2> >(tee -a release-admission/stderr.txt >&2)
+          printf '%s\0' '${{ inputs.operation }}' '${{ inputs.operation_started_at }}' '${{ inputs.operation_deadline_at }}' \
+            '${{ inputs.release_bundle_digest }}' '${{ inputs.ref }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
+            | shasum -a 256 | awk '{print "sha256:"$1}' > release-admission/input-digest.txt
+          input_digest="$(cat release-admission/input-digest.txt)"
+          status=passed
+          reason=admitted
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
+          node <<'NODE' || { status=failed; reason=deadline_elapsed; }
+          const started = Date.parse('${{ inputs.operation_started_at }}');
+          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          if (!Number.isFinite(started) || !Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+          if [ "$status" = passed ] && [ '${{ inputs.operation }}' != standard ]; then status=failed; reason=operation_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]; then status=failed; reason=bundle_digest_invalid; fi
+          if [ "$status" = passed ] && [ '${{ inputs.release_bundle_digest }}' = sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49 ]; then status=failed; reason=bundle_permanently_rejected; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=app_sha_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=shell_sha_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=framework_sha_invalid; fi
+          jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' --arg input_digest "$input_digest" \
+            '{schema:"opl_release_nested_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,input_digest:$input_digest,evidence:{stdout:"stdout.txt",stderr:"stderr.txt"},run_id:env.GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
+            > release-admission/build-admission.json
+          test "$status" = passed
+
+      - name: Upload release-bound build admission
+        if: ${{ always() && inputs.operation != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-build-admission-${{ matrix.platform }}-${{ github.run_id }}
+          path: release-admission
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate immutable release-bound build refs
+        if: ${{ inputs.operation != '' }}
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_bundle_digest must be exact."; exit 1; }
+          test '${{ inputs.release_bundle_digest }}' != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49 || { echo "::error::release_bundle_digest is permanently rejected."; exit 1; }
+          test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
+          [[ '${{ inputs.ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound ref must be the exact frozen App SHA."; exit 1; }
+          [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound shell_ref must be the exact frozen Shell SHA."; exit 1; }
+          [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound framework_ref must be the exact frozen Framework SHA."; exit 1; }
+          [[ '${{ inputs.opl_flow_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound opl_flow_ref must be the exact frozen OPL Flow SHA."; exit 1; }
 
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -322,7 +394,7 @@ jobs:
           INPUT_VERSION: ${{ inputs.opl_release_version }}
           INPUT_UPDATER_VERSION: ${{ inputs.opl_updater_version }}
           REF_NAME: ${{ github.ref_name }}
-          RELEASE_SESSION_ID: ${{ inputs.stable_session_id }}
+          RELEASE_SESSION_ID: ${{ inputs.release_bundle_digest }}
         run: |
           set -euo pipefail
           version="${INPUT_VERSION}"
@@ -589,6 +661,29 @@ jobs:
           rm -f /tmp/*.dmg 2>/dev/null || true
           echo "Cleanup complete"
 
+      - name: Recalculate immutable operation budget before release build
+        id: release_build_budget
+        if: ${{ inputs.operation != '' && startsWith(matrix.platform, 'macos') }}
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/release-operation-deadline.ts check \
+            --operation '${{ inputs.operation }}' \
+            --started-at '${{ inputs.operation_started_at }}' \
+            --deadline-at '${{ inputs.operation_deadline_at }}'
+          timeout_ms="$(DEADLINE='${{ inputs.operation_deadline_at }}' node --input-type=module -e '
+            const deadlineMs = Date.parse(process.env.DEADLINE || "");
+            const evidenceReserveMs = 5 * 60_000;
+            const remainingMs = deadlineMs - Date.now() - evidenceReserveMs;
+            if (!Number.isFinite(deadlineMs) || remainingMs < 1_000) process.exit(78);
+            process.stdout.write(String(remainingMs));
+          ')" || {
+            echo "::error::operation_deadline_elapsed: Standard build cannot start without five minutes reserved for durable evidence."
+            exit 78
+          }
+          echo "timeout_ms=$timeout_ms" >> "$GITHUB_OUTPUT"
+
       # macOS: Build with notarization. Release callers can require Gatekeeper.
       # macOS: 构建并公证；发布调用方可要求 Gatekeeper 通过。
       - name: Build with electron-builder (macOS)
@@ -598,9 +693,53 @@ jobs:
         run: |
           set +e  # Handle errors manually
 
-          # Run build command
-          ${{ matrix.command }} 2>&1 | tee "${RUNNER_TEMP}/build.log"
+          # The release-bound build process is killed from the same immutable
+          # operation clock. Non-release callers retain the ordinary command.
+          if [ -n '${{ inputs.operation }}' ]; then
+            RELEASE_BUILD_TIMEOUT_MS='${{ steps.release_build_budget.outputs.timeout_ms }}' \
+              RELEASE_BUILD_COMMAND="$RELEASE_BUILD_COMMAND" \
+              node --input-type=module <<'NODE' 2>&1 | tee "${RUNNER_TEMP}/build.log"
+          import { spawn } from 'node:child_process';
+          const timeoutMs = Number(process.env.RELEASE_BUILD_TIMEOUT_MS);
+          const command = process.env.RELEASE_BUILD_COMMAND || '';
+          if (!Number.isFinite(timeoutMs) || timeoutMs < 1_000 || !command) process.exit(78);
+          let deadlineElapsed = false;
+          const child = spawn('/bin/bash', ['-lc', command], {
+            detached: true,
+            env: process.env,
+            stdio: 'inherit',
+          });
+          const killGroup = (signal) => {
+            try { process.kill(-child.pid, signal); } catch {}
+          };
+          const timer = setTimeout(() => {
+            deadlineElapsed = true;
+            killGroup('SIGTERM');
+            setTimeout(() => killGroup('SIGKILL'), 10_000).unref();
+          }, timeoutMs);
+          child.once('error', (error) => {
+            clearTimeout(timer);
+            console.error(error);
+            process.exit(1);
+          });
+          child.once('exit', (code, signal) => {
+            clearTimeout(timer);
+            if (deadlineElapsed) {
+              console.error('operation_deadline_elapsed: electron-builder exhausted its immutable operation budget.');
+              process.exit(78);
+            }
+            if (signal) process.exit(1);
+            process.exit(code ?? 1);
+          });
+          NODE
+          else
+            /bin/bash -lc "$RELEASE_BUILD_COMMAND" 2>&1 | tee "${RUNNER_TEMP}/build.log"
+          fi
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          if [ "$BUILD_EXIT_CODE" -eq 78 ]; then
+            echo "::error::operation_deadline_elapsed: release build output is not admissible."
+            exit 78
+          fi
 
           # Check if DMG was created (most important artifact)
           DMG_EXISTS=false
@@ -643,6 +782,7 @@ jobs:
           exit 1
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
+          RELEASE_BUILD_COMMAND: ${{ matrix.command }}
           npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
           APP_ID: ${{ secrets.APP_ID }}
           appleId: ${{ secrets.APPLE_ID }}
@@ -912,7 +1052,7 @@ jobs:
             --actions-run-id "$GITHUB_RUN_ID" \
             --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
             --actions-artifact-name "$artifact_name" \
-            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --stable-session-id "${{ inputs.release_bundle_digest }}" \
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
       - name: Upload build artifact cohort manifest
@@ -957,7 +1097,7 @@ jobs:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [lint-format, typecheck, release-boundary, active-shell-tests, build]
-    if: always()
+    if: ${{ always() && inputs.mode != 'canary' }}
 
     steps:
       - name: Write build summary

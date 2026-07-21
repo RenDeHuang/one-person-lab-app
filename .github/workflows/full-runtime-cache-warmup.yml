@@ -121,7 +121,6 @@ jobs:
       framework_ref: ${{ needs.resolve-version.outputs.framework_sha }}
       shell_ref: ${{ needs.resolve-version.outputs.shell_sha }}
       artifact_app_sha: ${{ needs.resolve-version.outputs.app_sha }}
-      controller_workflow_sha: ${{ needs.resolve-version.outputs.app_sha }}
       upload_full_package_artifact: false
       cache_only: true
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache == true }}
