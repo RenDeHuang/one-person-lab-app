@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import {
+  assertDevelopmentRepoSnapshotUnchanged,
   manualVersions,
+  snapshotDevelopmentRepo,
 } from '../../../scripts/manual-latest-build/common.ts';
 import {
   projectFrameworkPackageManifest,
@@ -17,6 +21,17 @@ import {
 } from '../../../scripts/manual-latest-build/upstreams.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '..', '..', '..');
+
+function createDevelopmentRepo() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-manual-source-snapshot-'));
+  execFileSync('git', ['init', '--initial-branch=main'], { cwd: root });
+  execFileSync('git', ['config', 'user.name', 'OPL Test'], { cwd: root });
+  execFileSync('git', ['config', 'user.email', 'opl-test@example.invalid'], { cwd: root });
+  fs.writeFileSync(path.join(root, 'source.txt'), 'initial\n');
+  execFileSync('git', ['add', 'source.txt'], { cwd: root });
+  execFileSync('git', ['commit', '-m', 'initial'], { cwd: root });
+  return root;
+}
 
 test('manual latest versions use the Asia/Shanghai date and monotonic updater encoding', () => {
   assert.deepEqual(manualVersions(new Date('2026-07-20T15:59:59Z')), {
@@ -107,6 +122,35 @@ test('manual App identity separates UI display version from both machine CFBundl
       '26.7.2100',
     ),
     /display=<missing>/,
+  );
+});
+
+test('manual source snapshot gate rejects tracked source dirtiness after freeze', (context) => {
+  const root = createDevelopmentRepo();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const frozen = snapshotDevelopmentRepo('fixture', root);
+
+  assert.doesNotThrow(() => assertDevelopmentRepoSnapshotUnchanged(frozen));
+  fs.writeFileSync(path.join(root, 'source.txt'), 'dirty\n');
+
+  assert.throws(
+    () => assertDevelopmentRepoSnapshotUnchanged(frozen),
+    /fixture source snapshot became invalid during manual latest build:.*not clean/s,
+  );
+});
+
+test('manual source snapshot gate rejects main advancement after freeze', (context) => {
+  const root = createDevelopmentRepo();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const frozen = snapshotDevelopmentRepo('fixture', root);
+
+  fs.writeFileSync(path.join(root, 'source.txt'), 'advanced\n');
+  execFileSync('git', ['add', 'source.txt'], { cwd: root });
+  execFileSync('git', ['commit', '-m', 'advance'], { cwd: root });
+
+  assert.throws(
+    () => assertDevelopmentRepoSnapshotUnchanged(frozen),
+    /fixture source snapshot changed during manual latest build: head expected=/,
   );
 });
 

@@ -67,7 +67,10 @@ Useful options:
 
 Normal builds use a sibling staging directory and replace the managed output
 directory only after the App or DMG passes verification. A failed rebuild leaves
-the previous successful output directory intact.
+the previous successful output directory intact. Immediately before installing
+the App or promoting the DMG, the command rechecks every first-party repository
+against the frozen source snapshot. A dirty repository or changed HEAD, branch,
+local `main`, or remote-tracking `main` fails closed.
 
 ## Evidence And Boundary
 

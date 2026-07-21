@@ -12,6 +12,7 @@ import {
   assertUpdaterVersionMatchesDisplay,
 } from './release-version.ts';
 import {
+  assertDevelopmentRepoSnapshotsUnchanged,
   commandResult,
   fileSha256,
   manualVersions,
@@ -258,6 +259,16 @@ function buildEnvironment(snapshots: ReturnType<typeof repoSnapshots>) {
   };
 }
 
+function developmentRepoSnapshots(snapshots: ReturnType<typeof repoSnapshots>) {
+  return [
+    snapshots.app,
+    snapshots.shell,
+    snapshots.framework,
+    ...Object.values(snapshots.owners),
+    snapshots.ui_ux_pro_max,
+  ];
+}
+
 function runBuild(
   options: ReturnType<typeof parseOptions> & { help: false },
   snapshots: ReturnType<typeof repoSnapshots>,
@@ -387,6 +398,7 @@ function main() {
     runBuild(buildOptions, snapshots, overlay, upstreams);
     let installation = null;
     if (options.mode === 'local-app') {
+      assertDevelopmentRepoSnapshotsUnchanged(developmentRepoSnapshots(snapshots));
       installation = installLocalApp({
         builtApp: findBuiltApp(snapshots.shellRoot),
         installPath: options.installPath,
@@ -402,6 +414,9 @@ function main() {
           installed_app: options.installPath,
           installation_receipt: path.join(options.outDir, 'manual-local-app-installation.json'),
         };
+    if (options.mode === 'full-dmg') {
+      assertDevelopmentRepoSnapshotsUnchanged(developmentRepoSnapshots(snapshots));
+    }
     writeJson(path.join(buildOutDir, 'manual-latest-build-receipt.json'), {
       schema: 'opl_manual_latest_build_receipt.v1',
       status: 'completed',

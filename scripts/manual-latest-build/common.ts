@@ -251,3 +251,34 @@ export function snapshotDevelopmentRepo(id: string, root: string): RepoSnapshot 
   }
   return { id, root, head, branch, local_main: localMain, origin_main: originMain };
 }
+
+export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
+  let actual: RepoSnapshot;
+  try {
+    actual = snapshotDevelopmentRepo(expected.id, expected.root);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${expected.id} source snapshot became invalid during manual latest build: ${detail}`,
+      { cause: error },
+    );
+  }
+
+  const fields = ['head', 'branch', 'local_main', 'origin_main'] as const;
+  const differences = fields
+    .filter((field) => actual[field] !== expected[field])
+    .map((field) => (
+      `${field} expected=${expected[field] ?? '<missing>'} actual=${actual[field] ?? '<missing>'}`
+    ));
+  if (differences.length > 0) {
+    throw new Error(
+      `${expected.id} source snapshot changed during manual latest build: ${differences.join(', ')}`,
+    );
+  }
+}
+
+export function assertDevelopmentRepoSnapshotsUnchanged(expected: RepoSnapshot[]) {
+  for (const repository of expected) {
+    assertDevelopmentRepoSnapshotUnchanged(repository);
+  }
+}
