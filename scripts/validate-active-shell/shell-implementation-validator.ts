@@ -11,6 +11,51 @@ import { validateShellSettingsAndTeamImplementation } from './shell-settings-and
 import { validateShellSubstrateImplementation } from './shell-substrate-validator.ts';
 import { validateStandardUpdaterImplementation } from './shell-standard-updater-validator.ts';
 
+export function validateShellVisualTokenBindings({
+  layout,
+  productBaseline,
+  unoConfig,
+}: {
+  layout: string;
+  productBaseline: string;
+  unoConfig: string;
+}): void {
+  for (const expected of [
+    '--opl-sidebar-bg: #fcfcfc;',
+    '--opl-sidebar-bg: #1b1c1e;',
+    '--text-primary: var(--color-text-1);',
+  ]) {
+    if (!productBaseline.includes(expected)) {
+      throw new Error(`Active shell OPL product visual baseline must include ${expected}`);
+    }
+  }
+  const railBlock = productBaseline.match(/\.layout-sider\.arco-layout-sider\s*\{([^}]*)\}/)?.[1] ?? '';
+  if (!railBlock.includes('background: var(--opl-sidebar-bg);')) {
+    throw new Error('Active shell navigation rail must consume --opl-sidebar-bg directly');
+  }
+  const bodyBlock = productBaseline.match(/body\s*\{([^}]*)\}/)?.[1] ?? '';
+  if (!bodyBlock.includes('color: var(--text-primary);')) {
+    throw new Error('Active shell body text must consume the --text-primary semantic bridge');
+  }
+  for (const expected of [
+    "'t-primary': 'var(--text-primary)'",
+    "'t-tertiary': 'var(--color-text-3)'",
+  ]) {
+    if (!unoConfig.includes(expected)) {
+      throw new Error(`Active shell Uno semantic text colors must include ${expected}`);
+    }
+  }
+  const siderStart = layout.indexOf('<ArcoLayout.Sider');
+  const siderEnd = layout.indexOf('<ArcoLayout.Header', siderStart);
+  const siderDeclaration = siderStart >= 0 && siderEnd > siderStart ? layout.slice(siderStart, siderEnd) : '';
+  if (/(?:^|[\s'"`])!?bg-(?:\[[^\]]+\]|[^\s'"`}]+)/m.test(siderDeclaration)) {
+    throw new Error('Active shell Layout navigation rail must not override --opl-sidebar-bg with a background utility');
+  }
+  if (!siderDeclaration.includes("className={classNames('layout-sider', {")) {
+    throw new Error('Active shell Layout navigation rail must keep layout-sider as its unstyled structural class');
+  }
+}
+
 export function validateActiveShellImplementation(shellPaths) {
   if (shellPaths.contract.shell_contract?.implementation_validation === 'contract_paths_only') {
     return;
@@ -49,6 +94,9 @@ export function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/styles/themes/opl-product-baseline.css',
   );
+  const layout = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Layout.tsx');
+  const unoConfig = readShellText(shellPaths, 'uno.config.ts');
+  validateShellVisualTokenBindings({ layout, productBaseline, unoConfig });
   for (const expected of ['--opl-sidebar-bg', '--opl-main-bg', '--opl-focus-ring']) {
     if (!productBaseline.includes(expected)) {
       throw new Error(`Active shell OPL product visual baseline must include ${expected}`);

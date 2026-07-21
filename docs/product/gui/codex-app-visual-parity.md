@@ -34,8 +34,12 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 - 对话历史空状态使用 `20px` IconPark `MessageOne` 单色 outline 与 `13/18` 次级文案，移除
   carrier 默认的大号抽屉插画和装饰性 empty-state frame；
 - rail 使用最新 reference 的中性 light/dark surface；项目组直接显示 sessions，source 与 DOM
-  均不存在 project-owned“上下文 / 添加上下文”层；
+  均不存在 project-owned“上下文 / 添加上下文”层；Light rail 固定为 `#fcfcfc`、Dark rail 固定为
+  `#1b1c1e`，Shell Layout 不得用背景 utility 绕过 `--opl-sidebar-bg`；
 - Home 与 conversation composer 共用中性 border、resting/focus shadow 和 `14/20` textarea；
+- Home 与 conversation composer 共用单一 Codex 会话配置菜单；第一层依次以“模型”和“推理强度”
+  摘要行显示当前值并进入二级选择，分隔线后提供“重置为默认设置”。摘要行不使用前置图标，
+  禁止把推理档位继续平铺在第一层；旧 speed/速度入口、文案和持久化路径全部删除，不保留兼容入口；
 - Settings 导航图标改为中性色，content lane 收敛为 `760px`，彩色 section 边条和多余 card
   shadow 已移除；
 - Account & Access 的 connected Gateway state 使用 unframed identity/metrics/action group；

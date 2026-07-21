@@ -290,7 +290,7 @@ const productProfileDefaultsExpected = [
   '"codex_model_policy": "codex_cli_latest_strongest_model_selector_visible"',
   '"codex_model_auto_option_visible": true',
   '"codex_home_model_status_label": "5.6 Sol"',
-  '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu"',
+  '"codex_precise_model_display_policy": "friendly_model_with_discoverable_model_and_reasoning_summary_rows"',
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"default_active_shortcut": null',
   '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness"',
@@ -315,11 +315,14 @@ const productProfileDefaultsExpected = [
   '"reasoning_override_from_auto": "pin_current_resolved_model_and_exit_auto"',
   '"user_can_override_model": true',
   '"user_can_restore_auto": true',
-  '"display_policy": "friendly_model_name_primary_reasoning_primary_model_secondary_menu"',
+  '"display_policy": "friendly_model_name_with_session_configuration_summary_rows"',
   '"raw_model_id_visible_in_ordinary_ui": false',
   '"reasoning_effort_visible_for_every_option": false',
   '"reasoning_effort_menu_visible": true',
-  '"model_menu_policy": "current_model_secondary_submenu"',
+  '"model_menu_policy": "model_summary_row_nested_submenu_with_auto_and_fixed_options"',
+  '"additional_root_rows_allowed": false',
+  '"performance_tuning_row_allowed": false',
+  '"home_and_conversation_share_menu_component": true',
   '"reasoning_effort_options_source": "acp_codex_config_options_enum"',
   '"label_zh": "自动（推荐）"',
   '"description_zh": "跟随 Codex CLI 当前默认模型与 App 推理策略"',
@@ -339,6 +342,19 @@ const productProfileDefaultsExpected = [
   '"skill_menu_policy": "assistant_scoped_required_checked_optional_visible"',
   '"default_packaged_codex_skill_ids"',
 ];
+
+const codexSessionConfigurationMenuStructureExpected = {
+  root_rows: ['model', 'reasoning_effort', 'reset_defaults'],
+  additional_root_rows_allowed: false,
+  performance_tuning_row_allowed: false,
+  summary_row_policy: 'localized_label_left_current_value_and_chevron_right',
+  reset_defaults_policy: 'restore_auto_model_and_app_default_reasoning',
+  reset_label_zh: '重置为默认设置',
+  reset_label_en: 'Reset to defaults',
+  summary_row_icon_policy: 'no_leading_icons',
+  reset_icon_policy: 'single_trailing_reset_outline_icon',
+  home_and_conversation_share_menu_component: true,
+};
 
 const codexModelsExpected = [
   'getOplCodexAutoModelPolicy',
@@ -528,6 +544,10 @@ function validateProductProfileDefaults(shellPaths) {
     throw new Error('Active shell product profile must carry the five canonical professional Agent package ids');
   }
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
+  const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;
+  if (JSON.stringify(menuStructure) !== JSON.stringify(codexSessionConfigurationMenuStructureExpected)) {
+    throw new Error('Active shell product profile must carry the exact App Codex session configuration menu');
+  }
   assertTextIncludesAll(productProfile, productProfileDefaultsExpected, 'Active shell product profile App Codex default');
 }
 
@@ -556,9 +576,103 @@ function validateGuidAssistantsAndSkills(shellPaths, guidPage) {
   validateGuidSkillRules(shellPaths, guidPage);
 }
 
+function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
+  const sessionMenu = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/agent/OplCodexSessionMenu.tsx',
+    [
+      "type SessionMenuGroup = 'model' | 'reasoning'",
+      "data-testid='opl-codex-session-menu'",
+      "data-testid='opl-codex-session-menu-reset'",
+      "renderSummaryItem('model'",
+      "'reasoning'",
+      "role='separator'",
+      'onReset();',
+      '<Refresh {...OPL_CHROME_ICON_PROPS} size={16}',
+      "event.key === 'ArrowLeft'",
+      "event.key === 'Escape'",
+      "['ArrowDown', 'ArrowUp', 'Home', 'End']",
+    ],
+    'Active shell shared Codex session configuration menu',
+  );
+  const guidModelSelector = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidModelSelector.tsx',
+    ['OplCodexSessionMenu', '<OplCodexSessionMenu', 'onReset={restoreCodexAutoSelection}'],
+    'Active shell Home Codex session configuration menu',
+  );
+  const acpModelSelector = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx',
+    ['OplCodexSessionMenu', '<OplCodexSessionMenu', 'onReset={handleAutoSelect}'],
+    'Active shell conversation Codex session configuration menu',
+  );
+  const guidActionRow = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+    ["key: 'reset-session-defaults'", "t('agent.sessionConfiguration.resetDefaults')", 'onChange(null, null)'],
+    'Active shell mobile Home Codex reset action',
+  );
+  const acpSendBox = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx',
+    ["key: 'reset-session-defaults'", "t('agent.sessionConfiguration.resetDefaults')", 'handleSheetAutoSelect'],
+    'Active shell mobile conversation Codex reset action',
+  );
+  const i18nKeys = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/services/i18n/i18n-keys.d.ts',
+    [
+      'agent.sessionConfiguration.menuLabel',
+      'agent.sessionConfiguration.model',
+      'agent.sessionConfiguration.reasoning',
+      'agent.sessionConfiguration.resetDefaults',
+    ],
+    'Active shell Codex session configuration i18n keys',
+  );
+  const modelMenuSources = [
+    sessionMenu,
+    guidModelSelector,
+    acpModelSelector,
+    guidActionRow,
+    acpSendBox,
+    i18nKeys,
+  ].join('\n');
+  assertTextDoesNotMatch(
+    modelMenuSources,
+    /sessionConfiguration\.speed|\bspeed(?:Fast|Standard|SwitchSuccess)?\b|速度/i,
+    'Active shell Codex session configuration must not retain speed controls or copy',
+  );
+  const expectedLocales = {
+    'zh-CN': {
+      menuLabel: '模型与推理设置',
+      model: '模型',
+      reasoning: '推理强度',
+      resetDefaults: '重置为默认设置',
+    },
+    'en-US': {
+      menuLabel: 'Model and reasoning settings',
+      model: 'Model',
+      reasoning: 'Reasoning',
+      resetDefaults: 'Reset to defaults',
+    },
+  };
+  for (const [locale, expected] of Object.entries(expectedLocales)) {
+    const agentLocale = readShellJson(
+      shellPaths,
+      `packages/desktop/src/renderer/services/i18n/locales/${locale}/agent.json`,
+      `${locale} agent locale`,
+    );
+    if (JSON.stringify(agentLocale?.sessionConfiguration) !== JSON.stringify(expected)) {
+      throw new Error(`Active shell ${locale} Codex session configuration copy must match App authority exactly`);
+    }
+  }
+}
+
 function validateCodexModelControls(shellPaths) {
+  validateCodexSessionConfigurationMenuImplementation(shellPaths);
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/composerSurface.ts', ['getOplHomeComposerStateContract', 'resolveOplHomeComposerSurface', 'contract.executor', 'contract.invariants.model_reasoning_visible', 'contract.invariants.permission_access_visible', 'contract.invariants.executor_selector_visible'], 'Active shell Home composer App-contract decision surface');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onClick={handleAutoSelect}'], 'Active shell ACP model selector fixed Codex model guard');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onSelect: handleAutoSelect'], 'Active shell ACP model selector fixed Codex model guard');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'selectReasoningEffort', 'savePreferredCodexSelection(backend, null, null)', 'savePreferredCodexSelection(backend, currentModelId, value)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['resolveOplCodexAutoSelection'], 'Active shell Codex Auto option resolved target display');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');

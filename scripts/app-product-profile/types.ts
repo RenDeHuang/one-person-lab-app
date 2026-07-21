@@ -104,6 +104,18 @@ export type AppProductProfile = {
         default_reasoning_effort: string;
         auto_option_current_resolution_visible: boolean;
         model_menu_policy: string;
+        menu_structure: {
+          root_rows: string[];
+          additional_root_rows_allowed: boolean;
+          performance_tuning_row_allowed: boolean;
+          summary_row_policy: string;
+          reset_defaults_policy: string;
+          reset_label_zh: string;
+          reset_label_en: string;
+          summary_row_icon_policy: string;
+          reset_icon_policy: string;
+          home_and_conversation_share_menu_component: boolean;
+        };
         auto_option: {
           id: string;
           label_zh: string;

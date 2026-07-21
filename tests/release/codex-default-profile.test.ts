@@ -10,6 +10,7 @@ import {
   assertProjectlessGuidFileAccessSources,
   assertRuntimePageSourceBoundary,
 } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
+import { validateShellVisualTokenBindings } from '../../scripts/validate-active-shell/shell-implementation-validator.ts';
 import {
   assertCodexModelPolicyProjection,
   projectCodexModelPolicyContracts,
@@ -38,6 +39,115 @@ test('Codex interaction surfaces stay aligned across the App profile and contrac
   assert.doesNotThrow(() => validatePrimaryInteractionPages(
     readJson('contracts/app-page-state-matrix.json'),
   ));
+
+  const staleProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  staleProfile.gui.home.codex_model_display_options.menu_structure.root_rows = [
+    'reasoning_effort',
+    'model',
+    'reset_defaults',
+  ];
+  assert.throws(
+    () => validateProductProfile(staleProfile, installExposure),
+    /session configuration menu/,
+  );
+
+  const stalePerformanceRow = structuredClone(readJson('contracts/app-product-profile.json'));
+  stalePerformanceRow.gui.home.codex_model_display_options.menu_structure.performance_tuning_row_allowed = true;
+  assert.throws(
+    () => validateProductProfile(stalePerformanceRow, installExposure),
+    /session configuration menu/,
+  );
+
+  const staleGuiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  staleGuiContract.executor_policy.model_display_options_policy.menu_structure.root_rows = [
+    'model',
+    'reasoning_effort',
+    'runtime_speed',
+    'reset_defaults',
+  ];
+  assert.throws(
+    () => validateAppGuiProductContract(
+      staleGuiContract,
+      readJson('contracts/app-release-channel.json'),
+      installExposure,
+    ),
+    /App GUI Codex model policy/,
+  );
+
+  const staleConversationFeedback = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  staleConversationFeedback.pages.guid_home.conversation_feedback_policy.model_status =
+    'reasoning is a primary menu and model is a secondary menu';
+  assert.throws(
+    () => validateAppGuiProductContract(
+      staleConversationFeedback,
+      readJson('contracts/app-release-channel.json'),
+      installExposure,
+    ),
+    /shared session configuration menu/,
+  );
+
+  for (const menuStructure of [
+    readJson('contracts/app-product-profile.json').gui.home.codex_model_display_options.menu_structure,
+    readJson('contracts/app-gui-product-contract.json').executor_policy.model_display_options_policy.menu_structure,
+  ]) {
+    assert.doesNotMatch(JSON.stringify(menuStructure), /speed|速度/i);
+  }
+
+  const staleRailBinding = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  staleRailBinding.interaction_baseline.visual_target.shell_token_bindings.navigation_rail.light_css_value = '#f4f4f2';
+  assert.throws(
+    () => validateAppGuiProductContract(
+      staleRailBinding,
+      readJson('contracts/app-release-channel.json'),
+      installExposure,
+    ),
+    /navigation rail shell token binding/,
+  );
+});
+
+test('active-shell visual token gate protects the rail and semantic text bridges', () => {
+  const validSources = {
+    layout: `<ArcoLayout.Sider
+      className={classNames('layout-sider', { collapsed })}
+    >
+      <ArcoLayout.Header />`,
+    productBaseline: `
+      :root { --opl-sidebar-bg: #fcfcfc; --color-text-1: #202124; --text-primary: var(--color-text-1); }
+      [data-theme='dark'] { --opl-sidebar-bg: #1b1c1e; }
+      body { color: var(--text-primary); }
+      .layout-sider.arco-layout-sider { background: var(--opl-sidebar-bg); }
+    `,
+    unoConfig: `
+      't-primary': 'var(--text-primary)',
+      't-tertiary': 'var(--color-text-3)',
+    `,
+  };
+  assert.doesNotThrow(() => validateShellVisualTokenBindings(validSources));
+
+  assert.throws(
+    () => validateShellVisualTokenBindings({
+      ...validSources,
+      layout: validSources.layout.replace("'layout-sider'", "'!bg-2 layout-sider'"),
+    }),
+    /background utility/,
+  );
+  assert.throws(
+    () => validateShellVisualTokenBindings({
+      ...validSources,
+      unoConfig: validSources.unoConfig.replace('var(--color-text-3)', 'var(--bg-6)'),
+    }),
+    /Uno semantic text colors/,
+  );
+  assert.throws(
+    () => validateShellVisualTokenBindings({
+      ...validSources,
+      productBaseline: validSources.productBaseline.replace(
+        '--text-primary: var(--color-text-1);',
+        '--text-primary: #202124;',
+      ),
+    }),
+    /--text-primary: var\(--color-text-1\)/,
+  );
 });
 
 test('new OPL Gateway configs use the branded provider name without renaming existing providers', () => {

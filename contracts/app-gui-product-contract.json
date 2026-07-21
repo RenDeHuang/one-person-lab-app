@@ -921,6 +921,22 @@
         "focus_ring": "#60A5FA",
         "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)"
       },
+      "shell_token_bindings": {
+        "navigation_rail": {
+          "css_variable": "--opl-sidebar-bg",
+          "light_css_value": "#fcfcfc",
+          "dark_css_value": "#1b1c1e",
+          "surface_selector": ".layout-sider.arco-layout-sider",
+          "surface_background_value": "var(--opl-sidebar-bg)",
+          "layout_background_utility_allowed": false
+        },
+        "text_semantics": {
+          "uno_t_primary_value": "var(--text-primary)",
+          "uno_t_tertiary_value": "var(--color-text-3)",
+          "text_primary_bridge_value": "var(--color-text-1)",
+          "body_color_value": "var(--text-primary)"
+        }
+      },
       "accessibility": {
         "ordinary_text_min_contrast_ratio": 4.5,
         "large_text_non_text_and_focus_indicator_min_contrast_ratio": 3,
@@ -2122,10 +2138,10 @@
     "default_model_display_value": "5.6 Sol",
     "home_model_status_label": "5.6 Sol",
     "home_model_status_label_en": "5.6 Sol",
-    "home_model_status_policy": "display_default_model_with_primary_reasoning_menu_and_secondary_model_menu",
-    "conversation_model_status_policy": "display_single_model_selector_with_primary_reasoning_menu_and_secondary_model_menu_no_separate_status_pill",
+    "home_model_status_policy": "display_single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows",
+    "conversation_model_status_policy": "display_single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows_no_separate_status_pill",
     "conversation_pending_feedback_policy": "display_elapsed_seconds_while_ai_processing_or_backend_running",
-    "precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu",
+    "precise_model_display_policy": "friendly_model_with_discoverable_model_and_reasoning_summary_rows",
     "default_permission_mode": "full-access",
     "permission_mode_selector_visible_on_home": true,
     "permission_mode_language_policy": "automation_and_file_access_in_user_language_without_provider_or_backend_terms",
@@ -2139,17 +2155,33 @@
     "restore_auto_model_selection_allowed": true,
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
-      "display_policy": "friendly_model_name_primary_reasoning_primary_model_secondary_menu",
+      "display_policy": "friendly_model_name_with_session_configuration_summary_rows",
       "button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix",
       "raw_model_id_visible_in_ordinary_ui": false,
       "reasoning_effort_visible_for_every_option": false,
       "reasoning_effort_menu_visible": true,
-      "reasoning_menu_title_zh": "推理",
+      "reasoning_menu_title_zh": "推理强度",
       "reasoning_menu_title_en": "Reasoning",
-      "reasoning_effort_override_surface": "model_selector_primary_menu",
+      "reasoning_effort_override_surface": "session_configuration_reasoning_summary_row_submenu",
       "reasoning_effort_options_source": "acp_codex_config_options_enum",
       "auto_option_current_resolution_visible": true,
-      "model_menu_policy": "current_model_secondary_submenu",
+      "model_menu_policy": "model_summary_row_nested_submenu_with_auto_and_fixed_options",
+      "menu_structure": {
+        "root_rows": [
+          "model",
+          "reasoning_effort",
+          "reset_defaults"
+        ],
+        "additional_root_rows_allowed": false,
+        "performance_tuning_row_allowed": false,
+        "summary_row_policy": "localized_label_left_current_value_and_chevron_right",
+        "reset_defaults_policy": "restore_auto_model_and_app_default_reasoning",
+        "reset_label_zh": "重置为默认设置",
+        "reset_label_en": "Reset to defaults",
+        "summary_row_icon_policy": "no_leading_icons",
+        "reset_icon_policy": "single_trailing_reset_outline_icon",
+        "home_and_conversation_share_menu_component": true
+      },
       "user_reasoning_effort_options": [
         "low",
         "medium",
@@ -5575,7 +5607,7 @@
       },
       "conversation_feedback_policy": {
         "pending_indicator": "visible elapsed seconds while request is pending or backend is running",
-        "model_status": "single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu and model is a secondary menu",
+        "model_status": "shared session configuration menu appears in Home and Codex conversation composer with peer Model and Reasoning summary rows plus Reset to defaults; no separate status pill, additional root rows, speed, or performance tuning",
         "raw_trace_visible": false
       },
       "must_show": [

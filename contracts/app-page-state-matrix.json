@@ -54,8 +54,15 @@
         "codex_default_reasoning_effort": "max",
         "codex_default_display_label": "5.6 Sol",
         "codex_default_model_display_value": "5.6 Sol",
-        "codex_model_status_display_policy": "default_model_status_with_primary_reasoning_menu_and_secondary_model_menu",
-        "codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu",
+        "codex_model_status_display_policy": "single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows",
+        "codex_precise_model_display_policy": "friendly_model_with_discoverable_model_and_reasoning_summary_rows",
+        "codex_model_menu_root_rows": [
+          "model",
+          "reasoning_effort",
+          "reset_defaults"
+        ],
+        "codex_model_menu_additional_root_rows_allowed": false,
+        "codex_model_menu_performance_tuning_row_allowed": false,
         "codex_default_permission_mode": "full-access",
         "permission_mode_selector_visible": true,
         "permission_mode_language_policy": "automation_and_file_access_in_user_language",
@@ -85,7 +92,7 @@
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
-        "conversation_model_status_display_policy": "single_model_selector_in_codex_conversation_composer_no_separate_status_pill",
+        "conversation_model_status_display_policy": "single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows_no_separate_status_pill",
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
         "home_composer_state_contract": {
           "contract_id": "opl_home_composer_state.v1",

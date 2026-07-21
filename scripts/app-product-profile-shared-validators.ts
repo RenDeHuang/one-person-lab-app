@@ -392,7 +392,7 @@ function assertHomeCodexFixedExecutorFields(
       { actual: home?.codex_home_model_status_label, expected: '5.6 Sol' },
       {
         actual: home?.codex_precise_model_display_policy,
-        expected: 'friendly_model_primary_reasoning_primary_model_secondary_menu',
+        expected: 'friendly_model_with_discoverable_model_and_reasoning_summary_rows',
       },
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
@@ -712,7 +712,7 @@ function assertCodexModelDisplayShape(
     [
       {
         actual: displayOptions?.display_policy,
-        expected: 'friendly_model_name_primary_reasoning_primary_model_secondary_menu',
+        expected: 'friendly_model_name_with_session_configuration_summary_rows',
       },
       {
         actual: displayOptions?.button_label_policy,
@@ -721,13 +721,19 @@ function assertCodexModelDisplayShape(
       { actual: displayOptions?.raw_model_id_visible_in_ordinary_ui, expected: false },
       { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: false },
       { actual: displayOptions?.reasoning_effort_menu_visible, expected: true },
-      { actual: displayOptions?.reasoning_menu_title_zh, expected: '推理' },
+      { actual: displayOptions?.reasoning_menu_title_zh, expected: '推理强度' },
       { actual: displayOptions?.reasoning_menu_title_en, expected: 'Reasoning' },
-      { actual: displayOptions?.reasoning_effort_override_surface, expected: 'model_selector_primary_menu' },
+      {
+        actual: displayOptions?.reasoning_effort_override_surface,
+        expected: 'session_configuration_reasoning_summary_row_submenu',
+      },
       { actual: displayOptions?.reasoning_effort_options_source, expected: 'acp_codex_config_options_enum' },
       { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
       { actual: displayOptions?.auto_option_current_resolution_visible, expected: true },
-      { actual: displayOptions?.model_menu_policy, expected: 'current_model_secondary_submenu' },
+      {
+        actual: displayOptions?.model_menu_policy,
+        expected: 'model_summary_row_nested_submenu_with_auto_and_fixed_options',
+      },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
       { actual: auto?.catalog_unavailable_fallback_model, expected: profile.codex?.default_model },
@@ -749,8 +755,37 @@ function assertCodexModelDisplayShape(
     ],
     `${label} GUI home must expose friendly Codex model display options with reasoning labels`,
   );
+  assertCodexSessionConfigurationMenu(displayOptions?.menu_structure, label);
   assertReasoningOptions(displayOptions, profile, label);
   assertRetiredCodexModelsHidden(visibleModels, label);
+}
+
+function assertCodexSessionConfigurationMenu(menu: unknown, label: string): void {
+  const structure = menu as Record<string, unknown> | undefined;
+  assertExpectedFields(
+    [
+      {
+        actual: JSON.stringify(structure?.root_rows),
+        expected: JSON.stringify(['model', 'reasoning_effort', 'reset_defaults']),
+      },
+      { actual: structure?.additional_root_rows_allowed, expected: false },
+      { actual: structure?.performance_tuning_row_allowed, expected: false },
+      {
+        actual: structure?.summary_row_policy,
+        expected: 'localized_label_left_current_value_and_chevron_right',
+      },
+      {
+        actual: structure?.reset_defaults_policy,
+        expected: 'restore_auto_model_and_app_default_reasoning',
+      },
+      { actual: structure?.reset_label_zh, expected: '重置为默认设置' },
+      { actual: structure?.reset_label_en, expected: 'Reset to defaults' },
+      { actual: structure?.summary_row_icon_policy, expected: 'no_leading_icons' },
+      { actual: structure?.reset_icon_policy, expected: 'single_trailing_reset_outline_icon' },
+      { actual: structure?.home_and_conversation_share_menu_component, expected: true },
+    ],
+    `${label} Codex session configuration menu must expose discoverable model and reasoning summary rows`,
+  );
 }
 
 function assertReasoningOptions(
