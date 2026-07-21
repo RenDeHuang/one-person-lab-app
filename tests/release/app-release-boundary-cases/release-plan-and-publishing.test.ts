@@ -35,8 +35,8 @@ test('retired release projection exposes exactly the three Framework Bundle oper
 test('retired release projection preserves the Stable calendar guard', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
-    '--version', '26.7.22',
-  ], { env: { OPL_RELEASE_DATE: '2026-07-21' } });
+    '--version', '99.12.31',
+  ]);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /future-dated/);
   assert.equal(result.stdout, '');
