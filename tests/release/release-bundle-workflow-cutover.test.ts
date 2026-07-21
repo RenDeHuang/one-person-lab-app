@@ -228,6 +228,32 @@ test('new Standard binds fresh remote Framework main while Canary uses only a mi
 
 test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without consuming build artifacts', () => {
   const source = readWorkflow('_release-bundle.yml');
+  const frameworkCheckout = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Checkout Framework source and executor',
+  );
+  assert.equal(frameworkCheckout.with.repository, 'gaofeng21cn/one-person-lab');
+  assert.equal(frameworkCheckout.with.ref, "${{ inputs.framework_ref || 'main' }}");
+  assert.equal(frameworkCheckout.with.path, 'framework-source');
+  const identityScript = String(workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Freeze source, version, and Package identity',
+  ).run);
+  for (const scratchPath of [
+    '$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json',
+    '$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt',
+    '$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json',
+    '$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json',
+    '$RUNNER_TEMP/opl-nightly-tags-$GITHUB_RUN_ID.txt',
+  ]) {
+    assert.ok(identityScript.includes(scratchPath), `identity scratch is not outside the App tree: ${scratchPath}`);
+  }
+  assert.doesNotMatch(
+    identityScript,
+    /> (?:published-releases\.json|published-tags\.txt|stable-version-order\.json|previous-latest\.json|nightly-tags\.txt)/,
+  );
   const step = workflowStep(
     '_release-bundle.yml',
     'freeze',
@@ -239,6 +265,7 @@ test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without c
   for (const required of [
     "--app-ref '${{ steps.identity.outputs.app_sha }}'",
     "--shell-ref '${{ steps.identity.outputs.shell_sha }}'",
+    '--framework-root framework-source',
     "--framework-ref '${{ steps.identity.outputs.framework_sha }}'",
     "--release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}'",
     '--third-party-source-manifest contracts/app-full-third-party-source-manifest.json',

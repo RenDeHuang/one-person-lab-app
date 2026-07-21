@@ -207,21 +207,27 @@ jobs:
             [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || exit 1
             [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || exit 1
             test -n "$version"
-            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > published-releases.json
-            git ls-remote --tags origin 'refs/tags/v*' > published-tags.txt
-            BASE_VERSION="${version%-r*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
+            published_releases_json="$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json"
+            published_tags_txt="$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt"
+            stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
+            previous_latest_json="$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json"
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
+            git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
+            PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
+              BASE_VERSION="${version%-r*}" VERSION="$version" \
+              node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveStableReleaseVersion } from './scripts/release-version.ts';
-          const pages = JSON.parse(fs.readFileSync('published-releases.json', 'utf8'));
+          const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
           const refs = Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [];
-          refs.push(...fs.readFileSync('published-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean));
+          refs.push(...fs.readFileSync(process.env.PUBLISHED_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
           const resolved = resolveStableReleaseVersion(process.env.BASE_VERSION, refs);
           if (resolved.version !== process.env.VERSION) {
             throw new Error(`Stable must use next immutable same-day revision ${resolved.version}; got ${process.env.VERSION}.`);
           }
           NODE
             node --experimental-strip-types scripts/stable-release-version-order.ts \
-              --target "$version" --published-releases-json published-releases.json > stable-version-order.json
+              --target "$version" --published-releases-json "$published_releases_json" > "$stable_version_order_json"
             if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" >/dev/null 2>&1; then
               echo "::error::Stable v$version already exists; use resume_standard only with its exact checkpoint."
               exit 1
@@ -232,11 +238,12 @@ jobs:
             }
           else
             base="$(TZ=Asia/Shanghai date '+%y.%-m.%-d')-nightly"
-            git ls-remote --tags origin 'refs/tags/v*-nightly*' > nightly-tags.txt
-            version="$(BASE="$base" node --experimental-strip-types --input-type=module <<'NODE'
+            nightly_tags_txt="$RUNNER_TEMP/opl-nightly-tags-$GITHUB_RUN_ID.txt"
+            git ls-remote --tags origin 'refs/tags/v*-nightly*' > "$nightly_tags_txt"
+            version="$(BASE="$base" NIGHTLY_TAGS_TXT="$nightly_tags_txt" node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveNightlyReleaseVersion } from './scripts/release-version.ts';
-          const refs = fs.readFileSync('nightly-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean);
+          const refs = fs.readFileSync(process.env.NIGHTLY_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean);
           process.stdout.write(resolveNightlyReleaseVersion(process.env.BASE, refs).version);
           NODE
             )"
@@ -244,8 +251,8 @@ jobs:
           version_json="$(node --experimental-strip-types scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
           updater_version="$(jq -er .updater_version <<<"$version_json")"
           if [ "$CHANNEL" = stable ]; then
-            gh api "repos/$GITHUB_REPOSITORY/releases/latest" > previous-latest.json
-            previous_display="$(jq -er .tag_name previous-latest.json | sed 's/^v//')"
+            gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$previous_latest_json"
+            previous_display="$(jq -er .tag_name "$previous_latest_json" | sed 's/^v//')"
             previous_json="$(node --experimental-strip-types scripts/release-version.ts --channel stable --version "$previous_display" --json)"
             previous_updater="$(jq -er .updater_version <<<"$previous_json")"
             TARGET="$updater_version" CURRENT="$previous_updater" node --experimental-strip-types --input-type=module <<'NODE'

@@ -11,6 +11,8 @@ import { resolveAioncoreManagedCodexBinding } from './manual-latest-build.ts';
 type JsonRecord = Record<string, any>;
 
 const shaPattern = /^[0-9a-f]{40}$/;
+const canonicalFrameworkRepository = 'gaofeng21cn/one-person-lab';
+const nestedFrameworkCheckoutPath = 'framework-source';
 const packageSpecs = [
   { packageId: 'mas', componentKey: 'mas', resolvedRefKey: 'mas', repository: 'gaofeng21cn/med-autoscience' },
   { packageId: 'mag', componentKey: 'mag', resolvedRefKey: 'mag', repository: 'gaofeng21cn/med-autogrant' },
@@ -58,15 +60,121 @@ function gitSha(root: string, label: string): string {
   return value;
 }
 
-function assertExactGitSha(root: string, expected: string, label: string): string {
+function statusWithoutExactUntrackedDirectory(status: string, relativePath: string | null): string {
+  if (!relativePath) return status;
+  const normalized = relativePath.split(path.sep).join('/').replace(/\/+$/, '');
+  const allowed = new Set([`?? ${normalized}`, `?? ${normalized}/`]);
+  return status
+    .split(/\r?\n/)
+    .filter((line) => line && !allowed.has(line))
+    .join('\n');
+}
+
+function assertExactGitSha(
+  root: string,
+  expected: string,
+  label: string,
+  allowedUntrackedDirectory: string | null = null,
+): string {
   if (!shaPattern.test(expected)) throw new Error(`${label} ref must be an exact 40-character Git SHA.`);
   const actual = gitSha(root, label);
   if (actual !== expected) throw new Error(`${label} checkout drifted: expected ${expected}, got ${actual}.`);
-  const status = spawnSync('git', ['-C', root, 'status', '--porcelain'], { encoding: 'utf8' });
-  if (status.status !== 0 || status.stdout.trim()) {
+  const status = spawnSync(
+    'git',
+    ['-C', root, 'status', '--porcelain', '--untracked-files=all'],
+    { encoding: 'utf8' },
+  );
+  const dirtyStatus = statusWithoutExactUntrackedDirectory(status.stdout, allowedUntrackedDirectory);
+  if (status.status !== 0 || dirtyStatus) {
     throw new Error(`${label} checkout must be clean before release-note authority is derived.`);
   }
   return actual;
+}
+
+function exactGitValue(root: string, args: string[], label: string): string {
+  const result = spawnSync('git', ['-C', root, ...args], {
+    encoding: 'utf8',
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 30_000,
+  });
+  const value = result.stdout.trim();
+  if (result.status !== 0 || !value) {
+    throw new Error(`Cannot resolve ${label}: ${result.stderr.trim()}`);
+  }
+  return value;
+}
+
+function canonicalGithubRepository(remoteUrl: string): string | null {
+  const normalized = remoteUrl.trim().replace(/\.git$/i, '');
+  const match = normalized.match(/github\.com(?::\d+)?[/:]([^/]+\/[^/]+)$/i);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function nestedFrameworkRelativePath(appRoot: string, frameworkRoot: string): string | null {
+  const relative = path.relative(appRoot, frameworkRoot);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return null;
+  const normalized = relative.split(path.sep).join('/').replace(/\/+$/, '');
+  if (normalized !== nestedFrameworkCheckoutPath) {
+    throw new Error(`Framework checkout inside App must be exactly ${nestedFrameworkCheckoutPath}/.`);
+  }
+  return normalized;
+}
+
+function assertNestedFrameworkCheckout(
+  frameworkRoot: string,
+  expectedRef: string,
+): string {
+  const frameworkRef = assertExactGitSha(frameworkRoot, expectedRef, 'Framework');
+  const topLevel = fs.realpathSync(exactGitValue(
+    frameworkRoot,
+    ['rev-parse', '--show-toplevel'],
+    'nested Framework Git top-level',
+  ));
+  if (topLevel !== frameworkRoot) {
+    throw new Error('Nested Framework checkout root must exactly match its Git top-level.');
+  }
+
+  const originUrl = exactGitValue(
+    frameworkRoot,
+    ['config', '--get', 'remote.origin.url'],
+    'nested Framework origin URL',
+  );
+  if (canonicalGithubRepository(originUrl) !== canonicalFrameworkRepository) {
+    throw new Error(`Nested Framework origin must be ${canonicalFrameworkRepository}.`);
+  }
+
+  const resolvedRef = exactGitValue(
+    frameworkRoot,
+    ['rev-parse', '--verify', `${expectedRef}^{commit}`],
+    'nested Framework exact ref',
+  );
+  if (resolvedRef !== expectedRef) {
+    throw new Error(`Nested Framework ref must resolve exactly to ${expectedRef}.`);
+  }
+  const headTree = exactGitValue(frameworkRoot, ['rev-parse', 'HEAD^{tree}'], 'nested Framework HEAD tree');
+  const refTree = exactGitValue(
+    frameworkRoot,
+    ['rev-parse', `${expectedRef}^{tree}`],
+    'nested Framework input ref tree',
+  );
+  if (!shaPattern.test(headTree) || headTree !== refTree) {
+    throw new Error('Nested Framework HEAD tree does not match the workflow input ref tree.');
+  }
+
+  const remoteMain = exactGitValue(
+    frameworkRoot,
+    ['ls-remote', '--heads', 'origin', 'refs/heads/main'],
+    'nested Framework live origin/main',
+  );
+  const remoteMainParts = remoteMain.split(/\s+/);
+  if (
+    remoteMainParts.length !== 2
+    || remoteMainParts[1] !== 'refs/heads/main'
+    || remoteMainParts[0] !== expectedRef
+  ) {
+    throw new Error(`Nested Framework live origin/main must exactly match ${expectedRef}.`);
+  }
+  return frameworkRef;
 }
 
 function assertContainedFile(root: string, candidate: string, label: string): string {
@@ -119,9 +227,12 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
   const appRoot = fs.realpathSync(input.appRoot);
   const shellRoot = fs.realpathSync(input.shellRoot);
   const frameworkRoot = fs.realpathSync(input.frameworkRoot);
-  const appRef = assertExactGitSha(appRoot, input.appRef, 'App');
+  const nestedFrameworkPath = nestedFrameworkRelativePath(appRoot, frameworkRoot);
+  const frameworkRef = nestedFrameworkPath
+    ? assertNestedFrameworkCheckout(frameworkRoot, input.frameworkRef)
+    : assertExactGitSha(frameworkRoot, input.frameworkRef, 'Framework');
+  const appRef = assertExactGitSha(appRoot, input.appRef, 'App', nestedFrameworkPath);
   const shellRef = assertExactGitSha(shellRoot, input.shellRef, 'Shell');
-  const frameworkRef = assertExactGitSha(frameworkRoot, input.frameworkRef, 'Framework');
 
   const releaseSetPath = assertContainedFile(
     frameworkRoot,

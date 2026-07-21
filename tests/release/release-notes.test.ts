@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { appRoot } from './release-readiness/helpers.ts';
 import {
   stableInstallCommand,
@@ -33,6 +34,7 @@ const fullPayloadPackages = [
   { packageId: 'mas-scholar-skills', componentLabel: 'MAS Scholar Skills' },
   { packageId: 'opl-flow', componentLabel: 'OPL Flow' },
 ] as const;
+const canonicalFrameworkRemote = 'https://github.com/gaofeng21cn/one-person-lab.git';
 
 function jsonFile(filePath: string, value: unknown) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -74,7 +76,34 @@ function commitFixtureChange(root: string, message: string) {
   return spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim();
 }
 
-function fullPayloadAuthorityFixture() {
+function runFixtureGit(root: string, args: string[]) {
+  const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+function configureCanonicalFrameworkRemote(fixtureRoot: string, framework: { root: string; ref: string }) {
+  runFixtureGit(framework.root, ['branch', '-M', 'main']);
+  const remoteRoot = path.join(fixtureRoot, 'framework-origin.git');
+  const clone = spawnSync('git', ['clone', '-q', '--bare', framework.root, remoteRoot], { encoding: 'utf8' });
+  assert.equal(clone.status, 0, clone.stderr);
+  runFixtureGit(framework.root, ['remote', 'add', 'origin', canonicalFrameworkRemote]);
+  runFixtureGit(framework.root, [
+    'config',
+    `url.${pathToFileURL(remoteRoot).href}.insteadOf`,
+    canonicalFrameworkRemote,
+  ]);
+}
+
+function advanceCanonicalFrameworkRemote(framework: { root: string; ref: string }) {
+  const tree = runFixtureGit(framework.root, ['rev-parse', 'HEAD^{tree}']);
+  const remoteCommit = runFixtureGit(framework.root, [
+    'commit-tree', tree, '-p', framework.ref, '-m', 'remote advance',
+  ]);
+  runFixtureGit(framework.root, ['push', 'origin', `${remoteCommit}:refs/heads/main`]);
+}
+
+function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-full-authority-'));
   const codexVersion = '0.144.6';
   const staleAppCodexProjection = '0.144.5';
@@ -177,7 +206,7 @@ function fullPayloadAuthorityFixture() {
   });
   let releaseSetPath = '';
   const ownerRefs: Record<string, string> = {};
-  const framework = gitFixture(root, 'framework', (directory) => {
+  const framework = gitFixture(root, options.nestedFramework ? path.join('app', 'framework-source') : 'framework', (directory) => {
     const catalogRoot = path.join(directory, 'contracts', 'opl-framework');
     const catalogPackages: Record<string, unknown> = {};
     const releaseMembers: Record<string, unknown> = {};
@@ -231,6 +260,7 @@ function fullPayloadAuthorityFixture() {
       },
     });
   });
+  if (options.nestedFramework) configureCanonicalFrameworkRemote(root, framework);
   return {
     root,
     app,
@@ -583,6 +613,7 @@ test('stable manifest notes expose install, component refs, and version changes'
 
 test('Full notes derive every prebuild payload ref from exact App, Shell, and Framework authorities', () => {
   const fixture = fullPayloadAuthorityFixture();
+  assert.equal(path.relative(fixture.app.root, fixture.framework.root).startsWith('..'), true);
   const authorityPath = path.join(fixture.root, 'full-payload-authority.json');
   const evidencePath = path.join(fixture.root, 'notes-evidence.json');
   const authorityResult = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
@@ -638,6 +669,82 @@ test('Full notes derive every prebuild payload ref from exact App, Shell, and Fr
   assert.deepEqual(evidence.payload.bundled_refs, expectedRefs);
   assert.match(evidence.payload.lines[0], /Full first-install package includes the OPL Framework runtime/);
   assert.equal(evidence.payload.lines[1], `- Packaged component refs: ${expectedRefs.join('; ')}.`);
+});
+
+test('prebuild Full notes authority accepts the verified Actions nested Framework checkout topology', () => {
+  const fixture = fullPayloadAuthorityFixture({ nestedFramework: true });
+  assert.equal(path.relative(fixture.app.root, fixture.framework.root), 'framework-source');
+  const authorityPath = path.join(fixture.root, 'nested-framework-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+
+  assert.equal(result.status, 0, result.stderr);
+  const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  assert.equal(authority.sources.app.source_commit, fixture.app.ref);
+  assert.equal(authority.sources.framework.source_commit, fixture.framework.ref);
+});
+
+test('prebuild Full notes authority rejects a nested checkout from the wrong repository', () => {
+  const fixture = fullPayloadAuthorityFixture({ nestedFramework: true });
+  runFixtureGit(fixture.framework.root, [
+    'remote', 'set-url', 'origin', 'https://github.com/gaofeng21cn/not-one-person-lab.git',
+  ]);
+  const authorityPath = path.join(fixture.root, 'wrong-framework-repo-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Nested Framework origin must be gaofeng21cn\/one-person-lab/);
+  assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects a nested checkout at the wrong workflow input SHA', () => {
+  const fixture = fullPayloadAuthorityFixture({ nestedFramework: true });
+  const authorityPath = path.join(fixture.root, 'wrong-framework-sha-authority.json');
+  const args = fullPayloadAuthorityArgs(fixture, authorityPath);
+  args[args.indexOf('--framework-ref') + 1] = 'f'.repeat(40);
+  const result = runNode(args);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Framework checkout drifted/);
+  assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects a nested checkout behind live Framework main', () => {
+  const fixture = fullPayloadAuthorityFixture({ nestedFramework: true });
+  advanceCanonicalFrameworkRemote(fixture.framework);
+  const authorityPath = path.join(fixture.root, 'stale-framework-main-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Nested Framework live origin\/main must exactly match/);
+  assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects nested extras and every other App dirty state', () => {
+  const fixture = fullPayloadAuthorityFixture({ nestedFramework: true });
+  const authorityPath = path.join(fixture.root, 'dirty-nested-framework-authority.json');
+  const frameworkExtra = path.join(fixture.framework.root, 'unexpected.txt');
+  fs.writeFileSync(frameworkExtra, 'unexpected\n');
+
+  const frameworkDirty = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.notEqual(frameworkDirty.status, 0);
+  assert.match(frameworkDirty.stderr, /Framework checkout must be clean/);
+  assert.equal(fs.existsSync(authorityPath), false);
+  fs.rmSync(frameworkExtra);
+
+  const appExtra = path.join(fixture.app.root, 'unexpected-app.txt');
+  fs.writeFileSync(appExtra, 'unexpected\n');
+  const appUntracked = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.notEqual(appUntracked.status, 0);
+  assert.match(appUntracked.stderr, /App checkout must be clean/);
+  assert.equal(fs.existsSync(authorityPath), false);
+  fs.rmSync(appExtra);
+
+  fs.appendFileSync(fixture.thirdPartyManifestPath, '\n');
+  runFixtureGit(fixture.app.root, ['add', 'contracts/app-full-third-party-source-manifest.json']);
+  const appIndexed = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.notEqual(appIndexed.status, 0);
+  assert.match(appIndexed.stderr, /App checkout must be clean/);
+  assert.equal(fs.existsSync(authorityPath), false);
 });
 
 test('prebuild Full notes authority rejects missing Release Set input before writing evidence', () => {
