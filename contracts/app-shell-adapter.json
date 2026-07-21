@@ -19,7 +19,7 @@
       },
       "managed_codex_acp": {
         "package": "@agentclientprotocol/codex-acp",
-        "version": "1.1.2",
+        "version": "1.1.4",
         "version_source": "AionCore managed resource manifest",
         "forbidden_package": "@zed-industries/codex-acp"
       },

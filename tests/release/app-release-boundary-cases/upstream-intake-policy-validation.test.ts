@@ -244,7 +244,7 @@ test('Manual qualification contract isolates Codex and keeps MAS Scholar workspa
       adapter.runtime_dependencies.managed_codex_acp.version,
       adapter.runtime_dependencies.codex_cli.version,
     ],
-    ['v0.1.49', '1.1.2', '0.144.6'],
+    ['v0.1.49', '1.1.4', '0.144.6'],
   );
   assert.equal(adapter.runtime_dependencies.managed_codex_acp.forbidden_package, '@zed-industries/codex-acp');
   assert.deepEqual(profile.codex.app_runtime_home, {

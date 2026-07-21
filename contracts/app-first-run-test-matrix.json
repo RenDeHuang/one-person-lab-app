@@ -806,7 +806,7 @@
         "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
         "Desktop startup maintenance idempotently installs the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow from local payloads before Full readiness is claimed",
         "Fresh App readback reports installed_package_count 7; MAS Scholar Skills has cache materialized without global marketplace or config exposure and becomes visible only after MAS workspace binding",
-        "Bundled AionCore v0.1.49 supplies @agentclientprotocol/codex-acp 1.1.2 and Codex CLI 0.144.6 from its managed resource manifest, completes a real initialize handshake with model_reasoning_effort = max, and contains no @zed-industries/codex-acp resource",
+        "Bundled AionCore v0.1.49 supplies @agentclientprotocol/codex-acp 1.1.4 and Codex CLI 0.144.6 from its managed resource manifest, completes a real initialize handshake with model_reasoning_effort = max, and contains no @zed-industries/codex-acp resource",
         "Conversation readiness is confirmed only by POST /api/conversations/<id>/runtime/ensure; the retired /warmup route and every 404 or 500 remain retryable errors and never mark a conversation ready",
         "Desktop, AionCore, managed Codex ACP, and OPL runtime commands share ~/Library/Application Support/OPL/codex by default, while a before/after digest proves the user's ~/.codex/config.toml was not created or modified",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
