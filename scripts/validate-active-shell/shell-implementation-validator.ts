@@ -94,17 +94,9 @@ export function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/styles/themes/opl-product-baseline.css',
   );
-  const productProfile = JSON.parse(
-    readShellText(
-      shellPaths,
-      'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
-    ),
-  );
-  if (productProfile?.gui?.home?.codex_model_display_options?.menu_structure != null) {
-    const layout = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Layout.tsx');
-    const unoConfig = readShellText(shellPaths, 'uno.config.ts');
-    validateShellVisualTokenBindings({ layout, productBaseline, unoConfig });
-  }
+  const layout = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Layout.tsx');
+  const unoConfig = readShellText(shellPaths, 'uno.config.ts');
+  validateShellVisualTokenBindings({ layout, productBaseline, unoConfig });
   for (const expected of ['--opl-sidebar-bg', '--opl-main-bg', '--opl-focus-ring']) {
     if (!productBaseline.includes(expected)) {
       throw new Error(`Active shell OPL product visual baseline must include ${expected}`);

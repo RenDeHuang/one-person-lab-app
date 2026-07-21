@@ -356,43 +356,6 @@ const codexSessionConfigurationMenuStructureExpected = {
   home_and_conversation_share_menu_component: true,
 };
 
-const legacyCodexModelDisplayExpectedReplacements = new Map([
-  [
-    '"codex_precise_model_display_policy": "friendly_model_with_discoverable_model_and_reasoning_summary_rows"',
-    '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu"',
-  ],
-  [
-    '"display_policy": "friendly_model_name_with_session_configuration_summary_rows"',
-    '"display_policy": "friendly_model_name_primary_reasoning_primary_model_secondary_menu"',
-  ],
-  [
-    '"model_menu_policy": "model_summary_row_nested_submenu_with_auto_and_fixed_options"',
-    '"model_menu_policy": "current_model_secondary_submenu"',
-  ],
-]);
-
-const legacyCodexModelDisplayOnlyExpectations = new Set([
-  '"additional_root_rows_allowed": false',
-  '"performance_tuning_row_allowed": false',
-  '"home_and_conversation_share_menu_component": true',
-]);
-
-const legacyProductProfileDefaultsExpected = productProfileDefaultsExpected
-  .filter((expected) => !legacyCodexModelDisplayOnlyExpectations.has(expected))
-  .map((expected) => legacyCodexModelDisplayExpectedReplacements.get(expected) ?? expected);
-
-function hasCurrentCodexSessionConfigurationMenu(productProfileJson) {
-  const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;
-  return JSON.stringify(menuStructure) === JSON.stringify(codexSessionConfigurationMenuStructureExpected);
-}
-
-function hasLegacyCodexModelMenu(productProfileJson) {
-  const modelDisplay = productProfileJson?.gui?.home?.codex_model_display_options;
-  return modelDisplay?.menu_structure == null
-    && modelDisplay?.display_policy === 'friendly_model_name_primary_reasoning_primary_model_secondary_menu'
-    && modelDisplay?.model_menu_policy === 'current_model_secondary_submenu';
-}
-
 const codexModelsExpected = [
   'getOplCodexAutoModelPolicy',
   'resolveOplCodexAutoSelection',
@@ -581,15 +544,11 @@ function validateProductProfileDefaults(shellPaths) {
     throw new Error('Active shell product profile must carry the five canonical professional Agent package ids');
   }
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
-  const hasCurrentMenu = hasCurrentCodexSessionConfigurationMenu(productProfileJson);
-  if (!hasCurrentMenu && !hasLegacyCodexModelMenu(productProfileJson)) {
+  const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;
+  if (JSON.stringify(menuStructure) !== JSON.stringify(codexSessionConfigurationMenuStructureExpected)) {
     throw new Error('Active shell product profile must carry the exact App Codex session configuration menu');
   }
-  assertTextIncludesAll(
-    productProfile,
-    hasCurrentMenu ? productProfileDefaultsExpected : legacyProductProfileDefaultsExpected,
-    'Active shell product profile App Codex default',
-  );
+  assertTextIncludesAll(productProfile, productProfileDefaultsExpected, 'Active shell product profile App Codex default');
 }
 
 function validateGuidAssistantRegistry(shellPaths) {
@@ -711,17 +670,9 @@ function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
 }
 
 function validateCodexModelControls(shellPaths) {
-  const productProfileJson = readShellJson(
-    shellPaths,
-    'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
-    'product profile',
-  );
-  const hasCurrentMenu = hasCurrentCodexSessionConfigurationMenu(productProfileJson);
-  if (hasCurrentMenu) {
-    validateCodexSessionConfigurationMenuImplementation(shellPaths);
-  }
+  validateCodexSessionConfigurationMenuImplementation(shellPaths);
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/composerSurface.ts', ['getOplHomeComposerStateContract', 'resolveOplHomeComposerSurface', 'contract.executor', 'contract.invariants.model_reasoning_visible', 'contract.invariants.permission_access_visible', 'contract.invariants.executor_selector_visible'], 'Active shell Home composer App-contract decision surface');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', hasCurrentMenu ? 'onSelect: handleAutoSelect' : 'onClick={handleAutoSelect}'], 'Active shell ACP model selector fixed Codex model guard');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onSelect: handleAutoSelect'], 'Active shell ACP model selector fixed Codex model guard');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'selectReasoningEffort', 'savePreferredCodexSelection(backend, null, null)', 'savePreferredCodexSelection(backend, currentModelId, value)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['resolveOplCodexAutoSelection'], 'Active shell Codex Auto option resolved target display');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');
