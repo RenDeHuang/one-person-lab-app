@@ -84,7 +84,13 @@ Each successful lane writes:
 The local lane also writes `manual-local-app-installation.json`. It verifies the
 staged App before stopping the installed App, uses a same-volume atomic rename,
 retains a rollback copy until the new App starts, and restores the old App on a
-failed replacement or launch.
+failed replacement or launch. A previously installed Full App may contain
+runtime-created Python bytecode below `__pycache__`, so its signature result is
+recorded rather than used to reject replacement. Candidate, staged, installed,
+and launched App bytes still pass strict deep signature verification. A failed
+replacement writes a typed receipt below
+`<cache-root>/failures/local-app/`, including the source lock, rollback outcome,
+and whether a previously running App was restored and relaunched.
 
 The Full lane runs the existing Full package gates and independently verifies
 the final DMG before writing its success receipt. Its receipt records DMG size

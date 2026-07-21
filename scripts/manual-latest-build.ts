@@ -23,7 +23,10 @@ import {
   writeJson,
 } from './manual-latest-build/common.ts';
 import { prepareFrameworkOverlay } from './manual-latest-build/framework-overlay.ts';
-import { installLocalApp } from './manual-latest-build/install-app.ts';
+import {
+  installLocalApp,
+  ManualAppInstallationError,
+} from './manual-latest-build/install-app.ts';
 import { prepareLatestUpstreams } from './manual-latest-build/upstreams.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -93,6 +96,32 @@ function managedOutputStage(outDir: string) {
   const parent = path.dirname(outDir);
   fs.mkdirSync(parent, { recursive: true });
   return fs.mkdtempSync(path.join(parent, `.${path.basename(outDir)}.staging-`));
+}
+
+function persistInstallationFailure(
+  options: ReturnType<typeof parseOptions> & { help: false },
+  sourceLock: unknown,
+  sourceLockPath: string,
+  error: ManualAppInstallationError,
+) {
+  const attemptId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`;
+  const receiptPath = path.join(
+    options.cacheRoot,
+    'failures',
+    'local-app',
+    `${options.version}-${options.updaterVersion}-${attemptId}.json`,
+  );
+  writeJson(receiptPath, {
+    schema: 'opl_manual_latest_build_failure_receipt.v1',
+    status: 'failed',
+    mode: 'local-app',
+    display_version: options.version,
+    updater_version: options.updaterVersion,
+    source_lock_sha256: fileSha256(sourceLockPath),
+    source_lock: sourceLock,
+    installation: error.receipt,
+  });
+  return receiptPath;
 }
 
 function promoteManagedOutput(stagingDir: string, outDir: string) {
@@ -399,13 +428,30 @@ function main() {
     let installation = null;
     if (options.mode === 'local-app') {
       assertDevelopmentRepoSnapshotsUnchanged(developmentRepoSnapshots(snapshots));
-      installation = installLocalApp({
-        builtApp: findBuiltApp(snapshots.shellRoot),
-        installPath: options.installPath,
-        expectedDisplayVersion: options.version,
-        expectedUpdaterVersion: options.updaterVersion,
-        launch: options.launch,
-      });
+      try {
+        installation = installLocalApp({
+          builtApp: findBuiltApp(snapshots.shellRoot),
+          installPath: options.installPath,
+          expectedDisplayVersion: options.version,
+          expectedUpdaterVersion: options.updaterVersion,
+          launch: options.launch,
+        });
+      } catch (error) {
+        if (error instanceof ManualAppInstallationError) {
+          const failureReceipt = persistInstallationFailure(
+            options,
+            sourceLock,
+            stagedSourceLockPath,
+            error,
+          );
+          console.error(JSON.stringify({
+            status: 'manual_latest_local_app_installation_failed',
+            failure_receipt: failureReceipt,
+            installation: error.receipt,
+          }, null, 2));
+        }
+        throw error;
+      }
       writeJson(path.join(buildOutDir, 'manual-local-app-installation.json'), installation);
     }
     const output = options.mode === 'full-dmg'
