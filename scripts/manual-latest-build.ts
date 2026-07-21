@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
@@ -42,6 +42,413 @@ const OWNER_REPOS = {
 } as const;
 
 type Mode = 'local-app' | 'full-dmg';
+
+const MANUAL_RUNTIME_KEY = 'darwin-arm64';
+const MANAGED_CODEX_ACP_PACKAGE = '@agentclientprotocol/codex-acp';
+const MANAGED_CODEX_PACKAGE = '@openai/codex';
+
+function requiredString(value: unknown, label: string) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`AionCore managed Codex binding is missing ${label}`);
+  }
+  return value.trim();
+}
+
+function requiredSha512Integrity(value: unknown, label: string) {
+  const integrity = requiredString(value, label);
+  if (!integrity.startsWith('sha512-')) {
+    throw new Error(`AionCore managed Codex binding has invalid ${label}`);
+  }
+  return integrity;
+}
+
+function requiredObject(value: unknown, label: string): Record<string, any> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`AionCore managed Codex binding is missing ${label}`);
+  }
+  return value as Record<string, any>;
+}
+
+function requireStrictDescendant(
+  root: string,
+  candidate: string,
+  label: string,
+) {
+  const rootRealpath = fs.realpathSync(root);
+  const candidateRealpath = fs.realpathSync(candidate);
+  const relative = path.relative(rootRealpath, candidateRealpath);
+  if (
+    !relative ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(
+      `AionCore managed Codex ${label} escapes its selected Shell resource root`,
+    );
+  }
+  return candidateRealpath;
+}
+
+export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
+  const shellRealpath = fs.realpathSync(shellRoot);
+  const runtimeRoot = path.join(
+    shellRealpath,
+    'resources',
+    'bundled-aioncore',
+    MANUAL_RUNTIME_KEY,
+  );
+  const rootManifestPath = requireFile(
+    path.join(runtimeRoot, 'manifest.json'),
+    'AionCore root manifest',
+  );
+  const managedRoot = path.join(runtimeRoot, 'managed-resources');
+  const managedManifestPath = requireFile(
+    path.join(managedRoot, 'manifest.json'),
+    'AionCore managed-resources manifest',
+  );
+  const rootManifest = requiredObject(
+    readJson(rootManifestPath),
+    'root manifest',
+  );
+  const managedManifest = requiredObject(
+    readJson(managedManifestPath),
+    'managed-resources manifest',
+  );
+  const aioncoreVersion = requiredString(
+    rootManifest.version,
+    'AionCore version',
+  );
+  const source = requiredObject(rootManifest.source, 'AionCore source');
+  const sourceUrl = requiredString(source.url, 'AionCore source URL');
+  if (rootManifest.platform !== 'darwin' || rootManifest.arch !== 'arm64') {
+    throw new Error(
+      `AionCore root manifest target mismatch: expected ${MANUAL_RUNTIME_KEY}`,
+    );
+  }
+  if (managedManifest.runtimeKey !== MANUAL_RUNTIME_KEY) {
+    throw new Error(
+      `AionCore managed-resources runtimeKey mismatch: expected ${MANUAL_RUNTIME_KEY}`,
+    );
+  }
+
+  const tools = Array.isArray(managedManifest.acpTools)
+    ? managedManifest.acpTools
+    : [];
+  const matches = tools.filter((tool) => tool?.slug === 'codex-acp');
+  if (matches.length !== 1) {
+    throw new Error(
+      'AionCore managed-resources manifest must contain exactly one codex-acp tool',
+    );
+  }
+  const tool = requiredObject(matches[0], 'codex-acp tool');
+  const acpVersion = requiredString(tool.version, 'codex-acp version');
+  const toolRootRelative = requiredString(tool.root, 'codex-acp root');
+  const expectedToolRoot = `acp/codex-acp/${acpVersion}/${MANUAL_RUNTIME_KEY}`;
+  if (
+    tool.packageName !== MANAGED_CODEX_ACP_PACKAGE ||
+    toolRootRelative !== expectedToolRoot
+  ) {
+    throw new Error(
+      'AionCore managed codex-acp package identity is inconsistent',
+    );
+  }
+  const toolRoot = requireStrictDescendant(
+    managedRoot,
+    path.resolve(managedRoot, toolRootRelative),
+    'tool root',
+  );
+  if (
+    !Array.isArray(tool.requiredFiles) ||
+    !Array.isArray(tool.requiredDirectories)
+  ) {
+    throw new Error('AionCore managed codex-acp required paths are invalid');
+  }
+  for (const requiredFile of [
+    ...tool.requiredFiles,
+    requiredString(tool.manifest, 'tool manifest'),
+  ]) {
+    requireFile(
+      path.join(toolRoot, requiredString(requiredFile, 'required file')),
+      'AionCore managed Codex required',
+    );
+  }
+  for (const requiredDirectory of tool.requiredDirectories) {
+    const directory = path.join(
+      toolRoot,
+      requiredString(requiredDirectory, 'required directory'),
+    );
+    if (!fs.statSync(directory, { throwIfNoEntry: false })?.isDirectory()) {
+      throw new Error(
+        `AionCore managed Codex directory is missing: ${directory}`,
+      );
+    }
+  }
+  requireFile(
+    path.join(
+      toolRoot,
+      requiredString(tool.entrypoint, 'codex-acp entrypoint'),
+    ),
+    'AionCore managed codex-acp entrypoint',
+  );
+
+  const packageJsonPath = requireFile(
+    path.join(toolRoot, 'package.json'),
+    'codex-acp package.json',
+  );
+  const packageLockPath = requireFile(
+    path.join(toolRoot, 'package-lock.json'),
+    'codex-acp package-lock.json',
+  );
+  const packageJson = requiredObject(
+    readJson(packageJsonPath),
+    'codex-acp package.json',
+  );
+  const packageLock = requiredObject(
+    readJson(packageLockPath),
+    'codex-acp package-lock.json',
+  );
+  const lockPackages = requiredObject(
+    packageLock.packages,
+    'package-lock packages',
+  );
+  const lockRoot = requiredObject(lockPackages[''], 'package-lock root');
+  const acpLock = requiredObject(
+    lockPackages[`node_modules/${MANAGED_CODEX_ACP_PACKAGE}`],
+    'codex-acp lock entry',
+  );
+  if (
+    !Number.isInteger(packageLock.lockfileVersion) ||
+    packageLock.lockfileVersion < 2 ||
+    packageJson.dependencies?.[MANAGED_CODEX_ACP_PACKAGE] !== acpVersion ||
+    lockRoot.dependencies?.[MANAGED_CODEX_ACP_PACKAGE] !== acpVersion ||
+    acpLock.version !== acpVersion
+  ) {
+    throw new Error(
+      'AionCore managed codex-acp package lock version is inconsistent',
+    );
+  }
+  const acpIntegrity = requiredSha512Integrity(
+    acpLock.integrity,
+    'codex-acp lock integrity',
+  );
+
+  const codexRoot = requireStrictDescendant(
+    toolRoot,
+    path.join(toolRoot, 'node_modules', '@openai', 'codex'),
+    'Codex package root',
+  );
+  const codexPackageJsonPath = requireFile(
+    path.join(codexRoot, 'package.json'),
+    'managed Codex package.json',
+  );
+  const codexPackageJson = requiredObject(
+    readJson(codexPackageJsonPath),
+    'managed Codex package.json',
+  );
+  const codexLock = requiredObject(
+    lockPackages['node_modules/@openai/codex'],
+    'managed Codex lock entry',
+  );
+  const codexVersion = requiredString(
+    codexLock.version,
+    'managed Codex version',
+  );
+  const codexIntegrity = requiredSha512Integrity(
+    codexLock.integrity,
+    'managed Codex lock integrity',
+  );
+  if (
+    codexPackageJson.name !== MANAGED_CODEX_PACKAGE ||
+    codexPackageJson.version !== codexVersion
+  ) {
+    throw new Error(
+      'AionCore managed Codex package and lock versions are inconsistent',
+    );
+  }
+
+  const platformPackageName = `@openai/codex-${MANUAL_RUNTIME_KEY}`;
+  const platformLock = requiredObject(
+    lockPackages[`node_modules/${platformPackageName}`],
+    'managed Codex platform lock entry',
+  );
+  const platformVersion = `${codexVersion}-${MANUAL_RUNTIME_KEY}`;
+  const platformIntegrity = requiredSha512Integrity(
+    platformLock.integrity,
+    'managed Codex platform lock integrity',
+  );
+  if (
+    codexPackageJson.optionalDependencies?.[platformPackageName] !==
+      `npm:${MANAGED_CODEX_PACKAGE}@${platformVersion}` ||
+    platformLock.name !== MANAGED_CODEX_PACKAGE ||
+    platformLock.version !== platformVersion
+  ) {
+    throw new Error(
+      'AionCore managed Codex platform package and lock versions are inconsistent',
+    );
+  }
+  const platformPackageJsonPath = requireFile(
+    path.join(
+      toolRoot,
+      'node_modules',
+      '@openai',
+      `codex-${MANUAL_RUNTIME_KEY}`,
+      'package.json',
+    ),
+    'managed Codex platform package.json',
+  );
+  const platformPackageJson = requiredObject(
+    readJson(platformPackageJsonPath),
+    'managed Codex platform package.json',
+  );
+  if (
+    platformPackageJson.name !== MANAGED_CODEX_PACKAGE ||
+    platformPackageJson.version !== platformVersion
+  ) {
+    throw new Error(
+      'AionCore managed Codex installed platform package version is inconsistent',
+    );
+  }
+  const platformExecutable = requireStrictDescendant(
+    toolRoot,
+    path.join(
+      toolRoot,
+      requiredString(
+        tool.platformExecutable,
+        'managed Codex platform executable',
+      ),
+    ),
+    'platform executable',
+  );
+  requireFile(platformExecutable, 'managed Codex platform executable');
+  const aioncoreBinary = requireFile(
+    path.join(runtimeRoot, 'aioncore'),
+    'AionCore binary',
+  );
+
+  return {
+    schema: 'opl_manual_aioncore_managed_codex_binding.v1',
+    runtime_key: MANUAL_RUNTIME_KEY,
+    aioncore: {
+      version: aioncoreVersion,
+      source_type: requiredString(
+        rootManifest.sourceType,
+        'AionCore source type',
+      ),
+      source_url: sourceUrl,
+      root: runtimeRoot,
+      root_manifest: rootManifestPath,
+      root_manifest_sha256: fileSha256(rootManifestPath),
+      binary: aioncoreBinary,
+      binary_sha256: fileSha256(aioncoreBinary),
+    },
+    managed_resources: {
+      root: managedRoot,
+      manifest: managedManifestPath,
+      manifest_sha256: fileSha256(managedManifestPath),
+    },
+    codex_acp: {
+      package: MANAGED_CODEX_ACP_PACKAGE,
+      version: acpVersion,
+      root: toolRoot,
+      manifest: path.join(
+        toolRoot,
+        requiredString(tool.manifest, 'tool manifest'),
+      ),
+      package_json: packageJsonPath,
+      package_json_sha256: fileSha256(packageJsonPath),
+      package_lock: packageLockPath,
+      package_lock_sha256: fileSha256(packageLockPath),
+      lock_integrity: acpIntegrity,
+      entrypoint: path.join(
+        toolRoot,
+        requiredString(tool.entrypoint, 'codex-acp entrypoint'),
+      ),
+    },
+    codex_cli: {
+      package: MANAGED_CODEX_PACKAGE,
+      version: codexVersion,
+      root: codexRoot,
+      package_json: codexPackageJsonPath,
+      package_json_sha256: fileSha256(codexPackageJsonPath),
+      lock_resolved: requiredString(
+        codexLock.resolved,
+        'managed Codex lock resolved URL',
+      ),
+      lock_integrity: codexIntegrity,
+      platform_package: platformPackageName,
+      platform_version: platformVersion,
+      platform_package_json: platformPackageJsonPath,
+      platform_package_json_sha256: fileSha256(platformPackageJsonPath),
+      platform_lock_resolved: requiredString(
+        platformLock.resolved,
+        'managed Codex platform lock resolved URL',
+      ),
+      platform_lock_integrity: platformIntegrity,
+      platform_executable: platformExecutable,
+      platform_executable_sha256: fileSha256(platformExecutable),
+    },
+  };
+}
+
+function prepareAioncoreManagedCodexBinding(shellRoot: string) {
+  const prepareScript = requireFile(
+    path.join(shellRoot, 'scripts', 'prepareAioncore.js'),
+    'selected Shell prepareAioncore script',
+  );
+  commandResult(process.execPath, [prepareScript], {
+    cwd: shellRoot,
+    env: { ...process.env, AIONUI_BACKEND_ARCH: 'arm64' },
+    timeoutMs: 20 * 60 * 1000,
+  });
+  return resolveAioncoreManagedCodexBinding(shellRoot);
+}
+
+export function buildManualRuntimeDependencyLock(
+  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
+) {
+  return { aioncore_managed_codex: binding };
+}
+
+export function buildAioncoreManagedCodexArgs(
+  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
+) {
+  return ['--codex-root', binding.codex_cli.root];
+}
+
+export function assertFullDmgCodexBinding(
+  manifest: any,
+  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
+) {
+  const codex = manifest?.components?.codex;
+  const sourcePath = requiredString(
+    codex?.source_path,
+    'Full manifest Codex source_path',
+  );
+  const sourceRealpath = fs.realpathSync(sourcePath);
+  if (sourceRealpath !== binding.codex_cli.root) {
+    throw new Error(
+      `Full manifest Codex source mismatch: actual=${sourceRealpath} expected=${binding.codex_cli.root}`,
+    );
+  }
+  const expectedVersion = `codex-cli ${binding.codex_cli.version}`;
+  if (codex?.version !== expectedVersion) {
+    throw new Error(
+      `Full manifest Codex version mismatch: actual=${String(codex?.version)} expected=${expectedVersion}`,
+    );
+  }
+}
+
+function assertAioncoreManagedCodexBindingUnchanged(
+  expected: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
+  actual: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
+) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      'AionCore managed Codex binding changed after source-lock freeze',
+    );
+  }
+}
 
 function assertManagedOutputPath(input: {
   outDir: string;
@@ -303,6 +710,7 @@ function runBuild(
   snapshots: ReturnType<typeof repoSnapshots>,
   overlay: ReturnType<typeof prepareFrameworkOverlay>,
   upstreams: ReturnType<typeof prepareLatestUpstreams>,
+  aioncoreBinding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
 ) {
   const args = [
     '--experimental-strip-types',
@@ -326,6 +734,7 @@ function runBuild(
     '--ui-ux-pro-max-root', snapshots.uiUxRoot,
     '--temporal-cli-bin', upstreams.temporal.binary,
     '--temporal-cli-archive', upstreams.temporal.archive,
+    ...buildAioncoreManagedCodexArgs(aioncoreBinding),
   ];
   if (options.mode === 'local-app') args.push('--app-only');
   if (options.reuseGuiViteOutput) args.push('--reuse-gui-vite-output');
@@ -339,6 +748,7 @@ function runBuild(
 function fullDmgEvidence(
   options: ReturnType<typeof parseOptions> & { help: false },
   buildOutDir: string,
+  aioncoreBinding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
 ) {
   const names = {
     dmg: `One-Person-Lab-Full-${options.version}-mac-arm64.dmg`,
@@ -359,6 +769,7 @@ function fullDmgEvidence(
       + `release=${String(releaseManifest.version)} expected=${options.version}`,
     );
   }
+  assertFullDmgCodexBinding(manifest, aioncoreBinding);
   commandResult('hdiutil', ['verify', dmg], { timeoutMs: 300_000 });
   return {
     dmg: path.join(options.outDir, names.dmg),
@@ -384,6 +795,9 @@ function main() {
   let outputPromoted = false;
   try {
     const snapshots = repoSnapshots(options);
+    const aioncoreBinding = prepareAioncoreManagedCodexBinding(
+      snapshots.shellRoot,
+    );
     const upstreams = prepareLatestUpstreams(path.join(options.cacheRoot, 'upstreams'));
     const overlay = prepareFrameworkOverlay({
       framework: snapshots.framework,
@@ -411,6 +825,7 @@ function main() {
         catalog_sha256: overlay.catalog_sha256,
         projections: overlay.projections,
       },
+      runtime_dependencies: buildManualRuntimeDependencyLock(aioncoreBinding),
       upstreams,
     };
     fs.mkdirSync(buildOutDir, { recursive: true });
@@ -424,7 +839,11 @@ function main() {
     }
 
     const buildOptions = { ...options, outDir: buildOutDir };
-    runBuild(buildOptions, snapshots, overlay, upstreams);
+    runBuild(buildOptions, snapshots, overlay, upstreams, aioncoreBinding);
+    assertAioncoreManagedCodexBindingUnchanged(
+      aioncoreBinding,
+      resolveAioncoreManagedCodexBinding(snapshots.shellRoot),
+    );
     let installation = null;
     if (options.mode === 'local-app') {
       assertDevelopmentRepoSnapshotsUnchanged(developmentRepoSnapshots(snapshots));
@@ -455,7 +874,7 @@ function main() {
       writeJson(path.join(buildOutDir, 'manual-local-app-installation.json'), installation);
     }
     const output = options.mode === 'full-dmg'
-      ? fullDmgEvidence(options, buildOutDir)
+      ? fullDmgEvidence(options, buildOutDir, aioncoreBinding)
       : {
           installed_app: options.installPath,
           installation_receipt: path.join(options.outDir, 'manual-local-app-installation.json'),
@@ -499,4 +918,14 @@ function main() {
   }
 }
 
-main();
+export function isManualLatestBuildMain(
+  moduleUrl = import.meta.url,
+  executablePath = process.argv[1],
+) {
+  return (
+    Boolean(executablePath) &&
+    pathToFileURL(path.resolve(executablePath)).href === moduleUrl
+  );
+}
+
+if (isManualLatestBuildMain()) main();
