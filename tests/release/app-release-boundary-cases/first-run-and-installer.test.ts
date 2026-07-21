@@ -193,6 +193,24 @@ test("App product profile check verifies the deterministic compatibility project
   const policyPath = path.join(shellRoot, "workflow-policy.json");
   const previousPolicy = process.env.OPL_FLOW_WORKFLOW_POLICY;
   try {
+    const profile = readJson("contracts/app-product-profile.json");
+    const productGroupOrder = profile.settings.settings_information_architecture.ordinary_groups.map(
+      (group) => group.id,
+    );
+    const carrierFirstSeenGroupOrder = profile.settings.control_plane.ordinary_routes
+      .map((route) => route.ia_group)
+      .filter((groupId, index, groups) => groups.indexOf(groupId) === index);
+    assert.notDeepStrictEqual(
+      productGroupOrder,
+      carrierFirstSeenGroupOrder,
+      "product IA order must remain independent from stable carrier route order",
+    );
+    assert.deepStrictEqual(
+      productGroupOrder,
+      profile.settings.control_plane.user_navigation_projection.primary_group_order,
+      "product IA order must follow the v2 user-navigation projection",
+    );
+
     writeFile(path.join(shellRoot, "package.json"), "{}\n");
     writeFile(policyPath, JSON.stringify({ requires: [], recommends: [] }));
     process.env.OPL_FLOW_WORKFLOW_POLICY = policyPath;

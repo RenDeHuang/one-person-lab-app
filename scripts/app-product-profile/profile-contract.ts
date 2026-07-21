@@ -285,11 +285,38 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)
     : [];
-  const routeGroupIds = ordinaryRoutes
-    .map((route) => route.ia_group)
-    .filter((groupId, index, groups) => typeof groupId === 'string' && groups.indexOf(groupId) === index);
-  if (JSON.stringify(groupIds) !== JSON.stringify(routeGroupIds)) {
+  assertStringArray(groupIds, 'settings_information_architecture.ordinary_groups ids');
+  if (new Set(groupIds).size !== groupIds.length) {
+    throw new Error('App product profile settings_information_architecture ordinary group ids must be unique');
+  }
+  const routeGroupIds = ordinaryRoutes.map((route) => route.ia_group);
+  assertStringArray(routeGroupIds, 'settings.control_plane.ordinary_routes ia_group values');
+  const uniqueRouteGroupIds = [...new Set(routeGroupIds)];
+  if (
+    uniqueRouteGroupIds.length !== groupIds.length ||
+    groupIds.some((groupId) => !uniqueRouteGroupIds.includes(groupId))
+  ) {
     throw new Error('App product profile settings_information_architecture must describe every Control Center IA group');
+  }
+  const userNavigationProjection = (
+    controlPlane as typeof controlPlane & {
+      user_navigation_projection?: {
+        schema?: string;
+        primary_group_order?: string[];
+      };
+    }
+  ).user_navigation_projection;
+  if (userNavigationProjection?.schema !== 'opl_app_settings_user_navigation.v2') {
+    throw new Error('App product profile Settings user navigation projection must use v2');
+  }
+  assertStringArray(
+    userNavigationProjection.primary_group_order,
+    'settings.control_plane.user_navigation_projection.primary_group_order',
+  );
+  if (JSON.stringify(groupIds) !== JSON.stringify(userNavigationProjection.primary_group_order)) {
+    throw new Error(
+      'App product profile settings_information_architecture ordinary group order must match the v2 primary_group_order',
+    );
   }
   const primaryTabIds = Object.keys(settingsIa.primary_tabs ?? {});
   assertIncludesAll(primaryTabIds, ordinaryRouteIds, 'settings_information_architecture.primary_tabs');
@@ -313,7 +340,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],
-    ['gateway_account', 'model_access', 'local_runtime_ability', 'workspace', 'maintenance_hub', 'capability_status'],
+    ['gateway_account', 'model_access', 'local_runtime_ability', 'workspace_entry', 'maintenance_hub', 'capability_status'],
     'settings_information_architecture.task_entry_policy.p0_entries',
   );
   assertIncludesAll(
