@@ -314,7 +314,7 @@ Settings 保留 OPL 信息架构，但视觉采用 Codex 式窄内容列与 quie
   footer 的 nested frame。
 - Settings 响应式断点按右侧 reading lane 的真实内容宽度判断，而不是按整个窗口宽度判断。内容列
   低于 `620px` 时，路径摘要、状态和操作切为单列；路径允许在分隔符处自然折行，不逐字断裂。
-- Workspace 的 Codex instructions 和新对话附加说明使用 unframed field groups 与 section hairline，
+- Instructions & Context 的 Codex instructions 和新对话附加说明使用 unframed field groups 与 section hairline，
   不在 section 内再套灰底卡片或带框内容块。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。

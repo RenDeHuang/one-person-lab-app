@@ -98,8 +98,9 @@ checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation/B
 home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider
 selectors with visible App-owned model/reasoning and user-language permission/access
 controls, home prompt, App-owned ordinary Settings navigation for Overview,
-Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities,
-Resources & Connections, Maintenance, Data & Storage, and Preferences, with About
+the seven groups Overview, Account & Models, Connections & Deployment, Workspace,
+Agents & Capabilities, Runtime & Maintenance, and Preferences over all ten carrier
+routes and second-level destinations, with About
 as the only secondary page and Advanced/Update/Theme/Local Services/Personalization
 as compatibility redirects, module path source explanation, stable/nightly release gating, MDS
 non-default display, and OPL Flow context before shell validation runs.

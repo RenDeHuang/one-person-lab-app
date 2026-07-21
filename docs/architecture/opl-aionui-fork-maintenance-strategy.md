@@ -32,7 +32,7 @@ surfaces wherever possible.
   policy, `SettingsHost` / `SettingsShellAdapterSlot`, page adapter policy,
   upstream intake checklist, visual QA policy, and product-system checklist.
 - `contracts/app-gui-product-contract.json` owns the GUI product requirements
-  and the `settings_ia.v1` source contract.
+  and the `settings_ia.v2` source contract.
 - `contracts/app-shell-adapter.json` owns the active shell adapter boundary and
   defines AionUI as implementation carrier, not product authority.
 

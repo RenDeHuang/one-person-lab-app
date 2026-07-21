@@ -3927,23 +3927,23 @@
     },
     "source": "persisted_narrow_settings_snapshot_then_opl_app_state_fast_background_refresh_and_full_explicit_detail",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "six user-visible Settings groups organize ten stable carrier routes; Workspace presents working directory and data storage, Agents and Capabilities presents instructions and context, Runtime and Maintenance presents logs and diagnostics, About is a bottom auxiliary entry, and compatibility routes resolve before render",
+    "policy": "seven user-visible Settings groups organize ten stable carrier routes; Connections and Deployment exclusively presents resources and connections, Workspace presents working directory and data storage, Agents and Capabilities presents instructions and context, Runtime and Maintenance presents service status, updates and repair, and logs and diagnostics, About is a bottom auxiliary entry, and compatibility routes resolve before render",
     "agents_capabilities_ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership",
     "settings_ia": {
-      "schema": "settings_ia.v1",
+      "schema": "settings_ia.v2",
       "authority": "one-person-lab-app",
       "source_ref": "contracts/app-gui-product-contract.json#settings_navigation",
       "matrix_ref": "contracts/app-page-state-matrix.json#pages",
-      "navigation_model": "six_primary_groups_with_second_level_destinations_and_stable_carrier_routes",
+      "navigation_model": "seven_primary_groups_with_second_level_destinations_and_stable_carrier_routes",
       "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
       "route_promotion_policy": "secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates",
       "top_level_navigation_policy": {
-        "entry_model": "six_user_visible_primary_groups_expand_or_drill_into_second_level_destinations",
+        "entry_model": "seven_user_visible_primary_groups_expand_or_drill_into_second_level_destinations",
         "workspace_visibility": "workspace_is_user_visible_top_level_navigation_entry",
         "shell_route_compatibility": "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical",
-        "resources_visibility": "resources_is_a_second_level_destination_under_account_and_models",
+        "resources_visibility": "resources_is_the_sole_destination_under_connections_and_deployment",
         "advanced_visibility": "advanced_is_retired_and_redirects_to_maintenance_diagnostics",
-        "about_visibility": "about_is_a_bottom_auxiliary_entry_outside_the_six_primary_groups",
+        "about_visibility": "about_is_a_bottom_auxiliary_entry_outside_the_seven_primary_groups",
         "compatibility_route_policy": "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor"
       },
       "ordinary_route_ids": [
@@ -3964,6 +3964,7 @@
       "group_ids": [
         "overview",
         "account_models",
+        "connections_deployment",
         "workspace",
         "agents_capabilities",
         "runtime_maintenance",
@@ -3995,6 +3996,19 @@
           "risk": "reversible",
           "frequency": "first_run_or_when_access_or_model_changes",
           "default_child_id": "account_access"
+        },
+        {
+          "id": "connections_deployment",
+          "route_id": "resources",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Connections & Deployment",
+          "label_zh": "连接与部署",
+          "scope": "resource",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "occasional_or_deployment_change",
+          "default_child_id": "resources_connections"
         },
         {
           "id": "workspace",
@@ -4073,7 +4087,7 @@
         },
         {
           "id": "resources_connections",
-          "group_id": "account_models",
+          "group_id": "connections_deployment",
           "route_id": "resources",
           "label_zh": "资源与连接",
           "label_en": "Resources & Connections"
@@ -4120,8 +4134,17 @@
           "id": "runtime_services",
           "group_id": "runtime_maintenance",
           "route_id": "environment",
-          "label_zh": "服务与维护",
-          "label_en": "Services & Maintenance"
+          "anchor": "services",
+          "label_zh": "服务状态",
+          "label_en": "Service Status"
+        },
+        {
+          "id": "updates_repairs",
+          "group_id": "runtime_maintenance",
+          "route_id": "environment",
+          "anchor": "updates",
+          "label_zh": "更新与修复",
+          "label_en": "Updates & Repair"
         },
         {
           "id": "logs_diagnostics",
@@ -4130,7 +4153,7 @@
           "anchor": "diagnostics",
           "label_zh": "日志与诊断",
           "label_en": "Logs & Diagnostics",
-          "compatibility_owner_policy": "reuse_existing_workspace_log_action_and_maintenance_diagnostics_without_presenting_logs_under_Workspace"
+          "compatibility_owner_policy": "reuse_the_existing_typed_application.setLogDirectory_action_on_Logs_and_Diagnostics_without_presenting_logs_under_Workspace"
         },
         {
           "id": "preferences",
@@ -4221,7 +4244,7 @@
         },
         {
           "id": "remote_access",
-          "group_id": "account_models",
+          "group_id": "connections_deployment",
           "route_id": "resources",
           "priority": "p1",
           "scope": "resource",
@@ -4232,7 +4255,7 @@
         },
         {
           "id": "advanced_deployment",
-          "group_id": "account_models",
+          "group_id": "connections_deployment",
           "route_id": "resources",
           "priority": "p1",
           "scope": "resource",
@@ -4325,7 +4348,7 @@
         "make_usable_action": {
           "label_en": "Make OPL usable",
           "label_zh": "让 OPL 可用",
-          "placement": "settings_environment.maintenance_hub.primary_action",
+          "placement": "settings_environment.updates_repairs.primary_action",
           "orchestration_policy": "shell_orchestrates_existing_app_and_managed_update_actions_only",
           "allowed_steps": [
             "run existing repair prep",
@@ -4358,7 +4381,7 @@
           "empty_state": "show_no_matching_settings_without_exposing_internal_route_ids"
         },
         "responsive_navigation": {
-          "desktop": "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+          "desktop": "seven_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
           "mobile": "category_list_then_second_level_destination_with_a_visible_back_control",
           "mobile_horizontal_tab_strip_allowed": false,
           "mobile_navigation_scroll_axis": "vertical",
@@ -4562,8 +4585,8 @@
             "coverage_policy": "desktop_and_mobile_light_require_fresh_visual_evidence"
           },
           "must_check": [
-            "ordinary navigation shows six primary groups with ten stable carrier routes reachable as second-level destinations",
-            "About is the single sidebar-bottom auxiliary entry outside the six primary groups",
+            "ordinary navigation shows seven primary groups with ten stable carrier routes reachable as second-level destinations",
+            "About is the single sidebar-bottom auxiliary entry outside the seven primary groups",
             "mobile Settings uses a vertical category list then second-level navigation without a horizontal tab strip",
             "update, theme, local-services, and personalization land on their owner route and anchor",
             "exactly one global search entry is rendered",
@@ -4658,8 +4681,8 @@
         "label_en": "Resources & Connections",
         "role": "local_access_webui_and_optional_owner_projected_connections",
         "primary_question": "Which local access paths and currently projected external connections can my tasks use?",
-        "ia_group": "account_models",
-        "ordinary_entry_policy": "second_level_destination_under_account_models"
+        "ia_group": "connections_deployment",
+        "ordinary_entry_policy": "sole_destination_under_connections_deployment"
       },
       "environment": {
         "label_zh": "维护",
@@ -4701,7 +4724,7 @@
       "id": "control_center",
       "label_zh": "控制中心",
       "label_en": "Control Center",
-      "positioning": "single App-owned OPL Control Center with six primary groups and second-level destinations over ten stable carrier routes; About is a sidebar-bottom auxiliary entry"
+      "positioning": "single App-owned OPL Control Center with seven primary groups and second-level destinations over ten stable carrier routes; About is a sidebar-bottom auxiliary entry"
     },
     "ordinary_groups": [
       {
@@ -4717,16 +4740,28 @@
         "id": "account_models",
         "label_zh": "账户与模型",
         "label_en": "Account & Models",
-        "role": "account_model_and_connection_configuration",
+        "role": "account_and_model_configuration",
         "ordinary_entries": [
           "settings_gateway",
-          "settings_access",
-          "settings_resources"
+          "settings_access"
         ],
         "primary_tasks": [
           "gateway_account",
-          "model_access",
-          "resources_connections"
+          "model_access"
+        ]
+      },
+      {
+        "id": "connections_deployment",
+        "label_zh": "连接与部署",
+        "label_en": "Connections & Deployment",
+        "role": "resource_connection_and_deployment_configuration",
+        "ordinary_entries": [
+          "settings_resources"
+        ],
+        "primary_tasks": [
+          "resources_connections",
+          "remote_access",
+          "advanced_deployment"
         ]
       },
       {
@@ -4766,8 +4801,9 @@
         "label_en": "Runtime & Maintenance",
         "role": "runtime_health_updates_repair_logs_and_diagnostics",
         "ordinary_entries": [
-          "settings_environment",
-          "workspace#logs"
+          "settings_environment#services",
+          "settings_environment#updates",
+          "settings_environment#diagnostics"
         ],
         "owns": [
           "local_service_health",
@@ -4803,8 +4839,8 @@
       }
     ],
     "task_entry_policy": {
-      "ordinary_entry_model": "six_primary_groups_expand_or_drill_into_second_level_destinations_backed_by_ten_stable_carrier_routes",
-      "top_level_tab_policy": "render_only_overview_account_models_workspace_agents_capabilities_runtime_maintenance_and_preferences_as_primary_groups; keep About at the sidebar bottom",
+      "ordinary_entry_model": "seven_primary_groups_expand_or_drill_into_second_level_destinations_backed_by_ten_stable_carrier_routes",
+      "top_level_tab_policy": "render_only_overview_account_models_connections_deployment_workspace_agents_capabilities_runtime_maintenance_and_preferences_as_primary_groups; keep About at the sidebar bottom",
       "p0_entries": [
         "gateway_account",
         "model_access",
@@ -6581,6 +6617,7 @@
       "refresh_source": "background opl app state --profile fast --json with bounded retry",
       "sections": [
         "status_summary",
+        "background_tasks_summary",
         "attention_queue",
         "next_action_and_context",
         "codex_and_gateway_summary"
@@ -6588,7 +6625,7 @@
       "must_show": [
         "overall usability and attention count",
         "signed-in Gateway identity, compact today token/cost/balance and availability summary",
-        "localized Temporal server, worker, and scheduler status with a plain-language reason and direct Maintenance route",
+        "one persistent localized Background tasks summary that is quiet when available and contributes one actionable exception when unavailable",
         "necessary direct Codex and Gateway technical rows without a second disclosure",
         "one next useful action",
         "Overview without duplicated sidebar navigation or page-directory cards"
@@ -6610,14 +6647,19 @@
           "app_state.provider.temporal.details.scheduler",
           "settings_control_center.status_summary.temporal_provider"
         ],
-        "visible_components": [
+        "detail_components": [
           "temporal_server",
           "temporal_worker",
           "temporal_scheduler"
         ],
-        "component_status_policy": "show_server_worker_and_scheduler_independently_so_one_ready_component_never_collapses_an_unready_or_unknown_component_into_one_opaque_state",
+        "overview_visible_unit": "background_tasks",
+        "overview_label_zh": "后台任务",
+        "overview_label_en": "Background tasks",
+        "component_status_policy": "derive_one_truthful_background_tasks_summary_from_explicit_server_worker_and_scheduler_fields_without_rendering_component_rows_on_Overview",
         "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
         "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+        "attention_state_policy": "when_any_required_component_is_unready_unknown_or_stale_add_one_background_tasks_item_to_the_attention_queue_and_link_to_Service_Status",
+        "component_detail_visibility": "service_status_destination_only",
         "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
         "attention_route": "/settings/environment#services",
         "action_policy": "route_to_Maintenance_and_only_use_real_projected_Temporal_actions_never_settings_sync_capabilities"
@@ -6856,7 +6898,7 @@
           "provider_truth"
         ]
       },
-      "ia_group": "account_models",
+      "ia_group": "connections_deployment",
       "product_page_id": "resources",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.resources"
     },
@@ -8113,7 +8155,7 @@
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.agents"
     },
     "settings_environment": {
-      "state_source": "opl app state --profile fast --json",
+      "state_source": "opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo",
       "refresh_source": "opl app state --profile fast --json",
       "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.local_environment",
       "external_tool_update_policy_ref": "contracts/app-settings-control-plane.json#external_tool_update_policy",
@@ -8131,6 +8173,7 @@
         "disabled_action_policy": "hide_or_explain_unavailability"
       },
       "sections": [
+        "selected_destination",
         "health",
         "managed_dependencies",
         "updates",
@@ -8142,12 +8185,15 @@
       ],
       "module_path_source_policy_ref": "module_path_source_policy",
       "must_show": [
-        "health, updates, local services, and OPL Packages grouped by user impact",
+        "three independent second-level destinations: Service Status, Updates & Repair, and Logs & Diagnostics",
+        "exactly one selected destination presented as the ordinary page purpose",
         "active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface",
+        "Temporal server, worker, and scheduler detail only under Service Status",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
         "check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback",
         "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence",
+        "Desktop log directory open and change actions under Logs & Diagnostics; standalone WebUI shows the systemInfo log directory read-only; Docker WebUI shows /data/logs read-only",
         "update status and service status in user language",
         "update and local-service anchors owned by Maintenance",
         "Framework working paths inside the single read-only Maintenance diagnostics disclosure",
@@ -8162,10 +8208,14 @@
         "raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI",
         "current project or in-progress task list",
         "workspace, storage, or About navigation duplicated as maintenance cards",
-        "update or local-services rendered as independent product pages",
+        "update or local-services rendered as independent carrier routes or top-level product groups",
+        "WebUI workspace or log directory mutations",
         "a long wall of unavailable or disabled maintenance actions",
         "raw ISO timestamps as the only user-facing time"
       ],
+      "destination_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.maintenance.destination_contracts",
+      "destination_visibility_policy": "route_environment_plus_section_anchor_selects_exactly_one_of_runtime_services_updates_repairs_or_logs_diagnostics",
+      "log_directory_contract_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.environment.log_directory",
       "software_lifecycle_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
       "module_maintenance_entry": {
         "label_en": "OPL Packages",
@@ -8566,6 +8616,7 @@
       "refresh_source": "cached shell and owner snapshots followed by non-blocking TTL/manual refresh; missing owner projections fail open",
       "sections": [
         "storage_categories",
+        "deployment_locations",
         "cleanup_preview",
         "cleanup_history",
         "technical_details"
@@ -8585,20 +8636,22 @@
         "one merged storage category list with size, safety, and next action",
         "last cached inventory immediately without rendering unknown values as zero bytes",
         "inventory freshness timestamp and non-blocking background refresh",
-        "read-only Workspace-owned log path reference",
-      "Agent Package store and WebUI data volume usage from canonical owner projections",
-      "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
-      "user-facing cleanup preview before destructive action",
+        "read-only Logs & Diagnostics-owned log path reference",
+        "read-only Docker deployment locations for the required /projects and /data host binds plus the non-required /recovery container surface",
+        "Agent Package store and WebUI data volume usage from canonical owner projections",
+        "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
+        "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history",
         "localized unavailable reason, responsible owner or missing carrier, and a recovery action when inventory is unavailable"
       ],
       "must_not_show": [
         "log directory edit control",
         "generic Docker prune",
-      "unknown inventory rendered as zero bytes",
-      "WebUI destructive action when the carrier-host ABI is missing or incomplete",
-      "raw host path in a renderer request, receipt, or user-visible error",
-      "silent user data deletion",
+        "unknown inventory rendered as zero bytes",
+        "WebUI destructive action when the carrier-host ABI is missing or incomplete",
+        "raw host path in a renderer request, receipt, or user-visible error",
+        "host bind-mount or deployment environment mutation",
+        "silent user data deletion",
         "App-owned runtime or domain data authority",
         "an unavailable state containing only Refresh"
       ],
@@ -8615,6 +8668,7 @@
         "push_event": "local-data-lifecycle.inventory-updated",
         "watch_policy": "no_recursive_long_lived_fs_watch_for_large_roots"
       },
+      "deployment_location_summary_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage.surface_rules.deployment_location_summary",
       "ia_group": "workspace",
       "read_only_lifecycle_surface": {
         "role": "read_only_storage_lifecycle_product_surface",
@@ -8737,7 +8791,7 @@
       },
       "log_directory_ref": {
         "mode": "read_only",
-        "owner_route": "workspace#logs"
+        "owner_route": "environment#diagnostics"
       },
       "action_visual_policy": {
         "applies_to": [
@@ -8767,12 +8821,11 @@
           "system_agents_and_new_conversation_context": "agents_capabilities.instructions_context",
           "log_directory_and_diagnostics": "runtime_maintenance.logs_diagnostics"
         },
-        "compatibility_route_policy": "existing_workspace_route_anchors_and_host_actions_remain_valid_transport_but_are_not_presented_as_Workspace_children"
+        "compatibility_route_policy": "existing_personalization_anchors_remain_valid_transport_but_are_not_presented_as_Workspace_children;_the_log_action_is_owned_by_Logs_and_Diagnostics"
       },
       "sections": [
         "workspace_summary",
         "workspace_action",
-        "log_directory",
         "system_agents",
         "opl_app_context",
         "technical_details"
@@ -8781,7 +8834,9 @@
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
         "where project and task artifacts are stored",
-        "desktop App log directory changed through application.setLogDirectory { path }; its success value contains hostLogDir, persists before switching the live writer, and rolls persistence back with a typed failure when the switch fails; cacheDir/workDir remain unchanged and WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
+        "desktop logical workspace root changed only through the Framework owner action with fresh readback",
+        "standalone WebUI logical workspace root shown read-only from the owner projection without executing workspace_root_set",
+        "Docker WebUI logical workspace root shown read-only as /projects from OPL_WORKSPACE_ROOT without executing workspace_root_set",
         "editable user-level AGENTS.md with stale-write protection and backup",
         "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",
@@ -8794,7 +8849,7 @@
         "workspace buried inside Maintenance or Advanced",
         "raw path JSON as primary page language",
         "workspace changes without confirmation",
-        "Storage-owned log configuration",
+        "App log directory controls owned by Logs & Diagnostics",
         "generated OPL App base context as editable content",
         "repository AGENTS.md as an App-owned editable file",
         "Framework and raw paths duplicated from Maintenance diagnostics",
@@ -8805,8 +8860,9 @@
       "route_scope": "ordinary",
       "product_page_id": "workspace",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.workspace",
-      "expected_source": "OPL App workspace/personalization projections plus Framework host-owned log metadata and desktop system information",
-      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + app_state.settings_control_center.app_settings_read_model.workspace_services.app_log_directory + application.systemInfo.logDir"
+      "expected_source": "OPL App workspace and personalization projections",
+      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization",
+      "workspace_root_carrier_policy_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.workspace.workspace_root_carrier_policy"
     },
     "settings_local_services": {
       "state_source": "opl app state --profile fast --json",

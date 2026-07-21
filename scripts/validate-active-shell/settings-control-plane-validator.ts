@@ -253,7 +253,7 @@ const expectedIaGroupByMatrixPageId = {
   access: "account_models",
   agents: "agents_capabilities",
   capabilities: "agents_capabilities",
-  settings_resources: "account_models",
+  settings_resources: "connections_deployment",
   environment: "runtime_maintenance",
   settings_local_services: "runtime_maintenance",
   storage: "workspace",
@@ -275,7 +275,7 @@ const expectedDestinationByMatrixPageId = {
   settings_local_services: "runtime_services",
   storage: "data_storage",
   about: "about",
-  update: "runtime_services",
+  update: "updates_repairs",
   settings_theme: "preferences",
   settings_personalization: "instructions_context",
   settings_workspace: "working_directory",
@@ -429,6 +429,43 @@ export function validateSettingsControlPlane(
       }
     }
   }
+  const workspaceRootConfiguration = configurationItems.find(
+    (item) => item.configuration_id === "workspace_root",
+  );
+  assertDeepEqualJson(
+    workspaceRootConfiguration?.carrier_policy,
+    {
+      desktop: "editable_through_owner_projected_action",
+      webui:
+        "read_only_owner_projected_logical_root_no_workspace_root_set_execution",
+      docker_webui:
+        "read_only_/projects_from_OPL_WORKSPACE_ROOT_no_workspace_root_set_execution",
+      host_mount_mutation_allowed: false,
+    },
+    "Settings workspace root carrier policy",
+  );
+  const logDirectoryConfiguration = configurationItems.find(
+    (item) => item.configuration_id === "log_directory",
+  );
+  if (
+    logDirectoryConfiguration?.page_id !== "maintenance" ||
+    logDirectoryConfiguration?.anchor !== "diagnostics"
+  ) {
+    throw new Error(
+      "Settings log directory configuration must be owned by Logs & Diagnostics",
+    );
+  }
+  assertDeepEqualJson(
+    logDirectoryConfiguration?.carrier_policy,
+    {
+      desktop: "editable_through_application.setLogDirectory",
+      webui:
+        "read_only_application.systemInfo.logDir_no_log_directory_mutation",
+      docker_webui: "read_only_/data/logs_no_log_directory_mutation",
+      host_mount_mutation_allowed: false,
+    },
+    "Settings log directory carrier policy",
+  );
   assertDeepEqualJson(
     productProfile?.settings?.control_plane?.model_reasoning_policy_source,
     controlPlane.model_reasoning_policy_source,
@@ -470,8 +507,8 @@ export function validateSettingsControlPlane(
     "Settings control plane secondary page ids",
   );
   assertDeepEqualJson(
-    [...new Set(controlPlane.ordinary_routes?.map((route) => route.ia_group))],
-    appOwnedSettingsIaGroupIds,
+    [...new Set(controlPlane.ordinary_routes?.map((route) => route.ia_group))].sort(),
+    [...appOwnedSettingsIaGroupIds].sort(),
     "Settings control plane IA groups",
   );
   assertDeepEqualJson(
@@ -1214,13 +1251,13 @@ function validateCustomAssistantDataBoundary(controlPlane) {
 
 function validateSettingsUserNavigationProjection(projection, settingsIa) {
   if (
-    projection?.schema !== "opl_app_settings_user_navigation.v1" ||
+    projection?.schema !== "opl_app_settings_user_navigation.v2" ||
     projection.source_ref !== settingsIaRef ||
     projection.carrier_route_policy !==
       "ten_stable_ordinary_route_ids_paths_slots_and_anchors_remain_addressable_but_are_not_rendered_as_ten_primary_navigation_items"
   ) {
     throw new Error(
-      "Settings user navigation projection must separate six visible groups from ten stable carrier routes",
+      "Settings user navigation projection must separate seven visible groups from ten stable carrier routes",
     );
   }
   assertDeepEqualJson(
@@ -1301,8 +1338,10 @@ function validateSettingsUserNavigationProjection(projection, settingsIa) {
       {
         content_id: "app_log_directory",
         user_destination_id: "logs_diagnostics",
-        transport_route_id: "workspace",
-        anchor: "logs",
+        transport_route_id: "environment",
+        anchor: "diagnostics",
+        transport_owner_policy:
+          "reuse_the_existing_typed_application.setLogDirectory_action_without_presenting_logs_under_Workspace",
       },
     ],
     "Settings user navigation secondary owner bindings",
@@ -1322,7 +1361,7 @@ function validateSettingsUserNavigationProjection(projection, settingsIa) {
   );
   for (const [field, expected] of Object.entries({
     desktop:
-      "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+      "seven_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
     mobile:
       "category_list_then_second_level_destination_with_a_visible_back_control",
     mobile_horizontal_tab_strip_allowed: false,
@@ -1395,9 +1434,9 @@ function validateSettingsUserNavigationProjection(projection, settingsIa) {
 }
 
 function validateSettingsIa(settingsIa) {
-  if (settingsIa?.schema !== "settings_ia.v1") {
+  if (settingsIa?.schema !== "settings_ia.v2") {
     throw new Error(
-      "Settings control plane must expose settings_ia.v1 behavior",
+      "Settings control plane must expose settings_ia.v2 behavior",
     );
   }
   if (settingsIa.authority !== "one-person-lab-app") {
@@ -1538,22 +1577,22 @@ function validateSettingsIa(settingsIa) {
 function validateSettingsTopLevelEntries(entries, policy) {
   if (
     policy?.entry_model !==
-      "six_user_visible_primary_groups_expand_or_drill_into_second_level_destinations" ||
+      "seven_user_visible_primary_groups_expand_or_drill_into_second_level_destinations" ||
     policy?.workspace_visibility !==
       "workspace_is_user_visible_top_level_navigation_entry" ||
     policy?.resources_visibility !==
-      "resources_is_a_second_level_destination_under_account_and_models" ||
+      "resources_is_the_sole_destination_under_connections_and_deployment" ||
     policy?.advanced_visibility !==
       "advanced_is_retired_and_redirects_to_maintenance_diagnostics" ||
     policy?.about_visibility !==
-      "about_is_a_bottom_auxiliary_entry_outside_the_six_primary_groups" ||
+      "about_is_a_bottom_auxiliary_entry_outside_the_seven_primary_groups" ||
     policy?.compatibility_route_policy !==
       "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor" ||
     policy?.shell_route_compatibility !==
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare six primary groups, bottom auxiliary About, and compatibility carrier routes",
+      "Settings IA must declare seven primary groups, bottom auxiliary About, and compatibility carrier routes",
     );
   }
   assertDeepEqualJson(
@@ -1670,7 +1709,7 @@ function validateSettingsProtocols(protocols) {
   const makeUsableAction = protocols.make_usable_action;
   if (
     makeUsableAction?.placement !==
-      "settings_environment.maintenance_hub.primary_action" ||
+      "settings_environment.updates_repairs.primary_action" ||
     makeUsableAction?.orchestration_policy !==
       "shell_orchestrates_existing_app_and_managed_update_actions_only" ||
     makeUsableAction?.post_action_notice !==
@@ -1864,8 +1903,8 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertIncludesAll(
     expectations?.must_check,
     [
-      "ordinary navigation shows six primary groups with ten stable carrier routes reachable as second-level destinations",
-      "About is the single sidebar-bottom auxiliary entry outside the six primary groups",
+      "ordinary navigation shows seven primary groups with ten stable carrier routes reachable as second-level destinations",
+      "About is the single sidebar-bottom auxiliary entry outside the seven primary groups",
       "mobile Settings uses a vertical category list then second-level navigation without a horizontal tab strip",
       "page sections use quiet white bounded groups with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
       "each user question is one quiet bounded section with flat internal rows; page-wide list walls and nested cards are absent",
@@ -2407,12 +2446,14 @@ function validatePageSurfaceInventory(pageId, inventory) {
 
   if (pageId === "maintenance") {
     if (
-      inventory.configuration.length !== 1 ||
-      inventory.configuration[0]?.id !== "update_channel" ||
+      inventory.configuration.length !== 2 ||
+      !["update_channel", "log_directory"].every((id) =>
+        inventory.configuration.some((entry) => entry.id === id),
+      ) ||
       inventory.action.length === 0
     ) {
       throw new Error(
-        "Settings Maintenance may persist only the update channel; maintenance operations remain actions",
+        "Settings Maintenance may persist only the update channel and App log directory; maintenance operations remain actions",
       );
     }
   }
@@ -2431,7 +2472,6 @@ function validatePageSurfaceInventory(pageId, inventory) {
       inventory.configuration.map((entry) => entry.id),
       [
         "workspace_selection",
-        "log_directory",
         "codex_user_instructions",
         "opl_app_session_context",
       ],
@@ -2675,12 +2715,30 @@ export function validateSettingsExperienceContract(experience) {
       "Settings Workspace readiness must follow filesystem writability and health before executor mode",
     );
   }
+  const backgroundTasks = pageContracts.overview.background_services_summary;
+  if (
+    backgroundTasks?.overview_visible_unit !== "background_tasks" ||
+    backgroundTasks?.overview_label_zh !== "后台任务" ||
+    backgroundTasks?.overview_label_en !== "Background tasks" ||
+    backgroundTasks?.component_detail_visibility !==
+      "service_status_destination_only" ||
+    !pageContracts.overview.required_dom.always.includes(
+      "settings-overview-background-tasks",
+    ) ||
+    pageContracts.overview.required_dom.always.some((id) =>
+      id.startsWith("settings-overview-temporal-"),
+    )
+  ) {
+    throw new Error(
+      "Settings Overview must keep one persistent Background tasks summary and leave Temporal component detail on Service Status",
+    );
+  }
   assertDeepEqualJson(
     pageContracts.workspace.surface_rules,
     {
       workspace_card_count: 0,
       location_presentation:
-        "one unframed File locations group with two equal rows for workspace and desktop logs",
+        "one unframed Working directory group with the resolved logical workspace root",
       permission_presentation:
         "one merged writability status inside the workspace row",
       responsive_row_policy:
@@ -2689,23 +2747,24 @@ export function validateSettingsExperienceContract(experience) {
         "unframed_field_groups_with_section_hairlines_no_nested_cards",
       maintenance_action_visibility: "attention_only",
       diagnostics_entry: "explicit_modal_action",
-      log_directory_source:
-        "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
-      log_directory_mutation:
-        "application.setLogDirectory_path_persists_hostLogDir_then_switches_live_writer_rolls_back_on_failure_and_preserves_cacheDir_workDir",
-      log_directory_webui_policy:
-        "read_only_/data/logs_projection_from_existing_OnePersonLab/data_to_/data_volume",
+      workspace_root_owner: "one-person-lab_Framework",
+      workspace_root_desktop_policy:
+        "editable_through_the_owner_projected_workspace_root_action_with_fresh_readback",
+      workspace_root_webui_policy:
+        "read_only_owner_projected_logical_root_and_never_execute_workspace_root_set",
+      workspace_root_docker_webui_policy:
+        "read_only_/projects_from_OPL_WORKSPACE_ROOT_and_never_execute_workspace_root_set",
       desktop_directory_mapping:
-        "project_workspace_is_Framework_workspace_root_while_App_data_and_logs_are_shell_system_directories",
+        "project_workspace_is_the_Framework_logical_workspace_root",
       docker_mapping:
-        "OnePersonLab/data_maps_to_/data_and_Settings_does_not_rewire_the_volume",
+        "host_projects_directory_is_bound_to_/projects_and_Settings_does_not_rewire_the_bind_mount",
       docker_volume_rewire_allowed: false,
       generated_base_context_editable: false,
       additional_instructions_editable: true,
       restore_default_confirmation_required: true,
       personalization_changes_apply_to: "next_new_conversation",
-      storage_reference_policy:
-        "Storage_may_show_the_resolved_log_path_read_only_but_has_no_log_configuration_control",
+      deployment_boundary:
+        "Settings_changes_only_the_desktop_logical_workspace_root;_standalone_WebUI_root_configuration_and_Docker_WebUI_host_bind_sources_change_only_outside_the_browser",
       path_instance_count: 1,
     },
     "Settings Workspace surface rules",
@@ -2803,6 +2862,8 @@ export function validateSettingsExperienceContract(experience) {
     {
       configuration_location:
         "update_channel_is_an_inline_persistent_control_in_the_updates_section",
+      destination_visibility_policy:
+        "render_exactly_one_of_service_status_updates_repairs_or_logs_diagnostics_as_the_selected_ordinary_purpose",
       daily_action_surface:
         "the_Maintenance_page_itself_owns_check_apply_repair_and_rollback_with_per_action_state_confirmation_and_fresh_readback",
       management_surface:
@@ -2821,9 +2882,58 @@ export function validateSettingsExperienceContract(experience) {
         "managed_dependency_summary_is_visible_without_opening_diagnostics",
       working_path_owner:
         "Framework and raw paths live only in Maintenance diagnostics",
+      log_directory_owner:
+        "Logs_and_Diagnostics_owns_the_Desktop_application.setLogDirectory_action_standalone_WebUI_read_only_systemInfo_projection_and_Docker_WebUI_read_only_/data/logs_projection",
+      webui_log_action_execution_allowed: false,
     },
     "Settings Maintenance surface rules",
   );
+  const maintenanceDestinations =
+    pageContracts.maintenance.destination_contracts ?? {};
+  assertDeepEqualJson(
+    Object.fromEntries(
+      Object.entries(maintenanceDestinations).map(
+        ([id, destination]: [string, any]) => [
+          id,
+          {
+            anchor: destination.anchor,
+            label_zh: destination.label_zh,
+            label_en: destination.label_en,
+          },
+        ],
+      ),
+    ),
+    {
+      runtime_services: {
+        anchor: "services",
+        label_zh: "服务状态",
+        label_en: "Service Status",
+      },
+      updates_repairs: {
+        anchor: "updates",
+        label_zh: "更新与修复",
+        label_en: "Updates & Repair",
+      },
+      logs_diagnostics: {
+        anchor: "diagnostics",
+        label_zh: "日志与诊断",
+        label_en: "Logs & Diagnostics",
+      },
+    },
+    "Settings Maintenance second-level destinations",
+  );
+  if (
+    maintenanceDestinations.logs_diagnostics?.must_not_show?.includes(
+      "WebUI log-directory mutation",
+    ) !== true ||
+    pageContracts.maintenance.destination_dom?.logs_diagnostics?.includes(
+      "settings-maintenance-log-directory",
+    ) !== true
+  ) {
+    throw new Error(
+      "Settings Logs & Diagnostics must own the carrier-specific log directory surface",
+    );
+  }
   assertDeepEqualJson(
     pageContracts.storage.surface_rules,
     {
@@ -2843,7 +2953,7 @@ export function validateSettingsExperienceContract(experience) {
       inventory_cache_ttl_seconds: 300,
       inventory_freshness_fields: ["observed_at", "scan_duration_ms", "stale"],
       inventory_event: "local-data-lifecycle.inventory-updated",
-      log_directory_reference: "read_only_link_to_workspace#logs",
+      log_directory_reference: "read_only_link_to_environment#diagnostics",
       owner_storage_projection_source: "opl_app_state_fast_owner_projections",
       owner_storage_sections: [
         "agent_package_store",
@@ -2865,6 +2975,48 @@ export function validateSettingsExperienceContract(experience) {
       webui_host_action_abi_ref:
         "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
       generic_docker_prune_allowed: false,
+      deployment_location_summary: {
+        visibility: "docker_webui_only",
+        interaction: "read_only_no_mount_or_environment_mutation",
+        required_host_bind_count: 2,
+        required_host_binds: [
+          {
+            id: "projects",
+            container_path: "/projects",
+            purpose_zh: "项目与任务产物",
+            purpose_en: "Projects and task artifacts",
+            container_environment: [
+              "OPL_PROJECTS_DIR=/projects",
+              "OPL_WORKSPACE_ROOT=/projects",
+            ],
+            settings_relation:
+              "In Docker WebUI, Working Directory is fixed read-only at /projects and never executes workspace_root_set or rewires the host projects bind",
+          },
+          {
+            id: "data",
+            container_path: "/data",
+            purpose_zh: "App 数据、Framework 状态、Codex Home 与会话、日志",
+            purpose_en:
+              "App data, Framework state, Codex Home and sessions, and logs",
+            container_environment: [
+              "HOME=/data",
+              "AIONUI_DATA_DIR=/data",
+              "OPL_DATA_DIR=/data",
+            ],
+            settings_relation:
+              "Data and log locations are deployment-managed and Settings never rewires the host data bind",
+          },
+        ],
+        container_recovery_surface: {
+          container_path: "/recovery",
+          environment: "OPL_WEBUI_RECOVERY_DIR=/recovery",
+          purpose_zh: "清理前归档与恢复暂存",
+          purpose_en: "Pre-cleanup archives and recovery staging",
+          required_host_bind: false,
+          host_persistence_policy:
+            "optional_and_deployment_managed_not_a_third_required_bind",
+        },
+      },
       storage_carrier_behavior: appOwnedStorageCarrierBehavior,
     },
     "Settings Storage surface rules",
@@ -3122,7 +3274,11 @@ function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
     throw new Error("Settings Capabilities adapter must own local MCP, image, and voice configuration");
   }
   validateSettingsAgentsDirectoryProjection(requiredPages.agents);
-  validateWorkspaceAndStorageOwnership(requiredPages.workspace, requiredPages.storage);
+  validateWorkspaceAndStorageOwnership(
+    requiredPages.workspace,
+    requiredPages.environment,
+    requiredPages.storage,
+  );
   assertDeepEqualJson(
     productProfile?.settings?.control_plane?.page_adapter_policy,
     policy,
@@ -3130,12 +3286,44 @@ function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
   );
 }
 
-function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
-  const logDirectory = workspacePage?.log_directory;
+function validateWorkspaceAndStorageOwnership(
+  workspacePage,
+  environmentPage,
+  storagePage,
+) {
+  assertDeepEqualJson(
+    workspacePage?.workspace_root_carrier_policy,
+    {
+      desktop: {
+        presentation: "editable",
+        mutation_source: "owner_projected_workspace_root_action",
+        fresh_readback_required: true,
+      },
+      webui: {
+        presentation: "read_only_owner_projected_logical_root",
+        authority_source: "owner_projected_logical_workspace_root",
+        workspace_root_set_execution_allowed: false,
+        host_projects_bind_rewire_allowed: false,
+        docker: {
+          presentation: "read_only_/projects",
+          authority_source: "OPL_WORKSPACE_ROOT=/projects",
+          host_projects_bind_rewire_allowed: false,
+        },
+      },
+    },
+    "Settings Workspace carrier-specific workspace root policy",
+  );
+  if (workspacePage?.log_directory !== undefined) {
+    throw new Error(
+      "Settings Workspace must not own the App log-directory control",
+    );
+  }
+  const logDirectory = environmentPage?.log_directory;
   assertDeepEqualJson(
     logDirectory,
     {
-      owner_page: "workspace",
+      owner_page: "maintenance",
+      owner_destination_id: "logs_diagnostics",
       typed_action: "application.setLogDirectory",
       typed_action_payload_fields: ["path"],
       typed_action_success_value_fields: ["hostLogDir"],
@@ -3150,22 +3338,38 @@ function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
       persistence_target: "desktop_client_system_info.logDir",
       readback_ref: "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
       desktop_change_supported: true,
-      webui_log_projection: "/data/logs",
-      docker_volume_mapping: "OnePersonLab/data -> /data",
+      desktop_open_supported: true,
+      webui_log_projection: "application.systemInfo.logDir",
+      docker_webui_log_projection: "/data/logs",
+      webui_change_supported: false,
+      webui_action_execution_allowed: false,
+      docker_volume_mapping: "host data directory -> /data",
       docker_volume_rewire_allowed: false,
     },
-    "Settings Workspace typed host log-directory projection",
+    "Settings Logs & Diagnostics typed host log-directory projection",
   );
   if (
     storagePage?.inventory_cache_policy?.ttl_seconds !== 300 ||
     storagePage?.log_directory_ref?.mode !== "read_only" ||
-    storagePage?.log_directory_ref?.owner_route !== "workspace#logs" ||
+    storagePage?.log_directory_ref?.owner_route !== "environment#diagnostics" ||
     storagePage?.configuration_owner !== false
   ) {
     throw new Error(
-      "Settings Storage must use the 300-second cache and keep the log directory as a read-only Workspace reference",
+      "Settings Storage must use the 300-second cache and keep the log directory as a read-only Logs & Diagnostics reference",
     );
   }
+  assertDeepEqualJson(
+    storagePage?.deployment_location_summary,
+    {
+      source_ref:
+        "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage.surface_rules.deployment_location_summary",
+      required_host_bind_paths: ["/projects", "/data"],
+      container_recovery_path: "/recovery",
+      container_recovery_is_required_host_bind: false,
+      mutation_allowed: false,
+    },
+    "Settings Storage deployment location summary",
+  );
   const ownerStorage = storagePage?.owner_storage_projections;
   if (
     ownerStorage?.projection_source !== "opl app state --profile fast --json" ||

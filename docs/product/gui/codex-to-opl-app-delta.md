@@ -261,21 +261,23 @@ OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Cent
 - Settings 是 secondary route；可以借鉴 Codex 的返回、搜索和 grouped-row 交互，但
   OPL IA 不变，且 Settings 视觉不得成为 Home/Conversation 的设计来源。
 
-- Overview：App 是否可用、下一步是什么。
-- Account & Access：账户、用量、凭据、刷新、修复和断开连接。
-- Models：模型访问来源、Codex CLI 版本和模型/推理偏好。
-- Workspace：工作目录、日志目录、用户 AGENTS.md 和 new-conversation additions。
-- Agents：公共 Agent Package 目录、lifecycle 与 Home shortcuts。
-- Capabilities：Skills、Plugins、OPL Flow、MCP、图像和语音能力。
-- Resources & Connections：真实本机资源和连接 refs；Hosted Workspace、Fabric/HPC、Console 仅在
-  X0 owner/backend 存在时提供可选 route，不维护占位状态。
-- Maintenance & Updates：App/runtime/packages/local services 的维护。
-- Data & Storage：空间、数据分类、preview 和安全 cleanup。
+- Overview：概览，包括一个常驻 Background tasks 汇总；Temporal 组件明细不在此展开。
+- Account & Models：账户与访问；模型。前者拥有 Gateway/Key/用量，后者只拥有模型来源与偏好。
+- Connections & Deployment：资源与连接。真实本机/WebUI/外部连接 refs 在这里；Hosted
+  Workspace、Fabric/HPC、Console 仅在 X0 owner/backend 存在时出现，不维护占位状态。
+- Workspace：工作目录；数据与存储。Desktop workspace root 可走 owner action；WebUI
+  `/projects` 只读。Docker 只读展示 `/projects`、`/data` 两个必需宿主 bind，`/recovery`
+  是可选 deployment-managed 恢复面。
+- Agents & Capabilities：智能体；能力；指令与上下文。用户 `AGENTS.md` 和
+  new-conversation additions 复用 Workspace carrier，但不再属于 Workspace 导航。
+- Runtime & Maintenance：服务状态；更新与修复；日志与诊断。三者在 Environment carrier
+  上互斥呈现；Desktop 日志目录可改，standalone WebUI 只读显示 systemInfo 日志投影，
+  Docker WebUI 只读显示 `/data/logs`。
 - Preferences：语言、主题、通知、启动、密度、字体和 motion。
 
-About 是唯一 secondary page；Advanced、Update、Theme、Local Services 和 Personalization
-只 redirect 到 owner route/anchor。具体 registry、labels、redirects、actions 和 page-state
-只由 contracts/Control Plane 提供，本文不复制。
+About 是底部唯一辅助页；Advanced、Update、Theme、Local Services 和 Personalization
+只 redirect 到 owner destination/anchor。具体 registry、labels、redirects、actions 和
+page-state 只由 contracts/Control Plane 提供，本文不复制。
 
 ## First-run、安装与更新增量
 

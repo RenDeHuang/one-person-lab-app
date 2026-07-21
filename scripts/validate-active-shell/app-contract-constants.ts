@@ -844,6 +844,7 @@ export const appActionRoute =
 export const appOwnedSettingsIaGroupIds = [
   "overview",
   "account_models",
+  "connections_deployment",
   "workspace",
   "agents_capabilities",
   "runtime_maintenance",
@@ -860,12 +861,17 @@ export const appOwnedSettingsNavigationDestinationIds = [
   "capabilities",
   "instructions_context",
   "runtime_services",
+  "updates_repairs",
   "logs_diagnostics",
   "preferences",
 ];
 export const appOwnedSettingsNavigationGroupLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
   account_models: { label_zh: "账户与模型", label_en: "Account & Models" },
+  connections_deployment: {
+    label_zh: "连接与部署",
+    label_en: "Connections & Deployment",
+  },
   workspace: { label_zh: "工作区", label_en: "Workspace" },
   agents_capabilities: {
     label_zh: "智能体与能力",
@@ -882,7 +888,7 @@ export const appOwnedSettingsNavigationDestinationOwners = {
   account_access: { owner_group_id: "account_models", route_id: "gateway" },
   models: { owner_group_id: "account_models", route_id: "access" },
   resources_connections: {
-    owner_group_id: "account_models",
+    owner_group_id: "connections_deployment",
     route_id: "resources",
   },
   working_directory: {
@@ -904,6 +910,12 @@ export const appOwnedSettingsNavigationDestinationOwners = {
   runtime_services: {
     owner_group_id: "runtime_maintenance",
     route_id: "environment",
+    anchor: "services",
+  },
+  updates_repairs: {
+    owner_group_id: "runtime_maintenance",
+    route_id: "environment",
+    anchor: "updates",
   },
   logs_diagnostics: {
     owner_group_id: "runtime_maintenance",
@@ -1037,7 +1049,6 @@ export const appOwnedSettingsPageAnchors = {
     "current-workspace",
     "permissions",
     "artifacts",
-    "logs",
     "personalization",
     "system-agents",
     "opl-app-context",
@@ -1054,6 +1065,7 @@ export const appOwnedSettingsPageAnchors = {
   maintenance: ["health", "managed-dependencies", "updates", "services", "diagnostics"],
   storage: [
     "storage-categories",
+    "deployment-locations",
     "archives",
     "cleanup-preview",
     "cleanup-history",
@@ -1081,7 +1093,6 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "workspace.current",
     "workspace.permissions",
     "workspace.artifacts",
-    "workspace.logs",
     "personalization.system_agents",
     "personalization.opl_app_context",
   ],
@@ -1108,9 +1119,11 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "maintenance.updates",
     "maintenance.services",
     "maintenance.diagnostics",
+    "maintenance.log_directory",
   ],
   storage: [
     "storage.categories",
+    "storage.deployment_locations",
     "storage.archives",
     "storage.preview",
     "storage.history",

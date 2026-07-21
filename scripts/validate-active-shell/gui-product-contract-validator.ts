@@ -1309,7 +1309,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'update',
     'settings_theme',
   ]) {
-    assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
+    const expectedStateSource = pageId === 'settings_environment'
+      ? 'opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo'
+      : 'opl app state --profile fast --json';
+    assertCommandSurface(pages[pageId].state_source, expectedStateSource, `App GUI ${pageId} state source`);
     const expectedRefreshSource = pageId === 'settings_general'
       ? 'background opl app state --profile fast --json with bounded retry'
       : pageId === 'about'
@@ -1757,7 +1760,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (
     pages.settings_workspace?.ia_group !== 'workspace' ||
-    !pages.settings_workspace.sections?.includes('log_directory') ||
     !pages.settings_workspace.sections?.includes('system_agents') ||
     !pages.settings_workspace.sections?.includes('opl_app_context') ||
     !pages.settings_workspace.must_show?.includes(
@@ -1767,7 +1769,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'content-width responsive single-column rows when the Settings reading lane is narrow',
     ) ||
     !pages.settings_workspace.must_show?.includes('Codex instruction editors use unframed field groups without nested cards') ||
-    !pages.settings_workspace.must_not_show?.includes('Storage-owned log configuration') ||
+    !pages.settings_workspace.must_not_show?.includes('App log directory controls owned by Logs & Diagnostics') ||
     !pages.settings_workspace.must_not_show?.includes('System AGENTS.md or new-conversation context presented as Workspace children') ||
     !pages.settings_workspace.must_not_show?.includes('App log directory presented as a Workspace child') ||
     !pages.settings_workspace.must_not_show?.includes('Framework and raw paths duplicated from Maintenance diagnostics')
@@ -1777,7 +1779,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (
     pages.settings_storage.sections?.includes('log_directory') ||
     !pages.settings_storage.must_show?.includes(
-      'read-only Workspace-owned log path reference',
+      'read-only Logs & Diagnostics-owned log path reference',
     ) ||
     !pages.settings_storage.must_not_show?.includes('log directory edit control') ||
     pages.settings_theme.sections?.includes('personalization')

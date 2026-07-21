@@ -49,7 +49,7 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
   adapter 明确报告且不与 permission/access 重复的模式及真实连接按组显示名称和描述；
 - Local/Worktree 与 branch 只在真实 adapter 支持且属于 new-session context 时进入同一 context bar；
   既有 conversation 不形成第二条持久项目或能力标签；
-- Workspace 使用 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
+- Instructions & Context 复用 Workspace carrier 的 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
 - clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
   `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
 

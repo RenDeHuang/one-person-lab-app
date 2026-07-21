@@ -266,7 +266,13 @@
         "verify_ref": "app_state.settings_control_center.configuration_catalog.items#workspace_root.verify_action_id",
         "risk": "low",
         "confirmation_required": false,
-        "editable_reason": "The Framework owns the workspace root and exposes the mutation and verification route."
+        "editable_reason": "Desktop uses the Framework-owned mutation and verification route. Standalone WebUI renders the owner-projected logical root read-only. Docker WebUI fixes that root at /projects through OPL_WORKSPACE_ROOT. No WebUI executes workspace_root_set, and Settings never rewires a host bind mount.",
+        "carrier_policy": {
+          "desktop": "editable_through_owner_projected_action",
+          "webui": "read_only_owner_projected_logical_root_no_workspace_root_set_execution",
+          "docker_webui": "read_only_/projects_from_OPL_WORKSPACE_ROOT_no_workspace_root_set_execution",
+          "host_mount_mutation_allowed": false
+        }
       },
       {
         "stable_id": "settings.configuration.update_channel",
@@ -399,8 +405,8 @@
         "configuration_id": "log_directory",
         "owner_class": "app_local",
         "truth_owner": "one-person-lab-app",
-        "page_id": "workspace",
-        "anchor": "logs",
+        "page_id": "maintenance",
+        "anchor": "diagnostics",
         "lifecycle": "persistent_configuration",
         "value_type": "path",
         "sensitivity": "ordinary",
@@ -410,7 +416,13 @@
         "verify_ref": "application.setLogDirectory.hostLogDir success value plus application.systemInfo.logDir readback",
         "risk": "low",
         "confirmation_required": false,
-        "editable_reason": "Workspace owns the desktop App log root; WebUI /data/logs is a read-only projection of the existing OnePersonLab/data -> /data volume and Settings never rewires that volume."
+        "editable_reason": "Logs & Diagnostics owns the Desktop App log root through the existing typed host action. Standalone WebUI renders the systemInfo log directory read-only. Docker WebUI renders /data/logs read-only. No WebUI executes the Desktop action, and Settings never rewires a host data bind mount.",
+        "carrier_policy": {
+          "desktop": "editable_through_application.setLogDirectory",
+          "webui": "read_only_application.systemInfo.logDir_no_log_directory_mutation",
+          "docker_webui": "read_only_/data/logs_no_log_directory_mutation",
+          "host_mount_mutation_allowed": false
+        }
       },
       {
         "stable_id": "settings.configuration.codex_user_instructions",
@@ -636,12 +648,13 @@
   "default_route": "/settings/general",
   "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
   "user_navigation_projection": {
-    "schema": "opl_app_settings_user_navigation.v1",
+    "schema": "opl_app_settings_user_navigation.v2",
     "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
     "carrier_route_policy": "ten_stable_ordinary_route_ids_paths_slots_and_anchors_remain_addressable_but_are_not_rendered_as_ten_primary_navigation_items",
     "primary_group_order": [
       "overview",
       "account_models",
+      "connections_deployment",
       "workspace",
       "agents_capabilities",
       "runtime_maintenance",
@@ -664,7 +677,15 @@
         "default_destination_id": "account_access",
         "destination_ids": [
           "account_access",
-          "models",
+          "models"
+        ]
+      },
+      {
+        "id": "connections_deployment",
+        "label_zh": "连接与部署",
+        "label_en": "Connections & Deployment",
+        "default_destination_id": "resources_connections",
+        "destination_ids": [
           "resources_connections"
         ]
       },
@@ -696,6 +717,7 @@
         "default_destination_id": "runtime_services",
         "destination_ids": [
           "runtime_services",
+          "updates_repairs",
           "logs_diagnostics"
         ]
       },
@@ -733,7 +755,7 @@
       },
       {
         "id": "resources_connections",
-        "owner_group_id": "account_models",
+        "owner_group_id": "connections_deployment",
         "route_id": "resources",
         "label_zh": "资源与连接",
         "label_en": "Resources & Connections"
@@ -780,8 +802,17 @@
         "id": "runtime_services",
         "owner_group_id": "runtime_maintenance",
         "route_id": "environment",
-        "label_zh": "服务与维护",
-        "label_en": "Services & Maintenance"
+        "anchor": "services",
+        "label_zh": "服务状态",
+        "label_en": "Service Status"
+      },
+      {
+        "id": "updates_repairs",
+        "owner_group_id": "runtime_maintenance",
+        "route_id": "environment",
+        "anchor": "updates",
+        "label_zh": "更新与修复",
+        "label_en": "Updates & Repair"
       },
       {
         "id": "logs_diagnostics",
@@ -790,7 +821,7 @@
         "anchor": "diagnostics",
         "label_zh": "日志与诊断",
         "label_en": "Logs & Diagnostics",
-        "transport_owner_policy": "reuse_workspace_log_action_and_maintenance_diagnostics_without_presenting_logs_under_Workspace"
+        "transport_owner_policy": "reuse_the_existing_typed_application.setLogDirectory_action_on_Logs_and_Diagnostics_without_presenting_logs_under_Workspace"
       },
       {
         "id": "preferences",
@@ -816,8 +847,9 @@
       {
         "content_id": "app_log_directory",
         "user_destination_id": "logs_diagnostics",
-        "transport_route_id": "workspace",
-        "anchor": "logs"
+        "transport_route_id": "environment",
+        "anchor": "diagnostics",
+        "transport_owner_policy": "reuse_the_existing_typed_application.setLogDirectory_action_without_presenting_logs_under_Workspace"
       }
     ],
     "auxiliary_entries": [
@@ -830,7 +862,7 @@
       }
     ],
     "responsive_navigation": {
-      "desktop": "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+      "desktop": "seven_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
       "mobile": "category_list_then_second_level_destination_with_a_visible_back_control",
       "mobile_horizontal_tab_strip_allowed": false,
       "mobile_navigation_scroll_axis": "vertical",
@@ -914,7 +946,7 @@
       "icon_token": "workspace",
       "ia_group": "workspace",
       "slot_id": "workspace",
-      "state_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + app_state.settings_control_center.app_settings_read_model.workspace_services.app_log_directory + application.systemInfo",
+      "state_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization",
       "refresh_source": "cached workspace and personalization snapshot followed by background fast App state hydration",
       "scope": "workspace",
       "intent": "configure",
@@ -969,7 +1001,7 @@
       "default_label_en": "Resources & Connections",
       "default_label_zh": "资源与连接",
       "icon_token": "resources",
-      "ia_group": "account_models",
+      "ia_group": "connections_deployment",
       "slot_id": "settings_resources",
       "state_source": "opl app state --profile fast --json#settings_control_center.connection_registry + settings_control_center.app_settings_read_model.resource_sources + docker_webui",
       "refresh_source": "opl app state --profile fast --json",
@@ -990,7 +1022,7 @@
       "icon_token": "maintenance",
       "ia_group": "runtime_maintenance",
       "slot_id": "settings_environment",
-      "state_source": "opl app state --profile fast --json",
+      "state_source": "opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo",
       "refresh_source": "opl app state --profile fast --json",
       "scope": "machine",
       "intent": "maintenance",
@@ -1343,12 +1375,49 @@
         "route_id": "environment",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx",
-        "state_source": "opl app state --profile fast --json",
+        "state_source": "opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo",
         "forbidden_sources": [
           "raw runtime projection as layout source",
           "owner receipt writes",
-          "release readiness claims"
+          "release readiness claims",
+          "WebUI workspace or log directory mutations"
         ],
+        "log_directory": {
+          "owner_page": "maintenance",
+          "owner_destination_id": "logs_diagnostics",
+          "typed_action": "application.setLogDirectory",
+          "typed_action_payload_fields": [
+            "path"
+          ],
+          "typed_action_success_value_fields": [
+            "hostLogDir"
+          ],
+          "typed_action_forbidden_success_value_fields": [
+            "cacheDir",
+            "workDir",
+            "logDir"
+          ],
+          "mutation_sequence": [
+            "persist_hostLogDir",
+            "switch_live_log_writer",
+            "rollback_persisted_hostLogDir_and_return_typed_failure_on_switch_failure"
+          ],
+          "preserved_fields": [
+            "cacheDir",
+            "workDir"
+          ],
+          "host_projection": "application.systemInfo.logDir",
+          "persistence_target": "desktop_client_system_info.logDir",
+          "readback_ref": "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
+          "desktop_change_supported": true,
+          "desktop_open_supported": true,
+          "webui_log_projection": "application.systemInfo.logDir",
+          "docker_webui_log_projection": "/data/logs",
+          "webui_change_supported": false,
+          "webui_action_execution_allowed": false,
+          "docker_volume_mapping": "host data directory -> /data",
+          "docker_volume_rewire_allowed": false
+        },
         "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy",
         "managed_update_repair_availability_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.repair_availability_policy",
         "managed_dependency_summary": {
@@ -1475,7 +1544,17 @@
         "configuration_owner": false,
         "log_directory_ref": {
           "mode": "read_only",
-          "owner_route": "workspace#logs"
+          "owner_route": "environment#diagnostics"
+        },
+        "deployment_location_summary": {
+          "source_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage.surface_rules.deployment_location_summary",
+          "required_host_bind_paths": [
+            "/projects",
+            "/data"
+          ],
+          "container_recovery_path": "/recovery",
+          "container_recovery_is_required_host_bind": false,
+          "mutation_allowed": false
         },
         "owner_storage_projections": {
           "projection_source": "opl app state --profile fast --json",
@@ -1702,42 +1781,29 @@
         "route_id": "workspace",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/sections/WorkspaceSettings.tsx",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/WorkspaceSettings.tsx",
-        "state_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + app_state.settings_control_center.app_settings_read_model.workspace_services.app_log_directory + application.systemInfo",
+        "state_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization",
         "forbidden_sources": [
-          "Storage-owned log configuration",
+          "App log directory controls owned by Logs & Diagnostics",
           "repository AGENTS.md writes",
           "Docker volume rewiring from Settings"
         ],
-        "log_directory": {
-          "owner_page": "workspace",
-          "typed_action": "application.setLogDirectory",
-          "typed_action_payload_fields": [
-            "path"
-          ],
-          "typed_action_success_value_fields": [
-            "hostLogDir"
-          ],
-          "typed_action_forbidden_success_value_fields": [
-            "cacheDir",
-            "workDir",
-            "logDir"
-          ],
-          "mutation_sequence": [
-            "persist_hostLogDir",
-            "switch_live_log_writer",
-            "rollback_persisted_hostLogDir_and_return_typed_failure_on_switch_failure"
-          ],
-          "preserved_fields": [
-            "cacheDir",
-            "workDir"
-          ],
-          "host_projection": "application.systemInfo.logDir",
-          "persistence_target": "desktop_client_system_info.logDir",
-          "readback_ref": "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
-          "desktop_change_supported": true,
-          "webui_log_projection": "/data/logs",
-          "docker_volume_mapping": "OnePersonLab/data -> /data",
-          "docker_volume_rewire_allowed": false
+        "workspace_root_carrier_policy": {
+          "desktop": {
+            "presentation": "editable",
+            "mutation_source": "owner_projected_workspace_root_action",
+            "fresh_readback_required": true
+          },
+          "webui": {
+            "presentation": "read_only_owner_projected_logical_root",
+            "authority_source": "owner_projected_logical_workspace_root",
+            "workspace_root_set_execution_allowed": false,
+            "host_projects_bind_rewire_allowed": false,
+            "docker": {
+              "presentation": "read_only_/projects",
+              "authority_source": "OPL_WORKSPACE_ROOT=/projects",
+              "host_projects_bind_rewire_allowed": false
+            }
+          }
         }
       },
       "resources": {
@@ -2147,10 +2213,11 @@
       {
         "id": "workspace_personalization_owner",
         "track": "user_task_ux",
-        "goal": "Workspace is the single owner for workspace path, log path, AGENTS.md, and new-conversation additions.",
+        "goal": "Working Directory owns the logical workspace root, Instructions & Context owns personalization, and Logs & Diagnostics owns the App log directory.",
         "evidence_required": [
-          "log_directory configuration page_id is workspace",
-          "application.setLogDirectory { path } persists hostLogDir, switches the live writer, rolls persistence back with a typed failure when switching fails, preserves cacheDir/workDir, and never rewires the existing OnePersonLab/data -> /data volume",
+          "workspace_root is editable on desktop, read-only from the owner projection in standalone WebUI, and read-only /projects in Docker WebUI; no WebUI executes workspace_root_set or rewires a host projects bind",
+          "log_directory configuration page_id is maintenance and the Logs & Diagnostics destination reuses application.setLogDirectory only on desktop",
+          "standalone WebUI renders application.systemInfo.logDir read-only, Docker WebUI renders /data/logs read-only, and Settings never rewires a host data bind",
           "Storage and Preferences contain no duplicate path or personalization controls"
         ]
       },
@@ -2206,11 +2273,12 @@
       {
         "id": "data_storage_safety",
         "track": "user_task_ux",
-        "goal": "Storage merges Shell-owned local usage with canonical owner projections, while path configuration remains on Workspace.",
+        "goal": "Storage merges Shell-owned local usage with canonical owner projections while keeping deployment locations read-only and path configuration on owner destinations.",
         "evidence_required": [
           "storage-categories is the primary list",
           "cached inventory renders before background refresh without synthetic zero bytes",
-          "log directory is read-only and links to Workspace",
+          "log directory is read-only and links to Logs & Diagnostics",
+          "Docker deployment summary shows two required host binds /projects and /data while /recovery is not claimed as a third required bind",
           "Agent Package and WebUI data usage comes only from canonical owner projections",
           "missing owner projections fail open without synthetic zero bytes",
           "cleanup-preview precedes destructive action and generic prune is forbidden"
@@ -2231,10 +2299,10 @@
       {
         "id": "preferences_user_language",
         "track": "user_task_ux",
-        "goal": "Preferences explains App behavior, timeout, notifications, display, fonts, and themes while Workspace owns personalization.",
+        "goal": "Preferences explains App behavior, timeout, notifications, display, fonts, and themes while Instructions & Context owns personalization.",
         "evidence_required": [
           "preferences anchors contain behavior/notifications/models-performance/display-fonts/themes only",
-          "workspace anchors contain workspace/logs/personalization/system-agents/opl-app-context",
+          "workspace carrier anchors contain workspace/personalization/system-agents/opl-app-context while visible ownership remains split by destination",
           "raw milliseconds and Electron flags stay collapsed",
           "Preferences has inline controls and no page-level primary action",
           "Preferences exposes System, Light, and Dark but no CSS theme preset gallery"
@@ -2289,7 +2357,7 @@
         "goal": "Every Settings surface has one product owner and cross-page references remain read-only.",
         "evidence_required": [
           "Agents and Capabilities fields are disjoint",
-          "Workspace owns log and personalization configuration",
+          "Working Directory owns workspace_root, Instructions & Context owns personalization, and Logs & Diagnostics owns log_directory",
           "Storage only references the log path read-only",
           "Preferences owns App behavior/display only",
           "validators reject duplicate configuration ids across pages"
@@ -2476,8 +2544,8 @@
             "scope": "workspace",
             "owner": "one-person-lab-app",
             "risk": "confirmation_required",
-            "normal_summary": "Workspace owns workspace and App log paths plus Codex AGENTS.md and new-conversation additions; desktop log changes preserve cache/work directories and do not rewire the Docker data volume.",
-            "next_action": "change workspace, log directory, or new-conversation personalization on the single owner page",
+            "normal_summary": "Working Directory owns the logical workspace root; desktop may use the owner-projected action, standalone WebUI shows its actual owner-projected root read-only, and Docker WebUI shows read-only /projects.",
+            "next_action": "change the desktop logical workspace root, or edit standalone host configuration / Docker deployment configuration outside the browser for a WebUI root or bind change",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_workspace",
             "editable_reason": "workspace mutations require explicit user action and confirmation while user instruction changes keep stale-write and backup guards",
             "surface_class": "configuration",
@@ -2540,8 +2608,8 @@
             "scope": "machine",
             "owner": "one-person-lab-app",
             "risk": "confirmation_required",
-            "normal_summary": "Maintenance groups health, updates, services, and packages by user impact and shows one recommended action.",
-            "next_action": "run the recommended check, repair, or update action",
+            "normal_summary": "Runtime & Maintenance separates Service Status, Updates & Repair, and Logs & Diagnostics; desktop log location is editable only on the last destination and WebUI remains read-only.",
+            "next_action": "open the owning destination for service status, an update or repair, or log and diagnostic access",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_environment",
             "editable_reason": "state-changing maintenance requires action routes and confirmation",
             "surface_class": "action",
@@ -2790,7 +2858,7 @@
         "primary_information": [
           "one overall usability summary led by Codex CLI and model-access readiness",
           "signed-in Gateway identity, connection and availability with compact today token, cost, and balance summaries",
-          "localized Temporal server, worker, and scheduler status with a plain-language reason and direct Maintenance route",
+        "one persistent localized Background tasks summary that is quiet when available and contributes one actionable exception when unavailable",
           "issue queue ordered by user impact and limited to actionable exceptions",
           "one next useful action",
           "workspace path stays on Workspace and is not a primary Overview card",
@@ -2798,14 +2866,19 @@
         ],
         "background_services_summary": {
           "dependency_role": "required_for_complete_opl_durable_workflow",
-          "visible_components": [
-            "temporal_server",
-            "temporal_worker",
-            "temporal_scheduler"
-          ],
-          "component_status_policy": "show_server_worker_and_scheduler_independently_so_one_ready_component_never_collapses_an_unready_or_unknown_component_into_one_opaque_state",
-          "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
-          "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+        "detail_components": [
+          "temporal_server",
+          "temporal_worker",
+          "temporal_scheduler"
+        ],
+        "overview_visible_unit": "background_tasks",
+        "overview_label_zh": "后台任务",
+        "overview_label_en": "Background tasks",
+        "component_status_policy": "derive_one_truthful_background_tasks_summary_from_explicit_server_worker_and_scheduler_fields_without_rendering_component_rows_on_Overview",
+        "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+        "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+        "attention_state_policy": "when_any_required_component_is_unready_unknown_or_stale_add_one_background_tasks_item_to_the_attention_queue_and_link_to_Service_Status",
+        "component_detail_visibility": "service_status_destination_only",
           "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
           "attention_route": "/settings/environment#services",
           "recommended_action_policy": "real_projected_Temporal_action_or_Maintenance_route_never_settings_sync_capabilities"
@@ -2857,10 +2930,8 @@
             "settings-page-overview",
             "settings-overview-primary",
             "settings-overview-card-codex",
-            "settings-overview-card-gateway",
-            "settings-overview-temporal-server",
-            "settings-overview-temporal-worker",
-            "settings-overview-temporal-scheduler"
+          "settings-overview-card-gateway",
+          "settings-overview-background-tasks"
           ],
           "conditional": [
             {
@@ -3138,24 +3209,18 @@
           "current workspace identity, path, and writability merged into one normal-state summary",
           "permission or trust explanation only when attention is required",
           "where project and task artifacts are stored",
-          "desktop App log directory through the existing typed system-info action; WebUI /data/logs remains read-only under the existing Docker data volume",
-          "system-level Codex user instructions with stale-write protection and backup",
+        "system-level Codex user instructions with stale-write protection and backup",
           "read-only generated new-conversation additions plus editable additional instructions",
           "open workspace as an inline action and change workspace as the sole page-level primary action"
         ],
-        "first_viewport_groups": [
-          "workspace_configuration",
-          "log_directory",
-          "personalization"
+      "first_viewport_groups": [
+        "workspace_configuration",
+        "personalization"
         ],
         "surface_inventory": {
           "configuration": [
             {
               "id": "workspace_selection",
-              "owner": "workspace"
-            },
-            {
-              "id": "log_directory",
               "owner": "workspace"
             },
             {
@@ -3187,10 +3252,6 @@
               "owner": "workspace"
             },
             {
-              "id": "change_log_directory",
-              "owner": "workspace"
-            },
-            {
               "id": "restore_opl_flow_default",
               "owner": "workspace"
             }
@@ -3204,23 +3265,24 @@
         },
         "surface_rules": {
           "workspace_card_count": 0,
-          "location_presentation": "one unframed File locations group with two equal rows for workspace and desktop logs",
+        "location_presentation": "one unframed Working directory group with the resolved logical workspace root",
           "permission_presentation": "one merged writability status inside the workspace row",
           "responsive_row_policy": "container_width_below_620px_stacks_copy_status_and_actions_without_word_breaking_paths",
           "personalization_presentation": "unframed_field_groups_with_section_hairlines_no_nested_cards",
           "maintenance_action_visibility": "attention_only",
           "diagnostics_entry": "explicit_modal_action",
-          "log_directory_source": "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
-          "log_directory_mutation": "application.setLogDirectory_path_persists_hostLogDir_then_switches_live_writer_rolls_back_on_failure_and_preserves_cacheDir_workDir",
-          "log_directory_webui_policy": "read_only_/data/logs_projection_from_existing_OnePersonLab/data_to_/data_volume",
-          "desktop_directory_mapping": "project_workspace_is_Framework_workspace_root_while_App_data_and_logs_are_shell_system_directories",
-          "docker_mapping": "OnePersonLab/data_maps_to_/data_and_Settings_does_not_rewire_the_volume",
-          "docker_volume_rewire_allowed": false,
+        "workspace_root_owner": "one-person-lab_Framework",
+        "workspace_root_desktop_policy": "editable_through_the_owner_projected_workspace_root_action_with_fresh_readback",
+        "workspace_root_webui_policy": "read_only_owner_projected_logical_root_and_never_execute_workspace_root_set",
+        "workspace_root_docker_webui_policy": "read_only_/projects_from_OPL_WORKSPACE_ROOT_and_never_execute_workspace_root_set",
+        "desktop_directory_mapping": "project_workspace_is_the_Framework_logical_workspace_root",
+        "docker_mapping": "host_projects_directory_is_bound_to_/projects_and_Settings_does_not_rewire_the_bind_mount",
+        "docker_volume_rewire_allowed": false,
           "generated_base_context_editable": false,
           "additional_instructions_editable": true,
           "restore_default_confirmation_required": true,
           "personalization_changes_apply_to": "next_new_conversation",
-          "storage_reference_policy": "Storage_may_show_the_resolved_log_path_read_only_but_has_no_log_configuration_control",
+        "deployment_boundary": "Settings_changes_only_the_desktop_logical_workspace_root;_standalone_WebUI_root_configuration_and_Docker_WebUI_host_bind_sources_change_only_outside_the_browser",
           "path_instance_count": 1
         },
         "readiness_precedence": "filesystem_writability_and_health_override_executor_permission_mode",
@@ -3232,12 +3294,11 @@
           "label_en": "Change workspace"
         },
         "exception_state": "highlight inaccessible, read-only, or untrusted workspace conditions",
-        "technical_details_boundary": "workspace and log paths are shown once; raw Framework path JSON, Docker mount internals, trust refs, and repair commands open through an explicit diagnostic action",
+    "technical_details_boundary": "the logical workspace path is shown once; App logs belong to Logs & Diagnostics, while raw Framework path JSON, Docker mount internals, trust refs, and repair commands open through an explicit diagnostic action",
         "required_dom": {
           "always": [
             "settings-page-workspace",
             "settings-workspace-primary",
-            "settings-workspace-log-directory",
             "settings-workspace-diagnostics-action",
             "settings-workspace-primary-action",
             "settings-personalization-instructions",
@@ -3259,8 +3320,7 @@
           "current-workspace",
           "permissions",
           "artifacts",
-          "logs",
-          "personalization",
+        "personalization",
           "system-agents",
           "opl-app-context"
         ],
@@ -3268,7 +3328,6 @@
           "workspace.current",
           "workspace.permissions",
           "workspace.artifacts",
-          "workspace.logs",
           "personalization.system_agents",
           "personalization.opl_app_context"
         ]
@@ -3740,24 +3799,80 @@
         "label_zh": "维护",
         "label_en": "Maintenance",
         "primary_information": [
-          "health summary",
-          "direct managed dependency summary for the active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI",
-          "updates and local services grouped by user impact",
-          "check, apply, repair, and rollback actions on the daily Maintenance page with impact explained before mutation",
-          "service status without duplicating capability package management",
-          "one recommended maintenance action",
-          "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence after Advanced is retired"
+          "Service Status independently answers whether Codex and required background services are available",
+          "Updates & Repair independently owns dependency currentness, update channel, check, apply, repair, rollback, and package maintenance",
+          "Logs & Diagnostics independently owns the Desktop log directory and collapsed technical evidence while standalone WebUI shows the systemInfo log directory read-only and Docker WebUI shows /data/logs read-only",
+          "only the selected second-level destination is presented as the ordinary page purpose",
+          "one recommended action at most inside the selected destination"
         ],
         "first_viewport_groups": [
-          "health_and_services",
-          "managed_dependencies",
-          "updates",
-          "maintenance_actions"
+          "selected_destination_summary",
+          "selected_destination_content"
         ],
+        "destination_contracts": {
+          "runtime_services": {
+            "anchor": "services",
+            "label_zh": "服务状态",
+            "label_en": "Service Status",
+            "primary_question": "Are Codex and the required background services available now?",
+            "owns": [
+              "health_summary",
+              "temporal_server_worker_scheduler_status",
+              "service_check_start_and_restart_actions"
+            ],
+            "display_policy": "show_one_availability_summary_then_flat_component_rows;_healthy_components_are_muted_and_attention_components_expand",
+            "must_not_show": [
+              "update channel",
+              "package update or rollback controls",
+              "raw paths, receipts, or logs"
+            ]
+          },
+          "updates_repairs": {
+            "anchor": "updates",
+            "label_zh": "更新与修复",
+            "label_en": "Updates & Repair",
+            "primary_question": "What needs updating or repair, and what is the safest next action?",
+            "owns": [
+              "managed_dependency_currentness",
+              "desktop_App_update_status",
+              "update_channel",
+              "check_apply_repair_rollback_and_package_maintenance"
+            ],
+            "display_policy": "lead_with_attention_and_one_recommended_action;_collapse_healthy_components_into_a_compact_summary",
+            "must_not_show": [
+              "Temporal component topology",
+              "App log directory controls",
+              "raw paths or receipts"
+            ]
+          },
+          "logs_diagnostics": {
+            "anchor": "diagnostics",
+            "label_zh": "日志与诊断",
+            "label_en": "Logs & Diagnostics",
+            "primary_question": "Where are App logs stored, and what technical evidence can I inspect or copy?",
+            "owns": [
+              "desktop_log_directory_open_and_change",
+              "standalone_webui_read_only_application.systemInfo.logDir_projection",
+              "docker_webui_read_only_/data/logs_projection",
+              "localized_component_path_and_receipt_evidence",
+              "copyable_diagnostic_information"
+            ],
+            "display_policy": "show_the_log_location_and_carrier_specific_action_first;_keep_raw_evidence_collapsed_by_default",
+            "must_not_show": [
+              "WebUI log-directory mutation",
+              "Docker bind-mount rewiring",
+              "update, repair, rollback, or service lifecycle controls inside technical details"
+            ]
+          }
+        },
         "surface_inventory": {
           "configuration": [
             {
               "id": "update_channel",
+              "owner": "maintenance"
+            },
+            {
+              "id": "log_directory",
               "owner": "maintenance"
             }
           ],
@@ -3786,6 +3901,7 @@
         },
         "surface_rules": {
           "configuration_location": "update_channel_is_an_inline_persistent_control_in_the_updates_section",
+          "destination_visibility_policy": "render_exactly_one_of_service_status_updates_repairs_or_logs_diagnostics_as_the_selected_ordinary_purpose",
           "daily_action_surface": "the_Maintenance_page_itself_owns_check_apply_repair_and_rollback_with_per_action_state_confirmation_and_fresh_readback",
           "management_surface": "inline_page_rows_and_progressive_confirmation_never_a_second_large_management_modal",
           "diagnostic_surface": "one_advanced_read_only_disclosure_for_localized_component_path_and_receipt_evidence",
@@ -3795,7 +3911,9 @@
           "raw_internal_status_key_policy": "never_render_raw_internal_status_keys_action_ids_or_payload_fields_as_user_facing_copy",
           "unknown_state_copy": "distinguish_checking_not_checked_not_applicable_and_needs_attention",
           "managed_dependency_primary_visibility": "managed_dependency_summary_is_visible_without_opening_diagnostics",
-          "working_path_owner": "Framework and raw paths live only in Maintenance diagnostics"
+          "working_path_owner": "Framework and raw paths live only in Maintenance diagnostics",
+          "log_directory_owner": "Logs_and_Diagnostics_owns_the_Desktop_application.setLogDirectory_action_standalone_WebUI_read_only_systemInfo_projection_and_Docker_WebUI_read_only_/data/logs_projection",
+          "webui_log_action_execution_allowed": false
         },
         "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy",
         "managed_update_repair_availability_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.repair_availability_policy",
@@ -3869,13 +3987,7 @@
           "always": [
             "settings-page-maintenance",
             "settings-maintenance-primary",
-            "settings-maintenance-managed-dependencies",
-            "settings-maintenance-temporal",
-            "settings-maintenance-temporal-server",
-            "settings-maintenance-temporal-worker",
-            "settings-maintenance-temporal-scheduler",
-            "settings-maintenance-daily-actions",
-            "settings-maintenance-diagnostics-action"
+            "settings-maintenance-destination"
           ],
           "conditional": [
             {
@@ -3896,6 +4008,25 @@
             }
           ]
         },
+        "destination_dom": {
+          "runtime_services": [
+            "settings-maintenance-service-status",
+            "settings-maintenance-temporal",
+            "settings-maintenance-temporal-server",
+            "settings-maintenance-temporal-worker",
+            "settings-maintenance-temporal-scheduler"
+          ],
+          "updates_repairs": [
+            "settings-maintenance-updates-repairs",
+            "settings-maintenance-managed-dependencies",
+            "settings-maintenance-daily-actions"
+          ],
+          "logs_diagnostics": [
+            "settings-maintenance-logs-diagnostics",
+            "settings-maintenance-log-directory",
+            "settings-maintenance-diagnostics-action"
+          ]
+        },
         "required_anchors": [
           "health",
           "managed-dependencies",
@@ -3908,7 +4039,8 @@
           "maintenance.managed_dependencies",
           "maintenance.updates",
           "maintenance.services",
-          "maintenance.diagnostics"
+          "maintenance.diagnostics",
+          "maintenance.log_directory"
         ]
       },
       "storage": {
@@ -3921,13 +4053,15 @@
           "storage usage by conversations, runtime data, logs, updater data, and user artifacts",
           "last persisted inventory snapshot rendered immediately and refreshed in the background",
           "Agent Package store and WebUI data volume usage from canonical owner projections",
-          "the Workspace-owned log directory may be referenced read-only without a duplicate setting",
+          "the Logs & Diagnostics-owned log directory may be referenced read-only without a duplicate setting",
+          "a read-only Docker deployment location summary distinguishes the two required host binds from the container recovery surface",
           "archives and restore availability",
           "cleanup preview before any destructive action",
           "plain-language archive, restore, and cleanup history"
         ],
         "first_viewport_groups": [
           "data_categories",
+          "deployment_locations",
           "cleanup_and_archives"
         ],
         "surface_inventory": {
@@ -3972,7 +4106,7 @@
             "stale"
           ],
           "inventory_event": "local-data-lifecycle.inventory-updated",
-          "log_directory_reference": "read_only_link_to_workspace#logs",
+          "log_directory_reference": "read_only_link_to_environment#diagnostics",
           "owner_storage_projection_source": "opl_app_state_fast_owner_projections",
           "owner_storage_sections": [
             "agent_package_store",
@@ -3993,6 +4127,44 @@
           "webui_cleanup_policy": "owner_projected_dry_run_exact_confirmation_fresh_terminal_readback_and_recovery",
           "webui_host_action_abi_ref": "contracts/app-release-channel.json#local_data_lifecycle.owner_storage_projections.webui_data_volume.host_action_abi",
           "generic_docker_prune_allowed": false,
+          "deployment_location_summary": {
+            "visibility": "docker_webui_only",
+            "interaction": "read_only_no_mount_or_environment_mutation",
+            "required_host_bind_count": 2,
+            "required_host_binds": [
+              {
+                "id": "projects",
+                "container_path": "/projects",
+                "purpose_zh": "项目与任务产物",
+                "purpose_en": "Projects and task artifacts",
+                "container_environment": [
+                  "OPL_PROJECTS_DIR=/projects",
+                  "OPL_WORKSPACE_ROOT=/projects"
+                ],
+                "settings_relation": "In Docker WebUI, Working Directory is fixed read-only at /projects and never executes workspace_root_set or rewires the host projects bind"
+              },
+              {
+                "id": "data",
+                "container_path": "/data",
+                "purpose_zh": "App 数据、Framework 状态、Codex Home 与会话、日志",
+                "purpose_en": "App data, Framework state, Codex Home and sessions, and logs",
+                "container_environment": [
+                  "HOME=/data",
+                  "AIONUI_DATA_DIR=/data",
+                  "OPL_DATA_DIR=/data"
+                ],
+                "settings_relation": "Data and log locations are deployment-managed and Settings never rewires the host data bind"
+              }
+            ],
+            "container_recovery_surface": {
+              "container_path": "/recovery",
+              "environment": "OPL_WEBUI_RECOVERY_DIR=/recovery",
+              "purpose_zh": "清理前归档与恢复暂存",
+              "purpose_en": "Pre-cleanup archives and recovery staging",
+              "required_host_bind": false,
+              "host_persistence_policy": "optional_and_deployment_managed_not_a_third_required_bind"
+            }
+          },
           "storage_carrier_behavior": {
             "desktop": {
               "core_route": "/settings/storage",
@@ -4057,6 +4229,10 @@
               "when": "desktop_carrier"
             },
             {
+              "testid": "settings-storage-deployment-locations",
+              "when": "docker_webui"
+            },
+            {
               "testid": "settings-storage-technical-details",
               "when": "diagnostics_open"
             }
@@ -4064,12 +4240,14 @@
         },
         "required_anchors": [
           "storage-categories",
+          "deployment-locations",
           "archives",
           "cleanup-preview",
           "cleanup-history"
         ],
         "search_entry_ids": [
           "storage.categories",
+          "storage.deployment_locations",
           "storage.archives",
           "storage.preview",
           "storage.history"
@@ -4865,9 +5043,9 @@
           ]
         },
         {
-          "id": "workspace.logs",
-          "page_id": "workspace",
-          "anchor": "logs",
+          "id": "maintenance.log_directory",
+          "page_id": "maintenance",
+          "anchor": "diagnostics",
           "label_zh": "日志目录",
           "label_en": "Log directory",
           "keywords_zh": [
@@ -4923,6 +5101,25 @@
           "keywords_en": [
             "storage",
             "usage"
+          ]
+        },
+        {
+          "id": "storage.deployment_locations",
+          "page_id": "storage",
+          "anchor": "deployment-locations",
+          "label_zh": "部署位置",
+          "label_en": "Deployment locations",
+          "keywords_zh": [
+            "Docker",
+            "项目",
+            "数据",
+            "挂载"
+          ],
+          "keywords_en": [
+            "Docker",
+            "projects",
+            "data",
+            "mounts"
           ]
         },
         {

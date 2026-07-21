@@ -29,7 +29,7 @@ The root design rule is **one user question, one owner page**:
   the background, or after an explicit user action; navigating to a page does
   not silently start them.
 
-These contracts own six user-visible primary groups over ten stable carrier
+These contracts own seven user-visible primary groups over ten stable carrier
 routes, About as the bottom auxiliary page, compatibility redirects, Settings
 search, page experience and DOM requirements, and the Codex quiet visual grammar.
 They do not own runtime truth, provider implementation, domain truth, release
@@ -81,19 +81,21 @@ user intent; carrier route ids remain stable adapter identities.
 | Primary group | Second-level destinations | Carrier route / anchor |
 | --- | --- | --- |
 | 概览 | 概览 | `general` |
-| 账户与模型 | 账户与访问；模型；资源与连接 | `gateway`; `access`; `resources` |
+| 账户与模型 | 账户与访问；模型 | `gateway`; `access` |
+| 连接与部署 | 资源与连接 | `resources` |
 | 工作区 | 工作目录；数据与存储 | `workspace#current-workspace`; `storage` |
 | 智能体与能力 | 智能体；能力；指令与上下文 | `agents`; `capabilities`; `workspace#personalization` |
-| 运行与维护 | 服务与维护；日志与诊断 | `environment`; `environment#diagnostics` |
+| 运行与维护 | 服务状态；更新与修复；日志与诊断 | `environment#services`; `environment#updates`; `environment#diagnostics` |
 | 偏好 | 偏好 | `appearance` |
 
-“关于”是六组之外唯一的侧栏底部辅助入口。Advanced 退役并重定向到维护诊断。桌面端展开
+“关于”是七组之外唯一的侧栏底部辅助入口。Advanced 退役并重定向到维护诊断。桌面端展开
 当前一级组后显示二级目的地；移动端先显示纵向分类列表，再进入带可见返回控件的二级列表，
 禁止把十个 carrier route 平铺成横向 tab strip。
 
 工作区只组织工作目录、权限、项目/任务产物位置和数据存储。用户级 `AGENTS.md` 与新对话附加说明
 归“智能体与能力 > 指令与上下文”；App 日志目录、服务证据和技术诊断归“运行与维护 > 日志与诊断”。
-现有 route、anchor 和 typed host action 继续作为兼容 transport，但不得反向定义可见归属。
+资源、外部连接与部署入口只归“连接与部署”，不再借用“账户与模型”的语义。现有 route、anchor
+和 typed host action 继续作为兼容 transport，但不得反向定义可见归属。
 
 ## Redirects
 
@@ -143,9 +145,10 @@ and a path shown in diagnostics is not a second path configuration.
 | Where are App logs and diagnostics, and what needs maintenance? | Runtime & Maintenance > Logs & Diagnostics | Storage may link to the resolved log path read-only. | Presenting logs under Workspace or duplicating the log-directory setting in Storage. |
 | Which Agents are installed and which source is active? | Agents | Home may show an active Agent shortcut. | Skills/Plugins or a separate Developer Profile page. |
 | Which Skills and Plugins are available? | Capabilities | Agent dependency readiness may link here. | A hardcoded Flow list or AionUI-native assistants presented as OPL capabilities. |
-| Which external resources and connections are available? | Resources & Connections | Other pages may link to a resource. | Built-in OPL Gateway connection or Gateway count; selected local workspace controls. |
-| Which managed dependencies, updates, and raw Framework paths need attention? | Maintenance | Models may show the active Codex CLI version. | Update controls on Models, raw paths on Workspace, or a separate Advanced page. |
-| How much local and Docker data is used, and what can be cleaned safely? | Data & Storage | Maintenance may link to cleanup attention; the Workspace-owned log path may be referenced read-only. | Log-directory configuration or generic Docker prune. |
+| Which external resources, connections, and deployment entry points are available? | Connections & Deployment > Resources & Connections | Other pages may link to a resource. | Built-in OPL Gateway connection or Gateway count; selected local workspace controls. |
+| Are Codex and background services available? | Runtime & Maintenance > Service Status | Overview shows one compact Background tasks summary. | Update controls, log configuration, raw paths, or receipts. |
+| Which managed dependencies need updates or repair? | Runtime & Maintenance > Updates & Repair | Models may show the active Codex CLI version. | Service topology, log controls, raw paths on Workspace, or a separate Advanced page. |
+| How much local and Docker data is used, where are deployment locations, and what can be cleaned safely? | Data & Storage | Updates & Repair may link to cleanup attention; the Logs & Diagnostics-owned log path may be referenced read-only. | Log-directory configuration, mount rewiring, or generic Docker prune. |
 | How should the App behave and look? | Preferences | Theme legacy routes redirect here. | Workspace paths, user instructions, or new-conversation additions. |
 
 ## Visual Contract
@@ -188,8 +191,15 @@ next useful action is. Its normal first viewport contains:
 - one overall usability summary led by Codex CLI and model-access readiness;
 - signed-in Gateway identity, connection and availability, plus compact today
   token, cost, and balance summary;
+- one persistent **Background tasks** summary derived from explicit Temporal
+  server, worker, and scheduler readiness;
 - an impact-ordered exception queue;
 - one next useful action.
+
+When all required background components are ready, Overview shows one quiet
+available row. An unready, unknown, or stale component contributes one item to
+the attention queue and links to Service Status. Server, worker, scheduler, and
+supervisor details never expand on Overview.
 
 It does not show the full Gateway account card, total historical usage or cost,
 managed Key detail, login or connection-management controls, workspace path, a
@@ -232,23 +242,24 @@ form, managed Key lifecycle, raw provider paths, or Codex CLI update controls.
 
 ### Workspace
 
-Workspace shows the active workspace identity, resolved path,
+Working Directory shows the active logical workspace identity, resolved path,
 and writability once in one normal-state summary. Permission or trust detail
 appears only when attention is required. Filesystem health and writability
 override executor permission mode when deciding usability.
 
-The carrier route continues to host the desktop App log directory, the user-level
-`$CODEX_HOME/AGENTS.md` editor, and the OPL App new-conversation context for
-compatibility. Visible navigation presents the editors under Instructions & Context
-and the log action under Logs & Diagnostics. Log changes use the dedicated typed
-`application.setLogDirectory { path }` action.
-The host persists `hostLogDir` before switching the live writer; if the switch
-fails it rolls the persisted value back and returns a typed failure. The success
-directory value is only `hostLogDir`, `cacheDir` and `workDir` remain unchanged,
-and `application.systemInfo.logDir` provides readback. In WebUI, `/data/logs` is a read-only
-projection of the existing host `OnePersonLab/data -> /data` mount; Settings
-never rewires that Docker volume. Framework and raw working paths remain in
-Maintenance diagnostics.
+On Desktop, the Framework-projected workspace action may change the logical
+root and must return a fresh readback. Standalone WebUI shows the actual
+owner-projected logical root read-only and never executes `workspace_root_set`.
+Only after the carrier confirms Docker deployment identity does
+`OPL_WORKSPACE_ROOT=/projects` make Settings show `/projects` read-only. Neither
+WebUI form changes the host projects bind mount. Changing the standalone root or
+Docker host source directory is a host/deployment action outside the browser,
+not an in-App workspace setting.
+
+The Workspace carrier route may continue to host the user-level
+`$CODEX_HOME/AGENTS.md` editor and OPL App new-conversation context for
+compatibility, but visible navigation owns them under Instructions & Context.
+It no longer owns or renders the App log-directory control.
 
 ### Agents
 
@@ -363,7 +374,7 @@ visible by default. It does not become a legacy default assistant. AionUI
 custom assistants remain outside the OPL surface; legacy `assistants` routes
 to the capability directory without deleting AionUI data.
 
-### Resources & Connections
+### Connections & Deployment > Resources & Connections
 
 Resources shows current local browser access and WebUI plus user-managed external
 connections when projected. Hosted OPL Workspace/cloud is X0-03; SSH/HPC, Fabric,
@@ -378,44 +389,57 @@ projected diagnose action and displays its result. Mutations require a
 successful precheck, explicit confirmation, execution, and visible result or
 receipt. Dry-run success proves only precheck success.
 
-### Maintenance
+### Runtime & Maintenance
 
-Maintenance leads with health, managed dependencies, updates, services,
-packages, and one recommended action. The primary surface always includes:
+Runtime & Maintenance is one primary group with three independent second-level
+destinations. The shared `environment` carrier route uses the destination anchor
+to render exactly one ordinary purpose at a time; it must not concatenate the
+three destinations into one long “Services & Maintenance” page.
 
-- active Codex CLI;
-- OPL-managed Temporal JavaScript Runtime;
-- optional system Temporal CLI;
-- version, source/owner, currentness, and applicable update guidance for each.
+1. **Service Status** (`environment#services`) answers whether Codex and the
+   required background services are available now. It starts with one
+   availability summary, followed by flat Codex and Temporal server, worker, and
+   scheduler rows. Healthy rows stay quiet; only unavailable, stale, or unknown
+   components expand their impact and projected start/restart/check action.
+   Overview consumes these same component fields but renders only one persistent
+   **Background tasks** summary. It never duplicates Temporal topology.
+2. **Updates & Repair** (`environment#updates`) answers what is outdated or
+   damaged and what the safest next action is. It owns the update channel,
+   managed dependency currentness, Desktop App update state, Check, Apply,
+   Repair, Rollback, package maintenance, progressive confirmation, progress,
+   and fresh readback. Healthy components collapse into a compact summary; at
+   most one recommended action is emphasized.
+3. **Logs & Diagnostics** (`environment#diagnostics`) answers where App logs are
+   stored and which technical evidence can be inspected or copied. On Desktop,
+   it reuses `application.setLogDirectory` to open or change the App log root,
+   then verifies `application.systemInfo.logDir`. Standalone WebUI shows its
+   `application.systemInfo.logDir` projection read-only; Docker WebUI shows
+   `/data/logs` only after deployment identity is confirmed. Neither executes
+   the Desktop action or rewires the host `/data` bind. Raw component paths,
+   shadowed installs, receipts, and diagnostic payloads stay collapsed by
+   default and contain no mutation controls.
 
-OPL-managed roots may update silently through their owner. Reliably identified
-external installs may offer an explicitly confirmed delegated update. Unknown
-or unsupported owners receive detection and guidance only. OPL never silently
-overwrites Homebrew, npm, PATH, or system installs. The Temporal JavaScript
-runtime moves with the OPL Base generation; the optional Temporal CLI remains
-external unless explicitly managed by its owner.
+The active dependency summary includes Codex CLI, the OPL-managed Temporal
+JavaScript Runtime, and the optional system Temporal CLI with version,
+source/owner, currentness, and applicable update guidance. OPL-managed roots may
+update through their owner. Reliably identified external installs require an
+explicitly confirmed delegated update; unknown or unsupported owners receive
+detection and guidance only. OPL never silently overwrites Homebrew, npm, PATH,
+or system installs. The managed Temporal runtime moves with OPL Base; the system
+Temporal CLI remains external unless its owner explicitly manages it.
 
 Desktop App currentness comes from the same main-process updater store consumed
 by About and the Settings footer. WebUI alone falls back to the Framework-managed
 `opl_app` component. `not_checked`, `checking`, `not-available`, `available`,
-`downloading`, `downloaded`, `error`, and `cancelled` stay distinct. Runtime or
-service attention and App-update attention are calculated independently, then
-the latter contributes at most one item to the aggregate count. A historical
-receipt may appear in diagnostics, but it never enables a current Repair action;
-without a live current repair signal the primary operation is Check.
+`downloading`, `downloaded`, `error`, and `cancelled` stay distinct. Service
+attention and App-update attention are calculated independently. A historical
+receipt may appear only in Logs & Diagnostics and never enables a current Repair
+action; without a live repair signal, the primary operation remains Check.
 
-Dependency catalogs may provide optional `real_path`. Identity and de-duplication
-use normalized `real_path` first and fall back to `binary_path`; shadowed paths
-remain diagnostic detail.
-
-Update channel is the one inline persistent control. The daily Maintenance page
-itself owns Check, Apply, Repair, Rollback, package sync, per-action progress,
-confirmation, and fresh readback; these actions do not move into a second large
-management modal. One collapsed advanced diagnostics disclosure owns localized
-component labels plus read-only path and receipt evidence. It contains no
-mutation controls, never overlaps another large modal, and never exposes raw
-internal status keys, action ids, command mappings, or payload field names as
-user-facing copy. Retired Advanced routes here.
+Dependency identity and de-duplication use normalized optional `real_path` first
+and fall back to `binary_path`; shadowed paths remain diagnostic detail. Retired
+Advanced routes to Logs & Diagnostics. No destination opens a second large
+management modal or overlaps it with diagnostics.
 
 ### Data & Storage
 
@@ -428,12 +452,30 @@ background. Completion publishes
 `local-data-lifecycle.inventory-updated`; the page updates without requiring
 re-entry. Large roots do not use recursive long-lived filesystem watches.
 
-Storage may show the resolved Workspace-owned log path only as a read-only
-reference. Cleanup uses preview then confirmation; zero-byte categories show
-nothing to clean and no action. Archive requires a receipt before delete, and
-restore never overwrites an existing conversation without an explicit collision
-decision. Docker usage follows the existing `OnePersonLab/data -> /data` mount
-and does not expose generic prune or volume-rewire controls.
+Storage may show the resolved Logs & Diagnostics-owned log path only as a
+read-only reference. Cleanup uses preview then confirmation; zero-byte
+categories show nothing to clean and no action. Archive requires a receipt
+before delete, and restore never overwrites an existing conversation without an
+explicit collision decision.
+
+For Docker WebUI, and only after Docker deployment identity is confirmed,
+Storage adds one read-only deployment-location summary:
+
+- the required host **projects** directory binds to `/projects`; it contains
+  project and task artifacts. `OPL_PROJECTS_DIR=/projects` and
+  `OPL_WORKSPACE_ROOT=/projects` make this the deployment-managed logical
+  workspace root. Working Directory shows `/projects` read-only and cannot
+  change the host source path;
+- the required host **data** directory binds to `/data`; it contains App data,
+  Framework state, Codex Home and session records, and logs including
+  `/data/logs`. Settings cannot change or split this bind;
+- `/recovery`, selected by `OPL_WEBUI_RECOVERY_DIR=/recovery`, is the container
+  recovery/archive staging surface. Host persistence is optional and
+  deployment-managed; it is explicitly not a third required host bind.
+
+Changing either host source directory belongs to `compose.yaml` or the
+installer. Settings exposes no mount editor, environment mutation, generic
+Docker prune, or volume-rewire control.
 
 ### Preferences
 
@@ -478,7 +520,8 @@ Settings preserves OPL IA inside the Codex quiet visual baseline:
   semantics;
 - one selected sidebar item and at most one page primary action;
 - the compact footer opens Account & Access when an account is connected, or
-  Overview/Settings otherwise, and keeps the theme switcher after it;
+  Overview/Settings otherwise, without duplicate Settings, theme, return, or
+  help shortcuts;
 - technical details open explicitly and never hide interactive persistent
   controls.
 
@@ -524,7 +567,8 @@ action sheet. The latter keeps every action scroll-reachable at `400x600` using
 Contract and focused tests prove only their App-owned slices. Shell acceptance
 also requires:
 
-- ten ordinary routes, About as the only secondary page, and every redirect;
+- seven primary groups, all ten carrier routes reachable through their declared
+  second-level destinations, About as the only secondary page, and every redirect;
 - Gateway single ownership and Resources filtering;
 - Agents Chinese/source/OMA defaults and Developer Mode effective-state
   readback;

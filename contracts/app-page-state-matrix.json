@@ -1837,13 +1837,16 @@
       "id": "environment",
       "expected_source": "OPL App state projection",
       "must_show": [
-        "health, updates, local services, and OPL Packages grouped by user impact",
+        "three independent second-level destinations: Service Status, Updates & Repair, and Logs & Diagnostics",
+        "exactly one selected destination presented as the ordinary page purpose",
         "active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface",
         "Temporal server, worker, and scheduler status with localized reasons plus check, install or configure, start, restart, and fresh readback maintenance",
+        "Temporal server, worker, and scheduler detail only under Service Status",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
         "check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback",
         "one advanced read-only diagnostics disclosure for localized component, path, and receipt evidence",
+        "Desktop log directory open and change actions under Logs & Diagnostics; standalone WebUI shows the systemInfo log directory read-only; Docker WebUI shows /data/logs read-only",
         "update status and service status in user language",
         "carrier-neutral Base and Packages reconciliation status after any App install or version change",
         "current, updating in background, restart to finish, refresh Codex, or attention guidance from Framework receipts",
@@ -1852,10 +1855,11 @@
         "normal components collapsed into a compact summary and only attention items expanded",
         "timestamps in localized absolute and relative time"
       ],
-      "machine_source": "opl app state --profile fast --json",
+      "machine_source": "opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_environment",
       "sections": [
+        "selected_destination",
         "health",
         "managed_dependencies",
         "updates",
@@ -1883,7 +1887,8 @@
         "raw internal status keys, action ids, command mappings, or payload field names anywhere in user-facing Maintenance UI",
         "current project or in-progress task list",
         "workspace, storage, or About navigation duplicated as maintenance cards",
-        "update or local-services rendered as independent product pages",
+        "update or local-services rendered as independent carrier routes or top-level product groups",
+        "WebUI workspace or log directory mutations",
         "a long wall of unavailable or disabled maintenance actions",
         "raw ISO timestamps as the only user-facing time"
       ],
@@ -2097,6 +2102,14 @@
       },
       "ia_group": "runtime_maintenance",
       "user_navigation_destination_id": "runtime_services",
+      "user_navigation_destination_ids": [
+        "runtime_services",
+        "updates_repairs",
+        "logs_diagnostics"
+      ],
+      "destination_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.maintenance.destination_contracts",
+      "destination_visibility_policy": "route_environment_plus_section_anchor_selects_exactly_one_of_runtime_services_updates_repairs_or_logs_diagnostics",
+      "log_directory_contract_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.environment.log_directory",
       "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
       "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
       "route_id": "environment",
@@ -2108,13 +2121,7 @@
         "always": [
           "settings-page-maintenance",
           "settings-maintenance-primary",
-          "settings-maintenance-managed-dependencies",
-          "settings-maintenance-temporal",
-          "settings-maintenance-temporal-server",
-          "settings-maintenance-temporal-worker",
-          "settings-maintenance-temporal-scheduler",
-          "settings-maintenance-daily-actions",
-          "settings-maintenance-diagnostics-action"
+          "settings-maintenance-destination"
         ],
         "conditional": [
           {
@@ -2135,6 +2142,25 @@
           }
         ]
       },
+      "destination_dom": {
+        "runtime_services": [
+          "settings-maintenance-service-status",
+          "settings-maintenance-temporal",
+          "settings-maintenance-temporal-server",
+          "settings-maintenance-temporal-worker",
+          "settings-maintenance-temporal-scheduler"
+        ],
+        "updates_repairs": [
+          "settings-maintenance-updates-repairs",
+          "settings-maintenance-managed-dependencies",
+          "settings-maintenance-daily-actions"
+        ],
+        "logs_diagnostics": [
+          "settings-maintenance-logs-diagnostics",
+          "settings-maintenance-log-directory",
+          "settings-maintenance-diagnostics-action"
+        ]
+      },
       "required_anchors": [
         "health",
         "managed-dependencies",
@@ -2147,7 +2173,8 @@
         "maintenance.managed_dependencies",
         "maintenance.updates",
         "maintenance.services",
-        "maintenance.diagnostics"
+        "maintenance.diagnostics",
+        "maintenance.log_directory"
       ],
       "primary_action_id": "run_recommended_maintenance",
       "technical_details_default": "collapsed",
@@ -2201,10 +2228,11 @@
         "one merged storage category list with size, safety, and next action",
         "last cached inventory immediately without rendering unknown values as zero bytes",
         "inventory freshness timestamp and non-blocking background refresh",
-        "read-only Workspace-owned log path reference",
-      "Agent Package store and WebUI data volume usage from canonical owner projections",
-      "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
-      "user-facing cleanup preview before destructive action",
+        "read-only Logs & Diagnostics-owned log path reference",
+        "read-only Docker deployment locations for the required /projects and /data host binds plus the non-required /recovery container surface",
+        "Agent Package store and WebUI data volume usage from canonical owner projections",
+        "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
+        "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history",
         "localized unavailable reason, responsible owner or missing carrier, and a recovery action when inventory is unavailable"
       ],
@@ -2213,6 +2241,7 @@
       "page_contract": "settings_storage",
       "sections": [
         "storage_categories",
+        "deployment_locations",
         "cleanup_preview",
         "cleanup_history",
         "technical_details"
@@ -2224,10 +2253,11 @@
       "must_not_show": [
         "log directory edit control",
         "generic Docker prune",
-      "unknown inventory rendered as zero bytes",
-      "WebUI destructive action when the carrier-host ABI is missing or incomplete",
-      "raw host path in a renderer request, receipt, or user-visible error",
-      "silent user data deletion",
+        "unknown inventory rendered as zero bytes",
+        "WebUI destructive action when the carrier-host ABI is missing or incomplete",
+        "raw host path in a renderer request, receipt, or user-visible error",
+        "host bind-mount or deployment environment mutation",
+        "silent user data deletion",
         "App-owned runtime or domain data authority",
         "an unavailable state containing only Refresh"
       ],
@@ -2288,6 +2318,7 @@
       },
       "product_page_id": "storage",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage",
+      "deployment_location_summary_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage.surface_rules.deployment_location_summary",
       "required_dom": {
         "always": [
           "settings-page-storage",
@@ -2307,6 +2338,10 @@
             "when": "desktop_carrier"
           },
           {
+            "testid": "settings-storage-deployment-locations",
+            "when": "docker_webui"
+          },
+          {
             "testid": "settings-storage-technical-details",
             "when": "diagnostics_open"
           }
@@ -2314,12 +2349,14 @@
       },
       "required_anchors": [
         "storage-categories",
+        "deployment-locations",
         "archives",
         "cleanup-preview",
         "cleanup-history"
       ],
       "search_entry_ids": [
         "storage.categories",
+        "storage.deployment_locations",
         "storage.archives",
         "storage.preview",
         "storage.history"
@@ -2408,7 +2445,7 @@
       },
       "log_directory_ref": {
         "mode": "read_only",
-        "owner_route": "workspace#logs"
+        "owner_route": "environment#diagnostics"
       },
       "action_visual_policy": {
         "icon_size_px": 16,
@@ -2530,7 +2567,7 @@
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "runtime_maintenance",
-      "user_navigation_destination_id": "runtime_services",
+      "user_navigation_destination_id": "updates_repairs",
       "route_id": "update",
       "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -3031,6 +3068,7 @@
       "page_contract": "settings_general",
       "sections": [
         "status_summary",
+        "background_tasks_summary",
         "attention_queue",
         "next_action_and_context",
         "codex_and_gateway_summary"
@@ -3045,7 +3083,7 @@
       "must_show": [
         "overall usability and attention count",
         "signed-in Gateway identity, compact today token/cost/balance and availability summary",
-        "localized Temporal server, worker, and scheduler status with a plain-language reason and direct Maintenance route",
+        "one persistent localized Background tasks summary that is quiet when available and contributes one actionable exception when unavailable",
         "necessary direct Codex and Gateway technical rows without a second disclosure",
         "one next useful action",
         "Overview without duplicated sidebar navigation or page-directory cards"
@@ -3060,14 +3098,19 @@
       ],
       "background_services_summary": {
         "dependency_role": "required_for_complete_opl_durable_workflow",
-        "visible_components": [
+        "detail_components": [
           "temporal_server",
           "temporal_worker",
           "temporal_scheduler"
         ],
-        "component_status_policy": "show_server_worker_and_scheduler_independently_so_one_ready_component_never_collapses_an_unready_or_unknown_component_into_one_opaque_state",
+        "overview_visible_unit": "background_tasks",
+        "overview_label_zh": "后台任务",
+        "overview_label_en": "Background tasks",
+        "component_status_policy": "derive_one_truthful_background_tasks_summary_from_explicit_server_worker_and_scheduler_fields_without_rendering_component_rows_on_Overview",
         "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
         "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+        "attention_state_policy": "when_any_required_component_is_unready_unknown_or_stale_add_one_background_tasks_item_to_the_attention_queue_and_link_to_Service_Status",
+        "component_detail_visibility": "service_status_destination_only",
         "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
         "attention_route": "/settings/environment#services",
         "action_policy": "real_projected_Temporal_action_or_Maintenance_route_never_settings_sync_capabilities"
@@ -3086,9 +3129,7 @@
           "settings-overview-primary",
           "settings-overview-card-codex",
           "settings-overview-card-gateway",
-          "settings-overview-temporal-server",
-          "settings-overview-temporal-worker",
-          "settings-overview-temporal-scheduler"
+          "settings-overview-background-tasks"
         ],
         "conditional": [
           {
@@ -3121,14 +3162,13 @@
     },
     {
       "id": "settings_workspace",
-      "expected_source": "OPL App workspace/personalization projections plus Framework host-owned log metadata and desktop system information",
-      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + app_state.settings_control_center.app_settings_read_model.workspace_services.app_log_directory + application.systemInfo.logDir",
+      "expected_source": "OPL App workspace and personalization projections",
+      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization",
       "refresh_source": "cached workspace and personalization snapshot followed by background fast App state hydration",
       "page_contract": "settings_workspace",
       "sections": [
         "workspace_summary",
         "workspace_action",
-        "log_directory",
         "system_agents",
         "opl_app_context",
         "technical_details"
@@ -3137,15 +3177,15 @@
         "paths",
         "developer_profile.workspace_trust",
         "codex_personalization",
-        "app_session_context",
-        "settings_control_center.app_settings_read_model.workspace_services.app_log_directory",
-        "application.systemInfo"
+        "app_session_context"
       ],
       "must_show": [
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
         "where project and task artifacts are stored",
-        "desktop App log directory changed through application.setLogDirectory { path }; its success value contains hostLogDir, persists before switching the live writer, and rolls persistence back with a typed failure when the switch fails; cacheDir/workDir remain unchanged and WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
+        "desktop logical workspace root changed only through the Framework owner action with fresh readback",
+        "standalone WebUI logical workspace root shown read-only from the owner projection without executing workspace_root_set",
+        "Docker WebUI logical workspace root shown read-only as /projects from OPL_WORKSPACE_ROOT without executing workspace_root_set",
         "editable user-level AGENTS.md with stale-write protection and backup",
         "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",
@@ -3158,7 +3198,7 @@
         "workspace buried inside Maintenance or Advanced",
         "raw path JSON as primary page language",
         "workspace changes without confirmation",
-        "Storage-owned log configuration",
+        "App log directory controls owned by Logs & Diagnostics",
         "generated OPL App base context as editable content",
         "repository AGENTS.md as an App-owned editable file",
         "Framework and raw paths duplicated from Maintenance diagnostics",
@@ -3183,11 +3223,6 @@
           "anchor": "opl-app-context",
           "owner_group_id": "agents_capabilities",
           "destination_id": "instructions_context"
-        },
-        {
-          "anchor": "logs",
-          "owner_group_id": "runtime_maintenance",
-          "destination_id": "logs_diagnostics"
         }
       ],
       "route_id": "workspace",
@@ -3195,11 +3230,11 @@
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
       "product_page_id": "workspace",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.workspace",
+      "workspace_root_carrier_policy_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.workspace.workspace_root_carrier_policy",
       "required_dom": {
         "always": [
           "settings-page-workspace",
           "settings-workspace-primary",
-          "settings-workspace-log-directory",
           "settings-workspace-diagnostics-action",
           "settings-workspace-primary-action",
           "settings-personalization-instructions",
@@ -3221,7 +3256,6 @@
         "current-workspace",
         "permissions",
         "artifacts",
-        "logs",
         "personalization",
         "system-agents",
         "opl-app-context"
@@ -3230,7 +3264,6 @@
         "workspace.current",
         "workspace.permissions",
         "workspace.artifacts",
-        "workspace.logs",
         "personalization.system_agents",
         "personalization.opl_app_context"
       ],
@@ -3552,7 +3585,7 @@
         }
       },
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "account_models",
+      "ia_group": "connections_deployment",
       "user_navigation_destination_id": "resources_connections",
       "route_id": "resources",
       "route_scope": "ordinary",
@@ -4244,7 +4277,7 @@
       "runtime_maintenance",
       "preferences"
     ],
-    "desktop_navigation": "six_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
+    "desktop_navigation": "seven_primary_groups_with_the_active_group_expanded_to_second_level_destinations",
     "mobile_navigation": "vertical_category_list_then_second_level_destination_with_visible_back_control",
     "mobile_horizontal_tab_strip_allowed": false,
     "about_placement": "sidebar_bottom",

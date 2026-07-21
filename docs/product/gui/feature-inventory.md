@@ -205,19 +205,22 @@ dashboard。当前任务需要的状态进入 timeline 或按需 context surface
 Settings 功能按用户问题组织，具体 ordinary/secondary route、label 和 registry 由
 GUI contract 与 Settings Control Plane 拥有。
 
-| 功能组 | 用户结果 | Authority / machine owner |
+| 一级组 > 二级目的地 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
-| Account & Access | 登录 OPL Gateway 或配置手工 API Key；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge；密码不进入 App state 或 generic action。 |
-| Models | 查看模型访问来源、默认模型、推理偏好与 Codex CLI 版本，不复制 Gateway 账户和凭据控制。 | Framework model access projection、App model/reasoning preference。 |
-| Workspace | 查看、切换、验证工作目录，配置 App 日志目录、用户 AGENTS.md 与 new-conversation additions。 | Workspace state/action、App host configuration。 |
-| Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
-| Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
-| Resources & Connections | 查看真实存在的本机资源与外部连接 refs；内置 OPL Gateway 不在这里重复。Hosted Workspace、Fabric/HPC、Console 只在稳定 owner/backend 存在时提供可选 owner route，不维护占位状态。 | Framework/Connect refs；X0-03/X0-04 owner routes 条件启用，App 不拥有资源 truth。 |
-| Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
-| Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |
-| Preferences | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |
-| Maintenance diagnostics / About | 在 Maintenance 按需查看 raw Framework refs 与日志；About 查看版本、链接和 update summary。 | Maintenance owner surface、About secondary route、release/settings contracts。 |
+| 概览 > 概览 | 判断 App 当前是否可用、后台任务是否正常，以及最重要的下一步。Temporal 明细不在这里展开。 | Settings Control Plane、fast App state。 |
+| 账户与模型 > 账户与访问 | 登录 OPL Gateway 或配置手工 API Key；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge；密码不进入 App state 或 generic action。 |
+| 账户与模型 > 模型 | 查看模型访问来源、默认模型、推理偏好与 Codex CLI 版本，不复制 Gateway 账户和凭据控制。 | Framework model access projection、App model/reasoning preference。 |
+| 连接与部署 > 资源与连接 | 查看真实存在的本机访问、WebUI 和外部连接 refs；内置 OPL Gateway 不在这里重复。Hosted Workspace、Fabric/HPC、Console 仅在稳定 owner/backend 存在时出现。 | Framework/Connect refs；X0-03/X0-04 owner routes 条件启用，App 不拥有资源 truth。 |
+| 工作区 > 工作目录 | Desktop 查看、切换、验证 Framework logical workspace root；standalone WebUI 只读显示实际 owner 投影，Docker WebUI 只读显示 `/projects`；任何 WebUI 都不执行 `workspace_root_set` 或修改宿主 bind。 | Framework workspace state/action、carrier policy。 |
+| 工作区 > 数据与存储 | 查看空间、数据分类、preview、安全 cleanup，以及 Docker `/projects`、`/data` 与可选 `/recovery` 的只读部署位置。 | App-owned storage lifecycle、Framework/host projections。 |
+| 智能体与能力 > 智能体 | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
+| 智能体与能力 > 能力 | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
+| 智能体与能力 > 指令与上下文 | 编辑用户 `AGENTS.md` 和新对话附加说明；复用 Workspace carrier，但不属于工作区导航。 | App personalization contract、typed host actions。 |
+| 运行与维护 > 服务状态 | 查看 Codex、Temporal server/worker/scheduler 的可用性及对应检查、启动或重启动作。 | Runtime/provider state and action projection。 |
+| 运行与维护 > 更新与修复 | 查看 App、runtime、packages 与外部依赖 currentness，执行 Check、Apply、Repair、Rollback 和 package maintenance。 | Managed update/status/action contracts。 |
+| 运行与维护 > 日志与诊断 | Desktop 打开或更改 App 日志目录；standalone WebUI 只读显示 systemInfo 日志投影，Docker WebUI 只读显示 `/data/logs`；raw paths、receipts 和诊断信息默认折叠。 | App typed log action、Maintenance diagnostic projection。 |
+| 偏好 > 偏好 | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |
+| 关于（底部辅助入口） | 查看版本、channel、链接和共享 update summary。 | About secondary route、release/settings contracts。 |
 
 Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录中的新 ordinary
 页面。Settings 详细设计见

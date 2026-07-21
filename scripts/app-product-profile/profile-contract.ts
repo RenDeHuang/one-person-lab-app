@@ -307,9 +307,9 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   }
   if (
     taskEntryPolicy.ordinary_entry_model !==
-    'six_primary_groups_expand_or_drill_into_second_level_destinations_backed_by_ten_stable_carrier_routes'
+    'seven_primary_groups_expand_or_drill_into_second_level_destinations_backed_by_ten_stable_carrier_routes'
   ) {
-    throw new Error('App product profile task_entry_policy must group ten stable carrier routes under six primary entries');
+    throw new Error('App product profile task_entry_policy must group ten stable carrier routes under seven primary entries');
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],

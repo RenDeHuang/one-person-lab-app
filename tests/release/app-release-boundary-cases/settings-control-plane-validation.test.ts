@@ -105,7 +105,7 @@ test("Settings optional resource groups stay owner-projected and absent by defau
   );
 });
 
-test("Settings exposes six primary groups over ten stable carrier pages with bottom About", () => {
+test("Settings exposes seven primary groups over ten stable carrier pages with bottom About", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -143,6 +143,7 @@ test("Settings exposes six primary groups over ten stable carrier pages with bot
   assert.deepStrictEqual(navigation.primary_group_order, [
     "overview",
     "account_models",
+    "connections_deployment",
     "workspace",
     "agents_capabilities",
     "runtime_maintenance",
@@ -161,6 +162,7 @@ test("Settings exposes six primary groups over ten stable carrier pages with bot
       "capabilities",
       "instructions_context",
       "runtime_services",
+      "updates_repairs",
       "logs_diagnostics",
       "preferences",
     ],
@@ -174,7 +176,7 @@ test("Settings exposes six primary groups over ten stable carrier pages with bot
       "workspace",
       "agents_capabilities",
       "agents_capabilities",
-      "account_models",
+      "connections_deployment",
       "runtime_maintenance",
       "workspace",
       "preferences",
@@ -748,10 +750,20 @@ test("Settings configuration catalog projection preserves owner, page, persisten
     logDirectoryItem.verify_ref,
     "application.setLogDirectory.hostLogDir success value plus application.systemInfo.logDir readback",
   );
+  assert.equal(logDirectoryItem.page_id, "maintenance");
+  assert.equal(logDirectoryItem.anchor, "diagnostics");
+  assert.deepStrictEqual(logDirectoryItem.carrier_policy, {
+    desktop: "editable_through_application.setLogDirectory",
+    webui:
+      "read_only_application.systemInfo.logDir_no_log_directory_mutation",
+    docker_webui: "read_only_/data/logs_no_log_directory_mutation",
+    host_mount_mutation_allowed: false,
+  });
   assert.deepStrictEqual(
-    values.controlPlane.page_adapter_policy.required_pages.workspace.log_directory,
+    values.controlPlane.page_adapter_policy.required_pages.environment.log_directory,
     {
-      owner_page: "workspace",
+      owner_page: "maintenance",
+      owner_destination_id: "logs_diagnostics",
       typed_action: "application.setLogDirectory",
       typed_action_payload_fields: ["path"],
       typed_action_success_value_fields: ["hostLogDir"],
@@ -766,9 +778,27 @@ test("Settings configuration catalog projection preserves owner, page, persisten
       persistence_target: "desktop_client_system_info.logDir",
       readback_ref: "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
       desktop_change_supported: true,
-      webui_log_projection: "/data/logs",
-      docker_volume_mapping: "OnePersonLab/data -> /data",
+      desktop_open_supported: true,
+      webui_log_projection: "application.systemInfo.logDir",
+      docker_webui_log_projection: "/data/logs",
+      webui_change_supported: false,
+      webui_action_execution_allowed: false,
+      docker_volume_mapping: "host data directory -> /data",
       docker_volume_rewire_allowed: false,
+    },
+  );
+  assert.equal(
+    values.controlPlane.page_adapter_policy.required_pages.workspace
+      .workspace_root_carrier_policy.webui.workspace_root_set_execution_allowed,
+    false,
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.page_adapter_policy.required_pages.workspace
+      .workspace_root_carrier_policy.webui.docker,
+    {
+      presentation: "read_only_/projects",
+      authority_source: "OPL_WORKSPACE_ROOT=/projects",
+      host_projects_bind_rewire_allowed: false,
     },
   );
 
@@ -1040,14 +1070,11 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
       "diagnostic",
     ]);
   }
-  assert.equal(
-    experience.page_contracts.maintenance.surface_inventory.configuration.length,
-    1,
-  );
-  assert.equal(
-    experience.page_contracts.maintenance.surface_inventory.configuration[0]
-      .id,
-    "update_channel",
+  assert.deepStrictEqual(
+    experience.page_contracts.maintenance.surface_inventory.configuration.map(
+      (entry) => entry.id,
+    ),
+    ["update_channel", "log_directory"],
   );
   assert.ok(
     experience.page_contracts.maintenance.surface_inventory.action.length > 0,
@@ -1056,8 +1083,14 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.page_contracts.storage.surface_inventory.configuration.length,
     0,
   );
-  assert.ok(
+  assert.equal(
     experience.page_contracts.workspace.surface_inventory.configuration.some(
+      (surface) => surface.id === "log_directory",
+    ),
+    false,
+  );
+  assert.ok(
+    experience.page_contracts.maintenance.surface_inventory.configuration.some(
       (surface) => surface.id === "log_directory",
     ),
   );
@@ -1086,7 +1119,7 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules.location_presentation,
-    "one unframed File locations group with two equal rows for workspace and desktop logs",
+    "one unframed Working directory group with the resolved logical workspace root",
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules.responsive_row_policy,
@@ -1552,7 +1585,7 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
   );
 });
 
-test("Settings binds flat visual repair and complete Temporal maintenance to all App authority layers", () => {
+test("Settings keeps a compact background-task summary while Service Status owns Temporal detail", () => {
   const values = contracts();
   assert.doesNotThrow(() => validate(values));
 
@@ -1571,11 +1604,11 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     "temporal_scheduler",
   ];
   assert.deepStrictEqual(
-    guiPages.settings_general.background_services_summary.visible_components,
+    guiPages.settings_general.background_services_summary.detail_components,
     expectedTemporalComponents,
   );
   assert.deepStrictEqual(
-    experiencePages.overview.background_services_summary.visible_components,
+    experiencePages.overview.background_services_summary.detail_components,
     expectedTemporalComponents,
   );
   assert.match(
@@ -1597,13 +1630,14 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   );
   assert.deepStrictEqual(
     pageById("settings_general").required_dom.always.filter((id: string) =>
-      id.startsWith("settings-overview-temporal-"),
+      id === "settings-overview-background-tasks",
     ),
-    [
-      "settings-overview-temporal-server",
-      "settings-overview-temporal-worker",
-      "settings-overview-temporal-scheduler",
-    ],
+    ["settings-overview-background-tasks"],
+  );
+  assert.equal(
+    experiencePages.overview.background_services_summary
+      .component_detail_visibility,
+    "service_status_destination_only",
   );
 
   const guiTemporal = guiPages.settings_environment.temporal_maintenance_contract;
@@ -1720,17 +1754,17 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     ],
   );
   assert.ok(
-    experiencePages.maintenance.required_dom.always.includes(
+    experiencePages.maintenance.destination_dom.runtime_services.includes(
       "settings-maintenance-temporal-server",
     ),
   );
   assert.ok(
-    experiencePages.maintenance.required_dom.always.includes(
+    experiencePages.maintenance.destination_dom.runtime_services.includes(
       "settings-maintenance-temporal-worker",
     ),
   );
   assert.ok(
-    experiencePages.maintenance.required_dom.always.includes(
+    experiencePages.maintenance.destination_dom.runtime_services.includes(
       "settings-maintenance-temporal-scheduler",
     ),
   );
