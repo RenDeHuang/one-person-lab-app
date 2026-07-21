@@ -19,8 +19,17 @@
       },
       "managed_codex_acp": {
         "package": "@agentclientprotocol/codex-acp",
-        "version": "1.1.4",
-        "version_source": "AionCore managed resource manifest",
+        "version_binding": {
+          "authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version",
+          "mode": "exact",
+          "required_consistency": [
+            "manifest_root",
+            "package_json",
+            "package_lock",
+            "installed_package",
+            "runtime_initialize"
+          ]
+        },
         "forbidden_package": "@zed-industries/codex-acp"
       },
       "codex_cli": {

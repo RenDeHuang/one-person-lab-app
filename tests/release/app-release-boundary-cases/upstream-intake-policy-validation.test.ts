@@ -238,15 +238,25 @@ test('Manual qualification contract isolates Codex and keeps MAS Scholar workspa
 
   assert.equal(adapter.classification, 'non_stable_manual_qualification_candidate');
   assert.equal(adapter.stable_bundle_claim, 'forbidden');
+  const managedCodexAcp = adapter.runtime_dependencies.managed_codex_acp;
   assert.deepEqual(
-    [
-      adapter.runtime_dependencies.aioncore.version,
-      adapter.runtime_dependencies.managed_codex_acp.version,
-      adapter.runtime_dependencies.codex_cli.version,
-    ],
-    ['v0.1.49', '1.1.4', '0.144.6'],
+    [adapter.runtime_dependencies.aioncore.version, adapter.runtime_dependencies.codex_cli.version],
+    ['v0.1.49', '0.144.6'],
   );
-  assert.equal(adapter.runtime_dependencies.managed_codex_acp.forbidden_package, '@zed-industries/codex-acp');
+  assert.equal(Object.hasOwn(managedCodexAcp, 'version'), false);
+  assert.deepEqual(managedCodexAcp.version_binding, {
+    authority:
+      'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version',
+    mode: 'exact',
+    required_consistency: [
+      'manifest_root',
+      'package_json',
+      'package_lock',
+      'installed_package',
+      'runtime_initialize',
+    ],
+  });
+  assert.equal(managedCodexAcp.forbidden_package, '@zed-industries/codex-acp');
   assert.deepEqual(profile.codex.app_runtime_home, {
     default_path: '~/Library/Application Support/OPL/codex',
     override_env: 'CODEX_HOME',
