@@ -1,8 +1,14 @@
 import { validateUpstreamIntakePolicy } from '../../../scripts/validate-active-shell/upstream-intake-policy-validator.ts';
+import { readAppProductProfile } from '../../../scripts/app-product-profile/profile-contract.ts';
+import { validateProductProfile } from '../../../scripts/validate-active-shell/product-profile-validator.ts';
 import { assert, fs, path, test, appRoot } from './helpers.ts';
 
 function readContract() {
   return JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
+}
+
+function readJson(relativePath: string) {
+  return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
 }
 
 function capability(contract, id: string) {
@@ -88,7 +94,7 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: (filePath) => {
       packagePath = filePath;
-      return { aioncoreVersion: 'v0.1.44' };
+      return { aioncoreVersion: 'v0.1.49' };
     },
     isGitAncestor: (ref) => {
       checkedRefs.push(ref);
@@ -187,10 +193,7 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match accepted version v0\.1\.44 or v0\.1\.49/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
-  invalid('a temporary bridge that excludes the selected version', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49'];
-  }, /temporary compatible versions must include selective_absorption_version/),
+  invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match selective_absorption_version v0\.1\.49/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -223,11 +226,65 @@ for (const { name, mutate, options, error } of invalidCases) {
 test('AionUI intake validator accepts verified AionCore package and ancestor evidence', () => {
   const contract = readContract();
   assert.doesNotThrow(() => validateContract(contract, {
-    readJsonFile: () => ({ aioncoreVersion: 'v0.1.44' }),
-  }));
-  assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }),
   }));
+});
+
+test('Manual qualification contract isolates Codex and keeps MAS Scholar workspace-scoped', () => {
+  const adapter = readContract().manual_qualification_contract;
+  const profile = readAppProductProfile();
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const firstRunMatrix = readJson('contracts/app-first-run-test-matrix.json');
+
+  assert.equal(adapter.classification, 'non_stable_manual_qualification_candidate');
+  assert.equal(adapter.stable_bundle_claim, 'forbidden');
+  assert.deepEqual(
+    [
+      adapter.runtime_dependencies.aioncore.version,
+      adapter.runtime_dependencies.managed_codex_acp.version,
+      adapter.runtime_dependencies.codex_cli.version,
+    ],
+    ['v0.1.49', '1.1.2', '0.144.6'],
+  );
+  assert.equal(adapter.runtime_dependencies.managed_codex_acp.forbidden_package, '@zed-industries/codex-acp');
+  assert.deepEqual(profile.codex.app_runtime_home, {
+    default_path: '~/Library/Application Support/OPL/codex',
+    override_env: 'CODEX_HOME',
+    override_policy: 'explicit_developer_or_operator_override_only',
+    user_home_path: '~/.codex',
+    user_config_mutation: 'forbidden',
+  });
+  assert.deepEqual(profile.first_run.full_runtime_package_qualification.workspace_scoped_package_ids, [
+    'mas-scholar-skills',
+  ]);
+  assert.equal(profile.first_run.full_runtime_package_qualification.global_workspace_scoped_exposure, 'forbidden');
+  assert.equal(profile.first_run.first_conversation.runtime_readiness_route, '/api/conversations/<id>/runtime/ensure');
+  const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
+  assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('installed_package_count 7')));
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
+});
+
+test('Manual qualification product validator rejects isolation, runtime route, and Scholar scope drift', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const mutations = [
+    {
+      error: /isolate the App runtime/,
+      mutate: (profile) => { profile.codex.app_runtime_home.default_path = '~/.codex'; },
+    },
+    {
+      error: /first conversation must apply granular prerequisites/,
+      mutate: (profile) => { profile.first_run.first_conversation.runtime_readiness_route = '/api/conversations/<id>/warmup'; },
+    },
+    {
+      error: /Full runtime package qualification boundary/,
+      mutate: (profile) => { profile.first_run.full_runtime_package_qualification.global_workspace_scoped_exposure = 'allowed'; },
+    },
+  ];
+  for (const { error, mutate } of mutations) {
+    const profile = readJson('contracts/app-product-profile.json');
+    mutate(profile);
+    assert.throws(() => validateProductProfile(profile, installExposure), error);
+  }
 });
 
 test('AionUI intake contract records managed-agent wire and focused verification policy', () => {

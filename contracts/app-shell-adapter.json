@@ -7,6 +7,51 @@
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "manual_qualification_contract": {
+    "classification": "non_stable_manual_qualification_candidate",
+    "stable_bundle_claim": "forbidden",
+    "exact_source_lock_required": true,
+    "runtime_dependencies": {
+      "aioncore": {
+        "version": "v0.1.49",
+        "version_source": "package.json#aioncoreVersion",
+        "resource_authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json"
+      },
+      "managed_codex_acp": {
+        "package": "@agentclientprotocol/codex-acp",
+        "version": "1.1.2",
+        "version_source": "AionCore managed resource manifest",
+        "forbidden_package": "@zed-industries/codex-acp"
+      },
+      "codex_cli": {
+        "version": "0.144.6",
+        "version_source": "AionCore managed resource manifest",
+        "target_platform_binary_required": true
+      }
+    },
+    "codex_home": {
+      "default_path": "~/Library/Application Support/OPL/codex",
+      "override_env": "CODEX_HOME",
+      "user_home_mutation": "forbidden",
+      "required_processes": [
+        "desktop_shell",
+        "aioncore",
+        "managed_codex_acp",
+        "opl_runtime_bridge"
+      ]
+    },
+    "conversation_readiness": {
+      "method": "POST",
+      "route": "/api/conversations/<id>/runtime/ensure",
+      "retired_route": "/api/conversations/<id>/warmup",
+      "http_404_or_500_policy": "retryable_error_never_ready"
+    },
+    "full_runtime_packages": {
+      "required_installed_package_count": 7,
+      "mas_scholar_global_exposure": "forbidden",
+      "mas_scholar_visibility": "mas_workspace_binding_only"
+    }
+  },
   "upstream_family": "AionUI",
   "shell_source": {
     "owner_repo": "gaofeng21cn/opl-aion-shell",
@@ -474,7 +519,7 @@
         "evidence": [
           "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
           "shell_source:packages/desktop/src/process/startup/recoverCorruptedDatabase.ts",
-          "active_shell_package_readback:aioncoreVersion=v0.1.44"
+          "active_shell_package_readback:aioncoreVersion=v0.1.49"
         ]
       },
       {
@@ -588,7 +633,7 @@
         "evidence": [
           "evaluated_upstream:e49cd94935f4e461f002a1260a47c1b7b2ce81ca#package.json.aioncoreVersion=v0.1.44",
           "selective_absorption_head:e38b00ba37cafe56d704b498a4882264836463e4#package.json.aioncoreVersion=v0.1.28",
-          "active_shell_package_readback:aioncoreVersion=v0.1.44",
+          "active_shell_package_readback:aioncoreVersion=v0.1.49",
           "shell_commit:81c8b37fdc067549341b41539d7648b09aa31d37",
           "shell_source:packages/desktop/src/process/startup/backendStartupFailure.ts",
           "shell_test:packages/web-host/src/backend-launcher.test.ts",
@@ -598,11 +643,7 @@
           "field_ref": "package.json#aioncoreVersion",
           "minimum_version": "v0.1.44",
           "evaluated_upstream_version": "v0.1.44",
-          "selective_absorption_version": "v0.1.44",
-          "temporary_compatible_versions": [
-            "v0.1.44",
-            "v0.1.49"
-          ],
+          "selective_absorption_version": "v0.1.49",
           "state": "meets_minimum"
         },
         "capability_gate": {

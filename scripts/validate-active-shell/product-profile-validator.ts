@@ -111,6 +111,15 @@ function validateProductProfileContractRefs(profile) {
 }
 
 function validateProductProfileCodexDefaults(profile) {
+  if (
+    profile.codex?.app_runtime_home?.default_path !== '~/Library/Application Support/OPL/codex' ||
+    profile.codex.app_runtime_home.override_env !== 'CODEX_HOME' ||
+    profile.codex.app_runtime_home.override_policy !== 'explicit_developer_or_operator_override_only' ||
+    profile.codex.app_runtime_home.user_home_path !== '~/.codex' ||
+    profile.codex.app_runtime_home.user_config_mutation !== 'forbidden'
+  ) {
+    throw new Error('Product profile must isolate the App runtime from the user Codex home');
+  }
   validateOplFlowContext(profile.codex?.opl_flow_context, 'Product profile OPL Flow Context');
   const sessionContextI18n = profile.codex?.session_context_i18n;
   if (
@@ -712,12 +721,33 @@ function validateFirstConversationPolicy(profile) {
   assertFirstRunProgressModelShape(progressModel, 'Product profile first-run progress model');
   if (
     firstConversation?.gate !== 'capability_prerequisites_then_acp_warmup_before_initial_send' ||
+    firstConversation?.runtime_readiness_method !== 'POST' ||
+    firstConversation?.runtime_readiness_route !== '/api/conversations/<id>/runtime/ensure' ||
+    firstConversation?.retired_route !== '/api/conversations/<id>/warmup' ||
+    firstConversation?.route_failure_policy !== 'http_404_or_500_is_retryable_error_never_ready' ||
     firstConversation?.source_command !== progressModel.source_command ||
     firstConversation?.ready_to_launch_must_be_true !== false ||
     firstConversation?.unknown_readiness_policy !== 'allow_attempt_without_mutating_readiness' ||
     firstConversation?.blocked_feedback !== 'localized_inline_non_modal_setup_notice_preserves_prompt'
   ) {
     throw new Error('Product profile first conversation must apply granular prerequisites before ACP warmup');
+  }
+  const fullRuntimeQualification = profile.first_run?.full_runtime_package_qualification;
+  if (
+    fullRuntimeQualification?.source !== 'framework_bundled_full_runtime_catalog' ||
+    fullRuntimeQualification.reconciliation !== 'idempotent_local_payload_install_before_full_readiness' ||
+    fullRuntimeQualification.required_installed_package_count !== 7 ||
+    JSON.stringify(fullRuntimeQualification.canonical_package_ids) !==
+      JSON.stringify(['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow']) ||
+    JSON.stringify(fullRuntimeQualification.global_codex_exposure_package_ids) !==
+      JSON.stringify(['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow']) ||
+    JSON.stringify(fullRuntimeQualification.workspace_scoped_package_ids) !==
+      JSON.stringify(['mas-scholar-skills']) ||
+    fullRuntimeQualification.workspace_scoped_materialization_policy !==
+      'package_cache_without_global_marketplace_registration_until_mas_workspace_binding' ||
+    fullRuntimeQualification.global_workspace_scoped_exposure !== 'forbidden'
+  ) {
+    throw new Error('Product profile must enforce the Full runtime package qualification boundary');
   }
   assertDeepEqualJson(requiredBeforePlainSend, ['codex_cli', 'codex_config'], 'Product profile plain send prerequisites');
   assertDeepEqualJson(

@@ -128,6 +128,10 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   assertPostInstallAiSelfCheckEntry(profile.first_run.beginner_presentation.post_install_ai_self_check_entry);
   if (
     profile.first_run.first_conversation.gate !== 'capability_prerequisites_then_acp_warmup_before_initial_send' ||
+    profile.first_run.first_conversation.runtime_readiness_method !== 'POST' ||
+    profile.first_run.first_conversation.runtime_readiness_route !== '/api/conversations/<id>/runtime/ensure' ||
+    profile.first_run.first_conversation.retired_route !== '/api/conversations/<id>/warmup' ||
+    profile.first_run.first_conversation.route_failure_policy !== 'http_404_or_500_is_retryable_error_never_ready' ||
     profile.first_run.first_conversation.source_command !== 'opl system initialize --json' ||
     profile.first_run.first_conversation.ready_to_launch_must_be_true !== false ||
     profile.first_run.first_conversation.unknown_readiness_policy !== 'allow_attempt_without_mutating_readiness' ||
@@ -137,6 +141,32 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile first_run.first_conversation must apply granular prerequisites before ACP warmup');
   }
+  const fullRuntimeQualification = profile.first_run.full_runtime_package_qualification;
+  if (
+    fullRuntimeQualification.source !== 'framework_bundled_full_runtime_catalog' ||
+    fullRuntimeQualification.reconciliation !== 'idempotent_local_payload_install_before_full_readiness' ||
+    fullRuntimeQualification.required_installed_package_count !== 7 ||
+    fullRuntimeQualification.workspace_scoped_materialization_policy !==
+      'package_cache_without_global_marketplace_registration_until_mas_workspace_binding' ||
+    fullRuntimeQualification.global_workspace_scoped_exposure !== 'forbidden'
+  ) {
+    throw new Error('App product profile must enforce the Full runtime package qualification boundary');
+  }
+  assertDeepEqualJson(
+    fullRuntimeQualification.canonical_package_ids,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+    'first_run.full_runtime_package_qualification.canonical_package_ids',
+  );
+  assertDeepEqualJson(
+    fullRuntimeQualification.global_codex_exposure_package_ids,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'],
+    'first_run.full_runtime_package_qualification.global_codex_exposure_package_ids',
+  );
+  assertDeepEqualJson(
+    fullRuntimeQualification.workspace_scoped_package_ids,
+    ['mas-scholar-skills'],
+    'first_run.full_runtime_package_qualification.workspace_scoped_package_ids',
+  );
   assertDeepEqualJson(
     profile.first_run.first_conversation.required_before_plain_send,
     ['codex_cli', 'codex_config'],
@@ -484,6 +514,15 @@ function assertCompanionPayloadProfileShape(
 }
 
 function assertCodexOplFlowContext(profile: AppProductProfile): void {
+  if (
+    profile.codex.app_runtime_home?.default_path !== '~/Library/Application Support/OPL/codex' ||
+    profile.codex.app_runtime_home.override_env !== 'CODEX_HOME' ||
+    profile.codex.app_runtime_home.override_policy !== 'explicit_developer_or_operator_override_only' ||
+    profile.codex.app_runtime_home.user_home_path !== '~/.codex' ||
+    profile.codex.app_runtime_home.user_config_mutation !== 'forbidden'
+  ) {
+    throw new Error('App product profile must isolate the App runtime from the user Codex home');
+  }
   if (
     profile.codex.auto_model_policy.authority !== 'one-person-lab-app' ||
     profile.codex.auto_model_policy.recommendation_authority !== 'opl-flow' ||

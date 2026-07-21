@@ -673,6 +673,13 @@ export type AppProductProfile = {
     default_model: string;
     default_model_description: string;
     default_reasoning_effort: string;
+    app_runtime_home: {
+      default_path: string;
+      override_env: string;
+      override_policy: string;
+      user_home_path: string;
+      user_config_mutation: string;
+    };
     auto_model_policy: {
       authority: string;
       policy_source_ref: string;
@@ -757,8 +764,22 @@ export type AppProductProfile = {
       full_readiness_provider: string;
       ready_to_launch_blocking: boolean;
     };
+    full_runtime_package_qualification: {
+      source: string;
+      reconciliation: string;
+      required_installed_package_count: number;
+      canonical_package_ids: string[];
+      global_codex_exposure_package_ids: string[];
+      workspace_scoped_package_ids: string[];
+      workspace_scoped_materialization_policy: string;
+      global_workspace_scoped_exposure: string;
+    };
     first_conversation: {
       gate: string;
+      runtime_readiness_method: string;
+      runtime_readiness_route: string;
+      retired_route: string;
+      route_failure_policy: string;
       source_command: string;
       ready_to_launch_must_be_true: boolean;
       required_before_plain_send: string[];
