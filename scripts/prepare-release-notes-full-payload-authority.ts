@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { validateFrozenCodexCliIdentity } from './build-artifact-cohort.ts';
+import { resolveAioncoreManagedCodexBinding } from './manual-latest-build.ts';
 
 type JsonRecord = Record<string, any>;
 
@@ -263,52 +263,25 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
   }
   const thirdPartySources = requiredObject(thirdPartyManifest.sources, 'App Full third-party sources');
   const runtimePayloads = requiredObject(thirdPartyManifest.runtime_payloads, 'App Full runtime payloads');
-  const codexPayload = requiredObject(runtimePayloads.codex_cli, 'Codex CLI runtime authority');
   const officeSource = requiredObject(thirdPartySources.officecli, 'OfficeCLI source authority');
   const mineruSource = requiredObject(thirdPartySources.mineru, 'MinerU source authority');
   const officePayload = requiredObject(runtimePayloads.officecli, 'OfficeCLI runtime authority');
-  const codexQualificationRef = requiredString(
-    codexPayload.qualification_input_ref,
-    'Codex CLI qualification input ref',
-  );
-  const qualificationRefMatch = /^([^#]+)#runtime_payloads\.codex_cli$/.exec(codexQualificationRef);
-  if (!qualificationRefMatch) {
-    throw new Error('Codex CLI qualification input ref must select runtime_payloads.codex_cli.');
-  }
-  const qualificationInputPath = assertContainedFile(
-    appRoot,
-    path.resolve(appRoot, qualificationRefMatch[1]),
-    'App Codex qualification input manifest',
-  );
-  const qualificationInput = readRegularJson(
-    qualificationInputPath,
-    'App Codex qualification input manifest',
-  );
-  if (qualificationInput.schema !== 'opl_app_release_qualification_input_manifest.v1') {
-    throw new Error('App Codex qualification input manifest has an unsupported schema.');
-  }
-  const codexIdentity = requiredObject(
-    requiredObject(qualificationInput.runtime_payloads, 'App qualification runtime payloads').codex_cli,
-    'App frozen Codex CLI identity',
-  );
-  const codexErrors = validateFrozenCodexCliIdentity(codexIdentity);
-  if (codexErrors.length > 0) {
-    throw new Error(`App frozen Codex CLI identity is invalid: ${codexErrors.join('; ')}.`);
-  }
-  const codexVersion = requiredString(codexIdentity.version, 'frozen Codex CLI version');
-  if (codexPayload.version !== codexVersion) {
-    throw new Error('App Full third-party manifest Codex version does not match the qualification input.');
-  }
+  const aioncoreBinding = resolveAioncoreManagedCodexBinding(shellRoot);
+  const codexVersion = requiredString(aioncoreBinding.codex_cli.version, 'AionCore managed Codex CLI version');
   components.codex = { version: `codex-cli ${codexVersion}` };
   resolvedRefs.codex_cli = {
     label: 'Codex CLI',
     repository: 'npm:@openai/codex',
     resolved_version: codexVersion,
-    npm_integrity: codexIdentity.npm_integrity,
-    tarball_sha256: codexIdentity.tarball_sha256,
-    platform_version: codexIdentity.platform.version,
-    platform_npm_integrity: codexIdentity.platform.npm_integrity,
-    platform_tarball_sha256: codexIdentity.platform.tarball_sha256,
+    npm_integrity: aioncoreBinding.codex_cli.lock_integrity,
+    tarball_url: aioncoreBinding.codex_cli.lock_resolved,
+    platform_version: aioncoreBinding.codex_cli.platform_version,
+    platform_npm_integrity: aioncoreBinding.codex_cli.platform_lock_integrity,
+    platform_tarball_url: aioncoreBinding.codex_cli.platform_lock_resolved,
+    aioncore_version: aioncoreBinding.aioncore.version,
+    codex_acp_version: aioncoreBinding.codex_acp.version,
+    managed_resources_manifest_sha256: `sha256:${aioncoreBinding.managed_resources.manifest_sha256}`,
+    package_lock_sha256: `sha256:${aioncoreBinding.codex_acp.package_lock_sha256}`,
   };
   const officeRef = requiredString(officeSource.ref, 'OfficeCLI source ref');
   const mineruRef = requiredString(mineruSource.ref, 'MinerU source ref');
@@ -356,16 +329,29 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
     packages: packageAuthority,
     runtime_authority: {
       codex_cli: {
-        source: 'frozen_app_release_qualification_input',
+        source: 'shell_aioncore_managed_manifest_and_lock',
         shell_source_commit: shellRef,
-        qualification_input_ref: codexQualificationRef,
-        qualification_input_manifest_sha256: digestRef(qualificationInputPath),
-        package: codexIdentity.package,
+        runtime_key: aioncoreBinding.runtime_key,
+        aioncore_version: aioncoreBinding.aioncore.version,
+        aioncore_source_url: aioncoreBinding.aioncore.source_url,
+        aioncore_root_manifest_ref: path.relative(shellRoot, aioncoreBinding.aioncore.root_manifest).split(path.sep).join('/'),
+        aioncore_root_manifest_sha256: `sha256:${aioncoreBinding.aioncore.root_manifest_sha256}`,
+        managed_resources_manifest_ref: path.relative(shellRoot, aioncoreBinding.managed_resources.manifest).split(path.sep).join('/'),
+        managed_resources_manifest_sha256: `sha256:${aioncoreBinding.managed_resources.manifest_sha256}`,
+        codex_acp_package: aioncoreBinding.codex_acp.package,
+        codex_acp_version: aioncoreBinding.codex_acp.version,
+        codex_acp_package_lock_ref: path.relative(shellRoot, aioncoreBinding.codex_acp.package_lock).split(path.sep).join('/'),
+        codex_acp_package_lock_sha256: `sha256:${aioncoreBinding.codex_acp.package_lock_sha256}`,
+        package: aioncoreBinding.codex_cli.package,
         version: codexVersion,
-        npm_integrity: codexIdentity.npm_integrity,
-        tarball_url: codexIdentity.tarball_url,
-        tarball_sha256: codexIdentity.tarball_sha256,
-        platform: codexIdentity.platform,
+        npm_integrity: aioncoreBinding.codex_cli.lock_integrity,
+        tarball_url: aioncoreBinding.codex_cli.lock_resolved,
+        platform: {
+          package: aioncoreBinding.codex_cli.platform_package,
+          version: aioncoreBinding.codex_cli.platform_version,
+          npm_integrity: aioncoreBinding.codex_cli.platform_lock_integrity,
+          tarball_url: aioncoreBinding.codex_cli.platform_lock_resolved,
+        },
         postbuild_manifest_version_and_bytes_required: true,
       },
       officecli: { source_commit: officeRef, version: officeVersion },
