@@ -40,6 +40,39 @@ test('Codex interaction surfaces stay aligned across the App profile and contrac
   ));
 });
 
+test('new OPL Gateway configs use the branded provider name without renaming existing providers', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const productProfile = readJson('contracts/app-product-profile.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+
+  assert.equal(productProfile.default_session_profile.provider, 'gflab');
+  assert.equal(productProfile.default_session_profile.provider_name, 'OPL Gateway');
+  assert.equal(
+    productProfile.default_session_profile.existing_provider_name_policy,
+    'preserve_existing_provider_name_no_migration',
+  );
+  assert.equal(guiContract.first_launch_readiness_policy.default_provider, 'gflab');
+  assert.equal(guiContract.first_launch_readiness_policy.default_provider_name, 'OPL Gateway');
+  assert.equal(
+    guiContract.first_launch_readiness_policy.existing_provider_name_policy,
+    'preserve_existing_provider_name_no_migration',
+  );
+
+  const providerNameDrift = structuredClone(productProfile);
+  providerNameDrift.default_session_profile.provider_name = 'gflab';
+  assert.throws(
+    () => validateProductProfile(providerNameDrift, installExposure),
+    /provider name/,
+  );
+
+  const migrationDrift = structuredClone(productProfile);
+  migrationDrift.default_session_profile.existing_provider_name_policy = 'rename_existing_provider';
+  assert.throws(
+    () => validateProductProfile(migrationDrift, installExposure),
+    /existing provider name policy/,
+  );
+});
+
 test('desktop App icon keeps the Codex-aligned macOS safe margin', () => {
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
   guiContract.theme_and_branding.desktop_app_icon_policy.macos_expected_alpha_bounds = '1024x1024+0+0';

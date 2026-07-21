@@ -1,4 +1,6 @@
 const expectedProvider = 'gflab';
+const expectedProviderName = 'OPL Gateway';
+const expectedExistingProviderNamePolicy = 'preserve_existing_provider_name_no_migration';
 const expectedBaseUrl = 'https://gflabtoken.cn/v1';
 const expectedExecutor = 'codex_cli';
 
@@ -11,6 +13,14 @@ export function assertDefaultCodexSessionProfile(profile, options = {}) {
   }
   if (defaultSession.provider !== expectedProvider) {
     throw new Error(`Unexpected ${label} provider: ${defaultSession.provider}`);
+  }
+  if (defaultSession.provider_name !== expectedProviderName) {
+    throw new Error(`Unexpected ${label} provider name: ${defaultSession.provider_name}`);
+  }
+  if (defaultSession.existing_provider_name_policy !== expectedExistingProviderNamePolicy) {
+    throw new Error(
+      `Unexpected ${label} existing provider name policy: ${defaultSession.existing_provider_name_policy}`,
+    );
   }
   if (defaultSession.base_url !== expectedBaseUrl) {
     throw new Error(`Unexpected ${label} base URL: ${defaultSession.base_url}`);

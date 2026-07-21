@@ -15,6 +15,8 @@ export type AppProductProfile = {
   contract_refs: Record<string, string>;
   default_session_profile: {
     provider: string;
+    provider_name: string;
+    existing_provider_name_policy: string;
     base_url: string;
     executor: string;
     model: string;
