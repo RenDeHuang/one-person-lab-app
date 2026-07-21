@@ -52,10 +52,6 @@ on:
         description: Highest completed Framework checkpoint stage
         value: ${{ jobs.provenance.outputs.completed_stage }}
 
-permissions:
-  contents: read
-  actions: read
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
@@ -66,6 +62,9 @@ jobs:
     if: ${{ inputs.mode == 'canary' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Prove reusable Full add-on topology starts
         run: |
@@ -82,6 +81,9 @@ jobs:
     if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Admit one-shot Full append operation
         shell: bash
@@ -390,6 +392,9 @@ jobs:
   full-build:
     if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'standard_qualified' }}
     needs: [restore-standard]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       mode: execute
@@ -456,6 +461,9 @@ jobs:
   full-qualification:
     if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
     needs: [restore-standard, full-build, materialize-full-build]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       mode: execute
@@ -478,6 +486,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [restore-standard, full-build, materialize-full-build, full-qualification]
+    permissions:
+      contents: read
+      actions: read
     outputs:
       source_run_id: ${{ steps.provenance.outputs.source_run_id }}
       source_artifact: ${{ steps.provenance.outputs.source_artifact }}
@@ -593,6 +604,9 @@ jobs:
     needs: [restore-standard, checkpoint-full]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
       source_run_id: ${{ steps.identity.outputs.source_run_id }}
       source_artifact: ${{ steps.identity.outputs.source_artifact }}
@@ -634,9 +648,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: release-stable
-    permissions:
-      contents: write
-      actions: read
     needs: [restore-standard, checkpoint-full, provenance]
     steps:
       - name: Reject partial rerun before Full GitHub mutation

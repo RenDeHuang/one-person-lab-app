@@ -68,10 +68,6 @@ on:
         description: Framework checkpoint export stage, passed through without App projection
         value: ${{ jobs.checkpoint-standard.outputs.completed_stage }}
 
-permissions:
-  contents: read
-  actions: read
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
@@ -83,6 +79,9 @@ jobs:
     if: ${{ inputs.mode == 'canary' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Prove reusable Standard build topology starts
         run: |
@@ -95,6 +94,9 @@ jobs:
     if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Admit one-shot Bundle build operation
         shell: bash
@@ -130,6 +132,9 @@ jobs:
     needs: [admission]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.identity.outputs.version }}
       updater_version: ${{ steps.identity.outputs.updater_version }}
@@ -390,6 +395,9 @@ jobs:
   standard-build:
     if: ${{ inputs.mode == 'execute' }}
     needs: [freeze]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/_build-reusable.yml
     with:
       mode: execute
@@ -411,6 +419,9 @@ jobs:
   standard-qualification:
     if: ${{ inputs.mode == 'execute' }}
     needs: [freeze, standard-build]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       mode: execute
@@ -433,6 +444,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [freeze, standard-build, standard-qualification]
+    permissions:
+      contents: read
+      actions: read
     outputs:
       source_run_id: ${{ steps.provenance.outputs.source_run_id }}
       source_artifact: ${{ steps.provenance.outputs.source_artifact }}
@@ -586,9 +600,6 @@ jobs:
   publish-standard:
     if: ${{ inputs.mode == 'execute' }}
     needs: [freeze, checkpoint-standard]
-    permissions:
-      contents: write
-      actions: read
     uses: ./.github/workflows/_release-standard-publish.yml
     with:
       mode: execute

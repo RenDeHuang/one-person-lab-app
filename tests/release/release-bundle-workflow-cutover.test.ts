@@ -319,9 +319,9 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.deepEqual(Object.keys(bundle.on), ['workflow_call']);
   assert.deepEqual(Object.keys(standard.on), ['workflow_call']);
   assert.deepEqual(Object.keys(full.on), ['workflow_call']);
-  assert.deepEqual(bundle.permissions, { contents: 'read', actions: 'read' });
-  assert.deepEqual(standard.permissions, { contents: 'read', actions: 'read' });
-  assert.deepEqual(full.permissions, { contents: 'read', actions: 'read' });
+  assert.equal(bundle.permissions, undefined);
+  assert.equal(standard.permissions, undefined);
+  assert.equal(full.permissions, undefined);
   assert.deepEqual(Object.keys(bundle.jobs), [
     'startup-canary',
     'admission',
@@ -340,6 +340,19 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.ok(full.jobs['checkpoint-full']);
   assert.ok(full.jobs.provenance);
   assert.ok(full.jobs['publish-full']);
+  for (const [workflow, inheritedMutationJobs] of [
+    [bundle, new Set(['publish-standard'])],
+    [standard, new Set(['publish-standard-nonlatest', 'activate-latest'])],
+    [full, new Set(['publish-full'])],
+  ] as const) {
+    for (const [jobId, job] of Object.entries(workflow.jobs) as Array<[string, Record<string, any>]>) {
+      if (inheritedMutationJobs.has(jobId)) {
+        assert.equal(job.permissions, undefined, `${jobId} must inherit the caller permission ceiling`);
+      } else {
+        assert.deepEqual(job.permissions, { contents: 'read', actions: 'read' }, `${jobId} must be read-only`);
+      }
+    }
+  }
   assert.doesNotMatch(`${readWorkflow('_release-bundle.yml')}\n${readWorkflow('_release-standard-publish.yml')}\n${readWorkflow('_release-full-addon.yml')}`, /release[_ -]broker|stable[_ -]session[_ -]lease/i);
 });
 

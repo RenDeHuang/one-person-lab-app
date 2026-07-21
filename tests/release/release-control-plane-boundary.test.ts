@@ -127,8 +127,17 @@ test('Canary must start every low-level reusable with read-only permissions and 
     workflow.jobs.standard.secrets = 'inherit';
     workflow.jobs['nested-standard-build'].permissions.contents = 'write';
   });
+  updateWorkflow(root, '_release-bundle.yml', (workflow) => {
+    workflow.jobs['startup-canary'].permissions.contents = 'write';
+  });
+  updateWorkflow(root, '_build-reusable.yml', (workflow) => {
+    workflow.permissions = 'write-all';
+  });
+  updateWorkflow(root, 'opl-first-run-vm.yml', (workflow) => {
+    workflow.jobs['startup-canary'].permissions = 'write-all';
+  });
 
-  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 3);
+  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 6);
 });
 
 test('no other workflow_dispatch job may gain write authority', (t) => {

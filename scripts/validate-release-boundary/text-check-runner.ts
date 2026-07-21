@@ -21,6 +21,12 @@ function exactObject(value: unknown, expected: Record<string, unknown>): boolean
     Object.entries(expected).every(([name, expectedValue]) => actual[name] === expectedValue);
 }
 
+function requestsWritePermission(value: unknown): boolean {
+  if (value === 'write-all') return true;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).some((permission) => permission === 'write');
+}
+
 function jobRuns(job: Record<string, any> | undefined): string {
   return (Array.isArray(job?.steps) ? job.steps as Array<Record<string, any>> : [])
     .map((step) => typeof step.run === 'string' ? step.run : '')
@@ -213,6 +219,37 @@ function validateReusableCall(
   return 0;
 }
 
+function validateReusablePermissionInheritance(
+  id: string,
+  name: string,
+  workflow: Record<string, any>,
+  inheritedMutationJobs: string[],
+): number {
+  let failures = 0;
+  if (workflow.permissions !== undefined) {
+    failures += reportFailure(
+      id,
+      `${name} must inherit its caller permission ceiling so read-only Canary and Stable use the same graph`,
+    );
+  }
+  const mutationJobs = new Set(inheritedMutationJobs);
+  for (const [jobId, job] of Object.entries(workflowJobs(workflow))) {
+    if (mutationJobs.has(jobId)) {
+      if (job.permissions !== undefined) {
+        failures += reportFailure(
+          id,
+          `${name}:${jobId} must inherit the admitted caller permission instead of statically requesting write`,
+        );
+      }
+      continue;
+    }
+    if (!exactObject(job.permissions, exactReadPermissions)) {
+      failures += reportFailure(id, `${name}:${jobId} must explicitly downgrade to contents:read/actions:read`);
+    }
+  }
+  return failures;
+}
+
 export function validateReleaseBundleTopology(appRoot: string): number {
   const id = 'release_bundle_topology';
   const bundle = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
@@ -225,10 +262,6 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     if (JSON.stringify(Object.keys(parsed.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])) {
       failures += reportFailure(id, `${name} workflow must expose only workflow_call`);
     }
-    const writes = Object.entries(parsed.workflow.permissions ?? {}).filter(([, value]) => value === 'write');
-    if (writes.length > 0) {
-      failures += reportFailure(id, `${name} workflow must not grant top-level write permissions`);
-    }
     if (retiredLiveAuthorityPattern.test(parsed.text)) {
       failures += reportFailure(id, `${name} workflow still depends on retired broker/session/lease authority`);
     }
@@ -236,6 +269,14 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       failures += reportFailure(id, `${name} workflow must expose an explicit execute/canary mode boundary`);
     }
   }
+  failures += validateReusablePermissionInheritance(id, 'bundle', bundle.workflow, ['publish-standard']);
+  failures += validateReusablePermissionInheritance(
+    id,
+    'standard',
+    standard.workflow,
+    ['publish-standard-nonlatest', 'activate-latest'],
+  );
+  failures += validateReusablePermissionInheritance(id, 'full', full.workflow, ['publish-full']);
 
   const bundleJobs = workflowJobs(bundle.workflow);
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
@@ -258,7 +299,6 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     bundleJobs,
     'publish-standard',
     './.github/workflows/_release-standard-publish.yml',
-    exactStableEntryPermissions,
   );
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
@@ -290,9 +330,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   for (const jobId of ['publish-standard-nonlatest', 'activate-latest']) {
     const job = standardJobs[jobId];
-    if (job && (job.environment !== 'release-stable' ||
-        !exactObject(job.permissions, exactStableEntryPermissions))) {
-      failures += reportFailure(id, `${jobId} must use release-stable with minimal GitHub write permissions`);
+    if (job && job.environment !== 'release-stable') {
+      failures += reportFailure(id, `${jobId} must use the release-stable environment`);
     }
   }
 
@@ -320,6 +359,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       fullJobs,
       'full-build',
       './.github/workflows/full-first-install-release.yml',
+      exactReadPermissions,
     );
   }
   if (fullJobs['full-qualification']) {
@@ -328,11 +368,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       fullJobs,
       'full-qualification',
       './.github/workflows/opl-first-run-vm.yml',
+      exactReadPermissions,
     );
   }
-  if (fullJobs['publish-full'] && (fullJobs['publish-full'].environment !== 'release-stable' ||
-      !exactObject(fullJobs['publish-full'].permissions, exactStableEntryPermissions))) {
-    failures += reportFailure(id, 'publish-full must use release-stable with minimal GitHub write permissions');
+  if (fullJobs['publish-full'] && fullJobs['publish-full'].environment !== 'release-stable') {
+    failures += reportFailure(id, 'publish-full must use the release-stable environment');
   }
   if (standardUpdaterOrLatest(full.text)) {
     failures += reportFailure(id, 'append_full must not qualify Standard updater or activate Latest');
@@ -427,9 +467,16 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         !Array.isArray(startup.steps) || startup.steps.length === 0) {
       failures += reportFailure(id, `${calleePath} must expose a real startup-canary job`);
     }
-    const topWrites = Object.values(callee.workflow.permissions ?? {}).filter((value) => value === 'write');
-    if (topWrites.length > 0) {
+    if (requestsWritePermission(callee.workflow.permissions)) {
       failures += reportFailure(id, `${calleePath} must not request top-level write permission`);
+    }
+    for (const [calleeJobId, calleeJob] of Object.entries(calleeJobs)) {
+      if (requestsWritePermission(calleeJob.permissions)) {
+        failures += reportFailure(
+          id,
+          `${calleePath}:${calleeJobId} cannot statically request write from a read-only Canary caller`,
+        );
+      }
     }
   }
   return failures;

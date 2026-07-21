@@ -204,7 +204,7 @@ function transportProvenance(input: FrameworkReleaseLocalExecutorInput): Transpo
     throw failure('transport_invalid', 'GitHub checkpoint transport run id must be numeric.', 'supply_checkpoint_transport_identity');
   }
   const env = { ...process.env, ...input.env };
-  if (executor === 'github_actions' && env.GITHUB_RUN_ID && env.GITHUB_RUN_ID !== runId) {
+  if (executor === 'github_actions' && env.GITHUB_ACTIONS === 'true' && env.GITHUB_RUN_ID && env.GITHUB_RUN_ID !== runId) {
     throw failure('transport_invalid', 'Checkpoint transport run id does not match GITHUB_RUN_ID.', 'use_current_admitted_run');
   }
   const paths = [...new Set((input.sourceBuildReceiptPaths ?? []).map((entry) => path.resolve(entry)))];

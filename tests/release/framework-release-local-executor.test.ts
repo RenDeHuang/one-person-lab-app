@@ -171,14 +171,16 @@ test('returns the Framework document and operation result unchanged while treati
     const document = frameworkResult('release_bundle_checkpoint_import', operationResult);
     fake.respond(document);
 
-    const result = runFrameworkReleaseLocalExecutor(baseInput(fake, {
+    const input = baseInput(fake, {
       operation: 'checkpoint-import',
       checkpointPath: path.join(fake.root, 'checkpoint.json'),
       storeRoot: path.join(fake.root, 'store'),
       sourceBuildReceiptPaths: [standardReceipt, fullReceipt],
       checkpointTransportExecutor: 'github_actions',
       transportRunId: '424242',
-    }));
+    });
+    input.env = { ...fake.env, GITHUB_RUN_ID: '999999' };
+    const result = runFrameworkReleaseLocalExecutor(input);
 
     assert.deepEqual(result.framework_result, document);
     assert.deepEqual(result.framework_operation_result, operationResult);
@@ -195,6 +197,27 @@ test('returns the Framework document and operation result unchanged while treati
       'release', 'checkpoint', 'import', '--checkpoint', path.join(fake.root, 'checkpoint.json'),
       '--store', path.join(fake.root, 'store'), '--json',
     ]]);
+  } finally {
+    fake.cleanup();
+  }
+});
+
+test('binds a GitHub transport run only inside an actual GitHub Actions executor', () => {
+  const fake = new FakeFramework();
+  try {
+    assert.throws(
+      () => runFrameworkReleaseLocalExecutor({
+        ...baseInput(fake, {
+          operation: 'checkpoint-import',
+          checkpointPath: path.join(fake.root, 'checkpoint.json'),
+          checkpointTransportExecutor: 'github_actions',
+          transportRunId: '424242',
+        }),
+        env: { ...fake.env, GITHUB_ACTIONS: 'true', GITHUB_RUN_ID: '999999' },
+      }),
+      (error: any) => error?.failureKind === 'transport_invalid' && error?.requiredNextAction === 'use_current_admitted_run',
+    );
+    assert.deepEqual(fake.calls(), []);
   } finally {
     fake.cleanup();
   }

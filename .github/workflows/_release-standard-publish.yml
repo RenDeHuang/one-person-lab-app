@@ -52,10 +52,6 @@ on:
         description: Highest completed Framework checkpoint stage
         value: ${{ jobs.restore.outputs.completed_stage }}
 
-permissions:
-  contents: read
-  actions: read
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
@@ -65,6 +61,9 @@ jobs:
     if: ${{ inputs.mode == 'canary' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Prove reusable Standard publish topology starts
         run: |
@@ -81,6 +80,9 @@ jobs:
     if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Admit one-shot Standard publish operation
         shell: bash
@@ -495,9 +497,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: release-stable
-    permissions:
-      contents: write
-      actions: read
     needs: [restore, updater-upgrade-qualification, updater-upgrade-qualification-highest]
     steps:
       - name: Reject partial rerun before Standard GitHub mutation
@@ -704,6 +703,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [restore, publish-standard-nonlatest]
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -1218,6 +1220,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [restore, homebrew-standard-vm, publish-homebrew-standard]
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Download Standard Homebrew publication receipt
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -1273,9 +1278,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: release-stable
-    permissions:
-      contents: write
-      actions: read
     needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest, homebrew-standard-readback]
     steps:
       - name: Reject partial rerun before Latest mutation
@@ -1542,5 +1544,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [restore, remote-digest-verify]
+    permissions:
+      contents: read
+      actions: read
     steps:
       - run: echo 'Nightly Standard published and digest-verified; Latest and Homebrew remain untouched.'
