@@ -24,7 +24,7 @@
 - Release 的 live authority 是 Framework `opl release` 管理的不可变 Release Bundle；本地与 GitHub 只是同一 Bundle 的 executor，必须 build once、按 digest 暂存并 verify/publish many，切换 executor 不得重建。Bundle 必须绑定 App/Shell/Framework exact SHA、Framework Release Set 和全部 first-party Package exact owner refs、manifest/payload digests、prepared AI notes、资产 bytes 与 qualification receipts；旧 broker/state-machine 只允许读取历史 receipt，不再授权任何新 mutation。
 - `.github/workflows/release-stable.yml` 是唯一 Stable `workflow_dispatch`；Nightly 只能由 schedule 进入同一 reusable Bundle DAG，所有低层 release/build/qualification workflow 只保留 `workflow_call` 或只读事件。除绑定受保护 `release-stable` environment 的 publish jobs 外，全链路权限只读。Publisher 必须幂等：远端缺失才上传，同名同 digest 视为完成，同名异 digest fail closed，API 结果未知只能 reconcile，禁止 redispatch、rerun、cancel 或猜测成功。
 - Standard 六资产和已校验的 prepared AI notes 齐全即可成为 Latest；Full 可在同一 frozen Bundle/cohort 后续只追加 DMG 与 manifest，失败不得改变 Standard、notes、Latest 或 updater metadata。所有构建与验收使用 release 自有只读 checkout/Bundle store，不得锁住 canonical `main` 或无关开发 worktree；compiled expectation、qualification harness、Package ref 或 payload digest 变化必须冻结新 Bundle，不允许 changed-path 复用。
-- 修改前确认 canonical `main`、远端 currentness、当前 integration owner 与本任务精确写集。仓库级单一 writer 不是默认门禁；同仓非重叠任务应在独立 worktree 并行，只有重叠写集和 `main` 吸收窗口需要串行协调。
+- 修改前确认 canonical `main`、远端 currentness、当前 integration owner 与本任务精确写集；重叠写集和 `main` 吸收窗口必须串行协调。
 - 吸收前基于最新 canonical `main` 按 App contracts 和当前产品 truth 解决冲突；禁止用旧分支、旧生成物或上游默认值覆盖新主线。
 - 跨仓吸收必须保持各 canonical `main` 组合可运行；消费者不得依赖尚未进入 authority `main` 的候选。不兼容变更按“兼容桥 -> authority -> 收紧”分段吸收。
 - Release freeze 只接受远端 `main` 可达的 exact refs；昂贵构建前必须完成跨仓 Package/catalog closure、cold preflight 与 prepared AI notes，并把结果写入 Bundle identity。
