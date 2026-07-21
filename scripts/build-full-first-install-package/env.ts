@@ -92,6 +92,7 @@ function defaultToolchainOptions() {
 function defaultRuntimeOptions() {
   return {
     skipGuiBuild: false,
+    appOnly: false,
     warmRuntimeCacheOnly: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
     reuseGuiViteOutput: process.env.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1',
@@ -130,6 +131,7 @@ function defaultOptions() {
 
 const booleanOptionSetters = {
   'skip-gui-build': (parsed) => { parsed.skipGuiBuild = true; },
+  'app-only': (parsed) => { parsed.appOnly = true; },
   'warm-runtime-cache-only': (parsed) => { parsed.warmRuntimeCacheOnly = true; },
   'split-runtime': (parsed) => { parsed.splitRuntime = true; },
   'reuse-gui-vite-output': (parsed) => { parsed.reuseGuiViteOutput = true; },
@@ -228,6 +230,9 @@ export function parseArgs(argv) {
 
   if (!['readwrite', 'readonly', 'off'].includes(parsed.runtimeCacheMode)) {
     throw new Error(`Unsupported runtime cache mode: ${parsed.runtimeCacheMode}`);
+  }
+  if (parsed.appOnly && parsed.warmRuntimeCacheOnly) {
+    throw new Error('--app-only and --warm-runtime-cache-only are mutually exclusive');
   }
 
   return parsed;

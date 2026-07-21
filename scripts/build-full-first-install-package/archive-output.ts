@@ -5,7 +5,7 @@ import path from 'node:path';
 import { FULL_RUNTIME_RESOURCE_DIR } from '../full-first-install-package.ts';
 import { resolveActiveShellPaths } from '../app-shell-adapter.ts';
 import { appRepoRoot } from './paths.ts';
-import { requirePath } from './filesystem.ts';
+import { assertNoExternalSymlinks, requirePath } from './filesystem.ts';
 import {
   assertAppBundleLocalAuthorization,
   canRunMacosSigningChecks,
@@ -49,16 +49,23 @@ export function extractLayer(archivePath, targetRoot) {
   }
 }
 
+export function copyRuntimePayloadTree(runtimeRoot, targetRuntimeRoot) {
+  fs.rmSync(targetRuntimeRoot, { recursive: true, force: true });
+  fs.cpSync(runtimeRoot, targetRuntimeRoot, {
+    recursive: true,
+    dereference: false,
+    preserveTimestamps: true,
+    verbatimSymlinks: true,
+  });
+  assertNoExternalSymlinks(targetRuntimeRoot, 'Packaged Full runtime');
+  ensurePackagedRuntimeFilesOwnerWritable(targetRuntimeRoot);
+}
+
 function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
   fs.rmSync(path.join(payloadRoot, 'runtime'), { recursive: true, force: true });
   fs.rmSync(path.join(payloadRoot, 'manifest'), { recursive: true, force: true });
   fs.mkdirSync(path.join(payloadRoot, 'runtime'), { recursive: true });
-  fs.cpSync(runtimeRoot, path.join(payloadRoot, 'runtime', 'current'), {
-    recursive: true,
-    dereference: true,
-    preserveTimestamps: true,
-  });
-  ensurePackagedRuntimeFilesOwnerWritable(path.join(payloadRoot, 'runtime', 'current'));
+  copyRuntimePayloadTree(runtimeRoot, path.join(payloadRoot, 'runtime', 'current'));
   fs.mkdirSync(path.join(payloadRoot, 'manifest'), { recursive: true });
   fs.writeFileSync(
     path.join(payloadRoot, 'manifest', 'full-package-manifest.json'),

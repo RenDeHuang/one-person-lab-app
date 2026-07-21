@@ -19,7 +19,10 @@ import {
 } from './build-full-first-install-package/archive-output.ts';
 import { parseArgs } from './build-full-first-install-package/env.ts';
 import { requirePath } from './build-full-first-install-package/filesystem.ts';
-import { ensureAppBundleAdHocCodesign } from './build-full-first-install-package/macos-trust.ts';
+import {
+  assertAppBundleLocalAuthorization,
+  ensureAppBundleAdHocCodesign,
+} from './build-full-first-install-package/macos-trust.ts';
 import {
   resolveMasScholarSkillsFullRuntimeSource,
   writeChecksums,
@@ -187,6 +190,32 @@ function main() {
     reportPath: precompressionGatePath,
   });
   timings.precompression_gate = durationSeconds(precompressionStartedAt, monotonicSeconds());
+
+  if (options.appOnly) {
+    ensureAppBundleAdHocCodesign(builtApp, 'Full local App bundle');
+    assertAppBundleLocalAuthorization(builtApp, 'Full local App bundle');
+    fs.rmSync(prepared.stagingRoot, { recursive: true, force: true });
+    console.log(JSON.stringify({
+      status: 'full_local_app_built',
+      version: options.version,
+      updater_version: options.updaterVersion,
+      app_bundle: builtApp,
+      runtime_cache_events: runtimeCacheEventsPath,
+      runtime_currentness_probe: runtimeCurrentnessProbePath,
+      runtime_native_trust: runtimeNativeTrustPath,
+      precompression_gate: precompressionGatePath,
+      resolved_refs: prepared.resolved_refs,
+      duration_seconds: {
+        runtime_materialize: timings.runtime_materialize,
+        runtime_cache_materialize: timings.runtime_cache_materialize,
+        payload_sync: timings.payload_sync,
+        shell_build: timings.shell_build,
+        precompression_gate: timings.precompression_gate,
+        total: durationSeconds(buildStartedAt, monotonicSeconds()),
+      },
+    }, null, 2));
+    return;
+  }
 
   const packageCompressionStartedAt = monotonicSeconds();
   ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');

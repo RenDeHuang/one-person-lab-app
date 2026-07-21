@@ -40,6 +40,7 @@ test('Full first-install args parse boolean and value options through one explic
   assert.equal(options.masScholarSkillsRoot, path.resolve('../mas-scholar-skills'));
   assert.equal(options.masScholarSkillsRef, 'scholar-ref-test');
   assert.equal(options.runtimeCacheMode, 'readonly');
+  assert.equal(parseFullFirstInstallArgs(['--app-only']).appOnly, true);
 });
 
 test('Full first-install args consume the MAS Scholar Skills root and ref environment defaults', () => {
@@ -73,6 +74,10 @@ test('Full first-install args reject missing values, unknown options, and unsupp
   assert.throws(
     () => parseFullFirstInstallArgs(['--runtime-cache-mode', 'writeonly']),
     /Unsupported runtime cache mode: writeonly/,
+  );
+  assert.throws(
+    () => parseFullFirstInstallArgs(['--app-only', '--warm-runtime-cache-only']),
+    /mutually exclusive/,
   );
 });
 
