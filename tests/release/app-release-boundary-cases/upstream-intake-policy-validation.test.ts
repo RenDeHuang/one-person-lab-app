@@ -187,7 +187,10 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match selective_absorption_version v0\.1\.44/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
+  invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match accepted version v0\.1\.44 or v0\.1\.49/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
+  invalid('a temporary bridge that excludes the selected version', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49'];
+  }, /temporary compatible versions must include selective_absorption_version/),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -221,6 +224,9 @@ test('AionUI intake validator accepts verified AionCore package and ancestor evi
   const contract = readContract();
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: () => ({ aioncoreVersion: 'v0.1.44' }),
+  }));
+  assert.doesNotThrow(() => validateContract(contract, {
+    readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }),
   }));
 });
 

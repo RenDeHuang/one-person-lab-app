@@ -619,14 +619,28 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
   }
 
   assertNonEmptyString(shellPackage?.aioncoreVersion, 'Active shell package aioncoreVersion');
-  if (shellPackage.aioncoreVersion !== versionGate.selective_absorption_version) {
+  const temporaryCompatibleVersions = versionGate.temporary_compatible_versions;
+  if (temporaryCompatibleVersions !== undefined) {
+    assertStringArray(
+      temporaryCompatibleVersions,
+      'Active shell AionCore database recovery version_gate.temporary_compatible_versions',
+      { allowEmpty: false },
+    );
+    if (!temporaryCompatibleVersions.includes(versionGate.selective_absorption_version)) {
+      throw new Error(
+        'Active shell AionCore temporary compatible versions must include selective_absorption_version',
+      );
+    }
+  }
+  const acceptedVersions = temporaryCompatibleVersions ?? [versionGate.selective_absorption_version];
+  if (!acceptedVersions.includes(shellPackage.aioncoreVersion)) {
     throw new Error(
-      `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match selective_absorption_version ${versionGate.selective_absorption_version}`,
+      `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match accepted version ${acceptedVersions.join(' or ')}`,
     );
   }
 
   const selectedVersion = parseVersion(
-    versionGate.selective_absorption_version,
+    shellPackage.aioncoreVersion,
     'Active shell AionCore selective absorption version',
   );
   const minimumVersion = parseVersion(versionGate.minimum_version, 'Active shell AionCore minimum recovery version');
