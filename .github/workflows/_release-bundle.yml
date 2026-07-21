@@ -127,9 +127,92 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  freeze:
-    if: ${{ inputs.mode == 'execute' && needs.admission.result == 'success' }}
+  full-notes-authority:
+    if: ${{ inputs.mode == 'execute' && inputs.include_full && needs.admission.result == 'success' }}
     needs: [admission]
+    runs-on: macos-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact App authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          fetch-depth: 0
+
+      - name: Checkout exact Shell authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref }}
+          path: shells/aionui
+
+      - name: Checkout exact Framework authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ inputs.framework_ref }}
+          path: framework-source
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Materialize exact Shell AionCore authority
+        working-directory: shells/aionui
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AIONUI_AIONCORE_CACHE_DIR: ${{ runner.temp }}/opl-release-notes-aioncore-${{ github.run_id }}
+          AIONUI_BACKEND_ARCH: arm64
+          AIONUI_BACKEND_RUN_ID: ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -s)" = Darwin
+          test "$(uname -m)" = arm64
+          test ! -e resources/bundled-aioncore/darwin-arm64
+          aioncore_version="$(node -e '
+            const value = JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).aioncoreVersion;
+            if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
+            process.stdout.write(value);
+          ')"
+          AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
+          test -f resources/bundled-aioncore/darwin-arm64/manifest.json
+          test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
+
+      - name: Derive deep-validated Full notes payload authority
+        run: |
+          set -euo pipefail
+          release_set_manifest="$(find framework-source/release/cohorts -mindepth 2 -maxdepth 2 -type f -name release-set.json -print | sort -V | tail -1)"
+          test -n "$release_set_manifest"
+          node --experimental-strip-types scripts/prepare-release-notes-full-payload-authority.ts \
+            --app-root . \
+            --app-ref '${{ inputs.app_ref }}' \
+            --shell-root shells/aionui \
+            --shell-ref '${{ inputs.shell_ref }}' \
+            --framework-root framework-source \
+            --framework-ref '${{ inputs.framework_ref }}' \
+            --release-set-manifest "$release_set_manifest" \
+            --third-party-source-manifest contracts/app-full-third-party-source-manifest.json \
+            --output notes-full-payload-authority.json
+          shasum -a 256 notes-full-payload-authority.json > notes-full-payload-authority.sha256
+
+      - name: Upload exact Full notes payload authority
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-full-notes-authority-${{ github.run_id }}
+          path: |
+            notes-full-payload-authority.json
+            notes-full-payload-authority.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  freeze:
+    if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && (!inputs.include_full || needs['full-notes-authority'].result == 'success') }}
+    needs: [admission, full-notes-authority]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -285,6 +368,18 @@ jobs:
           node --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
           npm --prefix framework-source run typecheck
 
+      - name: Download exact Full notes payload authority
+        if: ${{ inputs.include_full }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-full-notes-authority-${{ github.run_id }}
+          path: ${{ runner.temp }}/opl-release-full-notes-authority
+
+      - name: Verify Full notes payload authority transport
+        if: ${{ inputs.include_full }}
+        working-directory: ${{ runner.temp }}/opl-release-full-notes-authority
+        run: shasum -a 256 -c notes-full-payload-authority.sha256
+
       - name: Prepare and validate online AI notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -299,19 +394,9 @@ jobs:
           test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
           notes_intent_args=()
           if [[ '${{ inputs.include_full }}' == true ]]; then
-            node --experimental-strip-types scripts/prepare-release-notes-full-payload-authority.ts \
-              --app-root . \
-              --app-ref '${{ steps.identity.outputs.app_sha }}' \
-              --shell-root shells/aionui \
-              --shell-ref '${{ steps.identity.outputs.shell_sha }}' \
-              --framework-root framework-source \
-              --framework-ref '${{ steps.identity.outputs.framework_sha }}' \
-              --release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}' \
-              --third-party-source-manifest contracts/app-full-third-party-source-manifest.json \
-              --output notes-full-payload-authority.json
             notes_intent_args+=(
               --include-full-package
-              --full-package-manifest notes-full-payload-authority.json
+              --full-package-manifest "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
             )
           fi
           npm run release:notes -- \

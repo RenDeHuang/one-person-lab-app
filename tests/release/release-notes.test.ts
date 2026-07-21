@@ -127,6 +127,7 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     });
   });
   const shell = gitFixture(root, 'shell', (directory) => {
+    jsonFile(path.join(directory, 'package.json'), { aioncoreVersion: 'v0.1.49' });
     const runtimeKey = 'darwin-arm64';
     const runtimeRoot = path.join(directory, 'resources', 'bundled-aioncore', runtimeKey);
     const managedRoot = path.join(runtimeRoot, 'managed-resources');
@@ -140,7 +141,9 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
       arch: 'arm64',
       version: 'v0.1.49',
       sourceType: 'download',
-      source: { url: 'https://github.com/iOfficeAI/AionCore/releases/download/v0.1.49/aioncore-fixture.tar.gz' },
+      source: {
+        url: 'https://github.com/iOfficeAI/AionCore/releases/download/v0.1.49/aioncore-v0.1.49-aarch64-apple-darwin.tar.gz',
+      },
     });
     fs.mkdirSync(runtimeRoot, { recursive: true });
     fs.writeFileSync(path.join(runtimeRoot, 'aioncore'), 'aioncore fixture\n');
@@ -757,6 +760,78 @@ test('prebuild Full notes authority rejects missing Release Set input before wri
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Missing --release-set-manifest/);
   assert.equal(fs.existsSync(authorityPath), false);
+});
+
+test('prebuild Full notes authority rejects absent or drifted Shell AionCore materialization', async (context) => {
+  for (const [label, mutate, expected] of [
+    [
+      'missing root manifest',
+      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => fs.rmSync(path.join(
+        fixture.shell.root,
+        'resources',
+        'bundled-aioncore',
+        'darwin-arm64',
+        'manifest.json',
+      )),
+      /AionCore root manifest file is missing/,
+    ],
+    [
+      'missing managed manifest',
+      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => fs.rmSync(path.join(
+        fixture.shell.root,
+        'resources',
+        'bundled-aioncore',
+        'darwin-arm64',
+        'managed-resources',
+        'manifest.json',
+      )),
+      /AionCore managed-resources manifest file is missing/,
+    ],
+    [
+      'Shell pin drift',
+      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => jsonFile(
+        path.join(fixture.shell.root, 'package.json'),
+        { aioncoreVersion: 'v0.1.50' },
+      ),
+      /root manifest must exactly match the Shell pin/,
+    ],
+    [
+      'official release URL drift',
+      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => {
+        const manifestPath = path.join(
+          fixture.shell.root,
+          'resources',
+          'bundled-aioncore',
+          'darwin-arm64',
+          'manifest.json',
+        );
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        manifest.source.url = 'https://github.com/iOfficeAI/AionCore/releases/latest/download/aioncore.tar.gz';
+        jsonFile(manifestPath, manifest);
+      },
+      /root manifest must exactly match the Shell pin/,
+    ],
+    [
+      'official Codex lock URL drift',
+      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => {
+        const lock = JSON.parse(fs.readFileSync(fixture.codexLockPath, 'utf8'));
+        lock.packages['node_modules/@openai/codex'].resolved = 'https://registry.example.invalid/codex.tgz';
+        jsonFile(fixture.codexLockPath, lock);
+      },
+      /managed Codex lock must use the exact official npm tarballs/,
+    ],
+  ] as const) {
+    await context.test(label, () => {
+      const fixture = fullPayloadAuthorityFixture();
+      mutate(fixture);
+      fixture.shell.ref = commitFixtureChange(fixture.shell.root, label);
+      const authorityPath = path.join(fixture.root, 'invalid-aioncore-authority.json');
+      const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, expected);
+      assert.equal(fs.existsSync(authorityPath), false);
+    });
+  }
 });
 
 test('prebuild Full notes authority rejects Shell AionCore managed Codex lock drift before writing evidence', () => {

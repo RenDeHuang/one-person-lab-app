@@ -226,7 +226,8 @@ test('new Standard binds fresh remote Framework main while Canary uses only a mi
   );
 });
 
-test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without consuming build artifacts', () => {
+test('Full prepared notes materialize the exact Shell AionCore pin before deep authority derivation', () => {
+  const workflow = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');
   const frameworkCheckout = workflowStep(
     '_release-bundle.yml',
@@ -254,6 +255,81 @@ test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without c
     identityScript,
     /> (?:published-releases\.json|published-tags\.txt|stable-version-order\.json|previous-latest\.json|nightly-tags\.txt)/,
   );
+
+  const authorityJob = workflow.jobs['full-notes-authority'];
+  assert.equal(authorityJob['runs-on'], 'macos-latest');
+  assert.deepEqual(authorityJob.needs, ['admission']);
+  assert.match(String(authorityJob.if), /inputs\.mode == 'execute'/);
+  assert.match(String(authorityJob.if), /inputs\.include_full/);
+  const shellCheckout = workflowStep(
+    '_release-bundle.yml',
+    'full-notes-authority',
+    'Checkout exact Shell authority',
+  );
+  assert.equal(shellCheckout.with.repository, 'gaofeng21cn/opl-aion-shell');
+  assert.equal(shellCheckout.with.ref, '${{ inputs.shell_ref }}');
+  assert.equal(shellCheckout.with.path, 'shells/aionui');
+
+  const materialize = workflowStep(
+    '_release-bundle.yml',
+    'full-notes-authority',
+    'Materialize exact Shell AionCore authority',
+  );
+  assert.equal(materialize['working-directory'], 'shells/aionui');
+  assert.equal(materialize.env.AIONUI_BACKEND_ARCH, 'arm64');
+  assert.equal(materialize.env.AIONUI_BACKEND_RUN_ID, '');
+  assert.match(materialize.env.AIONUI_AIONCORE_CACHE_DIR, /runner\.temp.*github\.run_id/);
+  const materializeScript = String(materialize.run);
+  assert.match(materializeScript, /test "\$\(uname -m\)" = arm64/);
+  assert.match(materializeScript, /test ! -e resources\/bundled-aioncore\/darwin-arm64/);
+  assert.match(materializeScript, /package\.json.*aioncoreVersion/s);
+  assert.match(materializeScript, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
+  assert.match(materializeScript, /AIONUI_BACKEND_VERSION="\$aioncore_version" node scripts\/prepareAioncore\.js/);
+  assert.doesNotMatch(materializeScript, /latest|AIONUI_BACKEND_RUN_ID/);
+
+  const deriveScript = String(workflowStep(
+    '_release-bundle.yml',
+    'full-notes-authority',
+    'Derive deep-validated Full notes payload authority',
+  ).run);
+  for (const required of [
+    'scripts/prepare-release-notes-full-payload-authority.ts',
+    "--app-ref '${{ inputs.app_ref }}'",
+    "--shell-ref '${{ inputs.shell_ref }}'",
+    "--framework-ref '${{ inputs.framework_ref }}'",
+    '--output notes-full-payload-authority.json',
+    'shasum -a 256 notes-full-payload-authority.json',
+  ]) {
+    assert.ok(deriveScript.includes(required), `Full authority derivation is missing ${required}`);
+  }
+  const upload = workflowStep(
+    '_release-bundle.yml',
+    'full-notes-authority',
+    'Upload exact Full notes payload authority',
+  );
+  assert.equal(upload.with.name, 'opl-release-full-notes-authority-${{ github.run_id }}');
+  assert.equal(
+    upload.with.path,
+    'notes-full-payload-authority.json\nnotes-full-payload-authority.sha256\n',
+  );
+  assert.doesNotMatch(String(upload.with.path), /bundled-aioncore|managed-resources/);
+
+  assert.deepEqual(workflow.jobs.freeze.needs, ['admission', 'full-notes-authority']);
+  assert.match(String(workflow.jobs.freeze.if), /needs\['full-notes-authority'\]\.result == 'success'/);
+  assert.match(String(workflow.jobs.freeze.if), /!inputs\.include_full/);
+  const download = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Download exact Full notes payload authority',
+  );
+  assert.equal(download.with.name, 'opl-release-full-notes-authority-${{ github.run_id }}');
+  const transport = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Verify Full notes payload authority transport',
+  );
+  assert.equal(transport.run, 'shasum -a 256 -c notes-full-payload-authority.sha256');
+
   const step = workflowStep(
     '_release-bundle.yml',
     'freeze',
@@ -261,23 +337,19 @@ test('Full prepared notes bind prebuild SSOT refs before Bundle freeze without c
   );
   const script = String(step.run);
   assert.match(script, /if \[\[ '\$\{\{ inputs\.include_full \}\}' == true \]\]; then/);
-  assert.match(script, /scripts\/prepare-release-notes-full-payload-authority\.ts/);
-  for (const required of [
-    "--app-ref '${{ steps.identity.outputs.app_sha }}'",
-    "--shell-ref '${{ steps.identity.outputs.shell_sha }}'",
-    '--framework-root framework-source',
-    "--framework-ref '${{ steps.identity.outputs.framework_sha }}'",
-    "--release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}'",
-    '--third-party-source-manifest contracts/app-full-third-party-source-manifest.json',
-    '--output notes-full-payload-authority.json',
-    '--full-package-manifest notes-full-payload-authority.json',
-  ]) {
-    assert.ok(script.includes(required), `prepared notes step is missing ${required}`);
-  }
+  assert.doesNotMatch(script, /scripts\/prepare-release-notes-full-payload-authority\.ts/);
+  assert.match(
+    script,
+    /--full-package-manifest "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
+  );
   assert.doesNotMatch(script, /One-Person-Lab-Manual|dist\/opl-full-release|full-package-manifest\.json/);
   assert.ok(
-    source.indexOf('prepare-release-notes-full-payload-authority.ts')
-      < source.indexOf('- name: Freeze canonical Framework Bundle'),
+    source.indexOf('- name: Materialize exact Shell AionCore authority')
+      < source.indexOf('- name: Derive deep-validated Full notes payload authority'),
+  );
+  assert.ok(
+    source.indexOf('- name: Verify Full notes payload authority transport')
+      < source.indexOf('- name: Prepare and validate online AI notes'),
   );
 });
 
@@ -380,6 +452,7 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.deepEqual(Object.keys(bundle.jobs), [
     'startup-canary',
     'admission',
+    'full-notes-authority',
     'freeze',
     'standard-build',
     'standard-qualification',

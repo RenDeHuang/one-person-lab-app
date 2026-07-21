@@ -378,7 +378,33 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
   const mineruSource = requiredObject(thirdPartySources.mineru, 'MinerU source authority');
   const officePayload = requiredObject(runtimePayloads.officecli, 'OfficeCLI runtime authority');
   const aioncoreBinding = resolveAioncoreManagedCodexBinding(shellRoot);
+  const shellPackage = readRegularJson(path.join(shellRoot, 'package.json'), 'exact Shell package.json');
+  const aioncoreVersion = requiredString(shellPackage.aioncoreVersion, 'Shell package.json#aioncoreVersion');
+  if (!/^v\d+\.\d+\.\d+$/.test(aioncoreVersion)) {
+    throw new Error(`Shell AionCore pin must be an exact version tag, got ${aioncoreVersion}.`);
+  }
+  const expectedAioncoreUrl = [
+    'https://github.com/iOfficeAI/AionCore/releases/download',
+    aioncoreVersion,
+    `aioncore-${aioncoreVersion}-aarch64-apple-darwin.tar.gz`,
+  ].join('/');
+  if (
+    aioncoreBinding.runtime_key !== 'darwin-arm64'
+    || aioncoreBinding.aioncore.version !== aioncoreVersion
+    || aioncoreBinding.aioncore.source_type !== 'download'
+    || aioncoreBinding.aioncore.source_url !== expectedAioncoreUrl
+  ) {
+    throw new Error('AionCore root manifest must exactly match the Shell pin and official darwin-arm64 release.');
+  }
   const codexVersion = requiredString(aioncoreBinding.codex_cli.version, 'AionCore managed Codex CLI version');
+  const expectedCodexUrl = `https://registry.npmjs.org/@openai/codex/-/codex-${codexVersion}.tgz`;
+  const expectedPlatformUrl = `https://registry.npmjs.org/@openai/codex/-/codex-${aioncoreBinding.codex_cli.platform_version}.tgz`;
+  if (
+    aioncoreBinding.codex_cli.lock_resolved !== expectedCodexUrl
+    || aioncoreBinding.codex_cli.platform_lock_resolved !== expectedPlatformUrl
+  ) {
+    throw new Error('AionCore managed Codex lock must use the exact official npm tarballs.');
+  }
   components.codex = { version: `codex-cli ${codexVersion}` };
   resolvedRefs.codex_cli = {
     label: 'Codex CLI',
