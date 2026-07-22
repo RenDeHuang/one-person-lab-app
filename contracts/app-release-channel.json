@@ -250,7 +250,60 @@
         "optional_full_assets_and_qualification",
         "product_policy_inputs"
       ],
-      "prebuild_rule": "Freeze and verify one complete package binding before any expensive build. A source checkout, packaged payload, catalog, manifest, or Release Set mismatch fails closed before compression or publication."
+      "prebuild_rule": "Freeze and verify one complete package binding before any expensive build. A mismatch among the frozen checkout, task-local package projection, payload, manifest, source lock, or Release Bundle fails closed; later live authority movement is outside that frozen comparison."
+    },
+    "source_freeze_currentness_policy": {
+      "schema": "opl_release_source_freeze_currentness_policy.v1",
+      "applies_to": [
+        "manual_full",
+        "manual_full_preview",
+        "stable_standard",
+        "stable_append_full",
+        "future_stable_releases"
+      ],
+      "freeze_admission": {
+        "remote_and_current_authority_read_mode": "single_cutoff_read",
+        "repeat_fetch_or_chase_after_cutoff_allowed": false,
+        "required_frozen_bindings": [
+          "source checkout commit and tree",
+          "exact source and manifest bytes",
+          "task-local catalog and package projection",
+          "package payload and content digests",
+          "prepared notes when required by the track"
+        ],
+        "binding_authority": "manual source lock or immutable Framework Release Bundle"
+      },
+      "task_local_projection": {
+        "catalog_or_package_projection_allowed": true,
+        "must_bind_exact_bytes_and_digests": true,
+        "required_digest_containers": [
+          "source_lock_sha256",
+          "release_bundle_digest"
+        ],
+        "canonical_live_catalog_equality_is_prebuild_precondition": false,
+        "host_installed_or_effective_state_is_prebuild_precondition": false
+      },
+      "post_freeze_validation": {
+        "authority": "frozen checkout tree, source lock, Bundle, artifact bytes, and bound digests",
+        "live_remote_currentness_recheck_allowed": false,
+        "module_main_or_tag_advancement_invalidates_cohort": false,
+        "module_main_or_tag_advancement_triggers_rebuild": false,
+        "canonical_catalog_advancement_invalidates_cohort": false,
+        "installed_or_effective_advancement_invalidates_cohort": false
+      },
+      "post_build_qualification": {
+        "installed_effective_and_clean_machine_readback_stage": "artifact_qualification_after_build",
+        "may_be_used_as_source_freeze_admission": false,
+        "stable_latest_still_requires_applicable_qualification": true,
+        "failed_qualification_may_block_publication_or_latest": true
+      },
+      "cohort_invalidation_causes": [
+        "frozen byte tree or digest mismatch",
+        "artifact build or integrity failure",
+        "explicit security revocation bound to the frozen ref or digest"
+      ],
+      "all_other_live_currentness_drift_invalidates_cohort": false,
+      "rule": "Read remote/current authority once at freeze admission, then stop fetching or chasing moving refs. Build and qualification consume only the frozen source lock or Bundle and its task-local projections. Live catalog, main, tag, installed, or effective advancement cannot force a rebuild; only frozen-byte drift, artifact failure, or an explicit security revocation can invalidate the cohort."
     },
     "execution": {
       "model": "build_once_verify_and_promote_many",
@@ -564,6 +617,148 @@
           "standard_homebrew_digest_bound_publication",
           "standard_homebrew_clean_vm_install_and_readback"
         ]
+      },
+      "manual_full_preview": {
+        "schema": "opl_manual_full_preview_publication_contract.v1",
+        "state": "temporary_non_stable_prerelease",
+        "owner": "one-person-lab-app_unique_release_mutation_owner",
+        "workflow": ".github/workflows/release-manual-full-preview.yml",
+        "trigger": "workflow_dispatch",
+        "operations": [
+          "publish",
+          "cleanup"
+        ],
+        "stable_operation": false,
+        "framework_bundle_or_checkpoint_authority": false,
+        "protected_executor": {
+          "environment": "release-stable",
+          "main_only": true,
+          "run_attempt": 1,
+          "job_permissions": {
+            "contents": "write",
+            "actions": "read"
+          },
+          "repository_concurrency_group": "opl-release-bundle-global",
+          "cancel_in_progress": false,
+          "daily_credential_bypass_allowed": false
+        },
+        "ingress": {
+          "repository_variable": "OPL_MANUAL_PREVIEW_INGRESS_ROOT",
+          "settings_receipt_required_before_enablement": true,
+          "root_policy": "dedicated_fixed_absolute_handoff_root",
+          "nonce_pattern": "^[0-9a-f]{32}$",
+          "arbitrary_path_or_symlink_allowed": false,
+          "self_hosted_labels": [
+            "self-hosted",
+            "macOS",
+            "ARM64",
+            "opl-gui-vm"
+          ],
+          "permissions": {
+            "contents": "read",
+            "actions": "read"
+          },
+          "transport": "immutable_run_scoped_actions_artifact_by_id",
+          "artifact_overwrite": false,
+          "artifact_compression_level": 0,
+          "artifact_owner_run_and_expiry_readback_required": true
+        },
+        "tag": {
+          "format": "manual-full-preview-<YY.M.D>-m1-<source-lock-sha256-first12>",
+          "derived_not_operator_supplied": true,
+          "starts_with_v": false,
+          "stable_nightly_or_updater_recognition_allowed": false,
+          "target": "manual-latest-source-lock.json#repositories.app.head"
+        },
+        "publish_admission": {
+          "required_callback_status": "MANUAL_USABLE_DELIVERED",
+          "required_schemas": {
+            "source_lock": "opl_manual_latest_build_source_lock.v1",
+            "build": "opl_manual_latest_build_receipt.v1",
+            "m1_delivery": "opl_manual_full_m1_delivery_receipt.v1",
+            "host_qa": "opl_manual_full_host_qa_receipt.v1",
+            "public_manifest": "opl_public_release_manifest.v1"
+          },
+          "required_host_qa": "minimum_host_qa",
+          "m2_status_at_publish": "pending"
+        },
+        "published_assets": [
+          "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+          "full-package-manifest.json",
+          "manual-full-host-qa-receipt.json",
+          "manual-full-m1-delivery-receipt.json",
+          "manual-full-preview-manifest.json",
+          "manual-latest-build-receipt.json",
+          "manual-latest-source-lock.json",
+          "opl-release-manifest.json"
+        ],
+        "notes_required_statements": [
+          "Manual Full preview",
+          "Minimum Host QA passed.",
+          "M2 clean VM/full qualification pending.",
+          "This is not Stable and is not an automatic update.",
+          "Stable Latest, updater metadata, Homebrew, and the Standard checkpoint remain unchanged."
+        ],
+        "publication": {
+          "initial_release_state": "draft_prerelease",
+          "published_prerelease": true,
+          "make_latest": false,
+          "publish_only_after_exact_asset_readback": true,
+          "missing_asset": "upload_once",
+          "same_name_same_digest": "already_complete",
+          "same_name_different_digest": "fail_closed"
+        },
+        "mutation_allowlist": [
+          "derived_preview_release",
+          "derived_preview_release_assets",
+          "derived_preview_tag"
+        ],
+        "must_not_modify": [
+          "stable_tag_or_release",
+          "latest_selection",
+          "updater_metadata",
+          "homebrew",
+          "standard_checkpoint"
+        ],
+        "unknown_outcome": {
+          "mutation_retry_allowed": false,
+          "redispatch_allowed": false,
+          "rerun_allowed": false,
+          "cancel_allowed": false,
+          "read_only_inspection_maximum": 3,
+          "unresolved_result": "fail_closed"
+        },
+        "cleanup": {
+          "required_m2_schema": "opl_manual_full_m2_qualification_receipt.v1",
+          "required_m2_status": "standard_qualified",
+          "required_stable_readback_schema": "opl_manual_preview_stable_append_full_readback.v1",
+          "required_stable_readback_status": "verified",
+          "same_source_lock_and_full_asset_digests_required": true,
+          "same_bundle_digest_required": true,
+          "m2_exact_asset_bindings": [
+            "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+            "opl-release-manifest.json"
+          ],
+          "required_formal_stable_assets": [
+            "One-Person-Lab-<version>-mac-arm64.dmg",
+            "One-Person-Lab-<version>-mac-arm64.zip",
+            "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+            "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+            "latest-arm64-mac.yml",
+            "opl-app-component-manifest.json",
+            "opl-release-manifest.json",
+            "standard-local-authorization-policy.json"
+          ],
+          "stable_release_published_non_prerelease_required": true,
+          "stable_latest_required": true,
+          "stable_updater_metadata_readback_required": true,
+          "delete_order": [
+            "preview_release",
+            "preview_tag"
+          ],
+          "release_and_tag_double_absence_readback_required": true,
+          "stable_remote_readback_repeated_after_cleanup": true
+        }
       },
       "nightly": {
         "workflow": ".github/workflows/release-nightly.yml",

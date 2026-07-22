@@ -1,0 +1,206 @@
+name: OPL Manual Full Preview Prerelease
+run-name: OPL Manual Full Preview ${{ inputs.operation }} ${{ inputs.handoff_nonce }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Publish the M1 preview or clean it after M2 and Stable append_full closeout
+        required: true
+        default: publish
+        type: choice
+        options:
+          - publish
+          - cleanup
+      handoff_nonce:
+        description: Fresh 32-hex directory below the fixed protected ingress root
+        required: true
+        type: string
+      handoff_manifest_sha256:
+        description: Exact lowercase SHA-256 of manual-full-preview-manifest.json
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-release-bundle-global
+  cancel-in-progress: false
+
+jobs:
+  ingress:
+    runs-on: [self-hosted, macOS, ARM64, opl-gui-vm]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_name: ${{ steps.contract.outputs.artifact_name }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      preview_tag: ${{ steps.contract.outputs.preview_tag }}
+    steps:
+      - name: Checkout canonical App publisher
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate and materialize immutable handoff bytes
+        id: contract
+        env:
+          OPERATION: ${{ inputs.operation }}
+          HANDOFF_NONCE: ${{ inputs.handoff_nonce }}
+          HANDOFF_MANIFEST_SHA256: ${{ inputs.handoff_manifest_sha256 }}
+          INGRESS_ROOT: ${{ vars.OPL_MANUAL_PREVIEW_INGRESS_ROOT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || {
+            echo "::error::Manual Full preview operations are one-shot and cannot be rerun."
+            exit 1
+          }
+          test "$GITHUB_REF" = refs/heads/main
+          app_sha="$(git rev-parse HEAD)"
+          canonical_app_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$app_sha" = "$canonical_app_sha" || {
+            echo "::error::Manual Full preview executor must be canonical App main."
+            exit 1
+          }
+          test -n "$INGRESS_ROOT" || {
+            echo "::error::OPL_MANUAL_PREVIEW_INGRESS_ROOT is not configured."
+            exit 1
+          }
+          [[ "$HANDOFF_NONCE" =~ ^[0-9a-f]{32}$ ]]
+          [[ "$HANDOFF_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          payload_dir="$RUNNER_TEMP/manual-full-preview-payload"
+          summary="$RUNNER_TEMP/manual-full-preview-ingress.json"
+          if test -e "$payload_dir" || test -L "$payload_dir"; then
+            echo "::error::Run-scoped Manual Full preview payload path already exists."
+            exit 1
+          fi
+          node --experimental-strip-types scripts/manual-full-preview-release.ts ingest \
+            --operation "$OPERATION" \
+            --ingress-root "$INGRESS_ROOT" \
+            --nonce "$HANDOFF_NONCE" \
+            --manifest-sha256 "$HANDOFF_MANIFEST_SHA256" \
+            --output-dir "$payload_dir" \
+            --summary "$summary"
+          preview_tag="$(jq -er .preview_tag "$summary")"
+          [[ "$preview_tag" =~ ^manual-full-preview-[0-9]+\.[0-9]+\.[0-9]+-m1-[0-9a-f]{12}$ ]]
+          artifact_name="opl-manual-full-preview-${OPERATION}-${GITHUB_RUN_ID}"
+          {
+            echo "preview_tag=$preview_tag"
+            echo "artifact_name=$artifact_name"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable run-scoped handoff
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.contract.outputs.artifact_name }}
+          path: ${{ runner.temp }}/manual-full-preview-payload
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false
+
+  mutate:
+    needs: [ingress]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout canonical protected publisher
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Re-admit protected one-shot mutation
+        env:
+          PREVIEW_TAG: ${{ needs.ingress.outputs.preview_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+          app_sha="$(git rev-parse HEAD)"
+          canonical_app_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$app_sha" = "$canonical_app_sha" || {
+            echo "::error::Protected Manual Full preview publisher must be canonical App main."
+            exit 1
+          }
+          [[ "$PREVIEW_TAG" =~ ^manual-full-preview-[0-9]+\.[0-9]+\.[0-9]+-m1-[0-9a-f]{12}$ ]]
+          [[ "$PREVIEW_TAG" != v* ]]
+
+      - name: Verify immutable Actions artifact ownership
+        env:
+          ARTIFACT_ID: ${{ needs.ingress.outputs.artifact_id }}
+          ARTIFACT_NAME: ${{ needs.ingress.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ needs.ingress.outputs.artifact_digest }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/manual-full-preview-release.ts verify-artifact \
+            --operation "${{ inputs.operation }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --run-id "$GITHUB_RUN_ID" \
+            --artifact-id "$ARTIFACT_ID" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --artifact-digest "$ARTIFACT_DIGEST" \
+            --summary "$RUNNER_TEMP/manual-full-preview-transport.json"
+
+      - name: Download exact immutable handoff by artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.ingress.outputs.artifact_id }}
+          path: ${{ runner.temp }}/manual-full-preview-payload
+
+      - name: Execute bounded preview-only mutation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HANDOFF_MANIFEST_SHA256: ${{ inputs.handoff_manifest_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt="$RUNNER_TEMP/manual-full-preview-operation-receipt.json"
+          error_log="$RUNNER_TEMP/manual-full-preview-operation-error.log"
+          if ! node --experimental-strip-types scripts/manual-full-preview-release.ts mutate \
+            --operation "${{ inputs.operation }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --payload-dir "$RUNNER_TEMP/manual-full-preview-payload" \
+            --manifest-sha256 "$HANDOFF_MANIFEST_SHA256" \
+            --summary "$receipt" 2> >(tee "$error_log" >&2); then
+            jq -n \
+              --arg operation "${{ inputs.operation }}" \
+              --arg preview_tag "${{ needs.ingress.outputs.preview_tag }}" \
+              --arg manifest_sha256 "$HANDOFF_MANIFEST_SHA256" \
+              --rawfile error "$error_log" \
+              '{schema:"opl_manual_full_preview_failure_receipt.v1",status:"failed_closed",operation:$operation,preview_tag:$preview_tag,manifest_sha256:$manifest_sha256,mutation_retry_performed:false,error:$error}' \
+              > "$receipt"
+            exit 1
+          fi
+
+      - name: Upload protected operation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-manual-full-preview-${{ inputs.operation }}-receipt-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/manual-full-preview-transport.json
+            ${{ runner.temp }}/manual-full-preview-operation-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: false

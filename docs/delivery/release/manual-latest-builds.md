@@ -29,6 +29,28 @@ first-party owner `main` is newer than Framework `main`. The canonical Framework
 checkout is not changed, and the Full builder still runs its normal source
 closure checks against the projected catalog.
 
+### Freeze Currentness Cutoff
+
+Manual Full and every Stable track read remote/current authority once at freeze
+admission. That cutoff freezes the exact checkout commit and tree, source and
+manifest bytes, task-local catalog/package projection, payload digests, and
+prepared notes required by the track. The projection and all package identities
+must be bound into `manual-latest-source-lock.json` or the immutable Release
+Bundle digest.
+
+After the cutoff, the owner stops fetching and does not chase a newer `main`,
+tag, canonical catalog, or host installed/effective state. Later authority
+advancement neither invalidates the cohort nor permits or requires a rebuild;
+post-freeze checks compare only the frozen checkout/tree/bytes and their bound
+digests. Canonical live catalog equality and host installed/effective currentness
+are not prebuild conditions.
+
+Installed/effective and clean-machine readback remain post-build artifact
+qualification. A formal Stable may become Latest only after its applicable
+qualification passes. A cohort can be invalidated only by a frozen byte, tree,
+or digest mismatch; an artifact build or integrity failure; or an explicit
+security revocation bound to a frozen ref or digest.
+
 ## Commands
 
 Inspect and freeze the current inputs without building:
@@ -68,9 +90,9 @@ Useful options:
 Normal builds use a sibling staging directory and replace the managed output
 directory only after the App or DMG passes verification. A failed rebuild leaves
 the previous successful output directory intact. Immediately before installing
-the App or promoting the DMG, the command rechecks every first-party repository
-against the frozen source snapshot. A dirty repository or changed HEAD, branch,
-local `main`, or remote-tracking `main` fails closed.
+the App or promoting the DMG, the command rechecks the frozen checkout trees and
+bound bytes against the source snapshot. Frozen-byte drift fails closed; a later
+remote-tracking `main` or tag advancement does not.
 
 ## Evidence And Boundary
 
@@ -99,3 +121,80 @@ and SHA-256 plus both Full manifests.
 These lanes do not create a Release Bundle, Framework checkpoint, Git tag,
 GitHub Release, Latest mutation, updater metadata, or Homebrew mutation. Their
 receipts are not formal Stable admission or updater qualification evidence.
+
+## Protected Preview Handoff
+
+The Manual Full builder remains non-mutating. A separate successor may publish
+its exact output as a temporary GitHub prerelease only through
+`.github/workflows/release-manual-full-preview.yml` after the Manual Full owner
+returns a `MANUAL_USABLE_DELIVERED` callback. No placeholder Release, tag, or
+asset may be created before that callback.
+
+The settings owner first provisions one dedicated absolute handoff root as the
+repository Actions variable `OPL_MANUAL_PREVIEW_INGRESS_ROOT` and records an
+independent settings receipt. Each invocation uses a fresh 32-character
+lowercase hexadecimal nonce and places the handoff at exactly
+`$OPL_MANUAL_PREVIEW_INGRESS_ROOT/<nonce>`. The workflow accepts no operator
+path. All entries must be non-empty regular files, with no symlink or extra
+file.
+
+For `operation=publish`, the directory contains exactly these eight public
+assets:
+
+- `One-Person-Lab-Full-<version>-mac-arm64.dmg`
+- `full-package-manifest.json`
+- `manual-full-host-qa-receipt.json`
+- `manual-full-m1-delivery-receipt.json`
+- `manual-full-preview-manifest.json`
+- `manual-latest-build-receipt.json`
+- `manual-latest-source-lock.json`
+- `opl-release-manifest.json`
+
+`manual-full-preview-manifest.json` uses
+`opl_manual_full_preview_manifest.v1`, sets `operation` to `publish`, and binds
+the other seven files as a sorted array of exact `name`, `size_bytes`, and
+lowercase `sha256` values. It also binds `display_version`,
+`source_lock_sha256`, the deterministic preview tag, and the exact warning text
+from the release contract. The workflow input binds the manifest file's own
+SHA-256.
+
+`manual-full-host-qa-receipt.json` uses
+`opl_manual_full_host_qa_receipt.v1`, with `status=passed`,
+`qualification=minimum_host_qa`, the display version, source-lock digest, and
+the exact DMG identity. `manual-full-m1-delivery-receipt.json` uses
+`opl_manual_full_m1_delivery_receipt.v1`, with
+`status=MANUAL_USABLE_DELIVERED`, and binds the exact source lock, DMG, build
+receipt, Host QA receipt, Full package manifest, and public release manifest.
+
+The resulting tag is
+`manual-full-preview-<YY.M.D>-m1-<source-lock-sha256-first12>`. It is
+preview-only, is not updater-visible, and cannot become GitHub Latest. The
+published Release is a prerelease and its notes state that minimum Host QA has
+passed, M2 clean-VM/full qualification is pending, and Stable, automatic update,
+Latest, updater metadata, Homebrew, and the Standard checkpoint are unchanged.
+
+## Preview Cleanup Handoff
+
+Cleanup uses a new nonce and a new `manual-full-preview-manifest.json` with
+`operation=cleanup`. The handoff directory contains exactly that manifest plus:
+
+- `manual-full-m2-qualification-receipt.json`
+- `stable-append-full-readback-receipt.json`
+
+The M2 receipt uses `opl_manual_full_m2_qualification_receipt.v1`, records
+`status=standard_qualified`, binds the same preview tag and source-lock digest,
+binds the exact Framework Bundle digest, Full DMG, and
+`opl-release-manifest.json`, and records passed clean-VM/full qualification plus
+completed builder cleanup.
+The Stable receipt uses
+`opl_manual_preview_stable_append_full_readback.v1`, records `status=verified`,
+and binds the same Framework Bundle digest, formal Stable tag, same source lock,
+published-Latest Standard readback, published `append_full` readback, updater
+metadata readback, and the exact sorted Stable asset identities: all six
+Standard assets, the Full DMG, and `opl-release-manifest.json`.
+
+The protected executor independently verifies that the formal Stable Release is
+published, non-prerelease, Latest, and has the bound Full and updater assets.
+Only then may it delete the preview Release and preview tag. It performs double
+absence readback and repeats the formal Stable readback after cleanup. A failed
+or unknown cleanup never changes the formal Stable Release.

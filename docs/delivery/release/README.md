@@ -23,6 +23,7 @@ publish, promote, rerun, cancel, or claim readiness for a new release.
 | Bundle schema, canonical digest, store, checkpoint, executor and operation receipts | OPL Framework `opl release` |
 | Stable product operations and public asset policy | `contracts/app-release-channel.json#release_bundle_control_plane` |
 | Stable manual entry | `.github/workflows/release-stable.yml` |
+| Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Nightly entry | `.github/workflows/release-nightly.yml`, schedule only |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
 | Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained legacy scripts, read-only |
@@ -142,6 +143,48 @@ Afterward publication is digest-idempotent:
 Typed failure evidence is persisted before a failing job exits or cleans its
 workspace and is uploaded even on failure. Missing failure evidence cannot be
 reinterpreted as a passed gate.
+
+## Temporary Manual Full Preview
+
+The Manual Full preview is a temporary public download lane, not a Stable
+operation and not a Framework Release Bundle state transition. Its only entry is
+`.github/workflows/release-manual-full-preview.yml`, with the two exact
+operations `publish` and `cleanup`. The mutation job is bound to the protected
+`release-stable` environment and the repository-wide release mutex. Ordinary
+developer credentials and the Manual Full builder cannot create, edit, or
+delete the preview Release or tag.
+
+`publish` is admitted only after a fresh `MANUAL_USABLE_DELIVERED` receipt binds
+the exact Manual Full DMG, source lock, build receipt, public manifests, and a
+passed minimum Host QA receipt. The preview tag is derived as
+`manual-full-preview-<YY.M.D>-m1-<source-lock-sha256-first12>` and never starts
+with `v`. The Release is published with `prerelease=true` and
+`make_latest=false`; its notes state that M2 clean-VM/full qualification is
+pending and that it is neither Stable nor an automatic update.
+
+Large handoff bytes enter through the fixed
+`OPL_MANUAL_PREVIEW_INGRESS_ROOT/<nonce>` directory on the dedicated macOS ARM64
+runner. The read-only ingress job rejects symlinks, extra files, arbitrary
+paths, and digest drift, then uploads one immutable run-scoped Actions artifact.
+The protected job downloads that artifact by ID only after reading back its
+owner run, digest, and expiry. The repository variable must have an independent
+settings receipt before this executor can be enabled.
+
+The publisher uploads a missing asset once, treats the same name and digest as
+complete, and fails closed on a conflicting digest. An unknown mutation result
+allows at most three read-only postcondition inspections and never allows a
+retry, workflow rerun, redispatch, or cancel. The mutation allowlist contains
+only the derived preview Release, its assets, and its tag; Stable tags, Latest,
+updater metadata, Homebrew, and Framework checkpoints are read-only.
+
+`cleanup` is admitted only after M2 reports `standard_qualified` and an exact
+receipt proves that formal Standard plus `append_full` are published and read
+back, the Stable Release is Latest, and updater metadata and Full asset digests
+match the frozen cohort. The M2 and Stable receipts must bind the same Framework
+Bundle, Full DMG, and release manifest; remote readback covers all six Standard
+assets plus both Full assets. Cleanup deletes the preview Release first, proves
+its absence, deletes the preview tag, proves both are absent, and then repeats
+the formal Stable remote readback.
 
 ## Homebrew Distribution Boundary
 

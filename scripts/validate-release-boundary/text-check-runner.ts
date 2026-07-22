@@ -7,6 +7,8 @@ const workflowMutationCommandPattern = /gh\s+api\s+--method\s+(?:POST|PATCH|PUT|
 const retiredLiveAuthorityPattern = /release[_ -]broker|verify-release-broker|verify-release-session-lease|release_attempt_id|release_mutation_payload_sha256|pre_api_admission_receipt_base64|release[_ -]session[_ -]lease/i;
 const exactReadPermissions = { contents: 'read', actions: 'read' } as const;
 const exactStableEntryPermissions = { contents: 'write', actions: 'read' } as const;
+const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
+const manualFullPreviewMutationJob = 'mutate';
 
 export const stableReleaseActionPaths = [...new Set([
   '.github/actions/setup-active-shell-deps/action.yml',
@@ -585,10 +587,100 @@ export function validateStableReleaseActionPinPolicy(appRoot: string): number {
   return failures;
 }
 
+export function validateManualFullPreviewControlPlane(appRoot: string): number {
+  const id = 'manual_full_preview_control_plane';
+  const parsed = parseWorkflow(appRoot, manualFullPreviewWorkflowPath, id);
+  if (!parsed) return 1;
+  const { workflow, text } = parsed;
+  let failures = 0;
+  if (JSON.stringify(Object.keys(workflow.on ?? {})) !== JSON.stringify(['workflow_dispatch'])) {
+    failures += reportFailure(id, 'Manual Full preview must expose only workflow_dispatch');
+  }
+  const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
+  if (JSON.stringify(Object.keys(inputs).sort()) !== JSON.stringify([
+    'handoff_manifest_sha256', 'handoff_nonce', 'operation',
+  ])) {
+    failures += reportFailure(id, 'Manual Full preview inputs must be exactly operation, handoff_nonce, and handoff_manifest_sha256');
+  }
+  if (
+    inputs.operation?.required !== true
+    || inputs.operation?.type !== 'choice'
+    || JSON.stringify(inputs.operation?.options) !== JSON.stringify(['publish', 'cleanup'])
+    || inputs.handoff_nonce?.required !== true
+    || inputs.handoff_nonce?.type !== 'string'
+    || inputs.handoff_manifest_sha256?.required !== true
+    || inputs.handoff_manifest_sha256?.type !== 'string'
+  ) {
+    failures += reportFailure(id, 'Manual Full preview dispatch input contract is invalid');
+  }
+  if (!exactObject(workflow.permissions, exactReadPermissions)) {
+    failures += reportFailure(id, 'Manual Full preview top-level permissions must be exactly contents:read/actions:read');
+  }
+  if (
+    workflow.concurrency?.group !== 'opl-release-bundle-global'
+    || workflow.concurrency?.['cancel-in-progress'] !== false
+  ) {
+    failures += reportFailure(id, 'Manual Full preview must share the non-cancelling repository release mutex');
+  }
+  const jobs = workflowJobs(workflow);
+  if (JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(['ingress', 'mutate'])) {
+    failures += reportFailure(id, 'Manual Full preview jobs must be exactly ingress and mutate');
+  }
+  const ingress = jobs.ingress;
+  const mutate = jobs.mutate;
+  if (
+    !ingress
+    || JSON.stringify(ingress['runs-on']) !== JSON.stringify(['self-hosted', 'macOS', 'ARM64', 'opl-gui-vm'])
+    || ingress.environment !== undefined
+    || !exactObject(ingress.permissions, exactReadPermissions)
+    || ingress.secrets !== undefined
+  ) {
+    failures += reportFailure(id, 'Manual Full preview ingress must be the read-only dedicated macOS ARM64 runner');
+  }
+  if (
+    !mutate
+    || !needsExactly(mutate, ['ingress'])
+    || mutate.environment !== 'release-stable'
+    || !exactObject(mutate.permissions, exactStableEntryPermissions)
+    || mutate.secrets !== undefined
+  ) {
+    failures += reportFailure(id, 'Manual Full preview mutation must be admission-dependent and protected by release-stable');
+  }
+  const ingressRuns = jobRuns(ingress);
+  const mutateRuns = jobRuns(mutate);
+  if (
+    !ingressRuns.includes('test "$GITHUB_RUN_ATTEMPT" = 1')
+    || !ingressRuns.includes('OPL_MANUAL_PREVIEW_INGRESS_ROOT')
+    || !ingressRuns.includes('manual-full-preview-release.ts ingest')
+    || !mutateRuns.includes('test "$GITHUB_RUN_ATTEMPT" = 1')
+    || !mutateRuns.includes('manual-full-preview-release.ts verify-artifact')
+    || !mutateRuns.includes('manual-full-preview-release.ts mutate')
+  ) {
+    failures += reportFailure(id, 'Manual Full preview must enforce attempt one, fixed ingress, artifact readback, and the thin executor');
+  }
+  if (
+    !text.includes('artifact-ids: ${{ needs.ingress.outputs.artifact_id }}')
+    || !text.includes('overwrite: false')
+    || !text.includes('compression-level: 0')
+    || /(?:opl release|gh workflow run|gh run (?:rerun|cancel)|--clobber)/.test(text)
+  ) {
+    failures += reportFailure(id, 'Manual Full preview transport or forbidden mutation boundary drifted');
+  }
+  for (const [jobId, job] of Object.entries(jobs)) {
+    failures += validateExactActionPins(
+      manualFullPreviewWorkflowPath,
+      jobId,
+      Array.isArray(job.steps) ? job.steps : [],
+    );
+  }
+  return failures;
+}
+
 export function validateWorkflowDispatchWriteAuthority(appRoot: string): number {
   let failures = validateStableReleaseControlPlane(appRoot) +
     validateReleaseBundleTopology(appRoot) +
-    validateReleaseBundleCanaryTopology(appRoot);
+    validateReleaseBundleCanaryTopology(appRoot) +
+    validateManualFullPreviewControlPlane(appRoot);
   const stableWorkflowPath = '.github/workflows/release-stable.yml';
   const stableEntryJobs = new Set(Object.keys(stableEntrySpecs));
   const workflowDirectory = path.join(appRoot, '.github', 'workflows');
@@ -608,7 +700,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     if (!Object.prototype.hasOwnProperty.call(workflow?.on ?? {}, 'workflow_dispatch')) continue;
     const topPermissions = workflow.permissions && typeof workflow.permissions === 'object' ? workflow.permissions : {};
     const topWrites = Object.entries(topPermissions).filter(([, value]) => value === 'write').map(([key]) => key);
-    if (workflowPath === stableWorkflowPath && topWrites.length > 0) {
+    if (topWrites.length > 0) {
       console.error(`FAIL workflow_dispatch_write_authority: ${workflowPath} grants top-level write permissions (${topWrites.join(',')}); use job-level least privilege`);
       failures += 1;
     }
@@ -619,6 +711,16 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       const writes = Object.entries(permissions).filter(([, value]) => value === 'write').map(([key]) => key);
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
+      if (
+        workflowPath === manualFullPreviewWorkflowPath
+        && jobId === manualFullPreviewMutationJob
+        && job.environment === 'release-stable'
+        && needsExactly(job, ['ingress'])
+        && exactObject(job.permissions, exactStableEntryPermissions)
+      ) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
       if (workflowPath === stableWorkflowPath && stableEntryJobs.has(jobId)) {
         if (job.uses && steps.length === 0 && exactObject(job.permissions, exactStableEntryPermissions)) {
           continue;
