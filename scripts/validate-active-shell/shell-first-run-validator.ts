@@ -82,7 +82,9 @@ export function validateFirstRunImplementation(shellPaths) {
   }
   for (const expected of [
     'STARTUP_STATE_SOFT_TIMEOUT_MS = 1500',
-    "resolve({ kind: 'timeout' })",
+    'function readStartupStateWithSoftTimeout(): Promise<void>',
+    'window.setTimeout(() => {',
+    'resolve();',
     "setPhase('routeDecision')",
     "return <Navigate to='/guid' replace />;",
   ]) {
