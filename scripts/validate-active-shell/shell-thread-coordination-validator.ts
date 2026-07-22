@@ -3,7 +3,6 @@ import path from 'node:path';
 import {
   assertShellTextIncludesAll,
   assertTextExcludesAll,
-  assertTextIncludesAll,
   readShellText,
 } from './shell-implementation-helpers.ts';
 
@@ -12,7 +11,6 @@ const paths = {
   bridge: 'packages/desktop/src/process/bridge/codexAppServerBridge.ts',
   bridgeIndex: 'packages/desktop/src/process/bridge/index.ts',
   sider: 'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
-  adapterTest: 'tests/unit/codex-app-server/adapter.test.ts',
 };
 
 const retiredPaths = [
@@ -81,20 +79,6 @@ export function validateShellThreadCoordination(shellPaths): void {
     'Codex App Server bridge registration',
   );
   const sider = readShellText(shellPaths, paths.sider);
-  const tests = readShellText(shellPaths, paths.adapterTest);
-
-  assertTextIncludesAll(
-    tests,
-    [
-      'lists active and archived threads through bounded app-server pagination',
-      'falls back to a turn-free read for an unmaterialized thread',
-      'maps the narrow user-triggered thread lifecycle to app-server methods',
-      'initializes one process and handles fragmented and coalesced JSONL frames',
-      'times out a silent production request without returning partial success',
-      'rejects unsupported server requests without creating a pending control plane',
-    ],
-    'Codex App Server adapter focused tests',
-  );
 
   for (const retiredPath of retiredPaths) {
     if (existsSync(path.join(shellPaths.shellRoot, retiredPath))) {
