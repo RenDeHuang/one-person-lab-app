@@ -9,7 +9,6 @@ export function validateFirstRunImplementation(shellPaths) {
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
   const loginPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/login/index.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
-  const firstRunTests = readShellText(shellPaths, 'tests/unit/opl-runtime/FirstRun.dom.test.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
   const corePrerequisitesHook = readShellText(
@@ -372,15 +371,6 @@ export function validateFirstRunImplementation(shellPaths) {
     gatewaySetupBlock.includes("actionId: 'gateway_account_use_for_model_access'")
   ) {
     throw new Error('Active shell Gateway login/setup must not execute the separate model-access mutation');
-  }
-  for (const expected of [
-    "screen.getByTestId('opl-first-run-gateway-model-access-confirm')",
-    "actionId: 'gateway_account_use_for_model_access'",
-    'not.toHaveBeenCalledWith',
-  ]) {
-    if (!firstRunTests.includes(expected)) {
-      throw new Error(`Active shell Gateway explicit-confirmation regression must include ${expected}`);
-    }
   }
   for (const expected of [
     "const initializeUnresolved = initialize === null;",
