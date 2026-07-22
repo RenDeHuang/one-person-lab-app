@@ -2250,7 +2250,7 @@
         "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
         "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history",
-        "localized unavailable reason, responsible owner or missing carrier, and a recovery action when inventory is unavailable"
+        "carrier-aware storage availability presentation with user-visible context, impact, and an appropriate next action"
       ],
       "machine_source": "active shell local data lifecycle plus opl app state owner storage projections",
       "refresh_source": "cached shell and owner snapshots followed by non-blocking TTL/manual refresh; missing owner projections fail open",
@@ -2275,7 +2275,8 @@
         "host bind-mount or deployment environment mutation",
         "silent user data deletion",
         "App-owned runtime or domain data authority",
-        "an unavailable state containing only Refresh"
+        "an unavailable state containing only Refresh",
+        "implementation terms such as desktop storage carrier, owner projection, or carrier host in explanatory product copy"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "workspace",
