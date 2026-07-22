@@ -24,7 +24,6 @@ const shellPaths = {
   packageManifestPath: '/fixture/active-shell/package.json',
 };
 const MANAGED_AGENT_REMEDIATION_REF = '6875ada9fa6e800b64980dadb02180def6b0f6e2';
-const TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS = ['v0.1.49', 'v0.1.50'];
 const MANAGED_AGENT_NODE_TESTS = [
   'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
   'tests/unit/common-adapter/apiModelMapper.test.ts',
@@ -95,7 +94,7 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: (filePath) => {
       packagePath = filePath;
-      return { aioncoreVersion: 'v0.1.49' };
+      return { aioncoreVersion: 'v0.1.50' };
     },
     isGitAncestor: (ref) => {
       checkedRefs.push(ref);
@@ -158,15 +157,13 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
     aionCore.remediation_ref,
     aionCore.version_gate.minimum_version,
     aionCore.version_gate.selective_absorption_version,
-    aionCore.version_gate.temporary_compatible_versions,
     aionCore.capability_gate.state,
   ], [
     'absorbed',
     'aioncore_database_recovery_verified',
     '81c8b37fdc067549341b41539d7648b09aa31d37',
     'v0.1.44',
-    'v0.1.49',
-    TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS,
+    'v0.1.50',
     'verified',
   ]);
 });
@@ -204,29 +201,8 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('an active shell package below the temporary compatibility bridge', () => {}, /active shell package aioncoreVersion v0\.1\.48 must be one of temporary_compatible_versions \["v0\.1\.49","v0\.1\.50"\]/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.48' }) })),
-  invalid('an active shell package above the temporary compatibility bridge', () => {}, /active shell package aioncoreVersion v0\.1\.51 must be one of temporary_compatible_versions \["v0\.1\.49","v0\.1\.50"\]/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.51' }) })),
-  invalid('temporary compatible versions missing the current version', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.50'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('temporary compatible versions missing the next version', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('reversed temporary compatible versions', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.50', 'v0.1.49'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('duplicate temporary compatible versions', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.49'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('a third temporary compatible version', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.50', 'v0.1.51'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('a temporary compatible version range', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['>=v0.1.49', 'v0.1.50'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
-  invalid('a temporary compatible version wildcard', (c) => {
-    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.x'];
-  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('the superseded active shell package version', () => {}, /active shell package aioncoreVersion v0\.1\.49 must match selective_absorption_version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }) })),
+  invalid('an unapproved active shell package version', () => {}, /active shell package aioncoreVersion v0\.1\.51 must match selective_absorption_version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.51' }) })),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -256,27 +232,13 @@ for (const { name, mutate, options, error } of invalidCases) {
   });
 }
 
-for (const aioncoreVersion of TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS) {
-  test(`AionUI intake validator accepts verified AionCore package ${aioncoreVersion} and ancestor evidence`, () => {
-    const contract = readContract();
-    assert.doesNotThrow(() => validateContract(contract, {
-      readJsonFile: () => ({ aioncoreVersion }),
-    }));
-  });
-}
-
-test('AionUI intake validator retains strict equality when the temporary compatibility bridge is absent', () => {
+test('AionUI intake validator accepts only the strict AionCore v0.1.50 authority', () => {
   const contract = readContract();
-  delete dependency(contract, 'aioncore_database_recovery').version_gate.temporary_compatible_versions;
+  const versionGate = dependency(contract, 'aioncore_database_recovery').version_gate;
+  assert.equal(Object.hasOwn(versionGate, 'temporary_compatible_versions'), false);
   assert.doesNotThrow(() => validateContract(contract, {
-    readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }),
+    readJsonFile: () => ({ aioncoreVersion: 'v0.1.50' }),
   }));
-  assert.throws(
-    () => validateContract(contract, {
-      readJsonFile: () => ({ aioncoreVersion: 'v0.1.50' }),
-    }),
-    /active shell package aioncoreVersion v0\.1\.50 must match selective_absorption_version v0\.1\.49/,
-  );
 });
 
 test('Manual qualification contract preserves the system Codex home and keeps MAS Scholar workspace-scoped', () => {
@@ -290,7 +252,7 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   const managedCodexAcp = adapter.runtime_dependencies.managed_codex_acp;
   assert.deepEqual(
     [adapter.runtime_dependencies.aioncore.version, adapter.runtime_dependencies.codex_cli.version],
-    ['v0.1.49', '0.144.6'],
+    ['v0.1.50', '0.144.6'],
   );
   assert.equal(Object.hasOwn(managedCodexAcp, 'version'), false);
   assert.deepEqual(managedCodexAcp.version_binding, {
@@ -330,6 +292,14 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   assert.equal(profile.first_run.first_conversation.runtime_readiness_route, '/api/conversations/<id>/runtime/ensure');
   const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
   assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('installed_package_count 7')));
+  const managedRuntimeExpectation = fullDmgScenario.expects.find((entry: string) =>
+    entry.includes('Bundled AionCore v0.1.50')
+  );
+  assert.match(
+    managedRuntimeExpectation,
+    /managed resource manifest and package lock.*readback at 1\.1\.2.*Codex CLI 0\.144\.6/,
+  );
+  assert.doesNotMatch(managedRuntimeExpectation, /Codex CLI 0\.145|Codex 0\.145\.0/);
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 });
 

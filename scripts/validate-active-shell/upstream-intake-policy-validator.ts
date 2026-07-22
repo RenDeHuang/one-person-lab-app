@@ -82,7 +82,6 @@ const REQUIRED_SOURCE_REF_ROLES = {
   latest_reviewed_upstream: 'reviewed_stable_release_not_merged',
 };
 const REQUIRED_AIONCORE_VERSION = 'v0.1.44';
-const TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS = ['v0.1.49', 'v0.1.50'];
 const REQUIRED_AIONCORE_EVIDENCE = 'packaged_aioncore_boundary_and_recovery_smoke';
 const REQUIRED_MANAGED_AGENT_NODE_TESTS = [
   'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
@@ -620,28 +619,16 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
   }
 
   assertNonEmptyString(shellPackage?.aioncoreVersion, 'Active shell package aioncoreVersion');
-  if (Object.hasOwn(versionGate, 'temporary_compatible_versions')) {
-    assertDeepEqualJson(
-      versionGate.temporary_compatible_versions,
-      TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS,
-      'Active shell AionCore database recovery version_gate.temporary_compatible_versions',
-    );
-    if (!TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS.includes(shellPackage.aioncoreVersion)) {
-      throw new Error(
-        `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must be one of temporary_compatible_versions ${JSON.stringify(TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS)}`,
-      );
-    }
-  } else if (shellPackage.aioncoreVersion !== versionGate.selective_absorption_version) {
+  if (shellPackage.aioncoreVersion !== versionGate.selective_absorption_version) {
     throw new Error(
       `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match selective_absorption_version ${versionGate.selective_absorption_version}`,
     );
   }
 
-  parseVersion(
+  const selectedVersion = parseVersion(
     versionGate.selective_absorption_version,
     'Active shell AionCore selective absorption version',
   );
-  const actualVersion = parseVersion(shellPackage.aioncoreVersion, 'Active shell package AionCore version');
   const minimumVersion = parseVersion(versionGate.minimum_version, 'Active shell AionCore minimum recovery version');
   const evaluatedVersion = parseVersion(
     versionGate.evaluated_upstream_version,
@@ -650,7 +637,7 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
   if (compareVersions(evaluatedVersion, minimumVersion) < 0) {
     throw new Error('Evaluated upstream AionCore version must satisfy the minimum recovery version');
   }
-  const meetsMinimum = compareVersions(actualVersion, minimumVersion) >= 0;
+  const meetsMinimum = compareVersions(selectedVersion, minimumVersion) >= 0;
   const expectedVersionState = meetsMinimum ? 'meets_minimum' : 'below_minimum';
   if (versionGate.state !== expectedVersionState) {
     throw new Error(`Active shell AionCore database recovery version_gate.state must be ${expectedVersionState}`);
