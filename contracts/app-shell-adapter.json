@@ -656,6 +656,10 @@
           "minimum_version": "v0.1.44",
           "evaluated_upstream_version": "v0.1.44",
           "selective_absorption_version": "v0.1.49",
+          "temporary_compatible_versions": [
+            "v0.1.49",
+            "v0.1.50"
+          ],
           "state": "meets_minimum"
         },
         "capability_gate": {

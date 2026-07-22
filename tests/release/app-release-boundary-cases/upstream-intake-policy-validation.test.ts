@@ -24,6 +24,7 @@ const shellPaths = {
   packageManifestPath: '/fixture/active-shell/package.json',
 };
 const MANAGED_AGENT_REMEDIATION_REF = '6875ada9fa6e800b64980dadb02180def6b0f6e2';
+const TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS = ['v0.1.49', 'v0.1.50'];
 const MANAGED_AGENT_NODE_TESTS = [
   'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
   'tests/unit/common-adapter/apiModelMapper.test.ts',
@@ -156,8 +157,18 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
     aionCore.release_gate,
     aionCore.remediation_ref,
     aionCore.version_gate.minimum_version,
+    aionCore.version_gate.selective_absorption_version,
+    aionCore.version_gate.temporary_compatible_versions,
     aionCore.capability_gate.state,
-  ], ['absorbed', 'aioncore_database_recovery_verified', '81c8b37fdc067549341b41539d7648b09aa31d37', 'v0.1.44', 'verified']);
+  ], [
+    'absorbed',
+    'aioncore_database_recovery_verified',
+    '81c8b37fdc067549341b41539d7648b09aa31d37',
+    'v0.1.44',
+    'v0.1.49',
+    TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS,
+    'verified',
+  ]);
 });
 
 test('AionUI intake contract accepts typed corruption or strict open-stage corruption and records recovery success', () => {
@@ -193,7 +204,29 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match selective_absorption_version v0\.1\.49/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
+  invalid('an active shell package below the temporary compatibility bridge', () => {}, /active shell package aioncoreVersion v0\.1\.48 must be one of temporary_compatible_versions \["v0\.1\.49","v0\.1\.50"\]/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.48' }) })),
+  invalid('an active shell package above the temporary compatibility bridge', () => {}, /active shell package aioncoreVersion v0\.1\.51 must be one of temporary_compatible_versions \["v0\.1\.49","v0\.1\.50"\]/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.51' }) })),
+  invalid('temporary compatible versions missing the current version', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.50'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('temporary compatible versions missing the next version', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('reversed temporary compatible versions', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.50', 'v0.1.49'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('duplicate temporary compatible versions', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.49'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('a third temporary compatible version', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.50', 'v0.1.51'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('a temporary compatible version range', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['>=v0.1.49', 'v0.1.50'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
+  invalid('a temporary compatible version wildcard', (c) => {
+    dependency(c, 'aioncore_database_recovery').version_gate.temporary_compatible_versions = ['v0.1.49', 'v0.1.x'];
+  }, /version_gate\.temporary_compatible_versions must be \["v0\.1\.49","v0\.1\.50"\]/),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -223,11 +256,27 @@ for (const { name, mutate, options, error } of invalidCases) {
   });
 }
 
-test('AionUI intake validator accepts verified AionCore package and ancestor evidence', () => {
+for (const aioncoreVersion of TEMPORARY_COMPATIBLE_AIONCORE_VERSIONS) {
+  test(`AionUI intake validator accepts verified AionCore package ${aioncoreVersion} and ancestor evidence`, () => {
+    const contract = readContract();
+    assert.doesNotThrow(() => validateContract(contract, {
+      readJsonFile: () => ({ aioncoreVersion }),
+    }));
+  });
+}
+
+test('AionUI intake validator retains strict equality when the temporary compatibility bridge is absent', () => {
   const contract = readContract();
+  delete dependency(contract, 'aioncore_database_recovery').version_gate.temporary_compatible_versions;
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }),
   }));
+  assert.throws(
+    () => validateContract(contract, {
+      readJsonFile: () => ({ aioncoreVersion: 'v0.1.50' }),
+    }),
+    /active shell package aioncoreVersion v0\.1\.50 must match selective_absorption_version v0\.1\.49/,
+  );
 });
 
 test('Manual qualification contract preserves the system Codex home and keeps MAS Scholar workspace-scoped', () => {
