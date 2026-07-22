@@ -213,7 +213,7 @@ jobs:
   freeze:
     if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && (!inputs.include_full || needs['full-notes-authority'].result == 'success') }}
     needs: [admission, full-notes-authority]
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -379,6 +379,29 @@ jobs:
         if: ${{ inputs.include_full }}
         working-directory: ${{ runner.temp }}/opl-release-full-notes-authority
         run: shasum -a 256 -c notes-full-payload-authority.sha256
+
+      - name: Materialize exact AionCore for Bundle freeze
+        if: ${{ inputs.include_full }}
+        working-directory: shells/aionui
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AIONUI_AIONCORE_CACHE_DIR: ${{ runner.temp }}/opl-release-freeze-aioncore-${{ github.run_id }}
+          AIONUI_BACKEND_ARCH: arm64
+          AIONUI_BACKEND_RUN_ID: ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -s)" = Darwin
+          test "$(uname -m)" = arm64
+          test ! -e resources/bundled-aioncore/darwin-arm64
+          aioncore_version="$(node -e '
+            const value = JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).aioncoreVersion;
+            if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
+            process.stdout.write(value);
+          ')"
+          AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
+          test -f resources/bundled-aioncore/darwin-arm64/manifest.json
+          test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
 
       - name: Prepare and validate online AI notes
         env:

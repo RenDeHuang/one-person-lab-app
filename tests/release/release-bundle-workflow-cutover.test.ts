@@ -324,6 +324,7 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   assert.doesNotMatch(String(upload.with.path), /bundled-aioncore|managed-resources/);
 
   assert.deepEqual(workflow.jobs.freeze.needs, ['admission', 'full-notes-authority']);
+  assert.equal(workflow.jobs.freeze['runs-on'], 'macos-latest');
   assert.match(String(workflow.jobs.freeze.if), /needs\['full-notes-authority'\]\.result == 'success'/);
   assert.match(String(workflow.jobs.freeze.if), /!inputs\.include_full/);
   const download = workflowStep(
@@ -338,6 +339,30 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
     'Verify Full notes payload authority transport',
   );
   assert.equal(transport.run, 'shasum -a 256 -c notes-full-payload-authority.sha256');
+
+  const freezeMaterialize = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Materialize exact AionCore for Bundle freeze',
+  );
+  assert.equal(freezeMaterialize.if, '${{ inputs.include_full }}');
+  assert.equal(freezeMaterialize['working-directory'], 'shells/aionui');
+  assert.equal(freezeMaterialize.env.AIONUI_BACKEND_ARCH, 'arm64');
+  assert.equal(freezeMaterialize.env.AIONUI_BACKEND_RUN_ID, '');
+  assert.equal(
+    freezeMaterialize.env.AIONUI_AIONCORE_CACHE_DIR,
+    '${{ runner.temp }}/opl-release-freeze-aioncore-${{ github.run_id }}',
+  );
+  const freezeMaterializeScript = String(freezeMaterialize.run);
+  assert.match(freezeMaterializeScript, /test "\$\(uname -s\)" = Darwin/);
+  assert.match(freezeMaterializeScript, /test "\$\(uname -m\)" = arm64/);
+  assert.match(freezeMaterializeScript, /test ! -e resources\/bundled-aioncore\/darwin-arm64/);
+  assert.match(freezeMaterializeScript, /package\.json.*aioncoreVersion/s);
+  assert.match(freezeMaterializeScript, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
+  assert.match(freezeMaterializeScript, /AIONUI_BACKEND_VERSION="\$aioncore_version" node scripts\/prepareAioncore\.js/);
+  assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/manifest\.json/);
+  assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/managed-resources\/manifest\.json/);
+  assert.doesNotMatch(freezeMaterializeScript, /latest|AIONUI_BACKEND_RUN_ID/);
 
   const step = workflowStep(
     '_release-bundle.yml',
@@ -387,6 +412,14 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   assert.ok(
     source.indexOf('- name: Verify Full notes payload authority transport')
       < source.indexOf('- name: Prepare and validate online AI notes'),
+  );
+  assert.ok(
+    source.indexOf('- name: Materialize exact AionCore for Bundle freeze')
+      < source.indexOf('- name: Prepare and validate online AI notes'),
+  );
+  assert.ok(
+    source.indexOf('- name: Materialize exact AionCore for Bundle freeze')
+      < source.indexOf('- name: Freeze canonical Framework Bundle'),
   );
 });
 
