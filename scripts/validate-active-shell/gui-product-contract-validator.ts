@@ -65,6 +65,38 @@ const ordinaryForbiddenCapabilityPolicy = {
   ],
 };
 
+const storageAvailabilityPresentationVariants = {
+  web_statistics_not_connected: {
+    condition: 'webui_has_no_valid_owner_storage_projection_and_no_explicit_error',
+    severity: 'info',
+    title_intent: 'current_web_version_cannot_display_storage_usage',
+    required_explanation: [
+      'browser_access_context',
+      'deployment_not_connected_to_storage_statistics_service',
+      'existing_data_and_other_features_unaffected',
+    ],
+    visible_action: {
+      id: 'view_deployment_status',
+      route: '/settings/environment?section=services',
+    },
+    retry_visible: false,
+  },
+  operational_failure: {
+    condition: 'explicit_permission_service_ipc_or_unknown_error',
+    severity: 'warning',
+    localized_reason_required: true,
+    recovery_action_required: true,
+    retry_policy: 'show_only_when_action_rechecks_the_failed_source',
+    technical_details_default: 'collapsed',
+  },
+};
+
+const storageUserVisibleImplementationTermsForbidden = [
+  'desktop storage carrier',
+  'owner projection',
+  'carrier host',
+];
+
 const aionuiTeamProbeIds = [
   'team_mode_disabled',
   'team_route_redirect',
@@ -1952,6 +1984,44 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   assertDeepEqualJson(carrierReconcile?.software_object_scope, ['opl_base', 'opl_packages'], 'App GUI carrier reconciliation scope');
   if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
     throw new Error('Settings Storage must reference the App local data lifecycle contract');
+  }
+  const storageUnavailableExperience = guiContract.ui_experience_contract?.settings_details?.storage_unavailable;
+  assertDeepEqualJson(
+    storageUnavailableExperience?.required_information,
+    ['localized_reason', 'user_visible_context_and_impact', 'recovery_action'],
+    'App GUI Storage unavailable information',
+  );
+  assertDeepEqualJson(
+    storageUnavailableExperience?.presentation_variants,
+    storageAvailabilityPresentationVariants,
+    'App GUI Storage availability presentation variants',
+  );
+  assertDeepEqualJson(
+    storageUnavailableExperience?.user_visible_implementation_terms_forbidden,
+    storageUserVisibleImplementationTermsForbidden,
+    'App GUI Storage user-visible implementation terms',
+  );
+  assertDeepEqualJson(
+    pages.settings_storage.unavailable_state?.presentation_variants,
+    storageAvailabilityPresentationVariants,
+    'Settings Storage availability presentation variants',
+  );
+  assertDeepEqualJson(
+    pages.settings_storage.unavailable_state?.required_information,
+    ['localized_reason', 'user_visible_context_and_impact', 'recovery_action'],
+    'Settings Storage unavailable information',
+  );
+  assertDeepEqualJson(
+    pages.settings_storage.unavailable_state?.user_visible_implementation_terms_forbidden,
+    storageUserVisibleImplementationTermsForbidden,
+    'Settings Storage user-visible implementation terms',
+  );
+  if (
+    storageUnavailableExperience?.refresh_only_empty_state_allowed !== false ||
+    pages.settings_storage.unavailable_state?.refresh_only_allowed !== false ||
+    pages.settings_storage.unavailable_state?.raw_host_path_visible !== false
+  ) {
+    throw new Error('Settings Storage availability states must remain actionable without exposing raw host paths');
   }
   if (
     pages.settings_storage.state_source !==

@@ -155,10 +155,40 @@
       "storage_unavailable": {
         "required_information": [
           "localized_reason",
-          "owner_or_missing_carrier",
+          "user_visible_context_and_impact",
           "recovery_action"
         ],
-        "refresh_only_empty_state_allowed": false
+        "refresh_only_empty_state_allowed": false,
+        "presentation_variants": {
+          "web_statistics_not_connected": {
+            "condition": "webui_has_no_valid_owner_storage_projection_and_no_explicit_error",
+            "severity": "info",
+            "title_intent": "current_web_version_cannot_display_storage_usage",
+            "required_explanation": [
+              "browser_access_context",
+              "deployment_not_connected_to_storage_statistics_service",
+              "existing_data_and_other_features_unaffected"
+            ],
+            "visible_action": {
+              "id": "view_deployment_status",
+              "route": "/settings/environment?section=services"
+            },
+            "retry_visible": false
+          },
+          "operational_failure": {
+            "condition": "explicit_permission_service_ipc_or_unknown_error",
+            "severity": "warning",
+            "localized_reason_required": true,
+            "recovery_action_required": true,
+            "retry_policy": "show_only_when_action_rechecks_the_failed_source",
+            "technical_details_default": "collapsed"
+          }
+        },
+        "user_visible_implementation_terms_forbidden": [
+          "desktop storage carrier",
+          "owner projection",
+          "carrier host"
+        ]
       },
       "preferences": {
         "duration_units": "localized_seconds_and_minutes",
@@ -8698,11 +8728,41 @@
       "unavailable_state": {
         "required_information": [
           "localized_reason",
-          "owner_or_missing_carrier",
+          "user_visible_context_and_impact",
           "recovery_action"
         ],
         "refresh_only_allowed": false,
-        "raw_host_path_visible": false
+        "raw_host_path_visible": false,
+        "presentation_variants": {
+          "web_statistics_not_connected": {
+            "condition": "webui_has_no_valid_owner_storage_projection_and_no_explicit_error",
+            "severity": "info",
+            "title_intent": "current_web_version_cannot_display_storage_usage",
+            "required_explanation": [
+              "browser_access_context",
+              "deployment_not_connected_to_storage_statistics_service",
+              "existing_data_and_other_features_unaffected"
+            ],
+            "visible_action": {
+              "id": "view_deployment_status",
+              "route": "/settings/environment?section=services"
+            },
+            "retry_visible": false
+          },
+          "operational_failure": {
+            "condition": "explicit_permission_service_ipc_or_unknown_error",
+            "severity": "warning",
+            "localized_reason_required": true,
+            "recovery_action_required": true,
+            "retry_policy": "show_only_when_action_rechecks_the_failed_source",
+            "technical_details_default": "collapsed"
+          }
+        },
+        "user_visible_implementation_terms_forbidden": [
+          "desktop storage carrier",
+          "owner projection",
+          "carrier host"
+        ]
       },
       "must_show": [
         "one merged storage category list with size, safety, and next action",
@@ -8714,7 +8774,7 @@
         "carrier-host WebUI plan, execute, and restore actions only when the complete authenticated host ABI is available",
         "user-facing cleanup preview before destructive action",
         "plain-language archive, restore, and cleanup history",
-        "localized unavailable reason, responsible owner or missing carrier, and a recovery action when inventory is unavailable"
+        "carrier-aware storage availability presentation with user-visible context, impact, and an appropriate next action"
       ],
       "must_not_show": [
         "log directory edit control",
@@ -8725,7 +8785,8 @@
         "host bind-mount or deployment environment mutation",
         "silent user data deletion",
         "App-owned runtime or domain data authority",
-        "an unavailable state containing only Refresh"
+        "an unavailable state containing only Refresh",
+        "implementation terms such as desktop storage carrier, owner projection, or carrier host in explanatory product copy"
       ],
       "inventory_cache_policy": {
         "snapshot_fields": [

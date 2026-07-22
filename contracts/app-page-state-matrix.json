@@ -2471,10 +2471,40 @@
       "unavailable_state": {
         "required_fields": [
           "localized_reason",
-          "owner_or_missing_carrier",
+          "user_visible_context_and_impact",
           "recovery_action"
         ],
-        "refresh_only_allowed": false
+        "refresh_only_allowed": false,
+        "presentation_variants": {
+          "web_statistics_not_connected": {
+            "condition": "webui_has_no_valid_owner_storage_projection_and_no_explicit_error",
+            "severity": "info",
+            "title_intent": "current_web_version_cannot_display_storage_usage",
+            "required_explanation": [
+              "browser_access_context",
+              "deployment_not_connected_to_storage_statistics_service",
+              "existing_data_and_other_features_unaffected"
+            ],
+            "visible_action": {
+              "id": "view_deployment_status",
+              "route": "/settings/environment?section=services"
+            },
+            "retry_visible": false
+          },
+          "operational_failure": {
+            "condition": "explicit_permission_service_ipc_or_unknown_error",
+            "severity": "warning",
+            "localized_reason_required": true,
+            "recovery_action_required": true,
+            "retry_policy": "show_only_when_action_rechecks_the_failed_source",
+            "technical_details_default": "collapsed"
+          }
+        },
+        "user_visible_implementation_terms_forbidden": [
+          "desktop storage carrier",
+          "owner projection",
+          "carrier host"
+        ]
       }
     },
     {

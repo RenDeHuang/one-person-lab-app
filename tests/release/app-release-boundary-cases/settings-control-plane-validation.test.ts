@@ -1807,6 +1807,64 @@ test("Settings keeps a compact background-task summary while Service Status owns
   assert.deepStrictEqual(experiencePages.storage.action_visual_policy, storageVisual);
   assert.deepStrictEqual(pageById("storage").action_visual_policy, storageVisual);
   assert.deepStrictEqual(guiPages.settings_storage.action_visual_policy, storageVisual);
+  const storageAvailabilityPresentationVariants = {
+    web_statistics_not_connected: {
+      condition: 'webui_has_no_valid_owner_storage_projection_and_no_explicit_error',
+      severity: 'info',
+      title_intent: 'current_web_version_cannot_display_storage_usage',
+      required_explanation: [
+        'browser_access_context',
+        'deployment_not_connected_to_storage_statistics_service',
+        'existing_data_and_other_features_unaffected',
+      ],
+      visible_action: {
+        id: 'view_deployment_status',
+        route: '/settings/environment?section=services',
+      },
+      retry_visible: false,
+    },
+    operational_failure: {
+      condition: 'explicit_permission_service_ipc_or_unknown_error',
+      severity: 'warning',
+      localized_reason_required: true,
+      recovery_action_required: true,
+      retry_policy: 'show_only_when_action_rechecks_the_failed_source',
+      technical_details_default: 'collapsed',
+    },
+  };
+  const storageImplementationTerms = ['desktop storage carrier', 'owner projection', 'carrier host'];
+  const storageExperience = values.guiContract.ui_experience_contract.settings_details.storage_unavailable;
+  const storageUnavailableInformation = [
+    'localized_reason',
+    'user_visible_context_and_impact',
+    'recovery_action',
+  ];
+  assert.deepStrictEqual(storageExperience.required_information, storageUnavailableInformation);
+  assert.deepStrictEqual(storageExperience.presentation_variants, storageAvailabilityPresentationVariants);
+  assert.deepStrictEqual(
+    storageExperience.user_visible_implementation_terms_forbidden,
+    storageImplementationTerms,
+  );
+  assert.deepStrictEqual(
+    guiPages.settings_storage.unavailable_state.presentation_variants,
+    storageAvailabilityPresentationVariants,
+  );
+  assert.deepStrictEqual(
+    guiPages.settings_storage.unavailable_state.required_information,
+    storageUnavailableInformation,
+  );
+  assert.deepStrictEqual(
+    pageById("storage").unavailable_state.presentation_variants,
+    storageAvailabilityPresentationVariants,
+  );
+  assert.deepStrictEqual(
+    pageById("storage").unavailable_state.required_fields,
+    storageUnavailableInformation,
+  );
+  assert.deepStrictEqual(
+    pageById("storage").unavailable_state.user_visible_implementation_terms_forbidden,
+    storageImplementationTerms,
+  );
   const ownerStorage = guiPages.settings_storage.owner_storage_projections;
   assert.deepStrictEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
   assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');
@@ -1870,6 +1928,11 @@ test("Settings keeps a compact background-task summary while Service Status owns
   missingGuiHostAbi.guiContract.pages.settings_storage.owner_storage_projections.webui_data_volume
     .host_action_abi_ref = null;
   assert.throws(() => validateGui(missingGuiHostAbi.guiContract), /owner projections/);
+
+  const invalidWebStoragePresentation = contracts();
+  invalidWebStoragePresentation.guiContract.pages.settings_storage.unavailable_state.presentation_variants
+    .web_statistics_not_connected.retry_visible = true;
+  assert.throws(() => validateGui(invalidWebStoragePresentation.guiContract), /availability presentation variants/);
 
   const componentAudit = values.controlPlane.visual_qa_policy.component_audit;
   assert.deepStrictEqual(componentAudit.required_color_schemes, ["light", "dark"]);
