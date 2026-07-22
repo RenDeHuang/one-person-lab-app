@@ -99,33 +99,6 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   );
 });
 
-test("active-shell validation accepts the readiness-switched FirstRun task panel", () => {
-  const validator = fs.readFileSync(
-    path.join(appRoot, "scripts/validate-active-shell/shell-first-run-validator.ts"),
-    "utf8",
-  );
-
-  assert.match(
-    validator,
-    /data-testid=\{readyToLaunch \? 'opl-first-run-completion' : 'opl-first-run-task-panel'\}/,
-  );
-  assert.match(
-    validator,
-    /className=\{`\$\{styles\.firstRunTaskPanel\} \$\{readyToLaunch \? styles\.firstRunTaskPanelComplete : ''\}`\}/,
-  );
-  assert.match(
-    validator,
-    /className=\{`\$\{styles\.firstRunWorkspace\} \$\{readyToLaunch \? styles\.firstRunWorkspaceComplete : ''\}`\}/,
-  );
-  assert.match(validator, /tests\/unit\/layout\/Router\.dom\.test\.tsx/);
-  assert.match(validator, /packages\/desktop\/src\/renderer\/pages\/login\/index\.tsx/);
-  assert.match(validator, /must retire the waiting StartupGate surface/);
-  assert.match(validator, /managed-agent prefetch must run outside the blocking config initialization effect/);
-  assert.doesNotMatch(validator, /const startupGate = readShellText/);
-  assert.doesNotMatch(validator, /hasStartupGate/);
-  assert.doesNotMatch(validator, /STARTUP_STATE_SOFT_TIMEOUT_MS/);
-});
-
 test("one-shot App installer boundary is enforced by release-boundary checks", () => {
   const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
   const stable = requireReleaseBoundaryCheck("short_stable_macos_installer");

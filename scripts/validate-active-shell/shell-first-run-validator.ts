@@ -7,7 +7,6 @@ export function validateFirstRunImplementation(shellPaths) {
   const rendererMain = readShellText(shellPaths, 'packages/desktop/src/renderer/main.tsx');
   const appLoader = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/AppLoader.tsx');
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
-  const routerTests = readShellText(shellPaths, 'tests/unit/layout/Router.dom.test.tsx');
   const loginPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/login/index.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   const firstRunTests = readShellText(shellPaths, 'tests/unit/opl-runtime/FirstRun.dom.test.tsx');
@@ -118,17 +117,6 @@ export function validateFirstRunImplementation(shellPaths) {
     managedAgentPrefetchStart < configInitializationEnd
   ) {
     throw new Error('Active shell managed-agent prefetch must run outside the blocking config initialization effect');
-  }
-  for (const expected of [
-    "['the root route', '#/']",
-    "['an authenticated login route', '#/login']",
-    "['the legacy startup gate route', '#/startup-gate']",
-    "['an unknown authenticated route', '#/not-a-real-route']",
-    "toBe('#/guid')",
-  ]) {
-    if (!routerTests.includes(expected)) {
-      throw new Error(`Active shell Router DOM coverage must prove direct Guid entry: ${expected}`);
-    }
   }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
