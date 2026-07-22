@@ -1688,7 +1688,7 @@ export const appOwnedUnifiedContextMenu = {
     },
     {
       id: "agent_packages",
-      scope: "session_owner_selection",
+      scope: "new_session_configuration_only",
       label_i18n: {
         "zh-CN": "专业智能体",
         "en-US": "Professional agents",
@@ -1701,14 +1701,10 @@ export const appOwnedUnifiedContextMenu = {
         "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
       availability_policy:
         "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
-      existing_session_rebinding_allowed: true,
-      existing_session_rebinding_transport:
-        "aioncore_atomic_conversation_owner_rebind_api",
+      existing_session_rebinding_allowed: false,
       surface_actions: {
         home_new_session: ["select_new_session_agent_package"],
-        existing_conversation: [
-          "explicit_at_mention_owner_rebind_via_core_atomic_api",
-        ],
+        existing_conversation: [],
       },
     },
     {
@@ -1762,7 +1758,7 @@ export const appOwnedUnifiedContextMenu = {
     home_new_session:
       "configure_only_real_new_session_capabilities_supported_by_the_active_adapter",
     existing_conversation:
-      "attach_local_inputs_invoke_loaded_skills_show_loaded_connection_status_change_adapter_reported_nonduplicate_modes_and_explicitly_rebind_the_single_agent_owner_via_at_mention",
+      "attach_local_inputs_invoke_loaded_skills_show_loaded_connection_status_change_adapter_reported_nonduplicate_modes_without_rebinding",
     settings_route_policy:
       "management_entries_are_explicit_fallbacks_not_fake_session_selection",
   },

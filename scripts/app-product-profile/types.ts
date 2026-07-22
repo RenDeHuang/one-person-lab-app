@@ -362,7 +362,6 @@ export type AppProductProfile = {
           label_policy?: string;
           mode_deduplication_policy?: string;
           existing_session_rebinding_allowed?: boolean;
-          existing_session_rebinding_transport?: string;
           surface_actions: {
             home_new_session: string[];
             existing_conversation: string[];
@@ -550,14 +549,6 @@ export type AppProductProfile = {
         oma_engineering_admission: string;
         deliverable_failure_policy: string;
         existing_conversation_rebinding_allowed: boolean;
-        existing_conversation_rebinding_contract: {
-          transport: string;
-          allowed_state: string;
-          preserve: string[];
-          runtime_transition: string;
-          readback: string;
-          forbidden_implementations: string[];
-        };
       };
       skill_source_ref: string;
       skill_menu_policy: string;

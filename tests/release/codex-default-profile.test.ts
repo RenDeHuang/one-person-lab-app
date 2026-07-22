@@ -402,26 +402,35 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
   }
 });
 
-test('Agent selection keeps one explicit owner and existing-session rebind atomic', () => {
+test('Agent selection is explicit before first send and existing-conversation rebind stays disabled', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
-  productProfile.gui.ordinary_capability_selector_policy.agent_reference_admission_policy
-    .at_mention_agent_selection_allowed = false;
+  const productProfile = readJson('contracts/app-product-profile.json');
+  const admissionPolicy = productProfile.gui.ordinary_capability_selector_policy.agent_reference_admission_policy;
+  assert.equal(admissionPolicy.existing_conversation_rebinding_allowed, false);
+  assert.equal(
+    admissionPolicy.at_mention_semantics,
+    'explicit_new_session_agent_selection_before_first_send_plain_text_references_remain_prompt_context',
+  );
+  assert.equal('existing_conversation_rebinding_contract' in admissionPolicy, false);
+
+  const invalidProductProfile = structuredClone(productProfile);
+  invalidProductProfile.gui.ordinary_capability_selector_policy.agent_reference_admission_policy
+    .existing_conversation_rebinding_allowed = true;
   assert.throws(
-    () => validateProductProfile(productProfile, installExposure),
-    /single-owner explicit Agent binding/,
+    () => validateProductProfile(invalidProductProfile, installExposure),
+    /new-session-only explicit Agent selection/,
   );
 
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
   guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy
-    .existing_conversation_rebinding_contract.transport = 'metadata_patch';
+    .existing_conversation_rebinding_contract = { transport: 'metadata_patch' };
   assert.throws(
     () => validateAppGuiProductContract(
       guiContract,
       readJson('contracts/app-release-channel.json'),
       installExposure,
     ),
-    /single-owner explicit Agent binding/,
+    /new-session-only explicit Agent selection/,
   );
 });
 

@@ -138,8 +138,10 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   );
   assert.deepStrictEqual(
     paletteGroups.agent_packages.surface_actions.existing_conversation,
-    ['explicit_at_mention_owner_rebind_via_core_atomic_api'],
+    [],
   );
+  assert.equal(paletteGroups.agent_packages.existing_session_rebinding_allowed, false);
+  assert.equal(paletteGroups.agent_packages.scope, 'new_session_configuration_only');
   assert.deepStrictEqual(
     paletteGroups.skills.surface_actions.existing_conversation,
     ['invoke_loaded_allowlisted_skill'],
@@ -148,7 +150,7 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.deepStrictEqual(guiContract.interaction_baseline.capability_selection.selection_surfaces, [
     'home_starter',
     'home_new_session_capability_palette',
-    'existing_conversation_at_mention_owner_selector',
+    'home_new_session_at_mention_agent_selector',
   ]);
   const ordinaryConversationPage = pageStateMatrix.pages.find(
     (page: { id: string }) => page.id === 'ordinary_conversation',

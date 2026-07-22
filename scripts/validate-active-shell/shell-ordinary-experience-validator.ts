@@ -568,22 +568,85 @@ function validateProductProfileDefaults(shellPaths) {
   if (
     ordinaryPolicy?.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
     ordinaryPolicy?.agent_reference_admission_policy?.active_agent_package_cardinality !== 'zero_or_one' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.selection_authority !==
+      'home_starter_new_session_capability_palette_explicit_capability_route_or_explicit_pre_send_at_mention_agent_selection' ||
     ordinaryPolicy?.agent_reference_admission_policy?.at_mention_agent_selection_allowed !== true ||
-    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_allowed !== true ||
-    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_contract?.transport !==
-      'aioncore_atomic_conversation_owner_rebind_api' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.at_mention_semantics !==
+      'explicit_new_session_agent_selection_before_first_send_plain_text_references_remain_prompt_context' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.plain_text_agent_reference_changes_active_package !== false ||
+    ordinaryPolicy?.agent_reference_admission_policy?.multiple_agent_reference_policy !==
+      'latest_explicit_pre_send_at_mention_selection_sets_the_new_session_agent_plain_text_references_remain_prompt_context' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_allowed !== false ||
+    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_contract !== undefined ||
     ordinaryPolicy?.mcp_menu_policy !==
       'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
     ordinaryPolicy?.visible_mcp_server_ids !== undefined
   ) {
-    throw new Error('Active shell product profile must carry single-owner Agent binding and MCP negative-filter authority');
+    throw new Error('Active shell product profile must carry new-session-only Agent selection and MCP negative-filter authority');
   }
+  const agentPaletteGroup = productProfileJson?.gui?.ordinary_conversation?.unified_context_menu?.groups?.find(
+    (group: { id?: unknown }) => group.id === 'agent_packages',
+  );
+  if (
+    agentPaletteGroup?.scope !== 'new_session_configuration_only' ||
+    agentPaletteGroup?.existing_session_rebinding_allowed !== false ||
+    JSON.stringify(agentPaletteGroup?.surface_actions?.existing_conversation) !== '[]'
+  ) {
+    throw new Error('Active shell product profile must not expose existing-conversation Agent rebinding');
+  }
+  assertTextExcludesAll(
+    productProfile,
+    [
+      'aioncore_atomic_conversation_owner_rebind_api',
+      'explicit_at_mention_owner_rebind_via_core_atomic_api',
+      'existing_conversation_rebinding_contract',
+    ],
+    'Active shell product profile private existing-conversation Agent rebind removal',
+  );
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
   const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;
   if (JSON.stringify(menuStructure) !== JSON.stringify(codexSessionConfigurationMenuStructureExpected)) {
     throw new Error('Active shell product profile must carry the exact App Codex session configuration menu');
   }
   assertTextIncludesAll(productProfile, productProfileDefaultsExpected, 'Active shell product profile App Codex default');
+}
+
+function validateExistingConversationAgentRebindRemoval(shellPaths) {
+  for (const retiredPath of [
+    'packages/desktop/src/renderer/pages/conversation/components/ConversationAgentRebindControl.tsx',
+    'tests/unit/conversation/ConversationAgentRebindControl.dom.test.tsx',
+  ]) {
+    if (existsSync(path.join(shellPaths.shellRoot, retiredPath))) {
+      throw new Error(`Active shell must remove private existing-conversation Agent rebind surface ${retiredPath}`);
+    }
+  }
+
+  for (const [sourcePath, forbidden] of [
+    [
+      'packages/desktop/src/common/adapter/ipcBridge.ts',
+      ['rebindAssistant', '/assistant/rebind', 'IRebindConversationAssistantParams'],
+    ],
+    [
+      'packages/desktop/src/common/config/storage.ts',
+      ['TConversationAssistantIdentity', 'assistant?: TConversationAssistantIdentity'],
+    ],
+    [
+      'packages/desktop/src/common/config/oplProductProfile/index.ts',
+      ['existing_conversation_rebinding_contract', 'aioncore_atomic_conversation_owner_rebind_api', 'REQUIRED_AGENT_REBIND'],
+    ],
+    ['packages/desktop/src/renderer/hooks/agent/usePresetAssistantInfo.ts', ['conversation.assistant']],
+    [
+      'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx',
+      ['ConversationAgentRebindControl'],
+    ],
+    ['tests/unit/common-adapter/ipcBridgeAgents.test.ts', ['rebindAssistant', '/assistant/rebind']],
+  ] as const) {
+    assertTextExcludesAll(
+      readShellText(shellPaths, sourcePath),
+      forbidden,
+      `Active shell private existing-conversation Agent rebind removal in ${sourcePath}`,
+    );
+  }
 }
 
 function validateGuidAssistantRegistry(shellPaths) {
@@ -1604,6 +1667,7 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   const guidPage = validateGuidHomeImplementation(shellPaths);
   validateGuidAgentSelection(shellPaths);
   validateProductProfileDefaults(shellPaths);
+  validateExistingConversationAgentRebindRemoval(shellPaths);
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
   validateCodexConversationImplementation(shellPaths);
   validateComposerCapabilityPaletteImplementation(shellPaths);
