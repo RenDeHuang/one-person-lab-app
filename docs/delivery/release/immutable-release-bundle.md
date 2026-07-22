@@ -86,6 +86,27 @@ updater version,
 prepared AI notes plus evidence, Standard assets and qualification, optional
 Full assets and qualification, and relevant App product-policy inputs.
 
+## Freeze Currentness Boundary
+
+Remote currentness is resolved once, before Bundle freeze. Freeze records the
+selected source refs, checkout trees, package members, projected catalog or
+Release Set digest, and every other identity input. After that boundary,
+currentness means only that those frozen checkouts, bytes, and digests remain
+unchanged. A newer remote main, tag, package patch version, or remote-tracking
+ref does not invalidate the Bundle and does not authorize a rebuild.
+
+A release-owned task-local catalog projection may bind the exact frozen package
+owner refs without first mutating the live Framework catalog. Its generated
+bytes and digest become Bundle inputs. Host installed/effective state is not a
+pre-freeze source-authority requirement; installation and effective readback
+belong to post-build qualification of the exact artifact. Stable still requires
+its configured artifact qualification before Latest activation.
+
+Only a frozen byte or digest mismatch, artifact build or integrity failure, or
+an explicit security revocation can invalidate the frozen cohort. Changing
+executors, later development, post-build qualification, publication, or
+unrelated package advancement must continue with the same artifact bytes.
+
 ## Assets And Latest
 
 Prepared AI notes are generated and validated before the expensive build and

@@ -264,7 +264,8 @@ export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
     );
   }
 
-  const fields = ['head', 'branch', 'local_main', 'origin_main'] as const;
+  // Remote advancement is provenance after freeze; only frozen checkout bytes can invalidate the build.
+  const fields = ['head', 'branch', 'local_main'] as const;
   const differences = fields
     .filter((field) => actual[field] !== expected[field])
     .map((field) => (

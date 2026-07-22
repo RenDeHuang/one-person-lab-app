@@ -579,6 +579,40 @@ test('manual source snapshot gate rejects main advancement after freeze', (conte
   );
 });
 
+test('manual source snapshot gate ignores remote-tracking advancement after freeze', (context) => {
+  const root = createDevelopmentRepo();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const initialHead = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', initialHead], {
+    cwd: root,
+  });
+  const frozen = snapshotDevelopmentRepo('fixture', root);
+  const tree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  const remoteHead = execFileSync(
+    'git',
+    ['commit-tree', tree, '-p', initialHead, '-m', 'remote advance'],
+    { cwd: root, encoding: 'utf8' },
+  ).trim();
+
+  execFileSync(
+    'git',
+    ['update-ref', 'refs/remotes/origin/main', remoteHead],
+    { cwd: root },
+  );
+
+  assert.notEqual(
+    snapshotDevelopmentRepo('fixture', root).origin_main,
+    frozen.origin_main,
+  );
+  assert.doesNotThrow(() => assertDevelopmentRepoSnapshotUnchanged(frozen));
+});
+
 test('manual latest commands and operator guide remain discoverable', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   assert.equal(
