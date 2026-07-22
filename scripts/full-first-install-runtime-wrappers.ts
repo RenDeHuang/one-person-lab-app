@@ -17,6 +17,35 @@ PYTHON_BIN="$(find "$RUNTIME_HOME/python" -maxdepth 2 -path '*/bin' -type d 2>/d
 export OPL_FULL_RUNTIME_HOME="$RUNTIME_HOME"
 export OPL_PACKAGED_SKILLS_ROOT="$RUNTIME_HOME/skills"
 export OPL_CODEX_BIN="$RUNTIME_HOME/bin/codex"
+# Packaged Python must never materialize bytecode in the signed runtime tree.
+export PYTHONDONTWRITEBYTECODE="1"
+OPL_RUNTIME_STATE_ROOT="\${OPL_STATE_DIR:-}"
+if [[ -z "$OPL_RUNTIME_STATE_ROOT" && -n "\${OPL_DATA_DIR:-}" ]]; then
+  OPL_RUNTIME_STATE_ROOT="$OPL_DATA_DIR/opl/state"
+elif [[ -z "$OPL_RUNTIME_STATE_ROOT" && -n "\${AIONUI_DATA_DIR:-}" ]]; then
+  OPL_RUNTIME_STATE_ROOT="$AIONUI_DATA_DIR/opl/state"
+elif [[ -z "$OPL_RUNTIME_STATE_ROOT" ]]; then
+  OPL_RUNTIME_STATE_ROOT="\${HOME:-$RUNTIME_HOME}/Library/Application Support/OPL/state"
+fi
+case "$OPL_RUNTIME_STATE_ROOT" in
+  "$RUNTIME_HOME"|"$RUNTIME_HOME"/*)
+    OPL_RUNTIME_STATE_ROOT="\${HOME:-\${TMPDIR:-/tmp}}/Library/Application Support/OPL/state"
+    ;;
+esac
+case "$OPL_RUNTIME_STATE_ROOT" in
+  "$RUNTIME_HOME"|"$RUNTIME_HOME"/*)
+    OPL_RUNTIME_STATE_ROOT="\${TMPDIR:-/tmp}/opl-full-runtime-state"
+    ;;
+esac
+OPL_RUNTIME_PYCACHE_ROOT="\${OPL_FULL_RUNTIME_PYCACHE_ROOT:-$OPL_RUNTIME_STATE_ROOT/full-runtime/python-cache}"
+case "$OPL_RUNTIME_PYCACHE_ROOT" in
+  "$RUNTIME_HOME"|"$RUNTIME_HOME"/*)
+    OPL_RUNTIME_PYCACHE_ROOT="$OPL_RUNTIME_STATE_ROOT/full-runtime/python-cache"
+    ;;
+esac
+mkdir -p "$OPL_RUNTIME_PYCACHE_ROOT"
+export OPL_FULL_RUNTIME_PYCACHE_ROOT="$OPL_RUNTIME_PYCACHE_ROOT"
+export PYTHONPYCACHEPREFIX="$OPL_RUNTIME_PYCACHE_ROOT"
 export OPL_FAMILY_RUNTIME_PROVIDER="\${OPL_FAMILY_RUNTIME_PROVIDER:-temporal}"
 if [[ -z "\${OPL_TEMPORAL_ADDRESS:-}" ]]; then
   export OPL_TEMPORAL_ADDRESS="127.0.0.1:7233"
