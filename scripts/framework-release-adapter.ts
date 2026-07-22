@@ -11,6 +11,7 @@ import {
   type ArtifactQualificationReceiptV1,
 } from './artifact-qualification-receipt.ts';
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
+import { verifyReleaseNotesFullPayloadAuthority } from './prepare-release-notes-full-payload-authority.ts';
 import {
   releaseOperationDeadlineTimestamp,
   remainingReleaseOperationMilliseconds,
@@ -154,6 +155,7 @@ function parseCommon(argv: string[]) {
       'framework-root': { type: 'string' },
       notes: { type: 'string' },
       'notes-evidence': { type: 'string' },
+      'notes-full-payload-authority': { type: 'string' },
       'include-full-package': { type: 'string' },
       'release-set-manifest': { type: 'string' },
       output: { type: 'string' },
@@ -204,12 +206,51 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
     throw new Error('Prepared release notes are not bound to the online AI writer.');
   }
   const notesEvidence = readJson(evidencePath);
+  if (notesEvidence.schema !== 'opl_app_release_notes_evidence.v1') {
+    throw new Error('Prepared release notes evidence has an unsupported schema.');
+  }
   if (notesEvidence.payload?.include_full_package !== includeFullPackage) {
     throw new Error(
       'Prepared release notes Full intent does not match the admitted Release Bundle request.',
     );
   }
   const releaseSetPath = path.resolve(requireOption(values, 'release-set-manifest'));
+  const appRef = gitSha(appRoot);
+  const shellRef = gitSha(shellRoot);
+  const frameworkRef = gitSha(frameworkRoot);
+  const authorityOption = values['notes-full-payload-authority'];
+  if (includeFullPackage) {
+    const authorityPath = path.resolve(requireOption(values, 'notes-full-payload-authority'));
+    const verifiedAuthority = verifyReleaseNotesFullPayloadAuthority(authorityPath, {
+      appRoot,
+      appRef,
+      shellRoot,
+      shellRef,
+      frameworkRoot,
+      frameworkRef,
+      releaseSetManifestPath: releaseSetPath,
+      thirdPartySourceManifestPath: path.join(
+        appRoot,
+        'contracts',
+        'app-full-third-party-source-manifest.json',
+      ),
+    });
+    if (notesEvidence.payload?.full_payload_authority_sha256 !== verifiedAuthority.sha256) {
+      throw new Error(
+        'Prepared release notes evidence does not bind the exact Full payload authority file digest.',
+      );
+    }
+  } else {
+    if (typeof authorityOption === 'string' && authorityOption.trim()) {
+      throw new Error('Standard-only release notes cannot provide a Full payload authority file.');
+    }
+    if (
+      notesEvidence.payload?.full_payload_authority_sha256 !== undefined
+      && notesEvidence.payload?.full_payload_authority_sha256 !== null
+    ) {
+      throw new Error('Standard-only release notes cannot bind a Full payload authority digest.');
+    }
+  }
   const catalogPath = path.join(
     frameworkRoot,
     'contracts/opl-framework/bundled-full-runtime-package-catalog.json',
@@ -248,9 +289,9 @@ function buildFreezeRequest(values: Record<string, string | boolean | undefined>
       prerelease: channel === 'nightly',
     },
     sources: {
-      app: { repo: 'gaofeng21cn/one-person-lab-app', source_commit: gitSha(appRoot) },
-      shell: { repo: 'gaofeng21cn/opl-aion-shell', source_commit: gitSha(shellRoot) },
-      framework: { repo: 'gaofeng21cn/one-person-lab', source_commit: gitSha(frameworkRoot) },
+      app: { repo: 'gaofeng21cn/one-person-lab-app', source_commit: appRef },
+      shell: { repo: 'gaofeng21cn/opl-aion-shell', source_commit: shellRef },
+      framework: { repo: 'gaofeng21cn/one-person-lab', source_commit: frameworkRef },
     },
     framework_release_set: {
       generation: path.basename(path.dirname(releaseSetPath)),

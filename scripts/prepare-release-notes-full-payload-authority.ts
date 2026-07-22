@@ -51,6 +51,21 @@ function digestRef(filePath: string): string {
   return `sha256:${sha256File(filePath)}`;
 }
 
+function canonicalJson(value: unknown): string {
+  const normalize = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) return candidate.map(normalize);
+    if (candidate && typeof candidate === 'object') {
+      return Object.fromEntries(
+        Object.entries(candidate as JsonRecord)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, entry]) => [key, normalize(entry)]),
+      );
+    }
+    return candidate;
+  };
+  return JSON.stringify(normalize(value));
+}
+
 function gitSha(root: string, label: string): string {
   const result = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
   const value = result.stdout.trim();
@@ -214,7 +229,7 @@ function resolveCatalogFile(frameworkRoot: string, catalogRoot: string, ref: str
   return assertContainedFile(frameworkRoot, candidate, label);
 }
 
-export async function buildReleaseNotesFullPayloadAuthority(input: {
+export type ReleaseNotesFullPayloadAuthorityInput = {
   appRoot: string;
   appRef: string;
   shellRoot: string;
@@ -223,7 +238,11 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
   frameworkRef: string;
   releaseSetManifestPath: string;
   thirdPartySourceManifestPath: string;
-}): Promise<JsonRecord> {
+};
+
+export function buildReleaseNotesFullPayloadAuthority(
+  input: ReleaseNotesFullPayloadAuthorityInput,
+): JsonRecord {
   const appRoot = fs.realpathSync(input.appRoot);
   const shellRoot = fs.realpathSync(input.shellRoot);
   const frameworkRoot = fs.realpathSync(input.frameworkRoot);
@@ -500,6 +519,26 @@ export async function buildReleaseNotesFullPayloadAuthority(input: {
   };
 }
 
+export function verifyReleaseNotesFullPayloadAuthority(
+  authorityPath: string,
+  input: ReleaseNotesFullPayloadAuthorityInput,
+): { authority: JsonRecord; sha256: string } {
+  const authority = readRegularJson(authorityPath, 'Full notes payload authority');
+  if (authority.schema !== 'opl_app_release_notes_full_payload_authority.v1') {
+    throw new Error('Full notes payload authority has an unsupported schema.');
+  }
+  const derived = buildReleaseNotesFullPayloadAuthority(input);
+  if (canonicalJson(authority) !== canonicalJson(derived)) {
+    throw new Error(
+      'Full notes payload authority fields drifted from the current App, Shell, Framework, Release Set, or payload authorities.',
+    );
+  }
+  return {
+    authority,
+    sha256: digestRef(authorityPath),
+  };
+}
+
 function parseCli(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
@@ -534,16 +573,18 @@ function parseCli(argv: string[]) {
   };
 }
 
-async function main(): Promise<void> {
+function main(): void {
   const options = parseCli(process.argv.slice(2));
-  const output = await buildReleaseNotesFullPayloadAuthority(options);
+  const output = buildReleaseNotesFullPayloadAuthority(options);
   fs.mkdirSync(path.dirname(options.output), { recursive: true });
   fs.writeFileSync(options.output, `${JSON.stringify(output, null, 2)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main().catch((error) => {
+  try {
+    main();
+  } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
-  });
+  }
 }

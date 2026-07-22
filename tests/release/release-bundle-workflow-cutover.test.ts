@@ -87,7 +87,7 @@ function adapterFixture() {
   const evidencePath = path.join(root, 'notes-evidence.json');
   fs.writeFileSync(notesPath, '# One Person Lab v26.7.20\n\nFixture notes.\n\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n');
   fs.writeFileSync(evidencePath, `${JSON.stringify({
-    surface_kind: 'opl_app_release_notes_evidence.v1',
+    schema: 'opl_app_release_notes_evidence.v1',
     payload: { include_full_package: false },
   })}\n`);
   return { root, appRoot, shellRoot, frameworkRoot, releaseSetPath, notesPath, evidencePath, payloadRoot };
@@ -349,9 +349,37 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   assert.doesNotMatch(script, /scripts\/prepare-release-notes-full-payload-authority\.ts/);
   assert.match(
     script,
-    /--full-package-manifest "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
+    /--full-payload-authority "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
   );
+  assert.doesNotMatch(script, /--full-package-manifest/);
+  assert.match(script, /notes_root="\$RUNNER_TEMP\/opl-release-prepared-notes-\$GITHUB_RUN_ID"/);
+  assert.match(script, /--evidence-output "\$notes_root\/notes-evidence\.json"/);
   assert.doesNotMatch(script, /One-Person-Lab-Manual|dist\/opl-full-release|full-package-manifest\.json/);
+
+  const freezeScript = String(workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Freeze canonical Framework Bundle',
+  ).run);
+  assert.match(
+    freezeScript,
+    /--notes-full-payload-authority "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
+  );
+  assert.match(freezeScript, /--notes "\$notes_root\/notes\.md"/);
+  assert.match(freezeScript, /--notes-evidence "\$notes_root\/notes-evidence\.json"/);
+  assert.ok(
+    freezeScript.indexOf('scripts/framework-release-adapter.ts freeze-request')
+      < freezeScript.indexOf('cp "$notes_root/notes-evidence.json" notes-evidence.json'),
+  );
+
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const binding = releaseContract.release_bundle_control_plane.prepared_notes.full_payload_authority_binding;
+  assert.equal(binding.schema, 'opl_app_release_notes_full_payload_authority.v1');
+  assert.equal(binding.evidence_digest_path, 'payload.full_payload_authority_sha256');
+  assert.equal(binding.comparison, 'canonical_json_exact_field_set_and_values');
+  assert.equal(binding.freeze_adapter_consumes_same_file, true);
   assert.ok(
     source.indexOf('- name: Materialize exact Shell AionCore authority')
       < source.indexOf('- name: Derive deep-validated Full notes payload authority'),
@@ -889,7 +917,7 @@ test('the App adapter rejects prepared notes whose Full intent differs from the 
   const fixture = adapterFixture();
   try {
     fs.writeFileSync(fixture.evidencePath, `${JSON.stringify({
-      surface_kind: 'opl_app_release_notes_evidence.v1',
+      schema: 'opl_app_release_notes_evidence.v1',
       payload: { include_full_package: true },
     })}\n`);
     const result = runFreezeRequest(fixture, path.join(fixture.root, 'mismatched-notes-intent.json'));

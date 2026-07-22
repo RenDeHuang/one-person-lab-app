@@ -33,6 +33,13 @@ export { buildReleaseTitle } from './release-notes/tags.ts';
 const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
 
 export function buildReleaseNotesEvidence(options: ReleaseNoteOptions): ReleaseNotesEvidence {
+  const fullPayloadAuthoritySha256 = options.fullPayloadAuthoritySha256?.trim() || null;
+  if (fullPayloadAuthoritySha256 && !/^sha256:[0-9a-f]{64}$/.test(fullPayloadAuthoritySha256)) {
+    throw new Error('Full payload authority digest must be an exact sha256 reference.');
+  }
+  if (!options.includeFullPackage && fullPayloadAuthoritySha256) {
+    throw new Error('Standard-only release notes cannot bind a Full payload authority digest.');
+  }
   const currentTag = normalizeTag(options.currentTag || options.version);
   const previousTag = resolvePreviousTag(options, currentTag);
   const releaseRepo = options.releaseRepo || 'gaofeng21cn/one-person-lab-app';
@@ -103,6 +110,7 @@ export function buildReleaseNotesEvidence(options: ReleaseNoteOptions): ReleaseN
     grouped_changes: buckets,
     payload: {
       include_full_package: Boolean(options.includeFullPackage),
+      full_payload_authority_sha256: fullPayloadAuthoritySha256,
       lines: oplPayloadLines,
       bundled_refs: bundledVersions,
       updates_since_previous_stable: payloadUpdates,

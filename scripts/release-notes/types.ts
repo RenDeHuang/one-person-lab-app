@@ -7,6 +7,7 @@ export type ReleaseNoteOptions = {
   shellRoot?: string;
   includeFullPackage?: boolean;
   fullPackageManifest?: unknown;
+  fullPayloadAuthoritySha256?: string;
   previousFullPackageManifest?: unknown;
   previousTag?: string;
   currentTag?: string;
@@ -62,6 +63,7 @@ export type ReleaseNotesEvidence = {
   grouped_changes: ChangeBucket[];
   payload: {
     include_full_package: boolean;
+    full_payload_authority_sha256: string | null;
     lines: string[];
     bundled_refs: string[];
     updates_since_previous_stable: string[];

@@ -392,11 +392,13 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
+          notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
+          mkdir -p "$notes_root"
           notes_intent_args=()
           if [[ '${{ inputs.include_full }}' == true ]]; then
             notes_intent_args+=(
               --include-full-package
-              --full-package-manifest "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
+              --full-payload-authority "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
             )
           fi
           npm run release:notes -- \
@@ -408,11 +410,11 @@ jobs:
             --current-app-ref '${{ steps.identity.outputs.app_sha }}' \
             --current-shell-ref '${{ steps.identity.outputs.shell_sha }}' \
             "${notes_intent_args[@]}" \
-            --evidence-output notes-evidence.json \
-            --output notes-template.md
+            --evidence-output "$notes_root/notes-evidence.json" \
+            --output "$notes_root/notes-template.md"
           npm run release:notes:prepare -- \
-            --evidence notes-evidence.json \
-            --output notes.md \
+            --evidence "$notes_root/notes-evidence.json" \
+            --output "$notes_root/notes.md" \
             --receipt-output notes-prepare-receipt.json
 
       - name: Upload notes preparation receipt
@@ -431,11 +433,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
+          rm -f notes-prepare-receipt.json
           if [ '${{ inputs.channel }}' = stable ]; then
             node --experimental-strip-types scripts/release-operation-deadline.ts check \
               --operation '${{ inputs.operation }}' \
               --started-at '${{ inputs.operation_started_at }}' \
               --deadline-at '${{ inputs.operation_deadline_at }}'
+          fi
+          full_authority_args=()
+          if [[ '${{ inputs.include_full }}' == true ]]; then
+            full_authority_args+=(
+              --notes-full-payload-authority "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
+            )
           fi
           node --experimental-strip-types scripts/framework-release-adapter.ts freeze-request \
             --channel '${{ inputs.channel }}' \
@@ -444,11 +454,14 @@ jobs:
             --app-root . \
             --shell-root shells/aionui \
             --framework-root framework-source \
-            --notes notes.md \
-            --notes-evidence notes-evidence.json \
+            --notes "$notes_root/notes.md" \
+            --notes-evidence "$notes_root/notes-evidence.json" \
             --include-full-package '${{ inputs.include_full }}' \
             --release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}' \
+            "${full_authority_args[@]}" \
             --output freeze-request.json
+          cp "$notes_root/notes.md" notes.md
+          cp "$notes_root/notes-evidence.json" notes-evidence.json
           framework-source/bin/opl release freeze \
             --request freeze-request.json \
             --source-root framework-source \

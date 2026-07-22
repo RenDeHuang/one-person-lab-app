@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs as parseNodeArgs } from 'node:util';
@@ -14,6 +15,7 @@ type ReleaseNotesCliOptions = {
   shellRoot: string;
   includeFullPackage: boolean;
   fullPackageManifestPath: string;
+  fullPayloadAuthorityPath: string;
   previousFullPackageManifestPath: string;
   output: string;
   previousTag: string;
@@ -33,6 +35,7 @@ function defaultOptions(): ReleaseNotesCliOptions {
     shellRoot: process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot,
     includeFullPackage: false,
     fullPackageManifestPath: '',
+    fullPayloadAuthorityPath: '',
     previousFullPackageManifestPath: '',
     output: '',
     previousTag: '',
@@ -56,6 +59,7 @@ function parseArgs(argv: string[]) {
       'shell-root': { type: 'string' },
       'include-full-package': { type: 'boolean' },
       'full-package-manifest': { type: 'string' },
+      'full-payload-authority': { type: 'string' },
       'previous-full-package-manifest': { type: 'string' },
       output: { type: 'string' },
       'previous-tag': { type: 'string' },
@@ -84,6 +88,14 @@ function parseArgs(argv: string[]) {
     parsed.fullPackageManifestPath = path.resolve(values['full-package-manifest']);
     parsed.includeFullPackage = true;
   }
+  if (values['full-payload-authority']) {
+    if (parsed.fullPackageManifestPath) {
+      throw new Error('--full-payload-authority and --full-package-manifest are mutually exclusive.');
+    }
+    parsed.fullPayloadAuthorityPath = path.resolve(values['full-payload-authority']);
+    parsed.fullPackageManifestPath = parsed.fullPayloadAuthorityPath;
+    parsed.includeFullPackage = true;
+  }
   if (values['previous-full-package-manifest']) parsed.previousFullPackageManifestPath = path.resolve(values['previous-full-package-manifest']);
   if (values.output) parsed.output = path.resolve(values.output);
   if (values['previous-tag']) parsed.previousTag = values['previous-tag'];
@@ -97,6 +109,9 @@ function parseArgs(argv: string[]) {
   if (!parsed.version) {
     throw new Error('Missing required --version.');
   }
+  if (parsed.includeFullPackage && parsed.evidenceOutput && !parsed.fullPayloadAuthorityPath) {
+    throw new Error('Full prepared-notes evidence requires --full-payload-authority.');
+  }
 
   return parsed;
 }
@@ -109,6 +124,9 @@ function main() {
   const previousFullPackageManifest = options.previousFullPackageManifestPath
     ? JSON.parse(fs.readFileSync(options.previousFullPackageManifestPath, 'utf8'))
     : null;
+  const fullPayloadAuthoritySha256 = options.fullPayloadAuthorityPath
+    ? `sha256:${crypto.createHash('sha256').update(fs.readFileSync(options.fullPayloadAuthorityPath)).digest('hex')}`
+    : undefined;
   const releaseNoteOptions = {
     version: options.version,
     channel: options.channel,
@@ -116,6 +134,7 @@ function main() {
     shellRoot: options.shellRoot,
     includeFullPackage: options.includeFullPackage,
     fullPackageManifest,
+    fullPayloadAuthoritySha256,
     previousFullPackageManifest,
     previousTag: options.previousTag,
     currentTag: options.currentTag,

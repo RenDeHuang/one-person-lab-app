@@ -456,7 +456,25 @@
       "prebuild_failure_must_not_project_as_qualification_runner_lost": true,
       "full_intent_evidence_path": "payload.include_full_package",
       "full_intent_admitted_input": "include_full",
-      "full_intent_must_match_before_framework_freeze": true
+      "full_intent_must_match_before_framework_freeze": true,
+      "full_payload_authority_binding": {
+        "schema": "opl_app_release_notes_full_payload_authority.v1",
+        "artifact_path": "notes-full-payload-authority.json",
+        "evidence_digest_path": "payload.full_payload_authority_sha256",
+        "digest_algorithm": "sha256_of_exact_authority_file_bytes",
+        "freeze_adapter_consumes_same_file": true,
+        "freeze_adapter_rederives_from_current_operation_refs": [
+          "App source commit",
+          "Shell source commit and AionCore managed manifest/lock",
+          "Framework source commit and Release Set",
+          "seven Package manifests and payload manifests",
+          "App Full third-party source manifest"
+        ],
+        "comparison": "canonical_json_exact_field_set_and_values",
+        "digest_or_field_or_currentness_drift": "fail_closed_before_framework_freeze",
+        "may_claim_postbuild_artifact_bytes": false,
+        "may_copy_static_aioncore_acp_or_codex_versions": false
+      }
     },
     "protected_environment_control": {
       "environment": "release-stable",
@@ -2208,6 +2226,8 @@
       "seven_package_catalog_manifest_payload_digest_closure",
       "prepared_ai_release_notes_marker",
       "prepared_ai_release_notes_full_intent",
+      "prepared_ai_notes_exact_full_payload_authority_file_digest",
+      "full_payload_authority_canonical_rederivation_against_current_operation_refs",
       "framework_freeze_request_schema"
     ],
     "failure_budget": "fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full",
@@ -2233,7 +2253,7 @@
       "failure_next_action": "repair_source_gate",
       "rule": "The App release source gate must fail before expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, shell format/type, shell ref resolution, or framework ref resolution is invalid."
     },
-    "rule": "The App freeze-request adapter validates product identity, exact source refs, prepared notes, Framework Release Set, and seven-package manifest closure, then hands one request to Framework freeze. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal.",
+    "rule": "The App freeze-request adapter validates product identity, exact source refs, prepared notes, the exact Full notes payload authority file digest, canonical rederivation from current operation refs, Framework Release Set, and seven-package manifest closure, then hands one request to Framework freeze. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal.",
     "stable_operations": [
       "standard",
       "resume_standard",
