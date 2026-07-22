@@ -432,6 +432,10 @@ function createFullRuntimeFixture() {
   const bookforgeRoot = path.join(tempRoot, "opl-bookforge");
   const oplFlowRoot = path.join(tempRoot, "opl-flow");
   writeDomainPlugin(masRoot, "med-autoscience");
+  writeFile(
+    path.join(masRoot, "runtime", "authority_functions", "README.md"),
+    "# MAS authority function inventory\n",
+  );
   writeDomainPlugin(magRoot, "med-autogrant");
   writeDomainPlugin(rcaRoot, "redcube-ai");
   writeDomainPlugin(metaAgentRoot, "opl-meta-agent");
@@ -1296,6 +1300,69 @@ test("Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.ok(scanAudit.runtime_scan_diff.removed_excluded_paths.includes("modules/mas/tmp/old.tmp"));
 });
 
+test("Full domain copy keeps only the required MAS authority inventory from runtime trees", async () => {
+  const { buildDomainLayer } =
+    await import("../../../scripts/build-full-first-install-package/runtime-layers.ts");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-mas-authority-inventory-"));
+  const sourceRoot = path.join(tempRoot, "source");
+  const layerRoot = path.join(tempRoot, "layer");
+  const options = {
+    masRoot: path.join(sourceRoot, "mas"),
+    masScholarSkillsRoot: path.join(sourceRoot, "mas-scholar-skills"),
+    magRoot: path.join(sourceRoot, "mag"),
+    rcaRoot: path.join(sourceRoot, "rca"),
+    metaAgentRoot: path.join(sourceRoot, "meta-agent"),
+    bookforgeRoot: path.join(sourceRoot, "bookforge"),
+    oplFlowRoot: path.join(sourceRoot, "opl-flow"),
+  };
+
+  try {
+    for (const moduleRoot of Object.values(options)) {
+      fs.mkdirSync(moduleRoot, { recursive: true });
+    }
+    writeFile(
+      path.join(options.masRoot, "runtime", "authority_functions", "README.md"),
+      "# MAS authority function inventory\n",
+    );
+    writeFile(
+      path.join(options.masRoot, "runtime", "authority_functions", "debug-cache.json"),
+      "{}\n",
+    );
+    writeFile(path.join(options.masRoot, "runtime", "legacy-state.json"), "{}\n");
+    writeFile(path.join(options.masRoot, "runtime-state", "checkpoint.json"), "{}\n");
+    writeFile(path.join(options.masRoot, "runs", "latest.json"), "{}\n");
+    writeFile(path.join(options.masRoot, "sessions", "current.json"), "{}\n");
+    writeFile(path.join(options.masRoot, "cache", "result.json"), "{}\n");
+    writeFile(path.join(options.masRoot, "src", "index.py"), 'print("ready")\n');
+    writeFile(
+      path.join(options.magRoot, "runtime", "authority_functions", "README.md"),
+      "# unrelated module runtime\n",
+    );
+
+    buildDomainLayer(layerRoot, options);
+
+    for (const relativePath of [
+      "modules/mas/runtime/authority_functions/README.md",
+      "modules/mas/src/index.py",
+    ]) {
+      assert.equal(fs.existsSync(path.join(layerRoot, relativePath)), true, relativePath);
+    }
+    for (const relativePath of [
+      "modules/mas/runtime/authority_functions/debug-cache.json",
+      "modules/mas/runtime/legacy-state.json",
+      "modules/mas/runtime-state/checkpoint.json",
+      "modules/mas/runs/latest.json",
+      "modules/mas/sessions/current.json",
+      "modules/mas/cache/result.json",
+      "modules/mag/runtime/authority_functions/README.md",
+    ]) {
+      assert.equal(fs.existsSync(path.join(layerRoot, relativePath)), false, relativePath);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("Full App bundle staging trim removes non-runtime artifacts while preserving offline runtime payloads", async () => {
   const { trimFullAppBundleForDmg, auditFullPackageBundleBoundaries, withFullPackageOptimization } =
     await import("../../../scripts/build-full-first-install-package/package-optimization.ts");
@@ -1544,6 +1611,10 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       "# skill\n",
     );
   }
+  writeFile(
+    path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"),
+    "# MAS authority function inventory\n",
+  );
   for (const relativePath of [
     "modules/opl-flow/contracts/workflow-policy.json",
     "modules/opl-flow/templates/AGENTS.md",
@@ -1592,6 +1663,7 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
     ["vendor/temporal/temporal_cli_darwin_arm64.tar.gz", "exists"],
     ["opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node", "exists"],
     ["node/bin/npm", "executable"],
+    ["modules/mas/runtime/authority_functions/README.md", "exists"],
     ["modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json", "exists"],
     ["modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md", "exists"],
     ["modules/mas-scholar-skills/.codex-plugin/plugin.json", "exists"],
@@ -1621,6 +1693,22 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       {},
       {},
     ),
+  );
+  fs.rmSync(path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"));
+  assert.throws(
+    () =>
+      writeFullRuntimeManifest(
+        runtimeRoot,
+        { version: "26.7.7-test" },
+        "2026-07-07T00:00:00.000Z",
+        {},
+        {},
+      ),
+    /modules\/mas\/runtime\/authority_functions\/README\.md/,
+  );
+  writeFile(
+    path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"),
+    "# MAS authority function inventory\n",
   );
   fs.rmSync(path.join(runtimeRoot, "modules", "opl-flow", "skills"), {
     recursive: true,

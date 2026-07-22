@@ -427,6 +427,7 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'modules/mas/runtime/authority_functions/README.md'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
       ...masScholarSkillsPayloadStatuses(runtimeRoot),
