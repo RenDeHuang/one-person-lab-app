@@ -230,7 +230,7 @@ test('AionUI intake validator accepts verified AionCore package and ancestor evi
   }));
 });
 
-test('Manual qualification contract isolates Codex and keeps MAS Scholar workspace-scoped', () => {
+test('Manual qualification contract preserves the system Codex home and keeps MAS Scholar workspace-scoped', () => {
   const adapter = readContract().manual_qualification_contract;
   const profile = readAppProductProfile();
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
@@ -258,11 +258,21 @@ test('Manual qualification contract isolates Codex and keeps MAS Scholar workspa
   });
   assert.equal(managedCodexAcp.forbidden_package, '@zed-industries/codex-acp');
   assert.deepEqual(profile.codex.app_runtime_home, {
-    default_path: '~/Library/Application Support/OPL/codex',
+    default_path: '~/.codex',
     override_env: 'CODEX_HOME',
-    override_policy: 'explicit_developer_or_operator_override_only',
-    user_home_path: '~/.codex',
-    user_config_mutation: 'forbidden',
+    resolution_policy: 'preserve_existing_env_else_codex_system_default',
+    app_env_injection: 'forbidden',
+    startup_and_recheck_mutation: 'forbidden',
+    explicit_model_access_mutation: 'framework_action_atomic_merge_with_backup_and_restore',
+  });
+  assert.deepEqual(adapter.codex_home, {
+    default_path: '~/.codex',
+    override_env: 'CODEX_HOME',
+    resolution_policy: 'preserve_existing_env_else_codex_system_default',
+    app_env_injection: 'forbidden',
+    automatic_mutation: 'forbidden',
+    explicit_model_access_mutation: 'framework_action_atomic_merge_with_backup_and_restore',
+    required_processes: ['desktop_shell', 'aioncore', 'managed_codex_acp', 'opl_runtime_bridge'],
   });
   assert.deepEqual(profile.first_run.full_runtime_package_qualification.workspace_scoped_package_ids, [
     'mas-scholar-skills',
@@ -274,12 +284,12 @@ test('Manual qualification contract isolates Codex and keeps MAS Scholar workspa
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 });
 
-test('Manual qualification product validator rejects isolation, runtime route, and Scholar scope drift', () => {
+test('Manual qualification product validator rejects Codex home, runtime route, and Scholar scope drift', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const mutations = [
     {
-      error: /isolate the App runtime/,
-      mutate: (profile) => { profile.codex.app_runtime_home.default_path = '~/.codex'; },
+      error: /preserve the system Codex home/,
+      mutate: (profile) => { profile.codex.app_runtime_home.default_path = '~/Library/Application Support/OPL/codex'; },
     },
     {
       error: /first conversation must apply granular prerequisites/,

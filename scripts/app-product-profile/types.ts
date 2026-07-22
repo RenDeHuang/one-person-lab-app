@@ -676,9 +676,10 @@ export type AppProductProfile = {
     app_runtime_home: {
       default_path: string;
       override_env: string;
-      override_policy: string;
-      user_home_path: string;
-      user_config_mutation: string;
+      resolution_policy: string;
+      app_env_injection: string;
+      startup_and_recheck_mutation: string;
+      explicit_model_access_mutation: string;
     };
     auto_model_policy: {
       authority: string;
@@ -859,6 +860,10 @@ export type AppProductProfile = {
           secret_bridge_ref: string;
           post_login_state_source: string;
           unique_group_action: string;
+          post_setup_state_refresh: string;
+          model_access_action: string;
+          model_access_action_policy: string;
+          shared_fast_state_cache_policy: string;
           unresolved_group_error: string;
           ready_claim_policy: string;
           password_clear_policy: string;

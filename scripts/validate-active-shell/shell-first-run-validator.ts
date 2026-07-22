@@ -322,6 +322,8 @@ export function validateFirstRunImplementation(shellPaths) {
     "ipcBridge.oplRuntime.loginGatewayAccount.invoke({",
     "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
     "actionId: 'gateway_account_complete_setup'",
+    "actionId: 'gateway_account_use_for_model_access'",
+    "cacheFastOplAppState",
     "resolveDefaultGatewayGroup",
     "readGatewayAccountProjection",
     "ipcBridge.oplRuntime.configureCodex.invoke({ apiKey: trimmed })",

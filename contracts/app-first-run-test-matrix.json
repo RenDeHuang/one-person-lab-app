@@ -111,7 +111,8 @@
         "Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands",
         "Desktop model access defaults to OPL Gateway account login with email and password, while API Key remains a compatibility method",
         "existing Codex recheck is a secondary action outside the account and API Key method switch",
-        "Gateway account login uses desktop-only typed secret IPC, omits device label, reads fast App state, and completes setup only for a uniquely resolved Codex group",
+        "Gateway account login uses desktop-only typed secret IPC, omits device label, reads fast App state, completes setup only for a uniquely resolved Codex group, rereads fast state, and executes gateway_account_use_for_model_access when that action is exposed",
+        "each authoritative post-login fast-state read is published to the shared cache so already-mounted Home and Sider consumers stop showing stale setup blockers without an App restart",
         "unresolved Gateway group selection shows localized group_selection_required and never claims model access ready",
         "Gateway password clears after success, failure, or method switch and never enters renderer diagnostics",
         "WebUI exposes API Key only and never renders Gateway password login",
@@ -808,7 +809,7 @@
         "Fresh App readback reports installed_package_count 7; MAS Scholar Skills has cache materialized without global marketplace or config exposure and becomes visible only after MAS workspace binding",
         "Bundled AionCore v0.1.49 supplies exactly the @agentclientprotocol/codex-acp version selected by its managed resource manifest and package lock, resolves Codex CLI 0.144.6 from the same payload, completes a real initialize handshake with model_reasoning_effort = max, and contains no @zed-industries/codex-acp resource",
         "Conversation readiness is confirmed only by POST /api/conversations/<id>/runtime/ensure; the retired /warmup route and every 404 or 500 remain retryable errors and never mark a conversation ready",
-        "Desktop, AionCore, managed Codex ACP, and OPL runtime commands share ~/Library/Application Support/OPL/codex by default, while a before/after digest proves the user's ~/.codex/config.toml was not created or modified",
+        "Desktop preserves an explicit CODEX_HOME and otherwise leaves it unset so Codex, AionCore, managed Codex ACP, and OPL runtime commands use ~/.codex; startup and recheck preserve the config digest, while an explicit Gateway or API Key action may update it only through Framework atomic merge with backup and restore",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization",
         "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"

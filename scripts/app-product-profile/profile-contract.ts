@@ -515,13 +515,15 @@ function assertCompanionPayloadProfileShape(
 
 function assertCodexOplFlowContext(profile: AppProductProfile): void {
   if (
-    profile.codex.app_runtime_home?.default_path !== '~/Library/Application Support/OPL/codex' ||
+    profile.codex.app_runtime_home?.default_path !== '~/.codex' ||
     profile.codex.app_runtime_home.override_env !== 'CODEX_HOME' ||
-    profile.codex.app_runtime_home.override_policy !== 'explicit_developer_or_operator_override_only' ||
-    profile.codex.app_runtime_home.user_home_path !== '~/.codex' ||
-    profile.codex.app_runtime_home.user_config_mutation !== 'forbidden'
+    profile.codex.app_runtime_home.resolution_policy !== 'preserve_existing_env_else_codex_system_default' ||
+    profile.codex.app_runtime_home.app_env_injection !== 'forbidden' ||
+    profile.codex.app_runtime_home.startup_and_recheck_mutation !== 'forbidden' ||
+    profile.codex.app_runtime_home.explicit_model_access_mutation !==
+      'framework_action_atomic_merge_with_backup_and_restore'
   ) {
-    throw new Error('App product profile must isolate the App runtime from the user Codex home');
+    throw new Error('App product profile must preserve the system Codex home without App environment injection');
   }
   if (
     profile.codex.auto_model_policy.authority !== 'one-person-lab-app' ||

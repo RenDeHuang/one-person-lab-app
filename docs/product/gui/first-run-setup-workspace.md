@@ -57,8 +57,14 @@ focused tests 与用户路径截图。
 账户登录和 API Key 使用分段控件切换。`已有 Codex 配置` 不再占用分段控件，而是在其外提供独立次要重检入口。
 当前路径只能有一个主操作；配置或重检请求进行中时，禁用路径切换和另一条动作，直到当前请求结束。
 
-账户登录成功后必须读取 `opl app state --profile fast --json`。只有唯一解析出 Codex 分组时才执行
-`gateway_account_complete_setup`；无法唯一解析时显示本地化 `group_selection_required`，不得宣称模型访问已就绪。
+Desktop 不注入 App 私有 `CODEX_HOME`。进程已有显式 `CODEX_HOME` 时原样保留，否则让 Codex 和 Framework 使用系统默认
+`~/.codex`。启动检测和“已有 Codex 配置”重检均为只读；只有用户显式选择 Gateway 或 API Key 后，才允许 Framework
+通过带备份与恢复能力的原子合并修改相关配置字段。
+
+账户登录成功后必须读取 `opl app state --profile fast --json`。未发现 managed key 时，只有唯一解析出 Codex 分组才执行
+`gateway_account_complete_setup`；无法唯一解析时显示本地化 `group_selection_required`，不得宣称模型访问已就绪。完成设置后必须
+重新读取 fast state；若仍暴露 `gateway_account_use_for_model_access`，立即执行该动作并再次读取 fast state。每次成功的权威读取都发布
+到共享 App state 缓存，使已挂载的首页和侧栏同步解除旧阻断；最终仍只以 initialize 确认 `codex_config` ready。
 密码在成功、失败或切换方式后立即清空，不进入 App state、generic action、stdout/stderr、receipt 或 renderer diagnostics。
 API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer 脱敏。WebUI 只展示 API Key，不渲染账户密码登录。
 
@@ -133,7 +139,7 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 完成需要同时具备：
 
 - App 合同和 page-state matrix 校验通过。
-- first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop 账户默认、API Key 兼容、独立 Codex 重检与 WebUI API Key-only 边界。
-- active shell DOM 测试覆盖 initialize pending、Gateway 账户登录与唯一分组完成设置、API Key 配置、已有 Codex 重检、密码生命周期、WebUI 边界、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
+- first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop 账户默认、API Key 兼容、系统默认 Codex 重检与 WebUI API Key-only 边界。
+- active shell DOM 测试覆盖 initialize pending、Gateway 账户登录、唯一分组完成设置、模型访问绑定、共享首页缓存刷新、API Key 配置、已有 Codex 重检、密码生命周期、WebUI 边界、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
 - i18n、TypeScript 与 package build 通过。
 - 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。

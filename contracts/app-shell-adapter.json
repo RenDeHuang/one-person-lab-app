@@ -39,9 +39,12 @@
       }
     },
     "codex_home": {
-      "default_path": "~/Library/Application Support/OPL/codex",
+      "default_path": "~/.codex",
       "override_env": "CODEX_HOME",
-      "user_home_mutation": "forbidden",
+      "resolution_policy": "preserve_existing_env_else_codex_system_default",
+      "app_env_injection": "forbidden",
+      "automatic_mutation": "forbidden",
+      "explicit_model_access_mutation": "framework_action_atomic_merge_with_backup_and_restore",
       "required_processes": [
         "desktop_shell",
         "aioncore",
