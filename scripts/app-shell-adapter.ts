@@ -226,7 +226,7 @@ type UpstreamIntakeDependencyRecord = UpstreamIntakeRecord & {
     field_ref: string;
     minimum_version: string;
     evaluated_upstream_version: string;
-    selective_absorption_version: string;
+    selected_version_source: string;
     state: string;
   };
   capability_gate?: {
@@ -282,17 +282,19 @@ export type ShellAdapterContract = {
   upstream_intake?: {
     schema_version: number;
     classification_policy: string;
+    stable_currentness_receipt: {
+      path: string;
+      schema: string;
+      channel: string;
+      read_policy: string;
+      implementation_ancestry_policy: string;
+      managed_runtime_bindings: Record<string, string>;
+      required_policy: Record<string, string>;
+    };
     source_refs: {
       fork_base: { ref: string; role: string };
       evaluated_upstream: { release: string; ref: string; role: string };
       selective_absorption_head: { ref: string; role: string };
-      latest_reviewed_upstream?: {
-        release: string;
-        ref: string;
-        role: string;
-        gui_delta: string;
-        disposition: string;
-      };
     };
     allowed_classifications: string[];
     required_capability_ids: string[];

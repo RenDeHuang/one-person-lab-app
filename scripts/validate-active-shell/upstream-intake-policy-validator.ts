@@ -79,9 +79,43 @@ const REQUIRED_SOURCE_REF_ROLES = {
   fork_base: 'shared_fork_base',
   evaluated_upstream: 'evaluated_upstream_release',
   selective_absorption_head: 'scoped_absorption_and_intake_record_head',
-  latest_reviewed_upstream: 'reviewed_stable_release_not_merged',
 };
 const REQUIRED_AIONCORE_VERSION = 'v0.1.44';
+const REQUIRED_STABLE_CURRENTNESS_RECEIPT = {
+  path: 'contracts/aionui-upstream-intake.json',
+  schema: 'opl_aionui_upstream_intake.v1',
+  channel: 'stable_tags_only',
+  read_policy: 'active_shell_checkout_read_only_fail_closed',
+  implementation_ancestry_policy:
+    'all_shell_projection_implementation_refs_must_be_ancestors_of_active_shell_head',
+  managed_runtime_bindings: {
+    minimum_aioncore_version: REQUIRED_AIONCORE_VERSION,
+    aioncore_version: 'contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version',
+    aioncore_source_commit: 'contracts/aionui-upstream-intake.json#managed_runtime.aioncore.commit',
+    aioncore_archive_sha256:
+      'contracts/aionui-upstream-intake.json#managed_runtime.aioncore.archive_sha256',
+    managed_resources_manifest_sha256:
+      'contracts/aionui-upstream-intake.json#managed_runtime.managed_resources_manifest_sha256',
+    codex_acp_package_version: 'contracts/aionui-upstream-intake.json#managed_runtime.codex_acp',
+    codex_acp_package_lock_sha256:
+      'contracts/aionui-upstream-intake.json#managed_runtime.codex_acp.package_lock_sha256',
+    codex_cli_package_version: 'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli',
+    codex_cli_binary_sha256:
+      'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.binary_sha256',
+    qualification_contract: 'manual_qualification_contract',
+    source_lock_requirement_source: 'manual_qualification_contract.exact_source_lock_required',
+    packaged_manifest_authority:
+      'manual_qualification_contract.runtime_dependencies.aioncore.resource_authority',
+    package_lock_consistency_source:
+      'manual_qualification_contract.runtime_dependencies.managed_codex_acp.version_binding.required_consistency',
+  },
+  required_policy: {
+    broad_history_merge: 'forbidden',
+    newer_stable_release: 'review_required',
+    network_unknown: 'unknown_fail_closed_for_release_admission',
+    product_authority: 'one-person-lab-app',
+  },
+};
 const REQUIRED_AIONCORE_EVIDENCE = 'packaged_aioncore_boundary_and_recovery_smoke';
 const REQUIRED_MANAGED_AGENT_NODE_TESTS = [
   'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
@@ -450,18 +484,6 @@ function validateSourceRefs(upstreamIntake) {
   if (sourceRefs.evaluated_upstream.release !== 'v2.1.31') {
     throw new Error('Active shell upstream intake evaluated release must be v2.1.31');
   }
-  if (
-    sourceRefs.latest_reviewed_upstream.release !== 'v2.1.34' ||
-    sourceRefs.latest_reviewed_upstream.published_at !== '2026-07-13T14:57:12Z' ||
-    sourceRefs.latest_reviewed_upstream.draft !== false ||
-    sourceRefs.latest_reviewed_upstream.prerelease !== false ||
-    sourceRefs.latest_reviewed_upstream.gui_delta !==
-      'conversation_queue_and_team_renderer_changes_require_classification' ||
-    sourceRefs.latest_reviewed_upstream.disposition !==
-      'reviewed_not_absorbed_bounded_selective_intake_required'
-  ) {
-    throw new Error('Active shell latest reviewed upstream must record stable v2.1.34 as reviewed but not absorbed');
-  }
   const refs = Object.values(sourceRefs).map((sourceRef) => sourceRef.ref);
   if (new Set(refs).size !== refs.length) {
     throw new Error('Active shell upstream intake source refs must identify distinct commits');
@@ -481,6 +503,190 @@ function compareVersions(left, right) {
     if (left[index] !== right[index]) return left[index] - right[index];
   }
   return 0;
+}
+
+function assertObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value;
+}
+
+function assertSha256(value, label) {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error(`${label} must be a lowercase SHA-256 digest`);
+  }
+}
+
+function assertExactPackageVersion(value, label) {
+  if (typeof value !== 'string' || !/^\d+\.\d+\.\d+$/.test(value)) {
+    throw new Error(`${label} must be an exact semantic version`);
+  }
+}
+
+function validateManagedRuntimeQualification(contract) {
+  const qualification = assertObject(
+    contract.manual_qualification_contract,
+    'Active shell manual qualification contract',
+  );
+  if (qualification.exact_source_lock_required !== true) {
+    throw new Error('Active shell managed runtime qualification must require an exact source lock');
+  }
+  const runtimeDependencies = assertObject(
+    qualification.runtime_dependencies,
+    'Active shell manual qualification runtime dependencies',
+  );
+  const aionCore = assertObject(runtimeDependencies.aioncore, 'Manual qualification AionCore dependency');
+  if (
+    aionCore.version_source !== 'package.json#aioncoreVersion' ||
+    aionCore.resource_authority !==
+      'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json'
+  ) {
+    throw new Error('Active shell AionCore qualification must bind package pin and packaged manifest authority');
+  }
+  const codexAcp = assertObject(
+    runtimeDependencies.managed_codex_acp,
+    'Manual qualification managed Codex ACP dependency',
+  );
+  const versionBinding = assertObject(
+    codexAcp.version_binding,
+    'Manual qualification managed Codex ACP version binding',
+  );
+  if (
+    versionBinding.authority !==
+      'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version' ||
+    versionBinding.mode !== 'exact'
+  ) {
+    throw new Error('Active shell managed Codex ACP qualification must bind exact manifest and package lock');
+  }
+  assertDeepEqualJson(
+    versionBinding.required_consistency,
+    ['manifest_root', 'package_json', 'package_lock', 'installed_package', 'runtime_initialize'],
+    'Active shell managed Codex ACP qualification consistency',
+  );
+  const codexCli = assertObject(runtimeDependencies.codex_cli, 'Manual qualification Codex CLI dependency');
+  if (
+    codexCli.version_source !== 'AionCore managed resource manifest' ||
+    codexCli.target_platform_binary_required !== true
+  ) {
+    throw new Error('Active shell Codex CLI qualification must bind managed manifest and target binary');
+  }
+}
+
+function validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAncestor) {
+  const authority = contract.upstream_intake.stable_currentness_receipt;
+  assertDeepEqualJson(
+    authority,
+    REQUIRED_STABLE_CURRENTNESS_RECEIPT,
+    'Active shell stable currentness receipt contract',
+  );
+  const receiptPath = path.resolve(shellPaths.shellRoot, authority.path);
+  const relativeReceiptPath = path.relative(shellPaths.shellRoot, receiptPath);
+  if (
+    !relativeReceiptPath ||
+    relativeReceiptPath === '..' ||
+    relativeReceiptPath.startsWith(`..${path.sep}`)
+  ) {
+    throw new Error('Active shell stable currentness receipt path escapes the Shell checkout');
+  }
+  const readShellReceipt = options.readShellReceipt ?? readJson;
+  let receipt;
+  try {
+    receipt = assertObject(readShellReceipt(receiptPath), 'AionUI stable currentness receipt');
+  } catch (error) {
+    throw new Error(
+      `Unable to read active shell stable currentness receipt: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (receipt.schema !== authority.schema) {
+    throw new Error(`AionUI stable currentness receipt schema must be ${authority.schema}`);
+  }
+  if (receipt.upstream_repository !== 'https://github.com/iOfficeAI/AionUi.git') {
+    throw new Error('AionUI stable currentness receipt must name the official upstream repository');
+  }
+  if (receipt.channel !== authority.channel) {
+    throw new Error(`AionUI stable currentness receipt channel must be ${authority.channel}`);
+  }
+
+  const reviewed = assertObject(receipt.reviewed_release, 'AionUI receipt reviewed_release');
+  const absorbed = assertObject(receipt.absorbed_release, 'AionUI receipt absorbed_release');
+  const reviewedVersion = parseVersion(reviewed.tag, 'AionUI receipt reviewed release');
+  const absorbedVersion = parseVersion(absorbed.tag, 'AionUI receipt absorbed release');
+  if (reviewed.tag !== `v${reviewedVersion.join('.')}` || absorbed.tag !== `v${absorbedVersion.join('.')}`) {
+    throw new Error('AionUI receipt release tags must use canonical vMAJOR.MINOR.PATCH');
+  }
+  assertGitSha(reviewed.commit, 'AionUI receipt reviewed_release.commit');
+  assertGitSha(absorbed.commit, 'AionUI receipt absorbed_release.commit');
+  if (
+    typeof reviewed.published_at !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(reviewed.published_at) ||
+    Number.isNaN(Date.parse(reviewed.published_at))
+  ) {
+    throw new Error('AionUI receipt reviewed_release.published_at must be a UTC ISO-8601 timestamp');
+  }
+  if (
+    reviewed.draft !== false ||
+    reviewed.prerelease !== false ||
+    reviewed.url !== `https://github.com/iOfficeAI/AionUi/releases/tag/${reviewed.tag}`
+  ) {
+    throw new Error('AionUI receipt reviewed_release must bind official stable release metadata');
+  }
+  if (
+    !['selectively_absorbed', 'reviewed_deferred', 'reviewed_rejected', 'reviewed_no_change'].includes(
+      reviewed.disposition,
+    )
+  ) {
+    throw new Error('AionUI receipt reviewed_release.disposition is unsupported');
+  }
+  if (compareVersions(absorbedVersion, reviewedVersion) > 0) {
+    throw new Error('AionUI receipt absorbed release cannot be newer than reviewed release');
+  }
+  if (
+    reviewed.disposition === 'selectively_absorbed' &&
+    (absorbed.tag !== reviewed.tag || absorbed.commit !== reviewed.commit)
+  ) {
+    throw new Error('AionUI selectively absorbed receipt must bind the reviewed release');
+  }
+
+  const projection = assertObject(receipt.shell_projection, 'AionUI receipt shell_projection');
+  if (!Array.isArray(projection.implementation_refs) || projection.implementation_refs.length === 0) {
+    throw new Error('AionUI receipt implementation_refs must be a non-empty array');
+  }
+  for (const [index, ref] of projection.implementation_refs.entries()) {
+    assertGitSha(ref, `AionUI receipt implementation_refs[${index}]`);
+    if (!isGitAncestor(ref, shellPaths.shellRoot)) {
+      throw new Error(`active shell HEAD must contain receipt implementation ref ${ref}`);
+    }
+  }
+  if (
+    projection.aioncore_version_source !== 'package.json#aioncoreVersion' ||
+    typeof projection.human_record !== 'string' ||
+    projection.human_record.length === 0
+  ) {
+    throw new Error('AionUI receipt shell projection must bind the Shell package pin and human record');
+  }
+
+  const runtime = assertObject(receipt.managed_runtime, 'AionUI receipt managed_runtime');
+  const aionCore = assertObject(runtime.aioncore, 'AionUI receipt managed_runtime.aioncore');
+  parseVersion(aionCore.version, 'AionUI receipt AionCore version');
+  assertGitSha(aionCore.commit, 'AionUI receipt AionCore source commit');
+  assertSha256(aionCore.archive_sha256, 'AionUI receipt AionCore archive');
+  assertSha256(runtime.managed_resources_manifest_sha256, 'AionUI receipt managed resources manifest');
+  const codexAcp = assertObject(runtime.codex_acp, 'AionUI receipt managed Codex ACP');
+  if (codexAcp.package !== '@agentclientprotocol/codex-acp') {
+    throw new Error('AionUI receipt managed Codex ACP package is not authoritative');
+  }
+  assertExactPackageVersion(codexAcp.version, 'AionUI receipt managed Codex ACP version');
+  assertSha256(codexAcp.package_lock_sha256, 'AionUI receipt managed Codex ACP package lock');
+  const codexCli = assertObject(runtime.codex_cli, 'AionUI receipt managed Codex CLI');
+  if (codexCli.package !== '@openai/codex') {
+    throw new Error('AionUI receipt managed Codex CLI package is not authoritative');
+  }
+  assertExactPackageVersion(codexCli.version, 'AionUI receipt managed Codex CLI version');
+  assertSha256(codexCli.binary_sha256, 'AionUI receipt managed Codex CLI binary');
+  assertDeepEqualJson(receipt.policy, authority.required_policy, 'AionUI stable currentness receipt policy');
+  validateManagedRuntimeQualification(contract);
+  return receipt;
 }
 
 function defaultReadShellSourceFiles(shellRoot, _sourceRoot, requiredEvidencePaths = [], retiredFacadePaths = []) {
@@ -592,7 +798,7 @@ function validateManagedAgentApiCompatibility(rootContract, shellPaths, options)
   validateManagedAgentFocusedCommands(rootContract, contract);
 }
 
-function validateAionCoreRecoveryGate(dependency, shellPackage) {
+function validateAionCoreRecoveryGate(dependency, shellPackage, stableReceipt) {
   if (!dependency.version_gate || typeof dependency.version_gate !== 'object') {
     throw new Error('Active shell AionCore database recovery version_gate must be an object');
   }
@@ -601,7 +807,7 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
     'field_ref',
     'minimum_version',
     'evaluated_upstream_version',
-    'selective_absorption_version',
+    'selected_version_source',
     'state',
   ]) {
     assertNonEmptyString(versionGate[field], `Active shell AionCore database recovery version_gate.${field}`);
@@ -617,18 +823,22 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
       `Active shell AionCore database recovery version_gate.evaluated_upstream_version must be ${REQUIRED_AIONCORE_VERSION}`,
     );
   }
+  if (
+    versionGate.selected_version_source !==
+    REQUIRED_STABLE_CURRENTNESS_RECEIPT.managed_runtime_bindings.aioncore_version
+  ) {
+    throw new Error('Active shell AionCore selected version must come from the stable currentness receipt');
+  }
 
   assertNonEmptyString(shellPackage?.aioncoreVersion, 'Active shell package aioncoreVersion');
-  if (shellPackage.aioncoreVersion !== versionGate.selective_absorption_version) {
+  const selectedVersion = stableReceipt.managed_runtime.aioncore.version;
+  if (shellPackage.aioncoreVersion !== selectedVersion) {
     throw new Error(
-      `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match selective_absorption_version ${versionGate.selective_absorption_version}`,
+      `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match receipt AionCore version ${selectedVersion}`,
     );
   }
 
-  const selectedVersion = parseVersion(
-    versionGate.selective_absorption_version,
-    'Active shell AionCore selective absorption version',
-  );
+  const parsedSelectedVersion = parseVersion(selectedVersion, 'Active shell receipt AionCore version');
   const minimumVersion = parseVersion(versionGate.minimum_version, 'Active shell AionCore minimum recovery version');
   const evaluatedVersion = parseVersion(
     versionGate.evaluated_upstream_version,
@@ -637,7 +847,7 @@ function validateAionCoreRecoveryGate(dependency, shellPackage) {
   if (compareVersions(evaluatedVersion, minimumVersion) < 0) {
     throw new Error('Evaluated upstream AionCore version must satisfy the minimum recovery version');
   }
-  const meetsMinimum = compareVersions(selectedVersion, minimumVersion) >= 0;
+  const meetsMinimum = compareVersions(parsedSelectedVersion, minimumVersion) >= 0;
   const expectedVersionState = meetsMinimum ? 'meets_minimum' : 'below_minimum';
   if (versionGate.state !== expectedVersionState) {
     throw new Error(`Active shell AionCore database recovery version_gate.state must be ${expectedVersionState}`);
@@ -842,10 +1052,11 @@ export function validateUpstreamIntakePolicy(contract, shellPaths, options = {})
   const readJsonFile = options.readJsonFile ?? readJson;
   const shellPackage = readJsonFile(shellPaths.packageManifestPath);
   const aionCoreDependency = dependencyById.get('aioncore_database_recovery');
-  validateAionCoreRecoveryGate(aionCoreDependency, shellPackage);
+  const isGitAncestor = options.isGitAncestor ?? defaultIsGitAncestor;
+  const stableReceipt = validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAncestor);
+  validateAionCoreRecoveryGate(aionCoreDependency, shellPackage, stableReceipt);
   validateManagedAgentApiCompatibility(contract, shellPaths, options);
 
-  const isGitAncestor = options.isGitAncestor ?? defaultIsGitAncestor;
   const guiConformanceRef = contract.shell_source?.upstream_ref;
   if (!guiConformanceRef || !isGitAncestor(guiConformanceRef, shellPaths.shellRoot)) {
     throw new Error(`active shell HEAD must contain verified GUI conformance ref ${String(guiConformanceRef)}`);

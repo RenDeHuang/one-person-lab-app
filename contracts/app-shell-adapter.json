@@ -252,6 +252,34 @@
   "upstream_intake": {
     "schema_version": 1,
     "classification_policy": "classify_every_required_capability_and_dependency_before_app_release",
+    "stable_currentness_receipt": {
+      "path": "contracts/aionui-upstream-intake.json",
+      "schema": "opl_aionui_upstream_intake.v1",
+      "channel": "stable_tags_only",
+      "read_policy": "active_shell_checkout_read_only_fail_closed",
+      "implementation_ancestry_policy": "all_shell_projection_implementation_refs_must_be_ancestors_of_active_shell_head",
+      "managed_runtime_bindings": {
+        "minimum_aioncore_version": "v0.1.44",
+        "aioncore_version": "contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version",
+        "aioncore_source_commit": "contracts/aionui-upstream-intake.json#managed_runtime.aioncore.commit",
+        "aioncore_archive_sha256": "contracts/aionui-upstream-intake.json#managed_runtime.aioncore.archive_sha256",
+        "managed_resources_manifest_sha256": "contracts/aionui-upstream-intake.json#managed_runtime.managed_resources_manifest_sha256",
+        "codex_acp_package_version": "contracts/aionui-upstream-intake.json#managed_runtime.codex_acp",
+        "codex_acp_package_lock_sha256": "contracts/aionui-upstream-intake.json#managed_runtime.codex_acp.package_lock_sha256",
+        "codex_cli_package_version": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli",
+        "codex_cli_binary_sha256": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.binary_sha256",
+        "qualification_contract": "manual_qualification_contract",
+        "source_lock_requirement_source": "manual_qualification_contract.exact_source_lock_required",
+        "packaged_manifest_authority": "manual_qualification_contract.runtime_dependencies.aioncore.resource_authority",
+        "package_lock_consistency_source": "manual_qualification_contract.runtime_dependencies.managed_codex_acp.version_binding.required_consistency"
+      },
+      "required_policy": {
+        "broad_history_merge": "forbidden",
+        "newer_stable_release": "review_required",
+        "network_unknown": "unknown_fail_closed_for_release_admission",
+        "product_authority": "one-person-lab-app"
+      }
+    },
     "source_refs": {
       "fork_base": {
         "ref": "70974c59a275e565e8fc2bd7ecaf2dcac74227f0",
@@ -265,16 +293,6 @@
       "selective_absorption_head": {
         "ref": "e38b00ba37cafe56d704b498a4882264836463e4",
         "role": "scoped_absorption_and_intake_record_head"
-      },
-      "latest_reviewed_upstream": {
-        "release": "v2.1.34",
-        "ref": "0fea1eb82634f3746b9ccf68507277c347fa08a3",
-        "role": "reviewed_stable_release_not_merged",
-        "published_at": "2026-07-13T14:57:12Z",
-        "draft": false,
-        "prerelease": false,
-        "gui_delta": "conversation_queue_and_team_renderer_changes_require_classification",
-        "disposition": "reviewed_not_absorbed_bounded_selective_intake_required"
       }
     },
     "allowed_classifications": [
@@ -529,7 +547,7 @@
         "evidence": [
           "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
           "shell_source:packages/desktop/src/process/startup/recoverCorruptedDatabase.ts",
-          "active_shell_package_readback:aioncoreVersion=v0.1.50"
+          "active_shell_receipt:contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version"
         ]
       },
       {
@@ -643,7 +661,7 @@
         "evidence": [
           "evaluated_upstream:e49cd94935f4e461f002a1260a47c1b7b2ce81ca#package.json.aioncoreVersion=v0.1.44",
           "selective_absorption_head:e38b00ba37cafe56d704b498a4882264836463e4#package.json.aioncoreVersion=v0.1.28",
-          "active_shell_package_readback:aioncoreVersion=v0.1.50",
+          "active_shell_receipt:contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version",
           "shell_commit:81c8b37fdc067549341b41539d7648b09aa31d37",
           "shell_source:packages/desktop/src/process/startup/backendStartupFailure.ts",
           "shell_test:packages/web-host/src/backend-launcher.test.ts",
@@ -653,7 +671,7 @@
           "field_ref": "package.json#aioncoreVersion",
           "minimum_version": "v0.1.44",
           "evaluated_upstream_version": "v0.1.44",
-          "selective_absorption_version": "v0.1.50",
+          "selected_version_source": "contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version",
           "state": "meets_minimum"
         },
         "capability_gate": {

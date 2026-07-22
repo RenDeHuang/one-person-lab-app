@@ -81,9 +81,15 @@ Shell source、package、安装或 release 已同步。
 | `redirect` | 仅保留历史重定向入口，转到 App-owned surface。 |
 | `reject` | 不进入 ordinary App 行为。 |
 
-当前最新已审阅 stable release 是 `v2.1.34@0fea1eb82634f3746b9ccf68507277c347fa08a3`。
-它包含 conversation queue 与 Team renderer 变化，因此状态是 `reviewed_not_absorbed`；这不是
-升级完成声明。
+Stable currentness 的机器权威来自 active Shell checkout 中的
+`contracts/aionui-upstream-intake.json`。App 只读消费该 receipt，校验 schema、official stable
+metadata、Shell package pin、implementation ancestry，以及 AionCore source/archive、managed
+manifest、ACP lock 和 Codex binary 的 exact digest/source-lock/qualification 绑定。新 stable 只进入
+`review_required`，网络或 API 不确定一律 fail closed，不自动 merge 或触发 release mutation。
+
+`app-gui-product-contract.json#gui_maintenance_policy.maintenance_budgets` 中的
+`v2.1.34@0fea1eb82634f3746b9ccf68507277c347fa08a3` 继续作为历史 GUI overlap 测量与维护预算基线；
+它不是 stable currentness 指针，也不随 Shell receipt advance 而重写。
 
 ## Maintenance Budgets
 

@@ -76,25 +76,85 @@ const recoveryBoundary = {
 };
 const missingRemediationRef = 'f'.repeat(40);
 
+function stableCurrentnessReceipt() {
+  return {
+    schema: 'opl_aionui_upstream_intake.v1',
+    upstream_repository: 'https://github.com/iOfficeAI/AionUi.git',
+    channel: 'stable_tags_only',
+    reviewed_release: {
+      tag: 'v2.1.39',
+      commit: '1b215f2fcb9d220bc66bf3b4961835ded07d5797',
+      published_at: '2026-07-21T16:18:52Z',
+      draft: false,
+      prerelease: false,
+      url: 'https://github.com/iOfficeAI/AionUi/releases/tag/v2.1.39',
+      disposition: 'selectively_absorbed',
+    },
+    absorbed_release: {
+      tag: 'v2.1.39',
+      commit: '1b215f2fcb9d220bc66bf3b4961835ded07d5797',
+    },
+    shell_projection: {
+      implementation_refs: [
+        'a226de8a709698d40d19b038ef736475e135e1b2',
+        'bfde9e63179c03b2cdca18f4134f5c28ef78c8e4',
+      ],
+      human_record: 'docs/history/aionui-upstream-intake-2026-07-22.md',
+      aioncore_version_source: 'package.json#aioncoreVersion',
+    },
+    managed_runtime: {
+      aioncore: {
+        version: 'v0.1.50',
+        commit: '4089fced543d7f439d59940b4ba129dcfad27c23',
+        archive_sha256: '9f37c9d9b5f6e74a69796053be9e52a88dd43a58eee0aa7e042ff334830f8dd5',
+      },
+      managed_resources_manifest_sha256:
+        'a3503fdabd95cc5fa2f84d47097048f5c1297888c0b0f330f8413214c9bafd73',
+      codex_acp: {
+        package: '@agentclientprotocol/codex-acp',
+        version: '1.1.2',
+        package_lock_sha256: 'fb3b47ee03180d9bcf65005cbe9f5cf9792d95de690b49b4b27b55d7c06a81cb',
+      },
+      codex_cli: {
+        package: '@openai/codex',
+        version: '0.144.6',
+        binary_sha256: '80a3933d11a9d13ef806aa24f7bb8afc9169cfe4e9b09d6da6a92922cbde9cff',
+      },
+    },
+    policy: {
+      broad_history_merge: 'forbidden',
+      newer_stable_release: 'review_required',
+      network_unknown: 'unknown_fail_closed_for_release_admission',
+      product_authority: 'one-person-lab-app',
+    },
+  };
+}
+
 function validateContract(contract, options = {}) {
+  const receipt = stableCurrentnessReceipt();
   return validateUpstreamIntakePolicy(contract, shellPaths, {
-    readJsonFile: () => ({
-      aioncoreVersion: dependency(contract, 'aioncore_database_recovery').version_gate.selective_absorption_version,
-    }),
+    readJsonFile: () => ({ aioncoreVersion: receipt.managed_runtime.aioncore.version }),
+    readShellReceipt: () => receipt,
     readShellSourceFiles: () => managedAgentStructuralFiles(contract),
     isGitAncestor: () => true,
     ...options,
   });
 }
 
-test('AionUI intake contract separates the absorbed v2.1.31 cohort from the reviewed stable v2.1.34 release', () => {
+test('AionUI intake consumes the Shell stable receipt while preserving historical intake refs', () => {
   const contract = readContract();
+  const receipt = stableCurrentnessReceipt();
   const checkedRefs: string[] = [];
   let packagePath = '';
+  let receiptPath = '';
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: (filePath) => {
       packagePath = filePath;
-      return { aioncoreVersion: 'v0.1.50' };
+      return { aioncoreVersion: receipt.managed_runtime.aioncore.version };
+    },
+    readShellReceipt: (filePath) => {
+      receiptPath = filePath;
+      return receipt;
     },
     isGitAncestor: (ref) => {
       checkedRefs.push(ref);
@@ -104,43 +164,32 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
 
   const intake = contract.upstream_intake;
   assert.equal(packagePath, shellPaths.packageManifestPath);
-  assert.deepEqual(checkedRefs, [
+  assert.equal(receiptPath, path.join(shellPaths.shellRoot, 'contracts/aionui-upstream-intake.json'));
+  assert.deepEqual(new Set(checkedRefs), new Set([
+    ...receipt.shell_projection.implementation_refs,
     contract.shell_source.upstream_ref,
     intake.source_refs.selective_absorption_head.ref,
     MANAGED_AGENT_REMEDIATION_REF,
     capability(contract, 'feedback_diagnostics_privacy').remediation_ref,
     dependency(contract, 'aioncore_database_recovery').remediation_ref,
-  ]);
+  ]));
   assert.deepEqual(
     [
       intake.source_refs.fork_base.ref,
       intake.source_refs.evaluated_upstream.ref,
       intake.source_refs.selective_absorption_head.ref,
-      intake.source_refs.latest_reviewed_upstream.ref,
     ],
     [
       '70974c59a275e565e8fc2bd7ecaf2dcac74227f0',
       'e49cd94935f4e461f002a1260a47c1b7b2ce81ca',
       'e38b00ba37cafe56d704b498a4882264836463e4',
-      '0fea1eb82634f3746b9ccf68507277c347fa08a3',
     ],
   );
-  assert.deepEqual(
-    {
-      published_at: intake.source_refs.latest_reviewed_upstream.published_at,
-      draft: intake.source_refs.latest_reviewed_upstream.draft,
-      prerelease: intake.source_refs.latest_reviewed_upstream.prerelease,
-      gui_delta: intake.source_refs.latest_reviewed_upstream.gui_delta,
-      disposition: intake.source_refs.latest_reviewed_upstream.disposition,
-    },
-    {
-      published_at: '2026-07-13T14:57:12Z',
-      draft: false,
-      prerelease: false,
-      gui_delta: 'conversation_queue_and_team_renderer_changes_require_classification',
-      disposition: 'reviewed_not_absorbed_bounded_selective_intake_required',
-    },
-  );
+  assert.equal(Object.hasOwn(intake.source_refs, 'latest_reviewed_upstream'), false);
+  assert.equal(intake.stable_currentness_receipt.schema, receipt.schema);
+  assert.equal(intake.stable_currentness_receipt.channel, receipt.channel);
+  assert.equal(receipt.reviewed_release.tag, 'v2.1.39');
+  assert.deepEqual(receipt.managed_runtime, stableCurrentnessReceipt().managed_runtime);
   assert.deepEqual([
     capability(contract, 'database_recovery').classification,
     capability(contract, 'database_recovery').release_gate,
@@ -156,14 +205,14 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
     aionCore.release_gate,
     aionCore.remediation_ref,
     aionCore.version_gate.minimum_version,
-    aionCore.version_gate.selective_absorption_version,
+    aionCore.version_gate.selected_version_source,
     aionCore.capability_gate.state,
   ], [
     'absorbed',
     'aioncore_database_recovery_verified',
     '81c8b37fdc067549341b41539d7648b09aa31d37',
     'v0.1.44',
-    'v0.1.50',
+    'contracts/aionui-upstream-intake.json#managed_runtime.aioncore.version',
     'verified',
   ]);
 });
@@ -179,9 +228,6 @@ test('AionUI intake contract accepts typed corruption or strict open-stage corru
 
 const invalid = (name, mutate, error, options?) => ({ name, mutate, error, options });
 const invalidCases = [
-  invalid('a prerelease latest-reviewed upstream', (c) => {
-    c.upstream_intake.source_refs.latest_reviewed_upstream.prerelease = true;
-  }, /latest reviewed upstream must record stable v2\.1\.34 as reviewed but not absorbed/),
   invalid('a missing required capability record', (c) => {
     c.upstream_intake.capability_classifications = c.upstream_intake.capability_classifications.filter((entry) => entry.id !== 'cron_history');
   }, /Active shell upstream intake capabilities ids/),
@@ -201,8 +247,7 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('the superseded active shell package version', () => {}, /active shell package aioncoreVersion v0\.1\.49 must match selective_absorption_version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }) })),
-  invalid('an unapproved active shell package version', () => {}, /active shell package aioncoreVersion v0\.1\.51 must match selective_absorption_version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.51' }) })),
+  invalid('a Shell package version outside the receipt', () => {}, /active shell package aioncoreVersion v0\.1\.49 must match receipt AionCore version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }) })),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -232,13 +277,60 @@ for (const { name, mutate, options, error } of invalidCases) {
   });
 }
 
-test('AionUI intake validator accepts only the strict AionCore v0.1.50 authority', () => {
+test('AionUI stable receipt validator fails closed on schema, policy, digest, and ancestry drift', () => {
+  const mutations = [
+    {
+      error: /receipt schema/,
+      mutate: (receipt) => { receipt.schema = 'opl_aionui_upstream_intake.v2'; },
+    },
+    {
+      error: /receipt policy/,
+      mutate: (receipt) => { receipt.policy.network_unknown = 'assume_current'; },
+    },
+    {
+      error: /managed resources manifest.*SHA-256/,
+      mutate: (receipt) => { receipt.managed_runtime.managed_resources_manifest_sha256 = 'bad'; },
+    },
+    {
+      error: /official stable release metadata/,
+      mutate: (receipt) => { receipt.reviewed_release.prerelease = true; },
+    },
+  ];
+  for (const { mutate, error } of mutations) {
+    const receipt = stableCurrentnessReceipt();
+    mutate(receipt);
+    assert.throws(() => validateContract(readContract(), {
+      readShellReceipt: () => receipt,
+    }), error);
+  }
+
+  const receipt = stableCurrentnessReceipt();
+  const missingRef = receipt.shell_projection.implementation_refs[0];
+  assert.throws(() => validateContract(readContract(), {
+    readShellReceipt: () => receipt,
+    isGitAncestor: (ref) => ref !== missingRef,
+  }), new RegExp(`active shell HEAD must contain receipt implementation ref ${missingRef}`));
+});
+
+test('AionUI current exact versions come from the receipt while v0.1.44 remains the floor', () => {
   const contract = readContract();
   const versionGate = dependency(contract, 'aioncore_database_recovery').version_gate;
   assert.equal(Object.hasOwn(versionGate, 'temporary_compatible_versions'), false);
+  assert.equal(versionGate.minimum_version, 'v0.1.44');
+
+  const futureReceipt = stableCurrentnessReceipt();
+  futureReceipt.managed_runtime.aioncore.version = 'v0.1.51';
   assert.doesNotThrow(() => validateContract(contract, {
-    readJsonFile: () => ({ aioncoreVersion: 'v0.1.50' }),
+    readJsonFile: () => ({ aioncoreVersion: 'v0.1.51' }),
+    readShellReceipt: () => futureReceipt,
   }));
+
+  const belowMinimumReceipt = stableCurrentnessReceipt();
+  belowMinimumReceipt.managed_runtime.aioncore.version = 'v0.1.43';
+  assert.throws(() => validateContract(contract, {
+    readJsonFile: () => ({ aioncoreVersion: 'v0.1.43' }),
+    readShellReceipt: () => belowMinimumReceipt,
+  }), /version_gate\.state must be below_minimum/);
 });
 
 test('Manual qualification contract preserves the system Codex home and keeps MAS Scholar workspace-scoped', () => {

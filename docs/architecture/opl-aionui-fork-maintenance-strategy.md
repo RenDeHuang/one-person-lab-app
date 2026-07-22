@@ -213,18 +213,24 @@ unresolved dependencies, missing evidence, an unblocked capability with a
 non-absorbed dependency, and weakened AionCore version/capability gates.
 
 Validation is also bound to the resolved active shell checkout. The App reads
-the shell `package.json` and requires its actual `aioncoreVersion` to match the
-contract's `selective_absorption_version`. The selective absorption ref and any
-record-level `remediation_ref` must be ancestors of the current shell `HEAD`;
+the Shell `contracts/aionui-upstream-intake.json` receipt and requires its schema,
+official stable metadata, fail-closed policy, exact AionCore source/archive,
+managed-resource manifest digest, ACP package-lock digest, and Codex binary
+digest to be structurally valid. The Shell `package.json#aioncoreVersion` must
+match the receipt's AionCore version, and every receipt implementation ref must
+be an ancestor of the current Shell `HEAD`. The selective absorption ref and any
+record-level `remediation_ref` must also be ancestors of the current shell `HEAD`;
 `HEAD` may advance and is not required to remain exactly equal to either ref.
 Moving AionCore recovery from `deferred` to `absorbed` therefore requires only
 the final contract values and shell evidence: admitted version state, verified
 capability evidence, an unblocked release gate, and a remediation SHA already
 contained in active shell history.
 
-The current active shell source package reports `aioncoreVersion=v0.1.44`, so
-the version gate is `meets_minimum` and the recovery capability is `verified`.
-The AionCore `v0.1.44` runtime probe establishes two valid failure boundaries:
+The selected AionCore exact version comes from the Shell receipt and managed
+manifest/lock projection; App does not duplicate that moving value. The compatibility
+floor remains `v0.1.44`, so the version gate is `meets_minimum` only when the
+receipt-selected version satisfies that floor and exact package readback. The
+AionCore `v0.1.44` runtime probe establishes two valid failure boundaries:
 `BOOTSTRAP_DATA_INIT_FAILED` at `database.recoverable_corruption`, or the same
 code at `database.open` only when AionCore output also contains a strict SQLite
 corruption marker such as `file is not a database`. Lock, permission, and
@@ -311,6 +317,9 @@ absorbed, and does not justify a broad history merge. The active adapter binds
 `a0ce713b65801fd9ca7f46ad168c977c75a187de` as the minimum verified GUI
 conformance ancestor; the current shell HEAD is read from the active checkout and
 must contain that ancestor. Human docs do not copy the transient current HEAD.
+This section is a historical GUI classification and maintenance-budget baseline.
+Stable release currentness is read from the Shell receipt and can advance without
+rewriting this measured baseline.
 
 ## Upstream Intake Policy
 
