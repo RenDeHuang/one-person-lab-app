@@ -3431,8 +3431,8 @@ function validateSettingsGatewayAccountBoundary(controlPlane, gatewayAdapter) {
     gatewayAdapter.opl_gateway_account_projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
     gatewayAdapter.opl_gateway_account_secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
     gatewayAdapter.secret_boundary !==
-      'account_password_only_through_typed_desktop_ipc_and_dedicated_stdin_never_generic_action_payload' ||
-    gatewayAdapter.webui_boundary !== 'status_and_manual_api_key_only_no_gateway_account_password_login'
+      'account_password_only_through_runtime_provider_and_dedicated_stdin_never_generic_action_payload' ||
+    gatewayAdapter.webui_boundary !== 'gateway_account_and_manual_api_key_via_existing_runtime_http_proxy'
   ) {
     throw new Error('Settings Gateway adapter must preserve the Gateway account projection and secret bridge boundaries');
   }
@@ -3443,7 +3443,7 @@ function validateSettingsGatewayAccountBoundary(controlPlane, gatewayAdapter) {
     surface.secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
     surface.account_card_visibility !== 'account_connection_only' ||
     surface.ttl_seconds !== 900 ||
-    surface.webui_password_login_allowed !== false ||
+    surface.webui_password_login_allowed !== true ||
     surface.generic_action_secret_payload_allowed !== false
   ) {
     throw new Error('Settings Gateway experience must keep account visibility, TTL, WebUI, and secret rules');

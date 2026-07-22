@@ -60,10 +60,10 @@ focused tests 与用户路径截图。
 
 ## 模型访问
 
-模型访问是唯一需要用户输入的常见首启步骤。Desktop 提供两条真实路径，并默认选择账户登录：
+模型访问是唯一需要用户输入的常见首启步骤。Desktop 与 WebUI 都提供两条真实路径，并默认选择账户登录：
 
-- `OPL Gateway 账户`：输入邮箱和密码，通过 Desktop-only typed IPC 调用
-  `opl connect gateway login --credentials-stdin --json`；首启不显示设备名称，使用 Framework 默认值。
+- `OPL Gateway 账户`：输入邮箱和密码。Desktop 通过 typed IPC，WebUI 通过既有 `/api/opl-runtime/*`
+  HTTP proxy，二者最终都调用 `opl connect gateway login --credentials-stdin --json`；首启不显示设备名称，使用 Framework 默认值。
 - `API Key`：保留现有 `configureCodex` stdin bridge，作为兼容方式。
 
 账户登录和 API Key 使用分段控件切换。`已有 Codex 配置` 不再占用分段控件，而是在其外提供独立次要重检入口。
@@ -79,7 +79,7 @@ Desktop 不注入 App 私有 `CODEX_HOME`。进程已有显式 `CODEX_HOME` 时�
 这项 medium-impact 本机 Codex provider mutation 的确认；只有用户显式确认后才允许执行，并在执行前后都读取 fresh state。每次成功的权威读取都发布
 到共享 App state 缓存，使已挂载的首页和侧栏同步解除旧阻断；最终仍只以 initialize 确认 `codex_config` ready。
 密码在成功、失败或切换方式后立即清空，不进入 App state、generic action、stdout/stderr、receipt 或 renderer diagnostics。
-API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer 脱敏。WebUI 只展示 API Key，不渲染账户密码登录。
+API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer 脱敏。Desktop 与 WebUI 都默认展示 Gateway 账户登录，并保留 API Key 兼容入口。
 
 ## 状态模型
 
@@ -135,7 +135,7 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 - initialize、模型访问和维护动作共享一个页面级请求锁；任一请求进行中时不得启动竞争动作。
 - 技术详情只在首启页内展开，不提供提前离开到普通 Settings 的入口。
 - 访问密钥可以保存在本机并只发送到已配置的模型端点；任何 renderer 错误和诊断在显示前必须脱敏本次提交的密钥。
-- Gateway 密码只通过 Desktop typed IPC 的 stdin secret bridge 使用；WebUI 不展示该入口，renderer 不保存或显示密码。
+- Gateway 密码只通过 runtime provider 进入专用 stdin secret bridge；WebUI 复用现有 runtime HTTP proxy，不新增秘密通道，renderer 不保存或显示密码。
 - 中英文都只显示 App-owned beginner copy；raw setup fields、命令、路径和 provider 细节默认隐藏。
 
 ## 不做的事
@@ -153,7 +153,7 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 完成需要同时具备：
 
 - App 合同和 page-state matrix 校验通过。
-- first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop 账户默认、API Key 兼容、系统默认 Codex 重检与 WebUI API Key-only 边界。
+- first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop/WebUI 账户默认、API Key 兼容、系统默认 Codex 重检与 WebUI runtime proxy 边界。
 - active shell DOM 测试覆盖 initialize pending、Gateway 账户登录、唯一分组完成设置、模型访问绑定、共享首页缓存刷新、API Key 配置、已有 Codex 重检、密码生命周期、WebUI 边界、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
 - i18n、TypeScript 与 package build 通过。
 - 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。

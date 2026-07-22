@@ -312,9 +312,9 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     'authenticated standalone first-run route outside the ordinary product layout',
     'ordinary startup enters /guid with zero fast-state navigation wait while unknown readiness refreshes in the background without mutation',
     'explicit enter OPL action before readiness without mutating readiness',
-    'Desktop model access defaults to OPL Gateway account login with email and password while API Key remains a compatibility choice',
+    'Desktop and WebUI model access default to OPL Gateway account login with email and password while API Key remains a compatibility choice',
     'existing Codex recheck remains a secondary action outside the account and API Key method switch',
-    'WebUI model access exposes API Key only and never renders Gateway password login',
+    'WebUI Gateway account login reuses the existing OPL runtime HTTP proxy and dedicated credentials stdin bridge',
     'model access method switching and alternate actions disabled while a request is active',
     'pending state without premature ready or no-blocker claims',
     'required Core checklist items reject disabled status as ready',
@@ -350,7 +350,6 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     'automatic navigation away from the FirstRun completion state',
     'ordinary Settings routes from FirstRun technical details',
     'Gateway account device label controls during first-run',
-    'Gateway password login in WebUI',
     'submitted Gateway passwords or access keys in renderer errors or diagnostics',
   ]) {
     if (!firstLaunchPage.must_not_show?.includes(hiddenSignal)) {

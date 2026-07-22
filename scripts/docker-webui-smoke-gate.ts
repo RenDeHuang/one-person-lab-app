@@ -291,13 +291,16 @@ function makeOrdinaryUserStatus(input: {
     },
     access_key_settings: {
       status: accessStatus,
-      summary: 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.',
-      next_action: accessStatus === 'passed' ? null : 'Use the WebUI access form; do not pass API keys to the installer.',
+      summary: 'Sign in to OPL Gateway or enter an API Key in WebUI first-run or Settings -> Account & Access.',
+      next_action:
+        accessStatus === 'passed'
+          ? null
+          : 'Use the WebUI model-access form; do not pass Gateway credentials or API keys to the installer.',
       evidence_ref: input.apiKeyReceiptPath,
     },
     runtime_proxy: {
       status: accessStatus,
-      summary: 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.',
+      summary: 'Gateway account sign-in and API Key configuration reuse the existing OPL runtime provider and dedicated stdin commands.',
       next_action: accessStatus === 'passed' ? null : 'Collect or rerun the API key flow receipt after WebUI health passes.',
       evidence_ref: input.apiKeyReceiptPath,
     },
@@ -326,7 +329,7 @@ function makeOrdinaryUserStatus(input: {
       evidence_ref: input.composePath,
     },
     image_seed_selection: expectedImageSeedSelection,
-    settings_entry: 'Settings -> Access',
+    settings_entry: 'Settings -> Account & Access',
     must_not_claim: [...ordinaryMustNotClaim],
   };
 }

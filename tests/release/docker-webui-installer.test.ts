@@ -273,7 +273,7 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.evidence.windows_evidence_dir, evidence);
   assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
   assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
-  assert.equal(payload.ordinary_user_status.settings_entry, 'Settings -> Access');
+  assert.equal(payload.ordinary_user_status.settings_entry, 'Settings -> Account & Access');
 });
 
 test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', () => {

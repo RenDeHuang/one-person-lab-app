@@ -78,7 +78,7 @@ export type OrdinaryUserStatus = {
   data_preservation: OrdinaryStatusRow;
   host_update: OrdinaryStatusRow;
   image_seed_selection: string;
-  settings_entry: 'Settings -> Access';
+  settings_entry: 'Settings -> Account & Access';
   must_not_claim: string[];
 };
 

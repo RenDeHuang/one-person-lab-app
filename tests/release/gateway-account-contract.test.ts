@@ -93,7 +93,7 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
   }
 });
 
-test('Gateway account contracts keep the canonical projection, actions, and typed secret bridge', () => {
+test('Gateway account contracts keep the canonical projection, actions, and runtime-provider secret bridge', () => {
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   const productProfile = readJson('contracts/app-product-profile.json');
@@ -125,8 +125,11 @@ test('Gateway account contracts keep the canonical projection, actions, and type
     unresolvedGroupError: 'group_selection_required',
     passwordClearPolicy: 'success_failure_or_method_switch',
     existingCodexRecheckRole: 'secondary_action_outside_method_switch',
-    webuiAllowedMethods: ['api_key'],
-    webuiPasswordLogin: false,
+    webuiDefaultMethod: 'gateway_account',
+    webuiAllowedMethods: ['gateway_account', 'api_key'],
+    webuiPasswordLogin: true,
+    webuiGatewayLoginRoute: '/api/opl-runtime/gateway-account-login',
+    webuiTransport: 'existing_opl_runtime_http_proxy_to_credentials_stdin',
   };
   for (const setup of [
     guiContract.first_launch_readiness_policy.beginner_presentation.model_access_setup,
@@ -149,8 +152,11 @@ test('Gateway account contracts keep the canonical projection, actions, and type
       unresolvedGroupError: setup.gateway_account.unresolved_group_error,
       passwordClearPolicy: setup.gateway_account.password_clear_policy,
       existingCodexRecheckRole: setup.existing_codex_recheck.role,
+      webuiDefaultMethod: setup.webui.default_method,
       webuiAllowedMethods: setup.webui.allowed_methods,
       webuiPasswordLogin: setup.webui.gateway_password_login,
+      webuiGatewayLoginRoute: setup.webui.gateway_login_route,
+      webuiTransport: setup.webui.transport,
     }, expectedFirstRunSetup);
   }
   assert.deepEqual(runtimeBridge.opl_gateway_account_projection.nested_field_allowlist.account, [
@@ -209,7 +215,7 @@ test('Gateway account runtime bridge rejects secret leakage and generic-action l
         'opl app action execute --action gateway_account_login --payload <json> --json';
     },
     (bridge: any) => {
-      bridge.opl_gateway_account_secret_bridge.webui_password_login_allowed = true;
+      bridge.opl_gateway_account_secret_bridge.webui_password_login_allowed = false;
     },
     (bridge: any) => {
       bridge.opl_gateway_account_projection.renderer_bootstrap_cache.field_policy = 'persist_entire_raw_payload';

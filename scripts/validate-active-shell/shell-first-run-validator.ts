@@ -11,6 +11,14 @@ export function validateFirstRunImplementation(shellPaths) {
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
+  const firstRunZhLocale = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/services/i18n/locales/zh-CN/settings.json',
+  );
+  const firstRunEnLocale = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/services/i18n/locales/en-US/settings.json',
+  );
   const corePrerequisitesHook = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/hooks/system/useCoreLaunchPrerequisites.ts',
@@ -34,6 +42,13 @@ export function validateFirstRunImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceContextBar.tsx',
   );
   const firstRunBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
+  const runtimeAdapter = readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts');
+  const httpBridge = readShellText(shellPaths, 'packages/desktop/src/common/adapter/httpBridge.ts');
+  const webRuntimeProxy = readShellText(shellPaths, 'packages/web-host/src/opl-runtime-proxy.ts');
+  const gatewaySettings = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx',
+  );
   for (const expected of [
     "testId='opl-startup-preflight'",
     'common.uiOptimization.startup.stages.workspace',
@@ -42,6 +57,71 @@ export function validateFirstRunImplementation(shellPaths) {
   ]) {
     if (!rendererMain.includes(expected)) {
       throw new Error(`Active shell startup preflight must render visible progress before FirstRun: ${expected}`);
+    }
+  }
+  for (const expected of [
+    'loginGatewayAccount: runtimeProvider<',
+    "'/api/opl-runtime/gateway-account-login'",
+  ]) {
+    if (!runtimeAdapter.includes(expected)) {
+      throw new Error(`Active shell WebUI Gateway login must reuse the OPL runtime provider: ${expected}`);
+    }
+  }
+  for (const expected of [
+    "case 'gateway-account-login': {",
+    "args: ['connect', 'gateway', 'login', '--credentials-stdin', '--json']",
+    'sanitizeGatewayAccountResult(result)',
+    'writeJson(res, 200, { success: sanitized.ok, data: sanitized })',
+  ]) {
+    if (!webRuntimeProxy.includes(expected)) {
+      throw new Error(`Active shell WebUI Gateway login must preserve the credentials-stdin proxy boundary: ${expected}`);
+    }
+  }
+  if (!httpBridge.includes('password|passwd|secret')) {
+    throw new Error('Active shell HTTP bridge must redact Gateway passwords from request and response logs');
+  }
+  for (const forbidden of [
+    "accessMethod === 'gateway_account' && isDesktopRuntime",
+    '!isDesktopRuntime || !email',
+  ]) {
+    if (firstRunPage.includes(forbidden)) {
+      throw new Error(`Active shell WebUI first-run must not retain the Desktop-only Gateway gate: ${forbidden}`);
+    }
+  }
+  for (const [locale, source, required, forbidden] of [
+    [
+      'zh-CN',
+      firstRunZhLocale,
+      [
+        '"needsAction": "请登录 OPL Gateway，或使用 API Key。"',
+        '"codexConfig": "使用 OPL Gateway 账户登录；也可切换到 API Key，或重新检测已有 Codex 配置。"',
+      ],
+      ['"needsAction": "请输入 OPL Gateway 访问密钥。"', '可向本团队获取 OPL Gateway 访问密钥'],
+    ],
+    [
+      'en-US',
+      firstRunEnLocale,
+      [
+        '"needsAction": "Sign in to OPL Gateway, or use an API Key."',
+        '"codexConfig": "Sign in with your OPL Gateway account, switch to an API Key, or check an existing Codex setup again."',
+      ],
+      ['"needsAction": "Enter the OPL Gateway access key."', 'Ask your administrator for the OPL Gateway access key'],
+    ],
+  ]) {
+    for (const expected of required) {
+      if (!source.includes(expected)) {
+        throw new Error(`Active shell ${locale} first-run copy must keep Gateway account login primary: ${expected}`);
+      }
+    }
+    for (const stale of forbidden) {
+      if (source.includes(stale)) {
+        throw new Error(`Active shell ${locale} first-run copy must not retain API-Key-only guidance: ${stale}`);
+      }
+    }
+  }
+  for (const forbidden of ['isDesktopApp', 'isElectronDesktop']) {
+    if (gatewaySettings.includes(forbidden)) {
+      throw new Error(`Active shell WebUI Gateway settings must not retain the Desktop-only login gate: ${forbidden}`);
     }
   }
   for (const forbidden of [
@@ -341,7 +421,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "data-testid='opl-first-run-codex-api-key-input'",
     "data-testid='opl-first-run-configure-codex-button'",
     "data-testid='opl-first-run-ready-entry'",
-    "isDesktopRuntime ? 'gateway_account' : 'api_key'",
+    "useState<AccessMethod>('gateway_account')",
     "ipcBridge.oplRuntime.loginGatewayAccount.invoke({",
     "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
     "actionId: 'gateway_account_complete_setup'",

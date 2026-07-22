@@ -426,7 +426,9 @@
           "projects": "/projects"
         },
         "api_key_policy": "never_pass_api_key_on_cli_or_environment_for_beginner_path",
-        "api_key_entry_surface": "browser_webui_first_run_access_panel_or_settings_access",
+        "api_key_entry_surface": "browser_webui_first_run_access_panel_or_settings_gateway",
+        "gateway_account_credential_policy": "never_pass_gateway_account_credentials_to_installer_cli_or_environment_for_beginner_path",
+        "gateway_account_entry_surface": "browser_webui_first_run_or_settings_gateway_via_existing_runtime_provider",
         "cloud_deployment_model": {
           "status": "supported_template_for_server_or_cloud_deployment",
           "template_dir": "deploy/docker-webui/cloud",
@@ -457,7 +459,7 @@
             "secret_files_must_be_readable_and_non_empty",
             "configured_password_and_gateway_key_must_not_be_logged_or_written_to_diagnostics"
           ],
-          "beginner_path_preserved": "no_cloud_or_secret_env_keeps_local_browser_auto_login_and_browser_first_access_key_entry"
+          "beginner_path_preserved": "no_cloud_or_secret_env_keeps_local_browser_auto_login_and_browser_first_gateway_account_or_api_key_entry"
         },
         "runtime_proxy_smoke": {
           "mode": "webui_proxy_configure_codex",
@@ -483,13 +485,13 @@
           "rows": {
             "one_click_install": "Run the one-click installer to create compose.yaml, data/projects directories, and start the WebUI image.",
             "browser_webui": "Open http://localhost:3000/ or the administrator-provided WebUI URL.",
-            "access_key_settings": "Enter access keys in the WebUI first-run Access panel or Settings -> Access.",
-            "runtime_proxy": "The WebUI configures Codex through /api/opl-runtime/configure-codex using stdin transport.",
+            "access_key_settings": "Sign in to OPL Gateway or enter an API Key in WebUI first-run or Settings -> Account & Access.",
+            "runtime_proxy": "Gateway account sign-in and API Key configuration reuse the existing OPL runtime provider and dedicated stdin commands.",
             "startup_recovery": "If startup fails, collect the redacted startup diagnostics and rerun after the Docker, port, image, or data issue is fixed.",
             "data_preservation": "Keep host OnePersonLab/data and OnePersonLab/projects mounted and preserved across image/container replacement.",
             "host_update": "Update the WebUI image from the host by rerunning the installer or using its explicit update mode; the browser WebUI must not self-update containers through a Docker socket."
           },
-          "settings_entry": "Settings -> Access",
+          "settings_entry": "Settings -> Account & Access",
           "image_seed_selection": "Default stable image must use the WebUI full seed; --tag and --image are explicit advanced overrides.",
           "must_prefer_over": [
             "release_evidence_bundle",
@@ -530,7 +532,7 @@
         },
         "ordinary_user_progress": {
           "source": "opl system initialize --json",
-          "browser_surface": "first_run_access_panel_or_settings_access",
+          "browser_surface": "first_run_gateway_account_or_api_key_panel_or_settings_gateway",
           "status_surfaces": [
             "HTTP health readback",
             "api_key_flow_evidence",

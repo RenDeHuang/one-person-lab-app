@@ -40,8 +40,8 @@ function Write-UserPathStatus {
   Write-Step "User path status:"
   Write-Step "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
   Write-Step "  browser_webui: open $Url after the health check passes."
-  Write-Step "  access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access."
-  Write-Step "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
+  Write-Step "  access_key_settings: sign in to Gateway or enter an API key in WebUI first-run or Settings -> Account & Access."
+  Write-Step "  runtime_proxy: WebUI sends Gateway sign-in and API-key configuration through the existing OPL runtime provider."
   Write-Step "  startup_recovery: if startup fails, collect redacted startup diagnostics and rerun after fixing Docker, port, image, or data issues."
   Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
   Write-Step "  host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host and recreate the compose service."
@@ -991,7 +991,7 @@ if ($Update) {
   Write-Step "Update model: rerun this installer, or pass -Update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 }
 Write-Step "Image/seed: default stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
-Write-Step "Access keys are configured inside the WebUI first-run Access panel or Settings -> Access. This script does not accept or write API keys."
+Write-Step "Gateway account credentials and API keys are entered inside WebUI first-run or Settings -> Account & Access. This script does not accept or write them."
 Write-UserPathStatus -Url $url
 
 try {

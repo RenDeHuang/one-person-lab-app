@@ -895,8 +895,11 @@ export type AppProductProfile = {
           mutates_configuration: boolean;
         };
         webui: {
+          default_method: string;
           allowed_methods: string[];
           gateway_password_login: boolean;
+          gateway_login_route: string;
+          transport: string;
         };
       };
       completion_transition_policy: string;

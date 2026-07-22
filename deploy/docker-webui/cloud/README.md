@@ -65,7 +65,7 @@ chmod 600 secrets/gateway_api_key
 docker compose -f compose.yaml -f compose.gateway-key.yaml up -d
 ```
 
-如果不需要预配置 API Key，不要创建 `secrets/gateway_api_key`，也不要使用 `compose.gateway-key.yaml`。用户仍可以登录 WebUI 后在首启访问页或 Settings -> Access 里填写访问密钥。
+如果不需要预配置 API Key，不要创建 `secrets/gateway_api_key`，也不要使用 `compose.gateway-key.yaml`。用户仍可以登录 WebUI 后，在首次设置或 Settings -> Account & Access 中使用 Gateway 账户登录，也可以切换为手工访问密钥。
 
 ## Secret 映射
 
@@ -76,7 +76,7 @@ docker compose -f compose.yaml -f compose.gateway-key.yaml up -d
 
 ## 规则
 
-- WebUI 登录密码和 OPL Gateway API Key 是两件事；API Key 不能替代登录密码。
+- WebUI 登录密码与 OPL Gateway 账户/API Key 是两类凭据；Gateway 凭据不能替代 WebUI 登录密码。
 - 只传 Gateway API Key、没有 WebUI 密码时，容器必须拒绝启动。
 - 推荐使用 `*_FILE` 和 Docker secrets；明文环境变量只作为高级兜底。
 - 不要提交 `secrets/`、`.env`、`data/` 或 `projects/`。

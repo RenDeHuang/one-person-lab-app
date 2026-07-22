@@ -1747,7 +1747,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     gatewayAccount.manual_api_key_card_policy !== 'model_access_status_only_no_account_balance_or_account_usage' ||
     gatewayAccount.cache_ttl_seconds !== 900 ||
     gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
-    gatewayAccount.first_run_scope !== 'desktop_account_default_webui_manual_api_key_only' ||
+    gatewayAccount.first_run_scope !== 'gateway_account_default_desktop_and_webui_with_manual_api_key_compatibility' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
     throw new Error('Settings Account & Access must declare the canonical OPL Gateway account product contract');
@@ -1761,7 +1761,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   assertIncludesAll(
     pages.settings_gateway.must_not_show,
     [
-      'Gateway password login in browser WebUI',
       'password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error',
       'Gateway account card in manual API-key mode or when no Gateway account is connected',
     ],

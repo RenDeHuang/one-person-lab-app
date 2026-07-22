@@ -84,7 +84,7 @@ export function validateAppSettingsPages(matrix, guiContract) {
     gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
     gatewayAccount.managed_key_setup_policy !==
       'auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control' ||
-    gatewayAccount.first_run_scope !== 'desktop_account_default_webui_manual_api_key_only' ||
+    gatewayAccount.first_run_scope !== 'gateway_account_default_desktop_and_webui_with_manual_api_key_compatibility' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
     throw new Error('Account & Access must consume the canonical Gateway account projection and preserve its product boundaries');

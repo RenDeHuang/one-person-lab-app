@@ -49,7 +49,7 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     if (ordinaryStatus.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
       invalidFields.push('ordinary_user_status.priority');
     }
-    if (ordinaryStatus.settings_entry !== 'Settings -> Access') {
+    if (ordinaryStatus.settings_entry !== 'Settings -> Account & Access') {
       invalidFields.push('ordinary_user_status.settings_entry');
     }
     if (ordinaryStatus.image_seed_selection !== expectedImageSeedSelection) {

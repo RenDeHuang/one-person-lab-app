@@ -668,15 +668,17 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
   const secretBridge = runtimeBridge.opl_gateway_account_secret_bridge;
   if (
     secretBridge?.bridge_id !== 'loginGatewayAccount'
-    || secretBridge.desktop_only !== true
-    || secretBridge.webui_password_login_allowed !== false
+    || secretBridge.desktop_only !== false
+    || secretBridge.webui_password_login_allowed !== true
+    || secretBridge.webui_route !== '/api/opl-runtime/gateway-account-login'
     || secretBridge.command !== 'opl connect gateway login --credentials-stdin --json'
-    || secretBridge.transport !== 'typed_ipc_to_dedicated_stdin_no_generic_app_action_payload'
+    || secretBridge.transport !==
+      'runtime_provider_via_desktop_typed_ipc_or_existing_webui_http_proxy_to_dedicated_stdin_no_generic_app_action_payload'
     || secretBridge.secret_persistence !== false
     || secretBridge.secret_diagnostics !== false
     || secretBridge.secret_receipt_fields !== false
   ) {
-    throw new Error('Gateway account login must use the dedicated desktop typed IPC and stdin-only secret bridge');
+    throw new Error('Gateway account login must use the runtime provider and dedicated stdin-only secret bridge');
   }
   assertDeepEqualJson(secretBridge.request_fields, ['email', 'password', 'deviceLabel'], 'Gateway login request fields');
   assertDeepEqualJson(secretBridge.optional_request_fields, ['deviceLabel'], 'Gateway login optional request fields');

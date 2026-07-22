@@ -72,7 +72,7 @@ function completeGateResult() {
       priority: 'ordinary_user_path_before_evidence_bundle_language',
       ...ordinaryUserStatus(),
       image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
-      settings_entry: 'Settings -> Access',
+      settings_entry: 'Settings -> Account & Access',
       must_not_claim: ['desktop_release_ready', 'real_install_ready', 'clean_windows_vm_pass_without_clean_windows_evidence', 'release_ready'],
     },
     secret_scan: { status: 'passed' },

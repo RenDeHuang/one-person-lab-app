@@ -537,7 +537,7 @@ export const focusedFirstRunPresentationPolicy = {
     "first_unready_core_item_in_fixed_step_order_then_completion",
   progress_display_policy: "completed_step_count_no_percentage",
   model_access_choice_policy:
-    "desktop_gateway_account_default_with_api_key_compatibility_and_secondary_existing_codex_recheck",
+    "gateway_account_default_on_desktop_and_webui_with_api_key_compatibility_and_secondary_existing_codex_recheck",
   model_access_inflight_policy:
     "disable_method_switch_and_alternate_action_until_current_request_settles",
   completion_transition_policy: "replace_current_task_in_place",
@@ -609,8 +609,11 @@ export const firstRunModelAccessSetupPolicy = {
     mutates_configuration: false,
   },
   webui: {
-    allowed_methods: ["api_key"],
-    gateway_password_login: false,
+    default_method: "gateway_account",
+    allowed_methods: ["gateway_account", "api_key"],
+    gateway_password_login: true,
+    gateway_login_route: "/api/opl-runtime/gateway-account-login",
+    transport: "existing_opl_runtime_http_proxy_to_credentials_stdin",
   },
 };
 export const progressiveFirstRunRecoveryTestIds = [

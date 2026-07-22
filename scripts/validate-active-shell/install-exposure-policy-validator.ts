@@ -249,8 +249,18 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.api_key_policy !== 'never_pass_api_key_on_cli_or_environment_for_beginner_path') {
     throw new Error('Docker/WebUI install exposure must forbid API keys in beginner CLI/env installer inputs');
   }
-  if (dockerWebui.installer_model?.api_key_entry_surface !== 'browser_webui_first_run_access_panel_or_settings_access') {
+  if (dockerWebui.installer_model?.api_key_entry_surface !== 'browser_webui_first_run_access_panel_or_settings_gateway') {
     throw new Error('Docker/WebUI install exposure must make WebUI the first API key entry surface');
+  }
+  if (
+    dockerWebui.installer_model?.gateway_account_credential_policy !==
+      'never_pass_gateway_account_credentials_to_installer_cli_or_environment_for_beginner_path' ||
+    dockerWebui.installer_model?.gateway_account_entry_surface !==
+      'browser_webui_first_run_or_settings_gateway_via_existing_runtime_provider'
+  ) {
+    throw new Error(
+      'Docker/WebUI install exposure must keep Gateway account credentials out of installer inputs and reuse the browser runtime provider',
+    );
   }
   const cloudDeployment = dockerWebui.installer_model?.cloud_deployment_model;
   if (cloudDeployment?.template_dir !== 'deploy/docker-webui/cloud') {
@@ -310,8 +320,15 @@ function validateInstallerSurfaces(policy) {
     ['one_click_install', 'browser_webui', 'access_key_settings', 'runtime_proxy', 'startup_recovery', 'data_preservation', 'host_update'],
     'Docker/WebUI ordinary user status rows',
   );
-  if (ordinaryUserStatus?.settings_entry !== 'Settings -> Access') {
-    throw new Error('Docker/WebUI ordinary user status must route access key changes through Settings -> Access');
+  if (ordinaryUserStatus?.settings_entry !== 'Settings -> Account & Access') {
+    throw new Error('Docker/WebUI ordinary user status must route Gateway account and API Key changes through Settings -> Account & Access');
+  }
+  if (
+    !String(ordinaryUserStatus?.rows?.access_key_settings ?? '').includes('Sign in to OPL Gateway') ||
+    !String(ordinaryUserStatus?.rows?.access_key_settings ?? '').includes('API Key') ||
+    !String(ordinaryUserStatus?.rows?.runtime_proxy ?? '').includes('reuse the existing OPL runtime provider')
+  ) {
+    throw new Error('Docker/WebUI ordinary user status must describe account-first model access on the shared runtime provider');
   }
   if (!String(ordinaryUserStatus?.image_seed_selection ?? '').includes('WebUI full seed')) {
     throw new Error('Docker/WebUI ordinary user status must declare the default WebUI full seed image path');

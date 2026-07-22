@@ -3,64 +3,101 @@
   "guide_id": "docker-webui-install",
   "status": "active",
   "source_summary": {
-    "kind": "current_shell_ui_in_browser_tutorial_frame",
+    "kind": "current_shell_webui_in_app_browser_capture",
     "locale": "zh-CN",
     "browser_size": "1440x951",
-    "captured_at": "2026-07-13T11:41:00+08:00",
-    "note": "Current App renderer captures are presented in a neutral localhost browser frame because desktop and WebUI share the same product flow."
+    "current_app_commit": "92dd87c4c75f191c35a270fdfa1b66478b04e801",
+    "current_shell_commit": "5002d8afd15a557761b8234113242e709915ee43",
+    "captured_at": "2026-07-23T00:02:05+08:00",
+    "note": "Current Shell WebUI was started with isolated temporary data and projects directories, local automatic browser authentication, and the current Chinese renderer. Captures contain no credentials."
+  },
+  "release_run": {
+    "id": "guide-refresh-5002d8af-2026-07-23",
+    "conclusion": "success"
   },
   "screenshots": [
     {
       "file": "01-browser-open-webui.png",
       "role": "browser_open_webui",
-      "description": "One Person Lab WebUI first-run check in a localhost browser frame.",
+      "description": "One Person Lab WebUI opens directly to the workbench, with the incomplete setup entry visible when model access is missing.",
       "title": "Open One Person Lab WebUI in the browser",
-      "source_kind": "current_shell_capture_with_browser_frame",
-      "source": "Current Chinese FirstRun renderer capture framed at http://localhost:3000/.",
+      "source_kind": "current_shell_webui_in_app_browser_capture",
+      "source": "opl-aion-shell@5002d8afd15a557761b8234113242e709915ee43 route /#/guid at http://localhost:3000/.",
       "locale": "zh-CN",
       "browser_size": "1440x951",
       "expected_ui_text": [
-        "One Person Lab App",
-        "正在检查这台设备"
+        "One Person Lab",
+        "今天要推进什么？",
+        "完成首次设置",
+        "设置"
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "3f59bc319cab0f7181b984f3780d0bf6ef13abdd7dbf1d31bec67e274102ff2c"
+      "sha256": "6c4894e2086d4b077a729151d7014f0a0a9311b8c6cf22ed605cc3252e82d550"
     },
     {
       "file": "02-first-run-overview.png",
-      "role": "workbench_overview",
-      "description": "One Person Lab workbench in a localhost browser frame.",
-      "title": "One Person Lab WebUI workbench",
-      "source_kind": "current_shell_capture_with_browser_frame",
-      "source": "Current Chinese workbench capture framed at http://localhost:3000/.",
+      "role": "first_run_overview",
+      "description": "The WebUI first-run page shows the three setup checks and defaults the remaining model-access step to OPL Gateway account sign-in.",
+      "title": "Review incomplete first-run setup",
+      "source_kind": "current_shell_webui_in_app_browser_capture",
+      "source": "opl-aion-shell@5002d8afd15a557761b8234113242e709915ee43 route /#/first-run at http://localhost:3000/.",
       "locale": "zh-CN",
       "browser_size": "1440x951",
       "expected_ui_text": [
-        "One Person Lab App",
-        "科研"
+        "首次设置",
+        "工作目录",
+        "本机助手",
+        "模型访问",
+        "连接模型服务",
+        "账户登录",
+        "登录并继续"
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "205996b8b3a7208cb54bb244b1e4c524cacc5a43c61efd9c0ce6107453a59fc9"
+      "sha256": "ac9cdec8d5351b3693ba557f88ffc9f15f5ae81645320d766d883bbbaaef8a58"
     },
     {
-      "file": "03-access-key-config.png",
-      "role": "model_access_choice",
-      "description": "Chinese model access page showing OPL Gateway and existing Codex paths.",
-      "title": "Choose a model access method in WebUI",
-      "source_kind": "current_shell_capture_with_browser_frame",
-      "source": "Current Chinese FirstRun renderer capture framed at http://localhost:3000/.",
+      "file": "03-gateway-account-login.png",
+      "role": "gateway_account_login",
+      "description": "The WebUI model-access step focuses the empty Gateway account email field, keeps password entry in the same form, and exposes API Key as a compatibility choice.",
+      "title": "Sign in to an OPL Gateway account in WebUI",
+      "source_kind": "current_shell_webui_in_app_browser_capture",
+      "source": "opl-aion-shell@5002d8afd15a557761b8234113242e709915ee43 route /#/first-run at http://localhost:3000/.",
       "locale": "zh-CN",
       "browser_size": "1440x951",
       "expected_ui_text": [
-        "OPL Gateway",
-        "已有 Codex 配置",
+        "账户登录",
+        "API Key",
+        "邮箱",
+        "密码",
+        "登录并继续",
+        "重新检测已有配置",
         "进入 OPL"
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "fa1e23423b0cada0dfa0dac8f0923b8aadeb56b8e19c59d2b2ce7b8186be99a8"
+      "sha256": "82e0e318b13a771200c66f4be57c1faf47d748fb18b8541ffc73bc2624e79052",
+      "note": "The account email input is focused for tutorial readability; the email and password fields contain no values."
+    },
+    {
+      "file": "04-settings-entry.png",
+      "role": "account_access_settings",
+      "description": "The Account & Models settings group is expanded with Account & Access selected for credential management.",
+      "title": "Manage model credentials from Account & Access",
+      "source_kind": "current_shell_webui_in_app_browser_capture",
+      "source": "opl-aion-shell@5002d8afd15a557761b8234113242e709915ee43 route /#/settings/gateway at http://localhost:3000/.",
+      "locale": "zh-CN",
+      "browser_size": "1440x951",
+      "expected_ui_text": [
+        "账户与模型",
+        "账户与访问",
+        "OPL Gateway",
+        "配置 OPL Gateway"
+      ],
+      "width": 1440,
+      "height": 951,
+      "sha256": "614965d88655beb2cd9ed9e0ebd240735350a7926f1d4b340ea3edf92f5cc97c"
     }
   ]
 }

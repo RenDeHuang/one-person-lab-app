@@ -2874,9 +2874,9 @@
         "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
         "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
         "workspace root readiness restricts only project selection and OPL workspace controls while plain conversation and send-scoped local inputs remain available",
-        "Desktop model access defaults to OPL Gateway account login with email and password while API Key remains a compatibility choice",
+        "Desktop and WebUI model access default to OPL Gateway account login with email and password while API Key remains a compatibility choice",
         "existing Codex recheck remains a secondary action outside the account and API Key method switch",
-        "WebUI model access exposes API Key only and never renders Gateway password login",
+        "WebUI Gateway account login reuses the existing OPL runtime HTTP proxy and dedicated credentials stdin bridge",
         "model access method switching and alternate actions disabled while a request is active",
         "pending state without premature ready or no-blocker claims",
         "required Core checklist items reject disabled status as ready",
@@ -2948,7 +2948,7 @@
         "current_task_policy": "one_current_task_panel",
         "current_task_selection_policy": "first_unready_core_item_in_fixed_step_order_then_completion",
         "progress_display_policy": "completed_step_count_no_percentage",
-        "model_access_choice_policy": "desktop_gateway_account_default_with_api_key_compatibility_and_secondary_existing_codex_recheck",
+        "model_access_choice_policy": "gateway_account_default_on_desktop_and_webui_with_api_key_compatibility_and_secondary_existing_codex_recheck",
         "model_access_inflight_policy": "disable_method_switch_and_alternate_action_until_current_request_settles",
         "model_access_setup": {
           "desktop_default_method": "gateway_account",
@@ -2997,10 +2997,14 @@
             "mutates_configuration": false
           },
           "webui": {
+            "default_method": "gateway_account",
             "allowed_methods": [
+              "gateway_account",
               "api_key"
             ],
-            "gateway_password_login": false
+            "gateway_password_login": true,
+            "gateway_login_route": "/api/opl-runtime/gateway-account-login",
+            "transport": "existing_opl_runtime_http_proxy_to_credentials_stdin"
           }
         },
         "completion_transition_policy": "replace_current_task_in_place",
@@ -3121,7 +3125,6 @@
         "automatic navigation away from the FirstRun completion state",
         "ordinary Settings routes from FirstRun technical details",
         "Gateway account device label controls during first-run",
-        "Gateway password login in WebUI",
         "submitted Gateway passwords or access keys in renderer errors or diagnostics",
         "indefinite please-wait startup card without a current stage",
         "three-step recap, 3/3 counter, empty blockers, or empty next step after completion"
@@ -3364,7 +3367,6 @@
         "model preference controls or Codex CLI update actions",
         "resource cards owned by Resources & Connections",
         "local browser access, WebUI, Workspace, or remote resource entries",
-        "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
         "Gateway account card in manual API-key mode or when no Gateway account is connected",
         "Gateway group selector when Codex or the only available group can be resolved",
@@ -3452,7 +3454,7 @@
           "managed_key_identity_drift",
           "disconnect_pending"
         ],
-        "first_run_scope": "desktop_account_default_webui_manual_api_key_only",
+        "first_run_scope": "gateway_account_default_desktop_and_webui_with_manual_api_key_compatibility",
         "personal_profile_navigation": "not_added"
       }
     },
