@@ -7,6 +7,7 @@ export function validateFirstRunImplementation(shellPaths) {
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
   const startupGate = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/StartupGate.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
+  const firstRunTests = readShellText(shellPaths, 'tests/unit/opl-runtime/FirstRun.dom.test.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
   const corePrerequisitesHook = readShellText(
@@ -82,17 +83,23 @@ export function validateFirstRunImplementation(shellPaths) {
   for (const expected of [
     'STARTUP_STATE_SOFT_TIMEOUT_MS = 1500',
     "resolve({ kind: 'timeout' })",
-    'readAuthoritativeInitializeReadiness',
-    'setNeedsFirstRun(!isCoreLaunchReadyFromAppState(startupRead.value))',
-    'setNeedsFirstRun(initializeReady !== true)',
-    'setNeedsFirstRun(true)',
+    "setPhase('routeDecision')",
+    "return <Navigate to='/guid' replace />;",
   ]) {
     if (!startupGate.includes(expected)) {
-      throw new Error(`Active shell StartupGate must keep the bounded readiness fallback fail-closed: ${expected}`);
+      throw new Error(`Active shell StartupGate must complete its bounded read on /guid: ${expected}`);
     }
   }
-  if (startupGate.includes('setNeedsFirstRun(false)')) {
-    throw new Error('Active shell StartupGate must not treat an unknown readiness result as ready');
+  for (const forbidden of [
+    'needsFirstRun',
+    'setNeedsFirstRun',
+    "<Navigate to='/first-run'",
+    'isCoreLaunchReadyFromAppState',
+    'readAuthoritativeInitializeReadiness',
+  ]) {
+    if (startupGate.includes(forbidden)) {
+      throw new Error(`Active shell StartupGate readiness must never redirect ordinary startup: ${forbidden}`);
+    }
   }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
@@ -323,6 +330,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
     "actionId: 'gateway_account_complete_setup'",
     "actionId: 'gateway_account_use_for_model_access'",
+    "data-testid='opl-first-run-gateway-model-access-confirm'",
     "cacheFastOplAppState",
     "resolveDefaultGatewayGroup",
     "readGatewayAccountProjection",
@@ -336,6 +344,25 @@ export function validateFirstRunImplementation(shellPaths) {
   ]) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun model access choice must implement ${expected}`);
+    }
+  }
+  const gatewaySetupBlockStart = firstRunPage.indexOf('const completeGatewayAccountSetup = useCallback');
+  const gatewayLoginBlockStart = firstRunPage.indexOf('const loginGatewayAccount = useCallback');
+  const gatewaySetupBlock = firstRunPage.slice(gatewaySetupBlockStart, gatewayLoginBlockStart);
+  if (
+    gatewaySetupBlockStart < 0 ||
+    gatewayLoginBlockStart <= gatewaySetupBlockStart ||
+    gatewaySetupBlock.includes("actionId: 'gateway_account_use_for_model_access'")
+  ) {
+    throw new Error('Active shell Gateway login/setup must not execute the separate model-access mutation');
+  }
+  for (const expected of [
+    "screen.getByTestId('opl-first-run-gateway-model-access-confirm')",
+    "actionId: 'gateway_account_use_for_model_access'",
+    'not.toHaveBeenCalledWith',
+  ]) {
+    if (!firstRunTests.includes(expected)) {
+      throw new Error(`Active shell Gateway explicit-confirmation regression must include ${expected}`);
     }
   }
   for (const expected of [

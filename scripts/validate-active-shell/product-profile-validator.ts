@@ -596,7 +596,7 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
   const policy = profile.gui?.ordinary_capability_selector_policy;
   if (
     policy?.scope !== 'home_composer_and_ordinary_conversation' ||
-    policy?.authority !== 'app_owned_opl_allowlist' ||
+    policy?.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
     policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
     JSON.stringify(policy?.palette_required_agent_package_ids) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
     JSON.stringify(policy?.palette_agent_group_label_i18n) !==
@@ -606,17 +606,18 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
     policy?.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     policy?.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
-    policy?.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
-    policy?.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
-    policy?.conversation_loaded_mcp_display_policy !== 'filter_to_visible_mcp_server_ids'
+    policy?.mcp_server_source_ref !== 'configured_user_and_third_party_mcp_servers' ||
+    policy?.mcp_menu_policy !==
+      'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
+    policy?.conversation_loaded_mcp_display_policy !== 'preserve_non_forbidden_configured_servers' ||
+    policy?.unmatched_mcp_policy !== 'preserve_end_to_end_without_app_allowlist_membership'
   ) {
-    throw new Error('Product profile ordinary capability selector must be an App-owned OPL allowlist');
+    throw new Error('Product profile ordinary selector must use the App Skill allowlist and MCP negative filter');
   }
   assertAgentReferenceAdmissionPolicy(
     policy.agent_reference_admission_policy,
     'Product profile Agent reference admission policy',
   );
-  assertDeepEqualJson(policy.visible_mcp_server_ids, [], 'Product profile ordinary MCP allowlist');
   assertForbiddenCapabilityPolicy(
     policy,
     ordinaryForbiddenCapabilityPolicy,
@@ -631,6 +632,16 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
       'scrub_extra_keys',
     ],
     'Product profile ordinary Team scrub targets',
+  );
+  assertDeepEqualJson(
+    policy.required_preservation_targets,
+    [
+      'mcp directory entries not matching forbidden_mcp_matchers',
+      'mcp status entries not matching forbidden_mcp_matchers',
+      'new conversation create payload mcp_servers not matching forbidden_mcp_matchers',
+      'conversation snapshot mcp_servers and mcp_statuses not matching forbidden_mcp_matchers',
+    ],
+    'Product profile ordinary MCP preservation targets',
   );
   if (policy.conversation_snapshot_policy !== 'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations') {
     throw new Error('Product profile ordinary selector must scrub disabled Team MCP snapshots');

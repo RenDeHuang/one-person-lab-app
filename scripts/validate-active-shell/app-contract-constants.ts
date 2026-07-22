@@ -517,6 +517,7 @@ export const beginnerFirstRunTestIds = [
   "opl-first-run-gateway-email-input",
   "opl-first-run-gateway-password-input",
   "opl-first-run-gateway-login-button",
+  "opl-first-run-gateway-model-access-confirm",
   "opl-first-run-codex-api-key-input",
   "opl-first-run-configure-codex-button",
   "opl-first-run-recheck-existing",
@@ -574,9 +575,21 @@ export const firstRunModelAccessSetupPolicy = {
     secret_bridge_ref: "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
     post_login_state_source: "opl app state --profile fast --json",
     unique_group_action: "gateway_account_complete_setup",
-    post_setup_state_refresh: "required_before_model_access_action",
+    post_setup_state_refresh: "required_before_offering_model_access_confirmation",
     model_access_action: "gateway_account_use_for_model_access",
-    model_access_action_policy: "execute_when_exposed_after_fresh_state_read",
+    model_access_action_policy:
+      "confirmation_required_after_fresh_state_read_never_implied_by_gateway_login",
+    model_access_confirmation: {
+      trigger: "separate_explicit_user_action_after_login_and_fresh_state_read",
+      label_zh: "设为模型访问方式",
+      label_en: "Use for model access",
+      danger_level: "medium",
+      confirmation_required: true,
+      gateway_login_counts_as_confirmation: false,
+      action_visibility: "only_when_action_is_exposed_by_fresh_projection",
+      fresh_state_required_before_execute: true,
+      fresh_state_required_after_execute: true,
+    },
     shared_fast_state_cache_policy: "publish_each_authoritative_post_login_read",
     unresolved_group_error: "group_selection_required",
     ready_claim_policy: "only_after_initialize_confirms_codex_config_ready",
@@ -1675,7 +1688,7 @@ export const appOwnedUnifiedContextMenu = {
     },
     {
       id: "agent_packages",
-      scope: "new_session_configuration_only",
+      scope: "session_owner_selection",
       label_i18n: {
         "zh-CN": "专业智能体",
         "en-US": "Professional agents",
@@ -1688,10 +1701,14 @@ export const appOwnedUnifiedContextMenu = {
         "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
       availability_policy:
         "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
-      existing_session_rebinding_allowed: false,
+      existing_session_rebinding_allowed: true,
+      existing_session_rebinding_transport:
+        "aioncore_atomic_conversation_owner_rebind_api",
       surface_actions: {
         home_new_session: ["select_new_session_agent_package"],
-        existing_conversation: [],
+        existing_conversation: [
+          "explicit_at_mention_owner_rebind_via_core_atomic_api",
+        ],
       },
     },
     {
@@ -1723,14 +1740,15 @@ export const appOwnedUnifiedContextMenu = {
     {
       id: "apps_and_connections",
       scope: "surface_specific_selection_or_status",
-      source_ref: "ordinary_capability_selector_policy.visible_mcp_server_ids",
+      source_ref:
+        "ordinary_capability_selector_policy.configured_mcp_servers_after_negative_filter",
       availability_policy:
-        "hide_group_when_no_app_allowlisted_session_connection_is_available",
+        "hide_group_when_no_non_forbidden_configured_session_connection_is_available",
       label_policy: "localized_product_name_never_raw_mcp_or_provider_id",
       existing_session_rebinding_allowed: false,
       surface_actions: {
-        home_new_session: ["select_new_session_app_or_connection"],
-        existing_conversation: ["show_loaded_allowlisted_connection_status"],
+        home_new_session: ["select_new_session_configured_app_or_connection"],
+        existing_conversation: ["show_loaded_configured_connection_status"],
       },
     },
   ],
@@ -1744,12 +1762,12 @@ export const appOwnedUnifiedContextMenu = {
     home_new_session:
       "configure_only_real_new_session_capabilities_supported_by_the_active_adapter",
     existing_conversation:
-      "attach_local_inputs_invoke_loaded_skills_show_loaded_connection_status_and_change_only_adapter_reported_nonduplicate_modes_without_rebinding",
+      "attach_local_inputs_invoke_loaded_skills_show_loaded_connection_status_change_adapter_reported_nonduplicate_modes_and_explicitly_rebind_the_single_agent_owner_via_at_mention",
     settings_route_policy:
       "management_entries_are_explicit_fallbacks_not_fake_session_selection",
   },
   authority_policy:
-    "render_only_real_picker_actions_and_App_allowlisted_session_capabilities_supported_by_the_active_adapter",
+    "render_only_real_picker_actions_App_allowlisted_skills_and_non_forbidden_configured_session_connections_supported_by_the_active_adapter",
   forbidden_entries: [
     "project_object",
     "workspace_or_initial_cwd",

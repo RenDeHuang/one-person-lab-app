@@ -107,7 +107,16 @@ function validateGuidHomeLayout(homeViewModel) {
     appOwnedPageStateHomeLayout,
     'Guid home page layout',
   );
-  assertDeepEqualJson(homeViewModel.ordinary_visible_mcp_server_ids, [], 'Guid home ordinary MCP allowlist');
+  if (homeViewModel.ordinary_visible_mcp_server_ids !== undefined) {
+    throw new Error('Guid home must not turn configured MCP servers into an App allowlist');
+  }
+  if (
+    homeViewModel.ordinary_mcp_server_source !== 'configured_user_and_third_party_mcp_servers' ||
+    homeViewModel.ordinary_mcp_filter_policy !==
+      'exclude_only_explicit_team_or_internal_matches_preserve_all_other_user_and_third_party_servers'
+  ) {
+    throw new Error('Guid home must preserve configured MCP servers through the explicit Team/internal negative filter');
+  }
 }
 
 function validateGuidHomeDefaultAssistants(homeViewModel) {
@@ -229,7 +238,7 @@ function validateGuidHomeHiddenSignals(guidHomePage) {
     'full assistant names as default home entry labels',
     'skills outside the App packaged skill set in home skill menu',
     'AionUI implementation skills such as aionui-skills',
-    'unknown MCP servers without an App profile allowlist entry',
+    'MCP servers matching the explicit Team/internal negative filter',
     'AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent',
     'retired Codex model choices',
     'nested input card frames',

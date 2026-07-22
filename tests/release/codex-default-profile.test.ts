@@ -282,6 +282,11 @@ test('Home capability palette is complete, localized, shortcut-independent, and 
     policy.agent_owned_skill_deduplication_policy,
     'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills',
   );
+  assert.equal(policy.visible_mcp_server_ids, undefined);
+  assert.equal(
+    policy.mcp_menu_policy,
+    'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers',
+  );
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure, registry));
 
   profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.filter(
@@ -291,7 +296,16 @@ test('Home capability palette is complete, localized, shortcut-independent, and 
 
   const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
   catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas', 'mag', 'rca', 'oma'];
-  assert.throws(() => validateProductProfile(catalogDrift, installExposure, registry), /ordinary capability selector/);
+  assert.throws(() => validateProductProfile(catalogDrift, installExposure, registry), /ordinary selector/);
+
+  const mcpAllowlistRegression = structuredClone(readJson('contracts/app-product-profile.json'));
+  mcpAllowlistRegression.gui.ordinary_capability_selector_policy.visible_mcp_server_ids = [];
+  mcpAllowlistRegression.gui.ordinary_capability_selector_policy.mcp_menu_policy =
+    'empty_until_app_explicitly_whitelists_opl_mcp_servers';
+  assert.throws(
+    () => validateProductProfile(mcpAllowlistRegression, installExposure, registry),
+    /MCP negative filter/,
+  );
 });
 
 test('professional Agent metadata requires App-owned localized names and descriptions', () => {
@@ -388,26 +402,26 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
   }
 });
 
-test('Agent references remain prompt content and cannot become deterministic cross-Agent routes', () => {
+test('Agent selection keeps one explicit owner and existing-session rebind atomic', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   productProfile.gui.ordinary_capability_selector_policy.agent_reference_admission_policy
-    .at_mention_agent_selection_allowed = true;
+    .at_mention_agent_selection_allowed = false;
   assert.throws(
     () => validateProductProfile(productProfile, installExposure),
-    /fail-closed semantic Agent admission/,
+    /single-owner explicit Agent binding/,
   );
 
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
   guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy
-    .deterministic_cross_agent_routing_allowed = true;
+    .existing_conversation_rebinding_contract.transport = 'metadata_patch';
   assert.throws(
     () => validateAppGuiProductContract(
       guiContract,
       readJson('contracts/app-release-channel.json'),
       installExposure,
     ),
-    /fail-closed semantic Agent admission/,
+    /single-owner explicit Agent binding/,
   );
 });
 

@@ -1799,24 +1799,14 @@ test("Settings keeps a compact background-task summary while Service Status owns
   );
 
   const storageVisual = {
-    icon_size_px: 16,
-    icon_slot_px: 20,
-    icon_color: "currentColor",
-    icon_background: "transparent_none",
-    icon_label_gap_px: 8,
-    alignment: "icon_slot_and_label_share_one_vertical_centerline",
-    contrast_policy: "button_foreground_color_applies_to_icon_and_label_together",
+    presentation: "text_only_command_buttons",
+    leading_or_trailing_decorative_icon: "forbidden",
+    icon_only_exception:
+      "compact_refresh_or_row_utility_with_accessible_name_and_tooltip",
   };
   assert.deepStrictEqual(experiencePages.storage.action_visual_policy, storageVisual);
   assert.deepStrictEqual(pageById("storage").action_visual_policy, storageVisual);
-  assert.deepStrictEqual(
-    Object.fromEntries(
-      Object.entries(guiPages.settings_storage.action_visual_policy).filter(
-        ([key]) => key !== "applies_to",
-      ),
-    ),
-    storageVisual,
-  );
+  assert.deepStrictEqual(guiPages.settings_storage.action_visual_policy, storageVisual);
   const ownerStorage = guiPages.settings_storage.owner_storage_projections;
   assert.deepStrictEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
   assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');

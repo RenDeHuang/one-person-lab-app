@@ -204,11 +204,14 @@ export function validateFirstRunMatrix(matrix, contract) {
     'Beginner first-run scenario shell test ids',
   );
   for (const expected of [
+    'startup readiness uses a bounded opl app state --profile fast --json payload for bootstrap state only; ready, blocked, unknown, timeout, and read failure all enter /guid and never redirect ordinary startup to /first-run',
+    'every subsequent ordinary launch routes directly to /guid regardless of Core readiness while /first-run remains an explicit user-opened recovery route',
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',
     'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
     'Desktop model access defaults to OPL Gateway account login with email and password, while API Key remains a compatibility method',
     'existing Codex recheck is a secondary action outside the account and API Key method switch',
-    'Gateway account login uses desktop-only typed secret IPC, omits device label, reads fast App state, completes setup only for a uniquely resolved Codex group, rereads fast state, and executes gateway_account_use_for_model_access when that action is exposed',
+    'Gateway account login uses desktop-only typed secret IPC, omits device label, reads fast App state, and completes setup only for a uniquely resolved Codex group without executing gateway_account_use_for_model_access',
+    'after a fresh state read exposes gateway_account_use_for_model_access, a separate explicit 设为模型访问方式 confirmation is required before the medium-impact local Codex provider mutation and login never counts as that confirmation',
     'each authoritative post-login fast-state read is published to the shared cache so already-mounted Home and Sider consumers stop showing stale setup blockers without an App restart',
     'unresolved Gateway group selection shows localized group_selection_required and never claims model access ready',
     'Gateway password clears after success, failure, or method switch and never enters renderer diagnostics',

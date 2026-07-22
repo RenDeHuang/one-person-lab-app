@@ -362,6 +362,7 @@ export type AppProductProfile = {
           label_policy?: string;
           mode_deduplication_policy?: string;
           existing_session_rebinding_allowed?: boolean;
+          existing_session_rebinding_transport?: string;
           surface_actions: {
             home_new_session: string[];
             existing_conversation: string[];
@@ -540,6 +541,8 @@ export type AppProductProfile = {
         active_agent_package_cardinality: string;
         selection_authority: string;
         at_mention_agent_selection_allowed: boolean;
+        at_mention_semantics: string;
+        at_mention_requires_user_selection: boolean;
         plain_text_agent_reference_changes_active_package: boolean;
         multiple_agent_reference_policy: string;
         cross_agent_semantic_admission_owner: string;
@@ -547,6 +550,14 @@ export type AppProductProfile = {
         oma_engineering_admission: string;
         deliverable_failure_policy: string;
         existing_conversation_rebinding_allowed: boolean;
+        existing_conversation_rebinding_contract: {
+          transport: string;
+          allowed_state: string;
+          preserve: string[];
+          runtime_transition: string;
+          readback: string;
+          forbidden_implementations: string[];
+        };
       };
       skill_source_ref: string;
       skill_menu_policy: string;
@@ -554,7 +565,6 @@ export type AppProductProfile = {
       package_skill_source_ref?: string;
       mcp_server_source_ref: string;
       mcp_menu_policy: string;
-      visible_mcp_server_ids: string[];
       conversation_loaded_mcp_display_policy: string;
       forbidden_skill_examples: string[];
       forbidden_mcp_policy: string;
@@ -567,6 +577,8 @@ export type AppProductProfile = {
       };
       scrub_extra_keys: string[];
       required_scrub_targets: string[];
+      unmatched_mcp_policy: string;
+      required_preservation_targets: string[];
     };
     agent_package_registry: {
       default_registry_url: string;
@@ -863,6 +875,17 @@ export type AppProductProfile = {
           post_setup_state_refresh: string;
           model_access_action: string;
           model_access_action_policy: string;
+          model_access_confirmation: {
+            trigger: string;
+            label_zh: string;
+            label_en: string;
+            danger_level: string;
+            confirmation_required: boolean;
+            gateway_login_counts_as_confirmation: boolean;
+            action_visibility: string;
+            fresh_state_required_before_execute: boolean;
+            fresh_state_required_after_execute: boolean;
+          };
           shared_fast_state_cache_policy: string;
           unresolved_group_error: string;
           ready_claim_policy: string;

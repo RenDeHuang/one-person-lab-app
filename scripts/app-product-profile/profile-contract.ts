@@ -808,7 +808,7 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   );
   if (
     ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
-    ordinarySelector.authority !== 'app_owned_opl_allowlist' ||
+    ordinarySelector.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
     ordinarySelector.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
     JSON.stringify(ordinarySelector.palette_required_agent_package_ids) !==
       JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
@@ -821,13 +821,15 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
     ordinarySelector.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
     ordinarySelector.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible' ||
     ordinarySelector.conversation_loaded_skill_display_policy !== 'filter_to_ordinary_skill_allowlist' ||
-    ordinarySelector.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
-    ordinarySelector.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
-    ordinarySelector.conversation_loaded_mcp_display_policy !== 'filter_to_visible_mcp_server_ids' ||
+    ordinarySelector.mcp_server_source_ref !== 'configured_user_and_third_party_mcp_servers' ||
+    ordinarySelector.mcp_menu_policy !==
+      'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
+    ordinarySelector.conversation_loaded_mcp_display_policy !== 'preserve_non_forbidden_configured_servers' ||
     ordinarySelector.forbidden_mcp_policy !==
-      'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist'
+      'exclude_only_explicit_team_or_internal_matches_preserve_all_other_user_and_third_party_servers' ||
+    ordinarySelector.unmatched_mcp_policy !== 'preserve_end_to_end_without_app_allowlist_membership'
   ) {
-    throw new Error('App product profile ordinary capability selector policy must preserve OPL allowlist behavior');
+    throw new Error('App product profile ordinary capability selector must preserve the Skill allowlist and MCP negative filter');
   }
   assertStringArray(
     ordinarySelector.forbidden_skill_examples,
@@ -884,8 +886,16 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   ) {
     throw new Error('App product profile ordinary capability selector must scrub disabled Team MCP snapshots');
   }
-  if (!Array.isArray(ordinarySelector.visible_mcp_server_ids) || ordinarySelector.visible_mcp_server_ids.length !== 0) {
-    throw new Error('App product profile ordinary MCP selector must default to an empty App allowlist');
+  if (
+    JSON.stringify(ordinarySelector.required_preservation_targets) !==
+    JSON.stringify([
+      'mcp directory entries not matching forbidden_mcp_matchers',
+      'mcp status entries not matching forbidden_mcp_matchers',
+      'new conversation create payload mcp_servers not matching forbidden_mcp_matchers',
+      'conversation snapshot mcp_servers and mcp_statuses not matching forbidden_mcp_matchers',
+    ])
+  ) {
+    throw new Error('App product profile ordinary MCP selector must preserve every non-forbidden MCP carrier');
   }
 }
 

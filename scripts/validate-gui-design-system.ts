@@ -1163,6 +1163,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(capabilitySelection.selection_surfaces, [
       'home_starter',
       'home_new_session_capability_palette',
+      'existing_conversation_at_mention_owner_selector',
     ]) ||
     capabilitySelection.primary_selection_surface !== 'home_starter' ||
     capabilitySelection.palette_selection_scope !== 'new_session_before_first_send_only' ||
@@ -1176,7 +1177,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.legacy_route_policy !== '/capabilities_redirects_to_home_without_mounting_a_selection_page' ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
-    capabilitySelection.contextual_change_scope !== 'new_session_before_first_send_only' ||
+    capabilitySelection.contextual_change_scope !==
+      'new_session_before_first_send_or_existing_conversation_explicit_at_mention_owner_rebind' ||
     capabilitySelection.agent_reference_admission_policy_ref !==
       'ordinary_capability_selector_policy.agent_reference_admission_policy' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||

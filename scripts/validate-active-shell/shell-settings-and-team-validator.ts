@@ -316,6 +316,11 @@ const ordinaryCapabilityFilterExpected = [
   'sanitizeOplOrdinaryConversationExtra',
   'for (const key of getOplOrdinaryForbiddenCapabilityPolicy().extra_keys)',
   'filterOplOrdinarySessionMcpServers',
+  'required_preservation_targets: [...policy.required_preservation_targets]',
+  '!isOplForbiddenTeamMcpName(server.id)',
+  '!isOplForbiddenTeamMcpName(server.name)',
+  '!isOplForbiddenTeamMcpName(status.id)',
+  '!isOplForbiddenTeamMcpName(status.name)',
 ];
 
 const teamIpcBridgeExpected = [
@@ -555,11 +560,23 @@ function validateTeamSurfaceDisablement(shellPaths) {
 }
 
 function validateOrdinaryCapabilityScrub(shellPaths) {
-  assertShellTextIncludesAll(
+  const productProfile = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/common/config/oplProductProfile/index.ts',
     ordinaryCapabilityFilterExpected,
     'Active shell ordinary capability filter disabled Team MCP state',
+  );
+  assertTextExcludesAll(
+    productProfile,
+    [
+      'getOplOrdinaryMcpServerAllowlist',
+      'visible_mcp_server_ids',
+      'allowlist.has(server.id)',
+      'allowlist.has(server.name)',
+      'allowlist.has(status.id)',
+      'allowlist.has(status.name)',
+    ],
+    'Active shell ordinary MCP negative filter must preserve every unmatched configured server',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -582,12 +599,13 @@ function validateOrdinaryCapabilityScrub(shellPaths) {
     shellPaths,
     'tests/unit/common-config/oplProductProfile.test.ts',
     [
-      'scrubs AionUI Team MCP state from ordinary OPL conversation snapshots',
+      'preserves user and third-party MCP state while scrubbing AionUI Team state',
       'sanitizeOplOrdinaryConversationExtra',
       "team_lead_conversation_id: 'conversation-1'",
-      'session_mcp_servers: []',
+      "mcp_servers: ['unknown-mcp']",
+      "id: 'unknown-mcp'",
     ],
-    'Active shell ordinary conversation Team MCP scrub regression',
+    'Active shell ordinary conversation MCP preservation and Team scrub regression',
   );
 }
 

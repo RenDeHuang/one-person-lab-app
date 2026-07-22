@@ -1523,7 +1523,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
-    guiContract.ordinary_capability_selector_policy?.authority !== 'app_owned_opl_allowlist' ||
+    guiContract.ordinary_capability_selector_policy?.authority !==
+      'app_owned_skill_allowlist_and_mcp_negative_filter' ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
     JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_required_agent_package_ids) !==
       JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
@@ -1537,14 +1538,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'assistant_skill_profiles.required_skills + optional_skills' ||
     guiContract.ordinary_capability_selector_policy?.package_skill_source_ref !==
       'professional_agent_packages.required_skill_ids + optional_skill_ids' ||
+    guiContract.ordinary_capability_selector_policy?.mcp_server_source_ref !==
+      'configured_user_and_third_party_mcp_servers' ||
     guiContract.ordinary_capability_selector_policy?.mcp_menu_policy !==
-      'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
+      'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
     guiContract.ordinary_capability_selector_policy?.conversation_loaded_skill_display_policy !==
       'filter_to_ordinary_skill_allowlist' ||
     guiContract.ordinary_capability_selector_policy?.conversation_loaded_mcp_display_policy !==
-      'filter_to_visible_mcp_server_ids'
+      'preserve_non_forbidden_configured_servers' ||
+    guiContract.ordinary_capability_selector_policy?.unmatched_mcp_policy !==
+      'preserve_end_to_end_without_app_allowlist_membership'
   ) {
-    throw new Error('App GUI ordinary capability selector must be an App-owned OPL allowlist');
+    throw new Error('App GUI ordinary selector must use the App Skill allowlist and MCP negative filter');
   }
   assertAgentReferenceAdmissionPolicy(
     guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy,
@@ -1556,11 +1561,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI capability selection must reference the canonical Agent admission policy');
   }
-  assertDeepEqualJson(
-    guiContract.ordinary_capability_selector_policy.visible_mcp_server_ids,
-    [],
-    'App GUI ordinary MCP allowlist',
-  );
   assertIncludesAll(
     guiContract.ordinary_capability_selector_policy.forbidden_skill_examples,
     ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
@@ -1586,6 +1586,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ],
     'App GUI ordinary selector Team scrub targets',
   );
+  assertDeepEqualJson(
+    guiContract.ordinary_capability_selector_policy.required_preservation_targets,
+    [
+      'mcp directory entries not matching forbidden_mcp_matchers',
+      'mcp status entries not matching forbidden_mcp_matchers',
+      'new conversation create payload mcp_servers not matching forbidden_mcp_matchers',
+      'conversation snapshot mcp_servers and mcp_statuses not matching forbidden_mcp_matchers',
+    ],
+    'App GUI ordinary selector MCP preservation targets',
+  );
   if (
     guiContract.ordinary_capability_selector_policy.conversation_snapshot_policy !==
     'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations'
@@ -1601,7 +1611,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.guid_home.must_not_show,
     [
       'AionUI implementation skills such as aionui-skills',
-      'unknown MCP servers without an App profile allowlist entry',
+      'MCP servers matching the explicit Team/internal negative filter',
       'AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent',
     ],
     'App GUI home ordinary selector must_not_show',

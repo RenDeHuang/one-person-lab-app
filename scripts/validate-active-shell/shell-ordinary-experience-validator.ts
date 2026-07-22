@@ -514,6 +514,27 @@ function validateGuidAgentSelection(shellPaths) {
     ],
     'Active shell Guid agent selection App-owned default',
   );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/hooks/useGuidMention.ts',
+    [
+      'setSelectedAgentKey(key)',
+      'setInput((prev) => stripMentionToken(prev))',
+      'setMentionSelectorVisible(true)',
+    ],
+    'Active shell explicit @Agent single-owner selection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/guid/useGuidAgentSelection.dom.test.ts',
+    [
+      'selects an explicit Agent mention as the single session owner',
+      'selectionEnabled: true',
+      "selectMentionAgent('custom:oma')",
+      "toHaveBeenCalledWith('custom:oma')",
+    ],
+    'Active shell explicit @Agent selection regression',
+  );
 }
 
 function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
@@ -543,6 +564,20 @@ function validateProductProfileDefaults(shellPaths) {
   if (JSON.stringify(professionalAgentIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma'])) {
     throw new Error('Active shell product profile must carry the five canonical professional Agent package ids');
   }
+  const ordinaryPolicy = productProfileJson?.gui?.ordinary_capability_selector_policy;
+  if (
+    ordinaryPolicy?.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.active_agent_package_cardinality !== 'zero_or_one' ||
+    ordinaryPolicy?.agent_reference_admission_policy?.at_mention_agent_selection_allowed !== true ||
+    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_allowed !== true ||
+    ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_contract?.transport !==
+      'aioncore_atomic_conversation_owner_rebind_api' ||
+    ordinaryPolicy?.mcp_menu_policy !==
+      'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
+    ordinaryPolicy?.visible_mcp_server_ids !== undefined
+  ) {
+    throw new Error('Active shell product profile must carry single-owner Agent binding and MCP negative-filter authority');
+  }
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
   const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;
   if (JSON.stringify(menuStructure) !== JSON.stringify(codexSessionConfigurationMenuStructureExpected)) {
@@ -567,6 +602,15 @@ function validateGuidSkillRules(shellPaths, guidPage) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/assistantSkillMenu.ts', ['buildAssistantScopedSkillMenuItems', 'mergeRequiredSkills', 'required_skills', 'locked: isRequired'], 'Active shell Guid skill menu App assistant skill profile rule');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx', ['GuidSkillMenuItem', 'isGuidSkillChecked', 'skill.locked', 'disabled: skill.locked'], 'Active shell Guid action row required assistant skills');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'buildOplShortcutRouteReceipt', 'buildOplShortcutInvocationReceipt', 'opl_assistant_route', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
+    [
+      'preserves configured MCP servers while filtering forbidden Team MCP servers',
+      "expect(payload.extra.selected_mcp_server_ids).toEqual(['unknown-mcp', 'cron'])",
+    ],
+    'Active shell Guid MCP negative-filter send regression',
+  );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/activeShortcut.ts', ['OplActiveShortcut', 'resolveOplActiveShortcut', 'required_skill_ids', 'buildOplShortcutInvocationReceipt'], 'Active shell Guid shortcut identity and receipt signal');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/common/utils/buildAgentConversationParams.ts', ['preset_enabled_skills'], 'Active shell create conversation App assistant route/skill signal');
 }
