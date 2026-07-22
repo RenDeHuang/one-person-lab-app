@@ -249,11 +249,20 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
 
   assert.equal(adapter.classification, 'non_stable_manual_qualification_candidate');
   assert.equal(adapter.stable_bundle_claim, 'forbidden');
+  assert.equal(adapter.exact_source_lock_required, true);
+  const aionCore = adapter.runtime_dependencies.aioncore;
+  const codexCli = adapter.runtime_dependencies.codex_cli;
   const managedCodexAcp = adapter.runtime_dependencies.managed_codex_acp;
-  assert.deepEqual(
-    [adapter.runtime_dependencies.aioncore.version, adapter.runtime_dependencies.codex_cli.version],
-    ['v0.1.50', '0.144.6'],
-  );
+  assert.equal(Object.hasOwn(aionCore, 'version'), false);
+  assert.deepEqual(aionCore, {
+    version_source: 'package.json#aioncoreVersion',
+    resource_authority: 'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json',
+  });
+  assert.equal(Object.hasOwn(codexCli, 'version'), false);
+  assert.deepEqual(codexCli, {
+    version_source: 'AionCore managed resource manifest',
+    target_platform_binary_required: true,
+  });
   assert.equal(Object.hasOwn(managedCodexAcp, 'version'), false);
   assert.deepEqual(managedCodexAcp.version_binding, {
     authority:
