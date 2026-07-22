@@ -402,6 +402,55 @@ function declaredPrunedPathAssertions(runtimeRoot) {
   }));
 }
 
+function declaredAuthorityFunctionPayloadStatuses(runtimeRoot) {
+  const modulesRoot = path.join(runtimeRoot, 'modules');
+  if (!fs.existsSync(modulesRoot)) return [];
+
+  return fs.readdirSync(modulesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const contractPath = path.join(modulesRoot, entry.name, 'contracts', 'pack_compiler_input.json');
+      if (!fs.existsSync(contractPath)) return [];
+
+      const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+      const sourceRefs = contract.source_refs;
+      if (
+        !sourceRefs
+        || typeof sourceRefs !== 'object'
+        || !Object.prototype.hasOwnProperty.call(sourceRefs, 'authority_functions_source_ref')
+      ) {
+        return [];
+      }
+
+      const declaredRef = sourceRefs.authority_functions_source_ref;
+      if (typeof declaredRef !== 'string' || declaredRef.trim() === '') {
+        throw new Error(
+          `Full runtime ${entry.name} pack compiler authority_functions_source_ref must be a non-empty string.`,
+        );
+      }
+      const normalizedRef = path.posix.normalize(declaredRef).replace(/^\.\//, '');
+      if (
+        normalizedRef === ''
+        || normalizedRef === '.'
+        || normalizedRef === '..'
+        || normalizedRef.startsWith('../')
+        || path.posix.isAbsolute(normalizedRef)
+      ) {
+        throw new Error(
+          `Full runtime ${entry.name} pack compiler authority_functions_source_ref is unsafe: ${declaredRef}`,
+        );
+      }
+
+      const relativePath = `modules/${entry.name}/${normalizedRef}`;
+      const absolutePath = path.join(runtimeRoot, ...relativePath.split('/'));
+      if (fs.existsSync(absolutePath) && !fs.statSync(absolutePath).isFile()) {
+        throw new Error(`Full runtime declared authority function inventory is not a file: ${relativePath}`);
+      }
+      return [runtimePayloadStatus(runtimeRoot, relativePath)];
+    });
+}
+
 export function collectRuntimeAssertions(runtimeRoot) {
   return {
     prune_policy_id: FULL_RUNTIME_PRUNE_POLICY.id,
@@ -427,7 +476,7 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'modules/mas/runtime/authority_functions/README.md'),
+      ...declaredAuthorityFunctionPayloadStatuses(runtimeRoot),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
       ...masScholarSkillsPayloadStatuses(runtimeRoot),

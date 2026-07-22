@@ -86,10 +86,8 @@
       "^python\\/[^/]+\\/(?:lib\\/python\\d+\\.\\d+|frameworks\\/python\\.framework\\/versions\\/\\d+\\.\\d+\\/lib\\/python\\d+\\.\\d+)\\/site-packages\\/pip\\/_vendor\\/distlib\\/[^/]+\\.exe$"
     ],
     "included_path_patterns": [
-      "^modules\\/mas\\/runtime(?:$|\\/authority_functions(?:$|\\/readme\\.md$))",
-      "^modules\\/mas-scholar-skills\\/runtime(?:\\/|$)",
-      "^modules\\/meta-agent\\/runtime$",
-      "^modules\\/meta-agent\\/runtime\\/authority_functions(?:\\/|$)"
+      "^modules\\/[^/]+\\/runtime(?:$|\\/authority_functions(?:$|\\/readme\\.md$))",
+      "^modules\\/mas-scholar-skills\\/runtime(?:\\/|$)"
     ]
   },
   "production_node_modules": {
@@ -200,7 +198,7 @@
         "modules/mas/runs/latest.json",
         "modules/mas/sessions/current.json",
         "modules/mas/cache/result.json",
-        "modules/mag/runtime/authority_functions/README.md",
+        "modules/mag/runtime/authority_functions/debug-cache.json",
         "modules/mas/src/generated/client.js.map",
         "python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/test/test_os.py",
         "python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/site-packages/pip/_vendor/distlib/t32.exe",
@@ -209,6 +207,9 @@
       "retained": [
         "modules/mas/src/med_autoscience/__init__.py",
         "modules/mas/runtime/authority_functions/README.md",
+        "modules/mag/runtime/authority_functions/README.md",
+        "modules/rca/runtime/authority_functions/README.md",
+        "modules/bookforge/runtime/authority_functions/README.md",
         "modules/mas-scholar-skills/runtime/reference-provider-adapters/index.ts",
         "modules/rca/contracts/runtime-program/schema.json",
         "modules/meta-agent/contracts/foundry_provider.json",

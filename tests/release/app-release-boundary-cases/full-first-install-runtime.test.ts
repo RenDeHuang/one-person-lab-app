@@ -62,6 +62,18 @@ function writeDomainPlugin(root, pluginId) {
   );
 }
 
+function writeAuthorityFunctionInventory(root, label) {
+  writeJson(path.join(root, "contracts", "pack_compiler_input.json"), {
+    source_refs: {
+      authority_functions_source_ref: "runtime/authority_functions/README.md",
+    },
+  });
+  writeFile(
+    path.join(root, "runtime", "authority_functions", "README.md"),
+    `# ${label} authority function inventory\n`,
+  );
+}
+
 test("Full runtime keeps only macOS arm64 platform packages from optional production dependencies", () => {
   const selected = listFullRuntimeProductionNodeModulePaths({
     packages: {
@@ -432,14 +444,21 @@ function createFullRuntimeFixture() {
   const bookforgeRoot = path.join(tempRoot, "opl-bookforge");
   const oplFlowRoot = path.join(tempRoot, "opl-flow");
   writeDomainPlugin(masRoot, "med-autoscience");
-  writeFile(
-    path.join(masRoot, "runtime", "authority_functions", "README.md"),
-    "# MAS authority function inventory\n",
-  );
   writeDomainPlugin(magRoot, "med-autogrant");
   writeDomainPlugin(rcaRoot, "redcube-ai");
   writeDomainPlugin(metaAgentRoot, "opl-meta-agent");
   writeDomainPlugin(bookforgeRoot, "opl-bookforge");
+  for (const [root, label] of [
+    [masRoot, "MAS"],
+    [magRoot, "MAG"],
+    [rcaRoot, "RCA"],
+    [bookforgeRoot, "OBF"],
+  ]) {
+    writeAuthorityFunctionInventory(root, label);
+  }
+  writeJson(path.join(metaAgentRoot, "contracts", "pack_compiler_input.json"), {
+    source_refs: {},
+  });
   writeJson(path.join(oplFlowRoot, ".codex-plugin", "plugin.json"), {
     name: "opl-flow",
     skills: "./skills/",
@@ -1300,7 +1319,7 @@ test("Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.ok(scanAudit.runtime_scan_diff.removed_excluded_paths.includes("modules/mas/tmp/old.tmp"));
 });
 
-test("Full domain copy keeps only the required MAS authority inventory from runtime trees", async () => {
+test("Full domain copy keeps only contract-declared authority inventories from runtime trees", async () => {
   const { buildDomainLayer } =
     await import("../../../scripts/build-full-first-install-package/runtime-layers.ts");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-mas-authority-inventory-"));
@@ -1320,41 +1339,43 @@ test("Full domain copy keeps only the required MAS authority inventory from runt
     for (const moduleRoot of Object.values(options)) {
       fs.mkdirSync(moduleRoot, { recursive: true });
     }
-    writeFile(
-      path.join(options.masRoot, "runtime", "authority_functions", "README.md"),
-      "# MAS authority function inventory\n",
-    );
-    writeFile(
-      path.join(options.masRoot, "runtime", "authority_functions", "debug-cache.json"),
-      "{}\n",
-    );
-    writeFile(path.join(options.masRoot, "runtime", "legacy-state.json"), "{}\n");
+    const declaredModules = [
+      [options.masRoot, "mas", "MAS"],
+      [options.magRoot, "mag", "MAG"],
+      [options.rcaRoot, "rca", "RCA"],
+      [options.bookforgeRoot, "bookforge", "OBF"],
+    ];
+    for (const [moduleRoot, moduleName, label] of declaredModules) {
+      writeAuthorityFunctionInventory(moduleRoot, label);
+      writeFile(path.join(moduleRoot, "runtime", "authority_functions", "debug-cache.json"), "{}\n");
+      writeFile(path.join(moduleRoot, "runtime", "legacy-state.json"), "{}\n");
+      writeFile(path.join(moduleRoot, "src", "index.py"), 'print("ready")\n');
+    }
+    writeJson(path.join(options.metaAgentRoot, "contracts", "pack_compiler_input.json"), {
+      source_refs: {},
+    });
     writeFile(path.join(options.masRoot, "runtime-state", "checkpoint.json"), "{}\n");
     writeFile(path.join(options.masRoot, "runs", "latest.json"), "{}\n");
     writeFile(path.join(options.masRoot, "sessions", "current.json"), "{}\n");
     writeFile(path.join(options.masRoot, "cache", "result.json"), "{}\n");
-    writeFile(path.join(options.masRoot, "src", "index.py"), 'print("ready")\n');
-    writeFile(
-      path.join(options.magRoot, "runtime", "authority_functions", "README.md"),
-      "# unrelated module runtime\n",
-    );
-
     buildDomainLayer(layerRoot, options);
 
-    for (const relativePath of [
-      "modules/mas/runtime/authority_functions/README.md",
-      "modules/mas/src/index.py",
-    ]) {
+    for (const relativePath of declaredModules.flatMap(([, moduleName]) => [
+      `modules/${moduleName}/runtime/authority_functions/README.md`,
+      `modules/${moduleName}/src/index.py`,
+    ])) {
       assert.equal(fs.existsSync(path.join(layerRoot, relativePath)), true, relativePath);
     }
     for (const relativePath of [
-      "modules/mas/runtime/authority_functions/debug-cache.json",
-      "modules/mas/runtime/legacy-state.json",
+      ...declaredModules.flatMap(([, moduleName]) => [
+        `modules/${moduleName}/runtime/authority_functions/debug-cache.json`,
+        `modules/${moduleName}/runtime/legacy-state.json`,
+      ]),
       "modules/mas/runtime-state/checkpoint.json",
       "modules/mas/runs/latest.json",
       "modules/mas/sessions/current.json",
       "modules/mas/cache/result.json",
-      "modules/mag/runtime/authority_functions/README.md",
+      "modules/meta-agent/runtime/authority_functions/README.md",
     ]) {
       assert.equal(fs.existsSync(path.join(layerRoot, relativePath)), false, relativePath);
     }
@@ -1611,10 +1632,18 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       "# skill\n",
     );
   }
-  writeFile(
-    path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"),
-    "# MAS authority function inventory\n",
-  );
+  const authorityFunctionModules = [
+    ["modules/mas", "MAS"],
+    ["modules/mag", "MAG"],
+    ["modules/rca", "RCA"],
+    ["modules/bookforge", "OBF"],
+  ];
+  for (const [modulePath, label] of authorityFunctionModules) {
+    writeAuthorityFunctionInventory(path.join(runtimeRoot, modulePath), label);
+  }
+  writeJson(path.join(runtimeRoot, "modules/meta-agent/contracts/pack_compiler_input.json"), {
+    source_refs: {},
+  });
   for (const relativePath of [
     "modules/opl-flow/contracts/workflow-policy.json",
     "modules/opl-flow/templates/AGENTS.md",
@@ -1663,7 +1692,10 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
     ["vendor/temporal/temporal_cli_darwin_arm64.tar.gz", "exists"],
     ["opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node", "exists"],
     ["node/bin/npm", "executable"],
-    ["modules/mas/runtime/authority_functions/README.md", "exists"],
+    ...authorityFunctionModules.map(([modulePath]) => [
+      `${modulePath}/runtime/authority_functions/README.md`,
+      "exists",
+    ]),
     ["modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json", "exists"],
     ["modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md", "exists"],
     ["modules/mas-scholar-skills/.codex-plugin/plugin.json", "exists"],
@@ -1694,22 +1726,31 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       {},
     ),
   );
-  fs.rmSync(path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"));
-  assert.throws(
-    () =>
-      writeFullRuntimeManifest(
-        runtimeRoot,
-        { version: "26.7.7-test" },
-        "2026-07-07T00:00:00.000Z",
-        {},
-        {},
-      ),
-    /modules\/mas\/runtime\/authority_functions\/README\.md/,
+  assert.equal(
+    assertions.offline_required_payloads.some(
+      (entry) => entry.path === "modules/meta-agent/runtime/authority_functions/README.md",
+    ),
+    false,
   );
-  writeFile(
-    path.join(runtimeRoot, "modules/mas/runtime/authority_functions/README.md"),
-    "# MAS authority function inventory\n",
-  );
+  for (const [modulePath, label] of authorityFunctionModules) {
+    const inventoryPath = `${modulePath}/runtime/authority_functions/README.md`;
+    fs.rmSync(path.join(runtimeRoot, inventoryPath));
+    assert.throws(
+      () =>
+        writeFullRuntimeManifest(
+          runtimeRoot,
+          { version: "26.7.7-test" },
+          "2026-07-07T00:00:00.000Z",
+          {},
+          {},
+        ),
+      new RegExp(inventoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+    writeFile(
+      path.join(runtimeRoot, inventoryPath),
+      `# ${label} authority function inventory\n`,
+    );
+  }
   fs.rmSync(path.join(runtimeRoot, "modules", "opl-flow", "skills"), {
     recursive: true,
     force: true,
