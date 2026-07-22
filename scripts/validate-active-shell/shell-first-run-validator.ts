@@ -7,18 +7,8 @@ export function validateFirstRunImplementation(shellPaths) {
   const rendererMain = readShellText(shellPaths, 'packages/desktop/src/renderer/main.tsx');
   const appLoader = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/AppLoader.tsx');
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
-  const startupGatePath = 'packages/desktop/src/renderer/components/layout/StartupGate.tsx';
-  const startupGateTestPath = 'tests/unit/layout/StartupGate.dom.test.tsx';
-  const hasStartupGate = existsSync(path.join(shellPaths.shellRoot, startupGatePath));
-  const hasStartupGateTest = existsSync(path.join(shellPaths.shellRoot, startupGateTestPath));
-  if (hasStartupGate !== hasStartupGateTest) {
-    throw new Error('Active shell startup routing must keep the legacy StartupGate source and test in sync');
-  }
-  const startupGate = hasStartupGate ? readShellText(shellPaths, startupGatePath) : '';
-  const routerTests = hasStartupGate ? '' : readShellText(shellPaths, 'tests/unit/layout/Router.dom.test.tsx');
-  const loginPage = hasStartupGate
-    ? ''
-    : readShellText(shellPaths, 'packages/desktop/src/renderer/pages/login/index.tsx');
+  const routerTests = readShellText(shellPaths, 'tests/unit/layout/Router.dom.test.tsx');
+  const loginPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/login/index.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   const firstRunTests = readShellText(shellPaths, 'tests/unit/opl-runtime/FirstRun.dom.test.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
@@ -86,83 +76,58 @@ export function validateFirstRunImplementation(shellPaths) {
   ) {
     throw new Error('Active shell FirstRun must render as an authenticated standalone route outside the ordinary product layout');
   }
-  if (hasStartupGate) {
-    const skipStartupCheck = startupGate.match(/const skipStartupCheck = \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '';
-    if (
-      !skipStartupCheck.includes("navigate('/guid', { replace: true })") ||
-      skipStartupCheck.includes("navigate('/first-run'")
-    ) {
-      throw new Error('Active shell StartupGate skip must enter /guid without mutating unknown readiness');
+  for (const retiredPath of [
+    'packages/desktop/src/renderer/components/layout/StartupGate.tsx',
+    'tests/unit/layout/StartupGate.dom.test.tsx',
+  ]) {
+    if (existsSync(path.join(shellPaths.shellRoot, retiredPath))) {
+      throw new Error(`Active shell must retire the waiting StartupGate surface: ${retiredPath}`);
     }
-    for (const expected of [
-      'STARTUP_STATE_SOFT_TIMEOUT_MS = 1500',
-      'function readStartupStateWithSoftTimeout(): Promise<void>',
-      'window.setTimeout(() => {',
-      'resolve();',
-      "setPhase('routeDecision')",
-      "return <Navigate to='/guid' replace />;",
-    ]) {
-      if (!startupGate.includes(expected)) {
-        throw new Error(`Active shell StartupGate must complete its bounded read on /guid: ${expected}`);
-      }
+  }
+  for (const expected of [
+    "path='/login'",
+    "path='/startup-gate'",
+    "<Navigate to='/guid' replace />",
+    "status === 'authenticated' ? '/guid' : '/login'",
+  ]) {
+    if (!router.includes(expected)) {
+      throw new Error(`Active shell ordinary routes must enter /guid without a fast-state gate: ${expected}`);
     }
-    for (const forbidden of [
-      'needsFirstRun',
-      'setNeedsFirstRun',
-      "<Navigate to='/first-run'",
-      'isCoreLaunchReadyFromAppState',
-      'readAuthoritativeInitializeReadiness',
-    ]) {
-      if (startupGate.includes(forbidden)) {
-        throw new Error(`Active shell StartupGate readiness must never redirect ordinary startup: ${forbidden}`);
-      }
+  }
+  for (const forbidden of ["import StartupGate from", '<StartupGate', "to='/startup-gate'"]) {
+    if (router.includes(forbidden)) {
+      throw new Error(`Active shell ordinary routing must not restore the waiting StartupGate: ${forbidden}`);
     }
-  } else {
-    for (const expected of [
-      "path='/login'",
-      "path='/startup-gate'",
-      "<Navigate to='/guid' replace />",
-      "status === 'authenticated' ? '/guid' : '/login'",
-    ]) {
-      if (!router.includes(expected)) {
-        throw new Error(`Active shell ordinary routes must enter /guid without a fast-state gate: ${expected}`);
-      }
+  }
+  for (const expected of ["navigate('/guid', { replace: true })", "if (status === 'authenticated')"]) {
+    if (!loginPage.includes(expected)) {
+      throw new Error(`Active shell authenticated login must enter /guid immediately: ${expected}`);
     }
-    for (const forbidden of ["import StartupGate from", '<StartupGate', "to='/startup-gate'"]) {
-      if (router.includes(forbidden)) {
-        throw new Error(`Active shell ordinary routing must not restore the waiting StartupGate: ${forbidden}`);
-      }
+  }
+  for (const forbidden of ["navigate('/startup-gate'", 'navigationTimer']) {
+    if (loginPage.includes(forbidden)) {
+      throw new Error(`Active shell login must not restore an artificial startup wait: ${forbidden}`);
     }
-    for (const expected of ["navigate('/guid', { replace: true })", "if (status === 'authenticated')"]) {
-      if (!loginPage.includes(expected)) {
-        throw new Error(`Active shell authenticated login must enter /guid immediately: ${expected}`);
-      }
-    }
-    for (const forbidden of ["navigate('/startup-gate'", 'navigationTimer']) {
-      if (loginPage.includes(forbidden)) {
-        throw new Error(`Active shell login must not restore an artificial startup wait: ${forbidden}`);
-      }
-    }
-    const configInitializationStart = rendererMain.indexOf('void configService');
-    const configInitializationEnd = rendererMain.indexOf('}, [ready]);', configInitializationStart);
-    const managedAgentPrefetchStart = rendererMain.indexOf('void fetchManagedAgents()');
-    if (
-      configInitializationStart < 0 ||
-      configInitializationEnd < 0 ||
-      managedAgentPrefetchStart < configInitializationEnd
-    ) {
-      throw new Error('Active shell managed-agent prefetch must run outside the blocking config initialization effect');
-    }
-    for (const expected of [
-      "['the root route', '#/']",
-      "['an authenticated login route', '#/login']",
-      "['the legacy startup gate route', '#/startup-gate']",
-      "['an unknown authenticated route', '#/not-a-real-route']",
-      "toBe('#/guid')",
-    ]) {
-      if (!routerTests.includes(expected)) {
-        throw new Error(`Active shell Router DOM coverage must prove direct Guid entry: ${expected}`);
-      }
+  }
+  const configInitializationStart = rendererMain.indexOf('void configService');
+  const configInitializationEnd = rendererMain.indexOf('}, [ready]);', configInitializationStart);
+  const managedAgentPrefetchStart = rendererMain.indexOf('void fetchManagedAgents()');
+  if (
+    configInitializationStart < 0 ||
+    configInitializationEnd < 0 ||
+    managedAgentPrefetchStart < configInitializationEnd
+  ) {
+    throw new Error('Active shell managed-agent prefetch must run outside the blocking config initialization effect');
+  }
+  for (const expected of [
+    "['the root route', '#/']",
+    "['an authenticated login route', '#/login']",
+    "['the legacy startup gate route', '#/startup-gate']",
+    "['an unknown authenticated route', '#/not-a-real-route']",
+    "toBe('#/guid')",
+  ]) {
+    if (!routerTests.includes(expected)) {
+      throw new Error(`Active shell Router DOM coverage must prove direct Guid entry: ${expected}`);
     }
   }
   for (const expected of [
