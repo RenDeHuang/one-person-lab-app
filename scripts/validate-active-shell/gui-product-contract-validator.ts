@@ -1019,10 +1019,26 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('App GUI startup read model must keep Guid navigation non-blocking');
   }
   if (
-    startupReadModelPolicy?.soft_deadline_ms !== 1500 ||
-    startupReadModelPolicy?.soft_deadline_behavior !== 'enter_guid_and_continue_state_refresh_in_background'
+    startupReadModelPolicy?.ordinary_entry_route !== '/guid' ||
+    startupReadModelPolicy?.visible_startup_gate !== 'none' ||
+    startupReadModelPolicy?.navigation_wait_for_fast_state_ms !== 0 ||
+    startupReadModelPolicy?.state_hydration !==
+      'last_good_allowlisted_renderer_cache_then_single_flight_background_refresh' ||
+    startupReadModelPolicy?.background_refresh_soft_deadline_ms !== 1500 ||
+    startupReadModelPolicy?.background_refresh_deadline_behavior !==
+      'keep_guid_interactive_and_report_local_state_unavailable_without_global_failure'
   ) {
-    throw new Error('App GUI startup read model must enter Guid after the 1500 ms soft deadline');
+    throw new Error('App GUI startup read model must enter Guid without waiting for fast state and refresh in the background');
+  }
+  const installedLaunchTarget = startupReadModelPolicy.installed_launch_target;
+  if (
+    installedLaunchTarget?.target_ms !== 1500 ||
+    installedLaunchTarget?.measurement_scope !==
+      'OS_launch_request_to_Guid_composer_visible_enabled_and_focusable' ||
+    installedLaunchTarget?.status !== 'required_unverified_installed_target_not_current_measurement_or_SLA' ||
+    installedLaunchTarget?.fast_state_hydration_in_target !== false
+  ) {
+    throw new Error('App GUI startup read model must keep the 1500 ms installed Guid target explicit and evidence-bound');
   }
 
   if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
@@ -1197,8 +1213,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'App GUI first-launch',
   );
   for (const [field, expected] of Object.entries({
+    default_launch_command: 'opl app state --profile fast --json',
+    default_launch_mode: 'guid_first_with_background_fast_state',
     first_run_route_policy: 'authenticated_standalone_route_outside_ordinary_product_layout',
-    unknown_readiness_escape_policy: 'startup_skip_enters_guid_without_mutating_readiness',
+    ordinary_entry_route: '/guid',
+    visible_startup_gate: 'none',
+    navigation_wait_for_fast_state_ms: 0,
+    unknown_readiness_policy: 'enter_guid_and_refresh_in_background_without_mutating_readiness',
     guid_navigation_blocked_by_readiness: false,
     core_capability_use_blocked_when_prerequisites_fail: true,
   })) {

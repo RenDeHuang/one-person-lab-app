@@ -1334,6 +1334,20 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
   assert.equal(startup.cold_budget_ms, 1500);
   assert.equal(startup.warm_budget_ms, 1500);
   assert.equal(
+    startup.first_window_state_source,
+    "renderer_localStorage_allowlisted_fast_state_snapshot_or_loading_shell",
+  );
+  assert.equal(startup.ordinary_guid_interactive_target_ms, 1500);
+  assert.equal(
+    startup.ordinary_guid_target_scope,
+    "OS_launch_request_to_Guid_composer_visible_enabled_and_focusable",
+  );
+  assert.equal(
+    startup.ordinary_guid_target_status,
+    "required_unverified_installed_target_not_current_measurement_or_SLA",
+  );
+  assert.equal(startup.background_hydration_in_guid_target, false);
+  assert.equal(
     startup.first_window_failure_policy,
     "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
   );
@@ -1401,6 +1415,30 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
   assert.throws(
     () => validate(blockingStartup),
     /Settings startup performance policy/,
+  );
+
+  const inventedMainProcessCache = contracts();
+  inventedMainProcessCache.controlPlane.state_action_policy.startup_performance_policy
+    .persisted_snapshot.source = "desktop_main_process_persisted_narrow_cache";
+  assert.throws(
+    () => validate(inventedMainProcessCache),
+    /Settings startup performance policy/,
+  );
+
+  const unboundStartupClaim = contracts();
+  unboundStartupClaim.controlPlane.state_action_policy.startup_performance_policy
+    .ordinary_guid_target_status = "measured_SLA";
+  assert.throws(
+    () => validate(unboundStartupClaim),
+    /Settings startup performance policy/,
+  );
+
+  const waitingGuid = contracts();
+  waitingGuid.guiContract.framework_surfaces.canonical_state.startup_read_model_policy
+    .navigation_wait_for_fast_state_ms = 1500;
+  assert.throws(
+    () => validateGui(waitingGuid.guiContract),
+    /must enter Guid without waiting for fast state/,
   );
 
   const oversizedStartup = contracts();

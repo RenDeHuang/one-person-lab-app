@@ -817,7 +817,7 @@
           "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
           "required": true,
           "required_evidence": [
-            "agent switching keeps App profile MCP allowlist empty unless explicitly whitelisted",
+            "agent switching preserves configured user and third-party MCP servers unless they match the explicit Team/internal negative filter",
             "agent switching does not inherit Team MCP from prior snapshots"
           ]
         },

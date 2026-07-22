@@ -1399,6 +1399,15 @@
           "policy": "lightweight_polling_until_push_projection_available"
         },
         "domain_detail_view": {
+          "capability_policy_ref": "contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views",
+          "capability_absent": {
+            "runtime_page": "preserved",
+            "work_item_list": "preserved",
+            "selected_item_core_detail": "preserved",
+            "research_trajectory_entry": "hidden",
+            "direct_detail_route": "localized_unavailable_with_return_to_runtime",
+            "global_failure": "forbidden"
+          },
           "descriptor_path": "app_state.operator.workbench.work_item_projection_v2.items[].domain_detail_views[]",
           "descriptor_required_fields": [
             "item_id",
@@ -2808,7 +2817,7 @@
     },
     {
       "id": "first_launch_readiness",
-      "expected_source": "pre-/guid first-run wizard and OPL initialize result",
+      "expected_source": "explicit /first-run recovery route and OPL initialize result; ordinary launch enters /guid",
       "startup_loader": {
         "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.startup_loader",
         "visible_product_name": "One Person Lab",
@@ -2860,7 +2869,7 @@
         "fixed three-step rail with one current task panel",
         "active rail step and task panel stay aligned to the first unready Core item",
         "authenticated standalone first-run route outside the ordinary product layout",
-        "startup preflight escape into /guid while readiness is unknown without mutating readiness",
+        "ordinary startup enters /guid with zero fast-state navigation wait while unknown readiness refreshes in the background without mutation",
         "explicit enter OPL action before readiness without mutating readiness",
         "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
         "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
@@ -4221,13 +4230,17 @@
   },
   "settings_startup_performance_policy": {
     "schema": "settings_startup_performance.v1",
-    "first_window_state_source": "persisted_narrow_settings_snapshot_or_loading_shell",
+    "first_window_state_source": "renderer_localStorage_allowlisted_fast_state_snapshot_or_loading_shell",
     "background_state_source": "opl app state --profile fast --json",
     "first_window_blocking_policy": "never_wait_for_complete_fast_state_or_page_drilldowns",
     "first_window_failure_policy": "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
     "cold_budget_ms": 1500,
     "warm_budget_ms": 1500,
     "budget_scope": "stable_shell_first_paint_and_interactive_settings_shell_only_background_hydration_reported_separately",
+    "ordinary_guid_interactive_target_ms": 1500,
+    "ordinary_guid_target_scope": "OS_launch_request_to_Guid_composer_visible_enabled_and_focusable",
+    "ordinary_guid_target_status": "required_unverified_installed_target_not_current_measurement_or_SLA",
+    "background_hydration_in_guid_target": false,
     "timing_milestones": [
       "stable_shell_first_paint",
       "background_hydration_complete"
@@ -4243,7 +4256,7 @@
     "global_refresh_on_route_mount": false,
     "persisted_snapshot": {
       "schema": "opl_settings_startup_snapshot.v1",
-      "source": "desktop_main_process_persisted_narrow_cache",
+      "source": "renderer_localStorage_allowlisted_fast_state_cache",
       "version": 1,
       "freshness_policy": "stale_while_revalidate_with_observed_at_and_stale_fields",
       "invalidation": [

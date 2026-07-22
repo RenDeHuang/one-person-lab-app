@@ -62,8 +62,9 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | `B0-14` | 通用 Settings 容器、search/back/redirect、a11y、theme、i18n | 所有配置与长期使用能力需要一致容器。 | 容器行为属于 B0；OPL 栏目、owner route 与数据语义归 `R1-05`。 |
 
 B0 保护的是 Codex 必要用户结果，不是把上游所有同名入口自动纳入 OPL。Skill/Plugin/MCP
-的执行、权限与 elicitation 底座可复用 B0，但面向用户的管理 IA 归 `R1-04`；未经 App
-profile 接受的任意上游 Skill/MCP 不构成功能回归。Local Git、Terminal、Browser 与显式选择的
+的执行、权限与 elicitation 底座可复用 B0，但面向用户的管理 IA 归 `R1-04`。普通 Skill
+入口由 App packaged-skill allowlist 策展；MCP 不共享该 allowlist，所有已配置用户/第三方 MCP
+默认端到端保留，只排除明确 Team/internal negative filter。Local Git、Terminal、Browser 与显式选择的
 本地 checkout 属 B0；SSH/HPC 可作为 Resources refs 接入，但托管远程 Workspace、资源调度和
 跨主机 handoff 仍归 `X0-04/X0-05`。`B0-10` 也不授权 Shell 自建 managed Worktree/Handoff。
 
@@ -118,8 +119,10 @@ R1 与 U1 的当前实现程度按 carrier 分开维护在
 | `X0-06` | Raw runtime/operator diagnostics 与完整 repair cockpit | 仅留 Settings > Maintenance diagnostics 和 release tooling；Advanced 只重定向，ordinary UI 不展示 raw protocol。 |
 
 本文的“现有功能不降级”只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的
-能力。AionUI 上游自带但未被 OPL App 采纳的 Team、provider/backend、任意 skills/MCP、
-Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
+能力，并以 AionUI/AionCore 官方基础能力默认继承为起点。Team 是明确 reject；fixed Codex
+executor 可隐藏 provider/backend marketplace；普通 Skill 可按 App packaged-skill allowlist
+策展。MCP 只应用 Team/internal negative filter，不能因不在 OPL allowlist 中被删除。其它上游
+能力若无 App contract 授权，不得仅因 OPL ordinary UI 未单列入口而被禁用。
 
 ## 产品框架
 
@@ -128,6 +131,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Session-first workspace-aware App frame | Session/thread 是主单位；Project affinity 为 `unbound | bound` 且最多一个。project/workspace/directory 提供新 session 初始 cwd、projectless 一次性 adoption 和 affinity rail 分组，不拥有 session、context 或 artifact，也不构成授权域。命令或 turn 的实际 `pwd`、显式输入与 writable roots 不反写或扩展该 affinity；Git origin 不作为 Project identity。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
 | Directory/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；App Server overview 可用时是 Codex session directory authority，未返回的 stale Codex ACP cache rows 不进入 ordinary rail，overview unavailable 才 fallback cache，非 Codex local rows 保留。每个 canonical thread ID 最多一行，不按标题/workspace 去重；目录组不提供组级删除或 session 级联删除。 | GUI contract、page-state matrix、runtime bridge。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing；Home root、composer shell、footer account/Settings entry 各只有一个实例。 | GUI contract、page-state matrix。 |
+| Ordinary startup | 认证后直接进入 `/guid`，Guid composer 不等待 fast App state 或可见 `StartupGate`；局部状态在后台刷新，失败不造成全局空白或 first-run 重定向。`<=1500 ms` 是 exact installed build 的 OS launch request 到 composer visible/enabled/focusable 目标，不是已测事实或 SLA。 | GUI contract、first-run matrix、installed launch evidence。 |
 | Workspace-optional conversation | 不建立 workspace 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；workspace readiness 不 gate 这些输入，真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
 | Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
@@ -168,7 +172,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Book shortcut | 从普通入口开始书稿工作。 | Product profile/package registry；domain owner 为 BookForge。 |
 | Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
 | Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
-| Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
+| Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、启用/禁用、显示/隐藏或卸载，并查看 managed Codex materialization 与终态 readback。 | Framework package state/action/receipt；App/Shell 只做 GUI 投影，不直接修改 package/runtime truth。 |
 | 弹性 Agent 对话与 Stage runtime 激活 | Shell 只消费 directory/status projection 来展示可用性与 exact 非激活 lifecycle action；Settings、新对话和 ordinary send 都不执行 `agent_package_activate`。所选项目目录只建立 session cwd 与未来 domain workspace identity；真正激活由 Framework 在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 执行。receipt、binding 和 closure 是 stage runtime 证据或 diagnostics，不是普通对话的硬门槛。 | Framework package lifecycle owner；App 只定义产品边界和用户投影，不构造 activation payload，也不以 session cwd 或全局 workspace root 替代 Stage workspace locator。 |
 
 Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
@@ -190,6 +194,7 @@ Validator pass 只证明对应 contract/source 一致，不能证明产品必要
 | Pinnable current-task summary | 长任务与 OPL current-task projection 共用 status、elapsed、progress、next action、stop summary bar，并允许 pin。 | Current task slice / bridge refs。 |
 | Current-turn run artifact | 在 conversation 内查看本轮最近事件和恢复动作。 | Current task slice / bridge refs。 |
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
+| Optional domain detail | `opl_app.domain_detail_views.v2` 存在时按 item 打开 typed domain view，例如研究轨迹；缺失时 Work Item list、selected-item core detail 与 App 其它功能继续可用，只隐藏依赖入口，直达链接显示局部 unavailable 并可返回 Runtime。 | Domain agent projection via Framework；这是 optional enhancement，不是 App/Runtime/install/release gate。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
 | Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
 | Artifact preview adapter | 用户显式打开时，当前 session attachment、可见 conversation result 或合法任意绝对本地路径进入现有 Preview。Traversal、非法 scheme、隐式 workspace ref、自动静默读取及 unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
@@ -230,6 +235,7 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
+| Ordinary launch | 认证后的普通路径立即进入可交互 Guid；readiness 与 managed-agent discovery 后台刷新，不以 `StartupGate` 阻塞首窗。 | Startup product contract、first-run matrix；installed evidence 单独证明 `<=1500 ms` 目标。 |
 | Core readiness check | 知道 workspace、Codex CLI 和模型访问是否足以进入 App。 | First-run contracts/page-state。 |
 | Guided blocker resolution | 看到当前 blocker、下一步和可执行配置/修复动作。 | App state/action；技术命令按需展开。 |
 | Initialization progress | 看到阶段、elapsed time、完成/失败和恢复路径。 | OPL initialization event/readback。 |

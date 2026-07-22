@@ -265,13 +265,22 @@ function validateFrameworkCoreCarrier(homebrew) {
       required_package_name: 'opl-framework',
       required_capability_source_ref:
         'contracts/opl-framework/app-runtime-fast-work-item-projection-contract.json#compatibility_capabilities.ids',
-      required_capability_ids: ['opl_app.domain_detail_views.v2'],
+      required_capability_ids: [],
       required_capability_match: 'all',
+      optional_enhancement_capabilities: [
+        {
+          capability_id: 'opl_app.domain_detail_views.v2',
+          policy_ref:
+            'contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views',
+          availability_source: 'producer_capability_ids',
+          missing_behavior: 'allow_app_state_activation_and_hide_dependent_detail_surfaces',
+        },
+      ],
       framework_api_version_policy: {
         recognized_marker: 'p19.stage-runtime',
         marker_alone_sufficient: false,
       },
-      fail_closed_on_missing_or_incompatible: true,
+      fail_closed_on_missing_required_capability_or_incompatible_framework: true,
       missing_required_capability_policy: {
         compatibility_status: 'incompatible_missing_required_capability',
         app_state_activation_allowed: false,
@@ -284,6 +293,12 @@ function validateFrameworkCoreCarrier(homebrew) {
         canonical_reconciliation_ref:
           'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation',
         app_direct_base_mutation_allowed: false,
+      },
+      missing_optional_enhancement_policy: {
+        app_state_activation_allowed: true,
+        global_recovery_required: false,
+        dependent_surface_policy_ref:
+          'contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views.absence_policy',
       },
       receipt_fields: [
         'selected_carrier',

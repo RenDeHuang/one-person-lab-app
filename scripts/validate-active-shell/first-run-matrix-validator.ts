@@ -204,7 +204,9 @@ export function validateFirstRunMatrix(matrix, contract) {
     'Beginner first-run scenario shell test ids',
   );
   for (const expected of [
-    'startup readiness uses a bounded opl app state --profile fast --json payload for bootstrap state only; ready, blocked, unknown, timeout, and read failure all enter /guid and never redirect ordinary startup to /first-run',
+    'authenticated root, login success, catch-all, and the legacy /startup-gate compatibility route enter /guid without waiting for fast App state',
+    'startup readiness uses opl app state --profile fast --json as background bootstrap state only; ready, blocked, unknown, timeout, and read failure keep /guid usable and never redirect ordinary startup to /first-run',
+    'the installed launch target is 1500 ms from OS launch request until the Guid composer is visible, enabled, and focusable; this target requires exact installed evidence and is not inferred from source tests',
     'every subsequent ordinary launch routes directly to /guid regardless of Core readiness while /first-run remains an explicit user-opened recovery route',
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',
     'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
@@ -218,7 +220,7 @@ export function validateFirstRunMatrix(matrix, contract) {
     'WebUI exposes API Key only and never renders Gateway password login',
     'first-run uses a focused full-window setup workspace and hides ordinary product navigation until the user enters /guid',
     'first-run renders as an authenticated standalone route outside the ordinary product layout',
-    'startup preflight skip enters /guid while readiness is unknown without mutating readiness',
+    'unknown startup readiness enters /guid directly and background refresh never mutates readiness or creates a global startup failure',
     'the three Core items render as a stable step rail while only the current task occupies the main panel',
     'the active rail step and task panel select the first unready Core item in fixed step order before completion',
     'Core progress uses completed step count without percentage progress',

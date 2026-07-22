@@ -479,6 +479,11 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     domainViews,
     {
       owner: 'domain_agent_projection_via_opl_framework',
+      capability_policy_ref:
+        'contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views',
+      requirement_class: 'optional_domain_enhancement',
+      app_activation_gate: false,
+      runtime_route_gate: false,
       renderer_selection: 'typed_registry_by_view_kind',
       agent_id_branching_allowed: false,
       scientific_reasoning_view_id: 'scientific-reasoning',
@@ -490,6 +495,18 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       domain_truth_or_evidence_judgment_allowed: false,
     },
     `${label}.domain_detail_views`,
+  );
+  assertDeepEqualJson(
+    domainViews?.capability_absent_behavior,
+    {
+      runtime_page_preserved: true,
+      work_item_list_preserved: true,
+      selected_item_core_detail_preserved: true,
+      research_trajectory_entry_hidden: true,
+      direct_detail_route: 'localized_unavailable_with_return_to_runtime',
+      global_failure_allowed: false,
+    },
+    `${label}.domain_detail_views.capability_absent_behavior`,
   );
   assertDeepEqualJson(
     domainViews?.registered_view_kinds,

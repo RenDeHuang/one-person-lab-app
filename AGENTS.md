@@ -10,6 +10,8 @@
 - GUI 角色固定为 `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`。Hermes 只按显式需求手工验证；AGUI 只保留技术证明。
 - 用户可见行为、页面状态、模型/引导策略或 release-ready 边界变化时，先更新 App contract、docs 和 tests，再实现 Shell；Shell 与上游默认值不得反向成为产品 authority。
 - 上游 fork body 默认只读。App 工作只触碰 App contracts、adapters、OPL overlays、packaging/readback hooks 与这些表面的验证。
+- 默认继承 AionUI/AionCore 官方基础能力；OPL 只做合同授权的薄适配和明确裁剪（例如 Team）。不得因 OPL 没有专门白名单就禁用其它上游能力；上游没有且产品并不必要的复杂能力默认不私有实现。只存在于已 reject、已退休或私有 legacy 功能中的问题不进入产品修复主线。
+- OPL Packages 是独立于 GUI 的 Framework-owned 生态，不是可随 Shell 简化的页面功能。App/Shell 必须完整保留其安装、更新、修复、启停、显隐、卸载、lock、receipt、`rollback_ref`、Home shortcut 与 Codex materialization 投影，只删除 App/Shell 对这些权威的重复实现。
 
 ## Runtime And GUI
 

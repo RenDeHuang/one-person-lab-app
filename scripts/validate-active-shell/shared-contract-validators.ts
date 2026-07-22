@@ -540,6 +540,8 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   for (const [field, expected] of Object.entries({
     optional: true,
+    capability_id: "opl_app.domain_detail_views.v2",
+    requirement_class: "optional_domain_enhancement",
     collection_kind: "typed_agent_owned_item_detail_descriptors",
     fast_profile_role: "declaration_derived_locator_and_transport_state_only",
     full_payload_in_fast_state_allowed: false,
@@ -551,6 +553,17 @@ export function validateWorkItemProjectionContract(projection, label) {
       throw new Error(`${label} domain detail views ${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    domainDetailViews?.absence_policy,
+    {
+      app_state_activation_allowed: true,
+      runtime_core_unaffected: true,
+      work_item_row_and_core_detail_preserved: true,
+      dependent_detail_surfaces_hidden: true,
+      global_failure_allowed: false,
+    },
+    `${label} optional domain detail absence policy`,
+  );
   const scientificDescriptor = domainDetailViews?.registered_view_kinds?.scientific_reasoning_map;
   assertDeepEqualJson(
     scientificDescriptor,

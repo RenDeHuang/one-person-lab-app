@@ -832,7 +832,7 @@ function validateRegistryPolicyShape(contract: any): void {
     registryPolicy,
     {
       policy_surface:
-        "Settings Capabilities registry discovery, manifest URL install entry, and package receipt display",
+        "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
       default_registry_ref: "contracts/agent-package-registry.json",
       default_registry_source_kind: "default_external_registry",
       default_registry_url:
@@ -1975,7 +1975,7 @@ function validatePackageManagerLifecycle(contract: any): void {
   assertFieldsEqual(
     lifecycle,
     {
-      policy_surface: "Settings Capabilities package manager and app/cli action receipts",
+      policy_surface: "Settings Agents package manager and app/cli action receipts",
       manual_check_policy: "automatic_daily_check_plus_explicit_user_refresh",
       apply_selected_policy:
         "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",

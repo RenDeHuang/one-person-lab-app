@@ -310,7 +310,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     'fixed three-step rail with one current task panel',
     'active rail step and task panel stay aligned to the first unready Core item',
     'authenticated standalone first-run route outside the ordinary product layout',
-    'startup preflight escape into /guid while readiness is unknown without mutating readiness',
+    'ordinary startup enters /guid with zero fast-state navigation wait while unknown readiness refreshes in the background without mutation',
     'explicit enter OPL action before readiness without mutating readiness',
     'Desktop model access defaults to OPL Gateway account login with email and password while API Key remains a compatibility choice',
     'existing Codex recheck remains a secondary action outside the account and API Key method switch',
@@ -482,6 +482,24 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     'Runtime domain detail descriptor optional fields',
   );
   if (
+    domainDetail?.capability_policy_ref !==
+      'contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views'
+  ) {
+    throw new Error('Runtime domain detail view must reference the optional bridge capability policy');
+  }
+  assertDeepEqualJson(
+    domainDetail?.capability_absent,
+    {
+      runtime_page: 'preserved',
+      work_item_list: 'preserved',
+      selected_item_core_detail: 'preserved',
+      research_trajectory_entry: 'hidden',
+      direct_detail_route: 'localized_unavailable_with_return_to_runtime',
+      global_failure: 'forbidden',
+    },
+    'Runtime optional domain detail capability absence state',
+  );
+  if (
     domainDetail?.lazy_read_command !==
       'opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json'
     || domainDetail?.renderer_selection_field !== 'view_kind'
@@ -543,7 +561,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     refresh_state_source: 'opl app state --profile fast --json',
     summary_source: 'app_state.operator.workbench.work_item_projection_v2',
     full_detail_source: 'selected_work_item_from_work_item_projection_v2_plus_item_scoped_domain_detail_view',
-    'action_queue.runtime_page_allowed_action': 'work_item_visibility_set_only',
+    'action_queue.runtime_page_allowed_action': 'fresh_projection_enumerated_selected_work_item_contextual_actions_only',
     'action_queue.platform_action_catalog_visible': false,
     'action_queue.platform_action_owner_surface': '/settings/environment',
     'authority_boundary.action_execution_owner': 'opl_framework',
@@ -604,6 +622,9 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     'selected task detail drawer with Stage Map, heartbeat, Token, and action only',
     'operator summaries, safe actions, software updates, platform repair, module health, and provider diagnostics excluded from Runtime and routed to Settings',
     'responsive semantic row reflow without horizontal page overflow',
+    'localized failure summary with Retry and Open Maintenance actions',
+    'collapsed copyable technical details that wrap without clipping at 375px and 400px',
+    'mutually exclusive loading, ready, empty, error, and unavailable states',
   ];
   assertDeepEqualJson(runtimePage.must_show, requiredRuntimeSignals, 'Runtime page must_show');
   assertDeepEqualJson(
@@ -627,6 +648,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
       'evidence ledger',
       'current_control_state',
       'release evidence',
+      'raw JSON, absolute paths, or Node warnings on the primary failure surface',
+      'simultaneous refresh-failed and unavailable panels',
     ],
     'Runtime page forbidden display terms',
   );

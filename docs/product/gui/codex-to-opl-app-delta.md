@@ -69,11 +69,16 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
    thread/session 是身份单位，project/workspace 是零或一个 affinity，用于初始 cwd、projectless 一次性
    adoption、分组和可见 metadata。目录组不拥有 session，也不提供目录级输入、附件管理或级联删除。
 2. **Chat-first canvas。** Home/New task 和已有 conversation 使用同一 canvas、timeline
-   与 composer。Starter 只帮助选择 purpose，不形成长期 dashboard。
+   与 composer。认证后的普通启动直接进入 `/guid`，不等待 fast App state 或 visible
+   `StartupGate`；状态与 managed-agent discovery 在后台刷新，失败只影响依赖它们的局部能力。
+   `<=1500 ms` 是 OS launch request 到 Guid composer visible/enabled/focusable 的 installed target，
+   不是源码测试结果或 SLA。Starter 只帮助选择 purpose，不形成长期 dashboard。
 3. **Composer owns execution controls。** Model/reasoning、access、attachment、active
    capability 与 send/stop 都在 composer 附近；header 不重复这些配置。
 4. **Timeline owns task interaction。** Streaming、tool/process、approval、progress、result
    和 receipt 在当前 conversation 中完成；跨项目 Runtime 是条件保留的 X0-01 route，不是核心替代面。
+   `opl_app.domain_detail_views.v2` 只是 item-scoped typed detail 的可选增强；缺失时保留 Runtime
+   list/core detail，只隐藏依赖入口或在直达链接显示局部 unavailable。
 5. **Environment owns secondary context。** 先继承右上按需浮层，再把 OPL refs、artifact
    与 evidence 作为次级 section/preview 扩展；默认不打开全高 inspector。
 6. **Settings stays secondary。** Settings 只负责持久配置和控制面，不决定主工作流。
@@ -119,8 +124,11 @@ closure、domain readiness 或 release readiness。不得用前者的可选性�
 ### OPL Feature Preservation Gate
 
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
-只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的能力；AionUI 自带但未被
-OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat 等入口可以隐藏或拒绝。
+保护 B0/R1/U1 用户结果，并默认继承 AionUI/AionCore 官方基础能力。Team 是明确拒绝的
+上游产品面；fixed Codex executor 可隐藏 provider/backend marketplace；普通 Skill 入口由 App
+packaged-skill allowlist 策展。MCP 不使用该 allowlist：所有已配置的用户/第三方 MCP 默认端到端
+保留，只排除命中明确 Team/internal negative filter 的 server、tool 与 metadata。缺少 App 条目
+本身不能成为禁用其它上游能力的授权。
 对 Home capability starters、Settings → Agents / Capabilities、first-run、domain package entry 和
 双语等 B0/R1/U1 capability：
 
@@ -212,9 +220,10 @@ Home 只用 starter 选中态表达 active capability；conversation 可显示�
 
 - Settings 提供 installed Agent Package directory、Home exposure 和 lifecycle actions。
 - Required/optional skills 来自 App packaged profile，不来自 shell-local discovery dump。
-- Ordinary Home/conversation 只显示当前 purpose/package allowlist 接受的 capabilities。
-- Helper skills、unknown MCP、provider marketplace 和 implementation plugins 不自动进入
-  ordinary UI。
+- Ordinary Home/conversation 的 Skill 入口只显示当前 purpose/package allowlist 接受的 Skills。
+- 已配置的用户/第三方 MCP 经 Team/internal negative filter 后端到端继承，并在对应连接/状态
+  surface 使用产品化标签；不能因为 unknown 或不在 Skill allowlist 中而删除。
+- Helper Skills、provider marketplace 和 implementation plugins 不自动进入 ordinary UI。
 - Install/update/repair/hide/disable/uninstall 通过 App state/action、preview、confirmation
   和 receipt 完成。
 - GUI 展示 package status 与 refs，不拥有 package execution、runtime 或 domain truth。
@@ -325,7 +334,8 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 - upstream Team、多 agent launcher 或 shell-local agent hierarchy；
 - 默认打开的 Environment/details、bottom panel、file tree、Terminal 或 Browser；
 - Home activity dashboard、continue-work grid 或 full evidence ledger；
-- 未经 App allowlist 接受的 skills/MCP/tools；
+- 未经 App packaged-skill allowlist 接受的 helper Skills，以及命中明确 Team/internal negative
+  filter 的 MCP server/tool/metadata；其它已配置用户/第三方 MCP 必须端到端保留；
 - 由 module dirt、cache 或 local UI state 推断的 readiness。
 
 这些内容若仍有诊断价值，应进入 Advanced/details，不成为 ordinary product concept。

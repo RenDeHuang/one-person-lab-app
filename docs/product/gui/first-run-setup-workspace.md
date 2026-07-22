@@ -27,13 +27,24 @@ focused tests 与用户路径截图。
 3. 现在只需要做什么。
 4. 现在如何进入 OPL，或继续完成设置。
 
-页面必须保留真实启动 gate、阻塞原因、初始化阶段、后台维护和诊断能力，但技术信息默认折叠。
+页面必须保留真实的能力级前置条件、阻塞原因、初始化阶段、后台维护和诊断能力，但技术信息默认折叠；
+这些状态不得重新成为 ordinary App route gate。
+
+## 普通启动边界
+
+- 认证后的根路由、登录成功、历史 `/startup-gate` 与 catch-all 都直接进入 `/guid`。
+- ordinary launch 不渲染等待 fast state 的 `StartupGate`。`opl app state --profile fast --json`、
+  managed-agent discovery 与其它局部状态在 Guid 已进入后后台刷新；失败只影响依赖该状态的局部能力。
+- installed launch target 为 `<=1500 ms`，计时从 OS launch request 到 Guid composer
+  **visible、enabled、focusable**。后台 hydration 完成不属于终点。
+- 该数值目前是产品目标，不是已测事实或 SLA；只有绑定 exact installed build 的测量证据才能宣称达标。
+- `/first-run` 仍是显式、可恢复的三步设置工作台；移除普通 StartupGate 不删除 first-run 或 Core readiness。
 
 ## 桌面布局
 
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
 - `/first-run` 是认证后的独立路由，不挂载普通 Layout，因此普通快捷键、托盘、deep link 和通知导航不会卸载首启。
-- StartupGate 的普通启动目标始终是 `/guid`；readiness 的 ready、blocked、unknown 和读取失败都不得把普通启动改道到
+- readiness 的 ready、blocked、unknown、timeout 和读取失败都不得把普通启动改道到
   `/first-run`。`/first-run` 仅由用户显式入口打开，且任何导航都不得修改 readiness。
 - 顶部是精简品牌栏，显示 One Person Lab 品牌、未就绪时始终可用的“进入 OPL”动作与帮助入口。
 - macOS 品牌栏保留 traffic lights 安全区；Windows/Linux 复用现有最小化、最大化和关闭按钮。
@@ -132,6 +143,7 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 - 不改变 `ready_to_launch` 的 Core 汇总语义和 required items；普通 shell 使用更细的能力级前置条件。
 - required Core item 的 `disabled` 状态不得计为 ready；只有真实可用状态、非 blocking、计数和 blocking 集合一致时才接受 `ready_to_launch`。
 - 不让 Core readiness、full readiness、初始化读取或后台维护阻塞用户显式进入 `/guid`；未就绪能力可以在主界面中保持不可用或提示继续设置。
+- 不恢复 `/startup-gate` 等待页、以 1,500 ms timeout 后才导航，或在 renderer root 中无界等待 managed-agent/config prefetch。
 - 不增加新的 runtime、provider 或配置真相源。
 - 不修改 AionUI 通用 Layout/Sider fork body；专注模式由 OPL FirstRun overlay 实现。
 - 不引入新 UI 依赖、插画、渐变、玻璃效果或营销式首屏。

@@ -254,7 +254,9 @@ Composer 是普通路径唯一主 command surface：
 - Package id、MAS/MAG/RCA 等 short name、route id 和 schema refs 进入 receipt/details。
 - OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
   discovery 自动加入。
-- Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
+- Ordinary capability selector 不展示未被 App packaged-skill allowlist 接受的 helper Skill。
+  MCP 不复用该 allowlist：所有已配置的用户/第三方 MCP 默认继承并保留，只排除命中明确
+  Team/internal negative filter 的 server、tool 和 metadata；普通文案不暴露 raw MCP id。
 - `+` palette 不伪造 Plugin、provider、backend、team、raw MCP 或 Codex reference 中但当前 adapter
   不支持的 Chrome/目标/计划动作；无真实可用项时显示明确空态或管理入口，不把管理入口伪装成直接选择。
 - Settings → Agents 负责 package 安装、Home visibility 和 lifecycle；Settings → Capabilities

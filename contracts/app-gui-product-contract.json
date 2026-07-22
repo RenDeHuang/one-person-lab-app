@@ -208,7 +208,15 @@
       "build": "26.707.41301",
       "observed_on": "2026-07-11",
       "observation_ref": "docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary",
-      "usage": "visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy"
+      "usage": "interaction_reference_only_no_code_brand_account_or_authority_copy"
+    },
+    "pixel_reference": {
+      "product": "ChatGPT Codex macOS",
+      "bundle_version": "26.707.72221",
+      "build": "5307",
+      "observed_on": "2026-07-15",
+      "reference_ref": "docs/product/gui/visual-system.md",
+      "usage": "pixel_reference_only_no_interaction_authority_or_code_brand_account_copy"
     },
     "superseded_observations": [
       {
@@ -1036,7 +1044,8 @@
       "one_to_one_claim_policy": "scene_bound_comparison_only_never_unqualified_product_wide_claim"
     },
     "codex_reference_promotion": {
-      "active_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.current_reference",
+      "active_interaction_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.current_reference",
+      "active_pixel_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.pixel_reference",
       "required_evidence": [
         "exact_reference_product_build_and_observation_date",
         "literal_observation_notes_and_reference_screenshots",
@@ -1252,8 +1261,18 @@
       "startup_read_model_policy": {
         "ordinary_launch_command": "opl app state --profile fast --json",
         "ordinary_refresh_command": "opl app state --profile fast --json",
-        "soft_deadline_ms": 1500,
-        "soft_deadline_behavior": "enter_guid_and_continue_state_refresh_in_background",
+        "ordinary_entry_route": "/guid",
+        "visible_startup_gate": "none",
+        "navigation_wait_for_fast_state_ms": 0,
+        "state_hydration": "last_good_allowlisted_renderer_cache_then_single_flight_background_refresh",
+        "background_refresh_soft_deadline_ms": 1500,
+        "background_refresh_deadline_behavior": "keep_guid_interactive_and_report_local_state_unavailable_without_global_failure",
+        "installed_launch_target": {
+          "target_ms": 1500,
+          "measurement_scope": "OS_launch_request_to_Guid_composer_visible_enabled_and_focusable",
+          "status": "required_unverified_installed_target_not_current_measurement_or_SLA",
+          "fast_state_hydration_in_target": false
+        },
         "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
         "deep_initialize_stream": "opl system initialize --events --json",
         "blocking_policy": "ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities",
@@ -4359,13 +4378,17 @@
       "protocols": {
         "startup_performance": {
           "schema": "settings_startup_performance.v1",
-          "first_window_state_source": "persisted_narrow_settings_snapshot_or_loading_shell",
+          "first_window_state_source": "renderer_localStorage_allowlisted_fast_state_snapshot_or_loading_shell",
           "background_state_source": "opl app state --profile fast --json",
           "first_window_blocking_policy": "never_wait_for_complete_fast_state_or_page_drilldowns",
           "first_window_failure_policy": "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
           "cold_budget_ms": 1500,
           "warm_budget_ms": 1500,
           "budget_scope": "stable_shell_first_paint_and_interactive_settings_shell_only_background_hydration_reported_separately",
+          "ordinary_guid_interactive_target_ms": 1500,
+          "ordinary_guid_target_scope": "OS_launch_request_to_Guid_composer_visible_enabled_and_focusable",
+          "ordinary_guid_target_status": "required_unverified_installed_target_not_current_measurement_or_SLA",
+          "background_hydration_in_guid_target": false,
           "timing_milestones": [
             "stable_shell_first_paint",
             "background_hydration_complete"
@@ -4381,7 +4404,7 @@
           "global_refresh_on_route_mount": false,
           "persisted_snapshot": {
             "schema": "opl_settings_startup_snapshot.v1",
-            "source": "desktop_main_process_persisted_narrow_cache",
+            "source": "renderer_localStorage_allowlisted_fast_state_cache",
             "version": 1,
             "freshness_policy": "stale_while_revalidate_with_observed_at_and_stale_fields",
             "invalidation": [
@@ -5277,9 +5300,12 @@
     },
     "startup_runtime_policy": {
       "default_launch_command": "opl app state --profile fast --json",
-      "default_launch_mode": "non_blocking_fast_state_first",
+      "default_launch_mode": "guid_first_with_background_fast_state",
       "first_run_route_policy": "authenticated_standalone_route_outside_ordinary_product_layout",
-      "unknown_readiness_escape_policy": "startup_skip_enters_guid_without_mutating_readiness",
+      "ordinary_entry_route": "/guid",
+      "visible_startup_gate": "none",
+      "navigation_wait_for_fast_state_ms": 0,
+      "unknown_readiness_policy": "enter_guid_and_refresh_in_background_without_mutating_readiness",
       "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
       "deep_initialize_event_stream": "opl system initialize --events --json",
       "guid_navigation_blocked_by_readiness": false,
@@ -6367,6 +6393,18 @@
         },
         "domain_detail_views": {
           "owner": "domain_agent_projection_via_opl_framework",
+          "capability_policy_ref": "contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views",
+          "requirement_class": "optional_domain_enhancement",
+          "app_activation_gate": false,
+          "runtime_route_gate": false,
+          "capability_absent_behavior": {
+            "runtime_page_preserved": true,
+            "work_item_list_preserved": true,
+            "selected_item_core_detail_preserved": true,
+            "research_trajectory_entry_hidden": true,
+            "direct_detail_route": "localized_unavailable_with_return_to_runtime",
+            "global_failure_allowed": false
+          },
           "descriptor_source": "work_item_projection_v2.items[].domain_detail_views[]",
           "descriptor_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views",
           "read_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.domain_detail_view_read_contract",

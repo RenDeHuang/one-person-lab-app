@@ -100,8 +100,9 @@
         "opl-first-run-step-codex_config"
       ],
       "expects": [
-        "startup preflight renders visible workspace, local assistant, and model access stages instead of a blank window before FirstRun or /guid",
-        "startup readiness uses a bounded opl app state --profile fast --json payload for bootstrap state only; ready, blocked, unknown, timeout, and read failure all enter /guid and never redirect ordinary startup to /first-run",
+        "authenticated root, login success, catch-all, and the legacy /startup-gate compatibility route enter /guid without waiting for fast App state",
+        "startup readiness uses opl app state --profile fast --json as background bootstrap state only; ready, blocked, unknown, timeout, and read failure keep /guid usable and never redirect ordinary startup to /first-run",
+        "the installed launch target is 1500 ms from OS launch request until the Guid composer is visible, enabled, and focusable; this target requires exact installed evidence and is not inferred from source tests",
         "initialize pending state renders explicit progress copy and item summaries before opl system initialize returns",
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
         "ready state primary action leads to /guid with post-install self-check while a separate enter OPL action remains available before readiness",
@@ -120,7 +121,7 @@
         "WebUI exposes API Key only and never renders Gateway password login",
         "first-run uses a focused full-window setup workspace and hides ordinary product navigation until the user enters /guid",
         "first-run renders as an authenticated standalone route outside the ordinary product layout",
-        "startup preflight skip enters /guid while readiness is unknown without mutating readiness",
+        "unknown startup readiness enters /guid directly and background refresh never mutates readiness or creates a global startup failure",
         "the three Core items render as a stable step rail while only the current task occupies the main panel",
         "the active rail step and task panel select the first unready Core item in fixed step order before completion",
         "Core progress uses completed step count without percentage progress",

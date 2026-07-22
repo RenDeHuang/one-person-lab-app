@@ -19,6 +19,11 @@ OPL App 同时维持两条独立轨道：
 自动替换产品合同；App 合同、Shell source、像素证据、package、安装与 release 继续分别
 给出结论。
 
+Reference 内部也分轴：`26.707.41301`（2026-07-11）是当前交互/composition
+observation；`26.707.72221` / build `5307`（2026-07-15）是当前视觉像素比较
+baseline。二者分别 promotion、supersede 和取证，不再使用一个
+“visual and interaction reference”字段混称。
+
 “尽可能 1:1”解释为：对已声明 route/state、viewport、theme、locale 和 reference build
 做可重复比较，并显式记录 OPL 差异。没有 exact cohort 和比较 manifest 时，不使用无范围的
 “全产品 1:1”结论。
@@ -29,12 +34,19 @@ OPL App 同时维持两条独立轨道：
 - Shell repo 负责 AionUI upstream audit、OPL overlay、token 映射、组件适配和 focused tests。
 - AionUI upstream 提供实现材料，不覆盖 OPL Settings IA、Runtime、模型策略或 owner truth。
 - ChatGPT Codex 提供 composition、交互位置和视觉参考，不提供代码、品牌、账户或产品 authority。
+- AionUI/AionCore 官方能力默认继承；只有 App contract 的 `adapt`、`redirect` 或 `reject`
+  可以改变 ordinary surface。OPL allowlist 不得被解释为禁用无关上游能力的通用授权。
+- 上游没有且 B0/R1/U1 不要求的复杂功能默认不私有实现；只存在于 rejected、retired 或
+  private legacy surface 的问题不进入主线修复。
 
 ## Codex Reference Promotion
 
-当前 active reference 仍由
-`contracts/app-gui-product-contract.json#interaction_baseline.current_reference` 指定。
-发现更新的 Codex build 后先建立 candidate observation；只有以下证据齐全才 promotion：
+当前 interaction reference 由
+`contracts/app-gui-product-contract.json#interaction_baseline.current_reference` 指定；当前
+pixel reference 由 `docs/product/gui/visual-system.md` 与
+`docs/product/gui/codex-app-visual-parity.md` 共同解释，机器合同必须保持独立字段，不能从
+interaction reference 推导视觉 currentness。发现更新的 Codex build 后先按目标轴建立
+candidate observation；只有以下证据齐全才 promotion：
 
 1. 精确 product/build、观察日期和原始 reference screenshots；
 2. literal observation 与推断/OPL delta 分开记录；
@@ -44,7 +56,8 @@ OPL App 同时维持两条独立轨道：
 5. 桌面与窄窗、light/dark、中文/英文比较 manifest 完整；
 6. App GUI validator 通过。
 
-Promotion 后，旧 active reference 移入 `superseded_observations`。Reference promotion 不证明
+Promotion 后，旧 active reference 进入同一轴的 superseded 记录。Interaction promotion 不会
+自动替换 pixel baseline，pixel promotion 也不会重写 literal interaction observation；两者都不证明
 Shell source、package、安装或 release 已同步。
 
 ## AionUI Stable Intake

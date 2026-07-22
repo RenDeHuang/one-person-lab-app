@@ -255,7 +255,7 @@
       {
         "semantic_area": "package",
         "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
-        "aion_display_role": "Settings Capabilities package directory rows",
+        "aion_display_role": "Settings Agents package directory rows",
         "workbench_display_role": "Packages panel rows",
         "action_owner_boundary": "App and shells display/trigger Framework non-activation lifecycle action refs only; agent_package_activate remains a Framework Stage runtime internal action; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
         "allowed_action_refs": [
@@ -1321,6 +1321,15 @@
       },
       "domain_detail_views": {
         "optional": true,
+        "capability_id": "opl_app.domain_detail_views.v2",
+        "requirement_class": "optional_domain_enhancement",
+        "absence_policy": {
+          "app_state_activation_allowed": true,
+          "runtime_core_unaffected": true,
+          "work_item_row_and_core_detail_preserved": true,
+          "dependent_detail_surfaces_hidden": true,
+          "global_failure_allowed": false
+        },
         "collection_kind": "typed_agent_owned_item_detail_descriptors",
         "required_fields": [
           "item_id",

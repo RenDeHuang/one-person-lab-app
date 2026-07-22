@@ -188,30 +188,37 @@ served from GitHub or any allowed URL, but it does not define agent behavior:
 
 ```json
 {
-  "package_id": "mas",
-  "display_name": "Med Auto Science",
-  "publisher": "one-person-lab",
-  "description": "Medical research workflows for evidence, analysis, writing, figures, and submission.",
-  "tags": ["medical-research", "evidence", "manuscript"],
+  "package_id": "org.example-literature-review",
+  "package_kind": "domain_agent_package",
+  "display_name": "Example Literature Review",
+  "publisher": "example-research-org",
+  "description": "An external literature-review package published by an organization registry.",
+  "tags": ["literature-review", "external"],
   "package_role": "standard_agent",
-  "source": "first_party",
-  "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/contracts/opl-framework/packages/mas.json",
-  "version_source_ref": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/contracts/opl-framework/packages/mas.json#/version",
+  "source": "organization_registry_url",
+  "manifest_url": "https://packages.example.org/opl/literature-review/manifest.json",
+  "version_source_ref": "https://packages.example.org/opl/literature-review/manifest.json#/version",
   "selected_version": null,
   "stable_version": null,
   "manifest_validation": "deferred",
-  "trust_tier": "first_party"
+  "trust_tier": "user_review_required"
 }
 ```
 
-The public directory uses the canonical roles `standard_agent`,
-`framework_capability_package`, and `workflow_profile`. App-owned default
-descriptions and tags mirror the Framework canonical package catalog generator.
-Entries keep `selected_version` and `stable_version` null while
-`manifest_validation` is `deferred`; registry refresh validates the referenced
-manifest, derives both versions from `version_source_ref`, and then projects the
-resolved metadata. The App registry must not copy a local Framework checkpoint
-version or treat a moving channel label as version truth.
+The public directory combines Framework built-in Release Set entries with
+organization, user, and third-party external discovery entries. Only the
+Framework built-in Release Set may project canonical first-party identities or
+first-party trust. External entries use the canonical roles `standard_agent`,
+`framework_capability_package`, and `workflow_profile`, but must use a non-reserved
+identity and an explicit non-first-party source/trust value; installation still
+requires manifest validation and the Framework-owned package lock receipt.
+App-owned default descriptions and tags for built-in entries mirror the Framework
+canonical package catalog generator. Entries keep `selected_version` and
+`stable_version` null while `manifest_validation` is `deferred`; registry refresh
+validates the referenced manifest, derives both versions from
+`version_source_ref`, and then projects the resolved metadata. The App registry
+must not copy a local Framework checkpoint version or treat a moving channel
+label as version truth.
 
 `OPL Agent Package Manifest` is the install/update unit. When selected from the
 Registry, the manifest URL is the authority Framework validates, locks, applies

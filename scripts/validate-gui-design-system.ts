@@ -37,6 +37,7 @@ export type GuiDesignSystemValidation = {
     archived: 'agui-codex';
   };
   codex_reference: string;
+  codex_pixel_reference: string;
   superseded_codex_reference: string;
   reference_boundary: {
     app_contract_status: 'aligned_contract';
@@ -81,6 +82,7 @@ const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbe
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
+const codexPixelReference = 'ChatGPT Codex macOS 26.707.72221 / build 5307 (2026-07-15)';
 const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
 const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const supersededCodexReferences = [supersededCodexReference, earlierSupersededCodexReference];
@@ -568,6 +570,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const interactionBaseline = record(guiContract.interaction_baseline);
   const currentReference = record(interactionBaseline.current_reference);
+  const pixelReference = record(interactionBaseline.pixel_reference);
   if (
     guiContract.schema_version !== 2 ||
     profile.schema_version !== 2 ||
@@ -577,9 +580,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     currentReference.build !== '26.707.41301' ||
     currentReference.observed_on !== '2026-07-11' ||
     currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
-    currentReference.usage !== 'visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy'
+    currentReference.usage !== 'interaction_reference_only_no_code_brand_account_or_authority_copy'
   ) {
     issues.add(`interaction baseline and App authority contracts must use schema v2 with current reference ${codexReference}`);
+  }
+  if (
+    pixelReference.product !== 'ChatGPT Codex macOS' ||
+    pixelReference.bundle_version !== '26.707.72221' ||
+    pixelReference.build !== '5307' ||
+    pixelReference.observed_on !== '2026-07-15' ||
+    pixelReference.reference_ref !== 'docs/product/gui/visual-system.md' ||
+    pixelReference.usage !== 'pixel_reference_only_no_interaction_authority_or_code_brand_account_copy'
+  ) {
+    issues.add(`interaction baseline must keep a separate pixel reference ${codexPixelReference}`);
   }
   const supersededObservations = Array.isArray(interactionBaseline.superseded_observations)
     ? interactionBaseline.superseded_observations.map(record)
@@ -616,8 +629,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     maintenanceGoal.upstream_following !== 'aionui_stable_tags_through_bounded_selective_intake' ||
     maintenanceGoal.visual_alignment !== 'versioned_chatgpt_codex_reference_cohorts_with_explicit_opl_deltas' ||
     maintenanceGoal.one_to_one_claim_policy !== 'scene_bound_comparison_only_never_unqualified_product_wide_claim' ||
-    referencePromotion.active_reference_ref !==
+    referencePromotion.active_interaction_reference_ref !==
       'contracts/app-gui-product-contract.json#interaction_baseline.current_reference' ||
+    referencePromotion.active_pixel_reference_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.pixel_reference' ||
     !sameStrings(referencePromotion.required_evidence, [
       'exact_reference_product_build_and_observation_date',
       'literal_observation_notes_and_reference_screenshots',
@@ -1728,6 +1743,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       archived: 'agui-codex',
     },
     codex_reference: codexReference,
+    codex_pixel_reference: codexPixelReference,
     superseded_codex_reference: supersededCodexReference,
     reference_boundary: {
       app_contract_status: 'aligned_contract',

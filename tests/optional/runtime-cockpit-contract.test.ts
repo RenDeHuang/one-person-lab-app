@@ -47,6 +47,15 @@ test('MAS research trajectory is one exact lightweight snapshot behind a transpo
   const descriptor = bridge.field_contracts.domain_detail_views;
   const read = bridge.domain_detail_view_read_contract;
   const payload = read.payload_contracts.scientific_reasoning_map;
+  assert.equal(descriptor.capability_id, 'opl_app.domain_detail_views.v2');
+  assert.equal(descriptor.requirement_class, 'optional_domain_enhancement');
+  assert.deepEqual(descriptor.absence_policy, {
+    app_state_activation_allowed: true,
+    runtime_core_unaffected: true,
+    work_item_row_and_core_detail_preserved: true,
+    dependent_detail_surfaces_hidden: true,
+    global_failure_allowed: false,
+  });
   assert.deepEqual(descriptor.required_fields, ['item_id', 'view_id', 'view_kind', 'schema_version', 'availability']);
   assert.deepEqual(descriptor.optional_fields, ['revision', 'digest']);
   assert.deepEqual(descriptor.availability_values, ['unread', 'available', 'missing', 'stale', 'invalid', 'read_error']);
@@ -119,6 +128,9 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.diagnostic_envelope_contract.valid_summary_only_preserves_projects_and_work_items = false; },
     (projection: any) => { projection.field_contracts.domain_detail_views.full_payload_in_fast_state_allowed = true; },
     (projection: any) => { projection.field_contracts.domain_detail_views.app_agent_id_branching_allowed = true; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.requirement_class = 'required_core_capability'; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.absence_policy.app_state_activation_allowed = false; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.absence_policy.global_failure_allowed = true; },
     (projection: any) => { projection.field_contracts.domain_detail_views.required_fields.push('current_focus'); },
     (projection: any) => { projection.field_contracts.domain_detail_views.optional_fields = ['digest']; },
     (projection: any) => { projection.field_contracts.domain_detail_views.availability_values = ['available', 'missing']; },
@@ -285,6 +297,11 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
     (contract: any) => { contract.progressive_disclosure.excluded_technical_detail_owner = '/runtime'; },
+    (contract: any) => { contract.domain_detail_views.app_activation_gate = true; },
+    (contract: any) => { contract.domain_detail_views.runtime_route_gate = true; },
+    (contract: any) => { contract.domain_detail_views.capability_absent_behavior.runtime_page_preserved = false; },
+    (contract: any) => { contract.domain_detail_views.capability_absent_behavior.selected_item_core_detail_preserved = false; },
+    (contract: any) => { contract.domain_detail_views.capability_absent_behavior.global_failure_allowed = true; },
     (contract: any) => { contract.domain_detail_views.agent_id_branching_allowed = true; },
     (contract: any) => { contract.domain_detail_views.full_payload_in_fast_state_allowed = true; },
     (contract: any) => { contract.domain_detail_views.drawer_presentation.machine_fields_visible = true; },
@@ -304,6 +321,20 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
     assert.throws(() => validateGuiContract(gui));
+  }
+});
+
+test('Runtime page state rejects optional detail absence that hides core Runtime content or fails globally', () => {
+  for (const mutate of [
+    (state: any) => { state.runtime_page = 'hidden'; },
+    (state: any) => { state.selected_item_core_detail = 'hidden'; },
+    (state: any) => { state.global_failure = 'allowed'; },
+  ]) {
+    const matrix = readJson('contracts/app-page-state-matrix.json');
+    const state = matrix.pages.find((page: any) => page.id === 'runtime')
+      .runtime_view_model.domain_detail_view.capability_absent;
+    mutate(state);
+    assert.throws(() => validatePageState(matrix));
   }
 });
 

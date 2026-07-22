@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
-Updated: `2026-07-16`
+Updated: `2026-07-22`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
@@ -26,6 +26,14 @@ to the whole GUI, not only Settings. App contracts and design docs define the ta
 AionUI provides the runtime, route/component primitives and upstream update stream;
 OPL customization is constrained to explicit profile, bridge, composition and token
 surfaces wherever possible.
+
+The default is to inherit AionUI/AionCore official capability, not to reconstruct
+or suppress it. An App contract may adapt a user-facing result or explicitly cut
+a surface such as Team, but an unrelated upstream capability is not disabled
+merely because it is absent from an OPL allowlist. A complex feature absent
+upstream stays unbuilt unless a protected B0/R1/U1 result demonstrates its need.
+Problems confined to rejected, retired, or private legacy features remain outside
+the ordinary product repair queue.
 
 - `contracts/app-settings-control-plane.json` owns the Settings registry, route
   behavior, legacy redirects, extension anchor remaps, state/action source
@@ -73,6 +81,13 @@ Maintain the AionUI fork through the existing App-owned control path:
    and turn/command `pwd` plus writable roots remain independent. The fork does
    not maintain a private adoption RPC, managed Worktree/Handoff, projection
    rollback, receipt, or `workspace_handoff` metadata.
+7. **Package authority stays whole and singular.** OPL Packages remain a
+   Framework-owned ecosystem with headless install, update, repair,
+   enable/disable, hide/unhide, uninstall, locks, receipts, `rollback_ref`, Home
+   shortcut preferences, and Codex materialization. Shell simplification may
+   reduce duplicate classifiers, parsers, or state machines only after the
+   equivalent canonical Framework projection is published and adopted; it may
+   not remove these lifecycle results.
 
 This keeps the App contract first and the shell delta thin. The fork can absorb
 upstream fixes, but only after checking them against App-owned contracts.

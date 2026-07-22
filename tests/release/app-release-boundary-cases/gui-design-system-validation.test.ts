@@ -5,6 +5,7 @@ import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
+const codexPixelReference = 'ChatGPT Codex macOS 26.707.72221 / build 5307 (2026-07-15)';
 const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
 const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
@@ -150,6 +151,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
   assert.equal(summary.codex_reference, codexReference);
+  assert.equal(summary.codex_pixel_reference, codexPixelReference);
   assert.equal(summary.superseded_codex_reference, supersededCodexReference);
   assert.equal(summary.reference_boundary.app_contract_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
@@ -371,6 +373,18 @@ test('GUI design-system validator rejects a stale App-owned current baseline', (
   contract.interaction_baseline.current_reference.build = '26.707.31123';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(() => validateGuiDesignSystem(root), /schema v2 with current reference ChatGPT Codex macOS 26\.707\.41301/);
+});
+
+test('GUI design-system validator rejects mixing the interaction observation with the pixel baseline', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.pixel_reference.bundle_version = '26.707.41301';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must keep a separate pixel reference ChatGPT Codex macOS 26\.707\.72221 \/ build 5307/,
+  );
 });
 
 test('GUI design-system validator rejects the superseded v1 interaction baseline schema', () => {

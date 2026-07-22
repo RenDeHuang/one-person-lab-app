@@ -25,6 +25,12 @@ claims are not maintained in this active plan. They remain mandatory for release
 or production claims, but they must not block independent App contract/shell
 cleanup, and App validation or shell tests cannot replace them.
 
+Maintenance simplification has one owner/status ledger:
+[`over-engineering-cleanup.md`](over-engineering-cleanup.md). Rows in this plan may
+reference the same product surface or report its independent five-axis evidence,
+but they do not own cleanup scope, ordering, or execution state and must not copy
+or advance that ledger.
+
 ## Current State Summary
 
 This is an owner/routing index, not a completion ledger. Its classification values
