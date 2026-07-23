@@ -613,6 +613,11 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   );
   assert.match(freezeScript, /--notes "\$notes_root\/notes\.md"/);
   assert.match(freezeScript, /--notes-evidence "\$notes_root\/notes-evidence\.json"/);
+  assert.match(
+    freezeScript,
+    /oras manifest fetch \\\n\s+--output "\$frozen_root\/base-image-index\.json" \\\n\s+docker\.io\/library\/node:22-bookworm-slim/,
+  );
+  assert.doesNotMatch(freezeScript, /(?:^|\n)\s*docker(?:\s|$)/);
   assert.ok(
     freezeScript.indexOf('scripts/framework-release-adapter.ts freeze-request')
       < freezeScript.indexOf('cp "$notes_root/notes-evidence.json" notes-evidence.json'),
