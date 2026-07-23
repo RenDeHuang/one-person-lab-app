@@ -194,7 +194,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Run release-boundary tests
-        run: npm run test:release-boundary
+        run: node --experimental-strip-types --test --test-concurrency=4 --test-timeout=120000 --test-force-exit tests/release/*.test.ts tests/release/app-release-boundary-cases/*.test.ts
 
       - name: Validate release-boundary contract
         run: npm run validate:release-boundary

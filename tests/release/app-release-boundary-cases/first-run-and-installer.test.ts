@@ -274,8 +274,15 @@ test("reusable release-boundary job validates the App projection without requiri
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing reusable release-boundary job");
   assert.doesNotMatch(workflow, /opl_flow_ref:/);
-  assert.doesNotMatch(job, /Checkout OPL Flow policy source|OPL_FLOW_WORKFLOW_POLICY|OPL_FULL_OPL_FLOW_ROOT/);
-  assert.match(job, /npm run test:release-boundary/);
+  assert.doesNotMatch(
+    job,
+    /Checkout OPL Flow policy source|gaofeng21cn\/opl-flow|OPL_FLOW_WORKFLOW_POLICY|OPL_FULL_OPL_FLOW_ROOT|contracts\/workflow-policy\.json|codex:model-policy:check|npm run test:release-boundary/,
+  );
+  assert.match(
+    job,
+    /node --experimental-strip-types --test --test-concurrency=4 --test-timeout=120000 --test-force-exit tests\/release\/\*\.test\.ts tests\/release\/app-release-boundary-cases\/\*\.test\.ts/,
+  );
+  assert.match(job, /npm run validate:release-boundary/);
 });
 
 test("fresh-runner release-boundary jobs install App root dependencies before validation", () => {
@@ -290,7 +297,7 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
       path: ".github/workflows/_build-reusable.yml",
       start: "  release-boundary:",
       end: "\n  active-shell-tests:",
-      validation: "npm run test:release-boundary",
+      validation: "node --experimental-strip-types --test",
     },
     {
       path: ".github/workflows/_release-bundle.yml",
