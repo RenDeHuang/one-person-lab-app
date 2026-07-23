@@ -34,6 +34,55 @@ and remote payload manifest fields are now landed in the non-live App/Framework
 slice. Actual public publication, installed Codex-surface reload proof, and live
 user-path evidence remain release/runtime owner work, not App contract work.
 
+## 2026-07-23 Flexibility And Cost Audit
+
+This plan keeps the package-management product boundary, but the previous
+seven-package wording must be read as a starter-profile implementation snapshot,
+not as the target ecology. The target model is:
+
+```text
+OPL Base ~= R
+OPL App ~= RStudio / replaceable GUI or deployment carrier
+OPL Package ~= R Package
+Registry ~= discovery index
+Full or Release Set ~= exact lock/snapshot for a reproducible composition
+```
+
+The objective is free composition with one implementation of each generic
+concern. Package owners publish independently with SemVer, immutable OCI or
+manifest digests, required/optional dependency declarations, and Base or
+capability ABI ranges. The Framework then resolves a compatible candidate,
+writes the exact installed lock and receipt, materializes the locked bytes, and
+owns recovery. The App renders the directory, delegates declared actions, and
+shows readback. It must not become a second package lifecycle owner.
+
+The following is the intended source/channel boundary:
+
+| Concern | Target rule | Status in this App documentation tranche |
+| --- | --- | --- |
+| Framework/package owner | One Framework resolver, transaction, exact lock, receipt, and rollback reference | Existing boundary retained; cross-repo migration still required |
+| Starter profile | Current seven first-party packages are replaceable defaults, not a fixed closure or App capability ceiling | **Planned**; current contracts still contain fixed-profile metadata |
+| Independent package release | Each package can publish and update without rebuilding App, Base, or unrelated packages | **Planned**; existing scheduled workflows need owner-level migration |
+| Registry/source adapters | OCI, external/direct manifest, developer checkout, and offline seed are candidate adapters; only the resolver chooses currentness | **Partially landed**; mixed-source live behavior still needs consolidation |
+| App/Shell boundary | App and Shell consume Framework directory/status/actions and do not copy package authority | Non-live projection path landed; duplicate authority cleanup remains pending |
+| Stable/Docker/WebUI/Full/Nightly/Daily | Stable is a release policy, Docker/WebUI and Homebrew are carriers, Full is a snapshot, Nightly is optional canary, Daily is cadence/index reconciliation | **Documented target**; live terminal proof remains pending |
+
+Ordinary user UI should expose only Install, Update, Remove, Enabled, and Home
+pin controls. Repair belongs to diagnostics and rollback remains an automatic
+Framework recovery reference or an advanced operator route. Compact directory
+reads should be separated from lazy detail reads so a large package payload
+cannot become the default App state.
+
+This section is a target and migration plan. It does not claim public package
+publication, installed Codex-surface reload, or release currentness. The three
+terminal proofs required before asserting stable latest delivery are:
+
+```text
+App Stable -> GitHub Latest -> updater readback
+WebUI exact digest -> :stable -> anonymous pull
+one Package update -> unchanged Base/App/other Packages remain unchanged
+```
+
 ## Current Runtime Boundary
 
 Settings Agents is package-directory-first, and its only manageable collection is
@@ -43,9 +92,11 @@ activation, guard, exposure, receipt, rollback, and physical-surface diagnostics
 `app_state.modules.items[]`, runtime-source carriers, Home shortcuts, and static
 product metadata may enrich diagnostics or labels only; they cannot create rows,
 define actions, or substitute a directory when the canonical collection is absent.
-The seven canonical first-party identities are injected by the Framework built-in
-Release Set. The App default registry is external-discovery-only, may be empty,
-and must never duplicate those ids or claim first-party trust.
+The current starter-profile identities are injected by the Framework built-in
+Release Set. The starter profile is replaceable and must not be treated as a
+required seven-package closure. The App default registry is
+external-discovery-only, may be empty, and must never duplicate those ids or
+claim first-party trust.
 
 That boundary is not cosmetic. Recent local readback shows MAS/MAG/RCA as
 `health_status: dirty` with `effective_install_update_source: git_checkout`,
@@ -160,6 +211,15 @@ Runtime Payload stay on their stable/nightly/host-route release flows, while
 Codex Surface is only the plugin/skill projection, readiness, and reload status
 of the installed package.
 
+`latest-stable` is a resolver input, not installed truth. A package owner may
+publish a new immutable version without changing the App, Base, or any other
+package. Framework index reconciliation may run daily or on demand, but Daily
+does not form a seven-package atomic release and cannot promote a candidate
+without the normal manifest, payload, compatibility, and readback gates.
+Release Sets remain useful as exact Full/offline or qualification snapshots;
+they are composition locks and must not become a second package publication
+authority.
+
 Rollback is a recovery reference, not a new App-owned verb. Agent Package rows
 may show `rollback_ref`, fail-closed status, action receipts, and repair/update
 routes from Framework readback. Agent Package lifecycle does not define a
@@ -172,7 +232,7 @@ displaying those recovery refs and triggering declared repair/update actions.
 
 | Module                     | Owns                                                                                                                                                                                                                                                                    | Must not own                                                                                                                                                              |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OPL App                    | Registry discovery, user-facing package management, home shortcuts, Settings display, Codex launch, invocation receipt display, refs-only status panels.                                                                                                                | Agent manifest authority, install/update execution, rollback execution, agent domain truth, prompt internals, stage progression, artifact bodies, quality verdicts, readiness truth. |
+| OPL App                    | Registry/source candidate discovery UI, user-facing package management, home shortcuts, Settings display, Codex launch, invocation receipt display, refs-only status panels, and delegation of Framework action refs. | Agent manifest authority, install/update execution, rollback execution, compatibility resolution, package currentness, agent domain truth, prompt internals, stage progression, artifact bodies, quality verdicts, readiness truth. |
 | OPL Agent Registry         | Configurable discovery list from GitHub or URL; entry metadata, labels, source/trust hints, and manifest URLs for packages the user may install.                                                                                                                        | Agent business behavior, package lock state, installed receipts, runtime mutation, or domain authority.                                                                   |
 | Agent Manifest URL         | Authoritative package input selected by a registry entry or explicit user import.                                                                                                                                                                                       | Registry-wide catalog policy, App shell behavior, or domain workflow truth.                                                                                               |
 | OPL Framework              | Managed package roots, manifest validation, install/update/apply/repair/uninstall action refs, package exposure preferences, package manifests, post-apply Codex Surface sync, package locks, package receipts, rollback_ref recovery refs, and non-live physical Codex plugin materialization when a manifest declares a local plugin source. | App product IA, shell rendering, domain artifact authority, live release readiness, Agent Package rollback verb semantics.                                                |
@@ -238,6 +298,14 @@ and receipts:
     "ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/research-starter:latest-stable",
     "immutable_version_tag": "1.4.0",
     "digest": "sha256:..."
+  },
+  "compatibility": {
+    "base_abi": ">=0.3 <0.4",
+    "capability_abi": {
+      "opl.codex_surface": ">=2 <3"
+    },
+    "required_packages": [],
+    "optional_packages": []
   },
   "codex_surface": {
     "plugin_ids": ["research-starter"],
@@ -317,7 +385,7 @@ OPL Framework owns producing and applying it:
     "research-starter-required-skills"
   ],
   "optional_skill_refs": ["mas-scholar-skills:display"],
-  "source_kind": "first_party_managed_cohort",
+  "source_kind": "first_party_starter_profile",
   "trust_tier": "first_party",
   "action_receipt_id": "opl-action-receipt-ref",
   "rollback_ref": "package-receipt-ref",
@@ -390,7 +458,7 @@ Avoid this shape:
 | 1     | Document the no-strong-session-contract boundary.                                |               100% | done    | This plan plus architecture/decision/invariant updates.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Markdown diff and `git diff --check`.                                                                                                                             |
 | 2     | Rename product language from fixed assistants to configurable package shortcuts. |               100% | done    | Product/profile contracts declare `professional_agent_packages` and `home_agent_shortcuts`; active Aion shell consumes package/shortcut fields for Home, Settings, skill allowlist, and launch receipt while keeping old assistant fields as migration aliases.                                                                                                                                                                                                                                                      | Old alias fields can be retired only after downstream consumers stop requiring the migration shape.                                                               |
 | 3     | Add external Agent Registry discovery and manifest URL boundary.                 |               100% | done    | `contracts/agent-package-registry.json` is an external-discovery-only default registry with no built-in entries; `agent_registry_policy` prohibits canonical first-party ids/source/trust claims and keeps manifest URL install routing plus no Session Contract. Cross-repo-shaped tests prove the default refresh payload has zero collisions with the Framework built-in Release Set. Framework readback routes registry refresh, manifest validation, install, and list through the canonical `opl packages` lifecycle. | External registry curation and publication readback remain release/distribution work. |
-| 4     | Define first-party product metadata, manifest, and shortcut shapes.               |               100% | done    | `app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata` owns static product metadata for all seven built-in packages; `agent-package-surfaces.schema.json` defines external registry, manifest, shortcut, invocation receipt, and package lock receipt surfaces; all seven first-party fixtures live under `contracts/fixtures/agent-package-manifests`. Validators check profile/fixture alignment without treating the external registry as first-party truth. | Public per-agent manifest publication is release/distribution work, not an App contract gap. |
+| 4     | Define first-party product metadata, manifest, and shortcut shapes.               |               100% | done    | `app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata` owns static metadata for the current starter profile; `agent-package-surfaces.schema.json` defines external registry, manifest, shortcut, invocation receipt, and package lock receipt surfaces; the current starter fixtures live under `contracts/fixtures/agent-package-manifests`. Validators check profile/fixture alignment without treating the external registry as first-party truth. | Public per-package manifest publication and starter-profile replacement are release/distribution work, not an App contract gap. |
 | 5     | Keep launch evidence as thin invocation receipt.                                 |               100% | done    | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority; active shell emits `opl_agent_package_invocation` in packaged VM route smoke while retaining legacy `opl_assistant_route` as migration alias.                                                                                                                                                                                       | Live installed App/Codex invocation evidence remains outside this non-live contract/readback landing.                                                             |
 | 6     | Add package lifecycle actions.                                                   |               100% | done    | `app-install-exposure-policy` names `refresh_registry`, `install_from_manifest_url`, `agent_package_update`, `agent_package_repair`, `agent_package_uninstall`, `agent_package_preferences_set`, package-lock requirement, action receipt, rollback_ref recovery ref, and validator/release-boundary coverage. Exposure changes use `agent_package_preferences_set` with `exposure_action` values hide/unhide/enable/disable; Home shortcut preference changes use the same App action with `shortcut_id` payload. Framework writes action receipts/readback without defining Agent Package rollback as a lifecycle verb. | Live Codex-surface reload proof remains tracked separately below.                                                                                                 |
 | 7     | Make first-party starter packages plus required skill packs atomic.              |               100% | done    | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, release payload proof fields, and locked required skill-pack refs that must not be `registry.version_source_ref` or another moving ref. First-party fixtures carry non-live `distribution_payload` proof refs; Framework records `bundled_required_skill_ids`, validates required skill files, reads back materialized skill ids/paths, and supports local plus remote payload manifest materialization. | Actual public payload publication and installed Codex reload proof remain release/runtime evidence, not this non-live item.                                       |
@@ -404,7 +472,7 @@ Avoid this shape:
 
 | Audit item                                                                         | Status  | Completion | Fresh evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Remaining gap                                                                                                                 |
 | ---------------------------------------------------------------------------------- | ------- | ---------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| App external registry, first-party metadata, manifest URL, and schema contract     | done    |       100% | The default external registry is empty and collision-free; schema/policy prohibit canonical first-party ids and first-party trust claims; App profile plus all seven manifest fixtures carry product metadata/schema evidence; focused validators exercise Framework-shaped collision negatives. Framework remains the built-in Release Set and lifecycle authority. | External registry publication/readback is separate release/distribution work. |
+| App external registry, first-party metadata, manifest URL, and schema contract     | done    |       100% | The default external registry is empty and collision-free; schema/policy prohibit canonical first-party ids and first-party trust claims; App profile plus the current starter fixtures carry product metadata/schema evidence; focused validators exercise Framework-shaped collision negatives. Framework remains the built-in Release Set and lifecycle authority for a selected snapshot. | External registry publication/readback and starter-profile replacement are separate release/distribution work. |
 | App no-strong-session and refs-only boundary                                       | done    |       100% | This plan, App decisions/invariants/architecture, and package/invocation receipt policy exclude prompt bodies, workflow schema, artifact schema, readiness verdicts, quality verdicts, and owner receipt authority.                                                                                                                                                                                                                                                                                                                                           | None for App contract/docs.                                                                                                   |
 | Framework registry/manifest/install lock/readback and physical Codex surface slice | done    |       100% | Framework main `5819e7fe` implements package remote payload materialization and `physical_surface` in package locks and lifecycle receipts; focused tests prove registry fetch, manifest validation, install, list, status, local plugin cache materialization under `CODEX_HOME`, OPL state marketplace wrapper, Codex config registration, required skill payload fail-closed validation, Home shortcut preference readback/action, repair, uninstall cleanup, rollback_ref recovery refs, and no-authority boundary.                                                         | This is non-live Framework evidence; it does not prove installed App reload or release/currentness readiness.                 |
 | Current runtime projection for Settings Agents                                     | done    |       100% | `app_state.agent_packages.directory.entries` is the only manageable collection; status-index/runtime/module/profile data can enrich diagnostics only. App contracts, validators, fixture, and shell projection cover the compact list/detail UI and fail-closed catalog/action states. | Installed-App live evidence is tracked separately and does not reopen the non-live implementation item. |

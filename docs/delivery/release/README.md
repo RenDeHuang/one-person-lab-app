@@ -16,6 +16,62 @@ receipt parsers whose source remains only so old data can be read and explained.
 They cannot admit, schedule, dispatch, rebuild,
 publish, promote, rerun, cancel, or claim readiness for a new release.
 
+## Ecology Release Topology
+
+The OPL release surface follows the same composable model used by the package
+manager:
+
+```text
+OPL Base ~= R
+OPL App ~= RStudio / replaceable GUI or deployment carrier
+OPL Package ~= R Package
+Registry ~= discovery index
+Full or Release Set ~= exact reproducible lock/snapshot
+```
+
+Stable, Docker/WebUI, Full, Nightly, and Daily are not five competing package
+authorities:
+
+| Object | Correct meaning | Currentness authority |
+| --- | --- | --- |
+| OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
+| Desktop Stable | App release policy and public Latest/updater metadata | Framework Bundle plus App release executor |
+| Docker/WebUI | An alternative App carrier consuming an exact App receipt/digest | Carrier-specific publish and anonymous-pull readback |
+| Full | First-install/offline composition snapshot, additive to Standard | Frozen Bundle and exact package closure |
+| Nightly | Optional prerelease/canary validation path | Same reusable topology, no Stable mutation |
+| OPL Package | Independently published immutable SemVer package resolved by Framework | Package owner artifact plus Framework index/resolver |
+| Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
+
+The current seven first-party packages are a replaceable starter profile. A
+Release Set may bind exact package refs for Full or qualification, but it must
+not require seven packages to publish atomically or make an unrelated package
+wait for App/Base. Developer checkout, external registry, manual manifest, and
+offline seed remain source adapters for explicit profiles and recovery; they
+cannot define ordinary Stable currentness.
+
+### 2026-07-23 Live Proof Boundary
+
+The architecture target is documented, but current live evidence does not yet
+support a “stable latest” claim. The inspected facts are:
+
+| Check | Observed state |
+| --- | --- |
+| App Stable | [Run 30001277460](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/30001277460) failed; a fresh successful `Stable -> Latest -> updater readback` receipt is pending. |
+| Package Daily | [Run 29952463596](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/29952463596) failed on `opl-base content changed without a version bump`; independent package publication is not yet proven. |
+| Desktop release | `v26.7.21` is public while `v26.7.20` remains Latest in the audited snapshot; remote readback must be refreshed before using either as currentness truth. |
+| Docker/WebUI | `:stable` was older than the latest built candidate; exact digest promotion and anonymous pull readback are pending. |
+| Full/Homebrew | The Full cask was older than the latest candidate; Full is a snapshot/carrier concern and must not block Standard or package-only updates. |
+
+Do not convert contract tests, a green build, a candidate artifact, or a
+non-terminal workflow run into a release-ready claim. The release proof gate is
+three terminal owner readbacks:
+
+```text
+App Stable -> GitHub Latest -> updater readback
+WebUI exact digest -> :stable -> anonymous pull
+one Package update -> unchanged Base/App/other Packages remain unchanged
+```
+
 ## Single Source Of Truth
 
 | Concern | Authority |
@@ -26,6 +82,7 @@ publish, promote, rerun, cancel, or claim readiness for a new release.
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Nightly entry | `.github/workflows/release-nightly.yml`, schedule only |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
+| Package publication, index, compatibility resolution, exact installed locks | OPL Framework package lifecycle and package-owner artifacts; not the App release controller |
 | Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained legacy scripts, read-only |
 
 Passing a contract test is not release admission and does not make a Bundle
@@ -186,6 +243,11 @@ assets plus both Full assets. Cleanup deletes the preview Release first, proves
 its absence, deletes the preview tag, proves both are absent, and then repeats
 the formal Stable remote readback.
 
+This preview remains a transitional compatibility lane. Once formal
+`append_full` has a fresh terminal proof for the same frozen Bundle and the
+preview cleanup receipt is read back, the preview workflow is a deletion
+candidate. Documentation of the candidate does not authorize its removal.
+
 ## Homebrew Distribution Boundary
 
 Homebrew has one writer per track inside the protected Bundle executor. A push is
@@ -206,6 +268,13 @@ The Standard updater mutates only the App binary. OPL Base and OPL Packages
 remain Framework lifecycle objects and reconcile through `opl update` and
 `opl packages`; a release workflow cannot become a second package lifecycle
 authority.
+
+The normal user-facing channel is therefore one App Stable updater plus one
+Framework package resolver. Docker/WebUI and Homebrew carry exact owner bytes;
+Full seeds an offline composition; Nightly is optional canary; Daily is a
+scheduled reconciliation cadence. A Package update must not require an App,
+Base, or unrelated Package release, and a carrier failure must not rewrite
+Framework package currentness.
 
 The local-install profile is a development and QA path for one Mac. It cannot
 publish, promote, write Homebrew, or stand in for public clean-VM evidence.
