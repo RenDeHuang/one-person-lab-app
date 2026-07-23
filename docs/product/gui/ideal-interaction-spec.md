@@ -226,8 +226,8 @@ Composer 是普通路径唯一主 command surface：
 - 中层是 textarea；底层 action row 放统一 `+` 菜单、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
-- 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文不复制
-  model/reasoning 值、allowlist、顺序或退休列表。
+- 模型显示与 fallback 只读取 `contracts/app-product-profile.json`，已安装 Flow recommendation
+  通过 Framework 投影进入同一优先级链；本文不复制 model/reasoning 值、allowlist 或退休列表。
 - Executor 固定为 Codex CLI；backend/provider 不作为普通控件。Permission/access mode
   在 Home 与 conversation 可见，以自动化和文件权限表达并保留安全透明度。
 - Attachments 在发送前可预览、移除并显示访问失败。

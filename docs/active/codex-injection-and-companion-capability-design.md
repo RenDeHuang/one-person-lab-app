@@ -37,7 +37,7 @@ Existing user instructions are preserved outside managed marker blocks. Reusable
 
 ## OPL Flow Dependency Projection
 
-- OPL App does not own a companion skill list. Full reads OPL Flow `requires + recommends` and bundles only entries marked `offline_bundle=full`.
+- OPL App does not own a companion skill list. Standard and Full share the OPL Flow `online_install_default=true` closure; Full embeds the same entries only when `offline_bundle=full`.
 - OfficeCLI remains one upstream-owned atomic release; MinerU and UI UX Pro Max remain independently owned, task-routed dependencies.
 - Superpowers, Ponytail, and CodexCont are manifest conflicts/retired surfaces. Framework owns backup, discovery removal, receipt, and rollback.
 - The App displays dependency state and accepts user overrides; Framework performs install/config mutation.

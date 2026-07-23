@@ -153,7 +153,7 @@ packaged-skill allowlist 策展。MCP 不使用该 allowlist：所有已配置�
 | --- | --- | --- |
 | Product identity | 使用 One Person Lab App 名称、icon、窗口与 release identity。 | App GUI/release contracts 与 assets。 |
 | Workspace/chat | 支持 project task 与 projectless conversation，并增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
-| Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
+| Model control | 保持 Codex-like model/reasoning control；App profile 定义 UI 与 fallback，已安装 Flow 提供 recommendation，Codex live catalog 提供当前默认。 | `contracts/app-product-profile.json`、OPL Flow policy。 |
 | Agents / Capabilities | Agents 消费公共 Agent Package directory 并管理 lifecycle/Home visibility；Capabilities 管理 Skills、Plugins、OPL Flow、MCP、图像和语音能力。 | Framework package directory、App package metadata overlay 与 capability registries。 |
 | Current-task context | 在 timeline/context 中增加 Framework-backed current Work Item status、running state、next action/owner 与必要 refs；跨项目 Runtime route 仅为 X0-01 retained source。 | Framework WorkItemProjection 与 App current-task slice；Runtime hard gate 待清理。 |
 | Settings | 作为次级配置面保留 OPL Control Center IA，不反向定义主工作流。 | App GUI contract、Settings Control Plane。 |
@@ -183,8 +183,8 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 - Permission/access mode 在 Home 与 conversation 可见，以自动化和文件权限的用户语言
   表达；不暴露 backend/provider，但保留安全透明度。
 - Home 与 conversation 使用同一个紧凑 App-owned model/reasoning menu。
-- 模型策略与当前默认值只引用 `contracts/app-product-profile.json`；本文不复制
-  model/reasoning 值、allowlist、排序、退休列表或 fallback 逻辑。
+- 模型 UI 与 fallback 只引用 `contracts/app-product-profile.json`，Flow recommendation 通过
+  Framework 投影消费；本文不复制 model/reasoning 值、allowlist、排序或退休列表。
 - Profile 缺失或不兼容时显示明确 blocker，不静默采用 shell/upstream default。
 
 ## Purpose 与 Agent Package 增量

@@ -21,6 +21,42 @@
       "domain_artifact_authority"
     ]
   },
+  "capability_governance": {
+    "declaration_authority_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
+    "lifecycle_authority": "one-person-lab",
+    "lifecycle_surface": "opl_framework_package_transaction",
+    "app_role": "gui_and_release_frozen_projection_only",
+    "capability_identity": "kind_and_id_tuple",
+    "managed_inventory": {
+      "source": "framework_unified_capability_projection",
+      "app_second_inventory_allowed": false,
+      "app_presentational_metadata_allowed": true,
+      "flow_managed_grouping_required": true,
+      "unknown_user_and_third_party_surfaces": "preserve"
+    },
+    "standard_full_convergence": {
+      "target_closure": "opl_flow_online_install_default_closure",
+      "standard_source": "online_exact_release_lock",
+      "full_source": "embedded_exact_release_lock",
+      "target_closure_equality_required": true,
+      "final_projection_equality_required": true,
+      "acceptance_gate": "framework_terminal_reconciliation_receipt",
+      "gui_ready_alone_is_sufficient": false
+    },
+    "credential_policy": {
+      "credential_values_owner": "user_or_provider",
+      "full_may_bundle_secrets": false,
+      "migration_may_copy_credentials": false,
+      "flow_may_declare_requirements_only": true
+    },
+    "mcp_policy": {
+      "flow_managed_projection_group": "opl_flow_managed",
+      "manual_and_third_party_projection_group": "user_or_third_party_managed",
+      "undeclared_user_server_policy": "preserve",
+      "undeclared_user_server_delete_or_overwrite_allowed": false,
+      "default_managed_server_requires_framework_lifecycle_adapter": true
+    }
+  },
   "canonical_metadata_sources": {
     "owner": "one-person-lab",
     "domain_owner": "foundry_agent_repositories",
@@ -193,7 +229,7 @@
       "software_object": "opl_base",
       "visibility_scope": "base_integration_projection_only_not_software_object",
       "members_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
-      "closure_filter": "kind=codex_skill and offline_bundle=full",
+      "closure_filter": "kind=codex_skill and online_install_default=true and offline_bundle=full",
       "default_app_visible": false,
       "codex_discovery_policy": "installed_and_task_routed_without_ordinary_app_skill_menu_visibility",
       "sync_target": "opl_framework_package_dependency_materialization",
@@ -333,6 +369,9 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "bundle_runtime_payloads_then_continue_codex_exposure_maintenance_after_core_ready",
+      "capability_target_closure": "opl_flow_online_install_default_closure",
+      "capability_source": "embedded_exact_release_lock",
+      "final_projection": "framework_unified_capability_projection",
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },
@@ -343,6 +382,9 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "app_managed_bootstrap_then_background_codex_exposure_maintenance",
+      "capability_target_closure": "opl_flow_online_install_default_closure",
+      "capability_source": "online_exact_release_lock",
+      "final_projection": "framework_unified_capability_projection",
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },

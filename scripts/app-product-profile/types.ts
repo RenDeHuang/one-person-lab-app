@@ -686,8 +686,11 @@ export type AppProductProfile = {
     };
     auto_model_policy: {
       authority: string;
+      recommendation_authority: string;
       policy_source_ref: string;
       app_role: string;
+      resolution_precedence: string[];
+      app_fallback_role: string;
       configured_default: {
         model: string;
         reasoning_effort: string;
@@ -1047,6 +1050,11 @@ export type AppProductProfile = {
     additional_package_skill_ids: string[];
     opl_flow_dependency_policy_ref: string;
     full_dependency_closure_policy: string;
+    managed_capability_inventory_policy: string;
+    target_closure_policy: string;
+    standard_dependency_source: string;
+    full_dependency_source: string;
+    final_projection_equivalence_required: boolean;
     domain_plugin_skill_ids: string[];
     domain_plugin_skills_must_not_be_companion_mirrors: boolean;
     domain_exposure: Array<{

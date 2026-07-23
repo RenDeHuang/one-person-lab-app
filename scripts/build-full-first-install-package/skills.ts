@@ -4,6 +4,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { readAppProductProfile } from '../app-product-profile/profile-contract.ts';
+import {
+  readOplFlowCapabilityPolicy,
+  resolveOplFlowFullSkillDependencyIds,
+} from '../opl-flow-capability-policy.ts';
 import { appRepoRoot } from './paths.ts';
 import { copyTreeFiltered } from './filesystem.ts';
 import { readGitHead } from './git.ts';
@@ -336,17 +340,7 @@ export const packagedSkillCopyHandlers = {
 
 export function readOplFlowFullSkillDependencyClosure(oplFlowRoot) {
   const policyPath = path.join(oplFlowRoot, 'contracts', 'workflow-policy.json');
-  if (!fs.existsSync(policyPath)) {
-    throw new Error(`OPL Flow workflow policy not found: ${policyPath}`);
-  }
-  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  if (policy.schema !== 'opl_flow_workflow_policy.v1' || policy.package?.id !== 'opl-flow') {
-    throw new Error(`Invalid OPL Flow workflow policy: ${policyPath}`);
-  }
-  const dependencies = [...(policy.requires ?? []), ...(policy.recommends ?? [])];
-  return [...new Set(dependencies
-    .filter((entry) => entry.kind === 'codex_skill' && entry.offline_bundle === 'full')
-    .map((entry) => entry.id))];
+  return resolveOplFlowFullSkillDependencyIds(readOplFlowCapabilityPolicy(policyPath));
 }
 
 export function copyPackagedSkills(targetRoot, options) {

@@ -43,6 +43,56 @@ test('App Full packages the OPL Flow offline skill closure without retired workf
   }
 });
 
+test('App Full accepts Flow v2 tuple identities and rejects Standard/Full default drift', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-v2-policy-test-'));
+  const contractsRoot = path.join(root, 'contracts');
+  fs.mkdirSync(contractsRoot, { recursive: true });
+  const policyPath = path.join(contractsRoot, 'workflow-policy.json');
+  const policy = {
+    schema: 'opl_flow_workflow_policy.v2',
+    package: { id: 'opl-flow' },
+    provides: [],
+    requires: [],
+    recommends: [
+      {
+        kind: 'codex_skill',
+        id: 'shared-name',
+        online_install_default: true,
+        offline_bundle: 'full',
+      },
+      {
+        kind: 'cli',
+        id: 'shared-name',
+        online_install_default: true,
+        offline_bundle: 'full',
+      },
+    ],
+    compatible_optional: [],
+  };
+  try {
+    writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+    assert.deepEqual(readOplFlowFullSkillDependencyClosure(root), ['shared-name']);
+
+    const divergent = structuredClone(policy);
+    divergent.recommends[0].offline_bundle = 'none';
+    writeFile(policyPath, `${JSON.stringify(divergent, null, 2)}\n`);
+    assert.throws(
+      () => readOplFlowFullSkillDependencyClosure(root),
+      /must be embedded in Full for Standard\/Full convergence/,
+    );
+
+    const duplicate = structuredClone(policy);
+    duplicate.recommends.push(structuredClone(duplicate.recommends[0]));
+    writeFile(policyPath, `${JSON.stringify(duplicate, null, 2)}\n`);
+    assert.throws(
+      () => readOplFlowFullSkillDependencyClosure(root),
+      /Duplicate OPL Flow capability identity \(codex_skill, shared-name\)/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);

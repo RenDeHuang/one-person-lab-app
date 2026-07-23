@@ -6,6 +6,7 @@ import {
   type CodexModelPolicyContractBundle,
 } from './app-product-profile/codex-model-policy-projection.ts';
 import { appRoot } from './app-product-profile/paths.ts';
+import { readOplFlowCapabilityPolicy } from './opl-flow-capability-policy.ts';
 
 const contractPaths = {
   productProfile: 'contracts/app-product-profile.json',
@@ -16,8 +17,8 @@ const contractPaths = {
 function readOplFlowConfiguredDefault(): { model: string; reasoning_effort: string } {
   const policyPath = process.env.OPL_FLOW_WORKFLOW_POLICY?.trim()
     || path.resolve(appRoot, '..', 'opl-flow', 'contracts', 'workflow-policy.json');
-  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  if (policy.schema !== 'opl_flow_workflow_policy.v1' || policy.codex_model_policy?.authority !== 'opl-flow') {
+  const policy = readOplFlowCapabilityPolicy(policyPath);
+  if (policy.codex_model_policy?.authority !== 'opl-flow') {
     throw new Error(`Invalid OPL Flow model policy: ${policyPath}`);
   }
   return policy.codex_model_policy.configured_default;

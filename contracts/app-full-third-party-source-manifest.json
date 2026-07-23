@@ -1,5 +1,32 @@
 {
   "schema": "opl_app_full_third_party_source_manifest.v1",
+  "projection": {
+    "role": "release_frozen_projection_not_dependency_authority",
+    "capability_graph": {
+      "repository": "gaofeng21cn/opl-flow",
+      "source_commit": "a693d7e51d9585106d8433e0cd19f5228cf9c110",
+      "policy_ref": "contracts/workflow-policy.json",
+      "policy_sha256": "2071f01dadeecb6e3d247cb427d464a57daf6d71757492521c8891abad182a6f",
+      "schema_ref": "contracts/workflow-policy.schema.json",
+      "schema_sha256": "fb1c3308c03aa5401b3c1a457fb4b15bbf57f1d02511fe99f8c064a0d6898d67",
+      "dependency_selector": "online_install_default=true",
+      "offline_carrier_selector": "offline_bundle=full"
+    },
+    "framework_closure": {
+      "repository": "gaofeng21cn/one-person-lab",
+      "source_commit": "6b6c25d604d7c54d0459af0df651793d4141265c",
+      "release_set_ref": "release/cohorts/26.7.22/release-set.json",
+      "release_set_sha256": "5be5bc89675457c4dbaa0461831bd64a24f572b94ac8be30b1f8ea5530da0dd7",
+      "bundled_catalog_ref": "contracts/opl-framework/bundled-full-runtime-package-catalog.json",
+      "bundled_catalog_sha256": "f7a042b2dc50c7f7b3a78da1669f28a66a764bbf18b84de03e7badf545a3182a"
+    },
+    "generation_contract": {
+      "exact_ref_and_digest_binding_required": true,
+      "framework_lifecycle_receipt_required": true,
+      "standard_full_final_projection_equivalence_receipt_required": true,
+      "moving_dependency_resolution_allowed": false
+    }
+  },
   "sources": {
     "officecli": {
       "repository": "iOfficeAI/OfficeCLI",
@@ -59,6 +86,11 @@
   "authority_boundary": {
     "moving_refs_for_release_payload_forbidden": true,
     "manifest_is_bound_by_controller_workflow_sha": true,
-    "full_toolchain_observation_receipt_required": true
+    "full_toolchain_observation_receipt_required": true,
+    "manifest_is_dependency_authority": false,
+    "source_versions_are_release_frozen_projection": true,
+    "standard_full_target_closure_must_match": true,
+    "credential_values_may_be_bundled": false,
+    "unknown_user_or_third_party_mcp_may_be_removed": false
   }
 }

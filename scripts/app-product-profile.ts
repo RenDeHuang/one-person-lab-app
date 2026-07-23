@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
 import { appRoot, appProductProfilePath } from './app-product-profile/paths.ts';
+import {
+  readOplFlowCapabilityPolicy,
+  resolveOplFlowFullSkillDependencyIds,
+} from './opl-flow-capability-policy.ts';
 
 export function formatCodexProfilePhrase(profile = readAppProductProfile()): string {
   return `${profile.codex.default_model} with ${profile.codex.default_reasoning_effort} reasoning`;
@@ -17,10 +21,7 @@ export function formatRecommendedCompanionSkills(profile = readAppProductProfile
 export function buildShellCompatibilityProfile(profile = readAppProductProfile()): Record<string, any> {
   const policyPath = process.env.OPL_FLOW_WORKFLOW_POLICY?.trim()
     || path.resolve(appRoot, '..', 'opl-flow', 'contracts', 'workflow-policy.json');
-  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  const flowSkillIds = [...(policy.requires ?? []), ...(policy.recommends ?? [])]
-    .filter((entry) => entry.kind === 'codex_skill' && entry.offline_bundle === 'full')
-    .map((entry) => entry.id);
+  const flowSkillIds = resolveOplFlowFullSkillDependencyIds(readOplFlowCapabilityPolicy(policyPath));
   const projected = structuredClone(profile) as Record<string, any>;
   projected.companion_payloads.packaged_not_default_visible_codex_skill_ids = [
     ...profile.companion_payloads.additional_package_skill_ids,

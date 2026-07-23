@@ -50,6 +50,56 @@ function validateInstallExposureHeader(policy) {
   }
 }
 
+function validateCapabilityGovernance(governance) {
+  if (
+    governance?.declaration_authority_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json' ||
+    governance?.lifecycle_authority !== 'one-person-lab' ||
+    governance?.lifecycle_surface !== 'opl_framework_package_transaction' ||
+    governance?.app_role !== 'gui_and_release_frozen_projection_only' ||
+    governance?.capability_identity !== 'kind_and_id_tuple'
+  ) {
+    throw new Error('Install exposure capability governance must preserve the Flow -> Framework -> App authority chain');
+  }
+  if (
+    governance.managed_inventory?.source !== 'framework_unified_capability_projection' ||
+    governance.managed_inventory?.app_second_inventory_allowed !== false ||
+    governance.managed_inventory?.app_presentational_metadata_allowed !== true ||
+    governance.managed_inventory?.flow_managed_grouping_required !== true ||
+    governance.managed_inventory?.unknown_user_and_third_party_surfaces !== 'preserve'
+  ) {
+    throw new Error('Install exposure capability governance must forbid an App-owned managed capability inventory');
+  }
+  const convergence = governance.standard_full_convergence;
+  if (
+    convergence?.target_closure !== 'opl_flow_online_install_default_closure' ||
+    convergence?.standard_source !== 'online_exact_release_lock' ||
+    convergence?.full_source !== 'embedded_exact_release_lock' ||
+    convergence?.target_closure_equality_required !== true ||
+    convergence?.final_projection_equality_required !== true ||
+    convergence?.acceptance_gate !== 'framework_terminal_reconciliation_receipt' ||
+    convergence?.gui_ready_alone_is_sufficient !== false
+  ) {
+    throw new Error('Install exposure Standard and Full carriers must converge on one exact managed capability projection');
+  }
+  if (
+    governance.credential_policy?.credential_values_owner !== 'user_or_provider' ||
+    governance.credential_policy?.full_may_bundle_secrets !== false ||
+    governance.credential_policy?.migration_may_copy_credentials !== false ||
+    governance.credential_policy?.flow_may_declare_requirements_only !== true
+  ) {
+    throw new Error('Install exposure capability governance must keep credential values out of Flow and Full');
+  }
+  if (
+    governance.mcp_policy?.flow_managed_projection_group !== 'opl_flow_managed' ||
+    governance.mcp_policy?.manual_and_third_party_projection_group !== 'user_or_third_party_managed' ||
+    governance.mcp_policy?.undeclared_user_server_policy !== 'preserve' ||
+    governance.mcp_policy?.undeclared_user_server_delete_or_overwrite_allowed !== false ||
+    governance.mcp_policy?.default_managed_server_requires_framework_lifecycle_adapter !== true
+  ) {
+    throw new Error('Install exposure MCP governance must preserve user surfaces and require Framework lifecycle support');
+  }
+}
+
 function validateCanonicalMetadataSources(canonical) {
   if (canonical?.owner !== 'one-person-lab') {
     throw new Error('Install exposure canonical metadata owner must be one-person-lab');
@@ -128,7 +178,8 @@ function validateExposureClasses(policy) {
   }
   if (
     companionClass?.members_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends' ||
-    companionClass?.closure_filter !== 'kind=codex_skill and offline_bundle=full' ||
+    companionClass?.closure_filter !==
+      'kind=codex_skill and online_install_default=true and offline_bundle=full' ||
     expectedCompanionPolicyRef !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends'
   ) {
     throw new Error('Install exposure companion skills must derive from the OPL Flow policy');
@@ -206,6 +257,18 @@ function validateInstallerSurfaces(policy) {
   }
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
+  }
+  const standard = installerSurfaces.get('standard_dmg');
+  const full = installerSurfaces.get('full_first_install_dmg');
+  if (
+    standard?.capability_target_closure !== 'opl_flow_online_install_default_closure' ||
+    full?.capability_target_closure !== standard.capability_target_closure ||
+    standard?.capability_source !== 'online_exact_release_lock' ||
+    full?.capability_source !== 'embedded_exact_release_lock' ||
+    standard?.final_projection !== 'framework_unified_capability_projection' ||
+    full?.final_projection !== standard.final_projection
+  ) {
+    throw new Error('App Standard and Full installer surfaces must share one capability target and final projection');
   }
   const dockerWebui = installerSurfaces.get('docker_webui');
   if (dockerWebui?.entrypoint !== 'Docker/WebUI one-click installer') {
@@ -635,6 +698,7 @@ function validateSetupFlowContract(setupFlow) {
 
 export function validateInstallExposurePolicy(policy) {
   validateInstallExposureHeader(policy);
+  validateCapabilityGovernance(policy.capability_governance);
   validateCanonicalMetadataSources(policy.canonical_metadata_sources);
   validatePublicAbi(policy.public_abi);
   validateExposureClasses(policy);

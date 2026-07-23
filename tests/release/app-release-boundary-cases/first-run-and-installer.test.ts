@@ -237,7 +237,14 @@ test("App product profile check verifies the deterministic compatibility project
     );
 
     writeFile(path.join(shellRoot, "package.json"), "{}\n");
-    writeFile(policyPath, JSON.stringify({ requires: [], recommends: [] }));
+    writeFile(policyPath, JSON.stringify({
+      schema: 'opl_flow_workflow_policy.v2',
+      package: { id: 'opl-flow' },
+      provides: [],
+      requires: [],
+      recommends: [],
+      compatible_optional: [],
+    }));
     process.env.OPL_FLOW_WORKFLOW_POLICY = policyPath;
 
     const written = syncAppProductProfileToShell(shellRoot);

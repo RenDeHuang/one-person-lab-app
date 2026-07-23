@@ -1765,6 +1765,13 @@
       "recommendation_authority": "opl-flow",
       "policy_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy",
       "app_role": "display_live_catalog_and_submit_user_override",
+      "resolution_precedence": [
+        "explicit_user_selection",
+        "installed_opl_flow_recommendation",
+        "fresh_codex_live_default",
+        "app_fallback_when_flow_unavailable"
+      ],
+      "app_fallback_role": "availability_only_when_installed_opl_flow_recommendation_is_unavailable",
       "configured_default": {
         "model": "gpt-5.6-sol",
         "reasoning_effort": "max"
@@ -7956,6 +7963,11 @@
     ],
     "opl_flow_dependency_policy_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
     "full_dependency_closure_policy": "bundle_requires_and_recommends_with_offline_bundle_full",
+    "managed_capability_inventory_policy": "consume_framework_unified_projection_without_app_second_inventory",
+    "target_closure_policy": "standard_and_full_resolve_same_opl_flow_online_install_default_closure",
+    "standard_dependency_source": "online_exact_release_lock",
+    "full_dependency_source": "embedded_exact_release_lock",
+    "final_projection_equivalence_required": true,
     "domain_plugin_skill_ids": [
       "med-autoscience",
       "med-autogrant",
