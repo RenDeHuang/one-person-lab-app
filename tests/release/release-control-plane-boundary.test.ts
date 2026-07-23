@@ -141,13 +141,13 @@ test('WebUI permission chain requires package write only at Standard and Nightly
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('Canary must cap WebUI at read and keep build, publish, secrets, and mutation unreachable', (t) => {
+test('Canary compile ceilings keep reachable jobs read-only and mutation unreachable', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-bundle-canary.yml', (workflow) => {
     delete workflow.jobs['nested-updater-qualification'];
     workflow.jobs.standard.secrets = 'inherit';
     workflow.jobs['nested-standard-build'].permissions.contents = 'write';
-    workflow.jobs['nested-webui-carrier'].permissions.packages = 'write';
+    workflow.jobs['nested-webui-carrier'].permissions.packages = 'read';
     workflow.jobs['nested-webui-carrier'].secrets = 'inherit';
   });
   updateWorkflow(root, '_release-bundle.yml', (workflow) => {

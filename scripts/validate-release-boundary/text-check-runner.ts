@@ -8,6 +8,11 @@ const retiredLiveAuthorityPattern = /release[_ -]broker|verify-release-broker|ve
 const exactReadPermissions = { contents: 'read', actions: 'read' } as const;
 const exactStableEntryPermissions = { contents: 'write', actions: 'read' } as const;
 const exactWebUiReadPermissions = { contents: 'read', actions: 'read', packages: 'read' } as const;
+const exactWebUiCompileCeilingPermissions = {
+  contents: 'read',
+  actions: 'read',
+  packages: 'write',
+} as const;
 const exactStableStandardPermissions = { contents: 'write', actions: 'read', packages: 'write' } as const;
 const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
@@ -516,7 +521,7 @@ function standardUpdaterOrLatest(text: string): boolean {
 const canaryReusableCalls = {
   standard: {
     workflow: './.github/workflows/_release-bundle.yml',
-    permissions: exactWebUiReadPermissions,
+    permissions: exactWebUiCompileCeilingPermissions,
   },
   'resume-standard': {
     workflow: './.github/workflows/_release-standard-publish.yml',
@@ -536,7 +541,7 @@ const canaryReusableCalls = {
   },
   'nested-webui-carrier': {
     workflow: './.github/workflows/_release-webui-carrier.yml',
-    permissions: exactWebUiReadPermissions,
+    permissions: exactWebUiCompileCeilingPermissions,
   },
   'nested-updater-qualification': {
     workflow: './.github/workflows/opl-updater-upgrade-vm.yml',
@@ -629,10 +634,19 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         !Array.isArray(startup.steps) || startup.steps.length === 0) {
       failures += reportFailure(id, `${calleePath} must expose a real startup-canary job`);
     }
+    if (permissionLevel(spec.permissions, 'packages') === 'write') {
+      const startupPermissions = startup?.permissions ?? callee.workflow.permissions;
+      if (!startupPermissions || requestsWritePermission(startupPermissions)) {
+        failures += reportFailure(
+          id,
+          `${jobId} compile ceiling may be write only when the reachable startup job explicitly downgrades to read-only`,
+        );
+      }
+    }
     if (jobId === 'nested-webui-carrier') {
       failures += validateWebUiCarrierCallee(id, callee.workflow, spec.permissions);
-      if (intersectPermission(spec.permissions, calleeJobs['publish-immutable-carrier']?.permissions, 'packages') !== 'read') {
-        failures += reportFailure(id, 'Canary must cap nested WebUI package permission at read');
+      if (permissionLevel(spec.permissions, 'packages') !== 'write') {
+        failures += reportFailure(id, 'Canary WebUI caller must permit the protected publish job to compile');
       }
       continue;
     }

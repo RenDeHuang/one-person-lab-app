@@ -1545,12 +1545,11 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "uses: ./.github/workflows/opl-updater-upgrade-vm.yml",
       "uses: ./.github/workflows/full-first-install-release.yml",
       "tests/release/release-bundle-workflow-cutover.test.ts",
-      "packages: read",
+      "packages: write",
     ],
     forbidden: [
       "workflow_dispatch:",
       "contents: write",
-      "packages: write",
       "secrets:",
       "gh release",
       "gh workflow run",

@@ -1062,22 +1062,40 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(canary.jobs['append-full'].uses, './.github/workflows/_release-full-addon.yml');
   assert.equal(canary.jobs['nested-standard-build'].uses, './.github/workflows/_build-reusable.yml');
   assert.equal(canary.jobs['nested-standard-qualification'].uses, './.github/workflows/opl-first-run-vm.yml');
+  assert.equal(canary.jobs['nested-webui-carrier'].uses, './.github/workflows/_release-webui-carrier.yml');
   assert.equal(canary.jobs['nested-updater-qualification'].uses, './.github/workflows/opl-updater-upgrade-vm.yml');
   assert.equal(canary.jobs['nested-full-build'].uses, './.github/workflows/full-first-install-release.yml');
+  const compileCeilingPermissions = { contents: 'read', actions: 'read', packages: 'write' };
+  assert.deepEqual(canary.jobs.standard.permissions, compileCeilingPermissions);
+  assert.deepEqual(canary.jobs['nested-webui-carrier'].permissions, compileCeilingPermissions);
   assert.equal(canary.jobs['resume-standard'].with.source_run_id, '424242');
   assert.equal(canary.jobs['append-full'].with.source_run_id, '424242');
   assert.equal(canary.jobs['resume-standard'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
   assert.equal(canary.jobs['append-full'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
-  for (const job of Object.values(canary.jobs) as Array<Record<string, any>>) {
+  for (const [jobId, job] of Object.entries(canary.jobs) as Array<[string, Record<string, any>]>) {
     const permissions = job.permissions ?? canary.permissions;
     assert.equal(permissions.contents, 'read');
     assert.notEqual(permissions['id-token'], 'write');
+    if (!['standard', 'nested-webui-carrier'].includes(jobId)) {
+      assert.notEqual(permissions.packages, 'write');
+    }
   }
   assert.doesNotMatch(readWorkflow('release-bundle-canary.yml'), /secrets:\s+inherit/);
   for (const name of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
     const workflow = parseWorkflow(name);
     assert.equal(workflow.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
   }
+  const bundle = parseWorkflow('_release-bundle.yml');
+  assert.deepEqual(bundle.jobs['startup-canary'].permissions, { contents: 'read', actions: 'read' });
+  const webui = parseWorkflow('_release-webui-carrier.yml');
+  assert.deepEqual(webui.permissions, { contents: 'read' });
+  assert.equal(webui.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
+  assert.equal(webui.jobs['build-and-qualify'].if, "${{ inputs.mode == 'execute' }}");
+  assert.equal(webui.jobs['publish-immutable-carrier'].if, "${{ inputs.mode == 'execute' }}");
+  assert.deepEqual(webui.jobs['publish-immutable-carrier'].permissions, {
+    contents: 'read',
+    packages: 'write',
+  });
   for (const name of [
     '_build-reusable.yml',
     'full-first-install-release.yml',

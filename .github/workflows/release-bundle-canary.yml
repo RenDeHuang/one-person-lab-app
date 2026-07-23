@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-      packages: read
+      packages: write
     with:
       mode: canary
       operation: standard
@@ -98,7 +98,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-      packages: read
+      packages: write
     with:
       mode: canary
       app_ref: canary
