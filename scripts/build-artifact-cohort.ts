@@ -36,7 +36,7 @@ export type BuildArtifactCohortV2 = {
     compiled_expectation_probe_sha256: string;
     qualification_input_manifest_sha256: string;
     full_input_manifest_sha256?: string;
-    framework_bundled_catalog_sha256?: string;
+    full_package_manifest_sha256?: string;
     full_toolchain_observation_receipt_sha256?: string;
   };
   qualification_runtime: {
@@ -124,7 +124,7 @@ export function buildArtifactCohortV2(input: {
   compiledExpectationsPath: string;
   qualificationInputManifestPath: string;
   fullInputManifestPath?: string;
-  frameworkBundledCatalogPath?: string;
+  fullPackageManifestPath?: string;
   fullToolchainObservationReceiptPath?: string;
   actionsRunId: string;
   actionsRunAttempt: string;
@@ -140,8 +140,8 @@ export function buildArtifactCohortV2(input: {
   ) {
     throw new Error(`Compiled ${input.kind} first-run expectations are missing valid semantic/probe digests.`);
   }
-  if (input.kind === 'full' && (!input.fullInputManifestPath || !input.frameworkBundledCatalogPath)) {
-    throw new Error('Full artifact cohort requires frozen Full input manifest and Framework bundled catalog paths.');
+  if (input.kind === 'full' && (!input.fullInputManifestPath || !input.fullPackageManifestPath)) {
+    throw new Error('Full artifact cohort requires its input selection and actual package manifest paths.');
   }
   if (input.kind === 'full' && !input.fullToolchainObservationReceiptPath) {
     throw new Error('Full artifact cohort requires a toolchain observation receipt.');
@@ -185,7 +185,7 @@ export function buildArtifactCohortV2(input: {
       qualification_input_manifest_sha256: sha256File(input.qualificationInputManifestPath),
       ...(input.kind === 'full' ? {
         full_input_manifest_sha256: sha256File(input.fullInputManifestPath!),
-        framework_bundled_catalog_sha256: sha256File(input.frameworkBundledCatalogPath!),
+        full_package_manifest_sha256: sha256File(input.fullPackageManifestPath!),
         full_toolchain_observation_receipt_sha256: sha256File(input.fullToolchainObservationReceiptPath!),
       } : {}),
     },
@@ -246,7 +246,7 @@ export function validateArtifactCohortV2(
   }
   if (manifest.build.kind === 'full') {
     if (!digestPattern.test(manifest.digests.full_input_manifest_sha256 || '')) errors.push('Full input manifest digest is missing');
-    if (!digestPattern.test(manifest.digests.framework_bundled_catalog_sha256 || '')) errors.push('Framework bundled catalog digest is missing');
+    if (!digestPattern.test(manifest.digests.full_package_manifest_sha256 || '')) errors.push('Full package manifest digest is missing');
     if (!digestPattern.test(manifest.digests.full_toolchain_observation_receipt_sha256 || '')) errors.push('Full toolchain observation receipt digest is missing');
   }
   if (!digestPattern.test(manifest.digests.qualification_input_manifest_sha256 || '')) errors.push('Qualification input manifest digest is missing');

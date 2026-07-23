@@ -128,7 +128,7 @@ test("Full companion skill packaging preserves resource closure and normalizes k
   }
 });
 
-function writeFrameworkRuntimeSource(frameworkRoot, catalogEntry) {
+function writeFrameworkRuntimeSource(frameworkRoot) {
   const temporalPackages = [
     "@temporalio/activity",
     "@temporalio/client",
@@ -235,131 +235,6 @@ case "$*" in
   *) printf 'unexpected fixture opl args: %s\\n' "$*" >&2; exit 2 ;;
 esac
 `);
-
-  const catalogRoot = path.join(frameworkRoot, "contracts", "opl-framework");
-  const masPackageManifestPath = path.join(catalogRoot, "packages", "mas.json");
-  const packageManifestPath = path.join(catalogRoot, "packages", "mas-scholar-skills.json");
-  const payloadManifestPath = path.join(
-    catalogRoot,
-    "packages",
-    "payloads",
-    "mas-scholar-skills-0.2.3.json",
-  );
-  writeJson(masPackageManifestPath, {
-    surface_kind: "opl_agent_package_manifest.v1",
-    package_id: "mas",
-    version: "0.2.6",
-    capability_dependencies: [
-      {
-        package_id: "mas-scholar-skills",
-        kind: "framework_capability_package",
-        required: true,
-        version_requirement: ">=0.2.0 <0.3.0",
-        capability_abi: "mas-scholar-skills.v1",
-      },
-    ],
-  });
-  const scholarConsumer = {
-    agent_id: "mas",
-    package_id: "mas",
-    dependency_kind: "hard_runtime_dependency",
-    required: true,
-    version_requirement: ">=0.2.0 <0.3.0",
-    capability_abi: "mas-scholar-skills.v1",
-  };
-  const scholarConsumerPolicy = {
-    supported_required_by: ["mas"],
-    non_primary_runtime_dependency_supported: false,
-  };
-  writeJson(packageManifestPath, {
-    surface_kind: "opl_capability_package_manifest.v2",
-    package_id: "mas-scholar-skills",
-    package_role: "required_agent_capability_package",
-    version: "0.2.3",
-    primary_consumer: scholarConsumer,
-    consumer_policy: scholarConsumerPolicy,
-  });
-  writeJson(payloadManifestPath, catalogEntry.payloadManifest);
-  writeJson(path.join(catalogRoot, "bundled-full-runtime-package-catalog.json"), {
-    surface_kind: "opl_bundled_full_runtime_package_catalog.v1",
-    packages: {
-      mas: {
-        package_id: "mas",
-        package_role: "standard_agent",
-        package_version: "0.2.6",
-        manifest_ref: "packages/mas.json",
-        manifest_sha256: fileSha256Ref(masPackageManifestPath),
-        runtime_module_relative_path: "modules/mas",
-      },
-      "mas-scholar-skills": {
-        package_id: "mas-scholar-skills",
-        package_role: "framework_capability_package",
-        package_version: "0.2.3",
-        owner_source_commit: catalogEntry.sourceCommit,
-        manifest_ref: "packages/mas-scholar-skills.json",
-        manifest_sha256: fileSha256Ref(packageManifestPath),
-        payload_manifest_ref: "packages/payloads/mas-scholar-skills-0.2.3.json",
-        payload_manifest_sha256: fileSha256Ref(payloadManifestPath),
-        runtime_module_relative_path: "modules/mas-scholar-skills",
-      },
-    },
-  });
-}
-
-function writeCompleteFrameworkPackageCatalog(frameworkRoot, input) {
-  const catalogRoot = path.join(frameworkRoot, "contracts", "opl-framework");
-  const packageDefinitions = {
-    mas: { version: "0.2.6", role: "standard_agent", modulePath: "modules/mas" },
-    mag: { version: "1.0.0", role: "standard_agent", modulePath: "modules/mag" },
-    rca: { version: "1.0.0", role: "standard_agent", modulePath: "modules/rca" },
-    oma: { version: "1.0.0", role: "standard_agent", modulePath: "modules/meta-agent" },
-    obf: { version: "1.0.0", role: "standard_agent", modulePath: "modules/bookforge" },
-    "mas-scholar-skills": {
-      version: "0.2.3",
-      role: "framework_capability_package",
-      modulePath: "modules/mas-scholar-skills",
-    },
-    "opl-flow": { version: "1.0.0", role: "workflow_profile", modulePath: "modules/opl-flow" },
-  };
-  const packages = Object.fromEntries(Object.entries(packageDefinitions).map(([packageId, definition]) => {
-    const manifestRef = `packages/${packageId}.json`;
-    const payloadManifestRef = `packages/payloads/${packageId}-${definition.version}.json`;
-    const manifestPath = path.join(catalogRoot, ...manifestRef.split("/"));
-    const payloadManifestPath = path.join(catalogRoot, ...payloadManifestRef.split("/"));
-    if (!fs.existsSync(manifestPath)) {
-      writeJson(manifestPath, {
-        surface_kind: "opl_agent_package_manifest.v1",
-        package_id: packageId,
-        version: definition.version,
-      });
-    }
-    if (packageId === "mas-scholar-skills") {
-      writeJson(payloadManifestPath, input.scholarPayloadManifest);
-    } else {
-      writeJson(payloadManifestPath, {
-        surface_kind: "opl_package_payload_manifest.v2",
-        package_id: packageId,
-        package_version: definition.version,
-        source_commit: input.sourceCommits[packageId],
-        files: [],
-      });
-    }
-    return [packageId, {
-      package_id: packageId,
-      package_role: definition.role,
-      package_version: definition.version,
-      owner_source_commit: input.sourceCommits[packageId],
-      manifest_ref: manifestRef,
-      manifest_sha256: fileSha256Ref(manifestPath),
-      payload_manifest_ref: payloadManifestRef,
-      payload_manifest_sha256: fileSha256Ref(payloadManifestPath),
-      runtime_module_relative_path: definition.modulePath,
-    }];
-  }));
-  writeJson(path.join(catalogRoot, "bundled-full-runtime-package-catalog.json"), {
-    surface_kind: "opl_bundled_full_runtime_package_catalog.v1",
-    packages,
-  });
 }
 
 function createFullRuntimeFixture() {
@@ -395,8 +270,12 @@ function createFullRuntimeFixture() {
   writeJson(path.join(scholarRoot, "contracts", "opl_capability_package_manifest.json"), {
     surface_kind: "opl_capability_package_manifest.v2",
     package_id: "mas-scholar-skills",
-    package_role: "required_agent_capability_package",
+    package_role: "framework_capability_package",
     version: "0.2.3",
+    capability_abi: {
+      id: "mas-scholar-skills.v1",
+      version: "1.0.0",
+    },
     primary_consumer: {
       agent_id: "mas",
       package_id: "mas",
@@ -413,29 +292,11 @@ function createFullRuntimeFixture() {
   });
   const sourceCommit = commitFixtureRepo(scholarRoot, "fixture scholar source");
   runGit(scholarRoot, ["branch", "scholar-fixture-ref", sourceCommit]);
-  const payloadManifest = {
-    surface_kind: "opl_package_payload_manifest.v2",
-    package_id: "mas-scholar-skills",
-    package_version: "0.2.3",
-    source_repo: "https://github.com/gaofeng21cn/mas-scholar-skills.git",
-    source_commit: sourceCommit,
-    content_lock: {
-      algorithm: contentLock.algorithm,
-      canonicalization: contentLock.canonicalization,
-      digest: contentLock.digest,
-    },
-    files: contentLockPaths.map((relativePath) => ({
-      path: relativePath,
-      mode: "100644",
-      source_url: `https://example.invalid/${sourceCommit}/${relativePath}`,
-      sha256: fileSha256Ref(path.join(scholarRoot, ...relativePath.split("/"))),
-    })),
-  };
 
   const frameworkRoot = path.join(tempRoot, "one-person-lab");
   initializeGitRepo(frameworkRoot);
-  writeFrameworkRuntimeSource(frameworkRoot, { payloadManifest, sourceCommit });
-  let frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture framework source");
+  writeFrameworkRuntimeSource(frameworkRoot);
+  const frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture framework source");
 
   const masRoot = path.join(tempRoot, "med-autoscience");
   const magRoot = path.join(tempRoot, "med-autogrant");
@@ -448,6 +309,20 @@ function createFullRuntimeFixture() {
   writeDomainPlugin(rcaRoot, "redcube-ai");
   writeDomainPlugin(metaAgentRoot, "opl-meta-agent");
   writeDomainPlugin(bookforgeRoot, "opl-bookforge");
+  writeJson(path.join(masRoot, "contracts", "opl_agent_package_manifest.json"), {
+    surface_kind: "opl_agent_package_manifest.v1",
+    package_id: "mas",
+    version: "0.2.6",
+    capability_dependencies: [
+      {
+        package_id: "mas-scholar-skills",
+        kind: "framework_capability_package",
+        required: true,
+        version_requirement: ">=0.2.0 <0.3.0",
+        capability_abi: "mas-scholar-skills.v1",
+      },
+    ],
+  });
   for (const [root, label] of [
     [masRoot, "MAS"],
     [magRoot, "MAG"],
@@ -481,17 +356,11 @@ function createFullRuntimeFixture() {
     "mas-scholar-skills": scholarRoot,
     "opl-flow": oplFlowRoot,
   };
-  const sourceCommits = { "mas-scholar-skills": sourceCommit };
   for (const [packageId, sourceRoot] of Object.entries(packageRoots)) {
     if (packageId === "mas-scholar-skills") continue;
     initializeGitRepo(sourceRoot);
-    sourceCommits[packageId] = commitFixtureRepo(sourceRoot, `fixture ${packageId} source`);
+    commitFixtureRepo(sourceRoot, `fixture ${packageId} source`);
   }
-  writeCompleteFrameworkPackageCatalog(frameworkRoot, {
-    scholarPayloadManifest: payloadManifest,
-    sourceCommits,
-  });
-  frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture complete package catalog");
 
   const officeCliRoot = path.join(tempRoot, "OfficeCLI");
   const mineruRoot = path.join(tempRoot, "MinerU-Ecosystem");
@@ -791,17 +660,15 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     assert.equal(resolved.owner_source_commit, fixture.sourceCommit);
     assert.equal(resolved.package_role, "framework_capability_package");
     assert.equal(resolved.runtime_module_relative_path, "modules/mas-scholar-skills");
-    assert.equal(resolved.mas_manifest_ref, "packages/mas.json");
+    assert.equal(resolved.mas_manifest_ref, "contracts/opl_agent_package_manifest.json");
     assert.match(resolved.mas_manifest_sha256, /^sha256:[a-f0-9]{64}$/);
-    assert.match(resolved.manifest_sha256, /^sha256:[a-f0-9]{64}$/);
-    assert.match(resolved.payload_manifest_sha256, /^sha256:[a-f0-9]{64}$/);
     assert.match(resolved.source_manifest_sha256, /^sha256:[a-f0-9]{64}$/);
     assert.equal(resolved.payload_file_count, 4);
     assert.equal(resolved.checksum_status, "verified");
     assert.equal(resolved.currentness_status, "current");
-    assert.equal(resolved.currentness.mas_dependency_edge_matches_framework_catalog, true);
-    assert.equal(resolved.currentness.primary_consumer_matches_mas, true);
-    assert.equal(resolved.currentness.source_payload_checksums_verified, true);
+    assert.equal(resolved.currentness.mas_dependency_edge_matches_owner_manifests, true);
+    assert.equal(resolved.currentness.requested_ref_matches_selected_source, true);
+    assert.equal(resolved.currentness.selected_source_files_verified, true);
 
     const requiredPayloads = prepared.manifest.runtime_assertions.offline_required_payloads;
     assert.equal(
@@ -824,11 +691,12 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     }
 
     const domainCacheInputs = prepared.runtime_cache.key_inputs["domain-runtime"];
-    assert.equal(domainCacheInputs.framework_package_set.packages.length, 7);
+    assert.equal(domainCacheInputs.selected_package_set.profile_id, "starter");
+    assert.equal(domainCacheInputs.selected_package_set.packages.length, 7);
     assert.equal(
-      domainCacheInputs.framework_package_set.packages.find(
+      domainCacheInputs.selected_package_set.packages.find(
         (entry) => entry.package_id === "mas-scholar-skills",
-      ).owner_source_commit,
+      ).source_commit,
       fixture.sourceCommit,
     );
     assert.match(
@@ -836,8 +704,8 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       /^[a-f0-9]{64}$/,
     );
     assert.equal(
-      prepared.runtime_cache.framework_package_set.identity,
-      domainCacheInputs.framework_package_set.identity,
+      prepared.runtime_cache.selected_package_set.identity,
+      domainCacheInputs.selected_package_set.identity,
     );
     assert.equal(prepared.runtime_cache.currentness.framework_commit, fixture.frameworkCommit);
     assert.equal(
@@ -866,6 +734,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     assert.throws(
       () => assertFullRuntimeCurrentness(prepared.runtimeRoot, {
         frameworkRoot: fixture.options.frameworkRoot,
+        masRoot: fixture.options.masRoot,
         masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
         masScholarSkillsRef: fixture.options.masScholarSkillsRef,
       }),
@@ -888,6 +757,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     assert.throws(
       () => assertFullRuntimeCurrentness(prepared.runtimeRoot, {
         frameworkRoot: fixture.options.frameworkRoot,
+        masRoot: fixture.options.masRoot,
         masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
         masScholarSkillsRef: fixture.options.masScholarSkillsRef,
       }),
@@ -907,16 +777,17 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       "full-package-manifest.json",
     );
     const packagedManifest = JSON.parse(fs.readFileSync(packagedManifestPath, "utf8"));
-    packagedManifest.resolved_refs.mas_scholar_skills.framework_catalog_ref =
-      "contracts/opl-framework/drifted-catalog.json";
+    packagedManifest.resolved_refs.mas_scholar_skills.mas_manifest_ref =
+      "contracts/drifted-mas-manifest.json";
     writeJson(packagedManifestPath, packagedManifest);
     assert.throws(
       () => assertFullRuntimeCurrentness(prepared.runtimeRoot, {
         frameworkRoot: fixture.options.frameworkRoot,
+        masRoot: fixture.options.masRoot,
         masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
         masScholarSkillsRef: fixture.options.masScholarSkillsRef,
       }),
-      /resolved MAS Scholar Skills framework_catalog_ref drifted/,
+      /resolved MAS Scholar Skills mas_manifest_ref drifted/,
     );
   } finally {
     if (previousStrictSigning === undefined) delete process.env.OPL_MAC_STRICT_SIGNING_CHECKS;
@@ -928,7 +799,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
   }
 });
 
-test("MAS Scholar Skills source resolution fails closed for a missing root and payload drift", async () => {
+test("MAS Scholar Skills source resolution requires the selected ref and records selected bytes", async () => {
   const fixture = createFullRuntimeFixture();
   try {
     const { resolveMasScholarSkillsFullRuntimeSource } =
@@ -951,29 +822,36 @@ test("MAS Scholar Skills source resolution fails closed for a missing root and p
     const current = resolveMasScholarSkillsFullRuntimeSource(fixture.options);
     assert.equal(current.source_commit, fixture.sourceCommit);
     assert.equal(current.checksum_status, "verified");
+    const skillPath = path.join(
+      fixture.options.masScholarSkillsRoot,
+      "skills",
+      "mas-scholar-skills",
+      "SKILL.md",
+    );
+    const originalSkillChecksum = current.payload_files.find(
+      (entry) => entry.path === "skills/mas-scholar-skills/SKILL.md",
+    ).sha256;
     writeFile(
-      path.join(
-        fixture.options.masScholarSkillsRoot,
-        "skills",
-        "mas-scholar-skills",
-        "SKILL.md",
-      ),
+      skillPath,
       "# drifted Scholar Skills\n",
     );
-    assert.throws(
-      () => resolveMasScholarSkillsFullRuntimeSource(fixture.options),
-      /source payload skills\/mas-scholar-skills\/SKILL\.md checksum drifted/,
+    const changed = resolveMasScholarSkillsFullRuntimeSource(fixture.options);
+    assert.notEqual(
+      changed.payload_files.find(
+        (entry) => entry.path === "skills/mas-scholar-skills/SKILL.md",
+      ).sha256,
+      originalSkillChecksum,
     );
   } finally {
     fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
   }
 });
 
-test("MAS Scholar Skills source resolution rejects commit, catalog, dependency, and content-lock drift", async () => {
+test("MAS Scholar Skills source resolution rejects ref, owner dependency, ABI, and content-path drift", async () => {
   const { resolveMasScholarSkillsFullRuntimeSource } =
     await import("../../../scripts/build-full-first-install-package/manifest-checksum.ts");
   const commitFixture = createFullRuntimeFixture();
-  const catalogFixture = createFullRuntimeFixture();
+  const ownerFixture = createFullRuntimeFixture();
   const dependencyFixture = createFullRuntimeFixture();
   const contentLockFixture = createFullRuntimeFixture();
   try {
@@ -985,45 +863,34 @@ test("MAS Scholar Skills source resolution rejects commit, catalog, dependency, 
       commitFixture.options.masScholarSkillsRoot,
       "fixture source commit drift",
     );
-    runGit(
-      commitFixture.options.masScholarSkillsRoot,
-      ["branch", "-f", "scholar-fixture-ref", driftCommit],
-    );
+    assert.match(driftCommit, /^[a-f0-9]{40}$/);
     assert.throws(
       () => resolveMasScholarSkillsFullRuntimeSource(commitFixture.options),
-      /source is stale: checkout has .* Framework catalog requires/,
+      /checkout HEAD .* does not match requested ref scholar-fixture-ref/,
     );
 
-    const catalogPackageManifestPath = path.join(
-      catalogFixture.options.frameworkRoot,
+    const ownerManifestPath = path.join(
+      ownerFixture.options.masScholarSkillsRoot,
       "contracts",
-      "opl-framework",
-      "packages",
-      "mas-scholar-skills.json",
+      "opl_capability_package_manifest.json",
     );
-    writeFile(catalogPackageManifestPath, "{}\n");
+    const ownerManifest = JSON.parse(fs.readFileSync(ownerManifestPath, "utf8"));
+    ownerManifest.package_id = "mas-scholar-skills-drifted";
+    writeJson(ownerManifestPath, ownerManifest);
     assert.throws(
-      () => resolveMasScholarSkillsFullRuntimeSource(catalogFixture.options),
-      /MAS Scholar Skills package manifest checksum drifted/,
+      () => resolveMasScholarSkillsFullRuntimeSource(ownerFixture.options),
+      /owner manifest package_id drifted/,
     );
 
-    const dependencyCatalogRoot = path.join(
-      dependencyFixture.options.frameworkRoot,
+    const masManifestPath = path.join(
+      dependencyFixture.options.masRoot,
       "contracts",
-      "opl-framework",
+      "opl_agent_package_manifest.json",
     );
-    const dependencyCatalogPath = path.join(
-      dependencyCatalogRoot,
-      "bundled-full-runtime-package-catalog.json",
-    );
-    const masManifestPath = path.join(dependencyCatalogRoot, "packages", "mas.json");
     const masManifest = JSON.parse(fs.readFileSync(masManifestPath, "utf8"));
-    const dependencyCatalog = JSON.parse(fs.readFileSync(dependencyCatalogPath, "utf8"));
     const scholarDependency = { ...masManifest.capability_dependencies[0] };
     const assertInvalidMasDependency = () => {
       writeJson(masManifestPath, masManifest);
-      dependencyCatalog.packages.mas.manifest_sha256 = fileSha256Ref(masManifestPath);
-      writeJson(dependencyCatalogPath, dependencyCatalog);
       assert.throws(
         () => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options),
         /must require MAS Scholar Skills exactly once/,
@@ -1043,66 +910,33 @@ test("MAS Scholar Skills source resolution rejects commit, catalog, dependency, 
 
     masManifest.capability_dependencies = [scholarDependency];
     writeJson(masManifestPath, masManifest);
-    dependencyCatalog.packages.mas.manifest_sha256 = fileSha256Ref(masManifestPath);
-    const scholarManifestPath = path.join(
-      dependencyCatalogRoot,
-      "packages",
-      "mas-scholar-skills.json",
-    );
-    const scholarManifest = JSON.parse(fs.readFileSync(scholarManifestPath, "utf8"));
-    scholarManifest.primary_consumer.required = false;
-    writeJson(scholarManifestPath, scholarManifest);
-    dependencyCatalog.packages["mas-scholar-skills"].manifest_sha256 =
-      fileSha256Ref(scholarManifestPath);
-    writeJson(dependencyCatalogPath, dependencyCatalog);
-    assert.throws(
-      () => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options),
-      /primary_consumer.required drifted/,
-    );
-
-    scholarManifest.primary_consumer.required = true;
-    writeJson(scholarManifestPath, scholarManifest);
-    dependencyCatalog.packages["mas-scholar-skills"].manifest_sha256 =
-      fileSha256Ref(scholarManifestPath);
-    writeJson(dependencyCatalogPath, dependencyCatalog);
     const sourceManifestPath = path.join(
       dependencyFixture.options.masScholarSkillsRoot,
       "contracts",
       "opl_capability_package_manifest.json",
     );
     const sourceManifest = JSON.parse(fs.readFileSync(sourceManifestPath, "utf8"));
-    sourceManifest.consumer_policy.supported_required_by = ["not-mas"];
+    sourceManifest.capability_abi.id = "mas-scholar-skills.v2";
     writeJson(sourceManifestPath, sourceManifest);
     assert.throws(
       () => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options),
-      /owner manifest consumer policy must keep MAS as the sole supported runtime dependency owner/,
+      /ABI does not satisfy the MAS owner manifest/,
     );
 
-    const catalogRoot = path.join(
-      contentLockFixture.options.frameworkRoot,
+    const contentManifestPath = path.join(
+      contentLockFixture.options.masScholarSkillsRoot,
       "contracts",
-      "opl-framework",
+      "opl_capability_package_manifest.json",
     );
-    const payloadManifestPath = path.join(
-      catalogRoot,
-      "packages",
-      "payloads",
-      "mas-scholar-skills-0.2.3.json",
-    );
-    const catalogPath = path.join(catalogRoot, "bundled-full-runtime-package-catalog.json");
-    const payloadManifest = JSON.parse(fs.readFileSync(payloadManifestPath, "utf8"));
-    payloadManifest.content_lock.digest = `sha256:${"b".repeat(64)}`;
-    writeJson(payloadManifestPath, payloadManifest);
-    const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
-    catalog.packages["mas-scholar-skills"].payload_manifest_sha256 =
-      fileSha256Ref(payloadManifestPath);
-    writeJson(catalogPath, catalog);
+    const contentManifest = JSON.parse(fs.readFileSync(contentManifestPath, "utf8"));
+    contentManifest.content_lock.paths.push("skills/missing/SKILL.md");
+    writeJson(contentManifestPath, contentManifest);
     assert.throws(
       () => resolveMasScholarSkillsFullRuntimeSource(contentLockFixture.options),
-      /content_lock\.digest drifted/,
+      /selected source skills\/missing\/SKILL\.md is missing/,
     );
   } finally {
-    for (const fixture of [commitFixture, catalogFixture, dependencyFixture, contentLockFixture]) {
+    for (const fixture of [commitFixture, ownerFixture, dependencyFixture, contentLockFixture]) {
       fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
     }
   }

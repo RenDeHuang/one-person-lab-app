@@ -23,10 +23,6 @@ on:
         description: 'Immutable OPL Framework ref bound into release artifact cohort evidence.'
         type: string
         default: ''
-      opl_flow_ref:
-        description: 'Immutable opl-flow ref used by product-profile projection in every release job.'
-        type: string
-        default: ''
       skip_code_quality:
         description: 'Skip code quality checks (faster builds for debugging)'
         type: boolean
@@ -188,13 +184,6 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Checkout OPL Flow policy source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/opl-flow
-          ref: ${{ inputs.opl_flow_ref }}
-          path: opl-flow
-
       - name: Setup active shell
         uses: ./.github/actions/setup-active-shell-deps
         with:
@@ -205,9 +194,6 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Run release-boundary tests
-        env:
-          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
-          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: npm run test:release-boundary
 
       - name: Validate release-boundary contract
@@ -359,7 +345,6 @@ jobs:
           [[ '${{ inputs.ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound ref must be the exact frozen App SHA."; exit 1; }
           [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound framework_ref must be the exact frozen Framework SHA."; exit 1; }
-          [[ '${{ inputs.opl_flow_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound opl_flow_ref must be the exact frozen OPL Flow SHA."; exit 1; }
 
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -372,13 +357,6 @@ jobs:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
-
-      - name: Checkout OPL Flow policy source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/opl-flow
-          ref: ${{ inputs.opl_flow_ref }}
-          path: opl-flow
 
       - name: Get commit hash
         id: commit
@@ -486,9 +464,6 @@ jobs:
 
       - name: Prepare standard App payload
         working-directory: ${{ github.workspace }}
-        env:
-          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
-          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
       - name: Validate synced App product profile consumer

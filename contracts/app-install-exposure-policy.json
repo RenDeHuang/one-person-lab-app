@@ -1147,11 +1147,11 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_package_channel",
+      "unavailable_compatible_package_source",
       "invalid_package_manifest",
       "missing_package_lock_receipt",
       "package_source_validation_failed",
-      "atomic_package_unit_incomplete"
+      "resolved_package_materialization_incomplete"
     ]
   },
   "agent_installation_contract": {
@@ -1170,15 +1170,6 @@
       "oma",
       "obf"
     ],
-    "required_package_ids": [
-      "mas",
-      "mag",
-      "rca",
-      "oma",
-      "obf",
-      "mas-scholar-skills",
-      "opl-flow"
-    ],
     "default_plugin_agent_ids": [
       "mas",
       "mag",
@@ -1195,25 +1186,16 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_package_channel",
+      "unavailable_compatible_package_source",
       "invalid_package_manifest",
       "missing_package_lock_receipt",
       "package_source_validation_failed",
-      "atomic_package_unit_incomplete"
+      "resolved_package_materialization_incomplete"
     ],
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_package_source": "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
-    "managed_package_ids": [
-      "mas",
-      "mag",
-      "rca",
-      "oma",
-      "obf",
-      "mas-scholar-skills",
-      "opl-flow"
-    ],
+    "ordinary_user_package_source": "framework_resolved_compatible_source",
     "agent_registry_policy": {
       "policy_surface": "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
       "framework_directory_lifecycle_authority": "app_state.agent_packages.directory+status_index+actions",
@@ -1222,7 +1204,7 @@
       "app_bundled_default_registry_allowed": false,
       "external_registry_role": "optional_candidate_source_adapter",
       "external_registry_configuration_source": "framework_projected_configured_sources_or_explicit_user_selected_url",
-      "canonical_first_party_package_ids_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids",
+      "starter_package_ids_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_ids",
       "external_first_party_identity_claims_allowed": false,
       "external_first_party_trust_claims_allowed": false,
       "external_first_party_collision_failure_code": "agent_package_registry_first_party_identity_collision",
@@ -1345,9 +1327,9 @@
       "home_shortcut_preferences_readback": "opl packages list/status#home_shortcut_preferences",
       "automatic_apply_policy": {
         "cadence": "daily_after_core_ready_and_app_startup_check",
-        "user_visible_channel": "latest-stable",
+        "source_selection": "framework_projected_compatible_source",
         "apply_when": [
-          "latest_stable_digest_changed",
+          "compatible_update_available",
           "managed_root_clean",
           "manifest_permissions_unchanged",
           "compatibility_gate_passed"
@@ -1363,10 +1345,7 @@
       }
     },
     "third_party_manual_source_policy": {
-      "ordinary_user_default_source_kinds": [
-        "first_party_managed_cohort",
-        "bundled_full_runtime_modules"
-      ],
+      "ordinary_user_default_source_kinds": ["framework_resolved_compatible_source"],
       "manual_third_party_allowed_source_kinds": [
         "local_manifest_file",
         "manifest_url",
@@ -1384,23 +1363,7 @@
       "duplicate_bare_skill_mirrors_allowed": false,
       "homebrew_package_formula_allowed": false,
       "third_party_catalog_required": false,
-      "remote_distribution_payload_contract": {
-        "required_fields": [
-          "remote_manifest_url",
-          "distribution_payload_ref",
-          "source_digest_ref",
-          "trust_tier",
-          "package_lock_receipt",
-          "rollback_ref",
-          "oci_ref",
-          "oci_digest"
-        ],
-        "download_execution_owner": "one-person-lab",
-        "app_contract_claim": "validate_and_route_refs_only_without_claiming_live_download_or_installed_reload",
-        "live_download_proof_claim_allowed": false,
-        "installed_reload_proof_claim_allowed": false
-      },
-      "validation_scope": "validate manifest shape, plugin manifest, required skill entries, source digest, remote/distribution payload refs, trust tier, and rollback ref without hardcoding exact third-party package ids"
+      "validation_scope": "validate manifest shape, declared capability sources, trust tier, and Framework result without hardcoding package ids, transport, channel, lock, or payload"
     },
     "package_lock_receipt_contract": {
       "lock_owner": "one-person-lab",
@@ -1432,61 +1395,6 @@
       "codex_visible_entry_required": true,
       "optional_skill_refs_are_refs_only": true,
       "digest_is_install_truth": true
-    },
-    "atomic_bundle_policy": {
-      "managed_package_unit_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
-      "package_unit_includes": [
-        "plugin_manifest",
-        "bundled_required_skill_entries",
-        "optional_companion_skill_refs"
-      ],
-      "framework_local_payload_validation": "repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab",
-      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.version_source_ref or a moving tag",
-      "release_payload_proof_required_fields": [
-        "payload_kind",
-        "payload_ref",
-        "payload_digest_ref",
-        "required_skill_pack_lock_refs",
-        "proof_status",
-        "live_download_proof",
-        "installed_reload_proof",
-        "oci_ref",
-        "oci_media_type",
-        "immutable_tag",
-        "moving_tag",
-        "promotion_policy",
-        "install_truth"
-      ],
-      "release_payload_proof_live_claim_allowed": false,
-      "installed_codex_reload_proof_deferred": true,
-      "physical_surface_required_skill_readback_fields": [
-        "materialized_required_skill_ids",
-        "materialized_required_skill_paths"
-      ],
-      "reconcile_update_uninstall_as_unit": true,
-      "domain_repo_remains_semantic_owner": true,
-      "app_package_manager_scope": "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
-      "med_autoscience_professional_skill_pack_unit": {
-        "package_id": "mas",
-        "agent_id": "mas",
-        "required_skill_pack_id": "med-autoscience-professional-skill-pack",
-        "atomic_with_agent_package": true,
-        "lifecycle_actions": [
-          "install",
-          "update",
-          "repair",
-          "uninstall"
-        ],
-        "domain_repo_remains_semantic_owner": true
-      }
     },
     "duplicate_bare_skill_policy": "forbid_domain_plugin_skill_mirrors",
     "plugin_registration_validation_command": "npm run validate:agent-installation",
@@ -1580,106 +1488,22 @@
       "lifecycle_owner": "one-person-lab",
       "app_role": "request_status_progress_and_receipt_projection_only",
       "transaction_visibility": "package_lifecycle_with_internal_projection_and_profile_migration_status",
-      "channel_id": "opl_packages_latest_stable",
-      "default_transport": "framework_package_lifecycle",
-      "default_update_mode": "automatic_apply_for_clean_managed_roots",
-      "default_manifest_tag": "latest-stable",
-      "first_party_distribution_payload_required_fields": [
-        "cohort_manifest_ref",
-        "distribution_payload_ref",
-        "payload_digest_ref",
-        "required_skill_pack_lock_refs",
-        "rollback_ref",
-        "oci_ref",
-        "oci_media_type",
-        "immutable_tag",
-        "moving_tag",
-        "promotion_policy",
-        "install_truth"
-      ],
-      "first_party_distribution_payload_status": "contract_required_non_live_until_release_owner_publishes_payload",
+      "resolver_authority": "one-person-lab#package_repository_resolver",
+      "source_policy": "resolve_any_compatible_declared_or_user_selected_source",
+      "package_set_policy": "open_directory_without_fixed_required_package_set",
+      "carrier_policy": "optional_acceleration_only_not_install_or_readiness_authority",
+      "artifact_evidence_policy": "record_refs_and_digests_only_for_artifacts_actually_resolved_installed_or_built",
       "post_update_sync_required": [
         "codex_plugin_registry",
         "plugin_packaged_skills",
         "opl_generated_plugin_surface",
         "codex_surface"
       ],
-      "agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf"
-      ],
-      "package_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
-      "package_kinds": {
-        "mas": "domain_agent_package",
-        "mag": "domain_agent_package",
-        "rca": "domain_agent_package",
-        "oma": "domain_agent_package",
-        "obf": "domain_agent_package",
-        "mas-scholar-skills": "framework_capability_package",
-        "opl-flow": "workflow_plugin_package"
-      },
-      "opl_flow_package": {
-        "package_id": "opl-flow",
-        "package_kind": "workflow_plugin_package",
-        "consumer": "standard_and_full_workflow_baseline",
-        "install_command": "opl packages install opl-flow",
-        "update_command": "opl packages update opl-flow",
-        "app_direct_profile_mutation_allowed": false,
-        "framework_profile_transaction_allowed": true,
-        "framework_profile_migration_hook": "opl_packages_post_apply",
-        "profile_sync_policy": "codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback",
-        "carrier_reconcile_special_case_allowed": false,
-        "workflow_profile_semantic_merge_ref": "managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status",
-        "standard_updater_allowed": false
-      },
-      "activation_commands": [
-        "opl packages activate <package_id> --scope workspace --target-workspace <path>",
-        "opl packages activate <package_id> --scope quest --target-quest <path>"
-      ],
-      "fallback_source_order": [
-        "bundled_full_runtime_modules",
-        "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
-        "explicit_developer_checkout_override"
-      ],
-      "must_not_depend_on_fixed_version_tag_by_default": true,
-      "github_packages_unavailable_policy": "fail_closed_with_actionable_background_maintenance_error",
-      "homebrew_distribution_allowed": false,
-      "homebrew_formula_allowed": false,
-      "forbidden_homebrew_formulae": [
-        "one-person-lab-modules",
-        "one-person-lab-modules-nightly"
-      ],
       "must_not_write_user_codex_state": true,
       "must_not_define_agent_semantics": true,
-      "cohort_manifest_required": true,
-      "class": "capability_packages",
-      "distribution_format": "ghcr_oci_artifact",
-      "registry": "ghcr.io",
-      "ordinary_user_channel_model": "latest_stable_only",
-      "user_visible_channels": [
-        "latest-stable"
-      ],
-      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
-      "publication_cadence": "daily_when_source_digest_changes",
-      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest_stable",
-      "immutable_tag_required": true,
-      "digest_lock_required": true,
-      "latest_stable_is_moving_channel": true,
-      "stable_or_nightly_user_channels_allowed": false,
       "auto_apply": {
         "enabled_for": "clean_managed_roots_only",
-        "trigger": "daily_or_startup_latest_stable_digest_check",
+        "trigger": "framework_projected_compatible_update",
         "skip_when": [
           "developer_checkout_override",
           "dirty_checkout",

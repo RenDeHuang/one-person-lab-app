@@ -278,7 +278,7 @@ function validateStrictPassedReceipt(input: {
     if (input.manifest.build?.kind === 'full') {
       for (const [label, actual, wanted] of [
         ['full_input_manifest_sha256', strict.build_manifest?.full_input_manifest_sha256, input.manifest.digests?.full_input_manifest_sha256],
-        ['framework_bundled_catalog_sha256', strict.build_manifest?.framework_bundled_catalog_sha256, input.manifest.digests?.framework_bundled_catalog_sha256],
+        ['full_package_manifest_sha256', strict.build_manifest?.full_package_manifest_sha256, input.manifest.digests?.full_package_manifest_sha256],
         ['full_toolchain_observation_receipt_sha256', strict.build_manifest?.full_toolchain_observation_receipt_sha256, input.manifest.digests?.full_toolchain_observation_receipt_sha256],
       ] as const) {
         if (typeof wanted !== 'string' || !digestPattern.test(wanted) || actual !== wanted) {

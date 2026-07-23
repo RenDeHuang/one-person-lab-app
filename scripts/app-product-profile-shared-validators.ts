@@ -118,7 +118,7 @@ export const professionalAgentPresentationByPackageId = {
     },
   },
 } as const;
-export const firstPartyReleaseSetPresentationByPackageId = {
+export const starterPackagePresentationByPackageId = {
   ...professionalAgentPresentationByPackageId,
   'mas-scholar-skills': {
     display_name_i18n: { 'zh-CN': 'MAS 学术技能', 'en-US': 'MAS Scholar Skills' },

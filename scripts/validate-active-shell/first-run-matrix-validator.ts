@@ -224,9 +224,8 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     || packageReconciliation?.provider_configuration_required !== false
     || packageReconciliation?.api_key_required !== false
     || packageReconciliation?.configure_codex_allowed !== false
-    || packageReconciliation?.release_identity !== 'release_set_and_payload_digest'
-    || packageReconciliation?.full_bundled_lock_policy !==
-      'upgrade_through_managed_update_plane_not_provider_configuration'
+    || packageReconciliation?.installed_package_resolution !==
+      'framework_managed_and_independent_from_app_carrier'
   ) {
     throw new Error(
       'Release VM Provider configuration must default to not_requested without synthetic credentials, reuse existing access, and remain independent from package reconciliation',
@@ -284,7 +283,7 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
       'Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation',
     ) ||
     !fullDmg?.expects?.includes(
-      'Framework managed update idempotently reconciles the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow by Release Set and payload digest before Full readiness is claimed, independently of provider configuration and API key availability',
+      'Framework reports and reconciles installed Packages independently of provider configuration and API key availability; no fixed Package set, Flow lock, or optional Skill payload is required for App or Full readiness',
     )
   ) {
     throw new Error('Full DMG qualification must use provider-independent Framework managed package updates');

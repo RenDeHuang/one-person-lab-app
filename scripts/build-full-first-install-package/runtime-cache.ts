@@ -26,7 +26,7 @@ import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
 import {
   FULL_RUNTIME_STARTER_PROFILE,
-  resolveFrameworkPackageSetInput,
+  resolveSelectedPackageSetInput,
   type FullRuntimePackageProfile,
 } from './runtime-cache-package-set.ts';
 import { buildRuntimeLayerImplementationHash } from './runtime-layers.ts';
@@ -71,10 +71,10 @@ function domainSourceFingerprints(options) {
 export function buildRuntimeCacheKeyInputs(
   options,
   sources,
-  frameworkPackageSet = null,
+  selectedPackageSet = null,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
 ) {
-  const packageSet = frameworkPackageSet ?? resolveFrameworkPackageSetInput(options, packageProfile);
+  const packageSet = selectedPackageSet ?? resolveSelectedPackageSetInput(options, packageProfile);
   const nodeRoot = path.dirname(path.dirname(sources.nodeToolchain.nodeBin));
   const pythonRootName = path.basename(sources.pythonRoot);
 
@@ -109,7 +109,7 @@ export function buildRuntimeCacheKeyInputs(
         implementation: buildLayerImplementationInput('toolchain'),
     },
     'domain-runtime': {
-        framework_package_set: packageSet,
+        selected_package_set: packageSet,
         source_fingerprints: domainSourceFingerprints(options),
         implementation: buildLayerImplementationInput('domain-runtime'),
     },
@@ -123,7 +123,7 @@ export function buildRuntimeCacheKeyInputs(
         implementation: buildLayerImplementationInput('opl-runtime'),
     },
     skills: {
-        framework_package_set_identity: packageSet.identity,
+        selected_package_set_identity: packageSet.identity,
         opl_flow_commit: readGitHead(options.oplFlowRoot),
         opl_flow_workflow_policy_sha256: existingFileSha256(
           path.join(options.oplFlowRoot, 'contracts', 'workflow-policy.json'),
@@ -183,10 +183,10 @@ export function buildRuntimeCacheContext(
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
 ) {
-  const frameworkPackageSet = resolveFrameworkPackageSetInput(options, packageProfile);
-  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet, packageProfile);
+  const selectedPackageSet = resolveSelectedPackageSetInput(options, packageProfile);
+  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, selectedPackageSet, packageProfile);
   return {
-    frameworkPackageSet,
+    selectedPackageSet,
     layerKeyInputs,
     layers: buildRuntimeCacheKeysFromInputs(layerKeyInputs),
   };
@@ -205,7 +205,7 @@ export function buildRuntimeCacheKeyReport(
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
 ) {
-  const { frameworkPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(
+  const { selectedPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(
     options,
     sources,
     packageProfile,
@@ -215,7 +215,7 @@ export function buildRuntimeCacheKeyReport(
     version: options.version,
     runtime_cache_mode: options.runtimeCacheMode,
     runtime_cache_dir: options.runtimeCacheDir || null,
-    framework_package_set: frameworkPackageSet,
+    selected_package_set: selectedPackageSet,
     aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers }),
     layer_key_inputs: layerKeyInputs,
     layers,

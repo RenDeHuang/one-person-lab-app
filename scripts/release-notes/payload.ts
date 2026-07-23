@@ -121,10 +121,6 @@ export function buildBundledVersionLines(manifest: any) {
 
 function buildFullPayloadDescription(bundledVersions: string[]) {
   const labels = bundledVersions.map((line) => line.replace(/\s+(?:@|[0-9v]).*$/, '').trim());
-  const completePayloadLabels = payloadComponentSpecs.map(({ label }) => label);
-  if (completePayloadLabels.every((label) => labels.includes(label))) {
-    return 'Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OPL Book Forge, MAS Scholar Skills, OPL Flow, OfficeCLI, MinerU, and packaged Codex skills.';
-  }
   const payloads = labels.length > 0
     ? labels.join(', ')
     : 'the components recorded in full-package-manifest.json';

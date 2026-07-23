@@ -1,19 +1,17 @@
 {
   "schema": "opl_app_full_third_party_source_manifest.v1",
   "projection": {
-    "role": "release_frozen_actual_input_projection",
-    "framework_closure": {
+    "role": "default_full_build_input_selection",
+    "framework_input": {
       "repository": "gaofeng21cn/one-person-lab",
-      "source_commit": "6b6c25d604d7c54d0459af0df651793d4141265c",
-      "release_set_ref": "release/cohorts/26.7.22/release-set.json",
-      "release_set_sha256": "5be5bc89675457c4dbaa0461831bd64a24f572b94ac8be30b1f8ea5530da0dd7",
-      "bundled_catalog_ref": "contracts/opl-framework/bundled-full-runtime-package-catalog.json",
-      "bundled_catalog_sha256": "f7a042b2dc50c7f7b3a78da1669f28a66a764bbf18b84de03e7badf545a3182a"
+      "selection": "workflow_input_framework_ref",
+      "actual_commit_recorded_in": "full-package-manifest.json#components.opl.git_commit"
     },
     "generation_contract": {
-      "exact_ref_and_digest_binding_required": true,
-      "framework_lifecycle_receipt_required": true,
-      "moving_dependency_resolution_allowed": false
+      "preexisting_release_set_required": false,
+      "preexisting_lock_required": false,
+      "payload_inventory_required": false,
+      "selected_inputs_recorded_after_resolution": true
     }
   },
   "sources": {
@@ -73,11 +71,11 @@
     }
   },
   "authority_boundary": {
-    "moving_refs_for_release_payload_forbidden": true,
+    "moving_refs_must_resolve_before_artifact_evidence": true,
     "manifest_is_bound_by_controller_workflow_sha": true,
     "full_toolchain_observation_receipt_required": true,
     "manifest_is_dependency_authority": false,
-    "source_versions_are_release_frozen_projection": true,
+    "source_versions_are_default_selection_hints": true,
     "credential_values_may_be_bundled": false,
     "unknown_user_or_third_party_mcp_may_be_removed": false
   }

@@ -46,7 +46,7 @@ export type ArtifactQualificationReceiptV1 = {
     smoke_harness_sha256: string;
     qualification_input_manifest_sha256: string;
     full_input_manifest_sha256: string | null;
-    framework_bundled_catalog_sha256: string | null;
+    full_package_manifest_sha256: string | null;
     full_toolchain_observation_receipt_sha256: string | null;
   };
   qualification_runtime: BuildArtifactCohortV2['qualification_runtime'];
@@ -491,7 +491,7 @@ export function buildArtifactQualificationReceipt(input: {
       smoke_harness_sha256: input.manifest.digests.smoke_harness_sha256,
       qualification_input_manifest_sha256: input.manifest.digests.qualification_input_manifest_sha256,
       full_input_manifest_sha256: input.manifest.digests.full_input_manifest_sha256 ?? null,
-      framework_bundled_catalog_sha256: input.manifest.digests.framework_bundled_catalog_sha256 ?? null,
+      full_package_manifest_sha256: input.manifest.digests.full_package_manifest_sha256 ?? null,
       full_toolchain_observation_receipt_sha256: input.manifest.digests.full_toolchain_observation_receipt_sha256 ?? null,
     },
     qualification_runtime: input.manifest.qualification_runtime,
@@ -524,7 +524,7 @@ export function validateArtifactQualificationReceipt(
     verificationSmokeHarnessSha256?: string;
     verificationScopeProof?: QualificationHarnessScopeProof;
     fullInputManifestDigest?: string;
-    frameworkBundledCatalogDigest?: string;
+    fullPackageManifestDigest?: string;
     qualificationInputManifestDigest?: string;
     fullToolchainObservationReceiptDigest?: string;
   },
@@ -550,11 +550,11 @@ export function validateArtifactQualificationReceipt(
   const fullProfile = receipt.package_profile === 'full' || receipt.package_profile === 'homebrew-full';
   if (fullProfile && (
     !digestPattern.test(receipt.build_manifest.full_input_manifest_sha256 || '') ||
-    !digestPattern.test(receipt.build_manifest.framework_bundled_catalog_sha256 || '') ||
+    !digestPattern.test(receipt.build_manifest.full_package_manifest_sha256 || '') ||
     !digestPattern.test(receipt.build_manifest.full_toolchain_observation_receipt_sha256 || '')
   )) errors.push('Full qualification receipt lacks frozen input authority digests');
   if (expected.fullInputManifestDigest && receipt.build_manifest.full_input_manifest_sha256 !== expected.fullInputManifestDigest) errors.push('Full input manifest digest does not match');
-  if (expected.frameworkBundledCatalogDigest && receipt.build_manifest.framework_bundled_catalog_sha256 !== expected.frameworkBundledCatalogDigest) errors.push('Framework bundled catalog digest does not match');
+  if (expected.fullPackageManifestDigest && receipt.build_manifest.full_package_manifest_sha256 !== expected.fullPackageManifestDigest) errors.push('Full package manifest digest does not match');
   if (expected.fullToolchainObservationReceiptDigest && receipt.build_manifest.full_toolchain_observation_receipt_sha256 !== expected.fullToolchainObservationReceiptDigest) errors.push('Full toolchain observation receipt digest does not match');
   for (const [key, value] of [
     ['app_sha', expected.appSha], ['shell_sha', expected.shellSha], ['framework_sha', expected.frameworkSha],

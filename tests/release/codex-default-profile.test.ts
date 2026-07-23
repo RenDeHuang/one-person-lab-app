@@ -208,11 +208,11 @@ test('product profile keeps Package lifecycle and currentness in Framework witho
     /registries remain optional candidate sources/,
   );
 
-  const missingReleaseSetId = structuredClone(readJson('contracts/app-product-profile.json'));
-  missingReleaseSetId.gui.agent_package_registry.canonical_first_party_package_ids.pop();
+  const missingStarterId = structuredClone(readJson('contracts/app-product-profile.json'));
+  missingStarterId.gui.agent_package_registry.starter_package_ids.pop();
   assert.throws(
-    () => validateProductProfile(missingReleaseSetId, installExposure),
-    /canonical Framework first-party package ids/,
+    () => validateProductProfile(missingStarterId, installExposure),
+    /starter package ids/,
   );
 });
 
@@ -314,23 +314,23 @@ test('professional Agent metadata requires App-owned localized names and descrip
   );
 
   const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
-  const releaseMetadata = completeProfile.gui.agent_package_registry.first_party_release_set_metadata;
+  const starterMetadata = completeProfile.gui.agent_package_registry.starter_package_metadata;
   assert.deepStrictEqual(
-    releaseMetadata.map((entry: any) => entry.package_id),
+    starterMetadata.map((entry: any) => entry.package_id),
     ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
   );
-  for (const entry of releaseMetadata) {
+  for (const entry of starterMetadata) {
     assert.ok(entry.display_name_i18n['zh-CN'].trim(), entry.package_id);
     assert.ok(entry.description_i18n['zh-CN'].trim(), entry.package_id);
     assert.ok(entry.display_name_i18n['en-US'].trim(), entry.package_id);
     assert.ok(entry.description_i18n['en-US'].trim(), entry.package_id);
   }
   assert.equal(
-    releaseMetadata.find((entry: any) => entry.package_id === 'mas-scholar-skills').display_name_i18n['zh-CN'],
+    starterMetadata.find((entry: any) => entry.package_id === 'mas-scholar-skills').display_name_i18n['zh-CN'],
     'MAS 学术技能',
   );
   const dependencyCopyDrift = structuredClone(completeProfile);
-  dependencyCopyDrift.gui.agent_package_registry.first_party_release_set_metadata.find(
+  dependencyCopyDrift.gui.agent_package_registry.starter_package_metadata.find(
     (entry: any) => entry.package_id === 'mas-scholar-skills',
   ).description_i18n['zh-CN'] = '';
   assert.throws(

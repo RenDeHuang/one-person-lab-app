@@ -578,7 +578,7 @@ export type AppProductProfile = {
       external_registry_role: 'optional_candidate_source_adapter';
       bundled_default_registry_allowed: boolean;
       external_registry_policy_ref: string;
-      canonical_first_party_package_ids: string[];
+      starter_package_ids: string[];
       external_first_party_identity_claims_allowed: boolean;
       external_first_party_trust_claims_allowed: boolean;
       collision_failure_code: string;
@@ -606,7 +606,7 @@ export type AppProductProfile = {
           ordinary_catalog_remains_visible_when_collapsed: boolean;
         };
       };
-      first_party_release_set_metadata: Array<{
+      starter_package_metadata: Array<{
         package_id: string;
         package_kind: string;
         display_name: string;
@@ -775,10 +775,8 @@ export type AppProductProfile = {
     full_runtime_package_qualification: {
       source: string;
       reconciliation: string;
-      required_installed_package_count: number;
-      canonical_package_ids: string[];
-      global_codex_exposure_package_ids: string[];
-      workspace_scoped_package_ids: string[];
+      composition_policy: string;
+      readiness_policy: string;
       workspace_scoped_materialization_policy: string;
       global_workspace_scoped_exposure: string;
     };

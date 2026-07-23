@@ -66,8 +66,7 @@
       "provider_configuration_required": false,
       "api_key_required": false,
       "configure_codex_allowed": false,
-      "release_identity": "release_set_and_payload_digest",
-      "full_bundled_lock_policy": "upgrade_through_managed_update_plane_not_provider_configuration"
+      "installed_package_resolution": "framework_managed_and_independent_from_app_carrier"
     },
     "required_release_scenarios": [
       "standard_dmg_clean_vm_smoke",
@@ -884,8 +883,8 @@
         "ready_to_launch is reached before the first conversation after workspace root, Codex CLI, and usable Codex model access are ready, while /guid remains explicitly enterable earlier",
         "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
         "Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation",
-        "Framework managed update idempotently reconciles the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow by Release Set and payload digest before Full readiness is claimed, independently of provider configuration and API key availability",
-        "Fresh App readback reports installed_package_count 7; MAS Scholar Skills has cache materialized without global marketplace or config exposure and becomes visible only after MAS workspace binding",
+        "Framework reports and reconciles installed Packages independently of provider configuration and API key availability; no fixed Package set, Flow lock, or optional Skill payload is required for App or Full readiness",
+        "Fresh App readback reports the package set selected for this Full build without requiring a fixed count; workspace-scoped capabilities remain out of global marketplace or config exposure until their owner-projected workspace binding exists",
         "Bundled AionCore v0.1.50 supplies exactly the @agentclientprotocol/codex-acp version selected by its managed resource manifest and package lock, with official v0.1.50 readback at 1.1.2; the same managed payload resolves Codex CLI 0.144.6, completes a real initialize handshake with model_reasoning_effort = max, and contains no @zed-industries/codex-acp resource or Codex 0.145 override",
         "Conversation readiness is confirmed only by POST /api/conversations/<id>/runtime/ensure; the retired /warmup route and every 404 or 500 remain retryable errors and never mark a conversation ready",
         "Desktop preserves an explicit CODEX_HOME and otherwise leaves it unset so Codex, AionCore, managed Codex ACP, and OPL runtime commands use ~/.codex; startup and recheck preserve the config digest, while an explicit Gateway or API Key action may update it only through Framework atomic merge with backup and restore",

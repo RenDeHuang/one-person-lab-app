@@ -21,7 +21,6 @@ type ExpectedIdentity = {
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const gitShaPattern = /^[0-9a-f]{40}$/;
 const versionPattern = /^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9])?$/;
-const releaseSetGenerationPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$/;
 const immutableImagePattern = /^[a-z0-9.-]+(?::[0-9]+)?\/[a-z0-9._/-]+@(sha256:[0-9a-f]{64})$/;
 const requiredInputIds = [
   'app_source',
@@ -78,12 +77,6 @@ function gitShaValue(value: unknown, label: string): string {
 function positiveInteger(value: unknown, label: string): number {
   if (!Number.isSafeInteger(value) || Number(value) <= 0) return fail(`${label} must be a positive integer`);
   return Number(value);
-}
-
-function releaseSetGenerationValue(value: unknown, label: string): string {
-  const actual = stringValue(value, label);
-  if (!releaseSetGenerationPattern.test(actual)) fail(`${label} must use YY.M.D or YY.M.D-rN`);
-  return actual;
 }
 
 function canonicalJson(value: unknown): string {
@@ -265,22 +258,13 @@ function validateSourceCutoff(value: unknown): JsonRecord {
   if (cutoff.later_authority_advancement_invalidates_bundle !== false) {
     fail('source_cutoff.later_authority_advancement_invalidates_bundle must be false');
   }
-  let frozenBaseReleaseSet: JsonRecord | null = null;
   if (cutoff.frozen_base_release_set !== null) {
-    const frozen = record(cutoff.frozen_base_release_set, 'source_cutoff.frozen_base_release_set');
-    exactKeys(frozen, ['generation', 'digest'], 'source_cutoff.frozen_base_release_set');
-    frozenBaseReleaseSet = {
-      generation: releaseSetGenerationValue(
-        frozen.generation,
-        'source_cutoff.frozen_base_release_set.generation',
-      ),
-      digest: digestValue(frozen.digest, 'source_cutoff.frozen_base_release_set.digest'),
-    };
+    fail('source_cutoff.frozen_base_release_set must be null for App Standard composition');
   }
   return {
     observed_at: observedAt,
     policy: 'single_read_at_freeze_admission',
-    frozen_base_release_set: frozenBaseReleaseSet,
+    frozen_base_release_set: null,
     post_freeze_remote_refresh_allowed: false,
     later_authority_advancement_invalidates_bundle: false,
   };

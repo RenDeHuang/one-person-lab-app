@@ -27,9 +27,9 @@ new large entries.
 | Layer | Reused work | Content identity | Deliberate non-invalidators |
 | --- | --- | --- | --- |
 | `toolchain` | Codex, Node/npm, Python, uv, Temporal, OfficeCLI, MinerU, wrappers | Tool bytes and versions, Node/Python/Codex-vendor tree fingerprints, toolchain builder code, toolchain prune projection | Domain sources, Framework runtime source, skill selection |
-| `domain-runtime` | Seven packaged domain/workflow source trees | Framework package-set catalog plus exact owner SHAs and manifest/payload digests, copied source fingerprints, domain builder code, `modules/*` prune projection | Toolchain bytes, Framework `opl` runtime, standalone companion-skill changes |
+| `domain-runtime` | Source trees selected for this Full build | Selected package dependency closure plus exact source commits and fingerprints, domain builder code, `modules/*` prune projection | Toolchain bytes, Framework `opl` runtime, standalone companion-skill changes |
 | `opl-runtime` | Framework source and production Node dependency closure | Framework SHA/runtime fingerprint, package metadata, production dependency fingerprint, OPL builder code, `opl/*` prune projection | Domain checkout changes, toolchain and skill changes |
-| `skills` | App-selected companion skills | Framework package-set identity, OPL Flow commit/policy, App product profile, selected skill fingerprints, skill packager code, `skills/*` prune projection | Toolchain and Framework runtime-only changes |
+| `skills` | Skills selected for this Full build | Selected package-set identity, OPL Flow commit/policy when selected, App product profile, selected skill fingerprints, skill packager code, `skills/*` prune projection | Toolchain and Framework runtime-only changes |
 
 Unrecognized prune roots invalidate all four layers. This conservative fallback
 prevents reuse when a new runtime root has not yet been assigned to a layer.
@@ -41,15 +41,14 @@ compatibility changes that require a one-time miss for every layer.
 
 The default-on Full flow uses one inspectable chain:
 
-1. Freeze exact App, Shell, and Framework SHAs and resolve the Framework's exact
-   seven-package catalog (`mas`, `mag`, `rca`, `oma`, `obf`,
-   `mas-scholar-skills`, and `opl-flow`).
-2. Reject any owner checkout SHA or referenced manifest/payload digest that does
-   not match the Framework catalog.
+1. Freeze exact App, Shell, and Framework SHAs and resolve the package profile
+   selected for this build, including its dependency closure.
+2. Record exact commits and content fingerprints for the selected sources.
+   No global Package catalog, Release Set, or payload lock is required.
 3. Calculate each layer's structured input, input digest, runtime key, and the
    canonical aggregate key input.
 4. Write `opl_actions_cache_plan.v2` before expensive materialization. The plan
-   binds the cohort, package set, aggregate input, exact Actions keys, and each
+   binds the cohort, selected package set, cache-catalog digest, aggregate input, exact Actions keys, and each
    layer's `key_input_digest`.
 5. Restore only exact Full runtime keys. Prefix fallback is forbidden for these
    assembled runtime archives.

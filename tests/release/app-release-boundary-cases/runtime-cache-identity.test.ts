@@ -1,7 +1,6 @@
 import {
   appRoot,
   assert,
-  crypto,
   fs,
   os,
   path,
@@ -15,9 +14,9 @@ import {
   buildFullRuntimePrunePolicyCacheHash,
 } from '../../../scripts/full-first-install-package.ts';
 import {
-  FULL_RUNTIME_PACKAGE_IDS,
-  validateFrameworkPackageSetInput,
-  resolveFrameworkPackageSetInput,
+  FULL_RUNTIME_STARTER_PACKAGE_IDS,
+  resolveSelectedPackageSetInput,
+  validateSelectedPackageSetInput,
 } from '../../../scripts/build-full-first-install-package/runtime-cache-package-set.ts';
 
 function runGit(repoRoot: string, args: string[]) {
@@ -37,10 +36,6 @@ function initializeRepo(repoRoot: string) {
   runGit(repoRoot, ['init', '-q']);
   runGit(repoRoot, ['config', 'user.name', 'Runtime Cache Test']);
   runGit(repoRoot, ['config', 'user.email', 'runtime-cache-test@example.invalid']);
-}
-
-function fileDigest(filePath: string) {
-  return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
 }
 
 test('Full runtime prune policy changes invalidate only affected cache layers', () => {
@@ -76,13 +71,12 @@ test('Full runtime prune policy changes invalidate only affected cache layers', 
   }
 });
 
-test('Framework package set rejects owner checkout and manifest byte drift', () => {
+test('selected package set records actual source commits and fingerprints', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-runtime-package-set-'));
-  const frameworkRoot = path.join(tempRoot, 'one-person-lab');
   const sourceRoots: Record<string, string> = {};
   const sourceCommits: Record<string, string> = {};
   try {
-    for (const packageId of FULL_RUNTIME_PACKAGE_IDS) {
+    for (const packageId of FULL_RUNTIME_STARTER_PACKAGE_IDS) {
       const sourceRoot = path.join(tempRoot, packageId);
       initializeRepo(sourceRoot);
       writeFile(path.join(sourceRoot, 'payload.txt'), `${packageId}\n`);
@@ -90,37 +84,7 @@ test('Framework package set rejects owner checkout and manifest byte drift', () 
       sourceCommits[packageId] = commitRepo(sourceRoot, `fixture ${packageId}`);
     }
 
-    initializeRepo(frameworkRoot);
-    const catalogRoot = path.join(frameworkRoot, 'contracts', 'opl-framework');
-    const packages = Object.fromEntries(FULL_RUNTIME_PACKAGE_IDS.map((packageId) => {
-      const manifestRef = `packages/${packageId}.json`;
-      const payloadManifestRef = `packages/payloads/${packageId}-1.0.0.json`;
-      const manifestPath = path.join(catalogRoot, ...manifestRef.split('/'));
-      const payloadManifestPath = path.join(catalogRoot, ...payloadManifestRef.split('/'));
-      writeFile(manifestPath, `${JSON.stringify({ package_id: packageId })}\n`);
-      writeFile(payloadManifestPath, `${JSON.stringify({ package_id: packageId, files: [] })}\n`);
-      return [packageId, {
-        package_id: packageId,
-        package_role: packageId === 'opl-flow' ? 'workflow_profile' : 'standard_agent',
-        package_version: '1.0.0',
-        owner_source_commit: sourceCommits[packageId],
-        runtime_module_relative_path: `modules/${packageId}`,
-        manifest_ref: manifestRef,
-        manifest_sha256: fileDigest(manifestPath),
-        payload_manifest_ref: payloadManifestRef,
-        payload_manifest_sha256: fileDigest(payloadManifestPath),
-      }];
-    }));
-    writeFile(
-      path.join(catalogRoot, 'bundled-full-runtime-package-catalog.json'),
-      `${JSON.stringify({
-        surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
-        packages,
-      }, null, 2)}\n`,
-    );
-    const frameworkSha = commitRepo(frameworkRoot, 'fixture framework catalog');
     const options = {
-      frameworkRoot,
       masRoot: sourceRoots.mas,
       magRoot: sourceRoots.mag,
       rcaRoot: sourceRoots.rca,
@@ -130,40 +94,33 @@ test('Framework package set rejects owner checkout and manifest byte drift', () 
       oplFlowRoot: sourceRoots['opl-flow'],
     };
 
-    const packageSet = resolveFrameworkPackageSetInput(options);
-    assert.equal(packageSet.framework_sha, frameworkSha);
+    const packageSet = resolveSelectedPackageSetInput(options);
     assert.deepEqual(
       packageSet.packages.map((entry) => entry.package_id),
-      FULL_RUNTIME_PACKAGE_IDS,
+      FULL_RUNTIME_STARTER_PACKAGE_IDS,
     );
     assert.deepEqual(Object.keys(packageSet), [
       'schema',
-      'framework_sha',
-      'catalog_ref',
-      'catalog_sha256',
+      'profile_id',
+      'package_ids',
+      'dependency_closure',
       'packages',
       'identity',
     ]);
+    for (const entry of packageSet.packages) {
+      assert.equal(entry.source_commit, sourceCommits[entry.package_id]);
+      assert.match(entry.source_fingerprint, /^sha256:[0-9a-f]{64}$/);
+    }
+    assert.doesNotThrow(() => validateSelectedPackageSetInput(packageSet));
 
-    writeFile(
-      path.join(catalogRoot, 'packages', 'mas.json'),
-      `${JSON.stringify({ package_id: 'mas', drifted: true })}\n`,
-    );
-    assert.throws(
-      () => resolveFrameworkPackageSetInput(options),
-      /manifest or payload digest does not match catalog bytes/,
-    );
-
-    writeFile(
-      path.join(catalogRoot, 'packages', 'mas.json'),
-      `${JSON.stringify({ package_id: 'mas' })}\n`,
-    );
     writeFile(path.join(sourceRoots.mag, 'owner-drift.txt'), 'owner drift\n');
     commitRepo(sourceRoots.mag, 'owner drift');
-    assert.throws(
-      () => resolveFrameworkPackageSetInput(options),
-      /mag owner source does not match the frozen checkout/,
+    const drifted = resolveSelectedPackageSetInput(options);
+    assert.notEqual(
+      drifted.packages.find((entry) => entry.package_id === 'mag')?.source_commit,
+      sourceCommits.mag,
     );
+    assert.notEqual(drifted.identity, packageSet.identity);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -171,7 +128,6 @@ test('Framework package set rejects owner checkout and manifest byte drift', () 
 
 test('Framework package profile resolves a custom dependency closure without changing the helper', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-runtime-custom-profile-'));
-  const frameworkRoot = path.join(tempRoot, 'one-person-lab');
   try {
     const packageIds = ['custom-agent', 'custom-capability'];
     const sourceRoots: Record<string, string> = {};
@@ -183,72 +139,22 @@ test('Framework package profile resolves a custom dependency closure without cha
       sourceRoots[packageId] = sourceRoot;
       sourceCommits[packageId] = commitRepo(sourceRoot, `fixture ${packageId}`);
     }
-    initializeRepo(frameworkRoot);
-    const catalogRoot = path.join(frameworkRoot, 'contracts', 'opl-framework');
-    const packages = Object.fromEntries(packageIds.map((packageId) => {
-      const manifestRef = `packages/${packageId}.json`;
-      const payloadManifestRef = `packages/payloads/${packageId}-1.0.0.json`;
-      const manifestPath = path.join(catalogRoot, ...manifestRef.split('/'));
-      const payloadManifestPath = path.join(catalogRoot, ...payloadManifestRef.split('/'));
-      writeFile(
-        manifestPath,
-        `${JSON.stringify({ package_id: packageId, version: '1.0.0' })}\n`,
-      );
-      writeFile(
-        payloadManifestPath,
-        `${JSON.stringify({ package_id: packageId, package_version: '1.0.0', files: [] })}\n`,
-      );
-      return [packageId, {
-        package_id: packageId,
-        package_role: packageId === 'custom-capability'
-          ? 'framework_capability_package'
-          : 'standard_agent',
-        package_version: '1.0.0',
-        owner_source_commit: sourceCommits[packageId],
-        runtime_module_relative_path: `modules/${packageId}`,
-        manifest_ref: manifestRef,
-        manifest_sha256: fileDigest(manifestPath),
-        payload_manifest_ref: payloadManifestRef,
-        payload_manifest_sha256: fileDigest(payloadManifestPath),
-      }];
-    }));
-    writeFile(
-      path.join(catalogRoot, 'bundled-full-runtime-package-catalog.json'),
-      `${JSON.stringify({
-        surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
-        packages: {
-          ...packages,
-          legacy: {
-            package_id: 'legacy',
-            package_role: 'standard_agent',
-            package_version: '0.0.0',
-          },
-        },
-      }, null, 2)}\n`,
-    );
-    const frameworkSha = commitRepo(frameworkRoot, 'fixture custom package catalog');
     const customProfile = {
       profile_id: 'custom',
       package_ids: ['custom-agent'],
       dependency_closure: packageIds,
     } as const;
 
-    const packageSet = resolveFrameworkPackageSetInput({
-      frameworkRoot,
+    const packageSet = resolveSelectedPackageSetInput({
       packageRoots: sourceRoots,
     }, customProfile);
-    assert.equal(packageSet.framework_sha, frameworkSha);
     assert.deepEqual(
       packageSet.packages.map((entry) => entry.package_id),
       packageIds,
     );
-    assert.equal(packageSet.packages[0].owner_source_commit, sourceCommits['custom-agent']);
-    assert.equal(packageSet.packages[1].owner_source_commit, sourceCommits['custom-capability']);
-    assert.doesNotThrow(() => validateFrameworkPackageSetInput(packageSet, customProfile));
-    assert.throws(
-      () => validateFrameworkPackageSetInput(packageSet),
-      /ordered dependency closure for profile starter/,
-    );
+    assert.equal(packageSet.packages[0].source_commit, sourceCommits['custom-agent']);
+    assert.equal(packageSet.packages[1].source_commit, sourceCommits['custom-capability']);
+    assert.doesNotThrow(() => validateSelectedPackageSetInput(packageSet));
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

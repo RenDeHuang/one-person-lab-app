@@ -11,7 +11,7 @@ import {
   buildFullRuntimeAggregateCacheKeyInput,
   buildFullRuntimeCacheKey,
 } from './full-first-install-package.ts';
-import { validateFrameworkPackageSetInput } from './build-full-first-install-package/runtime-cache-package-set.ts';
+import { validateSelectedPackageSetInput } from './build-full-first-install-package/runtime-cache-package-set.ts';
 
 const PLAN_SCHEMA = 'opl_actions_cache_plan.v2';
 const RECEIPT_SCHEMA = 'opl_actions_cache_receipt.v2';
@@ -35,7 +35,7 @@ export type ActionsCachePlanInput = {
   frameworkSha: string;
   runnerOs: string;
   runnerArch: string;
-  catalogSha256: string;
+  cacheCatalogSha256: string;
   runtimeKeyReport: JsonRecord;
 };
 
@@ -127,22 +127,19 @@ export function buildActionsCachePlan(input: ActionsCachePlanInput): JsonRecord 
   if (input.mode === 'cache_only_warmup' && ref !== DEFAULT_WRITER_REF) {
     throw new Error(`cache-only warmup plans must use ${DEFAULT_WRITER_REF}`);
   }
-  if (!/^[0-9a-f]{64}$/.test(input.catalogSha256)) {
-    throw new Error('catalogSha256 must be a 64-character SHA-256 digest');
+  if (!/^[0-9a-f]{64}$/.test(input.cacheCatalogSha256)) {
+    throw new Error('cacheCatalogSha256 must be a 64-character SHA-256 digest');
   }
   const runner = {
     os: requireString(input.runnerOs, 'runnerOs'),
     arch: requireString(input.runnerArch, 'runnerArch'),
   };
-  const frameworkPackageSet = input.runtimeKeyReport.framework_package_set as JsonRecord | undefined;
-  if (!frameworkPackageSet) {
-    throw new Error('runtime key report must contain framework_package_set');
+  const selectedPackageSet = input.runtimeKeyReport.selected_package_set as JsonRecord | undefined;
+  if (!selectedPackageSet) {
+    throw new Error('runtime key report must contain selected_package_set');
   }
-  validateFrameworkPackageSetInput(frameworkPackageSet);
+  validateSelectedPackageSetInput(selectedPackageSet);
   const frameworkSha = requireSha(input.frameworkSha, 'frameworkSha');
-  if (frameworkPackageSet.framework_sha !== frameworkSha) {
-    throw new Error('Framework package set does not match the cache plan cohort');
-  }
   const payload = {
     schema: PLAN_SCHEMA,
     mode: input.mode,
@@ -155,8 +152,8 @@ export function buildActionsCachePlan(input: ActionsCachePlanInput): JsonRecord 
       framework_sha: frameworkSha,
     },
     runner,
-    catalog_sha256: input.catalogSha256,
-    framework_package_set: frameworkPackageSet,
+    cache_catalog_sha256: input.cacheCatalogSha256,
+    selected_package_set: selectedPackageSet,
     runtime_cache_aggregate_key_input: input.runtimeKeyReport.aggregate_key_input,
     runtime_layers: runtimeLayersFromReport(
       input.runtimeKeyReport,
@@ -201,18 +198,15 @@ export function validateActionsCachePlan(plan: JsonRecord): void {
     }
   }
   if (
-    !plan.framework_package_set ||
-    typeof plan.framework_package_set !== 'object' ||
-    Array.isArray(plan.framework_package_set)
+    !plan.selected_package_set ||
+    typeof plan.selected_package_set !== 'object' ||
+    Array.isArray(plan.selected_package_set)
   ) {
-    throw new Error('cache plan Framework package set must be an object');
+    throw new Error('cache plan selected package set must be an object');
   }
-  validateFrameworkPackageSetInput(plan.framework_package_set as JsonRecord);
-  if (plan.framework_package_set.framework_sha !== plan.cohort.framework_sha) {
-    throw new Error('cache plan Framework package set does not match its cohort');
-  }
-  if (!/^[0-9a-f]{64}$/.test(String(plan.catalog_sha256 ?? ''))) {
-    throw new Error('cache plan catalog digest is invalid');
+  validateSelectedPackageSetInput(plan.selected_package_set as JsonRecord);
+  if (!/^[0-9a-f]{64}$/.test(String(plan.cache_catalog_sha256 ?? ''))) {
+    throw new Error('cache plan cache catalog digest is invalid');
   }
   const layers = Array.isArray(plan.runtime_layers) ? plan.runtime_layers as Array<JsonRecord> : [];
   const layerIds = layers.map((layer) => layer.layer_id);
@@ -303,11 +297,11 @@ export function buildActionsCacheReceipt(input: ActionsCacheReceiptInput): JsonR
   if (currentness.framework_commit !== input.plan.cohort.framework_sha) {
     throw new Error('runtime currentness Framework commit does not match the cache plan cohort');
   }
-  const runtimePackageSet = input.runtimeEvents.framework_package_set as JsonRecord | undefined;
-  if (!runtimePackageSet) throw new Error('runtime events must contain framework_package_set');
-  validateFrameworkPackageSetInput(runtimePackageSet);
-  if (!sameJson(runtimePackageSet, input.plan.framework_package_set)) {
-    throw new Error('runtime Framework package set does not match the cache plan');
+  const runtimePackageSet = input.runtimeEvents.selected_package_set as JsonRecord | undefined;
+  if (!runtimePackageSet) throw new Error('runtime events must contain selected_package_set');
+  validateSelectedPackageSetInput(runtimePackageSet);
+  if (!sameJson(runtimePackageSet, input.plan.selected_package_set)) {
+    throw new Error('runtime selected package set does not match the cache plan');
   }
   const events = Array.isArray(input.runtimeEvents.events) ? input.runtimeEvents.events : [];
   if (events.length !== RUNTIME_LAYER_IDS.length) {
@@ -363,7 +357,7 @@ export function buildActionsCacheReceipt(input: ActionsCacheReceiptInput): JsonR
     plan_identity: input.plan.identity,
     mode: input.plan.mode,
     writer_eligible: input.plan.writer_eligible,
-    framework_package_set_identity: input.plan.framework_package_set.identity,
+    selected_package_set_identity: input.plan.selected_package_set.identity,
     runtime_currentness: currentness,
     runtime_layer_events: runtimeLayerEvents,
     save_outcomes: saveOutcomes,
@@ -437,8 +431,8 @@ export function validateActionsCacheReceipt(receipt: JsonRecord, plan?: JsonReco
   if (!sameJson(receipt.metrics, expectedMetrics)) {
     throw new Error('cache receipt metrics do not match runtime events and save outcomes');
   }
-  if (!digestPattern.test(String(receipt.framework_package_set_identity ?? ''))) {
-    throw new Error('cache receipt Framework package set identity is invalid');
+  if (!digestPattern.test(String(receipt.selected_package_set_identity ?? ''))) {
+    throw new Error('cache receipt selected package set identity is invalid');
   }
   if (receipt.truth_boundary !== truthBoundary) {
     throw new Error('cache receipt truth boundary is invalid');
@@ -449,7 +443,7 @@ export function validateActionsCacheReceipt(receipt: JsonRecord, plan?: JsonReco
       receipt.plan_identity !== plan.identity ||
       receipt.mode !== plan.mode ||
       receipt.writer_eligible !== plan.writer_eligible ||
-      receipt.framework_package_set_identity !== plan.framework_package_set.identity ||
+      receipt.selected_package_set_identity !== plan.selected_package_set.identity ||
       currentness.framework_commit !== plan.cohort.framework_sha
     ) {
       throw new Error('cache receipt does not match its cache plan');
@@ -499,7 +493,7 @@ function parseCommand(argv: string[]) {
     args,
     options: {
       output: { type: 'string' },
-      catalog: { type: 'string' },
+      'cache-catalog': { type: 'string' },
       'runtime-key-report': { type: 'string' },
       'runtime-events': { type: 'string' },
       plan: { type: 'string' },
@@ -527,7 +521,7 @@ function main(argv: string[]): void {
   const { command, values } = parseCommand(argv);
   const output = path.resolve(requiredOption(values.output, 'output'));
   if (command === 'plan') {
-    const catalogPath = path.resolve(requiredOption(values.catalog, 'catalog'));
+    const catalogPath = path.resolve(requiredOption(values['cache-catalog'], 'cache-catalog'));
     const runtimeKeyReportPath = path.resolve(requiredOption(values['runtime-key-report'], 'runtime-key-report'));
     const plan = buildActionsCachePlan({
       mode: requiredOption(values.mode, 'mode') as ActionsCachePlanInput['mode'],
@@ -538,7 +532,7 @@ function main(argv: string[]): void {
       frameworkSha: requiredOption(values['framework-sha'], 'framework-sha'),
       runnerOs: requiredOption(values['runner-os'], 'runner-os'),
       runnerArch: requiredOption(values['runner-arch'], 'runner-arch'),
-      catalogSha256: fileSha256(catalogPath),
+      cacheCatalogSha256: fileSha256(catalogPath),
       runtimeKeyReport: readJson(runtimeKeyReportPath),
     });
     writeJson(output, plan);

@@ -204,7 +204,7 @@ function writeFixture(root: string) {
       compiled_expectation_probe_sha256: '9'.repeat(64),
       qualification_input_manifest_sha256: 'a'.repeat(64),
       full_input_manifest_sha256: 'b'.repeat(64),
-      framework_bundled_catalog_sha256: 'c'.repeat(64),
+      full_package_manifest_sha256: 'c'.repeat(64),
       full_toolchain_observation_receipt_sha256: 'd'.repeat(64),
     },
     qualification_runtime: { codex_cli: frozenCodexCliIdentity() },

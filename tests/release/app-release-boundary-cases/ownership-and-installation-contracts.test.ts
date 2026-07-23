@@ -492,7 +492,7 @@ test('App package consumers keep Framework authority while external registries r
   const registryProjection = profile.gui.agent_package_registry;
   const registryEntrySchema = readContract('agent-package-surfaces.schema.json').$defs.agent_package_registry_entry;
   assert.equal(fs.existsSync(path.join(appRoot, 'contracts', 'agent-package-registry.json')), false);
-  assert.deepEqual(registryProjection.canonical_first_party_package_ids, canonicalPackageIds);
+  assert.deepEqual(registryProjection.starter_package_ids, canonicalPackageIds);
   assert.equal(
     registryProjection.directory_lifecycle_authority,
     'app_state.agent_packages.directory+status_index+actions',
@@ -519,9 +519,9 @@ test('App package consumers keep Framework authority while external registries r
   assert.equal(registryEntrySchema.properties.tags.uniqueItems, true);
   assert.equal(registryEntrySchema.oneOf.length, 2);
 
-  const releaseSetMetadata = registryProjection.first_party_release_set_metadata;
-  assert.deepEqual(releaseSetMetadata.map((entry) => entry.package_id), canonicalPackageIds);
-  for (const entry of releaseSetMetadata) {
+  const starterMetadata = registryProjection.starter_package_metadata;
+  assert.deepEqual(starterMetadata.map((entry) => entry.package_id), canonicalPackageIds);
+  for (const entry of starterMetadata) {
     const expectedMetadata = expectedFirstPartyMetadata[entry.package_id];
     assert.ok(expectedMetadata, entry.package_id);
     assert.equal(entry.description, expectedMetadata.description);
@@ -535,30 +535,40 @@ test('App package consumers keep Framework authority while external registries r
     );
   }
   assert.deepEqual(
-    new Set(releaseSetMetadata.map((entry) => entry.package_role)),
+    new Set(starterMetadata.map((entry) => entry.package_role)),
     new Set(['standard_agent', 'framework_capability_package', 'workflow_profile']),
   );
 
   const fixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
   for (const packageId of canonicalPackageIds) {
     const fixture = JSON.parse(fs.readFileSync(path.join(fixtureDir, `${packageId}.json`), 'utf8'));
-    const metadata = releaseSetMetadata.find((entry) => entry.package_id === packageId);
+    const metadata = starterMetadata.find((entry) => entry.package_id === packageId);
     assert.equal(fixture.package_id, metadata.package_id);
     assert.equal(fixture.package_kind, metadata.package_kind);
     assert.equal(fixture.display_name, metadata.display_name);
     assert.equal(fixture.publisher, metadata.publisher);
     assert.equal(fixture.source, metadata.source);
-    const distribution = JSON.stringify(fixture.distribution_payload);
-    assert.equal(fixture.distribution_payload.proof_status, 'contract_fixture_non_live');
-    assert.match(fixture.distribution_payload.payload_digest_ref, /@sha256:[0-9a-f]{64}$/);
-    assert.equal(fixture.distribution_payload.moving_tag, 'latest-stable');
-    assert.equal(/:latest(?:[\"/?#]|$)/.test(distribution), false);
-    assert.equal(/\/opl-(?:agent|package)-|\/one-person-lab-modules\//.test(distribution), false);
+    assert.equal(fixture.distribution_payload, undefined);
+    assert.equal(fixture.skill_packs.every((skillPack: any) => skillPack.install_mode === 'required'), true);
+    assert.equal(fixture.skill_packs.every((skillPack: any) => skillPack.lock_ref === undefined), true);
   }
+  const flowFixture = JSON.parse(
+    fs.readFileSync(path.join(fixtureDir, 'opl-flow.json'), 'utf8'),
+  );
+  assert.deepEqual(flowFixture.codex_surface.required_skill_ids, ['opl-flow']);
 
   const activeInstallSurface = JSON.stringify(readContract('app-install-exposure-policy.json'));
   assert.equal(activeInstallSurface.includes('--skip-modules'), false);
   assert.equal(activeInstallSurface.includes('reconcile-modules'), false);
+  for (const forbidden of [
+    'managed_package_unit_ids',
+    'required_skill_pack_lock_policy',
+    'release_payload_proof_required_fields',
+    'first_party_distribution_payload_required_fields',
+    'framework_managed_ghcr_oci_opl_packages_latest_stable_channel',
+  ]) {
+    assert.equal(activeInstallSurface.includes(forbidden), false, forbidden);
+  }
 });
 
 test('App ships no empty default registry and keeps collision defense at the policy boundary', () => {

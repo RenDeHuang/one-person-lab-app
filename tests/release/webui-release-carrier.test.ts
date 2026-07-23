@@ -56,7 +56,7 @@ function draftBuildInput() {
     source_cutoff: {
       observed_at: '2026-07-23T01:02:03Z',
       policy: 'single_read_at_freeze_admission',
-      frozen_base_release_set: { generation: '26.7.20', digest: digest('8') },
+      frozen_base_release_set: null,
       post_freeze_remote_refresh_allowed: false,
       later_authority_advancement_invalidates_bundle: false,
     },
@@ -240,7 +240,7 @@ test('WebUI build input sealing is canonical, repeatable, and identity-bound', (
   assert.equal(summary.architecture, 'amd64');
   assert.match(summary.content_fingerprint, /^sha256:[0-9a-f]{64}$/);
   const sealed = JSON.parse(fs.readFileSync(firstPath, 'utf8'));
-  assert.equal(sealed.source_cutoff.frozen_base_release_set.generation, '26.7.20');
+  assert.equal(sealed.source_cutoff.frozen_base_release_set, null);
   assert.deepEqual(sealed.inputs.map((input: { id: string }) => input.id), [
     'app_source',
     'base_image',
@@ -515,21 +515,19 @@ test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incom
   assert.notEqual(incompleteBundle.status, 0);
   assert.match(incompleteBundle.stderr, /release must contain exactly/);
 
-  for (const generation of [41, '2026.7.20']) {
-    const generationRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-release-set-generation-'));
-    const invalidGeneration = draftBuildInput();
-    (invalidGeneration.source_cutoff.frozen_base_release_set as { generation: unknown }).generation = generation;
-    const generationPath = writeJson(generationRoot, 'draft.json', invalidGeneration);
-    const rejectedGeneration = runCli([
-      'seal-build-input',
-      '--input',
-      generationPath,
-      '--output',
-      path.join(generationRoot, 'output.json'),
-    ]);
-    assert.notEqual(rejectedGeneration.status, 0);
-    assert.match(rejectedGeneration.stderr, /source_cutoff\.frozen_base_release_set\.generation must/);
-  }
+  const releaseSetRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-release-set-'));
+  const releaseSetBound = draftBuildInput();
+  releaseSetBound.source_cutoff.frozen_base_release_set = { generation: '26.7.20', digest: digest('8') };
+  const releaseSetPath = writeJson(releaseSetRoot, 'draft.json', releaseSetBound);
+  const rejectedReleaseSet = runCli([
+    'seal-build-input',
+    '--input',
+    releaseSetPath,
+    '--output',
+    path.join(releaseSetRoot, 'output.json'),
+  ]);
+  assert.notEqual(rejectedReleaseSet.status, 0);
+  assert.match(rejectedReleaseSet.stderr, /frozen_base_release_set must be null/);
 });
 
 test('WebUI carrier rejects a runtime image for the wrong architecture', () => {
@@ -567,9 +565,7 @@ test('WebUI carrier schema closes both sealed artifacts', () => {
   assert.equal(schema.$defs.carrier.properties.carrier_kind.const, 'oci_image');
   assert.equal(schema.$defs.carrier.properties.package_profile.const, 'webui-full');
   assert.equal(schema.$defs.platform.properties.architecture.const, 'amd64');
-  const generation = schema.$defs.source_cutoff.properties.frozen_base_release_set.oneOf[1].properties.generation;
-  assert.equal(generation.type, 'string');
-  assert.equal(generation.pattern, '^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$');
+  assert.equal(schema.$defs.source_cutoff.properties.frozen_base_release_set.type, 'null');
 });
 
 test('reusable WebUI workflow builds independently and gates immutable publication on runtime qualification', () => {
@@ -610,7 +606,7 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.doesNotMatch(buildRun, /npm pack/);
   assert.match(buildRun, /Dockerfile\.frozen/);
   assert.match(buildRun, /--build-arg 'OPL_FRAMEWORK_REF=/);
-  assert.doesNotMatch(buildRun, /OPL_FLOW_REF/);
+  assert.doesNotMatch(buildRun, /OPL_FLOW_REF|inputs\.get\('opl_flow'\)/);
   assert.match(buildRun, /--build-arg 'OPL_CODEX_NPM_SPEC=/);
   assert.match(buildRun, /validate-webui-runtime-image\.ts/);
   assert.match(buildRun, /curl --fail/);

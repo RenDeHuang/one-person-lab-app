@@ -186,8 +186,8 @@ function validateReleaseHomebrewOplPackagesBoundary(homebrew) {
     homebrew_formula_allowed: false,
     homebrew_cask_allowed: false,
     canonical_lifecycle: 'opl packages',
-    canonical_registry: 'ghcr.io/<owner>/one-person-lab-packages/<canonical-package-id>',
-    canonical_package_ids: ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+    source_policy: 'framework_resolved_compatible_source',
+    package_set_policy: 'open_composition_no_fixed_package_ids',
     allowed_homebrew_formulae: ['opl'],
     allowed_homebrew_casks: ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full'],
   }, 'Release channel Homebrew OPL Packages boundary');

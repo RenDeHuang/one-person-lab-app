@@ -176,9 +176,9 @@ function collectCacheCatalogViolations(catalog: CacheCatalog | null): string[] {
   if (
     catalog.documentation_ref !== 'docs/delivery/actions-cache-architecture.md' ||
     catalog.cache_plan?.schema !== 'opl_actions_cache_plan.v2' ||
-    catalog.cache_plan?.framework_package_set_schema !== 'opl_full_runtime_framework_package_set.v1' ||
+    catalog.cache_plan?.selected_package_set_schema !== 'opl_full_runtime_selected_package_set.v1' ||
     !Array.isArray(catalog.cache_plan?.required_fields) ||
-    !catalog.cache_plan.required_fields.includes('framework_package_set') ||
+    !catalog.cache_plan.required_fields.includes('selected_package_set') ||
     !catalog.cache_plan.required_fields.includes('runtime_cache_aggregate_key_input') ||
     !Array.isArray(catalog.cache_plan?.runtime_layer_required_fields) ||
     !catalog.cache_plan.runtime_layer_required_fields.includes('key_input_digest') ||
@@ -196,7 +196,7 @@ function collectCacheCatalogViolations(catalog: CacheCatalog | null): string[] {
     catalog.cache_only_warmup?.release_gate !== false ||
     catalog.cache_only_warmup?.miss_fallback !== 'full_package_build_materializes_validates_and_main_saves_missing_layers' ||
     catalog.cache_only_warmup?.requires_exact_app_shell_framework_shas !== true ||
-    catalog.cache_only_warmup?.requires_exact_framework_package_set !== true ||
+    catalog.cache_only_warmup?.requires_selected_package_set_identity !== true ||
     !Array.isArray(catalog.cache_only_warmup?.forbidden_outputs) ||
     !catalog.cache_only_warmup.forbidden_outputs.includes('release_dmg')
   ) {

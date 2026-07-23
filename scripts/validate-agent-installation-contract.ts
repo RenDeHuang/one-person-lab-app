@@ -115,11 +115,11 @@ const expectedFailClosedStates = [
   "missing_plugin_manifest",
   "missing_skill_entry",
   "duplicate_codex_visible_domain_skill",
-  "unavailable_managed_package_channel",
+  "unavailable_compatible_package_source",
   "invalid_package_manifest",
   "missing_package_lock_receipt",
   "package_source_validation_failed",
-  "atomic_package_unit_incomplete",
+  "resolved_package_materialization_incomplete",
 ];
 const expectedPackageLifecycleActions = [
   "refresh_registry",
@@ -195,21 +195,6 @@ const expectedManifestRequiredFields = [
   "update_channel",
   "rollback_ref",
 ];
-const expectedDistributionPayloadFields = [
-  "payload_kind",
-  "payload_ref",
-  "payload_digest_ref",
-  "required_skill_pack_lock_refs",
-  "proof_status",
-  "live_download_proof",
-  "installed_reload_proof",
-  "oci_ref",
-  "oci_media_type",
-  "immutable_tag",
-  "moving_tag",
-  "promotion_policy",
-  "install_truth",
-];
 const expectedHomeShortcutRequiredFields = [
   "shortcut_id",
   "package_id",
@@ -253,29 +238,6 @@ const expectedManualThirdPartyRequires = [
   "package_lock_receipt",
   "rollback_ref",
 ];
-const expectedRemoteDistributionPayloadFields = [
-  "remote_manifest_url",
-  "distribution_payload_ref",
-  "source_digest_ref",
-  "trust_tier",
-  "package_lock_receipt",
-  "rollback_ref",
-  "oci_ref",
-  "oci_digest",
-];
-const expectedFirstPartyDistributionPayloadFields = [
-  "cohort_manifest_ref",
-  "distribution_payload_ref",
-  "payload_digest_ref",
-  "required_skill_pack_lock_refs",
-  "rollback_ref",
-  "oci_ref",
-  "oci_media_type",
-  "immutable_tag",
-  "moving_tag",
-  "promotion_policy",
-  "install_truth",
-];
 const expectedPackageSourceKinds = [
   "first_party_managed_cohort",
   "bundled_full_runtime_modules",
@@ -297,11 +259,6 @@ const expectedPackageLockReceiptFields = [
   "action_receipt_id",
   "rollback_ref",
   "physical_surface",
-];
-const expectedAtomicPackageUnitIncludes = [
-  "plugin_manifest",
-  "bundled_required_skill_entries",
-  "optional_companion_skill_refs",
 ];
 const expectedActivationScopeValues = ["workspace"];
 const expectedActivationRequestRequiredFields = ["package_id"];
@@ -779,7 +736,7 @@ function validateAgentInstallationContract(policy: any): any {
       may_use_developer_checkout_by_default: false,
       developer_checkout_override_policy: "explicit_opt_in_only",
       developer_checkout_override_surface: "Developer Profile source_channel capability",
-      ordinary_user_package_source: "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
+      ordinary_user_package_source: "framework_resolved_compatible_source",
       duplicate_bare_skill_policy: "forbid_domain_plugin_skill_mirrors",
     },
     "agent contract",
@@ -810,12 +767,10 @@ function validateAgentInstallationContract(policy: any): any {
     policy.sync_and_install_contract.fail_closed_states,
     "shared fail closed states",
   );
-  assertArrayEqual(contract.managed_package_ids, expectedRegistryPackageIds, "managed package ids");
   validatePackageManagerLifecycle(contract);
   validateRegistryPolicyShape(contract);
   validateThirdPartyManualSourcePolicy(contract);
   validatePackageLockReceiptContract(contract);
-  validateAtomicBundlePolicy(contract);
   return contract;
 }
 
@@ -835,8 +790,8 @@ function validateRegistryPolicyShape(contract: any): void {
       external_registry_role: "optional_candidate_source_adapter",
       external_registry_configuration_source:
         "framework_projected_configured_sources_or_explicit_user_selected_url",
-      canonical_first_party_package_ids_source_ref:
-        "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids",
+      starter_package_ids_source_ref:
+        "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_ids",
       external_first_party_identity_claims_allowed: false,
       external_first_party_trust_claims_allowed: false,
       external_first_party_collision_failure_code:
@@ -995,10 +950,21 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any | null, 
     expectedManifestRequiredFields,
     "agent package manifest schema required fields",
   );
-  assertArrayEqual(
+  assertEqual(
     schemaDef(schema, "opl_package_manifest").properties?.distribution_payload?.required,
-    expectedDistributionPayloadFields,
-    "agent package manifest distribution payload fields",
+    undefined,
+    "agent package manifest distribution payload must be optional evidence",
+  );
+  assertArrayEqual(
+    schemaDef(schema, "opl_package_manifest").properties?.skill_packs?.items?.required,
+    ["id", "source_kind", "source", "install_mode"],
+    "agent package manifest skill pack intent fields",
+  );
+  assertArrayEqual(
+    schemaDef(schema, "opl_package_manifest").properties?.skill_packs?.items?.properties
+      ?.install_mode?.enum,
+    ["required", "optional"],
+    "agent package manifest skill pack composition modes",
   );
   if (
     schemaDef(schema, "opl_package_manifest").properties?.codex_surface?.properties
@@ -1565,9 +1531,9 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
   );
   const registryProjection = profile.gui?.agent_package_registry;
   assertArrayEqual(
-    registryProjection?.canonical_first_party_package_ids,
+    registryProjection?.starter_package_ids,
     expectedRegistryPackageIds,
-    "profile canonical first-party package ids",
+    "profile starter package ids",
   );
   assertEqual(
     registryProjection?.directory_lifecycle_authority,
@@ -1604,14 +1570,14 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
     false,
     "profile external first-party trust policy",
   );
-  const firstPartyMetadata = registryProjection?.first_party_release_set_metadata ?? [];
+  const starterMetadata = registryProjection?.starter_package_metadata ?? [];
   assertArrayEqual(
-    firstPartyMetadata.map((entry: any) => entry.package_id),
+    starterMetadata.map((entry: any) => entry.package_id),
     expectedRegistryPackageIds,
-    "profile first-party release metadata ids",
+    "profile starter package metadata ids",
   );
   const profileById = new Map(profilePackages.map((entry: any) => [entry.package_id, entry]));
-  for (const entry of firstPartyMetadata) {
+  for (const entry of starterMetadata) {
     validateRegistryEntryMetadata({
       ...entry,
       manifest_url: `fixture://${entry.package_id}`,
@@ -1687,7 +1653,7 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
   const profilePackages = new Map(
     (profile.gui?.professional_agent_packages ?? []).map((entry: any) => [entry.package_id, entry]),
   );
-  const releaseSetMetadata = profile.gui?.agent_package_registry?.first_party_release_set_metadata ?? [];
+  const starterMetadata = profile.gui?.agent_package_registry?.starter_package_metadata ?? [];
   assertArrayEqual(
     fs
       .readdirSync(agentPackageManifestFixtureDir)
@@ -1696,12 +1662,12 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
     expectedRegistryPackageIds.map((packageId) => `${packageId}.json`).sort(),
     "agent package manifest fixture files",
   );
-  for (const releaseSetEntry of releaseSetMetadata) {
-    const fixturePath = path.join(appRoot, releaseSetEntry.manifest_fixture_ref);
+  for (const starterEntry of starterMetadata) {
+    const fixturePath = path.join(appRoot, starterEntry.manifest_fixture_ref);
     const manifest = readJson(fixturePath);
-    const profileEntry = profilePackages.get(releaseSetEntry.package_id);
+    const profileEntry = profilePackages.get(starterEntry.package_id);
     const registryEntry = {
-      ...releaseSetEntry,
+      ...starterEntry,
       codex_visible_entry:
         profileEntry?.codex_visible_entry ?? manifest.codex_surface?.plugin_ids?.[0],
       required_skill_ids:
@@ -1712,19 +1678,6 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
         profileEntry?.home_shortcut_ids ??
         (manifest.entrypoints ?? []).map((entry: any) => entry.shortcut_id),
     };
-    const fixtureDistributionSurface = JSON.stringify(manifest.distribution_payload ?? {});
-    for (const forbidden of ["/opl-agent-", "/opl-package-", "/one-person-lab-modules/"]) {
-      if (fixtureDistributionSurface.includes(forbidden)) {
-        fail(
-          `manifest fixture ${registryEntry.package_id} distribution contains legacy namespace ${forbidden}`,
-        );
-      }
-    }
-    if (/:latest(?:[\"/?#]|$)/.test(fixtureDistributionSurface)) {
-      fail(
-        `manifest fixture ${registryEntry.package_id} must use latest-stable, never the plain latest tag`,
-      );
-    }
     const missing = expectedManifestRequiredFields.filter(
       (field) =>
         manifest[field] === undefined || manifest[field] === null || manifest[field] === "",
@@ -1794,51 +1747,11 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
       "opl_package_receipt",
       `${registryEntry.package_id} manifest health check kind`,
     );
-    assertArrayEqual(
-      Object.keys(manifest.distribution_payload ?? {}),
-      expectedDistributionPayloadFields,
-      `${registryEntry.package_id} manifest distribution payload fields`,
-    );
-    assertFieldsEqual(
+    assertEqual(
       manifest.distribution_payload,
-      {
-        payload_kind: "ghcr_oci_opl_package",
-        proof_status: "contract_fixture_non_live",
-        live_download_proof: false,
-        installed_reload_proof: false,
-        oci_media_type: "application/vnd.onepersonlab.package.v1+tar",
-        moving_tag: "latest-stable",
-        promotion_policy: "daily_candidate_gates_then_promote_latest_stable",
-        install_truth: "resolved_digest_lock",
-      },
-      `${registryEntry.package_id} manifest distribution payload`,
+      undefined,
+      `${registryEntry.package_id} starter manifest must not invent distribution payload evidence`,
     );
-    assertEqual(
-      manifest.distribution_payload.oci_ref,
-      `ghcr.io/gaofeng21cn/one-person-lab-packages/${registryEntry.package_id}:latest-stable`,
-      `${registryEntry.package_id} manifest latest OCI ref`,
-    );
-    assertEqual(
-      manifest.distribution_payload.payload_ref,
-      `ghcr.io/gaofeng21cn/one-person-lab-packages/${registryEntry.package_id}:${manifest.version}`,
-      `${registryEntry.package_id} manifest immutable OCI ref`,
-    );
-    assertEqual(
-      manifest.distribution_payload.immutable_tag,
-      manifest.version,
-      `${registryEntry.package_id} manifest immutable OCI tag`,
-    );
-    assertFixtureDigestRef(
-      manifest.distribution_payload.payload_digest_ref,
-      `${registryEntry.package_id} manifest payload digest ref`,
-    );
-    for (const lockRef of manifest.distribution_payload.required_skill_pack_lock_refs) {
-      assertFixtureDigestRef(
-        lockRef,
-        `${registryEntry.package_id} manifest required skill pack lock ref`,
-        true,
-      );
-    }
     assertArrayEqual(
       manifest.codex_surface?.plugin_ids,
       [registryEntry.codex_visible_entry],
@@ -1863,14 +1776,14 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
     }
     if (!Array.isArray(manifest.skill_packs) || manifest.skill_packs.length !== 1) {
       fail(
-        `manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`,
+        `manifest fixture ${registryEntry.package_id} must declare one required skill pack`,
       );
     }
     const skillPack = manifest.skill_packs[0];
-    assertFixtureDigestRef(
+    assertEqual(
       skillPack.lock_ref,
-      `${registryEntry.package_id} manifest skill pack lock ref`,
-      true,
+      undefined,
+      `${registryEntry.package_id} starter manifest must not invent a skill pack lock`,
     );
     assertEqual(
       skillPack.id,
@@ -1879,18 +1792,8 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
     );
     assertEqual(
       skillPack.install_mode,
-      "bundled_required",
+      "required",
       `${registryEntry.package_id} manifest required skill pack install mode`,
-    );
-    if (skillPack.lock_ref === "registry.version_source_ref") {
-      fail(
-        `manifest fixture ${registryEntry.package_id} required skill pack lock_ref must not use registry.version_source_ref`,
-      );
-    }
-    assertArrayEqual(
-      manifest.distribution_payload.required_skill_pack_lock_refs,
-      [skillPack.lock_ref],
-      `${registryEntry.package_id} manifest distribution payload skill pack locks`,
     );
     const expectedSource = expectedSkillPackSources[registryEntry.package_id];
     if (!expectedSource) {
@@ -2032,7 +1935,7 @@ function validatePackageManagerLifecycle(contract: any): void {
     lifecycle?.automatic_apply_policy,
     {
       cadence: "daily_after_core_ready_and_app_startup_check",
-      user_visible_channel: "latest-stable",
+      source_selection: "framework_projected_compatible_source",
       receipt_required: true,
     },
     "package manager lifecycle automatic apply policy",
@@ -2040,7 +1943,7 @@ function validatePackageManagerLifecycle(contract: any): void {
   assertArrayEqual(
     lifecycle?.automatic_apply_policy?.apply_when,
     [
-      "latest_stable_digest_changed",
+      "compatible_update_available",
       "managed_root_clean",
       "manifest_permissions_unchanged",
       "compatibility_gate_passed",
@@ -2064,7 +1967,7 @@ function validateThirdPartyManualSourcePolicy(contract: any): void {
   const sourcePolicy = contract.third_party_manual_source_policy;
   assertArrayEqual(
     sourcePolicy?.ordinary_user_default_source_kinds,
-    ["first_party_managed_cohort", "bundled_full_runtime_modules"],
+    ["framework_resolved_compatible_source"],
     "manual source ordinary defaults",
   );
   assertArrayEqual(
@@ -2088,28 +1991,11 @@ function validateThirdPartyManualSourcePolicy(contract: any): void {
     },
     "manual source policy",
   );
-  assertArrayEqual(
-    sourcePolicy?.remote_distribution_payload_contract?.required_fields,
-    expectedRemoteDistributionPayloadFields,
-    "manual source remote distribution payload fields",
-  );
-  assertFieldsEqual(
-    sourcePolicy?.remote_distribution_payload_contract,
-    {
-      download_execution_owner: "one-person-lab",
-      app_contract_claim:
-        "validate_and_route_refs_only_without_claiming_live_download_or_installed_reload",
-      live_download_proof_claim_allowed: false,
-      installed_reload_proof_claim_allowed: false,
-    },
-    "manual source remote distribution payload contract",
-  );
   if (
-    !sourcePolicy?.validation_scope?.includes("without hardcoding exact third-party package ids")
+    sourcePolicy?.validation_scope !==
+    "validate manifest shape, declared capability sources, trust tier, and Framework result without hardcoding package ids, transport, channel, lock, or payload"
   ) {
-    fail(
-      "manual source policy must validate shape without hardcoding exact third-party package ids",
-    );
+    fail("manual source policy must keep transport, lock, and payload out of App authority");
   }
 }
 
@@ -2139,62 +2025,6 @@ function validatePackageLockReceiptContract(contract: any): void {
   );
 }
 
-function validateAtomicBundlePolicy(contract: any): void {
-  const atomicPolicy = contract.atomic_bundle_policy;
-  assertArrayEqual(
-    atomicPolicy?.managed_package_unit_ids,
-    expectedRegistryPackageIds,
-    "atomic package unit ids",
-  );
-  assertArrayEqual(
-    atomicPolicy?.package_unit_includes,
-    expectedAtomicPackageUnitIncludes,
-    "atomic package unit includes",
-  );
-  assertFieldsEqual(
-    atomicPolicy,
-    {
-      framework_local_payload_validation:
-        "repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab",
-      required_skill_pack_lock_policy:
-        "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.version_source_ref or a moving tag",
-      reconcile_update_uninstall_as_unit: true,
-      domain_repo_remains_semantic_owner: true,
-      app_package_manager_scope:
-        "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
-      release_payload_proof_live_claim_allowed: false,
-      installed_codex_reload_proof_deferred: true,
-    },
-    "atomic bundle policy",
-  );
-  assertArrayEqual(
-    atomicPolicy?.release_payload_proof_required_fields,
-    expectedDistributionPayloadFields,
-    "atomic bundle release payload proof fields",
-  );
-  assertArrayEqual(
-    atomicPolicy?.physical_surface_required_skill_readback_fields,
-    ["materialized_required_skill_ids", "materialized_required_skill_paths"],
-    "atomic bundle physical surface required skill readback fields",
-  );
-  assertFieldsEqual(
-    atomicPolicy?.med_autoscience_professional_skill_pack_unit,
-    {
-      package_id: "mas",
-      agent_id: "mas",
-      required_skill_pack_id: "med-autoscience-professional-skill-pack",
-      atomic_with_agent_package: true,
-      domain_repo_remains_semantic_owner: true,
-    },
-    "MAS professional skill pack unit",
-  );
-  assertArrayEqual(
-    atomicPolicy?.med_autoscience_professional_skill_pack_unit?.lifecycle_actions,
-    ["install", "update", "repair", "uninstall"],
-    "MAS professional skill pack lifecycle actions",
-  );
-}
-
 function validateManagedPackageDistribution(contract: any): void {
   const distribution = contract.managed_package_distribution;
   assertFieldsEqual(
@@ -2205,31 +2035,14 @@ function validateManagedPackageDistribution(contract: any): void {
       app_role: "request_status_progress_and_receipt_projection_only",
       transaction_visibility:
         "package_lifecycle_with_internal_projection_and_profile_migration_status",
-      channel_id: "opl_packages_latest_stable",
-      default_transport: "framework_package_lifecycle",
-      default_update_mode: "automatic_apply_for_clean_managed_roots",
-      default_manifest_tag: "latest-stable",
-      distribution_format: "ghcr_oci_artifact",
-      registry: "ghcr.io",
-      ordinary_user_channel_model: "latest_stable_only",
-      internal_candidate_channel: "candidate_ci_only_not_user_visible",
-      publication_cadence: "daily_when_source_digest_changes",
-      promotion_policy:
-        "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest_stable",
-      immutable_tag_required: true,
-      digest_lock_required: true,
-      latest_stable_is_moving_channel: true,
-      stable_or_nightly_user_channels_allowed: false,
-      first_party_distribution_payload_status:
-        "contract_required_non_live_until_release_owner_publishes_payload",
-      must_not_depend_on_fixed_version_tag_by_default: true,
-      github_packages_unavailable_policy:
-        "fail_closed_with_actionable_background_maintenance_error",
-      homebrew_distribution_allowed: false,
-      homebrew_formula_allowed: false,
+      resolver_authority: "one-person-lab#package_repository_resolver",
+      source_policy: "resolve_any_compatible_declared_or_user_selected_source",
+      package_set_policy: "open_directory_without_fixed_required_package_set",
+      carrier_policy: "optional_acceleration_only_not_install_or_readiness_authority",
+      artifact_evidence_policy:
+        "record_refs_and_digests_only_for_artifacts_actually_resolved_installed_or_built",
       must_not_write_user_codex_state: true,
       must_not_define_agent_semantics: true,
-      cohort_manifest_required: true,
     },
     "agent-pack distribution",
   );
@@ -2242,53 +2055,14 @@ function validateManagedPackageDistribution(contract: any): void {
         "opl_generated_plugin_surface",
         "codex_surface",
       ],
-      user_visible_channels: ["latest-stable"],
-      agent_ids: expectedRequiredAgentIds,
-      package_ids: expectedRegistryPackageIds,
-      activation_commands: [
-        "opl packages activate <package_id> --scope workspace --target-workspace <path>",
-        "opl packages activate <package_id> --scope quest --target-quest <path>",
-      ],
-      first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
-      fallback_source_order: [
-        "bundled_full_runtime_modules",
-        "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
-        "explicit_developer_checkout_override",
-      ],
-      forbidden_homebrew_formulae: ["one-person-lab-modules", "one-person-lab-modules-nightly"],
     },
     "agent-pack distribution",
-  );
-  assertEqual(
-    distribution?.package_kinds?.["opl-flow"],
-    "workflow_plugin_package",
-    "OPL Flow package kind",
-  );
-  assertFieldsEqual(
-    distribution?.opl_flow_package,
-    {
-      package_id: "opl-flow",
-      package_kind: "workflow_plugin_package",
-      consumer: "standard_and_full_workflow_baseline",
-      install_command: "opl packages install opl-flow",
-      update_command: "opl packages update opl-flow",
-      app_direct_profile_mutation_allowed: false,
-      framework_profile_transaction_allowed: true,
-      framework_profile_migration_hook: "opl_packages_post_apply",
-      profile_sync_policy:
-        "codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback",
-      carrier_reconcile_special_case_allowed: false,
-      workflow_profile_semantic_merge_ref:
-        "managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status",
-      standard_updater_allowed: false,
-    },
-    "OPL Flow package policy",
   );
   assertFieldsEqual(
     distribution?.auto_apply,
     {
       enabled_for: "clean_managed_roots_only",
-      trigger: "daily_or_startup_latest_stable_digest_check",
+      trigger: "framework_projected_compatible_update",
       receipt_required: true,
     },
     "agent-pack distribution auto apply",
@@ -2550,7 +2324,7 @@ console.log(
       default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
       generated_plugin_agents: expectedGeneratedAgentIds,
       generated_plugin_skills: expectedGeneratedPluginSkillIds,
-      first_party_release_set_packages: expectedRegistryPackageIds,
+      starter_packages: expectedRegistryPackageIds,
       registry_source_kinds: expectedRegistrySourceKinds,
       package_lifecycle_actions: expectedPackageLifecycleActions,
       package_activation_action: "agent_package_activate",

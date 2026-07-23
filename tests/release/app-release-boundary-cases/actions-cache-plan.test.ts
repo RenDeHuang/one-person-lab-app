@@ -7,8 +7,7 @@ import {
   buildFullRuntimeCacheKey,
 } from '../../../scripts/full-first-install-package.ts';
 import {
-  buildFrameworkPackageSetInput,
-  FULL_RUNTIME_PACKAGE_IDS,
+  buildSelectedPackageSetInput,
 } from '../../../scripts/build-full-first-install-package/runtime-cache-package-set.ts';
 import {
   buildActionsCachePlan,
@@ -28,39 +27,20 @@ function resign(value: Record<string, any>) {
 }
 
 function testFrameworkPackageSet(frameworkSha: string) {
-  const sourceCommits = Object.fromEntries(FULL_RUNTIME_PACKAGE_IDS.map((packageId, index) => [
-    packageId,
-    ((index + 1).toString(16)).repeat(40),
-  ]));
-  const referencedFileSha256: Record<string, string> = {};
-  const packages = Object.fromEntries(FULL_RUNTIME_PACKAGE_IDS.map((packageId, index) => {
-    const manifestRef = `packages/${packageId}.json`;
-    const payloadManifestRef = `packages/payloads/${packageId}-1.0.0.json`;
-    const manifestSha256 = `sha256:${((index + 1).toString(16)).repeat(64)}`;
-    const payloadManifestSha256 = `sha256:${((index + 8).toString(16)).repeat(64)}`;
-    referencedFileSha256[manifestRef] = manifestSha256;
-    referencedFileSha256[payloadManifestRef] = payloadManifestSha256;
-    return [packageId, {
-      package_id: packageId,
-      package_role: packageId === 'opl-flow' ? 'workflow_profile' : 'standard_agent',
-      package_version: '1.0.0',
-      owner_source_commit: sourceCommits[packageId],
-      runtime_module_relative_path: `modules/${packageId}`,
-      manifest_ref: manifestRef,
-      manifest_sha256: manifestSha256,
-      payload_manifest_ref: payloadManifestRef,
-      payload_manifest_sha256: payloadManifestSha256,
-    }];
-  }));
-  return buildFrameworkPackageSetInput({
-    frameworkSha,
-    catalogSha256: 'f'.repeat(64),
-    catalog: {
-      surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
-      packages,
+  void frameworkSha;
+  const packageIds = ['custom-agent', 'custom-capability'];
+  return buildSelectedPackageSetInput({
+    packageProfile: {
+      profile_id: 'custom',
+      package_ids: ['custom-agent'],
+      dependency_closure: packageIds,
     },
-    sourceCommits: sourceCommits as never,
-    referencedFileSha256,
+    packages: packageIds.map((packageId, index) => ({
+      package_id: packageId,
+      source_commit: ((index + 1).toString(16)).repeat(40),
+      source_fingerprint: `sha256:${((index + 3).toString(16)).repeat(64)}`,
+      runtime_module_relative_path: `modules/${packageId}`,
+    })),
   });
 }
 
@@ -78,7 +58,7 @@ function testRuntimeReport(frameworkSha: string) {
     buildFullRuntimeCacheKey({ layerId, parts: layerKeyInputs[layerId] }),
   ]));
   return {
-    framework_package_set: testFrameworkPackageSet(frameworkSha),
+    selected_package_set: testFrameworkPackageSet(frameworkSha),
     layer_key_inputs: layerKeyInputs,
     layers,
     aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers: layers as never }),
@@ -100,7 +80,7 @@ function testPlan(input: {
     frameworkSha,
     runnerOs: 'macOS',
     runnerArch: 'ARM64',
-    catalogSha256: '4'.repeat(64),
+    cacheCatalogSha256: '4'.repeat(64),
     runtimeKeyReport: testRuntimeReport(frameworkSha),
   });
 }
@@ -110,7 +90,7 @@ function testRuntimeEvents(plan: Record<string, any>) {
   return {
     keys: report.layers,
     key_inputs: report.layer_key_inputs,
-    framework_package_set: report.framework_package_set,
+    selected_package_set: report.selected_package_set,
     currentness: {
       schema: 'opl_full_runtime_currentness_probe.v1',
       status: 'passed',
@@ -127,7 +107,7 @@ function testRuntimeEvents(plan: Record<string, any>) {
   };
 }
 
-test('Actions cache plan binds exact cohort, seven packages, and structured runtime keys', () => {
+test('Actions cache plan binds exact cohort, selected packages, and structured runtime keys', () => {
   const frameworkSha = 'c'.repeat(40);
   const report = testRuntimeReport(frameworkSha);
   const plan = buildActionsCachePlan({
@@ -139,14 +119,18 @@ test('Actions cache plan binds exact cohort, seven packages, and structured runt
     frameworkSha,
     runnerOs: 'macOS',
     runnerArch: 'ARM64',
-    catalogSha256: 'd'.repeat(64),
+    cacheCatalogSha256: 'd'.repeat(64),
     runtimeKeyReport: report,
   });
 
   validateActionsCachePlan(plan);
   assert.equal(plan.schema, 'opl_actions_cache_plan.v2');
   assert.equal(plan.writer_eligible, true);
-  assert.equal(plan.framework_package_set.packages.length, 7);
+  assert.deepEqual(plan.selected_package_set.package_ids, ['custom-agent']);
+  assert.deepEqual(
+    plan.selected_package_set.dependency_closure,
+    ['custom-agent', 'custom-capability'],
+  );
   assert.deepEqual(plan.runner, { os: 'macOS', arch: 'ARM64' });
   assert.equal(plan.runtime_layers.length, 4);
   assert.equal(
@@ -289,7 +273,7 @@ test('Actions cache plan rejects writer, aggregate, and package identity drift',
   assert.throws(() => validateActionsCachePlan(aggregateDrifted), /aggregate key input/);
 
   const packageDrifted = structuredClone(plan);
-  packageDrifted.framework_package_set.packages[0].owner_source_commit = 'e'.repeat(40);
+  packageDrifted.selected_package_set.packages[0].source_commit = 'e'.repeat(40);
   resign(packageDrifted);
   assert.throws(() => validateActionsCachePlan(packageDrifted), /package set identity|owner source/);
 

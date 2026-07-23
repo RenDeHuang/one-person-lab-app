@@ -25,7 +25,7 @@ should happen only when AGUI replay is explicitly requested.
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
-| `write-opl-app-component-manifest.ts` | Writes the App-owned immutable standard artifact lock consumed by `opl_release_set.v2`; the App keeps CalVer while the Release Set records its exact source commit and asset digests. |
+| `write-opl-app-component-manifest.ts` | Writes the App-owned Standard artifact manifest with its actual source commit and asset digests. This is artifact evidence, not a Package composition authority or installation prerequisite. |
 | `release-bundle.ts` | Reads the retired App-owned Bundle projection for historical receipt compatibility. It can assemble, verify, or report those records, but cannot admit, build, publish, promote, dispatch, or claim readiness for a live release. |
 | `framework-release-adapter.ts` | Adapts App product inputs and exact asset/qualification evidence to the Framework `opl release` ABI. Framework checkpoint state remains authoritative; the adapter does not create an App session, broker ledger, or second release state machine. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
@@ -42,7 +42,7 @@ should happen only when AGUI replay is explicitly requested.
 | `closeout-release-run.ts` | Reads historical run/session artifacts for diagnostics only. It has no package entrypoint and cannot advance or reconcile live Framework Bundle state. |
 | `verify-release-attestations.ts` | Runs `gh attestation verify` for downloaded release assets or OCI refs and writes `opl_release_attestation_verification.v1` for closeout ingestion. It records build-integrity evidence only and does not replace checksum, remote-readback, VM, or owner evidence. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and orchestration time outside Actions. |
-| `write-actions-cache-plan.ts` | Writes `opl_actions_cache_plan.v2` before Full runtime materialization and `opl_actions_cache_receipt.v2` after cache-save attempts. It binds the exact App/Shell/Framework cohort, Framework seven-package identity, canonical aggregate input, and per-layer key-input digests; receipt generation additionally requires passed runtime currentness and records hit, duration, and save-failure metrics without claiming artifact or release readiness. |
+| `write-actions-cache-plan.ts` | Writes `opl_actions_cache_plan.v2` before Full runtime materialization and `opl_actions_cache_receipt.v2` after cache-save attempts. It binds the exact App/Shell/Framework cohort, the package dependency closure selected for that build, its source fingerprints, the cache-catalog digest, canonical aggregate input, and per-layer key-input digests; receipt generation additionally requires passed runtime currentness and records hit, duration, and save-failure metrics without claiming artifact or release readiness. |
 | `plan-release-gate-reuse.ts` | Retired read-only inspector. It always reports zero reuse authority; only Framework checkpoint receipts may decide completed-stage skips. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
 | `plan-release-cohort.ts` | Reads and renders the retired App cohort projection for historical diagnostics. It has no package entrypoint and only hands off to read-only Framework status inspection. |
@@ -136,7 +136,7 @@ npm run validate:candidate:agui
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
 npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
-npm run release:framework-adapter -- freeze --channel stable --version <version> --updater-version <updater-version> --app-root <app-checkout> --shell-root <shell-checkout> --framework-root <framework-checkout> --notes <prepared-notes.md> --notes-evidence <notes-evidence.json> --include-full-package false --release-set-manifest <release-set.json> --output freeze-request.json
+npm run release:framework-adapter -- freeze-request --channel stable --version <version> --updater-version <updater-version> --app-root <app-checkout> --shell-root <shell-checkout> --framework-root <framework-checkout> --notes <prepared-notes.md> --notes-evidence <notes-evidence.json> --include-full-package false --package-compatibility-abi opl_packages.v1 --package-compatibility-version-range '>=1 <2' --source-cutoff-observed-at <iso8601> --base-image-index <base-image-index.json> --codex-npm-metadata <codex-npm-metadata.json> --output freeze-request.json
 opl release freeze --request freeze-request.json --source-root <release-checkout> --store <bundle-store>
 opl release status --bundle <sha256:digest> --store <bundle-store>
 opl release checkpoint export --bundle <sha256:digest> --output checkpoint/ --store <bundle-store>
@@ -591,8 +591,9 @@ delete them. Cleanup remains plan-only until an isolated cleanup broker accepts
 the protected-key set and exact deletion IDs.
 `npm run release:cache-plan -- plan ...` and `... -- receipt ...` are the CLI
 surfaces used by the Full workflow to make exact-cohort cache decisions and save
-outcomes inspectable. Plan/receipt v2 bind the Framework seven-package catalog,
-each layer's structured key-input digest, and passed runtime currentness. The
+outcomes inspectable. Plan/receipt v2 bind the selected package dependency
+closure, exact source fingerprints, each layer's structured key-input digest,
+and passed runtime currentness. The
 receipt reports hit/miss counts, hit ratio, total layer duration, and save
 failures; use those metrics to diagnose acceleration only. The layer ownership,
 invalidation matrix, default-on flow, and change rules are documented in

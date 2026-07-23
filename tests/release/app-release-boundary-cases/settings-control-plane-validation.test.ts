@@ -471,7 +471,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.equal(directory.directory_collection_source, "app_state.agent_packages.directory.entries");
   assert.equal(
     directory.static_metadata_overlay_source,
-    "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+    "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
   );
   assert.deepStrictEqual(directory.static_metadata_overlay_fields, ["display_name_i18n", "description_i18n"]);
   assert.equal(directory.settings_action_scope, "owner_projected_non_activation_actions_only");

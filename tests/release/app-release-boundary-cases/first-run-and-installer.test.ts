@@ -263,7 +263,7 @@ test("App product profile check verifies the deterministic compatibility project
   }
 });
 
-test("reusable release-boundary job checks out its OPL Flow authority source", () => {
+test("reusable release-boundary job validates the App projection without requiring OPL Flow source", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_build-reusable.yml"),
     "utf8",
@@ -273,14 +273,9 @@ test("reusable release-boundary job checks out its OPL Flow authority source", (
   const job = workflow.slice(jobStart, jobEnd);
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing reusable release-boundary job");
-  assert.match(workflow, /opl_flow_ref:[\s\S]*Immutable opl-flow ref[\s\S]*default: ''/);
-  assert.match(
-    job,
-    /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/,
-  );
-  assert.match(job, /ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
-  assert.match(job, /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
-  assert.match(job, /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
+  assert.doesNotMatch(workflow, /opl_flow_ref:/);
+  assert.doesNotMatch(job, /Checkout OPL Flow policy source|OPL_FLOW_WORKFLOW_POLICY|OPL_FULL_OPL_FLOW_ROOT/);
+  assert.match(job, /npm run test:release-boundary/);
 });
 
 test("fresh-runner release-boundary jobs install App root dependencies before validation", () => {
@@ -341,30 +336,19 @@ test("Bundle freeze gate installs frozen App and Framework dependencies before v
   );
 });
 
-test("reusable build job checks out OPL Flow before preparing the standard payload", () => {
+test("reusable Standard build prepares the App projection without an OPL Flow carrier input", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_build-reusable.yml"),
     "utf8",
   );
   const jobStart = workflow.indexOf("  build:");
   const job = workflow.slice(jobStart);
-  const checkout = job.indexOf("- name: Checkout OPL Flow policy source");
   const payload = job.indexOf("- name: Prepare standard App payload");
 
   assert.ok(jobStart >= 0, "missing reusable build job");
-  assert.ok(
-    checkout >= 0 && payload > checkout,
-    "OPL Flow must be available before standard payload preparation",
-  );
-  assert.match(
-    job,
-    /repository: gaofeng21cn\/opl-flow[\s\S]*ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/,
-  );
-  assert.match(
-    job.slice(payload),
-    /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/,
-  );
-  assert.match(job.slice(payload), /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
+  assert.ok(payload >= 0, "missing standard payload preparation");
+  assert.doesNotMatch(job, /Checkout OPL Flow policy source|repository: gaofeng21cn\/opl-flow/);
+  assert.doesNotMatch(job.slice(payload), /OPL_FLOW_WORKFLOW_POLICY|OPL_FULL_OPL_FLOW_ROOT/);
 });
 
 test("one-shot App installer defaults to the shared base plus optional GUI without Agents", () => {

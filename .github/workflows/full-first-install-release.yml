@@ -236,27 +236,13 @@ jobs:
           ref: ${{ inputs.framework_ref }}
           path: one-person-lab
 
-      - name: Resolve managed Full package refs
-        id: managed-package-refs
+      - name: Resolve default Full build inputs
+        id: full-build-inputs
         shell: bash
         run: |
           set -euo pipefail
-          catalog="$GITHUB_WORKSPACE/one-person-lab/contracts/opl-framework/bundled-full-runtime-package-catalog.json"
           third_party="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-full-third-party-source-manifest.json"
           qualification_inputs="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-release-qualification-input-manifest.json"
-          while IFS='=' read -r output package_id; do
-            ref="$(jq -er --arg id "$package_id" '.packages[$id].owner_source_commit' "$catalog")"
-            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Framework $package_id owner_source_commit is missing or invalid."; exit 1; }
-            echo "${output}_ref=$ref" >> "$GITHUB_OUTPUT"
-          done <<'REFS'
-          mas=mas
-          mag=mag
-          rca=rca
-          oma=oma
-          obf=obf
-          mas_scholar_skills=mas-scholar-skills
-          opl_flow=opl-flow
-          REFS
           for output in officecli mineru ui_ux_pro_max; do
             ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$third_party")"
             [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Third-party $output ref is missing or invalid."; exit 1; }
@@ -287,70 +273,70 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/med-autoscience
-          ref: ${{ steps.managed-package-refs.outputs.mas_ref }}
+          ref: main
           path: med-autoscience
 
       - name: Checkout MAS Scholar Skills
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/mas-scholar-skills
-          ref: ${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}
+          ref: main
           path: mas-scholar-skills
 
       - name: Checkout MAG
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/med-autogrant
-          ref: ${{ steps.managed-package-refs.outputs.mag_ref }}
+          ref: main
           path: med-autogrant
 
       - name: Checkout RCA
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/redcube-ai
-          ref: ${{ steps.managed-package-refs.outputs.rca_ref }}
+          ref: main
           path: redcube-ai
 
       - name: Checkout OPL Meta Agent
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-meta-agent
-          ref: ${{ steps.managed-package-refs.outputs.oma_ref }}
+          ref: main
           path: opl-meta-agent
 
       - name: Checkout OPL BookForge
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-bookforge
-          ref: ${{ steps.managed-package-refs.outputs.obf_ref }}
+          ref: main
           path: opl-bookforge
 
       - name: Checkout OPL Flow
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-flow
-          ref: ${{ steps.managed-package-refs.outputs.opl_flow_ref }}
+          ref: main
           path: opl-flow
 
       - name: Checkout OfficeCLI
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: iOfficeAI/OfficeCLI
-          ref: ${{ steps.managed-package-refs.outputs.officecli_ref }}
+          ref: ${{ steps.full-build-inputs.outputs.officecli_ref }}
           path: OfficeCLI
 
       - name: Checkout MinerU Ecosystem
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: opendatalab/MinerU-Ecosystem
-          ref: ${{ steps.managed-package-refs.outputs.mineru_ref }}
+          ref: ${{ steps.full-build-inputs.outputs.mineru_ref }}
           path: MinerU-Ecosystem
 
       - name: Checkout UI UX Pro Max skill
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: nextlevelbuilder/ui-ux-pro-max-skill
-          ref: ${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}
+          ref: ${{ steps.full-build-inputs.outputs.ui_ux_pro_max_ref }}
           path: ui-ux-pro-max-skill
 
       - name: Validate Full source roots
@@ -378,21 +364,13 @@ jobs:
               exit 1
             fi
           done
-          while IFS='=' read -r repo expected; do
-            actual="$(git -C "$GITHUB_WORKSPACE/$repo" rev-parse HEAD)"
-            test "$actual" = "$expected" || { echo "::error::$repo HEAD $actual does not match frozen source $expected"; exit 1; }
-          done <<REFS
-          med-autoscience=${{ steps.managed-package-refs.outputs.mas_ref }}
-          mas-scholar-skills=${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}
-          med-autogrant=${{ steps.managed-package-refs.outputs.mag_ref }}
-          redcube-ai=${{ steps.managed-package-refs.outputs.rca_ref }}
-          opl-meta-agent=${{ steps.managed-package-refs.outputs.oma_ref }}
-          opl-bookforge=${{ steps.managed-package-refs.outputs.obf_ref }}
-          opl-flow=${{ steps.managed-package-refs.outputs.opl_flow_ref }}
-          OfficeCLI=${{ steps.managed-package-refs.outputs.officecli_ref }}
-          MinerU-Ecosystem=${{ steps.managed-package-refs.outputs.mineru_ref }}
-          ui-ux-pro-max-skill=${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}
-          REFS
+          for repo in \
+            med-autoscience mas-scholar-skills med-autogrant redcube-ai \
+            opl-meta-agent opl-bookforge opl-flow OfficeCLI \
+            MinerU-Ecosystem ui-ux-pro-max-skill; do
+            commit="$(git -C "$GITHUB_WORKSPACE/$repo" rev-parse HEAD)"
+            [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$repo resolved an invalid commit."; exit 1; }
+          done
 
       - name: Resolve release version
         shell: bash
@@ -401,16 +379,16 @@ jobs:
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
           echo "OPL_UPDATER_VERSION=${{ inputs.opl_updater_version }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAS_REF=${{ steps.managed-package-refs.outputs.mas_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=${{ steps.managed-package-refs.outputs.mas_scholar_skills_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAG_REF=${{ steps.managed-package-refs.outputs.mag_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_RCA_REF=${{ steps.managed-package-refs.outputs.rca_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_META_AGENT_REF=${{ steps.managed-package-refs.outputs.oma_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_BOOKFORGE_REF=${{ steps.managed-package-refs.outputs.obf_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_OPL_FLOW_REF=${{ steps.managed-package-refs.outputs.opl_flow_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_OFFICECLI_REF=${{ steps.managed-package-refs.outputs.officecli_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MINERU_REF=${{ steps.managed-package-refs.outputs.mineru_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_UI_UX_PRO_MAX_REF=${{ steps.managed-package-refs.outputs.ui_ux_pro_max_ref }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAS_REF=$(git -C med-autoscience rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=$(git -C mas-scholar-skills rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAG_REF=$(git -C med-autogrant rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_RCA_REF=$(git -C redcube-ai rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_META_AGENT_REF=$(git -C opl-meta-agent rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_BOOKFORGE_REF=$(git -C opl-bookforge rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_OPL_FLOW_REF=$(git -C opl-flow rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_OFFICECLI_REF=$(git -C OfficeCLI rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MINERU_REF=$(git -C MinerU-Ecosystem rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_UI_UX_PRO_MAX_REF=$(git -C ui-ux-pro-max-skill rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
@@ -431,13 +409,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C "$GITHUB_WORKSPACE/OfficeCLI" rev-parse HEAD)" = "${{ steps.managed-package-refs.outputs.officecli_ref }}"
-          test "$OPL_FULL_OFFICECLI_REF" = "${{ steps.managed-package-refs.outputs.officecli_ref }}"
+          test "$OPL_FULL_OFFICECLI_REF" = "$(git -C "$GITHUB_WORKSPACE/OfficeCLI" rev-parse HEAD)"
 
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
-          bun-version: ${{ steps.managed-package-refs.outputs.bun_version }}
+          bun-version: ${{ steps.full-build-inputs.outputs.bun_version }}
 
       - name: Restore Bun install cache
         if: ${{ !inputs.cache_only }}
@@ -486,8 +463,8 @@ jobs:
       - name: Setup exact Python and packaged uv
         shell: bash
         env:
-          EXPECTED_PYTHON_VERSION: ${{ steps.managed-package-refs.outputs.python_version }}
-          EXPECTED_UV_VERSION: ${{ steps.managed-package-refs.outputs.uv_version }}
+          EXPECTED_PYTHON_VERSION: ${{ steps.full-build-inputs.outputs.python_version }}
+          EXPECTED_UV_VERSION: ${{ steps.full-build-inputs.outputs.uv_version }}
         run: |
           set -euo pipefail
           uv python install --managed-python "$EXPECTED_PYTHON_VERSION"
@@ -510,7 +487,7 @@ jobs:
         id: go-cache
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
-          go-version: ${{ steps.managed-package-refs.outputs.go_version }}
+          go-version: ${{ steps.full-build-inputs.outputs.go_version }}
           cache: true
           cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
@@ -519,15 +496,15 @@ jobs:
         run: |
           set -euo pipefail
           brew install zstd
-          codex_version_frozen='${{ steps.managed-package-refs.outputs.codex_version }}'
+          codex_version_frozen='${{ steps.full-build-inputs.outputs.codex_version }}'
           codex_tarball="$RUNNER_TEMP/openai-codex-${codex_version_frozen}.tgz"
-          codex_platform_tarball="$RUNNER_TEMP/openai-codex-${{ steps.managed-package-refs.outputs.codex_platform_version }}.tgz"
-          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.managed-package-refs.outputs.codex_tarball_url }}' -o "$codex_tarball"
-          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.managed-package-refs.outputs.codex_platform_tarball_url }}' -o "$codex_platform_tarball"
-          echo '${{ steps.managed-package-refs.outputs.codex_tarball_sha256 }}  '"$codex_tarball" | shasum -a 256 -c -
-          echo '${{ steps.managed-package-refs.outputs.codex_platform_tarball_sha256 }}  '"$codex_platform_tarball" | shasum -a 256 -c -
-          test "$(npm view "@openai/codex@${codex_version_frozen}" dist.integrity)" = '${{ steps.managed-package-refs.outputs.codex_integrity }}'
-          test "$(npm view "@openai/codex@${{ steps.managed-package-refs.outputs.codex_platform_version }}" dist.integrity)" = '${{ steps.managed-package-refs.outputs.codex_platform_integrity }}'
+          codex_platform_tarball="$RUNNER_TEMP/openai-codex-${{ steps.full-build-inputs.outputs.codex_platform_version }}.tgz"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.full-build-inputs.outputs.codex_tarball_url }}' -o "$codex_tarball"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.full-build-inputs.outputs.codex_platform_tarball_url }}' -o "$codex_platform_tarball"
+          echo '${{ steps.full-build-inputs.outputs.codex_tarball_sha256 }}  '"$codex_tarball" | shasum -a 256 -c -
+          echo '${{ steps.full-build-inputs.outputs.codex_platform_tarball_sha256 }}  '"$codex_platform_tarball" | shasum -a 256 -c -
+          test "$(npm view "@openai/codex@${codex_version_frozen}" dist.integrity)" = '${{ steps.full-build-inputs.outputs.codex_integrity }}'
+          test "$(npm view "@openai/codex@${{ steps.full-build-inputs.outputs.codex_platform_version }}" dist.integrity)" = '${{ steps.full-build-inputs.outputs.codex_platform_integrity }}'
           npm cache add "$codex_platform_tarball"
           npm install -g "$codex_tarball" --fetch-retries=3 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=20000 --fetch-timeout=60000
           codex_version="$(codex --version)"
@@ -544,9 +521,9 @@ jobs:
           mkdir -p "$HOME/.local/bin"
           officecli_bin="$HOME/.local/bin/officecli"
           curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
-            "https://github.com/iOfficeAI/OfficeCLI/releases/download/v${{ steps.managed-package-refs.outputs.officecli_version }}/officecli-mac-arm64" \
+            "https://github.com/iOfficeAI/OfficeCLI/releases/download/v${{ steps.full-build-inputs.outputs.officecli_version }}/officecli-mac-arm64" \
             -o "$officecli_bin"
-          echo '${{ steps.managed-package-refs.outputs.officecli_sha256 }}  '"$officecli_bin" | shasum -a 256 -c -
+          echo '${{ steps.full-build-inputs.outputs.officecli_sha256 }}  '"$officecli_bin" | shasum -a 256 -c -
           chmod +x "$officecli_bin"
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -554,20 +531,20 @@ jobs:
           echo "$codex_version"
           officecli --version
           mineru-open-api version
-          temporal_version='${{ steps.managed-package-refs.outputs.temporal_version }}'
+          temporal_version='${{ steps.full-build-inputs.outputs.temporal_version }}'
           temporal_archive="$RUNNER_TEMP/temporal_cli_${temporal_version}_darwin_arm64.tar.gz"
           curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
             "https://github.com/temporalio/cli/releases/download/v${temporal_version}/temporal_cli_${temporal_version}_darwin_arm64.tar.gz" \
             -o "$temporal_archive"
-          echo '${{ steps.managed-package-refs.outputs.temporal_sha256 }}  '"$temporal_archive" | shasum -a 256 -c -
+          echo '${{ steps.full-build-inputs.outputs.temporal_sha256 }}  '"$temporal_archive" | shasum -a 256 -c -
           tar -xzf "$temporal_archive" -C "$HOME/.local/bin" temporal
           temporal --version | grep -F "temporal version $temporal_version"
           uv --version
-          uv --version | grep -F 'uv ${{ steps.managed-package-refs.outputs.uv_version }}'
-          zstd --version | grep -F 'v${{ steps.managed-package-refs.outputs.zstd_version }}'
-          bun --version | grep -Fx '${{ steps.managed-package-refs.outputs.bun_version }}'
-          go version | grep -F 'go${{ steps.managed-package-refs.outputs.go_version }}'
-          python --version | grep -F 'Python ${{ steps.managed-package-refs.outputs.python_version }}'
+          uv --version | grep -F 'uv ${{ steps.full-build-inputs.outputs.uv_version }}'
+          zstd --version | grep -F 'v${{ steps.full-build-inputs.outputs.zstd_version }}'
+          bun --version | grep -Fx '${{ steps.full-build-inputs.outputs.bun_version }}'
+          go version | grep -F 'go${{ steps.full-build-inputs.outputs.go_version }}'
+          python --version | grep -F 'Python ${{ steps.full-build-inputs.outputs.python_version }}'
           echo "OPL_FULL_BUN_BIN=$(command -v bun)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TEMPORAL_CLI_ARCHIVE=$temporal_archive" >> "$GITHUB_ENV"
@@ -576,11 +553,11 @@ jobs:
       - name: Write Full toolchain supply-chain observation receipt
         shell: bash
         env:
-          EXPECTED_BUN_VERSION: ${{ steps.managed-package-refs.outputs.bun_version }}
-          EXPECTED_GO_VERSION: ${{ steps.managed-package-refs.outputs.go_version }}
-          EXPECTED_PYTHON_VERSION: ${{ steps.managed-package-refs.outputs.python_version }}
-          EXPECTED_UV_VERSION: ${{ steps.managed-package-refs.outputs.uv_version }}
-          EXPECTED_ZSTD_VERSION: ${{ steps.managed-package-refs.outputs.zstd_version }}
+          EXPECTED_BUN_VERSION: ${{ steps.full-build-inputs.outputs.bun_version }}
+          EXPECTED_GO_VERSION: ${{ steps.full-build-inputs.outputs.go_version }}
+          EXPECTED_PYTHON_VERSION: ${{ steps.full-build-inputs.outputs.python_version }}
+          EXPECTED_UV_VERSION: ${{ steps.full-build-inputs.outputs.uv_version }}
+          EXPECTED_ZSTD_VERSION: ${{ steps.full-build-inputs.outputs.zstd_version }}
         run: |
           set -euo pipefail
           umask 077
@@ -808,7 +785,7 @@ jobs:
           fi
           npm --silent run release:cache-plan -- plan \
             --output dist/opl-full-release/actions-cache-plan.json \
-            --catalog contracts/app-actions-cache-catalog.json \
+            --cache-catalog contracts/app-actions-cache-catalog.json \
             --runtime-key-report "$RUNNER_TEMP/opl-full-runtime-cache-keys.json" \
             --mode "$mode" \
             --workflow full-first-install-release.yml \
@@ -1502,7 +1479,6 @@ jobs:
             --compiled-expectations one-person-lab-app/contracts/app-first-run-compiled-expectations.json \
             --qualification-input-manifest one-person-lab-app/contracts/app-release-qualification-input-manifest.json \
             --full-input-manifest one-person-lab-app/contracts/app-full-third-party-source-manifest.json \
-            --framework-bundled-catalog one-person-lab/contracts/opl-framework/bundled-full-runtime-package-catalog.json \
             --full-toolchain-observation-receipt "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" \
             --app-sha "$(git -C one-person-lab-app rev-parse HEAD)" \
             --shell-sha "$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \

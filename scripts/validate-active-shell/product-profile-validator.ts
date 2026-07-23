@@ -39,7 +39,7 @@ import {
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
-  firstPartyReleaseSetPresentationByPackageId,
+  starterPackagePresentationByPackageId,
   requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
@@ -330,7 +330,7 @@ function validateProfessionalAgentPackages(profile) {
 
 function validateAgentPackageRegistryProjection(profile) {
   const projection = profile.gui?.agent_package_registry;
-  const expectedFirstPartyPackageIds = [
+  const expectedStarterPackageIds = [
     'mas',
     'mag',
     'rca',
@@ -358,20 +358,20 @@ function validateAgentPackageRegistryProjection(profile) {
     throw new Error('Product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
   }
   assertDeepEqualJson(
-    projection.canonical_first_party_package_ids,
-    expectedFirstPartyPackageIds,
-    'Product profile canonical Framework first-party package ids',
+    projection.starter_package_ids,
+    expectedStarterPackageIds,
+    'Product profile starter package ids',
   );
-  const metadata = projection.first_party_release_set_metadata ?? [];
+  const metadata = projection.starter_package_metadata ?? [];
   assertDeepEqualJson(
     metadata.map((entry) => entry.package_id),
-    expectedFirstPartyPackageIds,
-    'Product profile first-party release metadata ids',
+    expectedStarterPackageIds,
+    'Product profile starter package metadata ids',
   );
   for (const entry of metadata) {
     const localizedPresentation =
-      firstPartyReleaseSetPresentationByPackageId[
-        entry.package_id as keyof typeof firstPartyReleaseSetPresentationByPackageId
+      starterPackagePresentationByPackageId[
+        entry.package_id as keyof typeof starterPackagePresentationByPackageId
       ];
     if (
       !entry.package_kind ||
@@ -753,15 +753,11 @@ function validateFirstConversationPolicy(profile) {
   }
   const fullRuntimeQualification = profile.first_run?.full_runtime_package_qualification;
   if (
-    fullRuntimeQualification?.source !== 'framework_bundled_full_runtime_catalog' ||
-    fullRuntimeQualification.reconciliation !== 'idempotent_local_payload_install_before_full_readiness' ||
-    fullRuntimeQualification.required_installed_package_count !== 7 ||
-    JSON.stringify(fullRuntimeQualification.canonical_package_ids) !==
-      JSON.stringify(['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow']) ||
-    JSON.stringify(fullRuntimeQualification.global_codex_exposure_package_ids) !==
-      JSON.stringify(['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow']) ||
-    JSON.stringify(fullRuntimeQualification.workspace_scoped_package_ids) !==
-      JSON.stringify(['mas-scholar-skills']) ||
+    fullRuntimeQualification?.source !== 'framework_resolved_selected_package_set' ||
+    fullRuntimeQualification.reconciliation !== 'idempotent_selected_capability_reconciliation' ||
+    fullRuntimeQualification.composition_policy !== 'open_composition_no_fixed_package_set' ||
+    fullRuntimeQualification.readiness_policy !==
+      'selected_capabilities_gate_only_their_dependent_features' ||
     fullRuntimeQualification.workspace_scoped_materialization_policy !==
       'package_cache_without_global_marketplace_registration_until_mas_workspace_binding' ||
     fullRuntimeQualification.global_workspace_scoped_exposure !== 'forbidden'

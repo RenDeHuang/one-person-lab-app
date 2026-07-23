@@ -36,7 +36,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
 
   const packagedAt = new Date().toISOString();
   const {
-    frameworkPackageSet,
+    selectedPackageSet,
     layerKeyInputs: cacheKeyInputs,
     layers: cacheKeys,
   } = buildRuntimeCacheContext(options, sources);
@@ -126,6 +126,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   );
   const currentness = assertFullRuntimeCurrentness(runtimeRoot, {
     frameworkRoot: options.frameworkRoot,
+    masRoot: options.masRoot,
     masScholarSkillsRoot: options.masScholarSkillsRoot,
     masScholarSkillsRef: options.masScholarSkillsRef,
   });
@@ -139,7 +140,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       dir: options.runtimeCacheDir || null,
       keys: cacheKeys,
       key_inputs: cacheKeyInputs,
-      framework_package_set: frameworkPackageSet,
+      selected_package_set: selectedPackageSet,
       events: cacheEvents,
       currentness,
     },

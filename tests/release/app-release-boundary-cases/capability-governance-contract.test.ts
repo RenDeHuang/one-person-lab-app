@@ -74,20 +74,19 @@ test('model precedence makes App defaults a Flow-unavailable fallback only', () 
   );
 });
 
-test('Full source manifest records actual inputs without freezing the Flow dependency graph', () => {
+test('Full source manifest selects inputs without requiring a family lock or payload inventory', () => {
   const manifest = readJson('contracts/app-full-third-party-source-manifest.json');
   const projection = manifest.projection;
-  const sha256 = /^[0-9a-f]{64}$/;
 
-  assert.equal(projection.role, 'release_frozen_actual_input_projection');
+  assert.equal(projection.role, 'default_full_build_input_selection');
   assert.equal('capability_graph' in projection, false);
-  assert.match(projection.framework_closure.source_commit, /^[0-9a-f]{40}$/);
-  assert.match(projection.framework_closure.release_set_sha256, sha256);
-  assert.match(projection.framework_closure.bundled_catalog_sha256, sha256);
-  assert.equal(projection.generation_contract.exact_ref_and_digest_binding_required, true);
-  assert.equal(projection.generation_contract.framework_lifecycle_receipt_required, true);
+  assert.equal(projection.framework_input.selection, 'workflow_input_framework_ref');
+  assert.equal(projection.generation_contract.preexisting_release_set_required, false);
+  assert.equal(projection.generation_contract.preexisting_lock_required, false);
+  assert.equal(projection.generation_contract.payload_inventory_required, false);
+  assert.equal(projection.generation_contract.selected_inputs_recorded_after_resolution, true);
   assert.equal(manifest.authority_boundary.manifest_is_dependency_authority, false);
-  assert.equal(manifest.authority_boundary.source_versions_are_release_frozen_projection, true);
+  assert.equal(manifest.authority_boundary.source_versions_are_default_selection_hints, true);
   assert.equal(manifest.authority_boundary.credential_values_may_be_bundled, false);
   assert.equal(manifest.authority_boundary.unknown_user_or_third_party_mcp_may_be_removed, false);
 });

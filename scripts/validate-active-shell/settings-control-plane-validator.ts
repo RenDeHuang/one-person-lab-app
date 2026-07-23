@@ -3499,7 +3499,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.directory_collection_policy !==
       "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages" ||
     directory.static_metadata_overlay_source !==
-      "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata" ||
+      "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata" ||
     directory.static_metadata_overlay_policy !==
       "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority" ||
     JSON.stringify(directory.static_metadata_overlay_fields) !==
@@ -3550,7 +3550,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     statusModel?.user_facing_projection_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection" ||
     statusModel?.localized_metadata_source_ref !==
-      "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata"
+      "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata"
   ) {
     throw new Error(
       "Settings Agents must keep a multi-axis package status model",

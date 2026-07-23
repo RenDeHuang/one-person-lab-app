@@ -155,13 +155,8 @@ function assertManifestMasScholarSkillsRef(
   for (const field of [
     "package_role",
     "package_version",
-    "framework_catalog_ref",
     "mas_manifest_ref",
     "mas_manifest_sha256",
-    "manifest_ref",
-    "manifest_sha256",
-    "payload_manifest_ref",
-    "payload_manifest_sha256",
     "source_manifest_ref",
     "source_manifest_sha256",
     "content_lock_digest",

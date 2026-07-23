@@ -5394,15 +5394,15 @@
     "settings_page": "settings_environment",
     "must_explain": [
       "whether a module comes from the bundled Full runtime payload",
-      "whether a module comes from the App/CLI-managed GHCR OCI OPL Packages latest channel",
-      "whether a package comes from the Framework-managed GHCR OCI OPL Packages latest-stable channel",
+      "which compatible source the Framework resolver selected for a package",
+      "whether an exact installed lock or build artifact records the selected bytes",
       "whether a module comes from a local domain repository checkout",
       "whether Developer Profile source_channel uses a GitHub repo or local checkout",
       "whether a module is managed by App/CLI maintenance",
       "that module path display is refs-only and not domain truth authority"
     ],
-    "ordinary_user_source": "app_cli_managed_ghcr_oci_agent_packages_latest_channel",
-    "ordinary_user_transport": "app_cli_managed",
+    "ordinary_user_source": "framework_resolved_compatible_source",
+    "ordinary_user_transport": "framework_package_lifecycle",
     "developer_override_surface": "Developer Profile source_channel capability",
     "developer_override_policy": "explicit_opt_in_only",
     "developer_profile_ref": "developer_profile.capabilities.source_channel",
@@ -7264,7 +7264,7 @@
       "primary_identity_policy": {
         "surface": "public_agent_package_directory_entries",
         "collection_source": "app_state.agent_packages.directory.entries",
-        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
         "static_metadata_overlay_policy": "match by package_id to enrich labels and product hints only; never add, remove, seed, hide, install, activate, or assign status to a directory entry",
         "package_identity_fields": [
           "package_id",
@@ -7282,7 +7282,7 @@
       "current_runtime_projection_boundary": {
         "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
-      "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+      "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
       "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
       "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
@@ -7330,7 +7330,7 @@
             "available_actions",
             "authority_boundary"
           ],
-        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
         "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds",
         "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
         "unavailable_policy": "show loading, empty, stale, or failed canonical directory state; never substitute static professional_agent_packages as directory truth",
@@ -8108,7 +8108,7 @@
     "status_model": {
       "policy": "multi_axis_package_status_no_single_repair_bucket",
       "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
-      "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+      "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
         "axes": [
           "install_state",
           "activation_state",

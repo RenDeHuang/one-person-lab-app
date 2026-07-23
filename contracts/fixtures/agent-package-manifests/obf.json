@@ -6,23 +6,6 @@
   "publisher": "one-person-lab",
   "version": "0.1.0",
   "source": "first_party",
-  "distribution_payload": {
-    "payload_kind": "ghcr_oci_opl_package",
-    "payload_ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/obf:0.1.0",
-    "payload_digest_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/obf@sha256:5555555555555555555555555555555555555555555555555555555555555555",
-    "required_skill_pack_lock_refs": [
-      "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/obf@sha256:5555555555555555555555555555555555555555555555555555555555555555/skills/opl-bookforge-professional-skill-pack"
-    ],
-    "proof_status": "contract_fixture_non_live",
-    "live_download_proof": false,
-    "installed_reload_proof": false,
-    "oci_ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/obf:latest-stable",
-    "oci_media_type": "application/vnd.onepersonlab.package.v1+tar",
-    "immutable_tag": "0.1.0",
-    "moving_tag": "latest-stable",
-    "promotion_policy": "daily_candidate_gates_then_promote_latest_stable",
-    "install_truth": "resolved_digest_lock"
-  },
   "codex_surface": {
     "plugin_ids": [
       "opl-bookforge"
@@ -46,8 +29,7 @@
       "semantic_pack_root": "github:gaofeng21cn/opl-bookforge/agent",
       "generated_surface_owner": "one-person-lab",
       "version": "0.1.0",
-      "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/obf@sha256:5555555555555555555555555555555555555555555555555555555555555555/skills/opl-bookforge-professional-skill-pack",
-      "install_mode": "bundled_required"
+      "install_mode": "required"
     }
   ],
   "entrypoints": [

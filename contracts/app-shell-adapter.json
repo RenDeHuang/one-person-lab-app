@@ -57,7 +57,8 @@
       "http_404_or_500_policy": "retryable_error_never_ready"
     },
     "full_runtime_packages": {
-      "required_installed_package_count": 7,
+      "composition_policy": "framework_resolved_selected_package_set",
+      "readiness_policy": "no_fixed_package_count_or_payload_prerequisite",
       "mas_scholar_global_exposure": "forbidden",
       "mas_scholar_visibility": "mas_workspace_binding_only"
     }

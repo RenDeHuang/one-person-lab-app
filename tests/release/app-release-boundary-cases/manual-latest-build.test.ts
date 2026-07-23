@@ -11,9 +11,6 @@ import {
   snapshotDevelopmentRepo,
 } from '../../../scripts/manual-latest-build/common.ts';
 import {
-  projectFrameworkPackageManifest,
-} from '../../../scripts/manual-latest-build/framework-overlay.ts';
-import {
   assertManualAppVersionIdentity,
   installLocalApp,
   ManualAppInstallationError,
@@ -382,48 +379,6 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }
   });
-});
-
-test('Framework projection stamps the latest owner commit without mutating its inputs', () => {
-  const frameworkManifest = {
-    package_id: 'mas',
-    version: '0.2.15',
-    source: 'first_party_owner_projection',
-    source_repo: 'https://github.com/gaofeng21cn/med-autoscience.git',
-    source_manifest_ref: 'contracts/opl_agent_package_manifest.json',
-    source_commit: 'old-commit',
-    codex_surface: {
-      plugin_payload_manifest_url: 'payloads/mas-0.2.15.json',
-      carrier_source_commit: 'old-commit',
-      framework_only: true,
-    },
-  };
-  const ownerManifest = {
-    package_id: 'mas',
-    version: '0.2.15',
-    source_commit: 'owner-recorded-commit',
-    codex_surface: {
-      plugin_payload_manifest_url: 'payloads/mas-0.2.15.json',
-      carrier_source_commit: 'owner-recorded-commit',
-      owner_only: true,
-    },
-  };
-  const originalFramework = structuredClone(frameworkManifest);
-  const originalOwner = structuredClone(ownerManifest);
-
-  const projected = projectFrameworkPackageManifest(
-    frameworkManifest,
-    ownerManifest,
-    'latest-owner-commit',
-  );
-
-  assert.equal(projected.source, 'first_party_owner_projection');
-  assert.equal(projected.source_commit, 'latest-owner-commit');
-  assert.equal(projected.codex_surface.carrier_source_commit, 'latest-owner-commit');
-  assert.equal(projected.codex_surface.framework_only, true);
-  assert.equal(projected.codex_surface.owner_only, true);
-  assert.deepEqual(frameworkManifest, originalFramework);
-  assert.deepEqual(ownerManifest, originalOwner);
 });
 
 test('manual App identity separates UI display version from both machine CFBundle versions', () => {

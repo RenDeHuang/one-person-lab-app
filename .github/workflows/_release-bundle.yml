@@ -156,7 +156,6 @@ jobs:
       app_sha: ${{ steps.identity.outputs.app_sha }}
       shell_sha: ${{ steps.identity.outputs.shell_sha }}
       framework_sha: ${{ steps.identity.outputs.framework_sha }}
-      opl_flow_sha: ${{ steps.identity.outputs.opl_flow_sha }}
       bundle_digest: ${{ steps.bundle.outputs.bundle_digest }}
       operation_id: ${{ steps.bundle.outputs.operation_id }}
       operation_started_at: ${{ steps.bundle.outputs.operation_started_at }}
@@ -260,7 +259,6 @@ jobs:
             throw new Error(`Stable updater version ${process.env.TARGET} is not newer than Latest ${process.env.CURRENT}.`);
           }
           NODE
-          opl_flow_sha="$(jq -er '.packages["opl-flow"].owner_source_commit' framework-source/contracts/opl-framework/bundled-full-runtime-package-catalog.json)"
           {
             echo "version=$version"
             echo "updater_version=$updater_version"
@@ -268,7 +266,6 @@ jobs:
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
-            echo "opl_flow_sha=$opl_flow_sha"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Bundle contracts before paid work
@@ -406,7 +403,6 @@ jobs:
       ref: ${{ needs.freeze.outputs.app_sha }}
       shell_ref: ${{ needs.freeze.outputs.shell_sha }}
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}
-      opl_flow_ref: ${{ needs.freeze.outputs.opl_flow_sha }}
       opl_release_version: ${{ needs.freeze.outputs.version }}
       opl_updater_version: ${{ needs.freeze.outputs.updater_version }}
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}

@@ -9,12 +9,10 @@ import { existingFileSha256, packageJsonVersion } from './hashing.ts';
 import { run } from './process.ts';
 import { collectRuntimeAssertions } from './runtime-layers.ts';
 
-const FRAMEWORK_BUNDLED_FULL_RUNTIME_CATALOG_REF =
-  'contracts/opl-framework/bundled-full-runtime-package-catalog.json';
 const MAS_PACKAGE_ID = 'mas';
-const MAS_RUNTIME_MODULE_PATH = 'modules/mas';
 const MAS_SCHOLAR_SKILLS_PACKAGE_ID = 'mas-scholar-skills';
 const MAS_SCHOLAR_SKILLS_RUNTIME_MODULE_PATH = 'modules/mas-scholar-skills';
+const MAS_SOURCE_MANIFEST_REF = 'contracts/opl_agent_package_manifest.json';
 const MAS_SCHOLAR_SKILLS_SOURCE_MANIFEST_REF = 'contracts/opl_capability_package_manifest.json';
 
 function objectValue(value, label) {
@@ -104,16 +102,6 @@ function assertFileChecksum(filePath, expectedChecksum, label) {
   return actual;
 }
 
-function frameworkCatalogPayloadPath(frameworkRoot, relativeRef, label) {
-  const catalogRoot = path.join(frameworkRoot, 'contracts', 'opl-framework');
-  const normalized = safeRelativePath(relativeRef, label);
-  const resolved = path.resolve(catalogRoot, ...normalized.split('/'));
-  if (resolved !== catalogRoot && !resolved.startsWith(`${catalogRoot}${path.sep}`)) {
-    throw new Error(`Full runtime ${label} escapes the Framework catalog root: ${relativeRef}`);
-  }
-  return requireFile(resolved, label);
-}
-
 function readJsonFile(filePath, label) {
   try {
     return objectValue(JSON.parse(fs.readFileSync(filePath, 'utf8')), label);
@@ -158,55 +146,18 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     );
   }
 
-  const catalogPath = requireFile(
-    path.join(options.frameworkRoot, ...FRAMEWORK_BUNDLED_FULL_RUNTIME_CATALOG_REF.split('/')),
-    'Framework bundled package catalog',
+  const masManifestPath = requireFile(
+    path.join(options.masRoot, ...MAS_SOURCE_MANIFEST_REF.split('/')),
+    'MAS owner package manifest',
   );
-  const catalog = readJsonFile(catalogPath, 'Framework bundled package catalog');
-  if (catalog.surface_kind !== 'opl_bundled_full_runtime_package_catalog.v1') {
-    throw new Error(
-      `Full runtime Framework bundled package catalog has unsupported surface_kind: ${String(catalog.surface_kind)}.`,
-    );
-  }
-  const packages = objectValue(catalog.packages, 'Framework bundled package catalog packages');
-  const masEntry = objectValue(
-    packages[MAS_PACKAGE_ID],
-    `Framework bundled package catalog entry ${MAS_PACKAGE_ID}`,
-  );
-  for (const [field, expected] of [
-    ['package_id', MAS_PACKAGE_ID],
-    ['package_role', 'standard_agent'],
-    ['runtime_module_relative_path', MAS_RUNTIME_MODULE_PATH],
-  ]) {
-    if (masEntry[field] !== expected) {
-      throw new Error(
-        `Full runtime Framework catalog MAS ${field} drifted: expected ${expected}, found ${String(masEntry[field])}.`,
-      );
-    }
-  }
-  const masManifestRef = safeRelativePath(
-    masEntry.manifest_ref,
-    'Framework catalog MAS manifest_ref',
-  );
-  const masManifestPath = frameworkCatalogPayloadPath(
-    options.frameworkRoot,
-    masManifestRef,
-    'MAS package manifest',
-  );
-  const masManifestSha256 = assertFileChecksum(
-    masManifestPath,
-    masEntry.manifest_sha256,
-    'MAS package manifest',
-  );
-  const masManifest = readJsonFile(masManifestPath, 'MAS package manifest');
+  const masManifest = readJsonFile(masManifestPath, 'MAS owner package manifest');
   for (const [field, expected] of [
     ['surface_kind', 'opl_agent_package_manifest.v1'],
     ['package_id', MAS_PACKAGE_ID],
-    ['version', stringValue(masEntry.package_version, 'Framework catalog MAS package_version')],
   ]) {
     if (masManifest[field] !== expected) {
       throw new Error(
-        `Full runtime MAS package manifest ${field} drifted: expected ${expected}, found ${String(masManifest[field])}.`,
+        `Full runtime MAS owner package manifest ${field} drifted: expected ${expected}, found ${String(masManifest[field])}.`,
       );
     }
   }
@@ -229,125 +180,6 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     );
   }
 
-  const entry = objectValue(
-    packages[MAS_SCHOLAR_SKILLS_PACKAGE_ID],
-    `Framework bundled package catalog entry ${MAS_SCHOLAR_SKILLS_PACKAGE_ID}`,
-  );
-  if (entry.package_id !== MAS_SCHOLAR_SKILLS_PACKAGE_ID) {
-    throw new Error(`Full runtime Framework catalog MAS Scholar Skills package_id drifted: ${String(entry.package_id)}.`);
-  }
-  if (entry.package_role !== 'framework_capability_package') {
-    throw new Error(`Full runtime Framework catalog MAS Scholar Skills package_role drifted: ${String(entry.package_role)}.`);
-  }
-  if (entry.runtime_module_relative_path !== MAS_SCHOLAR_SKILLS_RUNTIME_MODULE_PATH) {
-    throw new Error(
-      `Full runtime Framework catalog MAS Scholar Skills module path drifted: ${String(entry.runtime_module_relative_path)}.`,
-    );
-  }
-
-  const ownerSourceCommit = stringValue(
-    entry.owner_source_commit,
-    'Framework catalog MAS Scholar Skills owner_source_commit',
-  );
-  if (sourceCommit !== ownerSourceCommit) {
-    throw new Error(
-      `Full runtime MAS Scholar Skills source is stale: checkout has ${sourceCommit}, Framework catalog requires ${ownerSourceCommit}.`,
-    );
-  }
-
-  const manifestRef = safeRelativePath(entry.manifest_ref, 'Framework catalog MAS Scholar Skills manifest_ref');
-  const manifestPath = frameworkCatalogPayloadPath(options.frameworkRoot, manifestRef, 'MAS Scholar Skills package manifest');
-  const manifestSha256 = assertFileChecksum(
-    manifestPath,
-    entry.manifest_sha256,
-    'MAS Scholar Skills package manifest',
-  );
-  const packageManifest = readJsonFile(manifestPath, 'MAS Scholar Skills package manifest');
-  for (const [field, expected] of [
-    ['surface_kind', 'opl_capability_package_manifest.v2'],
-    ['package_id', MAS_SCHOLAR_SKILLS_PACKAGE_ID],
-    ['package_role', 'required_agent_capability_package'],
-    ['version', stringValue(entry.package_version, 'Framework catalog MAS Scholar Skills package_version')],
-  ]) {
-    if (packageManifest[field] !== expected) {
-      throw new Error(
-        `Full runtime MAS Scholar Skills package manifest ${field} drifted: expected ${expected}, found ${String(packageManifest[field])}.`,
-      );
-    }
-  }
-  const primaryConsumer = assertMasScholarSkillsConsumer(
-    packageManifest,
-    'MAS Scholar Skills package manifest',
-  );
-  for (const field of ['version_requirement', 'capability_abi']) {
-    const dependencyValue = stringValue(
-      masScholarDependency[field],
-      `MAS package manifest Scholar Skills dependency ${field}`,
-    );
-    if (primaryConsumer[field] !== dependencyValue) {
-      throw new Error(
-        `Full runtime MAS Scholar Skills package manifest primary_consumer.${field} drifted: expected ${dependencyValue}, found ${String(primaryConsumer[field])}.`,
-      );
-    }
-  }
-  const payloadManifestRef = safeRelativePath(
-    entry.payload_manifest_ref,
-    'Framework catalog MAS Scholar Skills payload_manifest_ref',
-  );
-  const payloadManifestPath = frameworkCatalogPayloadPath(
-    options.frameworkRoot,
-    payloadManifestRef,
-    'MAS Scholar Skills payload manifest',
-  );
-  const payloadManifestSha256 = assertFileChecksum(
-    payloadManifestPath,
-    entry.payload_manifest_sha256,
-    'MAS Scholar Skills payload manifest',
-  );
-  const payloadManifest = readJsonFile(payloadManifestPath, 'MAS Scholar Skills payload manifest');
-  if (payloadManifest.surface_kind !== 'opl_package_payload_manifest.v2') {
-    throw new Error(
-      `Full runtime MAS Scholar Skills payload manifest has unsupported surface_kind: ${String(payloadManifest.surface_kind)}.`,
-    );
-  }
-  for (const [field, expected] of [
-    ['package_id', MAS_SCHOLAR_SKILLS_PACKAGE_ID],
-    ['package_version', stringValue(entry.package_version, 'Framework catalog MAS Scholar Skills package_version')],
-    ['source_commit', ownerSourceCommit],
-  ]) {
-    if (payloadManifest[field] !== expected) {
-      throw new Error(
-        `Full runtime MAS Scholar Skills payload manifest ${field} drifted: expected ${expected}, found ${String(payloadManifest[field])}.`,
-      );
-    }
-  }
-  if (!Array.isArray(payloadManifest.files) || payloadManifest.files.length === 0) {
-    throw new Error('Full runtime MAS Scholar Skills payload manifest declares no files.');
-  }
-
-  const payloadFiles = payloadManifest.files.map((fileEntry, index) => {
-    const payloadFile = objectValue(fileEntry, `MAS Scholar Skills payload manifest files[${index}]`);
-    const relativePath = safeRelativePath(
-      payloadFile.path,
-      `MAS Scholar Skills payload manifest files[${index}].path`,
-    );
-    const expectedSha256 = stringValue(
-      payloadFile.sha256,
-      `MAS Scholar Skills payload manifest files[${index}].sha256`,
-    );
-    const sourcePath = path.join(sourceRoot, ...relativePath.split('/'));
-    assertFileChecksum(
-      sourcePath,
-      expectedSha256,
-      `MAS Scholar Skills source payload ${relativePath}`,
-    );
-    return { path: relativePath, sha256: expectedSha256 };
-  });
-  const payloadPaths = payloadFiles.map((entry) => entry.path);
-  if (new Set(payloadPaths).size !== payloadPaths.length) {
-    throw new Error('Full runtime MAS Scholar Skills payload manifest contains duplicate paths.');
-  }
-
   const sourceManifestPath = requireFile(
     path.join(sourceRoot, ...MAS_SCHOLAR_SKILLS_SOURCE_MANIFEST_REF.split('/')),
     'MAS Scholar Skills owner capability manifest',
@@ -361,76 +193,55 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
   if (sourceManifest.package_id !== MAS_SCHOLAR_SKILLS_PACKAGE_ID) {
     throw new Error(`Full runtime MAS Scholar Skills owner manifest package_id drifted: ${String(sourceManifest.package_id)}.`);
   }
-  if (sourceManifest.version !== entry.package_version) {
+  const packageVersion = stringValue(sourceManifest.version, 'MAS Scholar Skills owner manifest version');
+  if (sourceManifest.package_role !== 'framework_capability_package') {
     throw new Error(
-      `Full runtime MAS Scholar Skills owner manifest version drifted: expected ${String(entry.package_version)}, found ${String(sourceManifest.version)}.`,
+      `Full runtime MAS Scholar Skills owner manifest package_role drifted: ${String(sourceManifest.package_role)}.`,
     );
   }
-  const sourcePrimaryConsumer = assertMasScholarSkillsConsumer(
-    sourceManifest,
-    'MAS Scholar Skills owner manifest',
-  );
-  for (const field of ['version_requirement', 'capability_abi']) {
-    if (sourcePrimaryConsumer[field] !== primaryConsumer[field]) {
-      throw new Error(
-        `Full runtime MAS Scholar Skills owner manifest primary_consumer.${field} drifted from the Framework package manifest.`,
-      );
-    }
+  const capabilityAbi = objectValue(sourceManifest.capability_abi, 'MAS Scholar Skills capability_abi');
+  if (capabilityAbi.id !== masScholarDependency.capability_abi) {
+    throw new Error('Full runtime MAS Scholar Skills ABI does not satisfy the MAS owner manifest.');
   }
   const contentLock = objectValue(sourceManifest.content_lock, 'MAS Scholar Skills owner manifest content_lock');
-  const payloadContentLock = objectValue(
-    payloadManifest.content_lock,
-    'MAS Scholar Skills payload manifest content_lock',
-  );
-  for (const field of ['algorithm', 'canonicalization', 'digest']) {
-    const ownerValue = stringValue(contentLock[field], `MAS Scholar Skills owner manifest content_lock.${field}`);
-    const payloadValue = stringValue(
-      payloadContentLock[field],
-      `MAS Scholar Skills payload manifest content_lock.${field}`,
+  if (!Array.isArray(contentLock.paths) || contentLock.paths.length === 0) {
+    throw new Error('Full runtime MAS Scholar Skills owner content_lock declares no paths.');
+  }
+  const payloadFiles = contentLock.paths.map((relativePath, index) => {
+    const safePath = safeRelativePath(
+      relativePath,
+      `MAS Scholar Skills owner content_lock.paths[${index}]`,
     );
-    if (payloadValue !== ownerValue) {
-      throw new Error(
-        `Full runtime MAS Scholar Skills content_lock.${field} drifted: owner has ${ownerValue}, payload manifest has ${payloadValue}.`,
-      );
-    }
-  }
-  if (!Array.isArray(contentLock.paths) || JSON.stringify(contentLock.paths) !== JSON.stringify(payloadPaths)) {
-    throw new Error('Full runtime MAS Scholar Skills owner content_lock paths drifted from the Framework payload manifest.');
-  }
+    const sourcePath = requireFile(
+      path.join(sourceRoot, ...safePath.split('/')),
+      `MAS Scholar Skills selected source ${safePath}`,
+    );
+    return { path: safePath, sha256: sha256RefForFile(sourcePath, `MAS Scholar Skills selected source ${safePath}`) };
+  });
 
   return {
     package_id: MAS_SCHOLAR_SKILLS_PACKAGE_ID,
-    package_role: entry.package_role,
-    package_version: entry.package_version,
+    package_role: sourceManifest.package_role,
+    package_version: packageVersion,
     source_path: sourceRoot,
     source_commit: sourceCommit,
     requested_ref: options.masScholarSkillsRef,
     requested_ref_commit: requestedRefCommit,
-    owner_source_commit: ownerSourceCommit,
+    owner_source_commit: sourceCommit,
     runtime_module_relative_path: MAS_SCHOLAR_SKILLS_RUNTIME_MODULE_PATH,
-    framework_catalog_ref: FRAMEWORK_BUNDLED_FULL_RUNTIME_CATALOG_REF,
-    framework_catalog_source_path: catalogPath,
-    mas_manifest_ref: masManifestRef,
-    mas_manifest_sha256: masManifestSha256,
-    manifest_ref: manifestRef,
-    manifest_sha256: manifestSha256,
-    payload_manifest_ref: payloadManifestRef,
-    payload_manifest_sha256: payloadManifestSha256,
+    mas_manifest_ref: MAS_SOURCE_MANIFEST_REF,
+    mas_manifest_sha256: sha256RefForFile(masManifestPath, 'MAS owner package manifest'),
     source_manifest_ref: MAS_SCHOLAR_SKILLS_SOURCE_MANIFEST_REF,
     source_manifest_sha256: sha256RefForFile(sourceManifestPath, 'MAS Scholar Skills owner capability manifest'),
     content_lock_digest: stringValue(contentLock.digest, 'MAS Scholar Skills owner manifest content_lock.digest'),
-    payload_file_count: payloadPaths.length,
+    payload_file_count: payloadFiles.length,
     payload_files: payloadFiles,
     checksum_status: 'verified',
     currentness_status: 'current',
     currentness: {
-      source_commit_matches_framework_catalog: true,
-      package_version_matches_framework_catalog: true,
-      mas_dependency_edge_matches_framework_catalog: true,
-      primary_consumer_matches_mas: true,
-      catalog_manifest_checksums_verified: true,
-      source_payload_checksums_verified: true,
-      owner_content_lock_paths_match_payload_manifest: true,
+      requested_ref_matches_selected_source: true,
+      mas_dependency_edge_matches_owner_manifests: true,
+      selected_source_files_verified: true,
     },
   };
 }
@@ -506,13 +317,8 @@ export function buildResolvedFullPayloadRefs(options, sources, components, sourc
       package_version: masScholarSkills.package_version,
       owner_source_commit: masScholarSkills.owner_source_commit,
       runtime_module_relative_path: masScholarSkills.runtime_module_relative_path,
-      framework_catalog_ref: masScholarSkills.framework_catalog_ref,
       mas_manifest_ref: masScholarSkills.mas_manifest_ref,
       mas_manifest_sha256: masScholarSkills.mas_manifest_sha256,
-      manifest_ref: masScholarSkills.manifest_ref,
-      manifest_sha256: masScholarSkills.manifest_sha256,
-      payload_manifest_ref: masScholarSkills.payload_manifest_ref,
-      payload_manifest_sha256: masScholarSkills.payload_manifest_sha256,
       source_manifest_ref: masScholarSkills.source_manifest_ref,
       source_manifest_sha256: masScholarSkills.source_manifest_sha256,
       content_lock_digest: masScholarSkills.content_lock_digest,

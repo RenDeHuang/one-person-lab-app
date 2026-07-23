@@ -25,7 +25,7 @@ function fixture() {
   const compiledExpectations = path.join(root, 'app-first-run-compiled-expectations.json');
   const qualificationInputManifest = path.join(root, 'app-release-qualification-input-manifest.json');
   const fullInputManifest = path.join(root, 'app-full-third-party-source-manifest.json');
-  const frameworkCatalog = path.join(root, 'bundled-full-runtime-package-catalog.json');
+  const fullPackageManifest = path.join(root, 'full-package-manifest.json');
   const fullToolchainReceipt = path.join(root, 'opl-full-toolchain-observation-receipt.json');
   for (const file of [appProfile, guiContract, smokeHarness]) fs.writeFileSync(file, file);
   fs.writeFileSync(compiledExpectations, JSON.stringify({ profiles: {
@@ -33,7 +33,7 @@ function fixture() {
     full: { semantic_digest: '3'.repeat(64), probe_digest: '4'.repeat(64) },
   } }));
   fs.writeFileSync(fullInputManifest, '{"schema":"test-full-inputs"}\n');
-  fs.writeFileSync(frameworkCatalog, '{"schema":"test-framework-catalog"}\n');
+  fs.writeFileSync(fullPackageManifest, '{"schema":"test-full-package-manifest","resolved_refs":{}}\n');
   fs.writeFileSync(fullToolchainReceipt, '{"schema":"test-full-toolchain-receipt"}\n');
   fs.writeFileSync(qualificationInputManifest, JSON.stringify({
     schema: 'opl_app_release_qualification_input_manifest.v1',
@@ -53,7 +53,7 @@ function fixture() {
     guiProductContractPath: guiContract, smokeHarnessPath: smokeHarness, actionsRunId: '12345',
     compiledExpectationsPath: compiledExpectations,
     qualificationInputManifestPath: qualificationInputManifest,
-    fullInputManifestPath: fullInputManifest, frameworkBundledCatalogPath: frameworkCatalog,
+    fullInputManifestPath: fullInputManifest, fullPackageManifestPath: fullPackageManifest,
     fullToolchainObservationReceiptPath: fullToolchainReceipt,
     actionsRunAttempt: '1', actionsArtifactName: 'opl-full-first-install-dmg-26.7.13-mac-arm64',
   });
@@ -79,7 +79,7 @@ test('accepts an exact-byte App, Shell, Framework, and DMG cohort', () => {
     assert.equal(input.manifest.digests.packaged_tree_sha256.length, 64);
     assert.equal(input.manifest.digests.compiled_expectation_semantic_sha256, '3'.repeat(64));
     assert.equal(input.manifest.digests.full_input_manifest_sha256?.length, 64);
-    assert.equal(input.manifest.digests.framework_bundled_catalog_sha256?.length, 64);
+    assert.equal(input.manifest.digests.full_package_manifest_sha256?.length, 64);
     assert.equal(input.manifest.digests.qualification_input_manifest_sha256.length, 64);
     assert.equal(input.manifest.digests.full_toolchain_observation_receipt_sha256?.length, 64);
     assert.equal(input.manifest.qualification_runtime.codex_cli.version, '0.144.5');

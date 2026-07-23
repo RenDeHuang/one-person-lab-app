@@ -386,13 +386,14 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
     explicit_model_access_mutation: 'framework_action_atomic_merge_with_backup_and_restore',
     required_processes: ['desktop_shell', 'aioncore', 'managed_codex_acp', 'opl_runtime_bridge'],
   });
-  assert.deepEqual(profile.first_run.full_runtime_package_qualification.workspace_scoped_package_ids, [
-    'mas-scholar-skills',
-  ]);
+  assert.equal(
+    profile.first_run.full_runtime_package_qualification.composition_policy,
+    'open_composition_no_fixed_package_set',
+  );
   assert.equal(profile.first_run.full_runtime_package_qualification.global_workspace_scoped_exposure, 'forbidden');
   assert.equal(profile.first_run.first_conversation.runtime_readiness_route, '/api/conversations/<id>/runtime/ensure');
   const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
-  assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('installed_package_count 7')));
+  assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('without requiring a fixed count')));
   const managedRuntimeExpectation = fullDmgScenario.expects.find((entry: string) =>
     entry.includes('Bundled AionCore v0.1.50')
   );

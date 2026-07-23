@@ -1,11 +1,9 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 
 import { readGitHead } from './git.ts';
-import { existingFileSha256 } from './hashing.ts';
+import { directoryFingerprint } from './hashing.ts';
 
-export const FULL_RUNTIME_PACKAGE_IDS = [
+export const FULL_RUNTIME_STARTER_PACKAGE_IDS = [
   'mas',
   'mag',
   'rca',
@@ -21,21 +19,25 @@ export type FullRuntimePackageProfile = {
   dependency_closure: readonly string[];
 };
 
-/**
- * The seven-package set remains the default Full starter profile for
- * compatibility. It is an input preset, not the package ecosystem boundary.
- */
 export const FULL_RUNTIME_STARTER_PROFILE: FullRuntimePackageProfile = {
   profile_id: 'starter',
-  package_ids: FULL_RUNTIME_PACKAGE_IDS,
-  dependency_closure: FULL_RUNTIME_PACKAGE_IDS,
+  package_ids: FULL_RUNTIME_STARTER_PACKAGE_IDS,
+  dependency_closure: FULL_RUNTIME_STARTER_PACKAGE_IDS,
 };
 
 type JsonRecord = Record<string, any>;
 
 const shaPattern = /^[0-9a-f]{40}$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
-const catalogRef = 'contracts/opl-framework/bundled-full-runtime-package-catalog.json';
+const runtimeModulePaths: Record<string, string> = {
+  mas: 'modules/mas',
+  mag: 'modules/mag',
+  rca: 'modules/rca',
+  oma: 'modules/meta-agent',
+  obf: 'modules/bookforge',
+  'mas-scholar-skills': 'modules/mas-scholar-skills',
+  'opl-flow': 'modules/opl-flow',
+};
 
 function digestJson(value: unknown): string {
   return `sha256:${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
@@ -78,211 +80,93 @@ function normalizePackageProfile(
   return { profileId, packageIds, dependencyClosure };
 }
 
-function safeCatalogRef(value: unknown, label: string): string {
-  const ref = requireString(value, label);
-  const normalized = path.posix.normalize(ref).replace(/^\.\//, '');
-  if (
-    normalized !== ref ||
-    !normalized.startsWith('packages/') ||
-    normalized.startsWith('../') ||
-    path.posix.isAbsolute(normalized)
-  ) {
-    throw new Error(`${label} must stay under the Framework packages catalog root`);
-  }
-  return normalized;
-}
-
 function safeRuntimeModulePath(value: unknown, label: string): string {
   const relativePath = requireString(value, label);
-  const normalized = path.posix.normalize(relativePath).replace(/^\.\//, '');
   if (
-    normalized !== relativePath ||
-    !normalized.startsWith('modules/') ||
-    normalized.startsWith('../') ||
-    path.posix.isAbsolute(normalized)
+    !relativePath.startsWith('modules/') ||
+    relativePath.includes('..') ||
+    relativePath.startsWith('/')
   ) {
     throw new Error(`${label} must stay under the Full runtime modules root`);
   }
-  return normalized;
+  return relativePath;
 }
 
-export function validateFrameworkPackageSetInput(
-  packageSet: JsonRecord,
-  packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
-): void {
-  const { profileId, dependencyClosure } = normalizePackageProfile(packageProfile);
+export function validateSelectedPackageSetInput(packageSet: JsonRecord): void {
   if (!packageSet || typeof packageSet !== 'object' || Array.isArray(packageSet)) {
-    throw new Error('Framework package set must be an object');
+    throw new Error('Selected package set must be an object');
   }
-  if (packageSet.schema !== 'opl_full_runtime_framework_package_set.v1') {
-    throw new Error('Framework package set schema is unsupported');
+  if (packageSet.schema !== 'opl_full_runtime_selected_package_set.v1') {
+    throw new Error('Selected package set schema is unsupported');
   }
-  if (!shaPattern.test(String(packageSet.framework_sha ?? ''))) {
-    throw new Error('Framework package set framework SHA must be exact');
-  }
-  if (packageSet.catalog_ref !== catalogRef) {
-    throw new Error('Framework package set catalog ref is not canonical');
-  }
-  if (!digestPattern.test(String(packageSet.catalog_sha256 ?? ''))) {
-    throw new Error('Framework package set catalog digest must be exact');
-  }
+  const { profileId, packageIds, dependencyClosure } = normalizePackageProfile({
+    profile_id: packageSet.profile_id,
+    package_ids: packageSet.package_ids,
+    dependency_closure: packageSet.dependency_closure,
+  });
   const packages = Array.isArray(packageSet.packages) ? packageSet.packages as JsonRecord[] : [];
-  const packageIds = packages.map((entry) => entry.package_id);
-  if (JSON.stringify(packageIds) !== JSON.stringify(dependencyClosure)) {
+  const actualIds = packages.map((entry) => entry.package_id);
+  if (JSON.stringify(actualIds) !== JSON.stringify(dependencyClosure)) {
     throw new Error(
-      `Framework package set must contain the ordered dependency closure for profile ${profileId}`,
+      `Selected package set must contain the ordered dependency closure for profile ${profileId}`,
     );
   }
-  const referencedFiles = new Set<string>();
+  if (JSON.stringify(packageIds) !== JSON.stringify(packageSet.package_ids)) {
+    throw new Error('Selected package set package_ids must be normalized');
+  }
   for (const entry of packages) {
-    const packageId = requireString(entry.package_id, 'Framework package package_id');
-    requireString(entry.package_role, `${packageId} package_role`);
-    requireString(entry.package_version, `${packageId} package_version`);
-    if (!shaPattern.test(String(entry.owner_source_commit ?? ''))) {
-      throw new Error(`Framework package ${packageId} owner source commit must be exact`);
+    const packageId = requireString(entry.package_id, 'Selected package package_id');
+    if (!shaPattern.test(String(entry.source_commit ?? ''))) {
+      throw new Error(`Selected package ${packageId} source commit must be exact`);
     }
-    safeRuntimeModulePath(entry.runtime_module_relative_path, `${packageId} runtime_module_relative_path`);
-    for (const [refField, digestField] of [
-      ['manifest_ref', 'manifest_sha256'],
-      ['payload_manifest_ref', 'payload_manifest_sha256'],
-    ] as const) {
-      const ref = safeCatalogRef(entry[refField], `${packageId} ${refField}`);
-      if (referencedFiles.has(ref)) {
-        throw new Error(`Framework package set contains duplicated catalog ref: ${ref}`);
-      }
-      referencedFiles.add(ref);
-      if (!digestPattern.test(String(entry[digestField] ?? ''))) {
-        throw new Error(`Framework package ${packageId} ${digestField} must be exact`);
-      }
+    if (!digestPattern.test(String(entry.source_fingerprint ?? ''))) {
+      throw new Error(`Selected package ${packageId} source fingerprint must be exact`);
     }
+    safeRuntimeModulePath(
+      entry.runtime_module_relative_path,
+      `${packageId} runtime_module_relative_path`,
+    );
   }
   if (!digestPattern.test(String(packageSet.identity ?? ''))) {
-    throw new Error('Framework package set identity must be exact');
+    throw new Error('Selected package set identity must be exact');
   }
   const { identity, ...payload } = packageSet;
   if (digestJson(payload) !== identity) {
-    throw new Error('Framework package set identity does not match its payload');
+    throw new Error('Selected package set identity does not match its payload');
   }
 }
 
-export function buildFrameworkPackageSetInput(input: {
-  frameworkSha: string;
-  catalogSha256: string;
-  catalog: JsonRecord;
-  sourceCommits: Record<string, string>;
-  referencedFileSha256: Record<string, string>;
+export function buildSelectedPackageSetInput(input: {
   packageProfile?: FullRuntimePackageProfile;
+  packages: Array<{
+    package_id: string;
+    source_commit: string;
+    source_fingerprint: string;
+    runtime_module_relative_path: string;
+  }>;
 }) {
   const packageProfile = input.packageProfile ?? FULL_RUNTIME_STARTER_PROFILE;
-  const { profileId, dependencyClosure } = normalizePackageProfile(packageProfile);
-  if (!shaPattern.test(input.frameworkSha)) {
-    throw new Error('Framework package set framework SHA must be exact');
-  }
-  if (!/^[0-9a-f]{64}$/.test(input.catalogSha256)) {
-    throw new Error('Framework package catalog SHA-256 must be exact');
-  }
-  if (input.catalog.surface_kind !== 'opl_bundled_full_runtime_package_catalog.v1') {
-    throw new Error('Framework package catalog surface_kind is unsupported');
-  }
-  const packages = input.catalog.packages as JsonRecord | undefined;
-  if (!packages || typeof packages !== 'object' || Array.isArray(packages)) {
-    throw new Error('Framework package catalog packages must be an object');
-  }
-  if (dependencyClosure.some((packageId) => !packages[packageId])) {
-    throw new Error(
-      `Framework package catalog must contain the dependency closure for profile ${profileId}`,
-    );
-  }
-
-  const packageBindings = dependencyClosure.map((packageId) => {
-    const entry = packages[packageId] as JsonRecord | undefined;
-    if (!entry || entry.package_id !== packageId) {
-      throw new Error(`Framework package catalog entry ${packageId} is missing or misidentified`);
-    }
-    const ownerSourceCommit = requireString(entry.owner_source_commit, `${packageId} owner_source_commit`);
-    if (!shaPattern.test(ownerSourceCommit) || input.sourceCommits[packageId] !== ownerSourceCommit) {
-      throw new Error(`Framework package ${packageId} owner source does not match the frozen checkout`);
-    }
-    const manifestRef = safeCatalogRef(entry.manifest_ref, `${packageId} manifest_ref`);
-    const payloadManifestRef = safeCatalogRef(entry.payload_manifest_ref, `${packageId} payload_manifest_ref`);
-    const manifestSha256 = requireString(entry.manifest_sha256, `${packageId} manifest_sha256`);
-    const payloadManifestSha256 = requireString(
-      entry.payload_manifest_sha256,
-      `${packageId} payload_manifest_sha256`,
-    );
-    if (
-      !digestPattern.test(manifestSha256) ||
-      !digestPattern.test(payloadManifestSha256) ||
-      input.referencedFileSha256[manifestRef] !== manifestSha256 ||
-      input.referencedFileSha256[payloadManifestRef] !== payloadManifestSha256
-    ) {
-      throw new Error(`Framework package ${packageId} manifest or payload digest does not match catalog bytes`);
-    }
-    return {
-      package_id: packageId,
-      package_role: requireString(entry.package_role, `${packageId} package_role`),
-      package_version: requireString(entry.package_version, `${packageId} package_version`),
-      owner_source_commit: ownerSourceCommit,
-      runtime_module_relative_path: safeRuntimeModulePath(
-        entry.runtime_module_relative_path,
-        `${packageId} runtime_module_relative_path`,
-      ),
-      manifest_ref: manifestRef,
-      manifest_sha256: manifestSha256,
-      payload_manifest_ref: payloadManifestRef,
-      payload_manifest_sha256: payloadManifestSha256,
-    };
-  });
+  const { profileId, packageIds, dependencyClosure } = normalizePackageProfile(packageProfile);
   const payload = {
-    schema: 'opl_full_runtime_framework_package_set.v1',
-    framework_sha: input.frameworkSha,
-    catalog_ref: catalogRef,
-    catalog_sha256: `sha256:${input.catalogSha256}`,
-    packages: packageBindings,
+    schema: 'opl_full_runtime_selected_package_set.v1',
+    profile_id: profileId,
+    package_ids: packageIds,
+    dependency_closure: dependencyClosure,
+    packages: input.packages,
   };
   const result = {
     ...payload,
     identity: digestJson(payload),
   };
-  validateFrameworkPackageSetInput(result, packageProfile);
+  validateSelectedPackageSetInput(result);
   return result;
 }
 
-function frameworkCatalogFile(frameworkRoot: string, relativeRef: string): string {
-  const catalogRoot = path.resolve(frameworkRoot, 'contracts', 'opl-framework');
-  const normalized = safeCatalogRef(relativeRef, 'Framework package catalog ref');
-  const resolved = path.resolve(catalogRoot, ...normalized.split('/'));
-  if (
-    !resolved.startsWith(`${catalogRoot}${path.sep}`) ||
-    !fs.existsSync(resolved) ||
-    !fs.statSync(resolved).isFile()
-  ) {
-    throw new Error(`Framework package catalog file is missing or unsafe: ${relativeRef}`);
-  }
-  return resolved;
-}
-
-export function resolveFrameworkPackageSetInput(
+export function resolveSelectedPackageSetInput(
   options: JsonRecord,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
 ) {
   const normalizedProfile = normalizePackageProfile(packageProfile);
-  const catalogPath = path.join(options.frameworkRoot, ...catalogRef.split('/'));
-  if (!fs.existsSync(catalogPath) || !fs.statSync(catalogPath).isFile()) {
-    throw new Error(`Framework bundled Full package catalog is missing: ${catalogPath}`);
-  }
-  const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8')) as JsonRecord;
-  const packages = catalog.packages as JsonRecord | undefined;
-  const referencedFileSha256: Record<string, string> = {};
-  for (const packageId of normalizedProfile.dependencyClosure) {
-    const entry = packages?.[packageId] as JsonRecord | undefined;
-    for (const field of ['manifest_ref', 'payload_manifest_ref']) {
-      const relativeRef = safeCatalogRef(entry?.[field], `${packageId} ${field}`);
-      const digest = existingFileSha256(frameworkCatalogFile(options.frameworkRoot, relativeRef));
-      if (!digest) throw new Error(`Framework package catalog file digest is unavailable: ${relativeRef}`);
-      referencedFileSha256[relativeRef] = `sha256:${digest}`;
-    }
-  }
   const defaultSourceRoots: Record<string, string | undefined> = {
     mas: options.masRoot,
     mag: options.magRoot,
@@ -296,25 +180,37 @@ export function resolveFrameworkPackageSetInput(
     options.packageRoots && typeof options.packageRoots === 'object' && !Array.isArray(options.packageRoots)
       ? options.packageRoots as Record<string, string>
       : {};
-  const sourceRoots = Object.fromEntries(
-    normalizedProfile.dependencyClosure.map((packageId) => {
-      const sourceRoot = customSourceRoots[packageId] ?? defaultSourceRoots[packageId];
-      if (typeof sourceRoot !== 'string' || sourceRoot.trim() === '') {
-        throw new Error(`Framework package ${packageId} source root is missing`);
-      }
-      return [packageId, sourceRoot];
-    }),
-  ) as Record<string, string>;
-  const catalogSha256 = existingFileSha256(catalogPath);
-  if (!catalogSha256) throw new Error(`Framework package catalog digest is unavailable: ${catalogPath}`);
-  return buildFrameworkPackageSetInput({
-    frameworkSha: readGitHead(options.frameworkRoot),
-    catalogSha256,
-    catalog,
-    sourceCommits: Object.fromEntries(
-      normalizedProfile.dependencyClosure.map((packageId) => [packageId, readGitHead(sourceRoots[packageId])]),
-    ) as Record<string, string>,
-    referencedFileSha256,
-    packageProfile,
+  const customRuntimeModulePaths =
+    options.packageRuntimeModulePaths
+      && typeof options.packageRuntimeModulePaths === 'object'
+      && !Array.isArray(options.packageRuntimeModulePaths)
+      ? options.packageRuntimeModulePaths as Record<string, string>
+      : {};
+
+  const packages = normalizedProfile.dependencyClosure.map((packageId) => {
+    const sourceRoot = customSourceRoots[packageId] ?? defaultSourceRoots[packageId];
+    if (typeof sourceRoot !== 'string' || sourceRoot.trim() === '') {
+      throw new Error(`Selected package ${packageId} source root is missing`);
+    }
+    const sourceCommit = readGitHead(sourceRoot);
+    if (!sourceCommit || !shaPattern.test(sourceCommit)) {
+      throw new Error(`Selected package ${packageId} source commit is unavailable`);
+    }
+    const runtimeModulePath = safeRuntimeModulePath(
+      customRuntimeModulePaths[packageId] ?? runtimeModulePaths[packageId] ?? `modules/${packageId}`,
+      `${packageId} runtime_module_relative_path`,
+    );
+    const sourceFingerprint = directoryFingerprint(sourceRoot, runtimeModulePath);
+    if (!sourceFingerprint) {
+      throw new Error(`Selected package ${packageId} source fingerprint is unavailable`);
+    }
+    return {
+      package_id: packageId,
+      source_commit: sourceCommit,
+      source_fingerprint: `sha256:${sourceFingerprint}`,
+      runtime_module_relative_path: runtimeModulePath,
+    };
   });
+
+  return buildSelectedPackageSetInput({ packageProfile, packages });
 }

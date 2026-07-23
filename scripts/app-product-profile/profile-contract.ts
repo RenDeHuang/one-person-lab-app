@@ -15,7 +15,7 @@ import {
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
-  firstPartyReleaseSetPresentationByPackageId,
+  starterPackagePresentationByPackageId,
   requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
@@ -142,30 +142,17 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   }
   const fullRuntimeQualification = profile.first_run.full_runtime_package_qualification;
   if (
-    fullRuntimeQualification.source !== 'framework_bundled_full_runtime_catalog' ||
-    fullRuntimeQualification.reconciliation !== 'idempotent_local_payload_install_before_full_readiness' ||
-    fullRuntimeQualification.required_installed_package_count !== 7 ||
+    fullRuntimeQualification.source !== 'framework_resolved_selected_package_set' ||
+    fullRuntimeQualification.reconciliation !== 'idempotent_selected_capability_reconciliation' ||
+    fullRuntimeQualification.composition_policy !== 'open_composition_no_fixed_package_set' ||
+    fullRuntimeQualification.readiness_policy !==
+      'selected_capabilities_gate_only_their_dependent_features' ||
     fullRuntimeQualification.workspace_scoped_materialization_policy !==
       'package_cache_without_global_marketplace_registration_until_mas_workspace_binding' ||
     fullRuntimeQualification.global_workspace_scoped_exposure !== 'forbidden'
   ) {
     throw new Error('App product profile must enforce the Full runtime package qualification boundary');
   }
-  assertDeepEqualJson(
-    fullRuntimeQualification.canonical_package_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
-    'first_run.full_runtime_package_qualification.canonical_package_ids',
-  );
-  assertDeepEqualJson(
-    fullRuntimeQualification.global_codex_exposure_package_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'],
-    'first_run.full_runtime_package_qualification.global_codex_exposure_package_ids',
-  );
-  assertDeepEqualJson(
-    fullRuntimeQualification.workspace_scoped_package_ids,
-    ['mas-scholar-skills'],
-    'first_run.full_runtime_package_qualification.workspace_scoped_package_ids',
-  );
   assertDeepEqualJson(
     profile.first_run.first_conversation.required_before_plain_send,
     ['codex_cli', 'codex_config'],
@@ -951,7 +938,7 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
 
 function assertAgentPackageRegistryProjection(profile: AppProductProfile, profilePath: string): void {
   const projection = profile.gui.agent_package_registry;
-  const expectedFirstPartyPackageIds = [
+  const expectedStarterPackageIds = [
     'mas',
     'mag',
     'rca',
@@ -978,17 +965,17 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
   ) {
     throw new Error('App product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
   }
-  if (JSON.stringify(projection.canonical_first_party_package_ids) !== JSON.stringify(expectedFirstPartyPackageIds)) {
-    throw new Error('App product profile must list the canonical Framework first-party Release Set package ids');
+  if (JSON.stringify(projection.starter_package_ids) !== JSON.stringify(expectedStarterPackageIds)) {
+    throw new Error('App product profile must list the replaceable starter package ids');
   }
-  const metadata = projection.first_party_release_set_metadata ?? [];
-  if (JSON.stringify(metadata.map((entry) => entry.package_id)) !== JSON.stringify(expectedFirstPartyPackageIds)) {
-    throw new Error('App product profile must provide product metadata for every canonical first-party package');
+  const metadata = projection.starter_package_metadata ?? [];
+  if (JSON.stringify(metadata.map((entry) => entry.package_id)) !== JSON.stringify(expectedStarterPackageIds)) {
+    throw new Error('App product profile must provide UI metadata for every starter package');
   }
   for (const entry of metadata) {
     const localizedPresentation =
-      firstPartyReleaseSetPresentationByPackageId[
-        entry.package_id as keyof typeof firstPartyReleaseSetPresentationByPackageId
+      starterPackagePresentationByPackageId[
+        entry.package_id as keyof typeof starterPackagePresentationByPackageId
       ];
     if (
       !entry.package_kind ||

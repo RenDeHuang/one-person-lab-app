@@ -1184,7 +1184,7 @@
       "external_registry_role": "optional_candidate_source_adapter",
       "bundled_default_registry_allowed": false,
       "external_registry_policy_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
-      "canonical_first_party_package_ids": [
+      "starter_package_ids": [
         "mas",
         "mag",
         "rca",
@@ -1242,7 +1242,7 @@
           "ordinary_catalog_remains_visible_when_collapsed": true
         }
       },
-      "first_party_release_set_metadata": [
+      "starter_package_metadata": [
         {
           "package_id": "mas",
           "package_kind": "domain_agent_package",
@@ -1941,29 +1941,10 @@
       "ready_to_launch_blocking": false
     },
     "full_runtime_package_qualification": {
-      "source": "framework_bundled_full_runtime_catalog",
-      "reconciliation": "idempotent_local_payload_install_before_full_readiness",
-      "required_installed_package_count": 7,
-      "canonical_package_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
-      "global_codex_exposure_package_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "opl-flow"
-      ],
-      "workspace_scoped_package_ids": [
-        "mas-scholar-skills"
-      ],
+      "source": "framework_resolved_selected_package_set",
+      "reconciliation": "idempotent_selected_capability_reconciliation",
+      "composition_policy": "open_composition_no_fixed_package_set",
+      "readiness_policy": "selected_capabilities_gate_only_their_dependent_features",
       "workspace_scoped_materialization_policy": "package_cache_without_global_marketplace_registration_until_mas_workspace_binding",
       "global_workspace_scoped_exposure": "forbidden"
     },
@@ -4313,7 +4294,7 @@
               "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
               "directory_collection_source": "app_state.agent_packages.directory.entries",
               "directory_collection_policy": "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages",
-              "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+              "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
               "static_metadata_overlay_policy": "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority",
               "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
               "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
@@ -4338,7 +4319,7 @@
               "status_model": {
                 "policy": "multi_axis_package_status_no_single_repair_bucket",
                 "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
-                "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata",
+                "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
                 "axes": [
                   "install_state",
                   "activation_state",
@@ -6070,7 +6051,7 @@
               "dedicated package catalog search with package role, availability status, and source filters",
               "visible registry refresh and projected per-row non-activation lifecycle actions",
               "Settings, new conversation, and ordinary composer send never execute package activation; selected project directories establish session cwd and future domain workspace identity only",
-              "first_party_release_set_metadata as package_id-keyed localized UI metadata only, never directory membership or status truth",
+              "starter_package_metadata as replaceable package_id-keyed UI metadata only, never directory membership or status truth",
               "global automatic, managed, or developer source mode with selected workspace and authority summary",
               "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
               "per-package automatic, managed, or developer source selection in package details",

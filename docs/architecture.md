@@ -27,7 +27,7 @@ OPL Base       ~= R
 OPL App        ~= RStudio (a replaceable GUI/deployment carrier)
 OPL Package    ~= R Package
 Registry       ~= CRAN index (discovery and version metadata)
-Full/Release Set ~= renv.lock or a reproducible environment snapshot
+Build manifest ~= a record of the inputs actually included in one build
 ```
 
 This model is a product and maintenance constraint, not a claim that the
@@ -38,27 +38,27 @@ generic complexity must have one owner.
 
 The lifecycle boundary is deliberately four-step:
 
-1. **Publish loosely.** A package owner publishes an independent SemVer artifact
-   and manifest with required/optional dependencies plus Base and capability ABI
-   compatibility ranges. OCI, direct manifest, developer checkout, and offline
-   seed are source adapters, not additional package authorities.
+1. **Declare loosely.** A package owner publishes a manifest with identity,
+   required/optional dependencies, compatibility, and optional source or version
+   hints. SemVer, OCI, direct manifest, developer checkout, bundled bytes, and
+   offline sources are all optional resolver inputs.
 2. **Resolve compatibly.** OPL Framework reads the configured repository/index
    and resolves the newest compatible candidate for the requested profile. A
    registry is an index; it cannot define package behavior, installed state, or
    currentness by itself.
-3. **Install exactly.** The Framework transaction writes one exact installed
-   lock containing resolved versions, dependency closure, source and immutable
-   artifact digests, receipts, and `rollback_ref`.
-4. **Run immutable bytes.** Codex/plugin materialization and runtime execution
-   use the locked bytes. A moving label such as `latest-stable`, a Git checkout,
-   or a Release Set name is never runtime truth.
+3. **Record the result.** If an install, update, or build occurs, Framework or
+   the artifact producer records the exact source and materialized bytes in that
+   operation's lock, receipt, or build manifest. No pre-existing lock is needed.
+4. **Run what was resolved.** Codex/plugin materialization and runtime execution
+   use the resolved bytes. A moving label, checkout name, or bundle label is not
+   installed truth by itself.
 
 The currently seven first-party packages are a **starter profile**, not a
 required seven-package closure or an upper bound. A starter profile is one
 composable default selection that may be changed or replaced; each package can
 be installed, updated, hidden, enabled, disabled, or removed independently.
-Release Sets may capture an exact composition for Full/offline installation and
-qualification, but they must not turn that composition into a lock-step
+A concrete Full build may record the exact composition it actually includes,
+but neither Full nor offline use requires a family Release Set or a lock-step
 publication requirement.
 
 ### Package And Carrier Currentness
@@ -67,17 +67,17 @@ The following are separate dimensions and must not share a currentness flag:
 
 | Dimension | Owner and meaning |
 | --- | --- |
-| Package publication | Package owner publishes an immutable SemVer plus OCI/direct-manifest digest. |
+| Package publication | Package owner makes a compatible manifest or source available; version and digest are optional until resolved. |
 | Package resolution | Framework repository index and compatibility resolver choose a candidate. |
-| Installed package truth | Framework exact lock and lifecycle receipt bind installed bytes. |
+| Installed package truth | Framework lock and lifecycle receipt bind bytes after an install or update occurs. |
 | App release | App Release Bundle and updater publish the App binary. |
 | Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports the same owner bytes. |
 | Cadence | Daily/scheduled CI reconciles candidates or indexes; cadence does not create a release authority. |
 
-Developer, external, manual, and offline sources remain valuable for
-composition and recovery, but they are candidate adapters. They must not
-participate in ordinary Stable currentness or silently override the installed
-lock. App and Shell render Framework projections and delegate declared actions;
+Developer, external, manual, online, bundled, and offline sources remain valid
+resolver inputs. None has global priority, and none may silently override an
+existing installed result outside a Framework transaction. App and Shell render
+Framework projections and delegate declared actions;
 they do not duplicate package parsers, version classifiers, dependency
 resolvers, rollback state machines, or release promotion logic.
 
@@ -143,9 +143,9 @@ activation `use_receipt_ref` is separate audit evidence and never a universal
 launch prerequisite.
 
 The Framework directory/status/actions are the lifecycle source for all Package
-identities. A Release Set is only a selected Full/offline/tested snapshot, not a
-fixed package list or independent publication authority. The current seven
-identities are a starter profile. The App ships no default registry URL or empty
+identities. A build or install may record the composition it actually selected,
+but no family Release Set is required and no such record is an independent
+publication authority. The current seven identities are a starter profile. The App ships no default registry URL or empty
 catalog. Operators may add organization or user registry URLs, and users may
 select direct manifests. These sources provide candidates only: Framework's
 resolver decides currentness and the exact installed lock defines local truth.
@@ -155,7 +155,7 @@ readiness rules, or owner receipt authority. Framework keeps identity/trust
 collision defense fail-closed. `contracts/agent-package-surfaces.schema.json` and
 `contracts/fixtures/agent-package-manifests/` define the App-side manifest,
 shortcut, invocation receipt, and package lock receipt shapes, while
-`contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata`
+`contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata`
 provides static product metadata for the current starter profile without becoming
 directory or install truth. Selecting an external package routes the manifest URL to OPL Framework
 validation and package lifecycle execution. The validated manifest plus

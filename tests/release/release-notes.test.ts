@@ -25,15 +25,6 @@ function runNode(args, options = {}) {
   });
 }
 
-const fullPayloadPackages = [
-  { packageId: 'mas', componentLabel: 'MAS' },
-  { packageId: 'mag', componentLabel: 'MAG' },
-  { packageId: 'rca', componentLabel: 'RCA' },
-  { packageId: 'oma', componentLabel: 'OPL Meta Agent' },
-  { packageId: 'obf', componentLabel: 'OPL Book Forge' },
-  { packageId: 'mas-scholar-skills', componentLabel: 'MAS Scholar Skills' },
-  { packageId: 'opl-flow', componentLabel: 'OPL Flow' },
-] as const;
 const canonicalFrameworkRemote = 'https://github.com/gaofeng21cn/one-person-lab.git';
 
 function jsonFile(filePath: string, value: unknown) {
@@ -214,61 +205,8 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     fs.mkdirSync(path.dirname(path.join(toolRoot, platformExecutable)), { recursive: true });
     fs.writeFileSync(path.join(toolRoot, platformExecutable), 'codex fixture\n');
   });
-  let releaseSetPath = '';
-  const ownerRefs: Record<string, string> = {};
   const framework = gitFixture(root, options.nestedFramework ? path.join('app', 'framework-source') : 'framework', (directory) => {
-    const catalogRoot = path.join(directory, 'contracts', 'opl-framework');
-    const catalogPackages: Record<string, unknown> = {};
-    const releaseMembers: Record<string, unknown> = {};
-    for (const [index, spec] of fullPayloadPackages.entries()) {
-      const version = `0.${index + 1}.0`;
-      const ownerRef = (index + 2).toString(16).repeat(40).slice(0, 40);
-      ownerRefs[spec.packageId] = ownerRef;
-      const manifestRef = `packages/${spec.packageId}.json`;
-      const payloadManifestRef = `packages/payloads/${spec.packageId}-${version}.json`;
-      const manifestPath = path.join(catalogRoot, manifestRef);
-      const payloadPath = path.join(catalogRoot, payloadManifestRef);
-      jsonFile(manifestPath, { package_id: spec.packageId, version });
-      jsonFile(payloadPath, {
-        package_id: spec.packageId,
-        package_version: version,
-        source_commit: ownerRef,
-      });
-      const authority = {
-        package_version: version,
-        owner_source_commit: ownerRef,
-        manifest_ref: manifestRef,
-        manifest_sha256: sha256Ref(manifestPath),
-        payload_manifest_ref: payloadManifestRef,
-        payload_manifest_sha256: sha256Ref(payloadPath),
-      };
-      catalogPackages[spec.packageId] = authority;
-      releaseMembers[spec.packageId] = {
-        version,
-        source_commit: ownerRef,
-        manifest_ref: `contracts/opl-framework/${manifestRef}`,
-        manifest_sha256: authority.manifest_sha256,
-        payload_manifest_ref: `contracts/opl-framework/${payloadManifestRef}`,
-        payload_manifest_sha256: authority.payload_manifest_sha256,
-      };
-    }
-    jsonFile(path.join(catalogRoot, 'bundled-full-runtime-package-catalog.json'), {
-      surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
-      packages: catalogPackages,
-    });
-    releaseSetPath = path.join(directory, 'release', 'cohorts', 'fixture', 'release-set.json');
-    jsonFile(releaseSetPath, {
-      surface_kind: 'opl_release_set.v2',
-      generation: 'fixture',
-      owner_cohort_lock: { package_ids: fullPayloadPackages.map(({ packageId }) => packageId) },
-      components: {
-        packages: {
-          package_count: fullPayloadPackages.length,
-          package_ids: fullPayloadPackages.map(({ packageId }) => packageId),
-          members: releaseMembers,
-        },
-      },
-    });
+    fs.writeFileSync(path.join(directory, 'framework.txt'), 'framework fixture\n');
   });
   if (options.nestedFramework) configureCanonicalFrameworkRemote(root, framework);
   const baseImageIndexPath = path.join(root, 'base-image-index.json');
@@ -298,7 +236,6 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     app,
     shell,
     framework,
-    releaseSetPath,
     baseImageIndexPath,
     codexTarballPath,
     thirdPartyManifestPath: path.join(app.root, 'contracts', 'app-full-third-party-source-manifest.json'),
@@ -319,7 +256,6 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     codexAcpVersion,
     officeRef,
     mineruRef,
-    ownerRefs,
   };
 }
 
@@ -332,7 +268,6 @@ function fullPayloadAuthorityArgs(fixture: ReturnType<typeof fullPayloadAuthorit
     '--shell-ref', fixture.shell.ref,
     '--framework-root', fixture.framework.root,
     '--framework-ref', fixture.framework.ref,
-    '--release-set-manifest', fixture.releaseSetPath,
     '--third-party-source-manifest', fixture.thirdPartyManifestPath,
     '--output', output,
   ];
@@ -645,7 +580,7 @@ test('stable manifest notes expose install, component refs, and version changes'
   assert.match(result.stdout, /Component updates since previous Stable: MAS bbbbbbb -> aaaaaaa; OfficeCLI 1\.2\.2 -> 1\.2\.3/);
 });
 
-test('Full notes derive every prebuild payload ref from exact App, Shell, and Framework authorities', () => {
+test('Full notes derive only selected prebuild input refs from exact App, Shell, and Framework authorities', () => {
   const fixture = fullPayloadAuthorityFixture();
   assert.equal(path.relative(fixture.app.root, fixture.framework.root).startsWith('..'), true);
   const authorityPath = path.join(fixture.root, 'full-payload-authority.json');
@@ -668,7 +603,8 @@ test('Full notes derive every prebuild payload ref from exact App, Shell, and Fr
   assert.match(authority.runtime_authority.codex_cli.codex_acp_package_lock_sha256, /^sha256:[0-9a-f]{64}$/);
   assert.equal(authority.runtime_authority.codex_cli.qualification_input_ref, undefined);
   assert.notEqual(authority.runtime_authority.codex_cli.version, fixture.staleAppCodexProjection);
-  assert.deepEqual(Object.keys(authority.packages), fullPayloadPackages.map(({ packageId }) => packageId));
+  assert.equal('framework_release_set' in authority, false);
+  assert.equal('packages' in authority, false);
   assert.doesNotMatch(JSON.stringify(authority), /size_bytes|dmg_sha256|artifact_sha256/);
 
   const notesResult = runNode([
@@ -693,25 +629,24 @@ test('Full notes derive every prebuild payload ref from exact App, Shell, and Fr
   const expectedRefs = [
     `OPL Framework @ ${fixture.framework.ref.slice(0, 7)}`,
     `Codex CLI ${fixture.codexVersion}`,
-    ...fullPayloadPackages.map(
-      ({ packageId, componentLabel }) => `${componentLabel} @ ${fixture.ownerRefs[packageId].slice(0, 7)}`,
-    ),
     `OfficeCLI @ ${fixture.officeRef.slice(0, 7)}`,
     `MinerU @ ${fixture.mineruRef.slice(0, 7)}`,
   ];
   assert.equal(evidence.payload.include_full_package, true);
   assert.equal(evidence.payload.full_payload_authority_sha256, sha256Ref(authorityPath));
   assert.deepEqual(evidence.payload.bundled_refs, expectedRefs);
-  assert.match(evidence.payload.lines[0], /Full first-install package includes the OPL Framework runtime/);
+  assert.match(
+    evidence.payload.lines[0],
+    /Full first-install package contents recorded in this release manifest: OPL Framework, Codex CLI, OfficeCLI, MinerU/,
+  );
   assert.equal(evidence.payload.lines[1], `- Packaged component refs: ${expectedRefs.join('; ')}.`);
 });
 
-test('freeze adapter rejects retired Full and Release Set authority flags', () => {
+test('Standard freeze excludes future Full authority and independent WebUI build inputs', () => {
   const fixture = fullPayloadAuthorityFixture();
   const authorityPath = path.join(fixture.root, 'full-payload-authority.json');
   const notesPath = path.join(fixture.root, 'prepared-notes.md');
   const evidencePath = path.join(fixture.root, 'prepared-notes-evidence.json');
-  const outputPath = path.join(fixture.root, 'retired-freeze-request.json');
   const authorityResult = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
   assert.equal(authorityResult.status, 0, authorityResult.stderr);
   fs.writeFileSync(
@@ -719,14 +654,18 @@ test('freeze adapter rejects retired Full and Release Set authority flags', () =
     '# One Person Lab v26.7.20\n\nPrepared notes.\n\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n',
   );
 
-  jsonFile(evidencePath, {
-    schema: 'opl_app_release_notes_evidence.v1',
-    payload: {
-      include_full_package: true,
-      full_payload_authority_sha256: sha256Ref(authorityPath),
-    },
-  });
-  const result = runNode([
+  const writeEvidence = (fullPayloadAuthoritySha256?: string) => {
+    jsonFile(evidencePath, {
+      schema: 'opl_app_release_notes_evidence.v1',
+      payload: {
+        include_full_package: false,
+        ...(fullPayloadAuthoritySha256
+          ? { full_payload_authority_sha256: fullPayloadAuthoritySha256 }
+          : {}),
+      },
+    });
+  };
+  const runFreeze = (outputName: string) => runNode([
     'scripts/framework-release-adapter.ts',
     'freeze-request',
     '--channel', 'stable',
@@ -737,20 +676,29 @@ test('freeze adapter rejects retired Full and Release Set authority flags', () =
     '--framework-root', fixture.framework.root,
     '--notes', notesPath,
     '--notes-evidence', evidencePath,
-    '--notes-full-payload-authority', authorityPath,
-    '--include-full-package', 'true',
-    '--release-set-manifest', fixture.releaseSetPath,
+    '--include-full-package', 'false',
+    '--package-compatibility-abi', 'opl_packages.v1',
+    '--package-compatibility-version-range', '>=0.1.0 <1.0.0',
     '--source-cutoff-observed-at', '2026-07-23T00:00:00.000Z',
-    '--frozen-base-release-set-generation', '26.7.20',
-    '--frozen-base-release-set-digest', `sha256:${'d'.repeat(64)}`,
     '--base-image-index', fixture.baseImageIndexPath,
     '--frozen-codex-tarball', fixture.codexTarballPath,
-    '--output', outputPath,
+    '--output', path.join(fixture.root, outputName),
   ]);
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Unknown option '--notes-full-payload-authority'/);
-  assert.equal(fs.existsSync(outputPath), false);
+  writeEvidence();
+  const accepted = runFreeze('accepted-freeze-request.json');
+  assert.equal(accepted.status, 0, accepted.stderr);
+  const acceptedRequest = JSON.parse(
+    fs.readFileSync(path.join(fixture.root, 'accepted-freeze-request.json'), 'utf8'),
+  );
+  assert.equal(acceptedRequest.prepared_notes.evidence.payload.full_payload_authority_sha256, undefined);
+  assert.equal(acceptedRequest.frozen_build_inputs, undefined);
+  assert.equal(acceptedRequest.source_cutoff, undefined);
+
+  writeEvidence(`sha256:${'f'.repeat(64)}`);
+  const digestDrift = runFreeze('digest-drift-freeze-request.json');
+  assert.notEqual(digestDrift.status, 0);
+  assert.match(digestDrift.stderr, /cannot bind a Full payload authority digest/);
 });
 
 test('prebuild Full notes authority accepts the verified Actions nested Framework checkout topology', () => {
@@ -829,16 +777,14 @@ test('prebuild Full notes authority rejects nested extras and every other App di
   assert.equal(fs.existsSync(authorityPath), false);
 });
 
-test('prebuild Full notes authority rejects missing Release Set input before writing evidence', () => {
+test('prebuild Full notes authority does not require a Release Set input', () => {
   const fixture = fullPayloadAuthorityFixture();
-  const authorityPath = path.join(fixture.root, 'missing-release-set-authority.json');
-  const args = fullPayloadAuthorityArgs(fixture, authorityPath);
-  const optionIndex = args.indexOf('--release-set-manifest');
-  args.splice(optionIndex, 2);
-  const result = runNode(args);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Missing --release-set-manifest/);
-  assert.equal(fs.existsSync(authorityPath), false);
+  const authorityPath = path.join(fixture.root, 'open-composition-authority.json');
+  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
+  assert.equal(result.status, 0, result.stderr);
+  const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  assert.equal('framework_release_set' in authority, false);
+  assert.equal('packages' in authority, false);
 });
 
 test('prebuild Full notes authority rejects absent or drifted Shell AionCore materialization', async (context) => {
@@ -926,17 +872,19 @@ test('prebuild Full notes authority rejects Shell AionCore managed Codex lock dr
   assert.equal(fs.existsSync(authorityPath), false);
 });
 
-test('prebuild Full notes authority rejects a Release Set owner ref that drifted from the catalog', () => {
+test('prebuild Full notes authority ignores unselected Package metadata', () => {
   const fixture = fullPayloadAuthorityFixture();
-  const releaseSet = JSON.parse(fs.readFileSync(fixture.releaseSetPath, 'utf8'));
-  releaseSet.components.packages.members.mas.source_commit = 'f'.repeat(40);
-  jsonFile(fixture.releaseSetPath, releaseSet);
-  fixture.framework.ref = commitFixtureChange(fixture.framework.root, 'drift release set');
-  const authorityPath = path.join(fixture.root, 'drifted-release-set-authority.json');
+  jsonFile(path.join(fixture.framework.root, 'contracts', 'opl-framework', 'packages', 'mas.json'), {
+    package_id: 'mas',
+    version: '99.0.0',
+  });
+  fixture.framework.ref = commitFixtureChange(fixture.framework.root, 'add unselected Package metadata');
+  const authorityPath = path.join(fixture.root, 'unselected-package-authority.json');
   const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Release Set mas\.source_commit does not match the bundled catalog/);
-  assert.equal(fs.existsSync(authorityPath), false);
+  assert.equal(result.status, 0, result.stderr);
+  const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  assert.equal(authority.sources.framework.source_commit, fixture.framework.ref);
+  assert.equal('packages' in authority, false);
 });
 
 test('final notes normalization sanitizes evidence sections added after model cleanup', () => {

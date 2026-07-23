@@ -2070,16 +2070,8 @@
       "homebrew_formula_allowed": false,
       "homebrew_cask_allowed": false,
       "canonical_lifecycle": "opl packages",
-      "canonical_registry": "ghcr.io/<owner>/one-person-lab-packages/<canonical-package-id>",
-      "canonical_package_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
+      "source_policy": "framework_resolved_compatible_source",
+      "package_set_policy": "open_composition_no_fixed_package_ids",
       "allowed_homebrew_formulae": [
         "opl"
       ],
@@ -2650,16 +2642,8 @@
         "full_runtime_cache": {
           "plan_schema": "opl_actions_cache_plan.v2",
           "receipt_schema": "opl_actions_cache_receipt.v2",
-          "framework_package_set_schema": "opl_full_runtime_framework_package_set.v1",
-          "framework_package_ids": [
-            "mas",
-            "mag",
-            "rca",
-            "oma",
-            "obf",
-            "mas-scholar-skills",
-            "opl-flow"
-          ],
+          "selected_package_set_schema": "opl_full_runtime_selected_package_set.v1",
+          "composition_policy": "cache_only_the_selected_package_dependency_closure",
           "plan_requires_layer_key_input_digest": true,
           "receipt_requires_currentness_passed": true,
           "receipt_metrics": [
@@ -2900,9 +2884,9 @@
       "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts",
       "key_invalidation_scope": {
         "toolchain": "toolchain bytes, versions, source-tree fingerprints, toolchain builder implementation, and toolchain prune projection",
-        "domain-runtime": "Framework seven-package set, copied owner source fingerprints, domain builder implementation, and modules prune projection",
+        "domain-runtime": "selected package dependency closure, copied source fingerprints, domain builder implementation, and modules prune projection",
         "opl-runtime": "Framework runtime bytes, production dependency closure, OPL builder implementation, and opl prune projection",
-        "skills": "Framework package-set identity, OPL Flow workflow policy, App product profile, selected skill bytes, skills packager implementation, and skills prune projection",
+        "skills": "selected package-set identity, OPL Flow workflow policy when selected, App product profile, selected skill bytes, skills packager implementation, and skills prune projection",
         "unknown_prune_root": "conservative_all_layers"
       },
       "opl_runtime_bundle_consumer": {

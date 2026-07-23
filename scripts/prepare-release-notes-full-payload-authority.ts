@@ -13,15 +13,6 @@ type JsonRecord = Record<string, any>;
 const shaPattern = /^[0-9a-f]{40}$/;
 const canonicalFrameworkRepository = 'gaofeng21cn/one-person-lab';
 const nestedFrameworkCheckoutPath = 'framework-source';
-const packageSpecs = [
-  { packageId: 'mas', componentKey: 'mas', resolvedRefKey: 'mas', repository: 'gaofeng21cn/med-autoscience' },
-  { packageId: 'mag', componentKey: 'mag', resolvedRefKey: 'mag', repository: 'gaofeng21cn/med-autogrant' },
-  { packageId: 'rca', componentKey: 'rca', resolvedRefKey: 'rca', repository: 'gaofeng21cn/redcube-ai' },
-  { packageId: 'oma', componentKey: 'meta_agent', resolvedRefKey: 'opl_meta_agent', repository: 'gaofeng21cn/opl-meta-agent' },
-  { packageId: 'obf', componentKey: 'bookforge', resolvedRefKey: 'opl_bookforge', repository: 'gaofeng21cn/opl-bookforge' },
-  { packageId: 'mas-scholar-skills', componentKey: 'mas_scholar_skills', resolvedRefKey: 'mas_scholar_skills', repository: 'gaofeng21cn/mas-scholar-skills' },
-  { packageId: 'opl-flow', componentKey: 'opl_flow', resolvedRefKey: 'opl_flow', repository: 'gaofeng21cn/opl-flow' },
-] as const;
 
 function requiredString(value: unknown, label: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing ${label}.`);
@@ -206,29 +197,6 @@ function assertContainedFile(root: string, candidate: string, label: string): st
   return candidateRealpath;
 }
 
-function assertExactIds(actual: unknown, expected: readonly string[], label: string): void {
-  if (!Array.isArray(actual) || actual.some((value) => typeof value !== 'string')) {
-    throw new Error(`${label} must be a string array.`);
-  }
-  const normalized = [...actual].sort();
-  const expectedNormalized = [...expected].sort();
-  if (JSON.stringify(normalized) !== JSON.stringify(expectedNormalized)) {
-    throw new Error(`${label} must contain exactly ${expected.join(', ')}.`);
-  }
-}
-
-function frameworkContractRef(ref: string): string {
-  const normalized = ref.split(path.sep).join('/');
-  return normalized.startsWith('contracts/')
-    ? normalized
-    : path.posix.join('contracts/opl-framework', normalized);
-}
-
-function resolveCatalogFile(frameworkRoot: string, catalogRoot: string, ref: string, label: string): string {
-  const candidate = path.resolve(ref.startsWith('contracts/') ? frameworkRoot : catalogRoot, ref);
-  return assertContainedFile(frameworkRoot, candidate, label);
-}
-
 export type ReleaseNotesFullPayloadAuthorityInput = {
   appRoot: string;
   appRef: string;
@@ -236,7 +204,6 @@ export type ReleaseNotesFullPayloadAuthorityInput = {
   shellRef: string;
   frameworkRoot: string;
   frameworkRef: string;
-  releaseSetManifestPath: string;
   thirdPartySourceManifestPath: string;
 };
 
@@ -253,45 +220,6 @@ export function buildReleaseNotesFullPayloadAuthority(
   const appRef = assertExactGitSha(appRoot, input.appRef, 'App', nestedFrameworkPath);
   const shellRef = assertExactGitSha(shellRoot, input.shellRef, 'Shell');
 
-  const releaseSetPath = assertContainedFile(
-    frameworkRoot,
-    input.releaseSetManifestPath,
-    'Framework Release Set manifest',
-  );
-  const releaseSet = readRegularJson(releaseSetPath, 'Framework Release Set manifest');
-  if (releaseSet.surface_kind !== 'opl_release_set.v2') {
-    throw new Error('Framework Release Set manifest has an unsupported surface_kind.');
-  }
-  const releasePackages = requiredObject(
-    requiredObject(releaseSet.components, 'Framework Release Set components').packages,
-    'Framework Release Set packages',
-  );
-  if (releasePackages.package_count !== packageSpecs.length) {
-    throw new Error(`Framework Release Set must declare exactly ${packageSpecs.length} packages.`);
-  }
-  const packageIds = packageSpecs.map(({ packageId }) => packageId);
-  assertExactIds(releasePackages.package_ids, packageIds, 'Framework Release Set package_ids');
-  assertExactIds(
-    requiredObject(releaseSet.owner_cohort_lock, 'Framework owner cohort lock').package_ids,
-    packageIds,
-    'Framework owner cohort package_ids',
-  );
-
-  const catalogPath = assertContainedFile(
-    frameworkRoot,
-    path.join(frameworkRoot, 'contracts', 'opl-framework', 'bundled-full-runtime-package-catalog.json'),
-    'Framework bundled package catalog',
-  );
-  const catalog = readRegularJson(catalogPath, 'Framework bundled package catalog');
-  if (catalog.surface_kind !== 'opl_bundled_full_runtime_package_catalog.v1') {
-    throw new Error('Framework bundled package catalog has an unsupported surface_kind.');
-  }
-  const catalogPackages = requiredObject(catalog.packages, 'Framework bundled package catalog packages');
-  assertExactIds(Object.keys(catalogPackages), packageIds, 'Framework bundled package catalog package ids');
-  const releaseMembers = requiredObject(releasePackages.members, 'Framework Release Set package members');
-  assertExactIds(Object.keys(releaseMembers), packageIds, 'Framework Release Set package member ids');
-  const catalogRoot = path.dirname(catalogPath);
-
   const components: JsonRecord = {
     opl: { git_commit: frameworkRef },
   };
@@ -302,82 +230,6 @@ export function buildReleaseNotesFullPayloadAuthority(
       resolved_commit: frameworkRef,
     },
   };
-  const packageAuthority: JsonRecord = {};
-
-  for (const spec of packageSpecs) {
-    const entry = requiredObject(catalogPackages[spec.packageId], `Framework catalog ${spec.packageId}`);
-    const member = requiredObject(releaseMembers[spec.packageId], `Framework Release Set ${spec.packageId}`);
-    const version = requiredString(entry.package_version, `${spec.packageId} package version`);
-    const ownerSourceCommit = requiredString(entry.owner_source_commit, `${spec.packageId} owner source commit`);
-    if (!shaPattern.test(ownerSourceCommit)) throw new Error(`${spec.packageId} owner source commit is invalid.`);
-    const manifestRef = frameworkContractRef(requiredString(entry.manifest_ref, `${spec.packageId} manifest ref`));
-    const payloadManifestRef = frameworkContractRef(
-      requiredString(entry.payload_manifest_ref, `${spec.packageId} payload manifest ref`),
-    );
-    const expectedFields = {
-      version,
-      source_commit: ownerSourceCommit,
-      manifest_ref: manifestRef,
-      manifest_sha256: requiredString(entry.manifest_sha256, `${spec.packageId} manifest digest`),
-      payload_manifest_ref: payloadManifestRef,
-      payload_manifest_sha256: requiredString(
-        entry.payload_manifest_sha256,
-        `${spec.packageId} payload manifest digest`,
-      ),
-    };
-    for (const [field, expected] of Object.entries(expectedFields)) {
-      if (member[field] !== expected) {
-        throw new Error(`Framework Release Set ${spec.packageId}.${field} does not match the bundled catalog.`);
-      }
-    }
-
-    const manifestPath = resolveCatalogFile(
-      frameworkRoot,
-      catalogRoot,
-      requiredString(entry.manifest_ref, `${spec.packageId} manifest ref`),
-      `${spec.packageId} package manifest`,
-    );
-    const payloadManifestPath = resolveCatalogFile(
-      frameworkRoot,
-      catalogRoot,
-      requiredString(entry.payload_manifest_ref, `${spec.packageId} payload manifest ref`),
-      `${spec.packageId} payload manifest`,
-    );
-    if (digestRef(manifestPath) !== expectedFields.manifest_sha256) {
-      throw new Error(`${spec.packageId} package manifest bytes drifted from the Framework authority.`);
-    }
-    if (digestRef(payloadManifestPath) !== expectedFields.payload_manifest_sha256) {
-      throw new Error(`${spec.packageId} payload manifest bytes drifted from the Framework authority.`);
-    }
-    const manifest = readRegularJson(manifestPath, `${spec.packageId} package manifest`);
-    const payloadManifest = readRegularJson(payloadManifestPath, `${spec.packageId} payload manifest`);
-    if (manifest.package_id !== spec.packageId || manifest.version !== version) {
-      throw new Error(`${spec.packageId} package manifest identity does not match the Framework authority.`);
-    }
-    if (
-      payloadManifest.package_id !== spec.packageId
-      || payloadManifest.package_version !== version
-      || payloadManifest.source_commit !== ownerSourceCommit
-    ) {
-      throw new Error(`${spec.packageId} payload manifest identity does not match the Framework authority.`);
-    }
-
-    components[spec.componentKey] = { version, git_commit: ownerSourceCommit };
-    resolvedRefs[spec.resolvedRefKey] = {
-      label: spec.packageId,
-      repository: spec.repository,
-      resolved_commit: ownerSourceCommit,
-      version,
-    };
-    packageAuthority[spec.packageId] = {
-      version,
-      owner_source_commit: ownerSourceCommit,
-      manifest_ref: manifestRef,
-      manifest_sha256: expectedFields.manifest_sha256,
-      payload_manifest_ref: payloadManifestRef,
-      payload_manifest_sha256: expectedFields.payload_manifest_sha256,
-    };
-  }
 
   const thirdPartyManifestPath = assertContainedFile(
     appRoot,
@@ -475,14 +327,6 @@ export function buildReleaseNotesFullPayloadAuthority(
       shell: { source_commit: shellRef },
       framework: { source_commit: frameworkRef },
     },
-    framework_release_set: {
-      generation: requiredString(releaseSet.generation, 'Framework Release Set generation'),
-      manifest_ref: path.relative(frameworkRoot, releaseSetPath).split(path.sep).join('/'),
-      manifest_sha256: digestRef(releaseSetPath),
-      catalog_ref: 'contracts/opl-framework/bundled-full-runtime-package-catalog.json',
-      catalog_sha256: digestRef(catalogPath),
-    },
-    packages: packageAuthority,
     runtime_authority: {
       codex_cli: {
         source: 'shell_aioncore_managed_manifest_and_lock',
@@ -530,7 +374,7 @@ export function verifyReleaseNotesFullPayloadAuthority(
   const derived = buildReleaseNotesFullPayloadAuthority(input);
   if (canonicalJson(authority) !== canonicalJson(derived)) {
     throw new Error(
-      'Full notes payload authority fields drifted from the current App, Shell, Framework, Release Set, or payload authorities.',
+      'Full notes payload authority fields drifted from the current App, Shell, Framework, or selected input authorities.',
     );
   }
   return {
@@ -549,7 +393,6 @@ function parseCli(argv: string[]) {
       'shell-ref': { type: 'string' },
       'framework-root': { type: 'string' },
       'framework-ref': { type: 'string' },
-      'release-set-manifest': { type: 'string' },
       'third-party-source-manifest': { type: 'string' },
       output: { type: 'string' },
     },
@@ -563,9 +406,6 @@ function parseCli(argv: string[]) {
     shellRef: requiredString(values['shell-ref'], '--shell-ref'),
     frameworkRoot: path.resolve(requiredString(values['framework-root'], '--framework-root')),
     frameworkRef: requiredString(values['framework-ref'], '--framework-ref'),
-    releaseSetManifestPath: path.resolve(
-      requiredString(values['release-set-manifest'], '--release-set-manifest'),
-    ),
     thirdPartySourceManifestPath: path.resolve(
       requiredString(values['third-party-source-manifest'], '--third-party-source-manifest'),
     ),

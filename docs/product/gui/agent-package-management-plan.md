@@ -166,9 +166,9 @@ release readiness, or package execution readiness.
 
 OPL App should not add a strong session contract for professional agents.
 
-The App remains a Codex-first wrapper and package manager. Framework directory
-entries plus organization, user, and future third-party source candidates
-describe Codex/OPL capability packages that the App can discover, select,
+The App remains a Codex-first wrapper and package manager. Framework built-in
+first-party Release Set entries plus organization, user, and future third-party
+external registry entries are Codex/OPL capability packages that the App can discover, select,
 install, update, repair, uninstall, configure exposure, and launch. Exposure
 state uses `agent_package_preferences_set` with an `exposure_action` such as
 hide/unhide/enable/disable. Those mutations are Framework action refs with
@@ -195,29 +195,17 @@ agent manifest URL. The manifest URL, after Framework validation, lock, and
 receipt creation, is the installation authority; the Registry is not authority
 for agent behavior.
 
-For ordinary users, managed GHCR OPL Packages use one moving stable path:
-`latest-stable`. There is no user-visible nightly package split for OPL
-Packages. Daily CI may build a GHCR OCI artifact when package source changes,
-but only a candidate that passes manifest validation, payload checks, Codex
-Surface materialization checks, and receipt/readback gates is promoted to
-`latest-stable`. Framework resolves `latest-stable` to an immutable OCI digest before install
-or update; the package lock records the immutable version tag plus digest as
-the installed truth. Git repo and local checkout sources remain Developer
-Profile sources only, not ordinary managed package state, and are excluded from
-background auto-apply.
+Package manifests describe identity, compatibility, dependencies, and optional
+source hints. Framework may resolve any compatible configured source: OCI,
+GitHub, local checkout, direct manifest, bundled bytes, or another adapter. No
+single moving channel, Release Set, payload inventory, version, or digest is
+required before resolution.
 
-This moving-channel rule applies only to OPL Packages. Installation Carrier and
-Runtime Payload stay on their stable/nightly/host-route release flows, while
-Codex Surface is only the plugin/skill projection, readiness, and reload status
-of the installed package.
-
-`latest-stable` is a resolver input, not installed truth. A package owner may
-publish a new immutable version without changing the App, Base, or any other
-package. Framework index reconciliation may run daily or on demand, but Daily
-does not form a seven-package atomic release and cannot promote a candidate
-without the normal manifest, payload, compatibility, and readback gates.
-Release Sets remain useful as exact Full/offline or qualification snapshots;
-they are composition locks and must not become a second package publication
+After an install or update, Framework records the exact source and materialized
+bytes in its package lock and receipt. Those records prove the result of that
+operation; they do not restrict future composition or require App, Base, Flow,
+or unrelated Packages to move together. Installation Carrier, Runtime Payload,
+and Codex Surface remain separate projections of what was actually selected.
 authority.
 
 Rollback is a recovery reference, not a new App-owned verb. Agent Package rows
@@ -291,14 +279,7 @@ and receipts:
   "agent_id": "research-starter",
   "display_name": "Research starter",
   "publisher": "one-person-lab",
-  "version": "1.4.0",
   "source": "first_party_starter",
-  "distribution": {
-    "type": "ghcr_oci_artifact",
-    "ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/research-starter:latest-stable",
-    "immutable_version_tag": "1.4.0",
-    "digest": "sha256:..."
-  },
   "compatibility": {
     "base_abi": ">=0.3 <0.4",
     "capability_abi": {
@@ -315,10 +296,8 @@ and receipts:
   "skill_packs": [
     {
       "id": "research-starter-required-skills",
-      "source": "github:example/agent-skills",
-      "version": "1.4.0",
-      "lock_sha": "sha256-or-commit",
-      "install_mode": "bundled_required"
+      "source": "skills-manager:research-starter-required-skills",
+      "install_mode": "required"
     }
   ],
   "entrypoints": [
@@ -334,7 +313,6 @@ and receipts:
     "required_surfaces": ["plugin_registry", "required_skill_ids"]
   },
   "permissions": [],
-  "update_channel": "latest-stable",
   "rollback_ref": "package-receipt-ref"
 }
 ```
@@ -374,13 +352,12 @@ OPL Framework owns producing and applying it:
 ```json
 {
   "package_id": "opl.research-starter",
-  "version_or_source_digest": "2026.7.6.1+sha256:...",
-  "distribution_ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/research-starter:latest-stable",
-  "resolved_digest": "sha256:...",
+  "resolved_source": "skills-manager:research-starter",
+  "resolved_ref": "sha256:...",
   "installed_at": "2026-07-04T00:00:00Z",
   "updated_at": "2026-07-04T00:00:00Z",
   "codex_visible_entry": "research-starter",
-  "bundled_required_skill_ids": [
+  "materialized_skill_ids": [
     "research-starter",
     "research-starter-required-skills"
   ],
@@ -458,11 +435,11 @@ Avoid this shape:
 | 1     | Document the no-strong-session-contract boundary.                                |               100% | done    | This plan plus architecture/decision/invariant updates.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Markdown diff and `git diff --check`.                                                                                                                             |
 | 2     | Rename product language from fixed assistants to configurable package shortcuts. |               100% | done    | Product/profile contracts declare `professional_agent_packages` and `home_agent_shortcuts`; active Aion shell consumes package/shortcut fields for Home, Settings, skill allowlist, and launch receipt while keeping old assistant fields as migration aliases.                                                                                                                                                                                                                                                      | Old alias fields can be retired only after downstream consumers stop requiring the migration shape.                                                               |
 | 3     | Add external Agent Registry discovery and manifest URL boundary.                 |               100% | done    | App ships no registry URL/ref or empty catalog. `agent_registry_policy` keeps organization/user registries and direct manifest URLs as optional candidate adapters, prohibits first-party identity/trust claims, and delegates refresh, validation, install, currentness, lock, and list to Framework. The generic schema validates configured registry documents without hardcoding the starter profile. | External registry operators own their own catalog publication/readback. |
-| 4     | Define first-party product metadata, manifest, and shortcut shapes.               |               100% | done    | `app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata` owns static metadata for the current starter profile; `agent-package-surfaces.schema.json` defines external registry, manifest, shortcut, invocation receipt, and package lock receipt surfaces; the current starter fixtures live under `contracts/fixtures/agent-package-manifests`. Validators check profile/fixture alignment without treating the external registry as first-party truth. | Public per-package manifest publication and starter-profile replacement are release/distribution work, not an App contract gap. |
+| 4     | Define first-party product metadata, manifest, and shortcut shapes.               |               100% | done    | `app-product-profile.json#gui.agent_package_registry.starter_package_metadata` owns replaceable UI metadata for the current starter profile; `agent-package-surfaces.schema.json` defines external registry, manifest, shortcut, invocation receipt, and package lock receipt surfaces; the current starter fixtures live under `contracts/fixtures/agent-package-manifests`. Validators check profile/fixture alignment without treating metadata as collection or lifecycle truth. | Public per-package manifest publication and starter-profile replacement are release/distribution work, not an App contract gap. |
 | 5     | Keep launch evidence as thin invocation receipt.                                 |               100% | done    | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority; active shell emits `opl_agent_package_invocation` in packaged VM route smoke while retaining legacy `opl_assistant_route` as migration alias.                                                                                                                                                                                       | Live installed App/Codex invocation evidence remains outside this non-live contract/readback landing.                                                             |
 | 6     | Add package lifecycle actions.                                                   |               100% | done    | `app-install-exposure-policy` names `refresh_registry`, `install_from_manifest_url`, `agent_package_update`, `agent_package_repair`, `agent_package_uninstall`, `agent_package_preferences_set`, package-lock requirement, action receipt, rollback_ref recovery ref, and validator/release-boundary coverage. Exposure changes use `agent_package_preferences_set` with `exposure_action` values hide/unhide/enable/disable; Home shortcut preference changes use the same App action with `shortcut_id` payload. Framework writes action receipts/readback without defining Agent Package rollback as a lifecycle verb. | Live Codex-surface reload proof remains tracked separately below.                                                                                                 |
-| 7     | Make first-party starter packages plus required skill packs atomic.              |               100% | done    | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, release payload proof fields, and locked required skill-pack refs that must not be `registry.version_source_ref` or another moving ref. First-party fixtures carry non-live `distribution_payload` proof refs; Framework records `bundled_required_skill_ids`, validates required skill files, reads back materialized skill ids/paths, and supports local plus remote payload manifest materialization. | Actual public payload publication and installed Codex reload proof remain release/runtime evidence, not this non-live item.                                       |
-| 7.1   | Define `latest-stable` GHCR OCI OPL Package distribution semantics.              |               100% | done    | Docs define `latest-stable` as the only ordinary user OPL Package channel, candidate promotion after gates, immutable SemVer tags plus resolved OCI digest as installed truth, clean-managed-root auto-apply eligibility, and git checkout as Developer Profile source only. Framework release workflows, package manifest output, release discipline, focused tests, and package docs own the exact promotion behavior; App consumes that channel without copying current package versions. | Live GHCR publish/readback evidence remains release-owner evidence, not App contract evidence. |
+| 7     | Resolve required Skills through the generic Package lifecycle.                   |               100% | done    | Package manifests declare required and optional Skills by source without requiring version, lock, digest, or bundled payload fields. Framework resolves the dependency closure, materializes selected capabilities, and records exact installed results; App only renders projected status and actions. | Installed Codex reload proof remains release/runtime evidence, not a composition prerequisite. |
+| 7.1   | Keep Package sources and releases independently composable.                      |               100% | done    | OCI, GitHub, local checkout, direct manifest, bundled bytes, and future adapters are compatible resolver inputs. There is no global source order, moving-channel requirement, family Release Set, or fixed package cohort. Exact refs and digests belong only to the install/update/build that actually selected them. | Live publication/readback remains owner evidence for that specific artifact, not App contract evidence. |
 | 8     | Build Settings package-directory UI.                                             |               100% | done    | Contracts/page-state/validators and the active shell implement a `directory.entries`-only compact grouped Agents catalog with localized roles, App-metadata ordering, a separate workflow section, dependency hierarchy derived only from `dependent_guard.required_by_package_ids`, search/filter/refresh, canonical row actions, inline Home shortcut management, multi-axis status, collapsed developer controls, detail disclosure, explicit empty/error/stale states, and no synthetic fallback collection. | Installed-App screenshot/readback remains visual evidence, not an open contract or shell-implementation gap. |
 | 9     | Make Home shortcuts user-configurable in the package directory.                  |               100% | done    | Contracts/profile model `home_agent_shortcuts` over installed packages with `user_configurable=true`; Framework persists preference readback/action. Active shell manages shortcut visibility and order inline on the package-directory row/details surface instead of a detached second table.                                                                                                                                                                                                                        | Installed-App live acceptance can still be collected in release/user-path evidence, but the non-live App/Framework/shell implementation path is closed.                                          |
 | 10    | Support third-party/manual package install.                                      |               100% | done    | Contract and shell keep direct manifest installation in the Agents page's advanced install entry, require an explicit user-selected trust tier, submit `{ manifest_url, trust_tier }`, and keep registry-selected install on its projected canonical payload. Framework owns validation, package lock receipts, rollback refs, and payload materialization/cleanup. | Live user-path evidence and installed Codex reload proof remain deferred.                                                                                         |

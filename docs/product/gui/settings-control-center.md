@@ -267,7 +267,7 @@ Agents is the runnable public Agent Package directory. Its collection is
 exactly `app_state.agent_packages.directory.entries`: every projected entry is
 shown, including uninstalled packages, OPL Meta Agent, all first-party
 packages, Framework capability packages, and workflow profiles. The complete
-`agent_package_registry.first_party_release_set_metadata` projection is an optional
+`agent_package_registry.starter_package_metadata` projection is an optional
 `package_id`-keyed localized name and description overlay for current first-party
 rows only. It cannot seed or filter the collection and cannot own
 installation, activation, readiness, status, source, or actions.

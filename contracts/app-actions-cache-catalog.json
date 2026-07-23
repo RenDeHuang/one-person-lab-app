@@ -106,8 +106,8 @@
       "writer_eligible",
       "cohort",
       "runner",
-      "catalog_sha256",
-      "framework_package_set",
+      "cache_catalog_sha256",
+      "selected_package_set",
       "runtime_cache_aggregate_key_input",
       "runtime_layers",
       "identity"
@@ -119,14 +119,14 @@
       "key_input_digest",
       "restore_mode"
     ],
-    "framework_package_set_schema": "opl_full_runtime_framework_package_set.v1"
+    "selected_package_set_schema": "opl_full_runtime_selected_package_set.v1"
   },
   "cache_receipt": {
     "schema": "opl_actions_cache_receipt.v2",
     "required_after": "full_runtime_materialization_and_cache_save_attempts",
     "required_fields": [
       "plan_identity",
-      "framework_package_set_identity",
+      "selected_package_set_identity",
       "runtime_currentness",
       "runtime_layer_events",
       "save_outcomes",
@@ -150,7 +150,7 @@
     "release_gate": false,
     "miss_fallback": "full_package_build_materializes_validates_and_main_saves_missing_layers",
     "requires_exact_app_shell_framework_shas": true,
-    "requires_exact_framework_package_set": true,
+    "requires_selected_package_set_identity": true,
     "writer_ref": "refs/heads/main",
     "allowed_outputs": [
       "runtime_layer_caches",

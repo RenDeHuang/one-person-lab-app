@@ -417,7 +417,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     directory.consumer_policy !==
       'render every projected entry without a shell allowlist, first-party seed, or installed-only filter' ||
     directory.static_metadata_overlay_source !==
-      'contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata' ||
+      'contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata' ||
     directory.static_metadata_overlay_policy !==
       'package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds' ||
     directory.first_party_policy !==
@@ -1279,8 +1279,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
-    'whether a module comes from the App/CLI-managed GHCR OCI OPL Packages latest channel',
-    'whether a package comes from the Framework-managed GHCR OCI OPL Packages latest-stable channel',
+    'which compatible source the Framework resolver selected for a package',
+    'whether an exact installed lock or build artifact records the selected bytes',
     'whether a module comes from a local domain repository checkout',
     'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',
@@ -1291,10 +1291,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     }
   }
   if (
-    modulePathPolicy.ordinary_user_source !== 'app_cli_managed_ghcr_oci_agent_packages_latest_channel' ||
-    modulePathPolicy.ordinary_user_transport !== 'app_cli_managed'
+    modulePathPolicy.ordinary_user_source !== 'framework_resolved_compatible_source' ||
+    modulePathPolicy.ordinary_user_transport !== 'framework_package_lifecycle'
   ) {
-    throw new Error('App GUI module path source policy must keep ordinary users on App/CLI-managed package maintenance');
+    throw new Error('App GUI module path source policy must keep ordinary users on Framework-resolved package maintenance');
   }
   if (modulePathPolicy.developer_override_surface !== 'Developer Profile source_channel capability') {
     throw new Error('App GUI module path source policy must route repo/checkout override through Developer Profile source_channel');
@@ -1839,7 +1839,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     agentStatusModel?.user_facing_projection_ref !==
       'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection' ||
     agentStatusModel?.localized_metadata_source_ref !==
-      'contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata' ||
+      'contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata' ||
     pages.settings_agents.developer_mode_control?.default_disclosure !== 'collapsed'
   ) {
     throw new Error('Settings Agents must use the App-owned grouped catalog presentation with collapsed developer controls');

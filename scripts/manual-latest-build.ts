@@ -22,7 +22,6 @@ import {
   snapshotDevelopmentRepo,
   writeJson,
 } from './manual-latest-build/common.ts';
-import { prepareFrameworkOverlay } from './manual-latest-build/framework-overlay.ts';
 import {
   installLocalApp,
   ManualAppInstallationError,
@@ -708,7 +707,6 @@ function developmentRepoSnapshots(snapshots: ReturnType<typeof repoSnapshots>) {
 function runBuild(
   options: ReturnType<typeof parseOptions> & { help: false },
   snapshots: ReturnType<typeof repoSnapshots>,
-  overlay: ReturnType<typeof prepareFrameworkOverlay>,
   upstreams: ReturnType<typeof prepareLatestUpstreams>,
   aioncoreBinding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
 ) {
@@ -718,7 +716,7 @@ function runBuild(
     '--version', options.version,
     '--updater-version', options.updaterVersion,
     '--out-dir', options.outDir,
-    '--framework-root', overlay.root,
+    '--framework-root', snapshots.framework.root,
     '--gui-root', snapshots.shellRoot,
     '--mas-root', snapshots.owners.mas.root,
     '--mas-scholar-skills-root', snapshots.owners['mas-scholar-skills'].root,
@@ -799,11 +797,6 @@ function main() {
       snapshots.shellRoot,
     );
     const upstreams = prepareLatestUpstreams(path.join(options.cacheRoot, 'upstreams'));
-    const overlay = prepareFrameworkOverlay({
-      framework: snapshots.framework,
-      ownerSnapshots: snapshots.owners,
-      workRoot,
-    });
     const sourceLock = {
       schema: 'opl_manual_latest_build_source_lock.v1',
       display_version: options.version,
@@ -811,7 +804,7 @@ function main() {
       source_policy: {
         self_developed: 'clean_development_directory_main_head',
         external_companions: 'latest_official_stable_github_release_digest_verified',
-        framework_projection: 'temporary_overlay_only_canonical_main_unchanged',
+        package_selection: 'actual_selected_source_commits_recorded_in_full_package_manifest',
       },
       repositories: {
         app: snapshots.app,
@@ -819,11 +812,6 @@ function main() {
         framework: snapshots.framework,
         ...snapshots.owners,
         ui_ux_pro_max: snapshots.ui_ux_pro_max,
-      },
-      framework_overlay: {
-        head: overlay.head,
-        catalog_sha256: overlay.catalog_sha256,
-        projections: overlay.projections,
       },
       runtime_dependencies: buildManualRuntimeDependencyLock(aioncoreBinding),
       upstreams,
@@ -839,7 +827,7 @@ function main() {
     }
 
     const buildOptions = { ...options, outDir: buildOutDir };
-    runBuild(buildOptions, snapshots, overlay, upstreams, aioncoreBinding);
+    runBuild(buildOptions, snapshots, upstreams, aioncoreBinding);
     assertAioncoreManagedCodexBindingUnchanged(
       aioncoreBinding,
       resolveAioncoreManagedCodexBinding(snapshots.shellRoot),

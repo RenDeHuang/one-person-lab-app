@@ -354,7 +354,7 @@ function assembleBoundTrack(
     qualificationInputManifestDigest: cohort.digests.qualification_input_manifest_sha256,
     ...(kind === 'full' ? {
       fullInputManifestDigest: cohort.digests.full_input_manifest_sha256,
-      frameworkBundledCatalogDigest: cohort.digests.framework_bundled_catalog_sha256,
+      fullPackageManifestDigest: cohort.digests.full_package_manifest_sha256,
       fullToolchainObservationReceiptDigest: cohort.digests.full_toolchain_observation_receipt_sha256,
     } : {}),
   }));
