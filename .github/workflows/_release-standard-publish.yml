@@ -190,7 +190,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t checkpoints < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
+          checkpoints=()
+          while IFS= read -r checkpoint; do
+            checkpoints+=("$checkpoint")
+          done < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
           [ "${#checkpoints[@]}" -eq 1 ] || {
             echo "::error::Portable checkpoint artifact must contain exactly one checkpoint.json."
             exit 1
@@ -538,7 +541,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t standard_build_receipts < <(
+          standard_build_receipts=()
+          while IFS= read -r standard_build_receipt; do
+            standard_build_receipts+=("$standard_build_receipt")
+          done < <(
             find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
           )
           if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
@@ -930,7 +936,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t standard_build_receipts < <(
+          standard_build_receipts=()
+          while IFS= read -r standard_build_receipt; do
+            standard_build_receipts+=("$standard_build_receipt")
+          done < <(
             find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
           )
           if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
@@ -1400,7 +1409,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t standard_build_receipts < <(
+          standard_build_receipts=()
+          while IFS= read -r standard_build_receipt; do
+            standard_build_receipts+=("$standard_build_receipt")
+          done < <(
             find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
           )
           if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
@@ -1531,7 +1543,11 @@ jobs:
           fi
           one_file() {
             local root="$1" name="$2"
-            mapfile -t matches < <(find "$root" -type f -name "$name" -print)
+            local matches=()
+            local match
+            while IFS= read -r match; do
+              matches+=("$match")
+            done < <(find "$root" -type f -name "$name" -print)
             test "${#matches[@]}" -eq 1 || {
               echo "::error::$root must contain exactly one $name."
               return 1

@@ -111,7 +111,10 @@ runs:
         set -euo pipefail
         exec > >(tee -a "$EVIDENCE_DIR/restore.stdout.log") \
           2> >(tee -a "$EVIDENCE_DIR/restore.stderr.log" >&2)
-        mapfile -t checkpoints < <(find imported-checkpoint -type f -name checkpoint.json -print)
+        checkpoints=()
+        while IFS= read -r checkpoint; do
+          checkpoints+=("$checkpoint")
+        done < <(find imported-checkpoint -type f -name checkpoint.json -print)
         [ "${#checkpoints[@]}" -eq 1 ] || {
           echo "::error::Artifact $SOURCE_ARTIFACT must contain exactly one portable checkpoint.json."
           exit 1

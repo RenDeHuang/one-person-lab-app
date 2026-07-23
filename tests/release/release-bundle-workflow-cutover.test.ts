@@ -341,7 +341,7 @@ function runPortableStandardBuildReceiptStep(jobName: string, receiptFixture: nu
         );
       }
     }
-    const result = spawnSync('bash', ['-euo', 'pipefail', '-c', String(step.run)], {
+    const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', String(step.run)], {
       cwd: root,
       encoding: 'utf8',
     });
@@ -895,6 +895,17 @@ test('mutation unknown states persist evidence and only use bounded read-only re
   assert.match(standardSource, /Latest activation was not conclusively read back; no retry was attempted/);
   assert.match(readWorkflow('_release-standard-publish.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
   assert.match(readWorkflow('_release-full-addon.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
+});
+
+test('Stable recovery scripts avoid Bash 4-only mapfile on macOS runners', () => {
+  for (const relativePath of [
+    '.github/workflows/_release-standard-publish.yml',
+    '.github/workflows/_release-full-addon.yml',
+    '.github/actions/restore-release-checkpoint/action.yml',
+  ]) {
+    const source = fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+    assert.doesNotMatch(source, /\bmapfile\b/, relativePath);
+  }
 });
 
 test('every recoverable Standard unknown artifact carries exactly one original build receipt', () => {

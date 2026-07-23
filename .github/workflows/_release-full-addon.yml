@@ -174,7 +174,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t checkpoints < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
+          checkpoints=()
+          while IFS= read -r checkpoint; do
+            checkpoints+=("$checkpoint")
+          done < <(find checkpoint-identity-bootstrap -type f -name checkpoint.json -print)
           [ "${#checkpoints[@]}" -eq 1 ] || {
             echo "::error::Portable checkpoint artifact must contain exactly one checkpoint.json."
             exit 1
