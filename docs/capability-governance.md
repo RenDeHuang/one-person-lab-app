@@ -56,6 +56,14 @@ Flow 可以用同一能力图声明 MCP，但默认安装的 MCP 必须先有 Fr
 API Key、OAuth token、账户状态和其他秘密始终由用户或 provider 持有，不进入 Flow policy 或 Full 安装包。
 迁移不得复制凭据。未由 Flow 声明的用户和第三方 MCP 必须保留，不能因不在 managed graph 中而删除或覆盖。
 
+模型访问检测优先解析本机 Codex `config.toml` 中当前 selected provider：已有可用 access 时直接复用，不重复
+要求 API Key，也不重写 provider。`opl system configure-codex --api-key-stdin` 只用于用户明确新增或轮换凭据，
+不得安装、更新、修复、启停或同步任何 Package/Skill/Plugin。
+
+Package reconciliation 与 provider 配置完全解耦。API Key 或 provider 缺失不得阻止 Standard、Full、DMG、
+本地安装或后续 currentness；Framework 必须按 Release Set 与 payload digest 通过 carrier-neutral managed
+update plane 处理 bundled locks 和在线 locks，并给出 terminal receipt。
+
 ## 模型策略
 
 App 模型选择优先级固定为：

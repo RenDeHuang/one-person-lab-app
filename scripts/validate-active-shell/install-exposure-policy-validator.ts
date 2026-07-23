@@ -77,7 +77,11 @@ function validateCapabilityGovernance(governance) {
     convergence?.target_closure_equality_required !== true ||
     convergence?.final_projection_equality_required !== true ||
     convergence?.acceptance_gate !== 'framework_terminal_reconciliation_receipt' ||
-    convergence?.gui_ready_alone_is_sufficient !== false
+    convergence?.gui_ready_alone_is_sufficient !== false ||
+    convergence?.reconciliation_surface !== 'framework_managed_update_plane' ||
+    convergence?.provider_configuration_required_for_reconciliation !== false ||
+    convergence?.bundled_lock_update_policy !==
+      'release_set_and_payload_digest_through_framework_managed_update_plane'
   ) {
     throw new Error('Install exposure Standard and Full carriers must converge on one exact managed capability projection');
   }
@@ -85,9 +89,20 @@ function validateCapabilityGovernance(governance) {
     governance.credential_policy?.credential_values_owner !== 'user_or_provider' ||
     governance.credential_policy?.full_may_bundle_secrets !== false ||
     governance.credential_policy?.migration_may_copy_credentials !== false ||
-    governance.credential_policy?.flow_may_declare_requirements_only !== true
+    governance.credential_policy?.flow_may_declare_requirements_only !== true ||
+    governance.credential_policy?.existing_codex_config_detection !==
+      'selected_provider_access_from_resolved_codex_config_toml' ||
+    governance.credential_policy?.existing_usable_access_policy !==
+      'reuse_without_reconfiguration_or_manual_key_input' ||
+    governance.credential_policy?.explicit_api_key_command_role !==
+      'new_or_rotated_provider_credential_only' ||
+    governance.credential_policy?.configure_codex_package_lifecycle_mutation_allowed !== false ||
+    governance.credential_policy?.package_reconciliation_requires_provider_configuration !== false ||
+    governance.credential_policy?.package_reconciliation_surface !== 'framework_managed_update_plane'
   ) {
-    throw new Error('Install exposure capability governance must keep credential values out of Flow and Full');
+    throw new Error(
+      'Install exposure capability governance must reuse existing Codex access and keep provider configuration separate from package lifecycle',
+    );
   }
   if (
     governance.mcp_policy?.flow_managed_projection_group !== 'opl_flow_managed' ||

@@ -10,6 +10,14 @@
     "default_user_authentication": "opl_gateway_account_password",
     "api_key_role": "explicit_compatibility_only",
     "configuration_timing": "user_requested_at_model_use_or_settings",
+    "existing_codex_config_reuse": {
+      "config_source_resolution": "OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml",
+      "detection": "selected_provider_has_usable_access",
+      "behavior": "reuse_without_reconfiguration_or_manual_key_input",
+      "manual_user_input_required": false,
+      "mutation_performed": false,
+      "secret_exposure_allowed": false
+    },
     "release_vm_default": {
       "credential_mode": "none",
       "provider_configuration_status": "not_requested",
@@ -46,7 +54,20 @@
       "requires_explicit_request": true,
       "explicit_credential_file_role": "optional_manual_override_only",
       "provider_command": "opl system configure-codex --api-key-stdin --json",
+      "provider_command_role": "new_or_rotated_provider_credential_only",
+      "package_reconciliation_performed": false,
+      "package_lifecycle_mutation_allowed": false,
       "blocking_release_gate": false
+    },
+    "package_reconciliation_independence": {
+      "owner": "one-person-lab",
+      "surface": "framework_managed_update_plane",
+      "carrier_neutral": true,
+      "provider_configuration_required": false,
+      "api_key_required": false,
+      "configure_codex_allowed": false,
+      "release_identity": "release_set_and_payload_digest",
+      "full_bundled_lock_policy": "upgrade_through_managed_update_plane_not_provider_configuration"
     },
     "required_release_scenarios": [
       "standard_dmg_clean_vm_smoke",
@@ -381,6 +402,8 @@
       "expects": [
         "Full DMG is installed into /Applications on first launch",
         "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
+        "Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation",
+        "Package reconciliation remains independent of provider configuration and API key availability and runs only through the Framework managed update plane",
         "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
         "ready_to_launch is reached before the first conversation after workspace root, Codex CLI, and usable Codex model access are ready, while /guid remains explicitly enterable earlier",
@@ -860,7 +883,8 @@
         "Full DMG reaches Core ready from the bundled runtime",
         "ready_to_launch is reached before the first conversation after workspace root, Codex CLI, and usable Codex model access are ready, while /guid remains explicitly enterable earlier",
         "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
-        "Desktop startup maintenance idempotently installs the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow from local payloads before Full readiness is claimed",
+        "Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation",
+        "Framework managed update idempotently reconciles the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow by Release Set and payload digest before Full readiness is claimed, independently of provider configuration and API key availability",
         "Fresh App readback reports installed_package_count 7; MAS Scholar Skills has cache materialized without global marketplace or config exposure and becomes visible only after MAS workspace binding",
         "Bundled AionCore v0.1.50 supplies exactly the @agentclientprotocol/codex-acp version selected by its managed resource manifest and package lock, with official v0.1.50 readback at 1.1.2; the same managed payload resolves Codex CLI 0.144.6, completes a real initialize handshake with model_reasoning_effort = max, and contains no @zed-industries/codex-acp resource or Codex 0.145 override",
         "Conversation readiness is confirmed only by POST /api/conversations/<id>/runtime/ensure; the retired /warmup route and every 404 or 500 remain retryable errors and never mark a conversation ready",

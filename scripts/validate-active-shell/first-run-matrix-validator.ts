@@ -180,14 +180,23 @@ function validateSharedProgressModel(progressModel, scenarios) {
 }
 
 function validateProviderConfigurationQualification(qualification, scenarioById) {
+  const existingConfigReuse = qualification?.existing_codex_config_reuse;
   const releaseVmDefault = qualification?.release_vm_default;
   const connectedDiagnostic = qualification?.connected_provider_diagnostic;
   const compatibilityLane = qualification?.api_key_compatibility_lane;
+  const packageReconciliation = qualification?.package_reconciliation_independence;
   if (
     qualification?.release_contract_ref !== 'contracts/app-release-channel.json#provider_configuration_boundary'
     || qualification?.default_user_authentication !== 'opl_gateway_account_password'
     || qualification?.api_key_role !== 'explicit_compatibility_only'
     || qualification?.configuration_timing !== 'user_requested_at_model_use_or_settings'
+    || existingConfigReuse?.config_source_resolution !==
+      'OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml'
+    || existingConfigReuse?.detection !== 'selected_provider_has_usable_access'
+    || existingConfigReuse?.behavior !== 'reuse_without_reconfiguration_or_manual_key_input'
+    || existingConfigReuse?.manual_user_input_required !== false
+    || existingConfigReuse?.mutation_performed !== false
+    || existingConfigReuse?.secret_exposure_allowed !== false
     || releaseVmDefault?.credential_mode !== 'none'
     || releaseVmDefault?.provider_configuration_status !== 'not_requested'
     || releaseVmDefault?.provider_configuration_required !== false
@@ -205,9 +214,23 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     || compatibilityLane?.requires_explicit_request !== true
     || compatibilityLane?.explicit_credential_file_role !== 'optional_manual_override_only'
     || compatibilityLane?.provider_command !== 'opl system configure-codex --api-key-stdin --json'
+    || compatibilityLane?.provider_command_role !== 'new_or_rotated_provider_credential_only'
+    || compatibilityLane?.package_reconciliation_performed !== false
+    || compatibilityLane?.package_lifecycle_mutation_allowed !== false
     || compatibilityLane?.blocking_release_gate !== false
+    || packageReconciliation?.owner !== 'one-person-lab'
+    || packageReconciliation?.surface !== 'framework_managed_update_plane'
+    || packageReconciliation?.carrier_neutral !== true
+    || packageReconciliation?.provider_configuration_required !== false
+    || packageReconciliation?.api_key_required !== false
+    || packageReconciliation?.configure_codex_allowed !== false
+    || packageReconciliation?.release_identity !== 'release_set_and_payload_digest'
+    || packageReconciliation?.full_bundled_lock_policy !==
+      'upgrade_through_managed_update_plane_not_provider_configuration'
   ) {
-    throw new Error('Release VM Provider configuration must default to not_requested without synthetic credentials');
+    throw new Error(
+      'Release VM Provider configuration must default to not_requested without synthetic credentials, reuse existing access, and remain independent from package reconciliation',
+    );
   }
   assertDeepEqualJson(
     releaseVmDefault.required_summary_fields,
@@ -243,6 +266,28 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     if (scenario?.release_gate !== true || scenario?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
       throw new Error(`Release scenario ${scenarioId} must consume the Provider-independent qualification contract`);
     }
+  }
+  const fullFirstInstall = scenarioById.get('full_first_install_clean_machine');
+  if (
+    !fullFirstInstall?.expects?.includes(
+      'Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation',
+    ) ||
+    !fullFirstInstall?.expects?.includes(
+      'Package reconciliation remains independent of provider configuration and API key availability and runs only through the Framework managed update plane',
+    )
+  ) {
+    throw new Error('Full first install must reuse existing Codex access and decouple package reconciliation');
+  }
+  const fullDmg = scenarioById.get('full_dmg_clean_vm_smoke');
+  if (
+    !fullDmg?.expects?.includes(
+      'Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation',
+    ) ||
+    !fullDmg?.expects?.includes(
+      'Framework managed update idempotently reconciles the exact Full canonical package set mas, mag, rca, oma, obf, mas-scholar-skills, and opl-flow by Release Set and payload digest before Full readiness is claimed, independently of provider configuration and API key availability',
+    )
+  ) {
+    throw new Error('Full DMG qualification must use provider-independent Framework managed package updates');
   }
 }
 

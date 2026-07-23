@@ -350,7 +350,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Initialization 显示真实 phase、elapsed time、完成/失败和恢复路径。
 - Full readiness、package reconcile、runtime provider 和 background maintenance 在进入
  主界面后继续，除非 App contract 明确为 blocker。
-- 已有可用 access 时不重复要求配置推荐 provider；技术命令只在 details 中显示。
+- 已有可用 access 时优先从解析后的本机 Codex `config.toml` 复用 selected provider，不重复要求
+  API Key，也不重写 provider；技术命令只在 details 中显示。
+- 显式 API Key 输入只用于新增或轮换 provider 凭据。provider 配置不得触发 Package/Skill/Plugin
+  lifecycle mutation。
+- Package reconciliation 不依赖 provider 或 API Key；Standard、Full 和所有 App carriers 都只请求
+  Framework managed update plane 按 Release Set 与 digest 完成 reconciliation。
 
 ## Empty、Loading 与 Failure
 
