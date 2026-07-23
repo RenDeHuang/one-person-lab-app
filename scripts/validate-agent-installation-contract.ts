@@ -13,7 +13,6 @@ type AgentRootMap = Map<string, string>;
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const policyPath = path.join(appRoot, "contracts", "app-install-exposure-policy.json");
 const profilePath = path.join(appRoot, "contracts", "app-product-profile.json");
-const registryPath = path.join(appRoot, "contracts", "agent-package-registry.json");
 const agentPackageSurfaceSchemaPath = path.join(
   appRoot,
   "contracts",
@@ -132,7 +131,6 @@ const expectedPackageLifecycleActions = [
   "agent_package_preferences_set",
 ];
 const expectedRegistrySourceKinds = [
-  "default_external_registry",
   "organization_registry_url",
   "user_registry_url",
 ];
@@ -423,7 +421,7 @@ function assertFixtureDigestRef(value: unknown, label: string, suffixAllowed = f
   }
 }
 
-function validateCanonicalPackageConsumers(policy: any, profile: any, registry: any): void {
+function validateCanonicalPackageConsumers(policy: any, profile: any, registry: any | null): void {
   const legacyIdentityIds = new Set([
     "med-autoscience",
     "med-autogrant",
@@ -452,7 +450,7 @@ function validateCanonicalPackageConsumers(policy: any, profile: any, registry: 
   };
   visitIdentityFields(policy, ["policy"]);
   visitIdentityFields(profile, ["profile"]);
-  visitIdentityFields(registry, ["registry"]);
+  if (registry) visitIdentityFields(registry, ["registry"]);
 
   const installSurface = JSON.stringify({
     software_lifecycle: policy.software_lifecycle,
@@ -466,7 +464,7 @@ function validateCanonicalPackageConsumers(policy: any, profile: any, registry: 
     }
   }
 
-  for (const entry of registry.entries ?? []) {
+  for (const entry of registry?.entries ?? []) {
     const ordinarySurface = JSON.stringify({
       manifest_url: entry.manifest_url,
       ordinary_user_source: entry.ordinary_user_source,
@@ -587,14 +585,14 @@ type ParsedArgs = {
   agentRoots: AgentRootMap;
   codexSkillsRoot: string | null;
   policyPath: string;
-  registryPath: string;
+  registryPath: string | null;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const roots = new Map<string, string>();
   let codexSkillsRoot: string | null = null;
   let selectedPolicyPath = policyPath;
-  let selectedRegistryPath = registryPath;
+  let selectedRegistryPath: string | null = null;
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--policy-path") {
@@ -709,7 +707,7 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
 function validateContract(
   policy: any,
   profile: any,
-  registry: any,
+  registry: any | null,
   agentPackageSurfaceSchema: any,
   packageJson: any,
   agentRoots: AgentRootMap,
@@ -788,11 +786,6 @@ function validateAgentInstallationContract(policy: any): any {
   );
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, "required agent ids");
   assertArrayEqual(
-    contract.required_package_ids,
-    expectedRegistryPackageIds,
-    "required package ids",
-  );
-  assertArrayEqual(
     contract.default_plugin_agent_ids,
     expectedDefaultPluginAgentIds,
     "default plugin agent ids",
@@ -833,14 +826,15 @@ function validateRegistryPolicyShape(contract: any): void {
     {
       policy_surface:
         "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
-      default_registry_ref: "contracts/agent-package-registry.json",
-      default_registry_source_kind: "default_external_registry",
-      default_registry_url:
-        "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
-      default_registry_scope: "external_discovery_only",
-      empty_default_registry_allowed: true,
-      first_party_release_set_runtime_authority:
-        "one-person-lab-framework#built_in_release_set",
+      framework_directory_lifecycle_authority:
+        "app_state.agent_packages.directory+status_index+actions",
+      framework_resolver_currentness_authority:
+        "one-person-lab#package_repository_resolver",
+      installed_truth_authority: "one-person-lab#exact_installed_lock",
+      app_bundled_default_registry_allowed: false,
+      external_registry_role: "optional_candidate_source_adapter",
+      external_registry_configuration_source:
+        "framework_projected_configured_sources_or_explicit_user_selected_url",
       canonical_first_party_package_ids_source_ref:
         "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids",
       external_first_party_identity_claims_allowed: false,
@@ -858,12 +852,13 @@ function validateRegistryPolicyShape(contract: any): void {
       first_party_manifest_fixture_dir: "contracts/fixtures/agent-package-manifests",
       registry_is_discovery_only: true,
       registry_install_authority_allowed: false,
+      registry_may_define_currentness: false,
       manifest_url_required_for_install: true,
       manifest_validation_required_before_install: true,
       install_authority: "validated_opl_package_manifest_plus_framework_package_lock_receipt",
       mutating_actions_owner: "one-person-lab",
       app_role:
-        "refresh_external_registry_display_external_candidates_and_route_selected_manifest_url_to_framework_without_owning_first_party_identity_or_agent_semantics",
+        "display_framework_projected_external_candidates_and_route_selected_manifest_url_without_owning_lifecycle_currentness_or_agent_semantics",
       direct_manifest_url_install_allowed: true,
       third_party_registry_required_for_manual_install: false,
       third_party_entry_policy:
@@ -903,7 +898,7 @@ function schemaDef(schema: any, name: string): any {
   return def;
 }
 
-function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema: any): void {
+function validateAgentPackageSurfaceSchema(contract: any, registry: any | null, schema: any): void {
   assertFieldsEqual(
     schema,
     {
@@ -919,10 +914,10 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     "external agent package registry schema ref",
   );
   const externalRegistrySchema = schemaDef(schema, "external_agent_package_registry");
-  assertEqual(
-    externalRegistrySchema.properties?.registry_source_kind?.const,
-    "default_external_registry",
-    "default registry external source kind",
+  assertArrayEqual(
+    externalRegistrySchema.properties?.registry_source_kind?.enum,
+    expectedRegistrySourceKinds,
+    "external registry source kinds",
   );
   assertEqual(
     externalRegistrySchema.properties?.canonical_first_party_entries_allowed?.const,
@@ -935,20 +930,15 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     "external registry first-party trust policy",
   );
   assertEqual(
-    externalRegistrySchema.properties?.empty_registry_allowed?.const,
-    true,
-    "empty external registry policy",
-  );
-  assertEqual(
     schema.properties?.agent_package_registry_entry?.$ref,
     "#/$defs/agent_package_registry_entry",
     "agent package registry entry schema ref",
   );
   const registryEntrySchema = schemaDef(schema, "agent_package_registry_entry");
-  assertArrayEqual(
-    registryEntrySchema.properties?.package_id?.not?.enum,
-    expectedRegistryPackageIds,
-    "external registry reserved first-party package ids",
+  assertEqual(
+    registryEntrySchema.properties?.package_id?.not,
+    undefined,
+    "external registry schema must not hardcode one starter profile",
   );
   assertEqual(
     registryEntrySchema.properties?.source?.not?.pattern,
@@ -1196,16 +1186,18 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     expectedActivationPreparationStatuses,
     "agent package activation preparation statuses",
   );
-  assertEqual(
-    contract.agent_registry_policy.manifest_schema_ref,
-    registry.manifest_schema_ref,
-    "registry manifest schema ref",
-  );
-  assertEqual(
-    registry.registry_schema_ref,
-    "contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry",
-    "external registry schema ref",
-  );
+  if (registry) {
+    assertEqual(
+      contract.agent_registry_policy.manifest_schema_ref,
+      registry.manifest_schema_ref,
+      "registry manifest schema ref",
+    );
+    assertEqual(
+      registry.registry_schema_ref,
+      "contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry",
+      "external registry schema ref",
+    );
+  }
 }
 
 function minimalUseBindingConforms(binding: any, selected: any): boolean {
@@ -1512,60 +1504,58 @@ function validateRegistryEntryMetadata(entry: any): void {
   }
 }
 
-function validateAgentRegistryPolicy(contract: any, profile: any, registry: any): void {
+function validateAgentRegistryPolicy(contract: any, profile: any, registry: any | null): void {
   const registryPolicy = contract.agent_registry_policy;
-  assertFieldsEqual(
-    registry,
-    {
-      owner: "one-person-lab-app",
-      purpose: "external_agent_package_registry_catalog_contract",
-      state: "active_external_discovery_contract",
-      version: 2,
-      policy_ref:
-        "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
-      manifest_schema_ref:
-        "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
-      registry_schema_ref:
-        "contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry",
-      registry_id: "opl-default-external-agent-registry",
-      registry_name: "OPL External Agent Registry",
-      registry_source_kind: "default_external_registry",
-      registry_url: registryPolicy.default_registry_url,
-      discovery_only: true,
-      install_authority_allowed: false,
-      empty_registry_allowed: true,
-      canonical_first_party_entries_allowed: false,
-      first_party_trust_claims_allowed: false,
-      reserved_identity_source_ref:
-        "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids",
-      reserved_identity_collision_failure_code:
-        "agent_package_registry_first_party_identity_collision",
-    },
-    "external agent registry catalog",
-  );
-  if (
-    !registry.machine_boundary?.includes("external discovery registry") ||
-    !registry.machine_boundary?.includes("Framework built-in Release Set")
-  ) {
-    fail(
-      "default registry must state that Framework owns canonical first-party identity and external discovery cannot claim it",
+  if (registry) {
+    assertFieldsEqual(
+      registry,
+      {
+        purpose: "external_agent_package_registry_catalog",
+        state: "active_external_discovery_source",
+        policy_ref:
+          "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
+        manifest_schema_ref:
+          "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
+        registry_schema_ref:
+          "contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry",
+        discovery_only: true,
+        install_authority_allowed: false,
+        canonical_first_party_entries_allowed: false,
+        first_party_trust_claims_allowed: false,
+      },
+      "external agent registry catalog",
+    );
+    if (
+      typeof registry.owner !== "string" ||
+      !registry.owner.trim() ||
+      typeof registry.registry_id !== "string" ||
+      !registry.registry_id.trim() ||
+      typeof registry.registry_name !== "string" ||
+      !registry.registry_name.trim() ||
+      !expectedRegistrySourceKinds.includes(registry.registry_source_kind) ||
+      typeof registry.registry_url !== "string" ||
+      !registry.registry_url.trim()
+    ) {
+      fail("external registry must declare owner, identity, configured source kind, and URL");
+    }
+  }
+  if (registry) {
+    assertArrayEqual(
+      registry.entry_required_fields,
+      expectedRegistryEntryFields,
+      "registry catalog entry fields",
+    );
+    assertArrayEqual(
+      registry.manifest_required_fields,
+      expectedManifestRequiredFields,
+      "registry catalog manifest fields",
+    );
+    assertArrayEqual(
+      registry.excluded_registry_fields,
+      expectedRegistryExcludedFields,
+      "registry catalog excluded fields",
     );
   }
-  assertArrayEqual(
-    registry.entry_required_fields,
-    expectedRegistryEntryFields,
-    "registry catalog entry fields",
-  );
-  assertArrayEqual(
-    registry.manifest_required_fields,
-    expectedManifestRequiredFields,
-    "registry catalog manifest fields",
-  );
-  assertArrayEqual(
-    registry.excluded_registry_fields,
-    expectedRegistryExcludedFields,
-    "registry catalog excluded fields",
-  );
 
   const profilePackages = profile.gui?.professional_agent_packages ?? [];
   assertArrayEqual(
@@ -1580,14 +1570,29 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
     "profile canonical first-party package ids",
   );
   assertEqual(
-    registryProjection?.first_party_runtime_authority,
-    "one-person-lab-framework#built_in_release_set",
-    "profile first-party runtime authority",
+    registryProjection?.directory_lifecycle_authority,
+    "app_state.agent_packages.directory+status_index+actions",
+    "profile package lifecycle authority",
   );
   assertEqual(
-    registryProjection?.registry_scope,
-    "external_discovery_only",
-    "profile registry scope",
+    registryProjection?.resolver_currentness_authority,
+    "one-person-lab#package_repository_resolver",
+    "profile package currentness authority",
+  );
+  assertEqual(
+    registryProjection?.installed_truth_authority,
+    "one-person-lab#exact_installed_lock",
+    "profile installed truth authority",
+  );
+  assertEqual(
+    registryProjection?.external_registry_role,
+    "optional_candidate_source_adapter",
+    "profile external registry role",
+  );
+  assertEqual(
+    registryProjection?.bundled_default_registry_allowed,
+    false,
+    "profile bundled default registry policy",
   );
   assertEqual(
     registryProjection?.external_first_party_identity_claims_allowed,
@@ -1640,7 +1645,7 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
     }
   }
 
-  const entries = registry.entries ?? [];
+  const entries = registry?.entries ?? [];
   const reservedIds = new Set(expectedRegistryPackageIds);
   for (const entry of entries) {
     for (const field of expectedRegistryEntryFields) {
@@ -1655,7 +1660,7 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
     validateRegistryEntryMetadata(entry);
     if (reservedIds.has(entry.package_id)) {
       fail(
-        `external registry entry ${entry.package_id} collides with Framework first-party identity (${registry.reserved_identity_collision_failure_code})`,
+        `external registry entry ${entry.package_id} collides with Framework first-party identity (${registryPolicy.external_first_party_collision_failure_code})`,
       );
     }
     if (isExternalFirstPartyClaim(entry.source)) {
@@ -2371,18 +2376,9 @@ function validateExposureClasses(policy: any, contract: any): void {
     "generated plugin sync target",
   );
 
-  const companionClass = findExposureClass(policy, "companion_tools_codex_skills");
-  assertEqual(
-    companionClass.members_source_ref,
-    "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
-    "companion skill policy owner",
-  );
-  assertEqual(companionClass.software_object, "opl_base", "companion integration software object");
-  assertEqual(
-    companionClass.visibility_scope,
-    "base_integration_projection_only_not_software_object",
-    "companion integration visibility scope",
-  );
+  if (policy.exposure_classes.some((entry: any) => entry.id === "companion_tools_codex_skills")) {
+    throw new Error("App install exposure must not duplicate Framework managed Skill membership");
+  }
 }
 
 function validateProfileCompanionPayloads(profile: any): void {
@@ -2537,7 +2533,7 @@ validateActiveShellInstallConsumers();
 validateContract(
   readJson(selectedPolicyPath),
   readJson(profilePath),
-  readJson(selectedRegistryPath),
+  selectedRegistryPath ? readJson(selectedRegistryPath) : null,
   readJson(agentPackageSurfaceSchemaPath),
   readJson(packageJsonPath),
   agentRoots,

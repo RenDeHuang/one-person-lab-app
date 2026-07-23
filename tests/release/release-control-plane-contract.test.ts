@@ -55,7 +55,7 @@ test('App contract matches the current Framework release checkpoint ABI', () => 
   const checkpoint = release.release_bundle_control_plane.checkpoint_transport;
 
   assert.equal(framework.portable_checkpoint_authority_first_landed_sha, 'f785cda96');
-  assert.equal(framework.consumed_abi_sha, '27d87877518bdf70b474b648d46a8c573f43bf40');
+  assert.equal(framework.consumed_abi_sha, '9860dc64b56ed9cccb9984cd14e138d9ccacced7');
   assert.equal(framework.checkpoint_schema, 'opl_release_bundle_checkpoint.v1');
   assert.equal(framework.operation_control_schema, 'opl_release_bundle_operation_control.v1');
   assert.equal(framework.unknown_outcome_schema, 'opl_release_bundle_unknown_outcome.v1');

@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   formatCodexProfilePhrase,
-  formatRecommendedCompanionSkills,
 } from './app-product-profile.ts';
 import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
 
@@ -392,8 +391,6 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         domain_modules: productProfile.companion_payloads.domain_modules,
         default_packaged_codex_skill_ids: productProfile.companion_payloads.default_packaged_codex_skill_ids,
         additional_package_skill_ids: productProfile.companion_payloads.additional_package_skill_ids,
-        opl_flow_dependency_policy_ref: productProfile.companion_payloads.opl_flow_dependency_policy_ref,
-        full_dependency_closure_policy: productProfile.companion_payloads.full_dependency_closure_policy,
       },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
@@ -789,7 +786,6 @@ export function buildFullFirstInstallReadme(input: {
 }) {
   const installPath = '~/Library/Application Support/OPL/runtime/current';
   const codexProfile = formatCodexProfilePhrase();
-  const companionSkills = formatRecommendedCompanionSkills();
   return [
     `One Person Lab Full First-Install Package ${normalizeVersion(input.version)}`,
     '',
@@ -804,7 +800,7 @@ export function buildFullFirstInstallReadme(input: {
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
     '4. Bundled MAS, its MAS Scholar Skills capability dependency, MAG, RCA, OPL Meta Agent, and OPL Book Forge payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    `5. The Full runtime includes the Codex CLI, the required OPL Flow workflow plugin package, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and task-routed companion skills such as ${companionSkills}. App initialization installs them into Codex discovery without making every packaged skill an ordinary App menu entry or requiring Command Line Tools or git to finish first.`,
+    '5. The Full runtime includes the Codex CLI, OPL Flow workflow package, officecli CLI binary, mineru-open-api CLI binary, and OPL Meta Agent. It may also carry compatible Flow-declared Skill payloads that are available at build time; missing optional payloads are resolved later by Framework and do not block installation or readiness.',
     `6. The bundled Codex profile seeds ${codexProfile} for first-run App sessions after OPL Gateway is configured; existing usable Codex login or provider access can satisfy first-launch model access without forcing Gateway setup.`,
     '7. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
     '8. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',

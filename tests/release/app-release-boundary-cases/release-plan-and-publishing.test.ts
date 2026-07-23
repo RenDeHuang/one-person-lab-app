@@ -66,15 +66,13 @@ test('retired cohort helpers emit no legacy package or recovery command', () => 
   assert.match(combined, /opl release status --bundle <sha256:digest>/);
 });
 
-test('legacy desktop workflow files are read-only tombstones', () => {
+test('legacy desktop workflow files stay absent', () => {
   for (const name of [
     'desktop-release.yml',
     'desktop-release-promote.yml',
     'desktop-release-full-addon.yml',
     'desktop-release-cleanup-drafts.yml',
   ]) {
-    const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', name), 'utf8');
-    assert.doesNotMatch(workflow, /workflow_dispatch:|contents:\s*write|id-token:\s*write/);
-    assert.match(workflow, /exit 1/);
+    assert.equal(fs.existsSync(path.join(appRoot, '.github', 'workflows', name)), false);
   }
 });

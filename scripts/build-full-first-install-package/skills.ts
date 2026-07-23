@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { readAppProductProfile } from '../app-product-profile/profile-contract.ts';
 import {
   readOplFlowCapabilityPolicy,
-  resolveOplFlowFullSkillDependencyIds,
+  resolveOplFlowDefaultSkillDependencyIds,
 } from '../opl-flow-capability-policy.ts';
 import { appRepoRoot } from './paths.ts';
 import { copyTreeFiltered } from './filesystem.ts';
@@ -338,28 +338,57 @@ export const packagedSkillCopyHandlers = {
   ),
 };
 
-export function readOplFlowFullSkillDependencyClosure(oplFlowRoot) {
+export function readOplFlowDefaultSkillDependencyIds(oplFlowRoot) {
   const policyPath = path.join(oplFlowRoot, 'contracts', 'workflow-policy.json');
-  return resolveOplFlowFullSkillDependencyIds(readOplFlowCapabilityPolicy(policyPath));
+  return resolveOplFlowDefaultSkillDependencyIds(readOplFlowCapabilityPolicy(policyPath));
+}
+
+function copyOptionalFlowSkill(skillId, targetRoot, options) {
+  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-full-skill-'));
+  try {
+    const specialized = packagedSkillCopyHandlers[skillId];
+    if (specialized) {
+      specialized(stagingRoot, options);
+    } else {
+      const source = firstExistingSkillSource([
+        path.join(os.homedir(), '.skills-manager', 'skills', skillId),
+        path.join(os.homedir(), '.codex', 'skills', skillId),
+      ]);
+      if (!source) return false;
+      copySkillDirectory(source, path.join(stagingRoot, skillId), skillId);
+    }
+    copySkillDirectory(
+      path.join(stagingRoot, skillId),
+      path.join(targetRoot, skillId),
+      skillId,
+    );
+    return true;
+  } catch {
+    return false;
+  } finally {
+    fs.rmSync(stagingRoot, { recursive: true, force: true });
+  }
 }
 
 export function copyPackagedSkills(targetRoot, options) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
   const productProfile = readAppProductProfile();
-  const packagedSkillIds = [
+  const requiredPackagedSkillIds = [
     ...productProfile.companion_payloads.default_packaged_codex_skill_ids,
     ...productProfile.companion_payloads.additional_package_skill_ids,
-    ...readOplFlowFullSkillDependencyClosure(options.oplFlowRoot),
   ];
-  if (packagedSkillIds.some((skillId) => OFFICECLI_ATOMIC_SKILL_IDS.includes(skillId))) {
-    assertOfficeCliAtomicSkillSet(options);
-  }
-  for (const skillId of packagedSkillIds) {
+  const optionalFlowSkillIds = readOplFlowDefaultSkillDependencyIds(options.oplFlowRoot);
+  const requiredPackagedSkillSet = new Set(requiredPackagedSkillIds);
+  for (const skillId of requiredPackagedSkillIds) {
     const copySkill = packagedSkillCopyHandlers[skillId];
     if (!copySkill) {
       throw new Error(`No Full package copy handler declared for App packaged skill: ${skillId}`);
     }
     copySkill(targetRoot, options);
+  }
+  for (const skillId of optionalFlowSkillIds) {
+    if (requiredPackagedSkillSet.has(skillId)) continue;
+    copyOptionalFlowSkill(skillId, targetRoot, options);
   }
 }

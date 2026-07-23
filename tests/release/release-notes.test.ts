@@ -706,11 +706,12 @@ test('Full notes derive every prebuild payload ref from exact App, Shell, and Fr
   assert.equal(evidence.payload.lines[1], `- Packaged component refs: ${expectedRefs.join('; ')}.`);
 });
 
-test('freeze adapter rejects Full authority digest, field, and checkout currentness drift', () => {
+test('freeze adapter rejects retired Full and Release Set authority flags', () => {
   const fixture = fullPayloadAuthorityFixture();
   const authorityPath = path.join(fixture.root, 'full-payload-authority.json');
   const notesPath = path.join(fixture.root, 'prepared-notes.md');
   const evidencePath = path.join(fixture.root, 'prepared-notes-evidence.json');
+  const outputPath = path.join(fixture.root, 'retired-freeze-request.json');
   const authorityResult = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
   assert.equal(authorityResult.status, 0, authorityResult.stderr);
   fs.writeFileSync(
@@ -718,16 +719,14 @@ test('freeze adapter rejects Full authority digest, field, and checkout currentn
     '# One Person Lab v26.7.20\n\nPrepared notes.\n\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n',
   );
 
-  const writeEvidence = (digest = sha256Ref(authorityPath)) => {
-    jsonFile(evidencePath, {
-      schema: 'opl_app_release_notes_evidence.v1',
-      payload: {
-        include_full_package: true,
-        full_payload_authority_sha256: digest,
-      },
-    });
-  };
-  const runFreeze = (outputName: string) => runNode([
+  jsonFile(evidencePath, {
+    schema: 'opl_app_release_notes_evidence.v1',
+    payload: {
+      include_full_package: true,
+      full_payload_authority_sha256: sha256Ref(authorityPath),
+    },
+  });
+  const result = runNode([
     'scripts/framework-release-adapter.ts',
     'freeze-request',
     '--channel', 'stable',
@@ -746,41 +745,12 @@ test('freeze adapter rejects Full authority digest, field, and checkout currentn
     '--frozen-base-release-set-digest', `sha256:${'d'.repeat(64)}`,
     '--base-image-index', fixture.baseImageIndexPath,
     '--frozen-codex-tarball', fixture.codexTarballPath,
-    '--output', path.join(fixture.root, outputName),
+    '--output', outputPath,
   ]);
 
-  writeEvidence();
-  const accepted = runFreeze('accepted-freeze-request.json');
-  assert.equal(accepted.status, 0, accepted.stderr);
-  const acceptedRequest = JSON.parse(
-    fs.readFileSync(path.join(fixture.root, 'accepted-freeze-request.json'), 'utf8'),
-  );
-  assert.equal(
-    acceptedRequest.prepared_notes.evidence.payload.full_payload_authority_sha256,
-    sha256Ref(authorityPath),
-  );
-
-  writeEvidence(`sha256:${'f'.repeat(64)}`);
-  const digestDrift = runFreeze('digest-drift-freeze-request.json');
-  assert.notEqual(digestDrift.status, 0);
-  assert.match(digestDrift.stderr, /does not bind the exact Full payload authority file digest/);
-
-  const mutatedAuthority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
-  mutatedAuthority.runtime_authority.codex_cli.version = '9.9.9';
-  jsonFile(authorityPath, mutatedAuthority);
-  writeEvidence();
-  const fieldDrift = runFreeze('field-drift-freeze-request.json');
-  assert.notEqual(fieldDrift.status, 0);
-  assert.match(fieldDrift.stderr, /fields drifted from the current App, Shell, Framework/);
-
-  const restoredAuthority = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
-  assert.equal(restoredAuthority.status, 0, restoredAuthority.stderr);
-  writeEvidence();
-  fs.writeFileSync(path.join(fixture.framework.root, 'currentness-marker.txt'), 'advanced\n');
-  fixture.framework.ref = commitFixtureChange(fixture.framework.root, 'advance Framework currentness');
-  const currentnessDrift = runFreeze('currentness-drift-freeze-request.json');
-  assert.notEqual(currentnessDrift.status, 0);
-  assert.match(currentnessDrift.stderr, /fields drifted from the current App, Shell, Framework/);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Unknown option '--notes-full-payload-authority'/);
+  assert.equal(fs.existsSync(outputPath), false);
 });
 
 test('prebuild Full notes authority accepts the verified Actions nested Framework checkout topology', () => {

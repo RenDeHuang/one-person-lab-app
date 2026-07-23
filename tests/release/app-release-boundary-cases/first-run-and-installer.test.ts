@@ -254,7 +254,7 @@ test("App product profile check verifies the deterministic compatibility project
     fs.appendFileSync(written.targetPath, '{"stale":true}\n');
     assert.throws(
       () => syncAppProductProfileToShell(shellRoot, { check: true }),
-      /does not match the deterministic App \+ OPL Flow projection/,
+      /does not match the deterministic App profile/,
     );
   } finally {
     if (previousPolicy === undefined) delete process.env.OPL_FLOW_WORKFLOW_POLICY;

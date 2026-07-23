@@ -3112,8 +3112,8 @@
     "user_agents_default_source": "opl-flow/templates/AGENTS.md from the selected installed or developer OPL Flow package",
     "user_agents_restore_route": "opl app action execute --action codex_user_instructions_restore_opl_flow_default",
     "conflict_detection_required": true,
-    "app_role": "install_sync_diagnose_user_profile_only",
-    "dependency_policy": "full_bundles_opl_flow_requires_and_recommends_closure",
+    "app_role": "display_framework_projection_and_execute_projected_actions_only",
+    "dependency_policy": "framework_resolves_declared_dependencies_without_app_lock_or_payload_prerequisite",
     "migration_policy": "framework_executes_conflict_retirement_with_backup_receipt_and_rollback"
   },
   "opl_app_session_context": {

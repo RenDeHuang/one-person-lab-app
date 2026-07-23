@@ -36,7 +36,6 @@ import {
   assertAppProductProfileSettingsVisualSystem,
   assertHomeComposerStateContract,
   assertProfessionalAgentPackagePolicy,
-  isExternalFirstPartyClaim,
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
@@ -85,8 +84,6 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
-const agentPackageRegistryPath = path.join(root, 'contracts', 'agent-package-registry.json');
-
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
 }
@@ -331,7 +328,7 @@ function validateProfessionalAgentPackages(profile) {
   assertProfessionalAgentPackagePolicy(profile.gui.professional_agent_packages, 'Product profile');
 }
 
-function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
+function validateAgentPackageRegistryProjection(profile) {
   const projection = profile.gui?.agent_package_registry;
   const expectedFirstPartyPackageIds = [
     'mas',
@@ -343,20 +340,22 @@ function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
     'opl-flow',
   ];
   if (
-    typeof agentPackageRegistry?.registry_url !== 'string' ||
-    !agentPackageRegistry.registry_url.trim() ||
-    projection?.default_registry_url !== agentPackageRegistry.registry_url ||
-    projection?.source_ref !== 'contracts/agent-package-registry.json#registry_url' ||
-    projection?.registry_scope !== 'external_discovery_only' ||
-    projection?.empty_default_registry_allowed !== true ||
-    projection?.first_party_runtime_authority !== 'one-person-lab-framework#built_in_release_set' ||
+    projection?.directory_lifecycle_authority !==
+      'app_state.agent_packages.directory+status_index+actions' ||
+    projection?.resolver_currentness_authority !==
+      'one-person-lab#package_repository_resolver' ||
+    projection?.installed_truth_authority !== 'one-person-lab#exact_installed_lock' ||
+    projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
+    projection?.bundled_default_registry_allowed !== false ||
+    projection?.external_registry_policy_ref !==
+      'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy' ||
     projection?.external_first_party_identity_claims_allowed !== false ||
     projection?.external_first_party_trust_claims_allowed !== false ||
     projection?.collision_failure_code !== 'agent_package_registry_first_party_identity_collision' ||
     projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('Product profile must separate the external Agent Package registry from the Framework first-party Release Set');
+    throw new Error('Product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
   }
   assertDeepEqualJson(
     projection.canonical_first_party_package_ids,
@@ -434,14 +433,6 @@ function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
     presentation?.developer_controls_disclosure?.ordinary_catalog_remains_visible_when_collapsed !== true
   ) {
     throw new Error('Product profile Agent catalog must use localized product ordering and projected dependency hierarchy');
-  }
-  const reservedIds = new Set(expectedFirstPartyPackageIds);
-  const collision = (agentPackageRegistry.entries ?? []).find((entry) =>
-    reservedIds.has(entry.package_id) ||
-    isExternalFirstPartyClaim(entry.source) ||
-    isExternalFirstPartyClaim(entry.trust_tier));
-  if (collision) {
-    throw new Error('Default external Agent Package registry must have zero canonical first-party identity or trust collisions');
   }
 }
 
@@ -957,21 +948,6 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
     ['med-autoscience', 'med-autogrant', 'redcube-ai'],
     'Product profile domain plugin skill ids',
   );
-  if (
-    profile.companion_payloads?.opl_flow_dependency_policy_ref !==
-      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends' ||
-    profile.companion_payloads?.full_dependency_closure_policy !==
-      'bundle_requires_and_recommends_with_offline_bundle_full' ||
-    profile.companion_payloads?.managed_capability_inventory_policy !==
-      'consume_framework_unified_projection_without_app_second_inventory' ||
-    profile.companion_payloads?.target_closure_policy !==
-      'standard_and_full_resolve_same_opl_flow_online_install_default_closure' ||
-    profile.companion_payloads?.standard_dependency_source !== 'online_exact_release_lock' ||
-    profile.companion_payloads?.full_dependency_source !== 'embedded_exact_release_lock' ||
-    profile.companion_payloads?.final_projection_equivalence_required !== true
-  ) {
-    throw new Error('Product profile must delegate capability policy to Flow and convergence to Framework');
-  }
   if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
     throw new Error('Product profile domain plugin skills must not be companion skill mirrors');
   }
@@ -1003,12 +979,11 @@ function validateProductProfileBoundary(profile) {
 export function validateProductProfile(
   profile,
   installExposurePolicy,
-  agentPackageRegistry = readJson(agentPackageRegistryPath),
 ) {
   validateProductProfileIdentity(profile);
   validateProductProfileContractRefs(profile);
   validateProductProfileCodexDefaults(profile);
-  validateAgentPackageRegistryProjection(profile, agentPackageRegistry);
+  validateAgentPackageRegistryProjection(profile);
   validateFullFirstInstallCoreReadyPolicy(profile);
   validateStandardPackagePolicy(profile);
   validateCommandLineToolsPolicy(profile);

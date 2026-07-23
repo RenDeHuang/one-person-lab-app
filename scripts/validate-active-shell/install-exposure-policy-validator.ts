@@ -22,7 +22,6 @@ const expectedFirstConversationMustWaitFor = assertNonEmptyStringArray(
   'Product profile first conversation must_wait_for',
 );
 const expectedFirstConversationFailurePolicy = expectedFirstConversation?.failure_policy;
-const expectedCompanionPolicyRef = productProfile.companion_payloads?.opl_flow_dependency_policy_ref;
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 assertFirstRunProgressModelShape(expectedFirstRunProgressModel, 'Product profile first-run progress model');
@@ -52,38 +51,19 @@ function validateInstallExposureHeader(policy) {
 
 function validateCapabilityGovernance(governance) {
   if (
-    governance?.declaration_authority_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json' ||
     governance?.lifecycle_authority !== 'one-person-lab' ||
     governance?.lifecycle_surface !== 'opl_framework_package_transaction' ||
-    governance?.app_role !== 'gui_and_release_frozen_projection_only' ||
-    governance?.capability_identity !== 'kind_and_id_tuple'
+    governance?.app_role !== 'gui_and_framework_projection_consumer_only'
   ) {
-    throw new Error('Install exposure capability governance must preserve the Flow -> Framework -> App authority chain');
+    throw new Error('Install exposure capability governance must preserve the Framework -> App projection boundary');
   }
   if (
     governance.managed_inventory?.source !== 'framework_unified_capability_projection' ||
     governance.managed_inventory?.app_second_inventory_allowed !== false ||
     governance.managed_inventory?.app_presentational_metadata_allowed !== true ||
-    governance.managed_inventory?.flow_managed_grouping_required !== true ||
     governance.managed_inventory?.unknown_user_and_third_party_surfaces !== 'preserve'
   ) {
     throw new Error('Install exposure capability governance must forbid an App-owned managed capability inventory');
-  }
-  const convergence = governance.standard_full_convergence;
-  if (
-    convergence?.target_closure !== 'opl_flow_online_install_default_closure' ||
-    convergence?.standard_source !== 'online_exact_release_lock' ||
-    convergence?.full_source !== 'embedded_exact_release_lock' ||
-    convergence?.target_closure_equality_required !== true ||
-    convergence?.final_projection_equality_required !== true ||
-    convergence?.acceptance_gate !== 'framework_terminal_reconciliation_receipt' ||
-    convergence?.gui_ready_alone_is_sufficient !== false ||
-    convergence?.reconciliation_surface !== 'framework_managed_update_plane' ||
-    convergence?.provider_configuration_required_for_reconciliation !== false ||
-    convergence?.bundled_lock_update_policy !==
-      'release_set_and_payload_digest_through_framework_managed_update_plane'
-  ) {
-    throw new Error('Install exposure Standard and Full carriers must converge on one exact managed capability projection');
   }
   if (
     governance.credential_policy?.credential_values_owner !== 'user_or_provider' ||
@@ -183,21 +163,8 @@ function validateExposureClasses(policy) {
   if (generatedClass?.sync_target !== 'opl_generated_codex_plugin_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
     throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated local Codex plugin surface');
   }
-  const companionClass = exposureClassById.get('companion_tools_codex_skills');
-  if (
-    companionClass?.sync_target !== 'opl_framework_package_dependency_materialization' ||
-    companionClass?.software_object !== 'opl_base' ||
-    companionClass?.visibility_scope !== 'base_integration_projection_only_not_software_object'
-  ) {
-    throw new Error('Install exposure companion skills must use Framework package dependency materialization');
-  }
-  if (
-    companionClass?.members_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends' ||
-    companionClass?.closure_filter !==
-      'kind=codex_skill and online_install_default=true and offline_bundle=full' ||
-    expectedCompanionPolicyRef !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends'
-  ) {
-    throw new Error('Install exposure companion skills must derive from the OPL Flow policy');
+  if (exposureClassById.has('companion_tools_codex_skills')) {
+    throw new Error('Install exposure policy must not duplicate the Framework managed Skill inventory');
   }
   const packagedRuntimeClass = exposureClassById.get('opl_base_payloads');
   if (
@@ -273,17 +240,18 @@ function validateInstallerSurfaces(policy) {
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
   }
-  const standard = installerSurfaces.get('standard_dmg');
-  const full = installerSurfaces.get('full_first_install_dmg');
-  if (
-    standard?.capability_target_closure !== 'opl_flow_online_install_default_closure' ||
-    full?.capability_target_closure !== standard.capability_target_closure ||
-    standard?.capability_source !== 'online_exact_release_lock' ||
-    full?.capability_source !== 'embedded_exact_release_lock' ||
-    standard?.final_projection !== 'framework_unified_capability_projection' ||
-    full?.final_projection !== standard.final_projection
-  ) {
-    throw new Error('App Standard and Full installer surfaces must share one capability target and final projection');
+  const forbiddenDependencyFields = [
+    'capability_target_closure',
+    'capability_source',
+    'capability_projection',
+    'resolution_policy',
+    'optional_payload_policy',
+    'missing_optional_payload_blocks_install_or_readiness',
+  ];
+  for (const surface of installerSurfaces.values()) {
+    if (forbiddenDependencyFields.some((field) => field in surface)) {
+      throw new Error('App installer surfaces must not own Package dependency or payload policy');
+    }
   }
   const dockerWebui = installerSurfaces.get('docker_webui');
   if (dockerWebui?.entrypoint !== 'Docker/WebUI one-click installer') {

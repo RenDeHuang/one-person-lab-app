@@ -1178,11 +1178,12 @@
       }
     },
     "agent_package_registry": {
-      "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
-      "source_ref": "contracts/agent-package-registry.json#registry_url",
-      "registry_scope": "external_discovery_only",
-      "empty_default_registry_allowed": true,
-      "first_party_runtime_authority": "one-person-lab-framework#built_in_release_set",
+      "directory_lifecycle_authority": "app_state.agent_packages.directory+status_index+actions",
+      "resolver_currentness_authority": "one-person-lab#package_repository_resolver",
+      "installed_truth_authority": "one-person-lab#exact_installed_lock",
+      "external_registry_role": "optional_candidate_source_adapter",
+      "bundled_default_registry_allowed": false,
+      "external_registry_policy_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
       "canonical_first_party_package_ids": [
         "mas",
         "mag",
@@ -1823,8 +1824,8 @@
       "delivery": "package_installed_user_profile_only",
       "user_agents_policy": "respect_user_agents_no_overwrite_detect_conflicts",
       "language_policy": "follow_ui_locale_zh_only_when_ui_zh",
-      "app_role": "install_sync_diagnose_user_profile_only",
-      "dependency_policy": "full_bundles_opl_flow_requires_and_recommends_closure",
+      "app_role": "display_framework_projection_and_execute_projected_actions_only",
+      "dependency_policy": "framework_resolves_declared_dependencies_without_app_lock_or_payload_prerequisite",
       "migration_policy": "framework_executes_conflict_retirement_with_backup_receipt_and_rollback"
     },
     "opl_app_session_context": {
@@ -7911,7 +7912,7 @@
       "officecli": {
         "owner": "iOfficeAI/OfficeCLI",
         "source_policy": "latest_stable_at_full_build",
-        "release_lock_policy": "resolve_latest_then_pin_exact_version_commit_and_digest",
+        "selected_input_provenance_policy": "when_selected_record_exact_version_commit_and_digest",
         "package_unit": "atomic_upstream_release",
         "skill_ids": [
           "officecli",
@@ -7961,13 +7962,6 @@
     "additional_package_skill_ids": [
       "opl-meta-agent"
     ],
-    "opl_flow_dependency_policy_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
-    "full_dependency_closure_policy": "bundle_requires_and_recommends_with_offline_bundle_full",
-    "managed_capability_inventory_policy": "consume_framework_unified_projection_without_app_second_inventory",
-    "target_closure_policy": "standard_and_full_resolve_same_opl_flow_online_install_default_closure",
-    "standard_dependency_source": "online_exact_release_lock",
-    "full_dependency_source": "embedded_exact_release_lock",
-    "final_projection_equivalence_required": true,
     "domain_plugin_skill_ids": [
       "med-autoscience",
       "med-autogrant",

@@ -197,44 +197,27 @@ test('desktop App icon keeps the Codex-aligned macOS safe margin', () => {
   );
 });
 
-test('product profile separates the external registry URL from Framework first-party identities', () => {
+test('product profile keeps Package lifecycle and currentness in Framework without a bundled registry', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
-  assert.doesNotThrow(() => validateProductProfile(profile, installExposure, registry));
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
-  profile.gui.agent_package_registry.default_registry_url = 'https://example.invalid/registry.json';
+  profile.gui.agent_package_registry.bundled_default_registry_allowed = true;
   assert.throws(
-    () => validateProductProfile(profile, installExposure, registry),
-    /separate the external Agent Package registry/,
+    () => validateProductProfile(profile, installExposure),
+    /registries remain optional candidate sources/,
   );
 
   const missingReleaseSetId = structuredClone(readJson('contracts/app-product-profile.json'));
   missingReleaseSetId.gui.agent_package_registry.canonical_first_party_package_ids.pop();
   assert.throws(
-    () => validateProductProfile(missingReleaseSetId, installExposure, registry),
+    () => validateProductProfile(missingReleaseSetId, installExposure),
     /canonical Framework first-party package ids/,
-  );
-
-  const collidingRegistry = structuredClone(registry);
-  collidingRegistry.entries.push({
-    package_id: 'mas',
-    source: 'third_party',
-    trust_tier: 'third_party_unverified',
-  });
-  assert.throws(
-    () => validateProductProfile(
-      readJson('contracts/app-product-profile.json'),
-      installExposure,
-      collidingRegistry,
-    ),
-    /zero canonical first-party identity or trust collisions/,
   );
 });
 
 test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and duplicate rows', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const registry = readJson('contracts/agent-package-registry.json');
   for (const mutate of [
     (profile: any) => {
       profile.gui.agent_package_registry.catalog_presentation_policy.raw_package_role_visible = true;
@@ -258,7 +241,7 @@ test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and dup
     const profile = structuredClone(readJson('contracts/app-product-profile.json'));
     mutate(profile);
     assert.throws(
-      () => validateProductProfile(profile, installExposure, registry),
+      () => validateProductProfile(profile, installExposure),
       /localized product ordering and projected dependency hierarchy/,
     );
   }
@@ -266,7 +249,6 @@ test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and dup
 
 test('Home capability palette is complete, localized, shortcut-independent, and agent-Skill deduplicated', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const policy = profile.gui.ordinary_capability_selector_policy;
   assert.deepStrictEqual(policy.palette_required_agent_package_ids, ['mas', 'mag', 'rca', 'obf', 'oma']);
@@ -287,30 +269,29 @@ test('Home capability palette is complete, localized, shortcut-independent, and 
     policy.mcp_menu_policy,
     'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers',
   );
-  assert.doesNotThrow(() => validateProductProfile(profile, installExposure, registry));
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
   profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.filter(
     (shortcut: any) => shortcut.package_id !== 'obf',
   );
-  assert.throws(() => validateProductProfile(profile, installExposure, registry));
+  assert.throws(() => validateProductProfile(profile, installExposure));
 
   const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
   catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas', 'mag', 'rca', 'oma'];
-  assert.throws(() => validateProductProfile(catalogDrift, installExposure, registry), /ordinary selector/);
+  assert.throws(() => validateProductProfile(catalogDrift, installExposure), /ordinary selector/);
 
   const mcpAllowlistRegression = structuredClone(readJson('contracts/app-product-profile.json'));
   mcpAllowlistRegression.gui.ordinary_capability_selector_policy.visible_mcp_server_ids = [];
   mcpAllowlistRegression.gui.ordinary_capability_selector_policy.mcp_menu_policy =
     'empty_until_app_explicitly_whitelists_opl_mcp_servers';
   assert.throws(
-    () => validateProductProfile(mcpAllowlistRegression, installExposure, registry),
+    () => validateProductProfile(mcpAllowlistRegression, installExposure),
     /MCP negative filter/,
   );
 });
 
 test('professional Agent metadata requires App-owned localized names and descriptions', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const meta = profile.gui.professional_agent_packages.find((entry: any) => entry.package_id === 'oma');
   assert.deepStrictEqual(
@@ -328,7 +309,7 @@ test('professional Agent metadata requires App-owned localized names and descrip
   assert.match(meta.description_i18n['zh-CN'], /创建、接管、检查和改进/);
   meta.description_i18n['zh-CN'] = '';
   assert.throws(
-    () => validateProductProfile(profile, installExposure, registry),
+    () => validateProductProfile(profile, installExposure),
     /localized name and description|non-empty zh-CN and en-US/,
   );
 
@@ -353,14 +334,13 @@ test('professional Agent metadata requires App-owned localized names and descrip
     (entry: any) => entry.package_id === 'mas-scholar-skills',
   ).description_i18n['zh-CN'] = '';
   assert.throws(
-    () => validateProductProfile(dependencyCopyDrift, installExposure, registry),
+    () => validateProductProfile(dependencyCopyDrift, installExposure),
     /incomplete or not localized/,
   );
 });
 
 test('active AionUI keeps Runtime status in primary navigation without expanding Native or release gates', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const navigation = profile.gui.home.home_layout.active_aionui_primary_navigation;
   assert.deepStrictEqual(navigation.ordered_entry_ids, ['new_task', 'runtime', 'scheduled_tasks', 'archived']);
@@ -375,7 +355,7 @@ test('active AionUI keeps Runtime status in primary navigation without expanding
     'archived',
   ];
   assert.throws(
-    () => validateProductProfile(profile, installExposure, registry),
+    () => validateProductProfile(profile, installExposure),
     /Runtime status in the active AionUI primary navigation/,
   );
 

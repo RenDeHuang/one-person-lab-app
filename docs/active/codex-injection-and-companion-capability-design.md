@@ -37,7 +37,7 @@ Existing user instructions are preserved outside managed marker blocks. Reusable
 
 ## OPL Flow Dependency Projection
 
-- OPL App does not own a companion skill list. Standard and Full share the OPL Flow `online_install_default=true` closure; Full embeds the same entries only when `offline_bundle=full`.
+- OPL App does not own a companion skill list. Flow declares composable capability intent; Framework reuses compatible Skills or projects install actions. Full may carry available compatible Skill payloads, but their absence does not block Flow or App.
 - OfficeCLI remains one upstream-owned atomic release; MinerU and UI UX Pro Max remain independently owned, task-routed dependencies.
 - Superpowers, Ponytail, and CodexCont are manifest conflicts/retired surfaces. Framework owns backup, discovery removal, receipt, and rollback.
 - The App displays dependency state and accepts user overrides; Framework performs install/config mutation.
@@ -47,6 +47,6 @@ Existing user instructions are preserved outside managed marker blocks. Reusable
 ## Acceptance
 
 - App contracts distinguish packaged, installed, task-routed, and default-visible state.
-- Full package assembly contains the complete OfficeCLI skill family but no `cron` or OPL-owned `pdf` skill.
+- Full package assembly may carry the available OfficeCLI skill family but does not use that payload as dependency authority; it contains no `cron` or OPL-owned `pdf` skill.
 - Framework configuration tests cover new install, OPL direct route, local override preservation, and non-OPL provider preservation.
 - OPL Flow installation readback proves the plugin and all three skills are installed and enabled without overwriting unmanaged user instructions.
