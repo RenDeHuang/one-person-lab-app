@@ -120,12 +120,35 @@ test('Bundle, Standard publish, and Full append responsibilities cannot collapse
   assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) >= 3);
 });
 
-test('Canary must start every low-level reusable with read-only permissions and no secrets', (t) => {
+test('WebUI permission chain requires package write only at Standard and Nightly callers', (t) => {
+  const root = fixture(t);
+  updateWorkflow(root, 'release-stable.yml', (workflow) => {
+    delete workflow.jobs.standard.permissions.packages;
+  });
+  updateWorkflow(root, 'release-nightly.yml', (workflow) => {
+    delete workflow.jobs.release.permissions.packages;
+  });
+  updateWorkflow(root, '_release-bundle.yml', (workflow) => {
+    workflow.jobs['webui-carrier'].permissions = {
+      contents: 'read',
+      actions: 'read',
+      packages: 'read',
+    };
+  });
+
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) > 0);
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
+test('Canary must cap WebUI at read and keep build, publish, secrets, and mutation unreachable', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-bundle-canary.yml', (workflow) => {
     delete workflow.jobs['nested-updater-qualification'];
     workflow.jobs.standard.secrets = 'inherit';
     workflow.jobs['nested-standard-build'].permissions.contents = 'write';
+    workflow.jobs['nested-webui-carrier'].permissions.packages = 'write';
+    workflow.jobs['nested-webui-carrier'].secrets = 'inherit';
   });
   updateWorkflow(root, '_release-bundle.yml', (workflow) => {
     workflow.jobs['startup-canary'].permissions.contents = 'write';
@@ -136,8 +159,12 @@ test('Canary must start every low-level reusable with read-only permissions and 
   updateWorkflow(root, 'opl-first-run-vm.yml', (workflow) => {
     workflow.jobs['startup-canary'].permissions = 'write-all';
   });
+  updateWorkflow(root, '_release-webui-carrier.yml', (workflow) => {
+    workflow.jobs['build-and-qualify'].if = "${{ inputs.mode == 'canary' }}";
+    workflow.jobs['publish-immutable-carrier'].if = "${{ inputs.mode == 'canary' }}";
+  });
 
-  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 6);
+  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 10);
 });
 
 test('no other workflow_dispatch job may gain write authority', (t) => {

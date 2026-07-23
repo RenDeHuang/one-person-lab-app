@@ -125,9 +125,16 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
         officecli: { version: '1.2.3' },
       },
     });
+    const qualificationHarnessPath = path.join(directory, 'scripts', 'validate-webui-runtime-image.ts');
+    fs.mkdirSync(path.dirname(qualificationHarnessPath), { recursive: true });
+    fs.writeFileSync(qualificationHarnessPath, 'export const fixtureHarness = true;\n');
   });
   const shell = gitFixture(root, 'shell', (directory) => {
     jsonFile(path.join(directory, 'package.json'), { aioncoreVersion: 'v0.1.49' });
+    fs.writeFileSync(path.join(directory, 'Dockerfile'), 'FROM node:22-bookworm-slim\n');
+    jsonFile(path.join(directory, 'contracts', 'aionui-upstream-intake.json'), {
+      managed_runtime: { codex_cli: { package: '@openai/codex', version: codexVersion } },
+    });
     const runtimeKey = 'darwin-arm64';
     const runtimeRoot = path.join(directory, 'resources', 'bundled-aioncore', runtimeKey);
     const managedRoot = path.join(runtimeRoot, 'managed-resources');
@@ -264,12 +271,36 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     });
   });
   if (options.nestedFramework) configureCanonicalFrameworkRemote(root, framework);
+  const baseImageIndexPath = path.join(root, 'base-image-index.json');
+  jsonFile(baseImageIndexPath, {
+    schemaVersion: 2,
+    mediaType: 'application/vnd.oci.image.index.v1+json',
+    manifests: [{
+      digest: `sha256:${'c'.repeat(64)}`,
+      size: 4321,
+      platform: { os: 'linux', architecture: 'amd64' },
+    }],
+  });
+  const codexPackageRoot = path.join(root, 'codex-package', 'package');
+  fs.mkdirSync(codexPackageRoot, { recursive: true });
+  jsonFile(path.join(codexPackageRoot, 'package.json'), {
+    name: '@openai/codex',
+    version: codexVersion,
+  });
+  const codexTarballPath = path.join(root, 'codex-cli.tgz');
+  const packed = spawnSync('tar', ['-czf', codexTarballPath, 'package'], {
+    cwd: path.dirname(codexPackageRoot),
+    encoding: 'utf8',
+  });
+  assert.equal(packed.status, 0, packed.stderr);
   return {
     root,
     app,
     shell,
     framework,
     releaseSetPath,
+    baseImageIndexPath,
+    codexTarballPath,
     thirdPartyManifestPath: path.join(app.root, 'contracts', 'app-full-third-party-source-manifest.json'),
     codexLockPath: path.join(
       shell.root,
@@ -710,6 +741,11 @@ test('freeze adapter rejects Full authority digest, field, and checkout currentn
     '--notes-full-payload-authority', authorityPath,
     '--include-full-package', 'true',
     '--release-set-manifest', fixture.releaseSetPath,
+    '--source-cutoff-observed-at', '2026-07-23T00:00:00.000Z',
+    '--frozen-base-release-set-generation', '26.7.20',
+    '--frozen-base-release-set-digest', `sha256:${'d'.repeat(64)}`,
+    '--base-image-index', fixture.baseImageIndexPath,
+    '--frozen-codex-tarball', fixture.codexTarballPath,
     '--output', path.join(fixture.root, outputName),
   ]);
 

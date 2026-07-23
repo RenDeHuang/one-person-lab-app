@@ -1,0 +1,478 @@
+name: Release WebUI Carrier (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: execute or canary validation-only startup.
+        type: string
+        default: execute
+      app_ref:
+        description: Exact App SHA frozen into the Release Bundle.
+        type: string
+        required: true
+      shell_ref:
+        description: Exact active Shell SHA frozen into the Release Bundle.
+        type: string
+        required: true
+      framework_ref:
+        description: Exact Framework SHA frozen into the Release Bundle.
+        type: string
+        required: true
+      opl_version:
+        description: Unified App version shared with the Desktop carrier.
+        type: string
+        required: true
+      release_bundle_digest:
+        description: Exact frozen Framework Release Bundle digest.
+        type: string
+        required: true
+      release_cohort_ref:
+        description: Exact frozen release cohort digest.
+        type: string
+        required: true
+      frozen_build_input_json:
+        description: Draft opl_app_webui_build_input.v1 JSON from the frozen Bundle projection.
+        type: string
+        required: true
+      frozen_codex_artifact_name:
+        description: Same-run artifact containing exactly one frozen codex-cli.tgz.
+        type: string
+        required: true
+      image_repository:
+        description: GHCR repository without a tag or digest.
+        type: string
+        default: ghcr.io/gaofeng21cn/one-person-lab-webui
+    outputs:
+      carrier_artifact_name:
+        description: Artifact containing the exact carrier receipt and frozen build input.
+        value: ${{ jobs.publish-immutable-carrier.outputs.carrier_artifact_name }}
+      image_ref:
+        description: Immutable OCI digest reference read back after publication.
+        value: ${{ jobs.publish-immutable-carrier.outputs.image_ref }}
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove WebUI reusable topology starts without build or publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.release_bundle_digest }}' != ''
+          test '${{ inputs.release_cohort_ref }}' != ''
+          test '${{ inputs.app_ref }}' != ''
+          test '${{ inputs.shell_ref }}' != ''
+          test '${{ inputs.framework_ref }}' != ''
+          test '${{ inputs.frozen_codex_artifact_name }}' != ''
+
+  build-and-qualify:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    outputs:
+      image_artifact_name: ${{ steps.identity.outputs.image_artifact_name }}
+    steps:
+      - name: Checkout exact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Checkout exact active Shell source
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: ${{ inputs.shell_ref }}
+          install-dependencies: 'false'
+
+      - name: Verify frozen source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
+          test "$(git -C shells/aionui rev-parse HEAD)" = '${{ inputs.shell_ref }}'
+          test '${{ inputs.app_ref }}' != '${{ inputs.shell_ref }}'
+          test '${{ inputs.framework_ref }}' != '${{ inputs.shell_ref }}'
+
+      - name: Seal and verify frozen WebUI build input
+        id: seal
+        shell: bash
+        env:
+          OPL_FROZEN_BUILD_INPUT_JSON: ${{ inputs.frozen_build_input_json }}
+        run: |
+          set -euo pipefail
+          mkdir -p webui-carrier
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync('webui-carrier/build-input-draft.json', `${process.env.OPL_FROZEN_BUILD_INPUT_JSON}\n`);
+          NODE
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            seal-build-input \
+            --input webui-carrier/build-input-draft.json \
+            --output webui-carrier/build-input.json \
+            > webui-carrier/build-input-seal.json
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            verify-build-input \
+            --input webui-carrier/build-input.json \
+            --expected-version '${{ inputs.opl_version }}' \
+            --expected-bundle-digest '${{ inputs.release_bundle_digest }}' \
+            --expected-cohort-ref '${{ inputs.release_cohort_ref }}' \
+            --expected-app-sha '${{ inputs.app_ref }}' \
+            --expected-shell-sha '${{ inputs.shell_ref }}' \
+            --expected-framework-sha '${{ inputs.framework_ref }}' \
+            --expected-architecture amd64 \
+            > webui-carrier/build-input-verification.json
+
+      - name: Download exact frozen Codex artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.frozen_codex_artifact_name }}
+          path: webui-carrier/frozen-codex
+
+      - name: Verify and materialize frozen Codex artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            verify-codex-artifact \
+            --build-input webui-carrier/build-input.json \
+            --artifact-dir webui-carrier/frozen-codex \
+            > webui-carrier/codex-artifact-verification.json
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            verify-docker-context-policy \
+            --dockerignore shells/aionui/.dockerignore \
+            > webui-carrier/docker-context-policy-verification.json
+          rm -rf shells/aionui/.opl-frozen-inputs
+          mkdir -p shells/aionui/.opl-frozen-inputs
+          cp webui-carrier/frozen-codex/codex-cli.tgz \
+            shells/aionui/.opl-frozen-inputs/codex-cli.tgz
+          cmp -s webui-carrier/frozen-codex/codex-cli.tgz \
+            shells/aionui/.opl-frozen-inputs/codex-cli.tgz
+          rm -rf webui-carrier/frozen-codex
+
+      - name: Resolve frozen build arguments and materialize digest-pinned Dockerfile
+        id: build-inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const manifest = JSON.parse(fs.readFileSync('webui-carrier/build-input.json', 'utf8'));
+          const inputs = new Map(manifest.inputs.map((input) => [input.id, input]));
+          const digest = (bytes) => `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+          for (const [id, file] of [
+            ['dockerfile', 'shells/aionui/Dockerfile'],
+            ['qualification_harness', 'scripts/validate-webui-runtime-image.ts'],
+          ]) {
+            const bytes = fs.readFileSync(file);
+            const input = inputs.get(id);
+            if (input.digest !== digest(bytes) || input.size_bytes !== bytes.byteLength) {
+              throw new Error(`${id} bytes do not match the frozen build input`);
+            }
+          }
+          const baseRef = inputs.get('base_image').ref;
+          const dockerfile = fs.readFileSync('shells/aionui/Dockerfile', 'utf8');
+          const marker = 'FROM node:22-bookworm-slim';
+          if (!dockerfile.includes(marker)) throw new Error(`Shell Dockerfile no longer contains ${marker}`);
+          const onlineCodexInstall = [
+            'RUN npm install -g --prefix /opt/codex-cli "${OPL_CODEX_NPM_SPEC}" \\',
+            '  && npm cache clean --force \\',
+            '  && printf \'%s\\n\' "${OPL_CODEX_NPM_SPEC}" > /opt/codex-cli/OPL_CODEX_NPM_SPEC',
+          ].join('\n');
+          const frozenCodexInstall = [
+            'COPY .opl-frozen-inputs/codex-cli.tgz /tmp/codex-cli.tgz',
+            'RUN npm install -g --prefix /opt/codex-cli /tmp/codex-cli.tgz \\',
+            '  && rm -f /tmp/codex-cli.tgz \\',
+            '  && npm cache clean --force \\',
+            '  && printf \'%s\\n\' "${OPL_CODEX_NPM_SPEC}" > /opt/codex-cli/OPL_CODEX_NPM_SPEC',
+          ].join('\n');
+          if (dockerfile.split(onlineCodexInstall).length !== 2) {
+            throw new Error('Shell Dockerfile must contain exactly one online Codex install block');
+          }
+          fs.writeFileSync(
+            'webui-carrier/Dockerfile.frozen',
+            dockerfile
+              .replaceAll(marker, `FROM ${baseRef}`)
+              .replace(onlineCodexInstall, frozenCodexInstall),
+          );
+          const outputs = {
+            base_ref: baseRef,
+            codex_ref: inputs.get('codex_cli').ref,
+            opl_flow_ref: inputs.get('opl_flow').ref,
+          };
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(outputs).map(([key, value]) => `${key}=${value}\n`).join(''));
+          NODE
+
+      - name: Build WebUI image once from frozen inputs
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest_digest="$(node -e "const fs=require('fs'),c=require('crypto');process.stdout.write('sha256:'+c.createHash('sha256').update(fs.readFileSync('webui-carrier/build-input.json')).digest('hex'))")"
+          content_fingerprint="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('webui-carrier/build-input.json')).content_fingerprint)")"
+          local_image="opl-webui-qualified:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker build \
+            --platform linux/amd64 \
+            --file webui-carrier/Dockerfile.frozen \
+            --build-arg 'OPL_FRAMEWORK_REF=${{ inputs.framework_ref }}' \
+            --build-arg 'OPL_FLOW_REF=${{ steps.build-inputs.outputs.opl_flow_ref }}' \
+            --build-arg 'OPL_CODEX_NPM_SPEC=${{ steps.build-inputs.outputs.codex_ref }}' \
+            --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-full \
+            --label org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app \
+            --label 'org.opencontainers.image.revision=${{ inputs.app_ref }}' \
+            --label 'org.opencontainers.image.version=${{ inputs.opl_version }}' \
+            --label 'dev.onepersonlab.release.bundle-digest=${{ inputs.release_bundle_digest }}' \
+            --label 'dev.onepersonlab.release.cohort-ref=${{ inputs.release_cohort_ref }}' \
+            --label "dev.onepersonlab.release.build-input-digest=${manifest_digest}" \
+            --label "dev.onepersonlab.release.content-fingerprint=${content_fingerprint}" \
+            --label 'dev.onepersonlab.release.shell-revision=${{ inputs.shell_ref }}' \
+            --label 'dev.onepersonlab.release.framework-revision=${{ inputs.framework_ref }}' \
+            --tag "$local_image" \
+            shells/aionui
+          printf '%s\n' "$local_image" > webui-carrier/local-image-ref.txt
+          docker image inspect "$local_image" > webui-carrier/image-inspect.json
+          docker image inspect --format '{{.Size}}' "$local_image" > webui-carrier/image-size.txt
+
+      - name: Remove frozen Codex Docker context input
+        if: ${{ always() }}
+        shell: bash
+        run: rm -rf shells/aionui/.opl-frozen-inputs
+
+      - name: Qualify exact local runtime before any registry tag is written
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_image="$(cat webui-carrier/local-image-ref.txt)"
+          docker run --rm --entrypoint cat "$local_image" /opt/opl/image-manifest.json > webui-carrier/image-manifest.json
+          docker run --rm --entrypoint cat "$local_image" /opt/opl/seed/metadata.json > webui-carrier/seed-metadata.json
+          docker run --rm --entrypoint sh "$local_image" -c 'command -v opl >/dev/null && command -v codex >/dev/null'
+          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
+            --image-inspect webui-carrier/image-inspect.json \
+            --image-manifest webui-carrier/image-manifest.json \
+            --seed-metadata webui-carrier/seed-metadata.json \
+            --expected-profile webui-full \
+            --summary-path webui-carrier/runtime-summary.json
+          container_name="opl-webui-qualification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          data_dir="$RUNNER_TEMP/webui-data"
+          projects_dir="$RUNNER_TEMP/webui-projects"
+          mkdir -p "$data_dir" "$projects_dir"
+          docker run -d --name "$container_name" \
+            -p 127.0.0.1::3000 \
+            -v "$data_dir:/data" \
+            -v "$projects_dir:/projects" \
+            "$local_image" > webui-carrier/container-id.txt
+          trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
+          port="$(docker port "$container_name" 3000/tcp | sed -n 's/.*://p' | tail -1)"
+          test -n "$port"
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error "http://127.0.0.1:${port}/" >/dev/null; then
+              printf '%s\n' passed > webui-carrier/http-health.txt
+              break
+            fi
+            if [ "$attempt" -eq 90 ]; then
+              docker logs "$container_name" > webui-carrier/container.log 2>&1 || true
+              exit 1
+            fi
+            sleep 2
+          done
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const summary = JSON.parse(fs.readFileSync('webui-carrier/runtime-summary.json', 'utf8'));
+          summary.http_health = { status: fs.readFileSync('webui-carrier/http-health.txt', 'utf8').trim() };
+          summary.runtime_cli_shims = { opl: 'passed', codex: 'passed' };
+          fs.writeFileSync('webui-carrier/runtime-summary.json', `${JSON.stringify(summary)}\n`);
+          NODE
+          docker rm -f "$container_name" >/dev/null
+          trap - EXIT
+
+      - name: Package qualified image and evidence for protected immutable publication
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_image="$(cat webui-carrier/local-image-ref.txt)"
+          docker save "$local_image" | gzip -1 > webui-carrier/qualified-image.tar.gz
+          image_artifact_name="webui-qualified-${{ inputs.opl_version }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'image_artifact_name=%s\n' "$image_artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload qualified image evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.identity.outputs.image_artifact_name }}
+          path: webui-carrier
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  publish-immutable-carrier:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: build-and-qualify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-stable
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      carrier_artifact_name: ${{ steps.receipt.outputs.carrier_artifact_name }}
+      image_ref: ${{ steps.publish.outputs.image_ref }}
+    steps:
+      - name: Checkout exact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+
+      - name: Download exact qualified image evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.build-and-qualify.outputs.image_artifact_name }}
+          path: webui-carrier
+
+      - name: Load locally qualified image
+        shell: bash
+        run: |
+          set -euo pipefail
+          gunzip -c webui-carrier/qualified-image.tar.gz | docker load
+          local_image="$(cat webui-carrier/local-image-ref.txt)"
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$local_image")" = linux/amd64
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish qualified candidate and CAS immutable version tag
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_image="$(cat webui-carrier/local-image-ref.txt)"
+          candidate_tag='${{ inputs.image_repository }}:candidate-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}'
+          version_tag='${{ inputs.image_repository }}:${{ inputs.opl_version }}'
+          docker tag "$local_image" "$candidate_tag"
+          docker push "$candidate_tag" | tee webui-carrier/candidate-push.txt
+          candidate_readback="$(docker buildx imagetools inspect "$candidate_tag")"
+          printf '%s\n' "$candidate_readback" > webui-carrier/candidate-tag-readback.txt
+          digest="$(printf '%s\n' "$candidate_readback" | awk '$1 == "Digest:" { print $2; exit }')"
+          test -n "$digest"
+          image_ref='${{ inputs.image_repository }}'@"$digest"
+          docker buildx imagetools inspect "$image_ref" > webui-carrier/immutable-readback.txt
+
+          inspect_output="$RUNNER_TEMP/version-tag-inspect.txt"
+          if docker buildx imagetools inspect "$version_tag" >"$inspect_output" 2>&1; then
+            existing_digest="$(awk '$1 == "Digest:" { print $2; exit }' "$inspect_output")"
+            test "$existing_digest" = "$digest" || {
+              echo "::error::Immutable WebUI version tag already points at $existing_digest, expected $digest"
+              exit 1
+            }
+          elif grep -Eqi 'not found|manifest unknown|no such manifest' "$inspect_output"; then
+            if ! docker buildx imagetools create --tag "$version_tag" "$image_ref" > webui-carrier/version-tag-create.txt 2>&1; then
+              reconcile="$(docker buildx imagetools inspect "$version_tag" 2>&1 || true)"
+              reconcile_digest="$(printf '%s\n' "$reconcile" | awk '$1 == "Digest:" { print $2; exit }')"
+              if [ "$reconcile_digest" != "$digest" ]; then
+                cat webui-carrier/version-tag-create.txt >&2
+                printf '%s\n' "$reconcile" >&2
+                echo '::error::Version tag write returned unknown and bounded read-only reconcile did not prove the target digest.'
+                exit 1
+              fi
+            fi
+          else
+            cat "$inspect_output" >&2
+            echo '::error::Could not safely distinguish an absent version tag from a registry read failure.'
+            exit 1
+          fi
+
+          readback="$(docker buildx imagetools inspect "$version_tag")"
+          printf '%s\n' "$readback" > webui-carrier/version-tag-readback.txt
+          readback_digest="$(printf '%s\n' "$readback" | awk '$1 == "Digest:" { print $2; exit }')"
+          test "$readback_digest" = "$digest"
+          OPL_IMAGE_REF="$image_ref" OPL_IMAGE_DIGEST="$digest" OPL_VERSION_TAG="$version_tag" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const payload = {
+            schema: 'opl_app_webui_registry_readback.v1',
+            status: 'passed',
+            ref: process.env.OPL_IMAGE_REF,
+            digest: process.env.OPL_IMAGE_DIGEST,
+            version_tag: process.env.OPL_VERSION_TAG,
+            version_tag_digest: process.env.OPL_IMAGE_DIGEST,
+          };
+          fs.writeFileSync('webui-carrier/registry-readback.json', `${JSON.stringify(payload)}\n`);
+          NODE
+          printf 'image_ref=%s\n' "$image_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Write and verify exact carrier receipt
+        id: receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            write-carrier-receipt \
+            --build-input webui-carrier/build-input.json \
+            --image-inspect webui-carrier/image-inspect.json \
+            --runtime-summary webui-carrier/runtime-summary.json \
+            --registry-readback webui-carrier/registry-readback.json \
+            --image-ref '${{ steps.publish.outputs.image_ref }}' \
+            --image-size "$(cat webui-carrier/image-size.txt)" \
+            --output webui-carrier/carrier-receipt.json \
+            > webui-carrier/carrier-receipt-write.json
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            verify-carrier-receipt \
+            --build-input webui-carrier/build-input.json \
+            --receipt webui-carrier/carrier-receipt.json \
+            --image-inspect webui-carrier/image-inspect.json \
+            --runtime-summary webui-carrier/runtime-summary.json \
+            --registry-readback webui-carrier/registry-readback.json \
+            --expected-version '${{ inputs.opl_version }}' \
+            --expected-bundle-digest '${{ inputs.release_bundle_digest }}' \
+            --expected-cohort-ref '${{ inputs.release_cohort_ref }}' \
+            --expected-app-sha '${{ inputs.app_ref }}' \
+            --expected-shell-sha '${{ inputs.shell_ref }}' \
+            --expected-framework-sha '${{ inputs.framework_ref }}' \
+            --expected-architecture amd64 \
+            > webui-carrier/carrier-receipt-verification.json
+          carrier_artifact_name="webui-carrier-${{ inputs.opl_version }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'carrier_artifact_name=%s\n' "$carrier_artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable carrier receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.receipt.outputs.carrier_artifact_name }}
+          path: |
+            webui-carrier/build-input.json
+            webui-carrier/build-input-verification.json
+            webui-carrier/codex-artifact-verification.json
+            webui-carrier/docker-context-policy-verification.json
+            webui-carrier/carrier-receipt.json
+            webui-carrier/carrier-receipt-verification.json
+            webui-carrier/candidate-tag-readback.txt
+            webui-carrier/image-inspect.json
+            webui-carrier/immutable-readback.txt
+            webui-carrier/registry-readback.json
+            webui-carrier/runtime-summary.json
+            webui-carrier/version-tag-readback.txt
+          if-no-files-found: error
+          retention-days: 90

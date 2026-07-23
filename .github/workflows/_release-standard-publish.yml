@@ -378,13 +378,20 @@ jobs:
           transport_run_id='${{ steps.checkpoint.outputs.transport_run_id }}'
           bundle="$checkpoint_dir/bundle.json"
           test -f "$bundle"
-          case "$completed_stage" in
-            standard_qualified|full_built|full_qualified) ;;
-            *)
-              echo "::error::Standard publish requires a checkpoint at or after standard_qualified, got $completed_stage."
+          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
+            test "$completed_stage" = stable_qualified || {
+              echo "::error::Unified Stable publish requires an exact stable_qualified checkpoint, got $completed_stage."
               exit 1
-              ;;
-          esac
+            }
+          else
+            case "$completed_stage" in
+              standard_qualified|full_built|full_qualified) ;;
+              *)
+                echo "::error::Legacy Standard publish requires a checkpoint at or after standard_qualified, got $completed_stage."
+                exit 1
+                ;;
+            esac
+          fi
           test "$(jq -r .bundle_digest "$bundle")" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           channel="$(jq -r .release.channel "$bundle")"
           version="$(jq -r .release.version "$bundle")"
@@ -769,9 +776,53 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > publication.json
           test "$(jq -r .release_bundle_publish.status publication.json)" = complete
+          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
+            checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+            find "$checkpoint_dir" -type f -name opl-webui-carrier.json -print | LC_ALL=C sort > webui-carrier-assets.txt
+            test "$(wc -l < webui-carrier-assets.txt | tr -d ' ')" = 1 || {
+              echo "::error::Unified checkpoint must contain exactly one regular opl-webui-carrier.json."
+              exit 1
+            }
+            IFS= read -r webui_carrier < webui-carrier-assets.txt
+            test -f "$webui_carrier" && test ! -L "$webui_carrier"
+            webui_ref="$(jq -er '.carrier.ref | select(test("@sha256:[0-9a-f]{64}$"))' "$webui_carrier")"
+            webui_digest="$(jq -er '.carrier.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$webui_carrier")"
+            test "$webui_ref" = "${webui_ref%@*}@${webui_digest}"
+            docker buildx imagetools inspect "$webui_ref" > webui-registry-readback.txt
+            observed_webui_digest="$(awk '$1 == "Digest:" { print $2; exit }' webui-registry-readback.txt)"
+            test "$observed_webui_digest" = "$webui_digest"
+            webui_asset_size="$(wc -c < "$webui_carrier" | tr -d ' ')"
+            webui_asset_sha="sha256:$(shasum -a 256 "$webui_carrier" | awk '{print $1}')"
+            jq -n --argjson size "$webui_asset_size" --arg sha "$webui_asset_sha" \
+              '{assets:[{name:"opl-webui-carrier.json",size_bytes:$size,sha256:$sha}]}' \
+              > webui-remote.json
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-webui-readback" \
+              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+              --remote-target "oci-image:${webui_ref}" --publication-scope track_assets \
+              --bundle "$bundle" --track webui --outcome complete \
+              --inspection webui-remote.json --output webui-remote.receipt.json
+            framework-executor/bin/opl release publish \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt webui-remote.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > webui-publication.json
+            test "$(jq -r .release_bundle_publish.status webui-publication.json)" = complete
+          fi
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          test "$(jq -r .release_bundle_status.latest_eligible bundle-status.json)" = true
+          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
+            jq -e '
+              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard","webui"]
+              and .release_bundle_status.stable_promotion_barrier.satisfied == true
+              and .release_bundle_status.latest_eligible == true
+              and .release_bundle_status.tracks.standard.reconcile_required == false
+              and .release_bundle_status.tracks.webui.reconcile_required == false
+            ' bundle-status.json >/dev/null
+          else
+            jq -e '
+              .release_bundle_status.latest_eligible == true
+              and .release_bundle_status.tracks.standard.reconcile_required == false
+            ' bundle-status.json >/dev/null
+          fi
 
       - name: Upload remote digest proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -781,6 +832,10 @@ jobs:
             remote.json
             operation-admit.json
             publication.json
+            webui-registry-readback.txt
+            webui-remote.json
+            webui-remote.receipt.json
+            webui-publication.json
             bundle-status.json
           if-no-files-found: error
           retention-days: 30
@@ -1427,10 +1482,53 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publication.json
+          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
+            checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+            find "$checkpoint_dir" -type f -name opl-webui-carrier.json -print | LC_ALL=C sort > latest-webui-carrier-assets.txt
+            test "$(wc -l < latest-webui-carrier-assets.txt | tr -d ' ')" = 1 || {
+              echo "::error::Latest admission requires exactly one regular opl-webui-carrier.json."
+              exit 1
+            }
+            IFS= read -r latest_webui_carrier < latest-webui-carrier-assets.txt
+            test -f "$latest_webui_carrier" && test ! -L "$latest_webui_carrier"
+            latest_webui_ref="$(jq -er '.carrier.ref | select(test("@sha256:[0-9a-f]{64}$"))' "$latest_webui_carrier")"
+            latest_webui_digest="$(jq -er '.carrier.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$latest_webui_carrier")"
+            test "$latest_webui_ref" = "${latest_webui_ref%@*}@${latest_webui_digest}"
+            docker buildx imagetools inspect "$latest_webui_ref" > latest-webui-registry-readback.txt
+            observed_latest_webui_digest="$(awk '$1 == "Digest:" { print $2; exit }' latest-webui-registry-readback.txt)"
+            test "$observed_latest_webui_digest" = "$latest_webui_digest"
+            latest_webui_size="$(wc -c < "$latest_webui_carrier" | tr -d ' ')"
+            latest_webui_sha="sha256:$(shasum -a 256 "$latest_webui_carrier" | awk '{print $1}')"
+            jq -n --argjson size "$latest_webui_size" --arg sha "$latest_webui_sha" \
+              '{assets:[{name:"opl-webui-carrier.json",size_bytes:$size,sha256:$sha}]}' \
+              > latest-webui-remote.json
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-webui-readback" \
+              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+              --remote-target "oci-image:${latest_webui_ref}" --publication-scope track_assets \
+              --bundle "$bundle" --track webui --outcome complete \
+              --inspection latest-webui-remote.json --output latest-webui-remote.receipt.json
+            framework-executor/bin/opl release publish \
+              --bundle "$BUNDLE_DIGEST" --executor-receipt latest-webui-remote.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > latest-webui-publication.json
+            test "$(jq -r .release_bundle_publish.status latest-webui-publication.json)" = complete
+          fi
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          test "$(jq -r .release_bundle_status.latest_eligible bundle-status.json)" = true
-          test "$(jq -r .release_bundle_status.tracks.standard.reconcile_required bundle-status.json)" = false
+          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
+            jq -e '
+              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard","webui"]
+              and .release_bundle_status.stable_promotion_barrier.satisfied == true
+              and .release_bundle_status.latest_eligible == true
+              and .release_bundle_status.tracks.standard.reconcile_required == false
+              and .release_bundle_status.tracks.webui.reconcile_required == false
+            ' bundle-status.json >/dev/null
+          else
+            jq -e '
+              .release_bundle_status.latest_eligible == true
+              and .release_bundle_status.tracks.standard.reconcile_required == false
+            ' bundle-status.json >/dev/null
+          fi
           one_file() {
             local root="$1" name="$2"
             mapfile -t matches < <(find "$root" -type f -name "$name" -print)
@@ -1577,6 +1675,10 @@ jobs:
             latest-operation-admit.json
             latest-framework.receipt.json
             latest-framework-result.json
+            latest-webui-registry-readback.txt
+            latest-webui-remote.json
+            latest-webui-remote.receipt.json
+            latest-webui-publication.json
             latest-unknown.receipt.json
             latest-unknown-persisted.json
             latest-unknown-checkpoint-export.json

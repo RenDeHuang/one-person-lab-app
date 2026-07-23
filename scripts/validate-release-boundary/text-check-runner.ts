@@ -7,6 +7,9 @@ const workflowMutationCommandPattern = /gh\s+api\s+--method\s+(?:POST|PATCH|PUT|
 const retiredLiveAuthorityPattern = /release[_ -]broker|verify-release-broker|verify-release-session-lease|release_attempt_id|release_mutation_payload_sha256|pre_api_admission_receipt_base64|release[_ -]session[_ -]lease/i;
 const exactReadPermissions = { contents: 'read', actions: 'read' } as const;
 const exactStableEntryPermissions = { contents: 'write', actions: 'read' } as const;
+const exactWebUiReadPermissions = { contents: 'read', actions: 'read', packages: 'read' } as const;
+const exactStableStandardPermissions = { contents: 'write', actions: 'read', packages: 'write' } as const;
+const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
 
@@ -27,6 +30,27 @@ function requestsWritePermission(value: unknown): boolean {
   if (value === 'write-all') return true;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   return Object.values(value as Record<string, unknown>).some((permission) => permission === 'write');
+}
+
+type PermissionLevel = 'none' | 'read' | 'write';
+
+function permissionLevel(value: unknown, name: string): PermissionLevel {
+  if (value === 'read-all') return 'read';
+  if (value === 'write-all') return 'write';
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'none';
+  const level = (value as Record<string, unknown>)[name];
+  return level === 'read' || level === 'write' ? level : 'none';
+}
+
+function intersectPermission(
+  caller: unknown,
+  callee: unknown,
+  name: string,
+): PermissionLevel {
+  const levels: PermissionLevel[] = ['none', 'read', 'write'];
+  const callerLevel = permissionLevel(caller, name);
+  const calleeLevel = callee === undefined ? callerLevel : permissionLevel(callee, name);
+  return levels[Math.min(levels.indexOf(callerLevel), levels.indexOf(calleeLevel))];
 }
 
 function jobRuns(job: Record<string, any> | undefined): string {
@@ -83,6 +107,7 @@ const stableEntrySpecs = {
       operation_started_at: '${{ needs.admission.outputs.operation_started_at }}',
       operation_deadline_at: '${{ needs.admission.outputs.operation_deadline_at }}',
     },
+    permissions: exactStableStandardPermissions,
   },
   'resume-standard': {
     operation: 'resume_standard',
@@ -94,6 +119,7 @@ const stableEntrySpecs = {
       source_run_id: '${{ needs.admission.outputs.source_run_id }}',
       source_artifact: '${{ needs.admission.outputs.source_artifact }}',
     },
+    permissions: exactStableEntryPermissions,
   },
   'append-full': {
     operation: 'append_full',
@@ -107,6 +133,7 @@ const stableEntrySpecs = {
       operation_started_at: '${{ needs.admission.outputs.operation_started_at }}',
       operation_deadline_at: '${{ needs.admission.outputs.operation_deadline_at }}',
     },
+    permissions: exactStableEntryPermissions,
   },
 } as const;
 
@@ -178,8 +205,13 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     if (job.uses !== spec.workflow || Object.prototype.hasOwnProperty.call(job, 'steps')) {
       failures += reportFailure(id, `${jobId} must be a step-free call to ${spec.workflow}`);
     }
-    if (!exactObject(job.permissions, exactStableEntryPermissions)) {
-      failures += reportFailure(id, `${jobId} permissions must be exactly contents:write/actions:read`);
+    if (!exactObject(job.permissions, spec.permissions)) {
+      failures += reportFailure(
+        id,
+        jobId === 'standard'
+          ? 'standard permissions must be exactly contents:write/actions:read/packages:write'
+          : `${jobId} permissions must be exactly contents:write/actions:read without packages:write`,
+      );
     }
     if (job.secrets !== 'inherit') {
       failures += reportFailure(id, `${jobId} must pass release secrets only through the reusable boundary`);
@@ -258,7 +290,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const bundle = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
   const standard = parseWorkflow(appRoot, '.github/workflows/_release-standard-publish.yml', id);
   const full = parseWorkflow(appRoot, '.github/workflows/_release-full-addon.yml', id);
-  if (!bundle || !standard || !full) return [bundle, standard, full].filter((value) => !value).length;
+  const nightly = parseWorkflow(appRoot, '.github/workflows/release-nightly.yml', id);
+  const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
+  if (!bundle || !standard || !full || !nightly || !webui) {
+    return [bundle, standard, full, nightly, webui].filter((value) => !value).length;
+  }
   let failures = 0;
 
   for (const [name, parsed] of Object.entries({ bundle, standard, full })) {
@@ -272,7 +308,12 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       failures += reportFailure(id, `${name} workflow must expose an explicit execute/canary mode boundary`);
     }
   }
-  failures += validateReusablePermissionInheritance(id, 'bundle', bundle.workflow, ['publish-standard']);
+  failures += validateReusablePermissionInheritance(
+    id,
+    'bundle',
+    bundle.workflow,
+    ['webui-carrier', 'publish-standard'],
+  );
   failures += validateReusablePermissionInheritance(
     id,
     'standard',
@@ -300,11 +341,45 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   failures += validateReusableCall(
     id,
     bundleJobs,
+    'webui-carrier',
+    './.github/workflows/_release-webui-carrier.yml',
+  );
+  const webuiCall = bundleJobs['webui-carrier'];
+  if (webuiCall && (
+    webuiCall.permissions !== undefined ||
+    webuiCall.if !== "${{ inputs.mode == 'execute' }}" ||
+    webuiCall.with?.mode !== 'execute'
+  )) {
+    failures += reportFailure(id, 'bundle:webui-carrier must inherit the caller ceiling and remain execute-only');
+  }
+  failures += validateReusableCall(
+    id,
+    bundleJobs,
     'publish-standard',
     './.github/workflows/_release-standard-publish.yml',
   );
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
+  }
+  failures += validateWebUiCarrierCallee(id, webui.workflow, exactStableStandardPermissions);
+
+  const nightlyJobs = workflowJobs(nightly.workflow);
+  const nightlyRelease = nightlyJobs.release;
+  if (!nightlyRelease ||
+      nightlyRelease.uses !== './.github/workflows/_release-bundle.yml' ||
+      Object.prototype.hasOwnProperty.call(nightlyRelease, 'steps') ||
+      !exactObject(nightlyRelease.permissions, exactStableStandardPermissions) ||
+      nightlyRelease.with?.channel !== 'nightly' ||
+      nightlyRelease.with?.include_full !== false) {
+    failures += reportFailure(id, 'Nightly release caller must grant exact Standard package write authority to the Bundle');
+  }
+  if (nightlyRelease &&
+      intersectPermission(
+        nightlyRelease.permissions,
+        workflowJobs(webui.workflow)['publish-immutable-carrier']?.permissions,
+        'packages',
+      ) !== 'write') {
+    failures += reportFailure(id, 'Nightly cannot satisfy the nested immutable WebUI publish package permission');
   }
 
   const standardJobs = workflowJobs(standard.workflow);
@@ -420,14 +495,78 @@ function standardUpdaterOrLatest(text: string): boolean {
 }
 
 const canaryReusableCalls = {
-  standard: './.github/workflows/_release-bundle.yml',
-  'resume-standard': './.github/workflows/_release-standard-publish.yml',
-  'append-full': './.github/workflows/_release-full-addon.yml',
-  'nested-standard-build': './.github/workflows/_build-reusable.yml',
-  'nested-standard-qualification': './.github/workflows/opl-first-run-vm.yml',
-  'nested-updater-qualification': './.github/workflows/opl-updater-upgrade-vm.yml',
-  'nested-full-build': './.github/workflows/full-first-install-release.yml',
+  standard: {
+    workflow: './.github/workflows/_release-bundle.yml',
+    permissions: exactWebUiReadPermissions,
+  },
+  'resume-standard': {
+    workflow: './.github/workflows/_release-standard-publish.yml',
+    permissions: exactReadPermissions,
+  },
+  'append-full': {
+    workflow: './.github/workflows/_release-full-addon.yml',
+    permissions: exactReadPermissions,
+  },
+  'nested-standard-build': {
+    workflow: './.github/workflows/_build-reusable.yml',
+    permissions: exactReadPermissions,
+  },
+  'nested-standard-qualification': {
+    workflow: './.github/workflows/opl-first-run-vm.yml',
+    permissions: exactReadPermissions,
+  },
+  'nested-webui-carrier': {
+    workflow: './.github/workflows/_release-webui-carrier.yml',
+    permissions: exactWebUiReadPermissions,
+  },
+  'nested-updater-qualification': {
+    workflow: './.github/workflows/opl-updater-upgrade-vm.yml',
+    permissions: exactReadPermissions,
+  },
+  'nested-full-build': {
+    workflow: './.github/workflows/full-first-install-release.yml',
+    permissions: exactReadPermissions,
+  },
 } as const;
+
+function validateWebUiCarrierCallee(
+  id: string,
+  workflow: Record<string, any>,
+  callerPermissions: Record<string, unknown>,
+): number {
+  let failures = 0;
+  if (!exactObject(workflow.permissions, { contents: 'read' })) {
+    failures += reportFailure(id, 'WebUI carrier top-level permissions must be exactly contents:read');
+  }
+  const jobs = workflowJobs(workflow);
+  if (JSON.stringify(Object.keys(jobs).sort()) !==
+      JSON.stringify(['build-and-qualify', 'publish-immutable-carrier', 'startup-canary'])) {
+    failures += reportFailure(id, 'WebUI carrier jobs must be exactly startup, build/qualify, and immutable publish');
+  }
+  const startup = jobs['startup-canary'];
+  const build = jobs['build-and-qualify'];
+  const publish = jobs['publish-immutable-carrier'];
+  if (!startup || startup.if !== "${{ inputs.mode == 'canary' }}" ||
+      !Array.isArray(startup.steps) || startup.steps.length === 0) {
+    failures += reportFailure(id, 'WebUI carrier startup must be the only Canary-reachable job');
+  }
+  if (!build || build.if !== "${{ inputs.mode == 'execute' }}" ||
+      !exactObject(build.permissions, exactWebUiReadPermissions)) {
+    failures += reportFailure(id, 'WebUI build/qualification must be execute-only with exact read permissions');
+  }
+  if (!publish || publish.if !== "${{ inputs.mode == 'execute' }}" ||
+      publish.needs !== 'build-and-qualify' ||
+      publish.environment !== 'release-stable' ||
+      !exactObject(publish.permissions, exactWebUiPublishPermissions)) {
+    failures += reportFailure(id, 'WebUI immutable publish must be execute-only, protected, and request only contents:read/packages:write');
+  }
+  if (publish &&
+      intersectPermission(callerPermissions, publish.permissions, 'packages') !==
+        permissionLevel(callerPermissions, 'packages')) {
+    failures += reportFailure(id, 'WebUI callee attempted to elevate beyond the caller package permission ceiling');
+  }
+  return failures;
+}
 
 export function validateReleaseBundleCanaryTopology(appRoot: string): number {
   const id = 'release_bundle_canary_topology';
@@ -446,9 +585,10 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
   }
 
   const jobs = workflowJobs(workflow);
-  for (const [jobId, workflowPath] of Object.entries(canaryReusableCalls)) {
+  for (const [jobId, spec] of Object.entries(canaryReusableCalls)) {
+    const workflowPath = spec.workflow;
     const job = jobs[jobId];
-    failures += validateReusableCall(id, jobs, jobId, workflowPath, exactReadPermissions);
+    failures += validateReusableCall(id, jobs, jobId, workflowPath, spec.permissions);
     if (!job) continue;
     if (job.secrets !== undefined || job.with?.mode !== 'canary') {
       failures += reportFailure(id, `${jobId} must start in canary mode without secrets`);
@@ -469,6 +609,13 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         typeof startup.if !== 'string' || !startup.if.includes("inputs.mode == 'canary'") ||
         !Array.isArray(startup.steps) || startup.steps.length === 0) {
       failures += reportFailure(id, `${calleePath} must expose a real startup-canary job`);
+    }
+    if (jobId === 'nested-webui-carrier') {
+      failures += validateWebUiCarrierCallee(id, callee.workflow, spec.permissions);
+      if (intersectPermission(spec.permissions, calleeJobs['publish-immutable-carrier']?.permissions, 'packages') !== 'read') {
+        failures += reportFailure(id, 'Canary must cap nested WebUI package permission at read');
+      }
+      continue;
     }
     if (requestsWritePermission(callee.workflow.permissions)) {
       failures += reportFailure(id, `${calleePath} must not request top-level write permission`);
@@ -722,7 +869,8 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (workflowPath === stableWorkflowPath && stableEntryJobs.has(jobId)) {
-        if (job.uses && steps.length === 0 && exactObject(job.permissions, exactStableEntryPermissions)) {
+        const spec = stableEntrySpecs[jobId as keyof typeof stableEntrySpecs];
+        if (job.uses && steps.length === 0 && spec && exactObject(job.permissions, spec.permissions)) {
           continue;
         }
         console.error(`FAIL workflow_dispatch_write_authority: ${workflowPath} job ${jobId} must be a step-free least-privilege reusable entry`);

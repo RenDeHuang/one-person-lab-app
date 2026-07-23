@@ -72,6 +72,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
   OPL_RELEASE_BUNDLE_ARTIFACT: opl-release-bundle-${{ github.run_id }}
+  OPL_FROZEN_CODEX_ARTIFACT: opl-release-frozen-codex-${{ github.run_id }}
   OPL_STANDARD_CHECKPOINT_ARTIFACT: opl-release-standard-checkpoint-${{ github.run_id }}
 
 jobs:
@@ -249,6 +250,8 @@ jobs:
       operation_id: ${{ steps.bundle.outputs.operation_id }}
       operation_started_at: ${{ steps.bundle.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.bundle.outputs.operation_deadline_at }}
+      webui_build_input_json: ${{ steps.bundle.outputs.webui_build_input_json }}
+      frozen_codex_artifact_name: ${{ steps.bundle.outputs.frozen_codex_artifact_name }}
     steps:
       - name: Checkout canonical App source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -275,6 +278,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+
+      - name: Setup exact ORAS client for the one-shot package cutoff
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
       - name: Install cold-gate dependencies
         run: |
@@ -493,6 +499,51 @@ jobs:
         run: |
           set -euo pipefail
           notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
+          frozen_root="$RUNNER_TEMP/opl-webui-freeze-$GITHUB_RUN_ID"
+          mkdir -p "$frozen_root/base-release-set" "$frozen_root/codex"
+          source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+          carrier="ghcr.io/${GITHUB_REPOSITORY_OWNER}/one-person-lab-manifest"
+          if oras manifest fetch --descriptor "${carrier}:latest-stable" \
+            > "$frozen_root/latest-stable-descriptor.json" \
+            2> "$frozen_root/latest-stable-descriptor.error"; then
+            frozen_base_digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$frozen_root/latest-stable-descriptor.json")"
+            oras pull "${carrier}@${frozen_base_digest}" --output "$frozen_root/base-release-set"
+            find "$frozen_root/base-release-set" -type f -name opl-release-manifest.json -print \
+              | LC_ALL=C sort > "$frozen_root/release-manifests.txt"
+            find "$frozen_root/base-release-set" -type f -name opl-channel-manifest.json -print \
+              | LC_ALL=C sort > "$frozen_root/channel-manifests.txt"
+            test "$(wc -l < "$frozen_root/release-manifests.txt" | tr -d ' ')" = 1
+            test "$(wc -l < "$frozen_root/channel-manifests.txt" | tr -d ' ')" = 1
+            IFS= read -r frozen_release_manifest < "$frozen_root/release-manifests.txt"
+            IFS= read -r frozen_channel_manifest < "$frozen_root/channel-manifests.txt"
+            frozen_base_generation="$(jq -er '.release_set.generation | select(test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))' "$frozen_release_manifest")"
+            jq -e --arg generation "$frozen_base_generation" \
+              '.release_set.surface_kind == "opl_release_set.v2"
+                and .release_set.bom_status == "complete"
+                and .release_set_generation == $generation
+                and .release_set.generation == $generation' \
+              "$frozen_release_manifest" >/dev/null
+            jq -e --arg generation "$frozen_base_generation" \
+              '.release_set_generation == $generation' "$frozen_channel_manifest" >/dev/null
+          else
+            oras repo tags "$carrier" > "$frozen_root/latest-stable-tags.txt" || {
+              echo "::error::Cannot determine whether latest-stable exists; bootstrap is forbidden on availability unknown."
+              exit 1
+            }
+            if grep -Fxq latest-stable "$frozen_root/latest-stable-tags.txt"; then
+              echo "::error::latest-stable exists but its exact descriptor could not be read."
+              exit 1
+            fi
+            frozen_base_generation=none
+            frozen_base_digest=none
+          fi
+          docker buildx imagetools inspect --raw docker.io/library/node:22-bookworm-slim \
+            > "$frozen_root/base-image-index.json"
+          codex_version="$(jq -er '.managed_runtime.codex_cli.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))' \
+            shells/aionui/contracts/aionui-upstream-intake.json)"
+          codex_tarball_url="$(npm view --json "@openai/codex@${codex_version}" dist.tarball | jq -er 'select(type == "string" and startswith("https://"))')"
+          curl -L --fail --silent --show-error "$codex_tarball_url" \
+            --output "$frozen_root/codex/codex-cli.tgz"
           rm -f notes-prepare-receipt.json
           if [ '${{ inputs.channel }}' = stable ]; then
             node --experimental-strip-types scripts/release-operation-deadline.ts check \
@@ -517,6 +568,11 @@ jobs:
             --notes-evidence "$notes_root/notes-evidence.json" \
             --include-full-package '${{ inputs.include_full }}' \
             --release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}' \
+            --source-cutoff-observed-at "$source_cutoff_observed_at" \
+            --frozen-base-release-set-generation "$frozen_base_generation" \
+            --frozen-base-release-set-digest "$frozen_base_digest" \
+            --base-image-index "$frozen_root/base-image-index.json" \
+            --frozen-codex-tarball "$frozen_root/codex/codex-cli.tgz" \
             "${full_authority_args[@]}" \
             --output freeze-request.json
           cp "$notes_root/notes.md" notes.md
@@ -530,6 +586,21 @@ jobs:
           test "$bundle_digest" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           bundle_path="$(jq -er .release_bundle_freeze.bundle_path freeze-result.json)"
           cp "$bundle_path" release-bundle.json
+          webui_build_input_json="$(jq -cer '{
+            schema:"opl_app_webui_build_input.v1",
+            release:{version:.release.version,bundle_digest:.bundle_digest,cohort_ref:.bundle_digest},
+            source_cutoff,
+            cohort:{
+              app_sha:.sources.app.source_commit,
+              shell_sha:.sources.shell.source_commit,
+              framework_sha:.sources.framework.source_commit
+            },
+            platform:{os:"linux",architecture:"amd64"},
+            inputs:.frozen_build_inputs
+          }' release-bundle.json)"
+          cp "$frozen_root/codex/codex-cli.tgz" codex-cli.tgz
+          cp "$frozen_root/base-image-index.json" base-image-index.json
+          cp "$frozen_root/latest-stable-descriptor.json" latest-stable-descriptor.json 2>/dev/null || true
           operation_id="gha-${GITHUB_RUN_ID}-standard"
           operation_started_at='${{ inputs.operation_started_at }}'
           operation_deadline_at='${{ inputs.operation_deadline_at }}'
@@ -555,6 +626,8 @@ jobs:
             echo "operation_id=$operation_id"
             echo "operation_started_at=$operation_started_at"
             echo "operation_deadline_at=$operation_deadline_at"
+            echo "webui_build_input_json=$webui_build_input_json"
+            echo "frozen_codex_artifact_name=$OPL_FROZEN_CODEX_ARTIFACT"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable Bundle
@@ -568,8 +641,19 @@ jobs:
             operation-admit-result.json
             notes.md
             notes-evidence.json
+            base-image-index.json
+            latest-stable-descriptor.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload exact frozen Codex tarball for the WebUI carrier
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.OPL_FROZEN_CODEX_ARTIFACT }}
+          path: codex-cli.tgz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
 
   standard-build:
     if: ${{ inputs.mode == 'execute' }}
@@ -618,11 +702,26 @@ jobs:
       operation_started_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_started_at || '' }}
       operation_deadline_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_deadline_at || '' }}
 
+  webui-carrier:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: [freeze]
+    uses: ./.github/workflows/_release-webui-carrier.yml
+    with:
+      mode: execute
+      app_ref: ${{ needs.freeze.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
+      opl_version: ${{ needs.freeze.outputs.version }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      frozen_build_input_json: ${{ needs.freeze.outputs.webui_build_input_json }}
+      frozen_codex_artifact_name: ${{ needs.freeze.outputs.frozen_codex_artifact_name }}
+
   checkpoint-standard:
     if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [freeze, standard-build, standard-qualification]
+    needs: [freeze, standard-build, standard-qualification, webui-carrier]
     permissions:
       contents: read
       actions: read
@@ -676,6 +775,12 @@ jobs:
           name: opl-first-run-vm-standard-${{ github.run_id }}
           path: standard-qualification
 
+      - name: Download exact WebUI carrier qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.webui-carrier.outputs.carrier_artifact_name }}
+          path: webui-carrier
+
       - name: Setup Framework runtime
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
@@ -686,7 +791,7 @@ jobs:
       - name: Install Framework runtime dependencies
         run: npm --prefix framework-source ci --ignore-scripts
 
-      - name: Bind Standard bytes and export portable checkpoint
+      - name: Bind Desktop and WebUI bytes and export one portable checkpoint
         env:
           BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
         shell: bash
@@ -702,12 +807,59 @@ jobs:
             --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
             --component-manifest-output standard-assets/opl-app-component-manifest.json \
             --identity-receipt-output standard-identity-receipt.json
+          one_regular_file() {
+            local root="$1" name="$2" output="$3"
+            find "$root" -type f -name "$name" -print | LC_ALL=C sort > "$output"
+            test "$(wc -l < "$output" | tr -d ' ')" = 1 || {
+              echo "::error::$root must contain exactly one regular $name."
+              return 1
+            }
+            IFS= read -r matched < "$output"
+            test -f "$matched" && test ! -L "$matched"
+            printf '%s\n' "$matched"
+          }
+          webui_build_input="$(one_regular_file webui-carrier build-input.json webui-build-inputs.txt)"
+          webui_carrier_receipt="$(one_regular_file webui-carrier carrier-receipt.json webui-carrier-receipts.txt)"
+          webui_image_inspect="$(one_regular_file webui-carrier image-inspect.json webui-image-inspects.txt)"
+          webui_runtime_summary="$(one_regular_file webui-carrier runtime-summary.json webui-runtime-summaries.txt)"
+          webui_registry_readback="$(one_regular_file webui-carrier registry-readback.json webui-registry-readbacks.txt)"
+          node --experimental-strip-types app-source/scripts/release-webui-carrier.ts \
+            verify-build-input --input "$webui_build_input" \
+            --expected-version '${{ needs.freeze.outputs.version }}' \
+            --expected-bundle-digest "$BUNDLE_DIGEST" \
+            --expected-cohort-ref "$BUNDLE_DIGEST" \
+            --expected-app-sha '${{ needs.freeze.outputs.app_sha }}' \
+            --expected-shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
+            --expected-framework-sha '${{ needs.freeze.outputs.framework_sha }}' \
+            --expected-architecture amd64 > webui-build-input-verification.json
+          node --experimental-strip-types app-source/scripts/release-webui-carrier.ts \
+            verify-carrier-receipt --build-input "$webui_build_input" \
+            --receipt "$webui_carrier_receipt" \
+            --image-inspect "$webui_image_inspect" \
+            --runtime-summary "$webui_runtime_summary" \
+            --registry-readback "$webui_registry_readback" \
+            --expected-version '${{ needs.freeze.outputs.version }}' \
+            --expected-bundle-digest "$BUNDLE_DIGEST" \
+            --expected-cohort-ref "$BUNDLE_DIGEST" \
+            --expected-app-sha '${{ needs.freeze.outputs.app_sha }}' \
+            --expected-shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
+            --expected-framework-sha '${{ needs.freeze.outputs.framework_sha }}' \
+            --expected-architecture amd64 > webui-carrier-verification.json
+          mkdir -p webui-assets
+          cp "$webui_carrier_receipt" webui-assets/opl-webui-carrier.json
+          cmp "$webui_carrier_receipt" webui-assets/opl-webui-carrier.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
             --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/standard-build" \
             --bundle bundle/release-bundle.json --track standard --outcome complete \
             --assets-dir standard-assets --output standard-build-receipt.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-webui-build" \
+            --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
+            --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/${{ needs.webui-carrier.outputs.carrier_artifact_name }}" \
+            --bundle bundle/release-bundle.json --track webui --outcome complete \
+            --assets-dir webui-assets --output webui-build-receipt.json
           framework-source/bin/opl release freeze \
             --request bundle/freeze-request.json --source-root framework-source \
             --store "$RUNNER_TEMP/store" --json > /dev/null
@@ -723,6 +875,12 @@ jobs:
             --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
             --store "$RUNNER_TEMP/store" --json > standard-build-result.json
+          framework-source/bin/opl release build \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt webui-build-receipt.json \
+            --operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
+            --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
+            --store "$RUNNER_TEMP/store" --json > webui-build-result.json
           legacy_receipt="$(find standard-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
           test -n "$legacy_receipt" || { echo "::error::Standard qualification receipt is missing."; exit 1; }
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
@@ -735,9 +893,26 @@ jobs:
             --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
             --store "$RUNNER_TEMP/store" --json > standard-verify-result.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
+            --bundle bundle/release-bundle.json --track webui \
+            --webui-build-input "$webui_build_input" \
+            --webui-carrier webui-assets/opl-webui-carrier.json \
+            --evidence-ref "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/artifacts/${{ needs.webui-carrier.outputs.carrier_artifact_name }}#build-input.json" \
+            --evidence-ref "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/artifacts/${{ needs.webui-carrier.outputs.carrier_artifact_name }}#carrier-receipt.json" \
+            --evidence-ref "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/artifacts/${{ needs.webui-carrier.outputs.carrier_artifact_name }}#runtime-summary.json" \
+            --evidence-ref "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/artifacts/${{ needs.webui-carrier.outputs.carrier_artifact_name }}#registry-readback.json" \
+            --output webui-qualification-receipt.json
+          framework-source/bin/opl release verify \
+            --bundle "$BUNDLE_DIGEST" \
+            --qualification-receipt webui-qualification-receipt.json \
+            --operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
+            --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
+            --store "$RUNNER_TEMP/store" --json > webui-verify-result.json
           framework-source/bin/opl release checkpoint export \
             --bundle "$BUNDLE_DIGEST" --output standard-checkpoint \
             --store "$RUNNER_TEMP/store" --json > checkpoint-export.json
+          test "$(jq -er .release_bundle_checkpoint_export.checkpoint_stage checkpoint-export.json)" = stable_qualified
 
       - name: Expose Framework checkpoint result and transport provenance
         id: provenance
@@ -760,6 +935,9 @@ jobs:
           path: |
             standard-checkpoint
             standard-build-receipt.json
+            webui-build-receipt.json
+            webui-qualification-receipt.json
+            webui-assets/opl-webui-carrier.json
           if-no-files-found: error
           retention-days: 30
 
@@ -772,6 +950,10 @@ jobs:
             operation-admit-result.json
             standard-build-result.json
             standard-verify-result.json
+            webui-build-result.json
+            webui-verify-result.json
+            webui-build-input-verification.json
+            webui-carrier-verification.json
             checkpoint-export.json
           if-no-files-found: error
           retention-days: 30

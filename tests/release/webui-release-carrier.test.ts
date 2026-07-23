@@ -1,0 +1,612 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import test from 'node:test';
+import YAML from 'yaml';
+
+const appRoot = process.cwd();
+const cliPath = path.join(appRoot, 'scripts', 'release-webui-carrier.ts');
+const schemaPath = path.join(appRoot, 'contracts', 'app-webui-release-carrier.schema.json');
+const workflowPath = path.join(appRoot, '.github', 'workflows', '_release-webui-carrier.yml');
+const appSha = 'a'.repeat(40);
+const shellSha = 'b'.repeat(40);
+const frameworkSha = 'c'.repeat(40);
+const bundleDigest = `sha256:${'1'.repeat(64)}`;
+const cohortRef = `sha256:${'2'.repeat(64)}`;
+const imageDigest = `sha256:${'f'.repeat(64)}`;
+
+function digest(character: string): string {
+  return `sha256:${character.repeat(64)}`;
+}
+
+function sha256(bytes: Buffer | string): string {
+  return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function draftBuildInput() {
+  const refs: Record<string, string> = {
+    app_source: appSha,
+    shell_webui_source: shellSha,
+    dockerfile: 'shells/aionui/Dockerfile',
+    framework_seed: frameworkSha,
+    codex_cli: '@openai/codex@1.2.3',
+    opl_flow: 'd'.repeat(40),
+    base_image: `docker.io/library/node@${digest('7')}`,
+    first_party_packages: 'release-set-generation:26.7.20',
+    qualification_harness: 'scripts/validate-webui-runtime-image.ts',
+  };
+  return {
+    schema: 'opl_app_webui_build_input.v1',
+    release: {
+      version: '26.7.23',
+      bundle_digest: bundleDigest,
+      cohort_ref: cohortRef,
+    },
+    source_cutoff: {
+      observed_at: '2026-07-23T01:02:03Z',
+      policy: 'single_read_at_freeze_admission',
+      frozen_base_release_set: { generation: '26.7.20', digest: digest('8') },
+      post_freeze_remote_refresh_allowed: false,
+      later_authority_advancement_invalidates_bundle: false,
+    },
+    cohort: {
+      app_sha: appSha,
+      shell_sha: shellSha,
+      framework_sha: frameworkSha,
+    },
+    platform: { os: 'linux', architecture: 'amd64' },
+    inputs: Object.entries(refs).map(([id, ref], index) => ({
+      id,
+      ref,
+      digest: id === 'base_image' ? digest('7') : digest('3456789ab'[index]),
+      size_bytes: index + 1,
+    })),
+  };
+}
+
+function writeJson(root: string, name: string, value: unknown): string {
+  const filePath = path.join(root, name);
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+  return filePath;
+}
+
+function runCli(args: string[]) {
+  return spawnSync(process.execPath, ['--experimental-strip-types', cliPath, ...args], {
+    cwd: appRoot,
+    encoding: 'utf8',
+  });
+}
+
+function sealBuildInput(root: string, draft = draftBuildInput()): string {
+  const draftPath = writeJson(root, 'draft.json', draft);
+  const outputPath = path.join(root, 'build-input.json');
+  const result = runCli(['seal-build-input', '--input', draftPath, '--output', outputPath]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.manifest_digest, sha256(fs.readFileSync(outputPath)));
+  return outputPath;
+}
+
+function writeCodexTarball(root: string, identity: { name?: string; version?: string } = {}): string {
+  const sourceRoot = path.join(root, 'codex-package-source');
+  const packageRoot = path.join(sourceRoot, 'package');
+  fs.mkdirSync(packageRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(packageRoot, 'package.json'),
+    `${JSON.stringify({
+      name: identity.name ?? '@openai/codex',
+      version: identity.version ?? '1.2.3',
+    })}\n`,
+  );
+  const artifactDirectory = path.join(root, 'frozen-codex');
+  fs.mkdirSync(artifactDirectory, { recursive: true });
+  const artifactPath = path.join(artifactDirectory, 'codex-cli.tgz');
+  const packed = spawnSync('tar', ['-czf', artifactPath, '-C', sourceRoot, 'package'], { encoding: 'utf8' });
+  assert.equal(packed.status, 0, packed.stderr || packed.stdout);
+  return artifactPath;
+}
+
+function codexBuildInput(root: string, artifactPath: string, ref = '@openai/codex@1.2.3'): string {
+  const draft = draftBuildInput();
+  const input = draft.inputs.find((candidate) => candidate.id === 'codex_cli');
+  assert.ok(input);
+  input.ref = ref;
+  input.digest = sha256(fs.readFileSync(artifactPath));
+  input.size_bytes = fs.statSync(artifactPath).size;
+  return sealBuildInput(root, draft);
+}
+
+function verifyCodexArtifact(buildInputPath: string, artifactDirectory: string) {
+  return runCli([
+    'verify-codex-artifact',
+    '--build-input',
+    buildInputPath,
+    '--artifact-dir',
+    artifactDirectory,
+  ]);
+}
+
+function verifyDockerContextPolicy(root: string, rules: readonly string[]) {
+  const dockerIgnorePath = path.join(root, '.dockerignore');
+  fs.writeFileSync(dockerIgnorePath, `${rules.join('\n')}\n`);
+  return runCli(['verify-docker-context-policy', '--dockerignore', dockerIgnorePath]);
+}
+
+function expectedIdentityArgs() {
+  return [
+    '--expected-version',
+    '26.7.23',
+    '--expected-bundle-digest',
+    bundleDigest,
+    '--expected-cohort-ref',
+    cohortRef,
+    '--expected-app-sha',
+    appSha,
+    '--expected-shell-sha',
+    shellSha,
+    '--expected-framework-sha',
+    frameworkSha,
+    '--expected-architecture',
+    'amd64',
+  ];
+}
+
+function carrierFixture(root: string, buildInputPath: string, overrides: {
+  architecture?: string;
+  labels?: Record<string, string>;
+  runtime?: Record<string, unknown>;
+} = {}) {
+  const buildInput = JSON.parse(fs.readFileSync(buildInputPath, 'utf8'));
+  const manifestDigest = sha256(fs.readFileSync(buildInputPath));
+  const imageId = `sha256:${'e'.repeat(64)}`;
+  const labels = {
+    'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
+    'org.opencontainers.image.revision': appSha,
+    'org.opencontainers.image.version': '26.7.23',
+    'dev.onepersonlab.release.bundle-digest': bundleDigest,
+    'dev.onepersonlab.release.cohort-ref': cohortRef,
+    'dev.onepersonlab.release.build-input-digest': manifestDigest,
+    'dev.onepersonlab.release.content-fingerprint': buildInput.content_fingerprint,
+    'dev.onepersonlab.release.shell-revision': shellSha,
+    'dev.onepersonlab.release.framework-revision': frameworkSha,
+    ...overrides.labels,
+  };
+  const imageInspectPath = writeJson(root, 'image-inspect.json', [
+    {
+      Id: imageId,
+      Os: 'linux',
+      Architecture: overrides.architecture ?? 'amd64',
+      Size: 123456,
+      Config: { Labels: labels },
+    },
+  ]);
+  const runtimeSummaryPath = writeJson(root, 'runtime-summary.json', {
+    status: 'passed',
+    expected_profile: 'webui-full',
+    image_id: imageId,
+    oci_revision: appSha,
+    http_health: { status: 'passed' },
+    runtime_cli_shims: { opl: 'passed', codex: 'passed' },
+    ...overrides.runtime,
+  });
+  const registryReadbackPath = writeJson(root, 'registry-readback.json', {
+    schema: 'opl_app_webui_registry_readback.v1',
+    status: 'passed',
+    ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+    digest: imageDigest,
+    version_tag: 'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
+    version_tag_digest: imageDigest,
+  });
+  return { imageInspectPath, runtimeSummaryPath, registryReadbackPath };
+}
+
+test('WebUI build input sealing is canonical, repeatable, and identity-bound', () => {
+  const firstRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-input-first-'));
+  const secondRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-input-second-'));
+  const first = draftBuildInput();
+  const second = {
+    inputs: [...first.inputs].reverse().map((input) => ({
+      size_bytes: input.size_bytes,
+      digest: input.digest,
+      ref: input.ref,
+      id: input.id,
+    })),
+    platform: { architecture: 'amd64', os: 'linux' },
+    cohort: { framework_sha: frameworkSha, shell_sha: shellSha, app_sha: appSha },
+    source_cutoff: first.source_cutoff,
+    release: first.release,
+    schema: first.schema,
+  };
+  const firstPath = sealBuildInput(firstRoot, first);
+  const secondPath = sealBuildInput(secondRoot, second);
+  assert.deepEqual(fs.readFileSync(firstPath), fs.readFileSync(secondPath));
+
+  const verify = runCli(['verify-build-input', '--input', firstPath, ...expectedIdentityArgs()]);
+  assert.equal(verify.status, 0, verify.stderr || verify.stdout);
+  const summary = JSON.parse(verify.stdout);
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.architecture, 'amd64');
+  assert.match(summary.content_fingerprint, /^sha256:[0-9a-f]{64}$/);
+  const sealed = JSON.parse(fs.readFileSync(firstPath, 'utf8'));
+  assert.equal(sealed.source_cutoff.frozen_base_release_set.generation, '26.7.20');
+});
+
+test('WebUI carrier receipt binds immutable OCI digest, qualification, and frozen identity', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-carrier-'));
+  const buildInputPath = sealBuildInput(root);
+  const { imageInspectPath, runtimeSummaryPath, registryReadbackPath } = carrierFixture(root, buildInputPath);
+  const receiptPath = path.join(root, 'carrier-receipt.json');
+  const write = runCli([
+    'write-carrier-receipt',
+    '--build-input',
+    buildInputPath,
+    '--image-inspect',
+    imageInspectPath,
+    '--runtime-summary',
+    runtimeSummaryPath,
+    '--registry-readback',
+    registryReadbackPath,
+    '--image-ref',
+    `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+    '--image-size',
+    '123456',
+    '--output',
+    receiptPath,
+  ]);
+  assert.equal(write.status, 0, write.stderr || write.stdout);
+
+  const verify = runCli([
+    'verify-carrier-receipt',
+    '--build-input',
+    buildInputPath,
+    '--receipt',
+    receiptPath,
+    '--image-inspect',
+    imageInspectPath,
+    '--runtime-summary',
+    runtimeSummaryPath,
+    '--registry-readback',
+    registryReadbackPath,
+    ...expectedIdentityArgs(),
+  ]);
+  assert.equal(verify.status, 0, verify.stderr || verify.stdout);
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.equal(receipt.carrier.carrier_id, 'docker_webui');
+  assert.equal(receipt.carrier.carrier_kind, 'oci_image');
+  assert.equal(receipt.carrier.package_profile, 'webui-full');
+  assert.equal(receipt.carrier.digest, imageDigest);
+  assert.equal(receipt.carrier.content_fingerprint, receipt.build_input.content_fingerprint);
+  assert.equal(receipt.qualification.build_stage, 'webui_built');
+  assert.equal(receipt.qualification.qualification_stage, 'webui_qualified');
+});
+
+test('frozen Codex artifact verification binds exact tgz bytes and package identity', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-artifact-'));
+  const artifactPath = writeCodexTarball(root);
+  const buildInputPath = codexBuildInput(root, artifactPath);
+  const result = verifyCodexArtifact(buildInputPath, path.dirname(artifactPath));
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.deepEqual(summary, {
+    schema: 'opl_app_webui_codex_artifact_verification.v1',
+    status: 'passed',
+    artifact_name: 'codex-cli.tgz',
+    ref: '@openai/codex@1.2.3',
+    digest: sha256(fs.readFileSync(artifactPath)),
+    size_bytes: fs.statSync(artifactPath).size,
+    package_name: '@openai/codex',
+    package_version: '1.2.3',
+  });
+});
+
+test('Docker context policy requires recursive tgz exclusion and the sole frozen Codex exception', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-docker-context-'));
+  const recursiveRule = '**/*.tgz';
+  const frozenException = '!.opl-frozen-inputs/codex-cli.tgz';
+  const passed = verifyDockerContextPolicy(root, ['node_modules', recursiveRule, frozenException, 'dist']);
+  assert.equal(passed.status, 0, passed.stderr || passed.stdout);
+  assert.deepEqual(JSON.parse(passed.stdout), {
+    schema: 'opl_app_webui_docker_context_policy_verification.v1',
+    status: 'passed',
+    recursive_tgz_rule: recursiveRule,
+    frozen_codex_exception: frozenException,
+  });
+
+  for (const [label, rules] of [
+    ['root-only', ['*.tgz', frozenException]],
+    ['non-adjacent', [recursiveRule, 'dist', frozenException]],
+    ['duplicate-exception', [recursiveRule, frozenException, frozenException]],
+    ['additional-tgz-rule', [recursiveRule, frozenException, '!nested/other.tgz']],
+  ] as const) {
+    const caseRoot = path.join(root, label);
+    fs.mkdirSync(caseRoot);
+    const rejected = verifyDockerContextPolicy(caseRoot, rules);
+    assert.notEqual(rejected.status, 0, label);
+    assert.match(
+      rejected.stderr,
+      /recursively exclude tgz files and admit only the frozen Codex artifact/,
+      label,
+    );
+  }
+});
+
+test('frozen Codex artifact verification rejects missing, duplicate, symlink, and non-file inputs', () => {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-source-'));
+  const sourceArtifact = writeCodexTarball(sourceRoot);
+  const buildInputPath = codexBuildInput(sourceRoot, sourceArtifact);
+
+  const missingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-missing-'));
+  const missing = verifyCodexArtifact(buildInputPath, missingRoot);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /exactly one entry named codex-cli\.tgz/);
+
+  const duplicateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-duplicate-'));
+  fs.copyFileSync(sourceArtifact, path.join(duplicateRoot, 'codex-cli.tgz'));
+  fs.writeFileSync(path.join(duplicateRoot, 'unexpected.txt'), 'unexpected\n');
+  const duplicate = verifyCodexArtifact(buildInputPath, duplicateRoot);
+  assert.notEqual(duplicate.status, 0);
+  assert.match(duplicate.stderr, /exactly one entry named codex-cli\.tgz/);
+
+  const symlinkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-symlink-'));
+  fs.symlinkSync(sourceArtifact, path.join(symlinkRoot, 'codex-cli.tgz'));
+  const symlink = verifyCodexArtifact(buildInputPath, symlinkRoot);
+  assert.notEqual(symlink.status, 0);
+  assert.match(symlink.stderr, /regular file, never a symlink/);
+
+  const nonFileRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-non-file-'));
+  fs.mkdirSync(path.join(nonFileRoot, 'codex-cli.tgz'));
+  const nonFile = verifyCodexArtifact(buildInputPath, nonFileRoot);
+  assert.notEqual(nonFile.status, 0);
+  assert.match(nonFile.stderr, /regular file, never a symlink/);
+});
+
+test('frozen Codex artifact verification rejects digest, size, name, version, and ref drift', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-codex-drift-'));
+  const artifactPath = writeCodexTarball(root);
+  const cleanDraft = draftBuildInput();
+  const cleanInput = cleanDraft.inputs.find((candidate) => candidate.id === 'codex_cli');
+  assert.ok(cleanInput);
+  cleanInput.digest = sha256(fs.readFileSync(artifactPath));
+  cleanInput.size_bytes = fs.statSync(artifactPath).size;
+
+  for (const [label, mutate, pattern] of [
+    ['digest', (input: typeof cleanInput) => { input.digest = digest('0'); }, /artifact digest expected/],
+    ['size', (input: typeof cleanInput) => { input.size_bytes += 1; }, /artifact size expected/],
+  ] as const) {
+    const caseRoot = path.join(root, label);
+    fs.mkdirSync(caseRoot);
+    const draft = structuredClone(cleanDraft);
+    const input = draft.inputs.find((candidate) => candidate.id === 'codex_cli');
+    assert.ok(input);
+    mutate(input);
+    const buildInputPath = sealBuildInput(caseRoot, draft);
+    const result = verifyCodexArtifact(buildInputPath, path.dirname(artifactPath));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, pattern);
+  }
+
+  for (const [label, identity, pattern] of [
+    ['name', { name: '@openai/not-codex' }, /package name expected @openai\/codex/],
+    ['version', { version: '1.2.4' }, /package version expected 1\.2\.3/],
+  ] as const) {
+    const caseRoot = path.join(root, label);
+    fs.mkdirSync(caseRoot);
+    const mismatchedArtifact = writeCodexTarball(caseRoot, identity);
+    const buildInputPath = codexBuildInput(caseRoot, mismatchedArtifact);
+    const result = verifyCodexArtifact(buildInputPath, path.dirname(mismatchedArtifact));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, pattern);
+  }
+
+  const invalidRefRoot = path.join(root, 'ref');
+  fs.mkdirSync(invalidRefRoot);
+  const invalidRefDraft = structuredClone(cleanDraft);
+  const invalidRefInput = invalidRefDraft.inputs.find((candidate) => candidate.id === 'codex_cli');
+  assert.ok(invalidRefInput);
+  invalidRefInput.ref = '@openai/codex@latest';
+  const invalidRefPath = writeJson(invalidRefRoot, 'draft.json', invalidRefDraft);
+  const invalidRef = runCli([
+    'seal-build-input',
+    '--input',
+    invalidRefPath,
+    '--output',
+    path.join(invalidRefRoot, 'build-input.json'),
+  ]);
+  assert.notEqual(invalidRef.status, 0);
+  assert.match(invalidRef.stderr, /must be an exact @openai\/codex version/);
+});
+
+test('WebUI carrier fails closed for stale digest and OCI label drift', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-stale-'));
+  const buildInputPath = sealBuildInput(root);
+  const buildInput = JSON.parse(fs.readFileSync(buildInputPath, 'utf8'));
+  buildInput.inputs[0].digest = digest('9');
+  fs.writeFileSync(buildInputPath, `${JSON.stringify(buildInput)}\n`);
+  const stale = runCli(['verify-build-input', '--input', buildInputPath]);
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /content_fingerprint expected/);
+
+  const cleanInputPath = sealBuildInput(root);
+  const fixture = carrierFixture(root, cleanInputPath, {
+    labels: { 'dev.onepersonlab.release.bundle-digest': digest('6') },
+  });
+  const mismatchedLabel = runCli([
+    'write-carrier-receipt',
+    '--build-input',
+    cleanInputPath,
+    '--image-inspect',
+    fixture.imageInspectPath,
+    '--runtime-summary',
+    fixture.runtimeSummaryPath,
+    '--registry-readback',
+    fixture.registryReadbackPath,
+    '--image-ref',
+    `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+    '--image-size',
+    '123456',
+    '--output',
+    path.join(root, 'must-not-exist.json'),
+  ]);
+  assert.notEqual(mismatchedLabel.status, 0);
+  assert.match(mismatchedLabel.stderr, /image label dev\.onepersonlab\.release\.bundle-digest expected/);
+});
+
+test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incomplete Bundle identity', () => {
+  const cohortRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-cohort-'));
+  const cohortPath = sealBuildInput(cohortRoot);
+  const wrongCohort = runCli([
+    'verify-build-input',
+    '--input',
+    cohortPath,
+    '--expected-cohort-ref',
+    digest('0'),
+  ]);
+  assert.notEqual(wrongCohort.status, 0);
+  assert.match(wrongCohort.stderr, /release\.cohort_ref expected/);
+
+  const archRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-arch-'));
+  const wrongArchDraft = draftBuildInput();
+  wrongArchDraft.platform.architecture = 'arm64';
+  const archDraftPath = writeJson(archRoot, 'draft.json', wrongArchDraft);
+  const wrongArch = runCli([
+    'seal-build-input',
+    '--input',
+    archDraftPath,
+    '--output',
+    path.join(archRoot, 'output.json'),
+  ]);
+  assert.notEqual(wrongArch.status, 0);
+  assert.match(wrongArch.stderr, /platform\.architecture expected amd64/);
+
+  const incompleteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-incomplete-'));
+  const incomplete = draftBuildInput();
+  delete (incomplete.release as { bundle_digest?: string }).bundle_digest;
+  const incompletePath = writeJson(incompleteRoot, 'draft.json', incomplete);
+  const incompleteBundle = runCli([
+    'seal-build-input',
+    '--input',
+    incompletePath,
+    '--output',
+    path.join(incompleteRoot, 'output.json'),
+  ]);
+  assert.notEqual(incompleteBundle.status, 0);
+  assert.match(incompleteBundle.stderr, /release must contain exactly/);
+
+  for (const generation of [41, '2026.7.20']) {
+    const generationRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-release-set-generation-'));
+    const invalidGeneration = draftBuildInput();
+    (invalidGeneration.source_cutoff.frozen_base_release_set as { generation: unknown }).generation = generation;
+    const generationPath = writeJson(generationRoot, 'draft.json', invalidGeneration);
+    const rejectedGeneration = runCli([
+      'seal-build-input',
+      '--input',
+      generationPath,
+      '--output',
+      path.join(generationRoot, 'output.json'),
+    ]);
+    assert.notEqual(rejectedGeneration.status, 0);
+    assert.match(rejectedGeneration.stderr, /source_cutoff\.frozen_base_release_set\.generation must/);
+  }
+});
+
+test('WebUI carrier rejects a runtime image for the wrong architecture', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-image-arch-'));
+  const buildInputPath = sealBuildInput(root);
+  const fixture = carrierFixture(root, buildInputPath, { architecture: 'arm64' });
+  const result = runCli([
+    'write-carrier-receipt',
+    '--build-input',
+    buildInputPath,
+    '--image-inspect',
+    fixture.imageInspectPath,
+    '--runtime-summary',
+    fixture.runtimeSummaryPath,
+    '--registry-readback',
+    fixture.registryReadbackPath,
+    '--image-ref',
+    `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+    '--image-size',
+    '123456',
+    '--output',
+    path.join(root, 'receipt.json'),
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /image inspect Architecture expected amd64/);
+});
+
+test('WebUI carrier schema closes both sealed artifacts', () => {
+  const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+  assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
+  assert.equal(schema.oneOf.length, 2);
+  assert.equal(schema.$defs.build_input.additionalProperties, false);
+  assert.equal(schema.$defs.carrier_receipt.additionalProperties, false);
+  assert.equal(schema.$defs.carrier.properties.carrier_id.const, 'docker_webui');
+  assert.equal(schema.$defs.carrier.properties.carrier_kind.const, 'oci_image');
+  assert.equal(schema.$defs.carrier.properties.package_profile.const, 'webui-full');
+  assert.equal(schema.$defs.platform.properties.architecture.const, 'amd64');
+  const generation = schema.$defs.source_cutoff.properties.frozen_base_release_set.oneOf[1].properties.generation;
+  assert.equal(generation.type, 'string');
+  assert.equal(generation.pattern, '^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$');
+});
+
+test('reusable WebUI workflow builds independently and gates immutable publication on runtime qualification', () => {
+  const source = fs.readFileSync(workflowPath, 'utf8');
+  const workflow = YAML.parse(source);
+  const inputs = workflow.on.workflow_call.inputs;
+  const build = workflow.jobs['build-and-qualify'];
+  const publish = workflow.jobs['publish-immutable-carrier'];
+  assert.equal(inputs.frozen_codex_artifact_name.type, 'string');
+  assert.equal(inputs.frozen_codex_artifact_name.required, true);
+  assert.equal(build.needs, undefined, 'WebUI build must not depend on Desktop');
+  assert.equal(publish.needs, 'build-and-qualify');
+  assert.equal(publish.environment, 'release-stable');
+  assert.equal(publish.permissions.packages, 'write');
+  assert.equal(build.permissions.actions, 'read');
+  assert.equal(build.permissions.packages, 'read');
+  assert.doesNotMatch(source, /one-person-lab-webui:stable/);
+  assert.doesNotMatch(source, /latest-stable|homebrew|releases\/latest/i);
+
+  const buildRun = build.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+  assert.match(buildRun, /seal-build-input/);
+  assert.match(buildRun, /verify-codex-artifact/);
+  assert.match(buildRun, /codex-artifact-verification\.json/);
+  assert.match(buildRun, /verify-docker-context-policy/);
+  assert.match(buildRun, /docker-context-policy-verification\.json/);
+  assert.match(buildRun, /\.opl-frozen-inputs\/codex-cli\.tgz/);
+  assert.match(buildRun, /COPY \.opl-frozen-inputs\/codex-cli\.tgz \/tmp\/codex-cli\.tgz/);
+  assert.match(buildRun, /npm install -g --prefix \/opt\/codex-cli \/tmp\/codex-cli\.tgz/);
+  assert.doesNotMatch(buildRun, /npm view|npm pack/);
+  assert.match(buildRun, /Dockerfile\.frozen/);
+  assert.match(buildRun, /--build-arg 'OPL_FRAMEWORK_REF=/);
+  assert.match(buildRun, /--build-arg 'OPL_FLOW_REF=/);
+  assert.match(buildRun, /--build-arg 'OPL_CODEX_NPM_SPEC=/);
+  assert.match(buildRun, /validate-webui-runtime-image\.ts/);
+  assert.match(buildRun, /curl --fail/);
+  const downloadCodex = build.steps.find(
+    (step: { name?: string }) => step.name === 'Download exact frozen Codex artifact',
+  );
+  assert.equal(downloadCodex.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
+  assert.equal(downloadCodex.with.name, '${{ inputs.frozen_codex_artifact_name }}');
+  assert.equal(downloadCodex.with.path, 'webui-carrier/frozen-codex');
+  const imageBuildIndex = build.steps.findIndex((step: { name?: string }) => step.name === 'Build WebUI image once from frozen inputs');
+  const qualificationIndex = build.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Qualify exact local runtime before any registry tag is written',
+  );
+  assert.ok(
+    imageBuildIndex >= 0 && imageBuildIndex < qualificationIndex,
+    'runtime qualification must follow the one image build',
+  );
+
+  const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+  assert.match(publishRun, /candidate-/);
+  assert.match(publishRun, /candidate-tag-readback\.txt/);
+  assert.match(publishRun, /Immutable WebUI version tag already points at/);
+  assert.match(publishRun, /Could not safely distinguish an absent version tag from a registry read failure/);
+  assert.match(publishRun, /bounded read-only reconcile did not prove the target digest/);
+  assert.match(publishRun, /write-carrier-receipt/);
+  assert.match(publishRun, /verify-carrier-receipt/);
+});

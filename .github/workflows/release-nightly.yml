@@ -20,6 +20,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      packages: write
     uses: ./.github/workflows/_release-bundle.yml
     with:
       channel: nightly

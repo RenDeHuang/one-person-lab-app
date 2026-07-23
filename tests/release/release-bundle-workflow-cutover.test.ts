@@ -10,6 +10,10 @@ import { parse as parseYaml } from 'yaml';
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
 const parseWorkflow = (name: string) => parseYaml(readWorkflow(name));
+const readAdapter = () => fs.readFileSync(
+  path.join(process.cwd(), 'scripts', 'framework-release-adapter.ts'),
+  'utf8',
+);
 const packageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'] as const;
 const minimumCompatibleFrameworkAbiRef = 'ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc';
 const rejectedBundle = 'sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49';
@@ -47,11 +51,30 @@ function gitFixture(root: string, name: string) {
   return directory;
 }
 
+function amendFixture(directory: string) {
+  for (const args of [
+    ['add', '.'],
+    ['commit', '--amend', '--no-edit', '-q'],
+  ]) {
+    const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+}
+
 function adapterFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-adapter-'));
   const appRoot = gitFixture(root, 'app');
   const shellRoot = gitFixture(root, 'shell');
   const frameworkRoot = gitFixture(root, 'framework');
+  const qualificationHarnessPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-image.ts');
+  fs.mkdirSync(path.dirname(qualificationHarnessPath), { recursive: true });
+  fs.writeFileSync(qualificationHarnessPath, 'export const fixtureHarness = true;\n');
+  fs.writeFileSync(path.join(shellRoot, 'Dockerfile'), 'FROM node:22-bookworm-slim\n');
+  const intakePath = path.join(shellRoot, 'contracts', 'aionui-upstream-intake.json');
+  fs.mkdirSync(path.dirname(intakePath), { recursive: true });
+  fs.writeFileSync(intakePath, `${JSON.stringify({
+    managed_runtime: { codex_cli: { package: '@openai/codex', version: '1.2.3' } },
+  })}\n`);
   const catalogRoot = path.join(frameworkRoot, 'contracts', 'opl-framework');
   const packageRoot = path.join(catalogRoot, 'packages');
   const payloadRoot = path.join(packageRoot, 'payloads');
@@ -90,7 +113,43 @@ function adapterFixture() {
     schema: 'opl_app_release_notes_evidence.v1',
     payload: { include_full_package: false },
   })}\n`);
-  return { root, appRoot, shellRoot, frameworkRoot, releaseSetPath, notesPath, evidencePath, payloadRoot };
+  const baseImageIndexPath = path.join(root, 'base-image-index.json');
+  fs.writeFileSync(baseImageIndexPath, `${JSON.stringify({
+    schemaVersion: 2,
+    mediaType: 'application/vnd.oci.image.index.v1+json',
+    manifests: [{
+      digest: `sha256:${'a'.repeat(64)}`,
+      size: 4321,
+      platform: { os: 'linux', architecture: 'amd64' },
+    }],
+  })}\n`);
+  const codexPackageRoot = path.join(root, 'codex-package', 'package');
+  fs.mkdirSync(codexPackageRoot, { recursive: true });
+  fs.writeFileSync(path.join(codexPackageRoot, 'package.json'), `${JSON.stringify({
+    name: '@openai/codex',
+    version: '1.2.3',
+  })}\n`);
+  const codexTarballPath = path.join(root, 'codex-cli.tgz');
+  const packed = spawnSync('tar', ['-czf', codexTarballPath, 'package'], {
+    cwd: path.dirname(codexPackageRoot),
+    encoding: 'utf8',
+  });
+  assert.equal(packed.status, 0, packed.stderr);
+  amendFixture(appRoot);
+  amendFixture(shellRoot);
+  amendFixture(frameworkRoot);
+  return {
+    root,
+    appRoot,
+    shellRoot,
+    frameworkRoot,
+    releaseSetPath,
+    notesPath,
+    evidencePath,
+    payloadRoot,
+    baseImageIndexPath,
+    codexTarballPath,
+  };
 }
 
 function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: string) {
@@ -108,8 +167,117 @@ function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: st
     '--notes-evidence', fixture.evidencePath,
     '--include-full-package', 'false',
     '--release-set-manifest', fixture.releaseSetPath,
+    '--source-cutoff-observed-at', '2026-07-23T00:00:00.000Z',
+    '--frozen-base-release-set-generation', '26.7.20',
+    '--frozen-base-release-set-digest', `sha256:${'b'.repeat(64)}`,
+    '--base-image-index', fixture.baseImageIndexPath,
+    '--frozen-codex-tarball', fixture.codexTarballPath,
     '--output', output,
   ], { cwd: process.cwd(), encoding: 'utf8' });
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
+}
+
+function writeJsonFile(filePath: string, value: unknown) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function webuiAdapterFixture() {
+  const fixture = adapterFixture();
+  const requestPath = path.join(fixture.root, 'freeze-request.json');
+  const frozen = runFreezeRequest(fixture, requestPath);
+  assert.equal(frozen.status, 0, frozen.stderr);
+  const request = JSON.parse(fs.readFileSync(requestPath, 'utf8'));
+  const bundleDigest = `sha256:${'c'.repeat(64)}`;
+  const bundle = {
+    ...request,
+    surface_kind: 'opl_release_bundle.v1',
+    bundle_digest: bundleDigest,
+  };
+  const bundlePath = path.join(fixture.root, 'release-bundle.json');
+  writeJsonFile(bundlePath, bundle);
+  const core = {
+    schema: 'opl_app_webui_build_input.v1',
+    release: { version: request.release.version, bundle_digest: bundleDigest, cohort_ref: bundleDigest },
+    source_cutoff: request.source_cutoff,
+    cohort: {
+      app_sha: request.sources.app.source_commit,
+      shell_sha: request.sources.shell.source_commit,
+      framework_sha: request.sources.framework.source_commit,
+    },
+    platform: { os: 'linux', architecture: 'amd64' },
+    inputs: request.frozen_build_inputs,
+  };
+  const buildInput = {
+    ...core,
+    content_fingerprint: `sha256:${crypto.createHash('sha256').update(canonicalJson(core)).digest('hex')}`,
+  };
+  const buildInputPath = path.join(fixture.root, 'build-input.json');
+  writeJsonFile(buildInputPath, buildInput);
+  const buildInputDigest = sha256(buildInputPath);
+  const imageDigest = `sha256:${'d'.repeat(64)}`;
+  const carrier = {
+    schema: 'opl_app_webui_release_carrier.v1',
+    release: buildInput.release,
+    source_cutoff: buildInput.source_cutoff,
+    cohort: buildInput.cohort,
+    build_input: {
+      schema: 'opl_app_webui_build_input.v1',
+      manifest_digest: buildInputDigest,
+      content_fingerprint: buildInput.content_fingerprint,
+    },
+    carrier: {
+      carrier_id: 'docker_webui',
+      carrier_kind: 'oci_image',
+      package_profile: 'webui-full',
+      ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+      digest: imageDigest,
+      size_bytes: 123456,
+      content_fingerprint: buildInput.content_fingerprint,
+      os: 'linux',
+      architecture: 'amd64',
+    },
+    qualification: {
+      schema: 'opl_app_webui_runtime_qualification.v1',
+      status: 'passed',
+      build_stage: 'webui_built',
+      qualification_stage: 'webui_qualified',
+      image_digest: imageDigest,
+      build_input_digest: buildInputDigest,
+      content_fingerprint: buildInput.content_fingerprint,
+      runtime_summary_sha256: `sha256:${'e'.repeat(64)}`,
+      registry_readback_sha256: `sha256:${'f'.repeat(64)}`,
+      runtime_image_id: `sha256:${'1'.repeat(64)}`,
+    },
+  };
+  const carrierPath = path.join(fixture.root, 'opl-webui-carrier.json');
+  writeJsonFile(carrierPath, carrier);
+  return { ...fixture, bundlePath, buildInputPath, carrierPath, bundle, buildInput, carrier };
+}
+
+function runWebuiQualification(
+  fixture: ReturnType<typeof webuiAdapterFixture>,
+  output: string,
+  evidenceFiles = ['build-input.json', 'carrier-receipt.json', 'runtime-summary.json', 'registry-readback.json'],
+) {
+  const evidenceBase = 'github-actions:gaofeng21cn/one-person-lab-app/runs/42/artifacts/webui-carrier';
+  const args = [
+    '--experimental-strip-types',
+    path.join(process.cwd(), 'scripts', 'framework-release-adapter.ts'),
+    'qualification-receipt',
+    '--bundle', fixture.bundlePath,
+    '--track', 'webui',
+    '--webui-build-input', fixture.buildInputPath,
+    '--webui-carrier', fixture.carrierPath,
+    '--output', output,
+  ];
+  for (const file of evidenceFiles) args.push('--evidence-ref', `${evidenceBase}#${file}`);
+  return spawnSync(process.execPath, args, { cwd: process.cwd(), encoding: 'utf8' });
 }
 
 function workflowStep(workflowName: string, jobName: string, stepName: string): Record<string, any> {
@@ -579,6 +747,7 @@ test('the live control plane is split into Standard build, Standard publish, and
     'freeze',
     'standard-build',
     'standard-qualification',
+    'webui-carrier',
     'checkpoint-standard',
     'publish-standard',
   ]);
@@ -592,7 +761,7 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.ok(full.jobs.provenance);
   assert.ok(full.jobs['publish-full']);
   for (const [workflow, inheritedMutationJobs] of [
-    [bundle, new Set(['publish-standard'])],
+    [bundle, new Set(['webui-carrier', 'publish-standard'])],
     [standard, new Set(['publish-standard-nonlatest', 'activate-latest'])],
     [full, new Set(['publish-full'])],
   ] as const) {
@@ -1055,6 +1224,39 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     assert.equal(request.surface_kind, 'opl_release_bundle_freeze_request.v1');
     assert.equal(request.schema_ref, 'contracts/opl-framework/release-bundle-freeze-request.schema.json');
     assert.match(request.framework_release_set.digest, /^sha256:[0-9a-f]{64}$/);
+    assert.deepEqual(request.source_cutoff, {
+      observed_at: '2026-07-23T00:00:00.000Z',
+      policy: 'single_read_at_freeze_admission',
+      frozen_base_release_set: { generation: '26.7.20', digest: `sha256:${'b'.repeat(64)}` },
+      post_freeze_remote_refresh_allowed: false,
+      later_authority_advancement_invalidates_bundle: false,
+    });
+    assert.deepEqual(
+      request.frozen_build_inputs.map((descriptor: Record<string, unknown>) => descriptor.id),
+      [
+        'app_source',
+        'base_image',
+        'codex_cli',
+        'dockerfile',
+        'first_party_packages',
+        'framework_seed',
+        'opl_flow',
+        'qualification_harness',
+        'shell_webui_source',
+      ],
+    );
+    assert.equal(new Set(request.frozen_build_inputs.map((descriptor: Record<string, unknown>) => descriptor.id)).size, 9);
+    for (const descriptor of request.frozen_build_inputs) {
+      assert.equal(typeof descriptor.ref, 'string');
+      assert.match(descriptor.digest, /^sha256:[0-9a-f]{64}$/);
+      assert.equal(Number.isSafeInteger(descriptor.size_bytes) && descriptor.size_bytes > 0, true);
+    }
+    assert.deepEqual(request.tracks.webui, {
+      required_asset_names: ['opl-webui-carrier.json'],
+      required_for_latest: true,
+      additive_only: false,
+      updater_metadata_allowed: false,
+    });
     for (const packageId of packageIds) {
       assert.match(request.packages[packageId].manifest_sha256, /^sha256:[0-9a-f]{64}$/);
       assert.match(request.packages[packageId].payload_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
@@ -1072,6 +1274,167 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     assert.match(drifted.stderr, /mas payload manifest digest drifted/);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('the App adapter fails closed on duplicate base descriptors and Codex package identity drift', () => {
+  const duplicate = adapterFixture();
+  try {
+    const index = JSON.parse(fs.readFileSync(duplicate.baseImageIndexPath, 'utf8'));
+    index.manifests.push({ ...index.manifests[0] });
+    writeJsonFile(duplicate.baseImageIndexPath, index);
+    const result = runFreezeRequest(duplicate, path.join(duplicate.root, 'duplicate-base.json'));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /exactly one linux\/amd64 descriptor/);
+  } finally {
+    fs.rmSync(duplicate.root, { recursive: true, force: true });
+  }
+
+  const codexDrift = adapterFixture();
+  try {
+    const packageJson = path.join(codexDrift.root, 'codex-package', 'package', 'package.json');
+    writeJsonFile(packageJson, { name: '@openai/codex', version: '9.9.9' });
+    const packed = spawnSync('tar', ['-czf', codexDrift.codexTarballPath, 'package'], {
+      cwd: path.join(codexDrift.root, 'codex-package'),
+      encoding: 'utf8',
+    });
+    assert.equal(packed.status, 0, packed.stderr);
+    const result = runFreezeRequest(codexDrift, path.join(codexDrift.root, 'codex-drift.json'));
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /package identity does not match/);
+  } finally {
+    fs.rmSync(codexDrift.root, { recursive: true, force: true });
+  }
+});
+
+test('the App adapter maps exact WebUI receipt bytes into Framework qualification and rejects identity drift', () => {
+  const positive = webuiAdapterFixture();
+  try {
+    const output = path.join(positive.root, 'webui-qualification.json');
+    const result = runWebuiQualification(positive, output);
+    assert.equal(result.status, 0, result.stderr);
+    const receipt = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(receipt.track, 'webui');
+    assert.deepEqual(receipt.subject, {
+      asset_name: 'opl-webui-carrier.json',
+      size_bytes: fs.statSync(positive.carrierPath).size,
+      sha256: sha256(positive.carrierPath),
+    });
+    assert.equal(receipt.qualification.harness_sha256, positive.bundle.frozen_build_inputs[7].digest);
+    assert.equal(receipt.qualification.evidence_refs.length, 4);
+  } finally {
+    fs.rmSync(positive.root, { recursive: true, force: true });
+  }
+
+  const cases = [
+    {
+      name: 'descriptor order',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.buildInput.inputs = [...fixture.buildInput.inputs].reverse();
+        writeJsonFile(fixture.buildInputPath, fixture.buildInput);
+      },
+      pattern: /exact-nine descriptors|canonical unique exact-nine descriptor order/,
+    },
+    {
+      name: 'descriptor ref',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.buildInput.inputs[0].ref = ' ';
+        writeJsonFile(fixture.bundlePath, fixture.bundle);
+        writeJsonFile(fixture.buildInputPath, fixture.buildInput);
+      },
+      pattern: /ref\/digest\/size identity/,
+    },
+    {
+      name: 'descriptor digest',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.buildInput.inputs[0].digest = 'sha256:invalid';
+        writeJsonFile(fixture.bundlePath, fixture.bundle);
+        writeJsonFile(fixture.buildInputPath, fixture.buildInput);
+      },
+      pattern: /ref\/digest\/size identity/,
+    },
+    {
+      name: 'descriptor size',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.buildInput.inputs[0].size_bytes = 0;
+        writeJsonFile(fixture.bundlePath, fixture.bundle);
+        writeJsonFile(fixture.buildInputPath, fixture.buildInput);
+      },
+      pattern: /ref\/digest\/size identity/,
+    },
+    {
+      name: 'duplicate descriptor',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.buildInput.inputs = fixture.buildInput.inputs.map((entry: unknown) => structuredClone(entry));
+        fixture.buildInput.inputs[8] = structuredClone(fixture.buildInput.inputs[0]);
+        writeJsonFile(fixture.buildInputPath, fixture.buildInput);
+      },
+      pattern: /exact-nine descriptors|canonical unique exact-nine descriptor order/,
+    },
+    {
+      name: 'carrier ref',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.carrier.carrier.ref = `ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:${'2'.repeat(64)}`;
+        writeJsonFile(fixture.carrierPath, fixture.carrier);
+      },
+      pattern: /ref and digest/,
+    },
+    {
+      name: 'qualification digest',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.carrier.qualification.image_digest = `sha256:${'2'.repeat(64)}`;
+        writeJsonFile(fixture.carrierPath, fixture.carrier);
+      },
+      pattern: /qualified image digest/,
+    },
+    {
+      name: 'carrier size',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.carrier.carrier.size_bytes = 0;
+        writeJsonFile(fixture.carrierPath, fixture.carrier);
+      },
+      pattern: /image size/,
+    },
+    {
+      name: 'receipt release',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.carrier.release.bundle_digest = `sha256:${'2'.repeat(64)}`;
+        writeJsonFile(fixture.carrierPath, fixture.carrier);
+      },
+      pattern: /carrier release/,
+    },
+    {
+      name: 'extra qualification field',
+      mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
+        fixture.carrier.qualification.unexpected = true;
+        writeJsonFile(fixture.carrierPath, fixture.carrier);
+      },
+      pattern: /qualification does not contain the exact contract fields/,
+    },
+  ];
+  for (const scenario of cases) {
+    const fixture = webuiAdapterFixture();
+    try {
+      scenario.mutate(fixture);
+      const result = runWebuiQualification(fixture, path.join(fixture.root, 'rejected.json'));
+      assert.notEqual(result.status, 0, scenario.name);
+      assert.match(result.stderr, scenario.pattern, scenario.name);
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }
+
+  const missingEvidence = webuiAdapterFixture();
+  try {
+    const result = runWebuiQualification(
+      missingEvidence,
+      path.join(missingEvidence.root, 'missing-evidence.json'),
+      ['build-input.json', 'carrier-receipt.json', 'runtime-summary.json'],
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /exact four durable carrier evidence refs/);
+  } finally {
+    fs.rmSync(missingEvidence.root, { recursive: true, force: true });
   }
 });
 
@@ -1100,4 +1463,71 @@ test('the App adapter rejects prepared notes whose Full intent differs from the 
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
+});
+
+test('unified Stable freezes once, builds Desktop and WebUI in parallel, and joins at stable_qualified', () => {
+  const workflow = parseWorkflow('_release-bundle.yml');
+  const source = readWorkflow('_release-bundle.yml');
+  const adapterSource = readAdapter();
+  assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
+  assert.deepEqual(workflow.jobs['webui-carrier'].needs, ['freeze']);
+  assert.deepEqual(
+    workflow.jobs['checkpoint-standard'].needs,
+    ['freeze', 'standard-build', 'standard-qualification', 'webui-carrier'],
+  );
+  assert.equal(
+    workflow.jobs['webui-carrier'].with.frozen_build_input_json,
+    '${{ needs.freeze.outputs.webui_build_input_json }}',
+  );
+  assert.equal(
+    workflow.jobs['webui-carrier'].with.frozen_codex_artifact_name,
+    '${{ needs.freeze.outputs.frozen_codex_artifact_name }}',
+  );
+  for (const id of [
+    'app_source',
+    'base_image',
+    'codex_cli',
+    'dockerfile',
+    'first_party_packages',
+    'framework_seed',
+    'opl_flow',
+    'qualification_harness',
+    'shell_webui_source',
+  ]) {
+    assert.match(adapterSource, new RegExp(id));
+  }
+  assert.equal((source.match(/oras manifest fetch --descriptor "\$\{carrier\}:latest-stable"/g) ?? []).length, 1);
+  assert.doesNotMatch(source, /oras login|--password-stdin/);
+  assert.match(source, /single_read_at_freeze_admission|--source-cutoff-observed-at/);
+  assert.match(source, /--frozen-base-release-set-generation/);
+  assert.match(source, /--base-image-index/);
+  assert.match(source, /--frozen-codex-tarball/);
+  assert.match(source, /cmp "\$webui_carrier_receipt" webui-assets\/opl-webui-carrier\.json/);
+  assert.match(source, /--bundle bundle\/release-bundle\.json --track webui --outcome complete/);
+  assert.match(source, /qualification-receipt[\s\S]*--track webui/);
+  assert.match(source, /release verify \\\n\s+--bundle "\$BUNDLE_DIGEST" \\\n\s+--qualification-receipt webui-qualification-receipt\.json/);
+  assert.doesNotMatch(source, /release verify \\\n\s+--bundle "\$BUNDLE_DIGEST" --track webui/);
+  assert.match(source, /checkpoint_stage checkpoint-export\.json\)" = stable_qualified/);
+  assert.doesNotMatch(
+    source.slice(source.indexOf('Freeze canonical Framework Bundle')),
+    /npm view[^\n]+latest|git ls-remote[^\n]+(?:shells\/aionui|framework-source)[^\n]+after-freeze/,
+  );
+});
+
+test('Standard moving pointers require fresh WebUI readback and the Framework stable promotion barrier', () => {
+  const workflow = parseWorkflow('_release-standard-publish.yml');
+  const source = readWorkflow('_release-standard-publish.yml');
+  assert.ok(workflow.jobs['publish-homebrew-standard'].needs.includes('remote-digest-verify'));
+  assert.ok(workflow.jobs['activate-latest'].needs.includes('remote-digest-verify'));
+  assert.match(source, /docker buildx imagetools inspect "\$webui_ref"/);
+  assert.match(source, /docker buildx imagetools inspect "\$latest_webui_ref"/);
+  assert.equal((source.match(/--track webui --outcome complete/g) ?? []).length, 2);
+  assert.equal((source.match(/stable_promotion_barrier\.satisfied == true/g) ?? []).length, 2);
+  assert.equal((source.match(/required_tracks == \["standard","webui"\]/g) ?? []).length, 2);
+  assert.match(source, /Unified Stable publish requires an exact stable_qualified checkpoint/);
+  assert.match(source, /Legacy Standard publish requires a checkpoint at or after standard_qualified/);
+  assert.equal((source.match(/if jq -e '\.tracks\.webui' "\$bundle" >\/dev\/null; then/g) ?? []).length, 5);
+  assert.equal((source.match(/\.release_bundle_status\.tracks\.standard\.reconcile_required == false/g) ?? []).length, 4);
+  assert.match(source, /find "\$checkpoint_dir" -type f -name opl-webui-carrier\.json/);
+  assert.doesNotMatch(source, /oras tag[^\n]+stable|docker buildx imagetools create[^\n]+stable/);
 });

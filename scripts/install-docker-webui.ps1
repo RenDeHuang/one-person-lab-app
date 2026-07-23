@@ -224,6 +224,58 @@ function Resolve-ImageReference {
   return "${ImageName}:${ImageTag}"
 }
 
+function Get-ImageRepositoryName {
+  param([Parameter(Mandatory = $true)][string]$ImageReference)
+
+  $withoutDigest = ($ImageReference -split "@", 2)[0]
+  $lastSlash = $withoutDigest.LastIndexOf("/")
+  $lastColon = $withoutDigest.LastIndexOf(":")
+  if ($lastColon -gt $lastSlash) {
+    return $withoutDigest.Substring(0, $lastColon)
+  }
+  return $withoutDigest
+}
+
+function Resolve-PinnedImageReference {
+  param([Parameter(Mandatory = $true)][string]$RequestedImageReference)
+
+  if ($RequestedImageReference.Contains("@") -and $RequestedImageReference -notmatch "@sha256:[0-9a-f]{64}$") {
+    throw "WebUI image digest references must end in @sha256:<64 lowercase hex>."
+  }
+
+  if ($DryRun) {
+    if ($RequestedImageReference.Contains("@")) {
+      Write-Step "Dry run: would pull and verify immutable WebUI image $RequestedImageReference."
+      return $RequestedImageReference
+    }
+    $repository = Get-ImageRepositoryName -ImageReference $RequestedImageReference
+    Write-Step "Dry run: would pull $RequestedImageReference once, read back its RepoDigest, and pin compose to ${repository}@sha256:<resolved-digest>."
+    return "${repository}@sha256:$('0' * 64)"
+  }
+
+  Write-Step "Resolving WebUI image once at installer entry: $RequestedImageReference"
+  & docker pull $RequestedImageReference
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker could not pull the requested WebUI image. Check Docker/GHCR access and retry."
+  }
+
+  if ($RequestedImageReference.Contains("@")) {
+    return $RequestedImageReference
+  }
+
+  $repository = Get-ImageRepositoryName -ImageReference $RequestedImageReference
+  $repoDigestsJson = & docker image inspect --format "{{json .RepoDigests}}" $RequestedImageReference 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker could not read the pulled WebUI image RepoDigests: $repoDigestsJson"
+  }
+  $repoDigests = @($repoDigestsJson | ConvertFrom-Json)
+  $matchingDigests = @($repoDigests | Where-Object { $_ -match "^$([regex]::Escape($repository))@sha256:[0-9a-f]{64}$" })
+  if ($matchingDigests.Count -ne 1) {
+    throw "Expected one immutable RepoDigest for $repository after pulling $RequestedImageReference, got $($matchingDigests.Count)."
+  }
+  return [string]$matchingDigests[0]
+}
+
 function Convert-ToComposeScalar {
   param([Parameter(Mandatory = $true)][string]$Value)
   return "'" + ($Value -replace "'", "''") + "'"
@@ -242,7 +294,7 @@ function Write-ComposeFile {
 services:
   one-person-lab-webui:
     image: $(Convert-ToComposeScalar $ImageReference)
-    pull_policy: always
+    pull_policy: missing
     ports:
       - $(Convert-ToComposeScalar "127.0.0.1:${HostPort}:3000")
     environment:
@@ -960,7 +1012,7 @@ if (-not [string]::IsNullOrWhiteSpace($EvidenceArchive)) {
   }
   $resolvedEvidenceArchive = Resolve-FullPath $EvidenceArchive
 }
-$imageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
+$requestedImageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
 if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
   $HealthUrl = "http://localhost:$Port/"
 }
@@ -971,6 +1023,7 @@ Assert-PowerShellVersion
 Assert-DockerCli
 Assert-DockerCompose
 Assert-Wsl2
+$imageReference = Resolve-PinnedImageReference -RequestedImageReference $requestedImageReference
 Confirm-Run -ComposePath $composePath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -Url $url
 
 $script:PreDataInventory = Get-PathInventoryText -PathValue $resolvedDataDir
@@ -980,15 +1033,17 @@ New-DirectoryIfNeeded $resolvedDataDir
 New-DirectoryIfNeeded $resolvedProjectsDir
 Write-ComposeFile -ComposePath $composePath -ImageReference $imageReference -HostDataDir $resolvedDataDir -HostProjectsDir $resolvedProjectsDir -HostPort $Port
 
-Write-Step "WebUI image: $imageReference"
+Write-Step "Requested WebUI image: $requestedImageReference"
+Write-Step "Pinned WebUI image: $imageReference"
+Write-Step "Runtime pull policy: pull_policy: always is disabled; compose uses pull_policy: missing with the pinned digest."
 Write-Step "Data directory: $resolvedDataDir"
 Write-Step "Projects directory: $resolvedProjectsDir"
 Write-Step "Compose file: $composePath"
 Write-Step "Browser URL: $url"
 if ($Update) {
-  Write-Step "Update mode: pull the configured WebUI image from the host and recreate the compose service."
+  Write-Step "Update mode: pull the configured WebUI image from the host and recreate the compose service at the resolved digest."
 } else {
-  Write-Step "Update model: rerun this installer, or pass -Update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
+  Write-Step "Update model: rerun this installer to resolve the channel once again; compose never follows a moving tag at runtime."
 }
 Write-Step "Image/seed: default stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
 Write-Step "Gateway account credentials and API keys are entered inside WebUI first-run or Settings -> Account & Access. This script does not accept or write them."

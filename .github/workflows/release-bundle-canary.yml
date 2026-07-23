@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      packages: read
     with:
       mode: canary
       operation: standard
@@ -91,6 +92,23 @@ jobs:
       release_bundle_digest: sha256:canary
       framework_ref: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
       operation: standard
+
+  nested-webui-carrier:
+    uses: ./.github/workflows/_release-webui-carrier.yml
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    with:
+      mode: canary
+      app_ref: canary
+      shell_ref: canary
+      framework_ref: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
+      opl_version: canary
+      release_bundle_digest: sha256:canary
+      release_cohort_ref: sha256:canary
+      frozen_build_input_json: '{}'
+      frozen_codex_artifact_name: canary
 
   nested-updater-qualification:
     uses: ./.github/workflows/opl-updater-upgrade-vm.yml

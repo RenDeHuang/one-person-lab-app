@@ -146,6 +146,28 @@ test('Docker/WebUI installer shell parses cleanly', () => {
   assert.doesNotMatch(composeFunction, /<<YAML/, 'compose dry-run must not depend on a heredoc writer process');
 });
 
+test('Windows Docker/WebUI installer resolves a moving tag once and pins compose to its digest', () => {
+  const windowsInstaller = fs.readFileSync(path.join(appRoot, 'scripts', 'install-docker-webui.ps1'), 'utf8');
+  const resolver = windowsInstaller.match(/function Resolve-PinnedImageReference \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  const composeWriter = windowsInstaller.match(/function Write-ComposeFile \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  const execution = windowsInstaller.slice(windowsInstaller.indexOf('$tagWasProvided ='));
+
+  assert.match(resolver, /docker pull \$RequestedImageReference/);
+  assert.match(resolver, /docker image inspect --format "\{\{json \.RepoDigests\}\}"/);
+  assert.match(resolver, /matchingDigests\.Count -ne 1/);
+  assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);
+  assert.match(composeWriter, /pull_policy: missing/);
+  assert.doesNotMatch(composeWriter, /pull_policy: always/);
+  assert.ok(
+    execution.indexOf('Assert-DockerCompose') < execution.indexOf('Resolve-PinnedImageReference'),
+    'tag resolution must run only after Docker is available',
+  );
+  assert.ok(
+    execution.indexOf('Resolve-PinnedImageReference') < execution.indexOf('Write-ComposeFile'),
+    'compose must be written only after the immutable digest is resolved',
+  );
+});
+
 test('Docker/WebUI installer dry-run generates the compose-only startup plan', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-installer-home-'));
   const result = runInstaller(
