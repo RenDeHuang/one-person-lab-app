@@ -382,23 +382,134 @@ jobs:
           image_ref='${{ inputs.image_repository }}'@"$digest"
           docker buildx imagetools inspect "$image_ref" > webui-carrier/immutable-readback.txt
 
+          authority_validator="$RUNNER_TEMP/verify-version-tag-authority.mjs"
+          cat >"$authority_validator" <<'VERSION_TAG_AUTHORITY_NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const [rawPath, expectedChildDigest, versionTag, outcome, outputPath] = process.argv.slice(2);
+          const digestPattern = /^sha256:[0-9a-f]{64}$/;
+          const allowedMediaTypes = new Set([
+            'application/vnd.oci.image.index.v1+json',
+            'application/vnd.docker.distribution.manifest.list.v2+json',
+          ]);
+          const allowedOutcomes = new Set([
+            'created',
+            'preexisting_idempotent',
+            'reconciled_after_unknown_write',
+          ]);
+          const fail = (message) => {
+            throw new Error(`WebUI version tag authority rejected: ${message}`);
+          };
+
+          if (!digestPattern.test(expectedChildDigest ?? '')) fail('expected child digest is invalid');
+          if (!versionTag) fail('version tag is missing');
+          if (!allowedOutcomes.has(outcome)) fail('publication outcome is invalid');
+          const raw = fs.readFileSync(rawPath);
+          let manifest;
+          try {
+            manifest = JSON.parse(raw.toString('utf8'));
+          } catch {
+            fail('raw manifest is not valid JSON');
+          }
+          if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+            fail('raw manifest must be an object');
+          }
+          if (!allowedMediaTypes.has(manifest.mediaType)) {
+            fail(`top-level media type ${String(manifest.mediaType)} is not a manifest list`);
+          }
+          if (!Array.isArray(manifest.manifests) || manifest.manifests.length !== 1) {
+            fail('top-level manifest list must contain exactly one child');
+          }
+          const child = manifest.manifests[0];
+          if (!child || typeof child !== 'object' || Array.isArray(child)) {
+            fail('child descriptor must be an object');
+          }
+          if (child.digest !== expectedChildDigest) {
+            fail(`child digest ${String(child.digest)} does not match ${expectedChildDigest}`);
+          }
+          if (child.platform?.os !== 'linux' || child.platform?.architecture !== 'amd64') {
+            fail('the unique child platform must be linux/amd64');
+          }
+
+          const topLevelDigest = `sha256:${crypto.createHash('sha256').update(raw).digest('hex')}`;
+          const receipt = {
+            schema: 'opl_app_webui_version_tag_authority.v1',
+            status: 'passed',
+            outcome,
+            version_tag: versionTag,
+            top_level: {
+              media_type: manifest.mediaType,
+              digest: topLevelDigest,
+              manifest_count: 1,
+            },
+            child: {
+              digest: expectedChildDigest,
+              platform: {
+                os: 'linux',
+                architecture: 'amd64',
+              },
+            },
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(receipt)}\n`);
+          VERSION_TAG_AUTHORITY_NODE
+
+          verify_version_tag_authority() {
+            local outcome="$1"
+            local human_readback="$2"
+            local raw_readback="$3"
+            local receipt="$4"
+            if ! docker buildx imagetools inspect --raw "$version_tag" >"$raw_readback"; then
+              return 1
+            fi
+            if ! node "$authority_validator" "$raw_readback" "$digest" "$version_tag" "$outcome" "$receipt"; then
+              return 1
+            fi
+            local reported_digest
+            local verified_digest
+            reported_digest="$(awk '$1 == "Digest:" { print $2; exit }' "$human_readback")"
+            verified_digest="$(node -e "const fs=require('fs');process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).top_level.digest)" "$receipt")"
+            test -n "$reported_digest" && test "$reported_digest" = "$verified_digest"
+          }
+
           inspect_output="$RUNNER_TEMP/version-tag-inspect.txt"
           if docker buildx imagetools inspect "$version_tag" >"$inspect_output" 2>&1; then
-            existing_digest="$(awk '$1 == "Digest:" { print $2; exit }' "$inspect_output")"
-            test "$existing_digest" = "$digest" || {
-              echo "::error::Immutable WebUI version tag already points at $existing_digest, expected $digest"
+            cp "$inspect_output" webui-carrier/version-tag-readback.txt
+            if ! verify_version_tag_authority \
+              preexisting_idempotent \
+              webui-carrier/version-tag-readback.txt \
+              webui-carrier/version-tag-manifest.json \
+              webui-carrier/version-tag-authority.json; then
+              cat "$inspect_output" >&2
+              echo '::error::Immutable WebUI version tag does not prove the expected unique linux/amd64 child digest.'
               exit 1
-            }
+            fi
           elif grep -Eqi 'not found|manifest unknown|no such manifest' "$inspect_output"; then
-            if ! docker buildx imagetools create --tag "$version_tag" "$image_ref" > webui-carrier/version-tag-create.txt 2>&1; then
-              reconcile="$(docker buildx imagetools inspect "$version_tag" 2>&1 || true)"
-              reconcile_digest="$(printf '%s\n' "$reconcile" | awk '$1 == "Digest:" { print $2; exit }')"
-              if [ "$reconcile_digest" != "$digest" ]; then
+            outcome=created
+            if ! docker buildx imagetools create --tag "$version_tag" "$image_ref" \
+              > webui-carrier/version-tag-create.txt 2>&1; then
+              outcome=reconciled_after_unknown_write
+            fi
+            if ! docker buildx imagetools inspect "$version_tag" \
+              > webui-carrier/version-tag-readback.txt 2>&1; then
+              if [ "$outcome" = reconciled_after_unknown_write ]; then
                 cat webui-carrier/version-tag-create.txt >&2
-                printf '%s\n' "$reconcile" >&2
-                echo '::error::Version tag write returned unknown and bounded read-only reconcile did not prove the target digest.'
-                exit 1
               fi
+              cat webui-carrier/version-tag-readback.txt >&2
+              echo '::error::Version tag write result is unknown and bounded read-only reconcile did not prove a readable target.'
+              exit 1
+            fi
+            if ! verify_version_tag_authority \
+              "$outcome" \
+              webui-carrier/version-tag-readback.txt \
+              webui-carrier/version-tag-manifest.json \
+              webui-carrier/version-tag-authority.json; then
+              if [ "$outcome" = reconciled_after_unknown_write ]; then
+                cat webui-carrier/version-tag-create.txt >&2
+              fi
+              cat webui-carrier/version-tag-readback.txt >&2
+              echo '::error::Version tag readback did not prove the expected unique linux/amd64 child digest.'
+              exit 1
             fi
           else
             cat "$inspect_output" >&2
@@ -406,10 +517,6 @@ jobs:
             exit 1
           fi
 
-          readback="$(docker buildx imagetools inspect "$version_tag")"
-          printf '%s\n' "$readback" > webui-carrier/version-tag-readback.txt
-          readback_digest="$(printf '%s\n' "$readback" | awk '$1 == "Digest:" { print $2; exit }')"
-          test "$readback_digest" = "$digest"
           OPL_IMAGE_REF="$image_ref" OPL_IMAGE_DIGEST="$digest" OPL_VERSION_TAG="$version_tag" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const payload = {
@@ -473,6 +580,8 @@ jobs:
             webui-carrier/immutable-readback.txt
             webui-carrier/registry-readback.json
             webui-carrier/runtime-summary.json
+            webui-carrier/version-tag-authority.json
+            webui-carrier/version-tag-manifest.json
             webui-carrier/version-tag-readback.txt
           if-no-files-found: error
           retention-days: 90

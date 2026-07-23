@@ -26,6 +26,16 @@ function sha256(bytes: Buffer | string): string {
   return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
 }
 
+function extractHeredoc(source: string, marker: string): string {
+  const startToken = `<<'${marker}'\n`;
+  const start = source.indexOf(startToken);
+  assert.notEqual(start, -1, `missing ${marker} heredoc`);
+  const bodyStart = start + startToken.length;
+  const end = source.indexOf(`\n${marker}`, bodyStart);
+  assert.notEqual(end, -1, `unterminated ${marker} heredoc`);
+  return source.slice(bodyStart, end);
+}
+
 function draftBuildInput() {
   const refs: Record<string, string> = {
     app_source: appSha,
@@ -604,9 +614,96 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
   assert.match(publishRun, /candidate-/);
   assert.match(publishRun, /candidate-tag-readback\.txt/);
-  assert.match(publishRun, /Immutable WebUI version tag already points at/);
+  assert.match(publishRun, /imagetools inspect --raw/);
+  assert.match(publishRun, /version-tag-authority\.json/);
+  assert.match(publishRun, /top_level/);
+  assert.match(publishRun, /child/);
+  assert.match(publishRun, /preexisting_idempotent/);
+  assert.match(publishRun, /reconciled_after_unknown_write/);
+  assert.match(publishRun, /expected unique linux\/amd64 child digest/);
   assert.match(publishRun, /Could not safely distinguish an absent version tag from a registry read failure/);
-  assert.match(publishRun, /bounded read-only reconcile did not prove the target digest/);
+  assert.match(publishRun, /bounded read-only reconcile did not prove a readable target/);
+  assert.equal(publishRun.match(/imagetools create --tag/g)?.length, 1);
+  assert.doesNotMatch(publishRun, /test "\$readback_digest" = "\$digest"/);
   assert.match(publishRun, /write-carrier-receipt/);
   assert.match(publishRun, /verify-carrier-receipt/);
+});
+
+test('WebUI version tag authority accepts only one exact linux/amd64 child', () => {
+  const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
+  const publish = workflow.jobs['publish-immutable-carrier'];
+  const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+  const validator = extractHeredoc(publishRun, 'VERSION_TAG_AUTHORITY_NODE');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-version-tag-authority-'));
+  const validatorPath = path.join(root, 'verify-version-tag-authority.mjs');
+  fs.writeFileSync(validatorPath, validator);
+
+  const descriptor = {
+    mediaType: 'application/vnd.oci.image.manifest.v1+json',
+    digest: imageDigest,
+    size: 123456,
+    platform: { os: 'linux', architecture: 'amd64' },
+  };
+  const valid = {
+    schemaVersion: 2,
+    mediaType: 'application/vnd.oci.image.index.v1+json',
+    manifests: [descriptor],
+  };
+  const validRaw = Buffer.from(JSON.stringify(valid));
+  const validPath = path.join(root, 'valid.json');
+  const receiptPath = path.join(root, 'receipt.json');
+  fs.writeFileSync(validPath, validRaw);
+  const accepted = spawnSync(process.execPath, [
+    validatorPath,
+    validPath,
+    imageDigest,
+    'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
+    'preexisting_idempotent',
+    receiptPath,
+  ], { encoding: 'utf8' });
+  assert.equal(accepted.status, 0, accepted.stderr || accepted.stdout);
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.equal(receipt.schema, 'opl_app_webui_version_tag_authority.v1');
+  assert.equal(receipt.outcome, 'preexisting_idempotent');
+  assert.equal(receipt.top_level.digest, sha256(validRaw));
+  assert.equal(receipt.top_level.manifest_count, 1);
+  assert.equal(receipt.child.digest, imageDigest);
+  assert.deepEqual(receipt.child.platform, { os: 'linux', architecture: 'amd64' });
+
+  const invalidManifests = [
+    { ...valid, manifests: [] },
+    { ...valid, manifests: [descriptor, { ...descriptor }] },
+    { ...valid, manifests: [{ ...descriptor, digest: digest('0') }] },
+    { ...valid, manifests: [{ ...descriptor, platform: { os: 'linux', architecture: 'arm64' } }] },
+    { ...valid, mediaType: 'application/vnd.oci.image.manifest.v1+json' },
+  ];
+  for (const [index, manifest] of invalidManifests.entries()) {
+    const rawPath = path.join(root, `invalid-${index}.json`);
+    const outputPath = path.join(root, `invalid-${index}-receipt.json`);
+    fs.writeFileSync(rawPath, JSON.stringify(manifest));
+    const rejected = spawnSync(process.execPath, [
+      validatorPath,
+      rawPath,
+      imageDigest,
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
+      'created',
+      outputPath,
+    ], { encoding: 'utf8' });
+    assert.notEqual(rejected.status, 0, `accepted invalid manifest ${index}`);
+    assert.equal(fs.existsSync(outputPath), false);
+  }
+
+  const unknownPath = path.join(root, 'unknown.json');
+  const unknownReceiptPath = path.join(root, 'unknown-receipt.json');
+  fs.writeFileSync(unknownPath, '{');
+  const unknown = spawnSync(process.execPath, [
+    validatorPath,
+    unknownPath,
+    imageDigest,
+    'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
+    'reconciled_after_unknown_write',
+    unknownReceiptPath,
+  ], { encoding: 'utf8' });
+  assert.notEqual(unknown.status, 0);
+  assert.equal(fs.existsSync(unknownReceiptPath), false);
 });
