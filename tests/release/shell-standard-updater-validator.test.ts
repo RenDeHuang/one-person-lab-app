@@ -21,7 +21,7 @@ function validSources() {
     `,
     mainEntry: 'autoUpdaterService.initialize(statusBroadcast);',
     managedUpdateMaintenance: `
-      const USER_APPLY_COMPONENT_IDS = new Set<ManagedUpdateComponentId>(['opl_base', 'opl_packages'])
+      if (!componentId || componentId !== input.componentId || componentId !== 'opl_base')
       trigger: 'app_carrier_changed' | 'app_startup_after_core_ready' | 'daily_background_maintenance'
       let result = await invokeRead('check')
       planResult = await invokeRead('plan')
@@ -48,6 +48,26 @@ function validSources() {
 
 test('standard updater gate accepts carrier-neutral managed lifecycle ownership', () => {
   assert.doesNotThrow(() => validateCarrierNeutralManagedUpdateSources(validSources()));
+});
+
+test('standard updater gate rejects the retired package user-apply component set', () => {
+  const sources = validSources();
+  sources.managedUpdateMaintenance += `
+    const USER_APPLY_COMPONENT_IDS = new Set<ManagedUpdateComponentId>(['opl_base', 'opl_packages'])
+  `;
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /managed update user mutation boundary must not include USER_APPLY_COMPONENT_IDS/,
+  );
+});
+
+test('standard updater gate rejects an opl_packages user mutation request', () => {
+  const sources = validSources();
+  sources.managedUpdateMaintenance += " componentId: 'opl_packages'";
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /managed update user mutation boundary must not include componentId: 'opl_packages'/,
+  );
 });
 
 test('standard updater gate rejects the retired OPL Flow special-case reconcile path', () => {

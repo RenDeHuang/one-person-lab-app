@@ -47,7 +47,7 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
   assertTextIncludesAll(
     managedUpdateMaintenance,
     [
-      "const USER_APPLY_COMPONENT_IDS = new Set<ManagedUpdateComponentId>(['opl_base', 'opl_packages'])",
+      "componentId !== 'opl_base'",
       "trigger: 'app_carrier_changed' | 'app_startup_after_core_ready' | 'daily_background_maintenance'",
       "let result = await invokeRead('check')",
       "planResult = await invokeRead('plan')",
@@ -64,6 +64,11 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
       ": 'app_carrier_changed'",
     ],
     'Active shell carrier-neutral managed update scheduler',
+  );
+  assertTextExcludesAll(
+    managedUpdateMaintenance,
+    ['USER_APPLY_COMPONENT_IDS', "componentId: 'opl_packages'"],
+    'Active shell managed update user mutation boundary',
   );
   assertTextIncludesAll(
     rendererMain,
