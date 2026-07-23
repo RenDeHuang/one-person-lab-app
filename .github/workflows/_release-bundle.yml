@@ -179,9 +179,27 @@ jobs:
             if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
             process.stdout.write(value);
           ')"
+          receipt_version="$(jq -er '.managed_runtime.aioncore.version' contracts/aionui-upstream-intake.json)"
+          receipt_archive_sha256="$(jq -er '.managed_runtime.aioncore.archive_sha256' contracts/aionui-upstream-intake.json)"
+          test "$receipt_version" = "$aioncore_version"
+          [[ "$receipt_archive_sha256" =~ ^[0-9a-f]{64}$ ]]
+          archive_root="$(mktemp -d "$RUNNER_TEMP/opl-release-aioncore-archive.XXXXXX")"
+          archive_name="aioncore-${aioncore_version}-aarch64-apple-darwin.tar.gz"
+          archive_path="$archive_root/$archive_name"
+          curl -L --fail --silent --show-error \
+            --output "$archive_path" \
+            "https://github.com/iOfficeAI/AionCore/releases/download/${aioncore_version}/${archive_name}"
+          printf '%s  %s\n' "$receipt_archive_sha256" "$archive_path" | shasum -a 256 -c -
+          archive_extract="$archive_root/extracted"
+          mkdir "$archive_extract"
+          tar -xzf "$archive_path" -C "$archive_extract"
+          find "$archive_extract" -type f -name aioncore -print > "$archive_root/binary-paths.txt"
+          test "$(wc -l < "$archive_root/binary-paths.txt" | tr -d ' ')" = 1
+          IFS= read -r verified_archive_binary < "$archive_root/binary-paths.txt"
           AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
           test -f resources/bundled-aioncore/darwin-arm64/manifest.json
           test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
+          cmp "$verified_archive_binary" resources/bundled-aioncore/darwin-arm64/aioncore
 
       - name: Derive deep-validated Full notes payload authority
         run: |
@@ -399,9 +417,27 @@ jobs:
             if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
             process.stdout.write(value);
           ')"
+          receipt_version="$(jq -er '.managed_runtime.aioncore.version' contracts/aionui-upstream-intake.json)"
+          receipt_archive_sha256="$(jq -er '.managed_runtime.aioncore.archive_sha256' contracts/aionui-upstream-intake.json)"
+          test "$receipt_version" = "$aioncore_version"
+          [[ "$receipt_archive_sha256" =~ ^[0-9a-f]{64}$ ]]
+          archive_root="$(mktemp -d "$RUNNER_TEMP/opl-release-aioncore-archive.XXXXXX")"
+          archive_name="aioncore-${aioncore_version}-aarch64-apple-darwin.tar.gz"
+          archive_path="$archive_root/$archive_name"
+          curl -L --fail --silent --show-error \
+            --output "$archive_path" \
+            "https://github.com/iOfficeAI/AionCore/releases/download/${aioncore_version}/${archive_name}"
+          printf '%s  %s\n' "$receipt_archive_sha256" "$archive_path" | shasum -a 256 -c -
+          archive_extract="$archive_root/extracted"
+          mkdir "$archive_extract"
+          tar -xzf "$archive_path" -C "$archive_extract"
+          find "$archive_extract" -type f -name aioncore -print > "$archive_root/binary-paths.txt"
+          test "$(wc -l < "$archive_root/binary-paths.txt" | tr -d ' ')" = 1
+          IFS= read -r verified_archive_binary < "$archive_root/binary-paths.txt"
           AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
           test -f resources/bundled-aioncore/darwin-arm64/manifest.json
           test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
+          cmp "$verified_archive_binary" resources/bundled-aioncore/darwin-arm64/aioncore
 
       - name: Prepare and validate online AI notes
         env:

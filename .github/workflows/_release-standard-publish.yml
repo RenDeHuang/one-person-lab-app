@@ -527,6 +527,20 @@ jobs:
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
 
+      - name: Materialize unique Standard build receipt for portable recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t standard_build_receipts < <(
+            find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
+          )
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Source artifact must contain exactly one App-owned standard-build-receipt.json; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          cp "${standard_build_receipts[0]}" standard-build-receipt.json
+          cmp "${standard_build_receipts[0]}" standard-build-receipt.json
+
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -675,8 +689,10 @@ jobs:
             --arg apply_status "$apply_status" \
             --arg retry_disposition "$retry_disposition" \
             --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+            --arg resume_source_run_id "$GITHUB_RUN_ID" \
+            --arg resume_source_artifact "opl-release-standard-published-${GITHUB_RUN_ID}" \
             --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
-            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_standard_publish",operation:$operation,bundle_digest:$bundle,input_digest:$input_digest,source:{run_id:$source_run,artifact:$source_artifact},adapter_status:($apply_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition}' \
+            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_standard_publish",operation:$operation,bundle_digest:$bundle,input_digest:$input_digest,source:{run_id:$source_run,artifact:$source_artifact},adapter_status:($apply_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition,resume_source:(if $framework_reconcile_authorized then {run_id:$resume_source_run_id,artifact:$resume_source_artifact} else null end)}' \
             > release-failure-evidence/standard-publication-failure.json
 
       - name: Upload Standard publication receipt
@@ -690,6 +706,7 @@ jobs:
             unknown-persisted.json
             unknown-checkpoint-export.json
             standard-github-unknown-checkpoint
+            standard-build-receipt.json
             reconcile-admission-status.json
             remote-after.json
             standard-published.json
@@ -854,6 +871,20 @@ jobs:
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
 
+      - name: Materialize unique Standard build receipt for portable recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t standard_build_receipts < <(
+            find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
+          )
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Source artifact must contain exactly one App-owned standard-build-receipt.json; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          cp "${standard_build_receipts[0]}" standard-build-receipt.json
+          cmp "${standard_build_receipts[0]}" standard-build-receipt.json
+
       - name: Checkout canonical Homebrew tap
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -980,7 +1011,8 @@ jobs:
               --arg push_exit_status "$push_exit_status" --argjson push_count "$push_count" \
               --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
               --arg resume_source_artifact "$resume_source_artifact" \
-              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,failure_taxonomy:$failure_taxonomy,input_digest:$input_digest,operation_deadline_at:$operation_deadline_at,base_commit:$base_commit,result_commit:(if $result_commit == "" then null else $result_commit end),push_count:$push_count,push_exit_status:(if $push_exit_status == "" then null else ($push_exit_status|tonumber) end),dmg_sha256:$dmg,cask_sha256:$cask,retry_disposition:$retry_disposition,framework_reconcile_authorized:$framework_reconcile_authorized,resume_source_artifact:(if $resume_source_artifact == "" then null else $resume_source_artifact end),evidence:{stdout:"release-failure-evidence/stdout.txt",stderr:"release-failure-evidence/stderr.txt",input_digest:"release-failure-evidence/input-digest.txt"}}' \
+              --arg resume_source_run_id "$GITHUB_RUN_ID" \
+              '{schema:"opl_homebrew_mutation_failure_receipt.v1",status:"failed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,failure_taxonomy:$failure_taxonomy,input_digest:$input_digest,operation_deadline_at:$operation_deadline_at,base_commit:$base_commit,result_commit:(if $result_commit == "" then null else $result_commit end),push_count:$push_count,push_exit_status:(if $push_exit_status == "" then null else ($push_exit_status|tonumber) end),dmg_sha256:$dmg,cask_sha256:$cask,retry_disposition:$retry_disposition,framework_reconcile_authorized:$framework_reconcile_authorized,resume_source_run_id:(if $resume_source_artifact == "" then null else $resume_source_run_id end),resume_source_artifact:(if $resume_source_artifact == "" then null else $resume_source_artifact end),evidence:{stdout:"release-failure-evidence/stdout.txt",stderr:"release-failure-evidence/stderr.txt",input_digest:"release-failure-evidence/input-digest.txt"}}' \
               > homebrew-standard-failure.json
           }
 
@@ -1188,6 +1220,7 @@ jobs:
             homebrew-unknown-persisted.json
             homebrew-unknown-checkpoint-export.json
             homebrew-unknown-checkpoint
+            standard-build-receipt.json
             homebrew-reconcile-status.json
             release-failure-evidence
           if-no-files-found: warn
@@ -1307,6 +1340,20 @@ jobs:
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
+
+      - name: Materialize unique Standard build receipt for portable recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t standard_build_receipts < <(
+            find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort
+          )
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Source artifact must contain exactly one App-owned standard-build-receipt.json; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          cp "${standard_build_receipts[0]}" standard-build-receipt.json
+          cmp "${standard_build_receipts[0]}" standard-build-receipt.json
 
       - name: Download previous-Latest updater receipt
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -1512,9 +1559,10 @@ jobs:
           jq -n --arg bundle '${{ needs.restore.outputs.bundle_digest }}' --arg tag '${{ needs.restore.outputs.tag }}' \
             --arg adapter_status "$latest_status" --arg retry_disposition "$retry_disposition" \
             --argjson framework_reconcile_authorized "$framework_reconcile_authorized" \
+            --arg resume_source_run_id "$GITHUB_RUN_ID" \
             --arg resume_source_artifact "opl-release-activation-${GITHUB_RUN_ID}" \
             --arg input_digest "$(cat release-failure-evidence/input-digest.txt)" \
-            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_latest_activation",bundle_digest:$bundle,tag:$tag,input_digest:$input_digest,adapter_status:($adapter_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition,resume_source_artifact:(if $framework_reconcile_authorized then $resume_source_artifact else null end)}' \
+            '{schema:"opl_release_mutation_failure_receipt.v1",status:"failed",mutation:"github_latest_activation",bundle_digest:$bundle,tag:$tag,input_digest:$input_digest,adapter_status:($adapter_status|select(length>0)? // null),framework_reconcile_authorized:$framework_reconcile_authorized,retry_disposition:$retry_disposition,resume_source_run_id:(if $framework_reconcile_authorized then $resume_source_run_id else null end),resume_source_artifact:(if $framework_reconcile_authorized then $resume_source_artifact else null end)}' \
             > release-failure-evidence/latest-activation-failure.json
 
       - name: Upload Latest activation receipt
@@ -1533,6 +1581,7 @@ jobs:
             latest-unknown-persisted.json
             latest-unknown-checkpoint-export.json
             latest-unknown-checkpoint
+            standard-build-receipt.json
             latest-reconcile-status.json
             latest-reconcile.receipt.json
             release-failure-evidence

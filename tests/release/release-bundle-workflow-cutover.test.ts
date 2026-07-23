@@ -147,6 +147,47 @@ function runAdmissionGate(
   }
 }
 
+function runPortableStandardBuildReceiptStep(jobName: string, receiptFixture: number | 'symlink-only') {
+  const step = workflowStep(
+    '_release-standard-publish.yml',
+    jobName,
+    'Materialize unique Standard build receipt for portable recovery',
+  );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-receipt-transport-'));
+  const sourceBytes = Buffer.from('exact App-owned Standard build receipt\n');
+  try {
+    fs.mkdirSync(path.join(root, 'imported-checkpoint'), { recursive: true });
+    if (receiptFixture === 'symlink-only') {
+      const receiptDir = path.join(root, 'imported-checkpoint', 'symlink-source');
+      const targetPath = path.join(root, 'receipt-target.json');
+      fs.mkdirSync(receiptDir, { recursive: true });
+      fs.writeFileSync(targetPath, sourceBytes);
+      fs.symlinkSync(targetPath, path.join(receiptDir, 'standard-build-receipt.json'));
+    } else {
+      for (let index = 0; index < receiptFixture; index += 1) {
+        const receiptDir = path.join(root, 'imported-checkpoint', `source-${index}`);
+        fs.mkdirSync(receiptDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(receiptDir, 'standard-build-receipt.json'),
+          index === 0 ? sourceBytes : Buffer.from(`conflicting receipt ${index}\n`),
+        );
+      }
+    }
+    const result = spawnSync('bash', ['-euo', 'pipefail', '-c', String(step.run)], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    const outputPath = path.join(root, 'standard-build-receipt.json');
+    return {
+      result,
+      sourceBytes,
+      outputBytes: fs.existsSync(outputPath) ? fs.readFileSync(outputPath) : null,
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('Stable is the only manual entry and all channels share one non-cancelling mutex', () => {
   const stable = parseWorkflow('release-stable.yml');
   const nightly = parseWorkflow('release-nightly.yml');
@@ -363,6 +404,18 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/manifest\.json/);
   assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/managed-resources\/manifest\.json/);
   assert.doesNotMatch(freezeMaterializeScript, /latest|AIONUI_BACKEND_RUN_ID/);
+  assert.equal(freezeMaterializeScript, materializeScript);
+
+  for (const script of [materializeScript, freezeMaterializeScript]) {
+    assert.match(script, /managed_runtime\.aioncore\.version/);
+    assert.match(script, /managed_runtime\.aioncore\.archive_sha256/);
+    assert.match(script, /test "\$receipt_version" = "\$aioncore_version"/);
+    assert.match(script, /releases\/download\/\$\{aioncore_version\}\/\$\{archive_name\}/);
+    assert.match(script, /shasum -a 256 -c -/);
+    assert.match(script, /find "\$archive_extract" -type f -name aioncore/);
+    assert.match(script, /cmp "\$verified_archive_binary" resources\/bundled-aioncore\/darwin-arm64\/aioncore/);
+    assert.doesNotMatch(script, /AIONCORE_MANIFEST_SOURCE_DATE|manifest\.generatedAt/);
+  }
 
   const step = workflowStep(
     '_release-bundle.yml',
@@ -673,6 +726,94 @@ test('mutation unknown states persist evidence and only use bounded read-only re
   assert.match(standardSource, /Latest activation was not conclusively read back; no retry was attempted/);
   assert.match(readWorkflow('_release-standard-publish.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
   assert.match(readWorkflow('_release-full-addon.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
+});
+
+test('every recoverable Standard unknown artifact carries exactly one original build receipt', () => {
+  const workflow = parseWorkflow('_release-standard-publish.yml');
+  const jobs = [
+    {
+      name: 'publish-standard-nonlatest',
+      uploadStep: 'Upload Standard publication receipt',
+      artifact: 'opl-release-standard-published-${{ github.run_id }}',
+      checkpoint: 'standard-github-unknown-checkpoint',
+    },
+    {
+      name: 'publish-homebrew-standard',
+      uploadStep: 'Upload Standard Homebrew publication receipt',
+      artifact: 'opl-release-homebrew-standard-${{ github.run_id }}',
+      checkpoint: 'homebrew-unknown-checkpoint',
+    },
+    {
+      name: 'activate-latest',
+      uploadStep: 'Upload Latest activation receipt',
+      artifact: 'opl-release-activation-${{ github.run_id }}',
+      checkpoint: 'latest-unknown-checkpoint',
+    },
+  ] as const;
+
+  for (const job of jobs) {
+    const positive = runPortableStandardBuildReceiptStep(job.name, 1);
+    assert.equal(positive.result.status, 0, `${job.name}: ${positive.result.stderr}`);
+    assert.deepEqual(positive.outputBytes, positive.sourceBytes, job.name);
+
+    for (const receiptCount of [0, 2]) {
+      const rejected = runPortableStandardBuildReceiptStep(job.name, receiptCount);
+      assert.notEqual(rejected.result.status, 0, `${job.name}:${receiptCount}`);
+      assert.equal(rejected.outputBytes, null, `${job.name}:${receiptCount}`);
+      assert.match(
+        `${rejected.result.stdout}\n${rejected.result.stderr}`,
+        new RegExp(`exactly one App-owned standard-build-receipt\\.json; found ${receiptCount}`),
+        `${job.name}:${receiptCount}`,
+      );
+    }
+
+    const symlinkOnly = runPortableStandardBuildReceiptStep(job.name, 'symlink-only');
+    assert.notEqual(symlinkOnly.result.status, 0, `${job.name}:symlink-only`);
+    assert.equal(symlinkOnly.outputBytes, null, `${job.name}:symlink-only`);
+    assert.match(
+      `${symlinkOnly.result.stdout}\n${symlinkOnly.result.stderr}`,
+      /exactly one App-owned standard-build-receipt\.json; found 0/,
+      `${job.name}:symlink-only`,
+    );
+
+    const upload = workflow.jobs[job.name].steps.find(
+      (step: Record<string, unknown>) => step.name === job.uploadStep,
+    );
+    assert.ok(upload, `${job.name}:${job.uploadStep}`);
+    assert.equal(upload.with.name, job.artifact);
+    assert.match(String(upload.with.path), new RegExp(`(?:^|\\n)${job.checkpoint}(?:\\n|$)`));
+    assert.match(String(upload.with.path), /(?:^|\n)standard-build-receipt\.json(?:\n|$)/);
+  }
+
+  const standardFailure = String(
+    workflowStep(
+      '_release-standard-publish.yml',
+      'publish-standard-nonlatest',
+      'Persist typed Standard publication failure',
+    ).run,
+  );
+  assert.match(standardFailure, /opl-release-standard-published-\$\{GITHUB_RUN_ID\}/);
+  assert.match(standardFailure, /resume_source:\(if \$framework_reconcile_authorized then \{run_id:\$resume_source_run_id,artifact:\$resume_source_artifact\}/);
+
+  const homebrewMutation = String(
+    workflowStep(
+      '_release-standard-publish.yml',
+      'publish-homebrew-standard',
+      'Publish one digest-bound Standard cask commit',
+    ).run,
+  );
+  assert.match(homebrewMutation, /true "opl-release-homebrew-standard-\$\{GITHUB_RUN_ID\}"/);
+  assert.match(homebrewMutation, /resume_source_run_id:\(if \$resume_source_artifact == "" then null else \$resume_source_run_id end\)/);
+
+  const latestFailure = String(
+    workflowStep(
+      '_release-standard-publish.yml',
+      'activate-latest',
+      'Persist typed Latest activation failure',
+    ).run,
+  );
+  assert.match(latestFailure, /opl-release-activation-\$\{GITHUB_RUN_ID\}/);
+  assert.match(latestFailure, /resume_source_run_id:\(if \$framework_reconcile_authorized then \$resume_source_run_id else null end\)/);
 });
 
 test('every real release build, VM, and mutation job rejects a partial rerun locally', () => {
