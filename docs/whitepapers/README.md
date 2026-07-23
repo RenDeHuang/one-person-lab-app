@@ -21,10 +21,15 @@ This repo follows the OPL-wide whitepaper pattern:
   receipt implementation in OPL Framework.
 - Generate local HTML/PDF/verification previews into the ignored
   `docs/site/latest/whitepapers/` bundle with `npm run docs:whitepaper`.
-- Let `.github/workflows/whitepaper.yml` build on relevant `main` changes.
-  Publishing requires a manual workflow dispatch with `publish=true`.
+- Keep App `main` free of a second whitepaper workflow or publication token.
+  The former App caller could not instantiate the Framework reusable workflow
+  under App's read-only permission ceiling and has been retired.
+- Public App-whitepaper updates remain fail closed until the Framework owner
+  exposes a protected cross-repository publisher that binds this App profile,
+  exact source ref, target repository, and exact-byte public readback without
+  widening the App `main` workflow token.
 - Do not publish whitepapers through `scripts/publish-docs-latest.sh`; that
-  general docs path explicitly preserves the workflow-owned whitepaper surface.
+  general docs path explicitly preserves the whitepaper surface.
 
 Current source:
 

@@ -10,9 +10,11 @@ Source truth stays in `docs/guides/`, `docs/whitepapers/`, `docs/publishing/`,
 
 The App exposes one current user-facing documentation set, not one copy per
 release. Install guides can still be built locally and published with
-`npm run docs:publish`. The whitepaper is independently built by
-`.github/workflows/whitepaper.yml`; only a manual dispatch with `publish=true`
-updates `latest/whitepapers/` and records an exact-byte publication receipt.
+`npm run docs:publish`. The App whitepaper is previewed locally with
+`npm run docs:whitepaper`; App `main` carries no second publication workflow or
+write token. Public whitepaper updates remain fail closed until a
+Framework-owned protected cross-repository publisher can update the exact App
+Pages target and record the exact-byte publication receipt.
 Generated HTML files use artifact-aligned names such as
 `macos-app-install.html`, not `index.html`.
 
@@ -36,8 +38,8 @@ Generated output:
 
 Do not commit `docs/site/latest/` on `main`. `npm run docs:latest` rebuilds local
 previews, while `npm run docs:publish` publishes only the general guide surface
-and preserves `latest/whitepapers/`. Publish a whitepaper only through the
-manual workflow so the approved build bytes, visual evidence, public readback,
-and receipt stay bound together. Remove local generated copies with
+and preserves `latest/whitepapers/`. Do not publish a whitepaper until the
+protected cross-repository owner route binds the approved build bytes, visual
+evidence, App Pages target, public readback, and receipt. Remove local generated copies with
 `npm run cleanup:local-artifacts -- --scope docs --execute` when they are no
 longer needed for preview.

@@ -14,7 +14,10 @@ under the ignored `tmp/pdfs/opl-app-whitepaper/rendered/` directory. Neither is
 tracked on `main`, because a committed verification file can drift away from the
 bytes it claims to verify.
 
-The `whitepaper.yml` workflow uploads the immutable candidate bundle and visual
-evidence as a run artifact. A manual run with `publish=true` publishes those
-same bytes and uploads the post-deployment exact-byte publication receipt. The
-Actions artifact and receipt, not this directory, are the publication evidence.
+App `main` has no whitepaper publication workflow or write token. Build and
+inspect the App profile locally with `npm run docs:whitepaper`. Public App
+whitepaper updates remain blocked until the Framework owner provides a protected
+cross-repository publisher that binds the exact App source and target repository
+without widening App `main` permissions. Only that publisher's artifact and
+post-deployment exact-byte receipt, not this directory or an App push check,
+would be publication evidence.
