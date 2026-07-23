@@ -28,9 +28,7 @@ const requiredInputIds = [
   'base_image',
   'codex_cli',
   'dockerfile',
-  'first_party_packages',
   'framework_seed',
-  'opl_flow',
   'qualification_harness',
   'shell_webui_source',
 ] as const;
@@ -335,7 +333,6 @@ function validateInputs(value: unknown, cohort: JsonRecord): JsonRecord[] {
   if (!/^@openai\/codex@[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/.test(codexRef)) {
     fail('inputs.codex_cli.ref must be an exact @openai/codex version, never latest or a range');
   }
-  gitShaValue(byId.get('opl_flow')?.ref, 'inputs.opl_flow.ref');
   return inputs;
 }
 

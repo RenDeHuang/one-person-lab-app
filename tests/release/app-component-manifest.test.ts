@@ -100,7 +100,7 @@ test('Bundle topology binds the component manifest before remote digest verifica
   assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /write-opl-app-component-manifest\.ts/);
   assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /--updater-version '\$\{\{ needs\.freeze\.outputs\.updater_version \}\}'/);
   assert.match(bundleWorkflow.slice(publishReusable), /uses: \.\/\.github\/workflows\/_release-standard-publish\.yml/);
-  assert.match(bindScript, /opl_standard_release_identity_receipt\.v1/);
+  assert.match(bindScript, /opl_standard_release_identity_receipt\.v2/);
   assert.match(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);
   assert.doesNotMatch(`${bundleWorkflow}\n${publishWorkflow}`, /desktop-release-promote\.yml/);
 });

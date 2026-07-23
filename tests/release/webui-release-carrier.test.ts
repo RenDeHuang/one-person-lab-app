@@ -43,9 +43,7 @@ function draftBuildInput() {
     dockerfile: 'shells/aionui/Dockerfile',
     framework_seed: frameworkSha,
     codex_cli: '@openai/codex@1.2.3',
-    opl_flow: 'd'.repeat(40),
     base_image: `docker.io/library/node@${digest('7')}`,
-    first_party_packages: 'release-set-generation:26.7.20',
     qualification_harness: 'scripts/validate-webui-runtime-image.ts',
   };
   return {
@@ -243,6 +241,17 @@ test('WebUI build input sealing is canonical, repeatable, and identity-bound', (
   assert.match(summary.content_fingerprint, /^sha256:[0-9a-f]{64}$/);
   const sealed = JSON.parse(fs.readFileSync(firstPath, 'utf8'));
   assert.equal(sealed.source_cutoff.frozen_base_release_set.generation, '26.7.20');
+  assert.deepEqual(sealed.inputs.map((input: { id: string }) => input.id), [
+    'app_source',
+    'base_image',
+    'codex_cli',
+    'dockerfile',
+    'framework_seed',
+    'qualification_harness',
+    'shell_webui_source',
+  ]);
+  assert.equal(sealed.inputs.some((input: { id: string }) => input.id === 'first_party_packages'), false);
+  assert.equal(sealed.inputs.some((input: { id: string }) => input.id === 'opl_flow'), false);
 });
 
 test('WebUI carrier receipt binds immutable OCI digest, qualification, and frozen identity', () => {

@@ -57,14 +57,29 @@ export function bindStandardReleaseTrack(input: {
   version: string;
   updaterVersion: string;
   appSha: string;
+  shellSha: string;
+  frameworkSha: string;
+  bundleDigest: string;
   channel: Channel;
   repository: string;
+  sourceRunId: string;
+  sourceRunAttempt: number;
   componentManifestScript: string;
   componentManifestOutput: string;
   identityReceiptOutput: string;
 }): void {
   assertUpdaterVersionMatchesDisplay(input.channel, input.version, input.updaterVersion);
   if (!/^[0-9a-f]{40}$/.test(input.appSha)) throw new Error('Standard track requires an exact App SHA.');
+  if (!/^[0-9a-f]{40}$/.test(input.shellSha)) throw new Error('Standard track requires an exact Shell SHA.');
+  if (!/^[0-9a-f]{40}$/.test(input.frameworkSha)) {
+    throw new Error('Standard track requires an exact Framework SHA.');
+  }
+  if (!/^sha256:[0-9a-f]{64}$/.test(input.bundleDigest)) {
+    throw new Error('Standard track requires an exact Framework Bundle digest.');
+  }
+  if (!/^[1-9][0-9]*$/.test(input.sourceRunId) || input.sourceRunAttempt !== 1) {
+    throw new Error('Standard track requires the exact first-attempt source run identity.');
+  }
   const assetsDir = path.resolve(input.assetsDir);
   const genericMetadata = requiredFile(assetsDir, 'latest-mac.yml');
   const canonicalMetadata = path.join(assetsDir, 'latest-arm64-mac.yml');
@@ -124,10 +139,25 @@ export function bindStandardReleaseTrack(input: {
   }
 
   const identity = {
-    schema: 'opl_standard_release_identity_receipt.v1',
+    schema: 'opl_standard_release_identity_receipt.v2',
     status: 'passed',
-    release_version: input.version,
-    updater_version: input.updaterVersion,
+    source: {
+      repository: input.repository,
+      run_id: input.sourceRunId,
+      run_attempt: input.sourceRunAttempt,
+    },
+    release: {
+      channel: input.channel,
+      version: input.version,
+      updater_version: input.updaterVersion,
+      tag: `v${input.version}`,
+      bundle_digest: input.bundleDigest,
+    },
+    cohort: {
+      app_sha: input.appSha,
+      shell_sha: input.shellSha,
+      framework_sha: input.frameworkSha,
+    },
     updater_metadata: { name: 'latest-arm64-mac.yml', sha256: sha256(canonicalMetadata) },
     updater_zip: { name: zipName, sha256: sha256(zipPath) },
     component_manifest: {
@@ -147,8 +177,13 @@ function main(argv: string[]): void {
       version: { type: 'string' },
       'updater-version': { type: 'string' },
       'app-sha': { type: 'string' },
+      'shell-sha': { type: 'string' },
+      'framework-sha': { type: 'string' },
+      'bundle-digest': { type: 'string' },
       channel: { type: 'string' },
       repository: { type: 'string' },
+      'source-run-id': { type: 'string' },
+      'source-run-attempt': { type: 'string' },
       'component-manifest-script': { type: 'string' },
       'component-manifest-output': { type: 'string' },
       'identity-receipt-output': { type: 'string' },
@@ -161,13 +196,22 @@ function main(argv: string[]): void {
     if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing --${String(name)}.`);
     return value.trim();
   };
+  const sourceRunAttempt = required('source-run-attempt');
+  if (sourceRunAttempt !== '1') {
+    throw new Error('--source-run-attempt must be the canonical first attempt 1.');
+  }
   bindStandardReleaseTrack({
     assetsDir: required('assets-dir'),
     version: required('version'),
     updaterVersion: required('updater-version'),
     appSha: required('app-sha'),
+    shellSha: required('shell-sha'),
+    frameworkSha: required('framework-sha'),
+    bundleDigest: required('bundle-digest'),
     channel,
     repository: required('repository'),
+    sourceRunId: required('source-run-id'),
+    sourceRunAttempt: Number(sourceRunAttempt),
     componentManifestScript: required('component-manifest-script'),
     componentManifestOutput: required('component-manifest-output'),
     identityReceiptOutput: required('identity-receipt-output'),
