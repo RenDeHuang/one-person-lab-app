@@ -79,6 +79,28 @@ test('legacy implementations remain present only for historical receipt compatib
   ]);
 });
 
+test('retired desktop workflow surface is absent while historical readers and Framework route remain', () => {
+  for (const relativePath of [
+    '.github/workflows/desktop-release.yml',
+    '.github/workflows/desktop-release-promote.yml',
+    '.github/workflows/desktop-release-full-addon.yml',
+    '.github/workflows/desktop-release-cleanup-drafts.yml',
+  ]) {
+    assert.equal(fs.existsSync(path.join(appRoot, relativePath)), false, `${relativePath} must stay retired`);
+  }
+
+  const historicalCandidateReader = read('scripts/validate-release-candidate-record.ts');
+  const historicalBundleReader = read('scripts/release-bundle.ts');
+  assert.match(historicalCandidateReader, /status: 'historical_read_only'/);
+  assert.match(historicalCandidateReader, /inspect_framework_checkpoint_and_receipts/);
+  assert.match(historicalBundleReader, /historical/);
+
+  const stableWorkflow = read('.github/workflows/release-stable.yml');
+  assert.match(stableWorkflow, /workflow_dispatch:/);
+  assert.match(stableWorkflow, /uses: \.\/\.github\/workflows\/_release-bundle\.yml/);
+  assert.match(stableWorkflow, /operation: standard/);
+});
+
 test('retired planners and direct publisher expose no mutation bypass', () => {
   const candidate = read('scripts/plan-release-candidate.ts');
   const publisher = read('scripts/publish-release.ts');
