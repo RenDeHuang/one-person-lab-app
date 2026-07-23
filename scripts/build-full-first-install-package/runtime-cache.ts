@@ -24,7 +24,11 @@ import {
 } from './hashing.ts';
 import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
-import { resolveFrameworkPackageSetInput } from './runtime-cache-package-set.ts';
+import {
+  FULL_RUNTIME_STARTER_PROFILE,
+  resolveFrameworkPackageSetInput,
+  type FullRuntimePackageProfile,
+} from './runtime-cache-package-set.ts';
 import { buildRuntimeLayerImplementationHash } from './runtime-layers.ts';
 import {
   bookforgeSkillSnapshot,
@@ -64,8 +68,13 @@ function domainSourceFingerprints(options) {
   };
 }
 
-export function buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet = null) {
-  const packageSet = frameworkPackageSet ?? resolveFrameworkPackageSetInput(options);
+export function buildRuntimeCacheKeyInputs(
+  options,
+  sources,
+  frameworkPackageSet = null,
+  packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+) {
+  const packageSet = frameworkPackageSet ?? resolveFrameworkPackageSetInput(options, packageProfile);
   const nodeRoot = path.dirname(path.dirname(sources.nodeToolchain.nodeBin));
   const pythonRootName = path.basename(sources.pythonRoot);
 
@@ -169,9 +178,13 @@ export function buildRuntimeCacheKeysFromInputs(layerInputs) {
   };
 }
 
-export function buildRuntimeCacheContext(options, sources) {
-  const frameworkPackageSet = resolveFrameworkPackageSetInput(options);
-  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet);
+export function buildRuntimeCacheContext(
+  options,
+  sources,
+  packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+) {
+  const frameworkPackageSet = resolveFrameworkPackageSetInput(options, packageProfile);
+  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, frameworkPackageSet, packageProfile);
   return {
     frameworkPackageSet,
     layerKeyInputs,
@@ -187,8 +200,16 @@ function cacheLayerArchivePath(options, layerId, key) {
   });
 }
 
-export function buildRuntimeCacheKeyReport(options, sources) {
-  const { frameworkPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(options, sources);
+export function buildRuntimeCacheKeyReport(
+  options,
+  sources,
+  packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+) {
+  const { frameworkPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(
+    options,
+    sources,
+    packageProfile,
+  );
   return {
     status: 'runtime_cache_keys',
     version: options.version,

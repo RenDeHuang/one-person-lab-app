@@ -16,6 +16,7 @@ import {
 } from '../../../scripts/full-first-install-package.ts';
 import {
   FULL_RUNTIME_PACKAGE_IDS,
+  validateFrameworkPackageSetInput,
   resolveFrameworkPackageSetInput,
 } from '../../../scripts/build-full-first-install-package/runtime-cache-package-set.ts';
 
@@ -135,6 +136,14 @@ test('Framework package set rejects owner checkout and manifest byte drift', () 
       packageSet.packages.map((entry) => entry.package_id),
       FULL_RUNTIME_PACKAGE_IDS,
     );
+    assert.deepEqual(Object.keys(packageSet), [
+      'schema',
+      'framework_sha',
+      'catalog_ref',
+      'catalog_sha256',
+      'packages',
+      'identity',
+    ]);
 
     writeFile(
       path.join(catalogRoot, 'packages', 'mas.json'),
@@ -154,6 +163,91 @@ test('Framework package set rejects owner checkout and manifest byte drift', () 
     assert.throws(
       () => resolveFrameworkPackageSetInput(options),
       /mag owner source does not match the frozen checkout/,
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('Framework package profile resolves a custom dependency closure without changing the helper', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-runtime-custom-profile-'));
+  const frameworkRoot = path.join(tempRoot, 'one-person-lab');
+  try {
+    const packageIds = ['custom-agent', 'custom-capability'];
+    const sourceRoots: Record<string, string> = {};
+    const sourceCommits: Record<string, string> = {};
+    for (const packageId of packageIds) {
+      const sourceRoot = path.join(tempRoot, packageId);
+      initializeRepo(sourceRoot);
+      writeFile(path.join(sourceRoot, 'payload.txt'), `${packageId}\n`);
+      sourceRoots[packageId] = sourceRoot;
+      sourceCommits[packageId] = commitRepo(sourceRoot, `fixture ${packageId}`);
+    }
+    initializeRepo(frameworkRoot);
+    const catalogRoot = path.join(frameworkRoot, 'contracts', 'opl-framework');
+    const packages = Object.fromEntries(packageIds.map((packageId) => {
+      const manifestRef = `packages/${packageId}.json`;
+      const payloadManifestRef = `packages/payloads/${packageId}-1.0.0.json`;
+      const manifestPath = path.join(catalogRoot, ...manifestRef.split('/'));
+      const payloadManifestPath = path.join(catalogRoot, ...payloadManifestRef.split('/'));
+      writeFile(
+        manifestPath,
+        `${JSON.stringify({ package_id: packageId, version: '1.0.0' })}\n`,
+      );
+      writeFile(
+        payloadManifestPath,
+        `${JSON.stringify({ package_id: packageId, package_version: '1.0.0', files: [] })}\n`,
+      );
+      return [packageId, {
+        package_id: packageId,
+        package_role: packageId === 'custom-capability'
+          ? 'framework_capability_package'
+          : 'standard_agent',
+        package_version: '1.0.0',
+        owner_source_commit: sourceCommits[packageId],
+        runtime_module_relative_path: `modules/${packageId}`,
+        manifest_ref: manifestRef,
+        manifest_sha256: fileDigest(manifestPath),
+        payload_manifest_ref: payloadManifestRef,
+        payload_manifest_sha256: fileDigest(payloadManifestPath),
+      }];
+    }));
+    writeFile(
+      path.join(catalogRoot, 'bundled-full-runtime-package-catalog.json'),
+      `${JSON.stringify({
+        surface_kind: 'opl_bundled_full_runtime_package_catalog.v1',
+        packages: {
+          ...packages,
+          legacy: {
+            package_id: 'legacy',
+            package_role: 'standard_agent',
+            package_version: '0.0.0',
+          },
+        },
+      }, null, 2)}\n`,
+    );
+    const frameworkSha = commitRepo(frameworkRoot, 'fixture custom package catalog');
+    const customProfile = {
+      profile_id: 'custom',
+      package_ids: ['custom-agent'],
+      dependency_closure: packageIds,
+    } as const;
+
+    const packageSet = resolveFrameworkPackageSetInput({
+      frameworkRoot,
+      packageRoots: sourceRoots,
+    }, customProfile);
+    assert.equal(packageSet.framework_sha, frameworkSha);
+    assert.deepEqual(
+      packageSet.packages.map((entry) => entry.package_id),
+      packageIds,
+    );
+    assert.equal(packageSet.packages[0].owner_source_commit, sourceCommits['custom-agent']);
+    assert.equal(packageSet.packages[1].owner_source_commit, sourceCommits['custom-capability']);
+    assert.doesNotThrow(() => validateFrameworkPackageSetInput(packageSet, customProfile));
+    assert.throws(
+      () => validateFrameworkPackageSetInput(packageSet),
+      /ordered dependency closure for profile starter/,
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
