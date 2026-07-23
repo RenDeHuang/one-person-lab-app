@@ -18,6 +18,93 @@ One Person Lab App
 
 The App owns desktop packaging, update flow, first-run product behavior, release evidence collection, user guides, screenshots, GUI product truth, page-state tests, and stable/nightly release gates. OPL Framework owns stage runtime, provider management, queue/attempt ledger, generated surfaces, action execution, runtime read models, `opl app state`, and `opl app action` producers. Domain agents own their own truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers.
 
+## OPL Ecology Model And Flexibility Boundary
+
+The intended analogy is:
+
+```text
+OPL Base       ~= R
+OPL App        ~= RStudio (a replaceable GUI/deployment carrier)
+OPL Package    ~= R Package
+Registry       ~= CRAN index (discovery and version metadata)
+Full/Release Set ~= renv.lock or a reproducible environment snapshot
+```
+
+This model is a product and maintenance constraint, not a claim that the
+current implementation is complete. The design target is maximum composition:
+any compliant package, shell, registry, or deployment carrier can be added,
+removed, or replaced without editing the App for every package. The same
+generic complexity must have one owner.
+
+The lifecycle boundary is deliberately four-step:
+
+1. **Publish loosely.** A package owner publishes an independent SemVer artifact
+   and manifest with required/optional dependencies plus Base and capability ABI
+   compatibility ranges. OCI, direct manifest, developer checkout, and offline
+   seed are source adapters, not additional package authorities.
+2. **Resolve compatibly.** OPL Framework reads the configured repository/index
+   and resolves the newest compatible candidate for the requested profile. A
+   registry is an index; it cannot define package behavior, installed state, or
+   currentness by itself.
+3. **Install exactly.** The Framework transaction writes one exact installed
+   lock containing resolved versions, dependency closure, source and immutable
+   artifact digests, receipts, and `rollback_ref`.
+4. **Run immutable bytes.** Codex/plugin materialization and runtime execution
+   use the locked bytes. A moving label such as `latest-stable`, a Git checkout,
+   or a Release Set name is never runtime truth.
+
+The currently seven first-party packages are a **starter profile**, not a
+required seven-package closure or an upper bound. A starter profile is one
+composable default selection that may be changed or replaced; each package can
+be installed, updated, hidden, enabled, disabled, or removed independently.
+Release Sets may capture an exact composition for Full/offline installation and
+qualification, but they must not turn that composition into a lock-step
+publication requirement.
+
+### Package And Carrier Currentness
+
+The following are separate dimensions and must not share a currentness flag:
+
+| Dimension | Owner and meaning |
+| --- | --- |
+| Package publication | Package owner publishes an immutable SemVer plus OCI/direct-manifest digest. |
+| Package resolution | Framework repository index and compatibility resolver choose a candidate. |
+| Installed package truth | Framework exact lock and lifecycle receipt bind installed bytes. |
+| App release | App Release Bundle and updater publish the App binary. |
+| Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports the same owner bytes. |
+| Cadence | Daily/scheduled CI reconciles candidates or indexes; cadence does not create a release authority. |
+
+Developer, external, manual, and offline sources remain valuable for
+composition and recovery, but they are candidate adapters. They must not
+participate in ordinary Stable currentness or silently override the installed
+lock. App and Shell render Framework projections and delegate declared actions;
+they do not duplicate package parsers, version classifiers, dependency
+resolvers, rollback state machines, or release promotion logic.
+
+### 2026-07-23 Audit State
+
+The architecture above is the target boundary. It is not a declaration that
+the live release system is healthy. The latest inspected evidence still has
+unclosed currentness gaps: [App Stable run 30001277460](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/30001277460)
+failed; [Package Daily run 29952463596](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/29952463596)
+failed on `opl-base content changed without a version bump`; Desktop `v26.7.21`
+is public while `v26.7.20` remains Latest; Docker `:stable` and the Full cask
+are older than the latest built candidates. These observations require fresh
+owner readback before any “latest” or “stable” claim is made.
+
+The first implementation tranche is therefore a documentation and compatibility
+plan: make the starter profile replaceable, decouple package publication from
+App/Base/other-package release, keep one Framework resolver and installed-lock
+authority, and reduce carrier-specific promotion. Until those changes and the
+three terminal proofs are recorded, status remains **target/planned**, not
+**landed**:
+
+```text
+App Stable -> GitHub Latest -> updater readback
+WebUI exact digest -> :stable -> anonymous pull
+one Package update -> unchanged Base/App/other Packages remain unchanged
+```
+
 The carrier strategy is official-capability-first. AionUI/AionCore supplies the
 default implementation baseline; OPL contracts authorize only a thin adaptation
 or an explicit product cut such as Team. A surface is not disabled merely because
@@ -33,10 +120,27 @@ GUI 产品定义刻意分层。`docs/product/gui/ideal-interaction-spec.md` 定�
 
 Capability governance follows one authority chain: OPL Flow declares the managed capability graph, OPL Base / Framework executes install, update, rollback, currentness and receipts, and OPL App owns GUI plus release-frozen projections. App does not maintain a second managed Skill, Plugin, CLI or MCP inventory. Standard resolves the Flow default closure from an online exact release lock, while Full embeds the same exact closure; their final Framework locks and discovery projections must match. Credentials remain user/provider-owned, and unknown user or third-party MCP surfaces are preserved. See [`capability-governance.md`](capability-governance.md).
 
-Professional agent ownership is deliberately split to keep the App generic. The App should own package management, home shortcut configuration, launch into Codex, invocation receipt display, and refs-only status panels. In Settings, Agents is the installed package directory with integrated Home shortcut management; purpose remains a secondary tag/filter, not the primary row identity. Capabilities separately owns the Skill/Plugin catalog and OPL Flow recommendations. Neither page owns a professional agent's domain workflow, stage model, prompt internals, artifact schema, readiness verdict, quality/export verdict, or owner receipts. There should be no strong App-level `Session Contract` for MAS or any other professional agent. The durable boundary is `Agent Package -> Home Shortcut Metadata -> Codex launch -> Invocation Receipt`. The required invocation receipt records that launch fact; the optional activation `use_receipt_ref` is separate audit evidence and never a universal launch prerequisite.
+Professional agent ownership is deliberately split to keep the App generic. The
+App owns package-management UX, home shortcut configuration, launch into Codex,
+invocation receipt display, and refs-only status panels; the Framework owns the
+package lifecycle and action execution behind those projections. In Settings,
+Agents is the installed package directory with integrated Home shortcut
+management; purpose remains a secondary tag/filter, not the primary row identity.
+Capabilities separately owns the Skill/Plugin catalog and OPL Flow
+recommendations. Neither page owns a professional agent's domain workflow,
+stage model, prompt internals, artifact schema, readiness verdict, quality/export
+verdict, or owner receipts. There should be no strong App-level `Session
+Contract` for MAS or any other professional agent. The durable boundary is
+`Agent Package -> Home Shortcut Metadata -> Codex launch -> Invocation Receipt`.
+The required invocation receipt records that launch fact; the optional
+activation `use_receipt_ref` is separate audit evidence and never a universal
+launch prerequisite.
 
-The Framework built-in Release Set is the only runtime source of canonical
-first-party package identities. The default App registry contract at
+The Framework built-in Release Set is the runtime source of canonical
+first-party package identities for a selected release snapshot. It is not a
+fixed package list and is not the publication authority for independently
+released packages. The current seven identities are the starter profile. The
+default App registry contract at
 `contracts/agent-package-registry.json` is an external-discovery-only source,
 may be empty, and must not claim a built-in package id, first-party source, or
 `first_party` trust tier. Framework keeps the collision defense fail-closed.
@@ -47,7 +151,7 @@ owner receipt authority. `contracts/agent-package-surfaces.schema.json` and
 `contracts/fixtures/agent-package-manifests/` define the App-side manifest,
 shortcut, invocation receipt, and package lock receipt shapes, while
 `contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata`
-provides static product metadata for all seven built-in packages without becoming
+provides static product metadata for the current starter profile without becoming
 directory or install truth. Selecting an external package routes the manifest URL to OPL Framework
 validation and package lifecycle execution. The validated manifest plus
 Framework package lock, rollback ref, and action receipt is the install
