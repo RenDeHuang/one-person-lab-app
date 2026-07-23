@@ -19,9 +19,9 @@ on:
         default: ''
         type: string
       include_full:
-        description: Bind the intent to append Full later; Full never runs in the Standard operation
+        description: Legacy checkpoint compatibility; new Standard requests must keep this false
         required: false
-        default: true
+        default: false
         type: boolean
       shell_ref:
         description: Exact Shell main SHA; required only for a new Standard Bundle
@@ -50,6 +50,8 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI: opl_packages.v1
+  OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE: '>=0.1.0 <1.0.0'
 
 concurrency:
   group: opl-release-bundle-global
@@ -74,6 +76,8 @@ jobs:
       source_artifact: ${{ steps.admission.outputs.source_artifact }}
       operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
+      package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
+      package_compatibility_version_range: ${{ steps.admission.outputs.package_compatibility_version_range }}
     steps:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -130,6 +134,10 @@ jobs:
                 echo "::error::A new Standard Bundle cannot consume a previous run."
                 exit 1
               }
+              test "$INCLUDE_FULL" = false || {
+                echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
+                exit 1
+              }
               ;;
             resume_standard|append_full)
               [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
@@ -171,6 +179,8 @@ jobs:
             echo "source_artifact=$SOURCE_ARTIFACT"
             echo "operation_started_at=$operation_started_at"
             echo "operation_deadline_at=$operation_deadline_at"
+            echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
+            echo "package_compatibility_version_range=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable operation admission
@@ -196,6 +206,8 @@ jobs:
       channel: stable
       version: ${{ needs.admission.outputs.version }}
       include_full: ${{ fromJSON(needs.admission.outputs.include_full) }}
+      package_compatibility_abi: ${{ needs.admission.outputs.package_compatibility_abi }}
+      package_compatibility_version_range: ${{ needs.admission.outputs.package_compatibility_version_range }}
       app_ref: ${{ needs.admission.outputs.app_ref }}
       shell_ref: ${{ needs.admission.outputs.shell_ref }}
       framework_ref: ${{ needs.admission.outputs.framework_ref }}

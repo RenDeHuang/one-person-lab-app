@@ -65,7 +65,7 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     app_may_derive_or_project_release_stage_state: false,
     rule: control.framework_authority.rule,
     portable_checkpoint_authority_first_landed_sha: "f785cda96",
-    consumed_abi_sha: "27d87877518bdf70b474b648d46a8c573f43bf40",
+    consumed_abi_sha: "9860dc64b56ed9cccb9984cd14e138d9ccacced7",
   });
   assert.deepEqual(control.app_authority.owns, [
     "product_release_adapter",
@@ -80,10 +80,35 @@ test("Framework owns the live immutable Release Bundle and App remains a product
   assert.ok(control.app_authority.does_not_own.includes("generic_publisher_ledger"));
 });
 
-test("Bundle identity closes the seven-package catalog drift that invalidated Full", () => {
-  assert.equal(control.identity.three_repo_sha_tuple_is_sufficient, false);
+test("new App Standard identity binds exact source refs and typed Package compatibility only", () => {
   assert.deepEqual(control.identity.minimum_source_refs, ["app_sha", "shell_sha", "framework_sha"]);
-  assert.deepEqual(control.identity.required_package_ids, [
+  assert.deepEqual(control.identity.new_standard, {
+    identity_mode: "app_standard_compatibility",
+    three_repo_sha_tuple_is_sufficient_with_typed_package_compatibility: true,
+    package_compatibility: {
+      abi: "opl_packages.v1",
+      version_range: ">=0.1.0 <1.0.0",
+    },
+    forbidden_authority_fields: [
+      "framework_release_set",
+      "packages",
+      "release_set_generation",
+      "release_set_digest",
+      "first_party_packages",
+      "opl_flow",
+    ],
+  });
+  assert.match(control.identity.prebuild_rule, /must not gate or enter the new Standard identity/);
+  assert.ok(control.identity.canonical_digest_covers.includes("typed_package_compatibility"));
+  assert.equal(control.identity.canonical_digest_covers.includes("package_binding"), false);
+});
+
+test("legacy Package-bound Bundles remain read-compatible but cannot be generated as new Standard", () => {
+  const legacy = control.identity.legacy_bundle_read_compatibility;
+  assert.equal(legacy.identity_mode, "framework_release_set_and_exact_packages");
+  assert.equal(legacy.new_standard_generation_allowed, false);
+  assert.equal(legacy.checkpoint_import_and_qualification_readback_allowed, true);
+  assert.deepEqual(legacy.required_package_ids, [
     "mas",
     "mag",
     "rca",
@@ -93,16 +118,9 @@ test("Bundle identity closes the seven-package catalog drift that invalidated Fu
     "opl-flow",
   ]);
   assert.deepEqual(
-    control.identity.accepted_package_binding_modes.explicit_members.required_per_package_fields,
+    legacy.required_per_package_fields,
     ["package_id", "package_version", "owner_source_commit", "payload_manifest_sha256"],
   );
-  assert.equal(
-    control.identity.accepted_package_binding_modes.framework_release_set
-      .must_transitively_bind_exact_required_package_set,
-    true,
-  );
-  assert.equal(control.identity.framework_catalog_or_manifest_digest_required, true);
-  assert.match(control.identity.prebuild_rule, /before any expensive build/);
 });
 
 test("local and GitHub executors consume one exact build-once Bundle", () => {
