@@ -12,7 +12,6 @@ import {
   assertAppProductProfileSettingsVisualSystem,
   assertHomeComposerStateContract,
   assertProfessionalAgentPackagePolicy,
-  isExternalFirstPartyClaim,
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
@@ -541,7 +540,10 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
     profile.codex.opl_flow_context.delivery !== 'package_installed_user_profile_only' ||
     profile.codex.opl_flow_context.user_agents_policy !== 'respect_user_agents_no_overwrite_detect_conflicts' ||
     profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh' ||
-    profile.codex.opl_flow_context.app_role !== 'install_sync_diagnose_user_profile_only'
+    profile.codex.opl_flow_context.app_role !==
+      'display_framework_projection_and_execute_projected_actions_only' ||
+    profile.codex.opl_flow_context.dependency_policy !==
+      'framework_resolves_declared_dependencies_without_app_lock_or_payload_prerequisite'
   ) {
     throw new Error('App product profile must consume the OPL Flow package context policy');
   }
@@ -948,11 +950,6 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
 }
 
 function assertAgentPackageRegistryProjection(profile: AppProductProfile, profilePath: string): void {
-  const registryPath = path.join(path.dirname(profilePath), 'agent-package-registry.json');
-  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as {
-    registry_url?: unknown;
-    entries?: Array<{ package_id?: unknown; source?: unknown; trust_tier?: unknown }>;
-  };
   const projection = profile.gui.agent_package_registry;
   const expectedFirstPartyPackageIds = [
     'mas',
@@ -964,20 +961,22 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
     'opl-flow',
   ];
   if (
-    typeof registry.registry_url !== 'string' ||
-    !registry.registry_url.trim() ||
-    projection?.default_registry_url !== registry.registry_url ||
-    projection?.source_ref !== 'contracts/agent-package-registry.json#registry_url' ||
-    projection?.registry_scope !== 'external_discovery_only' ||
-    projection?.empty_default_registry_allowed !== true ||
-    projection?.first_party_runtime_authority !== 'one-person-lab-framework#built_in_release_set' ||
+    projection?.directory_lifecycle_authority !==
+      'app_state.agent_packages.directory+status_index+actions' ||
+    projection?.resolver_currentness_authority !==
+      'one-person-lab#package_repository_resolver' ||
+    projection?.installed_truth_authority !== 'one-person-lab#exact_installed_lock' ||
+    projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
+    projection?.bundled_default_registry_allowed !== false ||
+    projection?.external_registry_policy_ref !==
+      'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy' ||
     projection?.external_first_party_identity_claims_allowed !== false ||
     projection?.external_first_party_trust_claims_allowed !== false ||
     projection?.collision_failure_code !== 'agent_package_registry_first_party_identity_collision' ||
     projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('App product profile must separate the external Agent Package registry from the Framework first-party Release Set');
+    throw new Error('App product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
   }
   if (JSON.stringify(projection.canonical_first_party_package_ids) !== JSON.stringify(expectedFirstPartyPackageIds)) {
     throw new Error('App product profile must list the canonical Framework first-party Release Set package ids');
@@ -1048,15 +1047,6 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
     presentation.developer_controls_disclosure.ordinary_catalog_remains_visible_when_collapsed !== true
   ) {
     throw new Error('App product profile Agent catalog must use localized product ordering and projected dependency hierarchy');
-  }
-  const reservedIds = new Set(expectedFirstPartyPackageIds);
-  const externalEntries = registry.entries ?? [];
-  const collision = externalEntries.find((entry) =>
-    (typeof entry.package_id === 'string' && reservedIds.has(entry.package_id)) ||
-    isExternalFirstPartyClaim(entry.source) ||
-    isExternalFirstPartyClaim(entry.trust_tier));
-  if (collision) {
-    throw new Error('Default external Agent Package registry must have zero canonical first-party identity or trust collisions');
   }
 }
 

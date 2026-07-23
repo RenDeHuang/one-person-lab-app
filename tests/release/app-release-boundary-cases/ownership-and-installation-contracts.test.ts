@@ -19,31 +19,68 @@ import {
   appOwnedWebuiDataVolumeHostActionCapabilityId,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
-test('App Full may carry the OPL Flow default Skills without owning the dependency inventory', () => {
-  const oplFlowRoot = process.env.OPL_FULL_OPL_FLOW_ROOT?.trim() || path.resolve(appRoot, '..', 'opl-flow');
-  const closure = readOplFlowDefaultSkillDependencyIds(oplFlowRoot);
-  const expected = [
-    'agent-reach',
-    'officecli',
-    'officecli-docx',
-    'officecli-pptx',
-    'officecli-xlsx',
-    'officecli-academic-paper',
-    'officecli-data-dashboard',
-    'officecli-financial-model',
-    'officecli-pitch-deck',
-    'mineru-document-extractor',
-    'ui-ux-pro-max',
-  ];
+function externalRegistryFixture() {
+  return {
+    owner: 'community.example',
+    purpose: 'external_agent_package_registry_catalog',
+    state: 'active_external_discovery_source',
+    version: 1,
+    policy_ref: 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy',
+    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest',
+    registry_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry',
+    registry_id: 'community-example',
+    registry_name: 'Community Example',
+    registry_source_kind: 'organization_registry_url',
+    registry_url: 'https://community.example/opl-packages.json',
+    discovery_only: true,
+    install_authority_allowed: false,
+    canonical_first_party_entries_allowed: false,
+    first_party_trust_claims_allowed: false,
+    entry_required_fields: [
+      'package_id',
+      'package_kind',
+      'display_name',
+      'publisher',
+      'description',
+      'tags',
+      'package_role',
+      'source',
+      'manifest_url',
+      'version_source_ref',
+      'selected_version',
+      'stable_version',
+      'manifest_validation',
+      'trust_tier',
+    ],
+    manifest_required_fields: [
+      'package_id',
+      'package_kind',
+      'display_name',
+      'publisher',
+      'version',
+      'source',
+      'codex_surface',
+      'skill_packs',
+      'entrypoints',
+      'health_check',
+      'permissions',
+      'update_channel',
+      'rollback_ref',
+    ],
+    excluded_registry_fields: [
+      'session_contract_ref',
+      'domain_workflow_schema',
+      'prompt_body',
+      'artifact_schema',
+      'readiness_verdict_rule',
+      'quality_verdict_rule',
+      'owner_receipt_authority',
+    ],
+    entries: [],
+  };
+}
 
-  assert.deepEqual(closure, expected);
-  for (const skillId of expected) assert.equal(closure.includes(skillId), true, skillId);
-  for (const retired of ['superpowers', 'superpowers-lite', 'ponytail', 'codexcont', 'codex-ops-kit']) {
-    assert.equal(closure.includes(retired), false, retired);
-  }
-});
-
-test('App accepts Flow v3 open composition without lock or payload metadata', () => {
+test('Full packaging can consume any Flow v3 Skill declaration without lock or payload metadata', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-v3-policy-test-'));
   const contractsRoot = path.join(root, 'contracts');
   fs.mkdirSync(contractsRoot, { recursive: true });
@@ -405,7 +442,7 @@ test('agent installation validator rejects the retired first-party GHCR lifecycl
   }
 });
 
-test('App package consumers separate the Framework first-party Release Set from external discovery', () => {
+test('App package consumers keep Framework authority while external registries remain adapters', () => {
   const readContract = (name: string) => JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', name), 'utf8'),
   );
@@ -451,19 +488,19 @@ test('App package consumers separate the Framework first-party Release Set from 
       package_role: 'workflow_profile',
     },
   };
-  const registry = readContract('agent-package-registry.json');
   const profile = readContract('app-product-profile.json');
   const registryProjection = profile.gui.agent_package_registry;
   const registryEntrySchema = readContract('agent-package-surfaces.schema.json').$defs.agent_package_registry_entry;
-  assert.equal(registry.purpose, 'external_agent_package_registry_catalog_contract');
-  assert.equal(registry.registry_source_kind, 'default_external_registry');
-  assert.equal(registry.empty_registry_allowed, true);
-  assert.equal(registry.canonical_first_party_entries_allowed, false);
-  assert.equal(registry.first_party_trust_claims_allowed, false);
-  assert.deepEqual(registry.entries, []);
+  assert.equal(fs.existsSync(path.join(appRoot, 'contracts', 'agent-package-registry.json')), false);
   assert.deepEqual(registryProjection.canonical_first_party_package_ids, canonicalPackageIds);
-  assert.equal(registryProjection.first_party_runtime_authority, 'one-person-lab-framework#built_in_release_set');
-  assert.equal(registryProjection.registry_scope, 'external_discovery_only');
+  assert.equal(
+    registryProjection.directory_lifecycle_authority,
+    'app_state.agent_packages.directory+status_index+actions',
+  );
+  assert.equal(registryProjection.resolver_currentness_authority, 'one-person-lab#package_repository_resolver');
+  assert.equal(registryProjection.installed_truth_authority, 'one-person-lab#exact_installed_lock');
+  assert.equal(registryProjection.external_registry_role, 'optional_candidate_source_adapter');
+  assert.equal(registryProjection.bundled_default_registry_allowed, false);
   assert.equal(registryProjection.external_first_party_identity_claims_allowed, false);
   assert.equal(registryProjection.external_first_party_trust_claims_allowed, false);
   assert.equal(registryProjection.collision_failure_code, 'agent_package_registry_first_party_identity_collision');
@@ -471,7 +508,7 @@ test('App package consumers separate the Framework first-party Release Set from 
     registryEntrySchema.properties.package_role.enum,
     ['standard_agent', 'framework_capability_package', 'workflow_profile'],
   );
-  assert.deepEqual(registryEntrySchema.properties.package_id.not.enum, canonicalPackageIds);
+  assert.equal(registryEntrySchema.properties.package_id.not, undefined);
   assert.equal(registryEntrySchema.properties.source.not.pattern, forbiddenExternalFirstPartyClaimPattern);
   assert.equal(registryEntrySchema.properties.trust_tier.not.pattern, forbiddenExternalFirstPartyClaimPattern);
   for (const claim of ['first_party', 'First-Party', 'first party managed', 'first.party', 'firstPartyManaged']) {
@@ -524,33 +561,20 @@ test('App package consumers separate the Framework first-party Release Set from 
   assert.equal(activeInstallSurface.includes('reconcile-modules'), false);
 });
 
-test('default refresh registry has zero Framework-shaped first-party identity collisions', () => {
+test('App ships no empty default registry and keeps collision defense at the policy boundary', () => {
   const profile = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-product-profile.json'), 'utf8'),
   );
-  const registry = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'agent-package-registry.json'), 'utf8'),
-  );
-  const builtInReleaseSet = new Set(profile.gui.agent_package_registry.canonical_first_party_package_ids);
-  const identityCollisions = registry.entries.filter((entry) => builtInReleaseSet.has(entry.package_id));
-  const firstPartyTrustClaims = registry.entries.filter((entry) =>
-    entry.source === 'first_party' ||
-    entry.source === 'first_party_release_catalog' ||
-    entry.source === 'first_party_managed_cohort' ||
-    /^first_party(?:$|_)/i.test(entry.trust_tier));
-
-  assert.deepEqual(identityCollisions, []);
-  assert.deepEqual(firstPartyTrustClaims, []);
+  assert.equal(fs.existsSync(path.join(appRoot, 'contracts', 'agent-package-registry.json')), false);
+  assert.equal(profile.gui.agent_package_registry.bundled_default_registry_allowed, false);
   assert.equal(
-    registry.reserved_identity_collision_failure_code,
+    profile.gui.agent_package_registry.collision_failure_code,
     'agent_package_registry_first_party_identity_collision',
   );
 });
 
 test('agent installation validator rejects invalid external registry metadata and first-party claims', () => {
-  const registry = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'agent-package-registry.json'), 'utf8'),
-  );
+  const registry = externalRegistryFixture();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-agent-registry-invalid-'));
   const invalidRegistryPath = path.join(tempRoot, 'agent-package-registry.json');
   const invalidCases: Array<{

@@ -572,11 +572,12 @@ export type AppProductProfile = {
       required_preservation_targets: string[];
     };
     agent_package_registry: {
-      default_registry_url: string;
-      source_ref: string;
-      registry_scope: 'external_discovery_only';
-      empty_default_registry_allowed: boolean;
-      first_party_runtime_authority: string;
+      directory_lifecycle_authority: string;
+      resolver_currentness_authority: string;
+      installed_truth_authority: string;
+      external_registry_role: 'optional_candidate_source_adapter';
+      bundled_default_registry_allowed: boolean;
+      external_registry_policy_ref: string;
       canonical_first_party_package_ids: string[];
       external_first_party_identity_claims_allowed: boolean;
       external_first_party_trust_claims_allowed: boolean;
@@ -1020,7 +1021,7 @@ export type AppProductProfile = {
     upstream_packages: Record<string, {
       owner: string;
       source_policy: string;
-      release_lock_policy: string;
+      selected_input_provenance_policy: string;
       package_unit: string;
       skill_ids: string[];
       default_app_visible: boolean;

@@ -22,30 +22,14 @@
     ]
   },
   "capability_governance": {
-    "declaration_authority_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
     "lifecycle_authority": "one-person-lab",
     "lifecycle_surface": "opl_framework_package_transaction",
-    "app_role": "gui_and_release_frozen_projection_only",
-    "capability_identity": "kind_and_id_tuple",
+    "app_role": "gui_and_framework_projection_consumer_only",
     "managed_inventory": {
       "source": "framework_unified_capability_projection",
       "app_second_inventory_allowed": false,
       "app_presentational_metadata_allowed": true,
-      "flow_managed_grouping_required": true,
       "unknown_user_and_third_party_surfaces": "preserve"
-    },
-    "open_composition": {
-      "dependency_semantics": "flow_declares_capability_intent_without_carrier_or_lock_prerequisite",
-      "framework_resolution": "reuse_compatible_capability_else_project_install_action",
-      "app_projection_source": "framework_unified_capability_projection",
-      "lock_policy": "concrete_installation_or_release_result_not_declaration_prerequisite",
-      "full_payload_policy": "optional_carrier_for_available_compatible_payloads",
-      "missing_optional_payload_blocks_flow_or_app_readiness": false,
-      "carrier_equivalence_required": false,
-      "acceptance_gate": "framework_projection_or_action_readback",
-      "gui_ready_alone_is_sufficient": false,
-      "reconciliation_surface": "framework_managed_update_plane",
-      "provider_configuration_required_for_reconciliation": false
     },
     "credential_policy": {
       "credential_values_owner": "user_or_provider",
@@ -234,20 +218,6 @@
       ]
     },
     {
-      "id": "companion_tools_codex_skills",
-      "owner": "upstream_skill_owners_with_opl_distribution_policy",
-      "software_object": "opl_base",
-      "visibility_scope": "base_integration_projection_only_not_software_object",
-      "members_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
-      "closure_filter": "kind=codex_skill and online_install_default=true",
-      "default_app_visible": false,
-      "codex_discovery_policy": "installed_and_task_routed_without_ordinary_app_skill_menu_visibility",
-      "sync_target": "opl_framework_package_dependency_materialization",
-      "must_not_sync_to": [
-        "domain_plugin_semantic_mirror"
-      ]
-    },
-    {
       "id": "official_codex_runtime_capabilities",
       "owner": "openai_primary_runtime",
       "members": [
@@ -379,9 +349,6 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "bundle_runtime_payloads_then_continue_codex_exposure_maintenance_after_core_ready",
-      "capability_projection": "framework_unified_capability_projection",
-      "optional_payload_policy": "may_bundle_available_compatible_skill_payloads",
-      "missing_optional_payload_blocks_install_or_readiness": false,
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },
@@ -392,8 +359,6 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "app_managed_bootstrap_then_background_codex_exposure_maintenance",
-      "capability_projection": "framework_unified_capability_projection",
-      "resolution_policy": "framework_reuse_compatible_then_project_install_action",
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },
@@ -1251,12 +1216,12 @@
     ],
     "agent_registry_policy": {
       "policy_surface": "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
-      "default_registry_ref": "contracts/agent-package-registry.json",
-      "default_registry_source_kind": "default_external_registry",
-      "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
-      "default_registry_scope": "external_discovery_only",
-      "empty_default_registry_allowed": true,
-      "first_party_release_set_runtime_authority": "one-person-lab-framework#built_in_release_set",
+      "framework_directory_lifecycle_authority": "app_state.agent_packages.directory+status_index+actions",
+      "framework_resolver_currentness_authority": "one-person-lab#package_repository_resolver",
+      "installed_truth_authority": "one-person-lab#exact_installed_lock",
+      "app_bundled_default_registry_allowed": false,
+      "external_registry_role": "optional_candidate_source_adapter",
+      "external_registry_configuration_source": "framework_projected_configured_sources_or_explicit_user_selected_url",
       "canonical_first_party_package_ids_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids",
       "external_first_party_identity_claims_allowed": false,
       "external_first_party_trust_claims_allowed": false,
@@ -1267,7 +1232,6 @@
       "package_lock_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt",
       "first_party_manifest_fixture_dir": "contracts/fixtures/agent-package-manifests",
       "allowed_registry_source_kinds": [
-        "default_external_registry",
         "organization_registry_url",
         "user_registry_url"
       ],
@@ -1302,11 +1266,12 @@
       ],
       "registry_is_discovery_only": true,
       "registry_install_authority_allowed": false,
+      "registry_may_define_currentness": false,
       "manifest_url_required_for_install": true,
       "manifest_validation_required_before_install": true,
       "install_authority": "validated_opl_package_manifest_plus_framework_package_lock_receipt",
       "mutating_actions_owner": "one-person-lab",
-      "app_role": "refresh_external_registry_display_external_candidates_and_route_selected_manifest_url_to_framework_without_owning_first_party_identity_or_agent_semantics",
+      "app_role": "display_framework_projected_external_candidates_and_route_selected_manifest_url_without_owning_lifecycle_currentness_or_agent_semantics",
       "direct_manifest_url_install_allowed": true,
       "third_party_registry_required_for_manual_install": false,
       "third_party_entry_policy": "external_registry_entries_may_be_listed_for_discovery_but_must_not_claim_canonical_first_party_identity_or_trust_and_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref",

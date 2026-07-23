@@ -118,7 +118,13 @@ GUI 产品定义刻意分层。`docs/product/gui/ideal-interaction-spec.md` 定�
 
 `contracts/app-gui-product-contract.json` is the canonical App-owned GUI product contract. It covers the Codex CLI fixed executor experience, hidden home and ordinary-conversation backend/provider selectors, visible App-owned model/reasoning and user-language permission/access controls, purpose-first home entries, assistant-scoped skill/profile metadata for those entries, the required package-shortcut invocation receipt, the home prompt, and the App-owned Settings IA: seven visible groups over ten stable carrier routes, with Resources & Connections under Connections & Deployment, Instructions & Context under Agents & Capabilities, and Service Status / Updates & Repair / Logs & Diagnostics under Runtime & Maintenance. It also owns About as the bottom auxiliary page, compatibility redirects, startup snapshot/performance policy, first-launch `ready_to_launch` before the first conversation but never before `/guid`, module path source explanation, release stable/nightly gates, MDS retirement from default display, and the OPL Flow context shown in Settings. Authenticated ordinary launch routes directly to `/guid`; fast App state and managed-agent discovery hydrate in the background rather than through a visible `StartupGate`. The installed launch target is at most 1,500 ms from OS launch request to a visible, enabled, focusable Guid composer, but remains an unverified target rather than a measured SLA. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, updater cache cleanup, and bounded log rotation controls. MAS/MAG/RCA/BookForge/OMA are first-party starter packages and shortcuts, not the upper bound of what OPL App can manage. `contracts/app-install-exposure-policy.json` owns the App-facing install/exposure policy: `skill` is the public semantic ABI, Codex App plugins are distribution/capability bundles, and CLI/App/direct skill paths must converge on the same domain-owned action/stage metadata. `contracts/app-runtime-bridge.json` is the App-owned bridge contract that binds a replaceable shell adapter to OPL-owned CLI state/action/drilldown surfaces. `contracts/app-product-profile.json` carries desktop session defaults, visible companion skills, first-run Core readiness, Full readiness/background maintenance behavior, Settings presentation and startup policy, legacy settings route redirects, install exposure refs, assistant/profile metadata, launch receipt policy, and generated shell profile data. `contracts/app-page-state-matrix.json` and `contracts/app-first-run-test-matrix.json` define page-state and first-run expectations.
 
-Capability governance follows one authority chain: OPL Flow declares the managed capability graph, OPL Base / Framework executes install, update, rollback, currentness and receipts, and OPL App owns GUI plus release-frozen projections. App does not maintain a second managed Skill, Plugin, CLI or MCP inventory. Standard resolves the Flow default closure from an online exact release lock, while Full embeds the same exact closure; their final Framework locks and discovery projections must match. Credentials remain user/provider-owned, and unknown user or third-party MCP surfaces are preserved. See [`capability-governance.md`](capability-governance.md).
+Capability governance follows one authority chain: an installed OPL Flow Package
+declares its capability intent, OPL Base / Framework resolves and projects it,
+and OPL App renders Framework state and actions. App and Shell do not parse Flow,
+freeze its dependency graph, or maintain a second Skill, Plugin, CLI, or MCP
+inventory. Standard and Full remain independent carriers; neither requires a
+Flow lock or optional payload for App readiness. See
+[`capability-governance.md`](capability-governance.md).
 
 Professional agent ownership is deliberately split to keep the App generic. The
 App owns package-management UX, home shortcut configuration, launch into Codex,
@@ -136,18 +142,17 @@ The required invocation receipt records that launch fact; the optional
 activation `use_receipt_ref` is separate audit evidence and never a universal
 launch prerequisite.
 
-The Framework built-in Release Set is the runtime source of canonical
-first-party package identities for a selected release snapshot. It is not a
-fixed package list and is not the publication authority for independently
-released packages. The current seven identities are the starter profile. The
-default App registry contract at
-`contracts/agent-package-registry.json` is an external-discovery-only source,
-may be empty, and must not claim a built-in package id, first-party source, or
-`first_party` trust tier. Framework keeps the collision defense fail-closed.
-Operators may add organization or user registry URLs. External registry entries carry
-labels, source/trust hints, and manifest URLs only; they do not define
-business behavior, session contracts, artifact schemas, readiness rules, or
-owner receipt authority. `contracts/agent-package-surfaces.schema.json` and
+The Framework directory/status/actions are the lifecycle source for all Package
+identities. A Release Set is only a selected Full/offline/tested snapshot, not a
+fixed package list or independent publication authority. The current seven
+identities are a starter profile. The App ships no default registry URL or empty
+catalog. Operators may add organization or user registry URLs, and users may
+select direct manifests. These sources provide candidates only: Framework's
+resolver decides currentness and the exact installed lock defines local truth.
+External registry entries carry labels, source/trust hints, and manifest URLs
+only; they do not define business behavior, session contracts, artifact schemas,
+readiness rules, or owner receipt authority. Framework keeps identity/trust
+collision defense fail-closed. `contracts/agent-package-surfaces.schema.json` and
 `contracts/fixtures/agent-package-manifests/` define the App-side manifest,
 shortcut, invocation receipt, and package lock receipt shapes, while
 `contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata`
