@@ -12,6 +12,13 @@ const exactStableStandardPermissions = { contents: 'write', actions: 'read', pac
 const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
+const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
+const webuiStablePromotionMutationJob = 'promote-webui-stable';
+const exactWebuiStablePromotionPermissions = {
+  actions: 'read',
+  contents: 'read',
+  packages: 'write',
+} as const;
 
 export const stableReleaseActionPaths = [...new Set([
   '.github/actions/setup-active-shell-deps/action.yml',
@@ -69,6 +76,18 @@ function needsExactly(job: Record<string, any>, expected: string[]): boolean {
   const needs = typeof job.needs === 'string' ? [job.needs] : job.needs;
   return Array.isArray(needs) && needs.length === expected.length &&
     expected.every((name, index) => needs[index] === name);
+}
+
+export function isAuthorizedWebuiStablePromotionWriteJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  return workflowPath === webuiStablePromotionWorkflowPath
+    && jobId === webuiStablePromotionMutationJob
+    && needsExactly(job, ['admission'])
+    && job.environment === 'release-stable'
+    && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
 }
 
 function reportFailure(id: string, message: string): number {
@@ -858,6 +877,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       const writes = Object.entries(permissions).filter(([, value]) => value === 'write').map(([key]) => key);
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
+      if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
       if (
         workflowPath === manualFullPreviewWorkflowPath
         && jobId === manualFullPreviewMutationJob

@@ -1789,8 +1789,81 @@
     "stable_promotion_requires": [
       "immutable_version_digest",
       "verified_framework_latest_stable_receipt",
-      "verified_homebrew_activation_receipt"
+      "verified_homebrew_activation_receipt",
+      "verified_github_latest_activation_receipt"
     ],
+    "stable_promotion": {
+      "schema": "opl_app_webui_stable_promotion_contract.v1",
+      "writer": "release-webui-stable.yml#promote-webui-stable",
+      "workflow": ".github/workflows/release-webui-stable.yml",
+      "trigger": "workflow_dispatch_exact_run_handles_only",
+      "workflow_dispatch_inputs": [
+        "source_app_run_id",
+        "framework_candidate_run_id",
+        "framework_latest_stable_run_id"
+      ],
+      "opaque_run_handles_are_release_identity": false,
+      "protected_environment": "release-stable",
+      "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+      "source_run_requirements": [
+        "release-stable.yml",
+        "main",
+        "attempt_1",
+        "terminal_success",
+        "exact_current_app_main_sha"
+      ],
+      "framework_receipt_intake": {
+        "cross_run_scanning_allowed": false,
+        "latest_artifact_selection_allowed": false,
+        "request_guessing_allowed": false,
+        "specified_candidate_run_must_contain_exactly_one_candidate_receipt": true,
+        "specified_latest_stable_run_must_contain_exactly_one_latest_stable_receipt": true,
+        "receipt_content_must_reverse_bind_all_run_and_release_identity": true
+      },
+      "evidence_order": [
+        "qualified_immutable_webui_carrier_and_version_tag_readback",
+        "verified_framework_latest_stable_receipt",
+        "verified_homebrew_activation_readback",
+        "verified_github_latest_activation_receipt_and_fresh_api_readback",
+        "webui_stable_compare_and_swap",
+        "logout_then_anonymous_exact_digest_readback"
+      ],
+      "operator_inputs_forbidden": [
+        "target_ref",
+        "target_digest",
+        "version",
+        "promotion_request_id",
+        "expected_predecessor_digest",
+        "force"
+      ],
+      "compare_and_swap": {
+        "target_digest_source": "unique_qualified_app_webui_carrier_receipt",
+        "expected_predecessor_source": "fresh_anonymous_prestate_frozen_in_admission_capsule",
+        "bootstrap_requires_definitive_absent": true,
+        "target_digest_is_idempotent": true,
+        "frozen_predecessor_to_target_is_single_write": true,
+        "unexpected_digest_is_conflict_without_mutation": true,
+        "prestate_unknown_is_not_absent": true,
+        "mutation_command": "oras tag <repository>@<target_digest> stable",
+        "maximum_tag_attempts": 1,
+        "force_allowed": false
+      },
+      "unknown_outcome": {
+        "second_tag_allowed": false,
+        "workflow_rerun_allowed": false,
+        "workflow_redispatch_allowed": false,
+        "workflow_cancel_as_recovery_allowed": false,
+        "maximum_bounded_read_only_descriptor_readbacks": 3,
+        "target_observed_result": "reconciled_complete",
+        "otherwise_result": "outcome_unknown"
+      },
+      "ordering": {
+        "github_latest_before_webui_stable": true,
+        "webui_stable_is_non_blocking_follower": true,
+        "webui_failure_may_rollback_or_reactivate_desktop_latest": false
+      },
+      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v1"
+    },
     "stable_tags": [
       "<app_or_opl_version>",
       "stable"
@@ -1807,7 +1880,8 @@
     "rule": "WebUI GHCR image truth remains an App-owned server deployment concern outside the desktop Release Bundle. The desktop standard, resume_standard, and append_full operations cannot publish or move GHCR tags; a separately authorized WebUI lane must validate the runtime image and read back exact digests.",
     "publication_route": "independent_webui_lane_outside_desktop_release_bundle",
     "desktop_release_bundle_may_publish_or_move_tags": false,
-    "current_writer_declared_by_desktop_release_contract": false
+    "current_writer_declared_by_desktop_release_contract": false,
+    "independent_stable_writer_declared": true
   },
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",

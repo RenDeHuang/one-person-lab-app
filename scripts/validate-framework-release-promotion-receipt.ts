@@ -39,6 +39,11 @@ function sameJson(left: unknown, right: unknown, label: string): void {
   if (JSON.stringify(left) !== JSON.stringify(right)) throw new Error(`${label} changed between candidate and Stable promotion.`);
 }
 
+function positiveInteger(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || Number(value) <= 0) throw new Error(`${label} must be a positive integer.`);
+  return Number(value);
+}
+
 function component(
   value: unknown,
   label: string,
@@ -92,6 +97,59 @@ function validateComponentLocks(receipt: JsonRecord): {
   return { base, packages, expectedReadbackRefs: expectedReadbackRefs.sort() };
 }
 
+function validateWebuiCarrierBinding(app: JsonRecord, carrierReceiptPath: string): void {
+  if (!Array.isArray(app.carriers) || app.carriers.length !== 2) {
+    throw new Error('app.carriers must contain exactly macos_standard and docker_webui.');
+  }
+  const carriers = app.carriers.map((value, index) => record(value, `app.carriers[${index}]`));
+  const carrierIds = carriers.map((entry) => text(entry.carrier_id, 'app.carriers[].carrier_id')).sort();
+  if (JSON.stringify(carrierIds) !== JSON.stringify(['docker_webui', 'macos_standard'])) {
+    throw new Error('app.carriers must contain exactly macos_standard and docker_webui.');
+  }
+  const webuiMatches = carriers.filter((entry) => entry.carrier_id === 'docker_webui');
+  if (webuiMatches.length !== 1) throw new Error('app.carriers must contain one unique docker_webui carrier.');
+  const webui = webuiMatches[0]!;
+  if (webui.carrier_kind !== 'oci_image' || webui.package_profile !== 'webui-full') {
+    throw new Error('Framework docker_webui carrier kind or package profile is invalid.');
+  }
+  const webuiRef = text(webui.ref, 'app.carriers[docker_webui].ref');
+  const webuiDigest = digest(webui.digest, 'app.carriers[docker_webui].digest');
+  if (webuiRef !== `ghcr.io/gaofeng21cn/one-person-lab-webui@${webuiDigest}`) {
+    throw new Error('Framework docker_webui carrier ref must pin its exact digest.');
+  }
+  positiveInteger(webui.size, 'app.carriers[docker_webui].size');
+  const webuiFingerprint = digest(
+    webui.content_fingerprint,
+    'app.carriers[docker_webui].content_fingerprint',
+  );
+
+  if (!carrierReceiptPath) return;
+  const receipt = record(JSON.parse(fs.readFileSync(carrierReceiptPath, 'utf8')), 'WebUI carrier receipt');
+  if (receipt.schema !== 'opl_app_webui_release_carrier.v1') {
+    throw new Error('WebUI carrier receipt schema is invalid.');
+  }
+  const carrier = record(receipt.carrier, 'WebUI carrier receipt.carrier');
+  if (
+    carrier.carrier_id !== 'docker_webui'
+    || carrier.carrier_kind !== 'oci_image'
+    || carrier.package_profile !== 'webui-full'
+  ) {
+    throw new Error('WebUI carrier receipt does not identify the qualified docker_webui carrier.');
+  }
+  if (
+    carrier.ref !== webuiRef
+    || carrier.digest !== webuiDigest
+    || carrier.content_fingerprint !== webuiFingerprint
+    || positiveInteger(carrier.size_bytes, 'WebUI carrier receipt.carrier.size_bytes') !== webui.size
+  ) {
+    throw new Error('Framework docker_webui carrier does not match the qualified App carrier receipt.');
+  }
+  const qualification = record(receipt.qualification, 'WebUI carrier receipt.qualification');
+  if (qualification.status !== 'passed' || qualification.image_digest !== webuiDigest) {
+    throw new Error('WebUI carrier receipt qualification is not passed for the exact Framework digest.');
+  }
+}
+
 function main(): void {
   const { values } = parseArgs({
     options: {
@@ -108,6 +166,7 @@ function main(): void {
       'framework-run-id': { type: 'string' },
       'expected-carrier-digest': { type: 'string', default: '' },
       'candidate-receipt': { type: 'string', default: '' },
+      'webui-carrier-receipt': { type: 'string', default: '' },
     },
     strict: true,
   });
@@ -180,6 +239,7 @@ function main(): void {
     || app.artifact_digest !== values['app-artifact-digest']) {
     throw new Error('Framework receipt App version, source commit, or artifact digest does not match the owner manifest.');
   }
+  validateWebuiCarrierBinding(app, values['webui-carrier-receipt']!);
 
   const { base, expectedReadbackRefs } = validateComponentLocks(receipt);
   if (base.source_commit !== values['framework-source-commit']) {

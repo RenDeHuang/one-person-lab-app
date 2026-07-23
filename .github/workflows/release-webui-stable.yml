@@ -1,0 +1,511 @@
+name: Promote WebUI Stable
+run-name: WebUI stable from App run ${{ inputs.source_app_run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_app_run_id:
+        description: Exact successful Stable App workflow run
+        required: true
+        type: string
+      framework_candidate_run_id:
+        description: Exact Framework run containing the candidate promotion receipt
+        required: true
+        type: string
+      framework_latest_stable_run_id:
+        description: Exact Framework run containing the latest-stable promotion receipt
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-webui-stable-promotion-global
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      admission_artifact: ${{ steps.admission.outputs.admission_artifact }}
+    steps:
+      - name: Checkout canonical App promotion authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Reject noncanonical or partial promotion runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          FRAMEWORK_CANDIDATE_RUN_ID: ${{ inputs.framework_candidate_run_id }}
+          FRAMEWORK_STABLE_RUN_ID: ${{ inputs.framework_latest_stable_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+          for run_id in "$SOURCE_APP_RUN_ID" "$FRAMEWORK_CANDIDATE_RUN_ID" "$FRAMEWORK_STABLE_RUN_ID"; do
+            [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
+          done
+          canonical_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          test "$canonical_sha" = "$GITHUB_SHA"
+          mkdir -p evidence
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_APP_RUN_ID" > evidence/source-app-run.json
+          gh api "repos/gaofeng21cn/one-person-lab/actions/runs/$FRAMEWORK_CANDIDATE_RUN_ID" \
+            > evidence/framework-candidate-run.json
+          gh api "repos/gaofeng21cn/one-person-lab/actions/runs/$FRAMEWORK_STABLE_RUN_ID" \
+            > evidence/framework-stable-run.json
+          jq -e --arg run "$SOURCE_APP_RUN_ID" --arg sha "$GITHUB_SHA" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and .head_sha == $sha
+          ' evidence/source-app-run.json >/dev/null
+          jq -e --arg run "$FRAMEWORK_CANDIDATE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab"
+            and .path == ".github/workflows/packages.yml"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+          ' evidence/framework-candidate-run.json >/dev/null
+          jq -e --arg run "$FRAMEWORK_STABLE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab"
+            and .path == ".github/workflows/release-package-channel.yml"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+          ' evidence/framework-stable-run.json >/dev/null
+
+      - name: Download exact App WebUI carrier artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: webui-carrier-*-${{ inputs.source_app_run_id }}-1
+          run-id: ${{ inputs.source_app_run_id }}
+          github-token: ${{ github.token }}
+          path: intake/app-carrier
+
+      - name: Download exact App Homebrew readback artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-homebrew-standard-readback-${{ inputs.source_app_run_id }}
+          run-id: ${{ inputs.source_app_run_id }}
+          github-token: ${{ github.token }}
+          path: intake/homebrew
+
+      - name: Download exact App Latest activation artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-activation-${{ inputs.source_app_run_id }}
+          run-id: ${{ inputs.source_app_run_id }}
+          github-token: ${{ github.token }}
+          path: intake/latest
+
+      - name: Download candidate receipt only from the specified Framework run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: opl-release-promotion-receipt-*-candidate
+          repository: gaofeng21cn/one-person-lab
+          run-id: ${{ inputs.framework_candidate_run_id }}
+          github-token: ${{ github.token }}
+          path: intake/framework-candidate
+
+      - name: Download latest-stable receipt only from the specified Framework run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: opl-release-promotion-receipt-*-latest-stable
+          repository: gaofeng21cn/one-person-lab
+          run-id: ${{ inputs.framework_latest_stable_run_id }}
+          github-token: ${{ github.token }}
+          path: intake/framework-stable
+
+      - name: Materialize exactly one receipt from every specified run
+        env:
+          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          unique_regular_file() {
+            local root="$1" name="$2" output="$3"
+            local matches=()
+            while IFS= read -r match; do matches+=("$match"); done < <(
+              find "$root" -type f -name "$name" -print | LC_ALL=C sort
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::$root must contain exactly one $name; found ${#matches[@]}."
+              exit 1
+            }
+            test ! -L "${matches[0]}"
+            cp "${matches[0]}" "$output"
+            cmp "${matches[0]}" "$output"
+            printf '%s\n' "${matches[0]}"
+          }
+          carrier_source="$(unique_regular_file intake/app-carrier carrier-receipt.json evidence/carrier-receipt.json)"
+          unique_regular_file intake/homebrew homebrew-standard-readback.json \
+            evidence/homebrew-standard-readback.json >/dev/null
+          unique_regular_file intake/latest standard-latest-admission.json \
+            evidence/standard-latest-admission.json >/dev/null
+          unique_regular_file intake/latest latest-result.json evidence/latest-result.json >/dev/null
+          unique_regular_file intake/framework-candidate opl-release-promotion-receipt.json \
+            evidence/framework-candidate-receipt.json >/dev/null
+          unique_regular_file intake/framework-stable opl-release-promotion-receipt.json \
+            evidence/framework-stable-receipt.json >/dev/null
+          version="$(jq -er '.release.version | select(test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))' \
+            evidence/carrier-receipt.json)"
+          carrier_artifact="$(basename "$(dirname "$carrier_source")")"
+          test "$carrier_artifact" = "webui-carrier-${version}-${SOURCE_APP_RUN_ID}-1"
+          jq -n \
+            --arg source_app_run_id "$SOURCE_APP_RUN_ID" \
+            --arg app_carrier_artifact "$carrier_artifact" \
+            --arg homebrew_artifact "opl-release-homebrew-standard-readback-${SOURCE_APP_RUN_ID}" \
+            --arg latest_artifact "opl-release-activation-${SOURCE_APP_RUN_ID}" \
+            '{
+              schema:"opl_app_webui_stable_artifact_intake.v1",
+              source_app_run_id:$source_app_run_id,
+              app_carrier_artifact:$app_carrier_artifact,
+              homebrew_artifact:$homebrew_artifact,
+              latest_artifact:$latest_artifact
+            }' > evidence/artifact-intake.json
+
+      - name: Setup ORAS for anonymous descriptor admission
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+
+      - name: Read immutable, version, Stable, and GitHub Latest authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          observe_descriptor() {
+            local ref="$1" output="$2"
+            local repository="${ref%@*}" descriptor='' error='' status=unknown observed=null
+            if [ "$repository" = "$ref" ]; then repository="${ref%:*}"; fi
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2>"${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            else
+              error="$(tr '\n' ' ' < "${output}.stderr")"
+              if grep -Eqi 'manifest unknown|name unknown|not found|404' <<<"$error"; then
+                status=absent
+                if [[ "$ref" == *:stable ]]; then
+                  if ! oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr"; then
+                    status=unknown
+                  elif grep -Fx stable "${output}.tags" >/dev/null; then
+                    status=unknown
+                  fi
+                fi
+              fi
+            fi
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
+          }
+          image_ref="$(jq -er '.carrier.ref | select(test("^ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:[0-9a-f]{64}$"))' \
+            evidence/carrier-receipt.json)"
+          version="$(jq -er .release.version evidence/carrier-receipt.json)"
+          observe_descriptor "$image_ref" evidence/immutable-readback.json
+          observe_descriptor "ghcr.io/gaofeng21cn/one-person-lab-webui:${version}" \
+            evidence/version-readback.json
+          observe_descriptor ghcr.io/gaofeng21cn/one-person-lab-webui:stable \
+            evidence/stable-prestate.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > evidence/github-latest.json
+
+      - name: Verify candidate and latest-stable Framework receipts
+        env:
+          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          FRAMEWORK_CANDIDATE_RUN_ID: ${{ inputs.framework_candidate_run_id }}
+          FRAMEWORK_STABLE_RUN_ID: ${{ inputs.framework_latest_stable_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate=evidence/framework-candidate-receipt.json
+          stable=evidence/framework-stable-receipt.json
+          carrier=evidence/carrier-receipt.json
+          request_id="$(jq -er '.promotion_request_id | select(test("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))' "$candidate")"
+          generation="$(jq -er .release_set_generation "$candidate")"
+          release_gate="$(jq -er .release_gate "$candidate")"
+          version="$(jq -er .release.version "$carrier")"
+          app_sha="$(jq -er .cohort.app_sha "$carrier")"
+          framework_sha="$(jq -er .cohort.framework_sha "$carrier")"
+          app_artifact_digest="$(jq -er .app.artifact_digest "$candidate")"
+          node --experimental-strip-types scripts/validate-framework-release-promotion-receipt.ts \
+            --receipt "$candidate" --target candidate \
+            --promotion-request-id "$request_id" --release-set-generation "$generation" \
+            --release-gate "$release_gate" --source-app-run-id "$SOURCE_APP_RUN_ID" \
+            --app-version "$version" --app-source-commit "$app_sha" \
+            --app-artifact-digest "$app_artifact_digest" \
+            --framework-source-commit "$framework_sha" \
+            --framework-run-id "$FRAMEWORK_CANDIDATE_RUN_ID" \
+            --webui-carrier-receipt "$carrier" > evidence/framework-candidate-verification.json
+          node --experimental-strip-types scripts/validate-framework-release-promotion-receipt.ts \
+            --receipt "$stable" --target latest-stable \
+            --promotion-request-id "$request_id" --release-set-generation "$generation" \
+            --release-gate "$release_gate" --source-app-run-id "$SOURCE_APP_RUN_ID" \
+            --app-version "$version" --app-source-commit "$app_sha" \
+            --app-artifact-digest "$app_artifact_digest" \
+            --framework-source-commit "$framework_sha" \
+            --framework-run-id "$FRAMEWORK_STABLE_RUN_ID" \
+            --expected-carrier-digest "$(jq -er .carrier.digest "$candidate")" \
+            --candidate-receipt "$candidate" \
+            --webui-carrier-receipt "$carrier" > evidence/framework-stable-verification.json
+
+      - name: Seal one immutable WebUI Stable admission
+        id: admission
+        env:
+          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          FRAMEWORK_CANDIDATE_RUN_ID: ${{ inputs.framework_candidate_run_id }}
+          FRAMEWORK_STABLE_RUN_ID: ${{ inputs.framework_latest_stable_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/webui-stable-promotion.ts admit \
+            --source-run evidence/source-app-run.json \
+            --source-run-id "$SOURCE_APP_RUN_ID" \
+            --framework-candidate-run-id "$FRAMEWORK_CANDIDATE_RUN_ID" \
+            --framework-stable-run-id "$FRAMEWORK_STABLE_RUN_ID" \
+            --app-sha "$GITHUB_SHA" \
+            --carrier-receipt evidence/carrier-receipt.json \
+            --framework-candidate-receipt evidence/framework-candidate-receipt.json \
+            --framework-stable-receipt evidence/framework-stable-receipt.json \
+            --homebrew-readback evidence/homebrew-standard-readback.json \
+            --latest-admission evidence/standard-latest-admission.json \
+            --latest-result evidence/latest-result.json \
+            --github-latest evidence/github-latest.json \
+            --immutable-readback evidence/immutable-readback.json \
+            --version-readback evidence/version-readback.json \
+            --stable-prestate evidence/stable-prestate.json \
+            --output evidence/admission.json > evidence/admission-summary.json
+          admission_artifact="opl-webui-stable-admission-${GITHUB_RUN_ID}"
+          echo "admission_artifact=$admission_artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable WebUI Stable admission
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.admission.outputs.admission_artifact }}
+          path: evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  promote-webui-stable:
+    needs: admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release-stable
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout exact admitted App authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Reject partial rerun before GHCR mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+
+      - name: Download exact same-run admission
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.admission.outputs.admission_artifact }}
+          path: evidence
+
+      - name: Setup ORAS for one bounded CAS
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+
+      - name: Re-read Stable prestate and derive CAS decision
+        id: decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission_files=()
+          while IFS= read -r file; do admission_files+=("$file"); done < <(
+            find evidence -type f -name admission.json -print | LC_ALL=C sort
+          )
+          test "${#admission_files[@]}" -eq 1
+          admission="${admission_files[0]}"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          repository="${stable_ref%:*}"
+          status=unknown
+          observed=null
+          if descriptor="$(oras manifest fetch --descriptor "$stable_ref" 2> current-stable.stderr)"; then
+            observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+            if [ "$observed" != null ]; then status=present; fi
+          elif grep -Eqi 'manifest unknown|name unknown|not found|404' current-stable.stderr; then
+            if oras repo tags "$repository" > current-stable.tags 2> current-stable.tags.stderr \
+              && ! grep -Fx stable current-stable.tags >/dev/null; then
+              status=absent
+            fi
+          fi
+          jq -n --arg ref "$stable_ref" --arg status "$status" --argjson digest "$(
+            if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+          )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' \
+            > current-stable.json
+          node --experimental-strip-types scripts/webui-stable-promotion.ts decide \
+            --admission "$admission" --current current-stable.json --output decision.json \
+            > decision-summary.json
+          echo "decision=$(jq -er .decision decision.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Execute at most one WebUI Stable tag mutation and reconcile read-only
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          CAS_DECISION: ${{ steps.decision.outputs.decision }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          repository="$(jq -er .target.repository "$admission")"
+          target_digest="$(jq -er .target.digest "$admission")"
+          target_ref="${repository}@${target_digest}"
+          mkdir -p terminal/readbacks
+          jq -n '{
+            schema:"opl_app_webui_stable_mutation_attempt.v1",
+            status:"not_attempted",
+            attempt_count:0,
+            attempt_id:null,
+            exit_code:null,
+            stdout_sha256:null,
+            stderr_sha256:null
+          }' > terminal/mutation.json
+          login_performed=false
+          logout_before_readback=true
+          if [ "$CAS_DECISION" = write_once ]; then
+            if printf '%s' "$GHCR_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
+              login_performed=true
+              set +e
+              oras tag "$target_ref" stable > terminal/tag.stdout 2> terminal/tag.stderr
+              tag_status=$?
+              set -e
+              mutation_status=accepted
+              if [ "$tag_status" -ne 0 ]; then mutation_status=unknown; fi
+              jq -n --arg status "$mutation_status" --arg attempt_id "gha-${GITHUB_RUN_ID}-webui-stable-tag" \
+                --argjson exit_code "$tag_status" \
+                --arg stdout_sha256 "sha256:$(shasum -a 256 terminal/tag.stdout | awk '{print $1}')" \
+                --arg stderr_sha256 "sha256:$(shasum -a 256 terminal/tag.stderr | awk '{print $1}')" \
+                '{
+                  schema:"opl_app_webui_stable_mutation_attempt.v1",
+                  status:$status,
+                  attempt_count:1,
+                  attempt_id:$attempt_id,
+                  exit_code:$exit_code,
+                  stdout_sha256:$stdout_sha256,
+                  stderr_sha256:$stderr_sha256
+                }' > terminal/mutation.json
+            else
+              jq -n '{
+                schema:"opl_app_webui_stable_mutation_attempt.v1",
+                status:"not_attempted",
+                attempt_count:0,
+                attempt_id:null,
+                exit_code:null,
+                stdout_sha256:null,
+                stderr_sha256:null,
+                failure:"registry_login_failed"
+              }' > terminal/mutation.json
+            fi
+          fi
+          if [ "$login_performed" = true ]; then
+            if ! oras logout ghcr.io; then logout_before_readback=false; fi
+          fi
+          observe_stable() {
+            local output="$1" status=unknown observed=null
+            if descriptor="$(oras manifest fetch --descriptor "$stable_ref" 2>"${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            elif grep -Eqi 'manifest unknown|name unknown|not found|404' "${output}.stderr"; then
+              if oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr" \
+                && ! grep -Fx stable "${output}.tags" >/dev/null; then
+                status=absent
+              fi
+            fi
+            jq -n --arg ref "$stable_ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
+          }
+          if [ "$(jq -r .attempt_count terminal/mutation.json)" -eq 1 ]; then
+            for attempt in 1 2 3; do
+              readback="terminal/readbacks/${attempt}.json"
+              observe_stable "$readback"
+              if [ "$(jq -r .digest "$readback")" = "$target_digest" ]; then break; fi
+              if [ "$attempt" -lt 3 ]; then sleep 2; fi
+            done
+            last_readback="$(find terminal/readbacks -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
+            jq --argjson logout "$logout_before_readback" \
+              '. + {logout_before_readback:$logout}' "$last_readback" > terminal/anonymous-readback.json
+          else
+            observe_stable terminal/anonymous-readback.json
+            jq '. + {logout_before_readback:true}' terminal/anonymous-readback.json \
+              > terminal/anonymous-readback.tmp
+            mv terminal/anonymous-readback.tmp terminal/anonymous-readback.json
+          fi
+          jq -s '{
+            schema:"opl_app_webui_stable_reconcile_readbacks.v1",
+            observations:.
+          }' terminal/readbacks/*.json > terminal/readbacks.json 2>/dev/null || \
+            jq -n '{schema:"opl_app_webui_stable_reconcile_readbacks.v1",observations:[]}' \
+              > terminal/readbacks.json
+
+      - name: Write terminal WebUI Stable receipt
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          node --experimental-strip-types scripts/webui-stable-promotion.ts receipt \
+            --admission "$admission" --decision decision.json \
+            --mutation terminal/mutation.json --readbacks terminal/readbacks.json \
+            --anonymous-readback terminal/anonymous-readback.json \
+            --output terminal/webui-stable-promotion-receipt.json \
+            > terminal/receipt-summary.json
+
+      - name: Upload terminal WebUI Stable evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-webui-stable-promotion-${{ github.run_id }}
+          path: |
+            current-stable.json
+            decision.json
+            decision-summary.json
+            terminal
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce conclusive WebUI Stable terminal state
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(jq -er .status terminal/webui-stable-promotion-receipt.json)"
+          case "$status" in
+            complete|idempotent|reconciled_complete) ;;
+            *)
+              echo "::error::WebUI Stable promotion ended $status; no second tag, rerun, redispatch, or cancel is authorized."
+              exit 1
+              ;;
+          esac
