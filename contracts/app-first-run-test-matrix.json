@@ -5,6 +5,55 @@
   "state": "active",
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
+  "provider_configuration_qualification": {
+    "release_contract_ref": "contracts/app-release-channel.json#provider_configuration_boundary",
+    "default_user_authentication": "opl_gateway_account_password",
+    "api_key_role": "explicit_compatibility_only",
+    "configuration_timing": "user_requested_at_model_use_or_settings",
+    "release_vm_default": {
+      "credential_mode": "none",
+      "provider_configuration_status": "not_requested",
+      "provider_configuration_required": false,
+      "synthetic_api_key_generation_allowed": false,
+      "implicit_api_key_file_injection_allowed": false,
+      "visible_provider_wizard_behavior": "observe_and_defer",
+      "required_summary_fields": [
+        "status",
+        "requested",
+        "credential_source",
+        "credential_present",
+        "provider_base_url_matches_host",
+        "manual_user_input_required",
+        "mutation_performed",
+        "blocking_release_gate"
+      ]
+    },
+    "connected_provider_diagnostic": {
+      "trigger": "codex_ai_self_check_requested",
+      "credential_source": "developer_host_codex_selected_provider",
+      "config_path_resolution": "OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml",
+      "required_selected_provider_fields": [
+        "base_url",
+        "experimental_bearer_token"
+      ],
+      "base_url_must_match_opl_gateway": true,
+      "manual_user_input_required": false,
+      "synthetic_api_key_generation_allowed": false,
+      "secret_exposure_allowed": false,
+      "missing_or_incompatible_host_credential": "diagnostic_skipped_without_artifact_gate_failure"
+    },
+    "api_key_compatibility_lane": {
+      "requires_explicit_request": true,
+      "explicit_credential_file_role": "optional_manual_override_only",
+      "provider_command": "opl system configure-codex --api-key-stdin --json",
+      "blocking_release_gate": false
+    },
+    "required_release_scenarios": [
+      "standard_dmg_clean_vm_smoke",
+      "homebrew_standard_cask_clean_vm_smoke",
+      "full_dmg_clean_vm_smoke"
+    ]
+  },
   "shared_progress_model": {
     "producer": "one-person-lab",
     "source_command": "opl system initialize --json",
@@ -363,6 +412,7 @@
       "id": "standard_dmg_clean_vm_smoke",
       "package_type": "standard",
       "release_gate": true,
+      "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
@@ -516,6 +566,7 @@
       "id": "homebrew_standard_cask_clean_vm_smoke",
       "package_type": "standard",
       "release_gate": true,
+      "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean Homebrew-ready Tart base clone",
         "display": "1920x1080px",
@@ -679,6 +730,7 @@
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
       "release_gate": true,
+      "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",

@@ -1,4 +1,4 @@
-import { assertIncludesAll, readJson } from './assertions.ts';
+import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
@@ -179,12 +179,80 @@ function validateSharedProgressModel(progressModel, scenarios) {
   assertIncludesAll(packageTypes, scenarioPackageTypes, 'First-run shared progress model consumers');
 }
 
+function validateProviderConfigurationQualification(qualification, scenarioById) {
+  const releaseVmDefault = qualification?.release_vm_default;
+  const connectedDiagnostic = qualification?.connected_provider_diagnostic;
+  const compatibilityLane = qualification?.api_key_compatibility_lane;
+  if (
+    qualification?.release_contract_ref !== 'contracts/app-release-channel.json#provider_configuration_boundary'
+    || qualification?.default_user_authentication !== 'opl_gateway_account_password'
+    || qualification?.api_key_role !== 'explicit_compatibility_only'
+    || qualification?.configuration_timing !== 'user_requested_at_model_use_or_settings'
+    || releaseVmDefault?.credential_mode !== 'none'
+    || releaseVmDefault?.provider_configuration_status !== 'not_requested'
+    || releaseVmDefault?.provider_configuration_required !== false
+    || releaseVmDefault?.synthetic_api_key_generation_allowed !== false
+    || releaseVmDefault?.implicit_api_key_file_injection_allowed !== false
+    || releaseVmDefault?.visible_provider_wizard_behavior !== 'observe_and_defer'
+    || connectedDiagnostic?.trigger !== 'codex_ai_self_check_requested'
+    || connectedDiagnostic?.credential_source !== 'developer_host_codex_selected_provider'
+    || connectedDiagnostic?.config_path_resolution !== 'OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml'
+    || connectedDiagnostic?.base_url_must_match_opl_gateway !== true
+    || connectedDiagnostic?.manual_user_input_required !== false
+    || connectedDiagnostic?.synthetic_api_key_generation_allowed !== false
+    || connectedDiagnostic?.secret_exposure_allowed !== false
+    || connectedDiagnostic?.missing_or_incompatible_host_credential !== 'diagnostic_skipped_without_artifact_gate_failure'
+    || compatibilityLane?.requires_explicit_request !== true
+    || compatibilityLane?.explicit_credential_file_role !== 'optional_manual_override_only'
+    || compatibilityLane?.provider_command !== 'opl system configure-codex --api-key-stdin --json'
+    || compatibilityLane?.blocking_release_gate !== false
+  ) {
+    throw new Error('Release VM Provider configuration must default to not_requested without synthetic credentials');
+  }
+  assertDeepEqualJson(
+    releaseVmDefault.required_summary_fields,
+    [
+      'status',
+      'requested',
+      'credential_source',
+      'credential_present',
+      'provider_base_url_matches_host',
+      'manual_user_input_required',
+      'mutation_performed',
+      'blocking_release_gate',
+    ],
+    'Release VM Provider configuration summary fields',
+  );
+  assertDeepEqualJson(
+    connectedDiagnostic.required_selected_provider_fields,
+    ['base_url', 'experimental_bearer_token'],
+    'Connected VM Provider credential fields',
+  );
+  const requiredScenarioIds = [
+    'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ];
+  assertDeepEqualJson(
+    qualification.required_release_scenarios,
+    requiredScenarioIds,
+    'Release VM Provider-independent scenarios',
+  );
+  for (const scenarioId of requiredScenarioIds) {
+    const scenario = scenarioById.get(scenarioId);
+    if (scenario?.release_gate !== true || scenario?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
+      throw new Error(`Release scenario ${scenarioId} must consume the Provider-independent qualification contract`);
+    }
+  }
+}
+
 export function validateFirstRunMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('First-run matrix must target the active shell contract');
   }
   validateSharedProgressModel(matrix.shared_progress_model, matrix.scenarios);
   const scenarioById = buildScenarioMap(matrix);
+  validateProviderConfigurationQualification(matrix.provider_configuration_qualification, scenarioById);
   validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
   validateHomeComposerProbe(scenarioById.get('full_first_install_clean_machine'), 'Full first-install clean-machine scenario');
   validateHomeComposerProbe(scenarioById.get('full_dmg_clean_vm_smoke'), 'Full DMG clean-VM scenario');

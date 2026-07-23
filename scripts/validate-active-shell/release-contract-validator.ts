@@ -162,6 +162,7 @@ const validationCanaryContract = {
 
 export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
+  validateProviderConfigurationBoundary(releaseChannel.provider_configuration_boundary);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
@@ -170,6 +171,46 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateReleaseExecutionPolicy(releaseChannel);
   validateTerminalReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateProviderConfigurationBoundary(boundary) {
+  const independence = boundary?.artifact_and_package_independence;
+  const releaseVmSmoke = boundary?.release_vm_smoke;
+  const connectedDiagnostic = releaseVmSmoke?.connected_provider_diagnostic;
+  if (
+    boundary?.schema !== 'opl_release_provider_configuration_boundary.v1'
+    || boundary?.default_user_authentication !== 'opl_gateway_account_password'
+    || boundary?.api_key_role !== 'explicit_compatibility_only'
+    || boundary?.configuration_timing !== 'user_requested_at_model_use_or_settings'
+    || independence?.dmg_build_requires_provider_credential !== false
+    || independence?.manual_full_m1_requires_provider_credential !== false
+    || independence?.local_manual_delivery_requires_provider_credential !== false
+    || independence?.manual_full_preview_publication_requires_provider_credential !== false
+    || independence?.managed_package_currentness_requires_provider_credential !== false
+    || releaseVmSmoke?.default_provider_configuration_status !== 'not_requested'
+    || releaseVmSmoke?.provider_configuration_is_blocking_release_gate !== false
+    || releaseVmSmoke?.synthetic_api_key_generation_allowed !== false
+    || releaseVmSmoke?.implicit_api_key_file_injection_allowed !== false
+    || releaseVmSmoke?.visible_provider_wizard_without_explicit_credential !== 'observe_and_defer'
+    || releaseVmSmoke?.summary_pointer !== '/provider_configuration'
+    || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_request !== true
+    || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_credential_file !== false
+    || releaseVmSmoke?.explicit_api_key_file_role !== 'optional_manual_override_only'
+    || connectedDiagnostic?.trigger !== 'codex_ai_self_check_requested'
+    || connectedDiagnostic?.credential_source !== 'developer_host_codex_selected_provider'
+    || connectedDiagnostic?.config_path_resolution !== 'OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml'
+    || connectedDiagnostic?.base_url_must_match_opl_gateway !== true
+    || connectedDiagnostic?.manual_user_input_required !== false
+    || connectedDiagnostic?.missing_or_incompatible_host_credential !== 'diagnostic_skipped_without_artifact_gate_failure'
+    || connectedDiagnostic?.secret_transport !== 'temporary_mode_0600_file_to_guest_then_stdin_no_secret_argv_plan_receipt_or_artifact'
+  ) {
+    throw new Error('Release Provider configuration boundary must remain optional and credential-independent');
+  }
+  assertDeepEqualJson(
+    connectedDiagnostic.required_selected_provider_fields,
+    ['base_url', 'experimental_bearer_token'],
+    'Connected VM Provider credential fields',
+  );
 }
 
 function validateReleaseCalendarGuard(releaseName) {

@@ -4,6 +4,44 @@
   "purpose": "release_channel_contract",
   "state": "active",
   "release_repo": "gaofeng21cn/one-person-lab-app",
+  "provider_configuration_boundary": {
+    "schema": "opl_release_provider_configuration_boundary.v1",
+    "default_user_authentication": "opl_gateway_account_password",
+    "api_key_role": "explicit_compatibility_only",
+    "configuration_timing": "user_requested_at_model_use_or_settings",
+    "artifact_and_package_independence": {
+      "dmg_build_requires_provider_credential": false,
+      "manual_full_m1_requires_provider_credential": false,
+      "local_manual_delivery_requires_provider_credential": false,
+      "manual_full_preview_publication_requires_provider_credential": false,
+      "managed_package_currentness_requires_provider_credential": false
+    },
+    "release_vm_smoke": {
+      "default_provider_configuration_status": "not_requested",
+      "provider_configuration_is_blocking_release_gate": false,
+      "synthetic_api_key_generation_allowed": false,
+      "implicit_api_key_file_injection_allowed": false,
+      "visible_provider_wizard_without_explicit_credential": "observe_and_defer",
+      "summary_pointer": "/provider_configuration",
+      "api_key_compatibility_lane_requires_explicit_request": true,
+      "api_key_compatibility_lane_requires_explicit_credential_file": false,
+      "explicit_api_key_file_role": "optional_manual_override_only",
+      "connected_provider_diagnostic": {
+        "trigger": "codex_ai_self_check_requested",
+        "credential_source": "developer_host_codex_selected_provider",
+        "config_path_resolution": "OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml",
+        "required_selected_provider_fields": [
+          "base_url",
+          "experimental_bearer_token"
+        ],
+        "base_url_must_match_opl_gateway": true,
+        "manual_user_input_required": false,
+        "missing_or_incompatible_host_credential": "diagnostic_skipped_without_artifact_gate_failure",
+        "secret_transport": "temporary_mode_0600_file_to_guest_then_stdin_no_secret_argv_plan_receipt_or_artifact"
+      }
+    },
+    "rule": "Provider configuration is optional local use-time configuration. Release build, Manual Full M1, local delivery, Preview publication, and managed package currentness never require a Provider credential. A specifically requested connected VM diagnostic may automatically reuse the selected OPL Gateway Base URL and bearer token from the developer host Codex config; it never asks the release user for a duplicate credential and never generates a synthetic API key."
+  },
   "github_release_name": {
     "format": "One Person Lab v<version>",
     "stable_example": "One Person Lab v26.6.5",

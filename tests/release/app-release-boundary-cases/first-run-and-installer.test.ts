@@ -99,6 +99,51 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   );
 });
 
+test("release qualification reuses host Codex credentials only for requested connected VM diagnostics", () => {
+  const matrix = readJson("contracts/app-first-run-test-matrix.json");
+  const release = readJson("contracts/app-release-channel.json");
+  const adapter = readJson("contracts/app-shell-adapter.json");
+  const qualification = matrix.provider_configuration_qualification;
+  const boundary = release.provider_configuration_boundary;
+
+  assert.equal(qualification.default_user_authentication, "opl_gateway_account_password");
+  assert.equal(qualification.api_key_role, "explicit_compatibility_only");
+  assert.equal(qualification.release_vm_default.provider_configuration_status, "not_requested");
+  assert.equal(qualification.release_vm_default.synthetic_api_key_generation_allowed, false);
+  assert.equal(qualification.connected_provider_diagnostic.credential_source, "developer_host_codex_selected_provider");
+  assert.equal(qualification.connected_provider_diagnostic.base_url_must_match_opl_gateway, true);
+  assert.equal(qualification.connected_provider_diagnostic.manual_user_input_required, false);
+  assert.equal(boundary.release_vm_smoke.explicit_api_key_file_role, "optional_manual_override_only");
+  assert.equal(boundary.artifact_and_package_independence.dmg_build_requires_provider_credential, false);
+  assert.equal(boundary.artifact_and_package_independence.manual_full_m1_requires_provider_credential, false);
+  assert.equal(
+    boundary.artifact_and_package_independence.manual_full_preview_publication_requires_provider_credential,
+    false,
+  );
+  assert.equal(boundary.artifact_and_package_independence.managed_package_currentness_requires_provider_credential, false);
+
+  const syntheticCredentialMatrix = structuredClone(matrix);
+  syntheticCredentialMatrix.provider_configuration_qualification.release_vm_default.synthetic_api_key_generation_allowed = true;
+  assert.throws(
+    () => validateFirstRunMatrix(syntheticCredentialMatrix, adapter),
+    /must default to not_requested without synthetic credentials/,
+  );
+
+  const userPromptingMatrix = structuredClone(matrix);
+  userPromptingMatrix.provider_configuration_qualification.connected_provider_diagnostic.manual_user_input_required = true;
+  assert.throws(
+    () => validateFirstRunMatrix(userPromptingMatrix, adapter),
+    /must default to not_requested without synthetic credentials/,
+  );
+
+  const providerBoundRelease = structuredClone(release);
+  providerBoundRelease.provider_configuration_boundary.artifact_and_package_independence.dmg_build_requires_provider_credential = true;
+  assert.throws(
+    () => validateReleaseChannelContract(providerBoundRelease),
+    /must remain optional and credential-independent/,
+  );
+});
+
 test("one-shot App installer boundary is enforced by release-boundary checks", () => {
   const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
   const stable = requireReleaseBoundaryCheck("short_stable_macos_installer");
