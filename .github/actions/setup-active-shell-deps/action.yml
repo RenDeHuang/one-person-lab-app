@@ -6,6 +6,10 @@ inputs:
     description: opl-aion-shell ref to checkout for the active shell. Empty means main.
     required: false
     default: main
+  fetch-depth:
+    description: Git history depth for the active shell checkout.
+    required: false
+    default: '1'
   install-dependencies:
     description: Whether to run bun install in shells/aionui.
     required: false
@@ -24,6 +28,7 @@ runs:
         repository: gaofeng21cn/opl-aion-shell
         ref: ${{ inputs.shell-ref || 'main' }}
         path: shells/aionui
+        fetch-depth: ${{ inputs.fetch-depth }}
 
     - name: Setup Node.js
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38

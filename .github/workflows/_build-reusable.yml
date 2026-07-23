@@ -235,6 +235,7 @@ jobs:
         uses: ./.github/actions/setup-active-shell-deps
         with:
           shell-ref: ${{ inputs.shell_ref }}
+          fetch-depth: '0'
 
       - name: Run active shell test project
         working-directory: .

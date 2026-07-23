@@ -287,6 +287,32 @@ function workflowStep(workflowName: string, jobName: string, stepName: string): 
   return step;
 }
 
+test('active shell ancestry checks receive full history without broadening routine checkouts', () => {
+  const setupAction = parseYaml(fs.readFileSync(
+    path.join(process.cwd(), '.github', 'actions', 'setup-active-shell-deps', 'action.yml'),
+    'utf8',
+  ));
+  assert.equal(setupAction.inputs['fetch-depth'].default, '1');
+  const shellCheckout = setupAction.runs.steps.find(
+    (step: Record<string, any>) => step.name === 'Checkout active shell',
+  );
+  assert.ok(shellCheckout);
+  assert.equal(shellCheckout.with['fetch-depth'], '${{ inputs.fetch-depth }}');
+
+  const workflow = parseWorkflow('_build-reusable.yml');
+  for (const [jobId, job] of Object.entries(workflow.jobs) as Array<[string, Record<string, any>]>) {
+    const setup = job.steps?.find(
+      (step: Record<string, any>) => step.uses === './.github/actions/setup-active-shell-deps',
+    );
+    if (!setup) continue;
+    if (jobId === 'active-shell-tests') {
+      assert.equal(setup.with['fetch-depth'], '0');
+    } else {
+      assert.equal(setup.with['fetch-depth'], undefined, `${jobId} must retain the shallow default`);
+    }
+  }
+});
+
 function runAdmissionGate(
   workflowName: string,
   jobName: string,
