@@ -166,10 +166,9 @@ function runFreezeRequest(fixture: ReturnType<typeof adapterFixture>, output: st
     '--notes', fixture.notesPath,
     '--notes-evidence', fixture.evidencePath,
     '--include-full-package', 'false',
-    '--release-set-manifest', fixture.releaseSetPath,
+    '--package-compatibility-abi', 'opl_packages.v1',
+    '--package-compatibility-version-range', '>=0.1.0 <1.0.0',
     '--source-cutoff-observed-at', '2026-07-23T00:00:00.000Z',
-    '--frozen-base-release-set-generation', '26.7.20',
-    '--frozen-base-release-set-digest', `sha256:${'b'.repeat(64)}`,
     '--base-image-index', fixture.baseImageIndexPath,
     '--frozen-codex-tarball', fixture.codexTarballPath,
     '--output', output,
@@ -470,7 +469,7 @@ test('new Standard binds fresh remote Framework main while Canary uses only a mi
   );
 });
 
-test('Full prepared notes materialize the exact Shell AionCore pin before deep authority derivation', () => {
+test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');
   const frameworkCheckout = workflowStep(
@@ -484,7 +483,7 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   const identityScript = String(workflowStep(
     '_release-bundle.yml',
     'freeze',
-    'Freeze source, version, and Package identity',
+    'Freeze source, version, and compatibility identity',
   ).run);
   for (const scratchPath of [
     '$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json',
@@ -499,117 +498,11 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
     identityScript,
     /> (?:published-releases\.json|published-tags\.txt|stable-version-order\.json|previous-latest\.json|nightly-tags\.txt)/,
   );
-
-  const authorityJob = workflow.jobs['full-notes-authority'];
-  assert.equal(authorityJob['runs-on'], 'macos-latest');
-  assert.deepEqual(authorityJob.needs, ['admission']);
-  assert.match(String(authorityJob.if), /inputs\.mode == 'execute'/);
-  assert.match(String(authorityJob.if), /inputs\.include_full/);
-  const shellCheckout = workflowStep(
-    '_release-bundle.yml',
-    'full-notes-authority',
-    'Checkout exact Shell authority',
-  );
-  assert.equal(shellCheckout.with.repository, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(shellCheckout.with.ref, '${{ inputs.shell_ref }}');
-  assert.equal(shellCheckout.with.path, 'shells/aionui');
-
-  const materialize = workflowStep(
-    '_release-bundle.yml',
-    'full-notes-authority',
-    'Materialize exact Shell AionCore authority',
-  );
-  assert.equal(materialize['working-directory'], 'shells/aionui');
-  assert.equal(materialize.env.AIONUI_BACKEND_ARCH, 'arm64');
-  assert.equal(materialize.env.AIONUI_BACKEND_RUN_ID, '');
-  assert.match(materialize.env.AIONUI_AIONCORE_CACHE_DIR, /runner\.temp.*github\.run_id/);
-  const materializeScript = String(materialize.run);
-  assert.match(materializeScript, /test "\$\(uname -m\)" = arm64/);
-  assert.match(materializeScript, /test ! -e resources\/bundled-aioncore\/darwin-arm64/);
-  assert.match(materializeScript, /package\.json.*aioncoreVersion/s);
-  assert.match(materializeScript, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
-  assert.match(materializeScript, /AIONUI_BACKEND_VERSION="\$aioncore_version" node scripts\/prepareAioncore\.js/);
-  assert.doesNotMatch(materializeScript, /latest|AIONUI_BACKEND_RUN_ID/);
-
-  const deriveScript = String(workflowStep(
-    '_release-bundle.yml',
-    'full-notes-authority',
-    'Derive deep-validated Full notes payload authority',
-  ).run);
-  for (const required of [
-    'scripts/prepare-release-notes-full-payload-authority.ts',
-    "--app-ref '${{ inputs.app_ref }}'",
-    "--shell-ref '${{ inputs.shell_ref }}'",
-    "--framework-ref '${{ inputs.framework_ref }}'",
-    '--output notes-full-payload-authority.json',
-    'shasum -a 256 notes-full-payload-authority.json',
-  ]) {
-    assert.ok(deriveScript.includes(required), `Full authority derivation is missing ${required}`);
-  }
-  const upload = workflowStep(
-    '_release-bundle.yml',
-    'full-notes-authority',
-    'Upload exact Full notes payload authority',
-  );
-  assert.equal(upload.with.name, 'opl-release-full-notes-authority-${{ github.run_id }}');
-  assert.equal(
-    upload.with.path,
-    'notes-full-payload-authority.json\nnotes-full-payload-authority.sha256\n',
-  );
-  assert.doesNotMatch(String(upload.with.path), /bundled-aioncore|managed-resources/);
-
-  assert.deepEqual(workflow.jobs.freeze.needs, ['admission', 'full-notes-authority']);
+  assert.equal(workflow.jobs['full-notes-authority'], undefined);
+  assert.deepEqual(workflow.jobs.freeze.needs, ['admission']);
   assert.equal(workflow.jobs.freeze['runs-on'], 'macos-latest');
-  assert.match(String(workflow.jobs.freeze.if), /needs\['full-notes-authority'\]\.result == 'success'/);
-  assert.match(String(workflow.jobs.freeze.if), /!inputs\.include_full/);
-  const download = workflowStep(
-    '_release-bundle.yml',
-    'freeze',
-    'Download exact Full notes payload authority',
-  );
-  assert.equal(download.with.name, 'opl-release-full-notes-authority-${{ github.run_id }}');
-  const transport = workflowStep(
-    '_release-bundle.yml',
-    'freeze',
-    'Verify Full notes payload authority transport',
-  );
-  assert.equal(transport.run, 'shasum -a 256 -c notes-full-payload-authority.sha256');
-
-  const freezeMaterialize = workflowStep(
-    '_release-bundle.yml',
-    'freeze',
-    'Materialize exact AionCore for Bundle freeze',
-  );
-  assert.equal(freezeMaterialize.if, '${{ inputs.include_full }}');
-  assert.equal(freezeMaterialize['working-directory'], 'shells/aionui');
-  assert.equal(freezeMaterialize.env.AIONUI_BACKEND_ARCH, 'arm64');
-  assert.equal(freezeMaterialize.env.AIONUI_BACKEND_RUN_ID, '');
-  assert.equal(
-    freezeMaterialize.env.AIONUI_AIONCORE_CACHE_DIR,
-    '${{ runner.temp }}/opl-release-freeze-aioncore-${{ github.run_id }}',
-  );
-  const freezeMaterializeScript = String(freezeMaterialize.run);
-  assert.match(freezeMaterializeScript, /test "\$\(uname -s\)" = Darwin/);
-  assert.match(freezeMaterializeScript, /test "\$\(uname -m\)" = arm64/);
-  assert.match(freezeMaterializeScript, /test ! -e resources\/bundled-aioncore\/darwin-arm64/);
-  assert.match(freezeMaterializeScript, /package\.json.*aioncoreVersion/s);
-  assert.match(freezeMaterializeScript, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
-  assert.match(freezeMaterializeScript, /AIONUI_BACKEND_VERSION="\$aioncore_version" node scripts\/prepareAioncore\.js/);
-  assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/manifest\.json/);
-  assert.match(freezeMaterializeScript, /resources\/bundled-aioncore\/darwin-arm64\/managed-resources\/manifest\.json/);
-  assert.doesNotMatch(freezeMaterializeScript, /latest|AIONUI_BACKEND_RUN_ID/);
-  assert.equal(freezeMaterializeScript, materializeScript);
-
-  for (const script of [materializeScript, freezeMaterializeScript]) {
-    assert.match(script, /managed_runtime\.aioncore\.version/);
-    assert.match(script, /managed_runtime\.aioncore\.archive_sha256/);
-    assert.match(script, /test "\$receipt_version" = "\$aioncore_version"/);
-    assert.match(script, /releases\/download\/\$\{aioncore_version\}\/\$\{archive_name\}/);
-    assert.match(script, /shasum -a 256 -c -/);
-    assert.match(script, /find "\$archive_extract" -type f -name aioncore/);
-    assert.match(script, /cmp "\$verified_archive_binary" resources\/bundled-aioncore\/darwin-arm64\/aioncore/);
-    assert.doesNotMatch(script, /AIONCORE_MANIFEST_SOURCE_DATE|manifest\.generatedAt/);
-  }
+  assert.doesNotMatch(source, /prepare-release-notes-full-payload-authority|notes-full-payload-authority/);
+  assert.doesNotMatch(source, /release_set_manifest|latest-stable-descriptor|base-release-set/);
 
   const step = workflowStep(
     '_release-bundle.yml',
@@ -617,28 +510,43 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
     'Prepare and validate online AI notes',
   );
   const script = String(step.run);
-  assert.match(script, /if \[\[ '\$\{\{ inputs\.include_full \}\}' == true \]\]; then/);
-  assert.doesNotMatch(script, /scripts\/prepare-release-notes-full-payload-authority\.ts/);
-  assert.match(
-    script,
-    /--full-payload-authority "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
-  );
-  assert.doesNotMatch(script, /--full-package-manifest/);
+  assert.doesNotMatch(script, /--include-full-package|--full-payload-authority|--full-package-manifest/);
   assert.match(script, /notes_root="\$RUNNER_TEMP\/opl-release-prepared-notes-\$GITHUB_RUN_ID"/);
+  assert.match(script, /set --\nif \(\( \$\{#notes_intent_args\[@\]\} \)\); then/);
+  assert.match(script, /set -- "\$\{notes_intent_args\[@\]\}"/);
+  assert.match(script, /^\s*"\$@"\s*\\$/m);
+  assert.doesNotMatch(script, /^\s*"\$\{notes_intent_args\[@\]\}"\s*\\$/m);
   assert.match(script, /--evidence-output "\$notes_root\/notes-evidence\.json"/);
   assert.doesNotMatch(script, /One-Person-Lab-Manual|dist\/opl-full-release|full-package-manifest\.json/);
+  const guard = script.match(/set --\n\s*if \(\( \$\{#notes_intent_args\[@\]\} \)\); then\n\s*set -- "\$\{notes_intent_args\[@\]\}"\n\s*fi/)?.[0];
+  assert.ok(guard);
+  for (const [name, initial, expected] of [
+    ['empty', 'notes_intent_args=()', []],
+    ['nonempty', 'notes_intent_args=(one "two words" three)', ['one', 'two words', 'three']],
+  ] as const) {
+    const result = spawnSync('/bin/bash', ['-u', '-c', [
+      initial,
+      guard,
+      'printf "%s\\0" "$@"',
+    ].join('\n')], { encoding: 'buffer' });
+    assert.equal(result.status, 0, `${name}: ${String(result.stderr)}`);
+    assert.deepEqual(
+      result.stdout.toString().split('\0').filter(Boolean),
+      expected,
+      `${name} Bash 3.2 argument forwarding drifted`,
+    );
+  }
 
   const freezeScript = String(workflowStep(
     '_release-bundle.yml',
     'freeze',
     'Freeze canonical Framework Bundle',
   ).run);
-  assert.match(
-    freezeScript,
-    /--notes-full-payload-authority "\$RUNNER_TEMP\/opl-release-full-notes-authority\/notes-full-payload-authority\.json"/,
-  );
   assert.match(freezeScript, /--notes "\$notes_root\/notes\.md"/);
   assert.match(freezeScript, /--notes-evidence "\$notes_root\/notes-evidence\.json"/);
+  assert.match(freezeScript, /--package-compatibility-abi '\$\{\{ inputs\.package_compatibility_abi \}\}'/);
+  assert.match(freezeScript, /--package-compatibility-version-range '\$\{\{ inputs\.package_compatibility_version_range \}\}'/);
+  assert.doesNotMatch(freezeScript, /--release-set-manifest|--frozen-base-release-set|--notes-full-payload-authority/);
   assert.match(
     freezeScript,
     /oras manifest fetch \\\n\s+--output "\$frozen_root\/base-image-index\.json" \\\n\s+docker\.io\/library\/node:22-bookworm-slim/,
@@ -656,23 +564,8 @@ test('Full prepared notes materialize the exact Shell AionCore pin before deep a
   assert.equal(binding.schema, 'opl_app_release_notes_full_payload_authority.v1');
   assert.equal(binding.evidence_digest_path, 'payload.full_payload_authority_sha256');
   assert.equal(binding.comparison, 'canonical_json_exact_field_set_and_values');
-  assert.equal(binding.freeze_adapter_consumes_same_file, true);
-  assert.ok(
-    source.indexOf('- name: Materialize exact Shell AionCore authority')
-      < source.indexOf('- name: Derive deep-validated Full notes payload authority'),
-  );
-  assert.ok(
-    source.indexOf('- name: Verify Full notes payload authority transport')
-      < source.indexOf('- name: Prepare and validate online AI notes'),
-  );
-  assert.ok(
-    source.indexOf('- name: Materialize exact AionCore for Bundle freeze')
-      < source.indexOf('- name: Prepare and validate online AI notes'),
-  );
-  assert.ok(
-    source.indexOf('- name: Materialize exact AionCore for Bundle freeze')
-      < source.indexOf('- name: Freeze canonical Framework Bundle'),
-  );
+  assert.equal(binding.new_standard_consumes_same_file, false);
+  assert.equal(binding.legacy_bundle_read_compatibility_only, true);
 });
 
 test('every release-bound low-level admission rejects missing, invalid, or permanently rejected identity', () => {
@@ -774,7 +667,6 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.deepEqual(Object.keys(bundle.jobs), [
     'startup-canary',
     'admission',
-    'full-notes-authority',
     'freeze',
     'standard-build',
     'standard-qualification',
@@ -1274,7 +1166,7 @@ test('new Bundle callers do not activate legacy broker or Stable-session admissi
   }
 });
 
-test('the App adapter freezes schema-valid digest refs and rejects catalog byte drift before build', () => {
+test('the App adapter freezes the App Standard compatibility union without Package authority', () => {
   const fixture = adapterFixture();
   try {
     const output = path.join(fixture.root, 'freeze-request.json');
@@ -1283,11 +1175,17 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
     const request = JSON.parse(fs.readFileSync(output, 'utf8'));
     assert.equal(request.surface_kind, 'opl_release_bundle_freeze_request.v1');
     assert.equal(request.schema_ref, 'contracts/opl-framework/release-bundle-freeze-request.schema.json');
-    assert.match(request.framework_release_set.digest, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(request.identity_mode, 'app_standard_compatibility');
+    assert.deepEqual(request.package_compatibility, {
+      abi: 'opl_packages.v1',
+      version_range: '>=0.1.0 <1.0.0',
+    });
+    assert.equal(request.framework_release_set, undefined);
+    assert.equal(request.packages, undefined);
     assert.deepEqual(request.source_cutoff, {
       observed_at: '2026-07-23T00:00:00.000Z',
       policy: 'single_read_at_freeze_admission',
-      frozen_base_release_set: { generation: '26.7.20', digest: `sha256:${'b'.repeat(64)}` },
+      frozen_base_release_set: null,
       post_freeze_remote_refresh_allowed: false,
       later_authority_advancement_invalidates_bundle: false,
     });
@@ -1298,14 +1196,12 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
         'base_image',
         'codex_cli',
         'dockerfile',
-        'first_party_packages',
         'framework_seed',
-        'opl_flow',
         'qualification_harness',
         'shell_webui_source',
       ],
     );
-    assert.equal(new Set(request.frozen_build_inputs.map((descriptor: Record<string, unknown>) => descriptor.id)).size, 9);
+    assert.equal(new Set(request.frozen_build_inputs.map((descriptor: Record<string, unknown>) => descriptor.id)).size, 7);
     for (const descriptor of request.frozen_build_inputs) {
       assert.equal(typeof descriptor.ref, 'string');
       assert.match(descriptor.digest, /^sha256:[0-9a-f]{64}$/);
@@ -1317,21 +1213,14 @@ test('the App adapter freezes schema-valid digest refs and rejects catalog byte 
       additive_only: false,
       updater_metadata_allowed: false,
     });
-    for (const packageId of packageIds) {
-      assert.match(request.packages[packageId].manifest_sha256, /^sha256:[0-9a-f]{64}$/);
-      assert.match(request.packages[packageId].payload_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
-      assert.equal(request.packages[packageId].manifest_ref, `contracts/opl-framework/packages/${packageId}.json`);
-      assert.match(
-        request.packages[packageId].payload_manifest_ref,
-        new RegExp(`^contracts/opl-framework/packages/payloads/${packageId}-`),
-      );
-    }
-
     const masPayload = fs.readdirSync(fixture.payloadRoot).find((name) => name.startsWith('mas-'))!;
     fs.appendFileSync(path.join(fixture.payloadRoot, masPayload), 'drift\n');
     const drifted = runFreezeRequest(fixture, path.join(fixture.root, 'drifted.json'));
-    assert.notEqual(drifted.status, 0);
-    assert.match(drifted.stderr, /mas payload manifest digest drifted/);
+    assert.equal(drifted.status, 0, drifted.stderr);
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(path.join(fixture.root, 'drifted.json'), 'utf8')).package_compatibility,
+      request.package_compatibility,
+    );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -1380,7 +1269,17 @@ test('the App adapter maps exact WebUI receipt bytes into Framework qualificatio
       size_bytes: fs.statSync(positive.carrierPath).size,
       sha256: sha256(positive.carrierPath),
     });
-    assert.equal(receipt.qualification.harness_sha256, positive.bundle.frozen_build_inputs[7].digest);
+    assert.equal(receipt.qualification.harness_sha256, positive.bundle.frozen_build_inputs[5].digest);
+    assert.deepEqual(receipt.cohort, {
+      app_sha: positive.bundle.sources.app.source_commit,
+      shell_sha: positive.bundle.sources.shell.source_commit,
+      framework_sha: positive.bundle.sources.framework.source_commit,
+      identity_mode: 'app_standard_compatibility',
+      package_compatibility: {
+        abi: 'opl_packages.v1',
+        version_range: '>=0.1.0 <1.0.0',
+      },
+    });
     assert.equal(receipt.qualification.evidence_refs.length, 4);
   } finally {
     fs.rmSync(positive.root, { recursive: true, force: true });
@@ -1393,7 +1292,7 @@ test('the App adapter maps exact WebUI receipt bytes into Framework qualificatio
         fixture.buildInput.inputs = [...fixture.buildInput.inputs].reverse();
         writeJsonFile(fixture.buildInputPath, fixture.buildInput);
       },
-      pattern: /exact-nine descriptors|canonical unique exact-nine descriptor order/,
+      pattern: /exact descriptors|canonical unique App Standard exact-seven descriptor order/,
     },
     {
       name: 'descriptor ref',
@@ -1426,10 +1325,10 @@ test('the App adapter maps exact WebUI receipt bytes into Framework qualificatio
       name: 'duplicate descriptor',
       mutate(fixture: ReturnType<typeof webuiAdapterFixture>) {
         fixture.buildInput.inputs = fixture.buildInput.inputs.map((entry: unknown) => structuredClone(entry));
-        fixture.buildInput.inputs[8] = structuredClone(fixture.buildInput.inputs[0]);
+        fixture.buildInput.inputs[6] = structuredClone(fixture.buildInput.inputs[0]);
         writeJsonFile(fixture.buildInputPath, fixture.buildInput);
       },
-      pattern: /exact-nine descriptors|canonical unique exact-nine descriptor order/,
+      pattern: /exact descriptors|canonical unique App Standard exact-seven descriptor order/,
     },
     {
       name: 'carrier ref',
@@ -1510,7 +1409,7 @@ test('the App adapter rejects notes without online AI provenance before build', 
   }
 });
 
-test('the App adapter rejects prepared notes whose Full intent differs from the admitted Bundle request', () => {
+test('the App adapter rejects prepared notes that bind a future Full Package payload', () => {
   const fixture = adapterFixture();
   try {
     fs.writeFileSync(fixture.evidencePath, `${JSON.stringify({
@@ -1519,7 +1418,7 @@ test('the App adapter rejects prepared notes whose Full intent differs from the 
     })}\n`);
     const result = runFreezeRequest(fixture, path.join(fixture.root, 'mismatched-notes-intent.json'));
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Full intent does not match the admitted Release Bundle request/);
+    assert.match(result.stderr, /must not bind a future Full Package payload/);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -1548,18 +1447,19 @@ test('unified Stable freezes once, builds Desktop and WebUI in parallel, and joi
     'base_image',
     'codex_cli',
     'dockerfile',
-    'first_party_packages',
     'framework_seed',
-    'opl_flow',
     'qualification_harness',
     'shell_webui_source',
   ]) {
     assert.match(adapterSource, new RegExp(id));
   }
-  assert.equal((source.match(/oras manifest fetch --descriptor "\$\{carrier\}:latest-stable"/g) ?? []).length, 1);
+  assert.doesNotMatch(adapterSource, /first_party_packages|framework_release_set:|release-set-manifest/);
+  assert.equal((source.match(/oras manifest fetch --descriptor "\$\{carrier\}:latest-stable"/g) ?? []).length, 0);
   assert.doesNotMatch(source, /oras login|--password-stdin/);
   assert.match(source, /single_read_at_freeze_admission|--source-cutoff-observed-at/);
-  assert.match(source, /--frozen-base-release-set-generation/);
+  assert.doesNotMatch(source, /--frozen-base-release-set-generation|--release-set-manifest/);
+  assert.match(source, /--package-compatibility-abi/);
+  assert.match(source, /--package-compatibility-version-range/);
   assert.match(source, /--base-image-index/);
   assert.match(source, /--frozen-codex-tarball/);
   assert.match(source, /cmp "\$webui_carrier_receipt" webui-assets\/opl-webui-carrier\.json/);

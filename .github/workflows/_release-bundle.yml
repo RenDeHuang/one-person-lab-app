@@ -23,10 +23,20 @@ on:
         default: ''
         type: string
       include_full:
-        description: Bind intent for a later independent Full append operation
+        description: Legacy request compatibility; new App Standard requests keep this false
         required: false
         default: false
         type: boolean
+      package_compatibility_abi:
+        description: Typed Package ABI compatibility consumed by App Standard
+        required: false
+        default: opl_packages.v1
+        type: string
+      package_compatibility_version_range:
+        description: Typed Package version range consumed by App Standard
+        required: false
+        default: '>=0.1.0 <1.0.0'
+        type: string
       app_ref:
         description: Exact canonical App ref
         required: true
@@ -90,6 +100,8 @@ jobs:
           test '${{ inputs.channel }}' = canary
           test '${{ inputs.app_ref }}' = canary
           test '${{ inputs.framework_ref }}' = "$OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF"
+          test '${{ inputs.package_compatibility_abi }}' = opl_packages.v1
+          test '${{ inputs.package_compatibility_version_range }}' = '>=0.1.0 <1.0.0'
 
   admission:
     if: ${{ inputs.mode == 'execute' }}
@@ -128,110 +140,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  full-notes-authority:
-    if: ${{ inputs.mode == 'execute' && inputs.include_full && needs.admission.result == 'success' }}
-    needs: [admission]
-    runs-on: macos-latest
-    timeout-minutes: 25
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Checkout exact App authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          ref: ${{ inputs.app_ref }}
-          fetch-depth: 0
-
-      - name: Checkout exact Shell authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref }}
-          path: shells/aionui
-
-      - name: Checkout exact Framework authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          repository: gaofeng21cn/one-person-lab
-          ref: ${{ inputs.framework_ref }}
-          path: framework-source
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: '24'
-
-      - name: Materialize exact Shell AionCore authority
-        working-directory: shells/aionui
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AIONUI_AIONCORE_CACHE_DIR: ${{ runner.temp }}/opl-release-notes-aioncore-${{ github.run_id }}
-          AIONUI_BACKEND_ARCH: arm64
-          AIONUI_BACKEND_RUN_ID: ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(uname -s)" = Darwin
-          test "$(uname -m)" = arm64
-          test ! -e resources/bundled-aioncore/darwin-arm64
-          aioncore_version="$(node -e '
-            const value = JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).aioncoreVersion;
-            if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
-            process.stdout.write(value);
-          ')"
-          receipt_version="$(jq -er '.managed_runtime.aioncore.version' contracts/aionui-upstream-intake.json)"
-          receipt_archive_sha256="$(jq -er '.managed_runtime.aioncore.archive_sha256' contracts/aionui-upstream-intake.json)"
-          test "$receipt_version" = "$aioncore_version"
-          [[ "$receipt_archive_sha256" =~ ^[0-9a-f]{64}$ ]]
-          archive_root="$(mktemp -d "$RUNNER_TEMP/opl-release-aioncore-archive.XXXXXX")"
-          archive_name="aioncore-${aioncore_version}-aarch64-apple-darwin.tar.gz"
-          archive_path="$archive_root/$archive_name"
-          curl -L --fail --silent --show-error \
-            --output "$archive_path" \
-            "https://github.com/iOfficeAI/AionCore/releases/download/${aioncore_version}/${archive_name}"
-          printf '%s  %s\n' "$receipt_archive_sha256" "$archive_path" | shasum -a 256 -c -
-          archive_extract="$archive_root/extracted"
-          mkdir "$archive_extract"
-          tar -xzf "$archive_path" -C "$archive_extract"
-          find "$archive_extract" -type f -name aioncore -print > "$archive_root/binary-paths.txt"
-          test "$(wc -l < "$archive_root/binary-paths.txt" | tr -d ' ')" = 1
-          IFS= read -r verified_archive_binary < "$archive_root/binary-paths.txt"
-          AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
-          test -f resources/bundled-aioncore/darwin-arm64/manifest.json
-          test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
-          cmp "$verified_archive_binary" resources/bundled-aioncore/darwin-arm64/aioncore
-
-      - name: Derive deep-validated Full notes payload authority
-        run: |
-          set -euo pipefail
-          release_set_manifest="$(find framework-source/release/cohorts -mindepth 2 -maxdepth 2 -type f -name release-set.json -print | sort -V | tail -1)"
-          test -n "$release_set_manifest"
-          node --experimental-strip-types scripts/prepare-release-notes-full-payload-authority.ts \
-            --app-root . \
-            --app-ref '${{ inputs.app_ref }}' \
-            --shell-root shells/aionui \
-            --shell-ref '${{ inputs.shell_ref }}' \
-            --framework-root framework-source \
-            --framework-ref '${{ inputs.framework_ref }}' \
-            --release-set-manifest "$release_set_manifest" \
-            --third-party-source-manifest contracts/app-full-third-party-source-manifest.json \
-            --output notes-full-payload-authority.json
-          shasum -a 256 notes-full-payload-authority.json > notes-full-payload-authority.sha256
-
-      - name: Upload exact Full notes payload authority
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: opl-release-full-notes-authority-${{ github.run_id }}
-          path: |
-            notes-full-payload-authority.json
-            notes-full-payload-authority.sha256
-          if-no-files-found: error
-          retention-days: 30
-
   freeze:
-    if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && (!inputs.include_full || needs['full-notes-authority'].result == 'success') }}
-    needs: [admission, full-notes-authority]
+    if: ${{ inputs.mode == 'execute' && needs.admission.result == 'success' }}
+    needs: [admission]
     runs-on: macos-latest
     timeout-minutes: 30
     permissions:
@@ -245,7 +156,6 @@ jobs:
       shell_sha: ${{ steps.identity.outputs.shell_sha }}
       framework_sha: ${{ steps.identity.outputs.framework_sha }}
       opl_flow_sha: ${{ steps.identity.outputs.opl_flow_sha }}
-      release_set_manifest: ${{ steps.identity.outputs.release_set_manifest }}
       bundle_digest: ${{ steps.bundle.outputs.bundle_digest }}
       operation_id: ${{ steps.bundle.outputs.operation_id }}
       operation_started_at: ${{ steps.bundle.outputs.operation_started_at }}
@@ -279,7 +189,7 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - name: Setup exact ORAS client for the one-shot package cutoff
+      - name: Setup exact ORAS client for frozen OCI inputs
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
       - name: Install cold-gate dependencies
@@ -287,7 +197,7 @@ jobs:
           npm ci --ignore-scripts
           npm --prefix framework-source ci --ignore-scripts
 
-      - name: Freeze source, version, and Package identity
+      - name: Freeze source, version, and compatibility identity
         id: identity
         env:
           CHANNEL: ${{ inputs.channel }}
@@ -369,9 +279,6 @@ jobs:
           }
           NODE
           fi
-          release_set_manifest="$(find framework-source/release/cohorts -mindepth 2 -maxdepth 2 -type f -name release-set.json -print | sort -V | tail -1)"
-          test -n "$release_set_manifest"
-          release_set_manifest="${release_set_manifest#framework-source/}"
           opl_flow_sha="$(jq -er '.packages["opl-flow"].owner_source_commit' framework-source/contracts/opl-framework/bundled-full-runtime-package-catalog.json)"
           {
             echo "version=$version"
@@ -381,7 +288,6 @@ jobs:
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
             echo "opl_flow_sha=$opl_flow_sha"
-            echo "release_set_manifest=$release_set_manifest"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Bundle contracts before paid work
@@ -391,59 +297,6 @@ jobs:
           node --experimental-strip-types --test tests/release/release-bundle-workflow-cutover.test.ts
           node --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
           npm --prefix framework-source run typecheck
-
-      - name: Download exact Full notes payload authority
-        if: ${{ inputs.include_full }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-release-full-notes-authority-${{ github.run_id }}
-          path: ${{ runner.temp }}/opl-release-full-notes-authority
-
-      - name: Verify Full notes payload authority transport
-        if: ${{ inputs.include_full }}
-        working-directory: ${{ runner.temp }}/opl-release-full-notes-authority
-        run: shasum -a 256 -c notes-full-payload-authority.sha256
-
-      - name: Materialize exact AionCore for Bundle freeze
-        if: ${{ inputs.include_full }}
-        working-directory: shells/aionui
-        env:
-          GH_TOKEN: ${{ github.token }}
-          AIONUI_AIONCORE_CACHE_DIR: ${{ runner.temp }}/opl-release-freeze-aioncore-${{ github.run_id }}
-          AIONUI_BACKEND_ARCH: arm64
-          AIONUI_BACKEND_RUN_ID: ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(uname -s)" = Darwin
-          test "$(uname -m)" = arm64
-          test ! -e resources/bundled-aioncore/darwin-arm64
-          aioncore_version="$(node -e '
-            const value = JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).aioncoreVersion;
-            if (typeof value !== "string" || !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value)) process.exit(1);
-            process.stdout.write(value);
-          ')"
-          receipt_version="$(jq -er '.managed_runtime.aioncore.version' contracts/aionui-upstream-intake.json)"
-          receipt_archive_sha256="$(jq -er '.managed_runtime.aioncore.archive_sha256' contracts/aionui-upstream-intake.json)"
-          test "$receipt_version" = "$aioncore_version"
-          [[ "$receipt_archive_sha256" =~ ^[0-9a-f]{64}$ ]]
-          archive_root="$(mktemp -d "$RUNNER_TEMP/opl-release-aioncore-archive.XXXXXX")"
-          archive_name="aioncore-${aioncore_version}-aarch64-apple-darwin.tar.gz"
-          archive_path="$archive_root/$archive_name"
-          curl -L --fail --silent --show-error \
-            --output "$archive_path" \
-            "https://github.com/iOfficeAI/AionCore/releases/download/${aioncore_version}/${archive_name}"
-          printf '%s  %s\n' "$receipt_archive_sha256" "$archive_path" | shasum -a 256 -c -
-          archive_extract="$archive_root/extracted"
-          mkdir "$archive_extract"
-          tar -xzf "$archive_path" -C "$archive_extract"
-          find "$archive_extract" -type f -name aioncore -print > "$archive_root/binary-paths.txt"
-          test "$(wc -l < "$archive_root/binary-paths.txt" | tr -d ' ')" = 1
-          IFS= read -r verified_archive_binary < "$archive_root/binary-paths.txt"
-          AIONUI_BACKEND_VERSION="$aioncore_version" node scripts/prepareAioncore.js
-          test -f resources/bundled-aioncore/darwin-arm64/manifest.json
-          test -f resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json
-          cmp "$verified_archive_binary" resources/bundled-aioncore/darwin-arm64/aioncore
 
       - name: Prepare and validate online AI notes
         env:
@@ -460,11 +313,9 @@ jobs:
           notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
           mkdir -p "$notes_root"
           notes_intent_args=()
-          if [[ '${{ inputs.include_full }}' == true ]]; then
-            notes_intent_args+=(
-              --include-full-package
-              --full-payload-authority "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
-            )
+          set --
+          if (( ${#notes_intent_args[@]} )); then
+            set -- "${notes_intent_args[@]}"
           fi
           npm run release:notes -- \
             --version '${{ steps.identity.outputs.version }}' \
@@ -474,7 +325,7 @@ jobs:
             --current-tag '${{ steps.identity.outputs.tag }}' \
             --current-app-ref '${{ steps.identity.outputs.app_sha }}' \
             --current-shell-ref '${{ steps.identity.outputs.shell_sha }}' \
-            "${notes_intent_args[@]}" \
+            "$@" \
             --evidence-output "$notes_root/notes-evidence.json" \
             --output "$notes_root/notes-template.md"
           npm run release:notes:prepare -- \
@@ -500,43 +351,8 @@ jobs:
           set -euo pipefail
           notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
           frozen_root="$RUNNER_TEMP/opl-webui-freeze-$GITHUB_RUN_ID"
-          mkdir -p "$frozen_root/base-release-set" "$frozen_root/codex"
+          mkdir -p "$frozen_root/codex"
           source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
-          carrier="ghcr.io/${GITHUB_REPOSITORY_OWNER}/one-person-lab-manifest"
-          if oras manifest fetch --descriptor "${carrier}:latest-stable" \
-            > "$frozen_root/latest-stable-descriptor.json" \
-            2> "$frozen_root/latest-stable-descriptor.error"; then
-            frozen_base_digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$frozen_root/latest-stable-descriptor.json")"
-            oras pull "${carrier}@${frozen_base_digest}" --output "$frozen_root/base-release-set"
-            find "$frozen_root/base-release-set" -type f -name opl-release-manifest.json -print \
-              | LC_ALL=C sort > "$frozen_root/release-manifests.txt"
-            find "$frozen_root/base-release-set" -type f -name opl-channel-manifest.json -print \
-              | LC_ALL=C sort > "$frozen_root/channel-manifests.txt"
-            test "$(wc -l < "$frozen_root/release-manifests.txt" | tr -d ' ')" = 1
-            test "$(wc -l < "$frozen_root/channel-manifests.txt" | tr -d ' ')" = 1
-            IFS= read -r frozen_release_manifest < "$frozen_root/release-manifests.txt"
-            IFS= read -r frozen_channel_manifest < "$frozen_root/channel-manifests.txt"
-            frozen_base_generation="$(jq -er '.release_set.generation | select(test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))' "$frozen_release_manifest")"
-            jq -e --arg generation "$frozen_base_generation" \
-              '.release_set.surface_kind == "opl_release_set.v2"
-                and .release_set.bom_status == "complete"
-                and .release_set_generation == $generation
-                and .release_set.generation == $generation' \
-              "$frozen_release_manifest" >/dev/null
-            jq -e --arg generation "$frozen_base_generation" \
-              '.release_set_generation == $generation' "$frozen_channel_manifest" >/dev/null
-          else
-            oras repo tags "$carrier" > "$frozen_root/latest-stable-tags.txt" || {
-              echo "::error::Cannot determine whether latest-stable exists; bootstrap is forbidden on availability unknown."
-              exit 1
-            }
-            if grep -Fxq latest-stable "$frozen_root/latest-stable-tags.txt"; then
-              echo "::error::latest-stable exists but its exact descriptor could not be read."
-              exit 1
-            fi
-            frozen_base_generation=none
-            frozen_base_digest=none
-          fi
           oras manifest fetch \
             --output "$frozen_root/base-image-index.json" \
             docker.io/library/node:22-bookworm-slim
@@ -552,12 +368,6 @@ jobs:
               --started-at '${{ inputs.operation_started_at }}' \
               --deadline-at '${{ inputs.operation_deadline_at }}'
           fi
-          full_authority_args=()
-          if [[ '${{ inputs.include_full }}' == true ]]; then
-            full_authority_args+=(
-              --notes-full-payload-authority "$RUNNER_TEMP/opl-release-full-notes-authority/notes-full-payload-authority.json"
-            )
-          fi
           node --experimental-strip-types scripts/framework-release-adapter.ts freeze-request \
             --channel '${{ inputs.channel }}' \
             --version '${{ steps.identity.outputs.version }}' \
@@ -568,13 +378,11 @@ jobs:
             --notes "$notes_root/notes.md" \
             --notes-evidence "$notes_root/notes-evidence.json" \
             --include-full-package '${{ inputs.include_full }}' \
-            --release-set-manifest 'framework-source/${{ steps.identity.outputs.release_set_manifest }}' \
+            --package-compatibility-abi '${{ inputs.package_compatibility_abi }}' \
+            --package-compatibility-version-range '${{ inputs.package_compatibility_version_range }}' \
             --source-cutoff-observed-at "$source_cutoff_observed_at" \
-            --frozen-base-release-set-generation "$frozen_base_generation" \
-            --frozen-base-release-set-digest "$frozen_base_digest" \
             --base-image-index "$frozen_root/base-image-index.json" \
             --frozen-codex-tarball "$frozen_root/codex/codex-cli.tgz" \
-            "${full_authority_args[@]}" \
             --output freeze-request.json
           cp "$notes_root/notes.md" notes.md
           cp "$notes_root/notes-evidence.json" notes-evidence.json
@@ -601,7 +409,6 @@ jobs:
           }' release-bundle.json)"
           cp "$frozen_root/codex/codex-cli.tgz" codex-cli.tgz
           cp "$frozen_root/base-image-index.json" base-image-index.json
-          cp "$frozen_root/latest-stable-descriptor.json" latest-stable-descriptor.json 2>/dev/null || true
           operation_id="gha-${GITHUB_RUN_ID}-standard"
           operation_started_at='${{ inputs.operation_started_at }}'
           operation_deadline_at='${{ inputs.operation_deadline_at }}'
@@ -643,7 +450,6 @@ jobs:
             notes.md
             notes-evidence.json
             base-image-index.json
-            latest-stable-descriptor.json
           if-no-files-found: error
           retention-days: 30
 

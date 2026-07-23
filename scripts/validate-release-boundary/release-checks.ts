@@ -1563,10 +1563,9 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     ["desktop_release_full_addon", ".github/workflows/desktop-release-full-addon.yml"],
     ["desktop_release_cleanup", ".github/workflows/desktop-release-cleanup-drafts.yml"],
   ].map(([id, file]) => ({
-    id: `${id}_retired_read_only`,
+    id: `${id}_retired_absent`,
     file,
-    required: ["workflow_call:", "contents: read", "exit 1", "retired"],
-    forbidden: ["workflow_dispatch:", "contents: write", "gh release", "gh workflow run", "verify-release-broker"],
+    retired: true,
   })),
   {
     id: "desktop_release_diagnostics_read_only",

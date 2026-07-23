@@ -114,7 +114,7 @@ const requiredPublisherReconcileAdmission = {
   deadline_elapsed_reconcile_may_advance_stage: false,
   create_upload_latest_or_homebrew_retry_allowed: false,
 };
-const frameworkReleaseAbiSha = '27d87877518bdf70b474b648d46a8c573f43bf40';
+const frameworkReleaseAbiSha = '9860dc64b56ed9cccb9984cd14e138d9ccacced7';
 const requiredFrameworkReleaseCommands = [
   'freeze',
   'operation admit',
@@ -502,6 +502,7 @@ function validatePreparedNotesTransportPolicy(releaseContract: Record<string, an
     preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true ||
     preparedNotes?.full_intent_evidence_path !== 'payload.include_full_package' ||
     preparedNotes?.full_intent_admitted_input !== 'include_full' ||
+    preparedNotes?.new_standard_full_intent_value !== false ||
     preparedNotes?.full_intent_must_match_before_framework_freeze !== true
   ) {
     console.error('FAIL prepared_notes_transport: bounded transport retry, typed failure receipts, and admitted Full intent binding are incomplete');
@@ -606,10 +607,11 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   for (const checkId of [
     'channel_display_and_updater_version_identity',
     'exact_app_shell_framework_git_shas',
-    'framework_release_set_manifest',
-    'seven_package_catalog_manifest_payload_digest_closure',
+    'app_standard_identity_mode',
+    'typed_package_compatibility_abi_and_range',
+    'package_release_set_and_exact_package_fields_absent',
     'prepared_ai_release_notes_marker',
-    'prepared_ai_release_notes_full_intent',
+    'prepared_ai_release_notes_standard_scope',
     'framework_freeze_request_schema',
   ]) {
     if (!preflight?.required_fast_checks?.includes(checkId)) {
@@ -644,6 +646,8 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   }
   if (
     typeof preflight?.rule !== 'string' ||
+    !preflight.rule.includes('app_standard_compatibility') ||
+    !preflight.rule.includes('without Package Release Set or exact Package authority fields') ||
     !preflight.rule.includes('cannot create release state or replace Framework checkpoint admission') ||
     !preflight.rule.includes('append_full remains independent from the Standard terminal') ||
     preflight?.full_addon_preflight?.operation !== 'append_full' ||

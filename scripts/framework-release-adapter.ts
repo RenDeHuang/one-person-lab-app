@@ -12,7 +12,6 @@ import {
   type ArtifactQualificationReceiptV1,
 } from './artifact-qualification-receipt.ts';
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
-import { verifyReleaseNotesFullPayloadAuthority } from './prepare-release-notes-full-payload-authority.ts';
 import {
   releaseOperationDeadlineTimestamp,
   remainingReleaseOperationMilliseconds,
@@ -35,15 +34,17 @@ const packageIds = [
 ] as const;
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
-const releaseSetGenerationPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$/;
+const appStandardIdentityMode = 'app_standard_compatibility';
+const packageCompatibility = {
+  abi: 'opl_packages.v1',
+  version_range: '>=0.1.0 <1.0.0',
+} as const;
 const frozenBuildInputIds = [
   'app_source',
   'base_image',
   'codex_cli',
   'dockerfile',
-  'first_party_packages',
   'framework_seed',
-  'opl_flow',
   'qualification_harness',
   'shell_webui_source',
 ] as const;
@@ -160,57 +161,6 @@ function gitSha(root: string): string {
   return result.stdout.trim();
 }
 
-function containedFrameworkFile(frameworkRoot: string, catalogRoot: string, ref: string): string {
-  const candidate = path.resolve(ref.startsWith('contracts/') ? frameworkRoot : catalogRoot, ref);
-  const relative = path.relative(frameworkRoot, candidate);
-  if (relative === '' || relative.startsWith('../') || path.isAbsolute(relative)) {
-    throw new Error(`Framework catalog ref escapes its checkout: ${ref}`);
-  }
-  const stat = fs.lstatSync(candidate);
-  if (!stat.isFile() || stat.isSymbolicLink()) {
-    throw new Error(`Framework catalog ref is not a regular file: ${ref}`);
-  }
-  return candidate;
-}
-
-function frameworkContractRef(ref: string): string {
-  const normalized = ref.split(path.sep).join('/');
-  return normalized.startsWith('contracts/')
-    ? normalized
-    : path.posix.join('contracts/opl-framework', normalized);
-}
-
-function assertCatalogEntryFiles(
-  frameworkRoot: string,
-  catalogRoot: string,
-  packageId: typeof packageIds[number],
-  entry: JsonRecord,
-): void {
-  const manifestPath = containedFrameworkFile(frameworkRoot, catalogRoot, String(entry.manifest_ref ?? ''));
-  const payloadPath = containedFrameworkFile(frameworkRoot, catalogRoot, String(entry.payload_manifest_ref ?? ''));
-  for (const [label, filePath, expected] of [
-    ['manifest', manifestPath, entry.manifest_sha256],
-    ['payload manifest', payloadPath, entry.payload_manifest_sha256],
-  ] as const) {
-    const actual = digestRef(sha256File(filePath));
-    if (actual !== expected) {
-      throw new Error(`${packageId} ${label} digest drifted: expected ${String(expected)}, got ${actual}.`);
-    }
-  }
-  const manifest = readJson(manifestPath);
-  const payload = readJson(payloadPath);
-  if (manifest.package_id !== packageId || manifest.version !== entry.package_version) {
-    throw new Error(`${packageId} package manifest identity does not match the Framework catalog.`);
-  }
-  if (
-    payload.package_id !== packageId
-    || payload.package_version !== entry.package_version
-    || payload.source_commit !== entry.owner_source_commit
-  ) {
-    throw new Error(`${packageId} payload manifest identity does not match the frozen owner ref.`);
-  }
-}
-
 function requiredAssetNames(version: string, track: Track): string[] {
   if (track === 'standard') {
     return [
@@ -250,12 +200,10 @@ function parseCommon(argv: string[]) {
       'framework-root': { type: 'string' },
       notes: { type: 'string' },
       'notes-evidence': { type: 'string' },
-      'notes-full-payload-authority': { type: 'string' },
       'include-full-package': { type: 'string' },
-      'release-set-manifest': { type: 'string' },
+      'package-compatibility-abi': { type: 'string' },
+      'package-compatibility-version-range': { type: 'string' },
       'source-cutoff-observed-at': { type: 'string' },
-      'frozen-base-release-set-generation': { type: 'string' },
-      'frozen-base-release-set-digest': { type: 'string' },
       'base-image-index': { type: 'string' },
       'frozen-codex-tarball': { type: 'string' },
       output: { type: 'string' },
@@ -292,21 +240,6 @@ function parseCommon(argv: string[]) {
   });
 }
 
-function frozenBaseReleaseSet(values: AdapterOptionValues): JsonRecord | null {
-  const generation = requireOption(values, 'frozen-base-release-set-generation');
-  const digest = requireOption(values, 'frozen-base-release-set-digest');
-  if (generation === 'none' || digest === 'none') {
-    if (generation !== 'none' || digest !== 'none') {
-      throw new Error('Frozen base Release Set generation and digest must both be none for bootstrap.');
-    }
-    return null;
-  }
-  if (!releaseSetGenerationPattern.test(generation) || !digestPattern.test(digest)) {
-    throw new Error('Frozen base Release Set must use an exact CalVer generation and sha256 digest.');
-  }
-  return { generation, digest };
-}
-
 function frozenBaseImageDescriptor(indexPath: string): JsonRecord {
   const index = readJson(path.resolve(indexPath));
   const manifests = Array.isArray(index.manifests) ? index.manifests : [];
@@ -340,10 +273,6 @@ function frozenBuildInputs(input: {
   shellRef: string;
   frameworkRoot: string;
   frameworkRef: string;
-  releaseSetPath: string;
-  releaseSetRelativePath: string;
-  releaseSetDigest: string;
-  catalog: JsonRecord;
 }): JsonRecord[] {
   const dockerfileRef = 'Dockerfile';
   const dockerfileBytes = gitFileBytes(input.shellRoot, input.shellRef, dockerfileRef, 'Shell Dockerfile');
@@ -369,27 +298,6 @@ function frozenBuildInputs(input: {
     path.resolve(requireOption(input.values, 'frozen-codex-tarball')),
     codexVersion,
   );
-  const releaseSetBytes = gitFileBytes(
-    input.frameworkRoot,
-    input.frameworkRef,
-    input.releaseSetRelativePath,
-    'Framework Release Set manifest',
-  );
-  if (digestRef(sha256Bytes(releaseSetBytes)) !== input.releaseSetDigest) {
-    throw new Error('Exact Framework Release Set bytes do not match the freeze request digest.');
-  }
-  const flow = input.catalog.packages?.['opl-flow'];
-  if (!flow) throw new Error('Framework catalog is missing opl-flow.');
-  const flowPayloadRef = frameworkContractRef(String(flow.payload_manifest_ref ?? ''));
-  const flowPayloadBytes = gitFileBytes(
-    input.frameworkRoot,
-    input.frameworkRef,
-    flowPayloadRef,
-    'OPL Flow payload manifest',
-  );
-  if (digestRef(sha256Bytes(flowPayloadBytes)) !== flow.payload_manifest_sha256) {
-    throw new Error('Exact OPL Flow payload manifest bytes drifted from the Framework catalog.');
-  }
   const qualificationHarnessRef = 'scripts/validate-webui-runtime-image.ts';
   const qualificationHarnessBytes = gitFileBytes(
     input.appRoot,
@@ -402,24 +310,13 @@ function frozenBuildInputs(input: {
     frozenBaseImageDescriptor(requireOption(input.values, 'base-image-index')),
     fileDescriptor('codex_cli', `@openai/codex@${codexVersion}`, codexBytes),
     fileDescriptor('dockerfile', 'shells/aionui/Dockerfile', dockerfileBytes),
-    fileDescriptor(
-      'first_party_packages',
-      `release-set-generation:${path.basename(path.dirname(input.releaseSetPath))}`,
-      releaseSetBytes,
-    ),
     gitArchiveDescriptor(input.frameworkRoot, input.frameworkRef, 'framework_seed'),
-    {
-      id: 'opl_flow',
-      ref: String(flow.owner_source_commit),
-      digest: String(flow.payload_manifest_sha256),
-      size_bytes: flowPayloadBytes.byteLength,
-    },
     fileDescriptor('qualification_harness', qualificationHarnessRef, qualificationHarnessBytes),
     gitArchiveDescriptor(input.shellRoot, input.shellRef, 'shell_webui_source'),
   ];
   const ids = descriptors.map((descriptor) => descriptor.id);
   if (ids.some((id, index) => id !== frozenBuildInputIds[index]) || new Set(ids).size !== ids.length) {
-    throw new Error('Frozen WebUI build inputs are not the canonical exact-nine ordered set.');
+    throw new Error('Frozen WebUI build inputs are not the canonical App Standard exact-seven ordered set.');
   }
   for (const descriptor of descriptors) {
     if (typeof descriptor.ref !== 'string' || descriptor.ref.length === 0
@@ -443,7 +340,13 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
   const notesPath = path.resolve(requireOption(values, 'notes'));
   const evidencePath = path.resolve(requireOption(values, 'notes-evidence'));
-  const includeFullPackage = requireBooleanOption(values, 'include-full-package');
+  requireBooleanOption(values, 'include-full-package');
+  if (
+    requireOption(values, 'package-compatibility-abi') !== packageCompatibility.abi
+    || requireOption(values, 'package-compatibility-version-range') !== packageCompatibility.version_range
+  ) {
+    throw new Error('App Standard Package compatibility must use the supported typed ABI and range.');
+  }
   const preparedNotes = fs.readFileSync(notesPath, 'utf8');
   if (!preparedNotes.includes(aiNotesMarker)) {
     throw new Error('Prepared release notes are not bound to the online AI writer.');
@@ -452,80 +355,25 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
   if (notesEvidence.schema !== 'opl_app_release_notes_evidence.v1') {
     throw new Error('Prepared release notes evidence has an unsupported schema.');
   }
-  if (notesEvidence.payload?.include_full_package !== includeFullPackage) {
+  if (notesEvidence.payload?.include_full_package !== false) {
     throw new Error(
-      'Prepared release notes Full intent does not match the admitted Release Bundle request.',
+      'App Standard prepared notes must not bind a future Full Package payload.',
     );
   }
-  const releaseSetPath = path.resolve(requireOption(values, 'release-set-manifest'));
   const appRef = gitSha(appRoot);
   const shellRef = gitSha(shellRoot);
   const frameworkRef = gitSha(frameworkRoot);
-  const authorityOption = values['notes-full-payload-authority'];
-  if (includeFullPackage) {
-    const authorityPath = path.resolve(requireOption(values, 'notes-full-payload-authority'));
-    const verifiedAuthority = verifyReleaseNotesFullPayloadAuthority(authorityPath, {
-      appRoot,
-      appRef,
-      shellRoot,
-      shellRef,
-      frameworkRoot,
-      frameworkRef,
-      releaseSetManifestPath: releaseSetPath,
-      thirdPartySourceManifestPath: path.join(
-        appRoot,
-        'contracts',
-        'app-full-third-party-source-manifest.json',
-      ),
-    });
-    if (notesEvidence.payload?.full_payload_authority_sha256 !== verifiedAuthority.sha256) {
-      throw new Error(
-        'Prepared release notes evidence does not bind the exact Full payload authority file digest.',
-      );
-    }
-  } else {
-    if (typeof authorityOption === 'string' && authorityOption.trim()) {
-      throw new Error('Standard-only release notes cannot provide a Full payload authority file.');
-    }
-    if (
-      notesEvidence.payload?.full_payload_authority_sha256 !== undefined
-      && notesEvidence.payload?.full_payload_authority_sha256 !== null
-    ) {
-      throw new Error('Standard-only release notes cannot bind a Full payload authority digest.');
-    }
-  }
-  const catalogPath = path.join(
-    frameworkRoot,
-    'contracts/opl-framework/bundled-full-runtime-package-catalog.json',
-  );
-  const catalog = readJson(catalogPath);
-  const catalogRoot = path.dirname(catalogPath);
-  const packages: JsonRecord = {};
-  for (const packageId of packageIds) {
-    const entry = catalog.packages?.[packageId];
-    if (!entry) throw new Error(`Framework catalog is missing ${packageId}.`);
-    assertCatalogEntryFiles(frameworkRoot, catalogRoot, packageId, entry);
-    packages[packageId] = {
-      package_id: packageId,
-      version: entry.package_version,
-      owner_source_commit: entry.owner_source_commit,
-      manifest_ref: frameworkContractRef(entry.manifest_ref),
-      manifest_sha256: entry.manifest_sha256,
-      payload_manifest_ref: frameworkContractRef(entry.payload_manifest_ref),
-      payload_manifest_sha256: entry.payload_manifest_sha256,
-    };
-  }
-
-  const relativeReleaseSet = path.relative(frameworkRoot, releaseSetPath).split(path.sep).join('/');
-  if (relativeReleaseSet.startsWith('../') || relativeReleaseSet === '') {
-    throw new Error('Release Set manifest must be contained by the Framework checkout.');
+  if (
+    notesEvidence.payload?.full_payload_authority_sha256 !== undefined
+    && notesEvidence.payload?.full_payload_authority_sha256 !== null
+  ) {
+    throw new Error('App Standard prepared notes cannot bind a Full payload authority digest.');
   }
   const observedAt = requireOption(values, 'source-cutoff-observed-at');
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(observedAt)
     || Number.isNaN(Date.parse(observedAt))) {
     throw new Error('Source cutoff observed_at must be a canonical UTC timestamp with milliseconds.');
   }
-  const releaseSetDigest = digestRef(sha256File(releaseSetPath));
   const frozenInputs = frozenBuildInputs({
     values,
     appRoot,
@@ -534,10 +382,6 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
     shellRef,
     frameworkRoot,
     frameworkRef,
-    releaseSetPath,
-    releaseSetRelativePath: relativeReleaseSet,
-    releaseSetDigest,
-    catalog,
   });
   return {
     surface_kind: 'opl_release_bundle_freeze_request.v1',
@@ -555,12 +399,8 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
       shell: { repo: 'gaofeng21cn/opl-aion-shell', source_commit: shellRef },
       framework: { repo: 'gaofeng21cn/one-person-lab', source_commit: frameworkRef },
     },
-    framework_release_set: {
-      generation: path.basename(path.dirname(releaseSetPath)),
-      manifest_ref: relativeReleaseSet,
-      digest: releaseSetDigest,
-    },
-    packages,
+    identity_mode: appStandardIdentityMode,
+    package_compatibility: packageCompatibility,
     prepared_notes: {
       source: 'prepared_ai',
       format: 'markdown',
@@ -590,11 +430,38 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
     source_cutoff: {
       observed_at: observedAt,
       policy: 'single_read_at_freeze_admission',
-      frozen_base_release_set: frozenBaseReleaseSet(values),
+      frozen_base_release_set: null,
       post_freeze_remote_refresh_allowed: false,
       later_authority_advancement_invalidates_bundle: false,
     },
     frozen_build_inputs: frozenInputs,
+  };
+}
+
+function qualificationCohort(bundle: JsonRecord): JsonRecord {
+  const sources = {
+    app_sha: bundle.sources.app.source_commit,
+    shell_sha: bundle.sources.shell.source_commit,
+    framework_sha: bundle.sources.framework.source_commit,
+  };
+  if (bundle.identity_mode === appStandardIdentityMode) {
+    exactJson(
+      bundle.package_compatibility,
+      packageCompatibility,
+      'App Standard Package compatibility',
+    );
+    return {
+      ...sources,
+      identity_mode: appStandardIdentityMode,
+      package_compatibility: packageCompatibility,
+    };
+  }
+  return {
+    ...sources,
+    framework_release_set_digest: bundle.framework_release_set.digest,
+    package_payload_manifest_sha256: Object.fromEntries(
+      packageIds.map((packageId) => [packageId, bundle.packages[packageId].payload_manifest_sha256]),
+    ),
   };
 }
 
@@ -749,14 +616,14 @@ function webuiQualificationReceipt(values: AdapterOptionValues, bundle: JsonReco
   exactJson(buildInput.source_cutoff, bundle.source_cutoff, 'WebUI build input source cutoff');
   exactJson(buildInput.cohort, expectedCohort, 'WebUI build input cohort');
   exactJson(buildInput.platform, { os: 'linux', architecture: 'amd64' }, 'WebUI build input platform');
-  exactJson(buildInput.inputs, bundle.frozen_build_inputs, 'WebUI build input exact-nine descriptors');
+  exactJson(buildInput.inputs, bundle.frozen_build_inputs, 'WebUI build input exact descriptors');
   const ids = Array.isArray(buildInput.inputs)
     ? buildInput.inputs.map((descriptor: JsonRecord) => descriptor?.id)
     : [];
   if (ids.some((id: string, index: number) => id !== frozenBuildInputIds[index])
     || ids.length !== frozenBuildInputIds.length
     || new Set(ids).size !== ids.length) {
-    throw new Error('WebUI build input must preserve the canonical unique exact-nine descriptor order.');
+    throw new Error('WebUI build input must preserve the canonical unique App Standard exact-seven descriptor order.');
   }
   for (const descriptor of buildInput.inputs as JsonRecord[]) {
     exactObjectKeys(descriptor, ['id', 'ref', 'digest', 'size_bytes'], `WebUI build input ${descriptor.id}`);
@@ -904,15 +771,7 @@ function webuiQualificationReceipt(values: AdapterOptionValues, bundle: JsonReco
       size_bytes: carrierBytes.byteLength,
       sha256: digestRef(sha256Bytes(carrierBytes)),
     },
-    cohort: {
-      app_sha: bundle.sources.app.source_commit,
-      shell_sha: bundle.sources.shell.source_commit,
-      framework_sha: bundle.sources.framework.source_commit,
-      framework_release_set_digest: bundle.framework_release_set.digest,
-      package_payload_manifest_sha256: Object.fromEntries(
-        packageIds.map((packageId) => [packageId, bundle.packages[packageId].payload_manifest_sha256]),
-      ),
-    },
+    cohort: qualificationCohort(bundle),
     qualification: {
       kind: 'installed_artifact',
       result: 'passed',
@@ -974,15 +833,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       size_bytes: sizeBytes,
       sha256: digestRef(artifactSha256),
     },
-    cohort: {
-      app_sha: bundle.sources.app.source_commit,
-      shell_sha: bundle.sources.shell.source_commit,
-      framework_sha: bundle.sources.framework.source_commit,
-      framework_release_set_digest: bundle.framework_release_set.digest,
-      package_payload_manifest_sha256: Object.fromEntries(
-        packageIds.map((packageId) => [packageId, bundle.packages[packageId].payload_manifest_sha256]),
-      ),
-    },
+    cohort: qualificationCohort(bundle),
     qualification: {
       kind: 'installed_artifact',
       result: 'passed',
