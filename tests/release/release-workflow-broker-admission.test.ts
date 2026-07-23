@@ -54,7 +54,7 @@ test('the three operation jobs are step-free reusable calls behind admission', (
   }
 });
 
-test('legacy broker workflows reject every call with read-only permissions', () => {
+test('legacy broker workflows stay absent while compatibility is historical read-only', () => {
   const release = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'contracts/app-release-channel.json'), 'utf8'));
   const legacy = release.release_bundle_control_plane.legacy_compatibility;
   assert.equal(legacy.authority_class, 'historical_read_only');
@@ -65,11 +65,7 @@ test('legacy broker workflows reject every call with read-only permissions', () 
     'desktop-release-full-addon.yml',
     'desktop-release-cleanup-drafts.yml',
   ]) {
-    const workflow = parseWorkflow(name);
-    assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
-    assert.deepEqual(workflow.permissions, { contents: 'read' });
-    assert.match(readWorkflow(name), /exit 1/);
-    assert.doesNotMatch(readWorkflow(name), /workflow_dispatch:|contents: write|id-token: write/);
+    assert.equal(fs.existsSync(path.join(process.cwd(), '.github', 'workflows', name)), false);
   }
 });
 
