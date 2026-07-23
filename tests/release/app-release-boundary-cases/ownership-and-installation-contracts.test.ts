@@ -11,8 +11,7 @@ import {
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
 import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
 import {
-  packagedSkillCopyHandlers,
-  readOplFlowFullSkillDependencyClosure,
+  readOplFlowDefaultSkillDependencyIds,
 } from '../../../scripts/build-full-first-install-package/skills.ts';
 import { forbiddenExternalFirstPartyClaimPattern } from '../../../scripts/app-product-profile-shared-validators.ts';
 import {
@@ -20,10 +19,11 @@ import {
   appOwnedWebuiDataVolumeHostActionCapabilityId,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
-test('App Full packages the OPL Flow offline skill closure without retired workflow plugins', () => {
+test('App Full may carry the OPL Flow default Skills without owning the dependency inventory', () => {
   const oplFlowRoot = process.env.OPL_FULL_OPL_FLOW_ROOT?.trim() || path.resolve(appRoot, '..', 'opl-flow');
-  const closure = readOplFlowFullSkillDependencyClosure(oplFlowRoot);
+  const closure = readOplFlowDefaultSkillDependencyIds(oplFlowRoot);
   const expected = [
+    'agent-reach',
     'officecli',
     'officecli-docx',
     'officecli-pptx',
@@ -37,19 +37,19 @@ test('App Full packages the OPL Flow offline skill closure without retired workf
   ];
 
   assert.deepEqual(closure, expected);
-  for (const skillId of expected) assert.equal(typeof packagedSkillCopyHandlers[skillId], 'function', skillId);
+  for (const skillId of expected) assert.equal(closure.includes(skillId), true, skillId);
   for (const retired of ['superpowers', 'superpowers-lite', 'ponytail', 'codexcont', 'codex-ops-kit']) {
     assert.equal(closure.includes(retired), false, retired);
   }
 });
 
-test('App Full accepts Flow v2 tuple identities and rejects Standard/Full default drift', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-v2-policy-test-'));
+test('App accepts Flow v3 open composition without lock or payload metadata', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-v3-policy-test-'));
   const contractsRoot = path.join(root, 'contracts');
   fs.mkdirSync(contractsRoot, { recursive: true });
   const policyPath = path.join(contractsRoot, 'workflow-policy.json');
   const policy = {
-    schema: 'opl_flow_workflow_policy.v2',
+    schema: 'opl_flow_workflow_policy.v3',
     package: { id: 'opl-flow' },
     provides: [],
     requires: [],
@@ -58,34 +58,29 @@ test('App Full accepts Flow v2 tuple identities and rejects Standard/Full defaul
         kind: 'codex_skill',
         id: 'shared-name',
         online_install_default: true,
-        offline_bundle: 'full',
       },
       {
         kind: 'cli',
         id: 'shared-name',
         online_install_default: true,
-        offline_bundle: 'full',
       },
     ],
     compatible_optional: [],
   };
   try {
     writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
-    assert.deepEqual(readOplFlowFullSkillDependencyClosure(root), ['shared-name']);
+    assert.deepEqual(readOplFlowDefaultSkillDependencyIds(root), ['shared-name']);
 
-    const divergent = structuredClone(policy);
-    divergent.recommends[0].offline_bundle = 'none';
-    writeFile(policyPath, `${JSON.stringify(divergent, null, 2)}\n`);
-    assert.throws(
-      () => readOplFlowFullSkillDependencyClosure(root),
-      /must be embedded in Full for Standard\/Full convergence/,
-    );
+    const carrierHint = structuredClone(policy);
+    carrierHint.recommends[0].offline_bundle = 'none';
+    writeFile(policyPath, `${JSON.stringify(carrierHint, null, 2)}\n`);
+    assert.deepEqual(readOplFlowDefaultSkillDependencyIds(root), ['shared-name']);
 
     const duplicate = structuredClone(policy);
     duplicate.recommends.push(structuredClone(duplicate.recommends[0]));
     writeFile(policyPath, `${JSON.stringify(duplicate, null, 2)}\n`);
     assert.throws(
-      () => readOplFlowFullSkillDependencyClosure(root),
+      () => readOplFlowDefaultSkillDependencyIds(root),
       /Duplicate OPL Flow capability identity \(codex_skill, shared-name\)/,
     );
   } finally {

@@ -34,17 +34,18 @@
       "flow_managed_grouping_required": true,
       "unknown_user_and_third_party_surfaces": "preserve"
     },
-    "standard_full_convergence": {
-      "target_closure": "opl_flow_online_install_default_closure",
-      "standard_source": "online_exact_release_lock",
-      "full_source": "embedded_exact_release_lock",
-      "target_closure_equality_required": true,
-      "final_projection_equality_required": true,
-      "acceptance_gate": "framework_terminal_reconciliation_receipt",
+    "open_composition": {
+      "dependency_semantics": "flow_declares_capability_intent_without_carrier_or_lock_prerequisite",
+      "framework_resolution": "reuse_compatible_capability_else_project_install_action",
+      "app_projection_source": "framework_unified_capability_projection",
+      "lock_policy": "concrete_installation_or_release_result_not_declaration_prerequisite",
+      "full_payload_policy": "optional_carrier_for_available_compatible_payloads",
+      "missing_optional_payload_blocks_flow_or_app_readiness": false,
+      "carrier_equivalence_required": false,
+      "acceptance_gate": "framework_projection_or_action_readback",
       "gui_ready_alone_is_sufficient": false,
       "reconciliation_surface": "framework_managed_update_plane",
-      "provider_configuration_required_for_reconciliation": false,
-      "bundled_lock_update_policy": "release_set_and_payload_digest_through_framework_managed_update_plane"
+      "provider_configuration_required_for_reconciliation": false
     },
     "credential_policy": {
       "credential_values_owner": "user_or_provider",
@@ -237,8 +238,8 @@
       "owner": "upstream_skill_owners_with_opl_distribution_policy",
       "software_object": "opl_base",
       "visibility_scope": "base_integration_projection_only_not_software_object",
-      "members_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
-      "closure_filter": "kind=codex_skill and online_install_default=true and offline_bundle=full",
+      "members_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
+      "closure_filter": "kind=codex_skill and online_install_default=true",
       "default_app_visible": false,
       "codex_discovery_policy": "installed_and_task_routed_without_ordinary_app_skill_menu_visibility",
       "sync_target": "opl_framework_package_dependency_materialization",
@@ -378,9 +379,9 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "bundle_runtime_payloads_then_continue_codex_exposure_maintenance_after_core_ready",
-      "capability_target_closure": "opl_flow_online_install_default_closure",
-      "capability_source": "embedded_exact_release_lock",
-      "final_projection": "framework_unified_capability_projection",
+      "capability_projection": "framework_unified_capability_projection",
+      "optional_payload_policy": "may_bundle_available_compatible_skill_payloads",
+      "missing_optional_payload_blocks_install_or_readiness": false,
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },
@@ -391,9 +392,8 @@
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "opl system initialize --json",
       "exposure_policy": "app_managed_bootstrap_then_background_codex_exposure_maintenance",
-      "capability_target_closure": "opl_flow_online_install_default_closure",
-      "capability_source": "online_exact_release_lock",
-      "final_projection": "framework_unified_capability_projection",
+      "capability_projection": "framework_unified_capability_projection",
+      "resolution_policy": "framework_reuse_compatible_then_project_install_action",
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
     },

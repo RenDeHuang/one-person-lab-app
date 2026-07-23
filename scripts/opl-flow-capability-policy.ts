@@ -19,6 +19,7 @@ type OplFlowPolicy = Record<string, any> & {
 const supportedPolicySchemas = new Set([
   'opl_flow_workflow_policy.v1',
   'opl_flow_workflow_policy.v2',
+  'opl_flow_workflow_policy.v3',
 ]);
 
 export function assertOplFlowCapabilityPolicy(policy: OplFlowPolicy, label: string): OplFlowPolicy {
@@ -41,11 +42,6 @@ export function assertOplFlowCapabilityPolicy(policy: OplFlowPolicy, label: stri
       throw new Error(`Duplicate OPL Flow capability identity (${entry.kind}, ${entry.id}): ${label}`);
     }
     identities.add(identity);
-    if (entry.online_install_default === true && entry.offline_bundle !== 'full') {
-      throw new Error(
-        `OPL Flow default capability (${entry.kind}, ${entry.id}) must be embedded in Full for Standard/Full convergence`,
-      );
-    }
   }
   return policy;
 }
@@ -57,13 +53,12 @@ export function readOplFlowCapabilityPolicy(policyPath: string): OplFlowPolicy {
   return assertOplFlowCapabilityPolicy(JSON.parse(fs.readFileSync(policyPath, 'utf8')), policyPath);
 }
 
-export function resolveOplFlowFullSkillDependencyIds(policy: OplFlowPolicy): string[] {
+export function resolveOplFlowDefaultSkillDependencyIds(policy: OplFlowPolicy): string[] {
   const dependencies = [...(policy.requires ?? []), ...(policy.recommends ?? [])];
   return [...new Set(dependencies
     .filter((entry) => (
       entry.kind === 'codex_skill' &&
-      entry.online_install_default === true &&
-      entry.offline_bundle === 'full'
+      entry.online_install_default === true
     ))
     .map((entry) => String(entry.id)))];
 }

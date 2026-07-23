@@ -8,9 +8,7 @@
       "policy_ref": "contracts/workflow-policy.json",
       "policy_sha256": "2071f01dadeecb6e3d247cb427d464a57daf6d71757492521c8891abad182a6f",
       "schema_ref": "contracts/workflow-policy.schema.json",
-      "schema_sha256": "fb1c3308c03aa5401b3c1a457fb4b15bbf57f1d02511fe99f8c064a0d6898d67",
-      "dependency_selector": "online_install_default=true",
-      "offline_carrier_selector": "offline_bundle=full"
+      "schema_sha256": "fb1c3308c03aa5401b3c1a457fb4b15bbf57f1d02511fe99f8c064a0d6898d67"
     },
     "framework_closure": {
       "repository": "gaofeng21cn/one-person-lab",
@@ -23,7 +21,7 @@
     "generation_contract": {
       "exact_ref_and_digest_binding_required": true,
       "framework_lifecycle_receipt_required": true,
-      "standard_full_final_projection_equivalence_receipt_required": true,
+      "optional_payload_inventory_receipt_required": true,
       "moving_dependency_resolution_allowed": false
     }
   },
@@ -89,7 +87,8 @@
     "full_toolchain_observation_receipt_required": true,
     "manifest_is_dependency_authority": false,
     "source_versions_are_release_frozen_projection": true,
-    "standard_full_target_closure_must_match": true,
+    "payload_inventory_does_not_define_dependency_closure": true,
+    "missing_optional_skill_payload_blocks_flow_or_app_readiness": false,
     "credential_values_may_be_bundled": false,
     "unknown_user_or_third_party_mcp_may_be_removed": false
   }

@@ -69,21 +69,25 @@ function validateCapabilityGovernance(governance) {
   ) {
     throw new Error('Install exposure capability governance must forbid an App-owned managed capability inventory');
   }
-  const convergence = governance.standard_full_convergence;
+  const openComposition = governance.open_composition;
   if (
-    convergence?.target_closure !== 'opl_flow_online_install_default_closure' ||
-    convergence?.standard_source !== 'online_exact_release_lock' ||
-    convergence?.full_source !== 'embedded_exact_release_lock' ||
-    convergence?.target_closure_equality_required !== true ||
-    convergence?.final_projection_equality_required !== true ||
-    convergence?.acceptance_gate !== 'framework_terminal_reconciliation_receipt' ||
-    convergence?.gui_ready_alone_is_sufficient !== false ||
-    convergence?.reconciliation_surface !== 'framework_managed_update_plane' ||
-    convergence?.provider_configuration_required_for_reconciliation !== false ||
-    convergence?.bundled_lock_update_policy !==
-      'release_set_and_payload_digest_through_framework_managed_update_plane'
+    openComposition?.dependency_semantics !==
+      'flow_declares_capability_intent_without_carrier_or_lock_prerequisite' ||
+    openComposition?.framework_resolution !==
+      'reuse_compatible_capability_else_project_install_action' ||
+    openComposition?.app_projection_source !== 'framework_unified_capability_projection' ||
+    openComposition?.lock_policy !==
+      'concrete_installation_or_release_result_not_declaration_prerequisite' ||
+    openComposition?.full_payload_policy !==
+      'optional_carrier_for_available_compatible_payloads' ||
+    openComposition?.missing_optional_payload_blocks_flow_or_app_readiness !== false ||
+    openComposition?.carrier_equivalence_required !== false ||
+    openComposition?.acceptance_gate !== 'framework_projection_or_action_readback' ||
+    openComposition?.gui_ready_alone_is_sufficient !== false ||
+    openComposition?.reconciliation_surface !== 'framework_managed_update_plane' ||
+    openComposition?.provider_configuration_required_for_reconciliation !== false
   ) {
-    throw new Error('Install exposure Standard and Full carriers must converge on one exact managed capability projection');
+    throw new Error('Install exposure capability governance must preserve open composition');
   }
   if (
     governance.credential_policy?.credential_values_owner !== 'user_or_provider' ||
@@ -192,9 +196,9 @@ function validateExposureClasses(policy) {
     throw new Error('Install exposure companion skills must use Framework package dependency materialization');
   }
   if (
-    companionClass?.members_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends' ||
-    companionClass?.closure_filter !==
-      'kind=codex_skill and online_install_default=true and offline_bundle=full' ||
+    companionClass?.members_source_ref !==
+      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends' ||
+    companionClass?.closure_filter !== 'kind=codex_skill and online_install_default=true' ||
     expectedCompanionPolicyRef !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends'
   ) {
     throw new Error('Install exposure companion skills must derive from the OPL Flow policy');
@@ -276,14 +280,13 @@ function validateInstallerSurfaces(policy) {
   const standard = installerSurfaces.get('standard_dmg');
   const full = installerSurfaces.get('full_first_install_dmg');
   if (
-    standard?.capability_target_closure !== 'opl_flow_online_install_default_closure' ||
-    full?.capability_target_closure !== standard.capability_target_closure ||
-    standard?.capability_source !== 'online_exact_release_lock' ||
-    full?.capability_source !== 'embedded_exact_release_lock' ||
-    standard?.final_projection !== 'framework_unified_capability_projection' ||
-    full?.final_projection !== standard.final_projection
+    standard?.capability_projection !== 'framework_unified_capability_projection' ||
+    standard?.resolution_policy !== 'framework_reuse_compatible_then_project_install_action' ||
+    full?.capability_projection !== 'framework_unified_capability_projection' ||
+    full?.optional_payload_policy !== 'may_bundle_available_compatible_skill_payloads' ||
+    full?.missing_optional_payload_blocks_install_or_readiness !== false
   ) {
-    throw new Error('App Standard and Full installer surfaces must share one capability target and final projection');
+    throw new Error('App installer surfaces must consume Framework projection without carrier prerequisites');
   }
   const dockerWebui = installerSurfaces.get('docker_webui');
   if (dockerWebui?.entrypoint !== 'Docker/WebUI one-click installer') {

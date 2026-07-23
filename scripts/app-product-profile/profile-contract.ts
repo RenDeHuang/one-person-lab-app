@@ -491,21 +491,6 @@ function assertCompanionPayloadProfileShape(
   if (profile.codex.skill_priority.includes('morph-ppt') || defaultPackagedSkills.has('morph-ppt') || additionalPackageSkills.has('morph-ppt')) {
     throw new Error('App product profile must not include retired morph-ppt skill wiring');
   }
-  if (
-    profile.companion_payloads.opl_flow_dependency_policy_ref !==
-      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends' ||
-    profile.companion_payloads.full_dependency_closure_policy !==
-      'bundle_requires_and_recommends_with_offline_bundle_full' ||
-    profile.companion_payloads.managed_capability_inventory_policy !==
-      'consume_framework_unified_projection_without_app_second_inventory' ||
-    profile.companion_payloads.target_closure_policy !==
-      'standard_and_full_resolve_same_opl_flow_online_install_default_closure' ||
-    profile.companion_payloads.standard_dependency_source !== 'online_exact_release_lock' ||
-    profile.companion_payloads.full_dependency_source !== 'embedded_exact_release_lock' ||
-    profile.companion_payloads.final_projection_equivalence_required !== true
-  ) {
-    throw new Error('App product profile must delegate capability policy to Flow and convergence to Framework');
-  }
   if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
     throw new Error('App product profile companion payloads must reference app-install-exposure-policy.json');
   }

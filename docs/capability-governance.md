@@ -8,9 +8,9 @@
 
 | 层 | 负责 | 不负责 |
 | --- | --- | --- |
-| OPL Flow | 能力图、来源与版本要求、默认安装、激活方式、离线载体策略、冲突与凭据策略 | 安装状态、锁、用户秘密、App UI 或发布执行 |
-| OPL Base / Framework | release-lock 解析、安装、更新、回滚、currentness、reconciliation、receipt 和统一投影 | 第二份能力清单或领域能力判断 |
-| OPL App | GUI、安装进度、用户选择、载体入口和 release-frozen projection | Skill、Plugin、CLI、MCP 的生命周期真相 |
+| OPL Flow | 能力意图、可选来源/版本提示、默认安装、激活方式、冲突与凭据策略 | 安装状态、锁、payload、用户秘密、App UI 或发布执行 |
+| OPL Base / Framework | 兼容能力解析、安装动作、更新、回滚、currentness、reconciliation、receipt 和统一投影 | 第二份能力清单或领域能力判断 |
+| OPL App | GUI、安装进度、用户选择、载体入口和 Framework 投影 | Skill、Plugin、CLI、MCP 的依赖或生命周期真相 |
 
 App 可以维护名称、说明、排序、分组等产品展示元数据，但不得用这些元数据决定 managed capability
 是否安装或 current。Settings 必须读取 Framework 统一投影，并把 Flow-managed 与用户/第三方能力分组展示。
@@ -18,35 +18,37 @@ App 可以维护名称、说明、排序、分组等产品展示元数据，但�
 能力身份固定为 `(kind, id)`。例如 `codex_skill:officecli` 与 `cli:officecli` 是两个能力，不能因文本 id
 相同而折叠。
 
-## Standard 与 Full
+## 开放组合
 
-Standard 和 Full 是同一目标安装形态的两种交付方式，不是两个功能版本。
+Base、App 和 Package 独立版本、独立发布，默认可以自由组合。Flow 是便于管理的一组能力意图，不是锁定
+具体安装字节的环境文件。
 
 ```text
-standard_target_closure == full_target_closure
-standard_source = online_exact_release_lock
-full_source = embedded_exact_release_lock
-standard_final_projection == full_final_projection
+Flow requires/recommends
+  -> Framework 复用已有兼容能力
+  -> 缺失时投影通用 install action
+  -> App 只展示并执行 Framework projection
 ```
 
-`online_install_default=true` 表示 Standard 和 Full 的最终 managed installation 都必须包含该能力。
-`offline_bundle=full` 表示 Full 必须预置同一 release lock 的精确字节。它不表示 Full 独占该能力。
-`activation` 只决定安装后何时加载，不改变是否安装。
+`source`、`version_requirement`、`install_source` 和 `offline_bundle` 都是可选提示，不是 capability identity，
+也不是 Flow、Standard、Full 或 App readiness 的前置。lock 只在具体安装或发布实际发生后记录结果；
+没有安装就不要求预先存在 lock。
 
-最终一致性在 Framework terminal reconciliation receipt 上验收，至少包括版本、digest、lock、Skill/Plugin
-discovery 和 capability projection。GUI 已打开或 `ready_to_launch` 不足以证明 Full readiness。
+Full 可以携带构建时已有的兼容 payload，减少首次安装成本；缺少某个可选 payload 时继续由 Framework
+解析已有能力或给出安装动作。Standard 与 Full 不要求字节、目标闭包或最终投影完全相同。
 
 ## Full 冻结投影
 
-`contracts/app-full-third-party-source-manifest.json` 是发行期冻结投影，不是依赖 authority。它绑定：
+`contracts/app-full-third-party-source-manifest.json` 只记录某次 Full 构建实际选择的输入，不是依赖 authority。
+正式发布仍可为其实际包含的字节记录 commit、digest 和 receipt，但这些记录不能反向成为 Flow 依赖前置。
+它可以绑定：
 
 - OPL Flow policy 的 exact commit、schema 和 SHA-256；
 - Framework Release Set 与 bundled catalog 的 exact commit 和 SHA-256；
 - 第三方源、toolchain 与 runtime payload 的精确版本、ref 和 digest；
-- Framework lifecycle receipt 与 Standard/Full 最终投影等价 receipt 要求。
+- Framework lifecycle receipt 与实际 payload inventory receipt。
 
-Full 构建只消费上述冻结闭包。Standard 在线取得相同闭包时也必须使用该发行 cohort 的精确版本和 digest，
-不能把构建时或安装时的 latest 当作真相。
+某次 Full 构建内的已选 payload 仍应可复现和校验；未选择的能力不因此无效，也不阻断 App 或 Flow。
 
 ## MCP 与凭据
 
@@ -61,8 +63,8 @@ API Key、OAuth token、账户状态和其他秘密始终由用户或 provider �
 不得安装、更新、修复、启停或同步任何 Package/Skill/Plugin。
 
 Package reconciliation 与 provider 配置完全解耦。API Key 或 provider 缺失不得阻止 Standard、Full、DMG、
-本地安装或后续 currentness；Framework 必须按 Release Set 与 payload digest 通过 carrier-neutral managed
-update plane 处理 bundled locks 和在线 locks，并给出 terminal receipt。
+本地安装或后续 currentness；Framework 通过 carrier-neutral managed update plane 解析当前能力并给出
+projection、action 或 receipt。
 
 ## 模型策略
 
@@ -86,10 +88,9 @@ Flow 可以定义 `ACTIVE` 与 `SAFE_TO_ARCHIVE` 等协调语义。`SAFE_TO_ARCH
 
 ## 验收
 
-- Flow policy/schema 通过验证，package payload 中提供的 Skills 与 manifest 一致。
-- Framework lock、payload、owner ref 和 fresh Codex discovery 一致。
-- Standard 与 Full 解析出同一默认 `(kind, id)` 闭包和 exact release lock。
-- 每个 managed dependency 有 install/update/rollback/currentness evidence。
-- Full 字节与 release lock 一致且不含秘密。
+- Flow policy/schema 通过验证，`agent-reach` 等依赖由 `(kind, id)` 声明。
+- Framework 优先复用已有兼容能力，缺失时返回通用安装动作。
+- lock 与 payload 不作为声明或 readiness 前置。
+- Full 只校验自己实际携带的字节，未携带的可选 Skill 不阻断发布或安装。
 - App 只消费 Framework 统一投影，不存在第二份 managed inventory。
 - Flow 未安装时 App fallback 可用，安装后 Flow recommendation 优先。

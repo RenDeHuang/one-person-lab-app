@@ -2374,7 +2374,7 @@ function validateExposureClasses(policy: any, contract: any): void {
   const companionClass = findExposureClass(policy, "companion_tools_codex_skills");
   assertEqual(
     companionClass.members_source_ref,
-    "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
+    "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
     "companion skill policy owner",
   );
   assertEqual(companionClass.software_object, "opl_base", "companion integration software object");

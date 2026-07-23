@@ -7961,13 +7961,6 @@
     "additional_package_skill_ids": [
       "opl-meta-agent"
     ],
-    "opl_flow_dependency_policy_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends",
-    "full_dependency_closure_policy": "bundle_requires_and_recommends_with_offline_bundle_full",
-    "managed_capability_inventory_policy": "consume_framework_unified_projection_without_app_second_inventory",
-    "target_closure_policy": "standard_and_full_resolve_same_opl_flow_online_install_default_closure",
-    "standard_dependency_source": "online_exact_release_lock",
-    "full_dependency_source": "embedded_exact_release_lock",
-    "final_projection_equivalence_required": true,
     "domain_plugin_skill_ids": [
       "med-autoscience",
       "med-autogrant",
