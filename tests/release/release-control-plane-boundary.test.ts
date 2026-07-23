@@ -58,6 +58,10 @@ test('release boundary admits the three-operation control plane and real no-secr
   assert.equal(canary.build_or_vm_execution_allowed, false);
   assert.equal(canary.external_write_allowed, false);
   assert.equal(canary.stable_mutation_allowed, false);
+  assert.equal(canary.publication_allowed, false);
+  assert.equal(canary.uses_stable_mutation_mutex, false);
+  assert.ok(canary.triggers.includes('daily_schedule'));
+  assert.equal(fs.existsSync(path.join(process.cwd(), workflowDirectory, 'release-nightly.yml')), false);
   assert.equal(validateStableReleaseControlPlane(process.cwd()), 0);
   assert.equal(validateReleaseBundleTopology(process.cwd()), 0);
   assert.equal(validateReleaseBundleCanaryTopology(process.cwd()), 0);
@@ -120,15 +124,9 @@ test('Bundle, Standard publish, and Full append responsibilities cannot collapse
   assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) >= 3);
 });
 
-test('WebUI permission chain requires package write only at Standard and Nightly callers', (t) => {
+test('WebUI follower keeps the packages write compile ceiling outside Desktop Stable', (t) => {
   const root = fixture(t);
-  updateWorkflow(root, 'release-stable.yml', (workflow) => {
-    delete workflow.jobs.standard.permissions.packages;
-  });
-  updateWorkflow(root, 'release-nightly.yml', (workflow) => {
-    delete workflow.jobs.release.permissions.packages;
-  });
-  updateWorkflow(root, '_release-bundle.yml', (workflow) => {
+  updateWorkflow(root, 'release-webui-follower.yml', (workflow) => {
     workflow.jobs['webui-carrier'].permissions = {
       contents: 'read',
       actions: 'read',
@@ -136,9 +134,30 @@ test('WebUI permission chain requires package write only at Standard and Nightly
     };
   });
 
-  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+  assert.equal(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)), 0);
   assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) > 0);
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
+test('daily validation cannot restore the retired Nightly publisher or reuse the Stable mutex', (t) => {
+  const root = fixture(t);
+  fs.writeFileSync(workflowPath(root, 'release-nightly.yml'), `name: Retired Nightly
+on:
+  schedule:
+    - cron: '0 13 * * *'
+jobs:
+  release:
+    uses: ./.github/workflows/_release-bundle.yml
+    with:
+      mode: execute
+      channel: nightly
+`);
+  updateWorkflow(root, 'release-bundle-canary.yml', (workflow) => {
+    delete workflow.on.schedule;
+    workflow.concurrency.group = 'opl-release-bundle-global';
+  });
+
+  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 2);
 });
 
 test('Canary compile ceilings keep reachable jobs read-only and mutation unreachable', (t) => {

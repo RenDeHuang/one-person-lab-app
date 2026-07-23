@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+  schedule:
+    - cron: '0 13 * * *'
 
 permissions:
   contents: read
@@ -14,7 +16,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-release-bundle-canary-${{ github.ref }}
+  group: opl-release-validation-canary-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -23,7 +25,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      packages: write
     with:
       mode: canary
       operation: standard
@@ -107,8 +108,20 @@ jobs:
       opl_version: canary
       release_bundle_digest: sha256:canary
       release_cohort_ref: sha256:canary
-      frozen_build_input_json: '{}'
-      frozen_codex_artifact_name: canary
+      source_artifact_run_id: '424242'
+      standard_checkpoint_artifact_name: canary
+      standard_identity_sha256: sha256:canary
+
+  nested-webui-stable:
+    uses: ./.github/workflows/release-webui-stable.yml
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    with:
+      mode: canary
+      stable_authority_run_id: '424242'
+      carrier_artifact_name: canary
 
   nested-updater-qualification:
     uses: ./.github/workflows/opl-updater-upgrade-vm.yml

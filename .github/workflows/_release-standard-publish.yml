@@ -32,12 +32,12 @@ on:
         default: ''
         type: string
       operation_started_at:
-        description: Stable operation start; empty for Nightly
+        description: Stable operation start
         required: false
         default: ''
         type: string
       operation_deadline_at:
-        description: Stable operation mutation deadline; empty for Nightly
+        description: Stable operation mutation deadline
         required: false
         default: ''
         type: string
@@ -99,6 +99,10 @@ jobs:
           status=passed
           reason=admitted
           if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
+          case '${{ inputs.operation }}' in
+            standard|resume_standard) ;;
+            *) status=failed; reason=unsupported_execute_route ;;
+          esac
           if [ -n '${{ inputs.operation_started_at }}' ] || [ -n '${{ inputs.operation_deadline_at }}' ]; then
             node <<'NODE' || { status=failed; reason=deadline_invalid; }
           const started = Date.parse('${{ inputs.operation_started_at }}');
@@ -231,6 +235,11 @@ jobs:
           test "$(jq -r .publish_state_imported <<<"$CHECKPOINT_IMPORT")" = false
           test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          test "$(jq -r .release.channel "$bundle")" = stable || {
+            echo "::error::Historical Nightly checkpoints are read-only and cannot enter the live publisher."
+            exit 1
+          }
 
       - name: Reconcile imported outcome and reuse immutable Standard control
         id: operation
@@ -339,6 +348,24 @@ jobs:
           original_standard_receipt="$(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print -quit)"
           test -n "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
+          standard_identity_receipts=()
+          while IFS= read -r identity_receipt; do
+            standard_identity_receipts+=("$identity_receipt")
+          done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          case "${#standard_identity_receipts[@]}" in
+            0) ;;
+            1)
+              test -f "${standard_identity_receipts[0]}" && test ! -L "${standard_identity_receipts[0]}"
+              cp "${standard_identity_receipts[0]}" standard-identity-receipt.json
+              cmp "${standard_identity_receipts[0]}" standard-identity-receipt.json
+              ;;
+            *)
+              echo "::error::Checkpoint transport must contain at most one Standard identity receipt."
+              exit 1
+              ;;
+          esac
           {
             echo "source_run_id=$GITHUB_RUN_ID"
             echo "source_artifact=opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
@@ -355,6 +382,7 @@ jobs:
           path: |
             standard-operation-checkpoint
             standard-build-receipt.json
+            standard-identity-receipt.json
             operation-status-before.json
             operation-status-after-reconcile.json
             operation-admit-result.json
@@ -397,6 +425,7 @@ jobs:
           fi
           test "$(jq -r .bundle_digest "$bundle")" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           channel="$(jq -r .release.channel "$bundle")"
+          test "$channel" = stable
           version="$(jq -r .release.version "$bundle")"
           updater_version="$(jq -r .release.updater_version "$bundle")"
           previous_latest_tag=''
@@ -410,10 +439,9 @@ jobs:
           highest_public_stable_updater_version=''
           highest_public_stable_dmg_url=''
           highest_public_stable_dmg_sha256=''
-          if [ "$channel" = stable ]; then
-            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > public-releases.json
-            git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" 'refs/tags/v*' > public-tags.txt
-            if [ '${{ inputs.operation }}' = standard ]; then
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > public-releases.json
+          git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" 'refs/tags/v*' > public-tags.txt
+          if [ '${{ inputs.operation }}' = standard ]; then
               BASE_VERSION="${version%-r*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveStableReleaseVersion } from './app-source/scripts/release-version.ts';
@@ -425,8 +453,8 @@ jobs:
             throw new Error(`Stable version collision: expected next immutable revision ${resolved.version}, got ${process.env.VERSION}.`);
           }
           NODE
-            fi
-            highest_public_stable_tag="$(node --experimental-strip-types --input-type=module <<'NODE'
+          fi
+          highest_public_stable_tag="$(node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { highestPublishedStableRelease } from './app-source/scripts/stable-release-version-order.ts';
           const pages = JSON.parse(fs.readFileSync('public-releases.json', 'utf8'));
@@ -452,8 +480,7 @@ jobs:
             digest="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .digest' previous-latest.json)"
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             previous_latest_dmg_sha256="${digest#sha256:}"
-            previous_latest_dmg_size="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .size' previous-latest.json)"
-          fi
+          previous_latest_dmg_size="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .size' previous-latest.json)"
           {
             echo "source_run_id=$source_run_id"
             echo "source_artifact=$source_artifact"
@@ -503,7 +530,7 @@ jobs:
           retention-days: 30
 
   publish-standard-nonlatest:
-    if: ${{ always() && needs.restore.result == 'success' && (needs.restore.outputs.channel == 'nightly' || (needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped'))) }}
+    if: ${{ always() && needs.restore.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: release-stable
@@ -565,12 +592,10 @@ jobs:
           exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
-          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
-            node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-              --operation '${{ inputs.operation }}' \
-              --started-at '${{ needs.restore.outputs.operation_started_at }}' \
-              --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
-          fi
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation '${{ inputs.operation }}' \
+            --started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore.outputs.operation_id }}'
@@ -782,53 +807,14 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > publication.json
           test "$(jq -r .release_bundle_publish.status publication.json)" = complete
-          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
-            checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
-            find "$checkpoint_dir" -type f -name opl-webui-carrier.json -print | LC_ALL=C sort > webui-carrier-assets.txt
-            test "$(wc -l < webui-carrier-assets.txt | tr -d ' ')" = 1 || {
-              echo "::error::Unified checkpoint must contain exactly one regular opl-webui-carrier.json."
-              exit 1
-            }
-            IFS= read -r webui_carrier < webui-carrier-assets.txt
-            test -f "$webui_carrier" && test ! -L "$webui_carrier"
-            webui_ref="$(jq -er '.carrier.ref | select(test("@sha256:[0-9a-f]{64}$"))' "$webui_carrier")"
-            webui_digest="$(jq -er '.carrier.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$webui_carrier")"
-            test "$webui_ref" = "${webui_ref%@*}@${webui_digest}"
-            docker buildx imagetools inspect "$webui_ref" > webui-registry-readback.txt
-            observed_webui_digest="$(awk '$1 == "Digest:" { print $2; exit }' webui-registry-readback.txt)"
-            test "$observed_webui_digest" = "$webui_digest"
-            webui_asset_size="$(wc -c < "$webui_carrier" | tr -d ' ')"
-            webui_asset_sha="sha256:$(shasum -a 256 "$webui_carrier" | awk '{print $1}')"
-            jq -n --argjson size "$webui_asset_size" --arg sha "$webui_asset_sha" \
-              '{assets:[{name:"opl-webui-carrier.json",size_bytes:$size,sha256:$sha}]}' \
-              > webui-remote.json
-            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
-              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-webui-readback" \
-              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
-              --remote-target "oci-image:${webui_ref}" --publication-scope track_assets \
-              --bundle "$bundle" --track webui --outcome complete \
-              --inspection webui-remote.json --output webui-remote.receipt.json
-            framework-executor/bin/opl release publish \
-              --bundle "$BUNDLE_DIGEST" --executor-receipt webui-remote.receipt.json \
-              "${operation_args[@]}" --store "$store" --json > webui-publication.json
-            test "$(jq -r .release_bundle_publish.status webui-publication.json)" = complete
-          fi
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
-            jq -e '
-              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard","webui"]
-              and .release_bundle_status.stable_promotion_barrier.satisfied == true
-              and .release_bundle_status.latest_eligible == true
-              and .release_bundle_status.tracks.standard.reconcile_required == false
-              and .release_bundle_status.tracks.webui.reconcile_required == false
-            ' bundle-status.json >/dev/null
-          else
-            jq -e '
-              .release_bundle_status.latest_eligible == true
-              and .release_bundle_status.tracks.standard.reconcile_required == false
-            ' bundle-status.json >/dev/null
-          fi
+          jq -e '
+            .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
+            and .release_bundle_status.stable_promotion_barrier.satisfied == true
+            and .release_bundle_status.latest_eligible == true
+            and .release_bundle_status.tracks.standard.reconcile_required == false
+          ' bundle-status.json >/dev/null
 
       - name: Upload remote digest proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -1422,6 +1408,60 @@ jobs:
           cp "${standard_build_receipts[0]}" standard-build-receipt.json
           cmp "${standard_build_receipts[0]}" standard-build-receipt.json
 
+      - name: Prepare exact WebUI follower source
+        id: webui-follower-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity_receipts=()
+          while IFS= read -r identity_receipt; do
+            identity_receipts+=("$identity_receipt")
+          done < <(
+            find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          case "${#identity_receipts[@]}" in
+            0)
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              echo "standard_identity_sha256=" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              identity_receipt="${identity_receipts[0]}"
+              test -f "$identity_receipt" && test ! -L "$identity_receipt"
+              jq -e \
+                --arg version '${{ needs.restore.outputs.version }}' \
+                --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
+                --arg app '${{ needs.restore.outputs.app_ref }}' \
+                --arg shell '${{ needs.restore.outputs.shell_ref }}' \
+                --arg framework '${{ needs.restore.outputs.framework_source_ref }}' '
+                  .schema == "opl_standard_release_identity_receipt.v2"
+                  and .status == "passed"
+                  and .source.repository == "gaofeng21cn/one-person-lab-app"
+                  and .source.run_attempt == 1
+                  and (.source.run_id | test("^[1-9][0-9]*$"))
+                  and .release.channel == "stable"
+                  and .release.version == $version
+                  and .release.bundle_digest == $bundle
+                  and .cohort == {
+                    app_sha: $app,
+                    shell_sha: $shell,
+                    framework_sha: $framework
+                  }
+                ' "$identity_receipt" >/dev/null
+              test '${{ needs.restore.outputs.source_run_id }}' = "$GITHUB_RUN_ID"
+              test '${{ needs.restore.outputs.source_artifact }}' = "opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
+              mkdir -p webui-follower
+              cp "$identity_receipt" webui-follower/standard-identity-receipt.json
+              cmp "$identity_receipt" webui-follower/standard-identity-receipt.json
+              identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+              echo "eligible=true" >> "$GITHUB_OUTPUT"
+              echo "standard_identity_sha256=$identity_sha256" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Standard checkpoint contains multiple identity receipts."
+              exit 1
+              ;;
+          esac
+
       - name: Download previous-Latest updater receipt
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -1494,53 +1534,14 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publication.json
-          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
-            checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
-            find "$checkpoint_dir" -type f -name opl-webui-carrier.json -print | LC_ALL=C sort > latest-webui-carrier-assets.txt
-            test "$(wc -l < latest-webui-carrier-assets.txt | tr -d ' ')" = 1 || {
-              echo "::error::Latest admission requires exactly one regular opl-webui-carrier.json."
-              exit 1
-            }
-            IFS= read -r latest_webui_carrier < latest-webui-carrier-assets.txt
-            test -f "$latest_webui_carrier" && test ! -L "$latest_webui_carrier"
-            latest_webui_ref="$(jq -er '.carrier.ref | select(test("@sha256:[0-9a-f]{64}$"))' "$latest_webui_carrier")"
-            latest_webui_digest="$(jq -er '.carrier.digest | select(test("^sha256:[0-9a-f]{64}$"))' "$latest_webui_carrier")"
-            test "$latest_webui_ref" = "${latest_webui_ref%@*}@${latest_webui_digest}"
-            docker buildx imagetools inspect "$latest_webui_ref" > latest-webui-registry-readback.txt
-            observed_latest_webui_digest="$(awk '$1 == "Digest:" { print $2; exit }' latest-webui-registry-readback.txt)"
-            test "$observed_latest_webui_digest" = "$latest_webui_digest"
-            latest_webui_size="$(wc -c < "$latest_webui_carrier" | tr -d ' ')"
-            latest_webui_sha="sha256:$(shasum -a 256 "$latest_webui_carrier" | awk '{print $1}')"
-            jq -n --argjson size "$latest_webui_size" --arg sha "$latest_webui_sha" \
-              '{assets:[{name:"opl-webui-carrier.json",size_bytes:$size,sha256:$sha}]}' \
-              > latest-webui-remote.json
-            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
-              --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-webui-readback" \
-              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
-              --remote-target "oci-image:${latest_webui_ref}" --publication-scope track_assets \
-              --bundle "$bundle" --track webui --outcome complete \
-              --inspection latest-webui-remote.json --output latest-webui-remote.receipt.json
-            framework-executor/bin/opl release publish \
-              --bundle "$BUNDLE_DIGEST" --executor-receipt latest-webui-remote.receipt.json \
-              "${operation_args[@]}" --store "$store" --json > latest-webui-publication.json
-            test "$(jq -r .release_bundle_publish.status latest-webui-publication.json)" = complete
-          fi
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          if jq -e '.tracks.webui' "$bundle" >/dev/null; then
-            jq -e '
-              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard","webui"]
-              and .release_bundle_status.stable_promotion_barrier.satisfied == true
-              and .release_bundle_status.latest_eligible == true
-              and .release_bundle_status.tracks.standard.reconcile_required == false
-              and .release_bundle_status.tracks.webui.reconcile_required == false
-            ' bundle-status.json >/dev/null
-          else
-            jq -e '
-              .release_bundle_status.latest_eligible == true
-              and .release_bundle_status.tracks.standard.reconcile_required == false
-            ' bundle-status.json >/dev/null
-          fi
+          jq -e '
+            .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
+            and .release_bundle_status.stable_promotion_barrier.satisfied == true
+            and .release_bundle_status.latest_eligible == true
+            and .release_bundle_status.tracks.standard.reconcile_required == false
+          ' bundle-status.json >/dev/null
           one_file() {
             local root="$1" name="$2"
             local matches=()
@@ -1566,6 +1567,7 @@ jobs:
             --framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
             --standard-assets '${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets.json'
             --expected-current-latest-tag '${{ needs.restore.outputs.previous_latest_tag }}'
+            --highest-public-stable-tag '${{ needs.restore.outputs.highest_public_stable_tag }}'
             --predecessor '${{ needs.restore.outputs.previous_latest_display_version }}=${{ needs.restore.outputs.previous_latest_updater_version }}'
             --updater-evidence latest-admission/updater-previous-latest
             --homebrew-publication "$publication_receipt"
@@ -1648,6 +1650,97 @@ jobs:
               exit 1
               ;;
           esac
+          framework_terminal_status="$(
+            jq -er '.release_bundle_publish.status // .release_bundle_reconcile.status' \
+              latest-framework-result.json
+          )"
+          test "$framework_terminal_status" = complete
+          if [ '${{ steps.webui-follower-source.outputs.eligible }}' = true ]; then
+            jq -n \
+              --arg stable_authority_run_id "$GITHUB_RUN_ID" \
+              --arg stable_authority_head_sha "$GITHUB_SHA" \
+              --arg source_artifact_run_id '${{ needs.restore.outputs.source_run_id }}' \
+              --arg source_artifact '${{ needs.restore.outputs.source_artifact }}' \
+              --arg standard_identity_sha256 '${{ steps.webui-follower-source.outputs.standard_identity_sha256 }}' \
+              --arg version '${{ needs.restore.outputs.version }}' \
+              --arg bundle_digest '${{ needs.restore.outputs.bundle_digest }}' \
+              --arg app_sha '${{ needs.restore.outputs.app_ref }}' \
+              --arg shell_sha '${{ needs.restore.outputs.shell_ref }}' \
+              --arg framework_sha '${{ needs.restore.outputs.framework_source_ref }}' \
+              --arg latest_adapter_status "$latest_status" \
+              --arg framework_terminal_status "$framework_terminal_status" '
+                {
+                  schema: "opl_app_webui_follower_handoff.v1",
+                  status: "ready",
+                  stable_authority: {
+                    repository: "gaofeng21cn/one-person-lab-app",
+                    workflow: ".github/workflows/release-stable.yml",
+                    run_id: $stable_authority_run_id,
+                    run_attempt: 1,
+                    executor_head_sha: $stable_authority_head_sha
+                  },
+                  source: {
+                    artifact_run_id: $source_artifact_run_id,
+                    checkpoint_artifact: $source_artifact,
+                    standard_identity_sha256: $standard_identity_sha256
+                  },
+                  release: {
+                    version: $version,
+                    bundle_digest: $bundle_digest,
+                    cohort: {
+                      app_sha: $app_sha,
+                      shell_sha: $shell_sha,
+                      framework_sha: $framework_sha
+                    }
+                  },
+                  latest_activation: {
+                    admission_schema: "opl_standard_latest_admission_receipt.v1",
+                    admitted: true,
+                    adapter_status: $latest_adapter_status,
+                    framework_terminal_status: $framework_terminal_status
+                  }
+                }
+              ' > webui-follower-handoff.json
+          else
+            jq -n \
+              --arg stable_authority_run_id "$GITHUB_RUN_ID" \
+              --arg stable_authority_head_sha "$GITHUB_SHA" \
+              --arg version '${{ needs.restore.outputs.version }}' \
+              --arg bundle_digest '${{ needs.restore.outputs.bundle_digest }}' \
+              --arg app_sha '${{ needs.restore.outputs.app_ref }}' \
+              --arg shell_sha '${{ needs.restore.outputs.shell_ref }}' \
+              --arg framework_sha '${{ needs.restore.outputs.framework_source_ref }}' \
+              --arg latest_adapter_status "$latest_status" \
+              --arg framework_terminal_status "$framework_terminal_status" '
+                {
+                  schema: "opl_app_webui_follower_handoff.v1",
+                  status: "skipped_legacy_identity_unavailable",
+                  stable_authority: {
+                    repository: "gaofeng21cn/one-person-lab-app",
+                    workflow: ".github/workflows/release-stable.yml",
+                    run_id: $stable_authority_run_id,
+                    run_attempt: 1,
+                    executor_head_sha: $stable_authority_head_sha
+                  },
+                  source: null,
+                  release: {
+                    version: $version,
+                    bundle_digest: $bundle_digest,
+                    cohort: {
+                      app_sha: $app_sha,
+                      shell_sha: $shell_sha,
+                      framework_sha: $framework_sha
+                    }
+                  },
+                  latest_activation: {
+                    admission_schema: "opl_standard_latest_admission_receipt.v1",
+                    admitted: true,
+                    adapter_status: $latest_adapter_status,
+                    framework_terminal_status: $framework_terminal_status
+                  }
+                }
+              ' > webui-follower-handoff.json
+          fi
 
       - name: Persist typed Latest activation failure
         if: ${{ failure() }}
@@ -1702,17 +1795,8 @@ jobs:
             standard-build-receipt.json
             latest-reconcile-status.json
             latest-reconcile.receipt.json
+            webui-follower-handoff.json
+            webui-follower
             release-failure-evidence
           if-no-files-found: warn
           retention-days: 30
-
-  nightly-terminal:
-    if: ${{ needs.restore.outputs.channel == 'nightly' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [restore, remote-digest-verify]
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - run: echo 'Nightly Standard published and digest-verified; Latest and Homebrew remain untouched.'

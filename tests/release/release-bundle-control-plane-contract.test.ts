@@ -165,7 +165,7 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
   assert.equal(control.prepared_notes.template_fallback_may_publish, false);
 });
 
-test("Standard may become Latest before additive Full and Nightly is schedule-only", () => {
+test("Standard may become Latest before additive Full and Nightly publication stays retired", () => {
   assert.equal(
     control.publication.stable.only_manual_dispatch_workflow,
     ".github/workflows/release-stable.yml",
@@ -191,13 +191,23 @@ test("Standard may become Latest before additive Full and Nightly is schedule-on
   assert.equal(control.publication.full.updater_metadata_allowed, false);
   assert.equal(control.publication.ghcr.stable_critical_path, false);
   assert.equal(control.publication.ghcr.desktop_release_bundle_asset, false);
-  assert.equal(control.publication.nightly.trigger, "schedule_only");
-  assert.equal(control.publication.nightly.manual_dispatch_allowed, false);
-  assert.equal(control.publication.nightly.uses_same_framework_cli, true);
-  assert.equal(control.publication.nightly.uses_same_release_dag, true);
+  assert.equal(control.publication.nightly.status, "retired_historical_distribution_compatibility");
+  assert.equal(control.publication.nightly.publication_available, false);
+  assert.equal(control.publication.nightly.mutation_available, false);
+  assert.equal(control.publication.nightly.historical_readback_allowed, true);
+  assert.equal(
+    control.publication.nightly.validation_route,
+    ".github/workflows/release-bundle-canary.yml_schedule",
+  );
   assert.equal(control.publication.nightly.latest_allowed, false);
-  assert.equal(release.nightly_standard.status, "active_schedule_only_framework_bundle");
-  assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
+  assert.equal(release.nightly_standard.status, "publication_retired_historical_compatibility");
+  assert.equal(release.nightly_standard.publication_available, false);
+  assert.equal(release.nightly_standard.mutation_available, false);
+  assert.equal(release.nightly_standard.historical_tag_and_receipt_parsing_allowed, true);
+  assert.equal(
+    release.nightly_standard.replacement_validation_workflow,
+    ".github/workflows/release-bundle-canary.yml",
+  );
 });
 
 test("publisher is digest-idempotent and unknown API results only reconcile", () => {
@@ -344,8 +354,8 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
 test("operation safety is explicit in the machine contract", () => {
   assert.equal(control.operation_control.schema, "opl_release_bundle_operation_control.v1");
   assert.equal(
-    control.operation_control.all_channel_mutation_mutex,
-    "one_repository_release_mutation_group_for_stable_and_nightly",
+    control.operation_control.stable_mutation_mutex,
+    "opl-release-bundle-global",
   );
   assert.equal(control.operation_control.partial_workflow_rerun_allowed, false);
   assert.equal(control.operation_control.github_run_attempt_required, 1);

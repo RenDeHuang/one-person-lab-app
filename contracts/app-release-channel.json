@@ -111,8 +111,7 @@
         "status": "legacy_planner_profile_retired",
         "scope": "release_candidate_planner_profile_only",
         "selectable": false,
-        "publication_available": true,
-        "publication_route": ".github/workflows/release-nightly.yml_schedule_only",
+        "publication_available": false,
         "mutation_available": false,
         "planner_behavior": "typed_terminal_blocker",
         "retained_contract_scope": [
@@ -377,10 +376,10 @@
         "append_full"
       ],
       "stable_manual_entry": ".github/workflows/release-stable.yml",
-      "nightly_entry": ".github/workflows/release-nightly.yml_schedule_only",
+      "validation_canary_entry": ".github/workflows/release-bundle-canary.yml_schedule",
       "app_session_broker_or_operator_may_authorize_mutation": false,
       "framework_checkpoint_required_for_resume_or_executor_switch": true,
-      "rule": "Framework checkpoint state plus one App-owned executor is the only live release mutation path. App broker, Stable session, and operator projections cannot authorize, schedule, dispatch, publish, rebuild, promote, or cancel."
+      "rule": "Framework checkpoint state plus one App-owned Stable executor is the only live release mutation path. Daily validation uses the no-secret Canary and cannot authorize, schedule, dispatch, publish, rebuild, promote, or cancel."
     },
     "checkpoint_transport": {
       "schema": "opl_release_bundle_checkpoint.v1",
@@ -443,7 +442,7 @@
     },
     "operation_control": {
       "schema": "opl_release_bundle_operation_control.v1",
-      "all_channel_mutation_mutex": "one_repository_release_mutation_group_for_stable_and_nightly",
+      "stable_mutation_mutex": "opl-release-bundle-global",
       "stable_operations": {
         "standard": {
           "source": "new_framework_bundle",
@@ -612,11 +611,11 @@
           "required_status": "passed",
           "latest_activation_admitted_required": true,
           "framework_latest_eligible_alone_is_sufficient": false,
-          "required_predecessor_display_versions": [
-            "v26.7.20",
-            "v26.7.21"
-          ],
-          "required_predecessor_receipt_count": 2,
+          "predecessor_policy_schema": "opl_standard_updater_predecessor_policy.v1",
+          "predecessor_selection": "deduplicated_current_latest_and_highest_public_stable",
+          "current_latest_readback_required": true,
+          "highest_public_stable_readback_required": true,
+          "receipt_count_must_equal_distinct_predecessor_count": true,
           "predecessor_receipt_schema": "opl_updater_upgrade_qualification_receipt.v1",
           "predecessor_receipts_must_be_real_updater_vm_evidence": true,
           "synthetic_or_canary_predecessor_receipts_allowed": false,
@@ -807,11 +806,11 @@
         }
       },
       "nightly": {
-        "workflow": ".github/workflows/release-nightly.yml",
-        "trigger": "schedule_only",
-        "manual_dispatch_allowed": false,
-        "uses_same_framework_cli": true,
-        "uses_same_release_dag": true,
+        "status": "retired_historical_distribution_compatibility",
+        "publication_available": false,
+        "mutation_available": false,
+        "historical_readback_allowed": true,
+        "validation_route": ".github/workflows/release-bundle-canary.yml_schedule",
         "latest_allowed": false
       },
       "full": {
@@ -979,7 +978,8 @@
       "mode": "validation_only",
       "triggers": [
         "push_main",
-        "pull_request"
+        "pull_request",
+        "daily_schedule"
       ],
       "starts_reusable_topology": [
         "_release-bundle.yml",
@@ -987,6 +987,8 @@
         "_release-full-addon.yml",
         "_build-reusable.yml",
         "opl-first-run-vm.yml",
+        "_release-webui-carrier.yml",
+        "release-webui-stable.yml",
         "opl-updater-upgrade-vm.yml",
         "full-first-install-release.yml"
       ],
@@ -998,6 +1000,8 @@
       "build_or_vm_execution_allowed": false,
       "external_write_allowed": false,
       "stable_mutation_allowed": false,
+      "publication_allowed": false,
+      "uses_stable_mutation_mutex": false,
       "synthetic_identity_may_authorize_release": false
     },
     "cutover": {
@@ -1006,7 +1010,7 @@
         "framework_release_cli_on_framework_main",
         "app_adapter_on_app_main",
         "release_stable_workflow_is_only_stable_dispatch",
-        "release_nightly_workflow_is_schedule_only",
+        "daily_schedule_uses_validation_canary_only",
         "lower_level_release_workflows_are_workflow_call_only",
         "release_stable_protected_environment_readback",
         "no_public_mutation_canary"
@@ -1112,13 +1116,16 @@
         ]
       },
       "nightly": {
-        "target_reader": "opt-in testers, maintainers, and operators validating the latest prerelease",
-        "comparison": "previous Nightly prerelease",
+        "status": "historical_read_only_compatibility",
+        "target_reader": "maintainers interpreting already-published Nightly notes and receipts",
+        "comparison": "previous historical Nightly prerelease when reading existing evidence",
+        "new_note_generation_available": false,
+        "publication_available": false,
         "lead_with": [
-          "new user-visible behavior since the previous Nightly",
-          "flows that need validation",
-          "expected rough edges or risks",
-          "tester action items"
+          "historical user-visible behavior",
+          "historical validation scope",
+          "recorded risks or known rough edges",
+          "archived tester actions"
         ]
       }
     },
@@ -1600,12 +1607,14 @@
     }
   },
   "nightly_standard": {
-    "status": "active_schedule_only_framework_bundle",
+    "status": "publication_retired_historical_compatibility",
     "selectable": false,
-    "publication_available": true,
-    "mutation_available": true,
-    "workflow": ".github/workflows/release-nightly.yml",
-    "trigger": "schedule_only",
+    "publication_available": false,
+    "mutation_available": false,
+    "new_version_allocation_allowed": false,
+    "historical_tag_and_receipt_parsing_allowed": true,
+    "replacement_validation_workflow": ".github/workflows/release-bundle-canary.yml",
+    "trigger": "none",
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
@@ -1626,7 +1635,7 @@
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
       "latest-arm64-mac.yml"
     ],
-    "rule": "Nightly is schedule-only and consumes the same Framework Release Bundle checkpoint/executor authority as Stable. It is never manually selectable, never Latest, and never authorized by a legacy broker or App session."
+    "rule": "New Nightly publication is retired. Existing Nightly tags, receipts, updater metadata, and installation conflicts remain readable for compatibility; daily validation runs the no-secret Canary and cannot publish or mutate."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",
@@ -1795,45 +1804,63 @@
       "rule": "WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing."
     },
     "stable_promotion_requires": [
-      "exact_release_stable_source_run",
-      "unique_successful_webui_carrier_job",
+      "successful_stable_authority_run_after_latest_activation",
+      "workflow_run_follower_bound_to_that_stable_authority",
+      "unique_successful_carrier_follower_job",
       "qualified_webui_carrier_receipt",
       "immutable_version_digest"
     ],
     "stable_promotion": {
-      "schema": "opl_app_webui_stable_promotion_contract.v2",
+      "schema": "opl_app_webui_stable_promotion_contract.v3",
       "writer": "release-webui-stable.yml#promote-webui-stable",
       "workflow": ".github/workflows/release-webui-stable.yml",
-      "trigger": "workflow_dispatch_exact_source_run_handle_only",
-      "workflow_dispatch_inputs": [
-        "source_app_run_id"
+      "trigger": "successful_release_stable_workflow_run_follower_after_latest_activation",
+      "follower_workflow": ".github/workflows/release-webui-follower.yml",
+      "workflow_call_inputs": [
+        "mode",
+        "stable_authority_run_id",
+        "carrier_artifact_name"
       ],
+      "stable_authority_binding": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
+      "carrier_follower_binding": "github_run_id_of_release_webui_follower",
+      "operator_supplied_run_handle_allowed": false,
       "opaque_run_handles_are_release_identity": false,
       "protected_environment": "release-stable",
       "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
-      "source_run_requirements": [
+      "stable_authority_requirements": [
         "release-stable.yml",
         "main",
         "attempt_1",
+        "completed_success",
+        "latest_activation_handoff_present"
+      ],
+      "carrier_follower_requirements": [
+        "release-webui-follower.yml",
+        "workflow_run_event",
+        "main",
+        "attempt_1",
         "in_progress_or_completed",
-        "exact_head_sha_bound_to_carrier_receipt"
+        "exact_current_app_main_sha",
+        "exact_triggering_stable_authority_run_id"
       ],
       "promotion_executor_requirements": [
         "release-webui-stable.yml",
+        "inside_release-webui-follower.yml",
         "main",
         "attempt_1",
         "exact_current_app_main_sha",
         "release-stable_protected_environment"
       ],
-      "source_carrier_intake": {
+      "carrier_follower_intake": {
         "cross_run_scanning_allowed": false,
         "latest_artifact_selection_allowed": false,
-        "specified_source_run_must_contain_exactly_one_carrier_receipt": true,
-        "specified_source_run_must_contain_exactly_one_successful_publish_immutable_carrier_job": true,
-        "job_and_receipt_must_reverse_bind_source_run_and_app_sha": true
+        "current_follower_run_must_contain_exactly_one_named_carrier_artifact": true,
+        "current_follower_run_must_contain_exactly_one_successful_publish_immutable_carrier_job": true,
+        "job_and_receipt_must_reverse_bind_follower_run_and_app_sha": true
       },
       "evidence_order": [
-        "exact_source_run_and_unique_successful_carrier_job_readback",
+        "successful_stable_authority_and_workflow_run_event_binding",
+        "exact_carrier_follower_run_and_unique_successful_carrier_job_readback",
         "qualified_immutable_webui_carrier_and_version_tag_readback",
         "webui_stable_compare_and_swap",
         "logout_then_anonymous_exact_digest_readback"
@@ -1868,14 +1895,14 @@
         "otherwise_result": "outcome_unknown"
       },
       "ordering": {
-        "github_latest_before_webui_stable": false,
-        "webui_stable_independent_of_github_latest": true,
-        "webui_stable_independent_of_homebrew": true,
+        "github_latest_before_webui_stable": true,
+        "desktop_latest_does_not_wait_for_webui": true,
         "webui_stable_independent_of_framework_package_promotion": true,
         "webui_stable_is_non_blocking_follower": true,
         "webui_failure_may_rollback_or_reactivate_desktop_latest": false
       },
-      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v2"
+      "admission_schema": "opl_app_webui_stable_promotion_admission.v3",
+      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v3"
     },
     "stable_tags": [
       "<app_or_opl_version>",
@@ -3169,16 +3196,14 @@
   },
   "release_validation_profiles": {
     "nightly_standard": {
-      "status": "active_schedule_only_framework_bundle",
+      "status": "publication_retired_validation_only",
       "selectable": false,
-      "publication_available": true,
-      "mutation_available": true,
-      "purpose": "schedule-only prerelease validation over the shared Framework Release Bundle DAG",
+      "publication_available": false,
+      "mutation_available": false,
+      "purpose": "historical Nightly profile tombstone; daily validation starts the reusable topology in Canary mode",
       "required_lanes": [
         "release_boundary_contract",
-        "standard_macos_arm64_build",
-        "local_standard_asset_validation",
-        "remote_standard_release_verification"
+        "reusable_topology_startup"
       ],
       "historical_required_lanes": [
         "release_boundary_contract",
@@ -3188,6 +3213,10 @@
         "webui_ghcr_publish"
       ],
       "forbidden_lanes": [
+        "standard_macos_arm64_build",
+        "local_standard_asset_validation",
+        "remote_standard_release_verification",
+        "webui_ghcr_publish",
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
@@ -3196,8 +3225,9 @@
         "docker_webui_smoke",
         "operator_evidence_bundle"
       ],
-      "release_latest_policy": "never_mark_latest",
-      "github_release_visibility": "prerelease"
+      "release_latest_policy": "not_applicable",
+      "github_release_visibility": "none",
+      "replacement_workflow": ".github/workflows/release-bundle-canary.yml"
     },
     "stable": {
       "purpose": "complete user-install proof before a stable App Release is treated as smooth",

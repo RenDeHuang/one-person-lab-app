@@ -19,10 +19,12 @@ import {
 const appRoot = process.cwd();
 const workflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-stable.yml');
 const sourceAppSha = 'a'.repeat(40);
+const stableExecutorAppSha = 'e'.repeat(40);
 const promotionAppSha = 'd'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
-const sourceRunId = '301';
+const stableAuthorityRunId = '301';
+const carrierFollowerRunId = '302';
 const carrierJobId = 501;
 const version = '26.7.23';
 const bundleDigest = digest('1');
@@ -86,31 +88,46 @@ function carrierReceipt() {
   };
 }
 
-function sourceRun(status: 'in_progress' | 'completed' = 'in_progress') {
+function stableAuthorityRun() {
   return {
-    id: Number(sourceRunId),
+    id: Number(stableAuthorityRunId),
     repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
     head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
     path: '.github/workflows/release-stable.yml',
     event: 'workflow_dispatch',
     head_branch: 'main',
-    status,
-    conclusion: status === 'completed' ? 'failure' : null,
-    run_attempt: 1,
-    head_sha: sourceAppSha,
-  };
-}
-
-function sourceCarrierJob() {
-  return {
-    id: carrierJobId,
-    run_id: Number(sourceRunId),
-    run_url: `https://api.github.com/repos/gaofeng21cn/one-person-lab-app/actions/runs/${sourceRunId}`,
-    name: 'standard / webui-carrier / publish-immutable-carrier',
     status: 'completed',
     conclusion: 'success',
     run_attempt: 1,
-    head_sha: sourceAppSha,
+    head_sha: stableExecutorAppSha,
+  };
+}
+
+function carrierFollowerRun(status: 'in_progress' | 'completed' = 'in_progress') {
+  return {
+    id: Number(carrierFollowerRunId),
+    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    path: '.github/workflows/release-webui-follower.yml',
+    event: 'workflow_run',
+    head_branch: 'main',
+    status,
+    conclusion: status === 'completed' ? 'success' : null,
+    run_attempt: 1,
+    head_sha: promotionAppSha,
+  };
+}
+
+function carrierFollowerJob() {
+  return {
+    id: carrierJobId,
+    run_id: Number(carrierFollowerRunId),
+    run_url: `https://api.github.com/repos/gaofeng21cn/one-person-lab-app/actions/runs/${carrierFollowerRunId}`,
+    name: 'webui-carrier / publish-immutable-carrier',
+    status: 'completed',
+    conclusion: 'success',
+    run_attempt: 1,
+    head_sha: promotionAppSha,
   };
 }
 
@@ -124,19 +141,24 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
   const versionReadback = observation(versionRef, 'present', imageDigest);
   const prestate = observation(stableRef, 'present', digest('f'));
   const paths = {
-    sourceRun: writeJson(root, 'source-run.json', sourceRun(status)),
-    sourceCarrierJob: writeJson(root, 'source-carrier-job.json', sourceCarrierJob()),
+    stableAuthorityRun: writeJson(root, 'stable-authority-run.json', stableAuthorityRun()),
+    carrierFollowerRun: writeJson(root, 'carrier-follower-run.json', carrierFollowerRun(status)),
+    carrierFollowerJob: writeJson(root, 'carrier-follower-job.json', carrierFollowerJob()),
     carrier: writeJson(root, 'carrier.json', carrier),
     immutable: writeJson(root, 'immutable.json', immutable),
     version: writeJson(root, 'version.json', versionReadback),
     prestate: writeJson(root, 'prestate.json', prestate),
   };
   const input: WebuiStableAdmissionInput = {
-    sourceRun: sourceRun(status),
-    sourceRunPath: paths.sourceRun,
-    sourceCarrierJob: sourceCarrierJob(),
-    sourceCarrierJobPath: paths.sourceCarrierJob,
-    sourceRunId,
+    stableAuthorityRun: stableAuthorityRun(),
+    stableAuthorityRunPath: paths.stableAuthorityRun,
+    stableAuthorityRunId,
+    triggeredByStableRunId: stableAuthorityRunId,
+    carrierFollowerRun: carrierFollowerRun(status),
+    carrierFollowerRunPath: paths.carrierFollowerRun,
+    carrierFollowerRunId,
+    carrierFollowerJob: carrierFollowerJob(),
+    carrierFollowerJobPath: paths.carrierFollowerJob,
     promotionAppSha,
     carrierReceipt: carrier,
     carrierReceiptPath: paths.carrier,
@@ -159,43 +181,80 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   ).webui_ghcr_image;
   assert.deepEqual(contract.stable_promotion_requires, [
-    'exact_release_stable_source_run',
-    'unique_successful_webui_carrier_job',
+    'successful_stable_authority_run_after_latest_activation',
+    'workflow_run_follower_bound_to_that_stable_authority',
+    'unique_successful_carrier_follower_job',
     'qualified_webui_carrier_receipt',
     'immutable_version_digest',
   ]);
   const promotion = contract.stable_promotion;
-  assert.equal(promotion.schema, 'opl_app_webui_stable_promotion_contract.v2');
-  assert.deepEqual(promotion.workflow_dispatch_inputs, ['source_app_run_id']);
-  assert.deepEqual(promotion.source_run_requirements, [
+  assert.equal(promotion.schema, 'opl_app_webui_stable_promotion_contract.v3');
+  assert.equal(
+    promotion.trigger,
+    'successful_release_stable_workflow_run_follower_after_latest_activation',
+  );
+  assert.equal(promotion.follower_workflow, '.github/workflows/release-webui-follower.yml');
+  assert.deepEqual(promotion.workflow_call_inputs, [
+    'mode',
+    'stable_authority_run_id',
+    'carrier_artifact_name',
+  ]);
+  assert.equal(
+    promotion.stable_authority_binding,
+    'stable_authority_run_id_must_equal_github_event_workflow_run_id',
+  );
+  assert.equal(
+    promotion.carrier_follower_binding,
+    'github_run_id_of_release_webui_follower',
+  );
+  assert.equal(promotion.operator_supplied_run_handle_allowed, false);
+  assert.deepEqual(promotion.stable_authority_requirements, [
     'release-stable.yml',
     'main',
     'attempt_1',
+    'completed_success',
+    'latest_activation_handoff_present',
+  ]);
+  assert.deepEqual(promotion.carrier_follower_requirements, [
+    'release-webui-follower.yml',
+    'workflow_run_event',
+    'main',
+    'attempt_1',
     'in_progress_or_completed',
-    'exact_head_sha_bound_to_carrier_receipt',
+    'exact_current_app_main_sha',
+    'exact_triggering_stable_authority_run_id',
   ]);
   assert.deepEqual(promotion.promotion_executor_requirements, [
     'release-webui-stable.yml',
+    'inside_release-webui-follower.yml',
     'main',
     'attempt_1',
     'exact_current_app_main_sha',
     'release-stable_protected_environment',
   ]);
-  assert.equal(promotion.source_carrier_intake.cross_run_scanning_allowed, false);
-  assert.equal(promotion.source_carrier_intake.latest_artifact_selection_allowed, false);
+  assert.equal(promotion.carrier_follower_intake.cross_run_scanning_allowed, false);
+  assert.equal(promotion.carrier_follower_intake.latest_artifact_selection_allowed, false);
   assert.equal(promotion.compare_and_swap.maximum_tag_attempts, 1);
   assert.equal(promotion.unknown_outcome.maximum_bounded_read_only_descriptor_readbacks, 3);
-  assert.equal(promotion.ordering.github_latest_before_webui_stable, false);
-  assert.equal(promotion.ordering.webui_stable_independent_of_github_latest, true);
-  assert.equal(promotion.ordering.webui_stable_independent_of_homebrew, true);
+  assert.equal(promotion.ordering.github_latest_before_webui_stable, true);
+  assert.equal(promotion.ordering.desktop_latest_does_not_wait_for_webui, true);
   assert.equal(promotion.ordering.webui_stable_independent_of_framework_package_promotion, true);
+  assert.equal(promotion.receipt_schema, 'opl_app_webui_stable_promotion_receipt.v3');
 });
 
-test('workflow accepts one opaque App run handle and keeps exactly one protected packages writer', () => {
+test('workflow binds the triggering Stable authority and current follower run', () => {
   const source = fs.readFileSync(workflowPath, 'utf8');
   const workflow = YAML.parse(source);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), ['source_app_run_id']);
-  assert.equal(workflow.concurrency.group, 'opl-webui-stable-promotion-global');
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_call.inputs), [
+    'mode',
+    'stable_authority_run_id',
+    'carrier_artifact_name',
+  ]);
+  assert.equal(
+    workflow.concurrency.group,
+    "${{ inputs.mode == 'execute' && 'opl-webui-stable-promotion-global' || format('opl-webui-stable-canary-{0}', github.ref) }}",
+  );
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
   const writers = Object.entries(workflow.jobs).filter(
     ([, job]: [string, any]) => job.permissions?.packages === 'write',
@@ -209,12 +268,17 @@ test('workflow accepts one opaque App run handle and keeps exactly one protected
   assert.equal(workflow.jobs['promote-webui-stable'].permissions.contents, 'read');
   assert.equal((source.match(/\boras tag\b/g) ?? []).length, 1);
   assert.doesNotMatch(source, /framework_candidate_run_id|framework_latest_stable_run_id/);
+  assert.doesNotMatch(source, /inputs\.source_app_run_id|^\s+workflow_dispatch:/m);
   assert.doesNotMatch(source, /homebrew|github-latest|releases\/latest/i);
   assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force|secrets:\s*inherit/);
   assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
   assert.match(source, /test "\$GITHUB_REF" = refs\/heads\/main/);
-  assert.match(source, /source-app-jobs\.json/);
-  assert.match(source, /source-carrier-job\.json/);
+  assert.match(source, /STABLE_AUTHORITY_RUN_ID: \$\{\{ inputs\.stable_authority_run_id \}\}/);
+  assert.match(source, /TRIGGERED_BY_STABLE_RUN_ID: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(source, /CARRIER_FOLLOWER_RUN_ID: \$\{\{ github\.run_id \}\}/);
+  assert.doesNotMatch(source, /inputs\.carrier_run_id/);
+  assert.match(source, /carrier-follower-jobs\.json/);
+  assert.match(source, /carrier-follower-job\.json/);
   assert.match(source, /in_progress.*completed/);
 });
 
@@ -262,7 +326,7 @@ test('workflow reads only source carrier evidence before protected stable CAS', 
   const ordered = [
     'Reject noncanonical or partial promotion runs',
     'Download exact App WebUI carrier artifact',
-    'Materialize exactly one carrier receipt from the specified App run',
+    'Materialize exactly one carrier receipt from the exact follower run',
     'Read immutable, version, and Stable authority',
     'Seal one immutable WebUI Stable admission',
     'Re-read Stable prestate and derive CAS decision',
@@ -281,14 +345,20 @@ test('workflow reads only source carrier evidence before protected stable CAS', 
   }
 });
 
-test('admission binds source carrier evidence while allowing a distinct current promotion SHA', () => {
+test('admission binds Stable authority, carrier follower, and promotion executor separately', () => {
   for (const status of ['in_progress', 'completed'] as const) {
     const current = fixture(status);
     const admission = admitWebuiStablePromotion(current.input);
     assert.equal(admission.status, 'passed');
-    assert.equal(admission.source.app_run_id, sourceRunId);
-    assert.equal(admission.source.app_head_sha, sourceAppSha);
-    assert.equal(admission.source.carrier_job_id, carrierJobId);
+    assert.equal(admission.stable_authority.run_id, stableAuthorityRunId);
+    assert.equal(admission.stable_authority.app_head_sha, stableExecutorAppSha);
+    assert.equal(admission.carrier_follower.run_id, carrierFollowerRunId);
+    assert.equal(admission.carrier_follower.carrier_job_id, carrierJobId);
+    assert.equal(
+      admission.carrier_follower.triggering_stable_authority_run_id,
+      stableAuthorityRunId,
+    );
+    assert.equal(admission.promotion_executor.run_id, carrierFollowerRunId);
     assert.equal(admission.promotion_executor.app_head_sha, promotionAppSha);
     assert.equal(admission.target.digest, imageDigest);
     assert.equal(admission.expected_prestate.digest, digest('f'));
@@ -299,10 +369,12 @@ test('admission binds source carrier evidence while allowing a distinct current 
 
 test('admission rejects stale or ambiguous source and carrier authority', () => {
   const cases: Array<[string, (input: WebuiStableAdmissionInput) => void, RegExp]> = [
-    ['source status', (input) => { input.sourceRun.status = 'queued'; }, /in_progress or completed/],
-    ['source attempt', (input) => { input.sourceRun.run_attempt = 2; }, /source run.run_attempt/],
-    ['carrier job name', (input) => { input.sourceCarrierJob.name = 'standard / desktop'; }, /source carrier job.name/],
-    ['carrier job attempt', (input) => { input.sourceCarrierJob.run_attempt = 2; }, /source carrier job.run_attempt/],
+    ['Stable conclusion', (input) => { input.stableAuthorityRun.conclusion = 'failure'; }, /Stable authority run.conclusion/],
+    ['Stable attempt', (input) => { input.stableAuthorityRun.run_attempt = 2; }, /Stable authority run.run_attempt/],
+    ['trigger mismatch', (input) => { input.triggeredByStableRunId = '999'; }, /triggering Stable authority run id/],
+    ['follower status', (input) => { input.carrierFollowerRun.status = 'queued'; }, /in_progress or completed/],
+    ['follower job name', (input) => { input.carrierFollowerJob.name = 'webui-carrier / desktop'; }, /carrier follower job.name/],
+    ['follower job attempt', (input) => { input.carrierFollowerJob.run_attempt = 2; }, /carrier follower job.run_attempt/],
     ['carrier digest', (input) => { input.carrierReceipt.carrier.digest = digest('0'); }, /carrier receipt.carrier.ref/],
     ['version digest', (input) => { input.versionReadback.digest = digest('0'); }, /version readback.digest/],
     ['prestate unknown', (input) => {

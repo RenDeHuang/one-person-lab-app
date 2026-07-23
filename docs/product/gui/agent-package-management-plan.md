@@ -65,7 +65,7 @@ The following is the intended source/channel boundary:
 | Independent package release | Each package can publish and update without rebuilding App, Base, or unrelated packages | **Planned**; existing scheduled workflows need owner-level migration |
 | Registry/source adapters | OCI, external/direct manifest, developer checkout, and offline seed are candidate adapters; only the resolver chooses currentness | **Partially landed**; mixed-source live behavior still needs consolidation |
 | App/Shell boundary | App and Shell consume Framework directory/status/actions and do not copy package authority | Non-live projection path landed; duplicate authority cleanup remains pending |
-| Stable/Docker/WebUI/Full/Nightly/Daily | Stable is a release policy, Docker/WebUI and Homebrew are carriers, Full is a snapshot, Nightly is optional canary, Daily is cadence/index reconciliation | **Documented target**; live terminal proof remains pending |
+| Stable/Docker/WebUI/Full/Nightly/Daily | Stable is a release policy, Docker/WebUI and Homebrew are carriers, Full is a snapshot, Nightly publication is retired, Canary is independent validation, and Daily is cadence/index reconciliation | **Documented target**; live terminal proof remains pending |
 
 Ordinary user UI should expose only Install, Update, Remove, Enabled, and Home
 pin controls. Repair belongs to diagnostics and rollback remains an automatic

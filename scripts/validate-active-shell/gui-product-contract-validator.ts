@@ -2083,8 +2083,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_storage.read_only_lifecycle_surface,
     'Settings Storage read-only lifecycle surface',
   );
-  if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
-    throw new Error('About page must show Stable or Nightly channel');
+  if (!pages.about.must_show?.includes('App release channel')) {
+    throw new Error('About page must show the App release channel');
   }
   if (
     !pages.about.must_show?.includes('cached update status from the one startup check or last manual check') ||

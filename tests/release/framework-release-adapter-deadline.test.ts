@@ -69,6 +69,7 @@ function sealAdmission(receipt: Record<string, any>): void {
     bundle_digest: receipt.bundle_digest,
     candidate: receipt.candidate,
     standard_assets_sha256: receipt.standard_assets_sha256,
+    updater_predecessor_policy: receipt.updater_predecessor_policy,
     updater_receipts: receipt.updater_receipts,
     homebrew: receipt.homebrew,
     latest_compare_and_swap: receipt.latest_compare_and_swap,
@@ -174,6 +175,12 @@ function fixture(
       zip: { name: latestZip.name, sha256: latestZip.sha256, size_bytes: latestZip.size_bytes },
     },
     standard_assets_sha256: `sha256:${'e'.repeat(64)}`,
+    updater_predecessor_policy: {
+      schema: 'opl_standard_updater_predecessor_policy.v1',
+      current_latest_tag: expectedCurrentLatestTag,
+      highest_public_stable_tag: 'v26.7.21',
+      distinct_predecessor_count: 2,
+    },
     updater_receipts: [
       {
         baseline: { display_version: '26.7.20', updater_version: '26.7.20' },
@@ -619,7 +626,7 @@ test('Latest rejects an admission whose expected current tag is not an admitted 
       'latest-admission': files.admissionPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
-    /must identify exactly one admitted predecessor/,
+    /policy current Latest tag does not match/,
   );
   assert.equal(calls, 0);
 });
@@ -649,7 +656,7 @@ test('Latest rejects a tampered compare-and-swap predecessor before any GitHub c
       'latest-admission': files.admissionPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
-    /Latest admission input_digest does not match/,
+    /policy current Latest tag does not match/,
   );
   assert.equal(calls, 0);
 });

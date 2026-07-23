@@ -36,9 +36,9 @@ authorities:
 | --- | --- | --- |
 | OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
 | Desktop Stable | App release policy and public Latest/updater metadata | Framework Bundle plus App release executor |
-| Docker/WebUI | An alternative App carrier consuming an exact App receipt/digest | Carrier-specific publish and anonymous-pull readback |
+| Docker/WebUI | An alternative App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
 | Full | First-install/offline composition snapshot, additive to Standard | Frozen Bundle and exact package closure |
-| Nightly | Optional prerelease/canary validation path | Same reusable topology, no Stable mutation |
+| Nightly | Retired public prerelease; historical bytes remain readable | No currentness authority; daily validation uses Canary |
 | OPL Package | Independently published immutable SemVer package resolved by Framework | Package owner artifact plus Framework index/resolver |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
 
@@ -80,7 +80,7 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | Stable product operations and public asset policy | `contracts/app-release-channel.json#release_bundle_control_plane` |
 | Stable manual entry | `.github/workflows/release-stable.yml` |
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
-| Nightly entry | `.github/workflows/release-nightly.yml`, schedule only |
+| Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
 | Package publication, index, compatibility resolution, exact installed locks | OPL Framework package lifecycle and package-owner artifacts; not the App release controller |
 | Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained legacy scripts, read-only |
@@ -167,9 +167,10 @@ Latest. The base `YY.M.D` and every same-day `-rN` are independent immutable
 releases. Both display version and machine updater version must increase.
 
 The updater baseline includes current Latest and the highest public Stable.
-Source and remote version checks complete before an expensive build. Stable and
-Nightly share one repository-wide mutation mutex so two channels cannot write
-Release, Latest, updater, or Homebrew state concurrently.
+Source and remote version checks complete before an expensive build. Stable is
+the only live release mutation channel and owns the repository-wide mutation
+mutex; the scheduled Canary cannot write Release, Latest, updater, or Homebrew
+state.
 
 The failed Bundle below is permanently ineligible for checkpoint import,
 publication, promotion, or reuse:
@@ -271,10 +272,11 @@ authority.
 
 The normal user-facing channel is therefore one App Stable updater plus one
 Framework package resolver. Docker/WebUI and Homebrew carry exact owner bytes;
-Full seeds an offline composition; Nightly is optional canary; Daily is a
-scheduled reconciliation cadence. A Package update must not require an App,
-Base, or unrelated Package release, and a carrier failure must not rewrite
-Framework package currentness.
+Full seeds an offline composition; Nightly publication is retired; Daily is a
+scheduled reconciliation cadence. Historical Nightly distribution stays
+read-compatible. Canary is an independent validation workflow, not a release
+channel. A Package update must not require an App, Base, or unrelated Package
+release, and a carrier failure must not rewrite Framework package currentness.
 
 The local-install profile is a development and QA path for one Mac. It cannot
 publish, promote, write Homebrew, or stand in for public clean-VM evidence.

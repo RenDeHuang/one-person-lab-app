@@ -49,8 +49,11 @@ const requiredStandardLatestAdmission = {
   required_status: 'passed',
   latest_activation_admitted_required: true,
   framework_latest_eligible_alone_is_sufficient: false,
-  required_predecessor_display_versions: ['v26.7.20', 'v26.7.21'],
-  required_predecessor_receipt_count: 2,
+  predecessor_policy_schema: 'opl_standard_updater_predecessor_policy.v1',
+  predecessor_selection: 'deduplicated_current_latest_and_highest_public_stable',
+  current_latest_readback_required: true,
+  highest_public_stable_readback_required: true,
+  receipt_count_must_equal_distinct_predecessor_count: true,
   predecessor_receipt_schema: 'opl_updater_upgrade_qualification_receipt.v1',
   predecessor_receipts_must_be_real_updater_vm_evidence: true,
   synthetic_or_canary_predecessor_receipts_allowed: false,
@@ -159,13 +162,15 @@ const requiredUnknownMarkerFields = [
 const requiredValidationCanary = {
   workflow: '.github/workflows/release-bundle-canary.yml',
   mode: 'validation_only',
-  triggers: ['push_main', 'pull_request'],
+  triggers: ['push_main', 'pull_request', 'daily_schedule'],
   starts_reusable_topology: [
     '_release-bundle.yml',
     '_release-standard-publish.yml',
     '_release-full-addon.yml',
     '_build-reusable.yml',
     'opl-first-run-vm.yml',
+    '_release-webui-carrier.yml',
+    'release-webui-stable.yml',
     'opl-updater-upgrade-vm.yml',
     'full-first-install-release.yml',
   ],
@@ -174,6 +179,8 @@ const requiredValidationCanary = {
   build_or_vm_execution_allowed: false,
   external_write_allowed: false,
   stable_mutation_allowed: false,
+  publication_allowed: false,
+  uses_stable_mutation_mutex: false,
   synthetic_identity_may_authorize_release: false,
 };
 
@@ -212,6 +219,7 @@ function retiredReleaseControlPlaneViolations(releaseContract: Record<string, an
     '.github/workflows/desktop-release.yml',
     '.github/workflows/desktop-release-promote.yml',
     '.github/workflows/desktop-release-full-addon.yml',
+    '.github/workflows/release-nightly.yml',
   ]);
 
   const visit = (value: unknown, pathName = 'release_channel') => {
@@ -300,6 +308,13 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.release_notes_modified !== false ||
     fullAddon?.latest_modified !== false ||
     fullAddon?.source_or_bom_change_requires_new_version !== true ||
+    nightly?.status !== 'publication_retired_historical_compatibility' ||
+    nightly?.publication_available !== false ||
+    nightly?.mutation_available !== false ||
+    nightly?.new_version_allocation_allowed !== false ||
+    nightly?.historical_tag_and_receipt_parsing_allowed !== true ||
+    nightly?.replacement_validation_workflow !== '.github/workflows/release-bundle-canary.yml' ||
+    nightly?.trigger !== 'none' ||
     nightly?.tag_pattern !== 'v<YY.M.D>-nightly[.r<1-9>]' ||
     sameDayRebuild?.first_release_suffix !== null ||
     sameDayRebuild?.suffix_pattern !== '.r<revision>' ||
@@ -312,7 +327,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.prerelease !== true ||
     nightly?.latest_release_allowed !== false
   ) {
-    console.error('FAIL release_immutability: drafts may refresh, published Full may only append same-cohort digest-idempotent assets, and Nightly uses bounded immutable date identities');
+    console.error('FAIL release_immutability: Full is additive and retired Nightly remains immutable, read-only historical compatibility');
     return 1;
   }
   return 0;
@@ -361,7 +376,7 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
     !sameStringSet(releaseContract.release_profiles?.allowed, ['stable', 'local-install']) ||
     releaseContract.release_profiles?.unavailable?.nightly?.status !== 'legacy_planner_profile_retired' ||
     releaseContract.release_profiles?.unavailable?.nightly?.scope !== 'release_candidate_planner_profile_only' ||
-    releaseContract.release_profiles?.unavailable?.nightly?.publication_available !== true ||
+    releaseContract.release_profiles?.unavailable?.nightly?.publication_available !== false ||
     releaseContract.release_profiles?.unavailable?.nightly?.mutation_available !== false ||
     profile?.plan_profile !== 'local_install' ||
     profile?.version_channel !== 'stable' ||
@@ -848,7 +863,7 @@ export function validateReleaseAccelerationPolicy(
     live?.app_executor_consumes_framework_cli_results_without_state_projection !== true ||
     !sameStringSet(live?.stable_operations, ['standard', 'resume_standard', 'append_full']) ||
     live?.stable_manual_entry !== '.github/workflows/release-stable.yml' ||
-    live?.nightly_entry !== '.github/workflows/release-nightly.yml_schedule_only' ||
+    live?.validation_canary_entry !== '.github/workflows/release-bundle-canary.yml_schedule' ||
     live?.app_session_broker_or_operator_may_authorize_mutation !== false ||
     live?.framework_checkpoint_required_for_resume_or_executor_switch !== true
   ) {
@@ -897,7 +912,7 @@ export function validateReleaseAccelerationPolicy(
   }
   if (
     operations?.schema !== 'opl_release_bundle_operation_control.v1' ||
-    operations?.all_channel_mutation_mutex !== 'one_repository_release_mutation_group_for_stable_and_nightly' ||
+    operations?.stable_mutation_mutex !== 'opl-release-bundle-global' ||
     standardOperation?.source !== 'new_framework_bundle' ||
     standardOperation?.control !== 'new_immutable_standard_control' ||
     standardOperation?.deadline_minutes !== 90 ||
@@ -952,7 +967,18 @@ export function validateReleaseAccelerationPolicy(
     publication?.stable?.lower_level_workflows !== 'workflow_call_only' ||
     JSON.stringify(publication?.stable?.latest_admission) !== JSON.stringify(requiredStandardLatestAdmission)
   ) {
-    console.error('FAIL release_latest_admission: Latest must require exact dual-predecessor updater, candidate ZIP, Homebrew, and clean-VM evidence');
+    console.error('FAIL release_latest_admission: Latest must require dynamic current-Latest/highest-Stable updater, candidate ZIP, Homebrew, and clean-VM evidence');
+    failures += 1;
+  }
+  if (
+    publication?.nightly?.status !== 'retired_historical_distribution_compatibility' ||
+    publication?.nightly?.publication_available !== false ||
+    publication?.nightly?.mutation_available !== false ||
+    publication?.nightly?.historical_readback_allowed !== true ||
+    publication?.nightly?.validation_route !== '.github/workflows/release-bundle-canary.yml_schedule' ||
+    publication?.nightly?.latest_allowed !== false
+  ) {
+    console.error('FAIL release_nightly_retirement: Nightly must remain historical read-only compatibility with Canary-only daily validation');
     failures += 1;
   }
   if (

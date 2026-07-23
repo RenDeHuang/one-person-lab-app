@@ -13,7 +13,7 @@ const exactWebUiCompileCeilingPermissions = {
   actions: 'read',
   packages: 'write',
 } as const;
-const exactStableStandardPermissions = { contents: 'write', actions: 'read', packages: 'write' } as const;
+const exactStableStandardPermissions = { contents: 'write', actions: 'read' } as const;
 const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
@@ -233,7 +233,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
       failures += reportFailure(
         id,
         jobId === 'standard'
-          ? 'standard permissions must be exactly contents:write/actions:read/packages:write'
+          ? 'standard permissions must be exactly contents:write/actions:read without packages:write'
           : `${jobId} permissions must be exactly contents:write/actions:read without packages:write`,
       );
     }
@@ -314,10 +314,12 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const bundle = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
   const standard = parseWorkflow(appRoot, '.github/workflows/_release-standard-publish.yml', id);
   const full = parseWorkflow(appRoot, '.github/workflows/_release-full-addon.yml', id);
-  const nightly = parseWorkflow(appRoot, '.github/workflows/release-nightly.yml', id);
   const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
-  if (!bundle || !standard || !full || !nightly || !webui) {
-    return [bundle, standard, full, nightly, webui].filter((value) => !value).length;
+  const webuiFollower = parseWorkflow(appRoot, '.github/workflows/release-webui-follower.yml', id);
+  const webuiStable = parseWorkflow(appRoot, '.github/workflows/release-webui-stable.yml', id);
+  if (!bundle || !standard || !full || !webui || !webuiFollower || !webuiStable) {
+    return [bundle, standard, full, webui, webuiFollower, webuiStable]
+      .filter((value) => !value).length;
   }
   let failures = 0;
 
@@ -336,7 +338,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     id,
     'bundle',
     bundle.workflow,
-    ['webui-carrier', 'publish-standard'],
+    ['publish-standard'],
   );
   failures += validateReusablePermissionInheritance(
     id,
@@ -347,8 +349,23 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   failures += validateReusablePermissionInheritance(id, 'full', full.workflow, ['publish-full']);
 
   const bundleJobs = workflowJobs(bundle.workflow);
+  if (JSON.stringify(Object.keys(bundleJobs)) !== JSON.stringify([
+    'startup-canary',
+    'admission',
+    'freeze',
+    'standard-build',
+    'standard-qualification',
+    'checkpoint-standard',
+    'publish-standard',
+  ])) {
+    failures += reportFailure(id, 'Desktop Bundle jobs must not include WebUI build or promotion');
+  }
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
     failures += reportFailure(id, 'Bundle workflow operation must be standard');
+  }
+  if (!bundle.text.includes('Only Stable may execute the Release Bundle.') ||
+      /resolveNightlyReleaseVersion|nightly-operation-request/.test(bundle.text)) {
+    failures += reportFailure(id, 'Bundle execute mode must be Stable-only and contain no Nightly allocation or operation window');
   }
   for (const [jobId, command] of [
     ['freeze', 'opl release freeze'],
@@ -365,48 +382,70 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   failures += validateReusableCall(
     id,
     bundleJobs,
-    'webui-carrier',
-    './.github/workflows/_release-webui-carrier.yml',
-  );
-  const webuiCall = bundleJobs['webui-carrier'];
-  if (webuiCall && (
-    webuiCall.permissions !== undefined ||
-    webuiCall.if !== "${{ inputs.mode == 'execute' }}" ||
-    webuiCall.with?.mode !== 'execute'
-  )) {
-    failures += reportFailure(id, 'bundle:webui-carrier must inherit the caller ceiling and remain execute-only');
-  }
-  failures += validateReusableCall(
-    id,
-    bundleJobs,
     'publish-standard',
     './.github/workflows/_release-standard-publish.yml',
   );
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
   }
-  failures += validateWebUiCarrierCallee(id, webui.workflow, exactStableStandardPermissions);
-
-  const nightlyJobs = workflowJobs(nightly.workflow);
-  const nightlyRelease = nightlyJobs.release;
-  if (!nightlyRelease ||
-      nightlyRelease.uses !== './.github/workflows/_release-bundle.yml' ||
-      Object.prototype.hasOwnProperty.call(nightlyRelease, 'steps') ||
-      !exactObject(nightlyRelease.permissions, exactStableStandardPermissions) ||
-      nightlyRelease.with?.channel !== 'nightly' ||
-      nightlyRelease.with?.include_full !== false) {
-    failures += reportFailure(id, 'Nightly release caller must grant exact Standard package write authority to the Bundle');
+  const followerTriggers = webuiFollower.workflow.on ?? {};
+  const followerJobs = workflowJobs(webuiFollower.workflow);
+  if (JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run']) ||
+      JSON.stringify(followerTriggers.workflow_run?.workflows) !==
+        JSON.stringify(['OPL Stable Release Bundle']) ||
+      JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed']) ||
+      Object.prototype.hasOwnProperty.call(followerTriggers, 'workflow_dispatch') ||
+      !exactObject(webuiFollower.workflow.permissions, exactReadPermissions) ||
+      JSON.stringify(Object.keys(followerJobs)) !==
+        JSON.stringify(['resolve-handoff', 'webui-carrier', 'promote-webui-stable'])) {
+    failures += reportFailure(id, 'WebUI follower must be an automatic, read-default workflow_run lane');
   }
-  if (nightlyRelease &&
-      intersectPermission(
-        nightlyRelease.permissions,
-        workflowJobs(webui.workflow)['publish-immutable-carrier']?.permissions,
-        'packages',
-      ) !== 'write') {
-    failures += reportFailure(id, 'Nightly cannot satisfy the nested immutable WebUI publish package permission');
+  const followerCarrier = followerJobs['webui-carrier'];
+  const followerPromotion = followerJobs['promote-webui-stable'];
+  if (!followerCarrier ||
+      followerCarrier.uses !== './.github/workflows/_release-webui-carrier.yml' ||
+      !needsExactly(followerCarrier, ['resolve-handoff']) ||
+      !exactObject(followerCarrier.permissions, exactWebUiCompileCeilingPermissions) ||
+      followerCarrier.with?.mode !== 'execute') {
+    failures += reportFailure(id, 'WebUI follower carrier must consume only the resolved exact handoff');
+  }
+  if (!followerPromotion ||
+      followerPromotion.uses !== './.github/workflows/release-webui-stable.yml' ||
+      !needsExactly(followerPromotion, ['resolve-handoff', 'webui-carrier']) ||
+      !exactObject(followerPromotion.permissions, exactWebUiCompileCeilingPermissions) ||
+      followerPromotion.with?.mode !== 'execute' ||
+      followerPromotion.with?.stable_authority_run_id !==
+        '${{ needs.resolve-handoff.outputs.stable_authority_run_id }}' ||
+      followerPromotion.with?.carrier_artifact_name !==
+        '${{ needs.webui-carrier.outputs.carrier_artifact_name }}' ||
+      Object.keys(followerPromotion.with ?? {}).length !== 3) {
+    failures += reportFailure(
+      id,
+      'WebUI promotion must bind the triggering Stable authority and current-run carrier artifact',
+    );
+  }
+  if (/continue-on-error/.test(webuiFollower.text)) {
+    failures += reportFailure(id, 'WebUI follower failures must remain visible on the independent follower run');
+  }
+  failures += validateWebUiCarrierCallee(
+    id,
+    webui.workflow,
+    followerCarrier?.permissions ?? exactWebUiCompileCeilingPermissions,
+  );
+  const stableInputs = webuiStable.workflow.on?.workflow_call?.inputs ?? {};
+  if (JSON.stringify(Object.keys(stableInputs)) !== JSON.stringify([
+    'mode',
+    'stable_authority_run_id',
+    'carrier_artifact_name',
+  ])) {
+    failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
   }
 
   const standardJobs = workflowJobs(standard.workflow);
+  if (standardJobs['nightly-terminal'] ||
+      !standard.text.includes('Historical Nightly checkpoints are read-only and cannot enter the live publisher.')) {
+    failures += reportFailure(id, 'Standard publisher must reject Nightly checkpoints and expose no Nightly terminal');
+  }
   for (const command of ['opl release publish', 'opl release reconcile', 'opl release status']) {
     if (!standard.text.includes(command)) {
       failures += reportFailure(id, `_release-standard-publish.yml is missing ${command}`);
@@ -521,7 +560,7 @@ function standardUpdaterOrLatest(text: string): boolean {
 const canaryReusableCalls = {
   standard: {
     workflow: './.github/workflows/_release-bundle.yml',
-    permissions: exactWebUiCompileCeilingPermissions,
+    permissions: exactReadPermissions,
   },
   'resume-standard': {
     workflow: './.github/workflows/_release-standard-publish.yml',
@@ -541,6 +580,10 @@ const canaryReusableCalls = {
   },
   'nested-webui-carrier': {
     workflow: './.github/workflows/_release-webui-carrier.yml',
+    permissions: exactWebUiCompileCeilingPermissions,
+  },
+  'nested-webui-stable': {
+    workflow: './.github/workflows/release-webui-stable.yml',
     permissions: exactWebUiCompileCeilingPermissions,
   },
   'nested-updater-qualification': {
@@ -601,10 +644,26 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
   if (Object.prototype.hasOwnProperty.call(workflow.on ?? {}, 'workflow_dispatch')) {
     failures += reportFailure(id, 'Canary must not expose workflow_dispatch');
   }
+  const triggers = workflow.on ?? {};
+  const schedule = triggers.schedule;
+  if (JSON.stringify(Object.keys(triggers).sort()) !==
+      JSON.stringify(['pull_request', 'push', 'schedule']) ||
+      JSON.stringify(triggers.push?.branches) !== JSON.stringify(['main']) ||
+      !Array.isArray(schedule) || schedule.length !== 1 ||
+      schedule[0]?.cron !== '0 13 * * *') {
+    failures += reportFailure(id, 'Canary must run on main push, pull request, and the one daily schedule');
+  }
+  if (!exactObject(workflow.concurrency, {
+    group: 'opl-release-validation-canary-${{ github.ref }}',
+    'cancel-in-progress': true,
+  })) {
+    failures += reportFailure(id, 'Canary must use its own cancellable validation concurrency, not the Stable mutation mutex');
+  }
   if (!exactObject(workflow.permissions, exactReadPermissions)) {
     failures += reportFailure(id, 'Canary permissions must be exactly contents:read/actions:read');
   }
-  if (/^\s*secrets:/m.test(text) || workflowMutationCommandPattern.test(text)) {
+  if (/^\s*secrets:/m.test(text) || workflowMutationCommandPattern.test(text) ||
+      text.includes('opl-release-bundle-global')) {
     failures += reportFailure(id, 'Canary must not receive secrets or contain mutation commands');
   }
 
@@ -647,6 +706,28 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
       failures += validateWebUiCarrierCallee(id, callee.workflow, spec.permissions);
       if (permissionLevel(spec.permissions, 'packages') !== 'write') {
         failures += reportFailure(id, 'Canary WebUI caller must permit the protected publish job to compile');
+      }
+      continue;
+    }
+    if (jobId === 'nested-webui-stable') {
+      const admission = calleeJobs.admission;
+      const promotion = calleeJobs['promote-webui-stable'];
+      const expectedInputs = [
+        'mode',
+        'stable_authority_run_id',
+        'carrier_artifact_name',
+      ].sort();
+      if (!exactObject(callee.workflow.permissions, exactReadPermissions) ||
+          !admission || admission.if !== "${{ inputs.mode == 'execute' }}" ||
+          !exactObject(admission.permissions, exactReadPermissions) ||
+          !promotion || promotion.if !== "${{ inputs.mode == 'execute' }}" ||
+          !isAuthorizedWebuiStablePromotionWriteJob(calleePath, 'promote-webui-stable', promotion) ||
+          JSON.stringify(Object.keys(callee.workflow.on?.workflow_call?.inputs ?? {}).sort()) !==
+            JSON.stringify(expectedInputs)) {
+        failures += reportFailure(
+          id,
+          'WebUI Stable follower must expose exact run identities and keep its protected execute writer unreachable from Canary',
+        );
       }
       continue;
     }

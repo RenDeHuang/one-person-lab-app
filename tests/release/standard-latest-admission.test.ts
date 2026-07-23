@@ -137,6 +137,7 @@ function createFixture(): { root: string; input: StandardLatestAdmissionInput; u
       frameworkSha,
       standardAssetsPath,
       expectedCurrentLatestTag: 'v26.7.20',
+      highestPublicStableTag: 'v26.7.21',
       predecessors: ['26.7.20=26.7.20', '26.7.21=26.7.21'],
       updaterEvidenceDirs,
       homebrewPublicationPath,
@@ -146,7 +147,7 @@ function createFixture(): { root: string; input: StandardLatestAdmissionInput; u
   };
 }
 
-test('Latest admission binds both real predecessors to one candidate ZIP and Homebrew readback', () => {
+test('Latest admission binds distinct public predecessors to one candidate ZIP and Homebrew readback', () => {
   const fixture = createFixture();
   try {
     const receipt = validateStandardLatestAdmission(fixture.input);
@@ -195,7 +196,24 @@ test('Latest admission rejects a caller that omits one required public predecess
     fixture.input.updaterEvidenceDirs.pop();
     assert.throws(
       () => validateStandardLatestAdmission(fixture.input),
-      /exactly the v26\.7\.20 and v26\.7\.21 public predecessor identities/,
+      /exactly the current Latest and highest public Stable predecessor identities/,
+    );
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Latest admission requires only one predecessor when current Latest is highest public Stable', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.highestPublicStableTag = fixture.input.expectedCurrentLatestTag;
+    fixture.input.predecessors.pop();
+    fixture.input.updaterEvidenceDirs.pop();
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.updater_predecessor_policy.distinct_predecessor_count, 1);
+    assert.deepEqual(
+      receipt.updater_receipts.map((entry: any) => entry.baseline.display_version),
+      ['26.7.20'],
     );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -208,7 +226,7 @@ test('Latest admission rejects an expected current tag outside the admitted pred
     fixture.input.expectedCurrentLatestTag = 'v26.7.19';
     assert.throws(
       () => validateStandardLatestAdmission(fixture.input),
-      /must identify exactly one admitted updater predecessor/,
+      /exactly the current Latest and highest public Stable predecessor identities/,
     );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -220,6 +238,8 @@ test('Latest admission input digest binds the frozen current Latest tag', () => 
   try {
     const first = validateStandardLatestAdmission(fixture.input);
     fixture.input.expectedCurrentLatestTag = 'v26.7.21';
+    fixture.input.predecessors.shift();
+    fixture.input.updaterEvidenceDirs.shift();
     const second = validateStandardLatestAdmission(fixture.input);
     assert.notEqual(first.input_digest, second.input_digest);
     assert.equal(second.latest_compare_and_swap.expected_current.tag, 'v26.7.21');

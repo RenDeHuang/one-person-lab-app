@@ -78,33 +78,54 @@ function descriptor(value: unknown, expectedRef: string, label: string): JsonRec
   return observation;
 }
 
-function validateSourceRun(run: JsonRecord, sourceRunId: string, sourceAppSha: string): void {
-  exact(String(run.id), sourceRunId, 'source run.id');
-  exact(run.repository?.full_name, appRepository, 'source run.repository');
-  exact(run.head_repository?.full_name, appRepository, 'source run.head_repository');
-  exact(run.path, '.github/workflows/release-stable.yml', 'source run.path');
-  exact(run.event, 'workflow_dispatch', 'source run.event');
-  exact(run.head_branch, 'main', 'source run.head_branch');
-  if (!['in_progress', 'completed'].includes(text(run.status, 'source run.status'))) {
-    throw new Error('source run.status must be in_progress or completed.');
-  }
-  exact(run.run_attempt, 1, 'source run.run_attempt');
-  exact(sha(run.head_sha, 'source run.head_sha'), sourceAppSha, 'source run.head_sha');
+function validateStableAuthorityRun(run: JsonRecord, runId: string): void {
+  exact(String(run.id), runId, 'Stable authority run.id');
+  exact(run.repository?.full_name, appRepository, 'Stable authority run.repository');
+  exact(run.head_repository?.full_name, appRepository, 'Stable authority run.head_repository');
+  exact(run.path, '.github/workflows/release-stable.yml', 'Stable authority run.path');
+  exact(run.event, 'workflow_dispatch', 'Stable authority run.event');
+  exact(run.head_branch, 'main', 'Stable authority run.head_branch');
+  exact(run.status, 'completed', 'Stable authority run.status');
+  exact(run.conclusion, 'success', 'Stable authority run.conclusion');
+  exact(run.run_attempt, 1, 'Stable authority run.run_attempt');
+  sha(run.head_sha, 'Stable authority run.head_sha');
 }
 
-function validateSourceCarrierJob(job: JsonRecord, sourceRunId: string, sourceAppSha: string): void {
-  positiveInteger(job.id, 'source carrier job.id');
-  exact(String(job.run_id), sourceRunId, 'source carrier job.run_id');
+function validateCarrierFollowerRun(run: JsonRecord, runId: string, executorAppSha: string): void {
+  exact(String(run.id), runId, 'carrier follower run.id');
+  exact(run.repository?.full_name, appRepository, 'carrier follower run.repository');
+  exact(run.head_repository?.full_name, appRepository, 'carrier follower run.head_repository');
+  exact(run.path, '.github/workflows/release-webui-follower.yml', 'carrier follower run.path');
+  exact(run.event, 'workflow_run', 'carrier follower run.event');
+  exact(run.head_branch, 'main', 'carrier follower run.head_branch');
+  if (!['in_progress', 'completed'].includes(text(run.status, 'carrier follower run.status'))) {
+    throw new Error('carrier follower run.status must be in_progress or completed.');
+  }
+  exact(run.run_attempt, 1, 'carrier follower run.run_attempt');
+  exact(
+    sha(run.head_sha, 'carrier follower run.head_sha'),
+    executorAppSha,
+    'carrier follower run.head_sha',
+  );
+}
+
+function validateCarrierFollowerJob(job: JsonRecord, followerRunId: string, executorAppSha: string): void {
+  positiveInteger(job.id, 'carrier follower job.id');
+  exact(String(job.run_id), followerRunId, 'carrier follower job.run_id');
   exact(
     job.run_url,
-    `https://api.github.com/repos/${appRepository}/actions/runs/${sourceRunId}`,
-    'source carrier job.run_url',
+    `https://api.github.com/repos/${appRepository}/actions/runs/${followerRunId}`,
+    'carrier follower job.run_url',
   );
-  exact(job.name, 'standard / webui-carrier / publish-immutable-carrier', 'source carrier job.name');
-  exact(job.status, 'completed', 'source carrier job.status');
-  exact(job.conclusion, 'success', 'source carrier job.conclusion');
-  exact(job.run_attempt, 1, 'source carrier job.run_attempt');
-  exact(sha(job.head_sha, 'source carrier job.head_sha'), sourceAppSha, 'source carrier job.head_sha');
+  exact(job.name, 'webui-carrier / publish-immutable-carrier', 'carrier follower job.name');
+  exact(job.status, 'completed', 'carrier follower job.status');
+  exact(job.conclusion, 'success', 'carrier follower job.conclusion');
+  exact(job.run_attempt, 1, 'carrier follower job.run_attempt');
+  exact(
+    sha(job.head_sha, 'carrier follower job.head_sha'),
+    executorAppSha,
+    'carrier follower job.head_sha',
+  );
 }
 
 function appWebuiCarrier(receipt: JsonRecord): {
@@ -144,11 +165,15 @@ function appWebuiCarrier(receipt: JsonRecord): {
 }
 
 export type WebuiStableAdmissionInput = {
-  sourceRun: JsonRecord;
-  sourceRunPath: string;
-  sourceCarrierJob: JsonRecord;
-  sourceCarrierJobPath: string;
-  sourceRunId: string;
+  stableAuthorityRun: JsonRecord;
+  stableAuthorityRunPath: string;
+  stableAuthorityRunId: string;
+  triggeredByStableRunId: string;
+  carrierFollowerRun: JsonRecord;
+  carrierFollowerRunPath: string;
+  carrierFollowerRunId: string;
+  carrierFollowerJob: JsonRecord;
+  carrierFollowerJobPath: string;
   promotionAppSha: string;
   carrierReceipt: JsonRecord;
   carrierReceiptPath: string;
@@ -161,11 +186,31 @@ export type WebuiStableAdmissionInput = {
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
-  if (!runPattern.test(input.sourceRunId)) throw new Error('source App run id is invalid.');
+  if (!runPattern.test(input.stableAuthorityRunId)) throw new Error('Stable authority run id is invalid.');
+  if (!runPattern.test(input.triggeredByStableRunId)) {
+    throw new Error('triggering Stable authority run id is invalid.');
+  }
+  if (!runPattern.test(input.carrierFollowerRunId)) {
+    throw new Error('carrier follower run id is invalid.');
+  }
+  exact(
+    input.triggeredByStableRunId,
+    input.stableAuthorityRunId,
+    'triggering Stable authority run id',
+  );
   const promotionAppSha = sha(input.promotionAppSha, 'promotion App SHA');
   const { release, cohort, carrier } = appWebuiCarrier(input.carrierReceipt);
-  validateSourceRun(input.sourceRun, input.sourceRunId, cohort.app_sha);
-  validateSourceCarrierJob(input.sourceCarrierJob, input.sourceRunId, cohort.app_sha);
+  validateStableAuthorityRun(input.stableAuthorityRun, input.stableAuthorityRunId);
+  validateCarrierFollowerRun(
+    input.carrierFollowerRun,
+    input.carrierFollowerRunId,
+    promotionAppSha,
+  );
+  validateCarrierFollowerJob(
+    input.carrierFollowerJob,
+    input.carrierFollowerRunId,
+    promotionAppSha,
+  );
 
   const immutable = descriptor(input.immutableReadback, carrier.ref, 'immutable readback');
   exact(immutable.status, 'present', 'immutable readback.status');
@@ -179,27 +224,40 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   if (prestate.status === 'unknown') throw new Error('Stable prestate is unknown and cannot be treated as absent.');
 
   const evidence = {
-    source_run_readback_sha256: fileDigest(input.sourceRunPath),
-    source_carrier_job_readback_sha256: fileDigest(input.sourceCarrierJobPath),
+    stable_authority_run_readback_sha256: fileDigest(input.stableAuthorityRunPath),
+    carrier_follower_run_readback_sha256: fileDigest(input.carrierFollowerRunPath),
+    carrier_follower_job_readback_sha256: fileDigest(input.carrierFollowerJobPath),
     carrier_receipt_sha256: fileDigest(input.carrierReceiptPath),
     immutable_readback_sha256: fileDigest(input.immutableReadbackPath),
     version_readback_sha256: fileDigest(input.versionReadbackPath),
     stable_prestate_sha256: fileDigest(input.stablePrestatePath),
   };
   const authority = {
-    source: {
+    stable_authority: {
       app_repository: appRepository,
-      app_run_id: input.sourceRunId,
-      app_run_attempt: 1,
-      carrier_job_id: input.sourceCarrierJob.id,
-      carrier_job_name: input.sourceCarrierJob.name,
-      app_head_sha: cohort.app_sha,
+      run_id: input.stableAuthorityRunId,
+      run_attempt: 1,
+      app_head_sha: input.stableAuthorityRun.head_sha,
       workflow: '.github/workflows/release-stable.yml',
+    },
+    carrier_follower: {
+      app_repository: appRepository,
+      run_id: input.carrierFollowerRunId,
+      run_attempt: 1,
+      carrier_job_id: input.carrierFollowerJob.id,
+      carrier_job_name: input.carrierFollowerJob.name,
+      app_head_sha: promotionAppSha,
+      workflow: '.github/workflows/release-webui-follower.yml',
+      triggering_stable_authority_run_id: input.stableAuthorityRunId,
     },
     promotion_executor: {
       app_repository: appRepository,
+      run_id: input.carrierFollowerRunId,
+      run_attempt: 1,
       app_head_sha: promotionAppSha,
       workflow: '.github/workflows/release-webui-stable.yml',
+      caller_workflow: '.github/workflows/release-webui-follower.yml',
+      job: 'promote-webui-stable',
     },
     release: {
       version: release.version,
@@ -225,7 +283,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     evidence,
   };
   return {
-    schema: 'opl_app_webui_stable_promotion_admission.v2',
+    schema: 'opl_app_webui_stable_promotion_admission.v3',
     status: 'passed',
     mutation_admitted: true,
     input_digest: objectDigest(authority),
@@ -234,7 +292,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
 }
 
 export function decideWebuiStablePromotion(admission: JsonRecord, currentInput: JsonRecord): JsonRecord {
-  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v2', 'admission schema');
+  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
   exact(admission.status, 'passed', 'admission status');
   exact(admission.mutation_admitted, true, 'admission mutation authorization');
   const target = record(admission.target, 'admission.target');
@@ -286,7 +344,7 @@ export function writeWebuiStablePromotionReceipt(input: {
   readbacks: JsonRecord;
   anonymousReadback: JsonRecord;
 }): JsonRecord {
-  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v2', 'admission schema');
+  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
   exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v1', 'decision schema');
   const target = record(input.admission.target, 'admission.target');
   const decision = text(input.decision.decision, 'decision.decision') as PromotionDecision;
@@ -333,7 +391,8 @@ export function writeWebuiStablePromotionReceipt(input: {
   const evidence = {
     admission_input_digest: input.admission.input_digest,
     decision_input_digest: input.decision.input_digest,
-    source: input.admission.source,
+    stable_authority: input.admission.stable_authority,
+    carrier_follower: input.admission.carrier_follower,
     promotion_executor: input.admission.promotion_executor,
     release: input.admission.release,
     target,
@@ -364,7 +423,7 @@ export function writeWebuiStablePromotionReceipt(input: {
     }
   }
   return {
-    schema: 'opl_app_webui_stable_promotion_receipt.v2',
+    schema: 'opl_app_webui_stable_promotion_receipt.v3',
     status,
     mutation_performed: attemptCount === 1,
     retry_allowed: false,
@@ -391,10 +450,13 @@ function main(argv: string[]): void {
     args: argv.slice(1),
     strict: true,
     options: {
-      'source-run': { type: 'string' },
-      'source-carrier-job': { type: 'string' },
-      'source-run-id': { type: 'string' },
-      'app-sha': { type: 'string' },
+      'stable-authority-run': { type: 'string' },
+      'stable-authority-run-id': { type: 'string' },
+      'triggered-by-stable-run-id': { type: 'string' },
+      'carrier-follower-run': { type: 'string' },
+      'carrier-follower-run-id': { type: 'string' },
+      'carrier-follower-job': { type: 'string' },
+      'promotion-app-sha': { type: 'string' },
       'carrier-receipt': { type: 'string' },
       'immutable-readback': { type: 'string' },
       'version-readback': { type: 'string' },
@@ -410,19 +472,36 @@ function main(argv: string[]): void {
   });
   let result: JsonRecord;
   if (command === 'admit') {
-    const sourceRunPath = required(values['source-run'], 'source-run');
-    const sourceCarrierJobPath = required(values['source-carrier-job'], 'source-carrier-job');
+    const stableAuthorityRunPath = required(values['stable-authority-run'], 'stable-authority-run');
+    const carrierFollowerRunPath = required(
+      values['carrier-follower-run'],
+      'carrier-follower-run',
+    );
+    const carrierFollowerJobPath = required(
+      values['carrier-follower-job'],
+      'carrier-follower-job',
+    );
     const carrierReceiptPath = required(values['carrier-receipt'], 'carrier-receipt');
     const immutableReadbackPath = required(values['immutable-readback'], 'immutable-readback');
     const versionReadbackPath = required(values['version-readback'], 'version-readback');
     const stablePrestatePath = required(values['stable-prestate'], 'stable-prestate');
     result = admitWebuiStablePromotion({
-      sourceRun: readJson(sourceRunPath, 'source run'),
-      sourceRunPath,
-      sourceCarrierJob: readJson(sourceCarrierJobPath, 'source carrier job'),
-      sourceCarrierJobPath,
-      sourceRunId: required(values['source-run-id'], 'source-run-id'),
-      promotionAppSha: required(values['app-sha'], 'app-sha'),
+      stableAuthorityRun: readJson(stableAuthorityRunPath, 'Stable authority run'),
+      stableAuthorityRunPath,
+      stableAuthorityRunId: required(values['stable-authority-run-id'], 'stable-authority-run-id'),
+      triggeredByStableRunId: required(
+        values['triggered-by-stable-run-id'],
+        'triggered-by-stable-run-id',
+      ),
+      carrierFollowerRun: readJson(carrierFollowerRunPath, 'carrier follower run'),
+      carrierFollowerRunPath,
+      carrierFollowerRunId: required(
+        values['carrier-follower-run-id'],
+        'carrier-follower-run-id',
+      ),
+      carrierFollowerJob: readJson(carrierFollowerJobPath, 'carrier follower job'),
+      carrierFollowerJobPath,
+      promotionAppSha: required(values['promotion-app-sha'], 'promotion-app-sha'),
       carrierReceipt: readJson(carrierReceiptPath, 'carrier receipt'),
       carrierReceiptPath,
       immutableReadback: readJson(immutableReadbackPath, 'immutable readback'),

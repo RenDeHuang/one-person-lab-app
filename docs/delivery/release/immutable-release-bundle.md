@@ -158,12 +158,18 @@ Latest, and both display and machine versions must increase.
 
 `.github/workflows/release-stable.yml` is the only Stable
 `workflow_dispatch`. Lower-level release workflows are reusable
-`workflow_call` implementation details. Nightly uses the same Framework CLI and
-release DAG through `.github/workflows/release-nightly.yml`, is schedule-only,
-publishes a prerelease, and can never become Latest.
+`workflow_call` implementation details. Public Nightly publication is retired;
+historical Nightly tags, assets, updater metadata, and receipts remain readable,
+while the daily schedule runs the validation-only Canary.
+
+Desktop Standard alone reaches Latest. After that terminal readback,
+`.github/workflows/release-webui-follower.yml` consumes the successful Stable
+run through `workflow_run`, verifies the exact handoff, and owns WebUI build,
+promotion, and anonymous-pull readback as an independent terminal path. A
+WebUI failure cannot change the completed Desktop Stable result.
 
 Stable exposes exactly `standard`, `resume_standard`, and `append_full`.
-Stable and Nightly share one repository-wide mutation mutex. Each operation
+Stable alone owns the repository-wide mutation mutex. Each operation
 derives one absolute deadline from the GitHub run start, every mutating job
 checks it before its first remote API, and partial `github.run_attempt` reruns
 are rejected. Typed failure evidence is persisted before a failing job exits or
@@ -193,7 +199,7 @@ publish, rebuild, promote, or claim release readiness.
 The machine policy is
 `contracts/app-release-channel.json#release_bundle_control_plane`. The cutover is
 complete only after Framework and App authority mains contain their respective
-interfaces, the Stable and Nightly workflow entrypoints match this document,
+interfaces, the Stable workflow and scheduled Canary match this document,
 the `release-stable` protected environment is configured and read back, and a
 no-public-mutation canary passes.
 

@@ -2521,7 +2521,7 @@
       "expected_source": "desktop main-process App metadata and shared updater state store",
       "must_show": [
         "One Person Lab App version",
-        "Stable or Nightly channel",
+        "App release channel",
         "cached update status from the one startup check or last manual check",
         "one Check for updates action",
         "version and channel in one compact row with update status and action on the next row",

@@ -5643,18 +5643,20 @@
     "nightly": {
       "channel_id": "nightly_standard",
       "source": "contracts/app-release-channel.json#release_validation_profiles.nightly_standard",
-      "status": "active_schedule_only_framework_bundle",
+      "status": "publication_retired_validation_only",
       "selectable": false,
-      "publication_available": true,
-      "mutation_available": true,
-      "display_policy": "schedule_only_status_not_channel_option",
+      "publication_available": false,
+      "mutation_available": false,
+      "display_policy": "historical_compatibility_status_not_channel_option",
       "must_gate": [
         "release_boundary_contract",
-        "standard_macos_arm64_build",
-        "local_standard_asset_validation",
-        "remote_standard_release_verification"
+        "reusable_topology_startup"
       ],
       "must_not_gate": [
+        "standard_macos_arm64_build",
+        "local_standard_asset_validation",
+        "remote_standard_release_verification",
+        "webui_ghcr_publish",
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
@@ -5900,7 +5902,7 @@
       ],
       "must_show": [
         "One Person Lab App version",
-        "Stable or Nightly channel",
+        "App release channel",
         "cached update status from the one startup check or last manual check",
         "one Check for updates action",
         "version and channel in one compact row with update status and action on the next row",

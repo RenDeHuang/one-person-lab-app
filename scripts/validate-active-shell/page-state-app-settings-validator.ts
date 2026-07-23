@@ -438,8 +438,8 @@ function validateEnvironmentPage(matrix, guiContract) {
 
 function validateAboutPage(matrix) {
   const aboutPage = pageById(matrix, 'about');
-  if (!aboutPage.must_show?.includes('Stable or Nightly channel')) {
-    throw new Error('About page must show Stable or Nightly channel');
+  if (!aboutPage.must_show?.includes('App release channel')) {
+    throw new Error('About page must show the App release channel');
   }
   if (
     aboutPage.route_id !== 'about' ||

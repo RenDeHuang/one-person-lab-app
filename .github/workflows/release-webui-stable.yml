@@ -1,11 +1,19 @@
 name: Promote WebUI Stable
-run-name: WebUI stable from App run ${{ inputs.source_app_run_id }}
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      source_app_run_id:
-        description: Exact Stable App run containing the qualified immutable WebUI carrier
+      mode:
+        description: execute or canary validation-only startup
+        required: false
+        default: execute
+        type: string
+      stable_authority_run_id:
+        description: Exact successful Stable run that activated Desktop Latest.
+        required: true
+        type: string
+      carrier_artifact_name:
+        description: Exact carrier artifact produced by the follower run.
         required: true
         type: string
 
@@ -17,11 +25,25 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-webui-stable-promotion-global
+  group: ${{ inputs.mode == 'execute' && 'opl-webui-stable-promotion-global' || format('opl-webui-stable-canary-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove WebUI Stable follower starts without promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.mode }}' = canary
+          test '${{ inputs.stable_authority_run_id }}' = 424242
+          test '${{ inputs.carrier_artifact_name }}' = canary
+
   admission:
+    if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -38,20 +60,27 @@ jobs:
       - name: Reject noncanonical or partial promotion runs
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
+          TRIGGERED_BY_STABLE_RUN_ID: ${{ github.event.workflow_run.id }}
+          CARRIER_FOLLOWER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
           test "$GITHUB_REF" = refs/heads/main
-          [[ "$SOURCE_APP_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          test "$STABLE_AUTHORITY_RUN_ID" = "$TRIGGERED_BY_STABLE_RUN_ID"
+          [[ "$STABLE_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CARRIER_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           canonical_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
           test "$canonical_sha" = "$GITHUB_SHA"
           mkdir -p evidence
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_APP_RUN_ID" > evidence/source-app-run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_APP_RUN_ID/jobs?filter=latest&per_page=100" \
-            > evidence/source-app-jobs.json
-          jq -e --arg run "$SOURCE_APP_RUN_ID" '
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" \
+            > evidence/stable-authority-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CARRIER_FOLLOWER_RUN_ID" \
+            > evidence/carrier-follower-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CARRIER_FOLLOWER_RUN_ID/jobs?filter=latest&per_page=100" \
+            > evidence/carrier-follower-jobs.json
+          jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -59,36 +88,49 @@ jobs:
             and .event == "workflow_dispatch"
             and .head_branch == "main"
             and .run_attempt == 1
-            and (.status == "in_progress" or .status == "completed")
+            and .status == "completed"
+            and .conclusion == "success"
             and (.head_sha | test("^[0-9a-f]{40}$"))
-          ' evidence/source-app-run.json >/dev/null
-          jq -e --arg run "$SOURCE_APP_RUN_ID" '
+          ' evidence/stable-authority-run.json >/dev/null
+          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$GITHUB_SHA" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-webui-follower.yml"
+            and .event == "workflow_run"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and (.status == "in_progress" or .status == "completed")
+            and .head_sha == $head
+          ' evidence/carrier-follower-run.json >/dev/null
+          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$GITHUB_SHA" '
             [
               .jobs[]
               | select(
-                  .name == "standard / webui-carrier / publish-immutable-carrier"
+                  .name == "webui-carrier / publish-immutable-carrier"
                   and (.run_id | tostring) == $run
                   and .status == "completed"
                   and .conclusion == "success"
                   and .run_attempt == 1
-                  and (.head_sha | test("^[0-9a-f]{40}$"))
+                  and .head_sha == $head
                 )
             ]
             | select(length == 1)
             | .[0]
-          ' evidence/source-app-jobs.json > evidence/source-carrier-job.json
+          ' evidence/carrier-follower-jobs.json > evidence/carrier-follower-job.json
 
       - name: Download exact App WebUI carrier artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          pattern: webui-carrier-*-${{ inputs.source_app_run_id }}-1
-          run-id: ${{ inputs.source_app_run_id }}
+          name: ${{ inputs.carrier_artifact_name }}
+          run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
           path: intake/app-carrier
 
-      - name: Materialize exactly one carrier receipt from the specified App run
+      - name: Materialize exactly one carrier receipt from the exact follower run
         env:
-          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          CARRIER_FOLLOWER_RUN_ID: ${{ github.run_id }}
+          CARRIER_ARTIFACT_NAME: ${{ inputs.carrier_artifact_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,13 +153,16 @@ jobs:
           version="$(jq -er '.release.version | select(test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))' \
             evidence/carrier-receipt.json)"
           carrier_artifact="$(basename "$(dirname "$carrier_source")")"
-          test "$carrier_artifact" = "webui-carrier-${version}-${SOURCE_APP_RUN_ID}-1"
+          test "$carrier_artifact" = "$CARRIER_ARTIFACT_NAME"
+          test "$carrier_artifact" = "webui-carrier-${version}-${CARRIER_FOLLOWER_RUN_ID}-1"
           jq -n \
-            --arg source_app_run_id "$SOURCE_APP_RUN_ID" \
+            --arg stable_authority_run_id '${{ inputs.stable_authority_run_id }}' \
+            --arg carrier_follower_run_id "$CARRIER_FOLLOWER_RUN_ID" \
             --arg app_carrier_artifact "$carrier_artifact" \
             '{
-              schema:"opl_app_webui_stable_artifact_intake.v2",
-              source_app_run_id:$source_app_run_id,
+              schema:"opl_app_webui_stable_artifact_intake.v3",
+              stable_authority_run_id:$stable_authority_run_id,
+              carrier_follower_run_id:$carrier_follower_run_id,
               app_carrier_artifact:$app_carrier_artifact
             }' > evidence/artifact-intake.json
 
@@ -164,15 +209,20 @@ jobs:
       - name: Seal one immutable WebUI Stable admission
         id: admission
         env:
-          SOURCE_APP_RUN_ID: ${{ inputs.source_app_run_id }}
+          STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
+          TRIGGERED_BY_STABLE_RUN_ID: ${{ github.event.workflow_run.id }}
+          CARRIER_FOLLOWER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
           node --experimental-strip-types scripts/webui-stable-promotion.ts admit \
-            --source-run evidence/source-app-run.json \
-            --source-carrier-job evidence/source-carrier-job.json \
-            --source-run-id "$SOURCE_APP_RUN_ID" \
-            --app-sha "$GITHUB_SHA" \
+            --stable-authority-run evidence/stable-authority-run.json \
+            --stable-authority-run-id "$STABLE_AUTHORITY_RUN_ID" \
+            --triggered-by-stable-run-id "$TRIGGERED_BY_STABLE_RUN_ID" \
+            --carrier-follower-run evidence/carrier-follower-run.json \
+            --carrier-follower-run-id "$CARRIER_FOLLOWER_RUN_ID" \
+            --carrier-follower-job evidence/carrier-follower-job.json \
+            --promotion-app-sha "$GITHUB_SHA" \
             --carrier-receipt evidence/carrier-receipt.json \
             --immutable-readback evidence/immutable-readback.json \
             --version-readback evidence/version-readback.json \
@@ -190,6 +240,7 @@ jobs:
           retention-days: 90
 
   promote-webui-stable:
+    if: ${{ inputs.mode == 'execute' }}
     needs: admission
     runs-on: ubuntu-latest
     timeout-minutes: 10

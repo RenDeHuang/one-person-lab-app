@@ -578,8 +578,14 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const inputs = workflow.on.workflow_call.inputs;
   const build = workflow.jobs['build-and-qualify'];
   const publish = workflow.jobs['publish-immutable-carrier'];
-  assert.equal(inputs.frozen_codex_artifact_name.type, 'string');
-  assert.equal(inputs.frozen_codex_artifact_name.required, true);
+  assert.equal(inputs.source_artifact_run_id.type, 'string');
+  assert.equal(inputs.source_artifact_run_id.required, true);
+  assert.equal(inputs.standard_checkpoint_artifact_name.type, 'string');
+  assert.equal(inputs.standard_checkpoint_artifact_name.required, true);
+  assert.equal(inputs.standard_identity_sha256.type, 'string');
+  assert.equal(inputs.standard_identity_sha256.required, true);
+  assert.equal(inputs.frozen_codex_artifact_name, undefined);
+  assert.equal(inputs.frozen_build_input_json, undefined);
   assert.equal(build.needs, undefined, 'WebUI build must not depend on Desktop');
   assert.equal(publish.needs, 'build-and-qualify');
   assert.equal(publish.environment, 'release-stable');
@@ -598,19 +604,26 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /\.opl-frozen-inputs\/codex-cli\.tgz/);
   assert.match(buildRun, /COPY \.opl-frozen-inputs\/codex-cli\.tgz \/tmp\/codex-cli\.tgz/);
   assert.match(buildRun, /npm install -g --prefix \/opt\/codex-cli \/tmp\/codex-cli\.tgz/);
-  assert.doesNotMatch(buildRun, /npm view|npm pack/);
+  assert.match(buildRun, /framework-release-adapter\.ts webui-build-input/);
+  assert.match(buildRun, /oras manifest fetch/);
+  assert.match(buildRun, /npm view/);
+  assert.doesNotMatch(buildRun, /npm pack/);
   assert.match(buildRun, /Dockerfile\.frozen/);
   assert.match(buildRun, /--build-arg 'OPL_FRAMEWORK_REF=/);
-  assert.match(buildRun, /--build-arg 'OPL_FLOW_REF=/);
+  assert.doesNotMatch(buildRun, /OPL_FLOW_REF/);
   assert.match(buildRun, /--build-arg 'OPL_CODEX_NPM_SPEC=/);
   assert.match(buildRun, /validate-webui-runtime-image\.ts/);
   assert.match(buildRun, /curl --fail/);
-  const downloadCodex = build.steps.find(
-    (step: { name?: string }) => step.name === 'Download exact frozen Codex artifact',
+  const downloadCheckpoint = build.steps.find(
+    (step: { name?: string }) => step.name === 'Download exact portable Standard checkpoint',
   );
-  assert.equal(downloadCodex.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
-  assert.equal(downloadCodex.with.name, '${{ inputs.frozen_codex_artifact_name }}');
-  assert.equal(downloadCodex.with.path, 'webui-carrier/frozen-codex');
+  assert.equal(downloadCheckpoint.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
+  assert.equal(downloadCheckpoint.with.name, '${{ inputs.standard_checkpoint_artifact_name }}');
+  assert.equal(downloadCheckpoint.with['run-id'], '${{ inputs.source_artifact_run_id }}');
+  assert.equal(downloadCheckpoint.with['github-token'], '${{ github.token }}');
+  assert.equal(downloadCheckpoint.with.path, 'webui-carrier/standard-checkpoint');
+  assert.match(buildRun, /standard-identity-receipt\.json/);
+  assert.match(buildRun, /inputs\.standard_identity_sha256/);
   const imageBuildIndex = build.steps.findIndex((step: { name?: string }) => step.name === 'Build WebUI image once from frozen inputs');
   const qualificationIndex = build.steps.findIndex(
     (step: { name?: string }) => step.name === 'Qualify exact local runtime before any registry tag is written',

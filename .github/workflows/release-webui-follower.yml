@@ -1,0 +1,199 @@
+name: OPL WebUI Stable Follower
+run-name: WebUI follower for Stable run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Stable Release Bundle
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-webui-stable-follower-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-handoff:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.handoff.outputs.eligible }}
+      stable_authority_run_id: ${{ steps.handoff.outputs.stable_authority_run_id }}
+      source_artifact_run_id: ${{ steps.handoff.outputs.source_artifact_run_id }}
+      standard_checkpoint_artifact_name: ${{ steps.handoff.outputs.standard_checkpoint_artifact_name }}
+      standard_identity_sha256: ${{ steps.handoff.outputs.standard_identity_sha256 }}
+      app_ref: ${{ steps.handoff.outputs.app_ref }}
+      shell_ref: ${{ steps.handoff.outputs.shell_ref }}
+      framework_ref: ${{ steps.handoff.outputs.framework_ref }}
+      opl_version: ${{ steps.handoff.outputs.opl_version }}
+      release_bundle_digest: ${{ steps.handoff.outputs.release_bundle_digest }}
+    steps:
+      - name: Admit one successful canonical Stable authority run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STABLE_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" \
+            > stable-authority-run.json
+          jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' stable-authority-run.json >/dev/null
+          activation_artifact="opl-release-activation-${STABLE_AUTHORITY_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID/artifacts?per_page=100" \
+            > stable-authority-artifacts.json
+          artifact_count="$(
+            jq -r --arg name "$activation_artifact" '
+              [.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length
+            ' stable-authority-artifacts.json
+          )"
+          case "$artifact_count" in
+            0)
+              echo "activation_artifact_found=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "activation_artifact_found=true" >> "$GITHUB_OUTPUT"
+              echo "activation_artifact=$activation_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stable authority run contains duplicate Latest activation artifacts."
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact Latest activation evidence
+        if: ${{ steps.authority.outputs.activation_artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.activation_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: latest-activation
+
+      - name: Bind exact follower handoff
+        id: handoff
+        if: ${{ always() && steps.authority.outcome == 'success' }}
+        env:
+          STABLE_AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.authority.outputs.activation_artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          while IFS= read -r handoff; do handoffs+=("$handoff"); done < <(
+            find latest-activation -type f -name webui-follower-handoff.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1 || {
+            echo "::error::Latest activation must contain exactly one WebUI follower handoff."
+            exit 1
+          }
+          handoff="${handoffs[0]}"
+          status="$(jq -er .status "$handoff")"
+          case "$status" in
+            skipped_legacy_identity_unavailable)
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            ready) ;;
+            *)
+              echo "::error::WebUI follower handoff status is invalid."
+              exit 1
+              ;;
+          esac
+          stable_head_sha="$(jq -er .head_sha stable-authority-run.json)"
+          jq -e \
+            --arg run "$STABLE_AUTHORITY_RUN_ID" \
+            --arg head "$stable_head_sha" '
+              .schema == "opl_app_webui_follower_handoff.v1"
+              and .status == "ready"
+              and .stable_authority == {
+                repository: "gaofeng21cn/one-person-lab-app",
+                workflow: ".github/workflows/release-stable.yml",
+                run_id: $run,
+                run_attempt: 1,
+                executor_head_sha: $head
+              }
+              and (.source.artifact_run_id | test("^[1-9][0-9]*$"))
+              and (.source.checkpoint_artifact | test("^[A-Za-z0-9][A-Za-z0-9._-]+$"))
+              and (.source.standard_identity_sha256 | test("^sha256:[0-9a-f]{64}$"))
+              and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+              and (.release.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+              and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+              and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+              and .latest_activation.admission_schema == "opl_standard_latest_admission_receipt.v1"
+              and .latest_activation.admitted == true
+              and .latest_activation.framework_terminal_status == "complete"
+            ' "$handoff" >/dev/null
+          {
+            echo "eligible=true"
+            echo "stable_authority_run_id=$STABLE_AUTHORITY_RUN_ID"
+            echo "source_artifact_run_id=$(jq -er .source.artifact_run_id "$handoff")"
+            echo "standard_checkpoint_artifact_name=$(jq -er .source.checkpoint_artifact "$handoff")"
+            echo "standard_identity_sha256=$(jq -er .source.standard_identity_sha256 "$handoff")"
+            echo "app_ref=$(jq -er .release.cohort.app_sha "$handoff")"
+            echo "shell_ref=$(jq -er .release.cohort.shell_sha "$handoff")"
+            echo "framework_ref=$(jq -er .release.cohort.framework_sha "$handoff")"
+            echo "opl_version=$(jq -er .release.version "$handoff")"
+            echo "release_bundle_digest=$(jq -er .release.bundle_digest "$handoff")"
+          } >> "$GITHUB_OUTPUT"
+
+  webui-carrier:
+    if: ${{ needs.resolve-handoff.outputs.eligible == 'true' }}
+    needs: [resolve-handoff]
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/_release-webui-carrier.yml
+    with:
+      mode: execute
+      app_ref: ${{ needs.resolve-handoff.outputs.app_ref }}
+      shell_ref: ${{ needs.resolve-handoff.outputs.shell_ref }}
+      framework_ref: ${{ needs.resolve-handoff.outputs.framework_ref }}
+      opl_version: ${{ needs.resolve-handoff.outputs.opl_version }}
+      release_bundle_digest: ${{ needs.resolve-handoff.outputs.release_bundle_digest }}
+      release_cohort_ref: ${{ needs.resolve-handoff.outputs.release_bundle_digest }}
+      source_artifact_run_id: ${{ needs.resolve-handoff.outputs.source_artifact_run_id }}
+      standard_checkpoint_artifact_name: ${{ needs.resolve-handoff.outputs.standard_checkpoint_artifact_name }}
+      standard_identity_sha256: ${{ needs.resolve-handoff.outputs.standard_identity_sha256 }}
+
+  promote-webui-stable:
+    if: ${{ needs.resolve-handoff.outputs.eligible == 'true' }}
+    needs: [resolve-handoff, webui-carrier]
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/release-webui-stable.yml
+    with:
+      mode: execute
+      stable_authority_run_id: ${{ needs.resolve-handoff.outputs.stable_authority_run_id }}
+      carrier_artifact_name: ${{ needs.webui-carrier.outputs.carrier_artifact_name }}

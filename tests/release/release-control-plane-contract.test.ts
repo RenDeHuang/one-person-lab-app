@@ -119,7 +119,7 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
   const operations = control.operation_control;
   const resilience = control.resilience_policy;
 
-  assert.equal(operations.all_channel_mutation_mutex, 'one_repository_release_mutation_group_for_stable_and_nightly');
+  assert.equal(operations.stable_mutation_mutex, 'opl-release-bundle-global');
   assert.equal(operations.stable_operations.standard.deadline_minutes, 90);
   assert.equal(operations.stable_operations.resume_standard.deadline_minutes, undefined);
   assert.equal(operations.stable_operations.resume_standard.control, 'reuse_exact_standard_control');
@@ -167,7 +167,7 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
   assert.equal(resilience.homebrew_retry_push_on_unknown_allowed, false);
 });
 
-test('Standard Latest admission binds both real predecessors to one exact candidate and Homebrew readback', () => {
+test('Standard Latest admission derives exact predecessors from public release truth', () => {
   const stable = readJson('contracts/app-release-channel.json')
     .release_bundle_control_plane.publication.stable;
   const admission = stable.latest_admission;
@@ -177,8 +177,11 @@ test('Standard Latest admission binds both real predecessors to one exact candid
   assert.equal(admission.required_status, 'passed');
   assert.equal(admission.latest_activation_admitted_required, true);
   assert.equal(admission.framework_latest_eligible_alone_is_sufficient, false);
-  assert.deepEqual(admission.required_predecessor_display_versions, ['v26.7.20', 'v26.7.21']);
-  assert.equal(admission.required_predecessor_receipt_count, 2);
+  assert.equal(admission.predecessor_policy_schema, 'opl_standard_updater_predecessor_policy.v1');
+  assert.equal(admission.predecessor_selection, 'deduplicated_current_latest_and_highest_public_stable');
+  assert.equal(admission.current_latest_readback_required, true);
+  assert.equal(admission.highest_public_stable_readback_required, true);
+  assert.equal(admission.receipt_count_must_equal_distinct_predecessor_count, true);
   assert.equal(admission.predecessor_receipt_schema, 'opl_updater_upgrade_qualification_receipt.v1');
   assert.equal(admission.predecessor_receipts_must_be_real_updater_vm_evidence, true);
   assert.equal(admission.synthetic_or_canary_predecessor_receipts_allowed, false);
@@ -308,13 +311,15 @@ test('legacy broker, session, and operator contracts are historical receipt read
   assert.deepEqual(release.release_bundle_control_plane.validation_canary, {
     workflow: '.github/workflows/release-bundle-canary.yml',
     mode: 'validation_only',
-    triggers: ['push_main', 'pull_request'],
+    triggers: ['push_main', 'pull_request', 'daily_schedule'],
     starts_reusable_topology: [
       '_release-bundle.yml',
       '_release-standard-publish.yml',
       '_release-full-addon.yml',
       '_build-reusable.yml',
       'opl-first-run-vm.yml',
+      '_release-webui-carrier.yml',
+      'release-webui-stable.yml',
       'opl-updater-upgrade-vm.yml',
       'full-first-install-release.yml',
     ],
@@ -323,6 +328,8 @@ test('legacy broker, session, and operator contracts are historical receipt read
     build_or_vm_execution_allowed: false,
     external_write_allowed: false,
     stable_mutation_allowed: false,
+    publication_allowed: false,
+    uses_stable_mutation_mutex: false,
     synthetic_identity_may_authorize_release: false,
   });
 });
@@ -401,7 +408,7 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
       release.release_bundle_control_plane.publication.stable.latest_admission.framework_latest_eligible_alone_is_sufficient = true;
     },
     (release) => {
-      release.release_bundle_control_plane.publication.stable.latest_admission.required_predecessor_display_versions = ['v26.7.21'];
+      release.release_bundle_control_plane.publication.stable.latest_admission.predecessor_selection = 'fixed_versions';
     },
     (release) => {
       release.release_bundle_control_plane.publication.stable.latest_admission.same_candidate_zip_required_for_all_predecessors = false;
