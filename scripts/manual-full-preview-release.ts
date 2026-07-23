@@ -87,6 +87,7 @@ const noncePattern = /^[0-9a-f]{32}$/;
 const previewTagPattern = /^manual-full-preview-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-m1-[0-9a-f]{12}$/;
 const manifestName = 'manual-full-preview-manifest.json';
 const largeAssetUploadTimeoutMs = 20 * 60_000;
+const githubCommandMaxBufferBytes = 32 * 1024 * 1024;
 const publishFixedNames = [
   'full-package-manifest.json',
   'manual-full-host-qa-receipt.json',
@@ -611,11 +612,25 @@ function remoteDigest(value: string | null | undefined): string | null {
 function assertReleaseIdentity(release: PreviewRelease, handoff: ValidatedPublishHandoff): void {
   if (
     release.tag_name !== handoff.previewTag
+    || release.target_commitish !== handoff.sourceCommit
     || release.name !== handoff.releaseName
     || release.body !== handoff.releaseNotes
     || release.prerelease !== true
   ) {
     throw new Error(`Remote preview Release ${handoff.previewTag} identity conflicts with the immutable handoff.`);
+  }
+}
+
+function assertPreviewTagState(
+  release: PreviewRelease,
+  handoff: ValidatedPublishHandoff,
+  tagCommit: string | null,
+): void {
+  if (tagCommit !== null && tagCommit !== handoff.sourceCommit) {
+    throw new Error(`Remote preview tag ${handoff.previewTag} points at a different source commit.`);
+  }
+  if (!release.draft && tagCommit !== handoff.sourceCommit) {
+    throw new Error('Published preview tag readback does not match the source-lock App commit.');
   }
 }
 
@@ -698,8 +713,7 @@ export function publishPreview(handoff: ValidatedPublishHandoff, remote: Preview
     }) as PreviewRelease;
   }
   assertReleaseIdentity(release, handoff);
-  const tagCommit = remote.inspectTag(handoff.previewTag);
-  if (tagCommit !== handoff.sourceCommit) throw new Error('Preview tag readback does not match the source-lock App commit.');
+  assertPreviewTagState(release, handoff, remote.inspectTag(handoff.previewTag));
   assertRemoteAssets(release, handoff.assets, false);
 
   for (const asset of handoff.assets) {
@@ -720,6 +734,7 @@ export function publishPreview(handoff: ValidatedPublishHandoff, remote: Preview
       },
     }) as PreviewRelease;
     assertReleaseIdentity(release, handoff);
+    assertPreviewTagState(release, handoff, remote.inspectTag(handoff.previewTag));
     assertRemoteAssets(release, handoff.assets, false);
   }
 
@@ -734,6 +749,7 @@ export function publishPreview(handoff: ValidatedPublishHandoff, remote: Preview
   }
   assertReleaseIdentity(release, handoff);
   if (release.draft) throw new Error('Preview Release remained a draft.');
+  assertPreviewTagState(release, handoff, remote.inspectTag(handoff.previewTag));
   assertRemoteAssets(release, handoff.assets, true);
   const latestAfter = remote.inspectLatestTag();
   if (latestAfter !== latestBefore || latestAfter === handoff.previewTag) {
@@ -816,6 +832,7 @@ function runGh(args: string[], allowFailure = false, timeoutMs = 30_000): Comman
   const result = spawnSync('gh', args, {
     encoding: 'utf8',
     timeout: timeoutMs,
+    maxBuffer: githubCommandMaxBufferBytes,
     env: process.env,
   });
   const output = {
@@ -830,13 +847,37 @@ function runGh(args: string[], allowFailure = false, timeoutMs = 30_000): Comman
   return output;
 }
 
-function ghJson(args: string[], allowNotFound = false): JsonRecord | null {
-  const result = runGh(args, allowNotFound);
+function ghJson(
+  args: string[],
+  allowNotFound = false,
+  executeGh: typeof runGh = runGh,
+): JsonRecord | null {
+  const result = executeGh(args, allowNotFound);
   if (result.status !== 0) {
     if (allowNotFound && /(?:HTTP\s+404|Not Found|status code 404)/i.test(result.stderr)) return null;
     throw new Error(`GitHub read failed: gh ${args.join(' ')}: ${result.stderr.trim()}`);
   }
   return record(JSON.parse(result.stdout) as unknown, 'GitHub response');
+}
+
+function ghPaginatedRecords(args: string[], executeGh: typeof runGh = runGh): JsonRecord[] {
+  const result = executeGh(args);
+  if (result.error || result.status !== 0) {
+    throw new Error(`GitHub read failed: gh ${args.join(' ')}: ${result.error?.message ?? result.stderr.trim()}`);
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(result.stdout) as unknown;
+  } catch (error) {
+    throw new Error(`GitHub paginated response is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!Array.isArray(value)) throw new Error('GitHub paginated response must be an array of pages.');
+  const entries: JsonRecord[] = [];
+  for (const page of value) {
+    if (!Array.isArray(page)) throw new Error('GitHub paginated response page must be an array.');
+    for (const entry of page) entries.push(record(entry, 'GitHub paginated release'));
+  }
+  return entries;
 }
 
 function normalizeRelease(value: JsonRecord): PreviewRelease {
@@ -881,27 +922,41 @@ function withGhInput(payload: unknown, run: (inputPath: string) => void): void {
 
 export class GhPreviewRemote implements PreviewRemote {
   readonly repo: string;
+  private readonly executeGh: typeof runGh;
 
-  constructor(repo: string) {
+  constructor(repo: string, executeGh: typeof runGh = runGh) {
     if (repo !== releaseRepo) throw new Error(`Manual preview publisher is fixed to ${releaseRepo}.`);
     this.repo = repo;
+    this.executeGh = executeGh;
   }
 
   inspectRelease(tag: string): PreviewRelease | null {
     assertPreviewTag(tag);
-    const value = ghJson(['api', `repos/${this.repo}/releases/tags/${tag}`], true);
-    return value ? normalizeRelease(value) : null;
+    const value = ghJson(['api', `repos/${this.repo}/releases/tags/${tag}`], true, this.executeGh);
+    if (value) {
+      const release = normalizeRelease(value);
+      if (release.tag_name !== tag) throw new Error(`GitHub Release tag metadata conflicts with ${tag}.`);
+      return release;
+    }
+    const matches = ghPaginatedRecords([
+      'api',
+      '--paginate',
+      '--slurp',
+      `repos/${this.repo}/releases?per_page=100`,
+    ], this.executeGh).filter((entry) => text(entry.tag_name, 'release.tag_name') === tag);
+    if (matches.length > 1) throw new Error(`GitHub release list contains multiple Releases for ${tag}.`);
+    return matches.length === 1 ? normalizeRelease(matches[0]) : null;
   }
 
   inspectTag(tag: string): string | null {
     assertPreviewTag(tag);
-    const value = ghJson(['api', `repos/${this.repo}/git/ref/tags/${tag}`], true);
+    const value = ghJson(['api', `repos/${this.repo}/git/ref/tags/${tag}`], true, this.executeGh);
     if (!value) return null;
     return exactGitSha(record(value.object, 'tag ref object').sha, 'preview tag commit');
   }
 
   inspectLatestTag(): string | null {
-    const value = ghJson(['api', `repos/${this.repo}/releases/latest`], true);
+    const value = ghJson(['api', `repos/${this.repo}/releases/latest`], true, this.executeGh);
     return value ? text(value.tag_name, 'Latest tag') : null;
   }
 
@@ -917,13 +972,13 @@ export class GhPreviewRemote implements PreviewRemote {
       prerelease: true,
       make_latest: 'false',
     }, (inputPath) => {
-      runGh(['api', '--method', 'POST', `repos/${this.repo}/releases`, '--input', inputPath]);
+      this.executeGh(['api', '--method', 'POST', `repos/${this.repo}/releases`, '--input', inputPath]);
     });
   }
 
   uploadAsset(releaseId: number, filePath: string, name: string): void {
     assertRegularFile(filePath, `preview asset ${name}`);
-    runGh([
+    this.executeGh([
       'api',
       '--method', 'POST',
       '-H', 'Content-Type: application/octet-stream',
@@ -935,18 +990,18 @@ export class GhPreviewRemote implements PreviewRemote {
   publishRelease(releaseId: number, name: string, body: string): void {
     exactInteger(releaseId, 'release id');
     withGhInput({ name, body, draft: false, prerelease: true, make_latest: 'false' }, (inputPath) => {
-      runGh(['api', '--method', 'PATCH', `repos/${this.repo}/releases/${releaseId}`, '--input', inputPath]);
+      this.executeGh(['api', '--method', 'PATCH', `repos/${this.repo}/releases/${releaseId}`, '--input', inputPath]);
     });
   }
 
   deleteRelease(releaseId: number): void {
     exactInteger(releaseId, 'release id');
-    runGh(['api', '--method', 'DELETE', `repos/${this.repo}/releases/${releaseId}`]);
+    this.executeGh(['api', '--method', 'DELETE', `repos/${this.repo}/releases/${releaseId}`]);
   }
 
   deleteTag(tag: string): void {
     assertPreviewTag(tag);
-    runGh(['api', '--method', 'DELETE', `repos/${this.repo}/git/refs/tags/${tag}`]);
+    this.executeGh(['api', '--method', 'DELETE', `repos/${this.repo}/git/refs/tags/${tag}`]);
   }
 }
 

@@ -9,6 +9,7 @@ import {
   cleanupPreview,
   derivePreviewTag,
   fileSha256,
+  GhPreviewRemote,
   MANUAL_FULL_PREVIEW_RELEASE_NOTES,
   publishPreview,
   releaseAssetUploadUrl,
@@ -211,6 +212,7 @@ class FakeRemote implements PreviewRemote {
   calls: string[] = [];
   unknownAfter = new Set<string>();
   unknownBefore = new Set<string>();
+  tagAtAssetUpload: Array<string | null> = [];
   inspectCount = 0;
   nextReleaseId = 100;
   nextAssetId = 1000;
@@ -240,7 +242,6 @@ class FakeRemote implements PreviewRemote {
   createDraft(input: { tag: string; targetCommitish: string; name: string; body: string }): void {
     const label = 'create';
     this.before(label);
-    this.tags.set(input.tag, input.targetCommitish);
     this.releases.set(input.tag, {
       id: this.nextReleaseId++,
       tag_name: input.tag,
@@ -259,6 +260,7 @@ class FakeRemote implements PreviewRemote {
     this.before(label);
     const release = [...this.releases.values()].find(({ id }) => id === releaseId);
     assert.ok(release);
+    this.tagAtAssetUpload.push(this.tags.get(release.tag_name) ?? null);
     release.assets.push({
       id: this.nextAssetId++,
       name,
@@ -277,6 +279,8 @@ class FakeRemote implements PreviewRemote {
     release.body = body;
     release.draft = false;
     release.prerelease = true;
+    assert.ok(release.target_commitish);
+    this.tags.set(release.tag_name, release.target_commitish);
     this.after(label);
   }
 
@@ -394,8 +398,133 @@ test('publish creates one prerelease, uploads exact assets, and preserves Latest
   assert.equal(release.draft, false);
   assert.equal(release.prerelease, true);
   assert.equal(release.assets.length, 8);
+  assert.deepEqual(remote.tagAtAssetUpload, Array(8).fill(null));
+  assert.equal(remote.tags.get(fixture.previewTag), appSha);
   assert.deepEqual(remote.calls.filter((call) => call === 'create'), ['create']);
   assert.deepEqual(remote.calls.filter((call) => call === 'publish'), ['publish']);
+});
+
+test('publish resumes the unique exact draft while its Git tag is absent', (t) => {
+  const fixture = createPublishHandoff(t);
+  const remote = new FakeRemote();
+  const handoff = validateHandoffDirectory(fixture.root, 'publish', fixture.manifestSha256);
+  assert.equal(handoff.operation, 'publish');
+  remote.releases.set(fixture.previewTag, {
+    id: 358387778,
+    tag_name: fixture.previewTag,
+    target_commitish: appSha,
+    name: handoff.releaseName,
+    body: handoff.releaseNotes,
+    draft: true,
+    prerelease: true,
+    published_at: null,
+    assets: [],
+  });
+  const receipt = publishPreview(handoff, remote);
+  assert.equal(receipt.release_id, 358387778);
+  assert.equal(remote.calls.includes('create'), false);
+  assert.deepEqual(remote.tagAtAssetUpload, Array(8).fill(null));
+  assert.equal(remote.tags.get(fixture.previewTag), appSha);
+});
+
+test('draft lookup falls back to the authenticated paginated release list and requires uniqueness', () => {
+  const tag = 'manual-full-preview-26.7.22-m1-111111111111';
+  const draft = {
+    id: 358387778,
+    tag_name: tag,
+    target_commitish: appSha,
+    name: 'One Person Lab 26.7.22 Manual Full Preview',
+    body: MANUAL_FULL_PREVIEW_RELEASE_NOTES,
+    draft: true,
+    prerelease: true,
+    published_at: null,
+    assets: [],
+  };
+  let pages: unknown = [[draft]];
+  const calls: string[][] = [];
+  const executeGh = (args: string[], allowFailure = false) => {
+    calls.push(args);
+    if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${tag}`) {
+      assert.equal(allowFailure, true);
+      return { status: 1, stdout: '', stderr: 'gh: Not Found (HTTP 404)\n' };
+    }
+    assert.deepEqual(args, [
+      'api',
+      '--paginate',
+      '--slurp',
+      'repos/gaofeng21cn/one-person-lab-app/releases?per_page=100',
+    ]);
+    assert.equal(allowFailure, false);
+    return { status: 0, stdout: JSON.stringify(pages), stderr: '' };
+  };
+  const remote = new GhPreviewRemote('gaofeng21cn/one-person-lab-app', executeGh);
+  assert.deepEqual(remote.inspectRelease(tag), draft);
+  assert.equal(calls.length, 2);
+
+  pages = [[]];
+  assert.equal(remote.inspectRelease(tag), null);
+
+  pages = [[draft], [{ ...draft, id: 358387779 }]];
+  assert.throws(() => remote.inspectRelease(tag), /multiple Releases/);
+});
+
+test('draft tag or target metadata conflicts fail before any publication mutation', (t) => {
+  const fixture = createPublishHandoff(t);
+  const handoff = validateHandoffDirectory(fixture.root, 'publish', fixture.manifestSha256);
+  assert.equal(handoff.operation, 'publish');
+
+  const wrongTarget = new FakeRemote();
+  wrongTarget.releases.set(fixture.previewTag, {
+    id: 358387778,
+    tag_name: fixture.previewTag,
+    target_commitish: 'b'.repeat(40),
+    name: handoff.releaseName,
+    body: handoff.releaseNotes,
+    draft: true,
+    prerelease: true,
+    assets: [],
+  });
+  assert.throws(() => publishPreview(handoff, wrongTarget), /identity conflicts/);
+  assert.deepEqual(wrongTarget.calls, []);
+
+  const wrongTag = new FakeRemote();
+  wrongTag.releases.set(fixture.previewTag, {
+    id: 358387778,
+    tag_name: fixture.previewTag,
+    target_commitish: appSha,
+    name: handoff.releaseName,
+    body: handoff.releaseNotes,
+    draft: true,
+    prerelease: true,
+    assets: [],
+  });
+  wrongTag.tags.set(fixture.previewTag, 'b'.repeat(40));
+  assert.throws(() => publishPreview(handoff, wrongTag), /different source commit/);
+  assert.deepEqual(wrongTag.calls, []);
+});
+
+test('published preview requires an exact source-lock Git tag readback', (t) => {
+  const fixture = createPublishHandoff(t);
+  const remote = new FakeRemote();
+  const handoff = validateHandoffDirectory(fixture.root, 'publish', fixture.manifestSha256);
+  assert.equal(handoff.operation, 'publish');
+  remote.releases.set(fixture.previewTag, {
+    id: 358387778,
+    tag_name: fixture.previewTag,
+    target_commitish: appSha,
+    name: handoff.releaseName,
+    body: handoff.releaseNotes,
+    draft: false,
+    prerelease: true,
+    assets: handoff.assets.map((asset, index) => ({
+      id: 4000 + index,
+      name: asset.name,
+      size: asset.size_bytes,
+      digest: `sha256:${asset.sha256}`,
+    })),
+  });
+  assert.throws(() => publishPreview(handoff, remote), /Published preview tag readback/);
+  assert.deepEqual(remote.calls, []);
 });
 
 test('same-name same-digest publication is idempotent and conflicting bytes fail closed', (t) => {
