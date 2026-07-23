@@ -819,24 +819,26 @@ test('App contracts define one minimal package activation authority', () => {
   assert.equal(packageSurfaces.$defs.agent_package_use_boundary_action, undefined);
   assert.equal(packageSurfaces.$defs.agent_package_session_launch_projection, undefined);
 
-  const fixtureAction = fastFixture.app_state.actions.find(
-    (action: { action_id: string }) => action.action_id === 'agent_package_activate',
+  assert.equal(
+    fastFixture.app_state.actions.some(
+      (action: { action_id: string }) => action.action_id === 'agent_package_activate',
+    ),
+    false,
   );
-  assert.deepEqual(fixtureAction.payload_fields, ['package_id', 'scope', 'target_workspace']);
-  assert.equal(fixtureAction.result_fields.includes('package_id'), true);
-  assert.equal(fixtureAction.result_fields.includes('launch_allowed'), true);
   const directoryEntries = fastFixture.app_state.agent_packages.directory.entries;
   assert.equal(directoryEntries.some((entry: any) => 'use_boundary_action' in entry), false);
-  const activationEntry = directoryEntries.find(
-    (entry: any) => entry.recommended_action === 'agent_package_activate',
+  assert.equal(
+    directoryEntries.some((entry: any) =>
+      entry.available_actions.some(
+        (action: { action_id: string }) => action.action_id === 'agent_package_activate',
+      )),
+    false,
   );
-  assert.deepEqual(activationEntry.recommended_action_ref.payload, {
-    package_id: activationEntry.package_id,
-  });
-  assert.deepEqual(
-    activationEntry.recommended_action_ref.required_payload_fields,
-    ['package_id', 'target_workspace'],
+  const inactiveEntry = directoryEntries.find(
+    (entry: any) => entry.installed && !entry.activated,
   );
+  assert.equal(inactiveEntry.recommended_action, null);
+  assert.equal(inactiveEntry.recommended_action_ref, null);
 
   assert.equal(launchMatrix.read_and_action_sources.status_and_dry_run_write_count, 0);
   assert.deepEqual(launchMatrix.launch_state_contract.states, [

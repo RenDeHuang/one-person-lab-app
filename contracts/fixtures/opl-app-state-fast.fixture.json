@@ -157,26 +157,9 @@
               "visibility": "visible",
               "codex_visible": true
             },
-            "recommended_action": "agent_package_activate",
-            "recommended_action_ref": {
-              "action_id": "agent_package_activate",
-              "action_ref": "app_state.actions#agent_package_activate",
-              "payload": {
-                "package_id": "oma"
-              },
-              "required_payload_fields": ["package_id", "target_workspace"],
-              "confirmation_required": false
-            },
+            "recommended_action": null,
+            "recommended_action_ref": null,
             "available_actions": [
-              {
-                "action_id": "agent_package_activate",
-                "action_ref": "app_state.actions#agent_package_activate",
-                "payload": {
-                  "package_id": "oma"
-                },
-                "required_payload_fields": ["package_id", "target_workspace"],
-                "confirmation_required": false
-              },
               {
                 "action_id": "agent_package_update",
                 "action_ref": "app_state.actions#agent_package_update",
@@ -1648,26 +1631,6 @@
       }
     },
     "actions": [
-      {
-        "action_id": "agent_package_activate",
-        "label": "Prepare package for launch",
-        "surface": "opl app action execute",
-        "delegated_surface": "opl app action execute --action agent_package_activate --payload <json> --json",
-        "payload_fields": ["package_id", "scope", "target_workspace"],
-        "result_fields": [
-          "package_id",
-          "package_lock",
-          "launch_allowed",
-          "launch_blocked_reason",
-          "use_binding",
-          "package_use_binding"
-        ],
-        "mutates": "framework_owned_package_scope_reconciliation_with_receipt",
-        "owner": "opl_framework",
-        "submit_via": "opl app action execute",
-        "execution_policy": "framework_owned_package_activation",
-        "route": "opl app action execute --action agent_package_activate --payload <json> --json"
-      },
       {
         "action_id": "provider_scheduler_status",
         "label": "Read Temporal scheduler status",

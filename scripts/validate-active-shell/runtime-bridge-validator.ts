@@ -267,6 +267,13 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   ) {
     throw new Error('Agent Package directory fixture counts must match its entries');
   }
+  const publicActions = lookupPath(fixture, 'app_state.actions');
+  if (
+    !Array.isArray(publicActions)
+    || publicActions.some((action) => action?.action_id === 'agent_package_activate')
+  ) {
+    throw new Error('Fast App-state public actions must exclude Framework Stage runtime activation');
+  }
 
   for (const entry of directory.entries) {
     assertExactObjectFields(entry, agentPackageDirectoryEntryFields, `Agent Package directory entry ${entry?.package_id ?? '<unknown>'}`);
@@ -340,11 +347,8 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     for (const action of entry.available_actions) {
       validateAgentPackageDirectoryAction(action, `Agent Package directory entry ${entry.package_id} action`);
     }
-    if (
-      entry.package_role !== 'standard_agent'
-      && entry.available_actions.some((action) => action.action_id === 'agent_package_activate')
-    ) {
-      throw new Error(`Agent Package directory entry ${entry.package_id} must not expose Agent launch for ${entry.package_role}`);
+    if (entry.available_actions.some((action) => action.action_id === 'agent_package_activate')) {
+      throw new Error(`Agent Package directory entry ${entry.package_id} must not expose Framework Stage runtime activation`);
     }
     const recommended = entry.available_actions.find((action) => action.action_id === entry.recommended_action) ?? null;
     if (entry.recommended_action === null) {
@@ -368,20 +372,18 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   ) {
     throw new Error('Agent Package directory fixture must include an uninstalled package with its canonical install action');
   }
-  const activationEntry = directory.entries.find((entry) =>
+  const inactiveEntry = directory.entries.find((entry) =>
     entry.installed === true
     && entry.activated === false
-    && entry.recommended_action === 'agent_package_activate'
+    && entry.readiness?.status === 'activation_required'
   );
   if (
-    !activationEntry
-    || activationEntry.recommended_action_ref?.payload?.package_id !== activationEntry.package_id
-    || Object.hasOwn(activationEntry.recommended_action_ref.payload, 'scope')
-    || Object.hasOwn(activationEntry.recommended_action_ref.payload, 'target_workspace')
-    || JSON.stringify(activationEntry.recommended_action_ref.required_payload_fields) !==
-      JSON.stringify(['package_id', 'target_workspace'])
+    !inactiveEntry
+    || inactiveEntry.recommended_action !== null
+    || inactiveEntry.recommended_action_ref !== null
+    || inactiveEntry.available_actions.some((action) => action.action_id === 'agent_package_activate')
   ) {
-    throw new Error('Agent Package directory fixture must keep the internal activation ABI generic and scope-less while requiring Framework Stage runtime target_workspace context');
+    throw new Error('Agent Package directory fixture must keep activation-required status diagnostic-only for Framework Stage runtime');
   }
   const activatedEntry = directory.entries.find((entry) => entry.installed === true && entry.activated === true);
   if (

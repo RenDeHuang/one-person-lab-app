@@ -19,7 +19,13 @@ test('Fast App state fixture uses the exact public Agent Package directory and a
   assert.equal(directory.detail, 'fast');
   assert.equal(directory.entries.length, 3);
   assert.ok(directory.entries.some((entry: any) => !entry.installed && entry.recommended_action === 'install_from_manifest_url'));
-  assert.ok(directory.entries.some((entry: any) => entry.installed && !entry.activated && entry.recommended_action === 'agent_package_activate'));
+  assert.ok(directory.entries.some((entry: any) =>
+    entry.installed
+    && !entry.activated
+    && entry.readiness.status === 'activation_required'
+    && entry.recommended_action === null
+    && entry.recommended_action_ref === null
+  ));
   assert.ok(directory.entries.some((entry: any) =>
     entry.installed
     && entry.activated
@@ -28,21 +34,22 @@ test('Fast App state fixture uses the exact public Agent Package directory and a
     && entry.readiness.operational_ready === false
     && entry.readiness.launch_allowed === false
   ));
-  const activationEntry = directory.entries.find((entry: any) => entry.recommended_action === 'agent_package_activate');
-  assert.deepEqual(activationEntry.recommended_action_ref.payload, { package_id: activationEntry.package_id });
-  assert.deepEqual(
-    activationEntry.recommended_action_ref.required_payload_fields,
-    ['package_id', 'target_workspace'],
+  assert.equal(
+    directory.entries.some((entry: any) =>
+      entry.available_actions.some((action: any) => action.action_id === 'agent_package_activate')),
+    false,
   );
-  assert.equal(activationEntry.recommended_action_ref.action_ref, 'app_state.actions#agent_package_activate');
-  assert.equal('package_version' in activationEntry.recommended_action_ref.payload, false);
+  assert.equal(
+    fixture.app_state.actions.some((action: any) => action.action_id === 'agent_package_activate'),
+    false,
+  );
   const packageContract = readJson('contracts/app-runtime-bridge.json')
     .canonical_state_display_action_map.rows.find((row: any) => row.semantic_area === 'package');
   assert.ok(packageContract.required_projection_fields['status_index.packages[package_id]']);
   assert.equal(packageContract.optional_enrichment_fields['status_index.packages[package_id]'], undefined);
 });
 
-test('Fast Agent Package directory rejects action, source, workspace, and readiness ABI drift', () => {
+test('Fast Agent Package directory rejects public action, source, and readiness ABI drift', () => {
   const cases = [
     (fixture: any) => {
       delete fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref;
@@ -62,14 +69,15 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
       fixture.app_state.agent_packages.directory.entries[0].recommended_action_ref.payload.package_id = 'wrong-package';
     },
     (fixture: any) => {
-      const entry = fixture.app_state.agent_packages.directory.entries.find(
-        (candidate: any) => candidate.recommended_action === 'agent_package_activate',
-      );
-      const action = entry.available_actions.find((candidate: any) => candidate.action_id === 'agent_package_activate');
-      action.payload.scope = 'workspace';
-      action.payload.target_workspace = fixture.app_state.paths.workspace_root_path;
-      entry.recommended_action_ref.payload.scope = 'workspace';
-      entry.recommended_action_ref.payload.target_workspace = fixture.app_state.paths.workspace_root_path;
+      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) =>
+        candidate.installed && !candidate.activated);
+      entry.available_actions.push({
+        action_id: 'agent_package_activate',
+        action_ref: 'app_state.actions#agent_package_activate',
+        payload: { package_id: entry.package_id },
+        required_payload_fields: ['package_id', 'target_workspace'],
+        confirmation_required: false,
+      });
     },
     (fixture: any) => {
       const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.activated);
@@ -81,8 +89,10 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
       delete fixture.app_state.agent_packages.directory.entries[0].source_explanation.version_source_ref;
     },
     (fixture: any) => {
-      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.installed);
-      entry.package_role = 'framework_capability_package';
+      fixture.app_state.actions.push({
+        action_id: 'agent_package_activate',
+        label: 'Prepare package for launch',
+      });
     },
   ];
 
