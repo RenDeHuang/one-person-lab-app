@@ -25,20 +25,24 @@ test('repository Actions caches satisfy the reusable cache policy', () => {
 test('first-run Codex install seed uses full content identity and main-only miss saves', () => {
   const workflowPath = path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml');
   const workflowText = fs.readFileSync(workflowPath, 'utf8');
+  const prefetchScriptText = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'prefetch-codex-package-install-assets.mjs'),
+    'utf8',
+  );
   const workflow = parseYaml(workflowText) as Record<string, any>;
   const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
   const saveStep = steps.find((step) => step.name === 'Save Codex install asset cache');
 
   assert.match(
-    workflowText,
+    prefetchScriptText,
     /`\$\{cacheKeyPrefix\}-\$\{version\}-\$\{tarballSha256\}-\$\{platformTarballSha256\}`/,
   );
   assert.doesNotMatch(
-    workflowText,
+    prefetchScriptText,
     /cacheKey\s*=\s*[^;]{0,1024}(?:GITHUB_RUN_ID|GITHUB_RUN_ATTEMPT)/,
   );
-  assert.match(workflowText, /cacheSaveRequired = Boolean\(cacheKey && restoredCacheKey !== cacheKey\)/);
-  assert.match(workflowText, /`cache_save_required=\$\{cacheSaveRequired\}`/);
+  assert.match(prefetchScriptText, /cacheSaveRequired = Boolean\(cacheKey && restoredCacheKey !== cacheKey\)/);
+  assert.match(prefetchScriptText, /`cache_save_required=\$\{cacheSaveRequired\}`/);
   assert.equal(
     saveStep?.if,
     "${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && github.ref == 'refs/heads/main' && steps.codex_package_preflight.outputs.cache_save_required == 'true' }}",
