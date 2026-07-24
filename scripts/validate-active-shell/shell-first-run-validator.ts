@@ -239,6 +239,13 @@ export function validateFirstRunImplementation(shellPaths) {
   ) {
     throw new Error('Active shell FirstRun must keep a pure, always-enabled /guid entry before readiness');
   }
+  const officialProfileCompletionGatePresent = [
+    'officialProfileFirstInstallCompleted',
+    'officialProfileFirstInstallRequired',
+    'completionReady',
+    "setOfficialProfileFirstInstallCompleted(true)",
+    "data-testid='opl-first-run-official-profile-retry'",
+  ].every((expected) => firstRunPage.includes(expected));
   for (const expected of ['readCoreLaunchPrerequisiteState', "useOplAppState('fast'"]) {
     if (!corePrerequisitesHook.includes(expected)) {
       throw new Error(`Active shell progressive first-run readiness hook must include ${expected}`);
@@ -326,6 +333,7 @@ export function validateFirstRunImplementation(shellPaths) {
         ? [
             "data-testid='opl-first-run-task-panel'",
             "data-testid={readyToLaunch ? 'opl-first-run-completion' : 'opl-first-run-task-panel'}",
+            "data-testid={completionReady ? 'opl-first-run-completion' : 'opl-first-run-task-panel'}",
           ]
         : [`data-testid='${id}'`];
     if (!expectedExpressions.some((expected) => firstRunPage.includes(expected))) {
@@ -334,17 +342,31 @@ export function validateFirstRunImplementation(shellPaths) {
       );
     }
   }
+  for (const expectedVariants of [
+    ["className={styles.firstRunPage}"],
+    [
+      "className={`${styles.firstRunWorkspace} ${readyToLaunch ? styles.firstRunWorkspaceComplete : ''}`}",
+      "className={`${styles.firstRunWorkspace} ${completionReady ? styles.firstRunWorkspaceComplete : ''}`}",
+    ],
+    ["className={styles.firstRunStepRail}"],
+    [
+      "className={`${styles.firstRunTaskPanel} ${readyToLaunch ? styles.firstRunTaskPanelComplete : ''}`}",
+      "className={`${styles.firstRunTaskPanel} ${completionReady ? styles.firstRunTaskPanelComplete : ''}`}",
+    ],
+    ["const PRIMARY_FIRST_RUN_ITEM_IDS: FirstRunItemId[] = ['workspace_root', 'codex', 'codex_config'];"],
+    ["data-testid={`opl-first-run-step-${id}`}"],
+    ["showModelAccessTask = codexConfigBlocked && activePrimaryStepId === 'codex_config'"],
+  ]) {
+    if (!expectedVariants.some((expected) => firstRunPage.includes(expected))) {
+      throw new Error(`Active shell FirstRun focused task binding must include ${expectedVariants.join(' or ')}`);
+    }
+  }
   for (const expected of [
-    "className={styles.firstRunPage}",
-    "className={`${styles.firstRunWorkspace} ${readyToLaunch ? styles.firstRunWorkspaceComplete : ''}`}",
-    "className={styles.firstRunStepRail}",
-    "className={`${styles.firstRunTaskPanel} ${readyToLaunch ? styles.firstRunTaskPanelComplete : ''}`}",
     "const PRIMARY_FIRST_RUN_ITEM_IDS: FirstRunItemId[] = ['workspace_root', 'codex', 'codex_config'];",
-    "data-testid={`opl-first-run-step-${id}`}",
-    "showModelAccessTask = codexConfigBlocked && activePrimaryStepId === 'codex_config'",
+    'officialProfileCompletedRef.current = true',
   ]) {
     if (!firstRunPage.includes(expected)) {
-      throw new Error(`Active shell FirstRun focused task binding must include ${expected}`);
+      throw new Error(`Active shell FirstRun must preserve ${expected}`);
     }
   }
   const readyEntryButton = firstRunPage.match(/<Button\s+ref=\{readyEntryRef\}[\s\S]*?<\/Button>/)?.[0] ?? '';
@@ -358,6 +380,12 @@ export function validateFirstRunImplementation(shellPaths) {
     throw new Error(
       'Active shell ready entry must preserve post-install self-check state and only disable while its profile-install action is running',
     );
+  }
+  if (officialProfileCompletionGatePresent && firstRunPage.includes("data-testid='opl-first-run-ready-entry'")) {
+    const completionBranch = firstRunPage.match(/officialProfileFirstInstallPending \? \([\s\S]*?\) : completionReady \? \([\s\S]*?data-testid='opl-first-run-ready-entry'/)?.[0] ?? '';
+    if (!completionBranch) {
+      throw new Error('Active shell first-install completion must stay blocked until Official Profile apply succeeds');
+    }
   }
   for (const expected of [
     "setAttribute('inert', '')",
