@@ -12,7 +12,7 @@ param(
   [string]$DataDir,
   [string]$ProjectsDir,
   [ValidateRange(1, 86400)]
-  [int]$HealthTimeoutSeconds = 120,
+  [int]$HealthTimeoutSeconds = 600,
   [string]$HealthUrl,
   [string]$DiagnosticsDir,
   [string]$DiagnosticsArchive,

@@ -25,6 +25,7 @@ function runPwsh(args: string[]) {
 }
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { timeout: 30_000 }, () => {
+  assert.match(fs.readFileSync(installerPath, 'utf8'), /\[int\]\$HealthTimeoutSeconds = 600/);
   if (!pwshPath) {
     return;
   }
