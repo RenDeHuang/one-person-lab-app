@@ -1723,69 +1723,6 @@
         }
       }
     ],
-    "assistant_skill_profiles_metadata_policy": {
-      "role": "optional_migration_and_display_metadata",
-      "allowed_uses": ["legacy_assistant_alias_migration", "display_hint_fallback"],
-      "forbidden_authority": ["package_membership", "skill_or_capability_scope", "installed", "present", "callable", "actions"],
-      "runtime_authority_ref": "owner_or_carrier_projected_capability_metadata"
-    },
-    "assistant_skill_profiles": [
-      {
-        "assistant_id": "mas",
-        "required_skills": [
-          "med-autoscience"
-        ],
-        "optional_skills": [
-          "mineru-document-extractor",
-          "officecli-docx",
-          "officecli-xlsx"
-        ],
-        "required_skill_policy": "checked_locked",
-        "optional_skill_policy": "unchecked_user_selectable",
-        "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
-      },
-      {
-        "assistant_id": "mag",
-        "required_skills": [
-          "med-autogrant"
-        ],
-        "optional_skills": [
-          "officecli-docx",
-          "officecli-xlsx",
-          "mineru-document-extractor"
-        ],
-        "required_skill_policy": "checked_locked",
-        "optional_skill_policy": "unchecked_user_selectable",
-        "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
-      },
-      {
-        "assistant_id": "rca",
-        "required_skills": [
-          "redcube-ai"
-        ],
-        "optional_skills": [
-          "officecli-pptx",
-          "ui-ux-pro-max"
-        ],
-        "required_skill_policy": "checked_locked",
-        "optional_skill_policy": "unchecked_user_selectable",
-        "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
-      },
-      {
-        "assistant_id": "obf",
-        "required_skills": [
-          "opl-bookforge"
-        ],
-        "optional_skills": [
-          "officecli-docx",
-          "pdf",
-          "mineru-document-extractor"
-        ],
-        "required_skill_policy": "checked_locked",
-        "optional_skill_policy": "unchecked_user_selectable",
-        "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
-      }
-    ],
     "non_default_assistants": [
       {
         "id": "oma",

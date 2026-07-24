@@ -369,9 +369,6 @@ const productProfileDefaultsExpected = [
   '"label_zh": "5.4"',
   '"label_zh": "5.4 Mini"',
   '"label_zh": "5.2"',
-  '"assistant_skill_profiles"',
-  '"required_skills"',
-  '"skill_menu_policy": "assistant_scoped_required_checked_optional_visible"',
   '"default_packaged_codex_skill_ids"',
 ];
 
@@ -405,15 +402,13 @@ const codexModelsExpected = [
 ];
 
 const guidAssistantsExpected = [
-  'getOplDefaultExecutorAgentKey',
-  'getOplDefaultHomeAssistants',
   'getOplHomeAgentShortcutsFromAppState',
   'agentPackageDirectoryEntries',
+  "entry.package_role !== 'standard_agent'",
+  'resolveOplProfessionalAgentAssistants',
   'resolveOplHomeAssistants',
   'opl_package_id',
   'opl_shortcut_id',
-  'const DEFAULT_PRESET_AGENT_TYPE = getOplDefaultExecutorAgentKey()',
-  'preset_agent_type: DEFAULT_PRESET_AGENT_TYPE',
   'enabled_skills',
   'custom_skill_names',
   'disabled_builtin_skills',
@@ -687,9 +682,13 @@ function validateGuidAssistantRegistry(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/utils/oplHomeAssistants.ts',
     guidAssistantsExpected,
-    'Active shell Guid assistants App-owned assistant/default signal',
+    'Active shell Guid assistants dynamic directory and exact backend binding',
   );
-  assertTextDoesNotMatch(guidAssistants, /mds|Med Deep Scientist/, 'Active shell Guid profile must not include MDS as a default home assistant.');
+  assertTextDoesNotMatch(
+    guidAssistants,
+    /getOplDefaultHomeAssistants|getOplDefaultExecutorAgentKey|DEFAULT_PRESET_AGENT_TYPE|preset_agent_type:/,
+    'Active shell Guid Agent directory must not restore fixed Profile membership or guessed executor identity.',
+  );
 }
 
 function validateGuidSkillRules(shellPaths, guidPage) {

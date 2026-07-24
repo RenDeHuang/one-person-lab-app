@@ -45,12 +45,6 @@ const optionalDisplayMetadataPolicy = {
     forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
     runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
   },
-  assistantSkills: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['legacy_assistant_alias_migration', 'display_hint_fallback'],
-    forbidden_authority: ['package_membership', 'skill_or_capability_scope', 'installed', 'present', 'callable', 'actions'],
-    runtime_authority_ref: 'owner_or_carrier_projected_capability_metadata',
-  },
 } as const;
 
 const dynamicHomeComposerAuthority = {
@@ -996,49 +990,6 @@ function assertProfessionalAgentPackages(profile: AppProductProfile): void {
   }
 }
 
-function assertAssistantSkillProfiles(
-  profile: AppProductProfile,
-): AppProductProfile['gui']['assistant_skill_profiles'] {
-  if (
-    JSON.stringify(profile.gui.assistant_skill_profiles_metadata_policy) !==
-      JSON.stringify(optionalDisplayMetadataPolicy.assistantSkills)
-  ) {
-    throw new Error('App product profile assistant Skill profiles must be optional display/migration input only');
-  }
-  const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  const assistantIds = skillProfiles.map((entry) => entry.assistant_id);
-  if (
-    assistantIds.some((assistantId) => typeof assistantId !== 'string' || !assistantId.trim()) ||
-    new Set(assistantIds).size !== assistantIds.length
-  ) {
-    throw new Error('App product profile assistant Skill metadata ids must be non-empty and unique');
-  }
-  for (const entry of skillProfiles) {
-    assertCapabilityReferenceListShape(
-      entry.required_skills,
-      `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`,
-    );
-    assertCapabilityReferenceListShape(
-      entry.optional_skills,
-      `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`,
-    );
-    if ('hidden_home_skill_names' in entry) {
-      throw new Error(`App product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
-    }
-    if (entry.optional_skills.includes('morph-ppt')) {
-      throw new Error(`App product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
-    }
-    if (
-      entry.required_skill_policy !== 'checked_locked' ||
-      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
-      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
-    ) {
-      throw new Error(`App product profile assistant ${entry.assistant_id} has invalid skill menu policy`);
-    }
-  }
-  return skillProfiles;
-}
-
 function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void {
   const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
   if (!oma || oma.home_default_visible !== true || oma.home_entry_policy !== 'settings_managed_home_shortcut') {
@@ -1155,7 +1106,6 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertProfessionalAgentPackages(profile);
   assertDefaultAssistantProfileShape(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
-  assertAssistantSkillProfiles(profile);
   assertNonDefaultAssistantProfileShape(profile);
   assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');

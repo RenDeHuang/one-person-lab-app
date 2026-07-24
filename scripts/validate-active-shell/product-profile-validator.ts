@@ -203,7 +203,6 @@ function validateProductProfileCodexDefaults(profile) {
   validateHomeAssistantDefaults(profile);
   validateProfessionalAgentPackages(profile);
   validateProductProfileSettings(profile);
-  validateAssistantSkillProfiles(profile);
   validateProductProfileCodexSkills(profile);
   validateInstallUpdateTaxonomy(profile);
   validateOrdinaryCapabilitySelectorPolicy(profile);
@@ -512,33 +511,6 @@ function validateProductProfileSettings(profile) {
     profile.settings?.legacy_route_redirects,
     'Product profile settings.control_plane legacy redirects',
   );
-}
-
-function validateAssistantSkillProfiles(profile) {
-  const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  const profileIds = productSkillProfiles.map((entry) => entry.assistant_id);
-  if (profileIds.some((id) => typeof id !== 'string' || !id.trim()) || new Set(profileIds).size !== profileIds.length) {
-    throw new Error('Product profile assistant skill profile ids must be non-empty and unique');
-  }
-  for (const entry of productSkillProfiles) {
-    assertCapabilityReferenceListShape(
-      entry.required_skills,
-      `Product profile assistant ${entry.assistant_id} required_skills`,
-    );
-    assertCapabilityReferenceListShape(
-      entry.optional_skills,
-      `Product profile assistant ${entry.assistant_id} optional_skills`,
-    );
-    if (entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible') {
-      throw new Error(`Product profile assistant ${entry.assistant_id} has invalid home skill menu policy`);
-    }
-    if (entry.optional_skills?.includes('morph-ppt')) {
-      throw new Error(`Product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
-    }
-    if ('hidden_home_skill_names' in entry) {
-      throw new Error(`Product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
-    }
-  }
 }
 
 function validateProductProfileCodexSkills(profile) {

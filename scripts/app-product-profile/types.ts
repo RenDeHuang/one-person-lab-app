@@ -714,20 +714,6 @@ export type AppProductProfile = {
       description_i18n: Record<string, string>;
       prompts_i18n: Record<string, string[]>;
     }>;
-    assistant_skill_profiles_metadata_policy: {
-      role: 'optional_migration_and_display_metadata';
-      allowed_uses: string[];
-      forbidden_authority: string[];
-      runtime_authority_ref: string;
-    };
-    assistant_skill_profiles?: Array<{
-      assistant_id: string;
-      required_skills: string[];
-      optional_skills: string[];
-      required_skill_policy: string;
-      optional_skill_policy: string;
-      skill_menu_policy: string;
-    }>;
     non_default_assistants: Array<{
       id: string;
       display_name: string;

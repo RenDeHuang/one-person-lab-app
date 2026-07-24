@@ -46,8 +46,6 @@ function replacePackageAndCapabilityIdentities(contract: any): any {
   const value = structuredClone(contract);
   const gui = value.gui ?? value;
   gui.professional_agent_packages = [syntheticPackage];
-  gui.assistant_skill_profiles[0].required_skills = ['owner-profile-required-capability'];
-  gui.assistant_skill_profiles[0].optional_skills = ['owner-profile-optional-capability'];
   const homeShortcuts = gui.home?.home_agent_shortcuts ?? gui.home_agent_shortcuts;
   homeShortcuts[0].required_skill_ids = ['owner-shortcut-capability'];
   return value;
@@ -57,7 +55,6 @@ function clearOptionalAgentMetadata(contract: any): any {
   const value = structuredClone(contract);
   const gui = value.gui ?? value;
   gui.professional_agent_packages = [];
-  gui.assistant_skill_profiles = [];
   if (gui.home?.home_agent_shortcuts) {
     gui.home.home_agent_shortcuts = [];
   } else {
@@ -73,14 +70,6 @@ function driftOptionalAgentMetadata(contract: any): any {
     ...syntheticPackage,
     package_id: 'display-only-agent',
     agent_id: 'display-only-agent',
-  }];
-  gui.assistant_skill_profiles = [{
-    assistant_id: 'display-only-agent',
-    required_skills: ['display-only-required-capability'],
-    optional_skills: ['display-only-optional-capability'],
-    required_skill_policy: 'checked_locked',
-    optional_skill_policy: 'unchecked_user_selectable',
-    skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
   }];
   const shortcuts = [{
     shortcut_id: 'display-only-shortcut',

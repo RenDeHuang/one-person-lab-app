@@ -382,7 +382,6 @@ test('professional Agent metadata stays optional but requires localized names an
 
   const emptyMetadataProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   emptyMetadataProfile.gui.professional_agent_packages = [];
-  emptyMetadataProfile.gui.assistant_skill_profiles = [];
   emptyMetadataProfile.gui.home.home_agent_shortcuts = [];
   assert.doesNotThrow(() => validateProductProfile(emptyMetadataProfile, installExposure));
 

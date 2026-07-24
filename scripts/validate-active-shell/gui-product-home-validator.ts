@@ -30,12 +30,6 @@ const optionalDisplayMetadataPolicy = {
     forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
     runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
   },
-  assistantSkills: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['legacy_assistant_alias_migration', 'display_hint_fallback'],
-    forbidden_authority: ['package_membership', 'skill_or_capability_scope', 'installed', 'present', 'callable', 'actions'],
-    runtime_authority_ref: 'owner_or_carrier_projected_capability_metadata',
-  },
 };
 
 function assertLocalizedMetadata(value, label) {
@@ -443,42 +437,6 @@ function validateProfessionalAgentPackages(guiContract) {
   }
 }
 
-function validateAssistantSkillProfiles(guiContract) {
-  assertDeepEqualJson(
-    guiContract.assistant_skill_profiles_metadata_policy,
-    optionalDisplayMetadataPolicy.assistantSkills,
-    'App GUI contract assistant Skill metadata policy',
-  );
-  const skillProfiles = guiContract.assistant_skill_profiles ?? [];
-  const assistantIds = skillProfiles.map((profile) => profile.assistant_id);
-  if (
-    assistantIds.some((assistantId) => typeof assistantId !== 'string' || !assistantId.trim()) ||
-    new Set(assistantIds).size !== assistantIds.length
-  ) {
-    throw new Error('App GUI contract assistant Skill metadata ids must be non-empty and unique');
-  }
-  for (const profile of skillProfiles) {
-    assertCapabilityReferenceListShape(
-      profile.required_skills,
-      `App GUI assistant ${profile.assistant_id} required_skills`,
-    );
-    assertCapabilityReferenceListShape(
-      profile.optional_skills,
-      `App GUI assistant ${profile.assistant_id} optional_skills`,
-    );
-    if (
-      profile.required_skill_policy !== 'checked_locked' ||
-      profile.optional_skill_policy !== 'unchecked_user_selectable' ||
-      profile.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
-    ) {
-      throw new Error(`App GUI assistant ${profile.assistant_id} has invalid home skill policy`);
-    }
-    if ('hidden_home_skill_names' in profile) {
-      throw new Error(`App GUI assistant ${profile.assistant_id} must not carry UI hiding policy`);
-    }
-  }
-}
-
 function validatePurposeEntries(guiContract) {
   assertDeepEqualJson(
     guiContract.home_agent_shortcuts_metadata_policy,
@@ -550,7 +508,6 @@ export function validateGuiProductHomeContract(guiContract) {
   validateRightContextInspector(guiContract);
   validateProfessionalAgentPackages(guiContract);
   validateDefaultAssistants(guiContract);
-  validateAssistantSkillProfiles(guiContract);
   validatePurposeEntries(guiContract);
   validateNonDefaultAndRetiredAssistants(guiContract);
 }

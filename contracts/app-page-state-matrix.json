@@ -90,7 +90,6 @@
         "agent_package_skill_source_ref": "owner_or_carrier_projected_capability_metadata_for_the_selected_package",
         "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
-        "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles optional migration/display metadata only",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
         "conversation_model_status_display_policy": "single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows_no_separate_status_pill",
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
