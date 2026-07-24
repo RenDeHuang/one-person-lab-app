@@ -278,11 +278,10 @@
       "runtime_preservation_gate": {
         "product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
         "page_state_ref": "contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance",
-        "route_classification": "retained_optional_x0_owner_route",
-        "default_product_requirement": false,
+        "route_classification": "core_dynamic_agent_runtime",
+        "default_product_requirement": true,
         "default_release_gate": false,
-        "native_phase_one_requirement": false,
-        "upstream_alignment_may_remove_or_weaken": true,
+        "adopted_shell_requirement": true,
         "active_aionui_navigation_requirement": true,
         "active_aionui_navigation_may_remove_or_weaken": false,
         "explicit_validation_command": "npm run validate:runtime-route",
@@ -6038,10 +6037,10 @@
       }
     },
     "runtime_status": {
-      "route_classification": "retained_optional_x0_owner_route",
-      "default_product_requirement": false,
+      "route_classification": "core_dynamic_agent_runtime",
+      "default_product_requirement": true,
       "default_release_gate": false,
-      "native_phase_one_requirement": false,
+      "adopted_shell_requirement": true,
       "explicit_validation_command": "npm run validate:runtime-route",
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -6072,28 +6071,10 @@
           "agent_level": {
             "all_option": "all_agents",
             "full_display_names_required": true,
-            "first_party_options": [
-              {
-                "agent_id": "mas",
-                "display_name": "Med Auto Science"
-              },
-              {
-                "agent_id": "mag",
-                "display_name": "Med Auto Grant"
-              },
-              {
-                "agent_id": "rca",
-                "display_name": "RedCube AI"
-              },
-              {
-                "agent_id": "oma",
-                "display_name": "OPL Meta Agent"
-              },
-              {
-                "agent_id": "obf",
-                "display_name": "OPL Book Forge"
-              }
-            ]
+            "membership_source": "work_item_projection_v2.agent_catalog",
+            "inclusion_policy": "installed_present_kind_agent_with_task_provider",
+            "identity_fields": ["agent_id", "agent_display_name"],
+            "app_hardcoded_agent_ids_allowed": false
           },
           "project_level": {
             "all_option": "all_projects",
@@ -6118,11 +6099,7 @@
             ],
             "agent_or_project_views_allowed": false,
             "visibility_views_allowed": false,
-            "forbidden_ids": [
-              "mas",
-              "med-autoscience",
-              "med_auto_science"
-            ]
+            "package_or_agent_specific_ids_allowed": false
           }
         },
         "default_list": {
@@ -6371,7 +6348,7 @@
             "stage_and_total_tokens",
             "action"
           ],
-          "secondary_sections": ["domain_detail_view_summary"],
+          "secondary_sections": ["domain_detail_views"],
           "diagnostic_sections": [],
           "primary_sections_visible_on_open": true,
           "diagnostic_sections_allowed": false,
@@ -6380,13 +6357,7 @@
           "timeline_owner_surface": "/settings/environment?section=diagnostics",
           "equal_weight_tab_wall_allowed": false,
           "current_attempt_visibility": "stage_popover_and_selected_work_item_detail_only",
-          "domain_detail_view_summary_fields": [
-            "primary_hypothesis",
-            "latest_finding",
-            "current_judgment",
-            "next_research_step",
-            "updated_at"
-          ],
+          "domain_detail_view_entry_fields": ["view_id", "view_kind", "title", "availability"],
           "domain_detail_view_summary_visibility": "only_when_typed_descriptor_is_present",
           "domain_detail_view_open_command": "button_with_route_map_icon",
           "delivered_stage_map_terminal_boundary": {
@@ -6411,7 +6382,7 @@
             "runtime_page_preserved": true,
             "work_item_list_preserved": true,
             "selected_item_core_detail_preserved": true,
-            "research_trajectory_entry_hidden": true,
+            "dependent_view_entries_hidden": true,
             "direct_detail_route": "localized_unavailable_with_return_to_runtime",
             "global_failure_allowed": false
           },
@@ -6419,115 +6390,22 @@
           "descriptor_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views",
           "read_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.domain_detail_view_read_contract",
           "renderer_selection": "typed_registry_by_view_kind",
+          "renderer_registry_source": "shell_extension_registry",
           "agent_id_branching_allowed": false,
-          "registered_view_kinds": ["scientific_reasoning_map"],
-          "scientific_reasoning_view_id": "scientific-reasoning",
-          "scientific_reasoning_schema": "scientific-reasoning-map.v2",
-          "compatible_scientific_reasoning_schemas": [
-            "scientific-reasoning-map.v1",
-            "scientific-reasoning-map.v2"
-          ],
-          "medical_prose_policy": {
-            "source": "domain_owner_projected_exact_field_values",
-            "exact_passthrough_required": true,
-            "app_may_generate": false,
-            "app_may_translate": false,
-            "app_may_summarize": false,
-            "app_may_rewrite": false,
-            "shell_may_generate": false,
-            "shell_may_translate": false,
-            "shell_may_summarize": false,
-            "shell_may_rewrite": false,
-            "localization_scope": "app_owned_chrome_only_never_domain_medical_prose"
-          },
-          "trajectory_snapshot": {
-            "source_fields": [
-              "surface_kind",
-              "version",
-              "study_id",
-              "study_ref",
-              "revision",
-              "status",
-              "summary",
-              "current_focus",
-              "active_branch",
-              "current_focus_node_refs",
-              "active_branch_node_refs",
-              "nodes",
-              "edges",
-              "medical_narrative",
-              "source_refs",
-              "conditions"
-            ],
-            "authority": "mas_authored_lightweight_runtime_reference",
-            "update_unit": "single_domain_authored_snapshot",
-            "app_role": "read_validate_layout_and_display_only"
-          },
-          "drawer_presentation": {
-            "surface": "selected_work_item_detail",
-            "heading_copy": {
-              "zh-CN": "科研路线",
-              "en-US": "Research trajectory"
-            },
-            "summary_labels": {
-              "zh-CN": ["当前主要假设", "最新研究发现", "当前判断", "下一研究步骤", "更新时间"],
-              "en-US": ["Current primary hypothesis", "Latest research finding", "Current assessment", "Next research step", "Updated"]
-            },
-            "open_button_copy": {
-              "zh-CN": "查看科研路线",
-              "en-US": "View research trajectory"
-            },
-            "machine_fields_visible": false
-          },
-          "full_canvas": {
+          "app_domain_schema_registry_allowed": false,
+          "unknown_view_kind_policy": "localized_unavailable_preserve_work_item_and_return_to_runtime",
+          "layout_contract": {
             "route": "/runtime/item/:itemId/insights/:viewId",
-            "layout": "full_width_graph_with_right_node_inspector",
-            "required_modes": ["map", "current_branch"],
-            "content_order": ["trajectory_map"],
-            "current_branch_membership_source_by_schema": {
-              "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
-              "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
-            },
-            "v2_current_branch_membership_inference_allowed": false,
-            "required_interactions": ["fit", "pan", "zoom", "keyboard_node_navigation", "node_detail_selection"],
+            "surface": "full_width_owner_view",
             "responsive_viewport_widths_px": [375, 768, 1024, 1440],
             "horizontal_page_overflow_allowed": false,
-            "sources_and_basis_source": "medical_narrative.sources_and_basis",
-            "sources_and_basis_surface": "collapsed_sources_and_basis",
-            "machine_source_refs_visible": false,
-            "sources_and_basis_heading_copy": {
-              "zh-CN": "来源与依据",
-              "en-US": "Sources and rationale"
-            }
-          },
-          "medical_copy_vocabulary": {
-            "required_zh_CN": [
-              "研究问题",
-              "当前主要假设",
-              "验证方法",
-              "主要发现",
-              "证据判断",
-              "路线调整",
-              "下一研究步骤",
-              "来源与依据"
-            ],
-            "forbidden_user_facing_terms": [
-              "node",
-              "event",
-              "payload",
-              "revision",
-              "hash",
-              "attempt",
-              "provider",
-              "winning path",
-              "superseded",
-              "route_back"
-            ]
+            "keyboard_access_required": true,
+            "machine_fields_visible": false
           },
           "availability_states": ["unread", "available", "missing", "stale", "invalid", "read_error"],
-          "availability_copy_policy": "localized_medical_research_copy_no_machine_enum",
+          "availability_copy_policy": "localized_generic_view_transport_state_no_machine_enum",
           "availability_is_transport_state_only": true,
-          "transport_state_may_be_interpreted_as_scientific_outcome": false,
+          "transport_state_may_be_interpreted_as_domain_outcome": false,
           "not_modified_policy": "retain_last_valid_view",
           "full_payload_in_fast_state_allowed": false,
           "markdown_or_session_parsing_in_app_allowed": false,
@@ -6538,7 +6416,7 @@
           "settings_owner": "/settings/agents",
           "projection_remains_available_to_settings": true,
           "task_counts_are_not_availability": true,
-          "mas_scholar_skills_role": "med_autoscience_dependency_not_sixth_agent"
+          "dependency_packages_are_agent_options": false
         },
         "progressive_disclosure": {
           "default_layer": "decision_and_action_fields_only",
@@ -6617,28 +6495,10 @@
         "agent_scope": {
           "all_option": "all_agents",
           "full_display_names_required": true,
-          "first_party_options": [
-            {
-              "agent_id": "mas",
-              "display_name": "Med Auto Science"
-            },
-            {
-              "agent_id": "mag",
-              "display_name": "Med Auto Grant"
-            },
-            {
-              "agent_id": "rca",
-              "display_name": "RedCube AI"
-            },
-            {
-              "agent_id": "oma",
-              "display_name": "OPL Meta Agent"
-            },
-            {
-              "agent_id": "obf",
-              "display_name": "OPL Book Forge"
-            }
-          ]
+          "membership_source": "work_item_projection_v2.agent_catalog",
+          "inclusion_policy": "installed_present_kind_agent_with_task_provider",
+          "identity_fields": ["agent_id", "agent_display_name"],
+          "app_hardcoded_agent_ids_allowed": false
         },
         "project_scope": {
           "all_option": "all_projects",
@@ -6658,11 +6518,8 @@
             "sync_pending"
           ],
           "agent_or_project_views_allowed": false,
-          "forbidden_ids": [
-            "mas",
-            "med-autoscience",
-            "med_auto_science"
-          ]
+          "visibility_views_allowed": false,
+          "package_or_agent_specific_ids_allowed": false
         },
         "scope_source_values": [
           "default_global",
@@ -6686,8 +6543,8 @@
       },
       "must_show": [
         "WorkItemProjection v2 as the default Runtime read model",
-        "two-level Agent then Project scope with work items excluded",
-        "single-select status filter without MAS or other agent duplicates",
+        "two-level Agent then Project scope from the dynamic agent catalog with work items excluded",
+        "single-select status filter without Package-specific saved-view duplicates",
         "four-column work-item list with agent as a secondary label",
         "one row per canonical work item",
         "top-level item_id for row and detail identity with full agent_id + project_id + work_item_id mutation and readback tuple",
@@ -6702,8 +6559,8 @@
         "clickable current Stage popover with complete Stage order, next Stage, and current Attempt",
         "Stage click does not open the task detail drawer",
         "Stage Map, current and next stage, current Attempt, heartbeat, Token, and action on detail open",
-        "typed domain detail summary in the selected work-item drawer without changing the four-column list",
-        "item-scoped scientific reasoning map with medical research copy, interactive graph, and collapsed sources and rationale",
+        "typed domain detail entries in the selected work-item drawer without changing the four-column list",
+        "item-scoped owner views selected by view_kind with unknown kinds degraded locally",
         "platform maintenance, software updates, module health, safe actions, and operator diagnostics excluded from Runtime and routed to Settings",
         "responsive semantic row reflow without horizontal page overflow",
         "contract, Framework producer, Shell consumer, and live evidence tracked separately"

@@ -42,12 +42,11 @@ test('Runtime V2 product, projection, scope, availability, and page-state contra
   assert.doesNotThrow(() => validateAgentAvailabilityProjectionContract(bridge.agent_availability_projection, 'test agents'));
 });
 
-test('MAS research trajectory is one exact lightweight snapshot behind a transport-only locator', () => {
+test('typed owner views use a generic transport envelope without an App domain schema mirror', () => {
   const bridge = runtimeBridge().work_item_projection;
   const descriptor = bridge.field_contracts.domain_detail_views;
   const read = bridge.domain_detail_view_read_contract;
-  const payload = read.payload_contracts.scientific_reasoning_map;
-  assert.equal(descriptor.capability_id, 'opl_app.domain_detail_views.v2');
+  assert.equal(descriptor.capability_id, 'opl_app.typed_domain_views.v3');
   assert.equal(descriptor.requirement_class, 'optional_domain_enhancement');
   assert.deepEqual(descriptor.absence_policy, {
     app_state_activation_allowed: true,
@@ -56,51 +55,18 @@ test('MAS research trajectory is one exact lightweight snapshot behind a transpo
     dependent_detail_surfaces_hidden: true,
     global_failure_allowed: false,
   });
-  assert.deepEqual(descriptor.required_fields, ['item_id', 'view_id', 'view_kind', 'schema_version', 'availability']);
-  assert.deepEqual(descriptor.optional_fields, ['revision', 'digest']);
+  assert.deepEqual(descriptor.required_fields, ['item_id', 'view_id', 'view_kind', 'availability']);
+  assert.deepEqual(descriptor.optional_fields, ['title', 'schema_ref', 'schema_version', 'revision', 'digest']);
   assert.deepEqual(descriptor.availability_values, ['unread', 'available', 'missing', 'stale', 'invalid', 'read_error']);
   assert.deepEqual(read.availability_values, ['available', 'missing', 'stale', 'invalid', 'read_error']);
   assert.equal(read.command.includes('--if-revision <revision>'), true);
-  assert.deepEqual(payload.snapshot_fields, [
-    'surface_kind',
-    'version',
-    'study_id',
-    'study_ref',
-    'revision',
-    'status',
-    'summary',
-    'current_focus',
-    'active_branch',
-    'current_focus_node_refs',
-    'active_branch_node_refs',
-    'nodes',
-    'edges',
-    'medical_narrative',
-    'source_refs',
-    'conditions',
-  ]);
-  assert.deepEqual(payload.snapshot_fields_by_schema['scientific-reasoning-map.v1'], [
-    'study_id', 'status', 'summary', 'current_focus', 'active_branch', 'nodes', 'edges', 'source_refs', 'conditions',
-  ]);
-  assert.equal(payload.v2_surface_kind, 'mas_research_trajectory_snapshot');
-  assert.equal(payload.v2_version, 'mas-research-trajectory-snapshot.v2');
-  assert.equal(payload.v2_additional_properties_allowed, false);
-  assert.deepEqual(payload.v2_identity_binding, {
-    study_id_source: 'selected_work_item.identity.work_item_id',
-    study_ref_kind: 'mas_study',
-    study_ref_template: 'mas-study:<study_id>',
-    app_validation_role: 'shape_and_item_binding_only_no_domain_judgment',
-  });
-  const serialized = JSON.stringify(payload);
-  for (const removedControlLayer of [
-    'working_checkpoints',
-    'accepted_trajectory',
-    'checkpoint_manifest',
-    'reviewer_receipt',
-    'receipt_bound',
-  ]) {
-    assert.equal(serialized.includes(removedControlLayer), false);
-  }
+  assert.equal(descriptor.renderer_selection_field, 'view_kind');
+  assert.equal(descriptor.renderer_registry_source, 'shell_extension_registry');
+  assert.equal(descriptor.app_domain_schema_registry_allowed, false);
+  assert.equal(descriptor.unknown_view_kind_policy, 'localized_unavailable_preserve_work_item_and_return_to_runtime');
+  assert.equal(Object.hasOwn(read, 'payload_contracts'), false);
+  assert.equal(read.app_payload_shape_interpretation_allowed, false);
+  assert.deepEqual(read.response_optional_fields, ['digest', 'generation', 'payload_schema_ref', 'payload_schema']);
 });
 
 test('explicit Runtime route gate rejects an absent optional route', () => {
@@ -114,7 +80,7 @@ test('explicit Runtime route gate rejects an absent optional route', () => {
 });
 
 test('WorkItemProjection V2 requires global item identity, all nine axes, and observed-only Token semantics', () => {
-  for (const mutate of [
+  const mutations = [
     (projection: any) => { projection.schema_version = 'work-item-projection.v1'; },
     (projection: any) => { projection.required_fields = projection.required_fields.filter((field: string) => field !== 'item_id'); },
     (projection: any) => { projection.required_fields = projection.required_fields.filter((field: string) => field !== 'attention'); },
@@ -134,27 +100,15 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.field_contracts.domain_detail_views.required_fields.push('current_focus'); },
     (projection: any) => { projection.field_contracts.domain_detail_views.optional_fields = ['digest']; },
     (projection: any) => { projection.field_contracts.domain_detail_views.availability_values = ['available', 'missing']; },
-    (projection: any) => { projection.field_contracts.domain_detail_views.registered_view_kinds.scientific_reasoning_map.current_focus_fields = ['primary_hypothesis']; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.registered_view_kinds = { private_view: {} }; },
     (projection: any) => { projection.domain_detail_view_read_contract.app_may_submit_ref_or_path = true; },
     (projection: any) => { projection.domain_detail_view_read_contract.unchanged_response.not_modified = false; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.edge_kinds.push('refutes'); },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.machine_source_refs_default_visible = true; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts = { private_view: {} }; },
     (projection: any) => { projection.domain_detail_view_read_contract.command = 'opl app view read --json'; },
     (projection: any) => { projection.domain_detail_view_read_contract.response_optional_fields = ['digest']; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.snapshot_fields = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.snapshot_fields.filter((field: string) => field !== 'active_branch_node_refs'); },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.snapshot_fields_by_schema['scientific-reasoning-map.v2'] = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.snapshot_fields_by_schema['scientific-reasoning-map.v2'].filter((field: string) => field !== 'medical_narrative'); },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.snapshot_fields_by_schema['scientific-reasoning-map.v1'].push('active_branch_node_refs'); },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_surface_kind = 'opl_snapshot'; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_additional_properties_allowed = true; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_machine_only_fields = ['revision']; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_identity_binding.study_id_source = 'payload.study_id'; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.node_status_values = ['active']; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.execution_failed_and_not_assessed_remain_distinct = false; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.app_validation_proves_medical_copy_quality_or_scientific_validity = true; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.medical_prose_policy.shell_may_translate = true; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id'; },
-    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_current_branch_membership_inference_allowed = true; },
-  ]) {
+    (projection: any) => { projection.domain_detail_view_read_contract.app_payload_shape_interpretation_allowed = true; },
+  ];
+  for (const [index, mutate] of mutations.entries()) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
     assert.throws(() => validateWorkItemProjectionContract(projection, 'mutated projection'));
@@ -250,14 +204,14 @@ test('Manual archive is Framework visibility with generation concurrency and pre
   }
 });
 
-test('Runtime scope is Agent then Project and saved views cannot duplicate MAS', () => {
+test('Runtime scope is Agent then Project and membership is descriptor-driven', () => {
   for (const mutate of [
-    (scope: any) => { scope.agent_scope.first_party_options[0].agent_id = 'med-autoscience'; },
+    (scope: any) => { scope.agent_scope.membership_source = 'app_hardcoded_agents'; },
     (scope: any) => { scope.default_scope_levels.push('work_item'); },
     (scope: any) => { scope.project_scope.work_item_options_allowed = true; },
     (scope: any) => { scope.work_item_scope_allowed = true; },
     (scope: any) => { scope.saved_views.dimension = 'agent_and_status'; },
-    (scope: any) => { scope.saved_views.forbidden_ids = []; },
+    (scope: any) => { scope.saved_views.package_or_agent_specific_ids_allowed = true; },
   ]) {
     const scope = structuredClone(runtimeBridge().runtime_scope_projection);
     mutate(scope);
@@ -304,19 +258,12 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.capability_absent_behavior.global_failure_allowed = true; },
     (contract: any) => { contract.domain_detail_views.agent_id_branching_allowed = true; },
     (contract: any) => { contract.domain_detail_views.full_payload_in_fast_state_allowed = true; },
-    (contract: any) => { contract.domain_detail_views.drawer_presentation.machine_fields_visible = true; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.horizontal_page_overflow_allowed = true; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.sources_and_basis_source = 'source_refs'; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.machine_source_refs_visible = true; },
-    (contract: any) => { contract.domain_detail_views.trajectory_snapshot.source_fields = ['nodes']; },
-    (contract: any) => { contract.domain_detail_views.trajectory_snapshot.authority = 'app_runtime'; },
+    (contract: any) => { contract.domain_detail_views.layout_contract.machine_fields_visible = true; },
+    (contract: any) => { contract.domain_detail_views.layout_contract.horizontal_page_overflow_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.registered_view_kinds = ['private_view']; },
     (contract: any) => { contract.domain_detail_views.availability_is_transport_state_only = false; },
-    (contract: any) => { contract.domain_detail_views.transport_state_may_be_interpreted_as_scientific_outcome = true; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id'; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.v2_current_branch_membership_inference_allowed = true; },
-    (contract: any) => { contract.domain_detail_views.full_canvas.content_order.push('secondary_layer'); },
-    (contract: any) => { contract.domain_detail_views.medical_prose_policy.shell_may_rewrite = true; },
-    (contract: any) => { contract.domain_detail_views.medical_prose_policy.app_may_summarize = true; },
+    (contract: any) => { contract.domain_detail_views.transport_state_may_be_interpreted_as_domain_outcome = true; },
+    (contract: any) => { contract.domain_detail_views.unknown_view_kind_policy = 'global_failure'; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -325,24 +272,24 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
 });
 
 test('Runtime page state rejects optional detail absence that hides core Runtime content or fails globally', () => {
-  for (const mutate of [
+  for (const [index, mutate] of [
     (state: any) => { state.runtime_page = 'hidden'; },
     (state: any) => { state.selected_item_core_detail = 'hidden'; },
     (state: any) => { state.global_failure = 'allowed'; },
-  ]) {
+  ].entries()) {
     const matrix = readJson('contracts/app-page-state-matrix.json');
     const state = matrix.pages.find((page: any) => page.id === 'runtime')
       .runtime_view_model.domain_detail_view.capability_absent;
     mutate(state);
-    assert.throws(() => validatePageState(matrix));
+    assert.throws(() => validatePageState(matrix), `mutation ${index} must fail`);
   }
 });
 
-test('Agent availability stays independent, full-name, healthy-collapsed, and excludes Scholar Skills as an agent', () => {
+test('Agent availability stays independent and descriptor-driven', () => {
   for (const mutate of [
-    (projection: any) => { projection.first_party_agents[0].agent_id = 'med-autoscience'; },
-    (projection: any) => { projection.first_party_agents[0].display_name = 'MAS'; },
-    (projection: any) => { projection.first_party_agents.push({ agent_id: 'mas-scholar-skills', display_name: 'MAS Scholar Skills' }); },
+    (projection: any) => { projection.membership_source = 'app_hardcoded_agents'; },
+    (projection: any) => { projection.app_hardcoded_agent_ids_allowed = true; },
+    (projection: any) => { projection.dependency_packages_are_agent_options = true; },
     (projection: any) => { projection.all_healthy_panel_state = 'expanded'; },
     (projection: any) => { projection.bare_count_or_fraction_allowed = true; },
     (projection: any) => { projection.task_count_is_availability = true; },
@@ -367,7 +314,7 @@ test('Runtime completion accounting cannot promote contract work into producer, 
 });
 
 test('Runtime page-state rejects removal or weakening of the V2 contract', () => {
-  for (const mutate of [
+  const mutations = [
     (matrix: any) => { matrix.acceptance_boundary.runtime_contract_implies_live_evidence_complete = true; },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.required_invariants = [];
@@ -421,29 +368,30 @@ test('Runtime page-state rejects removal or weakening of the V2 contract', () =>
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.descriptor_optional_fields = ['digest'];
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.sources_and_basis_source = 'source_refs';
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.generic_view.renderer_registry_source = 'app_agent_switch';
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.machine_source_refs_visible = true;
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.generic_view.unknown_view_kind_policy = 'global_failure';
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id';
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.generic_view.layout = 'domain_specific_graph';
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.v2_current_branch_membership_inference_allowed = true;
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.generic_view.app_domain_payload_interpretation_allowed = true;
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.content_order.push('secondary_layer');
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.generic_view.app_validation_scope = ['domain_schema'];
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.snapshot_source = 'app_authored';
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.renderer_registry_source = 'app_agent_switch';
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.app_validation_proves_medical_copy_quality_or_scientific_validity = true;
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.full_payload_in_fast_state_allowed = true;
     },
-  ]) {
+  ];
+  for (const [index, mutate] of mutations.entries()) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
     mutate(matrix);
-    assert.throws(() => validatePageState(matrix));
+    assert.throws(() => validatePageState(matrix), `mutation ${index} must fail`);
   }
 });

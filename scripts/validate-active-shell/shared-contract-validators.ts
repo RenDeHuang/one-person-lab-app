@@ -7,7 +7,6 @@ import {
   appOwnedRuntimeMentalModel,
   appOwnedRunningStatePolicy,
   runtimeAutomationStateValues,
-  runtimeFirstPartyAgents,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
@@ -16,15 +15,6 @@ import {
   domainDetailViewDescriptorFields,
   domainDetailViewDescriptorOptionalFields,
   domainDetailViewReadAvailabilityValues,
-  scientificReasoningEdgeKinds,
-  scientificReasoningCompatibleSchemaVersions,
-  scientificReasoningCurrentBranchMembershipBySchema,
-  scientificReasoningMedicalProsePolicy,
-  scientificReasoningNodeKinds,
-  scientificReasoningNodeStatuses,
-  scientificReasoningSnapshotFieldsBySchema,
-  scientificReasoningSummaryFields,
-  scientificReasoningV2SnapshotFields,
   systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -296,14 +286,12 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
     ["agent", "project"],
     `${label} default_scope_levels`,
   );
-  assertDeepEqualJson(
-    projection.agent_scope?.first_party_options,
-    runtimeFirstPartyAgents,
-    `${label} agent_scope.first_party_options`,
-  );
   if (
     projection.agent_scope?.all_option !== "all_agents" ||
     projection.agent_scope?.full_display_names_required !== true ||
+    projection.agent_scope?.membership_source !== "work_item_projection_v2.agent_catalog" ||
+    projection.agent_scope?.inclusion_policy !== "installed_present_kind_agent_with_task_provider" ||
+    projection.agent_scope?.app_hardcoded_agent_ids_allowed !== false ||
     projection.project_scope?.all_option !== "all_projects" ||
     projection.project_scope?.source !== "canonical_project_registry_for_selected_agent" ||
     projection.project_scope?.display_name_source !== "canonical_workspace_path_basename" ||
@@ -319,11 +307,9 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
     projection.saved_views?.dimension !== "primary_state_only" ||
     projection.saved_views?.agent_or_project_views_allowed !== false ||
     projection.saved_views?.visibility_views_allowed !== false ||
-    projection.saved_views?.forbidden_ids?.some((value) =>
-      ["mas", "med-autoscience", "med_auto_science"].includes(value)
-    ) !== true
+    projection.saved_views?.package_or_agent_specific_ids_allowed !== false
   ) {
-    throw new Error(`${label} saved views must be status-only and explicitly forbid MAS views`);
+    throw new Error(`${label} saved views must be status-only and cannot hardcode Package or Agent ids`);
   }
   assertDeepEqualJson(
     projection.scope_source_values,
@@ -540,13 +526,16 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   for (const [field, expected] of Object.entries({
     optional: true,
-    capability_id: "opl_app.domain_detail_views.v2",
+    capability_id: "opl_app.typed_domain_views.v3",
     requirement_class: "optional_domain_enhancement",
     collection_kind: "typed_agent_owned_item_detail_descriptors",
     fast_profile_role: "declaration_derived_locator_and_transport_state_only",
     full_payload_in_fast_state_allowed: false,
     app_agent_id_branching_allowed: false,
     renderer_selection_field: "view_kind",
+    renderer_registry_source: "shell_extension_registry",
+    unknown_view_kind_policy: "localized_unavailable_preserve_work_item_and_return_to_runtime",
+    app_domain_schema_registry_allowed: false,
     machine_fields_default_visible: false,
   })) {
     if (domainDetailViews?.[field] !== expected) {
@@ -564,16 +553,9 @@ export function validateWorkItemProjectionContract(projection, label) {
     },
     `${label} optional domain detail absence policy`,
   );
-  const scientificDescriptor = domainDetailViews?.registered_view_kinds?.scientific_reasoning_map;
-  assertDeepEqualJson(
-    scientificDescriptor,
-    {
-      schema_version: "scientific-reasoning-map.v2",
-      compatible_schema_versions: scientificReasoningCompatibleSchemaVersions,
-      view_id: "scientific-reasoning",
-    },
-    `${label} scientific reasoning descriptor`,
-  );
+  if (Object.hasOwn(domainDetailViews ?? {}, "registered_view_kinds")) {
+    throw new Error(`${label} domain detail views must not mirror a domain-owned view registry`);
+  }
   assertDeepEqualJson(
     projection.row_identity_contract,
     {
@@ -745,9 +727,9 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} detail secondary sections`,
   );
   assertDeepEqualJson(
-    projection.detail_layer_contract?.domain_detail_view_summary_fields,
-    scientificReasoningSummaryFields,
-    `${label} domain detail summary fields`,
+    projection.detail_layer_contract?.domain_detail_view_entry_fields,
+    ["view_id", "view_kind", "title", "availability"],
+    `${label} domain detail entry fields`,
   );
   assertDeepEqualJson(
     projection.detail_layer_contract?.diagnostic_sections,
@@ -787,7 +769,6 @@ export function validateWorkItemProjectionContract(projection, label) {
       "availability",
       "revision",
       "not_modified",
-      "payload_schema",
       "payload",
       "conditions",
     ],
@@ -795,7 +776,7 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   assertDeepEqualJson(
     detailRead?.response_optional_fields,
-    ["digest", "generation"],
+    ["digest", "generation", "payload_schema_ref", "payload_schema"],
     `${label} domain detail optional response fields`,
   );
   for (const [field, expected] of Object.entries({
@@ -803,7 +784,6 @@ export function validateWorkItemProjectionContract(projection, label) {
     schema_version: "opl_domain_detail_view.v1",
     descriptor_path: "items[].domain_detail_views[]",
     command: "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json",
-    scientific_reasoning_command: "opl app view read --item-id <canonical-item-id> --view-id scientific-reasoning [--if-revision <revision>] --json",
     optional_revision_argument: "--if-revision <revision>",
     compatibility_generation_policy: "deprecated_optional_alias_must_equal_revision",
     resolver_owner: "opl_framework_standard_agent_descriptor",
@@ -811,7 +791,8 @@ export function validateWorkItemProjectionContract(projection, label) {
     arbitrary_path_read_allowed: false,
     workspace_containment_required: true,
     symlink_escape_allowed: false,
-    schema_validation_required: true,
+    schema_validation_owner: "domain_renderer_extension_against_owner_declared_schema",
+    app_payload_shape_interpretation_allowed: false,
     size_limit_fail_closed: true,
     digest_validation_required_when_present: true,
     availability_is_transport_state_only: true,
@@ -832,94 +813,8 @@ export function validateWorkItemProjectionContract(projection, label) {
   if (detailRead?.unchanged_response?.not_modified !== true || detailRead?.unchanged_response?.payload !== null) {
     throw new Error(`${label} domain detail read must preserve the prior view on not_modified`);
   }
-  const reasoningPayload = detailRead?.payload_contracts?.scientific_reasoning_map;
-  if (reasoningPayload?.payload_schema !== "scientific-reasoning-map.v2") {
-    throw new Error(`${label} scientific reasoning payload must use v2`);
-  }
-  assertDeepEqualJson(
-    reasoningPayload?.compatible_payload_schemas,
-    scientificReasoningCompatibleSchemaVersions,
-    `${label} scientific reasoning compatible payload schemas`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.snapshot_fields,
-    scientificReasoningV2SnapshotFields,
-    `${label} scientific reasoning v2 snapshot fields`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.snapshot_fields_by_schema,
-    scientificReasoningSnapshotFieldsBySchema,
-    `${label} scientific reasoning snapshot fields by schema`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.v2_machine_only_fields,
-    ["surface_kind", "version", "study_id", "study_ref", "revision", "source_refs", "conditions"],
-    `${label} scientific reasoning v2 machine-only fields`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.v2_identity_binding,
-    {
-      study_id_source: "selected_work_item.identity.work_item_id",
-      study_ref_kind: "mas_study",
-      study_ref_template: "mas-study:<study_id>",
-      app_validation_role: "shape_and_item_binding_only_no_domain_judgment",
-    },
-    `${label} scientific reasoning v2 identity binding`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.medical_prose_policy,
-    scientificReasoningMedicalProsePolicy,
-    `${label} scientific reasoning medical prose policy`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.summary_required_fields,
-    scientificReasoningSummaryFields,
-    `${label} scientific reasoning summary fields`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.node_kinds,
-    scientificReasoningNodeKinds,
-    `${label} scientific reasoning node kinds`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.node_status_values,
-    scientificReasoningNodeStatuses,
-    `${label} scientific reasoning node statuses`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.edge_kinds,
-    scientificReasoningEdgeKinds,
-    `${label} scientific reasoning edge kinds`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.current_branch_membership_source_by_schema,
-    scientificReasoningCurrentBranchMembershipBySchema,
-    `${label} scientific reasoning current branch membership source`,
-  );
-  if (
-    reasoningPayload?.v1_compatibility_mode !== "read_only_no_write_upgrade_or_domain_inference" ||
-    reasoningPayload?.v2_surface_kind !== "mas_research_trajectory_snapshot" ||
-    reasoningPayload?.v2_version !== "mas-research-trajectory-snapshot.v2" ||
-    reasoningPayload?.v2_additional_properties_allowed !== false ||
-    reasoningPayload?.snapshot_authority !== "mas_authored_lightweight_runtime_reference" ||
-    reasoningPayload?.snapshot_update_model !== "single_mas_authored_snapshot" ||
-    reasoningPayload?.app_validation_proves_medical_copy_quality_or_scientific_validity !== false ||
-    reasoningPayload?.node_status_display_policy !== "domain_authored_layout_cue_only_medical_explanation_from_exact_prose" ||
-    reasoningPayload?.execution_failed_and_not_assessed_remain_distinct !== true ||
-    reasoningPayload?.sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
-    reasoningPayload?.sources_and_basis_default_surface !== "collapsed_sources_and_basis" ||
-    reasoningPayload?.machine_source_refs_default_visible !== false ||
-    reasoningPayload?.v2_current_branch_membership_inference_allowed !== false
-  ) {
-    throw new Error(`${label} scientific reasoning must remain a lightweight MAS-authored snapshot and display-only App view`);
-  }
-  assertDeepEqualJson(
-    reasoningPayload?.app_validation_scope,
-    ["schema_shape", "node_edge_drawability", "machine_field_visibility"],
-    `${label} scientific reasoning App validation scope`,
-  );
-  if (reasoningPayload?.edge_kinds?.includes("refutes")) {
-    throw new Error(`${label} scientific reasoning must not overstate a result as refutation`);
+  if (Object.hasOwn(detailRead ?? {}, "payload_contracts")) {
+    throw new Error(`${label} App contract must not mirror domain-owned payload schemas`);
   }
   if (
     projection.refs_only !== true ||
@@ -963,11 +858,6 @@ export function validateAgentAvailabilityProjectionContract(projection, label) {
     `${label} required_fields`,
   );
   assertDeepEqualJson(
-    projection.first_party_agents,
-    runtimeFirstPartyAgents,
-    `${label} first_party_agents`,
-  );
-  assertDeepEqualJson(
     projection.availability_states,
     ["available", "attention_required", "unavailable"],
     `${label} availability_states`,
@@ -976,7 +866,10 @@ export function validateAgentAvailabilityProjectionContract(projection, label) {
     projection.all_healthy_panel_state !== "collapsed_summary" ||
     projection.bare_count_or_fraction_allowed !== false ||
     projection.task_count_is_availability !== false ||
-    projection.mas_scholar_skills_role !== "med_autoscience_dependency_not_agent"
+    projection.membership_source !== "app_state.agent_packages.directory installed present kind=agent entries" ||
+    projection.inclusion_policy !== "installed_present_kind_agent_with_task_provider" ||
+    projection.app_hardcoded_agent_ids_allowed !== false ||
+    projection.dependency_packages_are_agent_options !== false
   ) {
     throw new Error(`${label} must express availability only, collapse healthy agents, and reject bare counts`);
   }

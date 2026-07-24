@@ -20,10 +20,9 @@
     "historical_pixel_shell_sha_binding_status": "bound_to_exact_historical_evidence",
     "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",
     "runtime_product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
-    "runtime_route_classification": "retained_optional_x0_owner_route",
-    "runtime_default_gate_required": false,
-    "runtime_native_phase_one_required": false,
-    "runtime_upstream_alignment_may_remove_or_weaken": true,
+    "runtime_route_classification": "core_dynamic_agent_runtime",
+    "runtime_default_product_required": true,
+    "runtime_adopted_shell_required": true,
     "runtime_explicit_validation_command": "npm run validate:runtime-route",
     "runtime_acceptance_requires_contract_page_state_validators_tests": "when_route_selected_or_changed",
     "runtime_contract_implies_framework_producer_complete": false,
@@ -1302,9 +1301,9 @@
     },
     {
       "id": "runtime",
-      "route_classification": "retained_optional_x0_owner_route",
-      "default_gate_required": false,
-      "native_phase_one_required": false,
+      "route_classification": "core_dynamic_agent_runtime",
+      "default_product_required": true,
+      "adopted_shell_required": true,
       "explicit_validation_command": "npm run validate:runtime-route",
       "expected_source": "OPL App WorkItemProjection v2 project status",
       "machine_source": "opl app state --profile fast --json",
@@ -1365,7 +1364,7 @@
             "collaboration_console_not_observability_dashboard",
             "work_item_projection_v2_required_axes",
             "agent_then_project_scope_work_items_excluded",
-            "saved_views_status_only_no_agent_or_mas_view",
+            "saved_views_status_only_no_package_or_agent_specific_view",
             "four_column_default_list_agent_as_secondary_label",
             "one_row_per_canonical_work_item",
             "global_item_id_row_and_detail_identity_full_tuple_mutation_readback",
@@ -1377,9 +1376,9 @@
             "observed_token_usage_missing_never_zero_no_limit_progress",
             "detail_core_plus_typed_domain_detail_summary_no_diagnostics",
             "domain_detail_view_lazy_read_by_item_and_view_id_no_path_input",
-            "scientific_reasoning_renderer_selected_by_view_kind_not_agent_id",
-            "scientific_reasoning_medical_copy_machine_fields_hidden",
-            "scientific_reasoning_full_canvas_responsive_and_keyboard_accessible",
+            "agent_scope_membership_from_dynamic_agent_catalog_no_app_ids",
+            "typed_domain_view_renderer_selected_by_view_kind_not_agent_id",
+            "unknown_view_kind_degrades_locally_without_hiding_work_item",
             "delivered_stage_map_completed_history_only_action_envelope_next_step",
             "stage_popover_complete_order_current_next_and_attempt_without_opening_drawer",
             "stage_labels_follow_current_app_locale_when_projection_supplies_display_names",
@@ -1404,7 +1403,7 @@
             "runtime_page": "preserved",
             "work_item_list": "preserved",
             "selected_item_core_detail": "preserved",
-            "research_trajectory_entry": "hidden",
+            "dependent_view_entries": "hidden",
             "direct_detail_route": "localized_unavailable_with_return_to_runtime",
             "global_failure": "forbidden"
           },
@@ -1413,72 +1412,52 @@
             "item_id",
             "view_id",
             "view_kind",
-            "schema_version",
             "availability"
           ],
-          "descriptor_optional_fields": ["revision", "digest"],
+          "descriptor_optional_fields": ["title", "schema_ref", "schema_version", "revision", "digest"],
           "lazy_read_command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json",
           "selection_fields": ["item_id", "view_id"],
           "renderer_selection_field": "view_kind",
+          "renderer_registry_source": "shell_extension_registry",
           "agent_id_branching_allowed": false,
           "full_payload_in_fast_state_allowed": false,
-          "scientific_reasoning": {
-            "view_id": "scientific-reasoning",
-            "view_kind": "scientific_reasoning_map",
-            "schema_version": "scientific-reasoning-map.v2",
-            "compatible_schema_versions": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
-            "drawer_summary_fields": [
-              "primary_hypothesis",
-              "latest_finding",
-              "current_judgment",
-              "next_research_step",
-              "updated_at"
-            ],
+          "generic_view": {
             "route": "/runtime/item/:itemId/insights/:viewId",
-            "layout": "full_width_graph_with_right_node_inspector",
-            "modes": ["map", "current_branch"],
-            "content_order": ["trajectory_map"],
-            "current_branch_membership_source_by_schema": {
-              "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
-              "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
-            },
-            "v2_current_branch_membership_inference_allowed": false,
-            "sources_and_basis_source": "medical_narrative.sources_and_basis",
-            "sources_and_basis_surface": "collapsed_sources_and_basis",
-            "machine_source_refs_visible": false,
-            "snapshot_source": "mas_authored_lightweight_runtime_reference",
-            "snapshot_update_unit": "single_domain_authored_snapshot",
-            "app_validation_scope": ["schema_shape", "node_edge_drawability", "machine_field_visibility", "responsive_layout"],
-            "app_validation_proves_medical_copy_quality_or_scientific_validity": false
+            "renderer_selection_field": "view_kind",
+            "renderer_registry_source": "shell_extension_registry",
+            "unknown_view_kind_policy": "localized_unavailable_preserve_work_item_and_return_to_runtime",
+            "layout": "full_width_owner_view",
+            "app_validation_scope": ["generic_envelope", "transport_state", "responsive_layout", "keyboard_access"],
+            "app_domain_payload_interpretation_allowed": false
           },
           "states": [
             {
               "id": "loading",
-              "required_ui": "localized_research_trajectory_loading_preserve_page_frame"
+              "required_ui": "localized_owner_view_loading_preserve_page_frame"
             },
             {
               "id": "unread",
-              "required_ui": "localized_research_trajectory_available_for_lazy_read"
+              "required_ui": "localized_owner_view_available_for_lazy_read"
             },
             {
               "id": "available",
-              "required_ui": "render_domain_authored_snapshot_without_scientific_relabeling"
+              "required_ui": "render_with_matching_extension_or_show_local_unavailable"
             },
             {
               "id": "missing",
-              "required_ui": "localized_no_research_trajectory_yet"
+              "required_ui": "localized_owner_view_missing"
             },
             {
               "id": "stale",
-              "required_ui": "localized_previous_research_trajectory_with_refresh_age"
+              "required_ui": "localized_stale_owner_view_with_refresh_age"
             },
             {
               "id": "invalid",
-              "required_ui": "localized_invalid_research_trajectory_no_payload_guessing"
+              "required_ui": "localized_invalid_owner_view_no_payload_guessing"
             },
             {
               "id": "read_error",
-              "required_ui": "localized_research_trajectory_read_error_preserve_last_valid_view"
+              "required_ui": "localized_owner_view_read_error_preserve_last_valid_view"
             },
             {
               "id": "not_modified",
@@ -1678,28 +1657,10 @@
           "agent_scope": {
             "all_option": "all_agents",
             "full_display_names_required": true,
-            "first_party_options": [
-              {
-                "agent_id": "mas",
-                "display_name": "Med Auto Science"
-              },
-              {
-                "agent_id": "mag",
-                "display_name": "Med Auto Grant"
-              },
-              {
-                "agent_id": "rca",
-                "display_name": "RedCube AI"
-              },
-              {
-                "agent_id": "oma",
-                "display_name": "OPL Meta Agent"
-              },
-              {
-                "agent_id": "obf",
-                "display_name": "OPL Book Forge"
-              }
-            ]
+            "membership_source": "work_item_projection_v2.agent_catalog",
+            "inclusion_policy": "installed_present_kind_agent_with_task_provider",
+            "identity_fields": ["agent_id", "agent_display_name"],
+            "app_hardcoded_agent_ids_allowed": false
           },
           "project_scope": {
             "all_option": "all_projects",
@@ -1724,11 +1685,7 @@
             ],
             "agent_or_project_views_allowed": false,
             "visibility_views_allowed": false,
-            "forbidden_ids": [
-              "mas",
-              "med-autoscience",
-              "med_auto_science"
-            ]
+            "package_or_agent_specific_ids_allowed": false
           },
           "scope_source_values": [
             "default_global",

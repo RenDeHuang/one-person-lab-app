@@ -80,20 +80,20 @@ test('dual GUI runtime parity rejects host PATH-only resolution as shared physic
   );
 });
 
-test('Runtime keeps its Framework producer while remaining optional for AionUI and Native phase one', () => {
+test('Runtime keeps its Framework producer and is required for every adopted shell', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const runtimeRow = runtimeBridge.canonical_state_display_action_map.rows.find(
     (row: any) => row.semantic_area === 'runtime',
   );
 
-  assert.equal(runtimeRow.route_classification, 'retained_optional_x0_owner_route');
+  assert.equal(runtimeRow.route_classification, 'core_dynamic_agent_runtime');
   assert.equal(runtimeRow.producer_required, true);
-  assert.equal(runtimeRow.aionui_optional_route, true);
-  assert.equal(runtimeRow.native_phase_one_required, false);
+  assert.equal(runtimeRow.aionui_route_required, true);
+  assert.equal(runtimeRow.adopted_shell_route_required, true);
   assert.equal(
     runtimeBridge.canonical_state_display_action_map.shells.opl_native_workbench.role,
-    'foreground_candidate_optional_runtime_consumer_not_phase_one_parity',
+    'foreground_candidate_must_implement_core_runtime_before_adoption',
   );
   assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
 
@@ -103,7 +103,7 @@ test('Runtime keeps its Framework producer while remaining optional for AionUI a
   ).producer_required = false;
   assert.throws(
     () => validateRuntimeBridgeContract(weakenedProducer, activeAdapter),
-    /preserve the required Framework producer/,
+    /preserve the Framework producer/,
   );
 });
 

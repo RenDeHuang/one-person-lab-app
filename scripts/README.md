@@ -20,7 +20,7 @@ should happen only when AGUI replay is explicitly requested.
 | `gui-launcher.ts` | Opens the installed AionUI mainline by default or the isolated Native Candidate for one local run. Candidate launches receive exact OPL/Codex Runtime identity and default to dry-run-only actions; the launcher never changes release adoption or updater state. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
-| `validate-runtime-route.ts` | Explicitly validates the retained optional X0-01 Runtime route, including its product contract, page-state matrix, display policy, and required Framework producer. Default active-shell/release gates do not require the route. |
+| `validate-runtime-route.ts` | Explicitly validates the core dynamic Agent Runtime route, including its product contract, page-state matrix, generic typed-view envelope, and required Framework producer. Runtime is required for an adopted shell, while Stable release admission remains independently scoped. |
 | `validate-shell-candidates.ts` | Validates only the fixed active/foreground/retained/archived role registry by default. `--candidate opl-native-workbench` enables Native detail validation; Hermes and AGUI remain role tombstones whose explicit validation/replay detail is owned by their adapters and runbooks. Hermes command execution requires `--manual-reference-replay` for an actual technical-verification need. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
@@ -64,8 +64,8 @@ full shell Vitest evidence remains explicit through `npm run test:full`,
 `scripts/verify.sh full`, and the active-shell validation contract. These keep
 release boundary/evidence scripts visible as production entrypoints while the
 files remain thin App-owned wrappers around contracts and release artifacts.
-The retained X0-01 route uses the explicit `validate:runtime-route` and
-`test:runtime-route` entries and is intentionally absent from default release gates.
+The core Runtime route uses the explicit `validate:runtime-route` and
+`test:runtime-route` entries for focused validation. Its product requirement does not by itself make it a Stable release gate.
 App-root fallow config excludes
 `shells/aionui/**` and `shells/agui-codex/**` because those paths are ignored
 external shell checkouts.

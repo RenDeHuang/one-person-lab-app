@@ -903,19 +903,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   );
   requireExactMarkerLine(
     foundationReadme,
-    'runtime_cockpit.role=retained_optional_x0_owner_route',
+    'runtime_cockpit.role=core_dynamic_agent_runtime',
     foundationDocs.readme,
     issues,
   );
   requireExactMarkerLine(
     foundationReadme,
-    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved',
+    'runtime_cockpit.adopted_shell_requirement=true',
     foundationDocs.readme,
     issues,
   );
   requireExactMarkerLine(
     foundationReadme,
-    'runtime_cockpit.core_requirement=false',
+    'runtime_cockpit.core_requirement=true',
     foundationDocs.readme,
     issues,
   );
@@ -1001,11 +1001,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
     runtimePreservationGate.page_state_ref !==
       'contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance' ||
-    runtimePreservationGate.route_classification !== 'retained_optional_x0_owner_route' ||
-    runtimePreservationGate.default_product_requirement !== false ||
+    runtimePreservationGate.route_classification !== 'core_dynamic_agent_runtime' ||
+    runtimePreservationGate.default_product_requirement !== true ||
     runtimePreservationGate.default_release_gate !== false ||
-    runtimePreservationGate.native_phase_one_requirement !== false ||
-    runtimePreservationGate.upstream_alignment_may_remove_or_weaken !== true ||
+    runtimePreservationGate.adopted_shell_requirement !== true ||
     runtimePreservationGate.active_aionui_navigation_requirement !== true ||
     runtimePreservationGate.active_aionui_navigation_may_remove_or_weaken !== false ||
     runtimePreservationGate.explicit_validation_command !== 'npm run validate:runtime-route' ||
@@ -1573,10 +1572,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
     pageStateBoundary.runtime_product_contract_ref !==
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
-    pageStateBoundary.runtime_route_classification !== 'retained_optional_x0_owner_route' ||
-    pageStateBoundary.runtime_default_gate_required !== false ||
-    pageStateBoundary.runtime_native_phase_one_required !== false ||
-    pageStateBoundary.runtime_upstream_alignment_may_remove_or_weaken !== true ||
+    pageStateBoundary.runtime_route_classification !== 'core_dynamic_agent_runtime' ||
+    pageStateBoundary.runtime_default_product_required !== true ||
+    pageStateBoundary.runtime_adopted_shell_required !== true ||
     pageStateBoundary.runtime_explicit_validation_command !== 'npm run validate:runtime-route' ||
     pageStateBoundary.runtime_acceptance_requires_contract_page_state_validators_tests !== 'when_route_selected_or_changed'
   ) {

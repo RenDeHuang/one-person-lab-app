@@ -9,7 +9,6 @@ import {
   progressiveFirstRunRecoveryPolicy,
   progressiveFirstRunRecoveryTestIds,
   runtimeVisibilityPageStateIds,
-  scientificReasoningV2SnapshotFields,
 } from './app-contract-constants.ts';
 import {
   assertNonEmptyStringArray,
@@ -196,13 +195,13 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
   const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');
   if (runtimePage) {
     for (const [field, expected] of Object.entries({
-      route_classification: 'retained_optional_x0_owner_route',
-      default_gate_required: false,
-      native_phase_one_required: false,
+      route_classification: 'core_dynamic_agent_runtime',
+      default_product_required: true,
+      adopted_shell_required: true,
       explicit_validation_command: 'npm run validate:runtime-route',
     })) {
       if (runtimePage[field] !== expected) {
-        throw new Error(`Optional Runtime page ${field} must be ${expected}`);
+        throw new Error(`Core Runtime page ${field} must be ${expected}`);
       }
     }
   }
@@ -492,7 +491,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
       runtime_page: 'preserved',
       work_item_list: 'preserved',
       selected_item_core_detail: 'preserved',
-      research_trajectory_entry: 'hidden',
+      dependent_view_entries: 'hidden',
       direct_detail_route: 'localized_unavailable_with_return_to_runtime',
       global_failure: 'forbidden',
     },
@@ -509,46 +508,23 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
     throw new Error('Runtime domain detail views must be lazy, typed, agent-agnostic, and hide machine fields');
   }
   if (
-    domainDetail?.scientific_reasoning?.view_id !== 'scientific-reasoning'
-    || domainDetail?.scientific_reasoning?.view_kind !== 'scientific_reasoning_map'
-    || domainDetail?.scientific_reasoning?.schema_version !== 'scientific-reasoning-map.v2'
-    || domainDetail?.scientific_reasoning?.route !== '/runtime/item/:itemId/insights/:viewId'
+    domainDetail?.renderer_registry_source !== 'shell_extension_registry'
+    || domainDetail?.generic_view?.route !== '/runtime/item/:itemId/insights/:viewId'
+    || domainDetail?.generic_view?.renderer_selection_field !== 'view_kind'
+    || domainDetail?.generic_view?.renderer_registry_source !== 'shell_extension_registry'
+    || domainDetail?.generic_view?.unknown_view_kind_policy !== 'localized_unavailable_preserve_work_item_and_return_to_runtime'
+    || domainDetail?.generic_view?.layout !== 'full_width_owner_view'
+    || domainDetail?.generic_view?.app_domain_payload_interpretation_allowed !== false
   ) {
-    throw new Error('Runtime scientific reasoning must use the stable item-scoped view identity and route');
+    throw new Error('Runtime typed owner views must use the generic item-scoped route and local unknown-kind degradation');
+  }
+  if (domainDetail?.full_payload_in_fast_state_allowed !== false) {
+    throw new Error('Runtime typed owner views must not embed full payloads in fast state');
   }
   assertDeepEqualJson(
-    domainDetail?.scientific_reasoning?.compatible_schema_versions,
-    ['scientific-reasoning-map.v1', 'scientific-reasoning-map.v2'],
-    'Runtime scientific reasoning compatible schemas',
-  );
-  assertDeepEqualJson(
-    domainDetail?.scientific_reasoning?.current_branch_membership_source_by_schema,
-    {
-      'scientific-reasoning-map.v1': 'node.branch_id_compatibility_fallback',
-      'scientific-reasoning-map.v2': 'active_branch_node_refs_exact',
-    },
-    'Runtime scientific reasoning current branch membership source',
-  );
-  assertDeepEqualJson(
-    domainDetail?.scientific_reasoning?.content_order,
-    ['trajectory_map'],
-    'Runtime scientific reasoning content order',
-  );
-  if (
-    domainDetail?.scientific_reasoning?.snapshot_source !== 'mas_authored_lightweight_runtime_reference'
-    || domainDetail?.scientific_reasoning?.snapshot_update_unit !== 'single_domain_authored_snapshot'
-    || domainDetail?.scientific_reasoning?.sources_and_basis_source !== 'medical_narrative.sources_and_basis'
-    || domainDetail?.scientific_reasoning?.sources_and_basis_surface !== 'collapsed_sources_and_basis'
-    || domainDetail?.scientific_reasoning?.machine_source_refs_visible !== false
-    || domainDetail?.scientific_reasoning?.v2_current_branch_membership_inference_allowed !== false
-    || domainDetail?.scientific_reasoning?.app_validation_proves_medical_copy_quality_or_scientific_validity !== false
-  ) {
-    throw new Error('Runtime scientific reasoning must remain a lightweight MAS-authored display-only snapshot');
-  }
-  assertDeepEqualJson(
-    domainDetail?.scientific_reasoning?.app_validation_scope,
-    ['schema_shape', 'node_edge_drawability', 'machine_field_visibility', 'responsive_layout'],
-    'Runtime scientific reasoning App validation scope',
+    domainDetail?.generic_view?.app_validation_scope,
+    ['generic_envelope', 'transport_state', 'responsive_layout', 'keyboard_access'],
+    'Runtime generic owner view App validation scope',
   );
   assertDeepEqualJson(
     domainDetail?.states?.map((state) => state.id),

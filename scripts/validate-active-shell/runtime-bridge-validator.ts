@@ -1753,18 +1753,18 @@ function validatePackageReadinessProjection(runtimeBridge) {
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
   const nativeShellRole = runtimeBridge.canonical_state_display_action_map?.shells?.opl_native_workbench?.role;
   if (
-    runtimeRow?.route_classification !== 'retained_optional_x0_owner_route'
+    runtimeRow?.route_classification !== 'core_dynamic_agent_runtime'
     || runtimeRow.producer_required !== true
-    || runtimeRow.aionui_optional_route !== true
-    || runtimeRow.native_phase_one_required !== false
+    || runtimeRow.aionui_route_required !== true
+    || runtimeRow.adopted_shell_route_required !== true
     || runtimeRow?.canonical_source !==
       'opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2'
     || runtimeRow.aion_display_role !==
       'minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore'
-    || runtimeRow.workbench_display_role !== 'optional Runtime owner-route consumer outside Native phase-one parity'
-    || nativeShellRole !== 'foreground_candidate_optional_runtime_consumer_not_phase_one_parity'
+    || runtimeRow.workbench_display_role !== 'core Runtime consumer required before shell adoption'
+    || nativeShellRole !== 'foreground_candidate_must_implement_core_runtime_before_adoption'
   ) {
-    throw new Error('Runtime bridge canonical Runtime row must preserve the required Framework producer while keeping AionUI optional and Native phase one independent');
+    throw new Error('Runtime bridge canonical Runtime row must preserve the Framework producer and require the core route in every adopted shell');
   }
   assertDeepEqualJson(
     runtimeRow.allowed_action_refs,

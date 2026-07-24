@@ -180,9 +180,9 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `active_aionui.current_parity_evidence_ref=docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`
-- `runtime_cockpit.role=retained_optional_x0_owner_route`
-- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved`
-- `runtime_cockpit.core_requirement=false`
+- `runtime_cockpit.role=core_dynamic_agent_runtime`
+- `runtime_cockpit.adopted_shell_requirement=true`
+- `runtime_cockpit.core_requirement=true`
 - `runtime_cockpit.explicit_validation_command=npm run validate:runtime-route`
 - `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
 - `docs_or_contract_imply_source_complete=false`

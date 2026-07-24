@@ -2176,13 +2176,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   const runtimeStatus = pages.runtime_status;
   if (
     runtimeStatus &&
-    (runtimeStatus.route_classification !== 'retained_optional_x0_owner_route' ||
-      runtimeStatus.default_product_requirement !== false ||
+    (runtimeStatus.route_classification !== 'core_dynamic_agent_runtime' ||
+      runtimeStatus.default_product_requirement !== true ||
       runtimeStatus.default_release_gate !== false ||
-      runtimeStatus.native_phase_one_requirement !== false ||
+      runtimeStatus.adopted_shell_requirement !== true ||
       runtimeStatus.explicit_validation_command !== 'npm run validate:runtime-route')
   ) {
-    throw new Error('Optional Runtime route must stay outside the default product, release, and Native phase-one gates');
+    throw new Error('Core Runtime route must remain a product requirement for adopted shells without becoming a Stable release gate');
   }
   validateTaskAwarenessProjectionContract(
     guiContract.framework_surfaces?.task_awareness,

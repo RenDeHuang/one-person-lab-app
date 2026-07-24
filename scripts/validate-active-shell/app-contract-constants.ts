@@ -59,14 +59,6 @@ export const runtimeScopeRequiredFields = [
   "inferred_scope_hint",
 ];
 
-export const runtimeFirstPartyAgents = [
-  { agent_id: "mas", display_name: "Med Auto Science" },
-  { agent_id: "mag", display_name: "Med Auto Grant" },
-  { agent_id: "rca", display_name: "RedCube AI" },
-  { agent_id: "oma", display_name: "OPL Meta Agent" },
-  { agent_id: "obf", display_name: "OPL Book Forge" },
-];
-
 export const workItemPrimaryStateLabelsByLocale = {
   "en-US": {
     automatically_advancing: "Automatically advancing",
@@ -181,124 +173,18 @@ export const domainDetailViewDescriptorFields = [
   "item_id",
   "view_id",
   "view_kind",
-  "schema_version",
   "availability",
 ];
 
-export const domainDetailViewDescriptorOptionalFields = ["revision", "digest"];
-
-export const scientificReasoningSummaryFields = [
-  "primary_hypothesis",
-  "latest_finding",
-  "current_judgment",
-  "next_research_step",
-  "updated_at",
-];
-
-export const scientificReasoningCompatibleSchemaVersions = [
-  "scientific-reasoning-map.v1",
-  "scientific-reasoning-map.v2",
-];
-
-const scientificReasoningV1SnapshotFields = [
-  "study_id",
-  "status",
-  "summary",
-  "current_focus",
-  "active_branch",
-  "nodes",
-  "edges",
-  "source_refs",
-  "conditions",
-];
-
-export const scientificReasoningV2SnapshotFields = [
-  "surface_kind",
-  "version",
-  "study_id",
-  "study_ref",
+export const domainDetailViewDescriptorOptionalFields = [
+  "title",
+  "schema_ref",
+  "schema_version",
   "revision",
-  "status",
-  "summary",
-  "current_focus",
-  "active_branch",
-  "current_focus_node_refs",
-  "active_branch_node_refs",
-  "nodes",
-  "edges",
-  "medical_narrative",
-  "source_refs",
-  "conditions",
+  "digest",
 ];
 
-export const scientificReasoningSnapshotFieldsBySchema = {
-  "scientific-reasoning-map.v1": scientificReasoningV1SnapshotFields,
-  "scientific-reasoning-map.v2": scientificReasoningV2SnapshotFields,
-};
-
-export const scientificReasoningMedicalProsePolicy = {
-  source: "domain_owner_projected_exact_field_values",
-  exact_passthrough_required: true,
-  app_may_generate: false,
-  app_may_translate: false,
-  app_may_summarize: false,
-  app_may_rewrite: false,
-  shell_may_generate: false,
-  shell_may_translate: false,
-  shell_may_summarize: false,
-  shell_may_rewrite: false,
-  localization_scope: "app_owned_chrome_only_never_domain_medical_prose",
-};
-
-export const scientificReasoningCurrentBranchMembershipBySchema = {
-  "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
-  "scientific-reasoning-map.v2": "active_branch_node_refs_exact",
-};
-
-export const scientificReasoningNodeKinds = [
-  "hypothesis",
-  "test",
-  "finding",
-  "decision",
-  "route",
-  "artifact",
-  "human_gate",
-];
-
-export const scientificReasoningNodeStatuses = [
-  "proposed",
-  "planned",
-  "active",
-  "completed",
-  "execution_failed",
-  "not_assessed",
-  "supported",
-  "does_not_support",
-  "inconclusive",
-  "design_invalid",
-  "refined",
-  "superseded",
-  "continued",
-  "narrowed",
-  "pivoted",
-  "stopped",
-  "human_review_required",
-  "produced",
-];
-
-export const scientificReasoningEdgeKinds = [
-  "tests",
-  "supports",
-  "does_not_support",
-  "inconclusive",
-  "revises",
-  "supersedes",
-  "routes_to",
-  "requires",
-  "produces",
-];
-
-export const runtimeWorkItemDetailSecondarySections = ["domain_detail_view_summary"];
+export const runtimeWorkItemDetailSecondarySections = ["domain_detail_views"];
 
 export const workItemConditionFields = [
   "type",
