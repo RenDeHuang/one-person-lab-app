@@ -397,7 +397,12 @@ test('development dispatch is a distinct exact-Bundle protected publication lane
   const source = fs.readFileSync(developmentWorkflowPath, 'utf8');
   const workflow = YAML.parse(source);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), ['source_run_id']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'source_run_id',
+    'expected_version',
+  ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.expected_version.required, true);
+  assert.equal(workflow.on.workflow_dispatch.inputs.expected_version.type, 'string');
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.permissions.actions, 'read');
   assert.equal(workflow.concurrency.group, 'opl-webui-development-publication-global');
@@ -414,6 +419,11 @@ test('development dispatch is a distinct exact-Bundle protected publication lane
   );
   assert.match(source, /release-bundle\.json/);
   assert.match(source, /\.conclusion == "success" or \.conclusion == "failure"/);
+  assert.match(source, /EXPECTED_VERSION: \$\{\{ inputs\.expected_version \}\}/);
+  assert.match(source, /\[\[ "\$EXPECTED_VERSION" =~ \^\[0-9\]\{2\}/);
+  assert.match(source, /\.release\.version == \$expected_version/);
+  assert.match(source, /\.release\.tag == \("v" \+ \$expected_version\)/);
+  assert.doesNotMatch(source, /\.release\.version == "26\.7\.24-r1"/);
   assert.doesNotMatch(source, /releases\/latest|github-latest|homebrew/i);
   assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
 });
