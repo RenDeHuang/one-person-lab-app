@@ -42,16 +42,21 @@ The lifecycle boundary is deliberately four-step:
    required/optional dependencies, compatibility, and optional source or version
    hints. SemVer, OCI, direct manifest, developer checkout, bundled bytes, and
    offline sources are all optional resolver inputs.
-2. **Resolve compatibly.** OPL Framework reads the configured repository/index
-   and resolves the newest compatible candidate for the requested profile. A
-   registry is an index; it cannot define package behavior, installed state, or
-   currentness by itself.
-3. **Record the result.** If an install, update, or build occurs, Framework or
-   the artifact producer records the exact source and materialized bytes in that
-   operation's lock, receipt, or build manifest. No pre-existing lock is needed.
-4. **Run what was resolved.** Codex/plugin materialization and runtime execution
-   use the resolved bytes. A moving label, checkout name, or bundle label is not
-   installed truth by itself.
+2. **Resolve the configured source.** OPL Framework reads the configured
+   repository/index and follows that source's current stable Package pointer.
+   Required dependencies declare Package ids that must be present; ordinary
+   composition does not run a cross-Package version solver. A compatibility
+   constraint is added only for a measured platform/ABI requirement. A registry
+   is an index; it cannot define Package behavior or installed state.
+3. **Install through the platform.** Framework resolves a moving source to one
+   immutable OCI digest for the active transaction, downloads the Package, and
+   delegates Plugin/config/cache activation to Codex platform capability. OPL
+   does not require a pre-existing ecosystem lock or payload inventory and does
+   not build a second Plugin manager.
+4. **Record only the outcome.** The lifecycle receipt records the selected
+   source, resolved digest, installed result, and rollback reference needed for
+   support. Full or another reproducible build records its own included bytes.
+   A moving label, checkout name, or bundle label is never installed truth.
 
 The currently seven first-party packages are a **starter profile**, not a
 required seven-package closure or an upper bound. A starter profile is one
@@ -67,9 +72,9 @@ The following are separate dimensions and must not share a currentness flag:
 
 | Dimension | Owner and meaning |
 | --- | --- |
-| Package publication | Package owner makes a compatible manifest or source available; version and digest are optional until resolved. |
-| Package resolution | Framework repository index and compatibility resolver choose a candidate. |
-| Installed package truth | Framework lock and lifecycle receipt bind bytes after an install or update occurs. |
+| Package publication/current stable | Package owner publishes the Package and advances that source's `latest-stable`. |
+| Package source resolution | Framework follows the configured source and verifies required Package ids are present. |
+| Installed package truth | Codex/platform installed state plus Framework terminal lifecycle readback. |
 | App release | App Release Bundle and updater publish the App binary. |
 | Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports the same owner bytes. |
 | Cadence | Daily/scheduled CI reconciles candidates or indexes; cadence does not create a release authority. |
@@ -80,6 +85,71 @@ existing installed result outside a Framework transaction. App and Shell render
 Framework projections and delegate declared actions;
 they do not duplicate package parsers, version classifiers, dependency
 resolvers, rollback state machines, or release promotion logic.
+
+### Official Package Publication And Update Source
+
+GHCR remains the official online storage and delivery carrier for first-party
+OPL Packages. The simplification changes who defines currentness and who
+performs activation; it does not replace GHCR with an OPL-specific registry or
+require Package bytes to move into the App repository.
+
+The retained publication path is:
+
+```text
+Package owner repository/tag
+  -> Package-owned publisher
+  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:<semver>
+  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:latest-stable
+```
+
+The target ordinary install/update path is:
+
+```text
+thin repository index
+  -> package id + OCI repository + required package ids
+  -> Framework source resolver
+  -> resolve one Package latest-stable to an immutable digest
+  -> thin Base OCI download adapter
+  -> Codex Plugin/config/cache activation + Package runtime activation
+  -> lifecycle receipt and terminal readback
+```
+
+The index is intentionally small. It discovers candidates and dependency
+identities; it does not copy Package behavior, maintain a fixed first-party
+list, pin unrelated Package versions, or store a second payload inventory.
+Required Package-to-Package dependencies remain real, but an ordinary
+dependency declaration means that a provider Package must be installed and
+usable rather than that the whole ecosystem must share one version or release
+cohort. Version or ABI constraints are exceptional and require a demonstrated
+runtime incompatibility.
+
+Codex Plugin Manager currently accepts local or Git marketplace sources rather
+than OCI references. Therefore Base retains one thin OCI adapter that resolves
+and downloads GHCR content, then delegates the Plugin/config/cache surface to
+Codex. This adapter is transport glue, not an OPL Package manager: it cannot
+define Package identity, currentness, dependency policy, or a second installed
+state database. Installing only the Plugin subdirectory is also insufficient
+for Packages whose GHCR artifact contains a runtime in addition to the Codex
+Skill/Plugin carrier; both surfaces must reach terminal readback.
+
+`ghcr.io/<owner>/one-person-lab-manifest:latest-stable` is a legacy online
+catalog bridge. The target design removes it from ordinary Package currentness.
+Release Set/Full manifests remain useful only as exact Full/offline,
+integration-test, and release-QA snapshots of inputs actually selected. They
+must not block an independently published Package or cause unchanged Packages,
+Base, or App to republish.
+
+| Concern | Sole target owner |
+| --- | --- |
+| Source and version publication | Package owner |
+| Immutable online Package bytes | Per-Package GHCR repository |
+| Candidate discovery | Thin repository index |
+| Current stable in one source | Package owner `latest-stable` |
+| Configured source and required dependency presence | Framework |
+| Download transport | Thin Base OCI adapter |
+| Plugin/config/cache activation | Codex platform capability |
+| Runtime activation and support receipt | Framework lifecycle |
+| Full/offline reproducibility | Release Set snapshot for that build only |
 
 ### 2026-07-23 Audit State
 
@@ -148,7 +218,10 @@ but no family Release Set is required and no such record is an independent
 publication authority. The current seven identities are a starter profile. The App ships no default registry URL or empty
 catalog. Operators may add organization or user registry URLs, and users may
 select direct manifests. These sources provide candidates only: Framework's
-resolver decides currentness and the exact installed lock defines local truth.
+resolver follows the configured source and checks required dependency presence.
+Codex/platform installed state plus terminal Framework readback defines local
+truth; the existing lock is a migration/support surface rather than a required
+target architecture or currentness authority.
 External registry entries carry labels, source/trust hints, and manifest URLs
 only; they do not define business behavior, session contracts, artifact schemas,
 readiness rules, or owner receipt authority. Framework keeps identity/trust

@@ -50,22 +50,82 @@ Full or Release Set ~= exact lock/snapshot for a reproducible composition
 
 The objective is free composition with one implementation of each generic
 concern. Package owners publish independently with SemVer, immutable OCI or
-manifest digests, required/optional dependency declarations, and Base or
-capability ABI ranges. The Framework then resolves a compatible candidate,
-writes the exact installed lock and receipt, materializes the locked bytes, and
-owns recovery. The App renders the directory, delegates declared actions, and
-shows readback. It must not become a second package lifecycle owner.
+manifest digests, and required/optional Package-id dependencies. Framework
+follows the configured source, verifies required dependencies are present and
+usable, records the transaction result, and owns recovery. Ordinary composition
+does not require a version solver, pre-existing lock, or payload inventory;
+version/ABI constraints are exceptional evidence-backed requirements. The App
+renders the directory, delegates declared actions, and shows readback. It must
+not become a second package lifecycle owner.
 
 The following is the intended source/channel boundary:
 
 | Concern | Target rule | Status in this App documentation tranche |
 | --- | --- | --- |
-| Framework/package owner | One Framework resolver, transaction, exact lock, receipt, and rollback reference | Existing boundary retained; cross-repo migration still required |
+| Framework/package owner | Package owner publishes; one Framework resolver and transaction choose and activate; the lifecycle receipt records the result and rollback reference | Existing boundary retained; cross-repo migration still required |
 | Starter profile | Current seven first-party packages are replaceable defaults, not a fixed closure or App capability ceiling | **Planned**; current contracts still contain fixed-profile metadata |
-| Independent package release | Each package can publish and update without rebuilding App, Base, or unrelated packages | **Planned**; existing scheduled workflows need owner-level migration |
-| Registry/source adapters | OCI, external/direct manifest, developer checkout, and offline seed are candidate adapters; only the resolver chooses currentness | **Partially landed**; mixed-source live behavior still needs consolidation |
+| Official online carrier | Keep one per-Package GHCR repository with immutable SemVer artifacts and a Package-owned `latest-stable` pointer | **Published but half-migrated**; ordinary consumer still has a legacy Release Set bridge |
+| Independent package release | Each Package owner can publish and update without rebuilding App, Base, Full, Release Set, or unrelated Packages | **Partially landed**; per-Package publisher exists, owner trigger and consumer migration remain |
+| Registry/source adapters | A thin index discovers Package ids, OCI sources, and dependency ids; OCI, external/direct manifest, developer checkout, and offline seed remain candidate adapters; Framework follows the configured source and the Package owner advances its stable pointer | **Partially landed**; production index publication and mixed-source live behavior remain |
+| Platform activation | Base keeps a thin OCI download adapter because Codex Plugin Manager does not consume OCI; Codex owns Plugin/config/cache mechanics and Framework activates additional runtime bytes | **Migration required**; existing Framework materialization must be reduced without losing runtime |
+| Release Set | `one-person-lab-manifest` is Full/offline/integration-QA snapshot only and never ordinary online currentness | **Migration required**; current default consumer still reads the legacy bridge |
 | App/Shell boundary | App and Shell consume Framework directory/status/actions and do not copy package authority | Non-live projection path landed; duplicate authority cleanup remains pending |
 | Stable/Docker/WebUI/Full/Nightly/Daily | Stable is a release policy, Docker/WebUI and Homebrew are carriers, Full is a snapshot, Nightly publication is retired, Canary is independent validation, and Daily is cadence/index reconciliation | **Documented target**; live terminal proof remains pending |
+
+### Official GHCR route and migration
+
+The publication store stays on GitHub GHCR:
+
+```text
+owner tag
+  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:<semver>
+  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:latest-stable
+```
+
+The target consumer route is:
+
+```text
+thin repository index
+  -> Framework follows the configured Package source
+  -> GHCR tag resolves to immutable digest for this transaction
+  -> thin Base OCI adapter downloads complete Package
+  -> Codex activates Plugin/config/cache
+  -> Framework activates Package runtime and records terminal receipt
+```
+
+The old route,
+`one-person-lab-manifest:latest-stable -> selected_for_release_set -> Package
+artifact`, remains a compatibility fallback only. It must be removed from the
+ordinary update path after the new production index and per-Package route have
+fresh installed readback. The Release Set continues to serve Full, offline
+installation, integration testing, and release QA.
+
+On 2026-07-24, live GHCR demonstrated why this migration is required: the
+Release Set still selected MAS `0.2.12` and ScholarSkills `0.2.7`, while the
+independent Package `latest-stable` pointers had advanced to MAS `0.2.19` and
+ScholarSkills `0.2.20`. The source platform is working; the legacy shared
+selection path is stale.
+
+No-feature-regression acceptance is explicit:
+
+- Standard and Full install all required official starter Packages selected by
+  their profile, including required Package dependencies.
+- MAS activation ensures ScholarSkills is present and usable without requiring
+  unrelated Package versions to match. Default dependency declarations require
+  presence and usability, not a version range.
+- Silent background update advances only the selected Package and
+  preserves App, Base, and unrelated Packages.
+- Codex Plugin, Skill, icon, config, and cache read back active after install or
+  update; any additional Package runtime also reads back ready.
+- Home shortcuts, Settings lifecycle state, runtime task status, and
+  Agent-specific extension interfaces remain sourced from Framework/owner
+  projections rather than from GHCR or the index.
+- Full/offline installation reproduces the build-selected Package set without
+  making that snapshot the online latest authority.
+
+The resolved OCI digest belongs to the active transaction and receipt. OPL
+must not turn it into a pre-existing family lock, Package-to-App release edge,
+or hand-maintained payload inventory.
 
 Ordinary user UI should expose only Install, Update, Remove, Enabled, and Home
 pin controls. Repair belongs to diagnostics and rollback remains an automatic
@@ -95,8 +155,11 @@ define actions, or substitute a directory when the canonical collection is absen
 The current starter-profile identities are projected by Framework and are
 replaceable; they are not a required seven-package closure. The App ships no
 default registry or empty catalog. Organization/user registries and direct
-manifests remain optional candidate adapters. Framework alone resolves compatible
-currentness, and the exact installed lock defines local truth.
+manifests remain optional candidate adapters. Framework follows the configured
+source and verifies required dependency presence. Codex/platform installed
+state plus terminal Framework readback defines local truth. Existing Package
+lock fields remain migration and support readback, not a required target
+architecture or currentness authority.
 
 That boundary is not cosmetic. Recent local readback shows MAS/MAG/RCA as
 `health_status: dirty` with `effective_install_update_source: git_checkout`,
