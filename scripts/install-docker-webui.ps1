@@ -11,6 +11,8 @@ param(
   [string]$Tag = "latest",
   [string]$DataDir,
   [string]$ProjectsDir,
+  [ValidateRange(30, 7200)]
+  [int]$DockerPullTimeoutSeconds = 900,
   [ValidateRange(1, 86400)]
   [int]$HealthTimeoutSeconds = 600,
   [string]$HealthUrl,
@@ -161,7 +163,9 @@ function Start-DockerDesktopIfPresent {
   }
 
   Write-Step "Starting Docker Desktop."
-  $desktopStart = Invoke-DockerCommandCapture -Arguments @("desktop", "start")
+  $desktopStart = Invoke-DockerCommandCapture `
+    -Arguments @("desktop", "start") `
+    -TimeoutSeconds 30
   if ($desktopStart.ExitCode -eq 0) {
     return
   }
@@ -178,24 +182,84 @@ function Start-DockerDesktopIfPresent {
   Start-Process -FilePath $dockerDesktop | Out-Null
 }
 
-function Invoke-DockerCommandCapture {
-  param([Parameter(Mandatory = $true)][string[]]$Arguments)
+function Convert-ToPowerShellSingleQuotedLiteral {
+  param([Parameter(Mandatory = $true)][string]$Value)
+  return "'" + ($Value -replace "'", "''") + "'"
+}
 
-  $previousErrorActionPreference = $ErrorActionPreference
+function Invoke-DockerCommandCaptureWithTimeout {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-command-" + [Guid]::NewGuid().ToString('N'))
+  $wrapperPath = Join-Path $temporaryDir 'invoke-docker.ps1'
+  $outputPath = Join-Path $temporaryDir 'output.txt'
+  $argumentLiterals = @($Arguments | ForEach-Object { Convert-ToPowerShellSingleQuotedLiteral -Value $_ })
+  $wrapper = @"
+`$ErrorActionPreference = 'Continue'
+`$dockerArguments = @($($argumentLiterals -join ', '))
+`$output = & docker @dockerArguments 2>&1 | Out-String
+`$exitCode = `$LASTEXITCODE
+Set-Content -LiteralPath $(Convert-ToPowerShellSingleQuotedLiteral -Value $outputPath) -Value `$output -Encoding UTF8
+exit `$exitCode
+"@
+
   try {
-    # Windows PowerShell 5.1 can promote native stderr to a terminating
-    # NativeCommandError while the daemon is still starting.
-    $ErrorActionPreference = "Continue"
-    $output = & docker @Arguments 2>&1 | Out-String
-    $exitCode = $LASTEXITCODE
+    New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
+    Set-Content -LiteralPath $wrapperPath -Value $wrapper -Encoding UTF8
+    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $process = Start-Process `
+      -FilePath $powershell `
+      -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $wrapperPath + '"')) `
+      -WindowStyle Hidden `
+      -PassThru
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+      & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null
+      $killDeadline = (Get-Date).AddSeconds(5)
+      while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
+        Start-Sleep -Milliseconds 100
+        $process.Refresh()
+      }
+      if (-not $process.HasExited) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+      }
+      $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
+        (Get-Content -LiteralPath $outputPath -Raw).Trim()
+      } else {
+        ''
+      }
+      return [pscustomobject]@{
+        ExitCode = 124
+        Output = $output
+        TimedOut = $true
+      }
+    }
+    $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
+      (Get-Content -LiteralPath $outputPath -Raw).Trim()
+    } else {
+      ''
+    }
+    return [pscustomobject]@{
+      ExitCode = $process.ExitCode
+      Output = $output
+      TimedOut = $false
+    }
   } finally {
-    $ErrorActionPreference = $previousErrorActionPreference
+    Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
   }
+}
 
-  return [pscustomobject]@{
-    ExitCode = $exitCode
-    Output = $output.Trim()
-  }
+function Invoke-DockerCommandCapture {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [ValidateRange(1, 900)][int]$TimeoutSeconds = 120
+  )
+
+  return Invoke-DockerCommandCaptureWithTimeout `
+    -Arguments $Arguments `
+    -TimeoutSeconds $TimeoutSeconds
 }
 
 function Test-PublicOplGhcrImageReference {
@@ -214,7 +278,10 @@ function Test-DockerCredentialHelperFailure {
 }
 
 function Invoke-PublicGhcrAnonymousDockerCommandCapture {
-  param([Parameter(Mandatory = $true)][string[]]$Arguments)
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
 
   $temporaryConfigDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-anonymous-" + [Guid]::NewGuid().ToString('N'))
   try {
@@ -223,7 +290,9 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
       -LiteralPath (Join-Path $temporaryConfigDir 'config.json') `
       -Value '{"auths":{"ghcr.io":{"auth":"YW5vbnltb3VzOg=="}}}' `
       -Encoding ASCII
-    return Invoke-DockerCommandCapture -Arguments (@('--config', $temporaryConfigDir) + $Arguments)
+    return Invoke-DockerCommandCaptureWithTimeout `
+      -Arguments (@('--config', $temporaryConfigDir) + $Arguments) `
+      -TimeoutSeconds $TimeoutSeconds
   } finally {
     Remove-Item -LiteralPath $temporaryConfigDir -Force -Recurse -ErrorAction SilentlyContinue
   }
@@ -235,14 +304,19 @@ function Invoke-DockerPullWithPublicGhcrFallback {
     [Parameter(Mandatory = $true)][string]$ImageReference
   )
 
-  $result = Invoke-DockerCommandCapture -Arguments $Arguments
+  $result = Invoke-DockerCommandCaptureWithTimeout `
+    -Arguments $Arguments `
+    -TimeoutSeconds $DockerPullTimeoutSeconds
   if (
+    -not $result.TimedOut -and
     $result.ExitCode -ne 0 -and
     (Test-PublicOplGhcrImageReference -ImageReference $ImageReference) -and
     (Test-DockerCredentialHelperFailure -Output $result.Output)
   ) {
     Write-Step 'Docker credential helper is unavailable; retrying this public OPL GHCR pull anonymously.'
-    $result = Invoke-PublicGhcrAnonymousDockerCommandCapture -Arguments $Arguments
+    $result = Invoke-PublicGhcrAnonymousDockerCommandCapture `
+      -Arguments $Arguments `
+      -TimeoutSeconds $DockerPullTimeoutSeconds
   }
   return $result
 }
@@ -251,8 +325,10 @@ function Wait-DockerDaemon {
   if ($DryRun) {
     return
   }
-  for ($i = 1; $i -le 90; $i++) {
-    $info = Invoke-DockerCommandCapture -Arguments @("info", "--format", "{{.ServerVersion}}")
+  for ($i = 1; $i -le 45; $i++) {
+    $info = Invoke-DockerCommandCapture `
+      -Arguments @("info", "--format", "{{.ServerVersion}}") `
+      -TimeoutSeconds 2
     if ($info.ExitCode -eq 0) {
       return
     }
@@ -342,6 +418,9 @@ function Resolve-PinnedImageReference {
   if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
     Write-Host $pull.Output
   }
+  if ($pull.TimedOut) {
+    throw "Docker did not finish pulling the requested WebUI image within ${DockerPullTimeoutSeconds}s. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
+  }
   if ($pull.ExitCode -ne 0) {
     throw "Docker could not pull the requested WebUI image. Check Docker/GHCR access and retry. Details: $($pull.Output)"
   }
@@ -351,11 +430,13 @@ function Resolve-PinnedImageReference {
   }
 
   $repository = Get-ImageRepositoryName -ImageReference $RequestedImageReference
-  $repoDigestsJson = & docker image inspect --format "{{json .RepoDigests}}" $RequestedImageReference 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker could not read the pulled WebUI image RepoDigests: $repoDigestsJson"
+  $repoDigestReadback = Invoke-DockerCommandCapture `
+    -Arguments @("image", "inspect", "--format", "{{json .RepoDigests}}", $RequestedImageReference) `
+    -TimeoutSeconds 30
+  if ($repoDigestReadback.ExitCode -ne 0) {
+    throw "Docker could not read the pulled WebUI image RepoDigests: $($repoDigestReadback.Output)"
   }
-  $repoDigests = @($repoDigestsJson | ConvertFrom-Json)
+  $repoDigests = @($repoDigestReadback.Output | ConvertFrom-Json)
   $matchingDigests = @($repoDigests | Where-Object { $_ -match "^$([regex]::Escape($repository))@sha256:[0-9a-f]{64}$" })
   if ($matchingDigests.Count -ne 1) {
     throw "Expected one immutable RepoDigest for $repository after pulling $RequestedImageReference, got $($matchingDigests.Count)."
@@ -468,12 +549,16 @@ function Assert-DockerCli {
     throw "docker CLI was not found. Install Docker Desktop, for example: winget install Docker.DockerDesktop, then open Docker Desktop and rerun this script."
   }
 
-  $client = Invoke-DockerCommandCapture -Arguments @("--version")
+  $client = Invoke-DockerCommandCapture `
+    -Arguments @("--version") `
+    -TimeoutSeconds 10
   if ($client.ExitCode -ne 0) {
     throw "docker CLI could not run. Reinstall or update Docker Desktop, then rerun this script. Details: $($client.Output)"
   }
 
-  $info = Invoke-DockerCommandCapture -Arguments @("info", "--format", "{{.ServerVersion}}")
+  $info = Invoke-DockerCommandCapture `
+    -Arguments @("info", "--format", "{{.ServerVersion}}") `
+    -TimeoutSeconds 5
   if ($info.ExitCode -ne 0) {
     Start-DockerDesktopIfPresent
     Wait-DockerDaemon
@@ -489,7 +574,9 @@ function Assert-DockerCompose {
     return
   }
 
-  $compose = Invoke-DockerCommandCapture -Arguments @("compose", "version")
+  $compose = Invoke-DockerCommandCapture `
+    -Arguments @("compose", "version") `
+    -TimeoutSeconds 30
   if ($compose.ExitCode -ne 0) {
     throw "Docker Compose plugin is not available. Update Docker Desktop, then rerun this script. Details: $($compose.Output)"
   }
@@ -734,6 +821,9 @@ function Invoke-DockerComposeUp {
       -ImageReference $ImageReference
     if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
       Write-Host $pull.Output
+    }
+    if ($pull.TimedOut) {
+      throw "Docker Compose did not finish pulling the WebUI image within ${DockerPullTimeoutSeconds}s. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
     }
     if ($pull.ExitCode -ne 0) {
       throw "Docker Compose image pull failed. Check Docker/GHCR network access, then rerun this script. Details: $($pull.Output)"

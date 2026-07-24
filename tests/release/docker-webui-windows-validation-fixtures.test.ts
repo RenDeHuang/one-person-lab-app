@@ -35,6 +35,8 @@ test('Windows clean-install fixture cannot reuse the previous Compose runtime', 
   assert.match(runner, /install_root_moved = \$installRootMoved/);
   assert.match(runner, /sourceFullPath\.Equals\(\$destinationFullPath/);
   assert.match(runner, /Set-Content -LiteralPath \(Join-Path \$validationDockerConfig 'config\.json'\) -Value '\{\}'/);
+  assert.match(runner, /ExecutionTimeLimit \(New-TimeSpan -Minutes 45\)/);
+  assert.match(runner, /AddMinutes\(40\)/);
 });
 
 test('Windows WebUI validation fixtures remain a small reusable surface', () => {

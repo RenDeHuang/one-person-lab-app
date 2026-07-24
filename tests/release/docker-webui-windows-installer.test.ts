@@ -125,7 +125,7 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     installer.indexOf('function Wait-DockerDaemon'),
   );
   const captureFunction = installer.slice(
-    installer.indexOf('function Invoke-DockerCommandCapture'),
+    installer.indexOf('function Invoke-DockerCommandCaptureWithTimeout'),
     installer.indexOf('function Wait-DockerDaemon'),
   );
   const dockerAssertion = installer.slice(
@@ -133,11 +133,13 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     installer.indexOf('function Assert-DockerCompose'),
   );
 
-  assert.match(startFunction, /Invoke-DockerCommandCapture -Arguments @\("desktop", "start"\)/);
+  assert.match(startFunction, /Invoke-DockerCommandCapture\s+`\s+-Arguments @\("desktop", "start"\)/);
+  assert.match(startFunction, /TimeoutSeconds 30/);
   assert.match(startFunction, /Start-Process -FilePath \$dockerDesktop/);
-  assert.match(captureFunction, /\$ErrorActionPreference = "Continue"/);
-  assert.match(captureFunction, /\$ErrorActionPreference = \$previousErrorActionPreference/);
-  assert.match(dockerAssertion, /Invoke-DockerCommandCapture -Arguments @\("--version"\)/);
+  assert.match(captureFunction, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
+  assert.match(captureFunction, /TimeoutSeconds = 120/);
+  assert.match(captureFunction, /Invoke-DockerCommandCaptureWithTimeout/);
+  assert.match(dockerAssertion, /Invoke-DockerCommandCapture\s+`\s+-Arguments @\("--version"\)/);
   assert.match(
     dockerAssertion,
     /if \(\$info\.ExitCode -ne 0\) \{\s+Start-DockerDesktopIfPresent\s+Wait-DockerDaemon/s,
@@ -161,6 +163,29 @@ test('Windows Docker/WebUI image resolution returns only the pinned image refere
   assert.match(resolver, /-ImageReference \$RequestedImageReference/);
   assert.match(resolver, /Write-Host \$pull\.Output/);
   assert.doesNotMatch(resolver, /& docker pull/);
+});
+
+test('Windows Docker/WebUI image pulls are bounded and terminate the stalled process tree', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const boundedCapture = installer.slice(
+    installer.indexOf('function Invoke-DockerCommandCaptureWithTimeout'),
+    installer.indexOf('function Test-PublicOplGhcrImageReference'),
+  );
+  const resolver = installer.slice(
+    installer.indexOf('function Resolve-PinnedImageReference'),
+    installer.indexOf('function Convert-ToComposeScalar'),
+  );
+
+  assert.match(installer, /\[int\]\$DockerPullTimeoutSeconds = 900/);
+  assert.match(boundedCapture, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
+  assert.match(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F/);
+  assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\)/);
+  assert.match(boundedCapture, /Stop-Process -Id \$process\.Id -Force/);
+  assert.match(boundedCapture, /ExitCode = 124/);
+  assert.match(boundedCapture, /TimedOut = \$true/);
+  assert.match(resolver, /if \(\$pull\.TimedOut\)/);
+  assert.match(resolver, /The stalled pull was stopped/);
+  assert.match(resolver, /Invoke-DockerCommandCapture[\s\S]*"image", "inspect"/);
 });
 
 test('Windows Docker/WebUI anonymous pull recovery is limited to the public OPL GHCR image', () => {

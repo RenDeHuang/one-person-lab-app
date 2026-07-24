@@ -161,7 +161,10 @@ test('Windows Docker/WebUI installer resolves a moving tag once and pins compose
     /& docker pull/,
     'native docker progress must not leak into the resolver success output',
   );
-  assert.match(resolver, /docker image inspect --format "\{\{json \.RepoDigests\}\}"/);
+  assert.match(
+    resolver,
+    /Invoke-DockerCommandCapture[\s\S]*-Arguments @\("image", "inspect", "--format", "\{\{json \.RepoDigests\}\}"[\s\S]*-TimeoutSeconds 30/,
+  );
   assert.match(resolver, /matchingDigests\.Count -ne 1/);
   assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);
   assert.match(pullFallback, /Test-PublicOplGhcrImageReference/);
