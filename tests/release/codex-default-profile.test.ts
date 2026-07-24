@@ -197,10 +197,45 @@ test('desktop App icon keeps the Codex-aligned macOS safe margin', () => {
   );
 });
 
-test('product profile keeps Package lifecycle and currentness in Framework without a bundled registry', () => {
+test('product profile has one presence-only Official Profile shared by Standard and Full', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
+  assert.deepEqual(profile.official_profile.apply_on, ['first_install', 'explicit_restore']);
+  assert.deepEqual(profile.official_profile.never_apply_on, [
+    'app_startup',
+    'silent_package_update',
+    'app_update',
+  ]);
+  assert.equal(profile.official_profile.distribution_forms.standard.offline_seed, false);
+  assert.equal(profile.official_profile.distribution_forms.full.offline_seed, true);
+  assert.equal(
+    profile.official_profile.distribution_forms.standard.desired_roots_source,
+    profile.official_profile.distribution_forms.full.desired_roots_source,
+  );
+  assert.equal(
+    profile.official_profile.user_removal_policy.reinstall_before_explicit_restore_allowed,
+    false,
+  );
+  assert.equal(
+    profile.official_profile.package_currentness_policy.published_current_stable_authority,
+    'package_owner_per_package_ghcr_latest_stable',
+  );
+  assert.equal(
+    profile.official_profile.package_currentness_policy.installed_callable_authority,
+    'framework_fresh_aggregation_of_configured_carrier_readback',
+  );
+  assert.equal(profile.official_profile.package_currentness_policy.app_carrier_authority, false);
+  assert.equal(profile.official_profile.package_currentness_policy.app_release_authority, false);
+  assert.equal(
+    profile.official_profile.package_currentness_policy.shared_release_set_ordinary_update_authority,
+    false,
+  );
+  assert.equal(profile.official_profile.additional_official_profiles_allowed, false);
+  assert.equal(profile.official_profile.user_composed_profiles_allowed, true);
+  assert.equal('starter_package_ids' in profile.gui.agent_package_registry, false);
+  assert.equal('resolver_currentness_authority' in profile.gui.agent_package_registry, false);
+  assert.equal('installed_truth_authority' in profile.gui.agent_package_registry, false);
 
   profile.gui.agent_package_registry.bundled_default_registry_allowed = true;
   assert.throws(
@@ -208,11 +243,48 @@ test('product profile keeps Package lifecycle and currentness in Framework witho
     /registries remain optional candidate sources/,
   );
 
-  const missingStarterId = structuredClone(readJson('contracts/app-product-profile.json'));
-  missingStarterId.gui.agent_package_registry.starter_package_ids.pop();
+  const syntheticOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
+  syntheticOfficialRoot.official_profile.desired_root_package_ids.push('synthetic-package');
+  assert.doesNotThrow(() => validateProductProfile(syntheticOfficialRoot, installExposure));
+
+  const missingOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
+  missingOfficialRoot.official_profile.desired_root_package_ids = [];
   assert.throws(
-    () => validateProductProfile(missingStarterId, installExposure),
-    /starter package ids/,
+    () => validateProductProfile(missingOfficialRoot, installExposure),
+    /Official Profile desired roots/,
+  );
+
+  const duplicateOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
+  duplicateOfficialRoot.official_profile.desired_root_package_ids.push(
+    duplicateOfficialRoot.official_profile.desired_root_package_ids[0],
+  );
+  assert.throws(
+    () => validateProductProfile(duplicateOfficialRoot, installExposure),
+    /Official Profile desired roots must be unique/,
+  );
+
+  for (const forbiddenApplyOn of ['app_startup', 'silent_package_update', 'app_update']) {
+    const automaticReinstall = structuredClone(readJson('contracts/app-product-profile.json'));
+    automaticReinstall.official_profile.apply_on.push(forbiddenApplyOn);
+    assert.throws(
+      () => validateProductProfile(automaticReinstall, installExposure),
+      /Official Profile apply_on/,
+    );
+  }
+
+  const fullAddsRoot = structuredClone(readJson('contracts/app-product-profile.json'));
+  fullAddsRoot.official_profile.distribution_forms.full.desired_roots_source =
+    'official_profile.full_desired_root_package_ids';
+  assert.throws(
+    () => validateProductProfile(fullAddsRoot, installExposure),
+    /shared by Standard and Full/,
+  );
+
+  const versionGate = structuredClone(readJson('contracts/app-product-profile.json'));
+  versionGate.official_profile.composition_policy.composition_gate = 'version_range_and_identity';
+  assert.throws(
+    () => validateProductProfile(versionGate, installExposure),
+    /presence-only/,
   );
 });
 

@@ -122,13 +122,14 @@ macOS helper。
 - 只存在一个 Framework-owned active Base，`active_framework_count=1`。
 - App、Base、Packages 各自保持独立版本和生命周期，不要求版本号锁步。
 - 所有 App 载体消费相同产品行为合同与 Official Profile 意图。
-- Framework reconciliation 产生可验证 terminal receipt。
+- 每个 configured carrier / Package-declared adapter 产生 fresh terminal readback；
+  Framework 只聚合完整 Package 的 installed/callable 状态。
 - Standard 可在线补齐；Full 只提供相同目标所需的离线 seed。
 - Desktop、Native WebUI、Container WebUI 可使用不同平台字节、目录、
   service manager 和隔离方式。
-- Package currentness 由各 Package owner/carrier 与 Framework fresh
-  aggregation 决定，不绑定 Desktop、DMG、Homebrew、WebUI 或 App Release
-  的版本。
+- Package 发布 current stable 只由各 owner 的 per-Package GHCR `latest-stable`
+  定义；本机 installed/callable 只由 carrier readback 经 Framework 聚合定义。
+  两者都不绑定 Desktop、DMG、Homebrew、WebUI 或 App Release 版本。
 
 因此“一致”不是下面任何一种错误要求：
 
