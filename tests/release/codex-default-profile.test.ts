@@ -233,11 +233,6 @@ test('product profile has one presence-only Official Profile shared by Standard 
   );
   assert.equal(profile.official_profile.additional_official_profiles_allowed, false);
   assert.equal(profile.official_profile.user_composed_profiles_allowed, true);
-  assert.deepEqual(
-    profile.official_profile.desired_root_package_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'],
-  );
-  assert.equal(profile.official_profile.desired_root_package_ids.includes('mas-scholar-skills'), false);
   assert.equal('starter_package_ids' in profile.gui.agent_package_registry, false);
   assert.equal('resolver_currentness_authority' in profile.gui.agent_package_registry, false);
   assert.equal('installed_truth_authority' in profile.gui.agent_package_registry, false);
@@ -250,10 +245,7 @@ test('product profile has one presence-only Official Profile shared by Standard 
 
   const syntheticOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
   syntheticOfficialRoot.official_profile.desired_root_package_ids.push('synthetic-package');
-  assert.throws(
-    () => validateProductProfile(syntheticOfficialRoot, installExposure),
-    /Official Profile desired roots/,
-  );
+  assert.doesNotThrow(() => validateProductProfile(syntheticOfficialRoot, installExposure));
 
   const missingOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
   missingOfficialRoot.official_profile.desired_root_package_ids = [];

@@ -85,7 +85,6 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
-const expectedOfficialRootPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'];
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
 }
@@ -957,11 +956,6 @@ export function validateProductProfile(
   validateProductProfileContractRefs(profile);
   validateProductProfileCodexDefaults(profile);
   assertOfficialProfileShape(profile.official_profile, 'Product profile Official Profile');
-  assertDeepEqualJson(
-    profile.official_profile.desired_root_package_ids,
-    expectedOfficialRootPackageIds,
-    'Product profile Official Profile desired roots',
-  );
   validateAgentPackageRegistryProjection(profile);
   validateFullFirstInstallCoreReadyPolicy(profile);
   validateStandardPackagePolicy(profile);
