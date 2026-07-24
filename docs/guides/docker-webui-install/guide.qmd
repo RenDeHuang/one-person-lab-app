@@ -6,7 +6,7 @@ lang: zh-CN
 
 适用对象：希望在 Windows 或 Linux 电脑上通过浏览器使用 One Person Lab 的用户；默认不要求 Docker 经验。
 
-本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会直接打开 One Person Lab 工作台；如果模型访问等首次设置尚未完成，再从工作台进入“完成首次设置”。
+本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会建立本机 WebUI 会话。登录后的实时检查如果在 5 秒内确认本机助手或模型访问尚未配置，会自动打开首次设置；检查超时或暂时失败时会先进入工作台，并在左下角保留“完成首次设置”入口。
 
 ::: {.callout-note title="先了解两个边界"}
 
@@ -19,8 +19,8 @@ lang: zh-CN
 
 1. 安装并启动 Docker Desktop，确认使用 WSL 2 和 Linux containers。
 2. 在 PowerShell 运行 One Person Lab 一键安装器。
-3. 浏览器打开 `http://localhost:3000/`，直接进入工作台。
-4. 如果侧栏出现“完成首次设置”，按提示完成模型访问配置。
+3. 浏览器打开 `http://localhost:3000/`，建立本机 WebUI 会话。
+4. 未配置时通常自动进入首次设置；否则从工作台左下角的“完成首次设置”继续。
 
 ## 准备清单
 
@@ -120,7 +120,7 @@ http://localhost:3000/
 
 使用 Edge、Chrome 或 Firefox 打开 <http://localhost:3000/>。
 
-本机 Docker 安装会自动建立本机 WebUI 会话。当前产品入口直接进入工作台，不再把设备检查页作为普通启动门槛。
+本机 Docker 安装会自动建立本机 WebUI 会话。只有本次新登录后的实时检查在 5 秒内明确发现 Core 未配置时，页面才会自动进入首次设置。普通启动、刷新或打开具体页面不会反复打断当前工作；状态读取失败、未知或超过 5 秒时也会先进入工作台。
 
 ![浏览器直接进入 One Person Lab 工作台](screenshots/01-browser-open-webui.png){width=96% fig-align="center"}
 
@@ -133,7 +133,7 @@ http://localhost:3000/
 
 ## 4. 完成首次设置
 
-工作台会在后台读取当前状态。只有工作目录、本机助手或模型访问尚未完成时，侧栏才会显示“完成首次设置”；点击后进入独立的首次设置页面。
+工作台会在后台读取当前状态。只有工作目录、本机助手或模型访问尚未完成时，侧栏左下角才会显示“完成首次设置”；点击后进入独立的首次设置页面。工作台中央不会常驻“本机运行环境需要处理”横幅，避免把仍可浏览的 Home 误解成故障页。
 
 ![从工作台进入完成首次设置](screenshots/02-first-run-overview.png){width=96% fig-align="center"}
 
@@ -162,6 +162,8 @@ http://localhost:3000/
 ![从账户与访问页面管理 WebUI 模型凭据](screenshots/04-settings-entry.png){width=96% fig-align="center"}
 
 默认模型和推理强度位于“设置 -> 账户与模型 -> 模型”，与凭据管理是两个独立页面。
+
+如果你已经输入任务并点击发送，系统此时才发现本机助手或模型访问尚未完成，会在输入框下方显示局部恢复提示。当前草稿会保留；点击提示中的“完成首次设置”，完成后即可继续发送。
 
 ::: {.callout-important title="不要混淆三种凭据"}
 
@@ -258,6 +260,10 @@ powershell -ExecutionPolicy Bypass -File $p `
 ### 本机安装为什么短暂出现登录页
 
 本机 WebUI 首次启动时需要几秒钟初始化自动会话。如果浏览器过早打开并短暂显示登录页，请等待几秒后刷新页面；正常本机安装会自动进入工作台，不需要猜测或重置 WebUI 密码。若刷新后仍显示登录页，请确认使用的是本机安装路径，而不是配置了登录密码的服务器部署。
+
+```{=latex}
+\newpage
+```
 
 ### 已经在 Windows 上使用 Codex，容器能自动复用吗
 

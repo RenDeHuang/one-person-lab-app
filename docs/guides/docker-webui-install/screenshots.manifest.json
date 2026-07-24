@@ -5,14 +5,14 @@
   "source_summary": {
     "kind": "current_shell_webui_in_app_browser_capture",
     "locale": "zh-CN",
-    "browser_size": "1440x951",
-    "current_app_commit": "92dd87c4c75f191c35a270fdfa1b66478b04e801",
-    "current_shell_commit": "5002d8afd15a557761b8234113242e709915ee43",
-    "captured_at": "2026-07-23T00:02:05+08:00",
-    "note": "Current Shell WebUI was started with isolated temporary data and projects directories, local automatic browser authentication, and the current Chinese renderer. Captures contain no credentials."
+    "browser_size": "1280x720",
+    "current_app_commit": "0e8c33594781969ffa3f87a6c31317c16d44245f",
+    "current_shell_commit": "22548eb15567bf53f16c635a3c20d3e878557996",
+    "captured_at": "2026-07-24T19:38:12+08:00",
+    "note": "The Home capture was refreshed from the exact Shell main commit with isolated external-SSD data and build directories, local automatic browser authentication, and the current Chinese renderer. Other captures retain their per-file source metadata. Captures contain no credentials."
   },
   "release_run": {
-    "id": "guide-refresh-5002d8af-2026-07-23",
+    "id": "guide-refresh-22548eb1-2026-07-24",
     "conclusion": "success"
   },
   "screenshots": [
@@ -22,18 +22,18 @@
       "description": "One Person Lab WebUI opens directly to the workbench, with the incomplete setup entry visible when model access is missing.",
       "title": "Open One Person Lab WebUI in the browser",
       "source_kind": "current_shell_webui_in_app_browser_capture",
-      "source": "opl-aion-shell@5002d8afd15a557761b8234113242e709915ee43 route /#/guid at http://localhost:3000/.",
+      "source": "opl-aion-shell@22548eb15567bf53f16c635a3c20d3e878557996 route /#/guid at http://127.0.0.1:25819/.",
       "locale": "zh-CN",
-      "browser_size": "1440x951",
+      "browser_size": "1280x720",
       "expected_ui_text": [
         "One Person Lab",
         "今天要推进什么？",
         "完成首次设置",
         "设置"
       ],
-      "width": 1440,
-      "height": 951,
-      "sha256": "6c4894e2086d4b077a729151d7014f0a0a9311b8c6cf22ed605cc3252e82d550"
+      "width": 1280,
+      "height": 720,
+      "sha256": "7c31f19ecbb72dbee9f5a8a34aeb4c7ecbbc3fd66cc6ac2725329c6107155d09"
     },
     {
       "file": "02-first-run-overview.png",
