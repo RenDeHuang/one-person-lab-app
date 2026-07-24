@@ -160,6 +160,20 @@ test('Windows Docker/WebUI image resolution returns only the pinned image refere
   assert.doesNotMatch(resolver, /& docker pull/);
 });
 
+test('Windows Docker/WebUI compose commands use exit codes instead of native stderr exceptions', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const composeUp = installer.slice(
+    installer.indexOf('function Invoke-DockerComposeUp'),
+    installer.indexOf('function Test-WebUiHttpHealth'),
+  );
+
+  assert.match(composeUp, /Invoke-DockerCommandCapture -Arguments \$pullArgs/);
+  assert.match(composeUp, /Invoke-DockerCommandCapture -Arguments \$upArgs/);
+  assert.match(composeUp, /\$pull\.ExitCode -ne 0/);
+  assert.match(composeUp, /\$up\.ExitCode -ne 0/);
+  assert.doesNotMatch(composeUp, /& docker/);
+});
+
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const autoUpdateWriter = installer.slice(

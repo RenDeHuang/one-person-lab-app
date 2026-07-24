@@ -677,15 +677,21 @@ function Invoke-DockerComposeUp {
 
   if ($Update) {
     Write-Step "Running $displayPullCommand"
-    & docker @pullArgs
-    if ($LASTEXITCODE -ne 0) {
-      throw "Docker Compose image pull failed. Check Docker/GHCR network access, then rerun this script."
+    $pull = Invoke-DockerCommandCapture -Arguments $pullArgs
+    if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
+      Write-Host $pull.Output
+    }
+    if ($pull.ExitCode -ne 0) {
+      throw "Docker Compose image pull failed. Check Docker/GHCR network access, then rerun this script. Details: $($pull.Output)"
     }
   }
   Write-Step "Running $displayUpCommand"
-  & docker @upArgs
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose failed. Check Docker Desktop status and the compose file at $ComposePath, then rerun this script."
+  $up = Invoke-DockerCommandCapture -Arguments $upArgs
+  if (-not [string]::IsNullOrWhiteSpace($up.Output)) {
+    Write-Host $up.Output
+  }
+  if ($up.ExitCode -ne 0) {
+    throw "Docker Compose failed. Check Docker Desktop status and the compose file at $ComposePath, then rerun this script. Details: $($up.Output)"
   }
 }
 
