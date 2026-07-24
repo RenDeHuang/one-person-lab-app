@@ -61,6 +61,7 @@ const expectedRegistryPackageIds = [
   "mas-scholar-skills",
   "opl-flow",
 ];
+const expectedOfficialRootPackageIds = ["mas", "mag", "rca", "oma", "obf", "opl-flow"];
 const expectedPackageKinds: Record<string, string> = {
   mas: "domain_agent_package",
   mag: "domain_agent_package",
@@ -1544,6 +1545,11 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
   );
   const officialProfile = profile.official_profile;
   assertOfficialProfileShape(officialProfile, "App Official Profile", { fail });
+  assertArrayEqual(
+    officialProfile.desired_root_package_ids,
+    expectedOfficialRootPackageIds,
+    "App Official Profile desired roots",
+  );
   const registryProjection = profile.gui?.agent_package_registry;
   assertEqual(
     registryProjection?.directory_lifecycle_authority,
