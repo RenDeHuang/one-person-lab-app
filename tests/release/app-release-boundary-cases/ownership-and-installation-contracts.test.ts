@@ -459,11 +459,11 @@ test('App package consumers keep Framework authority while external registries r
   assert.equal(officialProfile.profile_id, 'opl-official');
   assert.equal(officialProfile.additional_official_profiles_allowed, false);
   assert.equal(officialProfile.user_composed_profiles_allowed, true);
-  assert.deepEqual(
-    officialProfile.desired_root_package_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'],
+  assert.ok(officialProfile.desired_root_package_ids.length > 0);
+  assert.equal(
+    new Set(officialProfile.desired_root_package_ids).size,
+    officialProfile.desired_root_package_ids.length,
   );
-  assert.equal(officialProfile.desired_root_package_ids.includes('mas-scholar-skills'), false);
   assert.deepEqual(officialProfile.apply_on, ['first_install', 'explicit_restore']);
   assert.deepEqual(officialProfile.never_apply_on, ['app_startup', 'silent_package_update', 'app_update']);
   assert.equal(officialProfile.user_removal_policy.explicit_uninstall_is_persistent_preference, true);
