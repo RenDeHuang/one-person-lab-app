@@ -49,10 +49,11 @@ lang: zh-CN
 1. 打开 [Docker Desktop Windows 安装页]({{download.docker_desktop_windows_url}})。
 2. 下载并安装 Docker Desktop，保持 WSL 2 相关推荐设置。
 3. 按提示重启电脑或重新登录。
-4. 打开 Docker Desktop，等待状态显示 **Running / 运行中**。
-5. 确认 Docker Desktop 使用 **Linux containers**。如果菜单显示“Switch to Linux containers”，请先执行切换。
+4. 确认 Docker Desktop 使用 **Linux containers**。如果菜单显示“Switch to Linux containers”，请先执行切换。
 
-打开 PowerShell，确认以下命令可以正常运行：
+普通一键安装器会自动启动已经安装的 Docker Desktop 并等待 Engine 就绪，不需要每次先手工打开。如果 Docker Desktop 首次启动显示许可、WSL 2 或登录提示，请按提示完成一次，再重新运行一键安装命令。
+
+需要排查依赖时，在普通 PowerShell 中确认：
 
 ```powershell
 wsl --status
@@ -65,14 +66,10 @@ docker compose version
 如果后续一键安装命令提示缺少 Docker Desktop 或 WSL 2，并且你有管理员权限，可以在“以管理员身份运行”的 PowerShell 中执行：
 
 ```powershell
-$repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://raw.githubusercontent.com/$repo/main"
-$p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/scripts/install-docker-webui.ps1" -OutFile $p
-powershell -ExecutionPolicy Bypass -File $p -InstallPrerequisites -Yes
+{{download.windows_admin_prerequisites_command}}
 ```
 
-Windows 要求重启时，先重启并打开 Docker Desktop，再重新运行普通一键安装命令。
+Windows 要求重启时，先重启，再用普通 PowerShell 重新运行一键安装命令。只有安装 Docker Desktop 或启用 WSL 2 依赖时才使用管理员 PowerShell。
 
 :::
 
@@ -94,11 +91,7 @@ docker compose version
 打开普通 PowerShell 窗口，复制并运行：
 
 ```powershell
-$repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://raw.githubusercontent.com/$repo/main"
-$p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/scripts/install-docker-webui.ps1" -OutFile $p
-powershell -ExecutionPolicy Bypass -File $p -Yes
+{{download.windows_online_command}}
 ```
 
 ### Linux 终端
@@ -180,9 +173,15 @@ http://localhost:3000/
 
 ## 5. 日常使用与更新
 
-Windows 日常使用前先启动 Docker Desktop；Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
+Windows 日常使用时可以直接重新运行安装器，它会在需要时启动 Docker Desktop；Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
 
-更新 WebUI 时重新运行同一条一键安装命令即可。安装器会拉取镜像并重建容器，同时保留：
+Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显式 `-Update` 会拉取 stable、按不可变 digest 重建容器：
+
+```powershell
+{{download.windows_update_command}}
+```
+
+Linux 重新运行同一条一键安装命令即可。两条路径都会保留：
 
 ```text
 Windows: %USERPROFILE%\OnePersonLab\data
@@ -197,7 +196,7 @@ Linux:   $HOME/OnePersonLab/projects
 
 ### Windows 提示找不到 Docker 或 WSL
 
-打开 Docker Desktop 并等待 Running；在 PowerShell 中重新执行 `wsl --status`、`docker version` 和 `docker compose version`。如果依赖确实缺失，可使用前文的管理员依赖安装命令。
+重新运行普通一键安装命令；安装器会自动尝试启动已安装的 Docker Desktop。如果 Docker Desktop 首次启动仍有许可、WSL 2 或登录提示，请手工打开并完成提示。在 PowerShell 中重新执行 `wsl --status`、`docker version` 和 `docker compose version`；如果依赖确实缺失，再使用前文的管理员依赖安装命令。
 
 ### 提示端口 3000 已被占用
 

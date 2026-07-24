@@ -149,19 +149,26 @@ function Install-DockerDesktopPrerequisite {
 }
 
 function Start-DockerDesktopIfPresent {
+  if ($DryRun) {
+    Write-Step "Dry run: would ask Docker Desktop to start."
+    return
+  }
+
+  Write-Step "Starting Docker Desktop."
+  $desktopStartOutput = & docker desktop start 2>&1
+  if ($LASTEXITCODE -eq 0) {
+    return
+  }
+
   $dockerDesktop = @(
     Join-Path ${env:ProgramFiles} "Docker\Docker\Docker Desktop.exe"
     Join-Path ${env:LOCALAPPDATA} "Docker\Docker Desktop.exe"
   ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) } | Select-Object -First 1
 
   if ($null -eq $dockerDesktop) {
-    return
+    throw "Docker CLI is installed but Docker Desktop could not be started. Open Docker Desktop, finish any setup prompts, then rerun this script. Details: $desktopStartOutput"
   }
-  if ($DryRun) {
-    Write-Step "Dry run: would start Docker Desktop at $dockerDesktop"
-    return
-  }
-  Write-Step "Starting Docker Desktop."
+  Write-Step "Docker Desktop CLI start was unavailable; starting the installed app."
   Start-Process -FilePath $dockerDesktop | Out-Null
 }
 
@@ -384,13 +391,10 @@ function Assert-DockerCli {
   & docker version --format "{{.Client.Version}}" | Out-Null
   $infoOutput = & docker info --format "{{.ServerVersion}}" 2>&1
   if ($LASTEXITCODE -ne 0) {
-    if ($InstallPrerequisites) {
-      Start-DockerDesktopIfPresent
-      Wait-DockerDaemon
-      Write-Step "Docker CLI and Docker Desktop daemon are available."
-      return
-    }
-    throw "Docker CLI is installed but Docker Desktop is not ready. Open Docker Desktop, wait until it is running, then rerun this script. Details: $infoOutput"
+    Start-DockerDesktopIfPresent
+    Wait-DockerDaemon
+    Write-Step "Docker CLI and Docker Desktop daemon are available."
+    return
   }
   Write-Step "Docker CLI and Docker Desktop daemon are available."
 }

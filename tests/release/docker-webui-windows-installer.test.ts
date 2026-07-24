@@ -106,3 +106,27 @@ test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when P
   assert.match(dryRun.stdout, /127\.0\.0\.1:3134:3000/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });
+
+test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exists but the daemon is stopped', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const startFunction = installer.slice(
+    installer.indexOf('function Start-DockerDesktopIfPresent'),
+    installer.indexOf('function Wait-DockerDaemon'),
+  );
+  const dockerAssertion = installer.slice(
+    installer.indexOf('function Assert-DockerCli'),
+    installer.indexOf('function Assert-DockerCompose'),
+  );
+
+  assert.match(startFunction, /docker desktop start/);
+  assert.match(startFunction, /Start-Process -FilePath \$dockerDesktop/);
+  assert.match(
+    dockerAssertion,
+    /if \(\$LASTEXITCODE -ne 0\) \{\s+Start-DockerDesktopIfPresent\s+Wait-DockerDaemon/s,
+  );
+  assert.doesNotMatch(
+    dockerAssertion,
+    /if \(\$InstallPrerequisites\) \{\s+Start-DockerDesktopIfPresent/s,
+    'daemon recovery must also run from the ordinary non-administrator installer path',
+  );
+});
