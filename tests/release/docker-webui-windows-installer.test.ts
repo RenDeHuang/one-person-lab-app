@@ -76,7 +76,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
   assert.match(dryRun.stdout, /docker compose .* pull/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
-  assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Latest Update at 03:00/);
+  assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Latest Update at 03:00 and at the current user's next logon/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
@@ -234,6 +234,9 @@ test('Windows Docker/WebUI automatic updates stay on the limited host-side lates
   assert.match(autoUpdateWriter, /`"-Yes`"/);
   assert.match(autoUpdateWriter, /`"-NoOpen`"/);
   assert.match(autoUpdateRegistration, /New-ScheduledTaskPrincipal/);
+  assert.match(autoUpdateRegistration, /New-ScheduledTaskTrigger -Daily -At \$scheduleTime/);
+  assert.match(autoUpdateRegistration, /New-ScheduledTaskTrigger -AtLogOn -User \$currentUser/);
+  assert.match(autoUpdateRegistration, /-Trigger \$triggers/);
   assert.match(autoUpdateRegistration, /-LogonType Interactive/);
   assert.match(autoUpdateRegistration, /-RunLevel Limited/);
   assert.match(autoUpdateRegistration, /-StartWhenAvailable/);

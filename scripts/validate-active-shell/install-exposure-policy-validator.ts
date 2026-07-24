@@ -295,6 +295,7 @@ function validateInstallerSurfaces(policy) {
     windowsAutoUpdate?.task_name !== 'One Person Lab WebUI Latest Update' ||
     windowsAutoUpdate?.enable_entrypoint !== 'install-docker-webui.ps1 -EnableAutoUpdate' ||
     windowsAutoUpdate?.disable_entrypoint !== 'install-docker-webui.ps1 -DisableAutoUpdate' ||
+    windowsAutoUpdate?.schedule !== 'daily_at_03_00_and_current_user_logon_start_when_available' ||
     windowsAutoUpdate?.execution_context !== 'limited_current_user_run_only_when_logged_on' ||
     windowsAutoUpdate?.channel_policy !== 'default_latest_only_custom_image_tag_or_digest_requires_manual_update' ||
     windowsAutoUpdate?.follows_ref !== 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
@@ -506,7 +507,7 @@ function validateInstallerSurfaces(policy) {
     dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_entrypoint !==
       'install-docker-webui.ps1 -EnableAutoUpdate' ||
     dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_mechanism !==
-      'limited_current_user_scheduled_task_running_host_installer_daily_for_default_latest_only'
+      'limited_current_user_scheduled_task_running_host_installer_daily_and_at_logon_for_default_latest_only'
   ) {
     throw new Error('Docker/WebUI image automatic updates must reuse the bounded Windows host installer route');
   }

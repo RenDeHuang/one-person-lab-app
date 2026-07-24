@@ -113,7 +113,7 @@ curl -fsSL "$root/scripts/install-docker-webui.sh" |
   bash -s -- --yes
 ```
 
-安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。第一次启动需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。Windows 拉取镜像超过 30 分钟仍未完成时，安装器会自动停止卡住的 Docker 子进程并给出网络排查提示，不需要手工结束 PowerShell。后续启动和更新通常更快。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务，每天 03:00 检查 `latest`；电脑关机或用户未登录时不会后台强行运行，下一次登录后由 Windows 在可用时补跑。默认映射如下：
+安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。第一次启动需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。Windows 拉取镜像超过 30 分钟仍未完成时，安装器会自动停止卡住的 Docker 子进程并给出网络排查提示，不需要手工结束 PowerShell。后续启动和更新通常更快。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
 | 宿主机目录 | 容器内路径 | 保存内容 |
 |---|---|---|
@@ -189,20 +189,28 @@ Windows 日常使用时可以直接重新运行安装器，它会在需要时启
 
 ### Windows 自动更新
 
-本教程的 Windows 推荐安装命令已包含 `-EnableAutoUpdate`。计划任务以当前普通用户身份运行，不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。它会下载当前宿主安装器，重新解析 `latest` 的不可变 digest，并以 `-Update -Yes -NoOpen` 更新；digest 未变化时 Docker Compose 不会替换正在运行的容器。以下目录始终保留：
+本教程的 Windows 推荐安装命令已包含 `-EnableAutoUpdate`。计划任务以当前普通用户身份运行，不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。它有两个触发器：用户已登录时每天 03:00 运行，以及该用户登录时补跑；因此夜间关机或未登录不会丢掉后续检查。它会下载当前宿主安装器，重新解析 `latest` 的不可变 digest，并以 `-Update -Yes -NoOpen` 更新；digest 未变化时 Docker Compose 不会替换正在运行的容器。以下目录始终保留：
 
 ```text
 %USERPROFILE%\OnePersonLab\data
 %USERPROFILE%\OnePersonLab\projects
 ```
 
-查看最近一次和下次计划运行时间：
+查看任务状态、两个触发器、最近一次结果和下次计划运行时间：
 
 ```powershell
 {{download.windows_auto_update_status_command}}
 ```
 
 自动更新日志只保留当前和上一次，位于 `%USERPROFILE%\OnePersonLab\updater\logs`。这项任务只更新 One Person Lab WebUI 镜像；Docker Desktop 自身仍按 Docker Desktop 的更新设置处理。
+
+查看当前日志末尾：
+
+```powershell
+Get-Content "$env:USERPROFILE\OnePersonLab\updater\logs\current.log" -Tail 80
+```
+
+如果电脑长期没有登录这个 Windows 用户，计划任务不会保存密码并在无人登录时强行运行；请登录一次等待补跑，或使用下面的手动更新命令。
 
 如需关闭 WebUI 自动更新，在普通 PowerShell 中运行：
 

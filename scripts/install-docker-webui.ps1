@@ -752,7 +752,7 @@ function Register-WebUiAutoUpdate {
 
   Write-WebUiAutoUpdater -UpdaterPath $UpdaterPath -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url -TimeoutSeconds $TimeoutSeconds
   if ($DryRun) {
-    Write-Step "Dry run: would register scheduled task $script:AutoUpdateTaskName at $AutoUpdateTime for the current user."
+    Write-Step "Dry run: would register scheduled task $script:AutoUpdateTaskName at $AutoUpdateTime and at the current user's next logon."
     return
   }
 
@@ -773,14 +773,17 @@ function Register-WebUiAutoUpdate {
   $actionArguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $UpdaterPath + '"'
   $action = New-ScheduledTaskAction -Execute $powershell -Argument $actionArguments
   $scheduleTime = [datetime]::ParseExact($AutoUpdateTime, "HH:mm", [Globalization.CultureInfo]::InvariantCulture)
-  $trigger = New-ScheduledTaskTrigger -Daily -At $scheduleTime
-  $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
   $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+  $triggers = @(
+    (New-ScheduledTaskTrigger -Daily -At $scheduleTime),
+    (New-ScheduledTaskTrigger -AtLogOn -User $currentUser)
+  )
+  $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
   $principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Limited
   Register-ScheduledTask `
     -TaskName $script:AutoUpdateTaskName `
     -Action $action `
-    -Trigger $trigger `
+    -Trigger $triggers `
     -Settings $settings `
     -Principal $principal `
     -Description "Checks the One Person Lab WebUI latest image from the Windows host and preserves data/projects." `
@@ -788,7 +791,7 @@ function Register-WebUiAutoUpdate {
 
   $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction Stop
   $taskInfo = $task | Get-ScheduledTaskInfo
-  Write-Step "Automatic WebUI updates enabled: $($task.TaskName), next run $($taskInfo.NextRunTime)."
+  Write-Step "Automatic WebUI updates enabled: $($task.TaskName), daily at $AutoUpdateTime and at the current user's next logon; next scheduled run $($taskInfo.NextRunTime)."
 }
 
 function Invoke-DockerComposeUp {
