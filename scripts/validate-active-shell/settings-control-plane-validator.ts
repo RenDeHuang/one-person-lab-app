@@ -572,7 +572,7 @@ export function validateSettingsControlPlane(
   );
   validateSettingsProjection(controlPlane.settings_projection);
   validateSettingsExperienceContract(controlPlane.experience_contract);
-  validateSettingsPageAdapterPolicy(controlPlane, productProfile);
+  validateSettingsPageAdapterPolicy(controlPlane);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
   validateSettingsUpstreamIntake(controlPlane);
@@ -3243,7 +3243,9 @@ function validateSettingsProjection(projection) {
   }
 }
 
-function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
+// Page adapter membership and source policy are owned here; the product
+// profile must not become a second Package catalog authority.
+function validateSettingsPageAdapterPolicy(controlPlane) {
   const policy = controlPlane.page_adapter_policy;
   if (
     policy?.policy !== "settings_pages_consume_explicit_view_model_adapters"
@@ -3324,8 +3326,6 @@ function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
     requiredPages.environment,
     requiredPages.storage,
   );
-  // The App Settings control-plane contract is authoritative. The product
-  // profile mirror is legacy input and must not constrain dynamic Package rows.
 }
 
 function validateWorkspaceAndStorageOwnership(
