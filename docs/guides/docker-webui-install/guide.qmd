@@ -6,7 +6,7 @@ lang: zh-CN
 
 适用对象：希望在 Windows 或 Linux 电脑上通过浏览器使用 One Person Lab 的用户；默认不要求 Docker 经验。
 
-本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会建立本机 WebUI 会话。登录后的实时检查如果在 5 秒内确认本机助手或模型访问尚未配置，会自动打开首次设置；检查超时或暂时失败时会先进入工作台，并在左下角保留“完成首次设置”入口。
+本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会建立本机 WebUI 会话。登录后的单次实时检查最多等待 20 秒；如果确认本机助手或模型访问尚未配置，会自动打开首次设置。检查超时或暂时失败时会先进入工作台，并在左下角保留“完成首次设置”入口。
 
 ```{=html}
 <p><a class="btn btn-primary" href="{{download.pdf_href}}" download>下载 PDF 版（适合打印和离线阅读）</a></p>
@@ -130,7 +130,7 @@ http://localhost:3000/
 
 使用 Edge、Chrome 或 Firefox 打开 <http://localhost:3000/>。
 
-本机 Docker 安装会自动建立本机 WebUI 会话。只有本次新登录后的实时检查在 5 秒内明确发现 Core 未配置时，页面才会自动进入首次设置。普通启动、刷新或打开具体页面不会反复打断当前工作；状态读取失败、未知或超过 5 秒时也会先进入工作台。
+本机 Docker 安装会自动建立本机 WebUI 会话。只有本次新登录后的单次实时检查在 20 秒内明确发现 Core 未配置时，页面才会自动进入首次设置。普通启动、刷新或打开具体页面不会反复打断当前工作；状态读取失败、未知或超过 20 秒时也会先进入工作台。这个 20 秒窗口只用于刚登录后的判断，不会让普通启动等待 20 秒。
 
 ![浏览器直接进入 One Person Lab 工作台](screenshots/01-browser-open-webui.png){width=96% fig-align="center"}
 

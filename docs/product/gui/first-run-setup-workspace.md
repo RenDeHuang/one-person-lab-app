@@ -38,7 +38,7 @@ contracts/source 已实现。
   managed-agent discovery 与其它局部状态在 Guid 已进入后后台刷新；失败只影响依赖该状态的局部能力。
 - 只有刚完成 WebUI 登录的导航携带一次性 `postLoginSetupCheck`。Home 读取到明确的
   Core 未完成状态后用 replace 进入 `/first-run`；readiness 未知、超时或读取失败时
-  fail-open 留在 `/guid`。该一次性 UI 检查最多等待 5 秒；普通启动、已登录刷新和
+  fail-open 留在 `/guid`。该一次性 UI 检查最多等待 20 秒；普通启动、已登录刷新和
   deep link 不携带该意图，也不自动打断用户。
 - installed launch target 为 `<=1500 ms`，计时从 OS launch request 到 Guid composer
   **visible、enabled、focusable**。后台 hydration 完成不属于终点。

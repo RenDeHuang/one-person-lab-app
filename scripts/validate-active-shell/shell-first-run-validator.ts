@@ -252,10 +252,11 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   if (
-    !corePrerequisitesHook.includes('POST_LOGIN_SETUP_CHECK_TIMEOUT_MS = 5_000') ||
+    !corePrerequisitesHook.includes('getOplPostLoginSetupCheckTimeoutMs') ||
+    !corePrerequisitesHook.includes('POST_LOGIN_SETUP_CHECK_TIMEOUT_MS = getOplPostLoginSetupCheckTimeoutMs()') ||
     !corePrerequisitesHook.includes("{ autoLoad: !requireLive, requireLive }")
   ) {
-    throw new Error('Active shell fresh-login readiness check must fail open after the App-owned 5000 ms UI deadline');
+    throw new Error('Active shell fresh-login readiness check must consume the App-owned 20000 ms UI deadline');
   }
   for (const expected of [
     "void navigate('/first-run')",

@@ -21,7 +21,7 @@
   },
   "rendered_pages": 12,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2980980,
+  "html_bytes": 2981025,
   "html_pdf_download": {
     "href": "docker-webui-install-detailed-guide.pdf",
     "status": "present"
@@ -129,7 +129,7 @@
     "http://localhost:3000/",
     "自动建立本机 WebUI 会话",
     "完成首次设置",
-    "5 秒",
+    "20 秒",
     "OPL Gateway",
     "Gateway 账户",
     "登录并继续",

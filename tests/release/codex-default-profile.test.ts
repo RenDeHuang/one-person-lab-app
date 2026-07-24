@@ -605,7 +605,10 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
-      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId, appState))',
+      'sameActiveShortcut',
+      'setActiveShortcut((current) => {',
+      'const next = resolveOplActiveShortcut(navState.selectedCapabilityId, appState)',
+      'return sameActiveShortcut(current, next) ? current : next',
       'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ].join('\n'),
     guidInputCard: [
@@ -654,8 +657,12 @@ test('active-shell source gate requires Home starters and Capabilities routing i
   assert.doesNotThrow(() => assertCurrentGuidHomeSelectionSources(currentSources));
   for (const [current, legacy] of [
     [
+      [
+        'setActiveShortcut((current) => {',
+        'const next = resolveOplActiveShortcut(navState.selectedCapabilityId, appState)',
+        'return sameActiveShortcut(current, next) ? current : next',
+      ].join('\n'),
       'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId, appState))',
-      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
     ],
     ['activeShortcutId={activeShortcut?.shortcut_id}', 'activeShortcutId={activeShortcut?.package_id}'],
     ["const { appState } = useOplAppState('fast')", 'const appState = undefined'],

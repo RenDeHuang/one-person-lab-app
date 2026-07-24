@@ -226,7 +226,7 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
     postLoginSetupCheck.known_incomplete_behavior !== 'replace_guid_with_first_run' ||
     postLoginSetupCheck.ready_behavior !== 'keep_guid' ||
     postLoginSetupCheck.unknown_timeout_or_read_failure_behavior !== 'keep_guid_fail_open' ||
-    postLoginSetupCheck.ui_timeout_ms !== 5000 ||
+    postLoginSetupCheck.ui_timeout_ms !== 20_000 ||
     postLoginSetupCheck.ordinary_startup_refresh_and_deep_link_behavior !==
       'keep_guid_without_automatic_first_run' ||
     postLoginSetupCheck.consumption_policy !== 'one_shot' ||
