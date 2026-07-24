@@ -26,7 +26,7 @@ on:
         required: false
         type: string
       homebrew_candidate_artifact:
-        description: 'Same-run artifact containing exactly one candidate Full Cask for pre-publication qualification.'
+        description: 'Same-run artifact containing exactly one candidate Nightly or Full Cask for pre-publication qualification.'
         required: false
         default: ''
         type: string
@@ -56,7 +56,7 @@ on:
         required: false
         type: string
       package_profile:
-        description: 'Install profile to test: full, standard, homebrew-standard, or homebrew-full.'
+        description: 'Install profile to test: full, standard, homebrew-standard, homebrew-nightly, or homebrew-full.'
         required: false
         default: full
         type: string
@@ -313,7 +313,7 @@ jobs:
             fi
           fi
           case "$profile" in
-            full | standard | homebrew-standard | homebrew-full)
+            full | standard | homebrew-standard | homebrew-nightly | homebrew-full)
               ;;
             *)
               echo "::error::Unsupported package_profile: $profile"
@@ -368,14 +368,26 @@ jobs:
             echo "::error::package_profile=full artifact validation requires framework_ref so the bundled Framework can be checked before VM allocation."
             exit 1
           fi
-          if [ -n '${{ inputs.homebrew_candidate_artifact }}' ] && [ "$profile" != "homebrew-full" ]; then
-            echo "::error::homebrew_candidate_artifact is accepted only for package_profile=homebrew-full."
-            exit 1
-          fi
-          if [ "$profile" = "homebrew-full" ] && [ -z '${{ inputs.homebrew_candidate_artifact }}' ]; then
-            echo "::error::package_profile=homebrew-full requires an exact pre-publication Cask artifact."
-            exit 1
-          fi
+          case "$profile" in
+            homebrew-nightly)
+              if [ -z '${{ inputs.homebrew_candidate_artifact }}' ]; then
+                echo "::error::package_profile=homebrew-nightly requires an exact pre-publication Cask artifact."
+                exit 1
+              fi
+              ;;
+            homebrew-full)
+              if [ -z '${{ inputs.homebrew_candidate_artifact }}' ]; then
+                echo "::error::package_profile=homebrew-full requires an exact pre-publication Cask artifact."
+                exit 1
+              fi
+              ;;
+            *)
+              if [ -n '${{ inputs.homebrew_candidate_artifact }}' ]; then
+                echo "::error::homebrew_candidate_artifact is accepted only for package_profile=homebrew-nightly or homebrew-full."
+                exit 1
+              fi
+              ;;
+          esac
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
           echo "artifact_app_sha=$artifact_app_sha" >> "$GITHUB_OUTPUT"
           echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
@@ -725,6 +737,13 @@ jobs:
               echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
               echo "homebrew_cask=gaofeng21cn/one-person-lab/one-person-lab" >> "$GITHUB_OUTPUT"
               ;;
+            homebrew-nightly)
+              echo "download_pattern=" >> "$GITHUB_OUTPUT"
+              echo "find_args=" >> "$GITHUB_OUTPUT"
+              echo "runtime_profile=standard" >> "$GITHUB_OUTPUT"
+              echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=gaofeng21cn/one-person-lab/one-person-lab-nightly" >> "$GITHUB_OUTPUT"
+              ;;
             homebrew-full)
               echo "download_pattern=" >> "$GITHUB_OUTPUT"
               echo "find_args=" >> "$GITHUB_OUTPUT"
@@ -852,7 +871,7 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts/release-cohort
 
-      - name: Download pre-publication Homebrew Full Cask
+      - name: Download pre-publication Homebrew Cask
         if: ${{ inputs.homebrew_candidate_artifact != '' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -861,27 +880,47 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts/homebrew-candidate
 
-      - name: Bind exact pre-publication Full Cask
+      - name: Bind exact pre-publication Homebrew Cask
         id: homebrew_candidate
         if: ${{ inputs.homebrew_candidate_artifact != '' }}
         shell: bash
         run: |
           set -euo pipefail
+          profile='${{ steps.package_profile.outputs.profile }}'
+          case "$profile" in
+            homebrew-nightly)
+              expected_name=one-person-lab-nightly.rb
+              ;;
+            homebrew-full)
+              expected_name=one-person-lab-full.rb
+              ;;
+            *)
+              echo "::error::Pre-publication Homebrew candidate is unsupported for package_profile=$profile."
+              exit 1
+              ;;
+          esac
           candidates=()
           while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
-            find artifacts/homebrew-candidate -type f -name one-person-lab-full.rb -print | LC_ALL=C sort
+            find artifacts/homebrew-candidate -type f -name "$expected_name" -print | LC_ALL=C sort
           )
           test "${#candidates[@]}" -eq 1 || {
-            echo "::error::Homebrew Full qualification requires exactly one one-person-lab-full.rb candidate."
+            echo "::error::Homebrew $profile qualification requires exactly one $expected_name candidate."
             exit 1
           }
           candidate="${candidates[0]}"
-          grep -F 'package_kind: app_full_first_install' "$candidate" >/dev/null
-          grep -F 'framework_carrier: full_dmg_embedded_opl_base' "$candidate" >/dev/null
-          grep -F 'active_framework_count_target: 1' "$candidate" >/dev/null
-          if grep -F 'depends_on formula: "opl"' "$candidate" >/dev/null; then
-            echo "::error::Full Cask candidate must not depend on Formula opl."
-            exit 1
+          if [ "$profile" = "homebrew-nightly" ]; then
+            grep -F 'depends_on formula: "opl"' "$candidate" >/dev/null || {
+              echo "::error::Nightly Cask candidate must depend on Formula opl."
+              exit 1
+            }
+          else
+            grep -F 'package_kind: app_full_first_install' "$candidate" >/dev/null
+            grep -F 'framework_carrier: full_dmg_embedded_opl_base' "$candidate" >/dev/null
+            grep -F 'active_framework_count_target: 1' "$candidate" >/dev/null
+            if grep -F 'depends_on formula: "opl"' "$candidate" >/dev/null; then
+              echo "::error::Full Cask candidate must not depend on Formula opl."
+              exit 1
+            fi
           fi
           echo "cask_path=$candidate" >> "$GITHUB_OUTPUT"
 
@@ -1312,6 +1351,9 @@ jobs:
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             if [ "${{ steps.package_profile.outputs.profile }}" = "homebrew-full" ]; then
               CMD+=(--smoke-profile homebrew-full-cask)
+              CMD+=(--homebrew-cask-file "${{ steps.homebrew_candidate.outputs.cask_path }}")
+            elif [ "${{ steps.package_profile.outputs.profile }}" = "homebrew-nightly" ]; then
+              CMD+=(--smoke-profile homebrew-nightly-cask)
               CMD+=(--homebrew-cask-file "${{ steps.homebrew_candidate.outputs.cask_path }}")
             else
               CMD+=(--smoke-profile homebrew-standard-cask)
