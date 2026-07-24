@@ -22,6 +22,8 @@
 
 ## Working Rules
 
+- 开发环境默认 `progress-first`：先交付最小可运行、可审阅、可验证的开发产物，不把流程、工具、test harness、CI 编排、文档或自动化的非致命缺陷自动升级为产品交付阻断。只处理当前真实断点；在产物身份和验收语义不变时，优先使用局部补丁、手工验证、已验证字节、受保护的最窄入口或替代路径完成当前交付，永久流程修复独立并行或随后收尾，不得反向成为当前交付前置。
+- `progress-first` 不降低真实性和写入安全：产物本身错误或不可验证、可能损坏数据或越过安全/权限边界、目标 namespace 同名异 digest、外部 mutation 结果 unknown、缺少必要人类授权或不可替代 authority 时必须停止；除此之外不得用预防性审计、通用化或重构无限扩大关键路径预算。
 - App 写入任务默认使用任务自有 worktree；根仓 `main` 只用于短时集成、最终验证和发布，不作为普通开发工作区。
 - Release 的唯一状态权威是 Framework `opl release` 管理的不可变 Release Bundle、portable checkpoint 和 receipt；App 只保留产品合同、资产策略及薄 local/GitHub executor，不得复制 checkpoint schema、状态机、skip/idempotency 或 reconciliation 语义。本地与 GitHub 必须 build once、按 digest 暂存并 verify/publish many，切换 executor 只传 checkpoint、资产和原始 receipt，completed stage 由 Framework 判定并保持 `rebuild_performed=false`。Bundle 绑定 App/Shell/Framework exact SHA、prepared AI notes、资产 bytes 与 qualification receipts；只有本次实际选择并包含的可选 Package/Full 输入才记录其 ref 与 digest，不得要求全部 first-party Package 或 Flow 进入 App Bundle。
 - Stable 只有 `standard`、`resume_standard`、`append_full` 三种 operation，`.github/workflows/release-stable.yml` 是唯一 Stable `workflow_dispatch`。Desktop Standard Latest 成功后，WebUI 只能由 `.github/workflows/release-webui-follower.yml` 的 `workflow_run` 按 exact handoff 独立构建、晋升和 readback；WebUI 失败不得改写 Desktop Stable 终态。公开 Nightly 发布已退休，只保留历史分发读取兼容；每日调度统一进入 Canary。所有低层 release/build/qualification workflow 只保留 `workflow_call` 或只读事件。Canary 必须以 validation-only 模式真实启动上层及低层 reusable topology，不继承发布 secrets，也不得执行 build、VM、外部写入或 Stable mutation。

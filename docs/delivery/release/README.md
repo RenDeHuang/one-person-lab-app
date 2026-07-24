@@ -16,6 +16,36 @@ receipt parsers whose source remains only so old data can be read and explained.
 They cannot admit, schedule, dispatch, rebuild,
 publish, promote, rerun, cancel, or claim readiness for a new release.
 
+## Progress-First Delivery
+
+Release work in the development environment is progress-first. Diagnose the
+first real breakpoint as either a product-byte failure or a delivery-path
+failure:
+
+- If product bytes, provenance, required qualification, or public readback are
+  wrong or unverifiable, repair or rebuild the affected bytes.
+- If exact product bytes are already correct and the failure is confined to a
+  deterministic tool, test harness, CI orchestration, documentation, or
+  automation path, do not rebuild the product or hold an independently
+  publishable carrier merely to perfect that path.
+
+For a delivery-path failure, finish the current delivery through the narrowest
+compliant route: direct manual qualification that emits the required receipt,
+checkpoint resume, reuse of already verified bytes, or a carrier-specific
+protected and digest-idempotent publish/promotion entry. If no such entry
+exists, add the smallest one-purpose protected bridge instead of redesigning
+the release controller. The durable automation repair proceeds independently
+or immediately afterward; it is not a prerequisite for publishing unchanged,
+verified bytes.
+
+The fast path never relaxes Bundle or artifact identity, required product
+qualification, protected mutation authority, exact namespace scope,
+same-name/different-digest fail-closed behavior, or read-only reconciliation
+after an unknown external result. Stop only when the bytes themselves are
+wrong or unverifiable, data/security/permission boundaries are at risk, the
+target name has a conflicting digest, an external mutation result is unknown,
+or required human/owner authority is unavailable.
+
 ## Ecology Release Topology
 
 The OPL release surface follows the same composable model used by the package
