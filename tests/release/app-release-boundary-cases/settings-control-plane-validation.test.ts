@@ -1845,6 +1845,39 @@ test("Settings keeps a compact background-task summary while Service Status owns
   assert.deepStrictEqual(experiencePages.storage.action_visual_policy, storageVisual);
   assert.deepStrictEqual(pageById("storage").action_visual_policy, storageVisual);
   assert.deepStrictEqual(guiPages.settings_storage.action_visual_policy, storageVisual);
+  const cleanupPreviewInteraction = {
+    presentation: 'modal_item_selector_before_confirmation',
+    required_summary_fields: [
+      'category_total_bytes',
+      'candidate_count',
+      'candidate_bytes',
+      'selected_bytes',
+      'retained_bytes',
+      'retained_reason',
+    ],
+    candidate_presentation: {
+      selection: 'checkbox_per_candidate_default_selected',
+      visible_fields: ['friendly_name', 'bytes', 'localized_reason'],
+      raw_path: 'collapsed_technical_detail_only',
+    },
+    retained_presentation: 'always_explain_total_minus_candidates_and_why_it_is_not_selectable',
+    execution_policy: {
+      selection_scope: 'non_empty_subset_of_exact_dry_run_candidates_only',
+      empty_selection: 'disabled',
+      revalidation: 'full_plan_hash_live_authority_and_selected_subset_membership_before_delete',
+    },
+  };
+  assert.deepStrictEqual(guiPages.settings_storage.cleanup_preview_interaction, cleanupPreviewInteraction);
+  assert.deepStrictEqual(pageById("storage").cleanup_preview_interaction, cleanupPreviewInteraction);
+  assert.deepStrictEqual(
+    experiencePages.storage.surface_rules.cleanup_preview_interaction,
+    cleanupPreviewInteraction,
+  );
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane.experience_contract.page_contracts.storage
+      .surface_rules.cleanup_preview_interaction,
+    cleanupPreviewInteraction,
+  );
   const storageAvailabilityPresentationVariants = {
     web_statistics_not_connected: {
       condition: 'webui_has_no_valid_owner_storage_projection_and_no_explicit_error',

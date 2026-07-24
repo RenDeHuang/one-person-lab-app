@@ -4098,6 +4098,32 @@
           "diagnostics_entry": "explicit_modal_action",
           "zero_byte_policy": "show_nothing_to_clean_and_hide_actions",
           "cleanup_action_policy": "single_progressive_action_preview_then_confirm",
+          "cleanup_preview_interaction": {
+            "presentation": "modal_item_selector_before_confirmation",
+            "required_summary_fields": [
+              "category_total_bytes",
+              "candidate_count",
+              "candidate_bytes",
+              "selected_bytes",
+              "retained_bytes",
+              "retained_reason"
+            ],
+            "candidate_presentation": {
+              "selection": "checkbox_per_candidate_default_selected",
+              "visible_fields": [
+                "friendly_name",
+                "bytes",
+                "localized_reason"
+              ],
+              "raw_path": "collapsed_technical_detail_only"
+            },
+            "retained_presentation": "always_explain_total_minus_candidates_and_why_it_is_not_selectable",
+            "execution_policy": {
+              "selection_scope": "non_empty_subset_of_exact_dry_run_candidates_only",
+              "empty_selection": "disabled",
+              "revalidation": "full_plan_hash_live_authority_and_selected_subset_membership_before_delete"
+            }
+          },
           "conversation_archive_policy": "archive_receipt_is_required_before_delete_and_the_same_archive_exposes_a_confirmed_restore_action",
           "restore_collision_policy": "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision",
           "inventory_initial_state": "last_persisted_snapshot_or_loading_placeholder_never_synthetic_zero_bytes",
