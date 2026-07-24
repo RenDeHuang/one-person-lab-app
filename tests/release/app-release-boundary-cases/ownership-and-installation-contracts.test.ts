@@ -351,9 +351,28 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     download: standardDmg('26.6.4-nightly.r1'),
     write: true,
   });
-  assert.notEqual(nightlyResult.status, 0);
-  assert.match(nightlyResult.stderr, /Nightly Homebrew publication is retired/);
-  assert.equal(fs.existsSync(path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb')), false);
+  assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
+  const nightlyPlan = JSON.parse(nightlyResult.stdout);
+  assert.equal(nightlyPlan.channel, 'nightly');
+  assert.equal(nightlyPlan.package_kind, 'app_standard');
+  assert.equal(nightlyPlan.targets.length, 1);
+  assert.equal(nightlyPlan.targets[0].path, 'Casks/one-person-lab-nightly.rb');
+  assert.equal(nightlyPlan.policy.cohort, 'standard_desktop_homebrew_distribution');
+  assert.equal(nightlyPlan.policy.full_first_install_allowed, false);
+  assert.equal(nightlyPlan.policy.formula_dependency_required, true);
+  assert.equal(nightlyPlan.policy.framework_carrier, 'homebrew_formula_opl');
+  assert.equal(nightlyPlan.policy.publishes_or_pushes_remote, false);
+  assert.equal(nightlyPlan.policy.remote_write_mode, 'none');
+  const nightlyCask = fs.readFileSync(
+    path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb'),
+    'utf8',
+  );
+  assert.match(nightlyCask, /# channel: nightly/);
+  assert.match(nightlyCask, /# package_kind: app_standard/);
+  assert.match(nightlyCask, /# full_first_install_allowed: false/);
+  assert.match(nightlyCask, /# publishes_or_pushes_remote: false/);
+  assert.match(nightlyCask, /depends_on formula: "opl"/);
+  assert.doesNotMatch(nightlyCask, /One-Person-Lab-Full-/);
 
   const nightlyToStable = runTap({
     channel: 'nightly',
@@ -363,7 +382,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     download: standardDmg('26.6.4-nightly.r1'),
   });
   assert.notEqual(nightlyToStable.status, 0);
-  assert.match(nightlyToStable.stderr, /Nightly Homebrew publication is retired/);
+  assert.match(nightlyToStable.stderr, /may only update the Nightly App cask target/);
 
   const stableNightlyPromotion = runTap({
     version: '26.6.4-nightly.r1',
