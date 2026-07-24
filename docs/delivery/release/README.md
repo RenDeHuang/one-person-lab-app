@@ -46,6 +46,30 @@ wrong or unverifiable, data/security/permission boundaries are at risk, the
 target name has a conflicting digest, an external mutation result is unknown,
 or required human/owner authority is unavailable.
 
+## Development And Production Modes
+
+WebUI has two explicit task modes that share the same carrier build,
+qualification, protected promotion, and public readback implementation:
+
+- `development_validation` enters through
+  `.github/workflows/release-webui-development.yml`. It may build, qualify,
+  publish, and promote the WebUI before Desktop Latest so the real carrier path
+  can be proven without inheriting production follower order. Public mutation
+  remains protected and digest-idempotent. Its receipt does not satisfy
+  production Latest or follower handoff.
+- `.github/workflows/release-webui-development-promote.yml` is a promotion-only
+  delivery bridge for exact bytes from a prior first-attempt development
+  publication. It cannot rebuild or requalify the carrier.
+- `production_release` enters only through
+  `.github/workflows/release-webui-follower.yml` after Desktop Latest
+  activation. The follower binds the exact Stable handoff, current App main,
+  carrier receipt, and protected promotion readback.
+
+The development path proves and repairs the mechanism; the production path
+restores final release ordering. Neither mode permits force, cross-run artifact
+selection, a second tag attempt after an unknown result, or a development
+receipt to be relabeled as production evidence.
+
 ## Ecology Release Topology
 
 The OPL release surface follows the same composable model used by the package

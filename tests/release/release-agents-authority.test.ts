@@ -5,6 +5,10 @@ import test from 'node:test';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const agents = fs.readFileSync(path.join(appRoot, 'AGENTS.md'), 'utf8');
+const releaseGuide = fs.readFileSync(
+  path.join(appRoot, 'docs', 'delivery', 'release', 'README.md'),
+  'utf8',
+);
 
 test('repo instructions keep Framework checkpoint as the only live release state authority', () => {
   assert.match(agents, /唯一状态权威是 Framework `opl release`/);
@@ -18,6 +22,21 @@ test('repo instructions expose only the three Stable operations and validation-o
   assert.match(agents, /Canary 必须以 validation-only 模式真实启动上层及低层 reusable topology/);
   assert.match(agents, /不继承发布 secrets/);
   assert.match(agents, /不得执行 build、VM、外部写入或 Stable mutation/);
+});
+
+test('repo instructions and release guide separate WebUI development validation from production order', () => {
+  for (const text of [agents, releaseGuide]) {
+    assert.match(text, /development_validation/);
+    assert.match(text, /production_release/);
+    assert.match(text, /release-webui-development\.yml/);
+    assert.match(text, /release-webui-follower\.yml/);
+    assert.match(text, /Desktop Latest/);
+  }
+  assert.match(agents, /可在 Desktop Latest 前独立验证并公开交付 WebUI/);
+  assert.match(agents, /开发 receipt 不得冒充 production Latest 或 follower handoff/);
+  assert.match(releaseGuide, /may build, qualify,\s+publish, and promote the WebUI before Desktop Latest/);
+  assert.match(releaseGuide, /receipt does not satisfy\s+production Latest or follower handoff/);
+  assert.match(releaseGuide, /promotion-only\s+delivery bridge/);
 });
 
 test('repo instructions retire broker session and operator mutation authority', () => {
