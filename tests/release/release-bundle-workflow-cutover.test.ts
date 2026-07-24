@@ -887,6 +887,51 @@ test('real build and qualification calls recalculate and consume the same remain
   assert.match(String(vmRun.run), /steps\.operation_smoke_budget\.outputs\.run_timeout_ms/);
 });
 
+test('first-run VM installs frozen Shell runtime dependencies before importing the harness', () => {
+  const source = readWorkflow('opl-first-run-vm.yml');
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const stepIndex = (name: string) => steps.findIndex((step) => step.name === name);
+  const step = (name: string) => {
+    const found = steps[stepIndex(name)];
+    assert.ok(found, `clean-vm-first-run is missing ${name}`);
+    return found;
+  };
+
+  const checkout = step('Checkout active shell');
+  assert.equal(checkout.with['sparse-checkout'], 'scripts');
+
+  const materialize = step('Materialize active shell dependency metadata');
+  assert.equal(
+    String(materialize.run).trim(),
+    [
+      'git -C shells/aionui sparse-checkout set --no-cone \\',
+      '  /scripts/ \\',
+      '  /package.json \\',
+      '  /bun.lock \\',
+      '  /patches/ \\',
+      "  '/packages/*/package.json'",
+    ].join('\n'),
+  );
+
+  const setupBun = step('Setup bun');
+  assert.equal(setupBun.uses, 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6');
+  assert.equal(setupBun.with['bun-version'], '1.3.14');
+
+  const install = step('Install active shell harness dependencies');
+  assert.equal(install['working-directory'], 'shells/aionui');
+  assert.equal(String(install.run).trim(), 'bun install --frozen-lockfile --ignore-scripts');
+
+  const validate = step('Validate smoke scripts');
+  assert.match(String(validate.run), /await import\('\.\/shells\/aionui\/scripts\/opl-first-run-tart-smoke\.mjs'\)/);
+  assert.ok(stepIndex('Checkout active shell') < stepIndex('Materialize active shell dependency metadata'));
+  assert.ok(stepIndex('Materialize active shell dependency metadata') < stepIndex('Setup bun'));
+  assert.ok(stepIndex('Setup bun') < stepIndex('Install active shell harness dependencies'));
+  assert.ok(stepIndex('Install active shell harness dependencies') < stepIndex('Validate smoke scripts'));
+  assert.ok(stepIndex('Validate smoke scripts') < stepIndex('Run clean VM first launch smoke'));
+  assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
+});
+
 test('deadline failures never authorize Framework reconcile without persisted unknown state', () => {
   const standard = readWorkflow('_release-standard-publish.yml');
   const full = readWorkflow('_release-full-addon.yml');
