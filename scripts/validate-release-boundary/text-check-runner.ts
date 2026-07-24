@@ -20,6 +20,8 @@ const manualFullPreviewMutationJob = 'mutate';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
+const webuiDevelopmentPromotionWorkflowPath =
+  '.github/workflows/release-webui-development-promote.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -438,6 +440,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'mode',
     'authority_mode',
     'stable_authority_run_id',
+    'carrier_follower_run_id',
+    'carrier_executor_ref',
     'carrier_artifact_name',
   ])) {
     failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
@@ -718,6 +722,8 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         'mode',
         'authority_mode',
         'stable_authority_run_id',
+        'carrier_follower_run_id',
+        'carrier_executor_ref',
         'carrier_artifact_name',
       ].sort();
       if (!exactObject(callee.workflow.permissions, exactReadPermissions) ||
@@ -999,6 +1005,22 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
             && job.with?.authority_mode === 'development_validation'
           )
         )
+        && steps.length === 0
+      ) {
+        continue;
+      }
+      if (
+        workflowPath === webuiDevelopmentPromotionWorkflowPath
+        && jobId === 'promote-webui-stable'
+        && job.uses === './.github/workflows/release-webui-stable.yml'
+        && !Object.prototype.hasOwnProperty.call(job, 'needs')
+        && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+        && job.with?.mode === 'execute'
+        && job.with?.authority_mode === 'development_validation'
+        && job.with?.stable_authority_run_id === '${{ inputs.stable_authority_run_id }}'
+        && job.with?.carrier_follower_run_id === '${{ inputs.carrier_follower_run_id }}'
+        && job.with?.carrier_executor_ref === '${{ inputs.carrier_executor_ref }}'
+        && job.with?.carrier_artifact_name === '${{ inputs.carrier_artifact_name }}'
         && steps.length === 0
       ) {
         continue;

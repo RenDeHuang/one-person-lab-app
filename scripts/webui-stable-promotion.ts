@@ -107,7 +107,7 @@ function validateStableAuthorityRun(
 function validateCarrierFollowerRun(
   run: JsonRecord,
   runId: string,
-  executorAppSha: string,
+  carrierExecutorAppSha: string,
   authorityMode: AuthorityMode,
 ): void {
   exact(String(run.id), runId, 'carrier follower run.id');
@@ -132,12 +132,16 @@ function validateCarrierFollowerRun(
   exact(run.run_attempt, 1, 'carrier follower run.run_attempt');
   exact(
     sha(run.head_sha, 'carrier follower run.head_sha'),
-    executorAppSha,
+    carrierExecutorAppSha,
     'carrier follower run.head_sha',
   );
 }
 
-function validateCarrierFollowerJob(job: JsonRecord, followerRunId: string, executorAppSha: string): void {
+function validateCarrierFollowerJob(
+  job: JsonRecord,
+  followerRunId: string,
+  carrierExecutorAppSha: string,
+): void {
   positiveInteger(job.id, 'carrier follower job.id');
   exact(String(job.run_id), followerRunId, 'carrier follower job.run_id');
   exact(
@@ -151,9 +155,42 @@ function validateCarrierFollowerJob(job: JsonRecord, followerRunId: string, exec
   exact(job.run_attempt, 1, 'carrier follower job.run_attempt');
   exact(
     sha(job.head_sha, 'carrier follower job.head_sha'),
-    executorAppSha,
+    carrierExecutorAppSha,
     'carrier follower job.head_sha',
   );
+}
+
+function validatePromotionExecutorRun(
+  run: JsonRecord,
+  runId: string,
+  promotionAppSha: string,
+  authorityMode: AuthorityMode,
+  carrierFollowerRunId: string,
+): string {
+  const callerWorkflow = authorityMode === 'production_follower'
+    ? '.github/workflows/release-webui-follower.yml'
+    : runId === carrierFollowerRunId
+      ? '.github/workflows/release-webui-development.yml'
+      : '.github/workflows/release-webui-development-promote.yml';
+  exact(String(run.id), runId, 'promotion executor run.id');
+  exact(run.repository?.full_name, appRepository, 'promotion executor run.repository');
+  exact(run.head_repository?.full_name, appRepository, 'promotion executor run.head_repository');
+  exact(run.path, callerWorkflow, 'promotion executor run.path');
+  exact(
+    run.event,
+    authorityMode === 'production_follower' ? 'workflow_run' : 'workflow_dispatch',
+    'promotion executor run.event',
+  );
+  exact(run.head_branch, 'main', 'promotion executor run.head_branch');
+  if (!['in_progress', 'completed'].includes(text(run.status, 'promotion executor run.status'))) {
+    throw new Error('promotion executor run.status must be in_progress or completed.');
+  }
+  exact(run.run_attempt, 1, 'promotion executor run.run_attempt');
+  exact(sha(run.head_sha, 'promotion executor run.head_sha'), promotionAppSha, 'promotion executor run.head_sha');
+  if (authorityMode === 'production_follower') {
+    exact(runId, carrierFollowerRunId, 'production promotion executor run id');
+  }
+  return callerWorkflow;
 }
 
 function appWebuiCarrier(receipt: JsonRecord): {
@@ -203,6 +240,10 @@ export type WebuiStableAdmissionInput = {
   carrierFollowerRunId: string;
   carrierFollowerJob: JsonRecord;
   carrierFollowerJobPath: string;
+  carrierExecutorAppSha: string;
+  promotionExecutorRun: JsonRecord;
+  promotionExecutorRunPath: string;
+  promotionExecutorRunId: string;
   promotionAppSha: string;
   carrierReceipt: JsonRecord;
   carrierReceiptPath: string;
@@ -226,11 +267,15 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   if (!runPattern.test(input.carrierFollowerRunId)) {
     throw new Error('carrier follower run id is invalid.');
   }
+  if (!runPattern.test(input.promotionExecutorRunId)) {
+    throw new Error('promotion executor run id is invalid.');
+  }
   exact(
     input.triggeredByStableRunId,
     input.stableAuthorityRunId,
     'triggering Stable authority run id',
   );
+  const carrierExecutorAppSha = sha(input.carrierExecutorAppSha, 'carrier executor App SHA');
   const promotionAppSha = sha(input.promotionAppSha, 'promotion App SHA');
   const { release, cohort, carrier } = appWebuiCarrier(input.carrierReceipt);
   validateStableAuthorityRun(
@@ -242,13 +287,20 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   validateCarrierFollowerRun(
     input.carrierFollowerRun,
     input.carrierFollowerRunId,
-    promotionAppSha,
+    carrierExecutorAppSha,
     authorityMode,
   );
   validateCarrierFollowerJob(
     input.carrierFollowerJob,
     input.carrierFollowerRunId,
+    carrierExecutorAppSha,
+  );
+  const promotionCallerWorkflow = validatePromotionExecutorRun(
+    input.promotionExecutorRun,
+    input.promotionExecutorRunId,
     promotionAppSha,
+    authorityMode,
+    input.carrierFollowerRunId,
   );
 
   const immutable = descriptor(input.immutableReadback, carrier.ref, 'immutable readback');
@@ -274,6 +326,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     stable_authority_run_readback_sha256: fileDigest(input.stableAuthorityRunPath),
     carrier_follower_run_readback_sha256: fileDigest(input.carrierFollowerRunPath),
     carrier_follower_job_readback_sha256: fileDigest(input.carrierFollowerJobPath),
+    promotion_executor_run_readback_sha256: fileDigest(input.promotionExecutorRunPath),
     carrier_receipt_sha256: fileDigest(input.carrierReceiptPath),
     immutable_readback_sha256: fileDigest(input.immutableReadbackPath),
     version_readback_sha256: fileDigest(input.versionReadbackPath),
@@ -295,7 +348,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       run_attempt: 1,
       carrier_job_id: input.carrierFollowerJob.id,
       carrier_job_name: input.carrierFollowerJob.name,
-      app_head_sha: promotionAppSha,
+      app_head_sha: carrierExecutorAppSha,
       workflow: authorityMode === 'production_follower'
         ? '.github/workflows/release-webui-follower.yml'
         : '.github/workflows/release-webui-development.yml',
@@ -303,13 +356,11 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     },
     promotion_executor: {
       app_repository: appRepository,
-      run_id: input.carrierFollowerRunId,
+      run_id: input.promotionExecutorRunId,
       run_attempt: 1,
       app_head_sha: promotionAppSha,
       workflow: '.github/workflows/release-webui-stable.yml',
-      caller_workflow: authorityMode === 'production_follower'
-        ? '.github/workflows/release-webui-follower.yml'
-        : '.github/workflows/release-webui-development.yml',
+      caller_workflow: promotionCallerWorkflow,
       job: 'promote-webui-stable',
     },
     release: {
@@ -512,6 +563,9 @@ function main(argv: string[]): void {
       'carrier-follower-run': { type: 'string' },
       'carrier-follower-run-id': { type: 'string' },
       'carrier-follower-job': { type: 'string' },
+      'carrier-executor-app-sha': { type: 'string' },
+      'promotion-executor-run': { type: 'string' },
+      'promotion-executor-run-id': { type: 'string' },
       'promotion-app-sha': { type: 'string' },
       'carrier-receipt': { type: 'string' },
       'immutable-readback': { type: 'string' },
@@ -537,6 +591,10 @@ function main(argv: string[]): void {
       values['carrier-follower-job'],
       'carrier-follower-job',
     );
+    const promotionExecutorRunPath = required(
+      values['promotion-executor-run'],
+      'promotion-executor-run',
+    );
     const carrierReceiptPath = required(values['carrier-receipt'], 'carrier-receipt');
     const immutableReadbackPath = required(values['immutable-readback'], 'immutable-readback');
     const versionReadbackPath = required(values['version-readback'], 'version-readback');
@@ -558,6 +616,16 @@ function main(argv: string[]): void {
       ),
       carrierFollowerJob: readJson(carrierFollowerJobPath, 'carrier follower job'),
       carrierFollowerJobPath,
+      carrierExecutorAppSha: required(
+        values['carrier-executor-app-sha'],
+        'carrier-executor-app-sha',
+      ),
+      promotionExecutorRun: readJson(promotionExecutorRunPath, 'promotion executor run'),
+      promotionExecutorRunPath,
+      promotionExecutorRunId: required(
+        values['promotion-executor-run-id'],
+        'promotion-executor-run-id',
+      ),
       promotionAppSha: required(values['promotion-app-sha'], 'promotion-app-sha'),
       carrierReceipt: readJson(carrierReceiptPath, 'carrier receipt'),
       carrierReceiptPath,

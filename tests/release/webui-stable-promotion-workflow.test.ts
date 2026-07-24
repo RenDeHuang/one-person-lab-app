@@ -24,9 +24,16 @@ const developmentWorkflowPath = path.join(
   'workflows',
   'release-webui-development.yml',
 );
+const developmentPromotionWorkflowPath = path.join(
+  appRoot,
+  '.github',
+  'workflows',
+  'release-webui-development-promote.yml',
+);
 const sourceAppSha = 'a'.repeat(40);
 const stableExecutorAppSha = 'e'.repeat(40);
 const promotionAppSha = 'd'.repeat(40);
+const carrierExecutorAppSha = promotionAppSha;
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
 const stableAuthorityRunId = '301';
@@ -125,6 +132,25 @@ function carrierFollowerRun(status: 'in_progress' | 'completed' = 'in_progress')
   };
 }
 
+function promotionExecutorRun(
+  runId = carrierFollowerRunId,
+  appSha = promotionAppSha,
+  workflow = '.github/workflows/release-webui-follower.yml',
+) {
+  return {
+    id: Number(runId),
+    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    path: workflow,
+    event: workflow.endsWith('release-webui-follower.yml') ? 'workflow_run' : 'workflow_dispatch',
+    head_branch: 'main',
+    status: 'in_progress',
+    conclusion: null,
+    run_attempt: 1,
+    head_sha: appSha,
+  };
+}
+
 function carrierFollowerJob() {
   return {
     id: carrierJobId,
@@ -156,6 +182,11 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
     stableAuthorityRun: writeJson(root, 'stable-authority-run.json', stableAuthorityRun()),
     carrierFollowerRun: writeJson(root, 'carrier-follower-run.json', carrierFollowerRun(status)),
     carrierFollowerJob: writeJson(root, 'carrier-follower-job.json', carrierFollowerJob()),
+    promotionExecutorRun: writeJson(
+      root,
+      'promotion-executor-run.json',
+      promotionExecutorRun(),
+    ),
     carrier: writeJson(root, 'carrier.json', carrier),
     immutable: writeJson(root, 'immutable.json', immutable),
     version: writeJson(root, 'version.json', versionReadback),
@@ -171,6 +202,10 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
     carrierFollowerRunId,
     carrierFollowerJob: carrierFollowerJob(),
     carrierFollowerJobPath: paths.carrierFollowerJob,
+    carrierExecutorAppSha,
+    promotionExecutorRun: promotionExecutorRun(),
+    promotionExecutorRunPath: paths.promotionExecutorRun,
+    promotionExecutorRunId: carrierFollowerRunId,
     promotionAppSha,
     carrierReceipt: carrier,
     carrierReceiptPath: paths.carrier,
@@ -210,6 +245,8 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
     'mode',
     'authority_mode',
     'stable_authority_run_id',
+    'carrier_follower_run_id',
+    'carrier_executor_ref',
     'carrier_artifact_name',
   ]);
   assert.equal(promotion.task_modes.production_release.desktop_latest_required, true);
@@ -275,6 +312,8 @@ test('workflow binds the triggering Stable authority and current follower run', 
     'mode',
     'authority_mode',
     'stable_authority_run_id',
+    'carrier_follower_run_id',
+    'carrier_executor_ref',
     'carrier_artifact_name',
   ]);
   assert.equal(
@@ -304,7 +343,14 @@ test('workflow binds the triggering Stable authority and current follower run', 
     source,
     /TRIGGERED_BY_STABLE_RUN_ID: \$\{\{ inputs\.authority_mode == 'production_follower' && github\.event\.workflow_run\.id \|\| inputs\.stable_authority_run_id \}\}/,
   );
-  assert.match(source, /CARRIER_FOLLOWER_RUN_ID: \$\{\{ github\.run_id \}\}/);
+  assert.match(
+    source,
+    /CARRIER_FOLLOWER_RUN_ID: \$\{\{ inputs\.carrier_follower_run_id \|\| github\.run_id \}\}/,
+  );
+  assert.match(
+    source,
+    /CARRIER_EXECUTOR_REF: \$\{\{ inputs\.carrier_executor_ref \|\| github\.sha \}\}/,
+  );
   assert.doesNotMatch(source, /inputs\.carrier_run_id/);
   assert.match(source, /carrier-follower-jobs\.json/);
   assert.match(source, /carrier-follower-job\.json/);
@@ -316,6 +362,8 @@ test('workflow binds the triggering Stable authority and current follower run', 
   assert.match(source, /layer-descriptors\.json/);
   assert.match(source, /identical_bytes:true/);
   assert.match(source, /config_descriptor_verified:true/);
+  assert.match(source, /carrier_artifact="\$CARRIER_ARTIFACT_NAME"/);
+  assert.doesNotMatch(source, /basename "\$\(dirname "\$carrier_source"\)"/);
 });
 
 test('development dispatch is a distinct exact-Bundle protected publication lane', () => {
@@ -340,6 +388,35 @@ test('development dispatch is a distinct exact-Bundle protected publication lane
   assert.match(source, /release-bundle\.json/);
   assert.match(source, /\.conclusion == "success" or \.conclusion == "failure"/);
   assert.doesNotMatch(source, /releases\/latest|github-latest|homebrew/i);
+  assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
+});
+
+test('development promotion-only dispatch reuses exact immutable carrier without a rebuild lane', () => {
+  const source = fs.readFileSync(developmentPromotionWorkflowPath, 'utf8');
+  const workflow = YAML.parse(source);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'stable_authority_run_id',
+    'carrier_follower_run_id',
+    'carrier_executor_ref',
+    'carrier_artifact_name',
+  ]);
+  assert.equal(workflow.permissions.contents, 'read');
+  assert.equal(workflow.permissions.actions, 'read');
+  assert.equal(workflow.concurrency.group, 'opl-webui-development-promotion-only-global');
+  assert.equal(workflow.concurrency['cancel-in-progress'], false);
+  assert.deepEqual(Object.keys(workflow.jobs), ['promote-webui-stable']);
+  const promotion = workflow.jobs['promote-webui-stable'];
+  assert.equal(promotion.uses, './.github/workflows/release-webui-stable.yml');
+  assert.equal(promotion.with.mode, 'execute');
+  assert.equal(promotion.with.authority_mode, 'development_validation');
+  assert.deepEqual(promotion.permissions, {
+    contents: 'read',
+    actions: 'read',
+    packages: 'write',
+  });
+  assert.equal(promotion.steps, undefined);
+  assert.doesNotMatch(source, /_release-webui-carrier|build-and-qualify|publish-immutable-carrier/);
   assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
 });
 
@@ -416,6 +493,7 @@ test('admission binds Stable authority, carrier follower, and promotion executor
     assert.equal(admission.stable_authority.app_head_sha, stableExecutorAppSha);
     assert.equal(admission.carrier_follower.run_id, carrierFollowerRunId);
     assert.equal(admission.carrier_follower.carrier_job_id, carrierJobId);
+    assert.equal(admission.carrier_follower.app_head_sha, carrierExecutorAppSha);
     assert.equal(
       admission.carrier_follower.triggering_stable_authority_run_id,
       stableAuthorityRunId,
@@ -437,6 +515,8 @@ test('development admission accepts only the exact failed Stable Bundle source a
   current.input.stableAuthorityRun.head_sha = sourceAppSha;
   current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
   current.input.carrierFollowerRun.event = 'workflow_dispatch';
+  current.input.promotionExecutorRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.promotionExecutorRun.event = 'workflow_dispatch';
   const admission = admitWebuiStablePromotion(current.input);
   assert.equal(admission.authority_mode, 'development_validation');
   assert.equal(admission.stable_authority.conclusion, 'failure');
@@ -448,6 +528,39 @@ test('development admission accepts only the exact failed Stable Bundle source a
   const drift = clone(current.input);
   drift.stableAuthorityRun.head_sha = stableExecutorAppSha;
   assert.throws(() => admitWebuiStablePromotion(drift), /Stable authority run.head_sha/);
+});
+
+test('promotion-only admission separates immutable carrier and fresh promotion executors', () => {
+  const current = fixture('completed');
+  const promotionRunId = '303';
+  const freshPromotionAppSha = 'f'.repeat(40);
+  current.input.authorityMode = 'development_validation';
+  current.input.stableAuthorityRun.conclusion = 'failure';
+  current.input.stableAuthorityRun.head_sha = sourceAppSha;
+  current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.carrierFollowerRun.event = 'workflow_dispatch';
+  current.input.promotionExecutorRunId = promotionRunId;
+  current.input.promotionAppSha = freshPromotionAppSha;
+  current.input.promotionExecutorRun = promotionExecutorRun(
+    promotionRunId,
+    freshPromotionAppSha,
+    '.github/workflows/release-webui-development-promote.yml',
+  );
+  writeJson(
+    current.root,
+    'promotion-executor-run.json',
+    current.input.promotionExecutorRun,
+  );
+
+  const admission = admitWebuiStablePromotion(current.input);
+  assert.equal(admission.carrier_follower.run_id, carrierFollowerRunId);
+  assert.equal(admission.carrier_follower.app_head_sha, carrierExecutorAppSha);
+  assert.equal(admission.promotion_executor.run_id, promotionRunId);
+  assert.equal(admission.promotion_executor.app_head_sha, freshPromotionAppSha);
+  assert.equal(
+    admission.promotion_executor.caller_workflow,
+    '.github/workflows/release-webui-development-promote.yml',
+  );
 });
 
 test('admission rejects stale or ambiguous source and carrier authority', () => {

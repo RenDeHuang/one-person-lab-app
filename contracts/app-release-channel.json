@@ -1820,6 +1820,8 @@
         "mode",
         "authority_mode",
         "stable_authority_run_id",
+        "carrier_follower_run_id",
+        "carrier_executor_ref",
         "carrier_artifact_name"
       ],
       "task_modes": {
@@ -1835,7 +1837,21 @@
           "source": "exact_first_attempt_terminal_stable_run_frozen_bundle",
           "desktop_latest_required": false,
           "protected_public_mutation_required": true,
-          "receipt_satisfies_production_latest_or_follower_handoff": false
+          "receipt_satisfies_production_latest_or_follower_handoff": false,
+          "promotion_only_delivery_bridge": {
+            "entry_workflow": ".github/workflows/release-webui-development-promote.yml",
+            "inputs": [
+              "stable_authority_run_id",
+              "carrier_follower_run_id",
+              "carrier_executor_ref",
+              "carrier_artifact_name"
+            ],
+            "carrier_build_or_qualification_allowed": false,
+            "carrier_identity_source": "exact_prior_first_attempt_development_publication_run",
+            "promotion_executor_source": "fresh_canonical_main_workflow_dispatch_attempt_1",
+            "protected_reusable": ".github/workflows/release-webui-stable.yml",
+            "receipt_satisfies_production_latest_or_follower_handoff": false
+          }
         }
       },
       "stable_authority_binding": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
