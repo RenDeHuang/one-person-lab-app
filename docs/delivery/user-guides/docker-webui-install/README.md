@@ -28,6 +28,9 @@ Delivery and generated files:
   by `npm run docs:docker-webui-guide` and ignored by Git.
 - `verification/docker-webui-install-verification.json`: generated HTML/PDF
   verification record.
+- [`fixtures/`](fixtures/): bounded reusable Windows VM validation helpers.
+  Validation receipts and sanitized screenshots live under
+  [`../../validation/windows-docker-webui/`](../../validation/windows-docker-webui/).
 
 Generated reading artifacts:
 

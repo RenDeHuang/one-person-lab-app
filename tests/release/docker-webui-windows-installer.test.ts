@@ -156,9 +156,25 @@ test('Windows Docker/WebUI image resolution returns only the pinned image refere
     installer.indexOf('function Convert-ToComposeScalar'),
   );
 
-  assert.match(resolver, /Invoke-DockerCommandCapture -Arguments @\("pull", \$RequestedImageReference\)/);
+  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrFallback/);
+  assert.match(resolver, /-Arguments @\("pull", \$RequestedImageReference\)/);
+  assert.match(resolver, /-ImageReference \$RequestedImageReference/);
   assert.match(resolver, /Write-Host \$pull\.Output/);
   assert.doesNotMatch(resolver, /& docker pull/);
+});
+
+test('Windows Docker/WebUI anonymous pull recovery is limited to the public OPL GHCR image', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const fallback = installer.slice(
+    installer.indexOf('function Test-PublicOplGhcrImageReference'),
+    installer.indexOf('function Wait-DockerDaemon'),
+  );
+
+  assert.match(fallback, /ghcr\\\.io\/gaofeng21cn\/one-person-lab-webui/);
+  assert.match(fallback, /Test-DockerCredentialHelperFailure/);
+  assert.match(fallback, /Invoke-PublicGhcrAnonymousDockerCommandCapture/);
+  assert.match(fallback, /@\('--config', \$temporaryConfigDir\) \+ \$Arguments/);
+  assert.match(fallback, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
 });
 
 test('Windows Docker/WebUI compose commands use exit codes instead of native stderr exceptions', () => {
@@ -168,7 +184,9 @@ test('Windows Docker/WebUI compose commands use exit codes instead of native std
     installer.indexOf('function Test-WebUiHttpHealth'),
   );
 
-  assert.match(composeUp, /Invoke-DockerCommandCapture -Arguments \$pullArgs/);
+  assert.match(composeUp, /Invoke-DockerPullWithPublicGhcrFallback/);
+  assert.match(composeUp, /-Arguments \$pullArgs/);
+  assert.match(composeUp, /-ImageReference \$ImageReference/);
   assert.match(composeUp, /Invoke-DockerCommandCapture -Arguments \$upArgs/);
   assert.match(composeUp, /\$pull\.ExitCode -ne 0/);
   assert.match(composeUp, /\$up\.ExitCode -ne 0/);

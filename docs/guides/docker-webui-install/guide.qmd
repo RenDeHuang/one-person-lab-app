@@ -67,6 +67,10 @@ docker version
 docker compose version
 ```
 
+```{=latex}
+\newpage
+```
+
 ::: {.callout-warning title="Docker 或 WSL 2 尚未安装"}
 
 如果后续一键安装命令提示缺少 Docker Desktop 或 WSL 2，并且你有管理员权限，可以在“以管理员身份运行”的 PowerShell 中执行：

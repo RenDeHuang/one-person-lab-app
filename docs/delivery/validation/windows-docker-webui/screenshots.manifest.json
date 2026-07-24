@@ -1,0 +1,68 @@
+{
+  "schema": "opl_windows_docker_webui_validation_screenshots.v1",
+  "status": "r1_reproduction",
+  "captured_at": "2026-07-25T02:41:16+08:00",
+  "public_image": {
+    "version": "26.7.24-r1",
+    "digest": "sha256:89b37c4b561ba4b614bfa1b4358e60fc0a39b2bd99d416b9e03f911ca9079de4",
+    "app_ref": "d9446b8803e23965bf6b0b58520a8d3815cf1255",
+    "shell_ref": "c376e122e8fb55d778711806e600a19a93547cb5",
+    "framework_ref": "02790aea1352f0a62aa0993327583d6814339e6d"
+  },
+  "locale": "zh-CN",
+  "browser_size": "1440x1000",
+  "credentials_present": false,
+  "screenshots": [
+    {
+      "file": "r1-guid-attention.png",
+      "role": "central_environment_attention_reproduction",
+      "expected_ui_text": [
+        "完成首次设置",
+        "本机运行环境需要处理",
+        "打开维护"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "84911dcb289a37c17b7c5fb064163e008aad9b9a5fa029cf945c3864149c91b5"
+    },
+    {
+      "file": "r1-send-inline-recovery.png",
+      "role": "draft_preserving_inline_recovery",
+      "expected_ui_text": [
+        "请帮我检查当前环境",
+        "需要完成模型访问设置",
+        "完成首次设置"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "f967c066184917a2f1bdc5570a4758e9767f223900e9847b5dd2e91659b352cb"
+    },
+    {
+      "file": "r1-first-run-gateway-login.png",
+      "role": "gateway_account_form",
+      "expected_ui_text": [
+        "首次设置",
+        "账户登录",
+        "邮箱",
+        "密码",
+        "登录并继续"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "d7e247f67fdf678af77e36361d03a56a8cd5660293fdde3293dba7db720ef61d"
+    },
+    {
+      "file": "r1-first-run-api-key.png",
+      "role": "api_key_compatibility_form",
+      "expected_ui_text": [
+        "首次设置",
+        "API Key",
+        "OPL Gateway 访问密钥",
+        "验证并继续"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "37d2fa37eaa9dd08f5d88da2784f3de85751bb790956bdb0d16ddc3034ae9273"
+    }
+  ]
+}
