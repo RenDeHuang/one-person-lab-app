@@ -172,12 +172,20 @@ export function validateFirstRunImplementation(shellPaths) {
       throw new Error(`Active shell ordinary routes must enter /guid without a fast-state gate: ${expected}`);
     }
   }
+  if (!router.includes("path='/login'") || !router.includes('element={withRouteFallback(LoginPage)}')) {
+    throw new Error('Active shell login route must let LoginPage preserve a fresh-login setup-check intent');
+  }
   for (const forbidden of ["import StartupGate from", '<StartupGate', "to='/startup-gate'"]) {
     if (router.includes(forbidden)) {
       throw new Error(`Active shell ordinary routing must not restore the waiting StartupGate: ${forbidden}`);
     }
   }
-  for (const expected of ["navigate('/guid', { replace: true })", "if (status === 'authenticated')"]) {
+  for (const expected of [
+    "navigate('/guid', { replace: true })",
+    "state: { postLoginSetupCheck: true }",
+    "if (status === 'authenticated')",
+    "navigateToGuid(freshLoginAttemptRef.current)",
+  ]) {
     if (!loginPage.includes(expected)) {
       throw new Error(`Active shell authenticated login must enter /guid immediately: ${expected}`);
     }
@@ -231,10 +239,16 @@ export function validateFirstRunImplementation(shellPaths) {
   ) {
     throw new Error('Active shell FirstRun must keep a pure, always-enabled /guid entry before readiness');
   }
-  for (const expected of ['readCoreLaunchPrerequisiteState', "useOplAppState('fast')"]) {
+  for (const expected of ['readCoreLaunchPrerequisiteState', "useOplAppState('fast'"]) {
     if (!corePrerequisitesHook.includes(expected)) {
       throw new Error(`Active shell progressive first-run readiness hook must include ${expected}`);
     }
+  }
+  if (
+    !corePrerequisitesHook.includes('POST_LOGIN_SETUP_CHECK_TIMEOUT_MS = 5_000') ||
+    !corePrerequisitesHook.includes("{ autoLoad: !requireLive, requireLive }")
+  ) {
+    throw new Error('Active shell fresh-login readiness check must fail open after the App-owned 5000 ms UI deadline');
   }
   for (const expected of [
     "void navigate('/first-run')",
@@ -249,6 +263,10 @@ export function validateFirstRunImplementation(shellPaths) {
     throw new Error('Active shell ordinary sidebar must mount the persistent FirstRun recovery entry');
   }
   for (const expected of [
+    'postLoginSetupCheckRequested',
+    "useCoreLaunchPrerequisites({ requireLive: postLoginSetupCheckRequested })",
+    "coreReadiness.provenance === 'live'",
+    "navigate('/first-run', { replace: true })",
     "setSetupNoticeKind('local_assistant')",
     "setSetupNoticeKind('model_access')",
     'sendWithPrerequisiteCheck',
@@ -258,6 +276,15 @@ export function validateFirstRunImplementation(shellPaths) {
   ]) {
     if (!guidPage.includes(expected)) {
       throw new Error(`Active shell Guid progressive first-run recovery must include ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    "data-testid='opl-home-runtime-alert'",
+    "data-testid='opl-home-runtime-alert-action'",
+    'guid.uiOptimization.home.runtimeAlert',
+  ]) {
+    if (guidPage.includes(forbidden)) {
+      throw new Error(`Active shell ordinary Home must not render a persistent runtime alert: ${forbidden}`);
     }
   }
   if (!guidWorkspaceContextBar.includes("data-testid='opl-guid-workspace-access-disabled'")) {

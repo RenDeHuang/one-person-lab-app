@@ -841,6 +841,7 @@ export type AppProductProfile = {
         known_incomplete_behavior: string;
         ready_behavior: string;
         unknown_timeout_or_read_failure_behavior: string;
+        ui_timeout_ms: number;
         ordinary_startup_refresh_and_deep_link_behavior: string;
         consumption_policy: string;
       };

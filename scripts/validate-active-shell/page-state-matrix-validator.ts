@@ -263,6 +263,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
       progressiveFirstRunRecoveryPolicy.fresh_webui_login_known_incomplete_route ||
     ordinaryRecovery?.fresh_webui_login_unknown_policy !==
       progressiveFirstRunRecoveryPolicy.fresh_webui_login_unknown_policy ||
+    ordinaryRecovery?.fresh_webui_login_ui_timeout_ms !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_ui_timeout_ms ||
     ordinaryRecovery?.persistent_setup_entry_route !== progressiveFirstRunRecoveryPolicy.persistent_setup_entry_route ||
     ordinaryRecovery?.persistent_home_composer_runtime_alert !==
       progressiveFirstRunRecoveryPolicy.persistent_home_composer_runtime_alert ||

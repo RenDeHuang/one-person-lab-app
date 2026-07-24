@@ -318,7 +318,7 @@ export function validateFirstRunMatrix(matrix, contract) {
   for (const expected of [
     'authenticated root, ordinary startup, catch-all, and the legacy /startup-gate compatibility route enter /guid without waiting for fast App state',
     'startup readiness uses opl app state --profile fast --json as background bootstrap state only; ready, blocked, unknown, timeout, and read failure keep ordinary /guid entry usable and never redirect ordinary startup to /first-run',
-    'fresh authenticated WebUI login carries a one-shot postLoginSetupCheck intent; known incomplete Core readiness replaces /guid with /first-run while ready, unknown, timeout, and read failure keep /guid fail-open',
+    'fresh authenticated WebUI login carries a one-shot postLoginSetupCheck intent; known incomplete Core readiness replaces /guid with /first-run while ready, unknown, timeout, read failure, or a 5000 ms UI deadline keep /guid fail-open',
     'the installed launch target is 1500 ms from OS launch request until the Guid composer is visible, enabled, and focusable; this target requires exact installed evidence and is not inferred from source tests',
     'every ordinary launch, refresh, and deep link routes directly to /guid regardless of Core readiness while /first-run remains user-opened except for the one-shot fresh WebUI login check',
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',

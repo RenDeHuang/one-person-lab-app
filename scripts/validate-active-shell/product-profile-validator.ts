@@ -765,6 +765,7 @@ function validateFirstConversationPolicy(profile) {
     postLoginSetupCheck?.ready_behavior !== 'keep_guid' ||
     postLoginSetupCheck?.unknown_timeout_or_read_failure_behavior !==
       progressiveFirstRunRecoveryPolicy.fresh_webui_login_unknown_policy ||
+    postLoginSetupCheck?.ui_timeout_ms !== progressiveFirstRunRecoveryPolicy.fresh_webui_login_ui_timeout_ms ||
     postLoginSetupCheck?.ordinary_startup_refresh_and_deep_link_behavior !==
       'keep_guid_without_automatic_first_run' ||
     postLoginSetupCheck?.consumption_policy !== 'one_shot' ||

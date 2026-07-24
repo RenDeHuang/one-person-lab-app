@@ -32,15 +32,20 @@ function parseArgs(argv) {
   };
 }
 
-function isGitCheckout(shellRoot) {
-  const gitPath = path.join(shellRoot, '.git');
-  if (fs.existsSync(gitPath)) return true;
+export function isGitCheckout(shellRoot) {
   const result = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
     cwd: shellRoot,
     encoding: 'utf8',
     stdio: 'pipe',
   });
-  return result.status === 0 && result.stdout.trim() === 'true';
+  if (result.status !== 0 || result.stdout.trim() !== 'true') return false;
+  const topLevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: shellRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (topLevel.status !== 0) return false;
+  return path.resolve(topLevel.stdout.trim()) === path.resolve(fs.realpathSync(shellRoot));
 }
 
 function resolveShellSourceLayout(shellRoot) {
@@ -86,9 +91,11 @@ function main() {
   }, null, 2));
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
