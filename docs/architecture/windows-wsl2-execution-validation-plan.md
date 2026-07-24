@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `windows_wsl2_execution_validation_only`
 State: `validation_only_non_binding`
-Last reviewed: `2026-07-24`
+Last reviewed: `2026-07-25`
 Parent decision boundary:
 [`windows-wsl2-execution-exploration.md`](windows-wsl2-execution-exploration.md)
 Reference blueprint:
@@ -127,6 +127,37 @@ one `CODEX_HOME`, and one Linux workspace. Scheduled or durable work remains
 unsupported until its canonical owner is identified and verified. This
 inventory proves transport coverage only; App and Shell do not acquire
 Framework lifecycle authority.
+
+### Observed V2/V3 status (2026-07-25)
+
+The authorized validation lane produced two sanitized receipts:
+
+- [`2026-07-24-v2-auth-process-ownership.md`](../delivery/validation/windows-wsl2/2026-07-24-v2-auth-process-ownership.md)
+  is `partial`. AionCore remote mode, health/status reads, expected `401`
+  negatives, NAT listener visibility, direct-child identity, cancellation, and
+  survivor checks passed. Remote `/api/webui/reset-password` returned `403`;
+  this is an upstream bootstrap boundary and no speculative workaround was
+  attempted. Renderer/DevTools/Sentry secret isolation was not attempted.
+- [`2026-07-24-v3-independent-route-coverage.md`](../delivery/validation/windows-wsl2/2026-07-24-v3-independent-route-coverage.md)
+  is `partial`. Direct Codex App Server initialize/thread-list and read-only
+  Framework state/help probes passed. The managed AionCore ACP route remains
+  blocked by the V1 missing Linux Codex artifact, so one owner-bound Codex
+  identity across all routes is not proven; direct-candidate cleanup was not
+  independently recorded.
+
+The V2 targeted restart readback (`20260725-v2-v3-g0023`) kept
+`docker-desktop` as the default distribution and observed the fixture in
+`Stopped` state immediately after termination. A subsequent targeted guest
+query restarted the fixture; fresh readback then found zero AionCore/Codex
+processes and zero native Windows executor processes/commands. Mirrored
+networking was intentionally not run because it could affect Docker and global
+WSL state; it remains an `unattempted_coordination_boundary`.
+
+Non-root product identity, renderer/DevTools/Sentry secret isolation, and
+scheduled/durable owner selection remain unproven. These results are
+`validation_only_non_binding`, do not enter
+`docs/active/app-ideal-state-gap-plan.md`, do not block unrelated development,
+and do not constitute a Windows support or release-readiness claim.
 
 ### V4: Filesystem and host integration
 

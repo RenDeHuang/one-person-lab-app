@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `windows_wsl2_execution_reference_blueprint`
 State: `reference_blueprint_non_binding`
-Last reviewed: `2026-07-24`
+Last reviewed: `2026-07-25`
 Parent decision boundary:
 [`windows-wsl2-execution-exploration.md`](windows-wsl2-execution-exploration.md)
 
@@ -1408,6 +1408,33 @@ Run V0-V5 from
 Its evidence may refine this blueprint and the parent exploration, but it may
 not create an App gap, active implementation plan, machine contract, release
 blocker, or supported-platform claim.
+
+### Observed validation evidence (2026-07-25)
+
+The V2 and V3 receipts are retained under the validation-only evidence surface:
+
+- V2 recorded authentication-enabled remote-mode listener behavior and expected
+  unauthorized responses, plus direct-child operation identity, cancellation,
+  and zero-survivor readback. The remote WebUI password-reset path returned
+  `403`; this is an upstream AionCore bootstrap boundary, not a selected OPL
+  workaround. Targeted termination reached `Stopped`; a subsequent targeted
+  guest query restarted the fixture, retained `docker-desktop` as the default
+  distribution, and found zero AionCore/Codex processes and no native Windows
+  executor processes or commands.
+- V3 recorded passing direct Codex App Server initialize/thread-list and
+  read-only Framework state/help probes. The AionCore managed ACP route remains
+  blocked by the V1 missing Linux Codex artifact, so a single owner-bound Codex
+  identity across ACP, App Server, and Framework is not proven. Direct-route
+  cleanup was not independently recorded.
+- Mirrored networking was not run and remains an
+  `unattempted_coordination_boundary`. Renderer/DevTools/Sentry secret
+  isolation and non-root product identity were not proven. No observed result
+  selects a carrier, supervisor, production lifecycle strategy, Windows
+  support level, or release gate.
+
+These facts narrow uncertainty only. They remain
+`validation_only_non_binding`, do not enter the active App gap plan, and do not
+block unrelated development or authorize implementation.
 
 ### P0: Product promotion and frozen decisions
 
