@@ -67,9 +67,10 @@ Framework reconcile resolve it.
 App, Shell, and Framework SHAs are necessary but not sufficient. A Full/offline
 Bundle also binds the exact package profile resolved for that build: every
 selected root and dependency has a package version, owner source commit, and
-payload-manifest digest. The current default profile contains `mas`, `mag`,
-`rca`, `oma`, `obf`, `mas-scholar-skills`, and `opl-flow`, but those names are
-starter defaults rather than the Package ecosystem boundary.
+payload-manifest digest. The selected roots come from the App-owned Official
+Profile at Bundle freeze; this document does not copy its membership, count, or
+ordering. That profile is a replaceable first-install default, not the Package
+ecosystem boundary.
 
 The binding is either the explicit resolved package closure or an exact
 Framework Release Set digest whose readback transitively proves the same

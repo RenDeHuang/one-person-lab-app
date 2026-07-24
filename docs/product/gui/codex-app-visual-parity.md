@@ -45,12 +45,13 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 - Account & Access 的 connected Gateway state 使用 unframed identity/metrics/action group；
   stale 文案内联呈现，账户、指标、footer 和操作不再由多层矩形边框包围；
 - Home 的 prompt、content-sized agent shortcuts 与 composer 进入一个 bottom reading lane；入口无
-  chevron，所有可见官方智能体都可选择，运行就绪只在发送时以 typed guidance 阻止；
+  chevron；shortcuts 只来自动态 directory 中已安装且 Home 可见的 Agent Packages，已卸载项不占位；
+  `ready`/`degraded` 可选择，`package_unavailable` 以紧凑 typed guidance 和恢复动作表达；
 - Home/new-session composer 上方使用与输入 surface 相接的独立 context bar 选择初始 cwd；该入口
   不进入左下角 `+`，未选时也保持明确可操作；
 - Composer leading `+` 始终先展开与 composer 等宽、可搜索、分组、可滚动的 capability palette，
-  不因动态目录为空而直接调用文件 picker；文件/文件夹、真实 App allowlist Agent Package/Skill、
-  adapter 明确报告且不与 permission/access 重复的模式及真实连接按组显示名称和描述；
+  不因动态目录为空而直接调用文件 picker；文件/文件夹、动态发现且已安装、用户可见的 Agent Package
+  与 capability、adapter 明确报告且不与 permission/access 重复的模式及真实连接按组显示名称和描述；
 - Local/Worktree 与 branch 只在真实 adapter 支持且属于 new-session context 时进入同一 context bar；
   既有 conversation 不形成第二条持久项目或能力标签；
 - Instructions & Context 复用 Workspace carrier 的 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
@@ -146,11 +147,11 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
   `thread/settings/update.cwd`、exact `thread/read`、本地 projection commit。已有 cwd 不允许任意换组，也不提供
   Local/Worktree launch mode 或 managed Worktree/Handoff。当前 AionUI 仍缺这条 canonical adoption source，不能把
   contract target 写成已实现。
-- MAS、MAG、RCA、OMA、BookForge 等在产品认知上是 Codex 插件；在 OPL 中由 Agent
-  Package 提供更强的安装、更新、启停、可见性和运行状态能力，但不得把普通对话改成
-  agent dashboard。
-- Agents 普通列表本地化角色名，按 App product metadata 排专业智能体，workflow 独立成组；
-  dependency 只读取 Framework `dependent_guard.required_by_package_ids`，不硬编码 MAS 关系或重复行。
+- 当前 Agent Package 可通过 Codex-first carrier/executor 提供用户能力；OPL 额外呈现安装、更新、启停、
+  可见性和运行状态，但不得把普通对话改成 agent dashboard，也不得把 Codex plugin id 当 Package identity。
+- Agents 普通列表从 Framework 动态 installed directory 读取本地化角色名、owner kind/exposure 和用户排序；
+  workflow 可按 owner kind 独立成组。required/optional dependency 只读取 owner-projected identities 并检查
+  presence/callability，不硬编码 Package 关系、版本或重复行。
 
 ## 允许的视觉差异
 

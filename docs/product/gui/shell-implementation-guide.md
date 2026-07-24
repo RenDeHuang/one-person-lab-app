@@ -59,11 +59,11 @@ contract/实现收敛 lane 处理。
 | Product profile consumer | 读取 generated App profile，提供品牌、默认模型、purpose、locale 和 feature flags。 | 硬编码模型 allowlist、provider policy 或 shell-local default。 |
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
-| Package launch adapter | 把 owner projection 归一为 `ready / degraded / package_unavailable`；只在 exact projected action 存在时 JIT activation，填充其 `required_payload_fields`，并校验 package ID、兼容版本、入口及被要求的 safe target。 | 从 installed flag 推断可用、从 manifest 推断 action payload、把 optional activation receipt/binding/closure 当硬门槛，或在 `package_unavailable` 后仍创建/发送 conversation。 |
+| Package launch adapter | 把 owner projection 归一为 `ready / degraded / package_unavailable`；只在 exact projected action 存在时 JIT activation，填充其 `required_payload_fields`，并校验 Package identity 的 presence/callability、入口及被要求的 safe target。 | 增加跨 Package 版本 gate、从 installed flag 推断可用、从 manifest 推断 action payload、把 optional activation receipt/binding/closure 当硬门槛，或在 `package_unavailable` 后仍创建/发送 conversation。 |
 | Thread directory adapter | Rail 投影 App Server canonical thread directory/actions；canonical recorded cwd 是 Project 分组 authority。List/read/start/resume/fork/archive/restore/settings-update 复用一个 adapter。 | 用 Shell DB 拥有 history、让本地 affinity 覆盖 canonical cwd、把目录分组当 session owner、挂载独立 coordination 页面、第二 JSON-RPC client、audit/idempotency、dynamic tools或cross-host控制面。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、隐式 workspace ref、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Capability palette adapter | Composer `+` 始终先打开与 composer 等宽、可搜索、分组、可滚动且 viewport-bounded 的 palette；条目显示稳定 icon slot、名称和可用说明。按 Home/new-session 与 existing conversation 分别消费真实 file/folder picker、App allowlist Agent Package/Skill/连接及 adapter-reported nonduplicate mode；Agent 不在既有会话重绑。 | 空 catalog 时直接打开文件选择器；220px attachment 小菜单冒充 palette；把 permission/access 重复成 mode；伪造 Plugin/Chrome/目标/计划/provider/backend/team/raw MCP。 |
+| Capability palette adapter | Composer `+` 始终先打开与 composer 等宽、可搜索、分组、可滚动且 viewport-bounded 的 palette；条目显示稳定 icon slot、名称和可用说明。按 Home/new-session 与 existing conversation 分别消费真实 file/folder picker、动态 installed Package/capability projection、当前 surface 用户可见偏好、真实连接及 adapter-reported nonduplicate mode；Agent 不在既有会话重绑。 | 空 catalog 时直接打开文件选择器；220px attachment 小菜单冒充 palette；复制第二套 App Package/Skill 目录；把 permission/access 重复成 mode；伪造 Plugin/Chrome/目标/计划/provider/backend/team/raw MCP。 |
 | Session Project-affinity adapter | Home/new-session context bar 的工作目录动作只设置初始 cwd；rail 只允许 `custom_workspace=false` 或无 canonical recorded cwd 的 session 通过拖动或键盘等价动作一次归口。Shell 调用现有 `thread/settings/update.cwd`，以 `thread/read` exact readback 成功为提交点，随后才写本地 `workspace + custom_workspace=true` projection 并移动 row；失败保持 projectless 且对话可用。Conversation Environment 只读显示 recorded workspace 与 live Git inspection；turn cwd、shell `pwd`、显式输入和 writable roots 不反写 affinity。 | 把 cwd 放进 `+` palette、`bound(A) -> bound(B)` 任意重绑、从 turn/command `pwd` 推断 Project、要求 Project 覆盖显式输入、修改 writable roots、先改本地分组再验证、私有 adoption RPC、第二 App Server client、pending 状态机、无真实 adapter 的 Local/Worktree/branch、managed Worktree/Handoff、receipt/rollback ledger 或 `workspace_handoff` metadata。 |
 | Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、PR context、stage/commit/push；`gh` 缺失明确 unavailable。协议缺失时显示 truthful unavailable。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、伪造行级成功。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
@@ -122,10 +122,12 @@ overlay/adapter 文件、tests/evidence 文件分别计数。文件数不是机�
 
 Generated product profile 是 shell 的默认值入口：
 
-- Home/conversation 的模型、推理、purpose 和 capability exposure 从 profile 读取。
+- Home/conversation 的模型、推理、purpose 和 presentation override 从 profile 读取；Package/capability
+  identity、installed/callable 状态和 owner exposure 从 Framework/native platform projection 读取。
 - 当前默认值、具体模型列表、顺序、退休策略和持久化规则只引用
   `contracts/app-product-profile.json`，不在 shell 或人读实现文档复制。
-- Branding、locale、ordinary capability allowlist 和 optional modes 使用同一 profile。
+- Branding、locale、ordinary UX override、optional modes 和 Team 等窄显式 product cuts 使用同一
+  profile；profile 不枚举 Package/Skill identities，也不覆盖 owner-projected required/optional edges。
 - Profile 缺失、schema 不兼容或字段无效时 fail closed，显示可理解 blocker；不要
   回退到 upstream provider/model defaults 后假装一致。
 - Shell-local cache 只能作为加载优化，必须保留 profile version/source，不能成为
@@ -317,8 +319,9 @@ command 和可见状态 anchor。
   context/stage/commit/push，并在 `gh` 缺失时明确 unavailable；Last turn复用既有message store且
   不新增状态源，line-level comments在typed Codex protocol缺失时必须保持 unavailable；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
-- Home package starter 始终可选，发送时从 owner projection 归一为
-  `ready / degraded / package_unavailable`；degraded 允许 JIT prepare、自修复或安全 fallback，
-  只有明确身份、presence/callability、入口、安全目标或权限失败才局部阻止所选 package；
+- Home 只从动态 directory 渲染已安装且 Home 可见的 Package starter；已卸载 Package 留在 Settings
+  discovery/Restore，不保留强制入口。`ready`/`degraded` 条目可选择，`package_unavailable` 条目保留
+  typed 原因和恢复动作但不强制可选；选择后只有明确 identity presence/callability、入口、安全目标或
+  权限失败才局部阻止所选 Package；
 - 普通 UI 不拥有 runtime/domain/artifact/release truth；
 - focused behavior、visual pixels 和 package/release claim 使用匹配层级的证据。

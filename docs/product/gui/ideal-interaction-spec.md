@@ -77,7 +77,7 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户优先从 Home starter 选择科研、基金、演示、写书等能力，也可在首次发送前从
-   `+` palette 选择同一 App allowlist Agent Package；两条入口写入同一个 active capability 与 route receipt，
+   `+` palette 选择同一动态发现、已安装且对当前 surface 可见的 Agent Package；两条入口写入同一个 active capability 与 route receipt，
    Home 由 starter 选中态表达当前能力，不在 composer 重复标签。Package 安装、Home 显示与 lifecycle 管理在
    Settings → Agents 完成 package lifecycle；Settings → Capabilities 完成 Skills/Plugins/Flow 管理。普通文本中的
    Agent 名称和 `@` 提及不改变 active capability；同一 prompt 可引用多个 Agent，但新会话仍只有零或一个 active
@@ -169,14 +169,16 @@ Active AionUI 的一级导航固定按 New task、运行状态、Scheduled tasks
 空 Home 不是 landing page，而是未开始的 conversation：
 
 - 使用动态问题标题，保留 rail、context 和 composer。
-- 展示所有由安装状态与用户偏好标记为可见的轻量 OPL starter，按稳定配置顺序响应式换行，
-  不静默截断，也不解释产品功能或堆叠大卡片。
+- 展示 Framework 动态目录中所有已安装且由用户偏好标记为 Home 可见的轻量 OPL starter，按稳定配置顺序响应式换行，
+  不静默截断，也不解释产品功能或堆叠大卡片。已卸载 Package 只在 Settings discovery/Restore 中出现，
+  不保留强制 starter。
 - 默认不激活任何专业智能体。历史保存的 preset 不得反向成为 Home 默认值；只有用户点击
   starter 或从明确 capability 路由进入时才设置 active capability。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
 - Starter 选中态保留现有 quiet fill 与 `aria-pressed`，不追加尾部圆圈对号或其它 selection glyph。
-- Package 不可用时 starter 仍可选择；只有未安装、被禁用或明确完整性失败时，发送边界才局部阻止
-  所选 Agent，并给出具体安装、启用或修复动作，不用 spinner、空白或静默隐藏掩盖问题。
+- `ready` 或 `degraded` 的 starter 可选择；已安装、Home 可见但 owner projection 报告
+  `package_unavailable` 时保留紧凑状态、原因和安装/启用/修复动作，但不强制其可选。选择后状态若变化，
+  发送边界只局部阻止所选 Agent，不用 spinner、空白或伪造成功掩盖问题。
 - 点击 package starter 只设置 route context 与 active capability；普通 conversation create/send 不执行
   package activation。已安装且已暴露的 `verification_deferred` 或 `scope_materialization_missing` 不构成
   预配置门槛。真实 domain stage 的 activation 由 Framework 在 stage runtime 处理，失败只阻止对应 stage。
@@ -213,14 +215,17 @@ Composer 是普通路径唯一主 command surface：
   new-session 初始 cwd 由 composer 上方独立 context bar 表达，branch/locality 由 Environment 表达。
 - `+` 始终先打开与 composer 外边缘对齐、可搜索、分组、viewport-bounded 且内部可滚动的 capability
   palette，不因 Skill/MCP 目录为空而直接打开文件 picker；它添加文件/文件夹，并按 Home/new-session 与
-  existing conversation 分别呈现 active adapter 可执行的 App allowlist Agent Package、Skill、真实连接，
+  existing conversation 分别呈现 active adapter 可执行、由 Framework/native platform 动态发现且对当前
+  surface 可见的已安装 Agent Package、Skill 和真实连接，
   以及 adapter 明确报告且不与 permission/access 重复的 mode。Agent Package 不允许在既有会话重绑；
-  Skill 在既有会话只调用已加载 allowlist 项，连接只显示已加载状态。
+  Skill 在既有会话只调用已发现且 callable 的条目，连接只显示已加载状态。
   Working directory 不进入 palette，已选 capability/input 只显示为紧凑 chip。
-- Home starter 只是用户配置的快捷入口；`+` 中“专业智能体”组始终来自完整专业智能体目录，
-  不受 Home visibility 或排序过滤。当前目录包含科研、基金、演示与视觉、写书和元智能体。
-- 已在“专业智能体”组呈现的智能体，其 required Skill 不再作为独立 Skill 重复显示；例如
-  “医学科研智能体”和 `med-autoscience` 不得同时成为普通用户可选择的重复入口。
+- Home starter 只是用户配置的快捷入口；`+` 中“专业智能体”组来自动态 installed Package directory
+  与当前 surface 的用户可见偏好，不维护固定专业智能体清单。已卸载 Package 留在 Settings discovery，
+  不因曾属于 Official Profile 而继续占用 launcher 入口。
+- Agent Package 的 required/optional capability identities 来自 owner projection，并只检查 presence
+  与 callability。已由 Agent 入口承接、且 owner 标记为内部实现的 capability 不再作为同层重复入口；
+  App 不按 Package 名称或 Skill id 手写去重关系。
 - 不存在 workspace/project context preload；attachment、paste/drop 与 `/open` 都是用户在当前 session
   显式加入的 send-scoped 输入，不允许 hidden prompt injection 或 workspace-keyed 持久化。
 - 中层是 textarea；底层 action row 放统一 `+` 菜单、permission/access mode、
@@ -249,13 +254,14 @@ Composer 是普通路径唯一主 command surface：
 - `+` 中的组名使用本地化“专业智能体 / Professional agents”，不向普通用户显示“智能体包”。
 - Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
-- 未选 Agent 时只显示全局 App allowlist Skills；选中 Agent 后收窄为该 profile 的 required/optional
-  Skills，其中 required 可见且 locked，optional 由 App packaged profile 控制。
-- Package id、MAS/MAG/RCA 等 short name、route id 和 schema refs 进入 receipt/details。
-- OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
-  discovery 自动加入。
-- Ordinary capability selector 不展示未被 App packaged-skill allowlist 接受的 helper Skill。
-  MCP 不复用该 allowlist：所有已配置的用户/第三方 MCP 默认继承并保留，只排除命中明确
+- 未选 Agent 时显示 native platform/Package projection 中已安装、callable、对 ordinary surface 可见的
+  capabilities；选中 Agent 后显示该 Package owner projection 的 required/optional capability identities，
+  required 可见且 locked，optional 服从 owner exposure 与用户偏好。
+- Package id、owner short name、route id 和 schema refs 进入 receipt/details。
+- Package 是否显示由 Framework installed directory、owner exposure 与用户 hide/show 偏好共同决定；
+  Shell discovery 不得自动创建 App-owned catalog，product profile 也不得枚举 Package identities。
+- Ordinary capability selector 只呈现 owner/native projection 标记为 ordinary-visible 的 capability，
+  不由 App 维护的第二套 Skill 名单筛选。所有已配置的用户/第三方 MCP 默认继承并保留，只排除命中明确
   Team/internal negative filter 的 server、tool 和 metadata；普通文案不暴露 raw MCP id。
 - `+` palette 不伪造 Plugin、provider、backend、team、raw MCP 或 Codex reference 中但当前 adapter
   不支持的 Chrome/目标/计划动作；无真实可用项时显示明确空态或管理入口，不把管理入口伪装成直接选择。
@@ -398,11 +404,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - 宽桌面打开即显示 project/conversation rail、single timeline 和 composer。
 - 窄窗口 rail 可收起并能以 drawer 重新打开。
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
-- Home 使用动态问题标题与全部用户可见 configured starters，不静默截断，也不是
+- Home 使用动态问题标题与全部已安装、用户可见的 configured starters，不静默截断，也不是
   dashboard/landing。
-- Package starter 始终可选；已安装且已暴露的 deferred/missing-scope 状态可直接发起普通对话，
-  只有未安装、被禁用或明确完整性失败时才局部阻止所选 package。Settings/new conversation/send 不执行
-  activation；Framework 仅在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 激活。
+- Home 不为已卸载 Package 保留强制 starter；`ready`/`degraded` 条目可选择，
+  `package_unavailable` 条目显示 owner-projected 原因和恢复动作但不强制可选。选择后 identity
+  presence/callability、入口、安全目标或权限发生失败时只局部阻止所选 Package。Settings/new conversation/send
+  不执行 activation；Framework 仅在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 激活。
 - Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
 - Projectless session 可一次性归入一个 canonical directory group；已绑定 session 不任意换组，runtime `pwd`

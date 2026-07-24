@@ -56,8 +56,9 @@ Each tranche must start from a current owner surface, a real consumer, and a
 focused behavioral failure or maintenance cost. The governing rule is to inherit
 AionUI/AionCore official capability by default, preserve explicitly required OPL
 product results, and remove only unauthorized cuts, private substitutes, duplicate
-authority, or implementation-literal gates. An App allowlist governs only its
-declared surface; it cannot disable unrelated upstream capability. A complex
+authority, or implementation-literal gates. A narrow explicit App product cut
+governs only its declared surface; it is not a Package capability allowlist and
+cannot disable unrelated upstream capability. A complex
 feature absent upstream is not privately rebuilt unless a protected B0/R1/U1
 result requires it. A defect confined to Team, another rejected surface, or
 retired/private legacy does not enter the ordinary product repair line.

@@ -11,12 +11,13 @@ The current required product shape is a local-first workbench for the OPL family
 users start from a chat-first App, choose the work they want to do, and keep the
 same project/task/artifact/receipt language on the macOS desktop App and
 Docker/WebUI in a browser. Hosted OPL Workspace is an X0-03 conditional route,
-enabled only when account, storage, isolation, backend, and owner policy exist. Codex CLI
-is the fixed executor on the ordinary user path. Professional agents such as
-MAS, MAG, RCA, BookForge, and OMA are first-party starter packages and shortcuts
-for research, grants, presentation work, book writing, and agent-building work;
-future compliant user, organization, or third-party packages should use the same
-management and launch path. The App does not present upstream AionUI
+enabled only when account, storage, isolation, backend, and owner policy exist.
+Codex CLI is the fixed executor on the ordinary user path. Installed Agent
+Packages can expose shortcuts for research, grants, presentation work, book
+writing, agent-building work, or future domains through the same discovery,
+management, and launch path. Current first-party examples include MAS, MAG,
+RCA, BookForge, and OMA, but they are neither an App allowlist nor an ecosystem
+ceiling. The App does not present upstream AionUI
 multi-backend selection as a normal user workflow. Selecting a shortcut creates
 a Codex CLI conversation with an App-owned invocation receipt; it is not a
 backend switcher or a session-behavior contract.
@@ -36,7 +37,7 @@ The retained X0-01 Runtime page is an optional App projection, not a runtime led
 
 The active GUI shell is `aionui`, checked out from `gaofeng21cn/opl-aion-shell` under `shells/aionui/`. Shell implementation history stays in the shell repository; this repository keeps App product, release, contract, testing, screenshot, and user documentation in the App mainline. Replacing the active shell changes the implementation carrier only; App GUI behavior and runtime bridge remain governed by `contracts/app-shell-adapter.json`, `contracts/app-runtime-bridge.json`, `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json`.
 
-Experimental GUI candidates are declared separately in `contracts/app-shell-candidates.json`. The current foreground alternative is `opl-native-workbench`, selected through `contracts/shell-adapters/opl-native-workbench.json` and governed by the App-owned candidate policy. Hermes Desktop / `hermes-codex` is retained as the prior foreground alternative reference through `contracts/shell-adapters/hermes-codex.json`. `agui-codex` is no longer a foreground candidate: it remains a linked archived technical proof under `shells/agui-codex/` with its selectable replay adapter at `contracts/shell-adapters/agui-codex.json`. Candidate shells do not participate in default stable, nightly, updater, Docker/WebUI, or Full first-install release packaging until the active adapter is deliberately switched, and AGUI should not receive routine updates, polish, or adoption work unless AGUI replay is explicitly requested. Candidate shell work enters App product truth only through App-owned contracts and validation gates, not through a shell implementation roadmap.
+Experimental GUI candidates are declared separately in `contracts/app-shell-candidates.json`. The current foreground alternative is `opl-native-workbench`, selected through `contracts/shell-adapters/opl-native-workbench.json` and governed by the App-owned candidate policy. Hermes Desktop / `hermes-codex` is retained as the prior foreground alternative reference through `contracts/shell-adapters/hermes-codex.json`. `agui-codex` is no longer a foreground candidate: it remains a linked archived technical proof under `shells/agui-codex/` with its selectable replay adapter at `contracts/shell-adapters/agui-codex.json`. Candidate shells do not participate in default Stable, updater, Docker/WebUI, or Full first-install release packaging until the active adapter is deliberately switched. Public Nightly publication is retired; historical Nightly bytes remain read-compatible only. AGUI should not receive routine updates, polish, or adoption work unless AGUI replay is explicitly requested. Candidate shell work enters App product truth only through App-owned contracts and validation gates, not through a shell implementation roadmap.
 
 Foreground candidate adapter contracts identify the candidate with `candidate_shell`
 and must not rewrite `active_shell`. `active_shell` remains reserved for the

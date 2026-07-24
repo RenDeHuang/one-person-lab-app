@@ -126,7 +126,7 @@ Codex CLI 不影响该边界，也不要求本轮立即增加 executor selector�
 
 ```json
 {
-  "package_id": "med-autoscience",
+  "package_id": "mas",
   "kind": "agent",
   "provides": ["agent:mas", "view:research-roadmap"],
   "requires": ["capability:mas-scholar-skills"],
@@ -152,7 +152,7 @@ marketplace 和 invocation shape 只存在于 Codex adapter 自己的私有配�
 
 ```json
 {
-  "package_id": "med-autoscience",
+  "package_id": "mas",
   "installed": true,
   "enabled": true,
   "callable": true,
@@ -192,7 +192,7 @@ executor route readiness 分开。未实现的 Claude/Hermes route 不是当前�
 ```json
 {
   "task_id": "opaque-owner-id",
-  "agent_package_id": "med-autoscience",
+  "agent_package_id": "mas",
   "title": "DM-CVD-Mortality-Risk",
   "business_status": "in_progress",
   "progress_text": "正在验证主要假设",

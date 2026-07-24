@@ -126,10 +126,11 @@ closure、domain readiness 或 release readiness。不得用前者的可选性�
 
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
 保护 B0/R1/U1 用户结果，并默认继承 AionUI/AionCore 官方基础能力。Team 是明确拒绝的
-上游产品面；fixed Codex executor 可隐藏 provider/backend marketplace；普通 Skill 入口由 App
-packaged-skill allowlist 策展。MCP 不使用该 allowlist：所有已配置的用户/第三方 MCP 默认端到端
-保留，只排除命中明确 Team/internal negative filter 的 server、tool 与 metadata。缺少 App 条目
-本身不能成为禁用其它上游能力的授权。
+上游产品面；fixed Codex executor 可隐藏 provider/backend marketplace；普通 Skill 入口从
+installed Package/native platform capability discovery 产生，并只受用户展示偏好与窄的显式
+product cut 影响。所有已配置的用户/第三方 MCP 默认端到端保留，只排除命中明确
+Team/internal negative filter 的 server、tool 与 metadata。缺少 App 条目本身不能成为禁用
+其它上游能力的授权。
 对 Home capability starters、Settings → Agents / Capabilities、first-run、domain package entry 和
 双语等 B0/R1/U1 capability：
 
@@ -210,9 +211,10 @@ Home 只用 starter 选中态表达 active capability；conversation 可显示�
 - active capability 可按上下文更换，但不表现为 backend/provider；
 - 不把 domain workflow、stage、artifact schema 或 verdict 写进 GUI；
 - 产生 launch/route refs，供用户按需审计；
-- 是否显示由 App product profile、安装状态和用户 shortcut preference 决定。
-- Starter 始终可选择；send 时消费 directory entry 投影的 exact action，并由 action 的
-  `required_payload_fields` 决定是否需要 Workspace。
+- 是否显示由 owner descriptor、installed state 和用户 shortcut preference 决定。
+- 当前已安装、用户可见且 `ready/degraded` 的 starter 可选择；`package_unavailable`
+  显示 owner-projected 原因和恢复动作但不强制可选。send 时消费 directory entry 投影的 exact action，
+  并由 action 的 `required_payload_fields` 决定是否需要 Workspace。
 - `ready` 直接启动；`degraded` 先做 owner-projected JIT prepare/repair/fallback 并明确降级；
   `package_unavailable` 只局部阻止所选 Agent、保留 draft，并提供普通 Codex、其他 Agent 或 owner route。
 - receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须全部齐备的硬门槛。
@@ -220,10 +222,11 @@ Home 只用 starter 选中态表达 active capability；conversation 可显示�
 ## Capability 增量
 
 - Settings 提供 installed Agent Package directory、Home exposure 和 lifecycle actions。
-- Required/optional skills 来自 App packaged profile，不来自 shell-local discovery dump。
-- Ordinary Home/conversation 的 Skill 入口只显示当前 purpose/package allowlist 接受的 Skills。
+- Required/optional capabilities 来自 Package owner descriptor 和 native discovery，不来自
+  App packaged profile 或 shell-local discovery dump。
+- Ordinary Home/conversation 的 Skill 入口只显示当前 Package 暴露、可调用且用户未隐藏的 Skills。
 - 已配置的用户/第三方 MCP 经 Team/internal negative filter 后端到端继承，并在对应连接/状态
-  surface 使用产品化标签；不能因为 unknown 或不在 Skill allowlist 中而删除。
+  surface 使用产品化标签；不能因为 unknown 或不在 App 清单中而删除。
 - Helper Skills、provider marketplace 和 implementation plugins 不自动进入 ordinary UI。
 - Install/update/repair/hide/disable/uninstall 通过 App state/action、preview、confirmation
   和 receipt 完成。
@@ -335,7 +338,7 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 - upstream Team、多 agent launcher 或 shell-local agent hierarchy；
 - 默认打开的 Environment/details、bottom panel、file tree、Terminal 或 Browser；
 - Home activity dashboard、continue-work grid 或 full evidence ledger；
-- 未经 App packaged-skill allowlist 接受的 helper Skills，以及命中明确 Team/internal negative
+- owner descriptor 标记为 internal helper 的 Skills，以及命中明确 Team/internal negative
   filter 的 MCP server/tool/metadata；其它已配置用户/第三方 MCP 必须端到端保留；
 - 由 module dirt、cache 或 local UI state 推断的 readiness。
 

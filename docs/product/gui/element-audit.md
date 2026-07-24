@@ -32,8 +32,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，紧凑固定宽度、稳定排序、按实际数量居中并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断，Home root、composer shell 与 footer account/Settings entry 各只有一个实例。 | 静态营销 hero、固定四/五列的 dashboard card grid、隐藏用户已启用入口、无序重排或 resize 后重复画面。 |
 | Composer | Main canvas bottom，浮动或保留安全距；Home 桌面使用 `736px` 最大宽度、`98px` 最小高度和 `22px` 圆角，目录/模式/branch 控件在同一 composer 内部透明排列 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行或过矮 input、外置 context cap、settings bar、多层 card 或贴边遮挡。 |
 | Preview inputs | 独立 Preview 或 conversation disclosure | 只打开当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对路径。 | Workspace-scoped project ref、hidden prompt injection、静默读取或复制 artifact body。 |
-| Active capability | Home 使用 starter 的安静选中态；new-session `+` palette 可选择同一 allowlist Agent；conversation 可在 action row 邻近显示低权重 chip | 显示已选 OPL 能力；两条 new-session 入口同步同一 active capability，既有 conversation 不重绑 Agent；安装/显示/lifecycle 归 Settings。 | Home 重复“能力：”标签、常驻可变 purpose selector、既有会话 Agent 重绑、backend selector 或 agent dashboard。 |
-| Package starter readiness | Home starter 始终可选择；选中后在 composer/send 边界显示 readiness 原因、loading 与允许动作 | 用户先选择工作目的，再在实际 launch 前获得明确状态；package launch adapter / JIT prepare 只在 exact package 需要时发生，并保留 `ready / degraded / package_unavailable`。 | 不可用入口静默消失、因 readiness 被禁选、无限 loading、无原因阻断，或 JIT prepare 明确失败后仍发送。 |
+| Active capability | Home 使用 starter 的安静选中态；new-session `+` palette 可选择同一动态发现、已安装且用户可见的 Agent；conversation 可在 action row 邻近显示低权重 chip | 显示已选 OPL 能力；两条 new-session 入口同步同一 active capability，既有 conversation 不重绑 Agent；安装/显示/lifecycle 归 Settings。 | Home 重复“能力：”标签、App/Shell 固定 Agent 清单、常驻可变 purpose selector、既有会话 Agent 重绑、backend selector 或 agent dashboard。 |
+| Package starter readiness | Home 只显示 installed + Home-visible starter；`ready/degraded` 可选择，`package_unavailable` 显示原因和恢复动作但不强制可选 | 用户先从真实可用组合选择工作目的；已卸载 Package 留在 Settings discovery/Restore。发送边界只检查 owner-projected identity presence/callability、入口、安全目标与权限。 | 已卸载入口继续强制占位、无限 loading、无原因阻断，或 presence/callability 明确失败后仍发送。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |
 | Attach controls | Composer action row | Attachment、paste/drop 与 `/open` 只影响当前发送。 | 藏在 Settings、被 workspace readiness 禁用，或 overlay 覆盖输入/不可点击。 |
@@ -61,7 +61,7 @@ Home 的用户问题是“我现在要做什么”。因此主区只保留动态
 稳定排序的轻量 starter、
 conversation、composer、active capability、model/access 和 current-turn feedback。
 普通本地对话和显式文件输入不依赖 workspace readiness；Workspace/managed target 只在
-Agent/package manifest 明确声明需要时校验，单个 package 故障只局部影响对应入口。
+owner-projected action 的 `required_payload_fields` 明确要求时校验，单个 Package 故障只局部影响对应入口。
 跨项目 Runtime 仅在 X0-01 显式启用时保留独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
 provenance 留在 Inspector，package maintenance 和 raw diagnostics 留在对应 Settings，完整
 evidence ledger 留在 release tooling。它们都不得挤入 Home 主区或相互混装。
@@ -116,7 +116,8 @@ runtime/domain/artifact truth。
 - Current-task summary bar 是否可 pin，并包含 status/elapsed/progress/next action/stop？
 - Error/disabled/blocked 是否说明原因和 next action？
 - Permission、user-input 和 confirmation 是否保留触发上下文？
-- Package starter 是否在 launch 前完成 activation，并在失败时保留原因、允许动作和 draft？
+- Package starter 是否来自动态 installed + Home-visible directory，并在 launch 前检查 owner-projected
+  identity presence/callability；失败时是否保留原因、允许动作和 draft？
 - Permission/access mode 是否使用用户语言且不暴露 backend/provider？
 - Popover/drawer 关闭后是否把焦点返回触发器？
 - Rail、timeline、Environment/details 与 Settings 是否都可 keyboard-only 使用？

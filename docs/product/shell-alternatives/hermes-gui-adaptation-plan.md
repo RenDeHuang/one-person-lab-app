@@ -8,9 +8,9 @@ model policy、first-run gate 和 release gate 仍以 `contracts/`、源码、�
 packaged artifact 和测试输出为准。
 
 本文把 `hermes-codex` 后续 GUI 改造收敛成一个 App-owned 方案。它不替代
-[`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)、
-[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 和
-[`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)，而是回答一个更
+[`ideal-interaction-spec.md`](../gui/ideal-interaction-spec.md)、
+[`codex-to-opl-app-delta.md`](../gui/codex-to-opl-app-delta.md) 和
+[`feature-inventory.md`](../gui/feature-inventory.md)，而是回答一个更
 具体的问题：在 Hermes Desktop 这个成熟 upstream 基线上，哪些界面和功能应该
 保留、收窄、隐藏、重命名或延后，才能最快得到一个看起来像 Codex App 换壳、
 但由 OPL 控制的候选包。
@@ -63,7 +63,7 @@ Hermes prior foreground alternative reference 的 App-owned 目标态已经由�
 - 默认发布 shell 仍是 AionUI。Hermes 只通过
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json`
   进入 explicit candidate build；不修改 `contracts/app-shell-adapter.json` 前不能成为
-  stable/nightly release shell。
+  Stable release shell；公开 Nightly 已退休，历史 bytes 仅保持只读兼容。
 - 普通体验是 chat-first Codex App-like shell。第一屏以 workspace-aware chat、
   conversation timeline 和 composer 为中心；workspace rail、runtime refs、files、
   capabilities、memory、automations 和 diagnostics 都是可收起上下文，不回到 dashboard。
@@ -128,7 +128,7 @@ OPL thin shell：
 
 Hermes candidate 复用 upstream checklist/onboarding 组件，但不复用 upstream Hermes
 Agent installer 语义，也不把所有启动工作合并成一个 first-run gate。当前口径按
-[`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md) 拆成四条流程：
+[`hermes-first-run-flow.md`](hermes-first-run-flow.md) 拆成四条流程：
 
 - 每次启动轻量检查：每次 launch 只做 marker、核心组件、Codex/OPL CLI、`opl app state
   --profile fast --json` 模型访问探测和 adapter startup 路由检查；热启动不能同步跑

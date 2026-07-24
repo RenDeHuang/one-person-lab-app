@@ -9,7 +9,7 @@ adapter contract、packaged smoke、timing artifact 和 release gate 仍以
 
 本文把 Hermes Desktop candidate 的启动路径拆成四条独立流程：每次启动轻量检查、
 一次性本机初始化、模型访问配置、后台 OPL 状态刷新。它补充
-[`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)，并按用户
+[`hermes-gui-adaptation-plan.md`](hermes-gui-adaptation-plan.md)，并按用户
 最新要求修正过宽的 first-run 说法：Hermes checklist UI 只承载真正需要等待的本机
 准备，不承载每次启动的 full `opl system initialize --json`。
 

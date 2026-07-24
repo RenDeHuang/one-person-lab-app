@@ -338,9 +338,10 @@ Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时�
 动作时不渲染空按钮。Disabled control 不仅变灰，还要通过 tooltip 或 nearby copy
 说明为什么不可用。
 
-Home package starter 的状态不得只靠颜色：可见 starter 始终可选择，选中态使用 quiet fill 与
-check indicator；`unavailable` 在发送时显示原因和允许动作，`activating` 保持稳定尺寸并显示
-明确进行中状态，`blocked` 保留输入、普通 Codex fallback 与修复入口但不得继续 launch。
+Home package starter 的状态不得只靠颜色：只渲染 installed + Home-visible 条目；
+`ready/degraded` 可选择并使用 quiet fill 与 check indicator，`package_unavailable` 显示原因和
+恢复动作但不强制可选；`activating` 保持稳定尺寸并显示明确进行中状态，`blocked` 保留输入、
+普通 Codex fallback 与修复入口但不得继续 launch。
 
 ## 响应式
 
