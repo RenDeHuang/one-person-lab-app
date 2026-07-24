@@ -9,6 +9,7 @@ import { parse as parseYaml } from 'yaml';
 import {
   planNativeWebuiAssetPublication,
   publishNativeWebuiAssets,
+  readbackNativeWebuiAssets,
   sealNativeWebuiPublicationManifest,
   type NativeWebuiGitHubRuntime,
   type NativeWebuiLocalAsset,
@@ -26,7 +27,7 @@ function digest(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
-test('Native follower consumes only successful Stable Latest activation exact handoff', () => {
+test('Native follower performs only post-Stable exact public readback', () => {
   const { source, parsed } = workflow('release-native-webui-follower.yml');
   assert.deepEqual(Object.keys(parsed.on), ['workflow_run']);
   assert.deepEqual(parsed.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
@@ -34,7 +35,8 @@ test('Native follower consumes only successful Stable Latest activation exact ha
   assert.deepEqual(parsed.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(parsed.jobs), ['resolve-handoff', 'native-webui-carrier']);
   assert.equal(parsed.jobs['native-webui-carrier'].uses, './.github/workflows/_release-native-webui-carrier.yml');
-  assert.deepEqual(parsed.jobs['native-webui-carrier'].permissions, { contents: 'write', actions: 'read' });
+  assert.deepEqual(parsed.jobs['native-webui-carrier'].permissions, { contents: 'read', actions: 'read' });
+  assert.equal(parsed.jobs['native-webui-carrier'].with.mode, 'readback');
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.run_attempt == 1/);
   assert.match(source, /opl-release-activation-\$\{STABLE_AUTHORITY_RUN_ID\}/);
@@ -45,14 +47,19 @@ test('Native follower consumes only successful Stable Latest activation exact ha
   assert.doesNotMatch(source, /release-webui-stable\.yml|_release-webui-carrier\.yml|packages: write/);
 });
 
-test('Native reusable separates read-only qualification from protected additive GitHub publication', () => {
+test('Native reusable separates non-blocking preparation, protected additive publication, and readback', () => {
   const { source, parsed } = workflow('_release-native-webui-carrier.yml');
   assert.deepEqual(Object.keys(parsed.on), ['workflow_call']);
   assert.deepEqual(parsed.permissions, { contents: 'read' });
-  assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'publish-native-assets']);
+  assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'publish-native-assets', 'readback-native-assets']);
   assert.deepEqual(parsed.jobs['build-and-qualify'].permissions, { contents: 'read', actions: 'read' });
+  assert.equal(parsed.jobs['build-and-qualify']['continue-on-error'], true);
+  assert.equal(parsed.on.workflow_call.outputs.prepare_status.value, '${{ jobs.build-and-qualify.outputs.prepare_status }}');
+  assert.equal(parsed.jobs['build-and-qualify'].outputs.prepare_status, '${{ steps.qualified.outputs.prepare_status }}');
   assert.equal(parsed.jobs['publish-native-assets'].environment, 'release-stable');
+  assert.equal(parsed.jobs['publish-native-assets']['continue-on-error'], true);
   assert.deepEqual(parsed.jobs['publish-native-assets'].permissions, { contents: 'write', actions: 'read' });
+  assert.deepEqual(parsed.jobs['readback-native-assets'].permissions, { contents: 'read', actions: 'read' });
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'test "$(id -u)" -ne 0',
@@ -67,14 +74,37 @@ test('Native reusable separates read-only qualification from protected additive 
     'user-sentinel.txt',
     'project-sentinel.txt',
     'official-profile-first-install-complete',
+    'qualified|qualification_failed',
     'http://127.0.0.1:${port}/',
     'release-native-webui-carrier.ts publish',
+    'release-native-webui-carrier.ts readback',
+    'restore-release-checkpoint',
+    'publication-scope external_target',
+    'prior_mutation_attempt_id',
+    'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
+    'test -f native-release/publication-manifest.json',
+    'test "$(jq -r .operation_id <<<"$marker")"',
+    'opl release reconcile',
     'latest_modified',
     'container_registry_modified',
     'homebrew_modified',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.doesNotMatch(source, /ghcr\.io|docker build|docker push|packages: write|make_latest|github-activate-latest/);
-  assert.doesNotMatch(source, /release-stable\.yml|_release-standard-publish\.yml|_release-full-addon\.yml/);
+  assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml/);
+});
+
+test('Standard publishes Native only from a qualified same-run artifact without changing Desktop success', () => {
+  const { parsed } = workflow('_release-bundle.yml');
+  const prepare = parsed.jobs['prepare-native-webui'];
+  const publish = parsed.jobs['publish-native-webui'];
+  assert.equal(prepare.with.stable_authority_run_id, '${{ github.run_id }}');
+  assert.equal(publish.with.stable_authority_run_id, '${{ github.run_id }}');
+  assert.equal(publish.with.source_run_id, '${{ needs.checkpoint-standard.outputs.source_run_id }}');
+  assert.equal(publish.with.qualified_artifact_name, '${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}');
+  assert.match(publish.if, /needs\.publish-standard\.result == 'success'/);
+  assert.match(publish.if, /needs\.prepare-native-webui\.result == 'success'/);
+  assert.match(publish.if, /needs\.prepare-native-webui\.outputs\.prepare_status == 'qualified'/);
+  assert.doesNotMatch(publish.if, /failure\(\)/);
 });
 
 test('asset plan is idempotent and rejects same-name different bytes', () => {
@@ -170,11 +200,14 @@ function runtimeFor(input: {
   initial: NativeWebuiRemoteAsset[];
   uploadStatus?: number;
   exposeAfterUpload?: boolean;
-}): NativeWebuiGitHubRuntime & { uploads: string[] } {
+  anonymousReadbackStatus?: number;
+}): NativeWebuiGitHubRuntime & { uploads: string[]; uploadCalls: number } {
   let assets = [...input.initial];
   const uploads: string[] = [];
+  let uploadCalls = 0;
   return {
     uploads,
+    get uploadCalls() { return uploadCalls; },
     run(command, args) {
       if (command === 'gh' && args[0] === 'api') {
         return {
@@ -190,20 +223,28 @@ function runtimeFor(input: {
         };
       }
       if (command === 'gh' && args[0] === 'release' && args[1] === 'upload') {
-        const local = input.manifest.assets.find((asset) => path.resolve(asset.path) === args[3]);
-        assert.ok(local);
-        uploads.push(local.name);
+        uploadCalls += 1;
+        const localPaths = args.slice(3, args.indexOf('--repo'));
+        const localAssets = localPaths.map((localPath) => {
+          const local = input.manifest.assets.find((asset) => path.resolve(asset.path) === localPath);
+          assert.ok(local);
+          return local;
+        });
+        uploads.push(...localAssets.map((local) => local.name));
         if (input.exposeAfterUpload !== false) {
-          assets = [...assets, {
+          assets = [...assets, ...localAssets.map((local) => ({
             name: local.name,
             size: local.size_bytes,
             digest: `sha256:${local.sha256}`,
             browser_download_url: `https://example.invalid/${local.name}`,
-          }];
+          }))];
         }
         return { status: input.uploadStatus ?? 0, stdout: '', stderr: input.uploadStatus ? 'unknown' : '' };
       }
       if (command === 'curl') {
+        if (input.anonymousReadbackStatus) {
+          return { status: input.anonymousReadbackStatus, stdout: '', stderr: 'anonymous readback failed' };
+        }
         const output = args[args.indexOf('--output') + 1];
         const name = path.basename(args.at(-1) ?? '');
         const local = input.manifest.assets.find((asset) => asset.name === name);
@@ -219,7 +260,7 @@ function runtimeFor(input: {
 test('publisher performs zero mutations for exact remote bytes and verifies anonymous bytes', (t) => {
   const current = fixtureManifest(t);
   const runtime = runtimeFor({ manifest: current.manifest, initial: remoteAssets(current.manifest) });
-  const receipt = publishNativeWebuiAssets(current.manifest, runtime);
+  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-123-native', runtime);
   assert.equal(receipt.status, 'idempotent');
   assert.deepEqual(runtime.uploads, []);
   assert.equal(receipt.anonymous_readback.length, 5);
@@ -227,7 +268,22 @@ test('publisher performs zero mutations for exact remote bytes and verifies anon
   assert.equal(receipt.container_registry_modified, false);
 });
 
-test('unknown upload is reconciled read-only when exact bytes appeared, otherwise remains unknown', (t) => {
+test('publisher never converts a zero-mutation public readback failure into idempotent completion', (t) => {
+  const current = fixtureManifest(t);
+  const runtime = runtimeFor({
+    manifest: current.manifest,
+    initial: remoteAssets(current.manifest),
+    anonymousReadbackStatus: 22,
+  });
+  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-126-native', runtime);
+  assert.equal(receipt.status, 'public_readback_failed');
+  assert.equal(runtime.uploadCalls, 0);
+  assert.deepEqual(runtime.uploads, []);
+  assert.deepEqual(receipt.requested_uploads, []);
+  assert.equal(receipt.retry_disposition, 'read_only_public_readback_required_no_upload');
+});
+
+test('publisher invokes one asset-set mutation and leaves unknown resolution to Framework readback', (t) => {
   const reconciled = fixtureManifest(t);
   const reconciledRuntime = runtimeFor({
     manifest: reconciled.manifest,
@@ -235,9 +291,12 @@ test('unknown upload is reconciled read-only when exact bytes appeared, otherwis
     uploadStatus: 1,
     exposeAfterUpload: true,
   });
-  const reconciledReceipt = publishNativeWebuiAssets(reconciled.manifest, reconciledRuntime);
-  assert.equal(reconciledReceipt.status, 'reconciled_complete');
+  const reconciledReceipt = publishNativeWebuiAssets(reconciled.manifest, 'gha-124-native', reconciledRuntime);
+  assert.equal(reconciledReceipt.status, 'outcome_unknown');
+  assert.equal(reconciledRuntime.uploadCalls, 1);
   assert.equal(reconciledRuntime.uploads.length, 5);
+  assert.deepEqual(reconciledReceipt.requested_uploads, reconciled.manifest.assets.map((asset) => asset.name));
+  assert.equal(readbackNativeWebuiAssets(reconciled.manifest, reconciledRuntime).status, 'complete');
 
   const unknown = fixtureManifest(t);
   const unknownRuntime = runtimeFor({
@@ -246,8 +305,9 @@ test('unknown upload is reconciled read-only when exact bytes appeared, otherwis
     uploadStatus: 1,
     exposeAfterUpload: false,
   });
-  const unknownReceipt = publishNativeWebuiAssets(unknown.manifest, unknownRuntime);
+  const unknownReceipt = publishNativeWebuiAssets(unknown.manifest, 'gha-125-native', unknownRuntime);
   assert.equal(unknownReceipt.status, 'outcome_unknown');
-  assert.deepEqual(unknownRuntime.uploads, [unknown.manifest.assets[0].name]);
-  assert.equal(unknownReceipt.retry_disposition, 'read_only_reconcile_only_no_upload_retry');
+  assert.equal(unknownRuntime.uploadCalls, 1);
+  assert.deepEqual(unknownRuntime.uploads, unknown.manifest.assets.map((asset) => asset.name));
+  assert.equal(unknownReceipt.retry_disposition, 'persist_framework_marker_then_exact_read_only_reconcile_no_upload_retry');
 });

@@ -52,7 +52,7 @@ test('distribution/install SSOT validates the current and approved state split',
   );
   assert.equal(
     release.distribution_semantics.approved_targets.native_webui.production_topology,
-    'independent_follower_after_desktop_standard_latest',
+    'standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback',
   );
   assert.deepEqual(
     install.software_lifecycle.carrier_adapters.homebrew_cask.payload_profiles.full,

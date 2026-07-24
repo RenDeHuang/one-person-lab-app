@@ -258,7 +258,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(nativeWebui?.source_runtime_status, 'active_development_capability', 'Native WebUI source status');
   requireEqual(
     nativeWebui?.implementation_status,
-    'verified_candidate_route_and_packaging_source_present',
+    'production_publisher_implemented_pending_first_publication_readback',
     'Native WebUI implementation status',
   );
   requireEqual(nativeWebui?.public_install_status, 'not_published', 'Native WebUI public status');
@@ -277,7 +277,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.native_webui?.status,
-    'implementation_present_unpublished_unqualified',
+    'production_publisher_implemented_pending_first_publication_readback',
     'Native WebUI release target status',
   );
   requireEqual(release.approved_targets?.native_webui?.initial_platform, 'linux_amd64', 'Native WebUI initial platform');
@@ -288,7 +288,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.native_webui?.production_topology,
-    'independent_follower_after_desktop_standard_latest',
+    'standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback',
     'Native WebUI production topology',
   );
   assertDeepEqualJson(

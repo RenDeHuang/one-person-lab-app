@@ -193,10 +193,10 @@
       },
       "native_webui": {
         "target": "opl_owned_immutable_native_webui_distribution",
-        "status": "implementation_present_unpublished_unqualified",
+        "status": "production_publisher_implemented_pending_first_publication_readback",
         "initial_platform": "linux_amd64",
         "publication_carrier": "app_github_release_assets",
-        "production_topology": "independent_follower_after_desktop_standard_latest",
+        "production_topology": "standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback",
         "stable_operation_set_must_remain": [
           "standard",
           "resume_standard",

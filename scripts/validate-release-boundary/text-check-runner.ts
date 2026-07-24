@@ -113,12 +113,11 @@ function isAuthorizedNativeWebuiWriteJob(
   ) {
     return job.uses === './.github/workflows/_release-native-webui-carrier.yml'
       && needsExactly(job, ['resolve-handoff'])
-      && exactObject(job.permissions, exactStableEntryPermissions)
-      && job.with?.mode === 'execute';
+      && exactObject(job.permissions, exactReadPermissions)
+      && job.with?.mode === 'readback';
   }
   return workflowPath === nativeWebuiCarrierWorkflowPath
     && jobId === 'publish-native-assets'
-    && needsExactly(job, ['build-and-qualify'])
     && job.environment === 'release-stable'
     && exactObject(job.permissions, exactStableEntryPermissions);
 }
@@ -366,7 +365,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     id,
     'bundle',
     bundle.workflow,
-    ['publish-standard'],
+    ['publish-standard', 'publish-native-webui'],
   );
   failures += validateReusablePermissionInheritance(
     id,
@@ -384,9 +383,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'standard-build',
     'standard-qualification',
     'checkpoint-standard',
+    'prepare-native-webui',
     'publish-standard',
+    'publish-native-webui',
   ])) {
-    failures += reportFailure(id, 'Desktop Bundle jobs must not include WebUI build or promotion');
+    failures += reportFailure(id, 'Bundle jobs must contain only Desktop Standard plus the isolated Native additive sidecar');
   }
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
     failures += reportFailure(id, 'Bundle workflow operation must be standard');
@@ -413,6 +414,31 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'publish-standard',
     './.github/workflows/_release-standard-publish.yml',
   );
+  failures += validateReusableCall(
+    id,
+    bundleJobs,
+    'prepare-native-webui',
+    './.github/workflows/_release-native-webui-carrier.yml',
+    exactReadPermissions,
+  );
+  failures += validateReusableCall(
+    id,
+    bundleJobs,
+    'publish-native-webui',
+    './.github/workflows/_release-native-webui-carrier.yml',
+  );
+  if (
+    !needsExactly(bundleJobs['prepare-native-webui'], ['freeze'])
+    || !needsExactly(bundleJobs['publish-native-webui'], [
+      'freeze',
+      'checkpoint-standard',
+      'prepare-native-webui',
+      'publish-standard',
+    ])
+    || String(bundleJobs['publish-standard']?.needs) !== 'freeze,checkpoint-standard'
+  ) {
+    failures += reportFailure(id, 'Native preparation must run beside Standard, while Native publish waits for Latest without blocking it');
+  }
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
   }
@@ -645,31 +671,43 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       'framework_ref',
       'opl_version',
       'release_bundle_digest',
+      'source_run_id',
+      'source_artifact',
+      'standard_identity_sha256',
+      'qualified_artifact_name',
+      'publication_artifact_name',
     ])
     || !exactObject(carrier.workflow.permissions, { contents: 'read' })
     || JSON.stringify(Object.keys(carrierJobs)) !== JSON.stringify([
       'startup-canary',
       'build-and-qualify',
       'publish-native-assets',
+      'readback-native-assets',
     ])
   ) {
-    failures += reportFailure(id, 'Native reusable must expose only exact cohort inputs and startup/build/publish jobs');
+    failures += reportFailure(id, 'Native reusable must expose only exact cohort/checkpoint inputs and startup/prepare/publish/readback jobs');
   }
   const startup = carrierJobs['startup-canary'];
   const build = carrierJobs['build-and-qualify'];
   const publish = carrierJobs['publish-native-assets'];
+  const readback = carrierJobs['readback-native-assets'];
   if (
     !startup
     || startup.if !== "${{ inputs.mode == 'canary' }}"
     || !exactObject(startup.permissions, exactReadPermissions)
     || !build
-    || build.if !== "${{ inputs.mode == 'execute' }}"
+    || build.if !== "${{ inputs.mode == 'prepare' }}"
     || !exactObject(build.permissions, exactReadPermissions)
+    || build['continue-on-error'] !== true
     || !publish
-    || publish.if !== "${{ inputs.mode == 'execute' }}"
+    || publish.if !== "${{ inputs.mode == 'publish' }}"
+    || publish['continue-on-error'] !== true
     || !isAuthorizedNativeWebuiWriteJob(nativeWebuiCarrierWorkflowPath, 'publish-native-assets', publish)
+    || !readback
+    || readback.if !== "${{ inputs.mode == 'readback' }}"
+    || !exactObject(readback.permissions, exactReadPermissions)
   ) {
-    failures += reportFailure(id, 'Native reusable permissions or execute/canary isolation drifted');
+    failures += reportFailure(id, 'Native reusable permissions or canary/prepare/publish/readback isolation drifted');
   }
   for (const required of [
     'test "$(id -u)" -ne 0',
@@ -683,13 +721,21 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'user-sentinel.txt',
     'project-sentinel.txt',
     'release-native-webui-carrier.ts publish',
+    'release-native-webui-carrier.ts readback',
+    'restore-release-checkpoint',
+    '--publication-scope external_target',
+    'prior_mutation_attempt_id',
+    'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
+    'test -f native-release/publication-manifest.json',
+    'test "$(jq -r .operation_id <<<"$marker")"',
+    'opl release reconcile',
     'latest_modified',
     'container_registry_modified',
     'homebrew_modified',
   ]) {
     if (!carrier.text.includes(required)) failures += reportFailure(id, `Native reusable is missing ${required}`);
   }
-  if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-standard-publish\.yml|_release-full-addon\.yml/.test(carrier.text)) {
+  if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-full-addon\.yml/.test(carrier.text)) {
     failures += reportFailure(id, 'Native reusable must remain additive GitHub Release publication only');
   }
   return failures;

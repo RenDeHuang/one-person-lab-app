@@ -480,6 +480,7 @@ jobs:
       checkpoint_transport_executor: ${{ steps.provenance.outputs.checkpoint_transport_executor }}
       transport_run_id: ${{ steps.provenance.outputs.transport_run_id }}
       completed_stage: ${{ steps.provenance.outputs.completed_stage }}
+      standard_identity_sha256: ${{ steps.provenance.outputs.standard_identity_sha256 }}
     steps:
       - name: Recheck one-shot deadline before Standard checkpoint
         shell: bash
@@ -605,6 +606,7 @@ jobs:
             echo "checkpoint_transport_executor=github_actions"
             echo "transport_run_id=$GITHUB_RUN_ID"
             echo "completed_stage=$completed_stage"
+            echo "standard_identity_sha256=sha256:$(shasum -a 256 standard-identity-receipt.json | awk '{print $1}')"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload portable Standard checkpoint
@@ -631,6 +633,22 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  prepare-native-webui:
+    if: ${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}
+    needs: [freeze]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_release-native-webui-carrier.yml
+    with:
+      mode: prepare
+      stable_authority_run_id: ${{ github.run_id }}
+      app_ref: ${{ needs.freeze.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
+      opl_version: ${{ needs.freeze.outputs.version }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+
   publish-standard:
     if: ${{ inputs.mode == 'execute' }}
     needs: [freeze, checkpoint-standard]
@@ -644,4 +662,22 @@ jobs:
       framework_executor_ref: ${{ needs.freeze.outputs.framework_sha }}
       operation_started_at: ${{ needs.freeze.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.freeze.outputs.operation_deadline_at }}
+    secrets: inherit
+
+  publish-native-webui:
+    if: ${{ always() && inputs.mode == 'execute' && inputs.channel == 'stable' && needs.publish-standard.result == 'success' && needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified' }}
+    needs: [freeze, checkpoint-standard, prepare-native-webui, publish-standard]
+    uses: ./.github/workflows/_release-native-webui-carrier.yml
+    with:
+      mode: publish
+      stable_authority_run_id: ${{ github.run_id }}
+      app_ref: ${{ needs.freeze.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
+      opl_version: ${{ needs.freeze.outputs.version }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      source_run_id: ${{ needs.checkpoint-standard.outputs.source_run_id }}
+      source_artifact: ${{ needs.checkpoint-standard.outputs.source_artifact }}
+      standard_identity_sha256: ${{ needs.checkpoint-standard.outputs.standard_identity_sha256 }}
+      qualified_artifact_name: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
     secrets: inherit

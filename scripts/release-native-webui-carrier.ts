@@ -29,7 +29,7 @@ export type NativeWebuiPublicationAction = NativeWebuiLocalAsset & {
   action: 'upload' | 'reuse';
 };
 
-type NativeWebuiPublicationManifest = {
+export type NativeWebuiPublicationManifest = {
   schema: 'opl_app_native_webui_publication_manifest.v1';
   repository: string;
   tag: string;
@@ -288,6 +288,11 @@ function validateManifest(value: unknown): NativeWebuiPublicationManifest {
   return manifest;
 }
 
+export function nativeWebuiRemoteTarget(manifest: NativeWebuiPublicationManifest): string {
+  const digest = sha256Bytes(JSON.stringify(manifest));
+  return `github-native-webui:${manifest.repository}@${manifest.tag}/sha256:${digest}`;
+}
+
 const defaultRuntime: NativeWebuiGitHubRuntime = {
   run(command, args, options) {
     const result = spawnSync(command, args, {
@@ -384,102 +389,48 @@ function anonymousReadback(
   });
 }
 
-export function publishNativeWebuiAssets(
+export function readbackNativeWebuiAssets(
   manifest: NativeWebuiPublicationManifest,
   runtime: NativeWebuiGitHubRuntime = defaultRuntime,
 ): JsonRecord {
-  let inspection = inspectRelease(manifest, runtime);
-  const plan = planNativeWebuiAssetPublication(manifest.assets, inspection.assets);
-  const uploaded: string[] = [];
-  const reused: string[] = plan.filter((action) => action.action === 'reuse').map((action) => action.name);
-  let reconciledAfterUnknown = false;
-
-  for (const action of plan) {
-    if (action.action === 'reuse') continue;
-    const localPath = path.resolve(action.path);
-    regularFile(localPath, `Native WebUI upload ${action.name}`);
-    const attempt = runtime.run('gh', [
-      'release',
-      'upload',
-      manifest.tag,
-      localPath,
-      '--repo',
-      manifest.repository,
-    ], { timeout: 10 * 60_000 });
-    try {
-      inspection = inspectRelease(manifest, runtime);
-    } catch (error) {
-      return {
-        schema: 'opl_app_native_webui_publication_receipt.v1',
-        status: 'outcome_unknown',
-        repository: manifest.repository,
-        tag: manifest.tag,
-        uploaded,
-        reused,
-        unresolved_asset: action.name,
-        retry_disposition: 'read_only_reconcile_only_no_upload_retry',
-        mutation_attempt: {
-          exit_status: attempt.status,
-          signal: attempt.signal ?? null,
-          error: attempt.error?.message ?? null,
-          stdout: attempt.stdout,
-          stderr: attempt.stderr,
-        },
-        remote_readback: {
-          status: 'inspect_failed',
-          error: error instanceof Error ? error.message : String(error),
-        },
-      };
-    }
-    const observed = inspection.assets.find((asset) => asset.name === action.name);
-    const exact = observed?.size === action.size_bytes && observed.digest === `sha256:${action.sha256}`;
-    if (attempt.status !== 0 || attempt.error) {
-      if (!exact) {
-        return {
-          schema: 'opl_app_native_webui_publication_receipt.v1',
-          status: 'outcome_unknown',
-          repository: manifest.repository,
-          tag: manifest.tag,
-          uploaded,
-          reused,
-          unresolved_asset: action.name,
-          retry_disposition: 'read_only_reconcile_only_no_upload_retry',
-          mutation_attempt: {
-            exit_status: attempt.status,
-            signal: attempt.signal ?? null,
-            error: attempt.error?.message ?? null,
-            stdout: attempt.stdout,
-            stderr: attempt.stderr,
-          },
-          remote_readback: inspection,
-        };
-      }
-      reconciledAfterUnknown = true;
-      uploaded.push(action.name);
-      continue;
-    }
-    if (!exact) {
-      return {
-        schema: 'opl_app_native_webui_publication_receipt.v1',
-        status: 'outcome_unknown',
-        repository: manifest.repository,
-        tag: manifest.tag,
-        uploaded,
-        reused,
-        unresolved_asset: action.name,
-        retry_disposition: 'read_only_reconcile_only_no_upload_retry',
-        mutation_attempt: { exit_status: attempt.status, stdout: attempt.stdout, stderr: attempt.stderr },
-        remote_readback: inspection,
-      };
-    }
-    uploaded.push(action.name);
-  }
-
-  inspection = inspectRelease(manifest, runtime);
-  planNativeWebuiAssetPublication(manifest.assets, inspection.assets);
-  let anonymous: JsonRecord[];
   try {
-    anonymous = anonymousReadback(manifest, inspection.assets, runtime);
+    const inspection = inspectRelease(manifest, runtime);
+    const plan = planNativeWebuiAssetPublication(manifest.assets, inspection.assets);
+    const missing = plan.filter((action) => action.action === 'upload').map((action) => action.name);
+    if (missing.length > 0) {
+      return {
+        schema: 'opl_app_native_webui_publication_receipt.v1',
+        status: 'outcome_unknown',
+        repository: manifest.repository,
+        tag: manifest.tag,
+        release_bundle_digest: manifest.release_bundle_digest,
+        stable_authority_run_id: manifest.stable_authority_run_id,
+        cohort: manifest.cohort,
+        remote_target: nativeWebuiRemoteTarget(manifest),
+        missing_assets: missing,
+        retry_disposition: 'read_only_reconcile_only_no_upload_retry',
+        authenticated_readback: inspection.assets.filter((asset) => manifest.assets.some((local) => local.name === asset.name)),
+        latest_modified: false,
+        container_registry_modified: false,
+        homebrew_modified: false,
+      };
+    }
+    const anonymous = anonymousReadback(manifest, inspection.assets, runtime);
+    return {
+      schema: 'opl_app_native_webui_publication_receipt.v1',
+      status: 'complete',
+      repository: manifest.repository,
+      tag: manifest.tag,
+      release_bundle_digest: manifest.release_bundle_digest,
+      stable_authority_run_id: manifest.stable_authority_run_id,
+      cohort: manifest.cohort,
+      remote_target: nativeWebuiRemoteTarget(manifest),
+      authenticated_readback: inspection.assets.filter((asset) => manifest.assets.some((local) => local.name === asset.name)),
+      anonymous_readback: anonymous,
+      latest_modified: false,
+      container_registry_modified: false,
+      homebrew_modified: false,
+    };
   } catch (error) {
     return {
       schema: 'opl_app_native_webui_publication_receipt.v1',
@@ -489,39 +440,95 @@ export function publishNativeWebuiAssets(
       release_bundle_digest: manifest.release_bundle_digest,
       stable_authority_run_id: manifest.stable_authority_run_id,
       cohort: manifest.cohort,
-      uploaded,
-      reused,
-      unresolved_asset: null,
+      remote_target: nativeWebuiRemoteTarget(manifest),
       retry_disposition: 'read_only_reconcile_only_no_upload_retry',
       failure: {
-        taxonomy: 'anonymous_public_readback_failed',
+        taxonomy: 'authenticated_or_anonymous_public_readback_failed',
         message: error instanceof Error ? error.message : String(error),
       },
-      authenticated_readback: inspection.assets.filter((asset) => manifest.assets.some((local) => local.name === asset.name)),
       latest_modified: false,
       container_registry_modified: false,
       homebrew_modified: false,
     };
   }
+}
+
+export function publishNativeWebuiAssets(
+  manifest: NativeWebuiPublicationManifest,
+  mutationAttemptId: string,
+  runtime: NativeWebuiGitHubRuntime = defaultRuntime,
+): JsonRecord {
+  if (!/^gha-[A-Za-z0-9._-]+$/.test(mutationAttemptId)) {
+    fail('Native WebUI mutation attempt id must be a bounded GitHub Actions identity');
+  }
+  const inspection = inspectRelease(manifest, runtime);
+  const plan = planNativeWebuiAssetPublication(manifest.assets, inspection.assets);
+  const missing = plan.filter((action) => action.action === 'upload');
+  const reused = plan.filter((action) => action.action === 'reuse').map((action) => action.name);
+  if (missing.length === 0) {
+    const readback = readbackNativeWebuiAssets(manifest, runtime);
+    if (readback.status !== 'complete') {
+      return {
+        ...readback,
+        status: 'public_readback_failed',
+        mutation_attempt_id: mutationAttemptId,
+        requested_uploads: [],
+        reused,
+        retry_disposition: 'read_only_public_readback_required_no_upload',
+      };
+    }
+    return {
+      ...readback,
+      status: 'idempotent',
+      mutation_attempt_id: mutationAttemptId,
+      requested_uploads: [],
+      reused,
+    };
+  }
+  const localPaths = missing.map((action) => {
+    const localPath = path.resolve(action.path);
+    regularFile(localPath, `Native WebUI upload ${action.name}`);
+    return localPath;
+  });
+  const attempt = runtime.run('gh', [
+    'release',
+    'upload',
+    manifest.tag,
+    ...localPaths,
+    '--repo',
+    manifest.repository,
+  ], { timeout: 10 * 60_000 });
+  const readback = readbackNativeWebuiAssets(manifest, runtime);
+  if (attempt.status !== 0 || attempt.error || readback.status !== 'complete') {
+    return {
+      ...readback,
+      status: 'outcome_unknown',
+      mutation_attempt_id: mutationAttemptId,
+      requested_uploads: missing.map((action) => action.name),
+      reused,
+      retry_disposition: 'persist_framework_marker_then_exact_read_only_reconcile_no_upload_retry',
+      mutation_attempt: {
+        exit_status: attempt.status,
+        signal: attempt.signal ?? null,
+        error: attempt.error?.message ?? null,
+        stdout: attempt.stdout,
+        stderr: attempt.stderr,
+      },
+    };
+  }
   return {
-    schema: 'opl_app_native_webui_publication_receipt.v1',
-    status: reconciledAfterUnknown
-      ? 'reconciled_complete'
-      : uploaded.length === 0
-        ? 'idempotent'
-        : 'complete',
-    repository: manifest.repository,
-    tag: manifest.tag,
-    release_bundle_digest: manifest.release_bundle_digest,
-    stable_authority_run_id: manifest.stable_authority_run_id,
-    cohort: manifest.cohort,
-    uploaded,
+    ...readback,
+    status: 'complete',
+    mutation_attempt_id: mutationAttemptId,
+    requested_uploads: missing.map((action) => action.name),
     reused,
-    authenticated_readback: inspection.assets.filter((asset) => manifest.assets.some((local) => local.name === asset.name)),
-    anonymous_readback: anonymous,
-    latest_modified: false,
-    container_registry_modified: false,
-    homebrew_modified: false,
+    mutation_attempt: {
+      exit_status: attempt.status,
+      signal: attempt.signal ?? null,
+      error: null,
+      stdout: attempt.stdout,
+      stderr: attempt.stderr,
+    },
   };
 }
 
@@ -550,6 +557,7 @@ function main(): void {
       installer: { type: 'string' },
       'installer-sha256': { type: 'string' },
       manifest: { type: 'string' },
+      'mutation-attempt-id': { type: 'string' },
       output: { type: 'string' },
     },
   });
@@ -579,13 +587,21 @@ function main(): void {
   }
   if (command === 'publish') {
     const manifest = validateManifest(readJson(path.resolve(option(parsed.values, 'manifest'))));
-    const receipt = publishNativeWebuiAssets(manifest);
+    const receipt = publishNativeWebuiAssets(manifest, option(parsed.values, 'mutation-attempt-id'));
     writeJson(path.resolve(option(parsed.values, 'output')), receipt);
     process.stdout.write(`${JSON.stringify(receipt)}\n`);
     if (receipt.status === 'outcome_unknown') process.exitCode = 2;
     return;
   }
-  fail('Usage: release-native-webui-carrier.ts <seal|publish> ...');
+  if (command === 'readback') {
+    const manifest = validateManifest(readJson(path.resolve(option(parsed.values, 'manifest'))));
+    const receipt = readbackNativeWebuiAssets(manifest);
+    writeJson(path.resolve(option(parsed.values, 'output')), receipt);
+    process.stdout.write(`${JSON.stringify(receipt)}\n`);
+    if (receipt.status === 'outcome_unknown') process.exitCode = 2;
+    return;
+  }
+  fail('Usage: release-native-webui-carrier.ts <seal|publish|readback> ...');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -122,6 +122,20 @@ jobs:
       stable_authority_run_id: '424242'
       carrier_artifact_name: canary
 
+  nested-native-webui:
+    uses: ./.github/workflows/_release-native-webui-carrier.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      mode: canary
+      stable_authority_run_id: '424242'
+      app_ref: canary
+      shell_ref: canary
+      framework_ref: ad09977d7cdfc6cb3d1c04f7f1e6fd9358a7a2fc
+      opl_version: canary
+      release_bundle_digest: sha256:canary
+
   nested-updater-qualification:
     uses: ./.github/workflows/opl-updater-upgrade-vm.yml
     permissions:

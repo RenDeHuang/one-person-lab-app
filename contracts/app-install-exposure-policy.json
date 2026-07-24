@@ -53,7 +53,7 @@
       },
       "native_webui": {
         "source_runtime_status": "active_development_capability",
-        "implementation_status": "verified_candidate_route_and_packaging_source_present",
+        "implementation_status": "production_publisher_implemented_pending_first_publication_readback",
         "public_install_status": "not_published",
         "opl_support_status": "approved_target_not_supported",
         "electron_required": false,

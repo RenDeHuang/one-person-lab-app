@@ -494,7 +494,9 @@ test('the live control plane is split into Standard build, Standard publish, and
     'standard-build',
     'standard-qualification',
     'checkpoint-standard',
+    'prepare-native-webui',
     'publish-standard',
+    'publish-native-webui',
   ]);
   assert.ok(standard.jobs.restore);
   assert.ok(standard.jobs['updater-upgrade-qualification']);
@@ -506,7 +508,7 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.ok(full.jobs.provenance);
   assert.ok(full.jobs['publish-full']);
   for (const [workflow, inheritedMutationJobs] of [
-    [bundle, new Set(['publish-standard'])],
+    [bundle, new Set(['publish-standard', 'publish-native-webui'])],
     [standard, new Set(['publish-standard-nonlatest', 'activate-latest'])],
     [full, new Set(['publish-full'])],
   ] as const) {
@@ -871,6 +873,7 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(canary.jobs['nested-standard-qualification'].uses, './.github/workflows/opl-first-run-vm.yml');
   assert.equal(canary.jobs['nested-webui-carrier'].uses, './.github/workflows/_release-webui-carrier.yml');
   assert.equal(canary.jobs['nested-webui-stable'].uses, './.github/workflows/release-webui-stable.yml');
+  assert.equal(canary.jobs['nested-native-webui'].uses, './.github/workflows/_release-native-webui-carrier.yml');
   assert.equal(canary.jobs['nested-updater-qualification'].uses, './.github/workflows/opl-updater-upgrade-vm.yml');
   assert.equal(canary.jobs['nested-full-build'].uses, './.github/workflows/full-first-install-release.yml');
   const compileCeilingPermissions = { contents: 'read', actions: 'read', packages: 'write' };
@@ -1478,6 +1481,11 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
     ['freeze', 'standard-build', 'standard-qualification'],
   );
   assert.deepEqual(workflow.jobs['publish-standard'].needs, ['freeze', 'checkpoint-standard']);
+  assert.deepEqual(workflow.jobs['prepare-native-webui'].needs, ['freeze']);
+  assert.deepEqual(
+    workflow.jobs['publish-native-webui'].needs,
+    ['freeze', 'checkpoint-standard', 'prepare-native-webui', 'publish-standard'],
+  );
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);
   assert.deepEqual(Object.keys(follower.on), ['workflow_run']);
