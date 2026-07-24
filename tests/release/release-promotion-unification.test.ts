@@ -155,12 +155,12 @@ test('unified promotion barrier admits exactly two qualified and attested carrie
   assert.deepEqual(reversedResult.carrier_digests, firstResult.carrier_digests);
 });
 
-test('unified final readback accepts exact target idempotency and all five projections', () => {
+test('unified final readback accepts exact target idempotency and all six projections', () => {
   const input = promotionFixture();
   const result = verifyFixture(input);
   assert.equal(result.status, 'final_readback_verified');
   assert.equal(result.cas_mode, 'target_idempotent');
-  assert.equal(result.exact_projection_count, 5);
+  assert.equal(result.exact_projection_count, 6);
   assert.deepEqual(result.bounded_reconcile, {
     attempt: 1,
     max_attempts: 3,

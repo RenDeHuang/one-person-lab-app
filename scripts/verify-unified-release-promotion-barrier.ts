@@ -21,6 +21,7 @@ const requiredPackageIds = [
 const requiredProjectionIds = [
   'app_consumption',
   'framework_latest_stable',
+  'ghcr_latest',
   'ghcr_stable',
   'github_latest',
   'homebrew_standard',
@@ -292,7 +293,10 @@ function validateCarrier(value: unknown, frozen: JsonRecord): JsonRecord {
   exactSet(
     carrier.moving_pointer_refs,
     carrierId === 'docker_webui'
-      ? ['ghcr.io/gaofeng21cn/one-person-lab-webui:stable']
+      ? [
+          'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+          'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+        ]
       : [
           'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest',
           'https://raw.githubusercontent.com/gaofeng21cn/homebrew-one-person-lab/main/Casks/one-person-lab.rb',
@@ -441,6 +445,8 @@ function expectedProjection(
       };
     case 'ghcr_stable':
       return { ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable', digest: docker.artifact_digest };
+    case 'ghcr_latest':
+      return { ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest', digest: docker.artifact_digest };
     case 'github_latest':
       return { ref: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest', digest: desktop.artifact_digest };
     case 'homebrew_standard':

@@ -21,6 +21,7 @@
       "package_profile": "webui-full",
       "immutable_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "moving_pointer_refs": [
+        "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
         "ghcr.io/gaofeng21cn/one-person-lab-webui:stable"
       ],
       "artifact_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
@@ -520,6 +521,28 @@
             "source_cutoff": "2026-07-23T01:30:00Z"
           },
           "receipt_digest": "sha256:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd2"
+        }
+      },
+      {
+        "projection_id": "ghcr_latest",
+        "expected_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+        "expected_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "observation": {
+          "status": "verified",
+          "evidence_class": "synthetic_fixture",
+          "readback_kind": "synthetic_fixture",
+          "source_cutoff": "2026-07-23T01:30:00Z",
+          "ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+          "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "identity": {
+            "display_version": "26.7.23",
+            "app_sha": "a238975b40f982f4ebbc2de08a5827cb80755377",
+            "framework_sha": "bc30436e95c19a0ef6263ffbbc945dfab65ab78e",
+            "bundle_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "cohort_ref": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "source_cutoff": "2026-07-23T01:30:00Z"
+          },
+          "receipt_digest": "sha256:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd6"
         }
       },
       {
