@@ -517,14 +517,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('opl-native-workbench must carry only_foreground_alternative role');
   }
 
-  const agents = readText(root, 'AGENTS.md', issues);
   const decisions = readText(root, 'docs/decisions.md', issues);
   const invariants = readText(root, 'docs/invariants.md', issues);
   const candidateDoc = readText(root, 'docs/product/gui/gui-shell-candidates.md', issues);
-  requireMarker(agents, roleMarker, 'AGENTS.md', issues);
   requireMarker(candidateDoc, roleMarker, 'gui-shell-candidates.md', issues);
   for (const [label, text] of [
-    ['AGENTS.md', agents],
     ['docs/decisions.md', decisions],
     ['docs/invariants.md', invariants],
     ['docs/product/gui/gui-shell-candidates.md', candidateDoc],
@@ -532,7 +529,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     requireMarker(text, stackMarker, label, issues);
     requireMarker(text, shellAuthorityMarker, label, issues);
   }
-  requireMarker(agents, foundationDocs.readme, 'AGENTS.md', issues);
 
   const governedDocPaths = [...new Set(expectedStack.flatMap((layer) => layer.entry_docs))];
   const governedDocsPresent = governedDocPaths.every((relativePath) => fs.existsSync(path.join(root, relativePath)));
@@ -1680,7 +1676,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       issues.add(`governed GUI docs must not copy model catalogs or name non-default model ${model}`);
     }
   }
-  const readinessText = [governedText, agents, decisions, invariants, candidateDoc].join('\n');
+  const readinessText = [governedText, decisions, invariants, candidateDoc].join('\n');
   const positiveReadinessClaims = [
     /\b(?:release|production)[_ -]ready\s*[:=]\s*(?:true|yes)\b/i,
     /\b(?:candidate|shell|app)\s+(?:is|are)\s+(?!not\b)(?:release|production)[ -]ready\b/i,

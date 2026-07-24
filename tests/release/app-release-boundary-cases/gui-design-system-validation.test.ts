@@ -811,15 +811,17 @@ test('GUI design-system validator rejects a reintroduced managed Worktree lifecy
   );
 });
 
-test('GUI design-system validator rejects a stale foreground role marker', () => {
+test('GUI design-system validator rejects a stale foreground role marker in the GUI owner document', () => {
   const root = createFixture();
-  const agentsPath = path.join(root, 'AGENTS.md');
+  const candidatesPath = path.join(root, designRoot, 'gui-shell-candidates.md');
   fs.writeFileSync(
-    agentsPath,
-    fs.readFileSync(agentsPath, 'utf8').replace('foreground=opl-native-workbench', 'foreground=hermes-codex'),
+    candidatesPath,
+    fs
+      .readFileSync(candidatesPath, 'utf8')
+      .replace('foreground=opl-native-workbench', 'foreground=hermes-codex'),
     'utf8',
   );
-  assert.throws(() => validateGuiDesignSystem(root), /AGENTS\.md must include gui_shell_roles/);
+  assert.throws(() => validateGuiDesignSystem(root), /gui-shell-candidates\.md must include gui_shell_roles/);
 });
 
 test('GUI design-system validator rejects a document assigned to the wrong layer', () => {
