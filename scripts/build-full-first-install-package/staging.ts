@@ -94,7 +94,10 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
     },
     officecli: { source_path: sources.officeCliBin, version: officeCliVersion, size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
     mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
-    skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
+    skills: {
+      source_path: 'contracts/app-product-profile.json#companion_payloads',
+      size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')),
+    },
   };
   const optionalComponents = {
     bun: sources.bunBin

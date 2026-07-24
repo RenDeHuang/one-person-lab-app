@@ -10,9 +10,6 @@ import {
 } from './helpers.ts';
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
 import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
-import {
-  readOplFlowDefaultSkillDependencyIds,
-} from '../../../scripts/build-full-first-install-package/skills.ts';
 import { forbiddenExternalFirstPartyClaimPattern } from '../../../scripts/app-product-profile-shared-validators.ts';
 import {
   appOwnedStorageCarrierBehavior,
@@ -80,49 +77,15 @@ function externalRegistryFixture() {
   };
 }
 
-test('Full packaging can consume any Flow v3 Skill declaration without lock or payload metadata', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-v3-policy-test-'));
-  const contractsRoot = path.join(root, 'contracts');
-  fs.mkdirSync(contractsRoot, { recursive: true });
-  const policyPath = path.join(contractsRoot, 'workflow-policy.json');
-  const policy = {
-    schema: 'opl_flow_workflow_policy.v3',
-    package: { id: 'opl-flow' },
-    provides: [],
-    requires: [],
-    recommends: [
-      {
-        kind: 'codex_skill',
-        id: 'shared-name',
-        online_install_default: true,
-      },
-      {
-        kind: 'cli',
-        id: 'shared-name',
-        online_install_default: true,
-      },
-    ],
-    compatible_optional: [],
-  };
-  try {
-    writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
-    assert.deepEqual(readOplFlowDefaultSkillDependencyIds(root), ['shared-name']);
-
-    const carrierHint = structuredClone(policy);
-    carrierHint.recommends[0].offline_bundle = 'none';
-    writeFile(policyPath, `${JSON.stringify(carrierHint, null, 2)}\n`);
-    assert.deepEqual(readOplFlowDefaultSkillDependencyIds(root), ['shared-name']);
-
-    const duplicate = structuredClone(policy);
-    duplicate.recommends.push(structuredClone(duplicate.recommends[0]));
-    writeFile(policyPath, `${JSON.stringify(duplicate, null, 2)}\n`);
-    assert.throws(
-      () => readOplFlowDefaultSkillDependencyIds(root),
-      /Duplicate OPL Flow capability identity \(codex_skill, shared-name\)/,
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+test('Full skill carrier seeds do not discover Flow dependencies or managed-home payloads', () => {
+  const source = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /opl-flow-capability-policy|workflow-policy\.json/);
+  assert.doesNotMatch(source, /\.skills-manager|\.codex['"],\s*['"]skills/);
+  assert.match(source, /readAppProductProfile\(\)/);
+  assert.match(source, /companion_payloads\.default_packaged_codex_skill_ids/);
 });
 
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {

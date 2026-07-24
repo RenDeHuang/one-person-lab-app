@@ -4,10 +4,6 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { readAppProductProfile } from '../app-product-profile/profile-contract.ts';
-import {
-  readOplFlowCapabilityPolicy,
-  resolveOplFlowDefaultSkillDependencyIds,
-} from '../opl-flow-capability-policy.ts';
 import { appRepoRoot } from './paths.ts';
 import { copyTreeFiltered } from './filesystem.ts';
 import { readGitHead } from './git.ts';
@@ -65,7 +61,6 @@ export function skillFileSourceSnapshot(candidates) {
 export function masSkillCandidates(options) {
   return [
     path.join(options.masRoot, 'plugins', 'med-autoscience', 'skills', 'med-autoscience'),
-    path.join(os.homedir(), '.codex', 'skills', 'med-autoscience'),
   ];
 }
 
@@ -108,7 +103,6 @@ export function metaAgentSkillSnapshot(options) {
   }
   return skillSourceSnapshot([
     path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
-    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
   ], 'skills/opl-meta-agent');
 }
 
@@ -123,7 +117,6 @@ export function bookforgeSkillSnapshot(options) {
   }
   return skillSourceSnapshot([
     path.join(options.bookforgeRoot, 'plugins', 'opl-bookforge', 'skills', 'opl-bookforge'),
-    path.join(os.homedir(), '.codex', 'skills', 'opl-bookforge'),
   ], 'skills/opl-bookforge');
 }
 
@@ -137,14 +130,12 @@ export function officeCliCoreSkillSnapshot(options) {
 export function magSkillCandidates(options) {
   return [
     path.join(options.magRoot, 'plugins', 'med-autogrant', 'skills', 'med-autogrant'),
-    path.join(os.homedir(), '.codex', 'skills', 'med-autogrant'),
   ];
 }
 
 export function rcaSkillCandidates(options) {
   return [
     path.join(options.rcaRoot, 'plugins', 'redcube-ai', 'skills', 'redcube-ai'),
-    path.join(os.homedir(), '.codex', 'skills', 'redcube-ai'),
   ];
 }
 
@@ -152,16 +143,12 @@ export function officeCliCoreSkillCandidates(options) {
   return [
     options.officeCliRoot,
     path.join(options.officeCliRoot, 'skills', 'officecli'),
-    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli'),
-    path.join(os.homedir(), '.codex', 'skills', 'officecli'),
   ];
 }
 
 export function mineruDocumentExtractorSkillCandidates(options) {
   return [
     options.mineruDocumentExtractorRoot,
-    path.join(os.homedir(), '.skills-manager', 'skills', 'mineru-document-extractor'),
-    path.join(os.homedir(), '.codex', 'skills', 'mineru-document-extractor'),
   ];
 }
 
@@ -172,16 +159,12 @@ export function appCompanionSkillRoot(skillId) {
 export function officeCliSkillCandidates(options, skillId) {
   return [
     path.join(options.officeCliRoot, 'skills', skillId),
-    path.join(os.homedir(), '.skills-manager', 'skills', skillId),
-    path.join(os.homedir(), '.codex', 'skills', skillId),
   ];
 }
 
 export function appCompanionSkillCandidates(skillId) {
   return [
     appCompanionSkillRoot(skillId),
-    path.join(os.homedir(), '.skills-manager', 'skills', skillId),
-    path.join(os.homedir(), '.codex', 'skills', skillId),
   ];
 }
 
@@ -203,7 +186,6 @@ export function copyOplMetaAgentSkill(targetRoot, options) {
   }
   return copyFirstSkillSource('opl-meta-agent', targetRoot, [
     path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
-    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
   ]);
 }
 
@@ -244,7 +226,6 @@ export function copyOplBookforgeSkill(targetRoot, options) {
   }
   return copyFirstSkillSource('opl-bookforge', targetRoot, [
     path.join(options.bookforgeRoot, 'plugins', 'opl-bookforge', 'skills', 'opl-bookforge'),
-    path.join(os.homedir(), '.codex', 'skills', 'opl-bookforge'),
   ]);
 }
 
@@ -310,10 +291,7 @@ export function copyUiUxProMaxSkill(targetRoot, options) {
     copySkillDirectory(packagedSkillRoot, target, 'ui-ux-pro-max');
     return options.uiUxProMaxRoot;
   }
-  return copyFirstSkillSource('ui-ux-pro-max', targetRoot, [
-    path.join(os.homedir(), '.skills-manager', 'skills', 'ui-ux-pro-max'),
-    path.join(os.homedir(), '.codex', 'skills', 'ui-ux-pro-max'),
-  ]);
+  throw new Error('Required Full companion skill source not found: ui-ux-pro-max');
 }
 
 export const packagedSkillCopyHandlers = {
@@ -338,38 +316,6 @@ export const packagedSkillCopyHandlers = {
   ),
 };
 
-export function readOplFlowDefaultSkillDependencyIds(oplFlowRoot) {
-  const policyPath = path.join(oplFlowRoot, 'contracts', 'workflow-policy.json');
-  return resolveOplFlowDefaultSkillDependencyIds(readOplFlowCapabilityPolicy(policyPath));
-}
-
-function copyOptionalFlowSkill(skillId, targetRoot, options) {
-  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-full-skill-'));
-  try {
-    const specialized = packagedSkillCopyHandlers[skillId];
-    if (specialized) {
-      specialized(stagingRoot, options);
-    } else {
-      const source = firstExistingSkillSource([
-        path.join(os.homedir(), '.skills-manager', 'skills', skillId),
-        path.join(os.homedir(), '.codex', 'skills', skillId),
-      ]);
-      if (!source) return false;
-      copySkillDirectory(source, path.join(stagingRoot, skillId), skillId);
-    }
-    copySkillDirectory(
-      path.join(stagingRoot, skillId),
-      path.join(targetRoot, skillId),
-      skillId,
-    );
-    return true;
-  } catch {
-    return false;
-  } finally {
-    fs.rmSync(stagingRoot, { recursive: true, force: true });
-  }
-}
-
 export function copyPackagedSkills(targetRoot, options) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
@@ -378,17 +324,11 @@ export function copyPackagedSkills(targetRoot, options) {
     ...productProfile.companion_payloads.default_packaged_codex_skill_ids,
     ...productProfile.companion_payloads.additional_package_skill_ids,
   ];
-  const optionalFlowSkillIds = readOplFlowDefaultSkillDependencyIds(options.oplFlowRoot);
-  const requiredPackagedSkillSet = new Set(requiredPackagedSkillIds);
   for (const skillId of requiredPackagedSkillIds) {
     const copySkill = packagedSkillCopyHandlers[skillId];
     if (!copySkill) {
       throw new Error(`No Full package copy handler declared for App packaged skill: ${skillId}`);
     }
     copySkill(targetRoot, options);
-  }
-  for (const skillId of optionalFlowSkillIds) {
-    if (requiredPackagedSkillSet.has(skillId)) continue;
-    copyOptionalFlowSkill(skillId, targetRoot, options);
   }
 }

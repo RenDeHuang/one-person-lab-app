@@ -339,10 +339,19 @@ function createFullRuntimeFixture() {
     skills: "./skills/",
   });
   writeJson(path.join(oplFlowRoot, "contracts", "workflow-policy.json"), {
-    schema: "opl_flow_workflow_policy.v1",
+    schema: "opl_flow_workflow_policy.v3",
     package: { id: "opl-flow" },
-    requires: [],
+    provides: [],
+    requires: [
+      {
+        kind: "codex_skill",
+        id: "agent-reach",
+        source: "https://github.com/Panniantong/Agent-Reach",
+        source_path: "agent_reach/skill",
+      },
+    ],
     recommends: [],
+    compatible_optional: [],
   });
   writeFile(path.join(oplFlowRoot, "templates", "AGENTS.md"), "# OPL Flow fixture\n");
   writeFile(path.join(oplFlowRoot, "skills", "opl-flow", "SKILL.md"), "# OPL Flow\n");
@@ -624,6 +633,23 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     const { prepareRuntime } =
       await import("../../../scripts/build-full-first-install-package/staging.ts");
     prepared = prepareRuntime(fixture.options, fixture.sources);
+    const packagedSkillsRoot = path.join(prepared.runtimeRoot, "skills");
+    assert.equal(
+      fs.existsSync(path.join(packagedSkillsRoot, "agent-reach")),
+      false,
+      "Flow dependencies must be installed by Framework reconciliation, not copied by App packaging",
+    );
+    assert.equal(
+      prepared.manifest.components.skills.source_path,
+      "contracts/app-product-profile.json#companion_payloads",
+    );
+    assert.equal(
+      prepared.manifest.components.skills.role,
+      "packaged_codex_skill_carrier_seeds_declared_by_app_product_profile",
+    );
+    const skillsCacheInputs = prepared.runtime_cache.key_inputs.skills;
+    assert.equal("opl_flow_commit" in skillsCacheInputs, false);
+    assert.equal("opl_flow_workflow_policy_sha256" in skillsCacheInputs, false);
     const packagedScholarRoot = path.join(
       prepared.runtimeRoot,
       "modules",

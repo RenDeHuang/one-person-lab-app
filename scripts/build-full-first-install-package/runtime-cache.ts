@@ -124,10 +124,6 @@ export function buildRuntimeCacheKeyInputs(
     },
     skills: {
         selected_package_set_identity: packageSet.identity,
-        opl_flow_commit: readGitHead(options.oplFlowRoot),
-        opl_flow_workflow_policy_sha256: existingFileSha256(
-          path.join(options.oplFlowRoot, 'contracts', 'workflow-policy.json'),
-        ),
         app_product_profile_sha256: existingFileSha256(
           path.join(appRepoRoot, 'contracts', 'app-product-profile.json'),
         ),

@@ -528,7 +528,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       skills: {
         ...normalizeComponent(components.skills),
-        role: 'packaged_codex_skills_declared_by_app_product_profile',
+        role: 'packaged_codex_skill_carrier_seeds_declared_by_app_product_profile',
         required: true,
       },
     },
