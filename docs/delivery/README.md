@@ -19,6 +19,7 @@ surfaces live under `docs/site/latest/`.
 | [`release/README.md`](release/README.md) | App release, updater, Full first-install, Homebrew, and release-owner operator map. |
 | [`release/records/`](release/records/) | Release owner receipt records and verdict records. |
 | [`release-evidence/screenshots.md`](release-evidence/screenshots.md) | Screenshot and visual tutorial evidence routing. |
+| [`validation/windows-wsl2/`](validation/windows-wsl2/) | Sanitized, non-binding receipts and fixtures for the authorized non-blocking Windows/WSL2 technical validation lane. |
 | [`install/docker-webui-guide.md`](install/docker-webui-guide.md) | Compatibility entry for the Docker/WebUI guide maintenance source and public bundle. |
 | [`user-guides/macos-app-install/README.md`](user-guides/macos-app-install/README.md) | macOS install guide source, generated Markdown/deck source, screenshot provenance, fixtures, and verification records. |
 | [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |

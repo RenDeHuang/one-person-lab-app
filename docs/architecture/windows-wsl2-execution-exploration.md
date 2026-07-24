@@ -11,6 +11,14 @@ readiness claim, or authorization to change App, Shell, AionCore, Framework,
 installer, workflow, or release bytes. Current machine truth remains in
 `contracts/`, source, tests, produced artifacts, and fresh runtime readback.
 
+Owner authorization (2026-07-24): the linked
+[`windows-wsl2-execution-validation-plan.md`](windows-wsl2-execution-validation-plan.md)
+is an explicitly authorized, non-blocking validation lane. It may run
+disposable VM/WSL2 experiments and record evidence without promoting Windows
+work into `docs/active/`, contracts, source, release workflows, supported
+platforms, or development gaps. The validation lane must not block unrelated
+development.
+
 ## 1. Decision Boundary
 
 The App currently supports `macos-arm64` for release. Windows can be built
@@ -199,8 +207,9 @@ Shell also:
 
 - starts Codex App Server directly for canonical thread, history, and review
   behavior; and
-- starts the OPL Framework CLI through `oplRuntimeBridge` for bootstrap,
-  initialize, Codex configuration, state, actions, login, update, and rollback.
+- transports the canonical Framework state and action surfaces through
+  `oplRuntimeBridge`, while login secrets use the dedicated typed IPC/stdin
+  route and update, repair, and recovery remain owner-routed Settings actions.
 
 A valid WSL2-only design must route both paths into the same `OPL-Linux`
 identity, Linux `CODEX_HOME`, and Linux Framework installation. The Windows host
@@ -217,8 +226,9 @@ Candidate transports include:
 
 The final inventory must cover every Shell IPC surface and first-run action, not
 only chat. A native route left in bootstrap, authentication, configuration,
-state/action, scheduled work, update, repair, or rollback violates the
-conditional invariant.
+state/action, scheduled work, update, repair, or recovery violates the
+conditional invariant. Route coverage does not transfer Framework lifecycle
+authority to App or Shell.
 
 ### 4.3 Host-to-guest trust boundary
 
@@ -347,17 +357,25 @@ selected.
 
 ## 6. Conditional Exploration Sequence
 
-The following is not an implementation backlog. It is the order in which
-future experiments should retire uncertainty if Windows development is
-separately authorized.
+The following is not an implementation backlog. The current validation lane may
+run these experiments under the linked validation plan. Product implementation
+still requires the separate E0 promotion decision.
+
+### Validation lane
+
+The validation plan owns V0-V5 host preflight, launcher, authentication,
+process ownership, independent route, filesystem, and clean-VM experiments.
+Results are evidence only. They do not create a product gap, active plan,
+machine contract, release blocker, or supported-platform claim.
 
 ### E0: Product promotion decision
 
-Entry condition: an explicit owner decision asks to explore a Windows desktop
-product under the WSL2-only invariant.
+Entry condition: an explicit owner decision asks to move from validation into
+Windows product implementation under the WSL2-only invariant.
 
-Outcome: selected Windows architecture questions may move to an active plan.
-Without this decision, no later item is missing work.
+Outcome: selected Windows architecture questions may move to a dated active
+plan and a development-only machine contract. Without this decision, no
+validation result is missing work and no implementation phase is authorized.
 
 ### E1: Launcher viability
 
@@ -378,10 +396,11 @@ This is the single highest-value technical experiment.
 
 Route both the Shell's direct `codex app-server --stdio` path and
 `oplRuntimeBridge` through WSL. Verify thread list/read/start, review, cwd,
-bootstrap/initialize, Codex configuration, App state/action, login, scheduled
-work, update, repair, rollback, cancellation, shutdown, and restart. Do not
-claim WSL2-only coverage while any Shell IPC surface remains native,
-unclassified, or untested.
+bootstrap/initialize, Codex configuration, canonical App state/action, the
+dedicated typed login IPC/stdin route, scheduled work, owner-routed update,
+repair and recovery, cancellation, shutdown, and restart. Do not claim
+WSL2-only coverage while any Shell IPC surface remains native, unclassified,
+or untested; route coverage does not change lifecycle ownership.
 
 ### E3: Path and host-integration viability
 
@@ -397,11 +416,13 @@ uninstall/data retention, and network-restricted behavior.
 
 ### E5: Servicing and release design
 
-Only after E1-E4 pass, decide rootfs/base ownership, component update policy,
-rollback, signing, telemetry/diagnostics, installer packaging, release bundle
-identity, host-to-guest authorization hardening, supported architectures, and
-clean-VM acceptance. This is where `contracts/`, release workflows, test
-matrices, and supported-platform claims would first become eligible for change.
+Only after E0 promotion and E1-E4-equivalent evidence is complete, decide
+rootfs/base ownership, component update policy, rollback, signing,
+telemetry/diagnostics, installer packaging, release bundle identity,
+host-to-guest authorization hardening, supported architectures, and clean-VM
+acceptance. Development-only contracts may be introduced before production
+support, but release workflows and supported-platform claims remain out of
+scope until the later production gate.
 
 ## 7. Promotion Rules
 
@@ -416,6 +437,9 @@ This document remains exploration-only until an explicit decision names:
 - exact repository owners and write sets;
 - development-validation acceptance; and
 - the later, separate transition criteria for production release.
+
+The validation plan is already authorized for evidence collection, but its
+results do not satisfy any item above and do not authorize implementation.
 
 When that happens:
 

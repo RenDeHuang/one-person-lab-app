@@ -15,6 +15,12 @@ release bytes. Current machine truth remains in `contracts/`, source, tests,
 produced artifacts, and fresh runtime readback. Only an explicit E0 product
 promotion may copy the selected slices into a dated `docs/active/` plan.
 
+An explicitly authorized validation-only lane may exercise the reference
+design, including a disposable Windows VM and WSL2 fixtures, under
+[`windows-wsl2-execution-validation-plan.md`](windows-wsl2-execution-validation-plan.md).
+Validation evidence may update this reference document, but it does not create
+an App gap, change contracts, or authorize implementation or release work.
+
 ## 1. Conclusion
 
 The Windows desktop path is technically feasible without modifying or forking
@@ -268,6 +274,14 @@ allowlist, timeout, and operation token. No request uses `bash -c`, PowerShell
 interpolation, an unrestricted executable path, or a command string assembled
 from user input.
 
+The direct-child design must persist an atomic, guest-owned operation record
+before `execve` containing the token, PID start time, process-group identity,
+real executable identity, carrier identity, and session. `runtime-control` must
+validate that record against fresh `/proc` readback before signalling anything;
+PID equality alone is insufficient because of PID reuse. If a safe token-to-tree
+mapping cannot be proven, P2 must select the smallest evidence-backed
+supervisor or mark the route unsupported.
+
 ## 5. Lifecycle Strategy Selection
 
 The baseline must first launch each route as a direct child of its own
@@ -447,16 +461,21 @@ bootstrap and initialize
 Codex configuration
 fast and full App state
 App action execution
-login and authentication status
 scheduled work
 update status and owner-routed update request
-repair and rollback request
+repair and recovery reference
 ```
 
 Windows must bypass host Full-runtime discovery, host `fs/path` carrier probes,
 and native `opl` resolution. The Framework remains responsible for command
 semantics and receipts; the Shell transports structured requests and renders
 their results.
+
+Login credentials are the explicit exception to the generic action surface:
+they use the dedicated typed IPC/stdin route and must never enter a generic App
+action payload, log, state, error, or receipt. Rollback remains a
+`rollback_ref`/recovery reference rather than an App or Framework Package
+lifecycle verb. Update and repair remain owner-routed Settings operations.
 
 The WebUI runtime proxy used by the Windows desktop package must not create an
 independent native host route.
@@ -676,7 +695,9 @@ minimum Windows and WSL versions
 lifecycle-strategy compatibility range
 ```
 
-The carrier is deliberately not frozen before E5. P3 compares at least:
+The production carrier is deliberately not frozen before E5. Validation and
+development may select a disposable carrier fixture after the bounded P3
+comparison, but that selection is not a release or support decision:
 
 | Candidate | Required evidence before selection |
 | --- | --- |
@@ -691,11 +712,18 @@ and contains only the minimal substrate, non-root user bootstrap, directory
 skeleton, and direct runtime-inspect helper. The optional supervisor is included
 only if P2 selects it.
 
+The V1 lane imported a Canonical-distributed Ubuntu 24.04 `.wsl` package only
+as the disposable `OPL-Validation-g0001` fixture. That choice is validation
+input, not the `OPL-Linux` product distribution identity, a production carrier
+selection, or evidence that `.wsl` is the minimum carrier. The E5 carrier
+decision remains open.
+
 For the Microsoft-base experiment, the provisioner creates an OPL-owned
 distribution identity and applies the same signed, idempotent substrate
-bootstrap. It never mutates an existing user/default distribution. E5 selects
-one carrier from measured install, policy, servicing, security, and recovery
-evidence; this blueprint does not select it in advance.
+bootstrap. It never mutates an existing user/default distribution. P3 may
+select one carrier for the development-validation path from measured install,
+policy, and bootstrap evidence; E5 still selects the production carrier from
+servicing, security, signing, and recovery evidence.
 
 AionCore, Codex, Framework/Base, and Packages remain separate owner artifacts.
 The carrier manifest references exact carrier, AionCore, Codex, and
@@ -1195,20 +1223,25 @@ rebuildable: carrier activations, owner-declared caches, download staging
 retain tombstone: removed identities, digests, time, and retention choice
 ```
 
-## 15. App Machine Contract At E5
+## 15. Machine Contract Promotion Boundary
 
-E0 may create only a schema proposal in the dated `docs/active/` plan. It must
-not modify `contracts/`, compiled expectations, release gates, or supported
-platform truth. Only after E1-E4 pass and the explicit E5 servicing/release
-decision selects the carrier, lifecycle strategies, owner contracts, and
-development acceptance may implementation add one new machine SSOT:
+### 15.1 Development-only contract after E0
+
+E0 may create a schema proposal in the dated `docs/active/` plan. After E0,
+implementation may add one development-only machine SSOT with
+`support_state=development_validation`; it must not add release support or
+production release inputs. The production servicing/release decision still
+has to select the carrier, lifecycle strategies, owner contracts, and
+development acceptance before production projections are added:
 
 ```text
 contracts/app-windows-wsl2-execution.json
 ```
 
 Existing contracts reference and project it; they must not each invent a WSL
-state machine. The contract should contain:
+state machine. During development validation, only the minimum fields required
+to describe the tested execution route may be populated, and the contract must
+remain explicitly non-release. The contract should contain:
 
 ```text
 support_state
@@ -1228,6 +1261,8 @@ repair_and_uninstall
 acceptance
 ownership
 ```
+
+### 15.2 Production projections after E5
 
 After E5 and during development validation,
 `contracts/app-product-profile.json#supported_release_platforms` remains
@@ -1252,7 +1287,8 @@ Required App contract projections after E5:
 
 ### 16.1 App repository
 
-Expected post-E5 write set:
+Expected implementation write set across post-E0 development and post-E5
+production projection:
 
 ```text
 contracts/app-windows-wsl2-execution.json
@@ -1358,7 +1394,20 @@ maintenance decision.
 
 ## 17. Delivery Phases and Gates
 
-These are conditional implementation stages, not current tasks.
+The validation-only lane is current and non-blocking. The P0-P7 stages below
+remain conditional implementation stages and are not current product tasks.
+The phase mapping is explicit: exploration E0 maps to P0, E1-E4-equivalent
+evidence is produced across P2-P5, and the production servicing decision E5
+maps to P6. P1 is a no-behavior-change implementation seam after E0; P7 is the
+separate production qualification gate.
+
+### Validation-only lane
+
+Run V0-V5 from
+[`windows-wsl2-execution-validation-plan.md`](windows-wsl2-execution-validation-plan.md).
+Its evidence may refine this blueprint and the parent exploration, but it may
+not create an App gap, active implementation plan, machine contract, release
+blocker, or supported-platform claim.
 
 ### P0: Product promotion and frozen decisions
 
@@ -1375,10 +1424,10 @@ repository owners and exact initial write sets
 development-validation terminal outcome
 ```
 
-Exit: a dated active plan with a documentation-only machine-contract schema
-proposal exists, while Windows remains unsupported. No machine contract, file
-under `contracts/`, generated expectation, or release workflow changes before
-E5.
+Exit: a dated active plan with a machine-contract schema proposal exists, while
+Windows remains unsupported. Subsequent development stages may add a
+development-only execution contract; release workflows, generated release
+expectations, and supported-platform truth remain unchanged before E5.
 
 ### P1: Native seam with no behavior change
 
@@ -1397,8 +1446,10 @@ Using a disposable WSL2 development distribution:
 2. Prove renderer/broker credential handling or select main-process WebSocket
    relay.
 3. Start with direct `wsl.exe --exec`; prove guest process-group cancel,
-   App-exit cleanup, WSL restart recovery, and no App-session survivors. Select
-   the optional supervisor only with reproducible direct-child failure evidence.
+   App-exit cleanup, WSL restart recovery, no App-session survivors, and an
+   atomic operation-token to PID/starttime/process-group/executable-identity
+   mapping. Select the optional supervisor only with reproducible direct-child
+   failure evidence.
 4. Prove localhost behavior under NAT, mirrored networking, VPN, firewall,
    sleep, resume, IPv4/IPv6, and port collision.
 5. Prove AionCore ACP, direct App Server, and Framework select the exact same
@@ -1416,14 +1467,16 @@ stops implementation; it does not activate a Windows executor.
 
 ### P3: Dedicated distribution and provisioner
 
-Implement both bounded carrier experiments far enough to compare them, then
-build the host transaction state machine, UAC/reboot resume, per-user owned
-distribution creation, guest initialization, identity receipts, and idempotent
-repair. Record the carrier selection only at the E5 design gate.
+Implement both bounded carrier experiments far enough to compare them, select
+one disposable development carrier fixture, then build the host transaction
+state machine, UAC/reboot resume, per-user owned distribution creation, guest
+initialization, identity receipts, and idempotent repair. Production carrier
+selection remains an E5 decision.
 
 Exit: a clean Windows 11 x64 VM with no WSL reaches
-`environment=ready`, and injected interruptions reconcile without native
-fallback or data deletion.
+`environment=provisioned`, and injected provisioning interruptions reconcile
+without native fallback or data deletion. `environment=ready` remains a P4
+exit after route-complete I5a acceptance.
 
 ### P4: Route-complete execution
 
@@ -1432,7 +1485,9 @@ scheduled paths to the shared guest. Enforce one Codex and one `CODEX_HOME`.
 
 Exit: static route inventory and runtime process inventory show no native
 `aioncore.exe`, `codex.exe`, `opl.exe`, PowerShell Agent, or unclassified
-Codex-backed path.
+Codex-backed path, and I5a promotes the provisioned environment to
+`environment=ready` or the typed `environment=ready, user_access=needs_user_auth`
+projection.
 
 ### P5: Files and host integration
 
@@ -1444,11 +1499,11 @@ round-trip; traversal and wrong-distribution negatives pass.
 
 ### P6: E5 decision, servicing, and removal
 
-Entry: E1-E4-equivalent P2-P5 evidence is complete. Make the explicit E5
-decision for distribution carrier, Base/Codex/Package owner interaction,
-lifecycle strategy, serving/rollback policy, signing, diagnostics, and
-development acceptance. Only this gate authorizes the Section 15 machine
-contract and projections.
+Entry: E1-E4-equivalent P2-P5 evidence is complete after E0 promotion. Make
+the explicit E5 decision for production distribution carrier,
+Base/Codex/Package owner interaction, lifecycle strategy, servicing/rollback
+policy, signing, diagnostics, and development acceptance. Only this gate
+authorizes production release projections and servicing claims.
 
 Land carrier-substrate staging/switch, owner-routed component update and
 migration, rollback, forward repair, selected distribution-base servicing,
@@ -1579,7 +1634,7 @@ Indicative effort after E0, not a commitment:
 | --- | --- |
 | Security/lifecycle technical prototype | 1-2 engineer-weeks |
 | Windows x64 internal route-complete build | 6-10 engineer-weeks |
-| Public release quality including servicing and qualification | 10-16 engineer-weeks total |
+| Public release quality including servicing and qualification | Re-estimate after P2; `10-16` engineer-weeks is a best-case scenario, not a planning baseline |
 
 Parallel work is useful only across non-overlapping owners: App contracts,
 Shell execution transport, provisioning/servicing, and VM qualification.
@@ -1608,6 +1663,8 @@ work once the boundary is proven.
 ## 21. Maintenance Rules
 
 - Keep this blueprint subordinate to the parent exploration SSOT.
+- Keep current technical experiments under the separate validation-only plan;
+  validation evidence must not become an App gap or release claim.
 - Do not add progress checkboxes, owners, due dates, or completion percentages
   while it remains `reference_blueprint_non_binding`.
 - On E0 promotion, copy only selected phase details into a dated active plan.
