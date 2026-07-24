@@ -123,16 +123,23 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     installer.indexOf('function Start-DockerDesktopIfPresent'),
     installer.indexOf('function Wait-DockerDaemon'),
   );
+  const captureFunction = installer.slice(
+    installer.indexOf('function Invoke-DockerCommandCapture'),
+    installer.indexOf('function Wait-DockerDaemon'),
+  );
   const dockerAssertion = installer.slice(
     installer.indexOf('function Assert-DockerCli'),
     installer.indexOf('function Assert-DockerCompose'),
   );
 
-  assert.match(startFunction, /docker desktop start/);
+  assert.match(startFunction, /Invoke-DockerCommandCapture -Arguments @\("desktop", "start"\)/);
   assert.match(startFunction, /Start-Process -FilePath \$dockerDesktop/);
+  assert.match(captureFunction, /\$ErrorActionPreference = "Continue"/);
+  assert.match(captureFunction, /\$ErrorActionPreference = \$previousErrorActionPreference/);
+  assert.match(dockerAssertion, /Invoke-DockerCommandCapture -Arguments @\("--version"\)/);
   assert.match(
     dockerAssertion,
-    /if \(\$LASTEXITCODE -ne 0\) \{\s+Start-DockerDesktopIfPresent\s+Wait-DockerDaemon/s,
+    /if \(\$info\.ExitCode -ne 0\) \{\s+Start-DockerDesktopIfPresent\s+Wait-DockerDaemon/s,
   );
   assert.doesNotMatch(
     dockerAssertion,

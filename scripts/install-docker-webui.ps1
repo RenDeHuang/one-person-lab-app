@@ -161,8 +161,8 @@ function Start-DockerDesktopIfPresent {
   }
 
   Write-Step "Starting Docker Desktop."
-  $desktopStartOutput = & docker desktop start 2>&1
-  if ($LASTEXITCODE -eq 0) {
+  $desktopStart = Invoke-DockerCommandCapture -Arguments @("desktop", "start")
+  if ($desktopStart.ExitCode -eq 0) {
     return
   }
 
@@ -172,10 +172,30 @@ function Start-DockerDesktopIfPresent {
   ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) } | Select-Object -First 1
 
   if ($null -eq $dockerDesktop) {
-    throw "Docker CLI is installed but Docker Desktop could not be started. Open Docker Desktop, finish any setup prompts, then rerun this script. Details: $desktopStartOutput"
+    throw "Docker CLI is installed but Docker Desktop could not be started. Open Docker Desktop, finish any setup prompts, then rerun this script. Details: $($desktopStart.Output)"
   }
   Write-Step "Docker Desktop CLI start was unavailable; starting the installed app."
   Start-Process -FilePath $dockerDesktop | Out-Null
+}
+
+function Invoke-DockerCommandCapture {
+  param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    # Windows PowerShell 5.1 can promote native stderr to a terminating
+    # NativeCommandError while the daemon is still starting.
+    $ErrorActionPreference = "Continue"
+    $output = & docker @Arguments 2>&1 | Out-String
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
+  return [pscustomobject]@{
+    ExitCode = $exitCode
+    Output = $output.Trim()
+  }
 }
 
 function Wait-DockerDaemon {
@@ -183,8 +203,8 @@ function Wait-DockerDaemon {
     return
   }
   for ($i = 1; $i -le 90; $i++) {
-    $infoOutput = & docker info --format "{{.ServerVersion}}" 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    $info = Invoke-DockerCommandCapture -Arguments @("info", "--format", "{{.ServerVersion}}")
+    if ($info.ExitCode -eq 0) {
       return
     }
     Start-Sleep -Seconds 2
@@ -394,9 +414,13 @@ function Assert-DockerCli {
     throw "docker CLI was not found. Install Docker Desktop, for example: winget install Docker.DockerDesktop, then open Docker Desktop and rerun this script."
   }
 
-  & docker version --format "{{.Client.Version}}" | Out-Null
-  $infoOutput = & docker info --format "{{.ServerVersion}}" 2>&1
-  if ($LASTEXITCODE -ne 0) {
+  $client = Invoke-DockerCommandCapture -Arguments @("--version")
+  if ($client.ExitCode -ne 0) {
+    throw "docker CLI could not run. Reinstall or update Docker Desktop, then rerun this script. Details: $($client.Output)"
+  }
+
+  $info = Invoke-DockerCommandCapture -Arguments @("info", "--format", "{{.ServerVersion}}")
+  if ($info.ExitCode -ne 0) {
     Start-DockerDesktopIfPresent
     Wait-DockerDaemon
     Write-Step "Docker CLI and Docker Desktop daemon are available."
@@ -411,9 +435,9 @@ function Assert-DockerCompose {
     return
   }
 
-  $composeOutput = & docker compose version 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose plugin is not available. Update Docker Desktop, then rerun this script. Details: $composeOutput"
+  $compose = Invoke-DockerCommandCapture -Arguments @("compose", "version")
+  if ($compose.ExitCode -ne 0) {
+    throw "Docker Compose plugin is not available. Update Docker Desktop, then rerun this script. Details: $($compose.Output)"
   }
   Write-Step "Docker Compose plugin is available."
 }
