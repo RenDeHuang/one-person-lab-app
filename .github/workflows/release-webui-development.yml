@@ -79,8 +79,8 @@ jobs:
             .surface_kind == "opl_release_bundle.v1"
             and .release.channel == "stable"
             and .release.prerelease == false
-            and .release.version == "26.7.24"
-            and .release.tag == "v26.7.24"
+            and .release.version == "26.7.24-r1"
+            and .release.tag == "v26.7.24-r1"
             and .sources.app.repo == "gaofeng21cn/one-person-lab-app"
             and .sources.app.source_commit == $source_app_sha
             and .sources.shell.repo == "gaofeng21cn/opl-aion-shell"
