@@ -2049,6 +2049,32 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('Settings Storage must merge Shell lifecycle state with Framework and carrier-host owner projections');
   }
+  assertDeepEqualJson(
+    pages.settings_storage.cleanup_preview_interaction,
+    {
+      presentation: 'modal_item_selector_before_confirmation',
+      required_summary_fields: [
+        'category_total_bytes',
+        'candidate_count',
+        'candidate_bytes',
+        'selected_bytes',
+        'retained_bytes',
+        'retained_reason',
+      ],
+      candidate_presentation: {
+        selection: 'checkbox_per_candidate_default_selected',
+        visible_fields: ['friendly_name', 'bytes', 'localized_reason'],
+        raw_path: 'collapsed_technical_detail_only',
+      },
+      retained_presentation: 'always_explain_total_minus_candidates_and_why_it_is_not_selectable',
+      execution_policy: {
+        selection_scope: 'non_empty_subset_of_exact_dry_run_candidates_only',
+        empty_selection: 'disabled',
+        revalidation: 'full_plan_hash_live_authority_and_selected_subset_membership_before_delete',
+      },
+    },
+    'Settings Storage cleanup preview interaction',
+  );
   const ownerStorage = pages.settings_storage.owner_storage_projections;
   assertDeepEqualJson(
     ownerStorage?.sections,
