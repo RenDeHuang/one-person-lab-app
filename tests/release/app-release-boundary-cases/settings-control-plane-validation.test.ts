@@ -1906,6 +1906,18 @@ test("Settings keeps a compact background-task summary while Service Status owns
   const ownerStorage = guiPages.settings_storage.owner_storage_projections;
   assert.deepStrictEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
   assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');
+  assert.deepStrictEqual(ownerStorage.status_presentation_policy, {
+    never_observed:
+      'not_inventoried_when_observed_at_null_and_inventory_cache_missing_or_invalid_never_out_of_date',
+    observed_stale: 'out_of_date_only_when_observed_at_present_and_stale_true',
+    not_configured: 'not_configured_without_out_of_date_or_zero_bytes',
+    attention_required: 'usage_unavailable_with_localized_reason_never_raw_reason_code',
+    unknown_bytes: 'awaiting_inventory_when_never_observed_else_usage_unavailable_never_zero',
+  });
+  assert.deepStrictEqual(
+    pageById("storage").owner_storage_projections.status_presentation_policy,
+    ownerStorage.status_presentation_policy,
+  );
   assert.equal(ownerStorage.agent_package_store.owner_route, '/settings/agents');
   assert.equal(ownerStorage.agent_package_store.direct_storage_mutation_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);

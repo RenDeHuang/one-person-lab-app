@@ -2060,6 +2060,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ['status', 'observed_at', 'stale', 'bytes', 'reclaimable_bytes', 'owner_route', 'projected_action'],
     'Settings Storage owner projection fields',
   );
+  assertDeepEqualJson(
+    ownerStorage?.status_presentation_policy,
+    {
+      never_observed:
+        'not_inventoried_when_observed_at_null_and_inventory_cache_missing_or_invalid_never_out_of_date',
+      observed_stale: 'out_of_date_only_when_observed_at_present_and_stale_true',
+      not_configured: 'not_configured_without_out_of_date_or_zero_bytes',
+      attention_required: 'usage_unavailable_with_localized_reason_never_raw_reason_code',
+      unknown_bytes: 'awaiting_inventory_when_never_observed_else_usage_unavailable_never_zero',
+    },
+    'Settings Storage owner projection status presentation policy',
+  );
   if (
     ownerStorage?.projection_source !== 'opl app state --profile fast --json' ||
     ownerStorage?.missing_projection_policy !== 'fail_open_keep_shell_owned_categories_available' ||

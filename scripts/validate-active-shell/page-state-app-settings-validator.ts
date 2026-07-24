@@ -56,6 +56,13 @@ export function validateAppSettingsPages(matrix, guiContract) {
     assertIncludesAll(page.must_not_show, expected.must_not_show, `${matrixPageId} must_not_show`);
   }
 
+  const storagePage = pageById(matrix, 'storage');
+  assertDeepEqualJson(
+    storagePage.owner_storage_projections?.status_presentation_policy,
+    guiContract.pages?.settings_storage?.owner_storage_projections?.status_presentation_policy,
+    'Storage owner projection status presentation policy',
+  );
+
   const accessPage = pageById(matrix, 'access');
   if (
     accessPage.provider_source !== 'app_state.core.codex.model_access_source' ||
