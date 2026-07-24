@@ -110,10 +110,11 @@ Any future Windows exploration should preserve these constraints:
    transport compatible with the existing HTTP/WebSocket protocol. PowerShell
    or native installer code may detect, install, repair, start, and inspect WSL,
    but may not execute Agent or Framework work.
-4. **Use an OPL-owned distribution identity.** Do not depend on the user's
+4. **Use an OPL-managed distribution identity.** Do not depend on the user's
    default Ubuntu, mutate an arbitrary user distribution, or select
    `docker-desktop`. A dedicated name such as `OPL-Linux` makes installation,
-   upgrade, recovery, and support deterministic.
+   upgrade, recovery, and support more deterministic. This is a product identity
+   and servicing boundary, not a tamper-proof WSL ownership primitive.
 5. **Fail closed without fallback.** Missing WSL2, invalid distribution
    identity, failed Linux handshake, or wrong runtime bytes leads to an
    install/repair state. It never activates Windows Codex or PowerShell as an
@@ -218,7 +219,8 @@ forwarding can make a guest listener reachable from Windows host processes, so
 reusing the HTTP/WebSocket protocol does not authorize reusing the current
 same-process trust assumption.
 
-The launcher experiment must determine and record:
+The launcher experiment must determine and record. Localhost is a transport,
+not an authentication or caller-identity boundary:
 
 - the guest bind address and actual listener visibility under NAT and mirrored
   networking;
@@ -288,9 +290,27 @@ detect -> request UAC when needed -> install/enable WSL
        -> start AionCore -> complete Codex initialize -> mark App usable
 ```
 
-Microsoft documents administrator mode and a possible restart for WSL
-installation. OPL may automate and resume this flow, but must not promise a
-silent no-restart install.
+For its documented clean-machine path, Microsoft instructs users to run
+`wsl --install` from administrator PowerShell and then restart. The CLI also
+supports installing WSL without a default distribution and importing a named
+distribution at a selected host location with `--version 2`. These primitives
+make the candidate sequence technically plausible; they do not provide OPL
+installation state, automatic resume, payload signing, digest verification,
+transactional updates, CVE servicing, or rollback.
+
+OPL may automate and resume this flow, but must not promise a no-UAC, silent
+no-restart install. A future installer must also treat `wsl --unregister` as
+destructive because Microsoft documents that it permanently deletes the
+distribution's data, settings, and software. Repair, uninstall, and rebuild
+therefore need an explicit data-retention decision before using it.
+
+Microsoft references:
+
+- <https://learn.microsoft.com/en-us/windows/wsl/install#install-wsl-command>
+- <https://learn.microsoft.com/en-us/windows/wsl/basic-commands#install>
+- <https://learn.microsoft.com/en-us/windows/wsl/basic-commands#import-a-distribution>
+- <https://learn.microsoft.com/en-us/windows/wsl/basic-commands#unregister-or-uninstall-a-linux-distribution>
+- <https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-linux-networking-apps-from-windows-localhost>
 
 An imported custom distribution is one candidate, not a fixed decision.
 Before choosing it, compare:
