@@ -29,6 +29,7 @@ governance only.
 | [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md) | Docs lifecycle governance and directory role inventory; `active_support` | Governance index only; not release/runtime proof |
 | [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md) | Active App product progress, gaps, and next-round baton; `active_plan` | Plan/read-model only; not runnable behavior or owner acceptance |
 | [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Package/carrier/executor migration, functional-equivalence matrix, implementation order, and legacy deletion gates; `target_planned_docs_first` | The sole implementation-plan SSOT for this migration; current behavior remains in contracts/source/fresh readback |
+| [`delivery/distribution-and-install-ssot.md`](delivery/distribution-and-install-ssot.md) | App release/install terminology, current carrier matrix, target platform routing, and convergence gates; `active_support` | Human SSOT backed by the release and install machine contracts; remote currentness still requires owner readback |
 
 For the OPL Package ecology, read in this order:
 

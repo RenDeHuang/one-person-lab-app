@@ -3,6 +3,137 @@
   "owner": "one-person-lab-app",
   "purpose": "app_install_exposure_policy",
   "state": "active",
+  "distribution_install_model": {
+    "schema": "opl_app_distribution_install_model.v1",
+    "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
+    "release_semantics_ref": "contracts/app-release-channel.json#distribution_semantics",
+    "consistency_target": {
+      "name": "official_profile_converged",
+      "physical_byte_identity_required": false,
+      "base_app_and_packages_version_lockstep_required": false,
+      "same_product_behavior_contract_required": true,
+      "same_official_profile_intent_required": true,
+      "framework_reconciliation_receipt_required": true,
+      "active_framework_count": 1,
+      "package_currentness_owner": "package_owner_and_framework_aggregation_not_app_carrier",
+      "full_means_offline_seed_density_not_a_second_product": true,
+      "carrier_choice_may_change_install_speed_and_isolation_only": true
+    },
+    "runtime_forms": {
+      "desktop": {
+        "current_status": "supported_macos_carrier",
+        "electron_required": true,
+        "browser_only": false
+      },
+      "native_webui": {
+        "source_runtime_status": "active_development_capability",
+        "public_install_status": "not_published",
+        "opl_support_status": "approved_target_not_supported",
+        "electron_required": false,
+        "docker_required": false,
+        "upstream_aionui_tarballs_are_opl_release_evidence": false,
+        "target": "host_native_browser_workbench_using_opl_owned_immutable_artifacts"
+      },
+      "container_webui": {
+        "current_status": "contracted_public_browser_carrier",
+        "electron_required": false,
+        "docker_required": true,
+        "target": "container_adapter_over_same_frozen_webui_runtime_as_native"
+      }
+    },
+    "platform_routing": {
+      "macos_personal": {
+        "current_recommended_terminal_path": "homebrew_standard_cask",
+        "current_direct_gui_path": "github_release_dmg",
+        "approved_default_runtime_form": "desktop"
+      },
+      "linux_personal": {
+        "current_default_runtime_form": "container_webui",
+        "approved_default_runtime_form": "native_webui",
+        "target_status": "pending_native_distribution"
+      },
+      "server_or_isolated": {
+        "current_and_target_runtime_form": "container_webui"
+      },
+      "headless": {
+        "current_and_target_result": "opl_base_only",
+        "app_runtime_form": null
+      },
+      "windows_personal": {
+        "current_default_runtime_form": "container_webui",
+        "native_webui_target_requires_separate_qualification": true
+      }
+    },
+    "installer_convergence": {
+      "current_default_app_script": {
+        "entrypoint": "install.sh",
+        "framework_arguments": [
+          "--with-app",
+          "--skip-packages"
+        ],
+        "official_profile_converged_by_installer": false
+      },
+      "approved_universal_target": {
+        "entrypoint": "install.sh",
+        "macos_default": "desktop",
+        "linux_personal_default": "native_webui",
+        "server_or_isolated_explicit": "container_webui",
+        "headless_explicit": "opl_base_only",
+        "result": "official_profile_converged"
+      },
+      "stable_macos_helper": {
+        "current_entrypoint": "install.sh --stable-macos-install",
+        "compatibility_wrapper": "install-stable.sh",
+        "current_status": "live_compatibility_path",
+        "approved_target": "retire_after_homebrew_and_direct_dmg_trust_paths_cover_same_user_need",
+        "new_public_documentation_priority": false
+      }
+    },
+    "homebrew_carriers": {
+      "standard": {
+        "cask": "one-person-lab",
+        "dmg_profile": "standard_stable",
+        "publication_status": "live_managed",
+        "formula_dependency_current": true,
+        "formula_dependency_target": true
+      },
+      "nightly": {
+        "cask": "one-person-lab-nightly",
+        "dmg_profile": "standard_nightly",
+        "publication_status": "retired_historical_cask",
+        "full_by_default": false,
+        "formula_dependency_current": true,
+        "formula_dependency_if_reactivated": true,
+        "new_publication_status": "not_approved_requires_new_product_decision"
+      },
+      "full": {
+        "cask": "one-person-lab-full",
+        "dmg_profile": "full_stable",
+        "publication_status": "legacy_public_cask_unmanaged_and_stale",
+        "dmg_embeds_opl_base": true,
+        "formula_dependency_current": true,
+        "duplicate_base_carrier_risk_current": true,
+        "formula_dependency_target": false,
+        "approved_target": "managed_full_cask_activates_embedded_base_and_official_profile",
+        "target_requires_active_framework_count": 1
+      },
+      "quarantine": {
+        "homebrew_cask_automatically_clears_quarantine_current": false,
+        "current_clean_vm_harness_clears_quarantine_outside_homebrew": true,
+        "preferred_target": "developer_id_signing_notarization_and_default_gatekeeper",
+        "temporary_local_authorization_must_be_explicit_and_read_back": true
+      }
+    },
+    "native_webui_promotion_gates": [
+      "one_canonical_development_packaged_and_container_entrypoint",
+      "host_writable_paths_outside_container_adapter",
+      "opl_owned_immutable_artifact_and_manifest",
+      "install_update_rollback_and_data_preservation",
+      "non_root_clean_host_readback",
+      "official_profile_convergence_receipt"
+    ],
+    "rule": "Every supported App carrier converges through Framework-owned reconciliation to one active Base and the same Official Profile intent. Full changes seed density; Desktop, Native WebUI, and Container WebUI change runtime form; neither creates a second product or lifecycle authority."
+  },
   "machine_boundary": "App-owned installation and Codex-visible exposure policy. OPL Framework owns install/sync producers, generated family surfaces, action execution, and read models. Domain agents own skill semantics, domain handlers, action/stage truth, quality verdicts, and artifact authority.",
   "producer_owner": "one-person-lab",
   "product_authority": {

@@ -114,7 +114,7 @@ The following are separate dimensions and must not share a currentness flag:
 | Official defaults | App Official Profile selects first-install or explicit-restore roots only. |
 | Package maintenance | Each installed Package updates independently through its platform route; App schedules eligible silent updates and renders aggregate status. |
 | App release | App Release Bundle and updater publish the App binary. |
-| Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports Base/App or an optional offline seed. |
+| Deployment carrier | Desktop, Container WebUI, Homebrew, or headless installer transports Base/App or an optional offline seed; Native WebUI is an approved target carrier pending its own published artifact and host qualification. |
 | Cadence | Daily/scheduled CI checks source health or triggers independent maintenance; cadence does not create a release authority. |
 
 Developer, external, manual, online, bundled, and offline inputs remain valid

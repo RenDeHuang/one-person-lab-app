@@ -5,6 +5,7 @@ import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shel
 import { readJson } from './validate-active-shell/assertions.ts';
 import { validateContractShape } from './validate-active-shell/active-shell-contract.ts';
 import { runCommand } from './validate-active-shell/command-runner.ts';
+import { validateDistributionInstallSsot } from './validate-active-shell/distribution-install-ssot-validator.ts';
 import { validateActiveShellImplementation } from './validate-active-shell/shell-implementation-validator.ts';
 import { validateShellThreadCoordination } from './validate-active-shell/shell-thread-coordination-validator.ts';
 import { validateAppGuiProductContract } from './validate-active-shell/gui-product-contract-validator.ts';
@@ -49,6 +50,7 @@ const productProfile = readJson(productProfilePath);
 validateContractShape(contract);
 validateRuntimeBridgeContract(runtimeBridge, contract);
 validateInstallExposurePolicy(installExposurePolicy);
+validateDistributionInstallSsot(releaseChannel, installExposurePolicy);
 validateAppGuiProductContract(guiProductContract, releaseChannel, installExposurePolicy);
 validatePageStateMatrix(pageStateMatrix, contract, guiProductContract);
 validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageStateMatrix, productProfile, contract);

@@ -5,6 +5,10 @@
 The live release authority is the immutable Framework Release Bundle described
 in [`immutable-release-bundle.md`](immutable-release-bundle.md) and
 `contracts/app-release-channel.json#release_bundle_control_plane`.
+Channel, Latest/Stable, Standard/Full, Desktop/WebUI, Homebrew, and install-path
+semantics are maintained once in
+[`../distribution-and-install-ssot.md`](../distribution-and-install-ssot.md).
+This guide owns operator mechanics only and must not redefine that model.
 
 Framework `opl release` owns Bundle identity, storage, portable checkpoints,
 operation receipts, and reconciliation. The App owns product policy and the
@@ -83,16 +87,16 @@ Registry ~= discovery index
 Full or Release Set ~= exact snapshot of inputs selected for that artifact
 ```
 
-Stable, Docker/WebUI, Full, Nightly, and Daily are not five competing package
-authorities:
+Stable, WebUI, Full, Nightly, and Daily are not competing package authorities:
 
 | Object | Correct meaning | Currentness authority |
 | --- | --- | --- |
 | OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
 | Desktop Stable | App release policy and public Latest/updater metadata | Framework Bundle plus App release executor |
-| Docker/WebUI | An alternative App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
-| Full | First-install/offline composition snapshot, additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
-| Nightly | Retired public prerelease; historical bytes remain readable | No currentness authority; daily validation uses Canary |
+| Container WebUI | Current browser/server App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
+| Native WebUI | Approved host-native browser target; not currently an OPL publication or install path | No currentness authority until immutable OPL assets and public readback exist |
+| Full | Same Official Profile with additional first-install/offline seeds; additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
+| Nightly | Retired public Standard prerelease; historical bytes remain readable | No currentness authority; daily validation uses Canary |
 | OPL Package | Independently published complete Package bytes | Package owner GHCR `latest-stable` plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
 
@@ -103,22 +107,12 @@ wait for App/Base. Developer checkout, external registry, manual manifest, and
 offline seed remain source adapters for explicit profiles and recovery; they
 cannot define ordinary Stable currentness.
 
-### 2026-07-23 Live Proof Boundary
+## Live Proof Boundary
 
-The architecture target is documented, but current live evidence does not yet
-support a “stable latest” claim. The inspected facts are:
-
-| Check | Observed state |
-| --- | --- |
-| App Stable | [Run 30001277460](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/30001277460) failed; a fresh successful `Stable -> Latest -> updater readback` receipt is pending. |
-| Package Daily | [Run 29952463596](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/29952463596) failed on `opl-base content changed without a version bump`; independent package publication is not yet proven. |
-| Desktop release | `v26.7.21` is public while `v26.7.20` remains Latest in the audited snapshot; remote readback must be refreshed before using either as currentness truth. |
-| Docker/WebUI | `:stable` was older than the latest built candidate; exact digest promotion and anonymous pull readback are pending. |
-| Full/Homebrew | The Full cask was older than the latest candidate; Full is a snapshot/carrier concern and must not block Standard or package-only updates. |
-
-Do not convert contract tests, a green build, a candidate artifact, or a
-non-terminal workflow run into a release-ready claim. The release proof gate is
-three terminal owner readbacks:
+This guide deliberately does not pin a current public version or digest.
+Currentness comes only from fresh terminal owner readbacks, never from this
+document, contract tests, a green build, a candidate artifact, or a
+non-terminal workflow run:
 
 ```text
 App Stable -> GitHub Latest -> updater readback

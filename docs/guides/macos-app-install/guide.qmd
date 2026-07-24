@@ -10,7 +10,8 @@ lang: zh-CN
 
 下载最新版本：<{{download.latest_release_url}}>
 
-> 推荐优先使用稳定版安装命令。它会把 App 安装到 `/Applications`、清理 macOS quarantine 标记并自动打开 App；DMG 拖拽安装保留为手工备选。
+> 已安装 Homebrew 的 Mac 用户优先使用 Homebrew Cask；直接 DMG 是完整首装和
+> 无 Homebrew 用户的备选。稳定 helper 仍保留兼容，但不是新用户首选。
 
 ## 准备清单
 
@@ -21,7 +22,7 @@ lang: zh-CN
 
 ## 1. 安装 One Person Lab
 
-推荐打开 macOS“终端”，粘贴并运行下面的稳定版安装命令：
+推荐打开 macOS“终端”，粘贴并运行下面的 Homebrew 安装命令：
 
 ```bash
 {{download.stable_install_command}}
@@ -36,7 +37,14 @@ lang: zh-CN
 - 当前只提供 Apple Silicon（arm64）安装包。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
 - Release 页面版本号会持续变化，以标记为 Latest 的稳定版为准。
-- Full 首装包如果尚未出现在 Release 中，不影响使用标准安装命令或标准 DMG。
+- Full 首装包如果尚未出现在 Release 中，不影响使用 Homebrew Standard 或标准 DMG。
+
+如果需要旧版的一键复制、授权和打开行为，可使用兼容 helper；它不是新的
+发布或更新渠道：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
+```
 
 ## 2. 手工安装 DMG（可选）
 

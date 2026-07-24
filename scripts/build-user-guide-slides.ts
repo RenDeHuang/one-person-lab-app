@@ -258,13 +258,7 @@ function displayCallouts(slide: SlideBlock, manifest: GuideManifest) {
   if (slide.quote && callouts.length < 3) {
     callouts.push('示例提示词写清数据类型、workspace、原始材料位置和目标产物。');
   }
-  return callouts.map((item) => {
-    const command = manifest.download?.stable_install_command;
-    if (command && item.includes(command)) {
-      return item.replace(command, 'install.sh --stable-macos-install --standard --yes');
-    }
-    return item;
-  });
+  return callouts;
 }
 
 function writeTheme() {

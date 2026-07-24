@@ -252,9 +252,12 @@ Standard App release assets and updater metadata are App-owned and currently
 macOS arm64-only. Full first-install assets remain explicitly separate from
 standard updater metadata. The standard updater is desktop-App-assets only; Full
 assets stay as GitHub Release first-install downloads and the explicit stable
-`one-person-lab-full` Homebrew cask. Standard updater ZIP trust, App-managed
-local authorization, Full native-runtime trust, size budgets, Homebrew tap
-policy, and release workflow sequencing are governed by
+`one-person-lab-full` Homebrew cask. The Full cask is currently a legacy,
+unmanaged public path with a duplicate Formula/Base risk; the direct Full DMG
+is authoritative until the migration gates in
+`docs/delivery/distribution-and-install-ssot.md` pass. Standard updater ZIP
+trust, App-managed local authorization, Full native-runtime trust, size budgets,
+Homebrew tap policy, and release workflow sequencing are governed by
 `contracts/app-release-channel.json`, `docs/delivery/release/README.md`, release
 workflows, validators, and release artifacts.
 
@@ -376,8 +379,10 @@ owns the active candidate plan. Hermes docs remain prior-candidate reference:
 for explicit AGUI replay or historical audit. Default Stable packaging continues
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell until
 an explicit release-owner decision changes that contract. Public Nightly
-publication is retired and remains read-compatible only; scheduled validation
-uses the separate non-user Canary lane.
+publication is retired and remains read-compatible only; its historical
+Standard (not Full) meaning and the no-resurrection boundary are maintained in
+`docs/delivery/distribution-and-install-ssot.md`. Scheduled validation uses the
+separate non-user Canary lane.
 
 The `opl-native-workbench` route is candidate-structure and non-live product
 surface first: candidate registration, adapter contract, independent external

@@ -19,7 +19,7 @@
   },
   "download": {
     "latest_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-    "stable_install_command": "curl -fsSL \\\n  https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh |\n  bash -s -- --stable-macos-install \\\n    --standard --yes",
+    "stable_install_command": "brew install --cask gaofeng21cn/one-person-lab/one-person-lab",
     "recommended_first_install_asset": "One-Person-Lab-<version>-mac-arm64.dmg"
   },
   "required_terms": [

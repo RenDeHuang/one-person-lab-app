@@ -67,6 +67,11 @@ Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-la
 
 ## Download And Install
 
+The maintained distribution and installation matrix is in the
+[OPL App distribution and install SSOT](docs/delivery/distribution-and-install-ssot.md).
+The short list below contains only current ordinary-user paths; historical,
+transitional, and planned paths are not presented as supported.
+
 ### Homebrew
 
 For macOS arm64 users who already use Homebrew, this is the shortest terminal
@@ -74,19 +79,6 @@ path:
 
 ```bash
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
-open -a "One Person Lab"
-```
-
-Nightly builds are opt-in:
-
-```bash
-brew install --cask gaofeng21cn/one-person-lab/one-person-lab-nightly
-```
-
-For the complete first-install payload:
-
-```bash
-brew install --cask gaofeng21cn/one-person-lab/one-person-lab-full
 open -a "One Person Lab"
 ```
 
@@ -107,33 +99,24 @@ available when needed:
 opl system initialize --json
 ```
 
-Use `one-person-lab-full` when you want the complete first-install package
-through Homebrew. Release-channel, updater, Full package, and macOS trust
-details are maintained in the
-[App release guide](docs/delivery/release/README.md) and App contracts.
+The Full Homebrew Cask remains a legacy, unmanaged path while its embedded Base
+and Formula dependency are being reconciled. For a complete first install,
+prefer the Full DMG below. Nightly publication is retired; historical Nightly
+assets are not a current update channel.
 
 ### One-Shot Installer
 
-macOS users can also use the one-shot installer. It prepares the One Person Lab
-runtime environment and installs or opens the desktop App:
+Terminal users can also use the general bootstrap installer. The current
+implementation prepares the Framework and adds the App where supported:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-The App installer explicitly requests `--with-app --skip-packages`: it installs
-the same independently usable OPL base, then adds the optional GUI without
-silently installing Agent packages. For a base-only machine, use the OPL
-Framework installer directly.
-
-Stable macOS users who do not want Homebrew can use the stable install helper:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
-```
-
-Mac-specific trust diagnostics and internal-build handling stay in the release
-guide rather than this public entry.
+Today it injects `--with-app --skip-packages`, so it is not yet the
+platform-aware `official_profile_converged` installer described in the SSOT.
+The stable macOS helper remains a compatibility surface and is intentionally
+not a new-user recommendation.
 
 ### Direct Download
 
@@ -142,11 +125,13 @@ You can also download the current desktop package from the App repository releas
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
 For a first-time macOS arm64 install without Homebrew, choose
-`One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install
-package is also available as the `one-person-lab-full` Homebrew cask.
+`One-Person-Lab-Full-<version>-mac-arm64.dmg`. It is the authoritative complete
+first-install asset while Full Homebrew publication remains unmanaged.
 
-For macOS, the App can be installed through DMG, the one-shot installer,
-Homebrew, or Docker/WebUI. For a screenshot-based first-run walkthrough, start
+For macOS, the current ordinary paths are DMG, Homebrew, and the one-shot
+bootstrap; Linux and server users should use Docker/WebUI. Native WebUI is an
+approved future carrier, not a current OPL download. For a screenshot-based
+first-run walkthrough, start
 from the [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html).
 The same guide is also available as generated latest
 [PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf) and

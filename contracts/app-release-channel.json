@@ -3,6 +3,154 @@
   "owner": "one-person-lab-app",
   "purpose": "release_channel_contract",
   "state": "active",
+  "distribution_semantics": {
+    "schema": "opl_app_distribution_semantics.v1",
+    "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
+    "authority_scope": [
+      "channel_and_pointer_semantics",
+      "publication_carrier_state",
+      "desktop_and_webui_cohort_policy"
+    ],
+    "orthogonal_dimensions": {
+      "quality": [
+        "stable",
+        "nightly",
+        "preview"
+      ],
+      "recommended_pointer": [
+        "latest"
+      ],
+      "payload_density": [
+        "standard",
+        "full"
+      ],
+      "runtime_form": [
+        "desktop",
+        "native_webui",
+        "container_webui"
+      ],
+      "build_origin": [
+        "automated",
+        "manual"
+      ],
+      "task_mode": [
+        "development_validation",
+        "production_release"
+      ]
+    },
+    "terms": {
+      "stable": {
+        "dimension": "quality",
+        "meaning": "production_qualified_release",
+        "is_pointer": false,
+        "build_origin_independent": true
+      },
+      "latest": {
+        "dimension": "recommended_pointer",
+        "meaning": "mutable_current_recommended_production_release",
+        "is_quality_level": false,
+        "default_target": "newest_production_stable"
+      },
+      "nightly": {
+        "dimension": "quality",
+        "meaning": "automated_opt_in_desktop_prerelease",
+        "default_payload_density": "standard",
+        "full_by_default": false,
+        "latest_allowed": false
+      },
+      "preview": {
+        "dimension": "quality",
+        "meaning": "manually_distributed_unqualified_or_partially_qualified_prerelease",
+        "latest_allowed": false,
+        "stable_updater_or_homebrew_standard_allowed": false
+      },
+      "development_validation": {
+        "dimension": "task_mode",
+        "meaning": "environment_and_delivery_mode_not_a_public_release_quality"
+      },
+      "full": {
+        "dimension": "payload_density",
+        "meaning": "first_install_or_offline_seed_density_not_a_release_channel",
+        "independent_long_term_update_channel": false
+      }
+    },
+    "latest_policy": {
+      "current_admission": "framework_bundle_stable_only",
+      "manual_build_may_become_stable_after_same_production_gates": true,
+      "manual_ungated_or_preview_build_may_become_latest": false,
+      "nightly_may_become_latest": false,
+      "next_qualified_stable_reclaims_pointer": true,
+      "latest_pointer_does_not_define_highest_published_stable": true
+    },
+    "cohort_policy": {
+      "current_development_state": {
+        "desktop_and_webui": "dual_track",
+        "independent_version_and_cadence_allowed": true,
+        "same_production_cohort_claim_allowed": false,
+        "behavior_contract_convergence_required": true
+      },
+      "approved_production_target": {
+        "model": "one_app_version_multiple_runtime_forms",
+        "runtime_forms": [
+          "desktop",
+          "native_webui",
+          "container_webui"
+        ],
+        "same_app_version_and_official_profile_required": true,
+        "physical_artifact_bytes_must_match": false,
+        "carrier_specific_build_and_failure_isolation_required": true,
+        "framework_reconciliation_and_product_behavior_must_converge": true
+      }
+    },
+    "implementation_state": {
+      "desktop_stable": "live",
+      "desktop_latest": "live_stable_only",
+      "desktop_nightly": "retired_historical_read_compatibility",
+      "manual_full_preview": "live_non_latest_temporary_lane",
+      "full": "live_additive_first_install_asset_not_channel",
+      "container_webui": "live_separate_development_and_production_carrier",
+      "native_webui": "approved_target_not_published",
+      "homebrew_standard": "live_managed",
+      "homebrew_nightly": "historical_cask_exists_publication_retired",
+      "homebrew_full": "legacy_cask_exists_not_managed_by_current_release_pipeline"
+    },
+    "retired_compatibility": {
+      "desktop_nightly": {
+        "historical_payload_density": "standard",
+        "historical_full_by_default": false,
+        "historical_latest_allowed": false,
+        "new_publication_status": "not_approved_requires_new_product_decision"
+      }
+    },
+    "approved_targets": {
+      "homebrew_full": {
+        "target": "managed_stable_full_dmg_cask",
+        "homebrew_cask": "one-person-lab-full",
+        "formula_dependency_target": false,
+        "standard_updater_visible": false,
+        "promotion_requires": [
+          "full_embedded_base_activation",
+          "single_active_framework_readback",
+          "formula_absent_clean_vm_readback",
+          "official_profile_convergence",
+          "digest_bound_tap_publication"
+        ]
+      },
+      "native_webui": {
+        "target": "opl_owned_immutable_native_webui_distribution",
+        "status": "approved_pending_implementation",
+        "promotion_requires": [
+          "canonical_webui_entrypoint",
+          "host_writable_data_and_projects_paths",
+          "app_owned_versioned_artifacts",
+          "install_update_and_rollback",
+          "non_root_clean_host_qualification",
+          "public_digest_readback"
+        ]
+      }
+    },
+    "rule": "Quality, recommendation, payload density, runtime form, build origin, and task mode are independent dimensions. Current implementation state and approved targets must never be presented as the same fact."
+  },
   "release_repo": "gaofeng21cn/one-person-lab-app",
   "provider_configuration_boundary": {
     "schema": "opl_release_provider_configuration_boundary.v1",
