@@ -326,6 +326,7 @@ export function validateFirstRunMatrix(matrix, contract) {
     'existing Codex recheck is a secondary action outside the account and API Key method switch',
     'Gateway account login uses the runtime provider over desktop typed IPC or the existing WebUI HTTP proxy, omits device label, passes credentials through dedicated stdin, reads fast App state, and completes setup only for a uniquely resolved Codex group without executing gateway_account_use_for_model_access',
     'after a fresh state read exposes gateway_account_use_for_model_access, a separate explicit 设为模型访问方式 confirmation is required before the medium-impact local Codex provider mutation and login never counts as that confirmation',
+    'successful Gateway login replaces the credential fields with an explicit localized success status, focuses the separate 设为模型访问方式 confirmation, and keeps setup blocked until that confirmation succeeds',
     'each authoritative post-login fast-state read is published to the shared cache so already-mounted Home and Sider consumers stop showing stale setup blockers without an App restart',
     'unresolved Gateway group selection shows localized group_selection_required and never claims model access ready',
     'Gateway password clears after success, failure, or method switch and never enters renderer diagnostics',

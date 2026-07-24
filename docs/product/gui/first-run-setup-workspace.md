@@ -98,7 +98,8 @@ Desktop 不注入 App 私有 `CODEX_HOME`。进程已有显式 `CODEX_HOME` 时�
 账户登录成功后必须读取 `opl app state --profile fast --json`。未发现 managed key 时，只有唯一解析出 Codex 分组才执行
 `gateway_account_complete_setup`；无法唯一解析时显示本地化 `group_selection_required`，不得宣称模型访问已就绪。完成设置后必须
 重新读取 fast state；若仍暴露 `gateway_account_use_for_model_access`，必须显示独立的“设为模型访问方式”确认动作。账户登录不构成
-这项 medium-impact 本机 Codex provider mutation 的确认；只有用户显式确认后才允许执行，并在执行前后都读取 fresh state。每次成功的权威读取都发布
+这项 medium-impact 本机 Codex provider mutation 的确认。登录成功后，凭据字段必须替换为明确的本地化成功状态，并把键盘焦点移到
+“设为模型访问方式”；在用户确认前仍保持 `codex_config` 未就绪。只有用户显式确认后才允许执行，并在执行前后都读取 fresh state。每次成功的权威读取都发布
 到共享 App state 缓存，使已挂载的首页和侧栏同步解除旧阻断；最终仍只以 initialize 确认 `codex_config` ready。
 密码在成功、失败或切换方式后立即清空，不进入 App state、generic action、stdout/stderr、receipt 或 renderer diagnostics。
 API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer 脱敏。Desktop 与 WebUI 都默认展示 Gateway 账户登录，并保留 API Key 兼容入口。
