@@ -30,6 +30,6 @@ test('default product gates allow the optional Runtime route to be absent', () =
 
 test('default page-state gate still rejects optional Runtime metadata that expands default scope', () => {
   const matrix = readJson('contracts/app-page-state-matrix.json');
-  matrix.pages.find((page: any) => page.id === 'runtime').default_gate_required = true;
+  matrix.pages.find((page: any) => page.id === 'runtime').default_product_required = false;
   assert.throws(() => validateMatrix(matrix));
 });
