@@ -979,6 +979,107 @@ test('first-run VM prefetches frozen Codex install assets from a physical script
   }
 });
 
+test('first-run VM records wrapper diagnostics from one offline-testable physical script', () => {
+  const wrapper = workflowStep(
+    'opl-first-run-vm.yml',
+    'clean-vm-first-run',
+    'Record first-run VM wrapper diagnostics',
+  );
+  const run = String(wrapper.run);
+  assert.match(
+    run,
+    /node scripts\/record-first-run-vm-wrapper-diagnostics\.mjs 2>&1 \| tee "\$PREFLIGHT_LOG"/,
+  );
+  assert.doesNotMatch(run, /node\s+<<|<<['"]?NODE/);
+
+  const scriptPath = path.join(
+    process.cwd(),
+    'scripts',
+    'record-first-run-vm-wrapper-diagnostics.mjs',
+  );
+  const script = fs.readFileSync(scriptPath, 'utf8');
+  const syntax = spawnSync(process.execPath, ['--check', scriptPath], { encoding: 'utf8' });
+  assert.equal(syntax.status, 0, syntax.stderr);
+  for (const token of [
+    'schema_version: 1',
+    "purpose: 'first_run_vm_app_wrapper_diagnostics'",
+    'timeout: 120000',
+    "diagnosticScope === 'bootstrap_only'",
+    "truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt'",
+    "console.error('Required first-run VM wrapper diagnostics failed:')",
+  ]) {
+    assert.ok(script.includes(token), `wrapper diagnostics script is missing preserved behavior: ${token}`);
+  }
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-wrapper-diagnostics-'));
+  try {
+    const fakeBin = path.join(root, 'bin');
+    const artifactRoot = path.join(root, 'artifacts', 'opl-first-run-vm');
+    fs.mkdirSync(fakeBin, { recursive: true });
+    fs.mkdirSync(artifactRoot, { recursive: true });
+    fs.writeFileSync(path.join(fakeBin, 'npm'), `#!/usr/bin/env bash
+set -euo pipefail
+if [ "\${1:-}" = "--version" ]; then
+  printf '10.9.2\\n'
+elif [ "\${1:-}" = "config" ] && [ "\${2:-}" = "get" ] && [ "\${3:-}" = "registry" ]; then
+  printf 'https://registry.example.invalid/\\n'
+else
+  exit 98
+fi
+`);
+    fs.writeFileSync(path.join(fakeBin, 'curl'), `#!/usr/bin/env bash
+set -euo pipefail
+printf 'curl 8.7.1 fixture\\n'
+`);
+    fs.chmodSync(path.join(fakeBin, 'npm'), 0o755);
+    fs.chmodSync(path.join(fakeBin, 'curl'), 0o755);
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH || ''}`,
+        DIAGNOSTIC_SCOPE: 'bootstrap_only',
+        PACKAGE_PROFILE: 'standard',
+        INSTALL_MODE: 'dmg',
+        RUNTIME_PROFILE: 'standard',
+        SOURCE_VM: 'fixture-vm',
+        GUEST_USER: 'runner',
+        SSH_KEY_CONFIGURED: 'true',
+        RUNNER_LABELS: '["self-hosted","macOS","opl-gui-vm"]',
+        NO_GRAPHICS: 'false',
+        KEEP_VM: 'false',
+        GUIDE_SCREENSHOTS: 'false',
+        RUN_TIMEOUT_MS: '900000',
+        SMOKE_TIMEOUT_MS: '600000',
+        CODEX_INSTALL_PHASE_TIMEOUT_MS: '480000',
+        CODEX_READINESS_PHASE_TIMEOUT_MS: '180000',
+        GITHUB_RUN_ID: '424242',
+        GITHUB_RUN_ATTEMPT: '1',
+        GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
+        GITHUB_REF: 'refs/heads/main',
+        GITHUB_SHA: 'a'.repeat(40),
+      },
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const diagnostics = JSON.parse(
+      fs.readFileSync(path.join(artifactRoot, 'app-wrapper-diagnostics.json'), 'utf8'),
+    );
+    assert.equal(diagnostics.schema_version, 1);
+    assert.equal(diagnostics.purpose, 'first_run_vm_app_wrapper_diagnostics');
+    assert.equal(diagnostics.release_inputs.diagnostic_scope, 'bootstrap_only');
+    assert.equal(diagnostics.host.node.exit_code, 0);
+    assert.equal(diagnostics.host.npm.exit_code, 0);
+    assert.equal(diagnostics.host.curl.exit_code, 0);
+    assert.equal(diagnostics.host.npm_registry.stdout, 'https://registry.example.invalid/');
+    assert.equal(diagnostics.host.codex_package_preflight.skipped, true);
+    assert.equal(diagnostics.host.codex_package_metadata.skipped, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Codex install asset prefetch preserves frozen identities and content-addressed outputs', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-codex-prefetch-'));
   try {
