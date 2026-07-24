@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -934,6 +935,171 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   assert.doesNotMatch(source, /'\/packages\/\*\/package\.json'/);
   assert.doesNotMatch(source, /git -C shells\/aionui sparse-checkout set/);
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
+});
+
+test('first-run VM prefetches frozen Codex install assets from a physical script', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const prefetch = steps.find(
+    (step) => step.name === 'Prefetch Codex package install assets',
+  );
+  assert.ok(prefetch);
+
+  const run = String(prefetch.run);
+  assert.equal(run, 'node scripts/prefetch-codex-package-install-assets.mjs');
+  assert.doesNotMatch(run, /node\s+<<|<<['"]?NODE/);
+
+  const scriptPath = path.join(
+    process.cwd(),
+    'scripts',
+    'prefetch-codex-package-install-assets.mjs',
+  );
+  const script = fs.readFileSync(scriptPath, 'utf8');
+  const syntax = spawnSync(process.execPath, ['--check', scriptPath], { encoding: 'utf8' });
+  assert.equal(syntax.status, 0, syntax.stderr);
+
+  for (const token of [
+    'qualification_runtime?.codex_cli',
+    'frozen.npm_integrity',
+    'frozen.tarball_url',
+    'frozen.tarball_sha256',
+    'frozen.platform.npm_integrity',
+    'frozen.platform.tarball_url',
+    'frozen.platform.tarball_sha256',
+    'timeout: options.timeout || 120000',
+    'timeout: 240000',
+    'timeout: 960000',
+    'timeout: 300000',
+    'CODEX_CACHE_RESTORE_HIT',
+    'CODEX_CACHE_RESTORE_PRIMARY_KEY',
+    'CODEX_CACHE_RESTORE_MATCHED_KEY',
+    'cache_save_required',
+  ]) {
+    assert.ok(script.includes(token), `prefetch script is missing preserved behavior: ${token}`);
+  }
+});
+
+test('Codex install asset prefetch preserves frozen identities and content-addressed outputs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-codex-prefetch-'));
+  try {
+    const fakeBin = path.join(root, 'bin');
+    const artifactRoot = path.join(root, 'artifacts', 'opl-first-run-vm');
+    const cohortRoot = path.join(root, 'artifacts', 'release-cohort');
+    fs.mkdirSync(fakeBin, { recursive: true });
+    fs.mkdirSync(path.join(artifactRoot, 'codex-npm-cache'), { recursive: true });
+    fs.mkdirSync(path.join(artifactRoot, 'codex-package-tarballs'), { recursive: true });
+    fs.mkdirSync(cohortRoot, { recursive: true });
+
+    const rootTarball = 'frozen root Codex package\n';
+    const platformTarball = 'frozen macOS Codex package\n';
+    const digest = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
+    const frozen = {
+      version: '1.2.3',
+      npm_integrity: 'sha512-root-fixture',
+      tarball_url: 'https://registry.example/openai-codex.tgz',
+      tarball_sha256: digest(rootTarball),
+      platform: {
+        version: '1.2.4',
+        npm_integrity: 'sha512-platform-fixture',
+        tarball_url: 'https://registry.example/openai-codex-darwin-arm64.tgz',
+        tarball_sha256: digest(platformTarball),
+      },
+    };
+    fs.writeFileSync(
+      path.join(cohortRoot, 'opl-build-cohort.json'),
+      `${JSON.stringify({
+        qualification_runtime: { codex_cli: frozen },
+        digests: { qualification_input_manifest_sha256: `sha256:${'a'.repeat(64)}` },
+      })}\n`,
+    );
+
+    const fakeNpm = path.join(fakeBin, 'npm');
+    fs.writeFileSync(fakeNpm, `#!/usr/bin/env bash
+set -euo pipefail
+case "\${1:-}" in
+  config)
+    printf '%s\\n' 'https://registry.example/'
+    ;;
+  view)
+    if [ "\${2:-}" = '@openai/codex@1.2.3' ]; then
+      printf '%s\\n' '{"version":"1.2.3","dist.tarball":"https://registry.example/openai-codex.tgz","dist.integrity":"sha512-root-fixture"}'
+    else
+      printf '%s\\n' '{"name":"@openai/codex","version":"1.2.4","dist.tarball":"https://registry.example/openai-codex-darwin-arm64.tgz","dist.integrity":"sha512-platform-fixture"}'
+    fi
+    ;;
+  cache)
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+`);
+    fs.chmodSync(fakeNpm, 0o755);
+
+    const fakeCurl = path.join(fakeBin, 'curl');
+    fs.writeFileSync(fakeCurl, `#!/usr/bin/env bash
+set -euo pipefail
+output=''
+previous=''
+for argument in "$@"; do
+  if [ "$previous" = '-o' ]; then output="$argument"; fi
+  previous="$argument"
+done
+url="\${!#}"
+case "$url" in
+  https://registry.example/@openai%2fcodex)
+    printf '%s\\n' '{}' > "$output"
+    ;;
+  https://registry.example/openai-codex.tgz)
+    printf '%b' '${rootTarball.replace('\n', '\\n')}' > "$output"
+    ;;
+  https://registry.example/openai-codex-darwin-arm64.tgz)
+    printf '%b' '${platformTarball.replace('\n', '\\n')}' > "$output"
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+printf '200'
+`);
+    fs.chmodSync(fakeCurl, 0o755);
+
+    const output = path.join(root, 'github-output.txt');
+    const result = spawnSync(
+      process.execPath,
+      [path.join(process.cwd(), 'scripts', 'prefetch-codex-package-install-assets.mjs')],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${fakeBin}:${process.env.PATH}`,
+          GITHUB_OUTPUT: output,
+          CACHE_KEY_PREFIX: 'fixture-cache',
+          CODEX_CACHE_RESTORE_HIT: 'false',
+          CODEX_CACHE_RESTORE_PRIMARY_KEY: 'fixture-primary',
+          CODEX_CACHE_RESTORE_MATCHED_KEY: '',
+        },
+      },
+    );
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+
+    const preflight = JSON.parse(
+      fs.readFileSync(path.join(artifactRoot, 'codex-package-preflight.json'), 'utf8'),
+    );
+    assert.equal(preflight.status, 'ok');
+    assert.deepEqual(preflight.package.frozen_identity, frozen);
+    assert.equal(preflight.tarball.sha256, frozen.tarball_sha256);
+    assert.equal(preflight.platform_tarball.sha256, frozen.platform.tarball_sha256);
+    assert.equal(preflight.cache.write_scope, 'refs/heads/main_only');
+    assert.equal(preflight.cache.save_required, true);
+    assert.match(
+      fs.readFileSync(output, 'utf8'),
+      new RegExp(`cache_key=fixture-cache-1\\.2\\.3-${frozen.tarball_sha256}-${frozen.platform.tarball_sha256}`),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('deadline failures never authorize Framework reconcile without persisted unknown state', () => {
