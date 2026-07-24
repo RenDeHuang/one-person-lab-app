@@ -261,8 +261,28 @@ export function assertCurrentGuidHomeSelectionSources({
 }
 
 const guidLocaleExpected = {
-  'zh-CN': ['安装后智能自检', '程序化初始化已经完成', 'OPL Flow 与用户已有工作区规则可以共存', 'MAS/MAG/RCA/OMA/OBF', '后台维护'],
-  'en-US': ['Post-install intelligent self-check', 'Programmatic initialization has completed', "OPL Flow can coexist with the user's existing workspace rules", 'MAS/MAG/RCA/OMA/OBF', 'background maintenance'],
+  'zh-CN': [
+    '安装后智能自检',
+    '首次设置的核心阶段已经完成',
+    'opl app state --profile fast --json',
+    'App 核心可用',
+    'presence-only',
+    '用户主动卸载',
+    'opl packages status --package-id <id> --json',
+    'OPL Flow 缺失或被用户卸载时不得阻断 App 核心功能',
+    '本轮只诊断',
+  ],
+  'en-US': [
+    'Post-install intelligent self-check',
+    'The core first-run setup stage has completed',
+    'opl app state --profile fast --json',
+    'App core usable',
+    'presence-only',
+    'Packages explicitly removed by the user are not failures',
+    'opl packages status --package-id <id> --json',
+    'Missing or user-uninstalled OPL Flow must not block App core functionality',
+    'This turn is diagnostic only',
+  ],
 };
 
 const guidHomeRuntimeForbidden = [
