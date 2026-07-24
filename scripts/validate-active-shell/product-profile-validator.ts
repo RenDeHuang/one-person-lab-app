@@ -34,13 +34,13 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
+  assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
-  assertProfessionalAgentPackagePolicy,
+  assertLocalizedUxOverrideShape,
+  assertProfessionalAgentPackageUxOverrides,
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
-  starterPackagePresentationByPackageId,
-  requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 
@@ -282,13 +282,16 @@ function validateHomeAssistantDefaults(profile) {
     throw new Error('Product profile GUI home shortcuts must target MAS, MAG, RCA, OBF, and OMA packages');
   }
   for (const shortcut of homeAgentShortcuts) {
+    assertCapabilityReferenceListShape(
+      shortcut.required_skill_ids,
+      `Product profile GUI home shortcut ${shortcut.shortcut_id} required_skill_ids`,
+    );
     if (
       shortcut.executor !== 'codex_cli' ||
       shortcut.source !== 'opl_app_home' ||
       shortcut.display_policy !== 'purpose_first' ||
       shortcut.home_entry_policy !== 'visible_click_to_start' ||
-      shortcut.user_configurable !== true ||
-      JSON.stringify(shortcut.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[shortcut.package_id])
+      shortcut.user_configurable !== true
     ) {
       throw new Error(`Product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
@@ -325,7 +328,7 @@ function validateHomeAssistantDefaults(profile) {
 }
 
 function validateProfessionalAgentPackages(profile) {
-  assertProfessionalAgentPackagePolicy(profile.gui.professional_agent_packages, 'Product profile');
+  assertProfessionalAgentPackageUxOverrides(profile.gui.professional_agent_packages, 'Product profile');
 }
 
 function validateAgentPackageRegistryProjection(profile) {
@@ -369,10 +372,14 @@ function validateAgentPackageRegistryProjection(profile) {
     'Product profile starter package metadata ids',
   );
   for (const entry of metadata) {
-    const localizedPresentation =
-      starterPackagePresentationByPackageId[
-        entry.package_id as keyof typeof starterPackagePresentationByPackageId
-      ];
+    assertLocalizedUxOverrideShape(
+      entry.display_name_i18n,
+      `Product profile first-party metadata is incomplete or not localized for ${entry.package_id}; display_name_i18n`,
+    );
+    assertLocalizedUxOverrideShape(
+      entry.description_i18n,
+      `Product profile first-party metadata is incomplete or not localized for ${entry.package_id}; description_i18n`,
+    );
     if (
       !entry.package_kind ||
       !entry.display_name ||
@@ -382,10 +389,7 @@ function validateAgentPackageRegistryProjection(profile) {
       !entry.description?.trim() ||
       !Array.isArray(entry.tags) ||
       entry.tags.length === 0 ||
-      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json` ||
-      !localizedPresentation ||
-      JSON.stringify(entry.display_name_i18n) !== JSON.stringify(localizedPresentation.display_name_i18n) ||
-      JSON.stringify(entry.description_i18n) !== JSON.stringify(localizedPresentation.description_i18n)
+      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
     ) {
       throw new Error(`Product profile first-party metadata is incomplete or not localized for ${entry.package_id}`);
     }
@@ -485,22 +489,15 @@ function validateAssistantSkillProfiles(profile) {
   if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
-  const availableSkillIds = new Set([
-    ...(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []),
-    ...(profile.companion_payloads?.additional_package_skill_ids ?? []),
-    ...(profile.companion_payloads?.official_codex_runtime_capabilities?.preferred_capability_ids ?? []),
-  ]);
-  const requiredSkillByAssistantId = {
-    mas: 'med-autoscience',
-    mag: 'med-autogrant',
-    rca: 'redcube-ai',
-    obf: 'opl-bookforge',
-  };
   for (const entry of productSkillProfiles) {
-    const requiredSkill = requiredSkillByAssistantId[entry.assistant_id];
-    if (!requiredSkill || JSON.stringify(entry.required_skills) !== JSON.stringify([requiredSkill])) {
-      throw new Error(`Product profile assistant ${entry.assistant_id} must require its App-declared matching skill`);
-    }
+    assertCapabilityReferenceListShape(
+      entry.required_skills,
+      `Product profile assistant ${entry.assistant_id} required_skills`,
+    );
+    assertCapabilityReferenceListShape(
+      entry.optional_skills,
+      `Product profile assistant ${entry.assistant_id} optional_skills`,
+    );
     if (entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible') {
       throw new Error(`Product profile assistant ${entry.assistant_id} has invalid home skill menu policy`);
     }
@@ -509,13 +506,6 @@ function validateAssistantSkillProfiles(profile) {
     }
     if ('hidden_home_skill_names' in entry) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
-    }
-    const unpackagedProfileSkills = [...(entry.required_skills ?? [])]
-      .filter((skill) => !availableSkillIds.has(skill));
-    if (unpackagedProfileSkills.length > 0) {
-      throw new Error(
-        `Product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
-      );
     }
   }
 }

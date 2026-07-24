@@ -10,23 +10,17 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
+  assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
-  assertProfessionalAgentPackagePolicy,
+  assertLocalizedUxOverrideShape,
+  assertProfessionalAgentPackageUxOverrides,
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
-  starterPackagePresentationByPackageId,
-  requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
 import type { AppProductProfile } from './types.ts';
 
-const requiredDefaultPackagedSkillIds = [
-  'med-autoscience',
-  'med-autogrant',
-  'redcube-ai',
-  'opl-bookforge',
-];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -423,10 +417,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   }
 }
 
-function assertCompanionPayloadProfileShape(
-  profile: AppProductProfile,
-  skillProfiles: AppProductProfile['gui']['assistant_skill_profiles'],
-): void {
+function assertCompanionPayloadProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
   assertStringArray(
@@ -438,16 +429,6 @@ function assertCompanionPayloadProfileShape(
   const visibleSkills = new Set(profile.codex.default_visible_skills);
   const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
   const additionalPackageSkills = new Set(profile.companion_payloads.additional_package_skill_ids);
-  for (const entry of skillProfiles) {
-    const missingRequiredSkills = entry.required_skills.filter((skill) => (
-      !defaultPackagedSkills.has(skill) && !additionalPackageSkills.has(skill)
-    ));
-    if (missingRequiredSkills.length > 0) {
-      throw new Error(
-        `App product profile assistant ${entry.assistant_id} has unpackaged required skills: ${missingRequiredSkills.join(', ')}`,
-      );
-    }
-  }
   const missingPackagedVisibleSkills = profile.codex.default_visible_skills
     .filter((skill) => !defaultPackagedSkills.has(skill));
   if (missingPackagedVisibleSkills.length > 0) {
@@ -603,14 +584,16 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     throw new Error('App product profile GUI home shortcuts must target MAS, MAG, RCA, OBF, and OMA packages');
   }
   for (const shortcut of shortcuts) {
-    const expectedSkills = requiredSkillByPackageId[shortcut.package_id as keyof typeof requiredSkillByPackageId];
+    assertCapabilityReferenceListShape(
+      shortcut.required_skill_ids,
+      `App product profile GUI home shortcut ${shortcut.shortcut_id} required_skill_ids`,
+    );
     if (
       shortcut.executor !== 'codex_cli' ||
       shortcut.source !== 'opl_app_home' ||
       shortcut.display_policy !== 'purpose_first' ||
       shortcut.home_entry_policy !== 'visible_click_to_start' ||
-      shortcut.user_configurable !== true ||
-      JSON.stringify(shortcut.required_skill_ids) !== JSON.stringify(expectedSkills)
+      shortcut.user_configurable !== true
     ) {
       throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
@@ -889,7 +872,7 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
 }
 
 function assertProfessionalAgentPackages(profile: AppProductProfile): void {
-  assertProfessionalAgentPackagePolicy(profile.gui.professional_agent_packages, 'App product profile');
+  assertProfessionalAgentPackageUxOverrides(profile.gui.professional_agent_packages, 'App product profile');
 }
 
 function assertAssistantSkillProfiles(
@@ -899,19 +882,15 @@ function assertAssistantSkillProfiles(
   if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('App product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
-  const requiredByAssistant = new Map(skillProfiles.map((entry) => [entry.assistant_id, entry.required_skills]));
-  for (const assistantId of ['mas', 'mag', 'rca']) {
-    const requiredSkills = requiredByAssistant.get(assistantId);
-    if (JSON.stringify(requiredSkills) !== JSON.stringify(requiredSkillByPackageId[assistantId as keyof typeof requiredSkillByPackageId])) {
-      throw new Error(`App product profile assistant ${assistantId} must require its matching Codex skill`);
-    }
-  }
-  if (JSON.stringify(requiredByAssistant.get('obf')) !== JSON.stringify(['opl-bookforge'])) {
-    throw new Error('App product profile assistant obf must require the opl-bookforge Codex skill');
-  }
   for (const entry of skillProfiles) {
-    assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);
-    assertStringArray(entry.optional_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`);
+    assertCapabilityReferenceListShape(
+      entry.required_skills,
+      `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`,
+    );
+    assertCapabilityReferenceListShape(
+      entry.optional_skills,
+      `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`,
+    );
     if ('hidden_home_skill_names' in entry) {
       throw new Error(`App product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
     }
@@ -973,10 +952,14 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
     throw new Error('App product profile must provide UI metadata for every starter package');
   }
   for (const entry of metadata) {
-    const localizedPresentation =
-      starterPackagePresentationByPackageId[
-        entry.package_id as keyof typeof starterPackagePresentationByPackageId
-      ];
+    assertLocalizedUxOverrideShape(
+      entry.display_name_i18n,
+      `App product profile first-party metadata is incomplete or not localized for ${entry.package_id}; display_name_i18n`,
+    );
+    assertLocalizedUxOverrideShape(
+      entry.description_i18n,
+      `App product profile first-party metadata is incomplete or not localized for ${entry.package_id}; description_i18n`,
+    );
     if (
       !entry.package_kind ||
       !entry.display_name ||
@@ -986,10 +969,7 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
       !entry.description?.trim() ||
       !Array.isArray(entry.tags) ||
       entry.tags.length === 0 ||
-      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json` ||
-      !localizedPresentation ||
-      JSON.stringify(entry.display_name_i18n) !== JSON.stringify(localizedPresentation.display_name_i18n) ||
-      JSON.stringify(entry.description_i18n) !== JSON.stringify(localizedPresentation.description_i18n)
+      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
     ) {
       throw new Error(`App product profile first-party metadata is incomplete or not localized for ${entry.package_id}`);
     }
@@ -1055,14 +1035,14 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertProfessionalAgentPackages(profile);
   assertDefaultAssistantProfileShape(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
-  const skillProfiles = assertAssistantSkillProfiles(profile);
+  assertAssistantSkillProfiles(profile);
   assertNonDefaultAssistantProfileShape(profile);
   assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
   assertStringArray(profile.codex.session_context_lines, 'codex.session_context_lines', { allowBlank: true });
   assertFirstRunProfileShape(profile);
   assertSettingsProfileShape(profile);
-  assertCompanionPayloadProfileShape(profile, skillProfiles);
+  assertCompanionPayloadProfileShape(profile);
   assertStringArray(profile.boundary.app_does_not_own, 'boundary.app_does_not_own');
 }
 

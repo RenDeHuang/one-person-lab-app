@@ -11,12 +11,11 @@ import {
   appOwnedSessionWorkspaceModel,
 } from './app-contract-constants.ts';
 import {
-  assertProfessionalAgentPackagePolicy,
+  assertCapabilityReferenceListShape,
+  assertProfessionalAgentPackageUxOverrides,
   managedShortcutIds,
   managedShortcutPackageIds,
   defaultVisibleShortcutIds,
-  requiredSkillByAssistantId,
-  requiredSkillByPackageId,
   starterPackageIds as defaultAssistantIds,
   starterShortcutIds as purposeEntryIds,
 } from '../app-product-profile-shared-validators.ts';
@@ -394,7 +393,7 @@ function validateDefaultAssistants(guiContract) {
 }
 
 function validateProfessionalAgentPackages(guiContract) {
-  assertProfessionalAgentPackagePolicy(guiContract.professional_agent_packages, 'App GUI contract');
+  assertProfessionalAgentPackageUxOverrides(guiContract.professional_agent_packages, 'App GUI contract');
 }
 
 function validateAssistantSkillProfiles(guiContract) {
@@ -405,10 +404,14 @@ function validateAssistantSkillProfiles(guiContract) {
     'App GUI contract assistant skill profiles',
   );
   for (const profile of skillProfiles) {
-    const requiredSkill = requiredSkillByAssistantId[profile.assistant_id];
-    if (!requiredSkill || JSON.stringify(profile.required_skills) !== JSON.stringify([requiredSkill])) {
-      throw new Error(`App GUI assistant ${profile.assistant_id} must require its App-declared matching skill`);
-    }
+    assertCapabilityReferenceListShape(
+      profile.required_skills,
+      `App GUI assistant ${profile.assistant_id} required_skills`,
+    );
+    assertCapabilityReferenceListShape(
+      profile.optional_skills,
+      `App GUI assistant ${profile.assistant_id} optional_skills`,
+    );
     if (
       profile.required_skill_policy !== 'checked_locked' ||
       profile.optional_skill_policy !== 'unchecked_user_selectable' ||
@@ -451,13 +454,16 @@ function validatePurposeEntries(guiContract) {
     'App GUI contract home agent shortcut package targets',
   );
   for (const entry of shortcuts) {
+    assertCapabilityReferenceListShape(
+      entry.required_skill_ids,
+      `App GUI home agent shortcut ${entry.shortcut_id} required_skill_ids`,
+    );
     if (
       entry.executor !== 'codex_cli' ||
       entry.source !== 'opl_app_home' ||
       entry.display_policy !== 'purpose_first' ||
       entry.home_entry_policy !== 'visible_click_to_start' ||
-      entry.user_configurable !== true ||
-      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[entry.package_id])
+      entry.user_configurable !== true
     ) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
     }

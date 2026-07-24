@@ -62,85 +62,15 @@ type RouteReceiptOptions = {
 
 export const starterPackageIds = ['mas', 'mag', 'rca', 'obf'];
 export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
-export const professionalAgentPackageIds = [...starterPackageIds, 'oma'];
 export const managedShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
 export const managedShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
 export const defaultVisibleShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
-export const defaultVisibleShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
 export const forbiddenExternalFirstPartyClaimPattern =
   '^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]';
 
 export function isExternalFirstPartyClaim(value: unknown): boolean {
   return typeof value === 'string' && new RegExp(forbiddenExternalFirstPartyClaimPattern).test(value);
 }
-
-export const requiredSkillByPackageId = {
-  mas: ['med-autoscience'],
-  mag: ['med-autogrant'],
-  rca: ['redcube-ai'],
-  obf: ['opl-bookforge'],
-  oma: ['opl-meta-agent'],
-};
-export const professionalAgentPresentationByPackageId = {
-  mas: {
-    display_name_i18n: { 'zh-CN': 'Med Auto Science', 'en-US': 'Med Auto Science' },
-    description_i18n: {
-      'zh-CN': '用于科研选题、文献分析、数据分析、论文写作、审稿、返修和投稿。',
-      'en-US': 'For research planning, literature review, data analysis, manuscript writing, peer review, revision, and submission.',
-    },
-  },
-  mag: {
-    display_name_i18n: { 'zh-CN': 'Med Auto Grant', 'en-US': 'Med Auto Grant' },
-    description_i18n: {
-      'zh-CN': '用于基金选题、标书与申请书撰写、预算说明和评审回复。',
-      'en-US': 'For grant topics, proposals and applications, budget narratives, and reviewer responses.',
-    },
-  },
-  rca: {
-    display_name_i18n: { 'zh-CN': 'RedCube AI', 'en-US': 'RedCube AI' },
-    description_i18n: {
-      'zh-CN': '用于制作演示文稿、汇报材料、图表和其他专业视觉交付物。',
-      'en-US': 'For presentations, reports, charts, and other professional visual deliverables.',
-    },
-  },
-  obf: {
-    display_name_i18n: { 'zh-CN': 'OPL Book Forge', 'en-US': 'OPL Book Forge' },
-    description_i18n: {
-      'zh-CN': '用于书稿规划、章节写作、插图表格、排版、审校和导出。',
-      'en-US': 'For book planning, chapter writing, figures and tables, layout, editing, and export.',
-    },
-  },
-  oma: {
-    display_name_i18n: { 'zh-CN': 'OPL Meta Agent', 'en-US': 'OPL Meta Agent' },
-    description_i18n: {
-      'zh-CN': '用于创建、接管、检查和改进 OPL 专业智能体。',
-      'en-US': 'For creating, taking over, inspecting, and improving OPL professional agents.',
-    },
-  },
-} as const;
-export const starterPackagePresentationByPackageId = {
-  ...professionalAgentPresentationByPackageId,
-  'mas-scholar-skills': {
-    display_name_i18n: { 'zh-CN': 'MAS 学术技能', 'en-US': 'MAS Scholar Skills' },
-    description_i18n: {
-      'zh-CN': '供 Med Auto Science 使用的可复用医学科研能力。',
-      'en-US': 'Reusable medical research capabilities consumed by Med Auto Science.',
-    },
-  },
-  'opl-flow': {
-    display_name_i18n: { 'zh-CN': 'OPL Flow', 'en-US': 'OPL Flow' },
-    description_i18n: {
-      'zh-CN': 'OPL 推荐工作流配置与受管 Codex 策略。',
-      'en-US': 'Recommended OPL workflow profile and managed Codex policy.',
-    },
-  },
-} as const;
-export const requiredSkillByAssistantId = {
-  mas: 'med-autoscience',
-  mag: 'med-autogrant',
-  rca: 'redcube-ai',
-  obf: 'opl-bookforge',
-};
 
 export const appOwnedAgentReferenceAdmissionPolicy = {
   active_agent_package_cardinality: 'zero_or_one',
@@ -217,13 +147,6 @@ export function assertHomeComposerStateContract(value: unknown, label: string): 
     throw new Error(`${label} must preserve the fixed Codex executor controls for every Home shortcut state`);
   }
 }
-const codexEntryByPackageId = {
-  mas: 'med-autoscience',
-  mag: 'med-autogrant',
-  rca: 'redcube-ai',
-  obf: 'opl-bookforge',
-  oma: 'opl-meta-agent',
-};
 const agentPackageReceiptRequiredFields = [
   'route_kind',
   'executor',
@@ -255,19 +178,20 @@ type GuiLike = NonNullable<ProductProfileLike['gui']>;
 type HomeLike = GuiLike['home'];
 type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_model_display_options']>;
 type ProfessionalAgentPackageLike = {
-  package_id: string;
+  package_id?: unknown;
   agent_id?: unknown;
   display_name_i18n?: unknown;
   description_i18n?: unknown;
   installed_manageable?: unknown;
   codex_visible_entry?: unknown;
   required_skill_ids?: unknown;
+  optional_skill_ids?: unknown;
   required_skill_policy?: unknown;
   optional_skill_policy?: unknown;
   skill_menu_policy?: unknown;
   package_kind?: unknown;
   default_home_visible?: unknown;
-  home_shortcut_ids?: unknown[];
+  home_shortcut_ids?: unknown;
 };
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -275,70 +199,89 @@ function assertExactStringArray(actual: unknown, expected: string[], label: stri
   }
 }
 
-export function assertProfessionalAgentPackagePolicy(
+function assertNonEmptyString(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${label} must be a non-empty string`);
+  }
+}
+
+export function assertCapabilityReferenceListShape(value: unknown, label: string): asserts value is string[] {
+  if (
+    !Array.isArray(value)
+    || !value.every((entry) => typeof entry === 'string' && entry.trim())
+    || new Set(value).size !== value.length
+  ) {
+    throw new Error(`${label} must be a unique string array`);
+  }
+}
+
+export function assertLocalizedUxOverrideShape(value: unknown, label: string): void {
+  const localized = value as Record<string, unknown> | undefined;
+  if (
+    !localized
+    || typeof localized !== 'object'
+    || Array.isArray(localized)
+    || typeof localized['zh-CN'] !== 'string'
+    || !localized['zh-CN'].trim()
+    || typeof localized['en-US'] !== 'string'
+    || !localized['en-US'].trim()
+  ) {
+    throw new Error(`${label} must declare non-empty zh-CN and en-US text`);
+  }
+}
+
+export function assertProfessionalAgentPackageUxOverrides(
   packages: ProfessionalAgentPackageLike[] | undefined,
   label: string,
 ): void {
+  if (packages !== undefined && !Array.isArray(packages)) {
+    throw new Error(`${label} professional agent package UX overrides must be an array`);
+  }
   const entries = packages ?? [];
-  assertExactStringArray(
-    entries.map((entry) => entry.package_id),
-    professionalAgentPackageIds,
-    `${label} professional agent packages`,
-  );
+  const packageIds = new Set<string>();
   for (const entry of entries) {
-    const requiredSkills = requiredSkillByPackageId[entry.package_id as keyof typeof requiredSkillByPackageId];
-    const codexEntry = codexEntryByPackageId[entry.package_id as keyof typeof codexEntryByPackageId];
-    const presentation = professionalAgentPresentationByPackageId[
-      entry.package_id as keyof typeof professionalAgentPresentationByPackageId
-    ];
-    if (!requiredSkills || !codexEntry || !presentation) {
-      throw new Error(`${label} professional agent package ${entry.package_id} is not in the App package allowlist`);
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(`${label} professional agent package UX override must be an object`);
     }
+    assertNonEmptyString(entry.package_id, `${label} professional agent package_id`);
+    if (packageIds.has(entry.package_id)) {
+      throw new Error(`${label} professional agent package_id ${entry.package_id} must be unique`);
+    }
+    packageIds.add(entry.package_id);
+    assertNonEmptyString(entry.agent_id, `${label} professional agent package ${entry.package_id} agent_id`);
+    assertNonEmptyString(
+      entry.codex_visible_entry,
+      `${label} professional agent package ${entry.package_id} codex_visible_entry`,
+    );
+    assertNonEmptyString(entry.package_kind, `${label} professional agent package ${entry.package_id} package_kind`);
+    assertCapabilityReferenceListShape(
+      entry.required_skill_ids,
+      `${label} professional agent package ${entry.package_id} required_skill_ids`,
+    );
+    assertCapabilityReferenceListShape(
+      entry.optional_skill_ids,
+      `${label} professional agent package ${entry.package_id} optional_skill_ids`,
+    );
+    assertCapabilityReferenceListShape(
+      entry.home_shortcut_ids,
+      `${label} professional agent package ${entry.package_id} home_shortcut_ids`,
+    );
+    assertLocalizedUxOverrideShape(
+      entry.display_name_i18n,
+      `${label} professional agent package ${entry.package_id} display_name_i18n`,
+    );
+    assertLocalizedUxOverrideShape(
+      entry.description_i18n,
+      `${label} professional agent package ${entry.package_id} description_i18n`,
+    );
     if (
-      entry.agent_id !== entry.package_id ||
       entry.installed_manageable !== true ||
-      entry.codex_visible_entry !== codexEntry ||
-      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
+      typeof entry.default_home_visible !== 'boolean' ||
       entry.required_skill_policy !== 'checked_locked' ||
       entry.optional_skill_policy !== 'unchecked_user_selectable' ||
       entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
     ) {
-      throw new Error(`${label} professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
-    }
-    for (const field of ['display_name_i18n', 'description_i18n'] as const) {
-      const localized = entry[field] as Record<string, unknown> | undefined;
-      if (
-        !localized ||
-        typeof localized['zh-CN'] !== 'string' ||
-        !localized['zh-CN'].trim() ||
-        typeof localized['en-US'] !== 'string' ||
-        !localized['en-US'].trim()
-      ) {
-        throw new Error(`${label} professional agent package ${entry.package_id} must declare non-empty zh-CN and en-US ${field}`);
-      }
-    }
-    if (
-      JSON.stringify(entry.display_name_i18n) !== JSON.stringify(presentation.display_name_i18n) ||
-      JSON.stringify(entry.description_i18n) !== JSON.stringify(presentation.description_i18n)
-    ) {
-      throw new Error(`${label} professional agent package ${entry.package_id} must use the App-owned localized name and description`);
-    }
-    if (starterPackageIds.includes(entry.package_id)) {
-      const expectedDefaultVisible = defaultVisibleShortcutPackageIds.includes(entry.package_id);
-      if (
-        entry.package_kind !== 'starter_professional_agent_package' ||
-        entry.default_home_visible !== expectedDefaultVisible ||
-        entry.home_shortcut_ids.length !== 1
-      ) {
-        throw new Error(`${label} starter package ${entry.package_id} has invalid default Home visibility or shortcut policy`);
-      }
-    }
-    if (entry.package_id === 'oma' && (
-      entry.package_kind !== 'managed_professional_agent_package' ||
-      entry.default_home_visible !== true ||
-      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
-    )) {
-      throw new Error(`${label} must keep OMA installed/manageable and visible through its configurable Home shortcut`);
+      throw new Error(`${label} professional agent package ${entry.package_id} has invalid common UX policy`);
     }
   }
 }
