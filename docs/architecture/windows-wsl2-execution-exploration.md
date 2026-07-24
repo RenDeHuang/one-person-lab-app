@@ -32,6 +32,13 @@ decision promotes Windows work, every phase, estimate, gate, and interface
 below is reference material only. Its presence must not create an App gap,
 release blocker, roadmap commitment, due date, or implied owner assignment.
 
+The detailed, implementable reference is
+[`windows-wsl2-execution-implementation-blueprint.md`](windows-wsl2-execution-implementation-blueprint.md).
+It selects a maintainable target shape, protocols, state machines, repository
+write sets, phase gates, and qualification criteria, but remains non-binding
+under this parent decision boundary. It is not a dated active plan and does not
+change current support or readiness.
+
 The scope is the complete Codex execution plane, not the integrated terminal.
 The terminal may remain an independently selected Windows or WSL shell. No
 execution surface may silently route an Agent, Codex App Server, OPL Framework
@@ -133,7 +140,7 @@ Any future Windows exploration should preserve these constraints:
 ```text
 Windows OPL Installer / Electron GUI
         |
-        | OPL-owned WSL launcher and supervisor
+        | OPL-owned WSL launcher and lifecycle adapter
         | wsl.exe -d OPL-Linux --exec ...
         | scoped, authenticated host-to-guest transport
         | HTTP/WebSocket protocol where proven
@@ -149,8 +156,9 @@ Dedicated OPL-Linux WSL2 distribution
 ```
 
 “Start Linux AionCore” does not mean modifying its source. The smallest
-maintainable adaptation is an OPL-owned launcher/supervisor around the existing
-Linux binary.
+maintainable adaptation is an OPL-owned launcher and short-lived wrapper around
+the existing Linux binary. A foreground supervisor is an evidence-triggered
+lifecycle option, not part of the starting shape.
 
 ### 4.1 Launcher compatibility
 
@@ -330,7 +338,7 @@ selected.
 
 | Option | Disposition | Reason |
 | --- | --- | --- |
-| OPL-owned WSL launcher supervising unmodified Linux AionCore and Linux Codex | Preferred exploration | Keeps the whole execution plane on Linux without an AionCore fork; isolates platform adaptation in OPL-owned code. |
+| OPL-owned WSL launcher/lifecycle adapter running unmodified Linux AionCore and Linux Codex | Preferred exploration | Keeps the whole execution plane on Linux without an AionCore fork; isolates platform adaptation in OPL-owned code and leaves a foreground supervisor evidence-triggered. |
 | Native Windows AionCore with only `codex.exe` replaced by a WSL forwarding shim | Prototype only | Small initial patch, but splits AionCore/ACP and Codex across Windows/Linux; cwd, config, process cleanup, managed-resource identity, and direct App Server routing remain inconsistent. |
 | Modify or fork AionCore to add WSL behavior | Rejected unless upstream later exposes a required gap | Creates long-term upstream maintenance for behavior that a launcher can currently absorb. |
 | Run native Windows Codex or PowerShell when WSL fails | Rejected | Violates the conditional WSL2-only product invariant and makes behavior dependent on an accidental fallback. |
