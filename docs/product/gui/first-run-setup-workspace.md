@@ -36,6 +36,9 @@ contracts/source 已实现。
 - 认证后的根路由、登录成功、历史 `/startup-gate` 与 catch-all 都直接进入 `/guid`。
 - ordinary launch 不渲染等待 fast state 的 `StartupGate`。`opl app state --profile fast --json`、
   managed-agent discovery 与其它局部状态在 Guid 已进入后后台刷新；失败只影响依赖该状态的局部能力。
+- 只有刚完成 WebUI 登录的导航携带一次性 `postLoginSetupCheck`。Home 读取到明确的
+  Core 未完成状态后用 replace 进入 `/first-run`；readiness 未知、超时或读取失败时
+  fail-open 留在 `/guid`。普通启动、已登录刷新和 deep link 不携带该意图，也不自动打断用户。
 - installed launch target 为 `<=1500 ms`，计时从 OS launch request 到 Guid composer
   **visible、enabled、focusable**。后台 hydration 完成不属于终点。
 - 该数值目前是产品目标，不是已测事实或 SLA；只有绑定 exact installed build 的测量证据才能宣称达标。
@@ -66,7 +69,9 @@ contracts/source 已实现。
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
 - `/first-run` 是认证后的独立路由，不挂载普通 Layout，因此普通快捷键、托盘、deep link 和通知导航不会卸载首启。
 - readiness 的 ready、blocked、unknown、timeout 和读取失败都不得把普通启动改道到
-  `/first-run`。`/first-run` 仅由用户显式入口打开，且任何导航都不得修改 readiness。
+  `/first-run`。fresh WebUI login 是唯一例外：它先进入 `/guid` 并携带一次性检查意图，
+  仅当 fast state 明确显示任一 Core 项未完成时 replace 到 `/first-run`；ready、unknown、
+  timeout 或 read failure 均留在 `/guid`。任何导航都不得修改 readiness。
 - 顶部是精简品牌栏，显示 One Person Lab 品牌、未就绪时始终可用的“进入 OPL”动作与帮助入口。
 - macOS 品牌栏保留 traffic lights 安全区；Windows/Linux 复用现有最小化、最大化和关闭按钮。
 - 主工作区最大宽度约 1040px，采用 `240px + 1fr` 两栏。
@@ -140,6 +145,8 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 ## 进入 OPL 后的渐进式恢复
 
 - 普通侧栏在任一 Core 前置条件未完成时持续显示“完成首次设置”，点击后返回 `/first-run`；它不是模态框，也不会自动改变当前路由。
+- Home composer 上方不得常驻泛化的“运行环境需要处理”横幅。用户真正发起发送但被 Codex CLI
+  或模型访问阻断时，才在 composer 附近显示局部、非模态的恢复提示，并保留草稿。
 - 普通文字对话只要求本机助手与模型访问。发送被拦截时保留草稿，在输入区下方显示本地化原因和“完成设置”动作。
 - 工作目录未完成时，只禁用 project/OPL workspace controls；普通本地对话以及当前 composer 的
   attachment、file/directory picker、paste/drop 与 `/open` 继续可用并只服从 Codex permission/approval/sandbox。

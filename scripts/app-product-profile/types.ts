@@ -834,6 +834,16 @@ export type AppProductProfile = {
       failure_policy: string;
     };
     ordinary_shell_recovery: {
+      fresh_webui_login_setup_check: {
+        trigger: string;
+        route_intent: string;
+        state_source: string;
+        known_incomplete_behavior: string;
+        ready_behavior: string;
+        unknown_timeout_or_read_failure_behavior: string;
+        ordinary_startup_refresh_and_deep_link_behavior: string;
+        consumption_policy: string;
+      };
       persistent_setup_entry: {
         visibility: string;
         surface: string;
@@ -841,6 +851,7 @@ export type AppProductProfile = {
         label_policy: string;
         must_preserve_current_route_until_clicked: boolean;
       };
+      persistent_home_composer_runtime_alert: string;
       plain_conversation: {
         required_items: string[];
         workspace_root_required: boolean;

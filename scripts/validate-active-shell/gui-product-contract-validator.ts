@@ -1227,12 +1227,29 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error('App GUI first-launch startup runtime ' + field + ' must be ' + expected);
     }
   }
+  const postLoginSetupCheck = firstLaunchPolicy?.startup_runtime_policy?.fresh_webui_login_setup_check;
+  if (
+    postLoginSetupCheck?.trigger !== 'successful_authenticated_webui_login_only' ||
+    postLoginSetupCheck?.route_intent !== progressiveFirstRunRecoveryPolicy.fresh_webui_login_setup_check_intent ||
+    postLoginSetupCheck?.state_source !== 'shared_opl_app_fast_state' ||
+    postLoginSetupCheck?.known_incomplete_behavior !== 'replace_guid_with_first_run' ||
+    postLoginSetupCheck?.ready_behavior !== 'keep_guid' ||
+    postLoginSetupCheck?.unknown_timeout_or_read_failure_behavior !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_unknown_policy ||
+    postLoginSetupCheck?.ordinary_startup_refresh_and_deep_link_behavior !==
+      'keep_guid_without_automatic_first_run' ||
+    postLoginSetupCheck?.consumption_policy !== 'one_shot'
+  ) {
+    throw new Error('App GUI fresh WebUI login setup check policy is invalid');
+  }
   const ordinaryRecovery = firstLaunchPolicy?.ordinary_shell_recovery_policy;
   if (
     ordinaryRecovery?.persistent_setup_entry?.target_route !==
       progressiveFirstRunRecoveryPolicy.persistent_setup_entry_route ||
     ordinaryRecovery?.persistent_setup_entry?.surface !== 'ordinary_sidebar_non_modal_entry' ||
     ordinaryRecovery?.persistent_setup_entry?.must_preserve_current_route_until_clicked !== true ||
+    ordinaryRecovery?.persistent_home_composer_runtime_alert !==
+      'forbidden_use_sidebar_and_send_scoped_inline_recovery_only' ||
     ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
     ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
     ordinaryRecovery?.send_scoped_local_inputs?.workspace_root_required !== false ||

@@ -2821,7 +2821,7 @@
     },
     {
       "id": "first_launch_readiness",
-      "expected_source": "explicit /first-run recovery route and OPL initialize result; ordinary launch enters /guid",
+      "expected_source": "explicit /first-run recovery route, one-shot post-login setup check, and OPL initialize result; ordinary launch enters /guid",
       "startup_loader": {
         "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.startup_loader",
         "visible_product_name": "One Person Lab",
@@ -2874,8 +2874,11 @@
         "active rail step and task panel stay aligned to the first unready Core item",
         "authenticated standalone first-run route outside the ordinary product layout",
         "ordinary startup enters /guid with zero fast-state navigation wait while unknown readiness refreshes in the background without mutation",
+        "fresh authenticated WebUI login carries a one-shot setup check that replaces /guid with /first-run only when fast Core readiness is known incomplete",
+        "fresh WebUI login readiness unknown, timeout, or read failure fails open on /guid, while ordinary startup, refresh, and deep links never auto-open /first-run",
         "explicit enter OPL action before readiness without mutating readiness",
         "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
+        "ordinary Home omits the persistent composer-wide runtime attention alert",
         "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
         "workspace root readiness restricts only project selection and OPL workspace controls while plain conversation and send-scoped local inputs remain available",
         "Desktop and WebUI model access default to OPL Gateway account login with email and password while API Key remains a compatibility choice",
@@ -3101,7 +3104,11 @@
         }
       },
       "ordinary_shell_recovery": {
+        "fresh_webui_login_setup_check_intent": "postLoginSetupCheck",
+        "fresh_webui_login_known_incomplete_route": "/first-run",
+        "fresh_webui_login_unknown_policy": "keep_guid_fail_open",
         "persistent_setup_entry_route": "/first-run",
+        "persistent_home_composer_runtime_alert": "forbidden",
         "plain_conversation_required_items": ["codex_cli", "codex_config"],
         "send_scoped_local_input_required_items": ["codex_cli", "codex_config"],
         "workspace_control_required_items": ["workspace_root"],

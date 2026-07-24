@@ -257,7 +257,15 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
   );
   const ordinaryRecovery = firstLaunchPage.ordinary_shell_recovery;
   if (
+    ordinaryRecovery?.fresh_webui_login_setup_check_intent !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_setup_check_intent ||
+    ordinaryRecovery?.fresh_webui_login_known_incomplete_route !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_known_incomplete_route ||
+    ordinaryRecovery?.fresh_webui_login_unknown_policy !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_unknown_policy ||
     ordinaryRecovery?.persistent_setup_entry_route !== progressiveFirstRunRecoveryPolicy.persistent_setup_entry_route ||
+    ordinaryRecovery?.persistent_home_composer_runtime_alert !==
+      progressiveFirstRunRecoveryPolicy.persistent_home_composer_runtime_alert ||
     ordinaryRecovery?.unknown_readiness_policy !== progressiveFirstRunRecoveryPolicy.unknown_readiness_policy
   ) {
     throw new Error('First-launch page-state ordinary shell recovery policy is invalid');

@@ -756,9 +756,22 @@ function validateFirstConversationPolicy(profile) {
     'Product profile workspace control prerequisites',
   );
   const ordinaryRecovery = profile.first_run?.ordinary_shell_recovery;
+  const postLoginSetupCheck = ordinaryRecovery?.fresh_webui_login_setup_check;
   if (
+    postLoginSetupCheck?.trigger !== 'successful_authenticated_webui_login_only' ||
+    postLoginSetupCheck?.route_intent !== progressiveFirstRunRecoveryPolicy.fresh_webui_login_setup_check_intent ||
+    postLoginSetupCheck?.state_source !== 'shared_opl_app_fast_state' ||
+    postLoginSetupCheck?.known_incomplete_behavior !== 'replace_guid_with_first_run' ||
+    postLoginSetupCheck?.ready_behavior !== 'keep_guid' ||
+    postLoginSetupCheck?.unknown_timeout_or_read_failure_behavior !==
+      progressiveFirstRunRecoveryPolicy.fresh_webui_login_unknown_policy ||
+    postLoginSetupCheck?.ordinary_startup_refresh_and_deep_link_behavior !==
+      'keep_guid_without_automatic_first_run' ||
+    postLoginSetupCheck?.consumption_policy !== 'one_shot' ||
     ordinaryRecovery?.persistent_setup_entry?.target_route !== '/first-run' ||
     ordinaryRecovery?.persistent_setup_entry?.surface !== 'ordinary_sidebar_non_modal_entry' ||
+    ordinaryRecovery?.persistent_home_composer_runtime_alert !==
+      'forbidden_use_sidebar_and_send_scoped_inline_recovery_only' ||
     ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
     ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
     ordinaryRecovery?.send_scoped_local_inputs?.workspace_root_required !== false ||

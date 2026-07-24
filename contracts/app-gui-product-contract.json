@@ -5313,6 +5313,16 @@
       "visible_startup_gate": "none",
       "navigation_wait_for_fast_state_ms": 0,
       "unknown_readiness_policy": "enter_guid_and_refresh_in_background_without_mutating_readiness",
+      "fresh_webui_login_setup_check": {
+        "trigger": "successful_authenticated_webui_login_only",
+        "route_intent": "postLoginSetupCheck",
+        "state_source": "shared_opl_app_fast_state",
+        "known_incomplete_behavior": "replace_guid_with_first_run",
+        "ready_behavior": "keep_guid",
+        "unknown_timeout_or_read_failure_behavior": "keep_guid_fail_open",
+        "ordinary_startup_refresh_and_deep_link_behavior": "keep_guid_without_automatic_first_run",
+        "consumption_policy": "one_shot"
+      },
       "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
       "deep_initialize_event_stream": "opl system initialize --events --json",
       "guid_navigation_blocked_by_readiness": false,
@@ -5353,6 +5363,7 @@
         "label_policy": "localized_complete_first_setup",
         "must_preserve_current_route_until_clicked": true
       },
+      "persistent_home_composer_runtime_alert": "forbidden_use_sidebar_and_send_scoped_inline_recovery_only",
       "plain_conversation": {
         "required_items": [
           "codex_cli",

@@ -509,7 +509,11 @@ export const progressiveFirstRunRecoveryTestIds = [
   "opl-guid-workspace-access-disabled",
 ];
 export const progressiveFirstRunRecoveryPolicy = {
+  fresh_webui_login_setup_check_intent: "postLoginSetupCheck",
+  fresh_webui_login_known_incomplete_route: "/first-run",
+  fresh_webui_login_unknown_policy: "keep_guid_fail_open",
   persistent_setup_entry_route: "/first-run",
+  persistent_home_composer_runtime_alert: "forbidden",
   plain_conversation_required_items: ["codex_cli", "codex_config"],
   send_scoped_local_input_required_items: ["codex_cli", "codex_config"],
   send_scoped_local_input_surfaces: [
