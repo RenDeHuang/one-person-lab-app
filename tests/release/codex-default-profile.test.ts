@@ -352,13 +352,11 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
   );
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
-  profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.filter(
-    (shortcut: any) => shortcut.package_id !== 'obf',
-  );
+  profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.slice(1);
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
   const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
-  catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas'];
+  catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['fixed-package-id'];
   assert.throws(() => validateProductProfile(catalogDrift, installExposure), /ordinary selector/);
 
   const mcpAllowlistRegression = structuredClone(readJson('contracts/app-product-profile.json'));
@@ -374,8 +372,8 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
 test('professional Agent metadata stays optional but requires localized names and descriptions when present', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
-  const meta = profile.gui.professional_agent_packages.find((entry: any) => entry.package_id === 'oma');
-  assert.match(meta.description_i18n['zh-CN'], /创建、接管、检查和改进/);
+  const meta = profile.gui.professional_agent_packages[0];
+  assert.ok(meta.description_i18n['zh-CN'].trim());
   meta.description_i18n['zh-CN'] = '';
   assert.throws(
     () => validateProductProfile(profile, installExposure),
@@ -390,27 +388,124 @@ test('professional Agent metadata stays optional but requires localized names an
 
   const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   const starterMetadata = completeProfile.gui.agent_package_registry.starter_package_metadata;
-  assert.deepStrictEqual(
-    starterMetadata.map((entry: any) => entry.package_id),
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
-  );
+  const starterMetadataIds = starterMetadata.map((entry: any) => entry.package_id);
+  assert.equal(starterMetadataIds.every((packageId: unknown) => typeof packageId === 'string' && packageId.trim()), true);
+  assert.equal(new Set(starterMetadataIds).size, starterMetadataIds.length);
   for (const entry of starterMetadata) {
     assert.ok(entry.display_name_i18n['zh-CN'].trim(), entry.package_id);
     assert.ok(entry.description_i18n['zh-CN'].trim(), entry.package_id);
     assert.ok(entry.display_name_i18n['en-US'].trim(), entry.package_id);
     assert.ok(entry.description_i18n['en-US'].trim(), entry.package_id);
   }
-  assert.equal(
-    starterMetadata.find((entry: any) => entry.package_id === 'mas-scholar-skills').display_name_i18n['zh-CN'],
-    'MAS 学术技能',
-  );
   const dependencyCopyDrift = structuredClone(completeProfile);
-  dependencyCopyDrift.gui.agent_package_registry.starter_package_metadata.find(
-    (entry: any) => entry.package_id === 'mas-scholar-skills',
-  ).description_i18n['zh-CN'] = '';
+  dependencyCopyDrift.gui.agent_package_registry.starter_package_metadata[0].description_i18n['zh-CN'] = '';
   assert.throws(
     () => validateProductProfile(dependencyCopyDrift, installExposure),
     /incomplete or not localized/,
+  );
+});
+
+test('Guid Home page state admits dynamic Agent identities while retaining directory, preference, action, and route safety', () => {
+  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  const guidHome = matrix.pages.find((page: any) => page.id === 'guid_home');
+  const home = guidHome.home_view_model;
+
+  home.default_assistants = ['community-clinical-agent'];
+  home.default_assistant_purpose_labels = { 'community-clinical-agent': '临床' };
+  home.default_assistant_required_skills = {
+    'community-clinical-agent': ['owner-required-capability'],
+  };
+  home.default_agent_package_required_skills = {
+    'community-clinical-agent': ['owner-required-capability'],
+  };
+  home.home_agent_shortcuts = [{
+    shortcut_id: 'community-clinical',
+    package_id: 'community-clinical-agent',
+    primary_label: '临床',
+    package_short_name: 'CCA',
+    codex_visible_entry: 'community-clinical-plugin',
+    required_skill_ids: ['owner-required-capability'],
+    source: 'opl_app_home',
+    executor: 'codex_cli',
+    display_policy: 'purpose_first',
+    home_entry_policy: 'visible_click_to_start',
+    default_visible: false,
+    user_configurable: true,
+  }];
+  home.home_purpose_entries = [{
+    id: 'community-clinical',
+    primary_label: '临床',
+    target_assistant_id: 'community-clinical-agent',
+    target_assistant_short_name: 'CCA',
+    display_policy: 'purpose_first',
+    home_entry_policy: 'visible_click_to_start',
+  }];
+  const agentPackageGroup = matrix.pages
+    .find((page: any) => page.id === 'ordinary_conversation').conversation_view_model
+    .unified_context_menu.groups.find((group: any) => group.id === 'agent_packages');
+  assert.deepStrictEqual(
+    {
+      home_membership_source_ref: home.home_agent_package_membership_source_ref,
+      home_preference_source_ref: home.home_layout.shortcut_preference_source_ref,
+      home_visibility_policy: home.home_layout.starter_visibility_policy,
+      home_order_policy: home.home_layout.starter_order_policy,
+      source_ref: agentPackageGroup.source_ref,
+      status_source_ref: agentPackageGroup.status_source_ref,
+      catalog_order_policy: agentPackageGroup.catalog_order_policy,
+      action_policy: agentPackageGroup.action_policy,
+      unknown_standard_agent_policy: agentPackageGroup.unknown_standard_agent_policy,
+    },
+    {
+      home_membership_source_ref:
+        'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]',
+      home_preference_source_ref:
+        'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      home_visibility_policy:
+        'installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences',
+      home_order_policy: 'home_shortcut_preferences_sort_order_then_localized_display_name',
+      source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+      status_source_ref: 'app_state.agent_packages.status_index.packages[]',
+      catalog_order_policy: 'home_shortcut_preferences_sort_order_then_localized_display_name',
+      action_policy: 'render_only_directory_available_actions_and_recommended_action_ref',
+      unknown_standard_agent_policy: 'include_without_app_package_id_branch',
+    },
+  );
+  assert.doesNotThrow(() => validatePrimaryInteractionPages(matrix));
+
+  for (const mutate of [
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model
+        .professional_agent_package_membership_source_ref = 'app_fixed_package_ids';
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model
+        .unknown_standard_agent_policy = 'reject_unknown_package_ids';
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model.home_layout
+        .starter_order_policy = 'app_fixed_shortcut_order';
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model
+        .route_receipt_required_fields = ['route_kind', 'executor'];
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'ordinary_conversation').conversation_view_model
+        .unified_context_menu.groups.find((group: any) => group.id === 'agent_packages')
+        .action_policy = 'app_allowlisted_action_ids';
+    },
+  ]) {
+    const drift = structuredClone(matrix);
+    mutate(drift);
+    assert.throws(() => validatePrimaryInteractionPages(drift));
+  }
+
+  const nonConfigurableShortcut = structuredClone(matrix);
+  nonConfigurableShortcut.pages.find((page: any) => page.id === 'guid_home').home_view_model
+    .home_agent_shortcuts[0].user_configurable = false;
+  assert.throws(
+    () => validatePrimaryInteractionPages(nonConfigurableShortcut),
+    /generic Codex route shape/,
   );
 });
 

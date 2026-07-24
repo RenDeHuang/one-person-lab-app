@@ -60,7 +60,7 @@ function validateGuidHomePage(matrix) {
   const homeViewModel = guidHomePage.home_view_model;
   validateGuidHomeViewModelFields(homeViewModel);
   validateGuidHomeLayout(homeViewModel);
-  validateGuidHomeDefaultAssistants(homeViewModel);
+  validateGuidHomeAgentPackageAuthority(homeViewModel);
   validateGuidHomeRouteAndPurpose(homeViewModel);
   validateDynamicHomeComposerStateContract(
     homeViewModel.home_composer_state_contract,
@@ -88,8 +88,6 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     agent_package_status_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.packages[]',
     home_agent_shortcut_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.home_shortcut_preferences[]',
     agent_package_skill_source_ref: 'owner_or_carrier_projected_capability_metadata_for_the_selected_package',
-    assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
-    assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles optional migration/display metadata only',
     ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
@@ -148,11 +146,7 @@ function validateGuidHomeLayout(homeViewModel) {
   }
 }
 
-function validateGuidHomeDefaultAssistants(homeViewModel) {
-  assertIncludesAll(homeViewModel.default_assistants, ['mas', 'mag', 'rca', 'obf'], 'Guid home page default assistants');
-  if (homeViewModel.default_assistants?.includes('oma')) {
-    throw new Error('Guid home page must not include OMA as a default assistant');
-  }
+function validateGuidHomeAgentPackageAuthority(homeViewModel) {
   if (
     homeViewModel.professional_agent_package_membership_source_ref !==
       'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
@@ -165,17 +159,24 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   ) {
     throw new Error('Guid home page Agent membership must come from the dynamic Framework directory and user shortcut preferences');
   }
-  const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
-    ['mas', 'mag', 'rca', 'obf'].map((assistant) => requiredSkills[assistant]),
-    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge']],
-    'Guid home page required assistant skills',
-  );
-  const packageRequiredSkills = homeViewModel.default_agent_package_required_skills ?? {};
-  assertDeepEqualJson(
-    ['mas', 'mag', 'rca', 'obf', 'oma'].map((packageId) => packageRequiredSkills[packageId]),
-    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge'], ['opl-meta-agent']],
-    'Guid home page required package skills',
+    homeViewModel.home_agent_shortcuts_metadata_policy,
+    {
+      role: 'optional_migration_and_display_metadata',
+      allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
+      forbidden_authority: [
+        'catalog_membership',
+        'installed',
+        'present',
+        'callable',
+        'visibility',
+        'sort_order',
+        'actions',
+      ],
+      runtime_authority_ref:
+        'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    },
+    'Guid home page optional shortcut metadata authority',
   );
 }
 
@@ -204,28 +205,49 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
     'Guid home page route receipt non-authority fields',
   );
   const homeAgentShortcuts = homeViewModel.home_agent_shortcuts ?? [];
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'ppt', 'grant', 'book', 'oma'])) {
-    throw new Error('Guid home page must expose MAS, RCA, MAG, OBF, and OMA package shortcuts');
+  const shortcutIds = homeAgentShortcuts.map((entry) => entry?.shortcut_id);
+  if (new Set(shortcutIds).size !== shortcutIds.length) {
+    throw new Error('Guid home page optional shortcut metadata ids must be unique');
   }
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'rca', 'mag', 'obf', 'oma'])) {
-    throw new Error('Guid home page package shortcuts must target MAS, RCA, MAG, OBF, and OMA');
-  }
-  if (
-    JSON.stringify(homeAgentShortcuts.filter((entry) => entry.default_visible).map((entry) => entry.shortcut_id)) !==
-    JSON.stringify(['research', 'ppt', 'grant', 'book', 'oma'])
-  ) {
-    throw new Error('Guid home page must default to Research, Presentation, Grant, Book, and Meta Agent shortcuts');
-  }
-  if (homeAgentShortcuts.some((entry) => entry.user_configurable !== true)) {
-    throw new Error('Guid home page package shortcuts must remain user configurable');
+  for (const shortcut of homeAgentShortcuts) {
+    if (
+      !isNonEmptyString(shortcut?.shortcut_id) ||
+      !isNonEmptyString(shortcut?.package_id) ||
+      !isNonEmptyString(shortcut?.codex_visible_entry) ||
+      shortcut?.executor !== 'codex_cli' ||
+      shortcut?.source !== 'opl_app_home' ||
+      shortcut?.display_policy !== 'purpose_first' ||
+      shortcut?.home_entry_policy !== 'visible_click_to_start' ||
+      typeof shortcut?.default_visible !== 'boolean' ||
+      shortcut?.user_configurable !== true ||
+      !isUniqueStringArray(shortcut?.required_skill_ids)
+    ) {
+      throw new Error(`Guid home page optional shortcut metadata ${shortcut?.shortcut_id ?? '<unknown>'} must preserve the generic Codex route shape`);
+    }
   }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
-    throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');
+  const purposeEntryIds = homePurposeEntries.map((entry) => entry?.id);
+  if (new Set(purposeEntryIds).size !== purposeEntryIds.length) {
+    throw new Error('Guid home page optional purpose metadata ids must be unique');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
-    throw new Error('Guid home page purpose entries must target MAS, MAG, RCA, and OBF');
+  for (const entry of homePurposeEntries) {
+    if (
+      !isNonEmptyString(entry?.id) ||
+      !isNonEmptyString(entry?.target_assistant_id) ||
+      entry?.display_policy !== 'purpose_first' ||
+      entry?.home_entry_policy !== 'visible_click_to_start'
+    ) {
+      throw new Error(`Guid home page optional purpose metadata ${entry?.id ?? '<unknown>'} must preserve the generic Agent route shape`);
+    }
   }
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && Boolean(value.trim());
+}
+
+function isUniqueStringArray(value) {
+  return Array.isArray(value) && value.every(isNonEmptyString) && new Set(value).size === value.length;
 }
 
 function validateGuidHomeVisibleSignals(guidHomePage) {
@@ -234,7 +256,6 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'Codex model selector defaulting to 5.6 Sol',
     'reasoning effort configurable inside the Codex model menu',
     'conversation pending elapsed seconds while Codex is working',
-    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF',
     'all visible professional-agent shortcuts remain selectable while launch readiness is enforced on send with typed guidance',
     'prompt, compact shortcuts, and composer share one bottom reading lane',
     'active capability shown by a quiet selected shortcut state without a second composer label',
