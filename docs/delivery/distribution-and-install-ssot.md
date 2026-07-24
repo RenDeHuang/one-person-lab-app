@@ -19,7 +19,8 @@ Machine owners:
 - 当前有 **4 类主要发布路径**：Desktop GitHub Release、Standard Homebrew
   Cask、Container WebUI GHCR、临时 Manual Full Preview。
 - 当前有 **4 类主要安装路径**：直接 DMG、Standard Homebrew Cask、App
-  `install.sh` bootstrap、Docker/WebUI 一键安装。
+  `install.sh` 通用路由、Docker/WebUI 一键安装。通用路由已实现，但 Native
+  artifact 与 Official Profile convergence 尚未完成。
 - `Full` 是 Standard 同 cohort 的离线 seed 密度，不是第五个频道。
 - `Latest` 是推荐生产版本指针，不是质量等级。
 - `install.sh --stable-macos-install` 和 `install-stable.sh` 是现行兼容路径，
@@ -28,8 +29,9 @@ Machine owners:
   不是 Full；公开 Nightly 发布当前已退休，恢复发布没有获得批准。
 - `one-person-lab-full` Cask 公开存在，但不在当前 Release Bundle
   发布流水线中，且仍额外依赖 Formula `opl`。它不是当前推荐安装路径。
-- Native WebUI 是已批准的运行载体目标，但尚无 OPL-owned 正式资产、
-  安装器和 clean-host 证据，因此不能计入当前安装路径。
+- Native WebUI 是已批准的运行载体目标。App 已有 verified-candidate route/probe，
+  Shell 已有 OPL-owned packaging/installer source；但尚无公开 OPL artifact、公开
+  currentness/readback 和 clean-host qualification，因此不能计入当前受支持安装路径。
 
 目标形态是 **5 类安装载体**：DMG、Homebrew、通用一键安装、Native WebUI、
 Container WebUI。不同入口必须收敛到同一产品行为与 Official Profile 意图，
@@ -83,13 +85,13 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 | GitHub Release Standard DMG | Desktop App；首启由 Framework 补齐 Base/Packages | Supported | 不使用 Homebrew 时的直接 GUI 路径 |
 | GitHub Release Full DMG | Desktop App + Base/Package offline seeds | Supported | 首次离线或希望最快达到完整能力时使用 |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | Supported | macOS 终端用户首选 |
-| App `install.sh` | 当前委托 Framework `--with-app --skip-packages` | Supported transitional | 目前不是 Official Profile 一步收敛 |
+| App `install.sh` | 已按 macOS Desktop、Linux verified Native-or-Container fallback、server/isolation Container、headless Base 路由；Desktop bootstrap仍委托 Framework `--with-app --skip-packages` | Supported transitional | 路由已实现，但目前不是 Official Profile 一步收敛 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
 | Nightly Cask | 历史 Standard Nightly | Historical only | 不作为持续更新安装路径 |
 | Full Cask | Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy/unmanaged | 迁移完成前改用直接 Full DMG |
-| Native WebUI | 只有源码开发/上游打包能力 | Not published | 不得写成当前 OPL 安装命令 |
+| Native WebUI | App verified-candidate route 与 Shell OPL-owned packaging/installer source 已实现；public artifact 尚未 promotion/readback | Implemented, unpublished | 不得写成当前受支持 OPL 安装路径 |
 | Framework headless installer | Base-only，无 App runtime form | Supported Framework boundary | 不是 OPL App 安装路径 |
 
 ## 平台默认目标
@@ -102,7 +104,7 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 | Server / cloud / isolation | Container WebUI | 保持 Container WebUI |
 | Headless automation | Framework Base-only | 保持 Base-only |
 
-通用一键安装器的目标路由：
+通用一键安装器已实现的路由策略：
 
 ```text
 macOS personal       -> Desktop
@@ -111,9 +113,11 @@ server / isolation   -> Container WebUI (explicit)
 --headless            -> OPL Base only
 ```
 
-当前 `install.sh` 还没有达到该目标。必须等 Native WebUI 正式分发与
-Official Profile 收敛可验证后，才能切换平台默认；之后才能退休重复的 Stable
-macOS helper。
+其中 Linux personal 只有在 App Release namespace 中存在可验证的 immutable Native
+candidate 时才选择 Native，否则明确回退 Container；local candidate 必须由用户显式
+选择。当前仍缺 Native WebUI 正式分发和 Official Profile 收敛，所以“路由实现”
+不能提升为“Native supported”或“安装终态已一致”。这些完成后才可退休重复的
+Stable macOS helper。
 
 ## 一致终态
 
@@ -123,7 +127,8 @@ macOS helper。
 - App、Base、Packages 各自保持独立版本和生命周期，不要求版本号锁步。
 - 所有 App 载体消费相同产品行为合同与 Official Profile 意图。
 - 每个 configured carrier / Package-declared adapter 产生 fresh terminal readback；
-  Framework 只聚合完整 Package 的 installed/callable 状态。
+  Framework 只聚合完整 Package 的 installed/callable 状态；operation/release receipt
+  不作为 Package installed truth。
 - Standard 可在线补齐；Full 只提供相同目标所需的离线 seed。
 - Desktop、Native WebUI、Container WebUI 可使用不同平台字节、目录、
   service manager 和隔离方式。
@@ -194,12 +199,15 @@ Docker。它不是“因为 Docker 里是 Linux，所以天然已经支持”的
 - Shell 源码 `webui` 开发入口；
 - 可打包的上游 Web CLI 技术能力；
 - Docker 内运行同类 WebUI runtime 的证明。
+- App `install.sh` 对 exact verifier URL/SHA、App Release namespace、immutable
+  version 和 `--probe-artifact` 的 fail-closed candidate route。
+- Shell OPL-owned `pack-web-cli`、`install-web.sh` 和 native distribution tests。
 
 当前缺少：
 
 - OPL-owned immutable versioned artifacts；
 - host 可写 data/projects/recovery 路径；
-- 一套 canonical 开发/打包/Docker entrypoint；
+- 公开 OPL Native artifact namespace、promotion/currentness/readback；
 - 安装、升级、回滚与数据保留；
 - 非 root clean-host qualification；
 - App/Shell/Framework exact refs、manifest、digest 和公开 readback。
@@ -213,8 +221,8 @@ Container 的批准目标是包装同一 frozen Linux WebUI payload，只增加 
 
 - Desktop 和 Container WebUI 可以独立开发、验证和暂时使用不同版本节奏。
 - 开发发布不能声称已经是同一生产 cohort。
-- 两边仍必须遵守相同产品行为合同，并最终通过 Framework reconciliation
-  收敛。
+- 两边仍必须遵守相同产品行为合同，并通过各自 carrier / Package adapter 的
+  fresh terminal readback收敛；Framework只聚合，不拥有第二份生命周期。
 
 Desktop 发布路径稳定后的生产目标：
 

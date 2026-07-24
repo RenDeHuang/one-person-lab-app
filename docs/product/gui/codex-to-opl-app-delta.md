@@ -117,10 +117,10 @@ Launch runtime state 固定为 `ready / degraded / package_unavailable`，不增
 Workspace/managed target 同样只看 exact owner-projected action 的 `required_payload_fields`，Shell
 不得自行解析 manifest 后增加启动条件。
 
-Receipt 必须区分用途：activation result 的 `use_receipt_ref` 是可选审计证据，缺失不构成普通启动
-前提；package shortcut 的 invocation receipt 仍必须记录实际 launch fact，但它不证明 binding、
-closure、domain readiness 或 release readiness。不得用前者的可选性删除后者，也不得用后者反向
-制造 readiness gate。
+目标审计证据归实际执行 owner：activation result 的 `use_receipt_ref` 或 launch/route
+ref 都是可选 owner projection，缺失不构成普通启动前提。当前 App-owned Package
+invocation receipt 是迁移兼容面；Phase 2 在 consumer-zero 后删除它。无论迁移前后，
+receipt 都不证明 binding、closure、domain readiness 或 release readiness。
 
 ### OPL Feature Preservation Gate
 
@@ -192,9 +192,11 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 ## Purpose 与 Agent Package 增量
 
 OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts。Purpose 从
-composer 常驻 selector 移出，主要从 Home starter 选择；Home/new-session `+` palette 可在首次发送前
-选择同一 allowlist package，两条入口共享 active capability、route receipt 与 readiness gate；package 安装、Home visibility 与
-lifecycle 进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。
+composer 常驻 selector 移出，主要从 Home starter 选择；Home/new-session `+` palette
+可在首次发送前选择同一个动态 installed Package directory，两条入口共享 active
+capability、可选 owner route ref 与 presence/callability 状态；package 安装、Home
+visibility 与 lifecycle 进入 Settings → Agents，Skills/Plugins/Flow 管理进入
+Settings → Capabilities。
 Home 只用 starter 选中态表达 active capability；conversation 可显示低权重 capability chip：
 
 | 用户目的 | 用户结果 | Domain owner |

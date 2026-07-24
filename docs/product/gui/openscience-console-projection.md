@@ -45,9 +45,10 @@ projection shape, disclosure placement, and forbidden-claim boundary.
 ## Accepted App Items
 
 The accepted OpenScience items land as App-owned projection contracts, not as a
-new dashboard or second artifact system. In this repo, OPL App means the
-shell-wrapped Codex App; professional agents are Codex plugins or packaged
-Codex skill surfaces.
+new dashboard or second artifact system. The current product uses a Codex-first
+shell and executor, while professional agents remain executor-neutral OPL
+Packages (`kind=agent`). Codex plugins and packaged skills are carrier
+projections or Package capabilities, not Agent identity or installed truth.
 
 | Item | App surface | Boundary |
 | --- | --- | --- |

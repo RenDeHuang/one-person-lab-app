@@ -20,7 +20,9 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 1. session/thread 是唯一会话身份；
 2. project/directory 是零或一个 affinity，用于新会话初始 cwd、projectless 一次性 adoption、recorded 分组和新会话快捷入口，不拥有会话或上下文；adoption 只允许 `custom_workspace=false` 或无 recorded cwd，经 `thread/settings/update.cwd` 与 exact `thread/read` 后完成；
 3. workspace 记录单一 Project affinity；命令或 turn 的实际 `pwd`、显式输入和 writable roots 不持久反写或扩展该 affinity；
-4. OPL Agent Package 是受管的官方插件，提供更强安装和状态管理，但不改变 Codex 的会话模型；
+4. OPL 标准智能体是 `OPL Package(kind=agent)`；Codex Plugin/Skill 只是当前
+   adapter/carrier projection，不是 Package identity 或完整 installed truth，也不改变
+   Codex 的会话模型；
 5. AionUI 基础 ACP 和一个 Codex App Server adapter 承载普通会话与用户触发的线程操作；
 6. App 定义产品和验收，Shell 不建立第二状态源，AionCore 保持 no-write。
 

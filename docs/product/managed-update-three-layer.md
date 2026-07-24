@@ -7,6 +7,11 @@ Machine boundary: 本文定义目标产品分层。当前 contracts/source 仍�
 Framework resolver、lock、payload、receipt、materialization 和 rollback
 兼容面；在迁移计划完成前，它们是 current implementation truth，但不是目标。
 本文不证明 currentness、安装完成或 release readiness。
+Execution boundary: 当前仅授权 Phase 1 文档；本文不能授权 contracts/source/tests、
+carrier state 或 public release mutation。Phase 2 的 work packages、owner surfaces 和
+批准门只以
+[`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md)
+为准。
 
 OPL App presents one consistent maintenance experience while delegating each
 software object's mechanics to its existing platform. “Unified management”
@@ -76,10 +81,12 @@ aggregates the resulting fresh readback. Base does not become the runtime
 lifecycle owner, and a Plugin-only result is incomplete. Switching executor
 does not reinstall or rename Packages and does not discard Settings/Home
 preference, business Work Items, required-capability presence, or typed views.
-A missing Claude Code or Hermes adapter makes only that route unavailable. If
-the carrier holding the only physical Package bytes is removed, fresh aggregate
-readback must report `physical_unavailable`; cached App metadata cannot preserve
-a false installed state.
+For a route the user has actually configured or a Package has explicitly
+declared, a missing adapter makes only that route unavailable. Unconfigured
+Claude Code or Hermes routes are not projected and are not readiness or
+completion gates. If the carrier holding the only physical Package bytes is
+removed, fresh aggregate readback must report `physical_unavailable`; cached App
+metadata cannot preserve a false installed state.
 
 Exact refs, digests, immutable bytes, and receipts remain legitimate inside one
 release/build artifact that must be reproduced. They do not decide whether two
@@ -108,8 +115,12 @@ under advanced owner diagnostics rather than becoming App state machines.
 
 - Update only Packages that are currently installed.
 - Never install an Official Profile root merely because it is absent.
-- Resolve required presence after update; attempt dependency installation only
-  for the root the user is installing or explicitly repairing.
+- For a root the user explicitly selects for install, update, or repair, locally
+  ensure only that root's required presence closure. Ordinary Profile/background
+  sweeps never restore absent official roots or touch unrelated roots.
+- Repair/reconcile requires a user-selected root or an exact projected Package
+  action. Startup and background maintenance must not run a selectorless scan
+  that writes every Package.
 - Never overwrite a dirty checkout or user-managed source.
 - Require fresh native installed/callable readback before reporting success.
 - Enumerate installed Packages from carrier readback, not from the selected
@@ -122,8 +133,8 @@ under advanced owner diagnostics rather than becoming App state machines.
 ## Authority Boundary
 
 The App owns user-facing state, timing, preferences, and the explicit
-first-install/restore intent. Each first-party Package owner owns GHCR
-publication and its source-local `latest-stable`. Codex owns
+first-install/restore intent. Each first-party Package owner owns its GHCR
+repository publication and that owner-scoped repository's `latest-stable`. Codex owns
 Plugin/config/cache activation; Base owns only thin OCI download/verification;
 each Package declares complete-runtime activation and health, configured
 carriers execute it, and Framework owns executor-neutral discovery,

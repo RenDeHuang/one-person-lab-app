@@ -40,9 +40,10 @@ inferring a healthy run.
   task model.
 - OpenScience accepted items are now explicit App projection contracts:
   structured result panel, artifact/provenance drawer or card, ref-level
-  follow-up refs, and workflow/skill candidate refs. OPL App here is the
-  shell-wrapped Codex App, and professional agents are Codex plugins or packaged
-  Codex skills.
+  follow-up refs, and workflow/skill candidate refs. OPL App currently uses a
+  Codex-first shell/executor, while professional agents are executor-neutral
+  OPL Packages (`kind=agent`). Codex plugins and packaged skills are carrier
+  projections or Package capabilities, not Agent identity or installed truth.
 - AionUI renders Runtime task ref summaries, conversation / inspector refs, and
   capability / connector / workflow / export refs as a thin consumer. Temporal,
   provider and `current_control_state` internals remain diagnostics; AionUI does

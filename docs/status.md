@@ -6,6 +6,19 @@ State: `active`
 Machine boundary: Human-readable status. Use `contracts/` and release/test
 artifacts for machine decisions.
 
+Package composition Phase 1 is complete and pending user evaluation: the target SSOT
+and frozen implementation plan live in
+[`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
+Its exact blob is canonical documentation authority; current contracts/source remain
+compatibility truth. Already-canonical changes are not reverted, but sealed
+commits/worktrees, tests and owner handoffs are not implementation completion or
+Phase 2 authorization. The current Framework main already includes owner-channel
+Package currentness and package-local required selection, but App-state still
+projects old lock/ABI/digest/materialization/receipt/LKG state. After canonical
+docs readback the next action is user
+evaluation; it does not automatically start implementation or block independent
+Stable/Package work.
+
 Plugin native profile pointer: `contracts/opl-native-profile.json` only declares
 the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
 It is not GUI product truth, release authority, runtime truth, domain truth, or
@@ -65,8 +78,9 @@ domain truth remain outside App ownership.
 
 The current product boundary is purpose-first: the App is the Codex wrapper and
 product truth for ordinary users entering research, grant, presentation, and
-general work. It owns the App user path and contracts that make MAS/MAG/RCA
-visible as built-in purpose entries; it does not own domain readiness,
+general work. Current contracts make MAS/MAG/RCA visible as migration-era
+Official Profile examples; the target dynamically projects any installed Agent
+Package without a fixed App inventory. The App owns the user path, not domain readiness,
 owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
@@ -114,18 +128,25 @@ secondary inspector/detail views. The element audit lives in
 focused release-boundary tests. The active shell keeps runtime truth, domain
 truth, memory body, and artifact body outside shell authority.
 
-Install/exposure policy is now contract-backed in
+### Current Package Compatibility Snapshot
+
+The following install/exposure paragraphs describe retained machine contracts,
+not the target architecture. They must not authorize new fixed ids, version
+resolution, lock/payload/receipt consumers, Flow manifest parsing, or carrier
+mirrors. Target ownership and deletion order live only in the Package migration
+plan.
+
+Install/exposure policy is currently contract-backed in
 `contracts/app-install-exposure-policy.json`. The public semantic ABI is the
 domain skill; Codex App plugins are distribution/capability bundles, and CLI,
 App, direct skill, and product-entry surfaces converge on the same
-domain-owned action/stage metadata. MAS/MAG/RCA are default App purpose entries
+domain-owned action/stage metadata. MAS/MAG/RCA are current default purpose examples
 and plugin-visible domain skills, not companion skill mirrors under
 `~/.codex/skills/{med-autoscience,med-autogrant,redcube-ai}`. OPL Meta Agent remains an OPL-generated Codex
 surface and an App/CLI-managed ecosystem module, but not a default home
-assistant. Workflow dependency sync now consumes the OPL Flow manifest. OfficeCLI,
-MinerU, UI/UX helpers, model recommendations, and conflict retirement are no longer
-App-owned lists; Superpowers, Ponytail, and CodexCont are retired by Framework migration unless explicitly kept. AionUI builtin skills remain candidate shell capabilities unless
-the App profile explicitly whitelists them. `agent_installation_contract` now
+assistant. The current Workflow dependency sync and AionUI whitelist fields are
+transition-only; App/Shell must move to Framework/native capability projection
+and must not deepen those lists. `agent_installation_contract` currently
 also separates ordinary module/agent-pack maintenance from Developer Profile
 checkout overrides: ordinary users consume App/CLI-managed maintenance after the
 App is installed, while GitHub repo or local checkout sources are an explicit
@@ -135,13 +156,14 @@ capabilities instead of a single Developer Mode switch: `source_channel`,
 `runtime_mutation_scope`. `opl-flow` is an OPL Package with
 `package_kind=workflow_plugin_package`, and not a WebUI image, standard updater
 carrier target, or a legacy modules-namespace package.
-The independent agent installation path is pinned by
+The retained independent agent installation path is pinned by
 `contracts/app-install-exposure-policy.json`: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the
 same action/stage metadata; OMA stays on the OPL-generated local Codex plugin
-   surface. Framework resolves any compatible configured Package source and
-   records the exact source and materialized bytes only after installation or
-   update. No GHCR channel, Release Set, payload inventory, version, or digest is
+surface. This is current compatibility, not the target identity/currentness model.
+Framework currently resolves configured Package sources and
+records the exact source and materialized bytes only after installation or
+update. No GHCR channel, Release Set, payload inventory, version, or digest is
    an App or Package readiness prerequisite. The machine gate is
 `npm run validate:agent-installation`, with optional
 `--agent-root <id>=<path>` checks for real plugin roots and
@@ -291,9 +313,10 @@ App-managed local authorized macOS installer plus
 `auto-update-diagnostics.json#install-not-applied`, so a failed replacement is
 visible and retryable instead of being mistaken for a completed update.
 
-The managed update plane is now App consumption of the OPL Framework update
-runner: status/check/plan are read surfaces, and apply/repair/rollback stay
-Framework runner results. The App may display component receipt refs,
+The transitional managed update plane is App consumption of the OPL Framework
+update runner: status/check/plan are read surfaces, and apply/repair/rollback
+remain compatibility runner results until native carrier readback replaces their
+retained consumers. The App may currently display component receipt refs,
 lock/runner status, post-apply sync state, skip reasons, reload guidance and
 safe update actions; it still does not implement the update kernel, read managed
 artifact bodies, write runtime or domain truth, create owner receipts, mutate

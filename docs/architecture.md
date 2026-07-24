@@ -141,14 +141,23 @@ compatibility surfaces, not the desired architecture and must not be deepened.
 The executable migration and deletion gates live in
 [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
 
+The migration plan is the sole authority for its current phase, implementation
+work packages, acceptance and deletion order. Architecture does not authorize
+contract/source/public mutation, and this docs lane is not an independent
+Stable, Package publication, or Foundry release gate.
+
 The earlier Durable Package study correctly rejected a generic filesystem
 transaction engine and cross-Package atomicity, but its smaller
 intent/lock/receipt design still assumes OPL owns a package manager. Platform
 delegation supersedes that implementation recommendation. Its useful retained
 lessons are local failure, fresh readback, no silent overwrite, and independent
-Package progress; no durable journal should be built unless a remaining thin
-adapter later demonstrates a reproducible crash gap that its native platform
-cannot handle.
+Package progress. A mutation owner should provide idempotency and bounded fresh
+inspect; a thin adapter must reject external drift, symlink/path escape and
+unexpected ownership rather than overwrite them. No durable journal should be
+built unless one remaining thin adapter later demonstrates a reproducible crash
+gap that its native platform cannot handle, and any remedy must stay
+adapter-local rather than recreate Package intent, lock, receipt, LKG or a
+shared recovery ledger.
 
 The current first-party online transition is intentionally narrow:
 
@@ -160,8 +169,10 @@ Package owner -> per-Package GHCR latest-stable
               -> Framework fresh aggregate readback
 ```
 
-During dual-read, the legacy shared manifest may supply fallback candidates but
-must expose that it was used. It may be removed from ordinary maintenance only
+During migration, the legacy shared manifest may be shadow-read for diagnostics
+only. It cannot select an update target, define currentness/readiness, or infer
+installed state; owner-source failure remains visible attention. It may be
+removed from ordinary maintenance only
 after an unchanged Release Set no longer hides a newer per-Package
 `latest-stable`, MAS plus ScholarSkills remain callable without unrelated
 updates, Codex Plugin/config/cache and the complete runtime survive restart,
@@ -275,7 +286,7 @@ projection for all three, but it must not turn helper presence, package
 materialization, shell rendering, or App validation into a professional-agent
 result, domain readiness, release readiness, or owner acceptance claim.
 
-The home executor boundary is intentionally narrower than upstream AionUI. The App is a Codex CLI wrapper with built-in OPL assistants, not a general multi-backend agent launcher. Active shells may retain upstream AionUI agent/backend settings for development or diagnostics, but the App home path and ordinary Codex conversation path must not surface Aion CLI, Claude Code, backend switching, provider lists, or permission-mode choices as normal user controls. The visible model selector is App-owned and bounded by the product profile.
+The home executor boundary is intentionally narrower than upstream AionUI. The App currently fixes Codex CLI as its ordinary executor and shows shortcuts for installed Agent Packages; it is not a general multi-backend agent launcher and does not own a built-in assistant inventory. Active shells may retain upstream AionUI agent/backend settings for development or diagnostics, but the App home path and ordinary Codex conversation path must not surface Aion CLI, Claude Code, backend switching, provider lists, or permission-mode choices as normal user controls. The visible model selector is App-owned and bounded by the product profile.
 
 That fixed-executor product policy does not bind the OPL Package ecosystem to
 Codex. Package identity, installed state, Home preference, business Work Item,

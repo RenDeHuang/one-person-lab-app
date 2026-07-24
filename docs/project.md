@@ -18,9 +18,12 @@ writing, agent-building work, or future domains through the same discovery,
 management, and launch path. Current first-party examples include MAS, MAG,
 RCA, BookForge, and OMA, but they are neither an App allowlist nor an ecosystem
 ceiling. The App does not present upstream AionUI
-multi-backend selection as a normal user workflow. Selecting a shortcut creates
-a Codex CLI conversation with an App-owned invocation receipt; it is not a
-backend switcher or a session-behavior contract.
+multi-backend selection as a normal user workflow. Selecting a shortcut currently
+creates a Codex CLI conversation and may record an App-owned invocation receipt
+for compatibility. Phase 2 replaces that ledger with an optional owner-projected
+launch/route reference and ordinary App task events; the receipt is not binding,
+closure, domain-readiness or release evidence. This is not a backend switcher or
+a session-behavior contract.
 
 Docker/WebUI is the U1-05 browser runtime form of the same App workbench,
 suitable for Linux, Windows, servers, and cloud VMs. A hosted OPL Workspace may

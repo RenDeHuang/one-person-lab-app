@@ -9,6 +9,12 @@ behavior belongs to App contracts, source, tests, validators, release artifacts,
 and the selected shell adapter; this ledger does not authorize product or
 implementation retirement by itself.
 
+Package composition phase, authorization, work packages and deletion order live
+only in
+[`opl-package-platform-composition-migration.md`](opl-package-platform-composition-migration.md).
+This cleanup ledger cannot supply implementation/publication authorization and
+is not an independent Stable, Package publication or Foundry gate.
+
 ## Current conclusion
 
 The dated 2026-07-10 cleanup tranche is complete. Its scope and verification are archived in
@@ -47,10 +53,12 @@ typed views.
 
 This is a target and migration boundary, not a landed claim. Legacy writers stay
 until their consumers have moved to the minimum native-backed projection, then
-must be deleted rather than retained as fallback. Live proof still includes App
-Stable/Latest, WebUI `:stable`, same-profile Standard/Full install, user-removal
+must be deleted rather than retained as fallback. Ecosystem no-regression proof
+is limited to same-profile Standard/Full install behavior, user-removal
 persistence, independent Package update, dynamic Agent Runtime, and legacy
-zero-consumer/removal.
+zero-consumer/removal. Public App Stable/Latest and WebUI `:stable` are separate
+delivery proofs owned by their release authorities: they neither complete nor
+block the Package-composition migration.
 
 Each tranche must start from a current owner surface, a real consumer, and a
 focused behavioral failure or maintenance cost. The governing rule is to inherit
@@ -96,46 +104,27 @@ is never delete authority.
 
 | Risk order | Candidate | Current state | Safe boundary and acceptance |
 | --- | --- | --- | --- |
-| 1 - high (`A1`) | Native Package lifecycle migration and old authority removal | **Target/planned:** current Framework resolver/lock/receipt/materialization path remains active compatibility truth. No native-backed minimum projection or zero-consumer deletion proof exists yet. | Migrate by platform adapter -> installed discovery/presence projection -> consumer switch -> old writer deletion. Preserve the functionality-equivalence matrix; do not create a smaller custom Package manager as the destination. |
-| 2 - high (`A6`) | One Official Profile and fixed-composition removal | **Target/planned:** open-composition work removed some fixed-count/Release Set gates, but App starter metadata and Full/first-run compatibility lists remain. | Standard/Full use the same first-install roots; Full adds offline seed. User removal persists until explicit Restore. Delete fixed seven/count/dual-list gates after clean-install and removal proofs. |
-| 3 - high (`A7`) | GHCR currentness and carrier migration | **Target/planned:** independent Package GHCR `latest-stable` pointers exist, but ordinary currentness still reads the shared Release Set bridge and Framework still owns resolver/lock state. | First-party owner `latest-stable` is publication current stable; Base OCI is a thin download/verification adapter; Codex owns Plugin/config/cache; Package-declared carrier/runtime activation and Framework aggregate readback remain. Remove the shared manifest from ordinary updates and all OPL lifecycle state only after the active migration plan's terminal proofs. |
-| 4 - high (`A2`) | Existing-conversation Agent rebind transaction pruning | Completed/readback-proven: retained consumer count is zero; canonical Shell removed the private rebind UI, IPC, and owner projection; Framework and bundled/reachable AionCore expose no rebind API. | Existing conversations keep their Agent identity. Agent selection applies only before the first send or to a new conversation. Remove private rebind API, WAL/CAS/TOCTOU/database transaction and recovery machinery only after proving no retained path consumes them; do not replace them with another App state machine. |
-| 5 - medium (`A3`) | Waiting `StartupGate` removal | Source implemented: canonical Shell enters `/guid` directly and hydrates local state in the background. The exact-installed-build `<=1500 ms` target remains unverified and is not an SLA. | Mount a usable Guid composer without waiting for fast App state. Hydrate allowlisted state and managed-agent discovery in the background; failures stay local. `<=1500 ms` is an exact-installed-build target from OS launch request to a visible, enabled, focusable composer, not a source-test result or SLA. Preserve explicit `/first-run` and startup-failure support. |
-| 6 - medium (`A8`) | Carrier/channel/cadence simplification | Source tranche landed locally: App Standard and WebUI are independently qualified carriers, legacy desktop aliases are absent, and Framework Daily is reconciliation-only. Live Stable/Latest, WebUI `:stable`, and single-Package terminal proofs remain pending. | Keep Stable as release policy, Docker/WebUI/Homebrew as carriers, Full as an exact snapshot, and Daily as cadence/index reconciliation. Public Nightly is retired and read-only; Canary is a separate validation-only schedule, not a release channel. Do not call the source change release-ready until each retained carrier has exact public readback. |
+| 1 - high (`cleanup-package-manager`) | Native Package lifecycle migration and old authority removal | **Awaiting user Phase 2 approval:** current Framework resolver/lock/receipt/materialization path remains active compatibility truth. Sealed implementation evidence exists, but no approved native-backed minimum projection or zero-consumer deletion proof exists yet. | Follow the sole migration SSOT. Do not create a smaller custom Package manager as the destination; delete each legacy family only after its replacement is canonical, live acceptance passes and retained consumers are zero. |
+| 2 - high (`cleanup-official-profile`) | One Official Profile and fixed-composition removal | **Policy canonical, consumers pending Phase 2:** `75a2adfd` defines one Profile, same Standard/Full roots, presence-only and persistent removal. First-run/Restore/maintenance consumers, clean-install proof and fixed-list deletion remain open. | Follow the sole migration SSOT. Delete fixed seven/count/dual-list gates only after Standard/Full and removal proofs. |
+| 3 - high (`cleanup-currentness`) | GHCR currentness and carrier migration | **Awaiting user Phase 2 approval:** independent Package GHCR `latest-stable` pointers exist, but ordinary currentness still reads the shared Release Set bridge and Framework still owns resolver/lock state. The dirty Framework evidence is not a candidate. | Follow the sole migration SSOT. Base remains download/verification only; configured carrier/runtime adapter activates bytes; remove shared ordinary currentness after fresh owner-source proof. |
+| 4 - high (`legacy-cleanup-agent-rebind`) | Existing-conversation Agent rebind transaction pruning | Completed/readback-proven: retained consumer count is zero; canonical Shell removed the private rebind UI, IPC, and owner projection; Framework and bundled/reachable AionCore expose no rebind API. | Existing conversations keep their Agent identity. Agent selection applies only before the first send or to a new conversation. Remove private rebind API, WAL/CAS/TOCTOU/database transaction and recovery machinery only after proving no retained path consumes them; do not replace them with another App state machine. |
+| 5 - medium (`legacy-cleanup-startup-gate`) | Waiting `StartupGate` removal | Source implemented: canonical Shell enters `/guid` directly and hydrates local state in the background. The exact-installed-build `<=1500 ms` target remains unverified and is not an SLA. | Mount a usable Guid composer without waiting for fast App state. Hydrate allowlisted state and managed-agent discovery in the background; failures stay local. `<=1500 ms` is an exact-installed-build target from OS launch request to a visible, enabled, focusable composer, not a source-test result or SLA. Preserve explicit `/first-run` and startup-failure support. |
+| 6 - medium (`legacy-cleanup-carrier-cadence`) | Carrier/channel/cadence simplification | Source/contract cleanup is canonical: App Standard and WebUI are independently qualified carriers, legacy desktop aliases are absent, and Framework Daily is reconciliation-only. Live Stable/Latest, WebUI `:stable`, and single-Package terminal proofs remain pending. | Keep Stable as release policy, Docker/WebUI/Homebrew as carriers, Full as an exact snapshot, and Daily as cadence/index reconciliation. Public Nightly is retired and read-only; Canary is a separate validation-only schedule, not a release channel. Do not call the source change release-ready until each retained carrier has exact public readback. |
 | 7 - medium (`P1a`) | Dynamic Agent Runtime promotion | **Target/planned:** current optional `X0-01` WorkItem route is a compatibility bridge. It still copies fixed Agent scope/availability and MAS-specific view schema. | Promote Runtime to a core dynamic Agent task surface. Agent owns business lifecycle, Temporal owns execution, Framework joins, App renders by generic fields/`view_kind`. Delete fixed ids, optional-route gate, and MAS schema only after new producer/consumer/installed proofs. |
 | 8 - medium (`P1c`) | X0-05 private cross-thread pruning | App machine truth and Native Source implement the intended boundary; later evidence axes remain independent. | Preserve one App Server directory/user-action adapter, standard thread lifecycle, and read-only Codex subagent metadata/source kinds/thread items. Keep the private host, model-triggered tools, OPL queue, ledger/receipts, advisory/idempotency, and cross-host layer absent. |
 | 9 - low (`P1b`) | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | App Contract is aligned; carrier evidence remains independently owned. | Optional owner refs appear only with a canonical projection and absent projections create no placeholder. Keep App-owned scheduling, billing, credentials, storage execution, and provider truth absent. |
-| 10 - low (`M1`) | Alternative-carrier default-gate decoupling | Implemented: default scope is `role_registry_only`; Native detail is explicit; Hermes/AGUI are role tombstones backed by adapters and replay runbooks. | Keep default AionUI/full/release/model-policy/design-system maintenance independent of untouched candidate detail. Preserve explicit candidate validators; do not turn Source validation into Pixel, Install, Release, or adoption evidence. |
-| 11 - low (`A4`) | Implementation-literal acceptance pruning | Partially implemented/readback-proven: the three narrow meta-test slices `6a2b617e`, `911128be`, and `4f308343` are absorbed; all remaining literal-gate pruning stays candidate-only, with no bulk test deletion authorized. | Replace source strings, function names, CSS literals, and exact callsite counts as primary acceptance with behavior, accessibility, owner readback, and installed-pixel evidence. Retain only narrow structural smoke checks that detect a real unsupported integration boundary. |
-| 12 - low (`A5`) | Hand-copied upstream/version truth pruning | Partially implemented: the first static runtime-version slice `b33e969d` is absorbed; all remaining copied-version cleanup stays candidate-only. Exact refs remain required only for bytes already installed, qualified, or built, never as a composition prerequisite. | Generate App-facing projections from owner manifests and Framework state. Record exact source refs in the operation or artifact that actually selected them; do not require a family Release Set or pre-existing lock. |
+| 10 - low (`legacy-cleanup-alt-carrier-gate`) | Alternative-carrier default-gate decoupling | Implemented: default scope is `role_registry_only`; Native detail is explicit; Hermes/AGUI are role tombstones backed by adapters and replay runbooks. | Keep default AionUI/full/release/model-policy/design-system maintenance independent of untouched candidate detail. Preserve explicit candidate validators; do not turn Source validation into Pixel, Install, Release, or adoption evidence. |
+| 11 - low (`legacy-cleanup-literal-gates`) | Implementation-literal acceptance pruning | Partially implemented/readback-proven: the three narrow meta-test slices `6a2b617e`, `911128be`, and `4f308343` are absorbed; all remaining literal-gate pruning stays candidate-only, with no bulk test deletion authorized. | Replace source strings, function names, CSS literals, and exact callsite counts as primary acceptance with behavior, accessibility, owner readback, and installed-pixel evidence. Retain only narrow structural smoke checks that detect a real unsupported integration boundary. |
+| 12 - low (`legacy-cleanup-copied-version-truth`) | Hand-copied upstream/version truth pruning | Partially implemented: the first static runtime-version slice `b33e969d` is absorbed; all remaining copied-version cleanup stays candidate-only. Exact refs remain required only for bytes already installed, qualified, or built, never as a composition prerequisite. | Generate App-facing projections from owner manifests and Framework state. Record exact source refs in the operation or artifact that actually selected them; do not require a family Release Set or pre-existing lock. |
 
-### `A1` Package authority migration sequence
+### Package composition migration owner
 
-`A1` is deliberately not executable as one broad deletion. The valid order is:
-
-1. Prove one native platform adapter with minimum Package/capability descriptor,
-   installed discovery, presence/callability, and terminal actions.
-2. Framework publishes one executor-neutral aggregate projection with no
-   version/ABI/lock/payload/digest/receipt composition fields. Carrier readback
-   and executor route readiness remain separate.
-3. App and Shell dual-read that projection and prove all functional outcomes
-   in the migration plan, including user-removal persistence and dynamic Runtime.
-4. Each Package owner enters canonical `main`, followed by Framework authority,
-   then App/Shell consumers; incompatible changes use a compatibility bridge.
-5. Verify retained consumers are zero, then delete old resolver, lock, payload,
-   receipt, LKG, materialization, rollback writers and App/Shell mirrors.
-
-This sequence removes custom lifecycle machinery, not Package functionality.
-The current documentation tranche records the target only; it does not perform
-the cross-repository migration.
-
-### `A7` source migration owner
-
-The authoritative A7 sequence, dual-read exit order, Package/carrier/executor
-split, and no-regression terminal proofs live only in
+The authoritative work packages, consumer-switch/deletion order,
+Package/publication/carrier/executor split, and no-regression terminal proofs
+live only in
 [`opl-package-platform-composition-migration.md`](opl-package-platform-composition-migration.md).
-This ledger records only that A7 is open. It must not copy a second resolver,
-index, receipt, or deletion plan.
+This ledger records only cleanup state. It must not copy a second resolver,
+index, receipt, work-package DAG or deletion plan.
 
 ## Future slice requirements
 

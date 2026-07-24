@@ -121,8 +121,8 @@ Agent 可以提供一个或多个 typed view。App 的扩展点只有通用 desc
 - App/Framework 不复制 MAS node/edge/stage/evidence schema，也不按 `mas` 分支。
 - 每个合法 descriptor 至少可由 generic metadata/fallback renderer 发现和打开；
   新 Package、task 或 view descriptor 不要求修改 App source。
-- 已知 rich `view_kind` 可以注册专用 renderer，但这只是可选表现增强，不改变
-  Package 安装、task discovery 或 Runtime readiness。
+- 已知 rich `view_kind` 可通过独立 App/Shell extension 注册专用 renderer；这是可选
+  表现增强，不改变 Package 安装、task发现或 Runtime readiness。
 - 未注册、invalid、stale 或 read error 只让该 view 使用 generic unavailable；
   task row、selected-item core detail、其他 views 和其他 Agents 保持可用。
 
@@ -351,7 +351,7 @@ Maintenance diagnostics 查看。
 | Agent Package | Project/task inventory、业务 lifecycle、progress/next action、领域 action refs、typed view schema/data。 | App copy/layout、Temporal execution truth、其他 Agent 状态。 |
 | Temporal | Workflow/activity queued/running/attempt/heartbeat/retry/terminal execution。 | 业务 progress、领域 stage、Package 安装状态。 |
 | OPL Framework | 动态发现 Agent producers，join business/Temporal/visibility/usage，校验通用 task/view envelope。 | 固定 Agent 清单、领域 view schema、App 信息层级。 |
-| One Person Lab App | 产品语言、通用 task/view envelope、`view_kind` renderer registry、page-state 和证据分账。 | runtime/domain truth、MAS schema、Token 估算、owner receipt。 |
+| One Person Lab App | 产品语言、通用 task/view envelope、generic fallback、可选 `view_kind` rich renderer registry、page-state 和证据分账。 | runtime/domain truth、MAS schema、Token 估算、owner receipt。 |
 | Shell | 按当前 locale 渲染 projection、级联筛选、语义重排、打开 task/typed view，并对允许动作执行 refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 truth，实现第二套去重，或按 Agent id 分支。 |
 
 ## 历史 exact-cohort 证据边界

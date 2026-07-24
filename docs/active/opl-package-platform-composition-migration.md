@@ -1,17 +1,19 @@
 # OPL Package 平台组合迁移计划
 
-Owner: `one-person-lab-app` for product contract and GUI acceptance; cross-repo
-implementation owners are listed below.
-State: `target_planned_docs_first`
+Owner: `one-person-lab-app` for the cross-repository product plan. Each
+implementation package below names its producer and consumer owners.
+State: `phase_1_complete_pending_user_evaluation`
 Date: `2026-07-24`
 Purpose: `package_platform_composition_and_dynamic_agent_runtime`
-Machine boundary: 本文是目标架构、迁移顺序和删除门禁，不是当前实现、合入、安装、
-发布或 latest/currentness 证明。当前机器真相仍在各 repo 的 contracts、source、
-tests、平台 installed state 和 fresh readback。
+Machine boundary: 本文是目标架构、current/canonical/sealed 分账、冻结工作包、依赖
+关系和删除门禁。只有本 exact blob 进入 canonical `main` 并完成远端 readback 后才是
+Phase 1 文档 authority；它不是当前实现、安装、发布、Package currentness 或用户状态
+mutation 的证明。机器真相仍在各 repo 的 canonical contracts/source、平台 installed
+state 和 fresh owner readback。
 
 ## 结论
 
-可以达到目标生态，而且不需要牺牲用户功能：
+目标生态可以实现，而且不需要牺牲用户功能：
 
 ```text
 OPL Base        ~= R
@@ -20,440 +22,433 @@ OPL Package     ~= R Package
 OPL standard agent = OPL Package(kind=agent)
 ```
 
-减法对象是 OPL 自研的 resolver、版本/ABI 组合门禁、lock、payload、
-materialization、LKG、receipt、rollback 状态机、固定 Package/Agent/Skill 清单和
-App 领域 schema；保留的是安装、统一状态、独立静默更新、依赖补齐、启停/显隐/
-卸载、Home shortcut、Runtime task 状态和 Agent 自定义视图这些用户结果。
-
-核心判断是：**统一体验不等于统一实现**。App 提供一个入口，底层优先委托 Codex
-Plugin Manager、Git、OS package manager 或其他平台原生能力。Framework 只保留
-installed discovery、presence/callability 检查、状态聚合和确有必要的薄 adapter。
-
-同时必须拆开三个经常被混用的角色：
+统一的是产品入口、Package identity 和聚合体验，不是中央 Package Manager。
+Package、carrier、executor 和 publication 是四个正交角色：
 
 ```text
-OPL Package = executor-neutral identity + capabilities + dependencies
-Carrier     = Codex Plugin Manager / Git / OS package manager / local platform
-Executor    = Codex CLI / Claude Code / Hermes Agent / future executor
+Package identity = executor-neutral identity + capabilities + dependencies
+Publication      = owner GHCR or another owner-declared immutable source
+Carrier          = Codex Plugin Manager / Git / OS manager / local adapter
+Executor         = Codex CLI / future configured executor
 ```
 
-Codex Plugin Manager 可以是当前首个 carrier adapter，但不能成为 Package identity、
-installed truth、capability contract 或唯一 lifecycle owner。普通 App 当前继续固定
-Codex CLI 不影响该边界，也不要求本轮立即增加 executor selector。
+当前正式产品只维护 Codex CLI 和 Codex Plugin Manager 主路径。OPL 长期拥有
+Package/capability identity、Official Profile、用户偏好、Work Item、Temporal refs、
+typed views 和领域交付语义。Codex 私有 plugin id、marketplace、config/cache/path
+和 invocation shape 只能存在于 Codex adapter 内。一个最小 Git/local 中性 proof
+用于防止公共合同被 Codex 锁死，不代表现在并行建设 Claude/Hermes 产品。
 
-实施策略是 **Codex-first, OPL-owned boundaries**：
+减法对象是普通 Package composition/lifecycle 中 OPL 自研的版本/ABI resolver、
+installed lock、payload、materialization、LKG、lifecycle receipt、rollback 状态机、
+固定 Package/Agent/Skill 清单和 App 领域 schema。保留的用户结果是安装、统一状态、
+独立静默更新、required presence 补齐、启停/显隐/卸载、Home shortcut、Agent task
+状态和 typed views。
 
-- 当前生产实现只优化 Codex CLI + Codex Plugin Manager 这一条最低成本主路径；
-  不同时维护 Claude Code、Hermes 或抽象到所有假想 executor。
-- OPL 自己长期拥有 Package/capability identity、Official Profile、用户偏好、
-  business Work Item、Temporal refs、typed views 和领域交付语义。
-- Codex 私有 plugin id、marketplace、config/cache/path 和 invocation shape 全部封装
-  在 Codex adapter 内。将来替换 Codex 时，只替换 carrier/executor adapter，不迁移
-  OPL identity、用户状态或业务数据。
-- 第一阶段只要求一个最小 executor-neutral Git/local proof，机械证明公共 contract
-  没有 Codex 私有字段；它不是第二套正式产品或长期并行维护线。
-- 新的完整 executor adapter 只在出现真实用户需求、Codex 风险或更优底层时实现，
-  不为未来猜测预先建立通用 framework。
+## 阶段边界
 
-## 目标原则
+- **Phase 1 - SSOT 与冻结计划**：只允许 current-truth 核对和 docs-only 编辑、验证、
+  canonical absorption/readback。完成后向用户交付本计划，等待评估。
+- **Phase 2 - 获批实施**：只有用户明确批准全部或指定工作包后，才允许在批准的
+  bounded surfaces 内修改 contracts/source/tests 或隔离测试状态。
+
+Phase 1 不蕴含 Phase 2。candidate、测试通过、owner handoff、内部 ACK、未吸收 commit
+或封存 worktree 都不能产生实施授权。Phase 2 也不自动授权 Package GHCR/tag、
+Stable/Latest、WebUI promotion、真实用户 managed state 或其他 public mutation；这些
+仍需要各自 owner 和独立授权。
+
+本迁移文档不是 Stable、Package publication、Foundry 或任何零交叉工作前置。它们
+可以独立推进，只在同仓 `main` CAS 的瞬间按 fresh exact write set 串行。
+
+### Phase 1 文档写集
+
+Phase 1 只包含以下 SSOT/引用面；exact path 和临时状态不在其他 durable 文档复制：
+
+```text
+App exact16
+AGENTS.md
+docs/README.md
+docs/active/aionui-mainline-gui-convergence-plan.md
+docs/active/app-ideal-state-gap-plan.md
+docs/active/opl-package-platform-composition-migration.md
+docs/active/over-engineering-cleanup.md
+docs/architecture.md
+docs/decisions.md
+docs/delivery/distribution-and-install-ssot.md
+docs/product/gui/claude-science-runtime-task-awareness-plan.md
+docs/product/gui/codex-to-opl-app-delta.md
+docs/product/gui/openscience-console-projection.md
+docs/product/gui/runtime-overview-redesign.md
+docs/product/managed-update-three-layer.md
+docs/project.md
+docs/status.md
+
+Framework exact4
+docs/active/current-state-vs-ideal-gap.md
+docs/active/standard-agent-private-platform-inventory.md
+docs/specs/standard-agent-interface.md
+docs/status.md
+```
+
+Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `main`，文档/链接/
+结构/diff 门禁与远端 wire/API/tree/blob/raw readback通过，并向用户提交完成报告。完成
+后 `next_action=等待用户评估与显式 Phase 2 授权`。
+
+## 持久原则
 
 1. Package 是安装单元；Skill、Tool、Plugin、MCP、Agent task producer 和 typed
-   view 是 Package 可暴露的 capability。
-2. Required dependency 只表达 identity presence 和 callability。没有 version
-   range、ABI range、lock、payload、digest 或 family cohort 组合门禁。
-3. 一个 breaking capability 通过新 capability identity 或 owner-side adapter
-   演进，不扩张中央兼容解析器。
-4. App 只有一个 Official Profile。Standard 与 Full 使用相同 desired roots；
-   Full 只带离线 seed。
-5. Official Profile 只在首次安装或用户显式“恢复官方组合”时执行。用户卸载后，
-   普通启动和静默维护不得偷偷重装。
-6. 每个已安装 Package 独立静默更新。一个失败只影响其自身和直接依赖者。
-7. 新 Package、Agent、Skill、Tool、Plugin 或 typed view 不要求修改 App source。
-8. 精确 ref/digest/immutable bytes 只服务某次 build/release artifact 的可复现性，
-   不服务日常组合或 readiness。
-9. App/Shell 只渲染 owner projection；不建立平行目录、状态机或领域 schema。
-10. 删除必须通过功能等价门禁；docs、tests 或 compatibility bridge 不算迁移完成。
-11. Package identity、capability、依赖、用户偏好和业务 task/view 必须
-    executor-neutral；Codex plugin id、marketplace、home/path 和 manifest shape
-    只能存在于 Codex adapter 内。
-12. Package 安装与 executor 选择是两个动作。切换 executor 只刷新 route
-    readiness，不重装 Package，也不丢 Settings/Home preference、required
-    capability presence、Work Item 或 typed view。
-13. executor adapter 缺失只局部影响该 route。若被移除的 carrier 持有唯一物理
-    bytes，则 Package 必须如实变为 `physical_unavailable`，不能由 App metadata
-    伪造 installed。
-14. 当前生产路径是 Codex-first。可迁移性由 OPL-owned public contract、Codex
-    adapter 封装和一个最小中性 proof 保证，不以并行维护多个正式 executor 为代价。
+   view 是 Package 暴露的 capability。
+2. Required dependency 只表达 identity presence 和 callability。普通组合不使用
+   version range、ABI range、lock、payload、digest、Release Set 或固定 cohort。
+3. Breaking capability 使用新 capability identity 或 owner-side adapter 演进，
+   不扩张中央兼容求解器。
+4. App 只有一个 Official Profile。Standard 与 Full 使用同一 desired roots；
+   Full 只增加离线 seed。
+5. Official Profile 只在首次安装或显式 Restore 执行。用户卸载后，普通启动、静默
+   维护和 App 更新不得重装该 root。
+6. 每个已安装 Package 独立更新。一个失败只影响自身和直接 dependents。
+7. 新 Package、Agent 或 typed view 不要求 App/Shell 增加 Package-id 分支。
+8. Exact ref/digest/immutable bytes 只绑定一次真实 build/release artifact，不参与
+   日常 composition 或 readiness。
+9. App/Shell 只消费通用 projection，不复制 carrier state、Package catalog、领域
+   task truth 或 typed-view schema。
+10. 删除顺序固定为：删除需求或重复 authority，委托现有平台能力，合并为一个通用
+    projection，只有平台确有缺口时才增加最薄 adapter。
+11. 安全不变量不能随旧 Manager 一起删除：native mutation 必须幂等；unknown 只做
+    bounded fresh inspect；不得覆盖 external drift、dirty/user-managed source、
+    unexpected ownership、path escape 或越界 symlink。
+12. 删除以 fresh user outcome 为门禁。docs、schema、unit test、mock、dry-run 或
+    compatibility bridge 都不是迁移完成。
 
-## Current Truth
-
-主线已完成一部分开放组合清理，但仍处于两套模型并存：
-
-| 当前面 | 已有价值 | 与目标的差距 |
-| --- | --- | --- |
-| Framework Package directory/status/actions | 给 App 一个统一读取和动作入口。 | 同时拥有 resolver、installed lock、receipt、payload/materialization、LKG/rollback 等自研生命周期。 |
-| App starter metadata / fixtures / validators | 支撑当前官方 Package 展示和测试。 | 复制 Package/Agent/Skill identity，新增 Package 仍可能需要 App 变更。 |
-| Standard / Full | 已区分普通载体与离线首次安装。 | 仍有独立 payload/closure/清单语义，尚未证明消费同一 Official Profile。 |
-| Settings Agents | 已能展示 Package 与 Home preference。 | 公开过多 lock、physical surface、receipt、source/compatibility/recovery 实现细节。 |
-| Home shortcuts | 已有专业 Agent 快捷入口。 | 仍有 starter/assistant metadata 双轨，未完全由 Agent Package descriptor 动态生成。 |
-| Runtime WorkItemProjection | 已证明 App 可以消费统一 Work Item 投影。 | Runtime 仍标为 `X0-01`；scope/availability 复制一方 Agent，MAS 科研路线 schema 复制进 App bridge。 |
-| Managed update | 已区分 Base/App/Packages 三对象。 | Framework 仍被设为 Package catalog/resolver/transaction owner，而非平台 adapter/aggregator。 |
-| GHCR first-party publication | 每个一方 Package 已有独立发布仓库和 `latest-stable`。 | 普通消费者仍可被共享 `one-person-lab-manifest:latest-stable` 锁在旧选择；Base OCI/Plugin/runtime 的责任尚未按薄 adapter 拆开。 |
-| Codex Plugin projection | 当前可复用 Plugin Manager 提供安装/更新能力。 | plugin id、manifest、marketplace/path 仍可能被误当成 Package identity 或 installed truth；尚无非 Codex/中性 adapter 的真实 readback 证明。 |
-| Durable Package 调研 | 正确拒绝 `+5k` 通用 filesystem transaction 和跨 Package 原子性。 | 推荐的小 intent/lock/receipt 仍假定 OPL 必须自研 Package manager。 |
-
-因此本计划是 migration target，不得把现有字段改名后继续深化旧设计。
-
-## Owner Matrix
+## Owner Boundary
 
 | Owner | 应拥有 | 不应拥有 |
 | --- | --- | --- |
-| Package owner | Executor-neutral Package identity/kind、entrypoint、provided/required capabilities、Agent business task lifecycle、typed view schema/data、确有差异时的 executor adapter ref。 | App navigation、其他 Package 状态、Temporal execution truth、family release cohort、中央 executor version matrix。 |
-| Package publication | 一方 owner 向独立 GHCR repository 发布完整 Package bytes，并只推进自己的 `latest-stable`；其他 owner 可声明自己的发布存储。 | Installed truth、App readiness、family cohort、其他 Package currentness。 |
-| Carrier platform | 自己承载的 Package bytes、install/update/uninstall、平台本地状态与恢复。Base 薄 OCI adapter下载/校验 GHCR 完整 bytes，Codex 激活 Plugin/config/cache，Package声明的carrier/runtime adapter激活完整 runtime。 | OPL Package identity、owner publication current stable、业务状态、其他 carrier installed truth、把 Plugin subset 当完整 Package。 |
-| Executor adapter | 把已安装 Package capability 暴露给一个 executor，并提供 callable readback。 | Package 安装身份、App preference、业务 Work Item、其他 executor route。 |
-| OPL Framework | Adapter discovery、跨 carrier 的完整 Package installed/callable fresh readback、presence graph、executor route readiness、聚合状态/actions、Agent/Temporal join、typed-view validation/proxy。 | Codex registry 作为生态真相、第二套 package bytes、version solver、lock/payload/LKG/receipt/rollback manager、固定 Package/Agent/Skill 清单、领域 view schema。 |
-| Temporal | workflow/activity queued/running/attempt/heartbeat/retry/terminal execution。 | Agent business status、科研阶段语义、Package 安装状态。 |
-| OPL App | Official Profile、首次安装/显式恢复意图、统一 Settings/Home/Runtime 产品体验、通用 `view_kind` renderer registry。 | Package 版本选择、平台生命周期、Agent task truth、MAS 科研 schema、平行 capability allowlist。 |
+| Package owner | Executor-neutral identity/kind、entrypoints、provided/required capabilities、Agent business task lifecycle、typed-view schema/data、必要的 adapter descriptor。 | App navigation、其他 Package 状态、Temporal execution truth、family release cohort、中央 executor version matrix。 |
+| Package publication | 一方 owner 向独立 GHCR repository 发布完整 bytes，并只推进自己的 `latest-stable`；其他 owner 可声明自己的 immutable source。 | Installed truth、App readiness、其他 Package currentness、family cohort。 |
+| Carrier | 自己承载的 bytes、install/update/uninstall 和 fresh local readback。Codex 只拥有 Plugin/config/cache 子状态；Package-declared adapter 负责完整 runtime。 | OPL Package identity、owner publication currentness、业务状态、其他 carrier 状态。 |
+| OPL Base | 薄 OCI download/verify/bytes handoff。 | 完整 Package lifecycle、Package currentness、Plugin-only installed claim。 |
+| Executor adapter | 把已安装 capability 暴露给一个已配置 executor，并报告 route readiness。 | Package 安装身份、App preference、业务 Work Item、其他 executor route。 |
+| OPL Framework | Adapter discovery、完整 Package fresh installed/callable 聚合、presence graph、route readiness、通用 status/actions、Agent/Temporal join、typed-view validation/proxy。 | 中央 version solver、lock/payload/LKG/lifecycle receipt/rollback manager、固定 Package/Agent/Skill 清单、领域 view schema。 |
+| Temporal | Workflow/activity queued/running/attempt/heartbeat/retry/terminal execution。 | Agent business status、领域 stage、Package 安装状态。 |
+| OPL App | Official Profile intent、统一 Settings/Home/Runtime 产品体验、通用 task/view envelope 和可选 rich renderer registry。 | Package version selection、carrier lifecycle、Agent task truth、MAS 科研 schema、平行 capability allowlist。 |
 | Shell | 渲染 projection、收集用户意图、调用 projected action、fresh refresh。 | Package/Agent id 分支、manifest/lock 解析、任务/领域推断、第二份状态。 |
-| Release tooling | 一次实际 build/release 的 exact refs、digests、bytes 和资格证据。 | 日常 Package composition、installed readiness、跨 Package latest。 |
+| Release tooling | 一次实际 build/release 的 exact refs、digests、bytes 和 qualification evidence。 | 日常 Package composition、installed readiness、跨 Package latest。 |
 
-## 目标最小接口面
+`kind=agent` 的标准 Agent 仍保留一个 owner-owned `primary_skill` rich entrypoint。
+删除 Framework/App 固定 Agent/Skill 清单不等于删除 Package owner 的真实入口；carrier
+只能安装/投影并报告 callability，不能取代 canonical source 或 domain authority。
 
-以下是概念 shape，不是已落地 contract。最终字段应以实现阶段的最小机器合同为准。
+## Current Truth
 
-### Package Descriptor
+截至本计划形成时，主线是“目标 policy 已部分 canonical，旧机器实现仍在运行”：
 
-```json
-{
-  "package_id": "mas",
-  "kind": "agent",
-  "provides": ["agent:mas", "view:research-roadmap"],
-  "requires": ["capability:mas-scholar-skills"],
-  "optional": [],
-  "entrypoints": {
-    "task_provider": "agent:mas",
-    "typed_views": ["view:research-roadmap"]
-  },
-  "home_shortcut": {
-    "label": "Med Auto Science",
-    "default_visible": true
-  }
-}
-```
-
-禁止在组合 contract 中加入 `version_range`、`abi_range`、`lock_ref`、
-`payload_ref`、`digest`、`release_set` 或 `receipt_ref`。
-`entrypoints` 使用 executor-neutral capability identity。Codex plugin id、path、
-marketplace 和 invocation shape 只存在于 Codex adapter 自己的私有配置/readback，
-不得写入公共 Package descriptor；也不预先枚举未来 executor 或加入中央版本矩阵。
-
-### Installed Status
-
-```json
-{
-  "package_id": "mas",
-  "installed": true,
-  "enabled": true,
-  "callable": true,
-  "missing_required": [],
-  "update_state": "current",
-  "executor_routes": {
-    "codex_cli": "ready"
-  },
-  "attention": null,
-  "actions": ["update", "disable", "uninstall"]
-}
-```
-
-Framework 从 carrier adapter fresh readback 产生该状态。App 不从 checkout、
-manifest、version、lock 或文件路径推断。Package installed/callable 与单个
-executor route readiness 分开。未实现的 Claude/Hermes route 不是当前合同的必填
-占位或完成门禁；只有用户实际配置某 route 时，缺失 adapter 才局部报告 unavailable，
-且不能把 Package、Home、Runtime task 或其他 route 隐藏。
-
-### Official Profile
-
-```json
-{
-  "profile_id": "opl-official",
-  "desired_roots": [
-    "<package-id-selected-by-current-official-profile>"
-  ],
-  "apply_on": ["first_install", "explicit_restore"]
-}
-```
-
-`desired_roots` 是可替换默认值，不是固定数量、生态上限、运行时 guard 或
-后台 reconciliation desired state。依赖 Package 不必重复列为 root。
-
-### Agent Task And Typed View
-
-```json
-{
-  "task_id": "opaque-owner-id",
-  "agent_package_id": "mas",
-  "title": "DM-CVD-Mortality-Risk",
-  "business_status": "in_progress",
-  "progress_text": "正在验证主要假设",
-  "next_action": "review_results",
-  "execution_ref": "opaque-temporal-ref",
-  "views": [
-    {
-      "view_id": "research-roadmap",
-      "view_kind": "research-roadmap",
-      "title": "科研路线",
-      "read_action": "opaque-action-ref"
-    }
-  ]
-}
-```
-
-Temporal fields通过 `execution_ref` 聚合但不替代 `business_status`。App renderer
-只依赖 `view_kind`；MAS schema和医学语义留在 MAS owner。
-
-## 功能等价矩阵
-
-| # | 不可降级结果 | 目标简化 | 删除/完成门禁 |
-| --- | --- | --- | --- |
-| 1 | Standard 与 Full 自动安装同一组必要官方 Package。 | 一个 Official Profile；Full 只增加 offline seed。 | 两种 clean install 的 root/capability readback 相同；删除 Full 独立清单。 |
-| 2 | MAS 自动获得 MAS Scholar Skills。 | `requires=["capability:mas-scholar-skills"]` presence edge。 | 缺失依赖场景能自动安装并 fresh callable；删除 App/Framework 的 MAS 特判。 |
-| 3 | 有依赖也能自由组合。 | 只检查 identity presence/callability。 | 不带 version/ABI/lock/payload/digest 的 Package 可以安装、调用、更新；删除 resolver 门禁。 |
-| 4 | 新 Package 无需修改 App。 | 动态 Package/capability descriptor。 | 用测试 Package完成 Settings、Home、Runtime 接入且 App source diff 为零；删除固定 id 清单。 |
-| 5 | 已安装 Package 静默自动更新。 | 每包调用 native updater，独立 fresh readback。 | 一个 Package 更新时 Base/App/其他 Package 不变；失败不取消其他更新；删除跨包 planner/transaction。 |
-| 6 | Settings 统一查看和维护。 | compact list + lazy detail，仅暴露用户动作/状态。 | Install/Update/Enable/Show/Uninstall 和 attention 可用；lock/payload/receipt/physical surface 不在普通 UI。 |
-| 7 | 用户卸载选择被尊重。 | Official Profile 非持续 desired state。 | 卸载官方 root 后跨重启、日更、App 更新均不重装；显式 Restore 才恢复。 |
-| 8 | Home 显示可配置快捷方式。 | Agent Package shortcut descriptor + user preference。 | 安装/卸载/显隐/排序 fresh readback 动态更新；删除 assistant/starter 第二清单。 |
-| 9 | Runtime 查看所有已安装 OPL 智能体任务。 | 动态发现 `kind=agent` task producers。 | 新 Agent producer 不改 App 即出现；一个 producer 失败不隐藏其他 Agent。 |
-| 10 | 业务进展与实际运行状态都准确。 | Agent owns business lifecycle；Temporal owns execution。 | queued/running/retry/terminal 与业务 status 可独立变化且 App 不猜测或互相覆盖。 |
-| 11 | MAS 提供科研路线。 | MAS-owned `research-roadmap` typed view。 | App 只按 `view_kind` 渲染；MAS schema/version演进不要求 App 携带医学字段。 |
-| 12 | 未知扩展不破坏 App。 | unsupported-view 局部降级。 | 未知/invalid `view_kind` 时 task row、其他详情、其他 Agent 继续工作。 |
-| 13 | 维护成本实质下降。 | native lifecycle + thin adapters + one projection。 | retained consumer 清零后删除 resolver、lock、payload、LKG、receipt、materialization、rollback machine 和 App/Shell mirrors；不得保留“备用”写路径。 |
-| 14 | 更换 executor 不丢 Package 或业务状态。 | installed state 与 executor route readiness 分离。 | 安装 MAS 后禁用或改变 Codex route readiness，或改用中性 Git/local carrier；Settings、Home、Runtime、ScholarSkills presence、MAS 科研路线和用户 preference 保持，只有 route readiness 可变化。本轮不要求实现第二 executor。 |
-| 15 | Codex adapter 不是唯一生态真相。 | 同一 executor-neutral descriptor 可由中性 carrier 消费。 | 一个测试 Package 不使用 Codex plugin id/manifest/path，由中性 Git/local adapter 完成真实 install/discovery/callable readback；公共 descriptor 无 Codex 私有字段。 |
-| 16 | executor adapter 缺失只局部降级。 | Package 状态与 route 状态分别投影。 | Claude/Hermes adapter 缺失只使对应 route unavailable；Codex route、其他 Packages、普通对话和已有任务不受影响。 |
-| 17 | 移除唯一 Codex carrier 不产生虚假 installed。 | installed truth 始终来自实际 carrier fresh readback。 | Codex Plugin Manager 是唯一物理 carrier 时移除它，Package 变为 `physical_unavailable`；App metadata 不伪造 installed。 |
-
-## 迁移阶段
-
-### Phase 0：Docs And Inventory
-
-目标：
-
-- 统一顶层模型、presence-only、Official Profile、Runtime owner split。
-- 冻结旧 resolver/lock/payload/receipt/Durable 扩展，不再加字段或新 writer。
-- 在 Framework、App、Shell、各官方 Package repo 建立 retained-consumer inventory。
-- inventory 覆盖 Codex plugin id、marketplace、Codex home/path、manifest 和 plugin
-  status 的全部 producer/consumer，并区分 Package identity 与 Codex projection。
-
-退出门禁：
-
-- 架构、决策、不变量、First Run、Settings、Managed Update、Runtime 文档一致。
-- 每个旧 authority 字段有 producer、consumer、删除前置和 owner。
-- 本阶段只证明目标一致，不证明实现完成。
-
-### Phase 1：Minimum Descriptor And Native Adapters
-
-顺序：
-
-1. 选 Codex Plugin Manager 作为首个正式 carrier adapter，但不把其 plugin id、
-   registry、manifest 或路径提升为 OPL identity/installed truth。
-2. Framework 增加最小 Package descriptor、installed discovery、
-   presence/callability、executor route readiness 和 generic action projection。
-3. 对现有目录做 dual-read：优先最小 projection，旧 lock/receipt/status 只作
-   fallback，不允许新消费者依赖。
-4. MAS、ScholarSkills 和一个非 Agent Package 先迁移验证 capability edge。
-5. 同一最小 descriptor 再通过一个 executor-neutral Git/local proof。该 proof
-   只验证 public contract 无 Codex 私有字段，不建设第二套正式 GUI/executor。
-
-退出门禁：
-
-- 无版本/lock/payload descriptor 能完成 install/discovery/callable readback。
-- 公共 projection 不要求 Codex 字段；至少一个中性 Git/local adapter 完成真实
-  install/discovery/callable readback。
-- native mutation结果未知时只 fresh inspect，不创建 OPL recovery state machine。
-- 旧路径与新路径对用户动作结果等价。
-
-删除门禁：
-
-- 未完成 dual-read consumer迁移前，不删旧 reader。
-- 一旦所有 retained consumers使用 minimum projection，删除旧 writer，不保留双写。
-
-### Phase 2：Official Profile And First Install
-
-顺序：
-
-1. App contract 只保留一个 Official Profile desired roots。
-2. Standard clean install在线安装 roots；Full 用相同 Profile消费 offline seed。
-3. 对 root 展开 required presence；结果按 root 聚合。
-4. 持久化的是用户显式安装/卸载偏好，不是 Profile desired-state loop。
-
-退出门禁：
-
-- Standard/Full clean install 得到同一 roots/capabilities。
-- MAS 缺 ScholarSkills 自动补齐；失败只影响 MAS。
-- 用户卸载后启动、日更、App 更新不重装；显式 Restore 可恢复。
-
-删除门禁：
-
-- 删除 fixed-seven、Standard/Full 双清单、Release Set readiness 和 Package count gate。
-
-### Phase 3：Unified Independent Maintenance
-
-顺序：
-
-1. App scheduler只枚举 carrier fresh readback 得到的已安装 Package，不从当前
-   executor 或 Codex plugin inventory 枚举生态。
-2. Framework逐 Package调用 native adapter并聚合结果。
-3. Settings改为 compact list + lazy inspect；高级诊断链接到 native owner。
-4. Home完全从 Agent descriptor + user preference生成。
-5. executor switch 只刷新 route readiness，不重置 Package preference 或业务状态。
-6. 一方 Package currentness读取 owner 的 per-Package GHCR `latest-stable`；共享
-   Release Set仅作为 bounded dual-read fallback并显式暴露命中来源。
-
-退出门禁：
-
-- 单 Package silent update terminal proof。
-- 一个更新失败不阻止无关 Package；dirty/user-managed source 不被覆盖。
-- Install/Update/Enable/Disable/Show/Hide/Uninstall/Home preference结果不降级。
-- Base 薄 OCI adapter完成下载/校验，Codex Plugin/config/cache和Package声明adapter
-  激活的完整 runtime均有 restart 后 fresh readback；Plugin-only结果不得报告
-  installed。
-
-删除门禁：
-
-- 删除 custom planner、跨 Package transaction、lock/receipt/LKG/rollback UI、
-  physical materialization UI、assistant/starter shortcut mirror。
-
-### Phase 4：Dynamic Runtime And Agent Views
-
-顺序：
-
-1. Agent Package 注册 task provider，不注册到 App Agent id list。
-2. Framework分离业务 task 与 Temporal execution，再通过 opaque refs join。
-3. App Runtime升为核心 route，scope从 installed producers动态生成。
-4. 建立通用 typed-view registry；先接 MAS research roadmap，再接一个测试未知 view。
-5. 从 App runtime bridge 删除 MAS 科研 schema和一方 Agent scope复制。
-6. executor attempt 可切换 adapter，但保持 Agent Package identity、业务 task id
-   和 typed-view owner 不变。
-
-退出门禁：
-
-- 所有已安装标准 Agent task 可见；新增测试 Agent无 App source修改。
-- Temporal状态与业务状态分别有 fresh producer/readback。
-- MAS view可用，unknown view局部降级，App没有 MAS id/schema branch。
-
-删除门禁：
-
-- 新 Runtime contract/source/installed evidence 完成前保留旧 WorkItem reader；
-  完成后删除 `X0-01` optional gate、固定 scope/availability 和领域 schema mirror。
-
-### Phase 5：Legacy Removal And Release Proof
-
-顺序：
-
-1. 对 retained-consumer inventory 做零引用验证。
-2. 删除兼容 schema、fixtures、validators、writers、state machines、CLI verbs 和
-   fail-only workflows；迁移文档转 history。
-3. 删除 App/Framework/Shell 中把 Codex plugin id、marketplace、Codex path 或
-   manifest 当作 Package identity、installed truth 或固定 Agent membership 的逻辑；
-   保留与其他 adapter 同级的 Codex adapter。
-4. 删除普通更新对 `one-person-lab-manifest:latest-stable` 的读取和同步 promotion；
-   Release Set 只保留 Full/offline/integration-test/QA snapshot。
-5. 分别完成安装、静默更新、Runtime、Desktop Latest 和 WebUI stable terminal proof。
-
-终态：
-
-- Framework只剩平台 adapters、discovery、presence/status aggregation 和 Runtime join。
-- App只剩 Official Profile、通用 Package/Home/Runtime UX 和 typed-view renderers。
-- 没有固定 Package/Agent/Skill/Tool/Plugin清单或 OPL package-manager state。
-
-## Legacy Deletion Map
-
-| Legacy surface | 替代能力 | 删除前证据 |
+| Surface | Current classification | 仍缺什么 |
 | --- | --- | --- |
-| Framework repository compatibility resolver | Native source currentness + presence check | 无版本 descriptor全链路；所有 consumers不读取 selected version。 |
-| Installed Package lock / Release Set | Native installed discovery | 跨重启 installed/callable readback；Standard/Full同 Profile proof。 |
-| Payload inventory / physical materialization | Native platform install surface | Plugin/Skill/Tool实际可调用；uninstall清除由 native owner证明。 |
-| Lifecycle receipt ledger | Native terminal status + App operation event if user feedback需要 | success/failed/unknown均可 fresh readback；无 retained receipt consumer。 |
-| LKG / rollback_ref / rollback machine | Native owner recovery/reinstall route | 普通功能无 rollback依赖；高级 owner route可达。 |
-| Package-local durable intent proposal | Native platform crash semantics | 有界 fault/readback证明无需 OPL journal；若有真实 adapter缺口再单独授权窄修。 |
-| App schema/fixture/validator mirror | Minimum Framework projection | App不解析 manifest；dynamic test Package通过。 |
-| Fixed Agent/Skill/Tool/Plugin allowlists | Installed capability discovery + user preference | 未列入 App 的 capability可发现/调用；显式 deny仍局部。 |
-| Codex plugin registry/id/path as Package truth | Executor-neutral Package identity + carrier/executor adapter projection | 公共 projection 无 Codex 字段；同一 identity 的非 Codex/中性 readback完成；无 Codex 环境仍可列出其他 carrier Packages。 |
-| Shared Release Set ordinary currentness | Package owner per-Package GHCR `latest-stable` | 共享 manifest不变时普通更新仍看到新 Package；Full/offline/QA snapshot保持可复现。 |
-| MAS runtime schema in App | MAS-owned typed view | view_kind渲染、unknown降级、MAS独立演进proof。 |
+| App Official Profile policy | `canonical_partial`：单一 Profile、presence-only、Standard/Full 同 roots、persistent uninstall policy 和 data-driven roots 已进入 App contracts/validators。 | First-run/Restore/maintenance consumers、真实跨重启不回装和 Standard/Full clean-install proof。 |
+| App Package UX | `current_compatibility`：Settings/Home 可消费 Framework Package rows 和 projected actions。 | 固定 starter/assistant metadata、receipt/lock/physical detail 和 Package-id assumptions 尚未全部删除。 |
+| Framework Package plane | `canonical_partial`：owner-channel `latest-stable` currentness、MAS + ScholarSkills package-local required selection、shared-latest verifier retirement和 compact list/status 已进入主线。现有 activation、App-state projection、installed lock、payload/materialization、lifecycle receipt、LKG/rollback 仍是 current compatibility。 | 先迁移 App-state producer/consumer，再完成 presence/action/neutral-carrier proof，并按 legacy family 删除旧 writer/reader。 |
+| Package publication | `canonical_policy_partial`：一方 Package 使用独立 GHCR repository 和 owner `latest-stable`；普通 target discovery 已有 owner-channel实现。 | 不是所有 owner latest 都有 fresh publication proof；shared snapshot、旧 catalog/cache/activation 的 retained consumers仍须清零。 |
+| Shell Package consumption | `canonical_partial`：已删除部分重复 activation/reconcile projection。 | 动态 Settings/Home、legacy fallback hit-zero 和非固定 Package proof。 |
+| Runtime | `current_compatibility`：已有 WorkItem projection 和可选 Runtime route。 | 动态 installed Agent producers、Agent/Temporal split、generic typed view、MAS schema mirror 删除。 |
+| Durable Package proposal | `superseded_research`：正确拒绝大型 filesystem transaction 和跨 Package 原子性。 | 其小 intent/lock/receipt authority 仍是假设自研 Package Manager，不进入目标实现。 |
 
-## Durable 调研整合裁决
+机器合同和 source 中仍出现 version、lock、payload、receipt 或 materialization，不代表
+目标反悔，也不能被新 consumer 深化。它们只在 replacement canonical、affected outcome
+通过并且 retained consumer 为零后删除。
 
-`OPL Package Durable 轻量架构设计` 与本迁移相关，但只保留以下结论：
+## Sealed Evidence And Non-Authority
 
-- 拒绝通用 filesystem transaction、跨 Package 原子事务和自动覆盖 external drift。
-- 一个 Package失败不否决其他 Package。
-- mutation 必须幂等；未知结果需要 fresh inspect，不能虚报成功或自动覆盖现场。
-- corrupt shared state只有在确实仍被某个薄 adapter拥有、且无法证明安全写入时才
-  fail closed；不能为了这个异常重建全生态 lock/ledger。
-- 没有复现故障和真实 consumer，不新增 durable abstraction。
-- 保留 immutable release/build artifacts 的 exact-byte binding、domain/evidence
-  receipts、用户 preference/config 的 stale-write protection + atomic replace，以及
-  外部 mutation unknown 时的有界 fresh inspect。它们各自服务真实 owner，不构成
-  Package installed truth 或通用 transaction engine。
+下表只防止丢失已知学习，不是实现 inventory、write authorization 或 completion：
 
-其 `Package-local intent + lock/receipt authority commit` 推荐被本计划
-**supersede**。原因不是该设计不严谨，而是它优化了一个不再需要由 OPL 自己拥有的
-Package manager。其 fault matrix 可作为迁移期旧 writer 的删除回归素材，但不得成为
-目标 schema 或新 consumer。只有某个薄 native adapter出现可复现 crash gap，且原生
-平台无法提供恢复时，才可按 exact adapter写集重新评估一个 adapter-local mechanism；
-不得恢复通用 journal、Package lock/ledger authority或跨 Package transaction 候选。
+| Surface | Classification | Phase 2 disposition |
+| --- | --- | --- |
+| Framework per-owner currentness / MAS local closure | `canonical_narrow_base`：owner-channel currentness、MAS + ScholarSkills required selection和 shared request/other-root exclusion已进入 Framework主线；这不等于旧 Manager或 activation/readiness已迁完。 | Phase 2 先 verify，不重做；从 App-state projection和仍命中 SemVer/ABI/lock的 consumer继续。 |
+| OMA stale lock/receipt mismatch | `sealed_diagnostic`：只读发现 checkout bytes 与旧记录不一致；未执行 repair 或 state mutation。 | 只有新 Package plane canonical 后，由 OMA lifecycle owner在隔离状态 fresh inspect；不得用全局 `opl update apply` 代替单包 route。 |
+| App/Shell distribution and installer work | `independent_lane`：Universal installer、Native packaging/installer source、Full generator和 embedded Base已有 canonical source；Native/managed Full仍未 public promotion或 clean-host qualification。遗留 dirty worktree不是 authority。 | 不属于本迁移 Phase 2。每次只信 fresh distribution SSOT、canonical source 和 installed/public readback；旧候选只做 semantic drop/replay裁决。 |
+| RCA owner version/publication | `independent_publication`：owner Git version/tag、GHCR version tag 和 `latest-stable` 是三种不同事实。 | Package owner publication另行授权；不得因 repo version/tag 存在就声称 GHCR current。 |
+| Stable release transport/successor-control | `independent_release_lane`：cache assertion修复、fresh Standard 和 protected publication由 release owner控制。 | 本计划不授权或阻塞。只有现有主路径在 fresh、无 deadlock 条件下再次证明不可恢复 deadline failure，才另行评估 successor-control；不预开发 speculative controller。 |
 
-## 后续精确实现类别
+所有 SHA、dirty 行数、测试计数、run id 和本机路径都属于一次性 closeout evidence，
+不写入长期 SSOT。Phase 2 启动必须重新读取 canonical refs 和 live state。
 
-本 docs-first tranche 不修改以下表面。后续按 owner、独立 worktree和精确写集分段：
+## Functionality-Equivalence Ledger
 
-| 类别 | 后续变更 |
-| --- | --- |
-| App contracts | Official Profile；executor-neutral minimum Package/capability/status/action；separate route readiness；dynamic Home；Runtime core；typed view envelope；删除 starter/lock/payload/receipt/physical surface兼容字段。 |
-| Framework contracts/source | Carrier/executor adapter interface；per-Package GHCR source adapter；Base thin OCI download/verification；Package-declared carrier/runtime activation；executor-neutral installed discovery与complete-runtime aggregate readback；presence graph；route readiness；per-Package update aggregate；Agent/Temporal join；typed-view validation/proxy；dual-read后删除 shared Release Set currentness 和 resolver/lock/receipt/materializer/LKG。 |
-| Official Package repos | Executor-neutral Package descriptor；provides/requires identities；Agent task producer；可选 typed view；carrier/executor 私有配置留在各 adapter；MAS/ScholarSkills真实 presence edge。 |
-| Shell source | Compact Settings；dynamic Home；dynamic Runtime scope；generic view registry；unknown-view fallback；删除 id/schema分支和物理细节。 |
-| First-run/Full/release | 一个 Official Profile；online/offline source差异；用户卸载保护；artifact exact-byte记录与 composition解耦。 |
-| Tests | Contract migration、platform adapter、presence graph、independent update、user removal、dynamic Package/Home/Runtime、Temporal split、typed view、unknown local degradation、legacy zero-consumer。 |
+这是本迁移唯一的功能不降级清单。工作包引用这些稳定 ID，后文不复制第二份 proof 表。
 
-跨仓不兼容改动必须按 `compatibility bridge -> authority main -> consumer
-switch -> legacy delete` 顺序吸收；不得让 App 依赖尚未进入 Framework/Package
-canonical main 的候选。
+| ID | 不可降级结果 | 最小目标 | 完成/删除门禁 |
+| --- | --- | --- | --- |
+| `OUT-01` | Standard 与 Full 自动安装同一组必要官方 Package。 | 一个 Official Profile；Full 只增加 offline seed。 | 两种 clean install 的 root/capability readback相同；删除 Full 第二清单/count gate。 |
+| `OUT-02` | MAS 自动获得 MAS Scholar Skills。 | `requires` presence edge。 | 缺失依赖时只补 MAS required closure并 fresh callable；删除 MAS 特判。 |
+| `OUT-03` | 有依赖仍可自由组合。 | 只检查 identity presence/callability。 | 无 version/ABI/lock/payload composition gate 的 install/call/update通过；删除 resolver admission。 |
+| `OUT-04` | 新 Package 无需修改 App。 | 动态 Package/capability descriptor。 | 隔离测试 Package进入 Settings/Home/Runtime，App source 无 Package-id diff。 |
+| `OUT-05` | 已安装 Package 静默独立更新。 | 每包调用 configured carrier。 | 一个 Package更新时 Base/App/其他 Package不变；失败不取消其他更新。 |
+| `OUT-06` | Settings 统一查看和维护。 | Compact list + lazy owner detail。 | Install/Update/Enable/Show/Uninstall/attention可用；普通 UI无 lock/payload/receipt/physical detail。 |
+| `OUT-07` | 用户卸载选择被尊重。 | Official Profile 非持续 desired state。 | 跨重启、日更、App更新不回装；显式 Restore才恢复。 |
+| `OUT-08` | Home 快捷方式可动态配置。 | Agent descriptor + user preference。 | 安装/卸载/显隐/排序 fresh更新；删除 assistant/starter第二清单。 |
+| `OUT-09` | Runtime 查看所有已安装 Agent tasks。 | 动态发现 `kind=agent` producers。 | 新 Agent producer不改App即出现；一个 producer失败不隐藏其他 Agent。 |
+| `OUT-10` | 业务进展与实际执行均准确。 | Agent owns business lifecycle；Temporal owns execution。 | 两组状态可独立变化，Framework只 join，App不互相覆盖。 |
+| `OUT-11` | MAS 提供科研路线。 | MAS-owned typed view。 | App只按通用 envelope/`view_kind`消费；无医学字段 mirror。 |
+| `OUT-12` | 未知扩展不破坏 App。 | Generic fallback/local degradation。 | 未知或 invalid view只局部 unavailable，task/其他 view/Agent继续工作。 |
+| `OUT-13` | 维护成本实质下降。 | Native lifecycle + thin adapters + one projection。 | 每个 legacy family在 consumer-zero 后删除 writer/reader/schema；最终无备用 Package Manager写路径。 |
+| `OUT-14` | 更换 executor不丢 Package或业务状态。 | Installed state与route readiness分离。 | Route变化不重装、不丢 preference/Work Item/dependency/view；本轮不要求第二正式 executor。 |
+| `OUT-15` | Codex adapter不是生态唯一真相。 | 同一 descriptor可被中性 carrier消费。 | 真实 Git/local install/discovery/callability通过；公共 descriptor无 Codex私有字段。 |
+| `OUT-16` | Adapter缺失只局部降级。 | 只投影已配置 route。 | 已配置 route缺 adapter只影响该 route；未配置 Claude/Hermes不是 placeholder或门禁。 |
+| `OUT-17` | 移除唯一 carrier不产生虚假 installed。 | Installed truth来自 fresh physical readback。 | 唯一 physical carrier被移除后状态为 `physical_unavailable`，App metadata不伪造。 |
 
-## Fresh Terminal Proofs
+下列是正交 public outcomes，不属于 Phase 2 默认开发授权：
 
-至少需要以下 fresh 终态，才能声称目标已落地：
+| ID | Public outcome | 独立 authority |
+| --- | --- | --- |
+| `PUB-01` | 单个 Package owner独立推进 GHCR `latest-stable`；shared snapshot不变时普通更新只发现该 Package。 | 对应 Package owner的 protected publication route。 |
+| `REL-01` | App Stable -> GitHub Latest -> updater readback。 | Stable release owner和 protected publisher。 |
+| `REL-02` | WebUI exact digest -> `:stable` -> anonymous pull/run readback。 | WebUI distribution owner和 protected promotion。 |
 
-1. Standard clean install读取一个 Official Profile，所有 roots 与 required
-   capabilities installed/callable。
-2. Full offline clean install读取同一 Profile，结果与 Standard一致。
-3. MAS在 ScholarSkills缺失时自动补齐；补齐失败只让 MAS unavailable。
-4. 用户卸载一个官方 root；重启、日更和 App update 后仍未安装；显式 Restore 后恢复。
-5. 一个全新测试 Agent Package不改 App source即可出现在 Settings、Home和Runtime。
-6. 一个已安装 Package静默更新成功，Base/App/其他 Packages字节/状态不变。
-7. 一个 native update失败时其他 Package继续，dirty/user-managed source未被覆盖。
-8. Agent business status与Temporal queued/running/retry/terminal分别从owner读取并正确合并。
-9. MAS research roadmap通过typed view显示；未知view_kind仅局部 unavailable。
-10. 同一 Package在 Codex carrier与至少一个真实中性 Git/local adapter 下保持同一
-    identity；Codex route readiness变化不重装 Package，不丢 Home preference、Work
-    Item 或 typed view。本轮不要求第二 executor执行。
-11. Codex plugin id、manifest、marketplace 和路径只存在于 Codex adapter；无 Codex
-    环境仍能列出并调用由其他 carrier 安装的 OPL Package。
-12. 用户实际配置的非 Codex route 若缺 adapter，只局部影响该 route；未配置的
-    Claude/Hermes adapter 不是本轮必填占位或完成门禁。移除唯一物理 Codex carrier
-    后 Package 如实变为 `physical_unavailable`。
-13. retained-consumer inventory 为零，旧 resolver/lock/payload/LKG/receipt/
-    materialization/rollback writer和App mirrors从canonical main删除。
-14. 一方 Package由 owner独立推进 GHCR `latest-stable`；共享 Release Set保持不变时，
-    普通更新仍发现并只更新该 Package。
-15. Base薄 OCI下载后，Codex Plugin/config/cache与Package声明adapter激活的完整
-    runtime均跨重启 installed/callable；Full离线使用同一 Official Profile。
-16. App Stable -> GitHub Latest -> updater readback。
-17. WebUI exact digest -> `:stable` -> anonymous pull。
+`PUB-01`、`REL-01`、`REL-02` 可以独立完成，也不能被 docs或代码测试冒充。它们
+未执行时不否定已通过的 core migration outcomes；core migration通过也不能声称
+这些 public outcomes完成。
 
-任何 docs、contract、unit test、dry-run、candidate branch、未吸收 commit 或
-非 live fixture 都不能替代上述终态；mock/schema/unit test 不能替代中性 Git/local
-adapter 的真实 readback。完整 Claude/Hermes adapter不属于本轮完成门禁。
+## Phase 2 Frozen Work Packages
+
+用户批准后最多保持四条开发 lane。这里冻结行为、owner、bounded surfaces、依赖、
+验收和删除目标，不预先列出易漂移的源码路径。
+
+每个工作包启动时必须：
+
+1. fresh fetch对应 repo `main`，确认 canonical authority和当前唯一 writer；
+2. 用结构调用链与字面检索冻结本包 sorted exact write set；
+3. 证明与其他 active write sets交集为零，或明确串行 owner；
+4. 在独立 worktree实现，`unexpected=0`；
+5. producer先进入 canonical main并 readback，consumer才可吸收；
+6. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
+
+### `W1` Official Profile Consumers
+
+- Owner: App install/profile lane。
+- Bounded surfaces: Official Profile intent、first-run/Restore、Standard/Full consumer、
+  installed-only maintenance policy和其 focused contracts/tests。
+- Dependencies: 可独立开始；required closure live proof依赖 `W3`，installed-only
+  maintenance终态依赖 `W3` aggregate。
+- Acceptance: `OUT-01`、`OUT-07`；`OUT-02` 的 App入口部分。
+- Delete: Standard/Full第二清单、fixed count、把 `--skip-packages` 作为普通安装默认
+  绕过 Profile收敛的路径。开发测试专用 flag若保留，不得进入普通用户语义。
+- Forbidden: 持续 desired-state controller、启动时自动恢复已卸载 roots、把 Full
+  变成第二生态 profile。
+
+### `W2` Owner Currentness Verification And Legacy Exit
+
+- Owner: Framework Package source lane。
+- Current base: owner publication locator、per-Package `latest-stable`读取和 MAS required
+  local selection 已 canonical；Phase 2 默认先 verify-only，不重复实现。
+- Bounded surfaces: fresh trace shared snapshot/catalog/cache/activation consumers；只有
+  确认仍有 ordinary currentness consumer时才冻结最窄迁移写集。cache只能是 package-
+  scoped、bounded、non-authoritative observed-source cache。
+- Dependencies: 无；verify可与 `W1`、`W5`并行。
+- Acceptance: owner source failure保持 unknown/attention；shared request=0；`OUT-05` 的
+  target discovery基础不回退；`PUB-01` 另行授权和执行。
+- Delete: shared Release Set作为普通 currentness、跨 Package planner/currentness和
+  cache/LKG authority。
+- Forbidden: 新 repository-index product、version/ABI solver、family cohort、cache
+  决定 currentness。fresh source失败必须 `unknown/attention`，不能由缓存伪造 current。
+
+### `W3` Presence, Actions, And Neutral Carrier
+
+- Owner: Framework Package lifecycle/read-model lane；在 `W2` canonical后开始。
+- Initial producer migration (`C1`):
+  `src/modules/console/app-state-agent-packages.ts` 与
+  `tests/src/cli/cases/app-state-cases/package-status-projection.test.ts`。当前普通 App
+  Package projection仍从 installed lock推断 installed/readiness并输出 SemVer/ABI、
+  content digest、dependency closure、receipt/rollback、physical/materialization和 LKG
+  字段；C1先改为 fresh carrier presence/callability/status/actions。`app-state.ts`不在
+  初始写集，除非 Phase 2 fresh trace证明不可避免并另行回报。
+- Bounded surfaces: required presence closure、package-local install/update/remove、
+  complete-runtime readback、configured route readiness、compact list/status、lazy
+  owner diagnostics和一个真实 Git/local neutral adapter proof。
+- Dependencies: `W2` canonical。与 Framework Runtime join共享写集时短时串行。
+- Acceptance: `OUT-02`、`OUT-03`、`OUT-05`、`OUT-06`、`OUT-14` 至 `OUT-17`。
+- Delete: resolver admission、installed lock/payload/materializer、lifecycle receipt
+  ledger、LKG/rollback manager、全局 repair/apply gate和普通 status中的 receipt历史。
+- Forbidden: 明示更新 MAS却选择其他 roots；Plugin-only报告完整 Package installed；
+  mock/synthetic carrier替代真实 neutral install/readback；新 durable transaction。
+
+### `W4` Dynamic Settings And Home
+
+- Owner: App product contract consumer -> Shell renderer consumer。
+- Bounded surfaces: generic Package/capability rows、projected actions、Home shortcut
+  preference、App-owned Restore intent和局部 unavailable体验。
+- Dependencies: `W3` Framework projection canonical；Restore还依赖 `W1` App intent
+  canonical。App producer先于 Shell consumer。
+- Acceptance: `OUT-04`、`OUT-06`、`OUT-07`、`OUT-08`。
+- Delete: App/Shell固定 Package/Agent/Skill metadata、action whitelist、manifest/
+  lock/receipt parser、assistant/starter第二清单和 legacy fallback。fallback只在 fresh
+  hit count归零后删除。
+- Forbidden: App按 Package id分支、Shell推断 installed/readiness、把 Restore放进
+  Framework单包 lifecycle authority。
+
+### `W5` Dynamic Agent Runtime Producers
+
+- Owner order: Package owner descriptor/task/view -> Framework Runtime join。
+- Bounded surfaces: Agent task inventory/lifecycle、opaque Temporal ref、generic task/
+  view envelope、Framework discovery/join/validation和 unknown-view handling。
+- Dependencies: Package owner producer先 canonical；Framework只消费 canonical owner
+  contract。可与 `W1`、`W2`并行。
+- Acceptance: `OUT-09`、`OUT-10`、`OUT-11`、`OUT-12` 的 producer/read-model部分。
+- Delete: Framework固定 Agent membership、领域 schema、MAS research-roadmap mirror
+  和把 Temporal execution当 business status的逻辑。
+- Forbidden: synthetic Agent进入公共 owner repo/GHCR。synthetic只允许隔离 fixture/
+  test namespace；MAS真实 descriptor由 MAS owner canonical。
+
+### `W6` Dynamic Runtime Consumers
+
+- Owner order: App Runtime contract -> Shell Runtime renderer。
+- Bounded surfaces: Runtime core route、dynamic installed Agent scope、generic task/detail/
+  view renderer、optional rich renderer extension和 local fallback。
+- Dependencies: `W5` Framework projection canonical。若与 `W4`共享 App/Shell写集，
+  candidate可并行审计，实际 source writer和 main CAS串行。
+- Acceptance: `OUT-04`、`OUT-09` 至 `OUT-12`。
+- Delete: `X0-01` optional gate、固定 scope/availability、Agent-id renderer和 App/Shell
+  领域 schema mirror。
+- Forbidden: App拥有 Agent task truth、Shell实现 scheduler、未知 view导致整个 Runtime
+  或其他 Agent失效。
+
+### Entry And Regression Checks
+
+以下是检查，不是第七/第八工作包：
+
+- `E1` fresh验证已 canonical Official Profile policy；若发现 contract drift，先回报
+  exact failure再决定是否扩 `W1`，不能假设旧候选仍适用。
+- `E2` fresh复用现有 compact list/status和 lazy diagnostics；只补 `W3` 实际缺口，
+  不另建第二 read model。
+- `E3` 对每个 Package/publication/installer/release proof使用隔离环境；真实用户
+  home/state和 public namespace默认禁止 mutation。
+
+## Parallel Execution And Canonical Order
+
+```text
+Phase 2 authorization
+  |
+  +-- Lane 1 App Profile:       E1 -> W1
+  |
+  +-- Lane 2 Framework Package: W2 -> W3
+  |                                |
+  |                                +-> W4 App -> W4 Shell
+  |
+  +-- Lane 3 Runtime Producer: Package owner -> W5 Framework
+  |                                            |
+  |                                            +-> W6 App -> W6 Shell
+  |
+  +-- Lane 4 Read-only QA:      inventories, controls, proof preparation
+```
+
+并行只适用于独立 worktree和零交叉候选。以下必须串行：
+
+- producer authority canonical -> consumer absorption；
+- 同 repo/module的 source write set；
+- 每个 repo的 `main` CAS和最终 readback；
+- 真实 lifecycle/public mutation；
+- legacy writer停止、删除和同 outcome复验。
+
+`W1` 不需要等待全部 Framework/Runtime工作；`W5` Package owner可与 `W2`并行。
+只有真实 dependency edge或写集交叉才增加顺序，不建立跨仓总锁。
+
+## Per-Family Deletion Loop
+
+旧系统不做一次性大爆炸删除。每个 family都执行同一循环：
+
+```text
+replacement producer canonical
+  -> consumer switch canonical
+  -> affected OUT fresh pass
+  -> retained consumers = 0
+  -> stop legacy writer
+  -> fresh exact deletion write set
+  -> delete writer + reader + schema/fixture
+  -> rerun same OUT
+  -> next family
+```
+
+Family顺序按依赖动态确定，默认优先：
+
+1. fixed App/Shell Package/Agent/Skill metadata和重复 action authority；
+2. shared Release Set普通 currentness和跨 Package planner；
+3. version/ABI composition resolver；
+4. Package lock/payload/materialization；
+5. lifecycle receipt/LKG/rollback/durable intent；
+6. Runtime固定 Agent scope和领域 schema mirror。
+
+Release receipts、Release Bundle exact-byte evidence、Temporal durability、Foundry build
+receipts、domain artifact/evidence receipts、用户 preference/config atomic-write保护不在
+删除范围内。字面相同的 `receipt`、`lock` 或 `materialization` 不能作为机械删除依据。
+
+## Durable Research Disposition
+
+`OPL Package Durable 轻量架构设计` 相关，但其 production recommendation已被本计划
+supersede。
+
+保留：
+
+- 拒绝通用 filesystem transaction、跨 Package原子事务和外部路径自动回滚；
+- 单 Package失败局部化；
+- mutation幂等，unknown只做 bounded fresh inspect；
+- 不覆盖 drift、dirty/user-managed state、unexpected ownership或路径边界；
+- 完成由真实 carrier/runtime owner fresh physical readback证明；
+- 只有薄 adapter出现可复现、平台无法处理的 crash gap时才评估 adapter-local修补。
+
+拒绝：
+
+- Package-local durable intent、Package lock/ledger、payload generation、LKG、lifecycle
+  receipt、materializer、rollback manager作为长期 authority；
+- SQLite Package authority、Plan/Stage/Activate或全局 install-root mutex作为生态协议；
+- 将旧 fault matrix自然转成新 schema、consumer或 implementation backlog。
+
+## Non-Goals
+
+Phase 2 默认不包括：
+
+- 第二个正式 executor或 executor selector；
+- 新的通用 Package repository index、solver、transaction或rollback engine；
+- Package GHCR/tag/publication、Stable/Latest、WebUI promotion；
+- Full、Homebrew、Native WebUI或universal installer的独立 delivery实现；
+- 真实用户 managed state repair；
+- Foundry、Temporal、release或domain evidence系统的合法 durability删除；
+- 与本迁移无关的 GUI、release、storage、Windows或upstream refactor。
+
+独立 Stable主路径继续由 release owner负责：使用当时 fresh canonical refs执行现有
+Standard operation，再消费该 Standard合法产物进入 protected publication。过期
+checkpoint、旧 run、candidate或测试结果都不能冒充完成。successor-control只在主路径
+fresh重现不可恢复 deadline机制失败且用户另行授权后评估。
+
+## Validation And Completion
+
+每个工作包至少完成：
+
+- sorted exact write set和`unexpected=0`；
+- repo-native focused tests、type/structure gates和`git diff --check`；
+- producer/consumer canonical order；
+- local/origin/wire/API/tree/blob/raw readback；
+- affected `OUT-*` 的隔离真实 readback；
+- 删除前后 consumer-zero和同 outcome复验；
+- task worktree/branch/process/lock清理。
+
+Phase 2完成报告必须分别列出：
+
+1. Core development outcomes `OUT-01..OUT-17`；
+2. Package publication outcome `PUB-01`；
+3. Production delivery outcomes `REL-01/REL-02`；
+4. 每个 legacy family删除或仍保留的 exact理由；
+5. 未执行的独立 public mutations。
+
+任何未完成项必须保持 open，不得用相邻测试或其他 owner结果替代。
+
+## Estimated Delivery Shape
+
+在用户批准全部六包、没有新的 authority冲突时：
+
+| Window | 并行重点 | 串行收口 |
+| --- | --- | --- |
+| Day 1-2 | `W1`、`W2`、`W5` owner producer并行；`E1-E3`只读准备。 | `W2`先进入 Framework canonical；Package owner producer先于 Framework consumer。 |
+| Day 2-4 | `W3`、`W4` App contract、`W5` Framework join。 | Framework Package plane内部串行；App/Shell consumer只读 canonical producer。 |
+| Day 4-7 | `W4` Shell、`W6` App/Shell、逐 family删除。 | 同仓 writer/main CAS、live proof和每族删除复验串行。 |
+| Day 7-12 | Core OUT终态、跨仓 readback、残留删除。 | `PUB/REL`只有另行授权才执行，不反向阻塞已完成 core outcomes。 |
+
+这是基于当前范围的工程估算，不是发布日期承诺。新增跨层架构、第二 executor或public
+delivery范围必须另行评估，不能隐式扩入 Phase 2。
