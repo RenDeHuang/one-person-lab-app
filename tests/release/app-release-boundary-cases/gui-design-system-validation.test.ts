@@ -100,9 +100,9 @@ function createFixture(): string {
     `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
     'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
     `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
-    'runtime_cockpit.role=retained_optional_x0_owner_route',
-    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved',
-    'runtime_cockpit.core_requirement=false',
+    'runtime_cockpit.role=core_dynamic_agent_runtime',
+    'runtime_cockpit.adopted_shell_requirement=true',
+    'runtime_cockpit.core_requirement=true',
     'runtime_cockpit.explicit_validation_command=npm run validate:runtime-route',
     'runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance',
     'docs_or_contract_imply_source_complete=false',
@@ -428,11 +428,11 @@ test('GUI design-system validator rejects removing Runtime from the active AionU
   );
 });
 
-test('GUI design-system validator rejects making the optional Runtime route a default requirement', () => {
+test('GUI design-system validator rejects making the core Runtime route optional', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.feature_preservation_policy.runtime_preservation_gate.default_product_requirement = true;
+  contract.interaction_baseline.feature_preservation_policy.runtime_preservation_gate.default_product_requirement = false;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -464,11 +464,11 @@ test('GUI design-system validator rejects a page-state boundary that promotes co
   );
 });
 
-test('GUI design-system validator rejects restoring the optional Runtime route as an upstream-parity hard gate', () => {
+test('GUI design-system validator rejects making Runtime optional for an adopted shell', () => {
   const root = createFixture();
   const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');
   const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
-  matrix.acceptance_boundary.runtime_upstream_alignment_may_remove_or_weaken = false;
+  matrix.acceptance_boundary.runtime_adopted_shell_required = false;
   writeJson(root, 'contracts/app-page-state-matrix.json', matrix);
   assert.throws(
     () => validateGuiDesignSystem(root),
