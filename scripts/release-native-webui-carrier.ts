@@ -474,7 +474,7 @@ export function publishNativeWebuiAssets(
         mutation_attempt_id: mutationAttemptId,
         requested_uploads: [],
         reused,
-        retry_disposition: 'read_only_public_readback_required_no_upload',
+        retry_disposition: 'fix_public_readback_then_freeze_a_new_standard_bundle_no_upload_retry',
       };
     }
     return {

@@ -280,7 +280,7 @@ test('publisher never converts a zero-mutation public readback failure into idem
   assert.equal(runtime.uploadCalls, 0);
   assert.deepEqual(runtime.uploads, []);
   assert.deepEqual(receipt.requested_uploads, []);
-  assert.equal(receipt.retry_disposition, 'read_only_public_readback_required_no_upload');
+  assert.equal(receipt.retry_disposition, 'fix_public_readback_then_freeze_a_new_standard_bundle_no_upload_retry');
 });
 
 test('publisher invokes one asset-set mutation and leaves unknown resolution to Framework readback', (t) => {
