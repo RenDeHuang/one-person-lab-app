@@ -140,16 +140,18 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 
 ## Current Truth
 
-截至本计划形成时，主线是“目标 policy 已部分 canonical，旧机器实现仍在运行”：
+当前主线已经进入逐 family 删除阶段：目标 policy、若干 producer/consumer 和第一批
+legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machinery 继续作为
+有界 compatibility surface 运行，不能反向成为新 authority。
 
 | Surface | Current classification | 仍缺什么 |
 | --- | --- | --- |
-| App Official Profile policy | `canonical_partial`：单一 Profile、presence-only、Standard/Full 同 roots、persistent uninstall policy 和 data-driven roots 已进入 App contracts/validators。 | First-run/Restore/maintenance consumers、真实跨重启不回装和 Standard/Full clean-install proof。 |
-| App Package UX | `current_compatibility`：Settings/Home 可消费 Framework Package rows 和 projected actions。 | 固定 starter/assistant metadata、receipt/lock/physical detail 和 Package-id assumptions 尚未全部删除。 |
-| Framework Package plane | `canonical_partial`：owner-channel `latest-stable` currentness、MAS + ScholarSkills package-local required selection、shared-latest verifier retirement和 compact list/status 已进入主线。现有 activation、App-state projection、installed lock、payload/materialization、lifecycle receipt、LKG/rollback 仍是 current compatibility。 | 先迁移 App-state producer/consumer，再完成 presence/action/neutral-carrier proof，并按 legacy family 删除旧 writer/reader。 |
-| Package publication | `canonical_policy_partial`：一方 Package 使用独立 GHCR repository 和 owner `latest-stable`；普通 target discovery 已有 owner-channel实现。 | 不是所有 owner latest 都有 fresh publication proof；shared snapshot、旧 catalog/cache/activation 的 retained consumers仍须清零。 |
-| Shell Package consumption | `canonical_partial`：已删除部分重复 activation/reconcile projection。 | 动态 Settings/Home、legacy fallback hit-zero 和非固定 Package proof。 |
-| Runtime | `current_compatibility`：已有 WorkItem projection 和可选 Runtime route。 | 动态 installed Agent producers、Agent/Temporal split、generic typed view、MAS schema mirror 删除。 |
+| App Official Profile policy | `canonical_partial`：单一 Profile、presence-only、Standard/Full 同 roots、persistent uninstall policy、data-driven roots 和只接受 first-install/explicit-Restore 的 one-shot consumer 已进入主线。 | 将 consumer 接入真实 first-install/Restore 入口，并完成跨重启不回装及 Standard/Full clean-install proof。 |
+| App Package UX | `canonical_partial`：App contracts 已把 directory/presence/actions 设为 Settings/Home authority，Framework App-state 已从 fresh Package directory 派生状态。 | Shell/Home 端到端消费、真实未知 Package proof，以及固定 starter/assistant metadata、receipt/lock/physical detail parser 的 consumer-zero 删除。 |
+| Framework Package plane | `canonical_incremental`：owner-channel `latest-stable` currentness、MAS + ScholarSkills package-local required selection、shared-latest verifier retirement、fresh presence/App-state projection和 installed-only invocation 已进入主线。普通 invocation 只消费 installed Package lock，不访问网络或远端依赖，也不再生成 invocation `offline_lkg`/`recovered_last_known_good`。 | 显式 install/update/remove/repair 仍使用 installed lock、payload/materialization、lifecycle receipt、rollback和 mutex；继续完成 neutral carrier/live proof，并按 consumer-zero 逐 family 删除。 |
+| Package publication | `canonical_policy_partial`：一方 Package 使用独立 GHCR repository 和 owner `latest-stable`；普通 target discovery 已有 owner-channel实现。 | 不是所有 owner latest 都有 fresh publication proof；shared snapshot和显式 maintenance 的旧 catalog/cache retained consumers仍须清零。 |
+| Shell Package consumption | `canonical_partial`：Capabilities 已消费动态 directory 和 exact carrier identity，App contracts 已删除固定 directory authority。 | Home/Settings 全路径、legacy fallback hit-zero、非固定 Package 与真实 install/uninstall preference proof。 |
+| Runtime | `canonical_partial`：Framework 已从 installed Agent descriptor 动态发现 task/view producer，App Runtime 已升级为 core generic Agent scope和 typed-view contract。 | Shell 端到端 generic consumer、真实 owner descriptor/live installed proof，以及剩余固定 Agent/MAS compatibility consumer 删除。 |
 | Durable Package proposal | `superseded_research`：正确拒绝大型 filesystem transaction 和跨 Package 原子性。 | 其小 intent/lock/receipt authority 仍是假设自研 Package Manager，不进入目标实现。 |
 
 机器合同和 source 中仍出现 version、lock、payload、receipt 或 materialization，不代表
@@ -162,7 +164,7 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 
 | Surface | Classification | Phase 2 disposition |
 | --- | --- | --- |
-| Framework per-owner currentness / MAS local closure | `canonical_narrow_base`：owner-channel currentness、MAS + ScholarSkills required selection和 shared request/other-root exclusion已进入 Framework主线；这不等于旧 Manager或 activation/readiness已迁完。 | Phase 2 先 verify，不重做；从 App-state projection和仍命中 SemVer/ABI/lock的 consumer继续。 |
+| Framework per-owner currentness / MAS local closure | `canonical_incremental`：owner-channel currentness、MAS + ScholarSkills required selection、shared request/other-root exclusion、fresh presence projection和 installed-only invocation 已进入 Framework主线；这不等于显式 lifecycle Manager 已删除。 | 不重做已 canonical family；继续清理仍命中 SemVer/ABI/lock/payload/receipt 的显式 maintenance与下游 consumer。 |
 | OMA stale lock/receipt mismatch | `sealed_diagnostic`：只读发现 checkout bytes 与旧记录不一致；未执行 repair 或 state mutation。 | 只有新 Package plane canonical 后，由 OMA lifecycle owner在隔离状态 fresh inspect；不得用全局 `opl update apply` 代替单包 route。 |
 | App/Shell distribution and installer work | `independent_lane`：Universal installer、Native packaging/installer source、Full generator和 embedded Base已有 canonical source；Native/managed Full仍未 public promotion或 clean-host qualification。遗留 dirty worktree不是 authority。 | 不属于本迁移 Phase 2。每次只信 fresh distribution SSOT、canonical source 和 installed/public readback；旧候选只做 semantic drop/replay裁决。 |
 | RCA owner version/publication | `independent_publication`：owner Git version/tag、GHCR version tag 和 `latest-stable` 是三种不同事实。 | Package owner publication另行授权；不得因 repo version/tag 存在就声称 GHCR current。 |
@@ -181,7 +183,7 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 | `OUT-02` | MAS 自动获得 MAS Scholar Skills。 | `requires` presence edge。 | 缺失依赖时只补 MAS required closure并 fresh callable；删除 MAS 特判。 |
 | `OUT-03` | 有依赖仍可自由组合。 | 只检查 identity presence/callability。 | 无 version/ABI/lock/payload composition gate 的 install/call/update通过；删除 resolver admission。 |
 | `OUT-04` | 新 Package 无需修改 App。 | 动态 Package/capability descriptor。 | 隔离测试 Package进入 Settings/Home/Runtime，App source 无 Package-id diff。 |
-| `OUT-05` | 已安装 Package 静默独立更新。 | 每包调用 configured carrier。 | 一个 Package更新时 Base/App/其他 Package不变；失败不取消其他更新。 |
+| `OUT-05` | 已安装 Package 静默独立更新。 | 每包调用 configured carrier。 | 普通 invocation 不推进 generation/currentness；显式或已授权 scheduled maintenance更新一个 Package时 Base/App/其他 Package不变，失败不取消其他更新。 |
 | `OUT-06` | Settings 统一查看和维护。 | Compact list + lazy owner detail。 | Install/Update/Enable/Show/Uninstall/attention可用；普通 UI无 lock/payload/receipt/physical detail。 |
 | `OUT-07` | 用户卸载选择被尊重。 | Official Profile 非持续 desired state。 | 跨重启、日更、App更新不回装；显式 Restore才恢复。 |
 | `OUT-08` | Home 快捷方式可动态配置。 | Agent descriptor + user preference。 | 安装/卸载/显隐/排序 fresh更新；删除 assistant/starter第二清单。 |
@@ -224,6 +226,8 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 ### `W1` Official Profile Consumers
 
 - Owner: App install/profile lane。
+- Current state: one-shot consumer 已 canonical，只接受 `first_install` 与
+  `explicit_restore`，不保存持续 desired state，也不注册 startup maintenance。
 - Bounded surfaces: Official Profile intent、first-run/Restore、Standard/Full consumer、
   installed-only maintenance policy和其 focused contracts/tests。
 - Dependencies: 可独立开始；required closure live proof依赖 `W3`，installed-only
@@ -237,11 +241,12 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 ### `W2` Owner Currentness Verification And Legacy Exit
 
 - Owner: Framework Package source lane。
-- Current base: owner publication locator、per-Package `latest-stable`读取和 MAS required
-  local selection 已 canonical；Phase 2 默认先 verify-only，不重复实现。
+- Current state: owner publication locator、per-Package `latest-stable`读取、MAS required
+  local selection、shared-latest verifier retirement和 invocation catalog/cache consumer-zero
+  已 canonical；普通 invocation 不读取 owner channel，也不使用 cache/LKG 伪造 current。
 - Bounded surfaces: fresh trace shared snapshot/catalog/cache/activation consumers；只有
-  确认仍有 ordinary currentness consumer时才冻结最窄迁移写集。cache只能是 package-
-  scoped、bounded、non-authoritative observed-source cache。
+  确认显式 maintenance 或其他 retained consumer仍读取旧 source时才冻结最窄迁移
+  写集。cache只能是 package-scoped、bounded、non-authoritative observed-source cache。
 - Dependencies: 无；verify可与 `W1`、`W5`并行。
 - Acceptance: owner source failure保持 unknown/attention；shared request=0；`OUT-05` 的
   target discovery基础不回退；`PUB-01` 另行授权和执行。
@@ -253,13 +258,12 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 ### `W3` Presence, Actions, And Neutral Carrier
 
 - Owner: Framework Package lifecycle/read-model lane；在 `W2` canonical后开始。
-- Initial producer migration (`C1`):
-  `src/modules/console/app-state-agent-packages.ts` 与
-  `tests/src/cli/cases/app-state-cases/package-status-projection.test.ts`。当前普通 App
-  Package projection仍从 installed lock推断 installed/readiness并输出 SemVer/ABI、
-  content digest、dependency closure、receipt/rollback、physical/materialization和 LKG
-  字段；C1先改为 fresh carrier presence/callability/status/actions。`app-state.ts`不在
-  初始写集，除非 Phase 2 fresh trace证明不可避免并另行回报。
+- Current state: fresh carrier presence/callability/status/actions projection、directory-derived
+  App-state和 installed-only invocation 已 canonical。Invocation 保留 scope materialization、
+  use receipt和 lifecycle mutex，但只绑定 installed snapshot：
+  `source_selection=installed_package_lock`、`network_accessed=false`、
+  `remote_dependency_policy=forbidden`。远端 refresh/update和 invocation LKG fallback
+  已删除；mutex争用 fail closed，显式 Package update仍是推进 generation的唯一入口。
 - Bounded surfaces: required presence closure、package-local install/update/remove、
   complete-runtime readback、configured route readiness、compact list/status、lazy
   owner diagnostics和一个真实 Git/local neutral adapter proof。
@@ -287,6 +291,9 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 ### `W5` Dynamic Agent Runtime Producers
 
 - Owner order: Package owner descriptor/task/view -> Framework Runtime join。
+- Current state: Framework descriptor discovery、dynamic Agent catalog、generic task/view
+  projection和 bounded lazy owner-view read 已 canonical；owner payload保持 opaque，Temporal
+  仍只按通用 execution scope join。
 - Bounded surfaces: Agent task inventory/lifecycle、opaque Temporal ref、generic task/
   view envelope、Framework discovery/join/validation和 unknown-view handling。
 - Dependencies: Package owner producer先 canonical；Framework只消费 canonical owner
@@ -300,6 +307,8 @@ Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `
 ### `W6` Dynamic Runtime Consumers
 
 - Owner order: App Runtime contract -> Shell Runtime renderer。
+- Current state: App Runtime core route、dynamic Agent scope、generic typed-view contract和
+  unknown-view局部降级已 canonical；Shell consumer/live installed acceptance仍开放。
 - Bounded surfaces: Runtime core route、dynamic installed Agent scope、generic task/detail/
   view renderer、optional rich renderer extension和 local fallback。
 - Dependencies: `W5` Framework projection canonical。若与 `W4`共享 App/Shell写集，

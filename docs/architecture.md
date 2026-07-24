@@ -133,11 +133,16 @@ belongs only to diagnostics when the owning platform actually exposes it.
 
 ### 2026-07-24 Audit And Migration State
 
-This section describes the **target/planned** boundary. Current contracts and
-Framework/Shell implementations still contain a repository index/resolver,
-installed lock, payload/materialization, LKG/rollback, lifecycle receipt, fixed
-starter metadata, and copied agent-specific runtime schemas. Those are current
-compatibility surfaces, not the desired architecture and must not be deepened.
+This boundary is now partially canonical. Ordinary Package invocation consumes
+only the current installed carrier snapshot; it does not read owner or shared
+catalogs, select an update, reconcile currentness, or manufacture an
+`offline_lkg` success. The current installed lock is a compatibility selection
+record for that snapshot, not durable Package authority. Explicit lifecycle
+routes still contain repository resolution, lock and payload/materialization,
+use/lifecycle receipts, rollback, and a SQLite mutation mutex. Fixed starter
+metadata and copied agent-specific runtime consumers also remain. These retained
+surfaces must not be deepened and are deleted only after replacement and
+consumer-zero proof.
 The executable migration and deletion gates live in
 [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
 
@@ -169,9 +174,10 @@ Package owner -> per-Package GHCR latest-stable
               -> Framework fresh aggregate readback
 ```
 
-During migration, the legacy shared manifest may be shadow-read for diagnostics
-only. It cannot select an update target, define currentness/readiness, or infer
-installed state; owner-source failure remains visible attention. It may be
+During migration, explicit maintenance or migration diagnostics may shadow-read
+the legacy shared manifest. Ordinary invocation never does. A shadow read cannot
+select an update target, define currentness/readiness, or infer installed state;
+owner-source failure remains visible attention. The shared manifest may be
 removed from ordinary maintenance only
 after an unchanged Release Set no longer hides a newer per-Package
 `latest-stable`, MAS plus ScholarSkills remain callable without unrelated
