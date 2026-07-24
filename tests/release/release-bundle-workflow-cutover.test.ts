@@ -602,6 +602,29 @@ test('every Stable updater baseline passes before the first public release mutat
   assert.match(updater, /metadata_declared_sha512/);
   assert.match(updater, /metadata_declared_size/);
   assert.match(updater, /same_candidate_zip_downloaded/);
+
+  const fingerprint = String(workflowStep(
+    'opl-updater-upgrade-vm.yml',
+    'upgrade',
+    'Download and fingerprint the installed predecessor',
+  ).run);
+  const sha512Command = fingerprint.match(/^\s*actual_sha512="\$\((.+)\)"$/m)?.[1];
+  assert.ok(sha512Command, 'updater SHA-512 calculation is missing');
+  assert.match(sha512Command, /openssl dgst -sha512 -binary "\$zip" \| base64 \| awk '\{printf "%s", \$0\}'/);
+
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-updater-sha512-'));
+  const fixture = path.join(fixtureRoot, 'candidate.zip');
+  fs.writeFileSync(fixture, 'opl-updater-sha512-regression-2\n');
+  const expected = crypto.createHash('sha512').update(fs.readFileSync(fixture)).digest('base64');
+  assert.ok(expected.includes('n'), 'regression fixture must exercise lowercase n in the Base64 alphabet');
+  const calculated = spawnSync('/bin/bash', ['-c', [
+    'set -euo pipefail',
+    `zip=${JSON.stringify(fixture)}`,
+    `actual_sha512="$(${sha512Command})"`,
+    'printf %s "$actual_sha512"',
+  ].join('\n')], { encoding: 'utf8' });
+  assert.equal(calculated.status, 0, calculated.stderr);
+  assert.equal(calculated.stdout, expected);
 });
 
 test('mutation unknown states persist evidence and only use bounded read-only reconciliation', () => {

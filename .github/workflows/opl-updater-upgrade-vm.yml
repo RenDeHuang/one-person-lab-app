@@ -220,7 +220,7 @@ jobs:
             ' "$metadata" "$(basename "$zip")")"
             declared_sha512="$(jq -er .sha512 <<<"$metadata_json")"
             declared_size="$(jq -er .size <<<"$metadata_json")"
-            actual_sha512="$(openssl dgst -sha512 -binary "$zip" | base64 | tr -d '\\n')"
+            actual_sha512="$(openssl dgst -sha512 -binary "$zip" | base64 | awk '{printf "%s", $0}')"
             test "$declared_sha512" = "$actual_sha512" || { echo "::error::Updater metadata SHA-512 does not match candidate ZIP."; exit 1; }
             test "$declared_size" = "$candidate_zip_size" || { echo "::error::Updater metadata size does not match candidate ZIP."; exit 1; }
             echo "candidate_zip_sha256=$candidate_zip_sha256"
