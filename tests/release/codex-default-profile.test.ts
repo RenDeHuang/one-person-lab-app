@@ -503,10 +503,12 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     guidPage: [
       'HomeStarters',
       'activeCapabilityId={activeShortcut?.package_id}',
+      'activeShortcutId={activeShortcut?.shortcut_id}',
+      "const { appState } = useOplAppState('fast')",
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
-      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId, appState))',
       'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ].join('\n'),
     guidInputCard: [
@@ -516,13 +518,15 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     ].join('\n'),
     homeStarters: [
       "data-testid='opl-home-starters'",
+      'assistant.opl_package_id === activeCapabilityId && assistant.opl_shortcut_id === activeShortcutId',
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
+      'resolveOplPackageLaunchGate(appState, assistant.opl_package_id)',
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      'starterIcon(assistant.id)',
-      'active && onClear ? onClear() : onSelect(assistant.id)',
+      'starterIcon(assistant.opl_package_id)',
+      'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
     ].join('\n'),
     guidStyles: [
       '.guidComposerDock',
@@ -551,6 +555,40 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     ].join('\n'),
   };
   assert.doesNotThrow(() => assertCurrentGuidHomeSelectionSources(currentSources));
+  for (const [current, legacy] of [
+    [
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId, appState))',
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
+    ],
+    ['activeShortcutId={activeShortcut?.shortcut_id}', 'activeShortcutId={activeShortcut?.package_id}'],
+    ["const { appState } = useOplAppState('fast')", 'const appState = undefined'],
+  ]) {
+    assert.throws(() =>
+      assertCurrentGuidHomeSelectionSources({
+        ...currentSources,
+        guidPage: currentSources.guidPage.replace(current, legacy),
+      }),
+    );
+  }
+  for (const [current, legacy] of [
+    [
+      'assistant.opl_package_id === activeCapabilityId && assistant.opl_shortcut_id === activeShortcutId',
+      'assistant.id === activeCapabilityId',
+    ],
+    ['resolveOplPackageLaunchGate(appState, assistant.opl_package_id)', 'resolveOplPackageLaunchGate(appState, assistant.id)'],
+    ['starterIcon(assistant.opl_package_id)', 'starterIcon(assistant.id)'],
+    [
+      'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
+      'active && onClear ? onClear() : onSelect(assistant.id)',
+    ],
+  ]) {
+    assert.throws(() =>
+      assertCurrentGuidHomeSelectionSources({
+        ...currentSources,
+        homeStarters: currentSources.homeStarters.replace(current, legacy),
+      }),
+    );
+  }
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,

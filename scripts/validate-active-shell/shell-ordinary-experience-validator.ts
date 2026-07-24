@@ -175,25 +175,34 @@ export function assertCurrentGuidHomeSelectionSources({
     [
       'HomeStarters',
       'activeCapabilityId={activeShortcut?.package_id}',
+      'activeShortcutId={activeShortcut?.shortcut_id}',
+      "const { appState } = useOplAppState('fast')",
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
-      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId, appState))',
       'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ],
     'Active shell Guid Home starter selection',
+  );
+  assertTextExcludesAll(
+    guidPage,
+    ['setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))'],
+    'Active shell retired static Guid Home shortcut resolution',
   );
   assertTextIncludesAll(
     homeStarters,
     [
       "data-testid='opl-home-starters'",
+      'assistant.opl_package_id === activeCapabilityId && assistant.opl_shortcut_id === activeShortcutId',
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
+      'resolveOplPackageLaunchGate(appState, assistant.opl_package_id)',
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      'starterIcon(assistant.id)',
-      'active && onClear ? onClear() : onSelect(assistant.id)',
+      'starterIcon(assistant.opl_package_id)',
+      'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
     ],
     'Active shell Guid Home starter component',
   );
@@ -207,6 +216,10 @@ export function assertCurrentGuidHomeSelectionSources({
       "!border-primary-5 !bg-primary-1 !text-primary-6",
       '<Right',
       'disabled={launchBlocked}',
+      'const active = assistant.id === activeCapabilityId',
+      'resolveOplPackageLaunchGate(appState, assistant.id)',
+      'starterIcon(assistant.id)',
+      'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
     'Active shell retired Guid Home starter styling',
   );
@@ -289,7 +302,6 @@ const guidHomeRuntimeForbidden = [
   "data-testid='opl-home-model-status'",
   'homeModelStatusRow',
   'homeModelStatus',
-  "useOplAppState('fast')",
   'normalizeGuidActivityCenter',
   'activityCenter={activityCenter}',
   "data-testid='opl-continue-context-entry'",
@@ -395,8 +407,11 @@ const codexModelsExpected = [
 const guidAssistantsExpected = [
   'getOplDefaultExecutorAgentKey',
   'getOplDefaultHomeAssistants',
-  'getOplAssistantSkillProfile',
+  'getOplHomeAgentShortcutsFromAppState',
+  'agentPackageDirectoryEntries',
   'resolveOplHomeAssistants',
+  'opl_package_id',
+  'opl_shortcut_id',
   'const DEFAULT_PRESET_AGENT_TYPE = getOplDefaultExecutorAgentKey()',
   'preset_agent_type: DEFAULT_PRESET_AGENT_TYPE',
   'enabled_skills',
@@ -405,11 +420,8 @@ const guidAssistantsExpected = [
 ];
 
 const guidPageSkillExpected = [
-  'selectedAssistantRequiredSkills',
-  'selectedAssistantSkillProfile',
-  'effectiveGuidEnabledSkills',
-  'mergeRequiredSkills',
-  'buildAssistantScopedSkillMenuItems',
+  'const effectiveGuidEnabledSkills = guidEnabledSkills',
+  'buildAssistantScopedSkillMenuItems(allSkills, undefined)',
   'guidEnabledSkills: effectiveGuidEnabledSkills',
 ];
 
@@ -684,7 +696,12 @@ function validateGuidSkillRules(shellPaths, guidPage) {
   assertTextIncludesAll(guidPage, guidPageSkillExpected, 'Active shell Guid page App assistant skill profile rule');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/assistantSkillMenu.ts', ['buildAssistantScopedSkillMenuItems', 'mergeRequiredSkills', 'required_skills', 'locked: isRequired'], 'Active shell Guid skill menu App assistant skill profile rule');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx', ['GuidSkillMenuItem', 'isGuidSkillChecked', 'skill.locked', 'disabled: skill.locked'], 'Active shell Guid action row required assistant skills');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'buildOplShortcutRouteReceipt', 'buildOplShortcutInvocationReceipt', 'opl_assistant_route', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
+  const guidSend = assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'buildOplShortcutInvocationReceipt', 'opl_agent_package_invocation', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
+  assertTextExcludesAll(
+    guidSend,
+    ['buildOplShortcutRouteReceipt', 'opl_assistant_route'],
+    'Active shell retired duplicate Guid shortcut route receipt',
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
@@ -1018,8 +1035,11 @@ function validateComposerCapabilityPaletteImplementation(shellPaths) {
       "id: 'session_modes'",
       "id: 'apps_and_connections'",
       'filterNonPermissionAccessModes',
-      'resolveOplProfessionalAgentAssistants',
-      'getOplProfessionalAgentPackages',
+      'assistants: OplHomeAssistant[]',
+      'resolveOplPackageLaunchGate(appState, assistant.opl_package_id)',
+      'activeCapabilityId === assistant.opl_shortcut_id',
+      'onSelectCapability?.(assistant.opl_shortcut_id)',
+      '.flatMap((assistant) => assistant.enabled_skills ?? [])',
       'isGuidSkillChecked',
       'horizontalOffset={-8}',
     ],
@@ -1033,6 +1053,8 @@ function validateComposerCapabilityPaletteImplementation(shellPaths) {
       '<Dropdown trigger=',
       'openWorkspacePicker',
       'getOplHomePurposeAssistantIds',
+      'resolveOplProfessionalAgentAssistants',
+      'getOplProfessionalAgentPackages',
     ],
     'Active shell Home capability palette forbidden working-directory and legacy dropdown entries',
   );
