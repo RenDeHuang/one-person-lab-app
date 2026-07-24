@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 type JsonRecord = Record<string, any>;
 type DescriptorStatus = 'present' | 'absent' | 'unknown';
 type PromotionDecision = 'idempotent' | 'write_once' | 'conflict' | 'prestate_unknown';
+type AuthorityMode = 'production_follower' | 'development_validation';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
@@ -78,7 +79,12 @@ function descriptor(value: unknown, expectedRef: string, label: string): JsonRec
   return observation;
 }
 
-function validateStableAuthorityRun(run: JsonRecord, runId: string): void {
+function validateStableAuthorityRun(
+  run: JsonRecord,
+  runId: string,
+  authorityMode: AuthorityMode,
+  frozenAppSha: string,
+): void {
   exact(String(run.id), runId, 'Stable authority run.id');
   exact(run.repository?.full_name, appRepository, 'Stable authority run.repository');
   exact(run.head_repository?.full_name, appRepository, 'Stable authority run.head_repository');
@@ -86,17 +92,39 @@ function validateStableAuthorityRun(run: JsonRecord, runId: string): void {
   exact(run.event, 'workflow_dispatch', 'Stable authority run.event');
   exact(run.head_branch, 'main', 'Stable authority run.head_branch');
   exact(run.status, 'completed', 'Stable authority run.status');
-  exact(run.conclusion, 'success', 'Stable authority run.conclusion');
+  if (authorityMode === 'production_follower') {
+    exact(run.conclusion, 'success', 'Stable authority run.conclusion');
+  } else if (!['success', 'failure'].includes(text(run.conclusion, 'Stable authority run.conclusion'))) {
+    throw new Error('Development source Stable authority run must have a terminal success or failure conclusion.');
+  }
   exact(run.run_attempt, 1, 'Stable authority run.run_attempt');
-  sha(run.head_sha, 'Stable authority run.head_sha');
+  const sourceAppSha = sha(run.head_sha, 'Stable authority run.head_sha');
+  if (authorityMode === 'development_validation') {
+    exact(sourceAppSha, frozenAppSha, 'Stable authority run.head_sha');
+  }
 }
 
-function validateCarrierFollowerRun(run: JsonRecord, runId: string, executorAppSha: string): void {
+function validateCarrierFollowerRun(
+  run: JsonRecord,
+  runId: string,
+  executorAppSha: string,
+  authorityMode: AuthorityMode,
+): void {
   exact(String(run.id), runId, 'carrier follower run.id');
   exact(run.repository?.full_name, appRepository, 'carrier follower run.repository');
   exact(run.head_repository?.full_name, appRepository, 'carrier follower run.head_repository');
-  exact(run.path, '.github/workflows/release-webui-follower.yml', 'carrier follower run.path');
-  exact(run.event, 'workflow_run', 'carrier follower run.event');
+  exact(
+    run.path,
+    authorityMode === 'production_follower'
+      ? '.github/workflows/release-webui-follower.yml'
+      : '.github/workflows/release-webui-development.yml',
+    'carrier follower run.path',
+  );
+  exact(
+    run.event,
+    authorityMode === 'production_follower' ? 'workflow_run' : 'workflow_dispatch',
+    'carrier follower run.event',
+  );
   exact(run.head_branch, 'main', 'carrier follower run.head_branch');
   if (!['in_progress', 'completed'].includes(text(run.status, 'carrier follower run.status'))) {
     throw new Error('carrier follower run.status must be in_progress or completed.');
@@ -165,6 +193,7 @@ function appWebuiCarrier(receipt: JsonRecord): {
 }
 
 export type WebuiStableAdmissionInput = {
+  authorityMode?: AuthorityMode;
   stableAuthorityRun: JsonRecord;
   stableAuthorityRunPath: string;
   stableAuthorityRunId: string;
@@ -186,6 +215,10 @@ export type WebuiStableAdmissionInput = {
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
+  const authorityMode = input.authorityMode ?? 'production_follower';
+  if (!['production_follower', 'development_validation'].includes(authorityMode)) {
+    throw new Error('WebUI Stable authority mode is invalid.');
+  }
   if (!runPattern.test(input.stableAuthorityRunId)) throw new Error('Stable authority run id is invalid.');
   if (!runPattern.test(input.triggeredByStableRunId)) {
     throw new Error('triggering Stable authority run id is invalid.');
@@ -200,11 +233,17 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   );
   const promotionAppSha = sha(input.promotionAppSha, 'promotion App SHA');
   const { release, cohort, carrier } = appWebuiCarrier(input.carrierReceipt);
-  validateStableAuthorityRun(input.stableAuthorityRun, input.stableAuthorityRunId);
+  validateStableAuthorityRun(
+    input.stableAuthorityRun,
+    input.stableAuthorityRunId,
+    authorityMode,
+    cohort.app_sha,
+  );
   validateCarrierFollowerRun(
     input.carrierFollowerRun,
     input.carrierFollowerRunId,
     promotionAppSha,
+    authorityMode,
   );
   validateCarrierFollowerJob(
     input.carrierFollowerJob,
@@ -218,7 +257,15 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   const versionRef = `${webuiRepository}:${release.version}`;
   const version = descriptor(input.versionReadback, versionRef, 'version readback');
   exact(version.status, 'present', 'version readback.status');
-  exact(version.digest, carrier.digest, 'version readback.digest');
+  const versionDigest = digest(version.digest, 'version readback.digest');
+  exact(version.child_digest, carrier.digest, 'version readback.child_digest');
+  exact(version.manifest_count, 1, 'version readback.manifest_count');
+  if (![
+    'application/vnd.oci.image.index.v1+json',
+    'application/vnd.docker.distribution.manifest.list.v2+json',
+  ].includes(text(version.media_type, 'version readback.media_type'))) {
+    throw new Error('version readback.media_type must be an OCI index or Docker manifest list.');
+  }
   const stableRef = `${webuiRepository}:stable`;
   const prestate = descriptor(input.stablePrestate, stableRef, 'Stable prestate');
   if (prestate.status === 'unknown') throw new Error('Stable prestate is unknown and cannot be treated as absent.');
@@ -233,12 +280,14 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     stable_prestate_sha256: fileDigest(input.stablePrestatePath),
   };
   const authority = {
+    authority_mode: authorityMode,
     stable_authority: {
       app_repository: appRepository,
       run_id: input.stableAuthorityRunId,
       run_attempt: 1,
       app_head_sha: input.stableAuthorityRun.head_sha,
       workflow: '.github/workflows/release-stable.yml',
+      conclusion: input.stableAuthorityRun.conclusion,
     },
     carrier_follower: {
       app_repository: appRepository,
@@ -247,7 +296,9 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       carrier_job_id: input.carrierFollowerJob.id,
       carrier_job_name: input.carrierFollowerJob.name,
       app_head_sha: promotionAppSha,
-      workflow: '.github/workflows/release-webui-follower.yml',
+      workflow: authorityMode === 'production_follower'
+        ? '.github/workflows/release-webui-follower.yml'
+        : '.github/workflows/release-webui-development.yml',
       triggering_stable_authority_run_id: input.stableAuthorityRunId,
     },
     promotion_executor: {
@@ -256,7 +307,9 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       run_attempt: 1,
       app_head_sha: promotionAppSha,
       workflow: '.github/workflows/release-webui-stable.yml',
-      caller_workflow: '.github/workflows/release-webui-follower.yml',
+      caller_workflow: authorityMode === 'production_follower'
+        ? '.github/workflows/release-webui-follower.yml'
+        : '.github/workflows/release-webui-development.yml',
       job: 'promote-webui-stable',
     },
     release: {
@@ -272,7 +325,8 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       immutable_ref: carrier.ref,
       version_ref: versionRef,
       stable_ref: stableRef,
-      digest: carrier.digest,
+      digest: versionDigest,
+      child_digest: carrier.digest,
       size_bytes: carrier.size_bytes,
       content_fingerprint: carrier.content_fingerprint,
     },
@@ -389,6 +443,7 @@ export function writeWebuiStablePromotionReceipt(input: {
     status = 'failed';
   }
   const evidence = {
+    authority_mode: input.admission.authority_mode,
     admission_input_digest: input.admission.input_digest,
     decision_input_digest: input.decision.input_digest,
     stable_authority: input.admission.stable_authority,
@@ -451,6 +506,7 @@ function main(argv: string[]): void {
     strict: true,
     options: {
       'stable-authority-run': { type: 'string' },
+      'authority-mode': { type: 'string' },
       'stable-authority-run-id': { type: 'string' },
       'triggered-by-stable-run-id': { type: 'string' },
       'carrier-follower-run': { type: 'string' },
@@ -486,6 +542,7 @@ function main(argv: string[]): void {
     const versionReadbackPath = required(values['version-readback'], 'version-readback');
     const stablePrestatePath = required(values['stable-prestate'], 'stable-prestate');
     result = admitWebuiStablePromotion({
+      authorityMode: required(values['authority-mode'], 'authority-mode') as AuthorityMode,
       stableAuthorityRun: readJson(stableAuthorityRunPath, 'Stable authority run'),
       stableAuthorityRunPath,
       stableAuthorityRunId: required(values['stable-authority-run-id'], 'stable-authority-run-id'),

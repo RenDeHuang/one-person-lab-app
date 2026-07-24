@@ -1818,9 +1818,26 @@
       "follower_workflow": ".github/workflows/release-webui-follower.yml",
       "workflow_call_inputs": [
         "mode",
+        "authority_mode",
         "stable_authority_run_id",
         "carrier_artifact_name"
       ],
+      "task_modes": {
+        "production_release": {
+          "authority_mode": "production_follower",
+          "entry_workflow": ".github/workflows/release-webui-follower.yml",
+          "desktop_latest_required": true,
+          "development_receipt_accepted_as_handoff": false
+        },
+        "development_validation": {
+          "authority_mode": "development_validation",
+          "entry_workflow": ".github/workflows/release-webui-development.yml",
+          "source": "exact_first_attempt_terminal_stable_run_frozen_bundle",
+          "desktop_latest_required": false,
+          "protected_public_mutation_required": true,
+          "receipt_satisfies_production_latest_or_follower_handoff": false
+        }
+      },
       "stable_authority_binding": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
       "carrier_follower_binding": "github_run_id_of_release_webui_follower",
       "operator_supplied_run_handle_allowed": false,
@@ -1896,6 +1913,8 @@
       },
       "ordering": {
         "github_latest_before_webui_stable": true,
+        "github_latest_before_webui_stable_applies_to": "production_release",
+        "development_validation_may_precede_desktop_latest": true,
         "desktop_latest_does_not_wait_for_webui": true,
         "webui_stable_independent_of_framework_package_promotion": true,
         "webui_stable_is_non_blocking_follower": true,

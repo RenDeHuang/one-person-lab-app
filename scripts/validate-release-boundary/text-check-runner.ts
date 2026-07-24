@@ -19,6 +19,7 @@ const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-pre
 const manualFullPreviewMutationJob = 'mutate';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
+const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -435,6 +436,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const stableInputs = webuiStable.workflow.on?.workflow_call?.inputs ?? {};
   if (JSON.stringify(Object.keys(stableInputs)) !== JSON.stringify([
     'mode',
+    'authority_mode',
     'stable_authority_run_id',
     'carrier_artifact_name',
   ])) {
@@ -714,6 +716,7 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
       const promotion = calleeJobs['promote-webui-stable'];
       const expectedInputs = [
         'mode',
+        'authority_mode',
         'stable_authority_run_id',
         'carrier_artifact_name',
       ].sort();
@@ -974,6 +977,30 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (
+        workflowPath === webuiDevelopmentWorkflowPath
+        && (
+          (
+            jobId === 'webui-carrier'
+            && job.uses === './.github/workflows/_release-webui-carrier.yml'
+            && needsExactly(job, ['resolve-frozen-bundle'])
+            && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+            && job.with?.mode === 'execute'
+            && job.with?.authority_mode === 'development_validation'
+          )
+          || (
+            jobId === 'promote-webui-stable'
+            && job.uses === './.github/workflows/release-webui-stable.yml'
+            && needsExactly(job, ['resolve-frozen-bundle', 'webui-carrier'])
+            && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+            && job.with?.mode === 'execute'
+            && job.with?.authority_mode === 'development_validation'
+          )
+        )
+        && steps.length === 0
+      ) {
         continue;
       }
       if (

@@ -1,0 +1,133 @@
+name: OPL WebUI Development Publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact first-attempt Stable run carrying the frozen Bundle.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-webui-development-publication-global
+  cancel-in-progress: false
+
+jobs:
+  resolve-frozen-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      source_run_id: ${{ steps.bundle.outputs.source_run_id }}
+      bundle_artifact_name: ${{ steps.bundle.outputs.bundle_artifact_name }}
+      version: ${{ steps.bundle.outputs.version }}
+      bundle_digest: ${{ steps.bundle.outputs.bundle_digest }}
+      app_ref: ${{ steps.bundle.outputs.app_ref }}
+      shell_ref: ${{ steps.bundle.outputs.shell_ref }}
+      framework_ref: ${{ steps.bundle.outputs.framework_ref }}
+    steps:
+      - name: Checkout canonical development authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Admit exact frozen Bundle from one terminal Stable attempt
+        id: bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          canonical_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          test "$canonical_sha" = "$GITHUB_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and (.conclusion == "success" or .conclusion == "failure")
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' source-run.json >/dev/null
+          artifact_name="opl-release-bundle-${SOURCE_RUN_ID}"
+          gh run download "$SOURCE_RUN_ID" --name "$artifact_name" --dir frozen-bundle
+          bundle_files=()
+          while IFS= read -r file; do bundle_files+=("$file"); done < <(
+            find frozen-bundle -type f -name release-bundle.json -print | LC_ALL=C sort
+          )
+          test "${#bundle_files[@]}" -eq 1
+          bundle="${bundle_files[0]}"
+          test -f "$bundle" && test ! -L "$bundle"
+          jq -e --arg source_app_sha "$(jq -er .head_sha source-run.json)" '
+            .surface_kind == "opl_release_bundle.v1"
+            and .release.channel == "stable"
+            and .release.prerelease == false
+            and .release.version == "26.7.24"
+            and .release.tag == "v26.7.24"
+            and .sources.app.repo == "gaofeng21cn/one-person-lab-app"
+            and .sources.app.source_commit == $source_app_sha
+            and .sources.shell.repo == "gaofeng21cn/opl-aion-shell"
+            and .sources.framework.repo == "gaofeng21cn/one-person-lab"
+            and (.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.sources.shell.source_commit | test("^[0-9a-f]{40}$"))
+            and (.sources.framework.source_commit | test("^[0-9a-f]{40}$"))
+          ' "$bundle" >/dev/null
+          {
+            echo "source_run_id=$SOURCE_RUN_ID"
+            echo "bundle_artifact_name=$artifact_name"
+            echo "version=$(jq -er .release.version "$bundle")"
+            echo "bundle_digest=$(jq -er .bundle_digest "$bundle")"
+            echo "app_ref=$(jq -er .sources.app.source_commit "$bundle")"
+            echo "shell_ref=$(jq -er .sources.shell.source_commit "$bundle")"
+            echo "framework_ref=$(jq -er .sources.framework.source_commit "$bundle")"
+          } >> "$GITHUB_OUTPUT"
+
+  webui-carrier:
+    needs: resolve-frozen-bundle
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/_release-webui-carrier.yml
+    with:
+      mode: execute
+      authority_mode: development_validation
+      app_ref: ${{ needs.resolve-frozen-bundle.outputs.app_ref }}
+      shell_ref: ${{ needs.resolve-frozen-bundle.outputs.shell_ref }}
+      framework_ref: ${{ needs.resolve-frozen-bundle.outputs.framework_ref }}
+      opl_version: ${{ needs.resolve-frozen-bundle.outputs.version }}
+      release_bundle_digest: ${{ needs.resolve-frozen-bundle.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.resolve-frozen-bundle.outputs.bundle_digest }}
+      source_artifact_run_id: ${{ needs.resolve-frozen-bundle.outputs.source_run_id }}
+      standard_checkpoint_artifact_name: ${{ needs.resolve-frozen-bundle.outputs.bundle_artifact_name }}
+      standard_identity_sha256: ${{ needs.resolve-frozen-bundle.outputs.bundle_digest }}
+
+  promote-webui-stable:
+    needs: [resolve-frozen-bundle, webui-carrier]
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    uses: ./.github/workflows/release-webui-stable.yml
+    with:
+      mode: execute
+      authority_mode: development_validation
+      stable_authority_run_id: ${{ needs.resolve-frozen-bundle.outputs.source_run_id }}
+      carrier_artifact_name: ${{ needs.webui-carrier.outputs.carrier_artifact_name }}

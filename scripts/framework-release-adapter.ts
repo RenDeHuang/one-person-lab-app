@@ -416,6 +416,9 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
 }
 
 function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
+  if (values['standard-identity'] === undefined) {
+    return buildWebuiBuildInputFromFrozenBundle(values);
+  }
   const identity = readJson(path.resolve(requireOption(values, 'standard-identity')));
   if (identity.schema !== 'opl_standard_release_identity_receipt.v2' || identity.status !== 'passed') {
     throw new Error('WebUI carrier requires a passed Standard release identity receipt v2.');
@@ -537,6 +540,90 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
       shell_sha: cohort.shell_sha,
       framework_sha: cohort.framework_sha,
     },
+    platform: { os: 'linux', architecture: 'amd64' },
+    inputs: frozenBuildInputs({
+      values,
+      appRoot,
+      appRef: cohort.app_sha,
+      shellRoot,
+      shellRef: cohort.shell_sha,
+      frameworkRoot,
+      frameworkRef: cohort.framework_sha,
+    }),
+  };
+}
+
+function buildWebuiBuildInputFromFrozenBundle(values: AdapterOptionValues): JsonRecord {
+  const bundle = readJson(path.resolve(requireOption(values, 'bundle')));
+  assertCanonicalBundleDigest(bundle);
+  if (
+    bundle.surface_kind !== 'opl_release_bundle.v1'
+    || bundle.release?.channel !== 'stable'
+    || typeof bundle.release?.version !== 'string'
+    || typeof bundle.release?.updater_version !== 'string'
+    || bundle.release?.tag !== `v${bundle.release.version}`
+    || bundle.release?.prerelease !== false
+    || bundle.sources?.app?.repo !== 'gaofeng21cn/one-person-lab-app'
+    || bundle.sources?.shell?.repo !== 'gaofeng21cn/opl-aion-shell'
+    || bundle.sources?.framework?.repo !== 'gaofeng21cn/one-person-lab'
+    || bundle.identity_mode !== appStandardIdentityMode
+    || canonicalJson(bundle.package_compatibility) !== canonicalJson(packageCompatibility)
+    || bundle.tracks?.standard?.required_for_latest !== true
+    || bundle.tracks?.webui !== undefined
+    || bundle.source_cutoff !== undefined
+    || bundle.frozen_build_inputs !== undefined
+    || bundle.policy?.latest_required_track !== 'standard'
+    || bundle.policy?.latest_required_tracks !== undefined
+  ) {
+    throw new Error('WebUI development carrier requires one exact Desktop-only Stable Framework Bundle.');
+  }
+  assertUpdaterVersionMatchesDisplay(
+    'stable',
+    bundle.release.version,
+    bundle.release.updater_version,
+  );
+  const cohort = {
+    app_sha: bundle.sources.app.source_commit,
+    shell_sha: bundle.sources.shell.source_commit,
+    framework_sha: bundle.sources.framework.source_commit,
+  };
+  for (const [name, value] of Object.entries(cohort)) {
+    if (typeof value !== 'string' || !/^[0-9a-f]{40}$/.test(value)) {
+      throw new Error(`Frozen WebUI Bundle ${name} must be an exact Git SHA.`);
+    }
+  }
+  const appRoot = path.resolve(requireOption(values, 'app-root'));
+  const shellRoot = path.resolve(requireOption(values, 'shell-root'));
+  const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
+  if (
+    gitSha(appRoot) !== cohort.app_sha
+    || gitSha(shellRoot) !== cohort.shell_sha
+    || gitSha(frameworkRoot) !== cohort.framework_sha
+  ) {
+    throw new Error('WebUI carrier source checkouts do not match the frozen Framework Bundle.');
+  }
+  const observedAt = requireOption(values, 'source-cutoff-observed-at');
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(observedAt)
+    || Number.isNaN(Date.parse(observedAt))
+  ) {
+    throw new Error('WebUI source cutoff observed_at must be a canonical UTC timestamp with milliseconds.');
+  }
+  return {
+    schema: 'opl_app_webui_build_input.v1',
+    release: {
+      version: bundle.release.version,
+      bundle_digest: bundle.bundle_digest,
+      cohort_ref: bundle.bundle_digest,
+    },
+    source_cutoff: {
+      observed_at: observedAt,
+      policy: 'single_read_at_freeze_admission',
+      frozen_base_release_set: null,
+      post_freeze_remote_refresh_allowed: false,
+      later_authority_advancement_invalidates_bundle: false,
+    },
+    cohort,
     platform: { os: 'linux', architecture: 'amd64' },
     inputs: frozenBuildInputs({
       values,

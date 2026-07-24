@@ -8,6 +8,11 @@ on:
         required: false
         default: execute
         type: string
+      authority_mode:
+        description: production_follower or development_validation
+        required: false
+        default: production_follower
+        type: string
       stable_authority_run_id:
         description: Exact successful Stable run that activated Desktop Latest.
         required: true
@@ -60,14 +65,17 @@ jobs:
       - name: Reject noncanonical or partial promotion runs
         env:
           GH_TOKEN: ${{ github.token }}
+          AUTHORITY_MODE: ${{ inputs.authority_mode }}
           STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
-          TRIGGERED_BY_STABLE_RUN_ID: ${{ github.event.workflow_run.id }}
+          TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
           test "$GITHUB_REF" = refs/heads/main
+          test "$AUTHORITY_MODE" = production_follower \
+            || test "$AUTHORITY_MODE" = development_validation
           test "$STABLE_AUTHORITY_RUN_ID" = "$TRIGGERED_BY_STABLE_RUN_ID"
           [[ "$STABLE_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$CARRIER_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
@@ -80,7 +88,7 @@ jobs:
             > evidence/carrier-follower-run.json
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CARRIER_FOLLOWER_RUN_ID/jobs?filter=latest&per_page=100" \
             > evidence/carrier-follower-jobs.json
-          jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
+          jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" --arg authority_mode "$AUTHORITY_MODE" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -89,15 +97,24 @@ jobs:
             and .head_branch == "main"
             and .run_attempt == 1
             and .status == "completed"
-            and .conclusion == "success"
+            and (
+              ($authority_mode == "production_follower" and .conclusion == "success")
+              or ($authority_mode == "development_validation" and (.conclusion == "success" or .conclusion == "failure"))
+            )
             and (.head_sha | test("^[0-9a-f]{40}$"))
           ' evidence/stable-authority-run.json >/dev/null
-          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$GITHUB_SHA" '
+          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$GITHUB_SHA" --arg authority_mode "$AUTHORITY_MODE" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-            and .path == ".github/workflows/release-webui-follower.yml"
-            and .event == "workflow_run"
+            and .path == (if $authority_mode == "production_follower"
+              then ".github/workflows/release-webui-follower.yml"
+              else ".github/workflows/release-webui-development.yml"
+            end)
+            and .event == (if $authority_mode == "production_follower"
+              then "workflow_run"
+              else "workflow_dispatch"
+            end)
             and .head_branch == "main"
             and .run_attempt == 1
             and (.status == "in_progress" or .status == "completed")
@@ -201,8 +218,33 @@ jobs:
             evidence/carrier-receipt.json)"
           version="$(jq -er .release.version evidence/carrier-receipt.json)"
           observe_descriptor "$image_ref" evidence/immutable-readback.json
-          observe_descriptor "ghcr.io/gaofeng21cn/one-person-lab-webui:${version}" \
-            evidence/version-readback.json
+          version_ref="ghcr.io/gaofeng21cn/one-person-lab-webui:${version}"
+          observe_descriptor "$version_ref" evidence/version-readback.json
+          test "$(jq -er .status evidence/version-readback.json)" = present
+          oras manifest fetch --output evidence/version-manifest.json "$version_ref"
+          version_manifest_digest="sha256:$(shasum -a 256 evidence/version-manifest.json | awk '{print $1}')"
+          test "$version_manifest_digest" = "$(jq -er .digest evidence/version-readback.json)"
+          child_digest="$(jq -er '
+            select(
+              .mediaType == "application/vnd.oci.image.index.v1+json"
+              or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
+            )
+            | .manifests
+            | select(length == 1)
+            | .[0]
+            | select(.platform.os == "linux" and .platform.architecture == "amd64")
+            | .digest
+            | select(test("^sha256:[0-9a-f]{64}$"))
+          ' evidence/version-manifest.json)"
+          test "$child_digest" = "$(jq -er .carrier.digest evidence/carrier-receipt.json)"
+          jq --arg child_digest "$child_digest" \
+            --arg media_type "$(jq -er .mediaType evidence/version-manifest.json)" \
+            '. + {
+              child_digest:$child_digest,
+              manifest_count:1,
+              media_type:$media_type
+            }' evidence/version-readback.json > evidence/version-readback.tmp
+          mv evidence/version-readback.tmp evidence/version-readback.json
           observe_descriptor ghcr.io/gaofeng21cn/one-person-lab-webui:stable \
             evidence/stable-prestate.json
 
@@ -210,12 +252,14 @@ jobs:
         id: admission
         env:
           STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
-          TRIGGERED_BY_STABLE_RUN_ID: ${{ github.event.workflow_run.id }}
+          AUTHORITY_MODE: ${{ inputs.authority_mode }}
+          TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
           node --experimental-strip-types scripts/webui-stable-promotion.ts admit \
+            --authority-mode "$AUTHORITY_MODE" \
             --stable-authority-run evidence/stable-authority-run.json \
             --stable-authority-run-id "$STABLE_AUTHORITY_RUN_ID" \
             --triggered-by-stable-run-id "$TRIGGERED_BY_STABLE_RUN_ID" \
@@ -404,6 +448,109 @@ jobs:
             jq -n '{schema:"opl_app_webui_stable_reconcile_readbacks.v1",observations:[]}' \
               > terminal/readbacks.json
 
+      - name: Read back the complete public OCI graph anonymously
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          repository="$(jq -er .target.repository "$admission")"
+          version_ref="$(jq -er .target.version_ref "$admission")"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          target_digest="$(jq -er .target.digest "$admission")"
+          child_digest="$(jq -er .target.child_digest "$admission")"
+          mkdir -p terminal/public-oci/blobs
+          read_manifest() {
+            local ref="$1" name="$2" expected_digest="$3"
+            oras manifest fetch --descriptor "$ref" > "terminal/public-oci/${name}-descriptor.json"
+            oras manifest fetch --output "terminal/public-oci/${name}.json" "$ref"
+            local actual_digest actual_size
+            actual_digest="sha256:$(sha256sum "terminal/public-oci/${name}.json" | awk '{print $1}')"
+            actual_size="$(wc -c < "terminal/public-oci/${name}.json" | tr -d ' ')"
+            test "$actual_digest" = "$expected_digest"
+            jq -e --arg digest "$actual_digest" --argjson size "$actual_size" '
+              .digest == $digest and .size == $size
+            ' "terminal/public-oci/${name}-descriptor.json" >/dev/null
+          }
+          read_manifest "$version_ref" version-index "$target_digest"
+          read_manifest "$stable_ref" stable-index "$target_digest"
+          cmp -s terminal/public-oci/version-index.json terminal/public-oci/stable-index.json
+          jq -e --arg child "$child_digest" '
+            select(
+              .mediaType == "application/vnd.oci.image.index.v1+json"
+              or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
+            )
+            | .manifests
+            | select(length == 1)
+            | .[0]
+            | select(
+              .digest == $child
+              and .size > 0
+              and .platform.os == "linux"
+              and .platform.architecture == "amd64"
+            )
+          ' terminal/public-oci/version-index.json > terminal/public-oci/child-index-descriptor.json
+          child_size="$(jq -er .size terminal/public-oci/child-index-descriptor.json)"
+          read_manifest "${repository}@${child_digest}" child-manifest "$child_digest"
+          test "$(wc -c < terminal/public-oci/child-manifest.json | tr -d ' ')" = "$child_size"
+          jq -e '
+            select(
+              .mediaType == "application/vnd.oci.image.manifest.v1+json"
+              or .mediaType == "application/vnd.docker.distribution.manifest.v2+json"
+            )
+            | .config
+            | select(.digest | test("^sha256:[0-9a-f]{64}$"))
+            | select(.size > 0)
+          ' terminal/public-oci/child-manifest.json > terminal/public-oci/config-descriptor.json
+          jq -e '
+            .layers
+            | select(length > 0)
+            | all(
+              (.digest | test("^sha256:[0-9a-f]{64}$"))
+              and .size > 0
+              and (.mediaType | type == "string")
+            )
+          ' terminal/public-oci/child-manifest.json >/dev/null
+          jq -c '.layers' terminal/public-oci/child-manifest.json \
+            > terminal/public-oci/layer-descriptors.json
+          verify_blob_descriptor() {
+            local descriptor="$1" name="$2"
+            local digest size
+            digest="$(jq -er .digest <<<"$descriptor")"
+            size="$(jq -er .size <<<"$descriptor")"
+            oras blob fetch --descriptor "${repository}@${digest}" \
+              > "terminal/public-oci/blobs/${name}.json"
+            jq -e --arg digest "$digest" --argjson size "$size" '
+              .digest == $digest and .size == $size
+            ' "terminal/public-oci/blobs/${name}.json" >/dev/null
+          }
+          verify_blob_descriptor "$(cat terminal/public-oci/config-descriptor.json)" config
+          layer_count="$(jq -er length terminal/public-oci/layer-descriptors.json)"
+          for index in $(seq 0 $((layer_count - 1))); do
+            verify_blob_descriptor \
+              "$(jq -c ".[$index]" terminal/public-oci/layer-descriptors.json)" \
+              "layer-${index}"
+          done
+          jq -n \
+            --arg version_ref "$version_ref" \
+            --arg stable_ref "$stable_ref" \
+            --arg digest "$target_digest" \
+            --arg child_digest "$child_digest" \
+            --argjson index_size "$(wc -c < terminal/public-oci/version-index.json | tr -d ' ')" \
+            --argjson child_size "$child_size" \
+            --argjson layer_count "$layer_count" \
+            '{
+              schema:"opl_app_webui_public_oci_readback.v1",
+              status:"passed",
+              anonymous:true,
+              version_ref:$version_ref,
+              stable_ref:$stable_ref,
+              manifest_list:{digest:$digest,size_bytes:$index_size,identical_bytes:true},
+              child:{digest:$child_digest,size_bytes:$child_size,platform:"linux/amd64"},
+              config_descriptor_verified:true,
+              layer_descriptors_verified:true,
+              layer_count:$layer_count
+            }' > terminal/public-oci-readback.json
+
       - name: Write terminal WebUI Stable receipt
         if: ${{ always() }}
         shell: bash
@@ -435,6 +582,8 @@ jobs:
         run: |
           set -euo pipefail
           status="$(jq -er .status terminal/webui-stable-promotion-receipt.json)"
+          test "$(jq -er .status terminal/public-oci-readback.json)" = passed
+          test "$(jq -er .anonymous terminal/public-oci-readback.json)" = true
           case "$status" in
             complete|idempotent|reconciled_complete) ;;
             *)

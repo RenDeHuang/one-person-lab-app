@@ -7,6 +7,10 @@ on:
         description: execute or canary validation-only startup.
         type: string
         default: execute
+      authority_mode:
+        description: production_follower or development_validation.
+        type: string
+        default: production_follower
       app_ref:
         description: Exact App SHA frozen into the Release Bundle.
         type: string
@@ -32,15 +36,15 @@ on:
         type: string
         required: true
       source_artifact_run_id:
-        description: Exact Stable authority run containing the portable Standard checkpoint.
+        description: Exact Stable source run containing the admitted frozen identity artifact.
         type: string
         required: true
       standard_checkpoint_artifact_name:
-        description: Exact portable Standard checkpoint carrying the identity receipt.
+        description: Exact portable Standard checkpoint or development frozen Bundle artifact.
         type: string
         required: true
       standard_identity_sha256:
-        description: Exact digest of the Standard identity receipt bound by Latest activation.
+        description: Exact Standard identity digest; development mode binds the Bundle digest here.
         type: string
         required: true
       image_repository:
@@ -92,9 +96,23 @@ jobs:
       image_artifact_name: ${{ steps.identity.outputs.image_artifact_name }}
     steps:
       - name: Checkout exact App source
+        if: ${{ inputs.authority_mode == 'production_follower' }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.app_ref }}
+
+      - name: Checkout canonical development executor
+        if: ${{ inputs.authority_mode == 'development_validation' }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Checkout exact frozen App build input
+        if: ${{ inputs.authority_mode == 'development_validation' }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          path: frozen-app-source
 
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -133,13 +151,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
+          test '${{ inputs.authority_mode }}' = production_follower \
+            || test '${{ inputs.authority_mode }}' = development_validation
+          if [ '${{ inputs.authority_mode }}' = production_follower ]; then
+            test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
+          else
+            test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+            test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
+          fi
           test "$(git -C shells/aionui rev-parse HEAD)" = '${{ inputs.shell_ref }}'
           test "$(git -C framework-source rev-parse HEAD)" = '${{ inputs.framework_ref }}'
           test '${{ inputs.app_ref }}' != '${{ inputs.shell_ref }}'
           test '${{ inputs.framework_ref }}' != '${{ inputs.shell_ref }}'
 
       - name: Derive WebUI build input from exact Standard identity
+        if: ${{ inputs.authority_mode == 'production_follower' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -175,6 +201,48 @@ jobs:
             --standard-identity "$identity_receipt" \
             --bundle "$bundle" \
             --app-root . \
+            --shell-root shells/aionui \
+            --framework-root framework-source \
+            --source-cutoff-observed-at "$source_cutoff_observed_at" \
+            --base-image-index webui-carrier/base-image-index.json \
+            --frozen-codex-tarball webui-carrier/frozen-codex/codex-cli.tgz \
+            --output webui-carrier/build-input-draft.json
+
+      - name: Derive WebUI build input from exact development Bundle
+        if: ${{ inputs.authority_mode == 'development_validation' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          one_regular_file() {
+            local root="$1" name="$2"
+            local matches=()
+            local match
+            while IFS= read -r match; do matches+=("$match"); done < <(
+              find "$root" -type f -name "$name" -print | LC_ALL=C sort
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::$root must contain exactly one $name; found ${#matches[@]}."
+              exit 1
+            }
+            test -f "${matches[0]}" && test ! -L "${matches[0]}"
+            printf '%s\n' "${matches[0]}"
+          }
+          bundle="$(one_regular_file webui-carrier/standard-checkpoint release-bundle.json)"
+          test "$(jq -er .bundle_digest "$bundle")" = '${{ inputs.release_bundle_digest }}'
+          mkdir -p webui-carrier/frozen-codex
+          oras manifest fetch \
+            --output webui-carrier/base-image-index.json \
+            docker.io/library/node:22-bookworm-slim
+          codex_version="$(jq -er '.managed_runtime.codex_cli.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))' \
+            shells/aionui/contracts/aionui-upstream-intake.json)"
+          codex_tarball_url="$(npm view --json "@openai/codex@${codex_version}" dist.tarball \
+            | jq -er 'select(type == "string" and startswith("https://"))')"
+          curl -L --fail --silent --show-error "$codex_tarball_url" \
+            --output webui-carrier/frozen-codex/codex-cli.tgz
+          source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+          node --experimental-strip-types scripts/framework-release-adapter.ts webui-build-input \
+            --bundle "$bundle" \
+            --app-root frozen-app-source \
             --shell-root shells/aionui \
             --framework-root framework-source \
             --source-cutoff-observed-at "$source_cutoff_observed_at" \
