@@ -29,6 +29,7 @@ const developerProfileCapabilityAxes = [
   'agent_automation',
   'runtime_mutation_scope',
 ];
+const expectedOfficialRootPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'];
 function assertStringArray(value: unknown, label: string, options: { allowBlank?: boolean } = {}): asserts value is string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((entry) => (
     typeof entry === 'string' && (options.allowBlank || entry.trim())
@@ -1019,6 +1020,11 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomeActivityCenterPolicy(profile);
   assertHomeSelectionAndIconPolicy(profile);
   assertOfficialProfileShape(profile.official_profile, 'App product profile Official Profile');
+  assertDeepEqualJson(
+    profile.official_profile.desired_root_package_ids,
+    expectedOfficialRootPackageIds,
+    'App product profile Official Profile desired roots',
+  );
   assertUiLocalePolicy(profile);
   assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
     requireExactAssistants: true,
