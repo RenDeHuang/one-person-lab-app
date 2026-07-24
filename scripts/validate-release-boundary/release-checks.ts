@@ -28,6 +28,8 @@ export const releaseWorkflowPaths = [
   ".github/workflows/opl-first-run-vm.yml",
   ".github/workflows/release-bundle-canary.yml",
   ".github/workflows/release-manual-full-preview.yml",
+  ".github/workflows/_release-native-webui-carrier.yml",
+  ".github/workflows/release-native-webui-follower.yml",
   ".github/workflows/release-stable.yml",
   ".github/workflows/release-verify-remote.yml",
 ];

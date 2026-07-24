@@ -8,6 +8,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   validateReleaseBundleCanaryTopology,
   validateReleaseBundleTopology,
+  validateNativeWebuiPublicationTopology,
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
@@ -136,6 +137,26 @@ test('WebUI follower keeps the packages write compile ceiling outside Desktop St
 
   assert.equal(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)), 0);
   assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) > 0);
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
+test('Native WebUI follower keeps additive GitHub write behind exact Stable handoff and protected reusable publish', (t) => {
+  const root = fixture(t);
+  assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
+  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
+
+  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
+    workflow.jobs['native-webui-carrier'].needs = [];
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+
+  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
+    workflow.jobs['native-webui-carrier'].needs = ['resolve-handoff'];
+  });
+  updateWorkflow(root, '_release-native-webui-carrier.yml', (workflow) => {
+    delete workflow.jobs['publish-native-assets'].environment;
+  });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 

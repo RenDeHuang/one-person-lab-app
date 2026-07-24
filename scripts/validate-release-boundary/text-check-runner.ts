@@ -22,6 +22,8 @@ const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
+const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-follower.yml';
+const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -96,6 +98,27 @@ export function isAuthorizedWebuiStablePromotionWriteJob(
     && needsExactly(job, ['admission'])
     && job.environment === 'release-stable'
     && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
+}
+
+function isAuthorizedNativeWebuiWriteJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  if (
+    workflowPath === nativeWebuiFollowerWorkflowPath
+    && jobId === 'native-webui-carrier'
+  ) {
+    return job.uses === './.github/workflows/_release-native-webui-carrier.yml'
+      && needsExactly(job, ['resolve-handoff'])
+      && exactObject(job.permissions, exactStableEntryPermissions)
+      && job.with?.mode === 'execute';
+  }
+  return workflowPath === nativeWebuiCarrierWorkflowPath
+    && jobId === 'publish-native-assets'
+    && needsExactly(job, ['build-and-qualify'])
+    && job.environment === 'release-stable'
+    && exactObject(job.permissions, exactStableEntryPermissions);
 }
 
 function reportFailure(id: string, message: string): number {
@@ -557,6 +580,106 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   return failures;
 }
 
+export function validateNativeWebuiPublicationTopology(appRoot: string): number {
+  const id = 'native_webui_publication_topology';
+  const follower = parseWorkflow(appRoot, nativeWebuiFollowerWorkflowPath, id);
+  const carrier = parseWorkflow(appRoot, nativeWebuiCarrierWorkflowPath, id);
+  if (!follower || !carrier) return [follower, carrier].filter((value) => !value).length;
+  let failures = 0;
+  const followerTriggers = follower.workflow.on ?? {};
+  const followerJobs = workflowJobs(follower.workflow);
+  if (
+    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
+    || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(follower.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'native-webui-carrier'])
+  ) {
+    failures += reportFailure(id, 'Native WebUI follower must be one automatic read-default Stable workflow_run lane');
+  }
+  const followerCarrier = followerJobs['native-webui-carrier'];
+  if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
+    nativeWebuiFollowerWorkflowPath,
+    'native-webui-carrier',
+    followerCarrier,
+  )) {
+    failures += reportFailure(id, 'Native WebUI follower must delegate only the exact resolved handoff to its reusable carrier');
+  }
+  for (const required of [
+    '.path == ".github/workflows/release-stable.yml"',
+    'opl-release-activation-${STABLE_AUTHORITY_RUN_ID}',
+    'webui-follower-handoff.json',
+    'opl_standard_latest_admission_receipt.v1',
+    'framework_terminal_status == "complete"',
+  ]) {
+    if (!follower.text.includes(required)) failures += reportFailure(id, `Native follower is missing ${required}`);
+  }
+  if (/workflow_dispatch:|continue-on-error|packages: write|release-webui-stable\.yml|_release-webui-carrier\.yml/.test(follower.text)) {
+    failures += reportFailure(id, 'Native follower must not expose manual, GHCR, or hidden failure paths');
+  }
+
+  const carrierInputs = carrier.workflow.on?.workflow_call?.inputs ?? {};
+  const carrierJobs = workflowJobs(carrier.workflow);
+  if (
+    JSON.stringify(Object.keys(carrier.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
+    || JSON.stringify(Object.keys(carrierInputs)) !== JSON.stringify([
+      'mode',
+      'stable_authority_run_id',
+      'app_ref',
+      'shell_ref',
+      'framework_ref',
+      'opl_version',
+      'release_bundle_digest',
+    ])
+    || !exactObject(carrier.workflow.permissions, { contents: 'read' })
+    || JSON.stringify(Object.keys(carrierJobs)) !== JSON.stringify([
+      'startup-canary',
+      'build-and-qualify',
+      'publish-native-assets',
+    ])
+  ) {
+    failures += reportFailure(id, 'Native reusable must expose only exact cohort inputs and startup/build/publish jobs');
+  }
+  const startup = carrierJobs['startup-canary'];
+  const build = carrierJobs['build-and-qualify'];
+  const publish = carrierJobs['publish-native-assets'];
+  if (
+    !startup
+    || startup.if !== "${{ inputs.mode == 'canary' }}"
+    || !exactObject(startup.permissions, exactReadPermissions)
+    || !build
+    || build.if !== "${{ inputs.mode == 'execute' }}"
+    || !exactObject(build.permissions, exactReadPermissions)
+    || !publish
+    || publish.if !== "${{ inputs.mode == 'execute' }}"
+    || !isAuthorizedNativeWebuiWriteJob(nativeWebuiCarrierWorkflowPath, 'publish-native-assets', publish)
+  ) {
+    failures += reportFailure(id, 'Native reusable permissions or execute/canary isolation drifted');
+  }
+  for (const required of [
+    'test "$(id -u)" -ne 0',
+    'repository: gaofeng21cn/opl-aion-shell',
+    'repository: gaofeng21cn/one-person-lab',
+    'desired_root_package_ids',
+    'tests/unit/web-cli/nativeDistribution.test.ts',
+    'tests/unit/web-cli/packWebCli.test.ts',
+    '--rollback',
+    'official-profile-first-install-complete',
+    'user-sentinel.txt',
+    'project-sentinel.txt',
+    'release-native-webui-carrier.ts publish',
+    'latest_modified',
+    'container_registry_modified',
+    'homebrew_modified',
+  ]) {
+    if (!carrier.text.includes(required)) failures += reportFailure(id, `Native reusable is missing ${required}`);
+  }
+  if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-standard-publish\.yml|_release-full-addon\.yml/.test(carrier.text)) {
+    failures += reportFailure(id, 'Native reusable must remain additive GitHub Release publication only');
+  }
+  return failures;
+}
+
 function standardUpdaterOrLatest(text: string): boolean {
   return text.includes('uses: ./.github/workflows/opl-updater-upgrade-vm.yml') ||
     /^\s*activate-latest:/m.test(text) ||
@@ -950,7 +1073,8 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
   let failures = validateStableReleaseControlPlane(appRoot) +
     validateReleaseBundleTopology(appRoot) +
     validateReleaseBundleCanaryTopology(appRoot) +
-    validateManualFullPreviewControlPlane(appRoot);
+    validateManualFullPreviewControlPlane(appRoot) +
+    validateNativeWebuiPublicationTopology(appRoot);
   const stableWorkflowPath = '.github/workflows/release-stable.yml';
   const stableEntryJobs = new Set(Object.keys(stableEntrySpecs));
   const workflowDirectory = path.join(appRoot, '.github', 'workflows');
@@ -967,7 +1091,9 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       failures += 1;
       continue;
     }
-    if (!Object.prototype.hasOwnProperty.call(workflow?.on ?? {}, 'workflow_dispatch')) continue;
+    const isNativeWebuiWorkflow = workflowPath === nativeWebuiFollowerWorkflowPath
+      || workflowPath === nativeWebuiCarrierWorkflowPath;
+    if (!Object.prototype.hasOwnProperty.call(workflow?.on ?? {}, 'workflow_dispatch') && !isNativeWebuiWorkflow) continue;
     const topPermissions = workflow.permissions && typeof workflow.permissions === 'object' ? workflow.permissions : {};
     const topWrites = Object.entries(topPermissions).filter(([, value]) => value === 'write').map(([key]) => key);
     if (topWrites.length > 0) {
@@ -982,6 +1108,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedNativeWebuiWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }

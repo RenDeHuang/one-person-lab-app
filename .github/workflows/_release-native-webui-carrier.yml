@@ -1,0 +1,409 @@
+name: Release Native WebUI Carrier (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: execute or canary validation-only startup.
+        type: string
+        default: execute
+      stable_authority_run_id:
+        description: Successful Stable run that emitted the exact Latest activation handoff.
+        type: string
+        required: true
+      app_ref:
+        description: Exact App SHA frozen into the Stable Bundle.
+        type: string
+        required: true
+      shell_ref:
+        description: Exact Shell SHA frozen into the Stable Bundle.
+        type: string
+        required: true
+      framework_ref:
+        description: Exact Framework SHA frozen into the Stable Bundle.
+        type: string
+        required: true
+      opl_version:
+        description: Stable display version shared with Desktop.
+        type: string
+        required: true
+      release_bundle_digest:
+        description: Exact immutable Framework Release Bundle digest.
+        type: string
+        required: true
+    outputs:
+      publication_artifact_name:
+        description: Actions artifact containing manifest, qualification, and public readback receipt.
+        value: ${{ jobs.publish-native-assets.outputs.publication_artifact_name }}
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Prove Native reusable topology starts without build or publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.stable_authority_run_id }}' != ''
+          test '${{ inputs.release_bundle_digest }}' != ''
+          test '${{ inputs.app_ref }}' != ''
+          test '${{ inputs.shell_ref }}' != ''
+          test '${{ inputs.framework_ref }}' != ''
+
+  build-and-qualify:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      qualified_artifact_name: ${{ steps.qualified.outputs.qualified_artifact_name }}
+    steps:
+      - name: Reject partial rerun and root execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(id -u)" -ne 0
+
+      - name: Checkout current App publication executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: executor-source
+
+      - name: Checkout exact frozen App product authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          path: frozen-app-source
+
+      - name: Checkout exact active Shell source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref }}
+          path: shell-source
+
+      - name: Checkout exact Framework source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ inputs.framework_ref }}
+          path: framework-source
+
+      - name: Setup Node.js and Bun
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: '1.3.14'
+
+      - name: Bind exact source identities and Official Profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
+          test "$(git -C shell-source rev-parse HEAD)" = '${{ inputs.shell_ref }}'
+          test "$(git -C framework-source rev-parse HEAD)" = '${{ inputs.framework_ref }}'
+          jq -e --slurpfile app frozen-app-source/contracts/app-product-profile.json '
+            .official_profile.apply_on == ["first_install", "explicit_restore"]
+            and .official_profile.desired_root_package_ids == $app[0].official_profile.desired_root_package_ids
+          ' shell-source/packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json >/dev/null
+
+      - name: Materialize exact Framework bootstrap
+        env:
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp framework-source/install.sh shell-source/resources/opl-install.sh
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const installerPath = 'shell-source/resources/opl-install.sh';
+          const source = fs.readFileSync(installerPath, 'utf8');
+          const anchor = 'set -euo pipefail\n';
+          if (source.split(anchor).length !== 2) throw new Error('Framework installer strict-mode anchor is not unique');
+          const prelude = [
+            `OPL_INSTALL_BRANCH=\${OPL_INSTALL_BRANCH:-${process.env.FRAMEWORK_REF}}`,
+            'OPL_INSTALL_SOURCE_MODE=${OPL_INSTALL_SOURCE_MODE:-archive}',
+            `OPL_SOURCE_ARCHIVE_URL=\${OPL_SOURCE_ARCHIVE_URL:-https://github.com/gaofeng21cn/one-person-lab/archive/${process.env.FRAMEWORK_REF}.tar.gz}`,
+            '',
+          ].join('\n');
+          fs.writeFileSync(installerPath, source.replace(anchor, `${anchor}${prelude}`));
+          NODE
+          chmod +x shell-source/resources/opl-install.sh
+          grep -F '${{ inputs.framework_ref }}' shell-source/resources/opl-install.sh >/dev/null
+
+      - name: Install exact Shell dependencies and run focused source gates
+        working-directory: shell-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile --ignore-scripts
+          bunx tsc --noEmit
+          bunx vitest run tests/unit/web-cli/nativeDistribution.test.ts tests/unit/web-cli/packWebCli.test.ts
+          bash -n scripts/install-web.sh
+
+      - name: Build Linux x86_64 Native WebUI artifact
+        working-directory: shell-source
+        env:
+          OPL_VERSION: ${{ inputs.opl_version }}
+          PACK_PLATFORM: linux
+          PACK_ARCH: x64
+          OPL_WEBUI_IMAGE_PROFILE: webui-full
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const packagePath = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          pkg.version = process.env.OPL_VERSION;
+          fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          test "$(node -p "require('./package.json').version")" = "$OPL_VERSION"
+          bunx electron-vite build --config packages/desktop/electron.vite.config.ts
+          node scripts/pack-web-cli.js
+          mkdir -p ../native-release/v${{ inputs.opl_version }}
+          cp dist-web-cli/one-person-lab-webui-${{ inputs.opl_version }}-linux-x86_64.tar.gz* \
+            ../native-release/v${{ inputs.opl_version }}/
+          sed 's/__VERSION__/${{ inputs.opl_version }}/g' scripts/install-web.sh \
+            > ../native-release/install-web.sh
+          chmod +x ../native-release/install-web.sh
+          (cd ../native-release && shasum -a 256 install-web.sh | awk '{print $1"  install-web.sh"}' > install-web.sh.sha256)
+
+      - name: Create synthetic immutable predecessor for lifecycle qualification only
+        env:
+          TARGET_VERSION: ${{ inputs.opl_version }}
+          PREDECESSOR_VERSION: 0.0.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="native-release/v${TARGET_VERSION}/one-person-lab-webui-${TARGET_VERSION}-linux-x86_64.tar.gz"
+          predecessor_dir="native-release/v${PREDECESSOR_VERSION}"
+          mkdir -p "$predecessor_dir" "$RUNNER_TEMP/native-predecessor"
+          tar -xzf "$target" -C "$RUNNER_TEMP/native-predecessor"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const file = `${process.env.RUNNER_TEMP}/native-predecessor/aionui-web/package.json`;
+          const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+          pkg.version = process.env.PREDECESSOR_VERSION;
+          fs.writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          predecessor="${predecessor_dir}/one-person-lab-webui-${PREDECESSOR_VERSION}-linux-x86_64.tar.gz"
+          tar -czf "$predecessor" -C "$RUNNER_TEMP/native-predecessor" aionui-web
+          PREDECESSOR="$predecessor" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const tarball = process.env.PREDECESSOR;
+          const name = path.basename(tarball);
+          const digest = crypto.createHash('sha256').update(fs.readFileSync(tarball)).digest('hex');
+          const fields = [
+            `${digest}  ${name}`,
+            'schema=dev.onepersonlab.opl-native-webui-artifact.v1',
+            'owner=one-person-lab-app',
+            'producer=opl-aion-shell',
+            'artifact_role=opl_native_webui_runtime',
+            'runtime_form=native_webui',
+            `version=${process.env.PREDECESSOR_VERSION}`,
+            'platform=linux',
+            'architecture=x86_64',
+            'entrypoint=aionui-web',
+            'bootstrap_entrypoint=opl-install.sh',
+            'official_profile_entrypoint=opl-official-profile-apply',
+            'container_adapter=opl-webui-entrypoint.sh',
+            `tarball=${name}`,
+            `sha256=${digest}`,
+          ];
+          fs.writeFileSync(`${tarball}.sha256`, `${fields.join('\n')}\n`);
+          NODE
+
+      - name: Qualify clean non-root install, update, rollback, data, HTTP, and Official Profile
+        env:
+          TARGET_VERSION: ${{ inputs.opl_version }}
+          PREDECESSOR_VERSION: 0.0.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/native-home"
+          export SHELL=/bin/bash
+          export PATH="$HOME/.local/bin:$PATH"
+          export INSTALL_DIR="$HOME/.local/share/one-person-lab/webui/runtime"
+          export BIN_DIR="$HOME/.local/bin"
+          export OPL_BIN="$HOME/.opl/one-person-lab/bin/opl"
+          export UPDATE_PATH=0
+          mkdir -p "$HOME" "$BIN_DIR"
+          installer="$GITHUB_WORKSPACE/native-release/install-web.sh"
+          mirror="file://$GITHUB_WORKSPACE/native-release"
+          bash "$installer" --mirror "$mirror" --version "$PREDECESSOR_VERSION" --no-path
+          test "$(readlink "$INSTALL_DIR/current")" = "versions/$PREDECESSOR_VERSION"
+          test -f "$INSTALL_DIR/.official-profile-first-install-complete"
+          marker_digest="$(shasum -a 256 "$INSTALL_DIR/.official-profile-first-install-complete" | awk '{print $1}')"
+          data_dir="$HOME/.local/share/one-person-lab/webui/data"
+          projects_dir="$HOME/OnePersonLab/projects"
+          mkdir -p "$data_dir" "$projects_dir"
+          printf 'native-user-data\n' > "$data_dir/user-sentinel.txt"
+          printf 'native-project-data\n' > "$projects_dir/project-sentinel.txt"
+          bash "$installer" --mirror "$mirror" --version "$PREDECESSOR_VERSION" --no-path
+          test "$(shasum -a 256 "$INSTALL_DIR/.official-profile-first-install-complete" | awk '{print $1}')" = "$marker_digest"
+          bash "$installer" --mirror "$mirror" --version "$TARGET_VERSION" --no-path
+          test "$(readlink "$INSTALL_DIR/current")" = "versions/$TARGET_VERSION"
+          test "$(readlink "$INSTALL_DIR/previous")" = "versions/$PREDECESSOR_VERSION"
+          test "$(shasum -a 256 "$INSTALL_DIR/.official-profile-first-install-complete" | awk '{print $1}')" = "$marker_digest"
+          test "$(cat "$data_dir/user-sentinel.txt")" = native-user-data
+          test "$(cat "$projects_dir/project-sentinel.txt")" = native-project-data
+          bash "$installer" --install-dir "$INSTALL_DIR" --rollback
+          test "$(readlink "$INSTALL_DIR/current")" = "versions/$PREDECESSOR_VERSION"
+          test "$(cat "$data_dir/user-sentinel.txt")" = native-user-data
+          test "$(cat "$projects_dir/project-sentinel.txt")" = native-project-data
+          bash "$installer" --install-dir "$INSTALL_DIR" --rollback
+          test "$(readlink "$INSTALL_DIR/current")" = "versions/$TARGET_VERSION"
+          port=25808
+          "$BIN_DIR/aionui-web" start --port "$port" --no-open > native-release/http.log 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid" >/dev/null 2>&1 || true; wait "$web_pid" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error "http://127.0.0.1:${port}/" > native-release/http-body.html; then
+              break
+            fi
+            if ! kill -0 "$web_pid" >/dev/null 2>&1 || [ "$attempt" -eq 90 ]; then
+              cat native-release/http.log >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          test -s native-release/http-body.html
+          kill "$web_pid"
+          wait "$web_pid" || true
+          trap - EXIT
+
+      - name: Seal qualification receipt and publication manifest
+        env:
+          OPL_VERSION: ${{ inputs.opl_version }}
+          BUNDLE_DIGEST: ${{ inputs.release_bundle_digest }}
+          STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
+          APP_SHA: ${{ inputs.app_ref }}
+          SHELL_SHA: ${{ inputs.shell_ref }}
+          FRAMEWORK_SHA: ${{ inputs.framework_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="one-person-lab-webui-${OPL_VERSION}-linux-x86_64"
+          receipt="native-release/v${OPL_VERSION}/${base}.qualification.json"
+          jq -n \
+            --arg version "$OPL_VERSION" \
+            --arg bundle "$BUNDLE_DIGEST" \
+            --arg run "$STABLE_AUTHORITY_RUN_ID" \
+            --arg app "$APP_SHA" --arg shell "$SHELL_SHA" --arg framework "$FRAMEWORK_SHA" \
+            '{schema:"opl_app_native_webui_qualification_receipt.v1",status:"passed",version:$version,release_bundle_digest:$bundle,stable_authority_run_id:$run,platform:"linux",architecture:"x86_64",non_root:true,cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},lifecycle:{first_install:"passed",same_version_idempotence:"passed",cross_version_update:"passed",rollback:"passed",data_preservation:"passed",http_health:"passed",official_profile_first_install:"passed"},synthetic_predecessor:{version:"0.0.1",published:false,purpose:"exercise target installer activation and rollback without claiming a prior public Native release"}}' \
+            > "$receipt"
+          node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts seal \
+            --repository "$GITHUB_REPOSITORY" \
+            --version "$OPL_VERSION" \
+            --release-bundle-digest "$BUNDLE_DIGEST" \
+            --stable-authority-run-id "$STABLE_AUTHORITY_RUN_ID" \
+            --app-sha "$APP_SHA" --shell-sha "$SHELL_SHA" --framework-sha "$FRAMEWORK_SHA" \
+            --runtime-tarball "native-release/v${OPL_VERSION}/${base}.tar.gz" \
+            --runtime-metadata "native-release/v${OPL_VERSION}/${base}.tar.gz.sha256" \
+            --installer native-release/install-web.sh \
+            --installer-sha256 native-release/install-web.sh.sha256 \
+            --qualification-receipt "$receipt" \
+            --output native-release/publication-manifest.json \
+            > native-release/publication-manifest.stdout.json
+
+      - name: Upload exact qualified Native asset set
+        id: identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-webui-qualified-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-release
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Export qualified artifact identity
+        id: qualified
+        shell: bash
+        run: echo "qualified_artifact_name=native-webui-qualified-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+
+  publish-native-assets:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: [build-and-qualify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-stable
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      publication_artifact_name: ${{ steps.publication.outputs.publication_artifact_name }}
+    steps:
+      - name: Reject partial rerun
+        shell: bash
+        run: test "$GITHUB_RUN_ATTEMPT" = 1
+
+      - name: Checkout current App publication executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: executor-source
+
+      - name: Download exact qualified Native asset set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.build-and-qualify.outputs.qualified_artifact_name }}
+          path: native-release
+
+      - name: Append exact Native assets with digest idempotence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts publish \
+            --manifest native-release/publication-manifest.json \
+            --output native-release/publication-receipt.json \
+            > native-release/publication-receipt.stdout.json
+          status="$(jq -er .status native-release/publication-receipt.json)"
+          case "$status" in
+            complete|idempotent|reconciled_complete) ;;
+            *) echo "::error::Native WebUI publication did not reach exact public readback: $status"; exit 1 ;;
+          esac
+          test "$(jq -r .latest_modified native-release/publication-receipt.json)" = false
+          test "$(jq -r .container_registry_modified native-release/publication-receipt.json)" = false
+          test "$(jq -r .homebrew_modified native-release/publication-receipt.json)" = false
+
+      - name: Upload Native publication and public readback receipt
+        if: ${{ always() }}
+        id: identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-webui-publication-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-release
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Export publication artifact identity
+        if: ${{ always() }}
+        id: publication
+        shell: bash
+        run: echo "publication_artifact_name=native-webui-publication-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
