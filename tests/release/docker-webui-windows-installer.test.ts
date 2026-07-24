@@ -176,7 +176,7 @@ test('Windows Docker/WebUI image pulls are bounded and terminate the stalled pro
     installer.indexOf('function Convert-ToComposeScalar'),
   );
 
-  assert.match(installer, /\[int\]\$DockerPullTimeoutSeconds = 900/);
+  assert.match(installer, /\[int\]\$DockerPullTimeoutSeconds = 1800/);
   assert.match(boundedCapture, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
   assert.match(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F/);
   assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\)/);

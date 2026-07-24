@@ -56,7 +56,7 @@ if (-not $InteractiveWorker) {
     -RunLevel Limited
   $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 45)
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 60)
   Register-ScheduledTask `
     -TaskName $validationTaskName `
     -Action $action `
@@ -66,7 +66,7 @@ if (-not $InteractiveWorker) {
     -Force | Out-Null
   Start-ScheduledTask -TaskName $validationTaskName
 
-  $deadline = (Get-Date).AddMinutes(40)
+  $deadline = (Get-Date).AddMinutes(55)
   while ((Get-Date) -lt $deadline) {
     if (Test-Path -LiteralPath $workerResultPath -PathType Leaf) {
       $workerResult = Get-Content -LiteralPath $workerResultPath -Raw | ConvertFrom-Json

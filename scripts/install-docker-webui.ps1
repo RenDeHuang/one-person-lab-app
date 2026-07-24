@@ -12,7 +12,7 @@ param(
   [string]$DataDir,
   [string]$ProjectsDir,
   [ValidateRange(30, 7200)]
-  [int]$DockerPullTimeoutSeconds = 900,
+  [int]$DockerPullTimeoutSeconds = 1800,
   [ValidateRange(1, 86400)]
   [int]$HealthTimeoutSeconds = 600,
   [string]$HealthUrl,
