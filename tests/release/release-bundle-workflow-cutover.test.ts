@@ -1006,7 +1006,14 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   const checkout = step('Checkout active shell');
   assert.deepEqual(
     String(checkout.with['sparse-checkout']).trim().split('\n'),
-    ['/scripts/', '/package.json', '/bun.lock', '/patches/', '/packages/*/package.json'],
+    [
+      '/scripts/',
+      '/package.json',
+      '/bun.lock',
+      '/patches/',
+      '/packages/*/package.json',
+      '/packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
+    ],
   );
   assert.equal(checkout.with['sparse-checkout-cone-mode'], false);
   assert.equal(stepIndex('Materialize active shell dependency metadata'), -1);
@@ -1316,8 +1323,11 @@ test('append_full cannot mutate Homebrew or any Standard publication surface', (
   }
   assert.doesNotMatch(
     source,
-    /publish-homebrew-full|homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/,
+    /publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/,
   );
+  assert.match(source, /opl_homebrew_full_follower_handoff\.v1/);
+  assert.match(source, /completed_stage:"full_qualified"/);
+  assert.match(source, /qualification_receipt_sha256/);
   assert.doesNotMatch(source, /github-activate-latest|opl-updater-upgrade-vm\.yml|latest-arm64-mac\.yml/);
   for (const immutableSurface of [
     'standard_assets_modified:false',

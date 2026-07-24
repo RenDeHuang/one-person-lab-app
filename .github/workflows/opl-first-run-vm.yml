@@ -25,6 +25,11 @@ on:
         description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
+      homebrew_candidate_artifact:
+        description: 'Same-run artifact containing exactly one candidate Full Cask for pre-publication qualification.'
+        required: false
+        default: ''
+        type: string
       release_bundle_digest:
         description: 'Exact immutable Framework Release Bundle digest for the live control plane.'
         required: false
@@ -363,6 +368,14 @@ jobs:
             echo "::error::package_profile=full artifact validation requires framework_ref so the bundled Framework can be checked before VM allocation."
             exit 1
           fi
+          if [ -n '${{ inputs.homebrew_candidate_artifact }}' ] && [ "$profile" != "homebrew-full" ]; then
+            echo "::error::homebrew_candidate_artifact is accepted only for package_profile=homebrew-full."
+            exit 1
+          fi
+          if [ "$profile" = "homebrew-full" ] && [ -z '${{ inputs.homebrew_candidate_artifact }}' ]; then
+            echo "::error::package_profile=homebrew-full requires an exact pre-publication Cask artifact."
+            exit 1
+          fi
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
           echo "artifact_app_sha=$artifact_app_sha" >> "$GITHUB_OUTPUT"
           echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
@@ -620,10 +633,11 @@ jobs:
             /bun.lock
             /patches/
             /packages/*/package.json
+            /packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json
           sparse-checkout-cone-mode: false
 
       - name: Checkout OPL Framework bootstrap source
-        if: ${{ inputs.framework_ref != '' }}
+        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
@@ -670,7 +684,7 @@ jobs:
 
       - name: Prepare OPL Framework bootstrap archive
         id: framework_source
-        if: ${{ inputs.framework_ref != '' }}
+        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -837,6 +851,39 @@ jobs:
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
           github-token: ${{ github.token }}
           path: artifacts/release-cohort
+
+      - name: Download pre-publication Homebrew Full Cask
+        if: ${{ inputs.homebrew_candidate_artifact != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.homebrew_candidate_artifact }}
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/homebrew-candidate
+
+      - name: Bind exact pre-publication Full Cask
+        id: homebrew_candidate
+        if: ${{ inputs.homebrew_candidate_artifact != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidates=()
+          while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
+            find artifacts/homebrew-candidate -type f -name one-person-lab-full.rb -print | LC_ALL=C sort
+          )
+          test "${#candidates[@]}" -eq 1 || {
+            echo "::error::Homebrew Full qualification requires exactly one one-person-lab-full.rb candidate."
+            exit 1
+          }
+          candidate="${candidates[0]}"
+          grep -F 'package_kind: app_full_first_install' "$candidate" >/dev/null
+          grep -F 'framework_carrier: full_dmg_embedded_opl_base' "$candidate" >/dev/null
+          grep -F 'active_framework_count_target: 1' "$candidate" >/dev/null
+          if grep -F 'depends_on formula: "opl"' "$candidate" >/dev/null; then
+            echo "::error::Full Cask candidate must not depend on Formula opl."
+            exit 1
+          fi
+          echo "cask_path=$candidate" >> "$GITHUB_OUTPUT"
 
       - name: Resolve release DMG
         id: dmg
@@ -1263,7 +1310,12 @@ jobs:
             CMD+=(--codex-ai-self-check)
           fi
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
-            CMD+=(--smoke-profile homebrew-standard-cask)
+            if [ "${{ steps.package_profile.outputs.profile }}" = "homebrew-full" ]; then
+              CMD+=(--smoke-profile homebrew-full-cask)
+              CMD+=(--homebrew-cask-file "${{ steps.homebrew_candidate.outputs.cask_path }}")
+            else
+              CMD+=(--smoke-profile homebrew-standard-cask)
+            fi
             CMD+=(--install-mode homebrew-cask)
             CMD+=(--homebrew-cask "${{ steps.package_profile.outputs.homebrew_cask }}")
           else

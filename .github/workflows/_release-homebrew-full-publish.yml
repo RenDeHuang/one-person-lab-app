@@ -1,0 +1,377 @@
+name: OPL Homebrew Full Publish
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        required: false
+        default: execute
+        type: string
+      authority_run_id:
+        required: true
+        type: string
+      handoff_base64:
+        required: true
+        type: string
+      handoff_sha256:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  startup-canary:
+    if: ${{ inputs.mode == 'canary' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Prove Homebrew Full topology starts read-only
+        run: test '${{ inputs.authority_run_id }}' = 424242
+
+  prepare-candidate:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      candidate_artifact: ${{ steps.identity.outputs.candidate_artifact }}
+      source_run_id: ${{ steps.identity.outputs.source_run_id }}
+      source_artifact: ${{ steps.identity.outputs.source_artifact }}
+      bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
+      version: ${{ steps.identity.outputs.version }}
+      updater_version: ${{ steps.identity.outputs.updater_version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      smoke_harness_sha: ${{ steps.identity.outputs.smoke_harness_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+      dmg_sha256: ${{ steps.identity.outputs.dmg_sha256 }}
+      manifest_sha256: ${{ steps.identity.outputs.manifest_sha256 }}
+      qualification_receipt_sha256: ${{ steps.identity.outputs.qualification_receipt_sha256 }}
+      current_cask_sha256: ${{ steps.identity.outputs.current_cask_sha256 }}
+      expected_cask_sha256: ${{ steps.identity.outputs.expected_cask_sha256 }}
+      cas_decision: ${{ steps.identity.outputs.cas_decision }}
+      tap_base_commit: ${{ steps.identity.outputs.tap_base_commit }}
+    steps:
+      - name: Checkout exact App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Decode and validate immutable handoff
+        id: identity
+        env:
+          HANDOFF_BASE64: ${{ inputs.handoff_base64 }}
+          HANDOFF_SHA256: ${{ inputs.handoff_sha256 }}
+          AUTHORITY_RUN_ID: ${{ inputs.authority_run_id }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          printf '%s' "$HANDOFF_BASE64" | base64 --decode > handoff.json
+          test "sha256:$(shasum -a 256 handoff.json | awk '{print $1}')" = "$HANDOFF_SHA256"
+          jq -e --arg run "$AUTHORITY_RUN_ID" '
+            .schema == "opl_homebrew_full_follower_handoff.v1" and .status == "ready" and .operation == "append_full"
+            and .authority.run_id == $run and .authority.run_attempt == 1
+            and .source.completed_stage == "full_qualified"
+            and .github_full_publication.status == "complete"
+            and .homebrew_modified == false and .latest_modified == false
+          ' handoff.json >/dev/null
+          source_run_id="$(jq -er .source.run_id handoff.json)"
+          source_artifact="$(jq -er .source.checkpoint_artifact handoff.json)"
+          bundle_digest="$(jq -er .release.bundle_digest handoff.json)"
+          version="$(jq -er .release.version handoff.json)"
+          updater_version="$(jq -er .release.updater_version handoff.json)"
+          tag="$(jq -er .release.tag handoff.json)"
+          app_sha="$(jq -er .release.cohort.app_sha handoff.json)"
+          shell_sha="$(jq -er .release.cohort.shell_sha handoff.json)"
+          framework_sha="$(jq -er .release.cohort.framework_sha handoff.json)"
+          embedded_base_floor=a1561bdf1dfe6f316dad22f16152a537ddfb69d5
+          git clone --filter=blob:none --no-checkout https://github.com/gaofeng21cn/opl-aion-shell.git shell-product
+          git -C shell-product fetch --no-tags origin "$shell_sha" "$embedded_base_floor"
+          git -C shell-product merge-base --is-ancestor "$embedded_base_floor" "$shell_sha" || {
+            echo "::error::Full cohort predates the embedded-Base fail-closed carrier and cannot be promoted to Homebrew."
+            exit 1
+          }
+          smoke_harness_sha="$(git ls-remote https://github.com/gaofeng21cn/opl-aion-shell.git refs/heads/main | awk '{print $1}')"
+          [[ "$smoke_harness_sha" =~ ^[0-9a-f]{40}$ ]]
+          git clone --filter=blob:none --no-checkout https://github.com/gaofeng21cn/opl-aion-shell.git shell-harness
+          git -C shell-harness fetch --depth=1 origin "$smoke_harness_sha"
+          git -C shell-harness show "$smoke_harness_sha:scripts/opl-first-run-tart-smoke.mjs" | grep -F -- '--homebrew-cask-file' >/dev/null
+          dmg_sha="$(jq -er .artifact.sha256 handoff.json)"
+          manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
+          qualification_sha="$(jq -er .source.qualification_receipt_sha256 handoff.json)"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > release.json
+          jq -e --arg dmg "$(jq -er .artifact.name handoff.json)" --arg dmg_sha "$dmg_sha" \
+            --arg manifest "$(jq -er .manifest.name handoff.json)" --arg manifest_sha "$manifest_sha" '
+            .draft == false and .prerelease == false
+            and ([.assets[] | select(.name == $dmg and .digest == $dmg_sha)] | length == 1)
+            and ([.assets[] | select(.name == $manifest and .digest == $manifest_sha)] | length == 1)
+          ' release.json >/dev/null
+          git clone --depth=1 https://github.com/gaofeng21cn/homebrew-one-person-lab.git tap-source
+          tap_base_commit="$(git -C tap-source rev-parse HEAD)"
+          node --experimental-strip-types scripts/update-homebrew-tap.ts \
+            --channel stable --package-kind app_full_first_install \
+            --version "$version" --updater-version "$updater_version" \
+            --tap-root tap-source --cask Casks/one-person-lab-full.rb \
+            --manifest-url "$(jq -er .manifest.url handoff.json)" \
+            --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+            --remote-write-mode inspect_only --summary-path homebrew-full-plan.json >/dev/null
+          test "$(jq -r .schema homebrew-full-plan.json)" = opl_homebrew_tap_cas_plan.v1
+          test "$(jq -r .policy.formula_dependency_required homebrew-full-plan.json)" = false
+          test "$(jq -r .policy.framework_carrier homebrew-full-plan.json)" = full_dmg_embedded_opl_base
+          test "$(jq -r .policy.active_framework_count_target homebrew-full-plan.json)" = 1
+          cas_decision="$(jq -er .cas.decision homebrew-full-plan.json)"
+          test "$cas_decision" != version_conflict || {
+            echo "::error::Full Cask version already exists with different bytes; freeze a new release revision."
+            exit 1
+          }
+          current_cask_sha="$(jq -er '.targets[0].current_cask_sha256 // "absent"' homebrew-full-plan.json)"
+          expected_cask_sha="$(jq -er .targets[0].expected_cask_sha256 homebrew-full-plan.json)"
+          mkdir -p candidate/Casks
+          if [ "$cas_decision" = write_once ]; then
+            node --experimental-strip-types scripts/update-homebrew-tap.ts \
+              --channel stable --package-kind app_full_first_install \
+              --version "$version" --updater-version "$updater_version" \
+              --tap-root tap-source --cask Casks/one-person-lab-full.rb \
+              --manifest-url "$(jq -er .manifest.url handoff.json)" \
+              --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+              --remote-write-mode direct_commit --expected-current-cask-sha256 "$current_cask_sha" \
+              --summary-path homebrew-full-candidate.json --write >/dev/null
+          fi
+          cp tap-source/Casks/one-person-lab-full.rb candidate/Casks/one-person-lab-full.rb
+          test "sha256:$(shasum -a 256 candidate/Casks/one-person-lab-full.rb | awk '{print $1}')" = "$expected_cask_sha"
+          candidate_artifact="opl-homebrew-full-candidate-${GITHUB_RUN_ID}"
+          {
+            echo "candidate_artifact=$candidate_artifact"
+            echo "source_run_id=$source_run_id"
+            echo "source_artifact=$source_artifact"
+            echo "bundle_digest=$bundle_digest"
+            echo "version=$version"
+            echo "updater_version=$updater_version"
+            echo "tag=$tag"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "smoke_harness_sha=$smoke_harness_sha"
+            echo "framework_sha=$framework_sha"
+            echo "dmg_sha256=$dmg_sha"
+            echo "manifest_sha256=$manifest_sha"
+            echo "qualification_receipt_sha256=$qualification_sha"
+            echo "current_cask_sha256=$current_cask_sha"
+            echo "expected_cask_sha256=$expected_cask_sha"
+            echo "cas_decision=$cas_decision"
+            echo "tap_base_commit=$tap_base_commit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore exact qualified Full checkpoint
+        id: checkpoint
+        uses: ./.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ steps.identity.outputs.framework_sha }}
+          source-run-id: ${{ steps.identity.outputs.source_run_id }}
+          source-artifact: ${{ steps.identity.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Rebind candidate to portable checkpoint bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.checkpoint.outputs.completed_stage }}' = full_qualified
+          test '${{ steps.checkpoint.outputs.bundle_digest }}' = '${{ steps.identity.outputs.bundle_digest }}'
+          checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          qualification="$checkpoint/tracks/full/qualification.json"
+          dmg="$checkpoint/tracks/full/assets/$(jq -er .artifact.name handoff.json)"
+          manifest="$checkpoint/tracks/full/assets/$(jq -er .manifest.name handoff.json)"
+          test "sha256:$(shasum -a 256 "$qualification" | awk '{print $1}')" = '${{ steps.identity.outputs.qualification_receipt_sha256 }}'
+          test "sha256:$(shasum -a 256 "$dmg" | awk '{print $1}')" = '${{ steps.identity.outputs.dmg_sha256 }}'
+          test "sha256:$(shasum -a 256 "$manifest" | awk '{print $1}')" = '${{ steps.identity.outputs.manifest_sha256 }}'
+
+      - name: Upload exact Full Cask candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.identity.outputs.candidate_artifact }}
+          path: candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  qualify-candidate:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: [prepare-candidate]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.prepare-candidate.outputs.tag }}
+      release_bundle_digest: ${{ needs.prepare-candidate.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.prepare-candidate.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.prepare-candidate.outputs.app_sha }}
+      shell_ref: ${{ needs.prepare-candidate.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.prepare-candidate.outputs.smoke_harness_sha }}
+      framework_ref: ${{ needs.prepare-candidate.outputs.framework_sha }}
+      package_profile: homebrew-full
+      homebrew_candidate_artifact: ${{ needs.prepare-candidate.outputs.candidate_artifact }}
+
+  publish-cask:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: [prepare-candidate, qualify-candidate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Download qualified candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.prepare-candidate.outputs.candidate_artifact }}
+          path: candidate
+
+      - name: Download clean VM qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-homebrew-full-${{ github.run_id }}
+          path: vm
+
+      - name: Publish one qualified Full Cask commit
+        env:
+          OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          summary="$(find vm -type f -name tart-smoke-summary.json -print -quit)"
+          test -f "$summary"
+          jq -e '
+            .status == "passed" and .smoke_profile == "homebrew-full-cask" and .runtime_profile == "full"
+            and .guest_summary.install_origin == "homebrew_full_cask"
+            and .guest_summary.homebrew_full_cask.status == "passed"
+            and .guest_summary.homebrew_full_cask.homebrew.formula_opl_installed_before == false
+            and .guest_summary.homebrew_full_cask.homebrew.formula_opl_installed_after == false
+            and .guest_summary.homebrew_full_cask.carrier.active_framework_count == 1
+            and .guest_summary.homebrew_full_cask.official_profile.status == "passed"
+            and .guest_summary.homebrew_full_cask.official_profile.restore_action_invoked == false
+          ' "$summary" >/dev/null
+          candidate=candidate/Casks/one-person-lab-full.rb
+          test "sha256:$(shasum -a 256 "$candidate" | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          git clone "https://x-access-token:${OPL_HOMEBREW_TAP_TOKEN}@github.com/gaofeng21cn/homebrew-one-person-lab.git" tap-source
+          base_commit="$(git -C tap-source rev-parse HEAD)"
+          test "$base_commit" = '${{ needs.prepare-candidate.outputs.tap_base_commit }}' || {
+            echo "::error::Homebrew Tap HEAD drifted after candidate qualification; start a new operation."
+            exit 1
+          }
+          current_sha="sha256:$(shasum -a 256 tap-source/Casks/one-person-lab-full.rb | awk '{print $1}')"
+          test "$current_sha" = '${{ needs.prepare-candidate.outputs.current_cask_sha256 }}'
+          if [ '${{ needs.prepare-candidate.outputs.cas_decision }}' = idempotent ]; then
+            result_commit="$base_commit"
+            push_count=0
+            outcome=idempotent
+          else
+            cp "$candidate" tap-source/Casks/one-person-lab-full.rb
+            test "$(git -C tap-source diff --name-only)" = Casks/one-person-lab-full.rb
+            git -C tap-source config user.name opl-release-bot
+            git -C tap-source config user.email opl-release-bot@users.noreply.github.com
+            git -C tap-source add Casks/one-person-lab-full.rb
+            git -C tap-source commit -m "Publish One Person Lab Full ${{ needs.prepare-candidate.outputs.version }}"
+            result_commit="$(git -C tap-source rev-parse HEAD)"
+            push_count=1
+            outcome=write_once
+            set +e
+            git -C tap-source push --no-force origin HEAD:refs/heads/main
+            push_status=$?
+            set -e
+            remote_commit="$(git ls-remote https://github.com/gaofeng21cn/homebrew-one-person-lab.git refs/heads/main | awk '{print $1}')"
+            if [ "$remote_commit" != "$result_commit" ]; then
+              echo "::error::Homebrew push was not read back as the exact candidate commit; no second push is allowed (status=$push_status remote=$remote_commit)."
+              exit 1
+            fi
+          fi
+          remote_cask="$(git -C tap-source show "$result_commit:Casks/one-person-lab-full.rb")"
+          test "sha256:$(printf '%s\n' "$remote_cask" | shasum -a 256 | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          jq -n --arg bundle '${{ needs.prepare-candidate.outputs.bundle_digest }}' \
+            --arg version '${{ needs.prepare-candidate.outputs.version }}' \
+            --arg base_commit "$base_commit" --arg result_commit "$result_commit" --arg outcome "$outcome" \
+            --arg cask_sha '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' \
+            --arg dmg_sha '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest_sha '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' \
+            --arg vm_sha "sha256:$(shasum -a 256 "$summary" | awk '{print $1}')" --argjson push_count "$push_count" '
+            {schema:"opl_homebrew_full_publication_receipt.v1",status:"passed",track:"full",outcome:$outcome,bundle_digest:$bundle,release_version:$version,tap_repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$base_commit,result_commit:$result_commit,push_count:$push_count,cask_sha256:$cask_sha,dmg_sha256:$dmg_sha,manifest_sha256:$manifest_sha,clean_vm_receipt_sha256:$vm_sha,active_framework_count:1,official_profile_first_install:"passed",formula_opl_installed_before:false,formula_opl_installed_after:false}' \
+            > homebrew-full-publication-receipt.json
+
+      - name: Upload Full Homebrew publication receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-homebrew-full-${{ github.run_id }}
+          path: homebrew-full-publication-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  readback:
+    if: ${{ inputs.mode == 'execute' }}
+    needs: [prepare-candidate, publish-cask]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Download protected publication receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-homebrew-full-${{ github.run_id }}
+          path: publication
+
+      - name: Verify public Tap and release bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt=publication/homebrew-full-publication-receipt.json
+          jq -e --arg bundle '${{ needs.prepare-candidate.outputs.bundle_digest }}' \
+            --arg version '${{ needs.prepare-candidate.outputs.version }}' \
+            --arg cask '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' \
+            --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' \
+            --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
+            .schema == "opl_homebrew_full_publication_receipt.v1" and .status == "passed"
+            and .bundle_digest == $bundle and .release_version == $version
+            and .cask_sha256 == $cask and .dmg_sha256 == $dmg and .manifest_sha256 == $manifest
+            and .active_framework_count == 1 and .official_profile_first_install == "passed"
+            and .formula_opl_installed_before == false and .formula_opl_installed_after == false
+            and (.push_count == 0 or .push_count == 1)
+          ' "$receipt" >/dev/null
+          result_commit="$(jq -er .result_commit "$receipt")"
+          remote_commit="$(git ls-remote https://github.com/gaofeng21cn/homebrew-one-person-lab.git refs/heads/main | awk '{print $1}')"
+          test "$remote_commit" = "$result_commit"
+          remote_cask="$(curl -fsSL "https://raw.githubusercontent.com/gaofeng21cn/homebrew-one-person-lab/${result_commit}/Casks/one-person-lab-full.rb")"
+          test "sha256:$(printf '%s\n' "$remote_cask" | shasum -a 256 | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.tag }}" > release.json
+          jq -e --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
+            ([.assets[] | select(.digest == $dmg)] | length == 1)
+            and ([.assets[] | select(.digest == $manifest)] | length == 1)
+          ' release.json >/dev/null
+          jq -n --arg publication_sha "sha256:$(shasum -a 256 "$receipt" | awk '{print $1}')" \
+            --arg tap_commit "$remote_commit" --arg cask_sha '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' '
+            {schema:"opl_homebrew_full_public_readback.v1",status:"passed",publication_receipt_sha256:$publication_sha,tap_commit:$tap_commit,cask_sha256:$cask_sha,public_mutation_read_back:true}' \
+            > homebrew-full-readback.json
+
+      - name: Upload Full Homebrew readback
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-homebrew-full-readback-${{ github.run_id }}
+          path: homebrew-full-readback.json
+          if-no-files-found: error
+          retention-days: 30

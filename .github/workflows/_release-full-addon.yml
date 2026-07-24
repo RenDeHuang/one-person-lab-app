@@ -805,6 +805,57 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > full-published.json
           test "$(jq -r .release_bundle_publish.status full-published.json)" = complete
+          checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          full_assets="$checkpoint/tracks/full/assets.json"
+          full_qualification="$checkpoint/tracks/full/qualification.json"
+          test -f "$full_assets"
+          test -f "$full_qualification"
+          dmg_name="One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg"
+          manifest_name=opl-release-manifest.json
+          dmg_path="$checkpoint/tracks/full/assets/$dmg_name"
+          manifest_path="$checkpoint/tracks/full/assets/$manifest_name"
+          test -f "$dmg_path"
+          test -f "$manifest_path"
+          dmg_sha="sha256:$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
+          manifest_sha="sha256:$(shasum -a 256 "$manifest_path" | awk '{print $1}')"
+          qualification_sha="sha256:$(shasum -a 256 "$full_qualification" | awk '{print $1}')"
+          dmg_size="$(wc -c < "$dmg_path" | tr -d ' ')"
+          manifest_size="$(wc -c < "$manifest_path" | tr -d ' ')"
+          jq -e --arg name "$dmg_name" --arg sha "$dmg_sha" --argjson size "$dmg_size" '
+            [.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1
+          ' "$full_assets" >/dev/null
+          jq -e --arg name "$manifest_name" --arg sha "$manifest_sha" --argjson size "$manifest_size" '
+            [.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1
+          ' "$full_assets" >/dev/null
+          test "$(jq -r .track "$full_qualification")" = full
+          test "$(jq -r .qualification.result "$full_qualification")" = passed
+          test "$(jq -r .bundle_digest "$full_qualification")" = "$BUNDLE_DIGEST"
+          published_sha="sha256:$(shasum -a 256 full-published.json | awk '{print $1}')"
+          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${{ needs.restore-standard.outputs.tag }}"
+          jq -n \
+            --arg authority_run_id "$GITHUB_RUN_ID" --arg authority_head_sha "$GITHUB_SHA" \
+            --arg source_run_id '${{ needs.provenance.outputs.source_run_id }}' \
+            --arg source_artifact '${{ needs.provenance.outputs.source_artifact }}' \
+            --arg bundle_digest "$BUNDLE_DIGEST" --arg version '${{ needs.restore-standard.outputs.version }}' \
+            --arg updater_version '${{ needs.restore-standard.outputs.updater_version }}' \
+            --arg tag '${{ needs.restore-standard.outputs.tag }}' \
+            --arg app_sha '${{ needs.restore-standard.outputs.app_ref }}' \
+            --arg shell_sha '${{ needs.restore-standard.outputs.shell_ref }}' \
+            --arg framework_sha '${{ needs.restore-standard.outputs.framework_source_ref }}' \
+            --arg dmg_name "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" \
+            --arg dmg_url "$base_url/$dmg_name" \
+            --arg manifest_name "$manifest_name" --arg manifest_sha "$manifest_sha" --argjson manifest_size "$manifest_size" \
+            --arg manifest_url "$base_url/$manifest_name" --arg qualification_sha "$qualification_sha" \
+            --arg published_sha "$published_sha" '
+            {
+              schema:"opl_homebrew_full_follower_handoff.v1",status:"ready",operation:"append_full",
+              authority:{repository:"gaofeng21cn/one-person-lab-app",workflow:".github/workflows/release-stable.yml",run_id:$authority_run_id,run_attempt:1,executor_head_sha:$authority_head_sha},
+              source:{run_id:$source_run_id,checkpoint_artifact:$source_artifact,completed_stage:"full_qualified",qualification_receipt_sha256:$qualification_sha},
+              release:{bundle_digest:$bundle_digest,version:$version,updater_version:$updater_version,tag:$tag,cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}},
+              artifact:{name:$dmg_name,size_bytes:$dmg_size,sha256:$dmg_sha,url:$dmg_url},
+              manifest:{name:$manifest_name,size_bytes:$manifest_size,sha256:$manifest_sha,url:$manifest_url},
+              github_full_publication:{status:"complete",receipt_sha256:$published_sha},homebrew_modified:false,latest_modified:false
+            }' > homebrew-full-handoff.json
           jq -n --arg bundle "$BUNDLE_DIGEST" \
             '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",bundle_digest:$bundle,standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
@@ -853,6 +904,7 @@ jobs:
             remote-after.json
             full-published.json
             append-full-boundary.json
+            homebrew-full-handoff.json
             reconcile-observation.json
             reconcile-result.json
             release-failure-evidence

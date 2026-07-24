@@ -1,0 +1,135 @@
+name: OPL Homebrew Full Follower
+run-name: Homebrew Full follower for Stable run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Stable Release Bundle
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-homebrew-full-follower-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-handoff:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.handoff.outputs.eligible }}
+      handoff_base64: ${{ steps.handoff.outputs.handoff_base64 }}
+      handoff_sha256: ${{ steps.handoff.outputs.handoff_sha256 }}
+    steps:
+      - name: Admit one successful append_full authority run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$AUTHORITY_RUN_ID" > authority-run.json
+          jq -e --arg run "$AUTHORITY_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' authority-run.json >/dev/null
+          artifact="opl-release-full-published-${AUTHORITY_RUN_ID}"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$AUTHORITY_RUN_ID/artifacts?per_page=100" > artifacts.json
+          count="$(jq -r --arg name "$artifact" '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' artifacts.json)"
+          if [ "$count" = 0 ]; then
+            echo "artifact_found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "$count" = 1
+          echo "artifact_found=true" >> "$GITHUB_OUTPUT"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Download exact Full publication handoff
+        if: ${{ steps.authority.outputs.artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: full-publication
+
+      - name: Bind immutable Homebrew Full handoff
+        id: handoff
+        if: ${{ always() && steps.authority.outcome == 'success' }}
+        env:
+          AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.authority.outputs.artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          while IFS= read -r handoff; do handoffs+=("$handoff"); done < <(
+            find full-publication -type f -name homebrew-full-handoff.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1
+          handoff="${handoffs[0]}"
+          head_sha="$(jq -er .head_sha authority-run.json)"
+          jq -e --arg run "$AUTHORITY_RUN_ID" --arg head "$head_sha" '
+            .schema == "opl_homebrew_full_follower_handoff.v1"
+            and .status == "ready"
+            and .operation == "append_full"
+            and .authority == {repository:"gaofeng21cn/one-person-lab-app",workflow:".github/workflows/release-stable.yml",run_id:$run,run_attempt:1,executor_head_sha:$head}
+            and (.source.run_id | test("^[1-9][0-9]*$"))
+            and (.source.checkpoint_artifact | test("^[A-Za-z0-9][A-Za-z0-9._-]+$"))
+            and .source.completed_stage == "full_qualified"
+            and (.source.qualification_receipt_sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and (.release.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and (.artifact.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and (.manifest.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and .github_full_publication.status == "complete"
+            and .homebrew_modified == false
+            and .latest_modified == false
+          ' "$handoff" >/dev/null
+          handoff_sha="sha256:$(shasum -a 256 "$handoff" | awk '{print $1}')"
+          handoff_base64="$(base64 < "$handoff" | tr -d '\n')"
+          {
+            echo "eligible=true"
+            echo "handoff_sha256=$handoff_sha"
+            echo "handoff_base64=$handoff_base64"
+          } >> "$GITHUB_OUTPUT"
+
+  publish-homebrew-full:
+    if: ${{ needs.resolve-handoff.outputs.eligible == 'true' }}
+    needs: [resolve-handoff]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_release-homebrew-full-publish.yml
+    with:
+      mode: execute
+      authority_run_id: ${{ github.event.workflow_run.id }}
+      handoff_base64: ${{ needs.resolve-handoff.outputs.handoff_base64 }}
+      handoff_sha256: ${{ needs.resolve-handoff.outputs.handoff_sha256 }}
+    secrets: inherit

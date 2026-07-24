@@ -24,6 +24,8 @@ const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
 const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-follower.yml';
 const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
+const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
+const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -547,8 +549,17 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (standardUpdaterOrLatest(full.text)) {
     failures += reportFailure(id, 'append_full must not qualify Standard updater or activate Latest');
   }
-  if (/publish-homebrew-full|homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/.test(full.text)) {
+  if (/publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/.test(full.text)) {
     failures += reportFailure(id, 'append_full must not update or push any Homebrew Cask');
+  }
+  for (const required of [
+    'opl_homebrew_full_follower_handoff.v1',
+    'homebrew_modified:false',
+    'latest_modified:false',
+    'completed_stage:"full_qualified"',
+    'qualification_receipt_sha256',
+  ]) {
+    if (!full.text.includes(required)) failures += reportFailure(id, `append_full handoff is missing ${required}`);
   }
 
   const homebrewStandardRuns = jobRuns(standardJobs['publish-homebrew-standard']);
@@ -676,6 +687,138 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
   }
   if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-standard-publish\.yml|_release-full-addon\.yml/.test(carrier.text)) {
     failures += reportFailure(id, 'Native reusable must remain additive GitHub Release publication only');
+  }
+  return failures;
+}
+
+export function validateHomebrewFullPromotionTopology(appRoot: string): number {
+  const id = 'homebrew_full_promotion_topology';
+  const follower = parseWorkflow(appRoot, homebrewFullFollowerWorkflowPath, id);
+  const publisher = parseWorkflow(appRoot, homebrewFullPublisherWorkflowPath, id);
+  if (!follower || !publisher) return [follower, publisher].filter((value) => !value).length;
+  let failures = 0;
+  const followerJobs = workflowJobs(follower.workflow);
+  const followerTriggers = follower.workflow.on ?? {};
+  if (
+    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
+    || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(follower.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'publish-homebrew-full'])
+  ) {
+    failures += reportFailure(id, 'Full Homebrew follower must be one automatic read-default Stable workflow_run lane');
+  }
+  const delegated = followerJobs['publish-homebrew-full'];
+  if (
+    !delegated
+    || delegated.uses !== './.github/workflows/_release-homebrew-full-publish.yml'
+    || !needsExactly(delegated, ['resolve-handoff'])
+    || !exactObject(delegated.permissions, exactReadPermissions)
+    || delegated.with?.mode !== 'execute'
+    || delegated.secrets !== 'inherit'
+  ) {
+    failures += reportFailure(id, 'Full Homebrew follower must delegate only the exact handoff to the protected reusable');
+  }
+  for (const required of [
+    '.path == ".github/workflows/release-stable.yml"',
+    '.run_attempt == 1',
+    'opl-release-full-published-${AUTHORITY_RUN_ID}',
+    'homebrew-full-handoff.json',
+    'opl_homebrew_full_follower_handoff.v1',
+    '.source.completed_stage == "full_qualified"',
+    '.homebrew_modified == false',
+  ]) {
+    if (!follower.text.includes(required)) failures += reportFailure(id, `Full Homebrew follower is missing ${required}`);
+  }
+  if (/workflow_dispatch:|continue-on-error|git\b[^\n]*\bpush\b|OPL_HOMEBREW_TAP_TOKEN/.test(follower.text)) {
+    failures += reportFailure(id, 'Full Homebrew follower must not expose manual or direct mutation paths');
+  }
+
+  const publisherJobs = workflowJobs(publisher.workflow);
+  const publisherInputs = publisher.workflow.on?.workflow_call?.inputs ?? {};
+  if (
+    JSON.stringify(Object.keys(publisher.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
+    || JSON.stringify(Object.keys(publisherInputs)) !== JSON.stringify(['mode', 'authority_run_id', 'handoff_base64', 'handoff_sha256'])
+    || !exactObject(publisher.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(publisherJobs)) !== JSON.stringify(['startup-canary', 'prepare-candidate', 'qualify-candidate', 'publish-cask', 'readback'])
+  ) {
+    failures += reportFailure(id, 'Full Homebrew reusable must expose only exact handoff inputs and candidate/qualification/publish/readback jobs');
+  }
+  const startup = publisherJobs['startup-canary'];
+  const prepare = publisherJobs['prepare-candidate'];
+  const qualify = publisherJobs['qualify-candidate'];
+  const publish = publisherJobs['publish-cask'];
+  const readback = publisherJobs.readback;
+  if (
+    !startup || startup.if !== "${{ inputs.mode == 'canary' }}" || !exactObject(startup.permissions, exactReadPermissions)
+    || !prepare || prepare.if !== "${{ inputs.mode == 'execute' }}" || !exactObject(prepare.permissions, exactReadPermissions)
+    || !qualify || qualify.if !== "${{ inputs.mode == 'execute' }}" || qualify.uses !== './.github/workflows/opl-first-run-vm.yml'
+    || !needsExactly(qualify, ['prepare-candidate']) || !exactObject(qualify.permissions, exactReadPermissions)
+    || qualify.with?.package_profile !== 'homebrew-full'
+    || qualify.with?.homebrew_candidate_artifact !== '${{ needs.prepare-candidate.outputs.candidate_artifact }}'
+    || !publish || publish.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(publish, ['prepare-candidate', 'qualify-candidate'])
+    || publish.environment !== 'release-stable' || !exactObject(publish.permissions, exactReadPermissions)
+    || !readback || readback.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(readback, ['prepare-candidate', 'publish-cask'])
+    || !exactObject(readback.permissions, exactReadPermissions)
+  ) {
+    failures += reportFailure(id, 'Full Homebrew reusable must qualify exact candidate before protected Tap CAS and public readback');
+  }
+  const prepareRuns = jobRuns(prepare);
+  const publishRuns = jobRuns(publish);
+  for (const required of [
+    'app_full_first_install',
+    'inspect_only',
+    'version_conflict',
+    'direct_commit',
+    'full_dmg_embedded_opl_base',
+    'active_framework_count_target',
+    'opl-homebrew-full-candidate-${GITHUB_RUN_ID}',
+    'a1561bdf1dfe6f316dad22f16152a537ddfb69d5',
+    'merge-base --is-ancestor "$embedded_base_floor" "$shell_sha"',
+    'predates the embedded-Base fail-closed carrier',
+    "test '${{ steps.checkpoint.outputs.completed_stage }}' = full_qualified",
+    'qualification_receipt_sha256',
+  ]) {
+    if (!prepareRuns.includes(required)) failures += reportFailure(id, `Full Homebrew candidate preparation is missing ${required}`);
+  }
+  for (const required of [
+    'tart-smoke-summary.json',
+    'homebrew-full-cask',
+    'formula_opl_installed_before == false',
+    'formula_opl_installed_after == false',
+    'active_framework_count == 1',
+    'official_profile.status == "passed"',
+    'git -C tap-source push --no-force origin HEAD:refs/heads/main',
+    'no second push is allowed',
+    'opl_homebrew_full_publication_receipt.v1',
+  ]) {
+    if (!publishRuns.includes(required)) failures += reportFailure(id, `Full Homebrew protected publish is missing ${required}`);
+  }
+  if ((publishRuns.match(/git -C tap-source push --no-force/g) ?? []).length !== 1) {
+    failures += reportFailure(id, 'Full Homebrew publisher must contain exactly one non-force Tap push call');
+  }
+  if (
+    !publisher.text.includes(
+      'OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}',
+    )
+  ) {
+    failures += reportFailure(id, 'Full Homebrew token must be scoped to the protected publish job');
+  }
+  if (prepareRuns.includes('OPL_HOMEBREW_TAP_TOKEN') || jobRuns(qualify).includes('OPL_HOMEBREW_TAP_TOKEN')) {
+    failures += reportFailure(id, 'Full Homebrew token must be unreachable before candidate clean-VM qualification passes');
+  }
+  if (/workflow_dispatch:|depends_on formula: "opl"|github-activate-latest|make_latest|release-webui/.test(publisher.text)) {
+    failures += reportFailure(id, 'Full Homebrew reusable must remain isolated from Formula, Latest, WebUI, and manual entry paths');
+  }
+  const vmWorkflow = parseWorkflow(appRoot, '.github/workflows/opl-first-run-vm.yml', id);
+  if (
+    !vmWorkflow
+    || !vmWorkflow.text.includes('oplProductProfile/oplProductProfile.generated.json')
+  ) {
+    failures += reportFailure(
+      id,
+      'Full Homebrew qualification must carry the generated Official Profile roots into the Shell harness checkout',
+    );
   }
   return failures;
 }
@@ -1074,7 +1217,8 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     validateReleaseBundleTopology(appRoot) +
     validateReleaseBundleCanaryTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
-    validateNativeWebuiPublicationTopology(appRoot);
+    validateNativeWebuiPublicationTopology(appRoot) +
+    validateHomebrewFullPromotionTopology(appRoot);
   const stableWorkflowPath = '.github/workflows/release-stable.yml';
   const stableEntryJobs = new Set(Object.keys(stableEntrySpecs));
   const workflowDirectory = path.join(appRoot, '.github', 'workflows');

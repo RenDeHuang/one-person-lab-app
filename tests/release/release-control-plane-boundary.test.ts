@@ -8,6 +8,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   validateReleaseBundleCanaryTopology,
   validateReleaseBundleTopology,
+  validateHomebrewFullPromotionTopology,
   validateNativeWebuiPublicationTopology,
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
@@ -158,6 +159,25 @@ test('Native WebUI follower keeps additive GitHub write behind exact Stable hand
     delete workflow.jobs['publish-native-assets'].environment;
   });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
+test('Full Homebrew follower qualifies one exact candidate before protected Tap CAS', (t) => {
+  const root = fixture(t);
+  assert.equal(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)), 0);
+  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
+
+  updateWorkflow(root, '_release-homebrew-full-publish.yml', (workflow) => {
+    workflow.jobs['publish-cask'].needs = ['prepare-candidate'];
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
+
+  updateWorkflow(root, '_release-homebrew-full-publish.yml', (workflow) => {
+    workflow.jobs['publish-cask'].needs = ['prepare-candidate', 'qualify-candidate'];
+    workflow.jobs['prepare-candidate'].steps.push({
+      run: 'echo $OPL_HOMEBREW_TAP_TOKEN',
+    });
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
 });
 
 test('daily validation cannot restore the retired Nightly publisher or reuse the Stable mutex', (t) => {
