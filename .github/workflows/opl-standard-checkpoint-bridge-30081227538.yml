@@ -1,0 +1,240 @@
+name: OPL Standard Checkpoint Bridge 30081227538
+
+on:
+  repository_dispatch:
+    types:
+      - opl_standard_checkpoint_bridge_30081227538
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: opl-release-bundle-global
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SOURCE_RUN_ID: '30081227538'
+  SOURCE_APP_REF: 40ed905a942f42a94948ed1c86268044b479cd67
+  SOURCE_SHELL_REF: db49753e6e11fc4e7f226d8c23cf219805808f79
+  SOURCE_FRAMEWORK_REF: fe1fafa26f2c59922596718b305761bbc7558c9c
+  OPERATION_ID: gha-30081227538-standard
+  OPERATION_STARTED_AT: '2026-07-24T09:04:32.000Z'
+  OPERATION_DEADLINE_AT: '2026-07-24T10:34:32.000Z'
+  BUNDLE_DIGEST: sha256:d496b503e398ee48871bf881150bf6db1f2efbcd4fb77c081fc1de0d8d2f2abf
+  DMG_DIGEST: sha256:60c65b773651def74bce0b0029a35581735e44ee131b422dfaa43b741f850cd0
+  CHECKPOINT_ARTIFACT: opl-release-standard-checkpoint-bridge-30081227538
+
+jobs:
+  transport:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      source_run_id: ${{ steps.provenance.outputs.source_run_id }}
+      source_artifact: ${{ steps.provenance.outputs.source_artifact }}
+      completed_stage: ${{ steps.provenance.outputs.completed_stage }}
+    steps:
+      - name: Admit the single same-operation bridge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_EXECUTOR_HEAD: ${{ github.event.client_payload.executor_head }}
+          REQUESTED_OPERATION_ID: ${{ github.event.client_payload.operation_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$EXPECTED_EXECUTOR_HEAD"
+          test "$REQUESTED_OPERATION_ID" = "$OPERATION_ID"
+          test "${{ github.event.client_payload.bridge }}" = same-artifact-standard-checkpoint-v1
+          node <<'NODE'
+          const deadline = Date.parse(process.env.OPERATION_DEADLINE_AT);
+          if (!Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
+          NODE
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          test "$(jq -r .head_sha <<<"$run_json")" = "$SOURCE_APP_REF"
+          test "$(jq -r .run_attempt <<<"$run_json")" = 1
+          test "$(jq -r .status <<<"$run_json")" = completed
+          test "$(jq -r .conclusion <<<"$run_json")" = failure
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          check_artifact() {
+            local name="$1" id="$2" digest="$3"
+            jq -e --arg name "$name" --argjson id "$id" --arg digest "$digest" '
+              [.artifacts[] | select(.name == $name and .id == $id and .digest == $digest and .expired == false)] | length == 1
+            ' <<<"$artifacts_json" >/dev/null
+          }
+          check_artifact opl-release-bundle-30081227538 8591938084 sha256:ecc9a52b1f18b6a97895960f4abd04d900eeb5213fef020895373c2b31469ec5
+          check_artifact macos-build-arm64 8592301028 sha256:24e96874213fb05a0c50d6cf6ed61aa28a4782db2c5890423394027bf857aefa
+          check_artifact opl-first-run-vm-standard-30081227538 8592516539 sha256:c0bf114891fb8ccae145dca15a42bd0c263f8e44181cae49bb48b1a536e4a697
+          test "$(jq '[.artifacts[] | select(.name == "opl-release-standard-checkpoint-30081227538")] | length' <<<"$artifacts_json")" = 0
+
+      - name: Checkout frozen App product adapter
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ env.SOURCE_APP_REF }}
+          path: app-source
+
+      - name: Checkout frozen Framework checkpoint authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ env.SOURCE_FRAMEWORK_REF }}
+          path: framework-source
+
+      - name: Download frozen Bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-bundle-30081227538
+          path: bundle
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download frozen Standard build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: macos-build-arm64
+          path: standard-assets
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download exact Standard qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-standard-30081227538
+          path: standard-qualification
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Setup frozen Framework runtime
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: framework-source/package-lock.json
+
+      - name: Install frozen Framework runtime dependencies
+        run: npm --prefix framework-source ci --ignore-scripts
+
+      - name: Reproduce completed checkpoint stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(jq -er .bundle_digest bundle/release-bundle.json)" = "$BUNDLE_DIGEST"
+          test "$(jq -er .sources.app.source_commit bundle/release-bundle.json)" = "$SOURCE_APP_REF"
+          test "$(jq -er .sources.shell.source_commit bundle/release-bundle.json)" = "$SOURCE_SHELL_REF"
+          test "$(jq -er .sources.framework.source_commit bundle/release-bundle.json)" = "$SOURCE_FRAMEWORK_REF"
+          test "$(jq -er .release.version bundle/release-bundle.json)" = 26.7.24
+          test "$(jq -er .release.updater_version bundle/release-bundle.json)" = 26.7.2400
+          dmg=standard-assets/One-Person-Lab-26.7.24-mac-arm64.dmg
+          test "sha256:$(sha256sum "$dmg" | awk '{print $1}')" = "$DMG_DIGEST"
+          node --experimental-strip-types app-source/scripts/bind-standard-release-track.ts \
+            --assets-dir standard-assets \
+            --version 26.7.24 \
+            --updater-version 26.7.2400 \
+            --app-sha "$SOURCE_APP_REF" \
+            --shell-sha "$SOURCE_SHELL_REF" \
+            --framework-sha "$SOURCE_FRAMEWORK_REF" \
+            --bundle-digest "$BUNDLE_DIGEST" \
+            --channel stable \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --source-run-attempt 1 \
+            --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
+            --component-manifest-output standard-assets/opl-app-component-manifest.json \
+            --identity-receipt-output standard-identity-receipt.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            --operation build --executor remote --attempt-id "gha-${SOURCE_RUN_ID}-standard-build" \
+            --release-operation standard --operation-id "$OPERATION_ID" \
+            --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${SOURCE_RUN_ID}/standard-build" \
+            --bundle bundle/release-bundle.json --track standard --outcome complete \
+            --assets-dir standard-assets --output standard-build-receipt.json
+          framework-source/bin/opl release freeze \
+            --request bundle/freeze-request.json --source-root framework-source \
+            --store "$RUNNER_TEMP/store" --json > freeze-result.json
+          framework-source/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" --operation standard \
+            --operation-id "$OPERATION_ID" \
+            --operation-started-at "$OPERATION_STARTED_AT" \
+            --operation-deadline-at "$OPERATION_DEADLINE_AT" \
+            --store "$RUNNER_TEMP/store" --json > operation-admit-result.json
+          framework-source/bin/opl release build \
+            --bundle "$BUNDLE_DIGEST" --executor-receipt standard-build-receipt.json \
+            --operation standard --operation-id "$OPERATION_ID" \
+            --operation-started-at "$OPERATION_STARTED_AT" \
+            --operation-deadline-at "$OPERATION_DEADLINE_AT" \
+            --store "$RUNNER_TEMP/store" --json > standard-build-result.json
+          legacy_receipt="$(find standard-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
+          test -n "$legacy_receipt"
+          test "$(jq -er .qualification.result "$legacy_receipt")" = passed
+          test "sha256:$(jq -er .artifact.sha256 "$legacy_receipt")" = "$DMG_DIGEST"
+          test "$(jq -er .cohort.app_sha "$legacy_receipt")" = "$SOURCE_APP_REF"
+          test "$(jq -er .cohort.shell_sha "$legacy_receipt")" = "$SOURCE_SHELL_REF"
+          test "$(jq -er .cohort.framework_sha "$legacy_receipt")" = "$SOURCE_FRAMEWORK_REF"
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
+            --bundle bundle/release-bundle.json --track standard \
+            --legacy-qualification "$legacy_receipt" --output standard-qualification-receipt.json
+          framework-source/bin/opl release verify \
+            --bundle "$BUNDLE_DIGEST" --track standard \
+            --qualification-receipt standard-qualification-receipt.json \
+            --operation standard --operation-id "$OPERATION_ID" \
+            --operation-started-at "$OPERATION_STARTED_AT" \
+            --operation-deadline-at "$OPERATION_DEADLINE_AT" \
+            --store "$RUNNER_TEMP/store" --json > standard-verify-result.json
+          framework-source/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output standard-checkpoint \
+            --store "$RUNNER_TEMP/store" --json > checkpoint-export.json
+          test "$(jq -er .release_bundle_checkpoint_export.checkpoint_stage checkpoint-export.json)" = standard_qualified
+          test "$(jq -er .release_bundle_checkpoint_export.bundle_digest checkpoint-export.json)" = "$BUNDLE_DIGEST"
+
+      - name: Record checkpoint transport provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "source_run_id=$GITHUB_RUN_ID"
+            echo "source_artifact=$CHECKPOINT_ARTIFACT"
+            echo "completed_stage=standard_qualified"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the single portable Standard checkpoint
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.CHECKPOINT_ARTIFACT }}
+          path: |
+            standard-checkpoint
+            standard-build-receipt.json
+            standard-identity-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload bridge identity evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-checkpoint-bridge-evidence-30081227538
+          path: |
+            freeze-result.json
+            operation-admit-result.json
+            standard-build-result.json
+            standard-verify-result.json
+            checkpoint-export.json
+            standard-qualification-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-standard:
+    needs: [transport]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-standard-publish.yml
+    with:
+      mode: execute
+      operation: resume_standard
+      source_run_id: ${{ needs.transport.outputs.source_run_id }}
+      source_artifact: ${{ needs.transport.outputs.source_artifact }}
+      source_format: checkpoint_v1
+      framework_executor_ref: fe1fafa26f2c59922596718b305761bbc7558c9c
+      operation_started_at: '2026-07-24T09:04:32.000Z'
+      operation_deadline_at: '2026-07-24T10:34:32.000Z'
+    secrets: inherit
