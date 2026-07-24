@@ -657,6 +657,9 @@ test('every Stable updater baseline passes before the first public release mutat
   assert.ok(latest.needs.includes('updater-upgrade-qualification-highest'));
   assert.match(readWorkflow('_release-standard-publish.yml'), /highest_public_stable/);
   assert.match(readWorkflow('_release-bundle.yml'), /resolveStableReleaseVersion/);
+  assert.match(readWorkflow('_release-bundle.yml'), /ghcr\.io\/token\?scope=repository:gaofeng21cn\/one-person-lab-webui:pull/);
+  assert.match(readWorkflow('_release-bundle.yml'), /ghcr\.io\/v2\/gaofeng21cn\/one-person-lab-webui\/manifests/);
+  assert.match(readWorkflow('_release-bundle.yml'), /PUBLISHED_WEBUI_TAGS_TXT/);
   assert.match(readWorkflow('_release-bundle.yml'), /--published-releases-json/);
 
   const updater = readWorkflow('opl-updater-upgrade-vm.yml');

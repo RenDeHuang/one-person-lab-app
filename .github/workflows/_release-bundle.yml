@@ -225,11 +225,36 @@ jobs:
           test -n "$version"
           published_releases_json="$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json"
           published_tags_txt="$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt"
+          published_webui_tags_txt="$RUNNER_TEMP/opl-published-webui-tags-$GITHUB_RUN_ID.txt"
           stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
           previous_latest_json="$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
           git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
+          webui_base_version="${version%-r*}"
+          registry_token="$(
+            curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+              "https://ghcr.io/token?scope=repository:gaofeng21cn/one-person-lab-webui:pull" \
+              | jq -er .token
+          )"
+          : > "$published_webui_tags_txt"
+          for revision in {0..9}; do
+            candidate="$webui_base_version"
+            if [ "$revision" != 0 ]; then candidate="$webui_base_version-r$revision"; fi
+            status="$(
+              curl --silent --show-error --connect-timeout 10 --max-time 30 \
+                --output /dev/null --write-out '%{http_code}' \
+                --header "Authorization: Bearer $registry_token" \
+                --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+                "https://ghcr.io/v2/gaofeng21cn/one-person-lab-webui/manifests/$candidate"
+            )"
+            case "$status" in
+              200) printf 'v%s\n' "$candidate" >> "$published_webui_tags_txt" ;;
+              404) ;;
+              *) echo "::error::Unable to resolve public WebUI version tag $candidate (HTTP $status)."; exit 1 ;;
+            esac
+          done
           PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
+            PUBLISHED_WEBUI_TAGS_TXT="$published_webui_tags_txt" \
             BASE_VERSION="${version%-r*}" VERSION="$version" \
             node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -237,6 +262,7 @@ jobs:
           const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
           const refs = Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [];
           refs.push(...fs.readFileSync(process.env.PUBLISHED_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
+          refs.push(...fs.readFileSync(process.env.PUBLISHED_WEBUI_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
           const resolved = resolveStableReleaseVersion(process.env.BASE_VERSION, refs);
           if (resolved.version !== process.env.VERSION) {
             throw new Error(`Stable must use next immutable same-day revision ${resolved.version}; got ${process.env.VERSION}.`);
