@@ -279,6 +279,12 @@ jobs:
           mkdir -p "$HOME" "$BIN_DIR"
           installer="$GITHUB_WORKSPACE/native-release/install-web.sh"
           mirror="file://$GITHUB_WORKSPACE/native-release"
+          test ! -e "$INSTALL_DIR"
+          test ! -e "$HOME/.local/share/one-person-lab/webui/data"
+          test ! -e "$HOME/OnePersonLab/projects"
+          test ! -e "$BIN_DIR/aionui-web"
+          id -u > native-release/qualification-user-id.txt
+          uname -srm > native-release/qualification-kernel.txt
           bash "$installer" --mirror "$mirror" --version "$PREDECESSOR_VERSION" --no-path
           test "$(readlink "$INSTALL_DIR/current")" = "versions/$PREDECESSOR_VERSION"
           test -f "$INSTALL_DIR/.official-profile-first-install-complete"
@@ -302,6 +308,9 @@ jobs:
           test "$(cat "$projects_dir/project-sentinel.txt")" = native-project-data
           bash "$installer" --install-dir "$INSTALL_DIR" --rollback
           test "$(readlink "$INSTALL_DIR/current")" = "versions/$TARGET_VERSION"
+          test "$(shasum -a 256 "$INSTALL_DIR/.official-profile-first-install-complete" | awk '{print $1}')" = "$marker_digest"
+          test "$(cat "$data_dir/user-sentinel.txt")" = native-user-data
+          test "$(cat "$projects_dir/project-sentinel.txt")" = native-project-data
           port=25808
           "$BIN_DIR/aionui-web" start --port "$port" --no-open > native-release/http.log 2>&1 &
           web_pid=$!
@@ -320,6 +329,15 @@ jobs:
           kill "$web_pid"
           wait "$web_pid" || true
           trap - EXIT
+          target_tarball="native-release/v${TARGET_VERSION}/one-person-lab-webui-${TARGET_VERSION}-linux-x86_64.tar.gz"
+          shasum -a 256 "$target_tarball" | awk '{print $1}' > native-release/qualified-runtime-sha256.txt
+          shasum -a 256 "$installer" | awk '{print $1}' > native-release/qualified-installer-sha256.txt
+          shasum -a 256 "$INSTALL_DIR/.official-profile-first-install-complete" | awk '{print $1}' \
+            > native-release/official-profile-marker-sha256.txt
+          shasum -a 256 "$data_dir/user-sentinel.txt" | awk '{print $1}' > native-release/data-sentinel-sha256.txt
+          shasum -a 256 "$projects_dir/project-sentinel.txt" | awk '{print $1}' > native-release/project-sentinel-sha256.txt
+          printf '%s\n' "$(readlink "$INSTALL_DIR/current")" > native-release/current-version-link.txt
+          printf '%s\n' "$(readlink "$INSTALL_DIR/previous")" > native-release/previous-version-link.txt
 
       - name: Seal qualification receipt and publication manifest
         env:
@@ -329,17 +347,37 @@ jobs:
           APP_SHA: ${{ inputs.app_ref }}
           SHELL_SHA: ${{ inputs.shell_ref }}
           FRAMEWORK_SHA: ${{ inputs.framework_ref }}
+          QUALIFICATION_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          QUALIFICATION_RUNNER_OS: ${{ runner.os }}
+          QUALIFICATION_RUNNER_ARCH: ${{ runner.arch }}
         shell: bash
         run: |
           set -euo pipefail
           base="one-person-lab-webui-${OPL_VERSION}-linux-x86_64"
           receipt="native-release/v${OPL_VERSION}/${base}.qualification.json"
+          runtime_sha256="$(cat native-release/qualified-runtime-sha256.txt)"
+          installer_sha256="$(cat native-release/qualified-installer-sha256.txt)"
+          official_profile_marker_sha256="$(cat native-release/official-profile-marker-sha256.txt)"
+          data_sentinel_sha256="$(cat native-release/data-sentinel-sha256.txt)"
+          project_sentinel_sha256="$(cat native-release/project-sentinel-sha256.txt)"
+          current_version_link="$(cat native-release/current-version-link.txt)"
+          previous_version_link="$(cat native-release/previous-version-link.txt)"
+          qualification_user_id="$(cat native-release/qualification-user-id.txt)"
+          qualification_kernel="$(cat native-release/qualification-kernel.txt)"
           jq -n \
             --arg version "$OPL_VERSION" \
             --arg bundle "$BUNDLE_DIGEST" \
             --arg run "$STABLE_AUTHORITY_RUN_ID" \
             --arg app "$APP_SHA" --arg shell "$SHELL_SHA" --arg framework "$FRAMEWORK_SHA" \
-            '{schema:"opl_app_native_webui_qualification_receipt.v1",status:"passed",version:$version,release_bundle_digest:$bundle,stable_authority_run_id:$run,platform:"linux",architecture:"x86_64",non_root:true,cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},lifecycle:{first_install:"passed",same_version_idempotence:"passed",cross_version_update:"passed",rollback:"passed",data_preservation:"passed",http_health:"passed",official_profile_first_install:"passed"},synthetic_predecessor:{version:"0.0.1",published:false,purpose:"exercise target installer activation and rollback without claiming a prior public Native release"}}' \
+            --arg runtime_sha256 "$runtime_sha256" --arg installer_sha256 "$installer_sha256" \
+            --arg official_profile_marker_sha256 "$official_profile_marker_sha256" \
+            --arg data_sentinel_sha256 "$data_sentinel_sha256" \
+            --arg project_sentinel_sha256 "$project_sentinel_sha256" \
+            --arg current_version_link "$current_version_link" \
+            --arg previous_version_link "$previous_version_link" \
+            --arg qualification_user_id "$qualification_user_id" \
+            --arg qualification_kernel "$qualification_kernel" \
+            '{schema:"opl_app_native_webui_qualification_receipt.v1",status:"passed",version:$version,release_bundle_digest:$bundle,stable_authority_run_id:$run,platform:"linux",architecture:"x86_64",non_root:true,cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},clean_host:{runner_environment:env.QUALIFICATION_RUNNER_ENVIRONMENT,runner_os:env.QUALIFICATION_RUNNER_OS,runner_arch:env.QUALIFICATION_RUNNER_ARCH,kernel:$qualification_kernel,user_id:($qualification_user_id | tonumber),ephemeral_home:true,initial_state:{runtime_absent:true,data_absent:true,projects_absent:true,command_absent:true}},qualified_bytes:{runtime_tarball_sha256:$runtime_sha256,installer_sha256:$installer_sha256},lifecycle:{first_install:"passed",same_version_idempotence:"passed",cross_version_update:"passed",rollback:"passed",data_preservation:"passed",http_health:"passed",official_profile_first_install:"passed",final_current_link:$current_version_link,final_previous_link:$previous_version_link,official_profile_marker_sha256:$official_profile_marker_sha256,data_sentinel_sha256:$data_sentinel_sha256,project_sentinel_sha256:$project_sentinel_sha256},synthetic_predecessor:{version:"0.0.1",published:false,purpose:"exercise target installer activation and rollback without claiming a prior public Native release"}}' \
             > "$receipt"
           node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts seal \
             --repository "$GITHUB_REPOSITORY" \

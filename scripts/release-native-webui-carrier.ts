@@ -144,10 +144,15 @@ function validateQualificationReceipt(
     appSha: string;
     shellSha: string;
     frameworkSha: string;
+    runtimeTarballSha256: string;
+    installerSha256: string;
   },
 ): void {
   const lifecycle = record(receipt.lifecycle, 'qualification receipt.lifecycle');
   const cohort = record(receipt.cohort, 'qualification receipt.cohort');
+  const cleanHost = record(receipt.clean_host, 'qualification receipt.clean_host');
+  const initialState = record(cleanHost.initial_state, 'qualification receipt.clean_host.initial_state');
+  const qualifiedBytes = record(receipt.qualified_bytes, 'qualification receipt.qualified_bytes');
   if (
     receipt.schema !== 'opl_app_native_webui_qualification_receipt.v1'
     || receipt.status !== 'passed'
@@ -160,6 +165,20 @@ function validateQualificationReceipt(
     || cohort.app_sha !== expected.appSha
     || cohort.shell_sha !== expected.shellSha
     || cohort.framework_sha !== expected.frameworkSha
+    || cleanHost.runner_environment !== 'github-hosted'
+    || cleanHost.runner_os !== 'Linux'
+    || cleanHost.runner_arch !== 'X64'
+    || typeof cleanHost.kernel !== 'string'
+    || !cleanHost.kernel.startsWith('Linux ')
+    || !Number.isSafeInteger(cleanHost.user_id)
+    || cleanHost.user_id <= 0
+    || cleanHost.ephemeral_home !== true
+    || initialState.runtime_absent !== true
+    || initialState.data_absent !== true
+    || initialState.projects_absent !== true
+    || initialState.command_absent !== true
+    || qualifiedBytes.runtime_tarball_sha256 !== expected.runtimeTarballSha256
+    || qualifiedBytes.installer_sha256 !== expected.installerSha256
   ) {
     fail('Native WebUI qualification receipt does not match the exact Stable handoff');
   }
@@ -173,6 +192,21 @@ function validateQualificationReceipt(
     'official_profile_first_install',
   ]) {
     if (lifecycle[gate] !== 'passed') fail(`qualification receipt lifecycle.${gate} must be passed`);
+  }
+  if (
+    lifecycle.final_current_link !== `versions/${expected.version}`
+    || lifecycle.final_previous_link !== 'versions/0.0.1'
+  ) {
+    fail('Native WebUI qualification receipt does not preserve the exact update and rollback pointers');
+  }
+  for (const field of [
+    'official_profile_marker_sha256',
+    'data_sentinel_sha256',
+    'project_sentinel_sha256',
+  ]) {
+    if (!sha256Pattern.test(lifecycle[field])) {
+      fail(`qualification receipt lifecycle.${field} must be an exact SHA-256 digest`);
+    }
   }
 }
 
@@ -221,6 +255,8 @@ export function sealNativeWebuiPublicationManifest(input: {
 
   const qualificationPath = portableFileRef(input.qualificationReceiptPath, 'qualification receipt');
   const qualification = readJson(qualificationPath.absolute);
+  const runtimeTarball = portableFileRef(input.assetPaths.runtime_tarball, 'Native WebUI runtime_tarball');
+  const installer = portableFileRef(input.assetPaths.installer, 'Native WebUI installer');
   validateQualificationReceipt(qualification, {
     version: input.version,
     bundleDigest: input.releaseBundleDigest,
@@ -228,6 +264,8 @@ export function sealNativeWebuiPublicationManifest(input: {
     appSha: input.appSha,
     shellSha: input.shellSha,
     frameworkSha: input.frameworkSha,
+    runtimeTarballSha256: sha256File(runtimeTarball.absolute),
+    installerSha256: sha256File(installer.absolute),
   });
 
   const names = expectedAssetNames(input.version);

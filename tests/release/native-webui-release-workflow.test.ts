@@ -73,6 +73,13 @@ test('Native reusable separates non-blocking preparation, protected additive pub
     '--rollback',
     'user-sentinel.txt',
     'project-sentinel.txt',
+    'test ! -e "$INSTALL_DIR"',
+    'qualification-user-id.txt',
+    'qualified-runtime-sha256.txt',
+    'clean_host',
+    'qualified_bytes',
+    'final_current_link',
+    'final_previous_link',
     'official-profile-first-install-complete',
     'qualified|qualification_failed',
     'http://127.0.0.1:${port}/',
@@ -148,6 +155,8 @@ function fixtureManifest(t: test.TestContext) {
   fs.writeFileSync(paths.runtime_metadata, 'runtime-metadata');
   fs.writeFileSync(paths.installer, '#!/bin/sh\n');
   fs.writeFileSync(paths.installer_sha256, `${digest('#!/bin/sh\n')}  install-web.sh\n`);
+  const runtimeSha256 = digest('runtime-bytes');
+  const installerSha256 = digest('#!/bin/sh\n');
   fs.writeFileSync(paths.qualification_receipt, `${JSON.stringify({
     schema: 'opl_app_native_webui_qualification_receipt.v1',
     status: 'passed',
@@ -158,6 +167,16 @@ function fixtureManifest(t: test.TestContext) {
     architecture: 'x86_64',
     non_root: true,
     cohort: { app_sha: 'a'.repeat(40), shell_sha: 'b'.repeat(40), framework_sha: 'c'.repeat(40) },
+    clean_host: {
+      runner_environment: 'github-hosted',
+      runner_os: 'Linux',
+      runner_arch: 'X64',
+      kernel: 'Linux 6.11.0 x86_64',
+      user_id: 1001,
+      ephemeral_home: true,
+      initial_state: { runtime_absent: true, data_absent: true, projects_absent: true, command_absent: true },
+    },
+    qualified_bytes: { runtime_tarball_sha256: runtimeSha256, installer_sha256: installerSha256 },
     lifecycle: {
       first_install: 'passed',
       same_version_idempotence: 'passed',
@@ -166,6 +185,11 @@ function fixtureManifest(t: test.TestContext) {
       data_preservation: 'passed',
       http_health: 'passed',
       official_profile_first_install: 'passed',
+      final_current_link: `versions/${version}`,
+      final_previous_link: 'versions/0.0.1',
+      official_profile_marker_sha256: 'e'.repeat(64),
+      data_sentinel_sha256: 'f'.repeat(64),
+      project_sentinel_sha256: '0'.repeat(64),
     },
   })}\n`);
   const manifest = sealNativeWebuiPublicationManifest({
@@ -184,6 +208,41 @@ function fixtureManifest(t: test.TestContext) {
   });
   return { root, manifest };
 }
+
+test('manifest sealing fails closed when clean-host evidence or qualified bytes drift', (t) => {
+  const current = fixtureManifest(t);
+  const receiptAsset = current.manifest.assets.find((asset) => asset.role === 'qualification_receipt');
+  assert.ok(receiptAsset);
+  const receiptPath = path.resolve(receiptAsset.path);
+  const original = JSON.parse(fs.readFileSync(receiptPath, 'utf8')) as Record<string, any>;
+  const seal = () => sealNativeWebuiPublicationManifest({
+    repository: current.manifest.repository,
+    version: current.manifest.version,
+    releaseBundleDigest: current.manifest.release_bundle_digest,
+    stableAuthorityRunId: current.manifest.stable_authority_run_id,
+    appSha: current.manifest.cohort.app_sha,
+    shellSha: current.manifest.cohort.shell_sha,
+    frameworkSha: current.manifest.cohort.framework_sha,
+    qualificationReceiptPath: receiptAsset.path,
+    assetPaths: Object.fromEntries(current.manifest.assets.map((asset) => [asset.role, asset.path])) as any,
+  });
+  for (const [mutate, expected] of [
+    [(receipt: Record<string, any>) => { receipt.clean_host.initial_state.runtime_absent = false; }, /exact Stable handoff/],
+    [(receipt: Record<string, any>) => { receipt.clean_host.user_id = 0; }, /exact Stable handoff/],
+    [(receipt: Record<string, any>) => { receipt.clean_host.runner_environment = 'self-hosted'; }, /exact Stable handoff/],
+    [(receipt: Record<string, any>) => { receipt.qualified_bytes.runtime_tarball_sha256 = '1'.repeat(64); }, /exact Stable handoff/],
+    [(receipt: Record<string, any>) => { receipt.qualified_bytes.installer_sha256 = '2'.repeat(64); }, /exact Stable handoff/],
+    [(receipt: Record<string, any>) => { receipt.lifecycle.final_current_link = 'versions/0.0.1'; }, /update and rollback pointers/],
+    [(receipt: Record<string, any>) => { receipt.lifecycle.data_sentinel_sha256 = 'bad'; }, /exact SHA-256 digest/],
+  ] as const) {
+    const candidate = structuredClone(original);
+    mutate(candidate);
+    fs.writeFileSync(receiptPath, `${JSON.stringify(candidate)}\n`);
+    assert.throws(seal, expected);
+  }
+  fs.writeFileSync(receiptPath, `${JSON.stringify(original)}\n`);
+  assert.doesNotThrow(seal);
+});
 
 function remoteAssets(manifest: ReturnType<typeof fixtureManifest>['manifest']): NativeWebuiRemoteAsset[] {
   return manifest.assets.map((asset, index) => ({
