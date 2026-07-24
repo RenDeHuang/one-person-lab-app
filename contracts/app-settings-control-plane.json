@@ -1683,15 +1683,15 @@
           "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
           "directory_collection_source": "app_state.agent_packages.directory.entries",
-          "directory_collection_policy": "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages",
-          "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
-          "static_metadata_overlay_policy": "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority",
-          "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
+          "directory_collection_policy": "render every canonical entry without an App-owned Package id allowlist or starter metadata catalog",
+          "display_metadata_source": "app_state.agent_packages.directory.entries",
+          "display_metadata_policy": "use owner-projected display metadata with a package-id fallback; App profile metadata must not define catalog membership, ordering, status, readiness, or actions",
           "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
-          "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
+          "source_semantics_policy": "directory entries own catalog membership, installed or present state, callability, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index and fresh carrier readback add package-id-keyed dependency presence, repair or activation actions, dependent guard, capability exposure, runtime-source readiness, currentness, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; the shell infers none of them",
           "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
-          "normalization_policy": "shell uses directory.entries as the only manageable collection, joins optional diagnostics by canonical package_id, keeps directory lifecycle/readiness/actions authoritative on overlap, and may enrich UI metadata only from the static profile overlay",
-          "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or static metadata",
+          "normalization_policy": "shell uses directory.entries as the only manageable collection, joins optional fresh diagnostics by canonical package_id, and keeps directory lifecycle, presence, callability, readiness, and actions authoritative on overlap",
+          "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or App profile metadata",
+          "runtime_carrier_failure_policy": "fresh carrier failure projects package-local attention_needed and launch_blocked without changing catalog membership or blocking unrelated packages",
           "catalog_interaction_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.directory_controls",
           "package_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract",
           "stage_runtime_activation_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract",
@@ -1709,7 +1709,7 @@
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
             "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
-            "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
+            "localized_metadata_source": "app_state.agent_packages.directory.entries",
             "axes": [
               "install_state",
               "activation_state",
@@ -1722,7 +1722,6 @@
               "directory_readiness",
               "dependency_readiness",
               "dependent_guard",
-              "materialization_readiness",
               "runtime_source_readiness",
               "operational_ready",
               "launch_allowed"
@@ -1739,9 +1738,6 @@
           "detail_surface": {
             "kind": "desktop_right_side_panel_mobile_drawer",
             "detail_fields": [
-              "receipt_refs",
-              "rollback_ref",
-              "action_receipt_ref",
               "directory_readiness",
               "dependency_readiness",
               "repair_action",
@@ -1749,23 +1745,28 @@
               "dependent_guard",
               "capability_exposure",
               "package_dependency_readiness",
-              "materialization_readiness",
               "runtime_source_readiness",
               "operational_ready",
               "launch_allowed",
               "launch_blocked_reason",
               "allowed_when_blocked",
-              "status_read_error",
+              "status_read_error"
+            ],
+            "advanced_diagnostics_fields": [
+              "receipt_refs",
+              "rollback_ref",
+              "action_receipt_ref",
+              "materialization_readiness",
               "dependency_closure",
               "physical_surface"
             ],
-            "first_screen_policy": "directory_readiness_plus_canonical_dependency_readiness_activation_action_dependent_guard_exposure_and_launch_diagnostics_are_normal_detail_fields_while_raw_package_dependency_materialization_runtime_source_receipts_closure_digests_and_physical_surface_are_advanced_only_not_primary_row_density",
+            "first_screen_policy": "directory presence and callability plus dependency presence, activation action, dependent guard, exposure, runtime-source readiness, and launch diagnostics are normal detail fields; receipts, rollback refs, materialization internals, closure digests, and physical surfaces are Advanced diagnostics only",
             "rollback_display_policy": "rollback_ref_is_diagnostic_recovery_reference_not_an_app_owned_rollback_button_or_runtime_truth"
           },
           "completion_boundary": "this control-plane contract requires canonical public directory entries and their projected actions for manageable rows; status_index, runtime_source_carriers, modules, and Home shortcuts may enrich diagnostics only and never define catalog membership, lifecycle, readiness, or actions"
         },
         "forbidden_sources": [
-          "professional_agent_packages as directory collection or OMA seed",
+          "professional_agent_packages, starter_package_metadata, or any App-owned Package id list as directory collection or seed",
           "shell-inferred package status or action payload",
           "Team MCP ordinary surface"
         ]
@@ -3441,13 +3442,13 @@
           "dedicated package catalog search with package role, availability status, and source filters",
           "visible registry refresh and projected per-row non-activation lifecycle actions",
           "Settings, new conversation, and ordinary composer send never execute package activation; selected project directories establish session cwd and future domain workspace identity only",
-          "starter_package_metadata as replaceable package_id-keyed UI metadata only, never directory membership or status truth",
+          "owner-projected display metadata from app_state.agent_packages.directory.entries with package-id fallback",
           "global automatic, managed, or developer source mode with selected workspace and authority summary",
           "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
           "per-package automatic, managed, or developer source selection in package details",
           "Home visibility, shortcut order, launch readiness, and lifecycle management on Agent rows",
           "localized package-role labels with no raw internal enum in ordinary rows",
-          "professional Agents ordered by App metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
+          "dynamic package-role groups ordered by owner projection, with dependency packages grouped from dependent_guard.required_by_package_ids",
           "runtime source and authorized repository maintenance collapsed as advanced configuration by default",
           "Skills and Plugins excluded and routed to Capabilities",
           "AionUI custom assistants excluded from the OPL product surface"
