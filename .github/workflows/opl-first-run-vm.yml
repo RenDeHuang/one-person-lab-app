@@ -619,7 +619,7 @@ jobs:
             /package.json
             /bun.lock
             /patches/
-            '/packages/*/package.json'
+            /packages/*/package.json
           sparse-checkout-cone-mode: false
 
       - name: Checkout OPL Framework bootstrap source

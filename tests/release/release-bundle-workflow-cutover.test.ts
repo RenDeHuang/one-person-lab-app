@@ -901,7 +901,7 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   const checkout = step('Checkout active shell');
   assert.deepEqual(
     String(checkout.with['sparse-checkout']).trim().split('\n'),
-    ['/scripts/', '/package.json', '/bun.lock', '/patches/', "'/packages/*/package.json'"],
+    ['/scripts/', '/package.json', '/bun.lock', '/patches/', '/packages/*/package.json'],
   );
   assert.equal(checkout.with['sparse-checkout-cone-mode'], false);
   assert.equal(stepIndex('Materialize active shell dependency metadata'), -1);
@@ -920,6 +920,7 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   assert.ok(stepIndex('Setup bun') < stepIndex('Install active shell harness dependencies'));
   assert.ok(stepIndex('Install active shell harness dependencies') < stepIndex('Validate smoke scripts'));
   assert.ok(stepIndex('Validate smoke scripts') < stepIndex('Run clean VM first launch smoke'));
+  assert.doesNotMatch(source, /'\/packages\/\*\/package\.json'/);
   assert.doesNotMatch(source, /git -C shells\/aionui sparse-checkout set/);
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
 });
