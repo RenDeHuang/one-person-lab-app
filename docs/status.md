@@ -373,9 +373,11 @@ owns the active candidate plan. Hermes docs remain prior-candidate reference:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
 `docs/product/shell-alternatives/hermes-first-run-flow.md`.
 `docs/history/shell-candidates/agui-codex-candidate-verification.md` is read only
-for explicit AGUI replay or historical audit. Default stable/nightly packaging
-continues to resolve `contracts/app-shell-adapter.json` and the active `aionui`
-shell until an explicit release-owner decision changes that contract.
+for explicit AGUI replay or historical audit. Default Stable packaging continues
+to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell until
+an explicit release-owner decision changes that contract. Public Nightly
+publication is retired and remains read-compatible only; scheduled validation
+uses the separate non-user Canary lane.
 
 The `opl-native-workbench` route is candidate-structure and non-live product
 surface first: candidate registration, adapter contract, independent external

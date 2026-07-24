@@ -105,10 +105,11 @@ OPL 系列交互默认 fail-open：先消费 owner-projected action 自修复，
 `verification_deferred`、update available、可选依赖、可选 receipt/binding，或 owner action
 并未要求的 Workspace 而 block。
 
-Fail-open 不等于吞错或伪造成功。以下边界仍局部 fail-closed：所选 package 身份或不兼容版本
-不匹配、入口不存在、不安全 managed target/path traversal、权限/sandbox/账户授权拒绝、未确认的
-不可逆外部 mutation，以及任何无法得到真实证据的成功/authority 声明。故障范围只允许落到所选
-Agent；普通 Codex、其他 Agent、draft 和既有 session 必须继续可用。
+Fail-open 不等于吞错或伪造成功。以下边界仍局部 fail-closed：所选 Package identity
+不存在或不可调用、入口不存在、不安全 managed target/path traversal、权限/sandbox/账户授权拒绝、
+未确认的不可逆外部 mutation，以及任何无法得到真实证据的成功/authority 声明。破坏兼容的变化
+发布新的 capability identity 或 owner adapter，不在 ordinary launch 增加跨 Package 版本 gate。
+故障范围只允许落到所选 Agent；普通 Codex、其他 Agent、draft 和既有 session 必须继续可用。
 
 Launch runtime state 固定为 `ready / degraded / package_unavailable`，不增加 `strict` 第四状态。
 若受监管或可复现 package 需要精确 closure、binding、receipt 或其它前置证据，应由 owner policy

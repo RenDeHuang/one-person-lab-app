@@ -26,7 +26,7 @@ AI 已经很擅长回答问题、生成文字和修改文件。真正困难的�
 
 OPL App 是 One Person Lab 面向用户的专业工作台：让目标、对话、材料、阶段、产物、审阅、回执和下一步形成一条可以继续的工作线。
 
-![OPL App 从选择工作目的到持续推进、审阅与交付的用户旅程。](assets/branding/opl-app-user-journey-v2.png)
+![OPL App 从选择工作目的到持续推进、审阅与交付的用户旅程。](../../assets/branding/opl-app-user-journey-v2.png)
 
 ## 设计一：从工作目的开始
 
@@ -119,7 +119,7 @@ OPL App 是本地优先的。用户可以先在自己的 Mac 上选择工作目�
 
 运行时、Codex 投影、工作流 profile、companion tools 和底层集成统一归入这三个对象。用户数据与产物拥有独立的存储、保留和清理边界，软件更新对象始终保持为三类。
 
-这个模型让维护动作更容易理解：App、Base 和 Packages 各自遵循独立更新边界；Package 的安装与修复有自己的记录和回滚引用；界面展示维护状态，Framework 持有 Package 与运行事实。
+这个模型让维护动作更容易理解：App、Base 和 Packages 各自遵循独立更新边界；每个 Package 通过自己的平台生命周期独立安装、更新、修复和卸载；界面展示聚合维护状态，Framework 只汇总完整 Package 的 fresh installed/callable readback 与运行事实。平台提供的高级恢复能力仍可使用，但 OPL 不再为普通 Package 复制一套 lock、receipt 或 rollback 状态机。
 
 ## 清楚的分工带来可信的产品
 
