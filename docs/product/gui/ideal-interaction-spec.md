@@ -354,8 +354,10 @@ First-run 的目标是让用户尽快进入可工作的 App：
   API Key，也不重写 provider；技术命令只在 details 中显示。
 - 显式 API Key 输入只用于新增或轮换 provider 凭据。provider 配置不得触发 Package/Skill/Plugin
   lifecycle mutation。
-- Package reconciliation 不依赖 provider 或 API Key；Standard、Full 和所有 App carriers 都只请求
-  Framework managed update plane 按 Release Set 与 digest 完成 reconciliation。
+- Package lifecycle 不依赖 provider 或 API Key。Standard、Full 和所有 App carriers 在首次安装或
+  用户显式 Restore 时只请求同一个 Official Profile；Full 只额外提供离线 seed。
+- 首次安装完成后，每个已安装 Package 只通过其原生 carrier 独立维护。普通启动、后台更新和 App
+  升级都不得重新应用 Official Profile，也不得静默重装用户主动移除的 root Package。
 
 ## Empty、Loading 与 Failure
 

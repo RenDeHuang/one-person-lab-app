@@ -102,8 +102,9 @@ the seven groups Overview, Account & Models, Connections & Deployment, Workspace
 Agents & Capabilities, Runtime & Maintenance, and Preferences over all ten carrier
 routes and second-level destinations, with About
 as the only secondary page and Advanced/Update/Theme/Local Services/Personalization
-as compatibility redirects, module path source explanation, stable/nightly release gating, MDS
-non-default display, and OPL Flow context before shell validation runs.
+as compatibility redirects, module path source explanation, Stable/Canary release
+gating plus historical Nightly read compatibility, MDS non-default display, and
+OPL Flow context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
@@ -220,10 +221,11 @@ release-boundary tests.
 | Evidence bundle | `npm run release:evidence:manifest` and `npm run release:evidence:validate` | The current cohort's artifacts are classified as `present`, `missing`, `typed_blocker`, or `not_applicable`; only bundles with every required and explicitly requested conditional artifact present become packaged App evidence. |
 | Root wrapper hygiene | `npm run hygiene:fallow -- --format json --summary` | App-root wrappers, contracts, and docs are free of scoped production hygiene findings; this is not shell build or release evidence. |
 
-Nightly, Stable, refresh, Homebrew, Full, WebUI, one-shot installer, VM smoke,
-and promote flows use different release profiles. Treat the release guide and
-contract as the SSOT for those profiles; this testing guide should not duplicate
-their full workflow policy.
+Stable, Canary validation, refresh, Homebrew, Full, WebUI, one-shot installer,
+VM smoke, and promote flows use different release profiles. Historical Nightly
+artifacts have read-compatibility coverage only; Public Nightly is not a user
+channel or publish lane. Treat the release guide and contract as the SSOT for
+those profiles; this testing guide should not duplicate their full workflow policy.
 
 Docker/WebUI smoke gate commands, artifact readback, and typed blocker
 boundaries are maintained in

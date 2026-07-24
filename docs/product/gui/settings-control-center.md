@@ -445,8 +445,10 @@ route but appear only under Instructions & Context in the visible hierarchy.
 
 ### About
 
-About shows App version, Stable or Nightly channel, cached update status, and
-one Check for updates action. The App performs one update check after startup
+About shows the App version, the only user-visible Stable update channel, cached
+update status, and one Check for updates action. Public Nightly is retired and
+remains readable only for historical compatibility; Canary is validation-only
+and never appears as a user update channel. The App performs one update check after startup
 and publishes it to a shared main-process updater state store. Mounting or
 navigating to About only reads that state and never starts a check. The manual
 button refreshes the same shared state.

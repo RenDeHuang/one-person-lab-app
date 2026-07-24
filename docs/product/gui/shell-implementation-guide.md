@@ -174,8 +174,10 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 - Result receipt 是动作事实，不代表 runtime、domain、artifact 或 release readiness。
 - 网络、CLI、schema 和 permission failure 保留 typed reason，不转换成模糊 `unknown`。
 - Package launch 复用 owner-projected launch adapter / JIT prepare，并按
-  `ready / degraded / package_unavailable` 三态消费。只有 package identity、版本兼容、entrypoint、
-  safe managed target、permission/authorization 等真实性或安全边界 fail closed；deferred verification、
+  `ready / degraded / package_unavailable` 三态消费。普通 launch 只检查 package identity、
+  presence/callability、entrypoint、safe managed target 和 permission/authorization；这些真实性或
+  安全边界失败时局部 fail closed。破坏兼容的变化发布新的 capability identity 或 owner adapter，
+  不在 Shell 增加跨包版本 gate。deferred verification、
   optional receipt/binding/closure 走 degraded/fail-open。Shell 不拥有 package currentness 或
   materialization，receipt 存在时只做 readback，不把 receipt 缺失升级为 ordinary send 的第二硬门。
 
@@ -291,7 +293,7 @@ command 和可见状态 anchor。
 - App product profile 被读取，模型策略没有 shell-local 分叉；
 - ordinary state/action 只通过 App bridge；
 - local launch selection 不修改 release adoption，shell bundle/user-data identity 保持隔离；
-- OPL/Codex resolver path、version、cohort 有 readback；PATH-only deviation 不被包装成 parity；
+- 当前 executor route 和 Package carrier adapter 有 fresh readback；PATH-only deviation 不被包装成 parity；
 - conversation directory/history 以 App Server thread authority 为准，不创建 shell-owned
   canonical thread store；
 - rename/archive/restore/delete 使用 App Server methods，pin 仅 Shell metadata，local reset 不冒充
@@ -317,6 +319,6 @@ command 和可见状态 anchor。
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
 - Home package starter 始终可选，发送时从 owner projection 归一为
   `ready / degraded / package_unavailable`；degraded 允许 JIT prepare、自修复或安全 fallback，
-  只有明确身份/版本/入口/安全目标/权限失败才局部阻止所选 package；
+  只有明确身份、presence/callability、入口、安全目标或权限失败才局部阻止所选 package；
 - 普通 UI 不拥有 runtime/domain/artifact/release truth；
 - focused behavior、visual pixels 和 package/release claim 使用匹配层级的证据。

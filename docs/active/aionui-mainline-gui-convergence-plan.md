@@ -42,7 +42,7 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 | X0 retained routes | Runtime cockpit 可作为条件 owner route 保留；Hosted Workspace/Fabric/HPC/Console 只在真实 owner/backend 存在时给 refs | 把 Runtime 当 P0/default release gate/Native phase-1 parity，或为 Cloud/Remote 维护占位状态和 literal control plane |
 | Session / Project affinity | 新任务选择初始 cwd；projectless session 可直接开始并一次性归入一个目录组；Environment 只读 | project 拥有 session/context、已绑定 session 任意换组、仅改 Shell rail、receipt/rollback/Handoff 子系统 |
 | Worktree | 当前版本不提供 managed Worktree/Handoff | Local/Worktree launch mode、starting branch、create/reuse、snapshot、cleanup、restore |
-| Agent Package | exact owner-projected action、`required_payload_fields`、`ready / degraded / package_unavailable`、最小 package identity/version/entrypoint/safe-target 校验与 typed error | Shell 预解析 manifest、普遍 Workspace 前提、完整 receipt/binding/closure 硬门槛、owner ledger、anti-replay |
+| Agent Package | exact owner-projected action、`required_payload_fields`、`ready / degraded / package_unavailable`、最小 package identity/presence/callability/entrypoint/safe-target/permission 校验与 typed error | Shell 预解析 manifest、跨包版本 gate、普遍 Workspace 前提、完整 receipt/binding/closure 硬门槛、owner ledger、anti-replay |
 | Review | 复用普通 diff/files；上游无 typed 能力时 truthful unavailable | 私有行级 annotation、伪造成功、cross-host/model-delivery 依赖 |
 | Settings | 单一 Settings IA、System/Light/Dark、账户行复用现有 updater | 主题预设画廊、侧栏重复返回、第二 updater |
 | Visual | Codex App 的字体、颜色、图标、间距、排版和阴影作为 human target | 用合同或 source gate 代替 installed pixels |
@@ -67,8 +67,9 @@ B0/R1/U1、默认 release gate 和 Native phase-1 parity，本 docs-only lane �
 5. release profile 将 local install 与 explicit public Stable 分开。
 
 Agent Package 默认 fail-open：先执行 owner-projected 自修复/JIT action，再降级或 fallback；
-`package_unavailable` 只阻止所选 Agent 并保留 draft。只有 package 身份/不兼容版本、入口、
-不安全 managed target、权限/授权或不可逆 mutation 等真实性与安全边界局部 fail closed。
+`package_unavailable` 只阻止所选 Agent 并保留 draft。只有 package 身份、presence/callability、入口、
+不安全 managed target、权限/授权或不可逆 mutation 等真实性与安全边界局部 fail closed。破坏兼容的
+变化发布新的 capability identity 或 owner adapter，不在 ordinary launch 增加跨包版本求解。
 普通 Codex、其他 Agent 和既有 session 不受单包路径误伤。
 
 ## 视觉收敛

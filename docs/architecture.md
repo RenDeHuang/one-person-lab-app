@@ -108,7 +108,7 @@ The following are separate dimensions and must not share a currentness flag:
 | Dimension | Owner and meaning |
 | --- | --- |
 | Package publication | A first-party Package owner publishes complete bytes to its own GHCR repository and advances only its own `latest-stable`; other owners may use another declared store. |
-| Package carrier | Codex Plugin Manager, Git, an OS package manager, or a thin Base OCI adapter installs and updates one Package. |
+| Package carrier | Codex Plugin Manager, Git, an OS package manager, or a Package-declared runtime adapter installs and updates one Package. The thin Base OCI adapter only downloads, verifies, and hands off bytes; it never installs or updates a Package. |
 | Installed truth | Framework aggregates fresh carrier readback for the complete Package; a Plugin projection alone cannot prove a runtime-bearing Package installed. |
 | Executor route | Codex CLI, Claude Code, Hermes Agent, or another executor reports route readiness without redefining Package identity or installed state. |
 | Official defaults | App Official Profile selects first-install or explicit-restore roots only. |
