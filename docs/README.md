@@ -28,6 +28,20 @@ governance only.
 | [`decisions.md`](decisions.md) | Still-active App product, shell, runtime bridge, release, and docs lifecycle decisions; `active` | Durable human-readable decisions; machine gates use contracts/source/tests |
 | [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md) | Docs lifecycle governance and directory role inventory; `active_support` | Governance index only; not release/runtime proof |
 | [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md) | Active App product progress, gaps, and next-round baton; `active_plan` | Plan/read-model only; not runnable behavior or owner acceptance |
+| [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Package/carrier/executor migration, functional-equivalence matrix, implementation order, and legacy deletion gates; `target_planned_docs_first` | The sole implementation-plan SSOT for this migration; current behavior remains in contracts/source/fresh readback |
+
+For the OPL Package ecology, read in this order:
+
+1. [`architecture.md`](architecture.md) for the durable `Base ~= R`,
+   `App ~= RStudio`, `Package ~= R Package`, GHCR publication, and
+   Package/carrier/executor ownership model.
+2. [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md)
+   for current gaps, phased implementation, functional-equivalence and deletion
+   gates.
+3. [`product/managed-update-three-layer.md`](product/managed-update-three-layer.md)
+   for user-facing install/update behavior.
+4. [`history/agent-package-management-implementation-snapshot.md`](history/agent-package-management-implementation-snapshot.md)
+   only for historical implementation provenance; it is not a target SSOT.
 
 ## Directory Index
 
@@ -66,8 +80,8 @@ GUI definition and candidate verification material is separated into
 product/history ownership:
 
 - [`product/gui/`](product/gui/) holds the ideal interaction spec, element
-  audit, Codex-to-OPL product delta, professional agent package management
-  plan, `opl-native-workbench` foreground alternative plan, Claude Science
+  audit, Codex-to-OPL product delta, `opl-native-workbench` foreground
+  alternative plan, Claude Science
   Runtime task-awareness landing plan, and GUI feature inventory.
 - [`product/shell-alternatives/`](product/shell-alternatives/) holds Hermes
   Desktop prior foreground-alternative material.

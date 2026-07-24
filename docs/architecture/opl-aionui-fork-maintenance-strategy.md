@@ -81,13 +81,17 @@ Maintain the AionUI fork through the existing App-owned control path:
    and turn/command `pwd` plus writable roots remain independent. The fork does
    not maintain a private adoption RPC, managed Worktree/Handoff, projection
    rollback, receipt, or `workspace_handoff` metadata.
-7. **Package authority stays whole and singular.** OPL Packages remain a
-   Framework-owned ecosystem with headless install, update, repair,
-   enable/disable, hide/unhide, uninstall, locks, receipts, `rollback_ref`, Home
-   shortcut preferences, and Codex materialization. Shell simplification may
-   reduce duplicate classifiers, parsers, or state machines only after the
-   equivalent canonical Framework projection is published and adopted; it may
-   not remove these lifecycle results.
+7. **Package user results stay whole while lifecycle machinery shrinks.**
+   Package owners define identity, capabilities, complete bytes, runtime health,
+   and independent publication. Configured carriers own install/update state;
+   Framework aggregates fresh complete-Package readback, required-presence
+   status, executor-route readiness, and generic actions. App owns preferences,
+   while Shell only renders and invokes projected actions. Existing Framework
+   locks, receipts, `rollback_ref`, materialization, and Shell compatibility
+   parsers remain migration surfaces only until the functionality-equivalence
+   gates in
+   [`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md)
+   close; they are not accepted long-term authority and must then be deleted.
 
 This keeps the App contract first and the shell delta thin. The fork can absorb
 upstream fixes, but only after checking them against App-owned contracts.

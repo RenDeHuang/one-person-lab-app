@@ -4,19 +4,27 @@
 
 ## Authority
 
-- OPL Framework runtime、package lifecycle 和 generic reconciliation 归 `one-person-lab`；领域判断、artifact 与交付 authority 归对应 domain agent。本仓只消费其机器合同、CLI JSON、receipts 和 projections。
+- OPL Framework runtime、通用 installed discovery / status aggregation 和薄平台 adapter 归 `one-person-lab`；领域判断、task inventory/lifecycle、artifact 与交付 authority 归对应 domain agent。本仓只消费其机器合同、CLI JSON 和 projections。
 - `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、`contracts/app-shell-adapter.json`、`contracts/app-release-channel.json` 是 App 侧核心机器边界。
 - `shells/aionui/` 是外部 shell checkout。App 定义产品行为和验收，`opl-aion-shell` 承载 renderer、process、package、测试与 upstream intake；不得把 AionUI Git 历史 vendoring 到 App `main`。
 - GUI 角色固定为 `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`。Hermes 只按显式需求手工验证；AGUI 只保留技术证明。
 - 用户可见行为、页面状态、模型/引导策略或 release-ready 边界变化时，先更新 App contract、docs 和 tests，再实现 Shell；Shell 与上游默认值不得反向成为产品 authority。
 - 上游 fork body 默认只读。App 工作只触碰 App contracts、adapters、OPL overlays、packaging/readback hooks 与这些表面的验证。
 - 默认继承 AionUI/AionCore 官方基础能力；OPL 只做合同授权的薄适配和明确裁剪（例如 Team）。不得因 OPL 没有专门白名单就禁用其它上游能力；上游没有且产品并不必要的复杂能力默认不私有实现。只存在于已 reject、已退休或私有 legacy 功能中的问题不进入产品修复主线。
-- OPL Packages 是独立于 GUI 的 Framework-owned 生态，不是可随 Shell 简化的页面功能。App/Shell 必须完整保留其安装、更新、修复、启停、显隐、卸载、lock、receipt、`rollback_ref`、Home shortcut 与 Codex materialization 投影，只删除 App/Shell 对这些权威的重复实现。
+- OPL 生态的目标模型固定为 `OPL Base ~= R`、`OPL App ~= RStudio / 可替换 GUI 与部署载体`、`OPL Package ~= R Package`。OPL 标准智能体只是 `kind=agent` 的 OPL Package；新增、替换或组合 Package 不得要求 App source 增加 Package id 分支。
+- Package 组合遵循 presence-only：声明 required/optional package 或 capability identity，required 缺失时只补齐或局部阻止依赖它的 root，不以版本范围、ABI、lock、payload、digest、Release Set 或固定 cohort 作为组合/readiness 门禁。精确 ref/digest 只属于一次实际 build/release artifact 的可复现记录。
+- Standard 与 Full 消费同一个 App Official Profile。该 Profile 只声明首次安装和用户显式“恢复官方组合”时的 desired roots，不是生态上限或永久强制器；用户卸载 Package 后，普通启动和静默更新不得偷偷重装。Full 只增加离线 seed，不拥有第二份 Package 清单。
+- Package、carrier 和 executor 是三个独立角色。Package identity、capability、依赖、用户偏好和业务 task/view 必须 executor-neutral；Codex Plugin Manager 只是当前首个 carrier adapter，Codex plugin id、marketplace、home/path 和 manifest shape 只能存在于 Codex adapter 内，不得成为 OPL Package identity、installed truth 或生态 authority。
+- 当前实施遵循 `Codex-first, OPL-owned boundaries`：只维护一条正式 Codex 主路径，不并行自研 Claude/Hermes 产品；OPL 长期拥有 Package/capability identity、Official Profile、用户偏好、Work Item、Temporal refs、typed views 与领域交付语义。第一阶段只用一个最小 Git/local 中性 proof 防止公共合同被 Codex 私有字段锁死。
+- 一方 OPL Package 的完整官方 bytes 发布到各自独立 GHCR repository，owner 只推进自己的 `latest-stable`。`one-person-lab-manifest:latest-stable` 不得定义普通更新，只保留 Full/offline/integration-test/QA snapshot。Base 只保留薄 OCI 下载与校验，Package 声明完整 runtime adapter，配置的 carrier 执行，Codex 负责 Plugin/config/cache；Plugin-only 不能证明完整 Package installed。
+- Package 生命周期优先委托 Codex Plugin Manager、Git 或其他平台原生能力；Framework 只在平台缺口处提供薄 adapter、installed discovery、依赖 presence 检查、executor route readiness 和状态聚合。App/Shell 保留统一安装、独立静默更新、启停/显隐/卸载、Home shortcut 与局部故障体验，但不得复制 resolver、lock、payload、LKG、receipt、materialization 或 rollback 状态机。
 
 ## Runtime And GUI
 
 - 普通读取使用 `opl app state --profile fast --json`。`full` 与 operator drilldown 只用于 Settings > Advanced 和 release tooling。
 - Mutation 统一走 `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`；Runtime 页面只允许 task archive/restore。
+- 普通 App 路径当前固定 Codex CLI 是产品策略，不是 OPL Package 生态边界。未来切换到 Claude Code、Hermes Agent 或其他 executor 时，只刷新对应 executor route readiness；不得重装或重命名 Package，也不得丢失 Settings/Home preference、业务 Work Item、ScholarSkills presence 或 MAS 科研路线等 owner view。
+- Runtime 是 App 核心产品面：Agent 提供业务 task inventory/lifecycle，Temporal 提供 queued/running/attempt/heartbeat/terminal execution，Framework 负责聚合与协议校验，App/Shell 只按通用字段和 `view_kind` 渲染。App 不按 Agent id 分支，不复制 MAS 科研路线或其他领域 schema；未知 `view_kind` 只局部降级。
 - GUI 工作从 `docs/product/gui/README.md` 开始，遵循 `gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`；`gui_shell_authority: implementation_only`。
 - 外部产品只作交互参考。入口迁移必须由 App contract 授权，并在同一变更中保留可见、键盘可达的替代入口和导航测试。
 
@@ -36,7 +44,7 @@
 - Release freeze 只接受远端 `main` 可达的实际构建输入 ref；昂贵构建前必须完成所选载体输入的 cold preflight 与 prepared AI notes，并把结果写入 Bundle identity。未选择的 Package、Flow 或可选 Skill 不得成为 App release 前置。
 - App 产品、合同、release、测试和用户文档改在本仓根；AionUI 实现改在 Shell 仓。
 - 修改 App contracts 或 wrappers 后运行 `bun run validate:active-shell`。本地缺少 `shells/aionui/` 时先运行 `npm run ensure:shell`。
-- OPL Flow 只定义 workflow profile、required/recommended 能力意图与冲突策略；实际解析、安装、迁移、回滚和投影由 Framework package transaction 执行。App/Shell 不读取 Flow manifest，不保存第二份依赖清单，也不把 lock 或 payload 作为 readiness 前置。
+- OPL Flow 是 Official Profile 可选中的默认 workflow Package，不是 App、Base、Standard、Full 或无关 Package 的 readiness 前置。Flow owner 声明自身能力意图，配置的 carrier 执行生命周期，Framework 只做 presence/callability 和 fresh 聚合；App/Shell 不读取 Flow manifest 或 companion Skill 清单，也不保存第二份依赖表。
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

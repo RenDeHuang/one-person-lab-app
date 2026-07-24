@@ -1,44 +1,50 @@
-# Runtime V2 产品设计
+# Runtime 动态 Agent 任务中心
 
 Owner: `one-person-lab-app`
-Purpose: `runtime_work_item_projection_retained_support`
-State: `active_retained_route_reference`
-Product classification: `X0-01`
-Maintenance state: `default_gate_decoupled_explicit_route_validation`
-Machine boundary: 本文解释条件保留 Runtime route 的既有字段职责。当前机器实现归
+Purpose: `dynamic_agent_task_and_typed_view_runtime`
+State: `target_planned_with_current_compatibility_reference`
+Product classification: `target_core`
+Current compatibility classification: `X0-01`
+Machine boundary: 本文前半定义目标产品边界，属于 `target/planned`。当前机器实现仍归
 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`、
 `contracts/app-runtime-bridge.json#work_item_projection`、
-`contracts/app-page-state-matrix.json#pages[id=runtime]`、validators、source 与 tests；本文不拥有
-Framework runtime、domain truth、artifact authority 或 release evidence。默认 contract/validator
-只保留 Framework producer/authority 边界；完整 route/page-state/display 行为由显式
-`validate:runtime-route` / `test:runtime-route` 验证。
+`contracts/app-page-state-matrix.json#pages[id=runtime]`、validators、source 与 tests，
+并仍把 route 视为可选 `X0-01`。该旧 shape 是迁移兼容，不是目标完成。本文不拥有
+Framework runtime、Temporal execution truth、domain truth、artifact authority 或 release evidence。
 
 ## 结论
 
-Runtime 是当前 AionUI 条件保留的极简项目工作状态页，不是 observability dashboard，也不是平台
-运维控制台。它归 `X0-01`，不是 B0/R1/U1 核心、P0、默认 release gate 或 Native phase-1 parity。
-已有 route/source/pixel 可以继续维护；若 route 启用，默认页只帮助用户判断：正在看哪个智能体和
-项目、有哪些任务、每项任务是什么状态、是否在跑、当前和下一 Stage 是什么、用了多少 Token。
-当前 Attempt 按需在 Stage 弹层和任务详情中显示。
+Runtime 升为目标核心 App 能力：统一查看所有已安装 Agent Package 暴露的业务任务，
+同时展示 Temporal 提供的真实执行状态，并允许 Agent 通过 typed view 提供领域视图。
+它不是 observability dashboard 或平台运维控制台。
 
-Runtime 产品分类是 `retained_x0_route`，Source 状态只在五轴矩阵读取。默认
-product/design/release/Native phase-1 gates 已与 route detail 解耦；Framework producer 保持必需，
-route detail 仅在显式可选入口验证。该收敛不把现有 Source、历史像素或安装记录解释为
-Pixel、Install、Release 或产品核心必要性。
+```text
+Agent Package -> business task inventory/lifecycle
+Temporal      -> queued/running/attempt/heartbeat/retry/terminal
+Framework     -> validate + join + generic projection
+App/Shell     -> information hierarchy + generic renderer + view_kind renderer
+```
+
+OPL 标准智能体只是 `kind=agent` 的 Package。Runtime scope 动态来自 installed Agent
+task providers，不维护五个、一组或任何固定 Agent ID。新 Agent 不修改 App 即可出现。
+一个 Agent producer、required capability 或 Temporal binding 失败，只降级该 Agent。
 
 Codex/App 更新、Temporal/provider/platform repair、托管依赖与 raw diagnostics 归 Maintenance；
 Agent Package lifecycle 归 Agents；Skills/Plugins/Flow 和本机能力归 Capabilities；artifact
 provenance 归任务/会话 Inspector；同 cohort 完整证据归 release tooling。
 这些内容一律不进入 Runtime。
 
-Runtime V2 不再直接拼接项目目录、Temporal attempt、业务生命周期、Token telemetry 和
-package 状态。OPL Framework 先生产稳定的 `WorkItemProjection v2`；App 定义用户语言、字段
-位置和验收；Shell 只渲染。`AgentAvailabilityProjection` 仍可供 Settings 使用，但不占据 Runtime。
+Runtime 不直接拼接 Package、项目、Temporal 或领域文件。Framework 先生产稳定的
+通用 task projection；App 定义用户语言、字段位置和验收；Shell 只渲染。
 
 项目名严格取 canonical `workspace_path` 的 basename；Framework 投出语言无关的 action
 semantic fields，Shell 按当前 App locale 渲染；手工归档是独立 visibility 轴，并进入独立
 归档库。以上均是 App 产品 truth，不由 binding label、runtime history、Shell 本地状态或
 Framework raw 文案覆盖。
+
+当前 `WorkItemProjection v2`、固定 `AgentAvailabilityProjection` 和
+`validate:runtime-route` 继续作为 compatibility bridge，直到新 target contracts/source/
+installed evidence 完成；之后删除旧 `X0-01` optional gate 和 fixed scope。
 
 ## 问题背景
 
@@ -88,7 +94,38 @@ raw ID、workflow、receipt、provider、日志和 refs 不参与默认判断。
 
 ## 产品数据模型
 
-### WorkItemProjection v2
+### Target Task Envelope
+
+每个 task 由 owning Agent Package 提供 opaque stable id，并包含以下通用对象：
+
+| 对象 | Owner 与职责 |
+| --- | --- |
+| `identity` | Agent owns Package/task/project identity and user label. |
+| `business` | Agent owns business lifecycle, progress summary, next action, and user-facing reason. |
+| `execution` | Temporal owns queued/running/attempt/heartbeat/retry/terminal facts; Framework joins by opaque ref. |
+| `visibility` | Framework exposes user archive/restore state without changing business or execution state. |
+| `telemetry` | Owner-observed elapsed/token/cost facts; missing remains unknown, never zero. |
+| `views[]` | Agent-owned `{view_id, view_kind, title, availability, read_action}` descriptors. |
+| `freshness` | Framework observation time and fresh/stale/unknown. |
+
+业务状态与执行状态不得互相推导：Temporal `running` 不等于科研工作“自动推进”，
+Temporal `terminal` 也不等于论文“已交付”；Agent business status 不得伪造 Temporal
+heartbeat。Framework 只 join、validate 和公开 unknown。
+
+### Typed Views
+
+Agent 可以提供一个或多个 typed view。App 的扩展点只有 `view_kind` renderer：
+
+- MAS 可以提供 `research-roadmap`，但 MAS 拥有 schema、科研语义、医学文案与演进。
+- App/Framework 不复制 MAS node/edge/stage/evidence schema，也不按 `mas` 分支。
+- 未注册、invalid、stale 或 read error 只让该 view 显示 unavailable；task row、
+  selected-item core detail、其他 views 和其他 Agents 保持可用。
+- 新 view kind 通过独立通用 renderer 注册，不改变 Package 安装或 Runtime readiness。
+
+### Current Compatibility: WorkItemProjection v2
+
+以下九对象和相关页面行为描述当前 compatibility bridge。它们不是新 target contract，
+不得新增 Package id、版本、lock、payload、receipt、materialization 或领域字段。
 
 每个 canonical work item 顶层必须有全局 canonical `item_id`，并投出以下九个一级对象：
 
@@ -113,30 +150,21 @@ readback。
 Stage 弹层或详情中按需显示；历史 Attempt 和其他 raw ID 只属于 Maintenance diagnostics。任何 Attempt
 都不能决定 work item 是否存在、属于哪个项目或用户主状态。
 
-### AgentAvailabilityProjection
+### Superseded Fixed Agent Availability
 
-智能体 availability 与工作项状态独立。Framework canonical ID 与用户全称固定为：
+当前 contracts 中固定 Agent ID/全称和 `AgentAvailabilityProjection` 只属兼容迁移，
+禁止继续扩展。目标 scope 从 installed Package descriptors 中动态发现
+`kind=agent && task_provider=true`；Package availability 在 Settings > Agents 显示，
+Runtime 只显示可读取或局部 unavailable 的 producer/task 状态。
 
-| canonical ID | 用户全称 |
-| --- | --- |
-| `mas` | Med Auto Science |
-| `mag` | Med Auto Grant |
-| `rca` | RedCube AI |
-| `oma` | OPL Meta Agent |
-| `obf` | OPL Book Forge |
-
-ID 只用于合同和数据关联，不进入默认页面。App 合同不得用 package slug
-`med-autoscience`、`med-autogrant` 等替代 Framework canonical ID。
-
-MAS Scholar Skills 是 Med Auto Science 的专业能力依赖，不是第六个智能体。availability 只表达
-`available / attention_required / unavailable`；任务数量、运行数量或 `0/2` 不是 availability。
-Runtime 不显示 availability panel；智能体安装、可用性和模块健康统一在 Settings > 能力中处理。
+MAS Scholar Skills 是 MAS 的 required capability Package，不是第二个 Agent。该关系只由
+MAS descriptor 的 presence edge 表达，App 不认识两者的特殊关系。
 
 ## Scope 与 Saved Views
 
-Scope 固定为两个级联层：
+Target scope 保持两个级联层，但选项动态生成：
 
-1. **Agent**：全部智能体或某个完整智能体名称。
+1. **Agent**：全部已发现 task providers 或某个 Agent descriptor 显示名。
 2. **Project**：该智能体 canonical Project Registry 中的真实项目；首项为全部项目。
 
 论文或 work item 不进入 scope。它们只作为主列表行出现。workspace path 是 Project 名称和
@@ -305,7 +333,7 @@ Maintenance diagnostics 查看。
 
 | Surface | 拥有 | Runtime 中的处理 |
 | --- | --- | --- |
-| Runtime | Work Item 状态、是否运行、elapsed、Stage/当前 Attempt、Token、archive/restore | 直接显示 |
+| Runtime | Agent business task status、Temporal execution status、elapsed、owner progress/next action、typed views、archive/restore | 直接显示 owner projection |
 | Settings Maintenance | provider/platform repair、Temporal/worker readiness、Codex/App update、托管依赖、raw diagnostics 与维护 | 全面禁止 |
 | Settings Agents | Agent Package lifecycle、开发来源与 Home visibility | 全面禁止 |
 | Settings Capabilities | Skills、Plugins、OPL Flow、MCP、图像与语音能力 | 全面禁止 |
@@ -316,10 +344,11 @@ Maintenance diagnostics 查看。
 
 | 模块 | 负责 | 不负责 |
 | --- | --- | --- |
-| Domain Agent | Project/WorkItem inventory、业务 lifecycle、stage catalog 和领域 action refs。 | App copy、页面布局、Shell 本地状态机。 |
-| OPL Framework | Join catalog/inventory/lifecycle/visibility/execution/usage，生产 WorkItemProjection v2、状态语义、action semantic fields、availability 和 currentness。 | App 信息层级、locale 文案、视觉布局和 Settings/Runtime 路由。 |
-| One Person Lab App | 产品语言、scope、各 surface 字段 allowlist、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
-| Shell | 按当前 App locale 渲染 projection、级联筛选、语义重排、打开 Stage/任务详情，并仅对 archive/restore 执行 Framework action + refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 visibility truth，实现第二套去重，或从 Runtime 执行其他 action。 |
+| Agent Package | Project/task inventory、业务 lifecycle、progress/next action、领域 action refs、typed view schema/data。 | App copy/layout、Temporal execution truth、其他 Agent 状态。 |
+| Temporal | Workflow/activity queued/running/attempt/heartbeat/retry/terminal execution。 | 业务 progress、领域 stage、Package 安装状态。 |
+| OPL Framework | 动态发现 Agent producers，join business/Temporal/visibility/usage，校验通用 task/view envelope。 | 固定 Agent 清单、领域 view schema、App 信息层级。 |
+| One Person Lab App | 产品语言、通用 task/view envelope、`view_kind` renderer registry、page-state 和证据分账。 | runtime/domain truth、MAS schema、Token 估算、owner receipt。 |
+| Shell | 按当前 locale 渲染 projection、级联筛选、语义重排、打开 task/typed view，并对允许动作执行 refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 truth，实现第二套去重，或按 Agent id 分支。 |
 
 ## 历史 exact-cohort 证据边界
 
@@ -328,8 +357,8 @@ Maintenance diagnostics 查看。
 [`app-ideal-state-gap-plan.md`](../../active/app-ideal-state-gap-plan.md) 与
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)；Contract、Source、Pixel、Install、
 Release 必须在那里逐轴读取。该历史 cohort 的合同、Framework producer、Shell consumer 与本机
-installed user path 证据只证明 retained X0-01 route 的对应字节和路径，不把它提升为核心产品门、
-默认 release gate 或当前 release-ready 结论。
+installed user path 证据只证明旧 X0-01 compatibility route 的对应字节和路径，不证明
+动态 Agent producer、Agent/Temporal 分工、typed view、目标核心 Runtime 或当前 release-ready。
 
 ### 2026-07-15 本机安装版验收
 
@@ -356,12 +385,22 @@ installed user path 证据只证明 retained X0-01 route 的对应字节和路�
 
 ## 验收标准
 
-以下标准只在 X0-01 route 被显式保留或启用时约束该 route，自身不进入默认 release gate，也不
-要求 Native phase-1 实现。机器 hard gate 移除前，现有 validator pass 仅作 retained source 回归证据。
+目标 Runtime 至少需要：
+
+- installed Agent Package descriptors 动态生成 Agent scope；测试 Agent 不修改 App source 即出现。
+- Agent business status 与 Temporal queued/running/retry/terminal 分别由 owner 提供，缺失时公开 unknown。
+- 一个 producer/required capability/Temporal binding 失败只降级其 tasks。
+- MAS research roadmap 通过 MAS-owned typed view 显示；App 不含 MAS id 或科研 schema。
+- 未知/invalid `view_kind` 只局部 unavailable，task row 和其他 views/Agents 保持可用。
+- Settings availability、Maintenance diagnostics、Inspector artifacts 与 release evidence 不复制进 Runtime。
+- Contract、Source、Pixel、Install、Release 独立关闭。
+
+以下列表只约束迁移期旧 X0-01 compatibility route。现有 validator pass 仅作 retained
+source 回归证据，不关闭上面的目标：
 
 - Scope 只有 Agent -> Project 两层，work item 不进入菜单，状态筛选不含 MAS。
 - Project 显示名严格等于 canonical workspace path basename；目录改名同时改变当前 path-hash `project_id`。
-- 五个一方智能体使用全称；MAS Scholar Skills 不作为智能体；Runtime 不显示 availability 或模块健康 panel。
+- 当前 compatibility fixture 中五个一方智能体使用全称；该固定集合不得扩展，并在动态 producer迁移后删除。MAS Scholar Skills 不作为智能体。
 - 每个 canonical work item 以顶层 `item_id` 保持一行并选择详情；跨项目重复 local `work_item_id` 不串行。
 - action 使用 `title_key / summary_key / message_args / owner / owner_kind`，Shell 按当前 locale 渲染，raw title/summary 只作 fallback。
 - 默认列表只显示 visible；归档库独立于 lifecycle、scope 和 saved views，并允许恢复。

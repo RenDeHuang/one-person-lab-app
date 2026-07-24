@@ -1,13 +1,22 @@
-# Professional Agent Package Management Plan
+# Superseded Professional Agent Package Management Implementation Snapshot
 
 Owner: `one-person-lab-app`
-Purpose: `professional_agent_package_management_plan`
-State: `historical_implementation_record`
+Purpose: `superseded_professional_agent_package_management_snapshot`
+State: `historical_only`
 Currentness boundary: 本文保留 package-management 设计与当时的 non-live implementation
 记录；其中 `100%` 只描述各行当时声明的 docs/contract/source/test slice，不得作为当前完成度、
 关单、Pixel、Install 或 Release authority。当前唯一五轴账本是
-[`app-ideal-state-gap-plan.md`](../../active/app-ideal-state-gap-plan.md) 与
-[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
+[`app-ideal-state-gap-plan.md`](../active/app-ideal-state-gap-plan.md) 与
+[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md)。
+Superseded target: 本文的 Framework resolver、SemVer/ABI、lock、payload、receipt、
+materialization、LKG/rollback 和固定 starter/Agent/Skill surfaces 只保留为 current/
+historical compatibility 说明，不得继续作为目标实现。新目标由
+[`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md)
+拥有：Package 是安装单元，平台原生 lifecycle 优先，capability 只检查
+presence/callability，一个 Official Profile 服务 Standard/Full，Runtime 动态发现 Agent
+producer 和 typed views；一方 Package 独立发布到 GHCR，Package identity、carrier
+和 executor 分离，当前生产采用 Codex-first 但公共边界由 OPL 持有。所有用户结果
+必须经该计划的功能等价矩阵后才能删除旧实现。
 Machine boundary: Human-readable product and architecture plan. Machine-readable
 truth lives in `contracts/`, source, validators, package manifests, and OPL
 Framework readback/receipt outputs. As of the App landing, App-owned
@@ -34,7 +43,27 @@ and remote payload manifest fields are now landed in the non-live App/Framework
 slice. Actual public publication, installed Codex-surface reload proof, and live
 user-path evidence remain release/runtime owner work, not App contract work.
 
-## 2026-07-23 Flexibility And Cost Audit
+The separate 2026-07-23 “OPL Package Durable 轻量架构设计” is also superseded
+historical input. Its `+5k` generic filesystem transaction rejection remains
+valid, but its proposed Package-local intent, lock/ledger authority, lifecycle
+receipt and LKG design must not be adopted. The current target removes that
+custom Package-manager ownership instead of rebuilding a smaller variant.
+
+## Reading Rule
+
+本文所有 `should`、`target`、`decision`、`recommended`、`acceptance` 和完成百分比
+均是当时实现快照中的原文，不再授权任何当前工作。本文只用于追溯旧 contracts/source
+为何存在。不得从本文创建新 consumer、writer、validator、migration gate 或 release
+claim。
+
+本文及后续状态表仅记录历史实现，不再定义目标架构、GHCR 迁移顺序或删除门禁。
+唯一目标 SSOT 是
+[`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md)；
+长期生态边界见 [`../architecture.md`](../architecture.md)，统一更新体验见
+[`../product/managed-update-three-layer.md`](../product/managed-update-three-layer.md)。若本文与这些
+active owners 冲突，以 active owners 为准。
+
+## Superseded 2026-07-23 Flexibility And Cost Audit
 
 This plan keeps the package-management product boundary, but the previous
 seven-package wording must be read as a starter-profile implementation snapshot,
@@ -225,7 +254,7 @@ the live installed Codex surface reload remains deferred release/runtime
 evidence; landing this product contract does not claim installed-surface reload,
 release readiness, or package execution readiness.
 
-## Core Decision
+## Superseded Core Decision
 
 OPL App should not add a strong session contract for professional agents.
 
@@ -456,13 +485,13 @@ binding GUI and page-state validation to the same map.
 | Task | `opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]` | Current task slice in conversation and right inspector | Task detail and artifact/provenance workbench pane | Task action, follow-up, export, and workflow-skill candidate refs only; no artifact body, owner receipt, or domain verdict authority. |
 | Package | `opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index` | Settings Agents package directory rows | Packages panel rows | Package lifecycle and Home shortcut preference actions through Framework-backed App action refs; `rollback_ref` is displayed as a recovery reference, not an App-owned rollback verb; diagnostic enrichments cannot define rows or actions. |
 
-## First-Party Starter And External Skill Pack Management
+## Superseded First-Party Starter And External Skill Pack Management
 
 A first-party starter agent may keep professional skills in a separate
 repository, but ordinary package installation must treat the agent and its
 required skill packs as one atomic package unit.
 
-Recommended shape:
+Superseded implementation shape:
 
 - The agent repo owns the package manifest and lock file for required skill
   packs.
@@ -532,7 +561,7 @@ Avoid this shape:
 These are release/runtime evidence lanes, not blocked product-contract or shell
 implementation work.
 
-## Acceptance Rules
+## Superseded Acceptance Snapshot
 
 - OPL App can start with no starter agent package installed and still function
   as a Codex wrapper.

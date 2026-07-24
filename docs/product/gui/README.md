@@ -25,6 +25,16 @@ OPL App GUI 使用三层设计体系：
 维护。该 active plan 只组织实施，不拥有三层产品定义，也不能把计划状态提升为 source、
 pixel 或 release 完成。
 
+Package、Capability、Home 与 Runtime 的新目标由
+[`../../active/opl-package-platform-composition-migration.md`](../../active/opl-package-platform-composition-migration.md)
+统一定义：Package 是安装单元；Skill/Tool/Plugin/MCP/Agent producer/typed view
+动态发现并只做 presence/callability 检查；一个 Official Profile 服务 Standard 与
+Full；Runtime 是目标核心动态 Agent 任务面。当前采用 Codex-first 实现以降低成本，
+但 Package identity、偏好、Work Item、Temporal refs 与 typed views 保持 OPL-owned、
+carrier/executor-neutral；一方 Package owner 独立发布 GHCR `latest-stable`，共享
+Release Set 只用于 Full/offline/integration-test/QA。当前 contracts/source 仍是
+compatibility，文档更新不表示实现完成。
+
 GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本机可以把 AionUI 或
 `opl-native-workbench` 作为一次性的 `local GUI launch target`。启动候选不等于 adoption，
 也不修改 release/updater authority。共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
@@ -60,21 +70,22 @@ readback 获取，不复制成动态默认值。`0ebc1fdd278e8a79602458e15e28cf8
 route/state 场景；它证明当前指定画面非空且布局检查通过，但不证明 1:1 parity、安装或
 release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
 
-此前 App machine authority 同步落在
+以下是当前/历史 compatibility readback，不是目标 Package 架构。此前 App machine authority 同步落在
 `2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：当时 capability 只从 Home starter 选择，管理进入
 Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
 managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。当前合同已把 Home/new-session `+` palette
 补为同一 active capability 的备用选择入口，既有 conversation 仍禁止 Agent Package 重绑。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
 absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集，以及当时仍启用的
-Runtime cockpit；Runtime V2 现仅作为 X0-01 条件保留 route。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
+Runtime cockpit；Runtime V2 当时仅作为 X0-01 条件保留 route。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
 topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
 `ConversationEnvironmentPopover.tsx` 及对应 DOM/source tests 定义，并要求 `WorkspaceHandoffControl.tsx`、
 `ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Home/new-session composer 上方独立 context bar 承载初始 cwd；
-Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文件、目录及 active adapter 真正支持的 App allowlist
-Agent Package、Skill、mode 与连接；已选项只显示紧凑 chip。
+Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文件、目录及 active adapter
+真实发现的 installed Agent Package、Skill、Tool、Plugin、MCP、mode 与连接；App 不维护
+capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不允许已绑定 session 在 Project 之间任意重分组。只有 `custom_workspace=false` 或无 canonical recorded cwd 的
 projectless session 可执行一次 Project adoption：用户选择唯一 canonical Project directory 后，Shell 通过既有
@@ -125,11 +136,11 @@ adoption 边界见 [`gui-shell-candidates.md`](gui-shell-candidates.md)，候选
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 标成明确偏差，再由拥有
 contract 的 lane 决定是否修改 machine truth、实现或目标。
 
-Runtime cockpit 是 X0-01 条件保留的跨项目 owner projection/route，不是 B0/R1/U1、P0、
-默认 release gate 或 Native phase-1 parity。现有 source 可以保留，但普通路径只在该 X0 route
-显式启用时展示；conversation current-task 与 Inspector refs 不依赖它。默认 machine、
-design-system 与 release gates 只保留 Framework producer/authority 约束，不要求 Runtime route；
-完整 route/page-state/display 验证只通过显式 `validate:runtime-route` / `test:runtime-route` 执行。
+Runtime 是目标核心动态 Agent 任务面：Agent owns business task lifecycle，Temporal owns
+execution，Framework join，App/Shell 按通用字段和 `view_kind` 渲染。当前 X0-01 route、
+WorkItemProjection v2 和显式 `validate:runtime-route` 只作 compatibility bridge；新 contracts/
+source/installed evidence 完成前保留，完成后删除 optional gate、固定 Agent scope 和领域
+schema mirror。旧 route validation 不关闭目标 Contract/Source/Pixel/Install/Release。
 
 Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`install_status`、
 `release_status` 独立读取；`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐、
@@ -215,37 +226,27 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   Codex/model prerequisites 不变。Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
   permission/access、统一 `+` 菜单和 send/stop 均留在 composer；不在 header 重复配置。
-- Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
-  不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
-- Package starter 必须投影真实 availability；发送时按 `ready / degraded / package_unavailable`
-  处理。Shell 优先消费 owner-projected action 做 JIT prepare、自修复或安全 fallback；只有明确
-  身份/版本/入口/安全目标/权限失败才局部阻止所选 package。Workspace、receipt、binding 和 closure
-  不得成为普遍启动前提，App/shell 不拥有 package currentness。
-- 当前 task progress、tool events、approval 与 receipts 进入 timeline；后台 target 的 interactive
-  requests 在 selected thread detail 保留 thread/turn/item context；条件启用的跨项目总览可进入
-  X0-01 Runtime route。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
+- Purpose 从 Home/New task 的动态 Agent shortcut 选择；Official Profile 只提供首次安装默认值。
+  选中后只显示轻量 active capability，不用独立 Capabilities 主导航页重复同一组说明。
+  Package 安装、首页显示与维护继续归 Settings。
+- Agent Package 必须投影真实 installed/enabled/callable 状态；发送时按
+  `ready / degraded / package_unavailable` 处理。只有 missing required identity、入口、安全目标
+  或权限失败才局部阻止所选 Package。Version、ABI、lock、payload、receipt、binding、digest 和
+  family closure 不得成为启动前提，App/Shell 不拥有 Package currentness。
+- 当前 task progress、tool events 与 approval 进入 timeline；后台 target 的 interactive
+  requests 在 selected thread detail 保留 thread/turn/item context；跨项目总览进入核心 Runtime。
+  Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
-- X0-01 Runtime route 启用时消费 `WorkItemProjection v2`，只回答 Agent -> Project 范围、用户主状态、当前/
-  下一 stage、下一行动与 owner、运行和 telemetry 可信度。Scope 不包含论文/work item；状态
-  saved views 不重复 MAS 或其他智能体。默认列表固定为项目/论文、状态、当前进展/下一步、
-  时间/Token 四列，智能体全称作为次级标签；一个 canonical work item 只显示一行。
-- Runtime 的领域详情是 item-scoped progressive disclosure，不改变四列表。fast projection 只携带
-  declaration-derived `domain_detail_views[]` locator 与 transport 状态，不携带医学摘要；完整内容由
-  `opl app view read --item-id ... --view-id ... [--if-revision ...] --json` 按需读取。Shell 按
-  `view_kind` 选择 typed renderer，禁止按 MAS id
-  分支、提交任意路径、解析 Markdown/Codex session 或把 read model 提升为领域裁决。
-- 首个 typed view 是 `scientific_reasoning_map`。Drawer 只显示“当前主要假设、最新研究发现、当前判断、
-  下一研究步骤、更新时间”和“查看科研路线”；独立 `/runtime/item/:itemId/insights/:viewId` 全幅画布
-  显示科研路线与右侧研究对象详情。来源只在折叠“来源与依据”中出现；generation、digest、ref、
-  payload、attempt、provider 等机器字段不得进入用户文案。
-- 科研路线是 MAS 在有意义科研变化时一次写入的轻量只读快照，不增加第二套质量门或阶段记录控制层。
-  App/Shell 只做 schema/格式、节点边可绘制、机器字段隐藏和多视口排版检查；医学叙述逐值透传，
-  禁止生成、翻译、摘要、改写或审核。
-  unread、available、missing、stale、invalid、read_error 仅表示 transport 状态，不得转译为科研结论。
-- 条件 Runtime route 的 Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
-  未配置上限时不得画进度条。Agent availability 使用独立 projection，五个一方智能体使用全称，
-  全健康时折叠；任务数和裸 `0/2` 不构成 availability，MAS Scholar Skills 只是 MAS 依赖。
-  raw ids、logs、refs、receipts 与 provider 诊断只进入诊断区。
+- Runtime scope 从 installed `kind=agent && task_provider` descriptors 动态生成，保持
+  Agent -> Project 两层；work item 只作为行。Agent 提供业务 status/progress/next action，
+  Temporal 提供 queued/running/attempt/heartbeat/retry/terminal，Framework 不互相推导。
+- Runtime 的领域详情是 item-scoped typed view。Agent descriptor 提供
+  `{view_id, view_kind, title, availability, read_action}`；Shell 只按 `view_kind` 选择 renderer，
+  禁止按 Agent id 分支、提交任意路径或把 read model 提升为领域裁决。
+- MAS 科研路线由 MAS 拥有 schema、医学语义和文案。App 不复制 node/edge/stage/evidence 字段。
+  未知/invalid view 只局部 unavailable，不影响 task row、其他 views 或其他 Agents。
+- Runtime Token 只显示 owner-observed 值；missing 不能渲染成 `0`。Package availability 在
+  Settings > Agents，Runtime 不复制模块健康。raw ids、logs、refs 与 provider 诊断只进入诊断区。
 - Environment 使用右上按需浮层，只读渲染真实
   recorded workspace/locality/branch/changes/subtasks/sources；artifact、
   evidence、receipt refs 属于次级信息，不默认形成全高第三列。它不提供已绑定 session cwd
@@ -296,9 +297,9 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 2. **判定是否改变 machine behavior。** 若改变普通用户可见状态、page-state
    acceptance、模型策略、Settings IA、first-run gate 或 release gate，必须由对应
    contract/validator lane 先更新 machine truth，不能只改人读文档。
-   Runtime X0-01 route 的启用、入口、字段或状态变化属于 machine behavior 变更；把它从默认
-   hard gate 降为条件 route 也必须同步清理 product/page-state/design-system/release validators。
-   保留 optional owner route 不等于继续维护核心发布义务。
+   Runtime 从 X0-01 compatibility route 迁移为动态核心能力属于 machine behavior 变更；
+   必须同步更新 product/page-state/design-system/release validators、Framework producer、
+   Shell consumer 和 installed evidence。文档目标不等于机器迁移完成。
 3. **更新人读目标。** 功能、交互、视觉和元素位置只在各自 owner 文件定义一次，
    其它文件使用链接，不复制长列表。
 4. **实现 thin adapter。** Shell 通过 generated profile、state/action bridge、

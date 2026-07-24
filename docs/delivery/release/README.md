@@ -56,7 +56,7 @@ OPL Base ~= R
 OPL App ~= RStudio / replaceable GUI or deployment carrier
 OPL Package ~= R Package
 Registry ~= discovery index
-Full or Release Set ~= exact reproducible lock/snapshot
+Full or Release Set ~= exact snapshot of inputs selected for that artifact
 ```
 
 Stable, Docker/WebUI, Full, Nightly, and Daily are not five competing package
@@ -67,14 +67,14 @@ authorities:
 | OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
 | Desktop Stable | App release policy and public Latest/updater metadata | Framework Bundle plus App release executor |
 | Docker/WebUI | An alternative App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
-| Full | First-install/offline composition snapshot, additive to Standard | Frozen Bundle and exact package closure |
+| Full | First-install/offline composition snapshot, additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
 | Nightly | Retired public prerelease; historical bytes remain readable | No currentness authority; daily validation uses Canary |
-| OPL Package | Independently published immutable SemVer package resolved by Framework | Package owner artifact plus Framework index/resolver |
+| OPL Package | Independently published complete Package bytes | Package owner GHCR `latest-stable` plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
 
-The current seven first-party packages are a replaceable starter profile. A
+The roots selected by the current Official Profile are replaceable defaults. A
 Release Set may bind exact package refs for Full or qualification, but it must
-not require seven packages to publish atomically or make an unrelated package
+not require a fixed Package count to publish atomically or make an unrelated Package
 wait for App/Base. Developer checkout, external registry, manual manifest, and
 offline seed remain source adapters for explicit profiles and recovery; they
 cannot define ordinary Stable currentness.
@@ -112,7 +112,9 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
-| Package publication, index, compatibility resolution, exact installed locks | OPL Framework package lifecycle and package-owner artifacts; not the App release controller |
+| Package publication/current stable | Each Package owner and its declared publication store; not the App release controller or shared Release Set |
+| Package installed/callable state | Fresh configured-carrier readback aggregated by OPL Framework; not App release state |
+| Exact Package refs/digests in one App/Full build | The immutable build snapshot for only the inputs actually included; not ordinary Package composition or currentness |
 | Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained legacy scripts, read-only |
 
 Passing a contract test is not release admission and does not make a Bundle
@@ -295,18 +297,18 @@ Latest.
 
 ## Install And Update Taxonomy
 
-The Standard updater mutates only the App binary. OPL Base and OPL Packages
-remain Framework lifecycle objects and reconcile through `opl update` and
-`opl packages`; a release workflow cannot become a second package lifecycle
-authority.
+The Standard updater mutates only the App binary. Current `opl update` and
+`opl packages` routes remain compatibility bridges while Package lifecycle moves
+to configured carriers and Framework fresh aggregation; release workflows cannot
+become Package lifecycle or currentness authority.
 
-The normal user-facing channel is therefore one App Stable updater plus one
-Framework package resolver. Docker/WebUI and Homebrew carry exact owner bytes;
+The normal user-facing channel is therefore one App Stable updater plus
+independent owner Package channels. Docker/WebUI and Homebrew carry exact owner bytes;
 Full seeds an offline composition; Nightly publication is retired; Daily is a
 scheduled reconciliation cadence. Historical Nightly distribution stays
 read-compatible. Canary is an independent validation workflow, not a release
 channel. A Package update must not require an App, Base, or unrelated Package
-release, and a carrier failure must not rewrite Framework package currentness.
+release, and a carrier failure must not rewrite owner publication currentness.
 
 The local-install profile is a development and QA path for one Mac. It cannot
 publish, promote, write Homebrew, or stand in for public clean-VM evidence.

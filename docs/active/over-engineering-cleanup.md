@@ -19,39 +19,38 @@ Release evidence, but they must not copy or advance cleanup status. In particula
 [`app-ideal-state-gap-plan.md`](app-ideal-state-gap-plan.md) remains a product-gap
 and evidence-axis index, not a second cleanup ledger.
 
-The 2026-07-23 Package audit adds a flexibility and cost rule to this ledger:
-preserve the complete Framework-owned package ecosystem, but remove fixed
-composition and duplicate authority. The current seven first-party packages
-are a replaceable starter profile, not a mandatory App capability ceiling.
-Package owners should publish independent SemVer/OCI or manifest artifacts;
-Framework follows the configured source, verifies required Package ids are
-present and usable, resolves an OCI tag to an immutable digest for the active
-transaction, and records the terminal outcome in its lifecycle receipt;
-App/Shell render projections and delegate actions. A build
-may record the exact inputs it actually includes, but no Release Set,
-pre-existing ecosystem lock, or OPL payload inventory is required to compose,
-install, publish, or declare unrelated capabilities ready.
-Developer, external, manual, online, and offline sources remain compatible
-resolver inputs rather than a global source order.
+The 2026-07-24 follow-up supersedes the earlier “one Framework resolver plus
+installed lock” target. Preserve the Package ecosystem and all user outcomes,
+but delegate Package bytes and lifecycle to Codex Plugin Manager, Git, OS
+package managers, or other native platforms. Framework should retain only thin
+adapters, installed discovery, required-presence/callability checks, status
+aggregation, and Agent/Temporal Runtime join. Version/ABI resolution, lock,
+payload, receipt, LKG, materialization, rollback machinery, fixed Package/Agent/
+Skill/Tool/Plugin lists, and copied domain schemas are migration debt, not
+protected Package capability.
 
-GHCR remains the official first-party Package storage and delivery carrier.
-The retained source unit is one independently published repository per Package:
-`ghcr.io/<owner>/one-person-lab-packages/<package-id>`, with immutable SemVer
-tags and one owner-advanced `latest-stable` pointer. The legacy
-`one-person-lab-manifest:latest-stable` Release Set is a migration bridge and
-Full/offline/QA snapshot only; it must leave ordinary Package currentness.
-Because Codex Plugin Manager currently consumes local or Git marketplace
-sources rather than OCI, Framework may retain one thin OCI download adapter,
-but Codex must own Plugin/config/cache activation and Framework must not rebuild
-a second Plugin manager around that adapter.
+The App has one Official Profile for first install and explicit restore. Standard
+and Full consume the same roots; Full adds offline seed only. The Profile is not
+a continuous desired-state controller, so user removal persists. Detailed
+functionality-equivalence, phase, and deletion gates live only in
+[`opl-package-platform-composition-migration.md`](opl-package-platform-composition-migration.md).
+This ledger owns cleanup state; that plan owns the target sequence.
 
-This is a target and migration boundary, not a claim that the changes are
-landed. The live release audit still requires fresh terminal proof for App
-Stable to Latest and updater readback, WebUI exact digest to `:stable` and
-anonymous pull, and one Package update that leaves Base, App, and unrelated
-Packages unchanged. Until those proofs and the owner migrations exist, cleanup
-must not delete the Framework lifecycle, lock, receipt, materialization,
-rollback-ref, or source-adapter capabilities.
+Package identity, carrier, and executor are separate. First-party owners keep
+independent GHCR publication and advance only their own `latest-stable`. Base
+retains a thin OCI download adapter; Codex owns Plugin/config/cache activation,
+while Package-declared carrier/runtime activation and fresh aggregate readback remain
+mandatory. Codex Plugin Manager is therefore one carrier adapter, not Package
+identity, complete installed truth, or ecosystem authority. Executor changes
+must not reinstall Packages or discard preferences, tasks, dependencies, or
+typed views.
+
+This is a target and migration boundary, not a landed claim. Legacy writers stay
+until their consumers have moved to the minimum native-backed projection, then
+must be deleted rather than retained as fallback. Live proof still includes App
+Stable/Latest, WebUI `:stable`, same-profile Standard/Full install, user-removal
+persistence, independent Package update, dynamic Agent Runtime, and legacy
+zero-consumer/removal.
 
 Each tranche must start from a current owner surface, a real consumer, and a
 focused behavioral failure or maintenance cost. The governing rule is to inherit
@@ -76,7 +75,7 @@ retirement.
 | App product, page-state, release, install-exposure, shell-adapter, and first-run contracts | These contracts encode product and release truth rather than duplicate prose. | Name the replacement owner for every removed requirement and prove the same behavior through focused validation and readback. |
 | Carrier-neutral `B0 / R1 / U1 / X0` product model | A carrier-specific simplification can silently remove a required B0/R1/U1 user result or promote an X0 surface into routine maintenance. | Preserve the shell-neutral feature owner and show the affected carrier's contract/source evidence separately; X0 classification is not delete authority. |
 | Upstream official baseline | Treating an OPL allowlist or a missing OPL-specific entry as global disable authority creates silent upstream regressions and permanent fork work. | Classify each delta as inherit, thin adapt, explicit contract cut, or protected OPL addition. Team is an explicit cut; configured user/third-party MCP is inherited after the Team/internal negative filter. |
-| OPL Package ecosystem and lifecycle | Treating OPL Packages as GUI duplication would remove an ecosystem that remains necessary without any App or GUI. | Preserve discovery, install, update, repair, enable/disable, show/hide, uninstall, managed Codex materialization, receipts, and terminal readback. Framework remains lifecycle authority; App and Shell may only remove duplicate parsers, verdicts, state machines, and copied identity/version truth after a compatibility migration. |
+| OPL Package ecosystem and lifecycle | Treating OPL Packages as GUI duplication would remove an ecosystem that remains necessary without any App or GUI. | Preserve install, installed discovery, independent silent update, enable/disable, show/hide, uninstall, dependency presence, Home shortcut, Agent task status, typed views, and fresh terminal readback. Platform-native managers own bytes; Framework is a thin adapter/aggregator. Custom resolver/lock/payload/receipt/LKG/materialization/rollback state is removable after functional equivalence. |
 | AI-first Agent activation | Replacing `ready / degraded / package_unavailable` with one global readiness gate would turn a maintenance cleanup into a product regression. | Preserve owner-projected repair, JIT prepare, safe degradation/fallback, and only the local identity/version/entrypoint/safe-target/permission fail-closed gates. |
 | Active-shell and release validators | Their structure carries fail-closed product, packaging, and evidence semantics. | Isolate one rule and preserve its failure mode, stdout/stderr/status behavior, and file-write effects in focused tests. |
 | Command, JSON, timing, and destructive-cleanup helpers | Similar-looking helpers intentionally differ in parsing, capture, fallback, timing, and dry-run/apply behavior. | Share an abstraction only inside one behaviorally equivalent caller group with regression coverage. |
@@ -96,13 +95,13 @@ is never delete authority.
 
 | Risk order | Candidate | Current state | Safe boundary and acceptance |
 | --- | --- | --- | --- |
-| 1 - high (`A1`) | OPL Package duplicate-authority consolidation | Compatibility tranche landed locally: Framework `main` now has a versioned repository index/resolver and App has removed its empty default registry and duplicate currentness claims. Live index publication, platform-activation readback, and remaining Shell mirror inventory are not yet terminal-proven. | Preserve the entire OPL Package ecosystem and user lifecycle. Continue deleting only duplicate App/Shell classification, recovery, parsing, version, fixture, and identity authority after exact canonical readback; never replace them with another App manager. |
-| 2 - high (`A6`) | Fixed starter-profile and package lock-step release removal | Open-composition tranche implemented in the current candidate: Full cache construction records an explicit selected dependency closure; Package publication is independent; App readiness no longer requires a fixed count, Release Set, payload inventory, or package lock. The current seven remain a replaceable starter build choice only. | Keep defaults replaceable and local to the operation that selected them. Any actual build may record included bytes for reproducibility, but no snapshot may become package publication, installation, online currentness, or ecosystem readiness authority. |
-| 3 - high (`A7`) | Package source/currentness consolidation | Half-migrated: independent publishers advance each Package GHCR `latest-stable`, and the resolver can select independent versions, but the default first-party online catalog still reads `one-person-lab-manifest:latest-stable`. On 2026-07-24 the live Release Set still selected MAS `0.2.12` and ScholarSkills `0.2.7`, while the per-Package pointers exposed MAS `0.2.19` and ScholarSkills `0.2.20`. | Keep GHCR as official storage, publish a thin production repository index, migrate ordinary consumers to per-Package currentness, and retain Release Set only for Full/offline/QA snapshots. Developer checkout, external registry/direct manifest, OCI, and offline adapters remain candidates. Close only after fresh independent-update, platform-activation, dependency, and mixed-source readback. |
+| 1 - high (`A1`) | Native Package lifecycle migration and old authority removal | **Target/planned:** current Framework resolver/lock/receipt/materialization path remains active compatibility truth. No native-backed minimum projection or zero-consumer deletion proof exists yet. | Migrate by platform adapter -> installed discovery/presence projection -> consumer switch -> old writer deletion. Preserve the functionality-equivalence matrix; do not create a smaller custom Package manager as the destination. |
+| 2 - high (`A6`) | One Official Profile and fixed-composition removal | **Target/planned:** open-composition work removed some fixed-count/Release Set gates, but App starter metadata and Full/first-run compatibility lists remain. | Standard/Full use the same first-install roots; Full adds offline seed. User removal persists until explicit Restore. Delete fixed seven/count/dual-list gates after clean-install and removal proofs. |
+| 3 - high (`A7`) | GHCR currentness and carrier migration | **Target/planned:** independent Package GHCR `latest-stable` pointers exist, but ordinary currentness still reads the shared Release Set bridge and Framework still owns resolver/lock state. | First-party owner `latest-stable` is publication current stable; Base OCI is a thin download/verification adapter; Codex owns Plugin/config/cache; Package-declared carrier/runtime activation and Framework aggregate readback remain. Remove the shared manifest from ordinary updates and all OPL lifecycle state only after the active migration plan's terminal proofs. |
 | 4 - high (`A2`) | Existing-conversation Agent rebind transaction pruning | Completed/readback-proven: retained consumer count is zero; canonical Shell removed the private rebind UI, IPC, and owner projection; Framework and bundled/reachable AionCore expose no rebind API. | Existing conversations keep their Agent identity. Agent selection applies only before the first send or to a new conversation. Remove private rebind API, WAL/CAS/TOCTOU/database transaction and recovery machinery only after proving no retained path consumes them; do not replace them with another App state machine. |
 | 5 - medium (`A3`) | Waiting `StartupGate` removal | Source implemented: canonical Shell enters `/guid` directly and hydrates local state in the background. The exact-installed-build `<=1500 ms` target remains unverified and is not an SLA. | Mount a usable Guid composer without waiting for fast App state. Hydrate allowlisted state and managed-agent discovery in the background; failures stay local. `<=1500 ms` is an exact-installed-build target from OS launch request to a visible, enabled, focusable composer, not a source-test result or SLA. Preserve explicit `/first-run` and startup-failure support. |
-| 6 - medium (`A8`) | Carrier/channel/cadence simplification | Source tranche landed locally: App Standard and WebUI are independently qualified carriers, legacy desktop aliases are absent, and Framework Daily is reconciliation-only. Live Stable/Latest, WebUI `:stable`, and single-Package terminal proofs remain pending. | Keep Stable as release policy, Docker/WebUI/Homebrew as carriers, Full as an exact snapshot, Nightly as optional canary, and Daily as cadence/index reconciliation. Do not call the source change release-ready until each retained carrier has exact public readback. |
-| 7 - medium (`P1a`) | X0-01 Runtime default-gate and optional-detail pruning | App Contract is aligned and the retained Runtime route is Source implemented; later evidence axes remain independent. | Preserve the Framework Work Item producer and optional AionUI route, keep route-specific checks in `validate:runtime-route`, and exclude Runtime from B0/R1/U1, P0, default release/design-system gates, and Native phase-1 parity. Treat `opl_app.domain_detail_views.v2` separately as an optional enhancement: absence hides only dependent detail and never fails App activation or Runtime core. |
+| 6 - medium (`A8`) | Carrier/channel/cadence simplification | Source tranche landed locally: App Standard and WebUI are independently qualified carriers, legacy desktop aliases are absent, and Framework Daily is reconciliation-only. Live Stable/Latest, WebUI `:stable`, and single-Package terminal proofs remain pending. | Keep Stable as release policy, Docker/WebUI/Homebrew as carriers, Full as an exact snapshot, and Daily as cadence/index reconciliation. Public Nightly is retired and read-only; Canary is a separate validation-only schedule, not a release channel. Do not call the source change release-ready until each retained carrier has exact public readback. |
+| 7 - medium (`P1a`) | Dynamic Agent Runtime promotion | **Target/planned:** current optional `X0-01` WorkItem route is a compatibility bridge. It still copies fixed Agent scope/availability and MAS-specific view schema. | Promote Runtime to a core dynamic Agent task surface. Agent owns business lifecycle, Temporal owns execution, Framework joins, App renders by generic fields/`view_kind`. Delete fixed ids, optional-route gate, and MAS schema only after new producer/consumer/installed proofs. |
 | 8 - medium (`P1c`) | X0-05 private cross-thread pruning | App machine truth and Native Source implement the intended boundary; later evidence axes remain independent. | Preserve one App Server directory/user-action adapter, standard thread lifecycle, and read-only Codex subagent metadata/source kinds/thread items. Keep the private host, model-triggered tools, OPL queue, ledger/receipts, advisory/idempotency, and cross-host layer absent. |
 | 9 - low (`P1b`) | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | App Contract is aligned; carrier evidence remains independently owned. | Optional owner refs appear only with a canonical projection and absent projections create no placeholder. Keep App-owned scheduling, billing, credentials, storage execution, and provider truth absent. |
 | 10 - low (`M1`) | Alternative-carrier default-gate decoupling | Implemented: default scope is `role_registry_only`; Native detail is explicit; Hermes/AGUI are role tombstones backed by adapters and replay runbooks. | Keep default AionUI/full/release/model-policy/design-system maintenance independent of untouched candidate detail. Preserve explicit candidate validators; do not turn Source validation into Pixel, Install, Release, or adoption evidence. |
@@ -111,70 +110,31 @@ is never delete authority.
 
 ### `A1` Package authority migration sequence
 
-`A1` is deliberately not executable as one broad deletion. The only valid order is:
+`A1` is deliberately not executable as one broad deletion. The valid order is:
 
-1. Framework publishes a versioned candidate canonical `launch_state`, its schema,
-   and an exact fixture from the lifecycle owner.
-2. App and Shell land a dual-read compatibility bridge that prefers canonical
-   `launch_state`, preserves the legacy read long enough for mixed versions, and
-   proves identical user-visible lifecycle outcomes.
-3. The Framework authority enters canonical `main`; App and Shell verify the exact
-   owner ref and terminal readback before tightening consumers.
-4. Only then may App/Shell delete their private reason classifier, duplicate
-   recovery state machine, manifest parser, hand-maintained Framework SHA,
-   non-exact fixture, and duplicate first-party package ids.
+1. Prove one native platform adapter with minimum Package/capability descriptor,
+   installed discovery, presence/callability, and terminal actions.
+2. Framework publishes one executor-neutral aggregate projection with no
+   version/ABI/lock/payload/digest/receipt composition fields. Carrier readback
+   and executor route readiness remain separate.
+3. App and Shell dual-read that projection and prove all functional outcomes
+   in the migration plan, including user-removal persistence and dynamic Runtime.
+4. Each Package owner enters canonical `main`, followed by Framework authority,
+   then App/Shell consumers; incompatible changes use a compatibility bridge.
+5. Verify retained consumers are zero, then delete old resolver, lock, payload,
+   receipt, LKG, materialization, rollback writers and App/Shell mirrors.
 
-This sequence removes duplicate authority, not Package capability. It does not
-authorize moving lifecycle ownership into the App, reducing lifecycle verbs, or
-folding Package update into the App updater. The current documentation tranche
-records the sequence only; it does not perform this cross-repository migration.
+This sequence removes custom lifecycle machinery, not Package functionality.
+The current documentation tranche records the target only; it does not perform
+the cross-repository migration.
 
-### `A7` GHCR source migration sequence
+### `A7` source migration owner
 
-`A7` changes the online selection path without replacing the Package carrier.
-The only valid order is:
-
-1. Keep the current per-Package GHCR repositories public and anonymously
-   readable. Each Package owner publishes an immutable SemVer artifact and
-   advances only that Package's `latest-stable`.
-2. Publish a production repository index containing Package identity, role,
-   OCI repository, and declared required/optional Package ids. Do not copy
-   Package behavior, create another payload inventory, or introduce version/ABI
-   constraints without a demonstrated runtime requirement.
-3. Add a bounded dual-read bridge: ordinary first-party resolution prefers the
-   new index and per-Package source; the legacy Release Set catalog remains a
-   temporary fallback for mixed installed versions. The bridge must expose
-   which source produced the candidate.
-4. Reduce materialization to a thin OCI adapter. It resolves the selected
-   moving tag once, downloads immutable bytes, and hands Plugin/config/cache
-   activation to Codex platform capability. Framework activates any additional
-   Package runtime and emits one lifecycle receipt plus terminal readback.
-5. Prove required dependency composition with MAS plus ScholarSkills without
-   publishing or updating unrelated Packages, Base, or App. Dependency presence
-   and usability remain enforced, but default composition has no dependency
-   version range, family cohort, or unrelated version equality.
-6. Make Full/offline construction select and record its own exact Package
-   closure. It may consume GHCR bytes or an offline seed, but its Release Set is
-   only that build's reproducibility record.
-7. After the new path is the production default and the fallback has no
-   retained consumer, remove `one-person-lab-manifest:latest-stable` from
-   ordinary update checks and retire the legacy synchronized promotion
-   workflow. Keep only snapshot generation used by Full/offline/QA.
-
-The migration is not complete until fresh evidence proves all of the following:
-
-```text
-empty ordinary install -> per-Package GHCR -> Plugin and runtime ready
-one Package latest-stable advance -> only that Package updates
-MAS install/update -> required ScholarSkills present and usable
-Codex restart/readback -> Plugin, Skill, icon, config, and cache active
-Full offline install -> same selected Package capabilities without network
-legacy Release Set remains unchanged -> ordinary update still sees newer Package
-```
-
-The OCI digest resolved during one transaction is retained in the receipt for
-integrity and support. It must not become a new cross-Package lock, App/Base
-release edge, or second currentness authority.
+The authoritative A7 sequence, dual-read exit order, Package/carrier/executor
+split, and no-regression terminal proofs live only in
+[`opl-package-platform-composition-migration.md`](opl-package-platform-composition-migration.md).
+This ledger records only that A7 is open. It must not copy a second resolver,
+index, receipt, or deletion plan.
 
 ## Future slice requirements
 

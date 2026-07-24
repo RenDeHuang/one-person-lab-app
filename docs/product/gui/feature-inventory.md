@@ -29,8 +29,8 @@ tests 与 evidence。
 | Priority | Product layer | 包含 | 完成定义 |
 | --- | --- | --- | --- |
 | `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
-| `P1 OPL Professional` | OPL 专业增量 | Capability selection、用户触发的线程操作、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置；输入由用户在当前 session 显式加入，不引入 workspace preload、dashboard、第二套导航或第二套 thread store。 |
-| `P2 Administration` | 配置和运维 | Settings、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。跨项目 Runtime 只有在 X0-01 被显式保留时才参与该 route 自身优先级，不成为核心完成门。 |
+| `P1 OPL Professional` | OPL 专业增量 | Dynamic Package/capability selection、用户触发的线程操作、Agent task Runtime、Temporal execution、typed views、approval、evidence/artifact preview 与 safe action。 | 增量嵌入 P0 稳定位置；不引入第二套 Package manager、thread store、task truth 或领域 schema。 |
+| `P2 Administration` | 配置和运维 | Settings、first-run、安装、独立静默更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
 
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
 默认先覆盖 `P0`，再覆盖 `P1`，最后覆盖 `P2`。
@@ -61,10 +61,10 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | `B0-13` | Memory、personalization、instructions | 稳定偏好和项目指令决定长期易用性。 | 复用 owner-correct profile/refs，不新建独立 memory 平台。 |
 | `B0-14` | 通用 Settings 容器、search/back/redirect、a11y、theme、i18n | 所有配置与长期使用能力需要一致容器。 | 容器行为属于 B0；OPL 栏目、owner route 与数据语义归 `R1-05`。 |
 
-B0 保护的是 Codex 必要用户结果，不是把上游所有同名入口自动纳入 OPL。Skill/Plugin/MCP
-的执行、权限与 elicitation 底座可复用 B0，但面向用户的管理 IA 归 `R1-04`。普通 Skill
-入口由 App packaged-skill allowlist 策展；MCP 不共享该 allowlist，所有已配置用户/第三方 MCP
-默认端到端保留，只排除明确 Team/internal negative filter。Local Git、Terminal、Browser 与显式选择的
+B0 保护的是 Codex 必要用户结果，不是把上游所有同名入口自动纳入 OPL。Skill/Tool/Plugin/MCP
+的执行、权限与 elicitation 底座可复用 B0，但面向用户的管理 IA 归 `R1-04`。这些 capability
+从已安装 Package/native platform 动态发现；App 不维护 allowlist。只允许显式 Team/internal
+negative policy 和用户可见性偏好影响展示。Local Git、Terminal、Browser 与显式选择的
 本地 checkout 属 B0；SSH/HPC 可作为 Resources refs 接入，但托管远程 Workspace、资源调度和
 跨主机 handoff 仍归 `X0-04/X0-05`。`B0-10` 也不授权 Shell 自建 managed Worktree/Handoff。
 
@@ -87,8 +87,8 @@ Pixel、Install 和 Release 仍须在 exact source/package 上独立验证。
 | --- | --- | --- | --- | --- | --- | --- |
 | `R1-01` | Gateway 身份 | OpenAI/ChatGPT 身份登录。 | 以 OPL Gateway 身份替换产品账号入口，同时兼容既有 Codex/API Key。 | OPL 必须能管理自己的智能体账号，又不能破坏用户已有 Codex 路径。 | `P1` | 登录、刷新、退出、脱敏身份和 secret boundary 由 Gateway owner 提供；失败不清除可用的兼容凭据。 |
 | `R1-02` | 模型 entitlement 与用量 | OpenAI 模型访问资格和账户用量。 | 由 Gateway 投影模型访问、余额、Token、成本、managed key 与 freshness。 | 账号管理若看不到可用模型和消耗，就无法做真实选择。 | `P1` | 访问来源、余额、今日/累计 Token、实际成本、managed key 与 freshness 有 owner projection；UI 不推算。 |
-| `R1-03` | OPL 首启 | Codex 登录和首次项目初始化。 | 首屏可用 Codex 核心，Gateway、Framework 与 package 环境渐进准备。 | OPL 多了运行依赖，但首启不能成为长时间阻断页。 | `P2` | 可自修复项后台处理；只有确认的身份、安全或核心执行器失败才局部 gate。 |
-| `R1-04` | Agents/Capabilities IA | Codex Plugins/Skills 管理入口。 | Agents 管 Agent Packages；Capabilities 管 Skills、Plugins 与 Flow，底层可复用 carrier registry。 | 用户要按“智能体”和“能力”理解 OPL，而不是理解底层打包机制。 | `P1` | 两类入口、目录、状态和动作 owner 清晰；不得复制第二份 package/skill truth。 |
+| `R1-03` | OPL 首启 | Codex 登录和首次项目初始化。 | 首屏可用 Codex 核心，同时从一个 Official Profile 自动安装必要 roots；Standard 在线、Full 用相同 Profile 的 offline seed。 | OPL 多了能力 Package，但首启不能成为长时间阻断页。 | `P2` | roots/required presence 自动完成且按 root 局部失败；用户卸载后不自动恢复；显式 Restore 可恢复。 |
+| `R1-04` | Agents/Capabilities IA | Codex Plugins/Skills 管理入口。 | Agents 管 Package 安装单元；Capabilities 动态展示 Skill/Tool/Plugin/MCP/producer/view identity。 | 用户要按“智能体”和“能力”理解 OPL，而不是理解底层打包机制。 | `P1` | Native lifecycle + one generic projection；App 无 package/capability allowlist 或第二份 truth。 |
 | `R1-05` | OPL Control Center | Codex Settings。 | 在同一 Settings 容器中按 App、Gateway、Framework、Packages 的唯一 owner routes 组织设置。 | 多个 authority 必须有统一可发现入口。 | `P2` | 每个设置项路由到唯一 owner state/action；Shell 不复制 runtime truth 或自造 mutation。 |
 | `R1-06` | OPL 产品分发与支持 | Codex bundle、update、deep link、feedback/support。 | 使用 OPL bundle id、更新通道、`opl://`、反馈与 support 入口。 | 用户安装、唤起、更新和求助时必须看到同一个 OPL 产品身份。 | `P2` | 冷/热启动、更新、反馈/support 与 readback 闭环；源码、安装和 release 证据分开。 |
 
@@ -96,12 +96,13 @@ Pixel、Install 和 Release 仍须在 exact source/package 上独立验证。
 
 | ID | 功能 | Codex 对应 | OPL 定义 | 为什么必要 | 优先级 | 最小验收边界 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `U1-01` | Agent Package 目录与 lifecycle | 无直接对应；Codex 仅有通用 Plugins/Skills。 | 统一查看、安装、更新、启停、隐藏、卸载、修复和配置 OPL Agent Packages。 | OPL App 的核心定位是方便调用和管理自己的智能体账号/包。 | `P1` | 全部消费 Framework directory/actions/readback；Shell 不直接修改 package truth。 |
+| `U1-01` | Agent Package 目录与 lifecycle | 无直接对应；Codex 仅有通用 Plugins/Skills。 | 统一查看、安装、独立静默更新、启停、隐藏和卸载 OPL Agent Packages。 | OPL App 的核心定位是方便调用和管理自己的智能体账号/包。 | `P1` | 平台原生 manager拥有 bytes；Framework仅 discovery/presence/status/action adapter；App无 resolver/lock/payload/receipt state。 |
 | `U1-02` | Purpose/Starter 与 active context | 无直接对应；最接近 Codex New task/prompt 入口。 | 从用户目标直接选择专业 Agent，并以低权重 active context 表达当前能力。 | 用户不应先配置技术组件才能调用专业 Agent。 | `P1` | Starter 可选择、active context 可见、管理入口可达，并绑定真实 package identity。 |
-| `U1-03` | 弹性 Agent 对话与 Stage runtime 激活 | 无直接对应。 | 普通对话不执行 package activation；真实 domain StageRun/StageAttempt 只按自身 `workspace_locator` 在运行边界激活。 | 既要防止错 workspace 装配，也不能因 stale/deferred/可选证据缺失阻断普通对话。 | `P1` | Settings、新对话和 ordinary send 均不执行 `agent_package_activate`；stage 激活失败只阻止对应 stage，不影响普通 Codex、其他 Agent、draft 或既有 session。 |
-| `U1-04` | App / OPL Base / Packages 三对象 lifecycle | 无直接对应；Codex 只有自身 App 更新。 | 三对象分别安装、更新、修复、恢复并由各自 owner 给出终态 readback。 | 三类生命周期、重启和回滚 owner 不同，混成一个 updater 会产生假成功。 | `P2` | 三对象均可见，各走 owner route；有中断恢复和 terminal readback，不强求共用 mutation API。 |
+| `U1-03` | 弹性 Agent 对话与业务 runtime | 无直接对应。 | Agent Package拥有业务 task lifecycle；Temporal拥有 execution；普通对话和其他 Agent不被单包故障阻断。 | 既要显示真实推进，也不能把平台执行或 Package readiness冒充领域状态。 | `P1` | Agent/Temporal分别投影，Framework join unknown，Shell不推断；failure局部化。 |
+| `U1-04` | App / OPL Base / Packages 三对象 lifecycle | 无直接对应；Codex 只有自身 App 更新。 | 三对象分别由 App carrier、Base route 和各 Package native platform维护，App统一呈现。 | 统一 UI 不能变成统一自研 updater。 | `P2` | 三对象均可见，各走 owner route；Package逐包更新和fresh readback，不强求共用 mutation API或rollback state。 |
 | `U1-05` | Docker/WebUI 同产品语义 | 无直接对应。 | Desktop 与 Docker/WebUI 共享核心 route、状态、action、错误和 authority 语义。 | WebUI 是 OPL 的部署与远程使用入口，不能成为另一个产品。 | `P2` | 核心语义一致；transport 和 Desktop-only 安全能力可明确不同。 |
 | `U1-06` | OPL 数据与安全清理 | 无直接对应。 | 对 Agent packages、runtime、本地缓存和 WebUI volume 提供 owner inventory 与受管清理。 | 长期使用会持续增长数据，普通用户需要可预览、可确认、可恢复的清理。 | `P2` | 独立 inventory、owner dry-run、managed path/hash guard、确认、receipt；不得泛化删除 workspace 或 domain artifact。 |
+| `U1-07` | Dynamic Agent Runtime 与 typed views | 无直接对应。 | 动态显示所有 installed Agent task producers；通过 `view_kind` 展示 MAS 科研路线等 Agent-owned views。 | 标准 Agent 有共同状态体验，同时第三方 Agent 和领域扩展不应修改 App。 | `P1` | 新 Agent无 App source变更；MAS schema留在 MAS；unknown view局部降级；Runtime为目标 core。 |
 
 R1 与 U1 的当前实现程度按 carrier 分开维护在
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
@@ -111,7 +112,7 @@ R1 与 U1 的当前实现程度按 carrier 分开维护在
 
 | ID | 条件能力 | 当前处理 |
 | --- | --- | --- |
-| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | `retained_optional_x0_owner_route`：Framework producer 必须保留，AionUI Source 为 `source_implemented` 且 route 可条件保留；Native phase-1 不要求页面、full drilldown 或 Runtime bridge capability。默认门不要求该 route，完整校验使用 `npm run validate:runtime-route`。 |
+| `X0-01` | 旧全局跨项目 Runtime cockpit 分类 | **Superseded target:** 当前 WorkItem route/validator 仅作迁移 compatibility；目标能力已进入 `U1-07`。新 Runtime未完成前不得删除旧 producer，完成后删除 optional gate和fixed Agent scope。 |
 | `X0-02` | 完整 Evidence/Provenance/receipt/route-ref 平台 | 只保留 owner-required refs、confirmation 与 receipt；完整 cockpit 条件推进。 |
 | `X0-03` | Hosted Workspace / cloud-continuous execution | `optional_owner_projected_resource_refs`：App contract 与 AionUI Resources & Connections 已实现 owner projection 条件启用、独立分组和空投影无占位；不再维护 hosted promise copy。 |
 | `X0-04` | Fabric/HPC/远程资源控制面 | `optional_owner_projected_resource_refs`：真实 owner/backend projection 存在时才提供 refs/owner route；空投影不挂载 group/anchor。完整调度仍归 domain/runtime 产品。 |
@@ -120,8 +121,8 @@ R1 与 U1 的当前实现程度按 carrier 分开维护在
 
 本文的“现有功能不降级”只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的
 能力，并以 AionUI/AionCore 官方基础能力默认继承为起点。Team 是明确 reject；fixed Codex
-executor 可隐藏 provider/backend marketplace；普通 Skill 可按 App packaged-skill allowlist
-策展。MCP 只应用 Team/internal negative filter，不能因不在 OPL allowlist 中被删除。其它上游
+executor 可隐藏 provider/backend marketplace。Skill/Tool/Plugin/MCP 默认从 owner动态发现；
+App 不以 allowlist 删除 capability，只应用窄 Team/internal negative policy。其它上游
 能力若无 App contract 授权，不得仅因 OPL ordinary UI 未单列入口而被禁用。
 
 ## 产品框架
@@ -153,12 +154,12 @@ executor 可隐藏 provider/backend marketplace；普通 Skill 可按 App packag
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
 | File/folder attachment | 无论是否选择 project，发送前都可加入任意用户显式选择的本地文件/目录，并可预览或移除。 | File platform adapter 与 Codex permission/approval/sandbox。 |
 | Explicit session inputs | 仅通过当前 composer 的 attachment、file/directory picker、paste/drop 或 `/open` 显式加入当前 send；不从 workspace 预载、不按目录持久化、不隐式注入。 | App GUI contract、Codex permission/approval/sandbox。 |
-| Current execution context | Working directory 在 rail；新会话 cwd 从 composer 上方独立 context bar 选择，branch/locality 在 Environment。文件、文件夹、allowlisted Agent Package/Skill、adapter-reported nonduplicate mode 与真实可用连接从 composer `+` palette 选择并以紧凑 chip 展示。缺 workspace 或 workspace readiness 未完成都不禁用普通本地对话与显式文件输入。 | GUI contract、workspace/App state refs。 |
+| Current execution context | Working directory 在 rail；新会话 cwd 从 composer 上方独立 context bar 选择，branch/locality 在 Environment。文件、文件夹、动态发现的 Agent Package/capability、adapter-reported nonduplicate mode 与真实可用连接从 composer `+` palette 选择并以紧凑 chip 展示。缺 workspace 或 workspace readiness 未完成都不禁用普通本地对话与显式文件输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned menu；用户选择优先，其后依次消费已安装 Flow recommendation、Codex live default 和 App fallback。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
-| Purpose selection | 优先从 Home starter 选择当前启用的工作目的；Home/new-session `+` palette 在首次发送前提供完整“专业智能体”目录，不受 Home shortcut visibility/order 过滤。两者同步同一 active capability；Home 只是快捷方式，当前菜单完整包含科研、基金、演示与视觉、写书、元智能体。Home starter 选中态仅保留 quiet fill 与 `aria-pressed`，不追加圆圈对号；已作为专业智能体呈现的 required Skill 不在独立 Skill 组重复显示。Package 安装、Home 显示、顺序和 lifecycle 管理进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。 | Product profile、GUI contract、route receipt policy。 |
-| Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
-| Package conversation availability | 所有可见 starter 始终可选择；已安装且已暴露的 deferred/missing-scope 状态可直接发起普通对话，不触发 Shell activation。只有未安装、被禁用或明确完整性失败时才局部阻止所选 Agent；真实 domain stage 的 activation 由 Framework 在 stage runtime 处理。 | Agent package activation policy、Framework state/action projection。 |
+| Purpose selection | Home 优先显示用户启用的 Agent Package shortcuts；new-session `+` palette 在首次发送前提供完整 installed Agent 目录，不受 Home shortcut visibility/order 过滤。两者同步同一 active Package；Home 只是快捷方式。Official defaults 来自 Agent descriptors/Profile，不是 App fixed list。 | Dynamic Agent Package descriptors、user shortcut preference、GUI contract。 |
+| Agent-scoped capabilities | 只显示当前 Package声明且实际 present/callable 的 required/optional capabilities。 | Package/native discovery；App无 packaged-skill profile或 allowlist。 |
+| Package conversation availability | Installed/enabled/callable Agent 可选择；missing required identity 或 entrypoint 只局部阻止所选 Agent。Version、ABI、lock、payload、receipt、digest 不成为发送门。 | Framework minimum Package status projection。 |
 | User-input and permission prompt | 当前 conversation 需要 command/file/permission approval、补充信息或 MCP elicitation 时，沿用 AionUI ACP 的现有可见流程；拒绝、取消或协议错误保持真实失败。 | AionUI ACP 与 Codex permission/request flow。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
@@ -166,25 +167,22 @@ executor 可隐藏 provider/backend marketplace；普通 Skill 可按 App packag
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Research shortcut | 从普通入口开始科研和论文相关工作。 | Product profile/package registry；domain owner 为 MAS。 |
-| Grant shortcut | 从普通入口开始基金工作。 | Product profile/package registry；domain owner 为 MAG。 |
-| Presentation shortcut | 从普通入口开始演示、汇报和视觉交付工作。 | Product profile/package registry；domain owner 为 RCA。 |
-| Book shortcut | 从普通入口开始书稿工作。 | Product profile/package registry；domain owner 为 BookForge。 |
-| Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
-| Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
-| Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、启用/禁用、显示/隐藏或卸载，并查看 managed Codex materialization 与终态 readback。 | Framework package state/action/receipt；App/Shell 只做 GUI 投影，不直接修改 package/runtime truth。 |
-| 弹性 Agent 对话与 Stage runtime 激活 | Shell 只消费 directory/status projection 来展示可用性与 exact 非激活 lifecycle action；Settings、新对话和 ordinary send 都不执行 `agent_package_activate`。所选项目目录只建立 session cwd 与未来 domain workspace identity；真正激活由 Framework 在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 执行。receipt、binding 和 closure 是 stage runtime 证据或 diagnostics，不是普通对话的硬门槛。 | Framework package lifecycle owner；App 只定义产品边界和用户投影，不构造 activation payload，也不以 session cwd 或全局 workspace root 替代 Stage workspace locator。 |
+| Official Agent shortcuts | 从普通入口开始科研、基金、演示/视觉、书稿或元智能体工作。 | Official Profile只选择初始 roots；每个 Agent Package owns shortcut descriptor 和 domain behavior。 |
+| Additional Package shortcuts | 用户可按安装状态和个人选择显示任何 compliant `kind=agent` Package。 | Installed Agent descriptors + user preference。 |
+| Package directory | 查看 discoverable/installed Package、enabled/callable/update/attention 和推荐动作。 | Native platform state + Framework generic aggregation。 |
+| Package lifecycle actions | 安装、独立更新、启用/禁用、显示/隐藏或卸载，并 fresh readback。高级 repair/rollback打开 native owner。 | Native platform manager；Framework薄 action adapter；App/Shell只渲染。 |
+| 弹性 Agent 对话与 runtime | Shell消费 minimum Package/task projection；missing capability只阻止对应 Agent。真实 task business lifecycle归 Agent，execution归Temporal。 | Agent + Temporal + Framework join；App不构造 activation/package payload。 |
 
-Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
-artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、
-short name 和 technical refs 进入 details/receipt。
+Purpose shortcut 只改变 route context 和 capability selection，不定义 domain workflow、
+artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；Package id 和
+technical refs 只进入 Advanced detail。
 
-## X0-01 条件保留的 Runtime 支撑面
+## Current Compatibility: X0-01 Runtime 支撑面
 
-以下表格描述 AionUI 当前已保留 route 的可选行为，不是 B0/R1/U1 定义、默认 release gate 或
-Native phase-1 parity。产品分类统一为 `retained_optional_x0_owner_route`；Framework producer 继续由默认 bridge
-gate 保护，完整 cockpit product/page-state/display 检查只由 `npm run validate:runtime-route` 显式执行。
-Validator pass 只证明对应 contract/source 一致，不能证明产品必要性或关闭 Pixel/Install/Release。
+以下表格只描述 AionUI 当前已保留 route 的 compatibility 行为。目标能力已进入 `U1-07`。
+Framework producer 在迁移期继续受保护，完整旧 route 检查仍由
+`npm run validate:runtime-route` 显式执行。Validator pass 不关闭 dynamic Agent Runtime 的
+Contract/Source/Pixel/Install/Release。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
@@ -194,7 +192,7 @@ Validator pass 只证明对应 contract/source 一致，不能证明产品必要
 | Pinnable current-task summary | 长任务与 OPL current-task projection 共用 status、elapsed、progress、next action、stop summary bar，并允许 pin。 | Current task slice / bridge refs。 |
 | Current-turn run artifact | 在 conversation 内查看本轮最近事件和恢复动作。 | Current task slice / bridge refs。 |
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
-| Optional domain detail | `opl_app.domain_detail_views.v2` 存在时按 item 打开 typed domain view，例如研究轨迹；缺失时 Work Item list、selected-item core detail 与 App 其它功能继续可用，只隐藏依赖入口，直达链接显示局部 unavailable 并可返回 Runtime。 | Domain agent projection via Framework；这是 optional enhancement，不是 App/Runtime/install/release gate。 |
+| Agent-owned typed view | Agent Package 可按 item 提供 typed view，例如 MAS 科研路线；App只按 `view_kind` 选通用 renderer。未知/invalid view 局部 unavailable，task list和其他 views保持可用。 | Agent owns schema/data；Framework validate/proxy；App owns generic renderer，不按 Agent id分支。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
 | Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
 | Artifact preview adapter | 用户显式打开时，当前 session attachment、可见 conversation result 或合法任意绝对本地路径进入现有 Preview。Traversal、非法 scheme、隐式 workspace ref、自动静默读取及 unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
@@ -202,8 +200,8 @@ Validator pass 只证明对应 contract/source 一致，不能证明产品必要
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
-dashboard。当前任务需要的状态进入 timeline 或按需 context surface；跨项目总览只在 X0-01
-显式保留时进入可选 Runtime route。
+dashboard。当前任务需要的状态进入 timeline 或按需 context surface；跨项目总览进入独立
+核心 Runtime route。
 
 ## Settings / OPL Control Center
 
@@ -218,11 +216,11 @@ GUI contract 与 Settings Control Plane 拥有。
 | 连接与部署 > 资源与连接 | 查看真实存在的本机访问、WebUI 和外部连接 refs；内置 OPL Gateway 不在这里重复。Hosted Workspace、Fabric/HPC、Console 仅在稳定 owner/backend 存在时出现。 | Framework/Connect refs；X0-03/X0-04 owner routes 条件启用，App 不拥有资源 truth。 |
 | 工作区 > 工作目录 | Desktop 查看、切换、验证 Framework logical workspace root；standalone WebUI 只读显示实际 owner 投影，Docker WebUI 只读显示 `/projects`；任何 WebUI 都不执行 `workspace_root_set` 或修改宿主 bind。 | Framework workspace state/action、carrier policy。 |
 | 工作区 > 数据与存储 | 查看空间、数据分类、preview、安全 cleanup，以及 Docker `/projects`、`/data` 与可选 `/recovery` 的只读部署位置。 | App-owned storage lifecycle、Framework/host projections。 |
-| 智能体与能力 > 智能体 | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
-| 智能体与能力 > 能力 | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
+| 智能体与能力 > 智能体 | 管理可运行 Agent Packages、presence依赖、独立静默更新、Home shortcuts 与 lifecycle。 | Native platform lifecycle + Framework discovery/status/action adapter；Official Profile只用于first install/restore。 |
+| 智能体与能力 > 能力 | 动态查看 Package暴露的 Skill/Tool/Plugin/MCP/producer/view capability；不维护App allowlist。 | Package/native discovery + user presentation preference。 |
 | 智能体与能力 > 指令与上下文 | 编辑用户 `AGENTS.md` 和新对话附加说明；复用 Workspace carrier，但不属于工作区导航。 | App personalization contract、typed host actions。 |
 | 运行与维护 > 服务状态 | 查看 Codex、Temporal server/worker/scheduler 的可用性及对应检查、启动或重启动作。 | Runtime/provider state and action projection。 |
-| 运行与维护 > 更新与修复 | 查看 App、runtime、packages 与外部依赖 currentness，执行 Check、Apply、Repair、Rollback 和 package maintenance。 | Managed update/status/action contracts。 |
+| 运行与维护 > 更新与修复 | 查看 Base/App currentness 和 Package聚合状态；Package具体动作链接到 Agents/native owner。 | App/Base updater + per-Package native status aggregation。 |
 | 运行与维护 > 日志与诊断 | Desktop 打开或更改 App 日志目录；standalone WebUI 只读显示 systemInfo 日志投影，Docker WebUI 只读显示 `/data/logs`；raw paths、receipts 和诊断信息默认折叠。 | App typed log action、Maintenance diagnostic projection。 |
 | 偏好 > 偏好 | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |
 | 关于（底部辅助入口） | 查看版本、channel、链接和共享 update summary。 | About secondary route、release/settings contracts。 |
@@ -239,8 +237,9 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 | Core readiness check | 知道 workspace、Codex CLI 和模型访问是否足以进入 App。 | First-run contracts/page-state。 |
 | Guided blocker resolution | 看到当前 blocker、下一步和可执行配置/修复动作。 | App state/action；技术命令按需展开。 |
 | Initialization progress | 看到阶段、elapsed time、完成/失败和恢复路径。 | OPL initialization event/readback。 |
-| Background maintenance | 进入 App 后继续处理 Full readiness 和非阻塞维护。 | Framework/managed update refs。 |
-| Release/update separation | 区分普通 updater、Full first-install 和 candidate package。 | App release/install contracts。 |
+| Official Profile install | Standard/Full自动安装同一组官方 roots并补齐required presence；单包失败局部化。 | App Official Profile + native platform actions + Framework fresh installed/callable readback。 |
+| Background maintenance | 进入 App 后独立更新已安装 Packages；用户已卸载root不被重装。 | Native package owners + Framework aggregate。 |
+| Release/update separation | 区分普通 updater、Full offline seed和Package native update。 | App release/install contracts；artifact exact bytes不成为composition gate。 |
 
 ## Delivery Surface
 

@@ -1,70 +1,79 @@
 # OPL 能力治理
 
-本文件说明 OPL App 如何消费能力图，不定义第二份 Skill、Plugin、CLI 或 MCP 清单。机器边界在
-`contracts/app-install-exposure-policy.json#capability_governance`，能力声明本身归 OPL Flow，安装状态和
-生命周期证据归 OPL Framework。
+Owner: `one-person-lab-app`
+Purpose: `capability_composition_boundary`
+State: `target_planned_with_current_compatibility`
+Machine boundary: 本文定义 App 消费能力图的目标边界。当前 contracts/source
+仍含 Flow 来源/版本提示、Framework resolver/lock/receipt/payload 等兼容字段；
+这些字段必须按
+[`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md)
+双读迁移，不是长期 authority，也不证明安装、currentness 或 release readiness。
+
+## 结论
+
+能力只用稳定身份组合：
+
+```text
+Package declares provides/requires identities
+  -> configured carrier installs missing identities
+  -> Framework checks presence + callability
+  -> App renders one aggregate projection and projected actions
+```
+
+普通组合不做跨 Package 版本、ABI、digest、payload、lock、receipt 或原子闭包求解。
+Breaking change 通过新的 capability identity 或 Package-owner adapter 表达。某次
+build、Full/offline seed、集成测试或 QA 可以精确记录其实际输入，但快照不能反向成为
+普通 readiness 或 currentness authority。
 
 ## 权威分工
 
 | 层 | 负责 | 不负责 |
 | --- | --- | --- |
-| OPL Flow | 能力意图、可选来源/版本提示、默认安装、激活方式、冲突与凭据策略 | 安装状态、锁、payload、用户秘密、App UI 或发布执行 |
-| OPL Base / Framework | 兼容能力解析、安装动作、更新、回滚、currentness、reconciliation、receipt 和统一投影 | 第二份能力清单或领域能力判断 |
-| OPL App | GUI、安装进度、用户选择、载体入口和 Framework 投影 | Skill、Plugin、CLI、MCP 的依赖或生命周期真相 |
+| Package owner，包括 OPL Flow | Package/capability identity、provided/required intent、入口、runtime health、领域语义；一方 owner 独立推进自身 GHCR `latest-stable` | 其他 Package 状态、App UI、共享版本矩阵、用户秘密 |
+| Carrier/runtime adapter | 安装、更新、启停、删除及完整 runtime 激活；fresh native readback | Package identity、全局 currentness、跨包求解、领域真相 |
+| OPL Base | 一方 GHCR bytes 的薄 OCI 下载和校验，并交给声明的 carrier/runtime adapter | 完整 Package lifecycle、runtime health 定义、installed truth |
+| OPL Framework | Executor-neutral discovery、complete-Package fresh readback、presence/callability、route readiness、聚合状态/actions | 第二套 Package bytes、resolver/lock/payload/LKG/receipt/rollback manager、固定 Skill/Plugin/Agent 清单 |
+| OPL App / Shell | GUI、用户偏好、Official Profile 的首次安装/显式恢复意图、聚合状态和 projected action | 解析 Flow、Package/Skill/Plugin/CLI/MCP 依赖清单、选择版本或复制 lifecycle truth |
 
-App 可以维护名称、说明、排序、分组等产品展示元数据，但不得用这些元数据决定 managed capability
-是否安装或 current。Settings 必须读取 Framework 统一投影，并把 Flow-managed 与用户/第三方能力分组展示。
+能力身份固定为 `(kind, id)`。例如 `codex_skill:officecli` 与
+`cli:officecli` 是两个能力，不能因文本 id 相同而折叠。`required` 表示必须存在且
+可调用；缺失只阻断依赖它的 Package。`recommended` 或 `optional` 不阻断 Package、
+App、Standard 或 Full readiness。
 
-能力身份固定为 `(kind, id)`。例如 `codex_skill:officecli` 与 `cli:officecli` 是两个能力，不能因文本 id
-相同而折叠。
+## OPL Flow
 
-## 开放组合
+OPL Flow 是普通 `OPL Package(kind=workflow)`，提供默认组合意图和用户 profile；
+它不是 App、Standard 或 Full readiness 前置，也不拥有 App session prompt。App 与
+Shell 不读取 Flow manifest 或 companion Skill 清单。Flow 未安装时 App fallback
+仍可用；安装后其 recommendation 可以参与展示或显式用户选择。
 
-Base、App 和 Package 独立版本、独立发布，默认可以自由组合。Flow 是便于管理的一组能力意图，不是锁定
-具体安装字节的环境文件。
+Flow descriptor 中历史 `source`、`version_requirement`、`install_source` 和
+`offline_bundle` 是迁移兼容输入，不是 capability identity 或目标接口。新消费者
+不得依赖这些字段；现有消费者清零后删除。
 
-```text
-Flow requires/recommends
-  -> Framework 复用已有兼容能力
-  -> 缺失时投影通用 install action
-  -> App 只展示并执行 Framework projection
-```
+## Standard、Full 与 Publication
 
-`source`、`version_requirement`、`install_source` 和 `offline_bundle` 都是可选提示，不是 capability identity，
-也不是 Flow、Standard、Full 或 App readiness 的前置。lock 只在具体安装或发布实际发生后记录结果；
-没有安装就不要求预先存在 lock。
+Standard 与 Full 读取同一个 App Official Profile。Full 只携带该次构建实际选择的
+offline seed；缺失的可选 Package 不阻断发布或安装。用户移除 Profile root 后，
+普通启动、silent update 和 App update 不得重装；只有显式 Restore 才重新应用。
 
-Full 可以携带构建时已有的兼容 payload，减少首次安装成本；缺少某个可选 payload 时继续由 Framework
-解析已有能力或给出安装动作。Standard 与 Full 不要求字节、目标闭包或最终投影完全相同。
+每个一方 Package owner 独立发布完整 bytes 到自身 GHCR 并推进自身
+`latest-stable`。`one-person-lab-manifest:latest-stable` 只保留 Full、offline、
+integration-test 和 QA 快照用途，不参与普通 Package currentness。
 
-## Full 冻结投影
-
-`contracts/app-full-third-party-source-manifest.json` 只记录某次 Full 构建实际选择的输入，不是依赖 authority。
-正式发布仍可为其实际包含的字节记录 commit、digest 和 receipt，但这些记录不能反向成为 Flow 依赖前置。
-它可以绑定：
-
-- OPL Flow policy 的 exact commit、schema 和 SHA-256；
-- Framework Release Set 与 bundled catalog 的 exact commit 和 SHA-256；
-- 第三方源、toolchain 与 runtime payload 的精确版本、ref 和 digest；
-- Framework lifecycle receipt 与实际 payload inventory receipt。
-
-某次 Full 构建内的已选 payload 仍应可复现和校验；未选择的能力不因此无效，也不阻断 App 或 Flow。
+Full/release artifact 可以绑定它实际包含的 commit、ref、digest 和完整性证明。
+这些 exact facts 只证明该 artifact 的 bytes，不要求未选 Package、Flow、App 或 Base
+进入同一 cohort，也不创建日常 installed lock。
 
 ## MCP 与凭据
 
-Flow 可以用同一能力图声明 MCP，但默认安装的 MCP 必须先有 Framework lifecycle adapter，并具备安装、更新、
-回滚和 currentness receipt。声明本身不等于已安装。
+MCP、Skill、Tool、Plugin、Agent producer 和 typed view 使用同一能力身份规则。
+声明不等于已安装；carrier fresh readback 决定 presence/callability。用户或第三方
+能力即使不在 Flow 或 Official Profile 中也必须保留，不得被默认组合删除或覆盖。
 
-API Key、OAuth token、账户状态和其他秘密始终由用户或 provider 持有，不进入 Flow policy 或 Full 安装包。
-迁移不得复制凭据。未由 Flow 声明的用户和第三方 MCP 必须保留，不能因不在 managed graph 中而删除或覆盖。
-
-模型访问检测优先解析本机 Codex `config.toml` 中当前 selected provider：已有可用 access 时直接复用，不重复
-要求 API Key，也不重写 provider。`opl system configure-codex --api-key-stdin` 只用于用户明确新增或轮换凭据，
-不得安装、更新、修复、启停或同步任何 Package/Skill/Plugin。
-
-Package reconciliation 与 provider 配置完全解耦。API Key 或 provider 缺失不得阻止 Standard、Full、DMG、
-本地安装或后续 currentness；Framework 通过 carrier-neutral managed update plane 解析当前能力并给出
-projection、action 或 receipt。
+API Key、OAuth token、账户状态和其他秘密始终由用户或 provider 持有，不进入
+Package descriptor、Flow policy 或 Full seed。模型访问配置与 Package composition
+解耦；缺少 provider 不阻断 Package 安装，但可让相应 executor route unavailable。
 
 ## 模型策略
 
@@ -77,20 +86,17 @@ App 模型选择优先级固定为：
 > Flow 不可用时的 App fallback
 ```
 
-App profile 中的具体模型和 reasoning 值是可用性 fallback，不与已安装 Flow policy 竞争。App 负责展示 live
-catalog 和提交用户选择，Framework 负责需要持久化的受控配置 mutation。
-
-## 工作流状态权限
-
-Flow 可以定义 `ACTIVE` 与 `SAFE_TO_ARCHIVE` 等协调语义。`SAFE_TO_ARCHIVE` 只允许改标题和登记完成证据；
-实际归档必须等待用户针对具体任务或对话的 fresh 验收。Git、Package、安装、发布和归档 mutation 仍分别服从
-对应 owner 和权限边界。
+App 负责展示 live catalog 和提交用户选择；受控配置 mutation 走现有 owner action，
+不另建 Package receipt 或 reconciliation 状态机。
 
 ## 验收
 
-- Flow policy/schema 通过验证，`agent-reach` 等依赖由 `(kind, id)` 声明。
-- Framework 优先复用已有兼容能力，缺失时返回通用安装动作。
-- lock 与 payload 不作为声明或 readiness 前置。
-- Full 只校验自己实际携带的字节，未携带的可选 Skill 不阻断发布或安装。
-- App 只消费 Framework 统一投影，不存在第二份 managed inventory。
-- Flow 未安装时 App fallback 可用，安装后 Flow recommendation 优先。
+- 新 Package/能力只声明 identity、provides/requires、entrypoint 和必要展示信息。
+- MAS 对 MAS Scholar Skills 的已证实 required edge 只检查
+  presence/callability；失败只阻断 MAS。MAG 或其他 Package 只有在其 owner
+  contract 明确声明后才获得相同 edge。
+- 中性 Git/local carrier 可在无 Codex 私有字段时完成真实 install/discovery/callable readback。
+- Framework 投影不要求 version/ABI/lock/payload/digest/receipt。
+- Standard/Full 使用同一 Official Profile；Full 只校验实际携带的 bytes。
+- App/Shell 不存在 Flow 或 Package/Skill/Tool/Plugin/MCP 第二清单。
+- 一方 Package 独立推进 GHCR `latest-stable` 时，不要求 Base/App/其他 Package/Release Set 同步。

@@ -2,11 +2,12 @@
 
 Owner: `one-person-lab-app`
 Purpose: `focused_first_run_setup_workspace`
-State: `implemented_active`
+State: `current_experience_with_target_package_migration`
 Machine boundary: 本文定义 App 首启产品体验；机器真相归
 `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、
 `contracts/app-first-run-test-matrix.json`、Framework initialize 输出、active shell source、
-focused tests 与用户路径截图。
+focused tests 与用户路径截图。Official Profile 部分为 `target/planned`，不表示现有
+contracts/source 已实现。
 
 ## 背景
 
@@ -40,6 +41,26 @@ focused tests 与用户路径截图。
 - 该数值目前是产品目标，不是已测事实或 SLA；只有绑定 exact installed build 的测量证据才能宣称达标。
 - `/first-run` 仍是显式、可恢复的三步设置工作台；移除普通 StartupGate 不删除 first-run 或 Core readiness。
 
+## Official Profile Package 安装
+
+以下为 `target/planned`：
+
+- App 只有一个 `OPL Official Profile`，列出首次安装需要的官方 root Packages。
+  Standard 在线安装，Full 优先使用离线 seed；两者必须读取同一 Profile。
+- 首次安装自动启动所有 roots 的安装，并按 Package 声明补齐 required identity。
+  例如 MAS 需要 `capability:mas-scholar-skills`，但 ScholarSkills 不必重复列为
+  Official root。
+- Package 依赖只检查 presence 和 callability，不以 version、ABI、lock、payload、
+  digest、receipt 或 Release Set 作为首启门禁。
+- 每个 root 独立显示 `waiting / installing / ready / attention`。一个 root 或依赖失败
+  只让该 Agent 不可用；普通 Codex、App、Base 与其他 Package 继续。
+- Codex Core 可用后用户仍可进入 `/guid`；Official Profile 安装继续后台执行并在
+  Settings > Agents 显示。自动安装不能变成新的全屏等待门。
+- Profile 只在 first install 或用户显式选择“恢复官方组合”时执行。用户后来卸载
+  官方 Package 后，首启检查、普通启动、日更和 App update 都不得重新安装它。
+- 首次安装完成状态必须来自 native platform installed/callable fresh readback，
+  不能来自 OPL lock、payload、receipt 或下载成功。
+
 ## 桌面布局
 
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
@@ -49,7 +70,8 @@ focused tests 与用户路径截图。
 - 顶部是精简品牌栏，显示 One Person Lab 品牌、未就绪时始终可用的“进入 OPL”动作与帮助入口。
 - macOS 品牌栏保留 traffic lights 安全区；Windows/Linux 复用现有最小化、最大化和关闭按钮。
 - 主工作区最大宽度约 1040px，采用 `240px + 1fr` 两栏。
-- 左侧固定三步：工作目录、本机助手、模型访问。
+- 左侧固定三步：工作目录、本机能力、模型访问。Official Profile 的 Package
+  安装进度归“本机能力”，不新增第四步或独立 Package setup wizard。
 - 左侧只显示步骤状态和 `已完成数 / 总数`，不显示百分比。
 - 右侧一次只承载当前任务；检查中、需要配置、失败和完成在同一位置原位替换。
 - 技术详情在工作区下方折叠，帮助入口可以打开该折叠区。
@@ -145,6 +167,10 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 - 不让 Core readiness、full readiness、初始化读取或后台维护阻塞用户显式进入 `/guid`；未就绪能力可以在主界面中保持不可用或提示继续设置。
 - 不恢复 `/startup-gate` 等待页、以 1,500 ms timeout 后才导航，或在 renderer root 中无界等待 managed-agent/config prefetch。
 - 不增加新的 runtime、provider 或配置真相源。
+- 不维护 Standard/Full 两份 Package 清单，不把 Official Profile 变成持续
+  desired-state controller，不在用户卸载后静默恢复。
+- 不在首启实现 Package resolver、版本兼容器、lock、payload、receipt、
+  materialization、rollback 或跨 Package transaction。
 - 不修改 AionUI 通用 Layout/Sider fork body；专注模式由 OPL FirstRun overlay 实现。
 - 不引入新 UI 依赖、插画、渐变、玻璃效果或营销式首屏。
 
@@ -154,6 +180,9 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 
 - App 合同和 page-state matrix 校验通过。
 - first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop/WebUI 账户默认、API Key 兼容、系统默认 Codex 重检与 WebUI runtime proxy 边界。
+- 目标 Package 迁移还必须覆盖：Standard/Full 同一 Official Profile、所有 roots
+  自动安装、MAS required capability 自动补齐、单 root 失败局部化、Codex Core
+  可用后进入 App、用户卸载跨重启/日更保持、显式 Restore 恢复。
 - active shell DOM 测试覆盖 initialize pending、Gateway 账户登录、唯一分组完成设置、模型访问绑定、共享首页缓存刷新、API Key 配置、已有 Codex 重检、密码生命周期、WebUI 边界、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
 - i18n、TypeScript 与 package build 通过。
 - 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。

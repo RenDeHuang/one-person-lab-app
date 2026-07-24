@@ -2,129 +2,134 @@
 
 Owner: `one-person-lab-app`
 Purpose: `managed_update_three_layer_product_model`
-State: `active_product_support`
-Machine boundary: 本文解释 App carrier、Framework lifecycle 与用户状态的分层。
-机器真相归 App update/install contracts、Framework update contracts and CLI、source、tests、
-lifecycle receipts 与 installed readback；本文不证明 currentness 或 release readiness。
+State: `target_planned`
+Machine boundary: 本文定义目标产品分层。当前 contracts/source 仍包含
+Framework resolver、lock、payload、receipt、materialization 和 rollback
+兼容面；在迁移计划完成前，它们是 current implementation truth，但不是目标。
+本文不证明 currentness、安装完成或 release readiness。
 
-OPL App presents one consistent maintenance experience regardless of how the
-App was installed. The implementation is divided into three layers so an
-installer never becomes a second update owner.
+OPL App presents one consistent maintenance experience while delegating each
+software object's mechanics to its existing platform. “Unified management”
+means one UI and one aggregate status, not one custom package manager.
 
-## 1. Installation Source
-
-The standard updater, signed DMG or installer, Homebrew Cask, Full package, and
-every other App runtime carrier declared by the install-exposure registry only
-provide candidate App bytes or offline seeds. A copied, downloaded, or bundled
-payload is not currentness proof for OPL Base or OPL Packages.
-
-First-party OPL Packages use per-Package GHCR repositories as their official
-online storage and delivery carrier:
+Package, carrier, and executor are separate concerns:
 
 ```text
-ghcr.io/<owner>/one-person-lab-packages/<package-id>:<semver>
-ghcr.io/<owner>/one-person-lab-packages/<package-id>:latest-stable
+OPL Package = executor-neutral identity + capabilities + dependencies
+Carrier     = Codex Plugin Manager / Git / OS package manager / local platform
+Executor    = Codex CLI / Claude Code / Hermes Agent / future executor
 ```
 
-GHCR stores immutable Package bytes and one Package-owner moving pointer. It
-does not decide installed state, App readiness, or a family release cohort. A
-thin repository index supplies discovery metadata; the Package owner defines
-that source's current stable pointer and Framework follows the configured
-source. The legacy
-`one-person-lab-manifest:latest-stable` catalog remains only a migration bridge
-and Full/offline/QA snapshot, not the target ordinary update source.
+The current ordinary App may remain fixed to Codex CLI. That product choice
+does not make Codex Plugin Manager the OPL Package authority or require a user
+facing executor selector during this migration.
 
-On startup after core readiness, the App compares the running App version or
-image digest plus carrier identity with its last reconciled checkpoint. A
-missing checkpoint means first launch. A changed checkpoint means an install or
-upgrade occurred, regardless of which carrier performed it.
+## 1. Distribution And First Install
 
-## 2. Management Path
+Standard updater, signed installer/DMG, Homebrew, Docker/WebUI, headless
+installer, and Full are Base/App deployment carriers, not Package identities or
+parallel lifecycle authorities.
 
-OPL Framework is the sole Base and Packages lifecycle owner. The App requests:
+First-party OPL Package owners publish complete official bytes independently to
+per-Package GHCR repositories and advance only their own `latest-stable`.
+`one-person-lab-manifest:latest-stable` is excluded from ordinary Package
+currentness and remains only a Full/offline/integration-test/QA snapshot.
 
-```text
-opl update check --json
-opl update plan --json
-opl update apply --json
-```
+- Standard and Full use the same **App Official Profile**.
+- The Profile declares desired root Packages only for first install or explicit
+  **Restore official combination**.
+- Full differs only by carrying offline seed bytes for those roots.
+- Required dependencies are expanded by identity presence, for example
+  `MAS -> MAS Scholar Skills`.
+- A user-uninstalled Package stays uninstalled. Startup and background update
+  never treat Official Profile drift as permission to reinstall it.
 
-The Framework plan is the only dependency and package update catalog. The App
-does not copy that catalog, select package versions, mutate Base or Packages,
-delete skills, edit AGENTS.md, or write lifecycle receipts.
+Official Profile completion is independent per root. A missing MAS dependency
+may leave MAS unavailable while plain Codex, Base, App, and other Packages
+remain usable.
 
-For an ordinary first-party Package update, the Framework path is:
+## 2. Native Lifecycle Delegation
 
-```text
-repository index -> configured Package source
-  -> resolve Package latest-stable to one immutable OCI digest
-  -> thin Base OCI adapter downloads the Package
-  -> Codex platform activates Plugin/config/cache
-  -> Framework activates any Package runtime
-  -> one lifecycle receipt + terminal readback
-```
+Each object keeps its narrow owner:
 
-Codex Plugin Manager currently accepts local or Git marketplace sources rather
-than GHCR OCI references. The OCI adapter is therefore retained only as
-transport glue. It must not duplicate marketplace discovery, Plugin state,
-config editing semantics, cache ownership, or update currentness already owned
-by Codex and Framework. Package runtime bytes outside the Plugin directory must
-also be activated when the Package declares them; replacing the full Package
-with its Plugin carrier would be a functional regression.
+| Object | Lifecycle owner |
+| --- | --- |
+| OPL Base | Base installer/platform route exposed through a thin Framework adapter. |
+| OPL App | Desktop updater, Docker image route, or the carrier that installed App. |
+| OPL Package | The owner publishes identity and complete bytes; Codex Plugin Manager, Git, an OS package manager, or Base OCI adapter carries them; Framework fills only missing generic operations and aggregates complete-Package readback. |
 
-A plan item is eligible for silent background apply only when
-`auto_apply.eligible` and `app_background_safe` are both true. The executable
-route comes from `command_ref`. Developer checkouts, dirty roots, user-managed
-installs, global Homebrew/npm/PATH tools, incompatible changes, and failed
-verification remain unchanged and surface as attention with an owner action.
+Framework discovers installed identities, checks required capability/package
+presence and callability, reports executor-route readiness separately, and
+aggregates status/actions for App. It does not select a cross-ecosystem version,
+reproduce platform locks, or require OPL payload/digest/receipt/LKG state. App
+and Shell never select versions, edit Skills/Plugins directly, or maintain
+another Package/Skill/Tool/Plugin catalog.
 
-The running-version checkpoint is committed after terminal Framework readback,
-including a successful no-op when nothing needs updating. A lifecycle receipt
-is required only when apply actually executes. A failed run leaves the
-checkpoint pending so the next App startup retries the same idempotent
-reconciliation.
+Codex Plugin Manager is the first carrier adapter, not Package identity or
+complete installed truth. Codex plugin ids, marketplace layout, Codex
+home/path, and manifest shape remain private to that adapter. For official GHCR
+bytes, Base retains a thin OCI download adapter and delegates
+Plugin/config/cache activation to Codex. Runtime bytes outside the Plugin
+surface remain part of the Package: the Package owner declares their
+activation/health adapter, the configured carrier executes it, and Framework
+aggregates the resulting fresh readback. Base does not become the runtime
+lifecycle owner, and a Plugin-only result is incomplete. Switching executor
+does not reinstall or rename Packages and does not discard Settings/Home
+preference, business Work Items, required-capability presence, or typed views.
+A missing Claude Code or Hermes adapter makes only that route unavailable. If
+the carrier holding the only physical Package bytes is removed, fresh aggregate
+readback must report `physical_unavailable`; cached App metadata cannot preserve
+a false installed state.
 
-## 3. User Behavior
+Exact refs, digests, immutable bytes, and receipts remain legitimate inside one
+release/build artifact that must be reproduced. They do not decide whether two
+Packages may be composed or whether an installed capability is callable.
 
-The ordinary UI collapses owner receipts into five states:
+## 3. Unified User Experience
+
+Every installed Package is checked and updated independently. Eligible native
+updates run silently; one failure does not cancel unrelated updates. Settings
+shows a compact aggregate and lazy per-Package detail:
 
 | State | User meaning |
 | --- | --- |
-| Current | No action is needed. |
-| Updating in background | A clean OPL-managed target is being verified and applied silently. |
-| Restart to finish | A staged OPL Base runtime or App carrier will switch on the next App restart. |
-| Refresh Codex recommended | OPL Packages are active, but Codex should refresh its plugin/skill projection. |
-| Attention required | A protected, dirty, user-managed, incompatible, or failed target was not overwritten. |
+| Current | Installed and callable; no action is needed. |
+| Updating | Its native platform is applying an independent background update. |
+| Restart needed | The owning platform requires restart/reload. |
+| Unavailable | A required identity or entrypoint is missing; only dependents are affected. |
+| Attention | The native owner refused or failed safely; user action is available. |
 
-OPL Packages normally activate immediately after the Framework receipt. Package
-post-apply hooks own Codex Surface sync and OPL Flow profile migration, including
-declared conflict retirement, backup, semantic merge, rollback receipt, and a
-review packet when automatic merge cannot complete.
+Ordinary UI exposes Install, Update now, Enable/Disable, Show/Hide, Uninstall,
+Home shortcut preference, and Restore official combination where applicable.
+Repair detail, source/version diagnostics, and native rollback facilities stay
+under advanced owner diagnostics rather than becoming App state machines.
 
-Package owners advance their Package independently. One Package publication or
-update must not require a new App, Base, Full, Release Set, or unrelated Package
-publication. Daily automation may reconcile the thin index and audit anonymous
-readback, but cadence never becomes a shared publisher.
+## Silent Update Rules
 
-Required dependencies are checked by Package id and usable platform surface.
-They do not default to SemVer/ABI range solving. A version or ABI condition may
-exist only when the Package owner can demonstrate an actual runtime
-incompatibility that presence checking cannot detect.
-
-OPL Base runtime generations are downloaded, verified, and staged in the
-background, then switched on the next App restart with a rollback reference.
-The App carrier follows its own updater or host route and counts as installed
-only after the new version or image is actually running.
+- Update only Packages that are currently installed.
+- Never install an Official Profile root merely because it is absent.
+- Resolve required presence after update; attempt dependency installation only
+  for the root the user is installing or explicitly repairing.
+- Never overwrite a dirty checkout or user-managed source.
+- Require fresh native installed/callable readback before reporting success.
+- Enumerate installed Packages from carrier readback, not from the selected
+  executor or Codex plugin inventory.
+- Prefer per-Package owner `latest-stable`; never let an unchanged shared
+  Release Set hide a newer Package.
+- Verify Plugin/config/cache and complete Package runtime after restart.
+- Keep failure local and continue unrelated Package maintenance.
 
 ## Authority Boundary
 
-The App owns the user-facing states, carrier update UI, and request timing. OPL
-Framework owns Base and Packages catalogs, plan eligibility, execution,
-activation, rollback, and receipts. OPL Package manifests own their declared
-post-apply hooks. The shell only schedules the request and renders App/Framework
-readback.
+The App owns user-facing state, timing, preferences, and the explicit
+first-install/restore intent. Each first-party Package owner owns GHCR
+publication and its source-local `latest-stable`. Codex owns
+Plugin/config/cache activation; Base owns only thin OCI download/verification;
+each Package declares complete-runtime activation and health, configured
+carriers execute it, and Framework owns executor-neutral discovery,
+complete-Package fresh readback, presence checks, aggregation, and thin
+actions. Agent Packages own business task/view descriptors. Shell only renders
+and invokes projected actions.
 
-GHCR owns immutable transport bytes, Codex owns Plugin/config/cache mechanics,
-and Full/Release Set owns only the exact offline or reproducible snapshot it
-builds. None of those surfaces may independently claim ordinary Package
-currentness.
+Implementation and deletion order is tracked in
+[`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md).

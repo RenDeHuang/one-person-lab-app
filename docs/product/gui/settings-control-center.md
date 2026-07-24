@@ -2,10 +2,12 @@
 
 Owner: `one-person-lab-app`
 Purpose: `settings_control_center_product_authority`
-State: `active_product_authority`
+State: `active_current_with_target_package_migration`
 Machine boundary: 本文解释 Settings 的产品职责与信息架构。机器真相归
 `contracts/app-settings-control-plane.json`、App GUI/page-state contracts、validators、
 Shell source/tests 与 installed evidence；本文不拥有 Framework runtime 或 domain truth。
+Package/Capability 简化部分为 `target/planned`；当前 contracts/source 的
+resolver、lock、payload、receipt、materialization 和 rollback 字段仍是兼容真相。
 Machine contract: `contracts/app-settings-control-plane.json`
 GUI product contract: `contracts/app-gui-product-contract.json#settings_navigation`
 Page-state contract: `contracts/app-page-state-matrix.json#pages`
@@ -28,6 +30,9 @@ The root design rule is **one user question, one owner page**:
 - Fast state is for immediate rendering. Expensive checks run at startup, in
   the background, or after an explicit user action; navigating to a page does
   not silently start them.
+- Unified Package management means one compact App experience over native
+  platform lifecycle. Settings must not reproduce Package, Skill, Tool, Plugin,
+  MCP, Agent, or typed-view authority.
 
 These contracts own seven user-visible primary groups over ten stable carrier
 routes, About as the bottom auxiliary page, compatibility redirects, Settings
@@ -263,116 +268,68 @@ It no longer owns or renders the App log-directory control.
 
 ### Agents
 
-Agents is the runnable public Agent Package directory. Its collection is
-exactly `app_state.agent_packages.directory.entries`: every projected entry is
-shown, including uninstalled packages, OPL Meta Agent, all first-party
-packages, Framework capability packages, and workflow profiles. The complete
-`agent_package_registry.starter_package_metadata` projection is an optional
-`package_id`-keyed localized name and description overlay for current first-party
-rows only. It cannot seed or filter the collection and cannot own
-installation, activation, readiness, status, source, or actions.
+The following is the `target/planned` product surface. During migration the
+current directory/status/action contract remains a compatibility reader.
 
-The page has its own package-catalog search, separate from Settings global
-search, across display name, package id, description, tags, and publisher. The
-ordinary filters are package role, availability status, and source.
-Registry refresh is a visible ordinary action; direct manifest URL installation
-stays in the Agents page's advanced install entry. Loading, refreshing, empty, stale, and failed catalog states
-remain explicit instead of falling back to the static profile.
+Agents is a compact installed/discoverable Package list. It renders the generic
+Framework projection produced from native platforms; it does not parse registry
+entries, manifests, checkouts, locks, payloads, receipts, physical paths, LKG,
+or rollback state to create rows.
 
-The ordinary catalog is grouped to reduce cognitive load. Professional Agents
-follow the App product-metadata order; workflow profiles render in their own
-section; role labels are localized product language rather than raw internal
-enums. Capability-package hierarchy comes only from
-`status_index.packages[].dependent_guard.required_by_package_ids`: a package
-with one visible parent nests once under that parent, while multi-parent or
-parent-not-visible packages render once under Shared dependencies. The Shell
-must not hardcode MAS relationships or duplicate a package row. Runtime-source
-and authorized-repository maintenance controls remain available in one
-advanced disclosure that is collapsed by default.
+The default row has stable dimensions and only shows:
 
-Each row renders identity, role, publisher, source explanation, versions,
-trust, installability, readiness, and the Framework-projected recommended
-action. Install, update, repair, enable, disable, hide, unhide, and uninstall
-execute only the projected `available_actions[]` or object
-`recommended_action_ref`. Every action object has exactly `action_id`,
-`action_ref`, `payload`, `required_payload_fields`, and
-`confirmation_required`; the scalar `recommended_action` is descriptive and is
-never an action-payload source. The shell does not synthesize enabled state,
-reason codes, action ids, payload fields, or ready/synced/available labels.
+- name, Package kind, publisher, and concise purpose;
+- `Installed / Updating / Current / Unavailable / Attention`;
+- enabled and Home-shortcut visibility where applicable;
+- at most one primary action plus an overflow menu.
 
-Settings executes only exact owner-projected non-activation lifecycle actions.
-It never shows or executes `agent_package_activate`; new conversation and
-ordinary composer send follow the same rule. A selected project directory sets
-session cwd and future domain workspace identity only. It is never substituted
-for a Stage workspace locator, and a global workspace root is never an
-activation target. Framework performs scope activation immediately before a
-real domain StageRun or StageAttempt from that stage's `workspace_locator`.
-After a successful Settings lifecycle action, the page refreshes fast App state
-and renders the next projected action.
+Ordinary actions are Install, Update now, Enable/Disable, Show/Hide, Uninstall,
+and Home shortcut preference. A Package manager's own advanced repair, source,
+version, or rollback detail opens through its owner route; Settings does not
+reimplement it. Every mutation requires fresh installed/callable readback before
+success. One Package failure stays on that row.
 
-Fast state may report an installed package as
-`readiness.status=verification_deferred`,
-`verification_deferred=true`, `operational_ready=false`,
-`launch_allowed=false`, and `reason=live_verification_deferred`; only a full
-verified read may present verified `ready`. Manifest, receipt, physical
-surface, conditions, and failure diagnostics stay in the detail panel rather
-than becoming invented top-level fast-directory fields. Skills and Plugins do
-not appear here. Ordinary conversation create/send remains available and never
-executes Shell activation; the raw fast flags must not create a second hard
-block. Only a genuine installation, enablement, integrity, permission, or owner
-failure may locally block the selected package.
-普通行不直接显示 `待验证`、`需关注`、`不可使用`、`需要操作` 或 raw readiness flags。
-已安装且已暴露的 `verification_deferred` 与 `scope_materialization_missing` 都显示为“可用”，
-并说明“已安装，可直接发起对话，无需提前设置”。确实需要用户动作时，必须按 exact owner
-action/reason 显示具体状态，例如
-“需要安装”“需要启用”“需要更新”“需要修复”或“需要重新连接”，每行最多一个最相关
-动作；无法安全本地化时显示“暂时无法使用”并引导打开详情，不使用“完成设置”一类抽象
-文案。聚合计数不能覆盖逐项状态，raw status/reason 只进入详情。
+Dependency hierarchy comes from generic required identity edges. MAS Scholar
+Skills may appear under MAS because MAS declares the capability requirement;
+the App never encodes that relationship. Missing required identity makes only
+the dependent root unavailable and offers one owner-projected install action.
+No version, ABI, lock, payload, digest, receipt, or family cohort participates
+in the row status.
 
-五个专业智能体在中文和英文界面都保留品牌名 Med Auto Science、Med Auto Grant、
-RedCube AI、OPL Book Forge 与 OPL Meta Agent；中文用途放在 description，不把品牌名改成
-泛化角色名。MAS Scholar Skills 是 Med Auto Science 的依赖能力，不冒充第二个科研智能体。
+The App Official Profile is visible only as first-install context and an
+explicit **Restore official combination** command. It does not continuously
+enforce desired state. After the user uninstalls an official Package, ordinary
+startup, background update, and App update keep it absent.
 
-Developer Mode appears here as **允许维护已授权的开发仓库**. The control is
-`auto|off`, defaults to `auto`, and is independent from source selection. A
-matching developer identity plus successful full repository-authority
-inspection automatically activates `developer_apply_safe` for authorized
-repositories. Fast state says inspection is pending; it must not invent an
-identity mismatch or render empty authority placeholders.
+Home shortcut controls are inline on installed `kind=agent` rows and are derived
+from the Package shortcut descriptor plus user preference. Removing or
+disabling an Agent removes or disables its shortcut; a new compliant Agent
+requires no App source change.
 
-The visible readback includes effective state, configuration source, GitHub
-login, authorized repository scope, dirty-worktree and branch protection, and
-the inactive reason. Shared runtime mutation still requires
-`enabled=on + mode=developer_apply_safe + source=user_config`.
-
-Agent display verification covers localized names and descriptions for every
-current first-party row, including OPL Meta Agent, MAS Scholar Skills, and OPL
-Flow, plus developer-source state and the product-profile default visibility of
-OPL Meta Agent. These values come from the generated product profile and
-Framework projection, not shell-local hardcoding. The Chinese OPL Meta Agent
-description explicitly explains that it creates, takes over, inspects, and
-improves OPL professional Agents.
+Search covers name, id, purpose, kind, publisher, and capability. Ordinary
+filters are Installed, Updates, Attention, and kind. Source/version/trust and
+developer checkout information stays under one collapsed Advanced disclosure.
+Dirty or user-managed checkouts are never silently updated.
 
 ### Capabilities
 
-Capabilities groups Skills and Plugins by ownership:
+Capabilities renders capability discovery, not another installation catalog.
+Skill, Tool, Plugin, MCP, Agent task producer, and typed view identities come
+from installed Package/native-platform descriptors. Package remains the install
+unit.
 
-- the Flow-managed group is derived from the typed OPL Flow dependency closure
-  and must not be empty when that projection contains managed entries;
-- third-party groups use product-profile names and never present raw provider
-  ids as the main label;
-- AionUI-native Skills, tools, assistants, MCP helpers, and image controls stay
-  in their declared local/third-party ownership group and do not become
-  Flow-managed OPL truth;
-- MCP, image generation, and voice input configuration live in the local
-  capabilities group; Preferences does not duplicate voice configuration;
-- mutations require explicit user action and never write capability truth from
-  the renderer.
+- There is no App-owned packaged-skill, tool, plugin, or MCP allowlist.
+- Required/optional edges check identity presence and callability only.
+- User hide/show preference changes presentation, not installed truth.
+- Explicit product cuts such as disabled Team remain narrow policy, not a
+  capability authority.
+- Selecting a capability links to its owning Package; it does not create a
+  duplicate install/update action.
+- MCP, image generation, and voice configuration remain in their owner group;
+  Preferences does not duplicate them.
 
-OPL Meta Agent remains an explicit managed package row with its Home shortcut
-visible by default. It does not become a legacy default assistant. AionUI
-custom assistants remain outside the OPL surface; legacy `assistants` routes
-to the capability directory without deleting AionUI data.
+AionUI custom assistants remain outside the OPL Package surface; the legacy
+`assistants` route redirects without deleting upstream data.
 
 ### Connections & Deployment > Resources & Connections
 
@@ -405,10 +362,12 @@ three destinations into one long “Services & Maintenance” page.
    **Background tasks** summary. It never duplicates Temporal topology.
 2. **Updates & Repair** (`environment#updates`) answers what is outdated or
    damaged and what the safest next action is. It owns the update channel,
-   managed dependency currentness, Desktop App update state, Check, Apply,
-   Repair, Rollback, package maintenance, progressive confirmation, progress,
-   and fresh readback. Healthy components collapse into a compact summary; at
-   most one recommended action is emphasized.
+   Base/App currentness, Desktop App update state, Check, Apply, progressive
+   confirmation, progress, and fresh readback. Packages appear only as one
+   aggregate summary with a link to Agents; per-Package actions stay on that
+   Package row. Native repair/rollback opens the owning platform's advanced
+   route and never becomes an App state machine. Healthy components collapse
+   into a compact summary; at most one recommended action is emphasized.
 3. **Logs & Diagnostics** (`environment#diagnostics`) answers where App logs are
    stored and which technical evidence can be inspected or copied. On Desktop,
    it reuses `application.setLogDirectory` to open or change the App log root,
@@ -416,7 +375,7 @@ three destinations into one long “Services & Maintenance” page.
    `application.systemInfo.logDir` projection read-only; Docker WebUI shows
    `/data/logs` only after deployment identity is confirmed. Neither executes
    the Desktop action or rewires the host `/data` bind. Raw component paths,
-   shadowed installs, receipts, and diagnostic payloads stay collapsed by
+   shadowed installs and native diagnostic detail stay collapsed by
    default and contain no mutation controls.
 
 The active dependency summary includes Codex CLI, the OPL-managed Temporal

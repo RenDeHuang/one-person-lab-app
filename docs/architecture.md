@@ -16,7 +16,13 @@ One Person Lab App
      RCA, OMA, BookForge, and future agents
 ```
 
-The App owns desktop packaging, update flow, first-run product behavior, release evidence collection, user guides, screenshots, GUI product truth, page-state tests, and stable/nightly release gates. OPL Framework owns stage runtime, provider management, queue/attempt ledger, generated surfaces, action execution, runtime read models, `opl app state`, and `opl app action` producers. Domain agents own their own truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers.
+The App owns desktop packaging, update flow, first-run product behavior, release
+evidence collection, user guides, screenshots, GUI product truth, page-state
+tests, and release gates. OPL Framework owns provider integration, generic
+discovery/aggregation, action adapters, runtime read models, `opl app state`,
+and `opl app action` producers. Temporal owns workflow/activity execution facts.
+Domain agents own business task lifecycle, domain truth, quality/export
+verdicts, memory body, artifact body, owner receipts, typed views, and blockers.
 
 ## OPL Ecology Model And Flexibility Boundary
 
@@ -26,7 +32,7 @@ The intended analogy is:
 OPL Base       ~= R
 OPL App        ~= RStudio (a replaceable GUI/deployment carrier)
 OPL Package    ~= R Package
-Registry       ~= CRAN index (discovery and version metadata)
+Registry       ~= CRAN index (discovery metadata, not installed truth)
 Build manifest ~= a record of the inputs actually included in one build
 ```
 
@@ -36,35 +42,64 @@ any compliant package, shell, registry, or deployment carrier can be added,
 removed, or replaced without editing the App for every package. The same
 generic complexity must have one owner.
 
-The lifecycle boundary is deliberately four-step:
+First-party OPL Packages currently publish their complete official bytes to
+independent GHCR repositories. Each Package owner alone advances its
+`latest-stable`; the shared `one-person-lab-manifest:latest-stable` is not
+ordinary currentness and remains only a Full/offline/integration-test/QA
+snapshot. GHCR is the official first-party publication store, while the
+Package's identity, installed truth, capabilities, dependencies, task state,
+and typed views remain carrier- and executor-neutral.
 
-1. **Declare loosely.** A package owner publishes a manifest with identity,
-   required/optional dependencies, compatibility, and optional source or version
-   hints. SemVer, OCI, direct manifest, developer checkout, bundled bytes, and
-   offline sources are all optional resolver inputs.
-2. **Resolve the configured source.** OPL Framework reads the configured
-   repository/index and follows that source's current stable Package pointer.
-   Required dependencies declare Package ids that must be present; ordinary
-   composition does not run a cross-Package version solver. A compatibility
-   constraint is added only for a measured platform/ABI requirement. A registry
-   is an index; it cannot define Package behavior or installed state.
-3. **Install through the platform.** Framework resolves a moving source to one
-   immutable OCI digest for the active transaction, downloads the Package, and
-   delegates Plugin/config/cache activation to Codex platform capability. OPL
-   does not require a pre-existing ecosystem lock or payload inventory and does
-   not build a second Plugin manager.
-4. **Record only the outcome.** The lifecycle receipt records the selected
-   source, resolved digest, installed result, and rollback reference needed for
-   support. Full or another reproducible build records its own included bytes.
-   A moving label, checkout name, or bundle label is never installed truth.
+Package composition, physical carriage, and execution are independent:
 
-The currently seven first-party packages are a **starter profile**, not a
-required seven-package closure or an upper bound. A starter profile is one
-composable default selection that may be changed or replaced; each package can
-be installed, updated, hidden, enabled, disabled, or removed independently.
-A concrete Full build may record the exact composition it actually includes,
-but neither Full nor offline use requires a family Release Set or a lock-step
-publication requirement.
+```text
+OPL Package = executor-neutral identity + capabilities + dependencies
+Carrier     = Codex Plugin Manager / Git / OS package manager / local platform
+Executor    = Codex CLI / Claude Code / Hermes Agent / future executor
+```
+
+Codex Plugin Manager is the first carrier adapter, not the Package identity,
+installed truth, capability contract, or only lifecycle authority. The current
+ordinary App may remain fixed to Codex CLI without making Package descriptors
+depend on Codex plugin ids, marketplace layout, Codex home paths, or manifest
+shape.
+
+The target Package boundary is deliberately smaller than a custom package
+manager:
+
+1. **Declare identity and presence.** A Package declares its stable identity,
+   `kind`, entrypoint, required/optional package or capability identities, and
+   optional App descriptors. A required edge means “must be present and
+   callable”, not “must match this version range, ABI, digest, payload, or
+   cohort”.
+2. **Delegate lifecycle.** Codex Plugin Manager, Git, an OS package manager, or
+   another configured platform installs and updates the Package through a
+   carrier adapter. OPL Framework adds only a thin adapter where a platform
+   cannot expose the needed generic operation.
+3. **Discover and aggregate.** Framework discovers what is installed, checks
+   required presence/callability and executor-route readiness, then projects
+   one generic status/action model. It does not need a second copy of platform
+   lock, payload, materialization, rollback, or transaction state.
+4. **Render dynamically.** App and replaceable shells render Package,
+   shortcut, task, and typed-view descriptors without Package-id branches.
+
+This is presence-based composition, not version-based dependency resolution.
+Breaking interface changes are handled by publishing a new capability identity
+or adapting at the owning Package boundary, rather than by growing a central
+SemVer/ABI solver. Exact refs, digests, immutable bytes, receipts, and frozen
+manifests remain valid for one build or release artifact that must be
+reproduced; they are not Package composition, installation, or runtime
+readiness prerequisites.
+
+The App owns one **App Official Profile** containing replaceable default root
+Packages. Standard and Full consume the same profile. It is evaluated only
+during first installation or an explicit user action to restore the official
+combination. It is not an ecosystem ceiling, a required fixed closure, or a
+background enforcement loop: after a user removes a Package, ordinary startup
+and silent maintenance must not reinstall it. Full differs only by carrying an
+offline seed for the same desired roots. Required dependencies such as
+`MAS -> MAS Scholar Skills` are expanded when MAS is selected; failure affects
+MAS only and does not block Base, App, plain Codex, or unrelated Packages.
 
 ### Package And Carrier Currentness
 
@@ -72,107 +107,74 @@ The following are separate dimensions and must not share a currentness flag:
 
 | Dimension | Owner and meaning |
 | --- | --- |
-| Package publication/current stable | Package owner publishes the Package and advances that source's `latest-stable`. |
-| Package source resolution | Framework follows the configured source and verifies required Package ids are present. |
-| Installed package truth | Codex/platform installed state plus Framework terminal lifecycle readback. |
+| Package publication | A first-party Package owner publishes complete bytes to its own GHCR repository and advances only its own `latest-stable`; other owners may use another declared store. |
+| Package carrier | Codex Plugin Manager, Git, an OS package manager, or a thin Base OCI adapter installs and updates one Package. |
+| Installed truth | Framework aggregates fresh carrier readback for the complete Package; a Plugin projection alone cannot prove a runtime-bearing Package installed. |
+| Executor route | Codex CLI, Claude Code, Hermes Agent, or another executor reports route readiness without redefining Package identity or installed state. |
+| Official defaults | App Official Profile selects first-install or explicit-restore roots only. |
+| Package maintenance | Each installed Package updates independently through its platform route; App schedules eligible silent updates and renders aggregate status. |
 | App release | App Release Bundle and updater publish the App binary. |
-| Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports the same owner bytes. |
-| Cadence | Daily/scheduled CI reconciles candidates or indexes; cadence does not create a release authority. |
+| Deployment carrier | Desktop, Docker/WebUI, Homebrew, or headless installer transports Base/App or an optional offline seed. |
+| Cadence | Daily/scheduled CI checks source health or triggers independent maintenance; cadence does not create a release authority. |
 
-Developer, external, manual, online, bundled, and offline sources remain valid
-resolver inputs. None has global priority, and none may silently override an
-existing installed result outside a Framework transaction. App and Shell render
-Framework projections and delegate declared actions;
-they do not duplicate package parsers, version classifiers, dependency
-resolvers, rollback state machines, or release promotion logic.
+Developer, external, manual, online, bundled, and offline inputs remain valid
+carrier/source adapters. Base retains a thin OCI download adapter for first-party
+GHCR bytes because Codex Plugin Manager does not consume OCI directly. Codex
+owns Plugin/config/cache activation. Base only downloads and verifies OCI bytes,
+then hands them to the Package-declared carrier/runtime adapter. The Package
+owner defines complete-runtime activation and health, the adapter executes it,
+and Framework aggregates fresh readback. This keeps Plugin-only installation
+from silently truncating functionality without turning Base into another
+Package lifecycle owner. No adapter defines global currentness, and App/Shell
+never choose versions or duplicate carrier lifecycle state. Ordinary user
+status is limited to installed, updating, current, unavailable, and attention;
+raw source, version, digest, lock, payload, receipt, or physical-path detail
+belongs only to diagnostics when the owning platform actually exposes it.
 
-### Official Package Publication And Update Source
+### 2026-07-24 Audit And Migration State
 
-GHCR remains the official online storage and delivery carrier for first-party
-OPL Packages. The simplification changes who defines currentness and who
-performs activation; it does not replace GHCR with an OPL-specific registry or
-require Package bytes to move into the App repository.
+This section describes the **target/planned** boundary. Current contracts and
+Framework/Shell implementations still contain a repository index/resolver,
+installed lock, payload/materialization, LKG/rollback, lifecycle receipt, fixed
+starter metadata, and copied agent-specific runtime schemas. Those are current
+compatibility surfaces, not the desired architecture and must not be deepened.
+The executable migration and deletion gates live in
+[`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
 
-The retained publication path is:
+The earlier Durable Package study correctly rejected a generic filesystem
+transaction engine and cross-Package atomicity, but its smaller
+intent/lock/receipt design still assumes OPL owns a package manager. Platform
+delegation supersedes that implementation recommendation. Its useful retained
+lessons are local failure, fresh readback, no silent overwrite, and independent
+Package progress; no durable journal should be built unless a remaining thin
+adapter later demonstrates a reproducible crash gap that its native platform
+cannot handle.
+
+The current first-party online transition is intentionally narrow:
 
 ```text
-Package owner repository/tag
-  -> Package-owned publisher
-  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:<semver>
-  -> ghcr.io/<owner>/one-person-lab-packages/<package-id>:latest-stable
+Package owner -> per-Package GHCR latest-stable
+              -> Base thin OCI download adapter
+              -> Codex Plugin/config/cache activation
+              -> Package-declared carrier/runtime adapter activation
+              -> Framework fresh aggregate readback
 ```
 
-The target ordinary install/update path is:
+During dual-read, the legacy shared manifest may supply fallback candidates but
+must expose that it was used. It may be removed from ordinary maintenance only
+after an unchanged Release Set no longer hides a newer per-Package
+`latest-stable`, MAS plus ScholarSkills remain callable without unrelated
+updates, Codex Plugin/config/cache and the complete runtime survive restart,
+and Full offline installs the same Official Profile without network access.
 
-```text
-thin repository index
-  -> package id + OCI repository + required package ids
-  -> Framework source resolver
-  -> resolve one Package latest-stable to an immutable digest
-  -> thin Base OCI download adapter
-  -> Codex Plugin/config/cache activation + Package runtime activation
-  -> lifecycle receipt and terminal readback
-```
-
-The index is intentionally small. It discovers candidates and dependency
-identities; it does not copy Package behavior, maintain a fixed first-party
-list, pin unrelated Package versions, or store a second payload inventory.
-Required Package-to-Package dependencies remain real, but an ordinary
-dependency declaration means that a provider Package must be installed and
-usable rather than that the whole ecosystem must share one version or release
-cohort. Version or ABI constraints are exceptional and require a demonstrated
-runtime incompatibility.
-
-Codex Plugin Manager currently accepts local or Git marketplace sources rather
-than OCI references. Therefore Base retains one thin OCI adapter that resolves
-and downloads GHCR content, then delegates the Plugin/config/cache surface to
-Codex. This adapter is transport glue, not an OPL Package manager: it cannot
-define Package identity, currentness, dependency policy, or a second installed
-state database. Installing only the Plugin subdirectory is also insufficient
-for Packages whose GHCR artifact contains a runtime in addition to the Codex
-Skill/Plugin carrier; both surfaces must reach terminal readback.
-
-`ghcr.io/<owner>/one-person-lab-manifest:latest-stable` is a legacy online
-catalog bridge. The target design removes it from ordinary Package currentness.
-Release Set/Full manifests remain useful only as exact Full/offline,
-integration-test, and release-QA snapshots of inputs actually selected. They
-must not block an independently published Package or cause unchanged Packages,
-Base, or App to republish.
-
-| Concern | Sole target owner |
-| --- | --- |
-| Source and version publication | Package owner |
-| Immutable online Package bytes | Per-Package GHCR repository |
-| Candidate discovery | Thin repository index |
-| Current stable in one source | Package owner `latest-stable` |
-| Configured source and required dependency presence | Framework |
-| Download transport | Thin Base OCI adapter |
-| Plugin/config/cache activation | Codex platform capability |
-| Runtime activation and support receipt | Framework lifecycle |
-| Full/offline reproducibility | Release Set snapshot for that build only |
-
-### 2026-07-23 Audit State
-
-The architecture above is the target boundary. It is not a declaration that
-the live release system is healthy. The latest inspected evidence still has
-unclosed currentness gaps: [App Stable run 30001277460](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/30001277460)
-failed; [Package Daily run 29952463596](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/29952463596)
-failed on `opl-base content changed without a version bump`; Desktop `v26.7.21`
-is public while `v26.7.20` remains Latest; Docker `:stable` and the Full cask
-are older than the latest built candidates. These observations require fresh
-owner readback before any “latest” or “stable” claim is made.
-
-The first implementation tranche is therefore a documentation and compatibility
-plan: make the starter profile replaceable, decouple package publication from
-App/Base/other-package release, keep one Framework resolver and installed-lock
-authority, and reduce carrier-specific promotion. Until those changes and the
-three terminal proofs are recorded, status remains **target/planned**, not
-**landed**:
+Release health remains a separate question. No docs or source migration proves
+that “latest” is stable. Fresh terminal evidence is still required for:
 
 ```text
 App Stable -> GitHub Latest -> updater readback
 WebUI exact digest -> :stable -> anonymous pull
-one Package update -> unchanged Base/App/other Packages remain unchanged
+one installed Package silent update -> dependent presence retained
+                                  -> Base/App/unrelated Packages unchanged
 ```
 
 The carrier strategy is official-capability-first. AionUI/AionCore supplies the
@@ -186,76 +188,79 @@ or domain authority to upstream.
 
 GUI 产品定义刻意分层。`docs/product/gui/ideal-interaction-spec.md` 定义不绑定具体 shell 的目标交互：Codex App 形态、chat-first、次级 context 默认收起。`docs/product/gui/codex-to-opl-app-delta.md` 定义 Codex baseline 之上的 OPL 专用增量：purpose routing、domain skill profiles、runtime bridge refs、installation policy、evidence 和 authority boundaries。`docs/product/gui/feature-inventory.md` 跟踪跨 shell 能力清单和参考模式。机器可读验收再进入 `contracts/`、page-state matrices、source、package manifests、smoke evidence 和 release gates。
 
-`contracts/app-gui-product-contract.json` is the canonical App-owned GUI product contract. It covers the Codex CLI fixed executor experience, hidden home and ordinary-conversation backend/provider selectors, visible App-owned model/reasoning and user-language permission/access controls, purpose-first home entries, assistant-scoped skill/profile metadata for those entries, the required package-shortcut invocation receipt, the home prompt, and the App-owned Settings IA: seven visible groups over ten stable carrier routes, with Resources & Connections under Connections & Deployment, Instructions & Context under Agents & Capabilities, and Service Status / Updates & Repair / Logs & Diagnostics under Runtime & Maintenance. It also owns About as the bottom auxiliary page, compatibility redirects, startup snapshot/performance policy, first-launch `ready_to_launch` before the first conversation but never before `/guid`, module path source explanation, release stable/nightly gates, MDS retirement from default display, and the OPL Flow context shown in Settings. Authenticated ordinary launch routes directly to `/guid`; fast App state and managed-agent discovery hydrate in the background rather than through a visible `StartupGate`. The installed launch target is at most 1,500 ms from OS launch request to a visible, enabled, focusable Guid composer, but remains an unverified target rather than a measured SLA. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, updater cache cleanup, and bounded log rotation controls. MAS/MAG/RCA/BookForge/OMA are first-party starter packages and shortcuts, not the upper bound of what OPL App can manage. `contracts/app-install-exposure-policy.json` owns the App-facing install/exposure policy: `skill` is the public semantic ABI, Codex App plugins are distribution/capability bundles, and CLI/App/direct skill paths must converge on the same domain-owned action/stage metadata. `contracts/app-runtime-bridge.json` is the App-owned bridge contract that binds a replaceable shell adapter to OPL-owned CLI state/action/drilldown surfaces. `contracts/app-product-profile.json` carries desktop session defaults, visible companion skills, first-run Core readiness, Full readiness/background maintenance behavior, Settings presentation and startup policy, legacy settings route redirects, install exposure refs, assistant/profile metadata, launch receipt policy, and generated shell profile data. `contracts/app-page-state-matrix.json` and `contracts/app-first-run-test-matrix.json` define page-state and first-run expectations.
+The current machine-contract compatibility snapshot follows; fields for
+assistant profiles, starter metadata, Package invocation receipts, companion
+skills, and Package install exposure are not the target Package architecture.
+`contracts/app-gui-product-contract.json` is the canonical App-owned GUI product contract. It covers the Codex CLI fixed executor experience, hidden home and ordinary-conversation backend/provider selectors, visible App-owned model/reasoning and user-language permission/access controls, purpose-first home entries, migration-era assistant/profile metadata, the home prompt, and the App-owned Settings IA: seven visible groups over ten stable carrier routes, with Resources & Connections under Connections & Deployment, Instructions & Context under Agents & Capabilities, and Service Status / Updates & Repair / Logs & Diagnostics under Runtime & Maintenance. It also owns About as the bottom auxiliary page, compatibility redirects, startup snapshot/performance policy, first-launch `ready_to_launch` before the first conversation but never before `/guid`, module path source explanation, Stable gates, MDS retirement from default display, and the OPL Flow context shown in Settings. Public Nightly is retired and read-only; Canary is a separate validation-only schedule. Authenticated ordinary launch routes directly to `/guid`; fast App state and managed-agent discovery hydrate in the background rather than through a visible `StartupGate`. The installed launch target is at most 1,500 ms from OS launch request to a visible, enabled, focusable Guid composer, but remains an unverified target rather than a measured SLA. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, updater cache cleanup, and bounded log rotation controls. Current first-party Agent shortcuts are replaceable examples discovered through the Official Profile and Package projection, not a fixed inventory, count, or upper bound. Current invocation receipts, locked payload refs and visible companion fields are compatibility surfaces to delete after generic Package/capability consumers land; they are not target identity, dependency, currentness, or readiness authority. `contracts/app-runtime-bridge.json` is the App-owned bridge contract that binds a replaceable shell adapter to OPL-owned CLI state/action/drilldown surfaces. `contracts/app-product-profile.json` carries desktop session defaults, first-run intent, Full readiness/background maintenance behavior, Settings presentation and startup policy, legacy settings route redirects, install exposure refs, migration-era assistant/profile metadata, and generated shell profile data. App/Shell do not parse OPL Flow's companion Skill list. `contracts/app-page-state-matrix.json` and `contracts/app-first-run-test-matrix.json` define page-state and first-run expectations.
 
 Capability governance follows one authority chain: an installed OPL Flow Package
-declares its capability intent, OPL Base / Framework resolves and projects it,
-and OPL App renders Framework state and actions. App and Shell do not parse Flow,
-freeze its dependency graph, or maintain a second Skill, Plugin, CLI, or MCP
-inventory. Standard and Full remain independent carriers; neither requires a
-Flow lock or optional payload for App readiness. See
+declares capability intent, configured carriers install missing identities,
+Framework checks presence/callability and projects aggregate state/actions, and
+OPL App renders that projection. App and Shell do not parse Flow, freeze its
+dependency graph, or maintain a second Skill, Plugin, CLI, or MCP inventory.
+Standard and Full remain independent carriers; neither requires a Flow lock or
+optional payload for App readiness. See
 [`capability-governance.md`](capability-governance.md).
 
-Professional agent ownership is deliberately split to keep the App generic. The
-App owns package-management UX, home shortcut configuration, launch into Codex,
-invocation receipt display, and refs-only status panels; the Framework owns the
-package lifecycle and action execution behind those projections. In Settings,
-Agents is the installed package directory with integrated Home shortcut
-management; purpose remains a secondary tag/filter, not the primary row identity.
-Capabilities separately owns the Skill/Plugin catalog and OPL Flow
-recommendations. Neither page owns a professional agent's domain workflow,
-stage model, prompt internals, artifact schema, readiness verdict, quality/export
-verdict, or owner receipts. There should be no strong App-level `Session
-Contract` for MAS or any other professional agent. The durable boundary is
-`Agent Package -> Home Shortcut Metadata -> Codex launch -> Invocation Receipt`.
-The required invocation receipt records that launch fact; the optional
-activation `use_receipt_ref` is separate audit evidence and never a universal
-launch prerequisite.
+Professional agent ownership is deliberately split to keep the App generic.
+Every professional agent, including OPL standard agents, is a Package with
+`kind=agent`. The App owns the unified Package UX, Home shortcut preference,
+Codex launch, and Runtime presentation; the selected platform owns install and
+update mechanics; Framework owns only generic discovery, dependency-presence
+checks, state aggregation, and thin action adapters. In Settings, Agents lists
+discovered Package descriptors with integrated Home shortcut management.
+Capabilities separately owns generic Skills, Plugins, and workflow capability
+presentation. Neither page owns a professional agent's workflow, task
+lifecycle, stage model, prompt internals, artifact schema, or domain verdict.
 
-The Framework directory/status/actions are the lifecycle source for all Package
-identities. A build or install may record the composition it actually selected,
-but no family Release Set is required and no such record is an independent
-publication authority. The current seven identities are a starter profile. The App ships no default registry URL or empty
-catalog. Operators may add organization or user registry URLs, and users may
-select direct manifests. These sources provide candidates only: Framework's
-resolver follows the configured source and checks required dependency presence.
-Codex/platform installed state plus terminal Framework readback defines local
-truth; the existing lock is a migration/support surface rather than a required
-target architecture or currentness authority.
-External registry entries carry labels, source/trust hints, and manifest URLs
-only; they do not define business behavior, session contracts, artifact schemas,
-readiness rules, or owner receipt authority. Framework keeps identity/trust
-collision defense fail-closed. `contracts/agent-package-surfaces.schema.json` and
-`contracts/fixtures/agent-package-manifests/` define the App-side manifest,
-shortcut, invocation receipt, and package lock receipt shapes, while
-`contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata`
-provides static product metadata for the current starter profile without becoming
-directory or install truth. Selecting an external package routes the manifest URL to OPL Framework
-validation and package lifecycle execution. The validated manifest plus
-Framework package lock, rollback ref, and action receipt is the install
-authority for the non-live contract/readback slice. Framework also owns
-install, update, repair, uninstall, hide/unhide, enable/disable, status, and
-their lifecycle receipts. Framework now also materializes manifest-declared
-local Codex plugin sources into `CODEX_HOME` plugin cache, OPL state local
-marketplace wrappers, Codex config tables, package lock `physical_surface`, and
-lifecycle receipt `physical_surface`. Framework also validates local packaged
-payloads contain `skills/<required_skill_id>/SKILL.md` before materialization
-and owns package Home shortcut preference readback. Active shell reads
-Framework-backed Home shortcut preferences from App state, persists
-visibility/order changes through the Framework action route, requires fresh
-Framework readback before reporting success, and rolls back optimistic UI when
-that readback fails,
-emits launch-only `opl_agent_package_invocation` route smoke, and renders
-`physical_surface` in Settings, but non-live first-party distribution payload proof and remote payload manifest fields are landed; installed Codex-surface reload proof and live user-path evidence still need separate runtime or release-owner evidence.
+The minimum target chain is:
 
-Home entry ownership is split deliberately for GUI replacement. The App contract owns user-facing shortcut targets and labels, while installed Agent Packages provide the Codex plugin/skill surfaces that those shortcuts invoke. Existing MAS/MAG/RCA/BookForge entries are starter shortcuts and migration seeds; future compliant first-party, organization, user, or third-party packages should be able to provide the same shortcut metadata without App source edits. Shells render configured shortcuts, launch Codex with the package's declared plugin/skill surface, and persist an App-owned invocation receipt. They do not decide which packages are installed, which shortcuts are default, whether an agent appears on the home screen, or whether the route is exposed as a backend selector.
+```text
+App Official Profile or explicit user choice
+  -> platform-native install/update
+  -> Framework installed discovery + presence check
+  -> Package descriptors
+       -> Settings row
+       -> optional Home shortcut
+       -> Agent task projection
+       -> optional typed Runtime view
+```
 
-Skill ownership is similarly split. `skill` remains the public semantic ABI, and Codex plugin packaging remains the preferred App distribution shell. Package manifests declare required skill packs and optional companion tools; required skill packs may be developed in separate repositories but must be materialized into the package at release time with lock/checksum/receipt evidence. `companion_payloads.default_packaged_codex_skill_ids` is the App-level default package whitelist during the current migration, independent of whether a candidate originated in AionUI builtin assets, Skills Manager, a Codex local skill, or a plugin payload. AionUI-specific internal skills such as `aionui-skills`, `aionui-webui-setup`, and `skill-creator` stay out of ordinary App capability selection. Agent packages remain on Settings/Agents; the Skill/Plugin hub remains on Settings/Capabilities. Neither becomes a normal home input menu.
+There is no App-maintained Agent list beside the Package directory. A new
+compliant Package becomes manageable without App code changes. Registry and
+direct-manifest sources may remain discovery inputs, but they do not create an
+OPL-specific currentness solver. Framework aggregates fresh carrier readback for
+the complete Package; no single carrier, Plugin projection, App cache, lock, or
+receipt is complete installed truth by itself.
+During migration, `contracts/agent-package-surfaces.schema.json`,
+`contracts/fixtures/agent-package-manifests/`, starter metadata, package locks,
+receipts, `rollback_ref`, and `physical_surface` are compatibility inputs only.
+Consumers must move to the minimum descriptor/status model before those mirrors
+are deleted.
 
-That allowlist applies to Skills, not to configured MCP servers. User and
-third-party MCP directory/status entries, new-conversation payloads, and session
-snapshots are preserved by default. Only the explicit Team/internal negative
-matchers and Team metadata are scrubbed.
+Home entry ownership is split deliberately for GUI replacement. Agent Package
+descriptors provide shortcut label, icon, launch target, and default-visibility
+hint; the App stores only the user's visibility/order preference and renders
+the result. Existing MAS/MAG/RCA/BookForge/OMA shortcuts are Official Profile
+defaults, not hard-coded App identities. Removing a Package removes its
+shortcut, and installing any compliant Agent Package may add one without App
+source changes.
+
+Skill ownership uses the same simple rule. Codex plugin packaging is the
+preferred distribution surface when available; a Package declares required and
+optional capability identities, and Framework checks only presence and
+callability. A required capability may be another Package, as in
+`MAS -> MAS Scholar Skills`. No version range, bundled payload, checksum, or
+receipt is required for composition. AionUI-internal skills remain outside
+ordinary capability selection. Agent Packages stay in Settings/Agents; generic
+Skill/Plugin/Flow capability presentation stays in Settings/Capabilities.
+
+Skill, Tool, Plugin, MCP, Agent producer, and typed-view capabilities are
+discovered from installed Packages or their native platform; the App does not
+maintain parallel allowlists for any of them. User presentation preferences may
+hide entries without redefining availability. Narrow product cuts such as
+disabled Team remain explicit negative policy and must not become a general
+capability catalog.
 
 The App consumes the OPL three-layer capability model without becoming any of
 the three layers' owner. `professional_skill` is the package-declared expert
@@ -272,7 +277,16 @@ result, domain readiness, release readiness, or owner acceptance claim.
 
 The home executor boundary is intentionally narrower than upstream AionUI. The App is a Codex CLI wrapper with built-in OPL assistants, not a general multi-backend agent launcher. Active shells may retain upstream AionUI agent/backend settings for development or diagnostics, but the App home path and ordinary Codex conversation path must not surface Aion CLI, Claude Code, backend switching, provider lists, or permission-mode choices as normal user controls. The visible model selector is App-owned and bounded by the product profile.
 
-Settings boundary 也遵循同样拆分。用户看到七个一级组：Overview、Account & Models、Connections & Deployment、Workspace、Agents & Capabilities、Runtime & Maintenance、Preferences；底层继续保留 `general`、`gateway`、`access`、`workspace`、`agents`、`capabilities`、`resources`、`environment`、`storage`、`appearance` 十个 carrier route。Resources & Connections 是 Connections & Deployment 的唯一二级目的地；Workspace 只组织 Working Directory 与 Data & Storage；Instructions & Context 归 Agents & Capabilities，但复用 `workspace#personalization` transport；Runtime & Maintenance 在同一个 Environment carrier 上互斥展示 Service Status、Updates & Repair、Logs & Diagnostics。About 是底部唯一 auxiliary page；Advanced 只 redirect 到 `environment#diagnostics`，Update、Theme、Local Services 和 Personalization redirect 到 owner anchors。Overview 只展示一个 Background tasks 摘要，Temporal server/worker/scheduler 明细留在 Service Status。桌面日志目录归 Logs & Diagnostics，通过 `application.setLogDirectory` 持久化 `hostLogDir`、切换 live writer，并在失败时回滚；standalone WebUI 只读显示 owner/systemInfo 投影的实际日志目录，Docker WebUI 只读显示 `/data/logs`。Desktop workspace root 走 Framework owner action；standalone WebUI 只读显示 owner 投影的实际逻辑 root，Docker WebUI 才由 `OPL_WORKSPACE_ROOT=/projects` 固定显示 `/projects`；所有 WebUI 都禁止 `workspace_root_set`。Docker WebUI 必需宿主 bind 只有 `/projects` 与 `/data`，Settings 不改变宿主 source 或 bind；`/recovery` 是可选 deployment-managed 恢复面，部署位置摘要只在确认 Docker identity 后显示。首窗从持久化窄快照或 loading shell 渲染，不等待完整 fast JSON 或 drilldown；cold/warm 预算均为 1,500 ms，startup projection 上限 262,144 bytes，完整 fast read 只做共享后台 single-flight，Agents/Capabilities/Storage/About 详情按需加载。Agents 的安装 truth 由 `opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index` 提供，实际运行来源由 `app_state.runtime_source_carriers.items[]` 独立提供；Shell 不得把本地 manifest 安装来源显示成开发运行来源，也不得仅因开发 checkout 存在就声称包已安装。`app_state.modules.items[]` 只可提供诊断 enrichment，不能在 canonical directory 缺失时合成 package rows、collection membership 或 actions。Overview、runtime、system、model、agent、assistants、skills-hub、tools、display、webui、pet 等 legacy upstream routes redirect 到 App-owned destinations。Storage owns local data lifecycle inventory and cleanup controls; Shell 仍可保留 diagnostic 或 redirected sub-content 的实现组件，但这些组件不定义普通 App navigation 或 product authority。
+That fixed-executor product policy does not bind the OPL Package ecosystem to
+Codex. Package identity, installed state, Home preference, business Work Item,
+required-capability presence, and typed views remain stable across executor
+changes. An absent Claude Code or Hermes adapter makes only that executor route
+unavailable; it must not make a Package installed through another carrier
+disappear. If Codex Plugin Manager is the Package's only physical carrier and
+is removed, fresh carrier readback must instead report the Package as
+physically unavailable rather than preserving a false installed state.
+
+Settings boundary 也遵循同样拆分。用户看到七个一级组：Overview、Account & Models、Connections & Deployment、Workspace、Agents & Capabilities、Runtime & Maintenance、Preferences；底层继续保留 `general`、`gateway`、`access`、`workspace`、`agents`、`capabilities`、`resources`、`environment`、`storage`、`appearance` 十个 carrier route。Resources & Connections 是 Connections & Deployment 的唯一二级目的地；Workspace 只组织 Working Directory 与 Data & Storage；Instructions & Context 归 Agents & Capabilities，但复用 `workspace#personalization` transport；Runtime & Maintenance 在同一个 Environment carrier 上互斥展示 Service Status、Updates & Repair、Logs & Diagnostics。About 是底部唯一 auxiliary page；Advanced 只 redirect 到 `environment#diagnostics`，Update、Theme、Local Services 和 Personalization redirect 到 owner anchors。Overview 只展示一个 Background tasks 摘要，Temporal server/worker/scheduler 明细留在 Service Status。桌面日志目录归 Logs & Diagnostics；WebUI 只读显示其 carrier owner 投影。Desktop workspace root 走 Framework owner action，WebUI 不修改宿主 bind。首窗从持久化窄快照或 loading shell 渲染，不等待完整 fast JSON 或 drilldown；cold/warm 预算均为 1,500 ms，startup projection 上限 262,144 bytes，完整 fast read 只做共享后台 single-flight，Agents/Capabilities/Storage/About 详情按需加载。Agents 只消费 Framework 汇总的 installed Package descriptors/status/actions；Shell 不读取 registry、manifest、lock、payload、receipt、checkout 或物理路径来合成 Package 行。Overview、runtime、system、model、agent、assistants、skills-hub、tools、display、webui、pet 等 legacy upstream routes redirect 到 App-owned destinations。
 
 Installation and maintenance expose exactly three software objects:
 
@@ -280,42 +294,51 @@ Installation and maintenance expose exactly three software objects:
 | --- | --- |
 | OPL Base | The Framework-owned headless CLI/runtime prerequisite. Homebrew Formula `opl` and `opl-install.sh --headless --skip-packages` are carrier adapters for the same Base identity. When Base is missing, the App may offer one-click bootstrap through that installer and show progress/readback, but it does not implement, update, repair, or roll back Base. Runtime dependencies and companion-tool integration appear only as `dependency_status` / `integration_status` details under Base. |
 | OPL App | The App-owned GUI/control plane and the only software object the App mutates. Homebrew Cask and signed installer/DMG are carrier adapters for the same App identity. Standard updater and host-route state remain App details through `host_update_route` and `host_executor_required`; carrier choice does not change ownership. |
-| OPL Packages | Framework-managed capability packages such as MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills/OPL Flow. App and Shell consume the Framework-projected state and exact non-activation lifecycle action refs for install, update, repair, and uninstall; they do not translate those refs into package commands. Codex visibility/reload becomes `projection_status`; OPL Flow/profile semantic merge becomes `profile_migration_status`. Neither is a fourth product or updater, and Homebrew must not manage Packages. |
+| OPL Packages | Open capability units discovered dynamically; MAS, MAS Scholar Skills and OPL Flow are examples, not a fixed inventory. Carrier platforms own installation/update mechanics; Framework discovers executor-neutral Package identities, checks required presence, aggregates status and per-executor route readiness, and supplies thin action adapters only where needed. App/Shell render the generic projection and never select a version, treat a Codex plugin id as Package identity, or reproduce platform lifecycle state. |
 
-标准 App updater 仍只替换 `opl_app` 二进制。新版本通过 post-restart version gate 并进入 `running_version_switched` 后，App 只重新读取 Framework App state；任何 Package 更新、修复或 profile migration 都由 Framework lifecycle 决定并投影 exact action ref。OPL Flow 不设 App-owned 专用更新路径；App 不复制冲突名单、不直接删除 skill、不直接写用户 profile，也不从 component transition 合成 Package mutation。
+标准 App updater 仍只替换 `opl_app` 二进制。新版本运行后，App 重新读取 Framework 聚合状态；已安装 Package 的静默更新各自走平台原生生命周期或薄 Framework adapter。OPL Flow 不设 App-owned 专用更新路径；App 不复制冲突名单、不直接删除 Skill、不直接写用户 profile，也不从 App 版本切换合成 Package mutation。
 
-`managed_update.components` therefore has exactly `opl_base`, `opl_app`, and `opl_packages`. The ordinary App has no component picker and no legacy component mapping. Full carriers may seed Base or Package payload bytes for first install, but activation and later mutation still route to the owning lifecycle. User data/artifacts remain a separate storage and cleanup boundary, not a software updater object.
+`managed_update.components` therefore has exactly `opl_base`, `opl_app`, and
+`opl_packages`. The ordinary App has no version/component picker. Full may carry
+offline Package seed bytes for first install, but uses the same Official Profile
+and platform install path as Standard. User data/artifacts remain a separate
+storage and cleanup boundary, not a software updater object.
 
-The retained X0-01 Runtime route contract is display and routing only. When the
-route is enabled, its user view consumes `opl app state --profile fast --json`;
-OPL Framework owns the
-task/project projection, action execution, provider diagnostics and full
-drilldown surfaces. App architecture keeps only the boundary: user-visible
-running, active, queued and attention counts come from framework-projected user
-task status, while provider activity, module diagnostics, repo/worktree
-diagnostics, stale run ids and assistant cards stay diagnostic-only and cannot
-become default running-task sources. Progress and artifact-native drilldown
-mapping is owned by `contracts/app-runtime-bridge.json`,
-`contracts/app-page-state-matrix.json`, `contracts/app-gui-product-contract.json`,
-active-shell validation and release-boundary tests. The App displays refs-only
-runtime projections and cannot read artifact bodies, own artifact authority, or
-turn runtime refs into domain quality, export, readiness, App release or family
-production claims.
+Runtime is a target core App capability, while remaining display and routing
+only. The owner chain is:
 
-Domain-owned work-item detail views use the same authority split. Fast App state
-may carry only bounded `domain_detail_views[]` locators and transport state. A
-selected item may then read one typed view through
-`opl app view read --item-id ... --view-id ... [--if-revision ...] --json`.
-The Framework resolves only declaration-derived locators inside the owning workspace;
-the App and Shell never submit paths, scan Markdown or Codex sessions, or infer a
-domain verdict. Renderers are selected by `view_kind`, not by a first-party agent
-id. `scientific_reasoning_map` is the first registered view kind, but it does not
-make MAS a hard-coded App dependency. The producer capability
-`opl_app.domain_detail_views.v2` is an optional domain enhancement, not an App,
-Runtime-route, install, or release activation gate. When absent, Work Item rows
-and selected-item core detail remain available; the research-trajectory entry is
-hidden, and a direct detail route reports local unavailability with a return to
-Runtime.
+| Owner | Runtime responsibility |
+| --- | --- |
+| Agent Package | Business task identity, lifecycle, user status, progress, next action, and optional domain views. |
+| Temporal | Queued/running state, workflow/activity attempt, heartbeat, retry, and terminal execution facts. |
+| OPL Framework | Join and validate Agent/Temporal projections; expose one bounded generic read/action interface. |
+| OPL App / Shell | Define information hierarchy and render generic fields; never infer domain or execution truth. |
+
+This target supersedes the old `X0-01 retained optional route` classification.
+Until contracts/source/tests migrate, that old classification remains current
+implementation truth and must not be confused with completion.
+
+Runtime discovers Agent producers dynamically from installed Package
+descriptors. A new Agent Package can provide task rows without adding its id to
+App scope or availability lists. Package availability stays in Settings;
+Runtime shows only tasks from available producers. A failure in one producer or
+Temporal binding degrades that producer's rows and does not hide other Agents.
+
+Domain detail uses one typed extension:
+
+```text
+task descriptor
+  -> views[] { view_id, view_kind, title, availability, read_action }
+  -> opl app view read
+  -> renderer selected only by view_kind
+```
+
+MAS may publish a research-roadmap view, but MAS owns its schema, scientific
+semantics, copy, and evolution. Framework validates and proxies the declared
+view; App registers only reusable `view_kind` renderers. App must not carry a
+MAS schema, stage map, package id switch, or medical interpretation. An unknown
+or invalid view kind produces a local unsupported-view state while the task row,
+other detail, and other Agents continue working.
 
 OPL App is the local-first workbench for One Person Lab. The current required
 surfaces are the macOS desktop App and U1-05 Docker/WebUI on Linux, Windows, a
@@ -357,63 +380,22 @@ surfaces should extend that matrix and the existing projection contracts before
 adding any shell-local task store, resource state machine, cleanup authority, or
 distribution currentness gate.
 
-The retained X0-01 Runtime route is WorkItemProjection v2 first when explicitly enabled. OPL Framework joins
-canonical agent/project/work-item inventory with lifecycle, execution, attention,
-telemetry, conditions, freshness, and action facts before the App or Shell sees
-them. Agent availability is a separate projection and cannot define project or
-work-item status. Scope is a strict Agent -> Project cascade; work items remain
-rows, not scope options. The ordinary list has four semantic columns and one row
-per canonical work item. Shells may filter and render those records, but cannot
-guess identity, derive user status, heuristically deduplicate bindings, estimate
-Token usage, or convert missing telemetry into zero.
+The target Runtime projection keeps Agent business state and Temporal execution
+state separate even when both appear in one row. The Agent says what the work
+means and what comes next; Temporal says whether execution is queued, running,
+retrying, heartbeating, or terminal. Framework joins by opaque task/execution
+refs and reports unknown rather than guessing. Shells may filter and render but
+cannot deduplicate heuristically, estimate missing telemetry, or turn provider
+activity into business progress.
 
-Work-item detail opens with Stage Map, current/next stage, running/heartbeat,
-current-stage and total Token, and action. Artifact/timeline refs are secondary;
-raw refs, IDs, logs and provider diagnostics are diagnostic-only. System
-attention requires a complete, current responsibility envelope that still
-blocks execution. Product contract, Framework producer, Shell consumer, and
-live user-path evidence are independent completion dimensions: none may promote
-another to complete.
-
-When a selected item advertises `scientific_reasoning_map`, the drawer adds only
-a concise research summary and a route-map button. The full graph lives at the
-item-scoped `/runtime/item/:itemId/insights/:viewId` route, where the main canvas
-shows the research trajectory and the right inspector explains the selected
-research object. User copy is written for medical researchers: current primary
-hypothesis, validation method, principal finding, evidence assessment, route
-adjustment, next research step, and a collapsed Sources and rationale section.
-Machine fields such as generation, digest, ref, payload, provider, or attempt are
-never user-facing.
-
-The scientific reasoning payload is one lightweight, MAS-authored runtime
-reference. MAS updates its summary, focus, route, nodes, edges, medical narrative,
-sources, and conditions together when the research direction meaningfully
-changes. The App does not introduce a second quality-gate or interim-record
-control layer around this progress view.
-Medical prose is passed through from the domain-owner projection field for field;
-the App and Shell do not generate, translate, summarize, rewrite, or review it.
-Localization applies only to App-owned chrome. Contract tests prove transport,
-schema, drawability, privacy, and layout boundaries; they do not prove medical
-writing quality, scientific validity, or strength of evidence.
-For `scientific-reasoning-map.v2`, the current-route mode uses the domain-owned
-`active_branch_node_refs` set exactly; only the v1 compatibility reader may fall
-back to node branch labels. The App and Shell do not infer v2 route membership.
-The complete map is the only trajectory content layer. Transport states such as
-unread, available, missing, stale, invalid, and read error must never be rendered
-as scientific findings or evidence judgments.
-
-Claude Science-style task awareness lands first in conversation current-task
-context and the right inspector rather than as a new dashboard. The optional
-X0-01 Runtime route may show the cross-project slice of the same `opl app state`
-projection, but core current-task behavior does not depend on it. Artifact provenance, reviewer receipts, reusable
-workflow refs, connector readiness, and reproducibility export actions are
-Framework/domain refs consumed through App contracts. Temporal workflow,
-activity, worker, queue, attempt, and Search Attribute details remain
-diagnostic substrate fields and must not become the ordinary user task model.
-The active shell's role is a thin renderer over App state/profile and App action
-routes, not reviewer logic, artifact-body access, readiness judgment, or a
-shell-owned runtime store. The historical landing reference is
-`docs/product/gui/claude-science-runtime-task-awareness-plan.md`.
+Current-task context, the cross-project Runtime list, and item detail consume the
+same owner projection. Artifact provenance, reviewer evidence, workflow refs,
+and domain actions remain owner refs; raw logs and Temporal operator diagnostics
+remain Maintenance detail. The active shell is a thin renderer, not reviewer
+logic, artifact-body access, readiness judgment, or a shell-owned task store.
+The historical landing reference is
+`docs/product/gui/claude-science-runtime-task-awareness-plan.md`; its MAS-specific
+schema is not a target App contract.
 
 The upstream AionUI Team surface is not an OPL ordinary-user capability. It is
 configured around shell-local team leaders and agents, so the active shell keeps
@@ -449,7 +431,7 @@ does not import Framework runtime state or domain truth into the App repo.
 The active shell is an external checkout and an implementation carrier. `contracts/app-shell-adapter.json` requires the shell to implement the App GUI contract and declares that upstream AionUI behavior is implementation material only, never App product authority. Root release and validation scripts prepare App-owned payloads and call shell build/test commands, but shell implementation changes belong in `gaofeng21cn/opl-aion-shell` unless the App contract or wrapper itself changes.
 
 GUI operation has two independent axes. The **active release shell** chooses the
-stable/nightly implementation carrier and remains owned by
+Stable implementation carrier and remains owned by
 `contracts/app-shell-adapter.json`. A **local GUI launch target** chooses which
 installed or developer GUI client to open for one local run; it does not mutate
 the active adapter, release role, updater channel, or adoption state. The canonical
