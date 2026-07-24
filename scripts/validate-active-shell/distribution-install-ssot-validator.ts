@@ -324,12 +324,12 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   const installer = install.installer_convergence;
   assertDeepEqualJson(
     installer?.current_default_app_script?.framework_arguments,
-    ['--with-app', '--skip-packages'],
+    ['--with-app'],
     'Current App installer Framework arguments',
   );
   requireEqual(
     installer?.current_default_app_script?.official_profile_converged_by_installer,
-    false,
+    true,
     'Current App installer convergence',
   );
   requireEqual(installer?.approved_universal_target?.macos_default, 'desktop', 'Universal macOS target');

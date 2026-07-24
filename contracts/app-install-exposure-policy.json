@@ -95,10 +95,9 @@
       "current_default_app_script": {
         "entrypoint": "install.sh",
         "framework_arguments": [
-          "--with-app",
-          "--skip-packages"
+          "--with-app"
         ],
-        "official_profile_converged_by_installer": false
+        "official_profile_converged_by_installer": true
       },
       "approved_universal_target": {
         "entrypoint": "install.sh",

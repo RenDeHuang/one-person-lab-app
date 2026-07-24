@@ -112,7 +112,8 @@ test('macOS personal default routes to Desktop bootstrap', () => {
     result.log,
     /curl:-fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab\/main\/install\.sh/
   );
-  assert.match(result.log, /bash:-s -- --with-app --skip-packages/);
+  assert.match(result.log, /bash:-s -- --with-app$/m);
+  assert.doesNotMatch(result.log, /--skip-packages/);
   assert.doesNotMatch(result.log, /install-docker-webui/);
 });
 

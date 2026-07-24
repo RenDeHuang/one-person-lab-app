@@ -389,7 +389,7 @@ printf 'Darwin\\n'
       },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.equal(fs.readFileSync(capturePath, "utf8").trim(), "--with-app --skip-packages");
+    assert.equal(fs.readFileSync(capturePath, "utf8").trim(), "--with-app");
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
