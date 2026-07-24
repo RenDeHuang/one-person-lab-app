@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
+import { assertReleaseOperationDeadline } from '../../scripts/release-operation-deadline.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
@@ -518,6 +519,72 @@ test('the live control plane is split into Standard build, Standard publish, and
     }
   }
   assert.doesNotMatch(`${readWorkflow('_release-bundle.yml')}\n${readWorkflow('_release-standard-publish.yml')}\n${readWorkflow('_release-full-addon.yml')}`, /release[_ -]broker|stable[_ -]session[_ -]lease/i);
+});
+
+test('resume admission restores and preserves the checkpoint-owned Standard operation control', () => {
+  const workflow = parseWorkflow('_release-standard-publish.yml');
+  const source = readWorkflow('_release-standard-publish.yml');
+  const restore = workflow.jobs.restore;
+  const reconcile = workflowStep(
+    '_release-standard-publish.yml',
+    'restore',
+    'Reconcile imported outcome and reuse immutable Standard control',
+  );
+  const reconcileRun = String(reconcile.run);
+  const operationRef = '${{ needs.restore.outputs.release_operation }}';
+  const originalStartedAt = '2026-07-24T09:04:32Z';
+  const originalDeadlineAt = '2026-07-24T10:34:32Z';
+
+  assert.doesNotThrow(() => assertReleaseOperationDeadline({
+    operation: 'resume_standard',
+    startedAt: originalStartedAt,
+    deadlineAt: '2026-07-24T09:34:32Z',
+    now: '2026-07-24T09:20:00Z',
+  }));
+  assert.doesNotThrow(() => assertReleaseOperationDeadline({
+    operation: 'standard',
+    startedAt: originalStartedAt,
+    deadlineAt: originalDeadlineAt,
+    now: '2026-07-24T10:20:00Z',
+  }));
+  assert.throws(() => assertReleaseOperationDeadline({
+    operation: 'resume_standard',
+    startedAt: originalStartedAt,
+    deadlineAt: originalDeadlineAt,
+    now: '2026-07-24T09:20:00Z',
+  }), /exactly 30 minutes/);
+
+  assert.equal(restore.outputs.release_operation, '${{ steps.operation.outputs.release_operation }}');
+  assert.match(reconcileRun, /requested_operation='\$\{\{ inputs\.operation \}\}'/);
+  assert.match(reconcileRun, /case "\$requested_operation" in standard\|resume_standard/);
+  assert.match(reconcileRun, /release_operation=standard/);
+  assert.match(reconcileRun, /operation_started_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_started_at/);
+  assert.match(reconcileRun, /operation_deadline_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_deadline_at/);
+  assert.match(reconcileRun, /echo "release_operation=\$release_operation"/);
+  assert.match(reconcileRun, /echo "operation_started_at=\$operation_started_at"/);
+  assert.match(reconcileRun, /echo "operation_deadline_at=\$operation_deadline_at"/);
+
+  for (const jobId of [
+    'updater-upgrade-qualification',
+    'updater-upgrade-qualification-highest',
+    'homebrew-standard-vm',
+  ]) {
+    assert.equal(workflow.jobs[jobId].with.operation, operationRef);
+  }
+  for (const jobId of [
+    'publish-standard-nonlatest',
+    'remote-digest-verify',
+    'publish-homebrew-standard',
+    'activate-latest',
+  ]) {
+    const jobSource = JSON.stringify(workflow.jobs[jobId]);
+    assert.match(jobSource, /needs\.restore\.outputs\.release_operation/);
+    assert.doesNotMatch(jobSource, /inputs\.operation/);
+  }
+
+  assert.match(source, /test "\$\(jq -r \.rebuild_performed <<<"\$CHECKPOINT_IMPORT"\)" = false/);
+  assert.doesNotMatch(source, /uses:\s*\.\/\.github\/workflows\/_release-bundle\.yml/);
+  assert.doesNotMatch(source, /opl release (?:freeze|build|verify)\b/);
 });
 
 test('checkpoint state lineage remains Framework-owned while App exposes transport provenance only', () => {

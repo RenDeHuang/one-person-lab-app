@@ -158,6 +158,7 @@ jobs:
       checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
       transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
       operation_id: ${{ steps.operation.outputs.operation_id }}
+      release_operation: ${{ steps.operation.outputs.release_operation }}
       operation_started_at: ${{ steps.operation.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.operation.outputs.operation_deadline_at }}
     steps:
@@ -251,8 +252,9 @@ jobs:
           set -euo pipefail
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
-          release_operation='${{ inputs.operation }}'
-          case "$release_operation" in standard|resume_standard) ;; *) exit 1 ;; esac
+          requested_operation='${{ inputs.operation }}'
+          case "$requested_operation" in standard|resume_standard) ;; *) exit 1 ;; esac
+          release_operation=standard
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-before.json
           operation_id="$(jq -er '.release_bundle_status.operation_controls.standard.operation_id | strings | select(length > 0)' operation-status-before.json)"
@@ -370,6 +372,7 @@ jobs:
             echo "source_run_id=$GITHUB_RUN_ID"
             echo "source_artifact=opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
             echo "operation_id=$operation_id"
+            echo "release_operation=$release_operation"
             echo "operation_started_at=$operation_started_at"
             echo "operation_deadline_at=$operation_deadline_at"
           } >> "$GITHUB_OUTPUT"
@@ -593,14 +596,14 @@ jobs:
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-            --operation '${{ inputs.operation }}' \
+            --operation '${{ needs.restore.outputs.release_operation }}' \
             --started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore.outputs.operation_id }}'
           operation_args=(
-            --operation '${{ inputs.operation }}'
+            --operation '${{ needs.restore.outputs.release_operation }}'
             --operation-id "$operation_id"
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
@@ -613,7 +616,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-before.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-before" \
-            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$remote_target" --publication-scope track_assets \
             --bundle "$bundle" --track standard --outcome complete \
             --inspection remote-before.json --output remote-before.receipt.json
@@ -623,7 +626,7 @@ jobs:
             --store "$store" --json > publish-plan.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
-            --operation '${{ inputs.operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
@@ -637,7 +640,7 @@ jobs:
                 test "$unknown_target" = "$remote_target"
                 node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
                   --operation remote_inspect --executor remote --attempt-id "$unknown_attempt" \
-                  --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                  --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
                   --remote-target "$unknown_target" --publication-scope track_assets \
                   --bundle "$bundle" --track standard --outcome unknown --output unknown.receipt.json
                 framework-executor/bin/opl release publish \
@@ -673,7 +676,7 @@ jobs:
               --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' --output reconcile-observation.json
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
               --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-reconcile" \
-              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+              --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
               --remote-target "$unknown_target" --prior-attempt-id "$unknown_attempt" \
               --publication-scope track_assets \
               --bundle "$bundle" --track standard --outcome complete \
@@ -691,7 +694,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-after.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-after" \
-            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$remote_target" --publication-scope track_assets \
             --bundle "$bundle" --track standard --outcome complete \
             --inspection remote-after.json --output remote-after.receipt.json
@@ -720,7 +723,7 @@ jobs:
             fi
           fi
           jq -n \
-            --arg operation '${{ inputs.operation }}' \
+            --arg operation '${{ needs.restore.outputs.release_operation }}' \
             --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
             --arg source_run '${{ needs.restore.outputs.source_run_id }}' \
             --arg source_artifact '${{ needs.restore.outputs.source_artifact }}' \
@@ -785,7 +788,7 @@ jobs:
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore.outputs.operation_id }}'
           operation_args=(
-            --operation '${{ inputs.operation }}'
+            --operation '${{ needs.restore.outputs.release_operation }}'
             --operation-id "$operation_id"
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
@@ -798,7 +801,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" \
-            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$remote_target" --publication-scope track_assets \
             --bundle "$bundle" --track standard --outcome complete \
             --inspection remote.json --output remote.receipt.json
@@ -853,7 +856,7 @@ jobs:
       app_ref: ${{ needs.restore.outputs.app_ref }}
       shell_ref: ${{ needs.restore.outputs.shell_ref }}
       framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
-      operation: ${{ inputs.operation }}
+      operation: ${{ needs.restore.outputs.release_operation }}
       operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
 
@@ -878,7 +881,7 @@ jobs:
       app_ref: ${{ needs.restore.outputs.app_ref }}
       shell_ref: ${{ needs.restore.outputs.shell_ref }}
       framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
-      operation: ${{ inputs.operation }}
+      operation: ${{ needs.restore.outputs.release_operation }}
       operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
 
@@ -1016,7 +1019,7 @@ jobs:
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore.outputs.operation_id }}'
           operation_args=(
-            --operation '${{ inputs.operation }}'
+            --operation '${{ needs.restore.outputs.release_operation }}'
             --operation-id "$operation_id"
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
             --operation-deadline-at "$OPERATION_DEADLINE_AT"
@@ -1031,7 +1034,7 @@ jobs:
             --output homebrew-github-assets.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-homebrew-github-assets" \
-            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$github_remote_target" --publication-scope track_assets \
             --bundle "$bundle" --track standard --outcome complete \
             --inspection homebrew-github-assets.json --output homebrew-github-assets.receipt.json
@@ -1086,7 +1089,7 @@ jobs:
             local prior_attempt_id="$3"
             local receipt_args=(
               --operation remote_inspect --executor remote --attempt-id "$attempt_id"
-              --release-operation '${{ inputs.operation }}' --operation-id "$operation_id"
+              --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id"
               --remote-target "$homebrew_remote_target" --publication-scope external_target
               --bundle "$bundle" --track standard --outcome "$outcome"
               --output homebrew-framework.receipt.json
@@ -1108,7 +1111,7 @@ jobs:
             exit 1
           fi
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-            --operation '${{ inputs.operation }}' \
+            --operation '${{ needs.restore.outputs.release_operation }}' \
             --started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --deadline-at "$OPERATION_DEADLINE_AT" || {
               write_homebrew_failure homebrew_push_deadline_elapsed bounded_read_only_inspect_only_no_framework_reconcile 0 "$base_commit"
@@ -1144,7 +1147,7 @@ jobs:
             exit 1
           }
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-            --operation '${{ inputs.operation }}' \
+            --operation '${{ needs.restore.outputs.release_operation }}' \
             --started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --deadline-at "$OPERATION_DEADLINE_AT" || {
               write_homebrew_failure homebrew_push_deadline_elapsed bounded_read_only_inspect_only_no_framework_reconcile 0 "$base_commit"
@@ -1294,7 +1297,7 @@ jobs:
       framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
       package_profile: homebrew-standard
       diagnostic_scope: release_gate
-      operation: ${{ inputs.operation }}
+      operation: ${{ needs.restore.outputs.release_operation }}
       operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
 
@@ -1505,14 +1508,14 @@ jobs:
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.tag }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-            --operation '${{ inputs.operation }}' \
+            --operation '${{ needs.restore.outputs.release_operation }}' \
             --started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore.outputs.operation_id }}'
           operation_args=(
-            --operation '${{ inputs.operation }}'
+            --operation '${{ needs.restore.outputs.release_operation }}'
             --operation-id "$operation_id"
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}'
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
@@ -1526,7 +1529,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest" \
-            --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+            --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$github_remote_target" --publication-scope track_assets \
             --bundle "$bundle" --track standard --outcome complete \
             --inspection remote.json --output remote.receipt.json
@@ -1586,7 +1589,7 @@ jobs:
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-activate-latest \
             --bundle "$bundle" --status bundle-status.json \
             --latest-admission standard-latest-admission.json \
-            --operation '${{ inputs.operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-latest-activation" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
@@ -1596,7 +1599,7 @@ jobs:
             complete|idempotent)
               node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-complete" \
-                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
                 --remote-target "$latest_remote_target" --publication-scope external_target \
                 --bundle "$bundle" --track standard --outcome complete \
                 --output latest-framework.receipt.json
@@ -1611,7 +1614,7 @@ jobs:
               test "$latest_unknown_target" = "$latest_remote_target"
               node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation remote_inspect --executor remote --attempt-id "$latest_unknown_attempt" \
-                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
                 --remote-target "$latest_unknown_target" --publication-scope external_target \
                 --bundle "$bundle" --track standard --outcome unknown \
                 --output latest-unknown.receipt.json
@@ -1633,7 +1636,7 @@ jobs:
               fi
               node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-latest-reconcile" \
-                --release-operation '${{ inputs.operation }}' --operation-id "$operation_id" \
+                --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
                 --remote-target "$latest_unknown_target" --prior-attempt-id "$latest_unknown_attempt" \
                 --publication-scope external_target --bundle "$bundle" --track standard \
                 --outcome "$latest_reconcile_outcome" --output latest-reconcile.receipt.json
