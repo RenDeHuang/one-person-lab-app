@@ -272,11 +272,35 @@ function validateInstallerSurfaces(policy) {
   if (!dockerWebui.installer_model?.linux_macos_online_command?.includes('raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh')) {
     throw new Error('Docker/WebUI install exposure must declare the Linux/macOS online one-click command');
   }
-  if (dockerWebui.installer_model?.windows_online_command !== 'download install-docker-webui.ps1 from raw.githubusercontent.com and run with -Yes') {
+  if (
+    dockerWebui.installer_model?.windows_online_command !==
+      'download install-docker-webui.ps1 from raw.githubusercontent.com and run with -EnableAutoUpdate -Yes'
+  ) {
     throw new Error('Docker/WebUI install exposure must declare the Windows online one-click command model');
   }
   if (dockerWebui.installer_model?.windows_prerequisite_mode !== 'explicit_install_prerequisites_switch_requires_administrator') {
     throw new Error('Docker/WebUI install exposure must keep Windows Docker/WSL2 installation behind an explicit administrator prerequisite switch');
+  }
+  if (
+    dockerWebui.installer_model?.default_image_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    dockerWebui.installer_model?.compatibility_alias_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:stable'
+  ) {
+    throw new Error('Docker/WebUI install exposure must consume Latest and retain Stable only as its compatibility alias');
+  }
+  const windowsAutoUpdate = dockerWebui.installer_model?.windows_auto_update;
+  if (
+    windowsAutoUpdate?.mechanism !== 'user_scoped_windows_scheduled_task' ||
+    windowsAutoUpdate?.task_name !== 'One Person Lab WebUI Latest Update' ||
+    windowsAutoUpdate?.enable_entrypoint !== 'install-docker-webui.ps1 -EnableAutoUpdate' ||
+    windowsAutoUpdate?.disable_entrypoint !== 'install-docker-webui.ps1 -DisableAutoUpdate' ||
+    windowsAutoUpdate?.execution_context !== 'limited_current_user_run_only_when_logged_on' ||
+    windowsAutoUpdate?.channel_policy !== 'default_latest_only_custom_image_tag_or_digest_requires_manual_update' ||
+    windowsAutoUpdate?.follows_ref !== 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    !String(windowsAutoUpdate?.security_boundary ?? '').includes('without_Docker_socket_mount')
+  ) {
+    throw new Error('Docker/WebUI Windows automatic updates must remain a limited user host task for the default latest channel');
   }
   if (dockerWebui.installer_model?.compose_file !== 'compose.yaml') {
     throw new Error('Docker/WebUI install exposure must declare compose.yaml as the one-click installer compose artifact');
@@ -376,7 +400,7 @@ function validateInstallerSurfaces(policy) {
   ) {
     throw new Error('Docker/WebUI ordinary user status must describe account-first model access on the shared runtime provider');
   }
-  if (!String(ordinaryUserStatus?.image_seed_selection ?? '').includes('WebUI full seed')) {
+  if (!String(ordinaryUserStatus?.image_seed_selection ?? '').includes('Default latest image')) {
     throw new Error('Docker/WebUI ordinary user status must declare the default WebUI full seed image path');
   }
   assertIncludesAll(
@@ -448,8 +472,11 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.runtime_distribution_model?.default_profile !== 'webui_full') {
     throw new Error('Docker/WebUI install exposure must make webui_full the beginner default profile');
   }
-  if (dockerWebui.runtime_distribution_model?.stable_channel_policy !== 'stable_must_point_to_webui_full_not_metadata_only_slim') {
-    throw new Error('Docker/WebUI install exposure must forbid metadata-only slim images for stable');
+  if (
+    dockerWebui.runtime_distribution_model?.stable_channel_policy !==
+      'latest_and_stable_alias_must_match_and_point_to_webui_full_not_metadata_only_slim'
+  ) {
+    throw new Error('Docker/WebUI install exposure must keep Latest/Stable aligned on the full image');
   }
   if (dockerWebui.runtime_distribution_model?.required_image_manifest !== '/opt/opl/image-manifest.json') {
     throw new Error('Docker/WebUI install exposure must require the canonical /opt/opl image manifest');
@@ -474,6 +501,14 @@ function validateInstallerSurfaces(policy) {
       'remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied'
   ) {
     throw new Error('Docker/WebUI image currentness must remain status-only and separate from release-ready or applied-update proof');
+  }
+  if (
+    dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_entrypoint !==
+      'install-docker-webui.ps1 -EnableAutoUpdate' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_mechanism !==
+      'limited_current_user_scheduled_task_running_host_installer_daily_for_default_latest_only'
+  ) {
+    throw new Error('Docker/WebUI image automatic updates must reuse the bounded Windows host installer route');
   }
   validateDockerWebuiSmokeGateContract(dockerWebui.smoke_gate_contract);
 }

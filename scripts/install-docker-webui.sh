@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:stable'
+DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:latest'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPL_WEBUI_HOME=${OPL_WEBUI_HOME:-"$HOME/OnePersonLab"}
 DATA_DIR=${OPL_WEBUI_DATA_DIR:-"$OPL_WEBUI_HOME/data"}
@@ -713,7 +713,7 @@ if [ "$UPDATE" = "1" ]; then
 else
   log "Update model: rerun this installer, or pass --update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 fi
-log "Image/seed: default stable WebUI image uses the full seed; --tag and --image are advanced overrides."
+log "Image/seed: default latest WebUI image uses the full seed; --tag and --image are advanced overrides."
 log "Gateway account credentials and API keys are not accepted by this installer; enter them inside WebUI first-run or Settings -> Account & Access."
 log_user_path_status
 

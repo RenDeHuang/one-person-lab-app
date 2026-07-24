@@ -253,6 +253,8 @@ export type WebuiStableAdmissionInput = {
   versionReadbackPath: string;
   stablePrestate: JsonRecord;
   stablePrestatePath: string;
+  latestPrestate: JsonRecord;
+  latestPrestatePath: string;
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
@@ -319,8 +321,15 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     throw new Error('version readback.media_type must be an OCI index or Docker manifest list.');
   }
   const stableRef = `${webuiRepository}:stable`;
-  const prestate = descriptor(input.stablePrestate, stableRef, 'Stable prestate');
-  if (prestate.status === 'unknown') throw new Error('Stable prestate is unknown and cannot be treated as absent.');
+  const latestRef = `${webuiRepository}:latest`;
+  const stablePrestate = descriptor(input.stablePrestate, stableRef, 'Stable prestate');
+  const latestPrestate = descriptor(input.latestPrestate, latestRef, 'Latest prestate');
+  if (stablePrestate.status === 'unknown' || latestPrestate.status === 'unknown') {
+    throw new Error('Stable/latest prestate is unknown and cannot be treated as absent.');
+  }
+  const aliasesAligned =
+    stablePrestate.status === latestPrestate.status
+    && (stablePrestate.status !== 'present' || stablePrestate.digest === latestPrestate.digest);
 
   const evidence = {
     stable_authority_run_readback_sha256: fileDigest(input.stableAuthorityRunPath),
@@ -331,6 +340,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     immutable_readback_sha256: fileDigest(input.immutableReadbackPath),
     version_readback_sha256: fileDigest(input.versionReadbackPath),
     stable_prestate_sha256: fileDigest(input.stablePrestatePath),
+    latest_prestate_sha256: fileDigest(input.latestPrestatePath),
   };
   const authority = {
     authority_mode: authorityMode,
@@ -376,14 +386,22 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       immutable_ref: carrier.ref,
       version_ref: versionRef,
       stable_ref: stableRef,
+      latest_ref: latestRef,
       digest: versionDigest,
       child_digest: carrier.digest,
       size_bytes: carrier.size_bytes,
       content_fingerprint: carrier.content_fingerprint,
     },
     expected_prestate: {
-      status: prestate.status,
-      digest: prestate.digest,
+      aliases_aligned: aliasesAligned,
+      stable: {
+        status: stablePrestate.status,
+        digest: stablePrestate.digest,
+      },
+      latest: {
+        status: latestPrestate.status,
+        digest: latestPrestate.digest,
+      },
     },
     evidence,
   };
@@ -396,28 +414,45 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   };
 }
 
-export function decideWebuiStablePromotion(admission: JsonRecord, currentInput: JsonRecord): JsonRecord {
+export function decideWebuiStablePromotion(
+  admission: JsonRecord,
+  currentStableInput: JsonRecord,
+  currentLatestInput: JsonRecord,
+): JsonRecord {
   exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
   exact(admission.status, 'passed', 'admission status');
   exact(admission.mutation_admitted, true, 'admission mutation authorization');
   const target = record(admission.target, 'admission.target');
   const expected = record(admission.expected_prestate, 'admission.expected_prestate');
-  const current = descriptor(currentInput, text(target.stable_ref, 'target stable ref'), 'current Stable readback');
+  const expectedStable = record(expected.stable, 'admission.expected_prestate.stable');
+  const expectedLatest = record(expected.latest, 'admission.expected_prestate.latest');
+  const currentStable = descriptor(
+    currentStableInput,
+    text(target.stable_ref, 'target stable ref'),
+    'current Stable readback',
+  );
+  const currentLatest = descriptor(
+    currentLatestInput,
+    text(target.latest_ref, 'target latest ref'),
+    'current Latest readback',
+  );
+  const expectedMatchesCurrent =
+    expectedStable.status === currentStable.status
+    && expectedLatest.status === currentLatest.status
+    && expectedStable.digest === currentStable.digest
+    && expectedLatest.digest === currentLatest.digest;
   let decision: PromotionDecision;
   let writeCount = 0;
-  if (current.status === 'unknown') {
+  if (currentStable.status === 'unknown' || currentLatest.status === 'unknown') {
     decision = 'prestate_unknown';
-  } else if (current.status === 'present' && current.digest === target.digest) {
-    decision = 'idempotent';
   } else if (
-    (expected.status === 'absent' && current.status === 'absent')
-    || (
-      expected.status === 'present'
-      && current.status === 'present'
-      && current.digest === expected.digest
-      && current.digest !== target.digest
-    )
+    currentStable.status === 'present'
+    && currentStable.digest === target.digest
+    && currentLatest.status === 'present'
+    && currentLatest.digest === target.digest
   ) {
+    decision = 'idempotent';
+  } else if (expectedMatchesCurrent) {
     decision = 'write_once';
     writeCount = 1;
   } else {
@@ -426,9 +461,13 @@ export function decideWebuiStablePromotion(admission: JsonRecord, currentInput: 
   const authority = {
     admission_input_digest: admission.input_digest,
     stable_ref: target.stable_ref,
+    latest_ref: target.latest_ref,
     target_digest: target.digest,
     expected_prestate: expected,
-    observed_prestate: { status: current.status, digest: current.digest },
+    observed_prestate: {
+      stable: { status: currentStable.status, digest: currentStable.digest },
+      latest: { status: currentLatest.status, digest: currentLatest.digest },
+    },
     decision,
     authorized_tag_attempts: writeCount,
   };
@@ -447,7 +486,9 @@ export function writeWebuiStablePromotionReceipt(input: {
   decision: JsonRecord;
   mutation: JsonRecord;
   readbacks: JsonRecord;
+  latestReadbacks: JsonRecord;
   anonymousReadback: JsonRecord;
+  latestAnonymousReadback: JsonRecord;
 }): JsonRecord {
   exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
   exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v1', 'decision schema');
@@ -464,11 +505,27 @@ export function writeWebuiStablePromotionReceipt(input: {
   }
   const observations = readbacks.observations.map((value: unknown, index: number) =>
     descriptor(value, target.stable_ref, `readbacks[${index}]`));
+  const latestReadbacks = input.latestReadbacks;
+  exact(latestReadbacks.schema, 'opl_app_webui_stable_reconcile_readbacks.v1', 'latest readbacks schema');
+  if (!Array.isArray(latestReadbacks.observations) || latestReadbacks.observations.length > 3) {
+    throw new Error('bounded Latest reconcile must contain at most three observations.');
+  }
+  const latestObservations = latestReadbacks.observations.map((value: unknown, index: number) =>
+    descriptor(value, target.latest_ref, `latestReadbacks[${index}]`));
   const anonymous = descriptor(input.anonymousReadback, target.stable_ref, 'anonymous final readback');
-  const targetObserved = anonymous.status === 'present' && anonymous.digest === target.digest;
+  const latestAnonymous = descriptor(
+    input.latestAnonymousReadback,
+    target.latest_ref,
+    'anonymous Latest final readback',
+  );
+  const targetObserved =
+    anonymous.status === 'present'
+    && anonymous.digest === target.digest
+    && latestAnonymous.status === 'present'
+    && latestAnonymous.digest === target.digest;
   const boundedTargetObserved = observations.some(
     (entry) => entry.status === 'present' && entry.digest === target.digest,
-  );
+  ) && latestObservations.some((entry) => entry.status === 'present' && entry.digest === target.digest);
   let status: 'complete' | 'idempotent' | 'reconciled_complete' | 'outcome_unknown' | 'failed';
   if (decision === 'idempotent') {
     if (attemptCount !== 0) throw new Error('idempotent decision cannot perform a tag mutation.');
@@ -512,19 +569,32 @@ export function writeWebuiStablePromotionReceipt(input: {
     mutation: input.mutation,
     reconcile: {
       maximum_readbacks: 3,
-      performed_readbacks: observations.length,
-      target_observed: observations.some(
+      performed_readbacks: Math.max(observations.length, latestObservations.length),
+      stable_target_observed: observations.some(
+        (entry) => entry.status === 'present' && entry.digest === target.digest,
+      ),
+      latest_target_observed: latestObservations.some(
         (entry) => entry.status === 'present' && entry.digest === target.digest,
       ),
     },
     anonymous_readback: {
-      status: anonymous.status,
-      digest: anonymous.digest,
+      stable: {
+        status: anonymous.status,
+        digest: anonymous.digest,
+      },
+      latest: {
+        status: latestAnonymous.status,
+        digest: latestAnonymous.digest,
+      },
       logout_before_readback: input.anonymousReadback.logout_before_readback === true,
     },
   };
   if (status !== 'failed' && status !== 'outcome_unknown') {
-    if (evidence.anonymous_readback.logout_before_readback !== true || !targetObserved) {
+    if (
+      evidence.anonymous_readback.logout_before_readback !== true
+      || input.latestAnonymousReadback.logout_before_readback !== true
+      || !targetObserved
+    ) {
       status = attemptCount === 1 ? 'outcome_unknown' : 'failed';
     }
   }
@@ -571,12 +641,16 @@ function main(argv: string[]): void {
       'immutable-readback': { type: 'string' },
       'version-readback': { type: 'string' },
       'stable-prestate': { type: 'string' },
+      'latest-prestate': { type: 'string' },
       admission: { type: 'string' },
       decision: { type: 'string' },
-      current: { type: 'string' },
+      'current-stable': { type: 'string' },
+      'current-latest': { type: 'string' },
       mutation: { type: 'string' },
       readbacks: { type: 'string' },
+      'latest-readbacks': { type: 'string' },
       'anonymous-readback': { type: 'string' },
+      'latest-anonymous-readback': { type: 'string' },
       output: { type: 'string' },
     },
   });
@@ -599,6 +673,7 @@ function main(argv: string[]): void {
     const immutableReadbackPath = required(values['immutable-readback'], 'immutable-readback');
     const versionReadbackPath = required(values['version-readback'], 'version-readback');
     const stablePrestatePath = required(values['stable-prestate'], 'stable-prestate');
+    const latestPrestatePath = required(values['latest-prestate'], 'latest-prestate');
     result = admitWebuiStablePromotion({
       authorityMode: required(values['authority-mode'], 'authority-mode') as AuthorityMode,
       stableAuthorityRun: readJson(stableAuthorityRunPath, 'Stable authority run'),
@@ -635,11 +710,14 @@ function main(argv: string[]): void {
       versionReadbackPath,
       stablePrestate: readJson(stablePrestatePath, 'Stable prestate'),
       stablePrestatePath,
+      latestPrestate: readJson(latestPrestatePath, 'Latest prestate'),
+      latestPrestatePath,
     });
   } else if (command === 'decide') {
     result = decideWebuiStablePromotion(
       readJson(required(values.admission, 'admission'), 'admission'),
-      readJson(required(values.current, 'current'), 'current Stable readback'),
+      readJson(required(values['current-stable'], 'current-stable'), 'current Stable readback'),
+      readJson(required(values['current-latest'], 'current-latest'), 'current Latest readback'),
     );
   } else if (command === 'receipt') {
     result = writeWebuiStablePromotionReceipt({
@@ -647,9 +725,17 @@ function main(argv: string[]): void {
       decision: readJson(required(values.decision, 'decision'), 'decision'),
       mutation: readJson(required(values.mutation, 'mutation'), 'mutation'),
       readbacks: readJson(required(values.readbacks, 'readbacks'), 'readbacks'),
+      latestReadbacks: readJson(
+        required(values['latest-readbacks'], 'latest-readbacks'),
+        'Latest readbacks',
+      ),
       anonymousReadback: readJson(
         required(values['anonymous-readback'], 'anonymous-readback'),
         'anonymous readback',
+      ),
+      latestAnonymousReadback: readJson(
+        required(values['latest-anonymous-readback'], 'latest-anonymous-readback'),
+        'anonymous Latest readback',
       ),
     });
   } else {

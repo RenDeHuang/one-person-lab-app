@@ -71,7 +71,7 @@ function completeGateResult() {
       path_id: 'ordinary_docker_webui_user_path',
       priority: 'ordinary_user_path_before_evidence_bundle_language',
       ...ordinaryUserStatus(),
-      image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+      image_seed_selection: 'Default latest image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
       settings_entry: 'Settings -> Account & Access',
       must_not_claim: ['desktop_release_ready', 'real_install_ready', 'clean_windows_vm_pass_without_clean_windows_evidence', 'release_ready'],
     },
@@ -125,7 +125,7 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
   for (const { file, content, invalidEvidence } of [
     {
       file: 'compose.yaml',
-      content: 'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable\n',
+      content: 'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
       invalidEvidence: ['compose.yaml:host_data_dir -> /data', 'compose.yaml:host_projects_dir -> /projects'],
     },
     {
@@ -167,7 +167,7 @@ test('Docker/WebUI diagnostics validator treats remote image currentness as opti
 
   fs.writeFileSync(
     path.join(diagnostics, 'remote-image-digest.txt'),
-    `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:stable\nremote_digest=${remoteImageDigest}\n`,
+    `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\nremote_digest=${remoteImageDigest}\n`,
   );
   const updateAvailable = validateDockerWebuiDiagnostics(diagnostics);
   assert.deepEqual({
@@ -184,7 +184,7 @@ test('Docker/WebUI diagnostics validator accepts Docker inspect capture output w
   writeDockerWebuiDiagnostics(diagnostics);
   const inspect = [{
     Id: imageDigest,
-    RepoTags: ['ghcr.io/gaofeng21cn/one-person-lab-webui:stable'],
+    RepoTags: ['ghcr.io/gaofeng21cn/one-person-lab-webui:latest'],
     RepoDigests: [repoDigest()],
     Architecture: 'arm64',
     Os: 'linux',
@@ -192,7 +192,7 @@ test('Docker/WebUI diagnostics validator accepts Docker inspect capture output w
   fs.writeFileSync(
     path.join(diagnostics, 'docker-image.txt'),
     [
-      '$ docker image inspect ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+      '$ docker image inspect ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
       JSON.stringify(inspect, null, 2),
       '',
     ].join('\n'),
@@ -273,7 +273,7 @@ const invalidGateCases = [
     ],
   },
   {
-    name: 'without stable image seed selection',
+    name: 'without latest image seed selection',
     mutate(payload: any) { delete payload.ordinary_user_status.image_seed_selection; },
     invalidFields: ['ordinary_user_status.image_seed_selection'],
   },
@@ -299,7 +299,7 @@ for (const { name, mutate, invalidFields } of invalidGateCases) {
 test('Docker/WebUI smoke gate result readback accepts remote currentness comparison only as status readback', () => {
   const payload = completeGateResult();
   const currentness = {
-    remote_ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+    remote_ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
     remote_digest: remoteImageDigest,
     currentness_status: 'update_available',
     currentness_evidence_source: 'remote-image-digest.txt',

@@ -1821,10 +1821,11 @@
       ],
       "profiles": {
         "webui_full": {
-          "default_for_beginner_and_stable_channel": true,
+          "default_for_beginner_and_latest_channel": true,
           "required_tags": [
             "<app_or_opl_version>",
-            "stable"
+            "stable",
+            "latest"
           ],
           "seed_strategy": [
             "payload_manifest",
@@ -1837,7 +1838,7 @@
             "domain_modules"
           ],
           "metadata_only_allowed": false,
-          "rule": "Stable Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default."
+          "rule": "Latest and its Stable compatibility alias must point to the same qualified payload-capable WebUI runtime image. A metadata-only image may not be promoted as the beginner default."
         },
         "webui_slim": {
           "developer_or_ci_only": true,
@@ -1893,7 +1894,8 @@
       },
       "publish_gate": {
         "script": "scripts/validate-webui-runtime-image.ts",
-        "stable_channel_expected_profile": "webui-full",
+        "moving_channel_expected_profile": "webui-full",
+        "latest_alias_requires_stable_quality_gate": true,
         "must_read_back": [
           "docker_image_inspect",
           "image_manifest",
@@ -1907,7 +1909,7 @@
           "startup_maintenance_log",
           "auto_login_smoke"
         ],
-        "forbidden_success_state": "metadata_only_seed_promoted_to_stable"
+        "forbidden_success_state": "metadata_only_seed_promoted_to_latest_or_stable"
       },
       "update_planes": {
         "image_update": [
@@ -1956,6 +1958,7 @@
       "retain_nightly_versions": 7,
       "protected_tags": [
         "stable",
+        "latest",
         "nightly"
       ],
       "cleanup_execution_mode": "dry_run_first_explicit_execute_required",
@@ -2018,7 +2021,11 @@
       "operator_supplied_run_handle_allowed": false,
       "opaque_run_handles_are_release_identity": false,
       "protected_environment": "release-stable",
-      "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+      "default_pointer_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+      "automatic_update_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+      "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+      "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+      "manual_version_promotion_policy": "manual_version_may_advance_latest_only_after_the_same_stable_quality_gate",
       "stable_authority_requirements": [
         "release-stable.yml",
         "main",
@@ -2073,8 +2080,10 @@
         "frozen_predecessor_to_target_is_single_write": true,
         "unexpected_digest_is_conflict_without_mutation": true,
         "prestate_unknown_is_not_absent": true,
-        "mutation_command": "oras tag <repository>@<target_digest> stable",
+        "divergent_aliases_may_only_reconcile_to_same_qualified_target": true,
+        "mutation_command": "oras tag <repository>@<target_digest> stable latest",
         "maximum_tag_attempts": 1,
+        "single_command_updates_both_moving_tags": true,
         "force_allowed": false
       },
       "unknown_outcome": {
@@ -2100,7 +2109,8 @@
     },
     "stable_tags": [
       "<app_or_opl_version>",
-      "stable"
+      "stable",
+      "latest"
     ],
     "nightly_tags": [
       "<app_or_opl_version>",

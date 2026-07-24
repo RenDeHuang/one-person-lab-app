@@ -662,7 +662,7 @@ function validateWebuiGhcrImage(webuiImage) {
     webuiImage?.owner !== 'one-person-lab-app' ||
     webuiImage?.distribution_role !== 'preheated_webui_runtime_image_not_desktop_app_gui_shell' ||
     contract?.image_role !== 'browser_entrypoint_for_opl_on_linux_container' ||
-    contract?.profiles?.webui_full?.default_for_beginner_and_stable_channel !== true ||
+    contract?.profiles?.webui_full?.default_for_beginner_and_latest_channel !== true ||
     contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
     contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||
     contract?.profiles?.webui_slim?.stable_channel_allowed !== false ||
@@ -697,6 +697,11 @@ function validateWebuiGhcrImage(webuiImage) {
     'Docker/WebUI full image seed strategy',
   );
   assertDeepEqualJson(
+    contract.profiles.webui_full?.required_tags,
+    ['<app_or_opl_version>', 'stable', 'latest'],
+    'Docker/WebUI full image tags',
+  );
+  assertDeepEqualJson(
     contract.profiles.webui_slim?.seed_strategy,
     ['metadata_only'],
     'Docker/WebUI slim image seed strategy',
@@ -705,10 +710,23 @@ function validateWebuiGhcrImage(webuiImage) {
     contract.image_manifest?.canonical_path !== '/opt/opl/image-manifest.json' ||
     contract.seed_metadata?.canonical_path !== '/opt/opl/seed/metadata.json' ||
     contract.publish_gate?.script !== 'scripts/validate-webui-runtime-image.ts' ||
-    contract.publish_gate?.stable_channel_expected_profile !== 'webui-full' ||
-    contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_stable'
+    contract.publish_gate?.moving_channel_expected_profile !== 'webui-full' ||
+    contract.publish_gate?.latest_alias_requires_stable_quality_gate !== true ||
+    contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_latest_or_stable' ||
+    webuiImage.stable_promotion?.default_pointer_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    webuiImage.stable_promotion?.automatic_update_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    webuiImage.stable_promotion?.target_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    webuiImage.stable_promotion?.compatibility_alias_ref !==
+      'ghcr.io/gaofeng21cn/one-person-lab-webui:stable' ||
+    webuiImage.stable_promotion?.manual_version_promotion_policy !==
+      'manual_version_may_advance_latest_only_after_the_same_stable_quality_gate' ||
+    webuiImage.stable_promotion?.compare_and_swap
+      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true
   ) {
-    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before stable tags');
+    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before Latest/Stable tags');
   }
   assertIncludesAll(
     contract.publish_gate?.must_read_back,

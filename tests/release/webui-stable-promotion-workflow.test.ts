@@ -170,6 +170,7 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
   const immutableRef = carrier.carrier.ref;
   const versionRef = `ghcr.io/gaofeng21cn/one-person-lab-webui:${version}`;
   const stableRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
+  const latestRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest';
   const immutable = observation(immutableRef, 'present', imageDigest);
   const versionReadback = {
     ...observation(versionRef, 'present', versionDigest),
@@ -177,7 +178,8 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
     manifest_count: 1,
     media_type: 'application/vnd.oci.image.index.v1+json',
   };
-  const prestate = observation(stableRef, 'present', digest('f'));
+  const stablePrestate = observation(stableRef, 'present', digest('f'));
+  const latestPrestate = observation(latestRef, 'present', digest('f'));
   const paths = {
     stableAuthorityRun: writeJson(root, 'stable-authority-run.json', stableAuthorityRun()),
     carrierFollowerRun: writeJson(root, 'carrier-follower-run.json', carrierFollowerRun(status)),
@@ -190,7 +192,8 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
     carrier: writeJson(root, 'carrier.json', carrier),
     immutable: writeJson(root, 'immutable.json', immutable),
     version: writeJson(root, 'version.json', versionReadback),
-    prestate: writeJson(root, 'prestate.json', prestate),
+    stablePrestate: writeJson(root, 'stable-prestate.json', stablePrestate),
+    latestPrestate: writeJson(root, 'latest-prestate.json', latestPrestate),
   };
   const input: WebuiStableAdmissionInput = {
     stableAuthorityRun: stableAuthorityRun(),
@@ -213,8 +216,10 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
     immutableReadbackPath: paths.immutable,
     versionReadback,
     versionReadbackPath: paths.version,
-    stablePrestate: prestate,
-    stablePrestatePath: paths.prestate,
+    stablePrestate,
+    stablePrestatePath: paths.stablePrestate,
+    latestPrestate,
+    latestPrestatePath: paths.latestPrestate,
   };
   return { root, paths, input };
 }
@@ -292,6 +297,27 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
   assert.equal(promotion.carrier_follower_intake.cross_run_scanning_allowed, false);
   assert.equal(promotion.carrier_follower_intake.latest_artifact_selection_allowed, false);
   assert.equal(promotion.compare_and_swap.maximum_tag_attempts, 1);
+  assert.equal(
+    promotion.compare_and_swap
+      .divergent_aliases_may_only_reconcile_to_same_qualified_target,
+    true,
+  );
+  assert.equal(
+    promotion.default_pointer_ref,
+    'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+  );
+  assert.equal(
+    promotion.compatibility_alias_ref,
+    'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+  );
+  assert.equal(
+    promotion.automatic_update_ref,
+    'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+  );
+  assert.equal(
+    promotion.manual_version_promotion_policy,
+    'manual_version_may_advance_latest_only_after_the_same_stable_quality_gate',
+  );
   assert.equal(promotion.unknown_outcome.maximum_bounded_read_only_descriptor_readbacks, 3);
   assert.equal(promotion.ordering.github_latest_before_webui_stable, true);
   assert.equal(
@@ -332,6 +358,7 @@ test('workflow binds the triggering Stable authority and current follower run', 
   assert.equal(workflow.jobs['promote-webui-stable'].permissions.actions, 'read');
   assert.equal(workflow.jobs['promote-webui-stable'].permissions.contents, 'read');
   assert.equal((source.match(/\boras tag\b/g) ?? []).length, 1);
+  assert.match(source, /oras tag "\$target_ref" stable latest/);
   assert.doesNotMatch(source, /framework_candidate_run_id|framework_latest_stable_run_id/);
   assert.doesNotMatch(source, /inputs\.source_app_run_id|^\s+workflow_dispatch:/m);
   assert.doesNotMatch(source, /homebrew|github-latest|releases\/latest/i);
@@ -465,9 +492,9 @@ test('workflow reads only source carrier evidence before protected stable CAS', 
     'Reject noncanonical or partial promotion runs',
     'Download exact App WebUI carrier artifact',
     'Materialize exactly one carrier receipt from the exact follower run',
-    'Read immutable, version, and Stable authority',
+    'Read immutable, version, Stable, and Latest authority',
     'Seal one immutable WebUI Stable admission',
-    'Re-read Stable prestate and derive CAS decision',
+    'Re-read Stable and Latest prestate and derive CAS decision',
     'Execute at most one WebUI Stable tag mutation and reconcile read-only',
     'Write terminal WebUI Stable receipt',
     'Upload terminal WebUI Stable evidence',
@@ -502,7 +529,8 @@ test('admission binds Stable authority, carrier follower, and promotion executor
     assert.equal(admission.promotion_executor.app_head_sha, promotionAppSha);
     assert.equal(admission.target.digest, versionDigest);
     assert.equal(admission.target.child_digest, imageDigest);
-    assert.equal(admission.expected_prestate.digest, digest('f'));
+    assert.equal(admission.expected_prestate.stable.digest, digest('f'));
+    assert.equal(admission.expected_prestate.latest.digest, digest('f'));
     assert.equal(admission.framework, undefined);
     assert.equal(admission.evidence.carrier_receipt_sha256, sha256File(current.paths.carrier));
   }
@@ -579,6 +607,10 @@ test('admission rejects stale or ambiguous source and carrier authority', () => 
       input.stablePrestate.status = 'unknown';
       input.stablePrestate.digest = null;
     }, /prestate is unknown/],
+    ['Latest prestate unknown', (input) => {
+      input.latestPrestate.status = 'unknown';
+      input.latestPrestate.digest = null;
+    }, /prestate is unknown/],
   ];
   for (const [label, mutate, error] of cases) {
     const current = fixture();
@@ -592,30 +624,86 @@ test('CAS decision table permits target idempotence or frozen predecessor to tar
   const current = fixture();
   const admission = admitWebuiStablePromotion(current.input);
   const stableRef = admission.target.stable_ref;
-  const states: Array<[ReturnType<typeof observation>, string, number]> = [
-    [observation(stableRef, 'present', versionDigest), 'idempotent', 0],
-    [observation(stableRef, 'present', digest('f')), 'write_once', 1],
-    [observation(stableRef, 'present', digest('0')), 'conflict', 0],
-    [observation(stableRef, 'absent', null), 'conflict', 0],
-    [observation(stableRef, 'unknown', null), 'prestate_unknown', 0],
+  const latestRef = admission.target.latest_ref;
+  const states: Array<[
+    ReturnType<typeof observation>,
+    ReturnType<typeof observation>,
+    string,
+    number,
+  ]> = [
+    [
+      observation(stableRef, 'present', versionDigest),
+      observation(latestRef, 'present', versionDigest),
+      'idempotent',
+      0,
+    ],
+    [
+      observation(stableRef, 'present', digest('f')),
+      observation(latestRef, 'present', digest('f')),
+      'write_once',
+      1,
+    ],
+    [
+      observation(stableRef, 'present', digest('0')),
+      observation(latestRef, 'present', digest('0')),
+      'conflict',
+      0,
+    ],
+    [
+      observation(stableRef, 'absent', null),
+      observation(latestRef, 'absent', null),
+      'conflict',
+      0,
+    ],
+    [
+      observation(stableRef, 'present', digest('f')),
+      observation(latestRef, 'present', digest('0')),
+      'conflict',
+      0,
+    ],
+    [
+      observation(stableRef, 'unknown', null),
+      observation(latestRef, 'present', digest('f')),
+      'prestate_unknown',
+      0,
+    ],
   ];
-  for (const [state, decision, attempts] of states) {
-    const result = decideWebuiStablePromotion(admission, state);
+  for (const [stableState, latestState, decision, attempts] of states) {
+    const result = decideWebuiStablePromotion(admission, stableState, latestState);
     assert.equal(result.decision, decision);
     assert.equal(result.authorized_tag_attempts, attempts);
   }
+});
+
+test('definitive Stable/Latest drift may reconcile only through the same qualified gate', () => {
+  const current = fixture();
+  current.input.latestPrestate.digest = digest('0');
+  writeJson(current.root, 'latest-prestate.json', current.input.latestPrestate);
+  const admission = admitWebuiStablePromotion(current.input);
+  assert.equal(admission.expected_prestate.aliases_aligned, false);
+  const decision = decideWebuiStablePromotion(
+    admission,
+    observation(admission.target.stable_ref, 'present', digest('f')),
+    observation(admission.target.latest_ref, 'present', digest('0')),
+  );
+  assert.equal(decision.decision, 'write_once');
+  assert.equal(decision.authorized_tag_attempts, 1);
 });
 
 test('terminal receipt closes complete, reconciled, unknown, idempotent, rejected, and bounded outcomes', () => {
   const current = fixture();
   const admission = admitWebuiStablePromotion(current.input);
   const stableRef = admission.target.stable_ref;
+  const latestRef = admission.target.latest_ref;
   const writeDecision = decideWebuiStablePromotion(
     admission,
     observation(stableRef, 'present', digest('f')),
+    observation(latestRef, 'present', digest('f')),
   );
   const targetObservation = observation(stableRef, 'present', versionDigest);
+  const latestTargetObservation = observation(latestRef, 'present', versionDigest);
   const targetAnonymous = observation(stableRef, 'present', versionDigest, true);
+  const latestTargetAnonymous = observation(latestRef, 'present', versionDigest, true);
   const accepted = {
     schema: 'opl_app_webui_stable_mutation_attempt.v1',
     status: 'accepted',
@@ -627,19 +715,27 @@ test('terminal receipt closes complete, reconciled, unknown, idempotent, rejecte
     schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
     observations: [targetObservation],
   };
+  const latestTargetReadbacks = {
+    schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+    observations: [latestTargetObservation],
+  };
   assert.equal(writeWebuiStablePromotionReceipt({
     admission,
     decision: writeDecision,
     mutation: accepted,
     readbacks: targetReadbacks,
+    latestReadbacks: latestTargetReadbacks,
     anonymousReadback: targetAnonymous,
+    latestAnonymousReadback: latestTargetAnonymous,
   }).status, 'complete');
   assert.equal(writeWebuiStablePromotionReceipt({
     admission,
     decision: writeDecision,
     mutation: unknown,
     readbacks: targetReadbacks,
+    latestReadbacks: latestTargetReadbacks,
     anonymousReadback: targetAnonymous,
+    latestAnonymousReadback: latestTargetAnonymous,
   }).status, 'reconciled_complete');
   assert.equal(writeWebuiStablePromotionReceipt({
     admission,
@@ -649,29 +745,46 @@ test('terminal receipt closes complete, reconciled, unknown, idempotent, rejecte
       schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
       observations: [observation(stableRef, 'unknown', null)],
     },
+    latestReadbacks: {
+      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+      observations: [observation(latestRef, 'unknown', null)],
+    },
     anonymousReadback: observation(stableRef, 'unknown', null, true),
+    latestAnonymousReadback: observation(latestRef, 'unknown', null, true),
   }).status, 'outcome_unknown');
   const idempotent = decideWebuiStablePromotion(
     admission,
     observation(stableRef, 'present', versionDigest),
+    observation(latestRef, 'present', versionDigest),
   );
   assert.equal(writeWebuiStablePromotionReceipt({
     admission,
     decision: idempotent,
     mutation: { status: 'not_attempted', attempt_count: 0 },
     readbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [] },
+    latestReadbacks: {
+      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+      observations: [],
+    },
     anonymousReadback: targetAnonymous,
+    latestAnonymousReadback: latestTargetAnonymous,
   }).status, 'idempotent');
   const conflict = decideWebuiStablePromotion(
     admission,
     observation(stableRef, 'present', digest('0')),
+    observation(latestRef, 'present', digest('0')),
   );
   assert.equal(writeWebuiStablePromotionReceipt({
     admission,
     decision: conflict,
     mutation: { status: 'not_attempted', attempt_count: 0 },
     readbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [] },
+    latestReadbacks: {
+      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+      observations: [],
+    },
     anonymousReadback: observation(stableRef, 'present', digest('0'), true),
+    latestAnonymousReadback: observation(latestRef, 'present', digest('0'), true),
   }).status, 'failed');
   assert.throws(() => writeWebuiStablePromotionReceipt({
     admission,
@@ -681,6 +794,8 @@ test('terminal receipt closes complete, reconciled, unknown, idempotent, rejecte
       schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
       observations: Array.from({ length: 4 }, () => targetObservation),
     },
+    latestReadbacks: latestTargetReadbacks,
     anonymousReadback: targetAnonymous,
+    latestAnonymousReadback: latestTargetAnonymous,
   }), /at most three/);
 });

@@ -111,7 +111,7 @@ function parseArgs(argv: string[]) {
     artifacts: values.artifacts ?? '',
     evidence: values.evidence ?? '',
     validateResult: values['validate-result'] ?? '',
-    image: values.image ?? 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+    image: values.image ?? 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
     port: values.port === undefined ? 3000 : Number(values.port),
     healthTimeout: values['health-timeout'] === undefined ? 120 : Number(values['health-timeout']),
     noOpen: values.open !== true,

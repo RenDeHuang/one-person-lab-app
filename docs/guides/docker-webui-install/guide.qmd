@@ -103,7 +103,7 @@ curl -fsSL "$root/scripts/install-docker-webui.sh" |
   bash -s -- --yes
 ```
 
-安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。默认映射如下：
+安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务，每天 03:00 检查 `latest`；电脑关机或用户未登录时不会后台强行运行，下一次登录后由 Windows 在可用时补跑。默认映射如下：
 
 | 宿主机目录 | 容器内路径 | 保存内容 |
 |---|---|---|
@@ -175,13 +175,40 @@ http://localhost:3000/
 
 Windows 日常使用时可以直接重新运行安装器，它会在需要时启动 Docker Desktop；Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
 
-Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显式 `-Update` 会拉取 stable、按不可变 digest 重建容器：
+### Windows 自动更新
+
+本教程的 Windows 推荐安装命令已包含 `-EnableAutoUpdate`。计划任务以当前普通用户身份运行，不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。它会下载当前宿主安装器，重新解析 `latest` 的不可变 digest，并以 `-Update -Yes -NoOpen` 更新；digest 未变化时 Docker Compose 不会替换正在运行的容器。以下目录始终保留：
+
+```text
+%USERPROFILE%\OnePersonLab\data
+%USERPROFILE%\OnePersonLab\projects
+```
+
+查看最近一次和下次计划运行时间：
+
+```powershell
+{{download.windows_auto_update_status_command}}
+```
+
+自动更新日志只保留当前和上一次，位于 `%USERPROFILE%\OnePersonLab\updater\logs`。这项任务只更新 One Person Lab WebUI 镜像；Docker Desktop 自身仍按 Docker Desktop 的更新设置处理。
+
+如需关闭 WebUI 自动更新，在普通 PowerShell 中运行：
+
+```powershell
+{{download.windows_disable_auto_update_command}}
+```
+
+自定义 `-Image`、非 `latest` 的 `-Tag` 或固定 digest 不会启用自动更新，避免计划任务静默覆盖高级用户的版本选择。`stable` 是 `latest` 的兼容别名，两者必须指向同一已通过质控的 digest；手工发布版本只有通过与 stable 相同的质控后才可以推进 `latest`。
+
+### Windows 手动更新
+
+Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显式 `-Update` 会拉取 `latest`、按不可变 digest 重建容器：
 
 ```powershell
 {{download.windows_update_command}}
 ```
 
-Linux 重新运行同一条一键安装命令即可。两条路径都会保留：
+如果没有启用计划任务，建议至少每月手动执行一次，并在得知新 `latest` 已发布后及时执行。Linux 重新运行同一条一键安装命令即可。所有更新路径都会保留：
 
 ```text
 Windows: %USERPROFILE%\OnePersonLab\data
@@ -207,7 +234,7 @@ $repo = 'gaofeng21cn/one-person-lab-app'
 $root = "https://raw.githubusercontent.com/$repo/main"
 $p = Join-Path $env:TEMP 'install-docker-webui.ps1'
 iwr -UseBasicParsing "$root/scripts/install-docker-webui.ps1" -OutFile $p
-powershell -ExecutionPolicy Bypass -File $p -Port 3001 -Yes
+powershell -ExecutionPolicy Bypass -File $p -Port 3001 -EnableAutoUpdate -Yes
 ```
 
 随后访问 `http://localhost:3001/`。

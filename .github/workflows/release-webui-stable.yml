@@ -226,7 +226,7 @@ jobs:
       - name: Setup ORAS for anonymous descriptor admission
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
-      - name: Read immutable, version, and Stable authority
+      - name: Read immutable, version, Stable, and Latest authority
         shell: bash
         run: |
           set -euo pipefail
@@ -241,10 +241,11 @@ jobs:
               error="$(tr '\n' ' ' < "${output}.stderr")"
               if grep -Eqi 'manifest unknown|name unknown|not found|404' <<<"$error"; then
                 status=absent
-                if [[ "$ref" == *:stable ]]; then
+                if [[ "$ref" == *:stable || "$ref" == *:latest ]]; then
+                  tag="${ref##*:}"
                   if ! oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr"; then
                     status=unknown
-                  elif grep -Fx stable "${output}.tags" >/dev/null; then
+                  elif grep -Fx "$tag" "${output}.tags" >/dev/null; then
                     status=unknown
                   fi
                 fi
@@ -287,6 +288,8 @@ jobs:
           mv evidence/version-readback.tmp evidence/version-readback.json
           observe_descriptor ghcr.io/gaofeng21cn/one-person-lab-webui:stable \
             evidence/stable-prestate.json
+          observe_descriptor ghcr.io/gaofeng21cn/one-person-lab-webui:latest \
+            evidence/latest-prestate.json
 
       - name: Seal one immutable WebUI Stable admission
         id: admission
@@ -315,6 +318,7 @@ jobs:
             --immutable-readback evidence/immutable-readback.json \
             --version-readback evidence/version-readback.json \
             --stable-prestate evidence/stable-prestate.json \
+            --latest-prestate evidence/latest-prestate.json \
             --output evidence/admission.json > evidence/admission-summary.json
           admission_artifact="opl-webui-stable-admission-${GITHUB_RUN_ID}"
           echo "admission_artifact=$admission_artifact" >> "$GITHUB_OUTPUT"
@@ -359,7 +363,7 @@ jobs:
       - name: Setup ORAS for one bounded CAS
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
-      - name: Re-read Stable prestate and derive CAS decision
+      - name: Re-read Stable and Latest prestate and derive CAS decision
         id: decision
         shell: bash
         run: |
@@ -371,24 +375,31 @@ jobs:
           test "${#admission_files[@]}" -eq 1
           admission="${admission_files[0]}"
           stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
           repository="${stable_ref%:*}"
-          status=unknown
-          observed=null
-          if descriptor="$(oras manifest fetch --descriptor "$stable_ref" 2> current-stable.stderr)"; then
-            observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
-            if [ "$observed" != null ]; then status=present; fi
-          elif grep -Eqi 'manifest unknown|name unknown|not found|404' current-stable.stderr; then
-            if oras repo tags "$repository" > current-stable.tags 2> current-stable.tags.stderr \
-              && ! grep -Fx stable current-stable.tags >/dev/null; then
-              status=absent
+          observe_tag() {
+            local ref="$1" tag="$2" output="$3" status=unknown observed=null
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2> "${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            elif grep -Eqi 'manifest unknown|name unknown|not found|404' "${output}.stderr"; then
+              if oras repo tags "$repository" > "${output}.tags" 2> "${output}.tags.stderr" \
+                && ! grep -Fx "$tag" "${output}.tags" >/dev/null; then
+                status=absent
+              fi
             fi
-          fi
-          jq -n --arg ref "$stable_ref" --arg status "$status" --argjson digest "$(
-            if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
-          )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' \
-            > current-stable.json
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' \
+              > "${output}.json"
+          }
+          observe_tag "$stable_ref" stable current-stable
+          observe_tag "$latest_ref" latest current-latest
           node --experimental-strip-types scripts/webui-stable-promotion.ts decide \
-            --admission "$admission" --current current-stable.json --output decision.json \
+            --admission "$admission" \
+            --current-stable current-stable.json \
+            --current-latest current-latest.json \
+            --output decision.json \
             > decision-summary.json
           echo "decision=$(jq -er .decision decision.json)" >> "$GITHUB_OUTPUT"
 
@@ -401,10 +412,11 @@ jobs:
           set -euo pipefail
           admission="$(find evidence -type f -name admission.json -print)"
           stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
           repository="$(jq -er .target.repository "$admission")"
           target_digest="$(jq -er .target.digest "$admission")"
           target_ref="${repository}@${target_digest}"
-          mkdir -p terminal/readbacks
+          mkdir -p terminal/readbacks/stable terminal/readbacks/latest
           jq -n '{
             schema:"opl_app_webui_stable_mutation_attempt.v1",
             status:"not_attempted",
@@ -420,7 +432,7 @@ jobs:
             if printf '%s' "$GHCR_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
               login_performed=true
               set +e
-              oras tag "$target_ref" stable > terminal/tag.stdout 2> terminal/tag.stderr
+              oras tag "$target_ref" stable latest > terminal/tag.stdout 2> terminal/tag.stderr
               tag_status=$?
               set -e
               mutation_status=accepted
@@ -454,43 +466,62 @@ jobs:
           if [ "$login_performed" = true ]; then
             if ! oras logout ghcr.io; then logout_before_readback=false; fi
           fi
-          observe_stable() {
-            local output="$1" status=unknown observed=null
-            if descriptor="$(oras manifest fetch --descriptor "$stable_ref" 2>"${output}.stderr")"; then
+          observe_tag() {
+            local ref="$1" tag="$2" output="$3" status=unknown observed=null
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2>"${output}.stderr")"; then
               observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
               if [ "$observed" != null ]; then status=present; fi
             elif grep -Eqi 'manifest unknown|name unknown|not found|404' "${output}.stderr"; then
               if oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr" \
-                && ! grep -Fx stable "${output}.tags" >/dev/null; then
+                && ! grep -Fx "$tag" "${output}.tags" >/dev/null; then
                 status=absent
               fi
             fi
-            jq -n --arg ref "$stable_ref" --arg status "$status" --argjson digest "$(
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
               if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
             )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
           }
           if [ "$(jq -r .attempt_count terminal/mutation.json)" -eq 1 ]; then
             for attempt in 1 2 3; do
-              readback="terminal/readbacks/${attempt}.json"
-              observe_stable "$readback"
-              if [ "$(jq -r .digest "$readback")" = "$target_digest" ]; then break; fi
+              stable_readback="terminal/readbacks/stable/${attempt}.json"
+              latest_readback="terminal/readbacks/latest/${attempt}.json"
+              observe_tag "$stable_ref" stable "$stable_readback"
+              observe_tag "$latest_ref" latest "$latest_readback"
+              if [ "$(jq -r .digest "$stable_readback")" = "$target_digest" ] \
+                && [ "$(jq -r .digest "$latest_readback")" = "$target_digest" ]; then
+                break
+              fi
               if [ "$attempt" -lt 3 ]; then sleep 2; fi
             done
-            last_readback="$(find terminal/readbacks -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
+            last_readback="$(find terminal/readbacks/stable -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
+            last_latest_readback="$(find terminal/readbacks/latest -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
             jq --argjson logout "$logout_before_readback" \
               '. + {logout_before_readback:$logout}' "$last_readback" > terminal/anonymous-readback.json
+            jq --argjson logout "$logout_before_readback" \
+              '. + {logout_before_readback:$logout}' "$last_latest_readback" \
+              > terminal/latest-anonymous-readback.json
           else
-            observe_stable terminal/anonymous-readback.json
+            observe_tag "$stable_ref" stable terminal/anonymous-readback.json
+            observe_tag "$latest_ref" latest terminal/latest-anonymous-readback.json
             jq '. + {logout_before_readback:true}' terminal/anonymous-readback.json \
               > terminal/anonymous-readback.tmp
             mv terminal/anonymous-readback.tmp terminal/anonymous-readback.json
+            jq '. + {logout_before_readback:true}' terminal/latest-anonymous-readback.json \
+              > terminal/latest-anonymous-readback.tmp
+            mv terminal/latest-anonymous-readback.tmp terminal/latest-anonymous-readback.json
           fi
           jq -s '{
             schema:"opl_app_webui_stable_reconcile_readbacks.v1",
             observations:.
-          }' terminal/readbacks/*.json > terminal/readbacks.json 2>/dev/null || \
+          }' terminal/readbacks/stable/*.json > terminal/readbacks.json 2>/dev/null || \
             jq -n '{schema:"opl_app_webui_stable_reconcile_readbacks.v1",observations:[]}' \
               > terminal/readbacks.json
+          jq -s '{
+            schema:"opl_app_webui_stable_reconcile_readbacks.v1",
+            observations:.
+          }' terminal/readbacks/latest/*.json > terminal/latest-readbacks.json 2>/dev/null || \
+            jq -n '{schema:"opl_app_webui_stable_reconcile_readbacks.v1",observations:[]}' \
+              > terminal/latest-readbacks.json
 
       - name: Read back the complete public OCI graph anonymously
         shell: bash
@@ -500,6 +531,7 @@ jobs:
           repository="$(jq -er .target.repository "$admission")"
           version_ref="$(jq -er .target.version_ref "$admission")"
           stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
           target_digest="$(jq -er .target.digest "$admission")"
           child_digest="$(jq -er .target.child_digest "$admission")"
           mkdir -p terminal/public-oci/blobs
@@ -517,7 +549,9 @@ jobs:
           }
           read_manifest "$version_ref" version-index "$target_digest"
           read_manifest "$stable_ref" stable-index "$target_digest"
+          read_manifest "$latest_ref" latest-index "$target_digest"
           cmp -s terminal/public-oci/version-index.json terminal/public-oci/stable-index.json
+          cmp -s terminal/public-oci/version-index.json terminal/public-oci/latest-index.json
           jq -e --arg child "$child_digest" '
             select(
               .mediaType == "application/vnd.oci.image.index.v1+json"
@@ -577,6 +611,7 @@ jobs:
           jq -n \
             --arg version_ref "$version_ref" \
             --arg stable_ref "$stable_ref" \
+            --arg latest_ref "$latest_ref" \
             --arg digest "$target_digest" \
             --arg child_digest "$child_digest" \
             --argjson index_size "$(wc -c < terminal/public-oci/version-index.json | tr -d ' ')" \
@@ -588,6 +623,7 @@ jobs:
               anonymous:true,
               version_ref:$version_ref,
               stable_ref:$stable_ref,
+              latest_ref:$latest_ref,
               manifest_list:{digest:$digest,size_bytes:$index_size,identical_bytes:true},
               child:{digest:$child_digest,size_bytes:$child_size,platform:"linux/amd64"},
               config_descriptor_verified:true,
@@ -604,7 +640,9 @@ jobs:
           node --experimental-strip-types scripts/webui-stable-promotion.ts receipt \
             --admission "$admission" --decision decision.json \
             --mutation terminal/mutation.json --readbacks terminal/readbacks.json \
+            --latest-readbacks terminal/latest-readbacks.json \
             --anonymous-readback terminal/anonymous-readback.json \
+            --latest-anonymous-readback terminal/latest-anonymous-readback.json \
             --output terminal/webui-stable-promotion-receipt.json \
             > terminal/receipt-summary.json
 
@@ -615,6 +653,7 @@ jobs:
           name: opl-webui-stable-promotion-${{ github.run_id }}
           path: |
             current-stable.json
+            current-latest.json
             decision.json
             decision-summary.json
             terminal

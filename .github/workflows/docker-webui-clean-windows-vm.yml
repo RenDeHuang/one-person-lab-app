@@ -16,7 +16,7 @@ on:
       image:
         description: Docker/WebUI image to validate in a clean Windows runner.
         required: false
-        default: ghcr.io/gaofeng21cn/one-person-lab-webui:stable
+        default: ghcr.io/gaofeng21cn/one-person-lab-webui:latest
         type: string
       artifact_name:
         description: Artifact name to upload for desktop-release docker_webui_clean_windows_evidence_artifact.

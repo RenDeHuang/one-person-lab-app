@@ -50,7 +50,7 @@ Options:
   --runner-labels-json <json>      Required runner labels JSON array.
   --runner-inventory-json <json>   Pre-read runner inventory JSON array. If absent, gh api is used.
   --runner-inventory-file <path>   File containing runner inventory JSON array.
-  --image <ref>                    Docker/WebUI image. Default: ghcr.io/gaofeng21cn/one-person-lab-webui:stable.
+  --image <ref>                    Docker/WebUI image. Default: ghcr.io/gaofeng21cn/one-person-lab-webui:latest.
   --artifact-name <name>           Evidence artifact name. Default: docker-webui-clean-windows-vm-evidence.
   --port <port>                    Host port. Default: 3000.
   --health-timeout <seconds>       Health timeout. Default: 180.
@@ -67,7 +67,7 @@ function defaultOptions(): Options {
     runnerLabelsJson: JSON.stringify(defaultRunnerLabels),
     runnerInventoryJson: '',
     runnerInventoryFile: '',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
     artifactName: 'docker-webui-clean-windows-vm-evidence',
     port: '3000',
     healthTimeout: '180',

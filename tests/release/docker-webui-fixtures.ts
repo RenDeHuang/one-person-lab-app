@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const dockerWebuiImageRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
+export const dockerWebuiImageRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest';
 export const dockerWebuiImageDigest = `sha256:${'a'.repeat(64)}`;
 
 export function dockerWebuiRepoDigest(digest = dockerWebuiImageDigest) {

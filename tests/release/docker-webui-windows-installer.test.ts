@@ -24,7 +24,10 @@ function runPwsh(args: string[]) {
   return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
 }
 
-test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { skip: !pwshPath }, () => {
+test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', () => {
+  if (!pwshPath) {
+    return;
+  }
   const escapedInstallerPath = installerPath.replaceAll("'", "''");
   const parse = runPwsh([
     '-NoLogo',
@@ -46,6 +49,9 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
     '-DryRun',
     '-Yes',
     '-Update',
+    '-EnableAutoUpdate',
+    '-AutoUpdateTime',
+    '03:00',
     '-Port',
     '3133',
     '-HealthTimeoutSeconds',
@@ -64,11 +70,12 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.equal(dryRun.status, 0, dryRun.stderr || dryRun.stdout);
   assert.match(dryRun.stdout, /Dry run: would write/);
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
-  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
-  assert.match(dryRun.stdout, /pull_policy: always/);
+  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(dryRun.stdout, /pull_policy: missing/);
   assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
   assert.match(dryRun.stdout, /docker compose .* pull/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
+  assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Latest Update at 03:00/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
@@ -81,7 +88,10 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.notEqual(rejected.status, 0);
 });
 
-test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when PowerShell is available', { skip: !pwshPath }, () => {
+test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when PowerShell is available', () => {
+  if (!pwshPath) {
+    return;
+  }
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-prereq-'));
   const dryRun = runPwsh([
     '-NoLogo',
@@ -129,4 +139,27 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     /if \(\$InstallPrerequisites\) \{\s+Start-DockerDesktopIfPresent/s,
     'daemon recovery must also run from the ordinary non-administrator installer path',
   );
+});
+
+test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const autoUpdateWriter = installer.slice(
+    installer.indexOf('function Write-WebUiAutoUpdater'),
+    installer.indexOf('function Disable-WebUiAutoUpdate'),
+  );
+  const autoUpdateRegistration = installer.slice(
+    installer.indexOf('function Register-WebUiAutoUpdate'),
+    installer.indexOf('function Invoke-DockerComposeUp'),
+  );
+
+  assert.match(installer, /raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/scripts\/install-docker-webui\.ps1/);
+  assert.match(autoUpdateWriter, /`"-Update`"/);
+  assert.match(autoUpdateWriter, /`"-Yes`"/);
+  assert.match(autoUpdateWriter, /`"-NoOpen`"/);
+  assert.match(autoUpdateRegistration, /New-ScheduledTaskPrincipal/);
+  assert.match(autoUpdateRegistration, /-LogonType Interactive/);
+  assert.match(autoUpdateRegistration, /-RunLevel Limited/);
+  assert.match(autoUpdateRegistration, /-StartWhenAvailable/);
+  assert.match(autoUpdateRegistration, /-MultipleInstances IgnoreNew/);
+  assert.doesNotMatch(autoUpdateWriter, /docker\.sock|Docker socket/i);
 });

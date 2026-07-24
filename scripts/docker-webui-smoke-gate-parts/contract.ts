@@ -141,7 +141,7 @@ export const ordinaryStatusRows = [
   'host_update',
 ] as const;
 
-export const expectedImageSeedSelection = 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.';
+export const expectedImageSeedSelection = 'Default latest image must use the WebUI full seed; --tag/--image are explicit advanced overrides.';
 export const ordinaryMustNotClaim = [
   'desktop_release_ready',
   'real_install_ready',
