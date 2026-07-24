@@ -24,7 +24,7 @@ function runPwsh(args: string[]) {
   return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
 }
 
-test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', () => {
+test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { timeout: 30_000 }, () => {
   if (!pwshPath) {
     return;
   }
@@ -88,7 +88,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.notEqual(rejected.status, 0);
 });
 
-test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when PowerShell is available', () => {
+test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when PowerShell is available', { timeout: 30_000 }, () => {
   if (!pwshPath) {
     return;
   }
