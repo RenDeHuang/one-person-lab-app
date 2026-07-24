@@ -53,8 +53,10 @@ const settingsIaRef =
   "contracts/app-gui-product-contract.json#settings_navigation.settings_ia";
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
-const expectedAgentsStateSource =
+const expectedAgentsRouteStateSource =
   "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts";
+const expectedAgentsPageAdapterStateSource =
+  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]";
 const expectedCapabilitiesStateSource =
   "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries";
 const expectedStartupPerformancePolicy = {
@@ -572,7 +574,7 @@ export function validateSettingsControlPlane(
   );
   validateSettingsProjection(controlPlane.settings_projection);
   validateSettingsExperienceContract(controlPlane.experience_contract);
-  validateSettingsPageAdapterPolicy(controlPlane);
+  validateSettingsPageAdapterPolicy(controlPlane, productProfile);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
   validateSettingsUpstreamIntake(controlPlane);
@@ -584,7 +586,7 @@ export function validateSettingsControlPlane(
   const agentsRoute = (controlPlane.ordinary_routes ?? []).find(
     (route) => route.id === "agents",
   );
-  if (agentsRoute?.state_source !== expectedAgentsStateSource) {
+  if (agentsRoute?.state_source !== expectedAgentsRouteStateSource) {
     throw new Error(
       "Settings Agents route must read from canonical agent_packages plus Home shortcut projections",
     );
@@ -3245,7 +3247,7 @@ function validateSettingsProjection(projection) {
 
 // Page adapter membership and source policy are owned here; the product
 // profile must not become a second Package catalog authority.
-function validateSettingsPageAdapterPolicy(controlPlane) {
+function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
   const policy = controlPlane.page_adapter_policy;
   if (
     policy?.policy !== "settings_pages_consume_explicit_view_model_adapters"
@@ -3325,6 +3327,11 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     requiredPages.workspace,
     requiredPages.environment,
     requiredPages.storage,
+  );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.page_adapter_policy,
+    policy,
+    "Product profile Settings page adapter policy projection",
   );
 }
 
@@ -3505,9 +3512,9 @@ function validateSettingsGatewayAccountBoundary(controlPlane, gatewayAdapter) {
 }
 
 function validateSettingsAgentsDirectoryProjection(agentsPage) {
-  if (agentsPage?.state_source !== expectedAgentsStateSource) {
+  if (agentsPage?.state_source !== expectedAgentsPageAdapterStateSource) {
     throw new Error(
-      "Settings Agents page adapter must read from canonical agent_packages, runtime source, and Home shortcut projections",
+      "Settings Agents page adapter must read from canonical agent_packages and runtime source projections",
     );
   }
   const directory = agentsPage?.directory_projection_surface;

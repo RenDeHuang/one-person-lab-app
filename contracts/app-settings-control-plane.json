@@ -1674,7 +1674,7 @@
         "route_id": "agents",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/agentPackagesProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/AgentPackagesSettings.tsx",
-        "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
+        "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.agents",
         "directory_projection_surface": {
           "surface": "settings_agents",

@@ -470,10 +470,22 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
       .directory_projection_surface;
   assert.equal(directory.directory_collection_source, "app_state.agent_packages.directory.entries");
   assert.equal(
-    directory.static_metadata_overlay_source,
-    "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
+    directory.display_metadata_source,
+    "app_state.agent_packages.directory.entries",
   );
-  assert.deepStrictEqual(directory.static_metadata_overlay_fields, ["display_name_i18n", "description_i18n"]);
+  assert.equal(Object.hasOwn(directory, "static_metadata_overlay_source"), false);
+  assert.equal(Object.hasOwn(directory, "static_metadata_overlay_fields"), false);
+  assert.ok(
+    values.productProfile.gui.agent_package_registry.starter_package_metadata.length > 0,
+  );
+  assert.equal(
+    directory.display_metadata_policy,
+    "use owner-projected display metadata with a package-id fallback; App profile metadata must not define catalog membership, ordering, status, readiness, or actions",
+  );
+  assert.equal(
+    values.productProfile.gui.agent_package_registry.directory_lifecycle_authority,
+    "app_state.agent_packages.directory+status_index+actions",
+  );
   assert.equal(directory.settings_action_scope, "owner_projected_non_activation_actions_only");
   assert.equal(directory.settings_activation_execution_allowed, false);
   assert.equal(directory.new_conversation_activation_execution_allowed, false);
