@@ -148,6 +148,18 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
   );
 });
 
+test('Windows Docker/WebUI image resolution returns only the pinned image reference', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const resolver = installer.slice(
+    installer.indexOf('function Resolve-PinnedImageReference'),
+    installer.indexOf('function Convert-ToComposeScalar'),
+  );
+
+  assert.match(resolver, /Invoke-DockerCommandCapture -Arguments @\("pull", \$RequestedImageReference\)/);
+  assert.match(resolver, /Write-Host \$pull\.Output/);
+  assert.doesNotMatch(resolver, /& docker pull/);
+});
+
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const autoUpdateWriter = installer.slice(

@@ -152,7 +152,13 @@ test('Windows Docker/WebUI installer resolves a moving tag once and pins compose
   const composeWriter = windowsInstaller.match(/function Write-ComposeFile \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const execution = windowsInstaller.slice(windowsInstaller.indexOf('$tagWasProvided ='));
 
-  assert.match(resolver, /docker pull \$RequestedImageReference/);
+  assert.match(resolver, /Invoke-DockerCommandCapture -Arguments @\("pull", \$RequestedImageReference\)/);
+  assert.match(resolver, /Write-Host \$pull\.Output/);
+  assert.doesNotMatch(
+    resolver,
+    /& docker pull/,
+    'native docker progress must not leak into the resolver success output',
+  );
   assert.match(resolver, /docker image inspect --format "\{\{json \.RepoDigests\}\}"/);
   assert.match(resolver, /matchingDigests\.Count -ne 1/);
   assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);

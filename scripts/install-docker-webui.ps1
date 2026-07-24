@@ -287,9 +287,12 @@ function Resolve-PinnedImageReference {
   }
 
   Write-Step "Resolving WebUI image once at installer entry: $RequestedImageReference"
-  & docker pull $RequestedImageReference
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker could not pull the requested WebUI image. Check Docker/GHCR access and retry."
+  $pull = Invoke-DockerCommandCapture -Arguments @("pull", $RequestedImageReference)
+  if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
+    Write-Host $pull.Output
+  }
+  if ($pull.ExitCode -ne 0) {
+    throw "Docker could not pull the requested WebUI image. Check Docker/GHCR access and retry. Details: $($pull.Output)"
   }
 
   if ($RequestedImageReference.Contains("@")) {
