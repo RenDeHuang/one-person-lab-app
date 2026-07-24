@@ -12,6 +12,12 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
   const source = read('_release-full-addon.yml');
   for (const required of [
     'opl_homebrew_full_follower_handoff.v1',
+    'operation_control',
+    'operation_id',
+    'operation_started_at',
+    'operation_deadline_at',
+    'checkpoint_transport_executor',
+    'transport_run_id',
     'completed_stage:"full_qualified"',
     'qualification_receipt_sha256',
     'homebrew_modified:false',
@@ -30,7 +36,11 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.deepEqual(Object.keys(workflow.jobs), ['resolve-handoff', 'publish-homebrew-full']);
   assert.equal(workflow.jobs['publish-homebrew-full'].uses, './.github/workflows/_release-homebrew-full-publish.yml');
   assert.match(source, /homebrew-full-handoff\.json/);
+  assert.match(source, /\.operation_control\.operation_id/);
+  assert.match(source, /\.operation_control\.operation_deadline_at/);
   assert.match(source, /\.source\.completed_stage == "full_qualified"/);
+  assert.match(source, /\.source\.checkpoint_transport_executor == "github_actions"/);
+  assert.match(source, /\.source\.transport_run_id/);
   assert.doesNotMatch(source, /workflow_dispatch:|OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
 });
 
@@ -52,17 +62,55 @@ test('Full Homebrew reusable renders, qualifies, publishes, and reads back in or
   assert.match(source, /homebrew_candidate_artifact/);
   assert.match(source, /Restore exact qualified Full checkpoint/);
   assert.match(source, /completed_stage \}\}' = full_qualified/);
+  assert.match(source, /Restore qualified Full publication checkpoint/);
+  assert.match(source, /append_full_operation_id/);
+  assert.match(source, /append_full_operation_deadline_at/);
+  assert.match(source, /publication-scope track_assets/);
+  assert.match(source, /homebrew:gaofeng21cn\/homebrew-one-person-lab\/Casks\/one-person-lab-full\.rb\/\$\{expected_cask_sha\}/);
+  assert.match(source, /publication-scope external_target/);
+  assert.match(source, /release-operation-deadline\.ts check/);
+  assert.match(source, /release publish/);
+  assert.match(source, /write_framework_homebrew_receipt unknown/);
+  assert.match(source, /active_unknown_markers/);
+  assert.match(source, /test "\$\(jq -r \.operation_id <<<"\$marker"\)" = "\$operation_id"/);
+  assert.match(source, /prior_mutation_attempt_id/);
+  assert.match(source, /release reconcile/);
+  assert.match(source, /no second push was attempted/);
+  assert.match(source, /homebrew-full-unknown-checkpoint/);
+  assert.match(source, /standard-build-receipt\.json/);
+  assert.match(source, /full-build-receipt\.json/);
   assert.match(source, /a1561bdf1dfe6f316dad22f16152a537ddfb69d5/);
   assert.match(source, /merge-base --is-ancestor "\$embedded_base_floor" "\$shell_sha"/);
-  assert.match(source, /git -C tap-source push --no-force origin HEAD:refs\/heads\/main/);
+  assert.match(source, /git -C tap-source push --no-force origin "\$result_commit:refs\/heads\/main"/);
   assert.equal((source.match(/git -C tap-source push --no-force/g) ?? []).length, 1);
-  assert.match(source, /no second push is allowed/);
+  assert.match(source, /git -C tap-source ls-remote origin refs\/heads\/main/);
+  assert.match(source, /git -C tap-source fetch --no-tags --depth=1 origin "\$remote_commit"/);
+  assert.match(source, /git -C tap-source rev-parse FETCH_HEAD/);
+  assert.match(source, /git -C tap-source show 'FETCH_HEAD:Casks\/one-person-lab-full\.rb'/);
+  assert.doesNotMatch(source, /contents\/Casks\/one-person-lab-full\.rb\?ref=main/);
+  assert.match(source, /no second push was attempted/);
   assert.match(source, /formula_opl_installed_before == false/);
   assert.match(source, /formula_opl_installed_after == false/);
   assert.doesNotMatch(source, /\.formula_opl_installed == false/);
   assert.match(source, /active_framework_count == 1/);
   assert.match(source, /official_profile\.status == "passed"/);
   assert.doesNotMatch(source, /depends_on formula: "opl"|github-activate-latest|make_latest/);
+});
+
+test('append_full resume recognizes only exact GitHub Full or Full Cask unknown targets', () => {
+  const source = read('_release-full-addon.yml');
+  assert.match(source, /case "\$target" in/);
+  assert.match(source, /github-release:\*\)/);
+  assert.match(source, /homebrew:\*\)/);
+  assert.match(source, /Casks\/one-person-lab-full\.rb\/\$\{expected_cask_sha\}/);
+  assert.match(source, /test "\$publication_scope" = external_target/);
+  assert.match(source, /Unsupported append_full portable unknown target/);
+  assert.match(source, /publication-scope "\$publication_scope"/);
+  assert.match(source, /test "\$\(jq -r \.operation_id <<<"\$marker"\)" = "\$operation_id"/);
+  assert.match(source, /git -C full-resume-tap fetch --no-tags --depth=1 origin "\$remote_commit"/);
+  assert.match(source, /git -C full-resume-tap show 'FETCH_HEAD:Casks\/one-person-lab-full\.rb'/);
+  assert.doesNotMatch(source, /contents\/Casks\/one-person-lab-full\.rb\?ref=main/);
+  assert.doesNotMatch(source, /git\b[^\n]*\bpush\b/);
 });
 
 test('VM harness routes Full Homebrew to candidate-only smoke without Framework injection', () => {

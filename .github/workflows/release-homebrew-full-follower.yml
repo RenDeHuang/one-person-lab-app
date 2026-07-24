@@ -98,8 +98,13 @@ jobs:
             and .status == "ready"
             and .operation == "append_full"
             and .authority == {repository:"gaofeng21cn/one-person-lab-app",workflow:".github/workflows/release-stable.yml",run_id:$run,run_attempt:1,executor_head_sha:$head}
+            and (.operation_control.operation_id | test("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"))
+            and (.operation_control.operation_started_at | fromdateiso8601 > 0)
+            and (.operation_control.operation_deadline_at | fromdateiso8601 > (.operation_control.operation_started_at | fromdateiso8601))
             and (.source.run_id | test("^[1-9][0-9]*$"))
             and (.source.checkpoint_artifact | test("^[A-Za-z0-9][A-Za-z0-9._-]+$"))
+            and .source.checkpoint_transport_executor == "github_actions"
+            and (.source.transport_run_id | test("^[1-9][0-9]*$"))
             and .source.completed_stage == "full_qualified"
             and (.source.qualification_receipt_sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.release.bundle_digest | test("^sha256:[0-9a-f]{64}$"))

@@ -62,6 +62,13 @@ jobs:
       expected_cask_sha256: ${{ steps.identity.outputs.expected_cask_sha256 }}
       cas_decision: ${{ steps.identity.outputs.cas_decision }}
       tap_base_commit: ${{ steps.identity.outputs.tap_base_commit }}
+      operation_id: ${{ steps.identity.outputs.operation_id }}
+      operation_started_at: ${{ steps.identity.outputs.operation_started_at }}
+      operation_deadline_at: ${{ steps.identity.outputs.operation_deadline_at }}
+      dmg_name: ${{ steps.identity.outputs.dmg_name }}
+      dmg_size_bytes: ${{ steps.identity.outputs.dmg_size_bytes }}
+      manifest_name: ${{ steps.identity.outputs.manifest_name }}
+      manifest_size_bytes: ${{ steps.identity.outputs.manifest_size_bytes }}
     steps:
       - name: Checkout exact App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -82,6 +89,11 @@ jobs:
           jq -e --arg run "$AUTHORITY_RUN_ID" '
             .schema == "opl_homebrew_full_follower_handoff.v1" and .status == "ready" and .operation == "append_full"
             and .authority.run_id == $run and .authority.run_attempt == 1
+            and (.operation_control.operation_id | test("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"))
+            and (.operation_control.operation_started_at | fromdateiso8601 > 0)
+            and (.operation_control.operation_deadline_at | fromdateiso8601 > (.operation_control.operation_started_at | fromdateiso8601))
+            and .source.checkpoint_transport_executor == "github_actions"
+            and (.source.transport_run_id | test("^[1-9][0-9]*$"))
             and .source.completed_stage == "full_qualified"
             and .github_full_publication.status == "complete"
             and .homebrew_modified == false and .latest_modified == false
@@ -95,6 +107,9 @@ jobs:
           app_sha="$(jq -er .release.cohort.app_sha handoff.json)"
           shell_sha="$(jq -er .release.cohort.shell_sha handoff.json)"
           framework_sha="$(jq -er .release.cohort.framework_sha handoff.json)"
+          operation_id="$(jq -er .operation_control.operation_id handoff.json)"
+          operation_started_at="$(jq -er .operation_control.operation_started_at handoff.json)"
+          operation_deadline_at="$(jq -er .operation_control.operation_deadline_at handoff.json)"
           embedded_base_floor=a1561bdf1dfe6f316dad22f16152a537ddfb69d5
           git clone --filter=blob:none --no-checkout https://github.com/gaofeng21cn/opl-aion-shell.git shell-product
           git -C shell-product fetch --no-tags origin "$shell_sha" "$embedded_base_floor"
@@ -109,6 +124,10 @@ jobs:
           git -C shell-harness show "$smoke_harness_sha:scripts/opl-first-run-tart-smoke.mjs" | grep -F -- '--homebrew-cask-file' >/dev/null
           dmg_sha="$(jq -er .artifact.sha256 handoff.json)"
           manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
+          dmg_name="$(jq -er .artifact.name handoff.json)"
+          dmg_size="$(jq -er .artifact.size_bytes handoff.json)"
+          manifest_name="$(jq -er .manifest.name handoff.json)"
+          manifest_size="$(jq -er .manifest.size_bytes handoff.json)"
           qualification_sha="$(jq -er .source.qualification_receipt_sha256 handoff.json)"
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > release.json
           jq -e --arg dmg "$(jq -er .artifact.name handoff.json)" --arg dmg_sha "$dmg_sha" \
@@ -170,6 +189,13 @@ jobs:
             echo "expected_cask_sha256=$expected_cask_sha"
             echo "cas_decision=$cas_decision"
             echo "tap_base_commit=$tap_base_commit"
+            echo "operation_id=$operation_id"
+            echo "operation_started_at=$operation_started_at"
+            echo "operation_deadline_at=$operation_deadline_at"
+            echo "dmg_name=$dmg_name"
+            echo "dmg_size_bytes=$dmg_size"
+            echo "manifest_name=$manifest_name"
+            echo "manifest_size_bytes=$manifest_size"
           } >> "$GITHUB_OUTPUT"
 
       - name: Restore exact qualified Full checkpoint
@@ -187,6 +213,9 @@ jobs:
           set -euo pipefail
           test '${{ steps.checkpoint.outputs.completed_stage }}' = full_qualified
           test '${{ steps.checkpoint.outputs.bundle_digest }}' = '${{ steps.identity.outputs.bundle_digest }}'
+          test '${{ steps.checkpoint.outputs.append_full_operation_id }}' = '${{ steps.identity.outputs.operation_id }}'
+          test '${{ steps.checkpoint.outputs.append_full_operation_started_at }}' = '${{ steps.identity.outputs.operation_started_at }}'
+          test '${{ steps.checkpoint.outputs.append_full_operation_deadline_at }}' = '${{ steps.identity.outputs.operation_deadline_at }}'
           checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
           qualification="$checkpoint/tracks/full/qualification.json"
           dmg="$checkpoint/tracks/full/assets/$(jq -er .artifact.name handoff.json)"
@@ -247,9 +276,19 @@ jobs:
           name: opl-first-run-vm-homebrew-full-${{ github.run_id }}
           path: vm
 
+      - name: Restore qualified Full publication checkpoint
+        id: checkpoint
+        uses: ./.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.prepare-candidate.outputs.framework_sha }}
+          source-run-id: ${{ needs.prepare-candidate.outputs.source_run_id }}
+          source-artifact: ${{ needs.prepare-candidate.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
       - name: Publish one qualified Full Cask commit
         env:
           OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -268,6 +307,83 @@ jobs:
           ' "$summary" >/dev/null
           candidate=candidate/Casks/one-person-lab-full.rb
           test "sha256:$(shasum -a 256 "$candidate" | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          test -n "$OPL_HOMEBREW_TAP_TOKEN"
+          bundle_digest='${{ needs.prepare-candidate.outputs.bundle_digest }}'
+          bundle_path='${{ steps.checkpoint.outputs.bundle_path }}'
+          store='${{ steps.checkpoint.outputs.store_dir }}'
+          test '${{ steps.checkpoint.outputs.completed_stage }}' = full_qualified
+          test '${{ steps.checkpoint.outputs.bundle_digest }}' = "$bundle_digest"
+          operation_id='${{ needs.prepare-candidate.outputs.operation_id }}'
+          operation_started_at='${{ needs.prepare-candidate.outputs.operation_started_at }}'
+          operation_deadline_at='${{ needs.prepare-candidate.outputs.operation_deadline_at }}'
+          test '${{ steps.checkpoint.outputs.append_full_operation_id }}' = "$operation_id"
+          test '${{ steps.checkpoint.outputs.append_full_operation_started_at }}' = "$operation_started_at"
+          test '${{ steps.checkpoint.outputs.append_full_operation_deadline_at }}' = "$operation_deadline_at"
+          operation_args=(
+            --operation append_full
+            --operation-id "$operation_id"
+            --operation-started-at "$operation_started_at"
+            --operation-deadline-at "$operation_deadline_at"
+          )
+          framework-executor/bin/opl release status \
+            --bundle "$bundle_digest" --store "$store" --json > homebrew-full-status-before.json
+          test "$(jq -r '.release_bundle_status.active_unknown_markers | length' homebrew-full-status-before.json)" -eq 0 || {
+            echo "::error::An unresolved append_full mutation already exists; use the admitted resume path before another public write."
+            exit 1
+          }
+          framework-executor/bin/opl release operation admit \
+            --bundle "$bundle_digest" "${operation_args[@]}" \
+            --store "$store" --json > homebrew-full-operation-admit.json
+          github_remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.prepare-candidate.outputs.tag }}"
+          node --experimental-strip-types scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.prepare-candidate.outputs.tag }}' \
+            --output homebrew-full-github-assets.json
+          node --experimental-strip-types scripts/framework-release-adapter.ts executor-receipt \
+            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-homebrew-full-github-assets" \
+            --release-operation append_full --operation-id "$operation_id" \
+            --remote-target "$github_remote_target" --publication-scope track_assets \
+            --bundle "$bundle_path" --track full --outcome complete \
+            --inspection homebrew-full-github-assets.json --output homebrew-full-github-assets.receipt.json
+          framework-executor/bin/opl release publish \
+            --bundle "$bundle_digest" --executor-receipt homebrew-full-github-assets.receipt.json \
+            "${operation_args[@]}" --store "$store" --json > homebrew-full-track-assets.json
+          test "$(jq -r .release_bundle_publish.status homebrew-full-track-assets.json)" = complete
+          expected_cask_sha='${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          homebrew_remote_target="homebrew:gaofeng21cn/homebrew-one-person-lab/Casks/one-person-lab-full.rb/${expected_cask_sha}"
+
+          write_framework_homebrew_receipt() {
+            local outcome="$1"
+            local attempt_id="$2"
+            local prior_attempt_id="${3:-}"
+            local receipt_args=(
+              --operation remote_inspect --executor remote --attempt-id "$attempt_id"
+              --release-operation append_full --operation-id "$operation_id"
+              --remote-target "$homebrew_remote_target" --publication-scope external_target
+              --bundle "$bundle_path" --track full --outcome "$outcome"
+              --output homebrew-full-framework.receipt.json
+            )
+            if [ -n "$prior_attempt_id" ]; then receipt_args+=(--prior-attempt-id "$prior_attempt_id"); fi
+            node --experimental-strip-types scripts/framework-release-adapter.ts executor-receipt "${receipt_args[@]}"
+          }
+
+          inspect_remote_cask() {
+            local output="$1"
+            local remote_commit observed_cask_sha
+            remote_commit="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+              git -C tap-source ls-remote origin refs/heads/main | awk '{print $1}')"
+            [[ "$remote_commit" =~ ^[0-9a-f]{40}$ ]]
+            timeout --foreground --signal=TERM --kill-after=5s 30s \
+              git -C tap-source fetch --no-tags --depth=1 origin "$remote_commit"
+            test "$(git -C tap-source rev-parse FETCH_HEAD)" = "$remote_commit"
+            git -C tap-source show 'FETCH_HEAD:Casks/one-person-lab-full.rb' > observed-full-cask.rb
+            observed_cask_sha="$(shasum -a 256 observed-full-cask.rb | awk '{print "sha256:"$1}')"
+            jq -n --arg commit "$remote_commit" --arg sha "$observed_cask_sha" \
+              '{schema:"opl_homebrew_commit_bound_readback.v1",commit:$commit,cask_sha256:$sha}' > "$output"
+            printf '%s\t%s\n' "$remote_commit" "$observed_cask_sha"
+          }
+
+          node --experimental-strip-types scripts/release-operation-deadline.ts check \
+            --operation append_full --started-at "$operation_started_at" --deadline-at "$operation_deadline_at"
           git clone "https://x-access-token:${OPL_HOMEBREW_TAP_TOKEN}@github.com/gaofeng21cn/homebrew-one-person-lab.git" tap-source
           base_commit="$(git -C tap-source rev-parse HEAD)"
           test "$base_commit" = '${{ needs.prepare-candidate.outputs.tap_base_commit }}' || {
@@ -280,6 +396,11 @@ jobs:
             result_commit="$base_commit"
             push_count=0
             outcome=idempotent
+            write_framework_homebrew_receipt complete "gha-${GITHUB_RUN_ID}-homebrew-full-idempotent"
+            framework-executor/bin/opl release publish \
+              --bundle "$bundle_digest" --executor-receipt homebrew-full-framework.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > homebrew-full-framework-result.json
+            test "$(jq -r .release_bundle_publish.status homebrew-full-framework-result.json)" = complete
           else
             cp "$candidate" tap-source/Casks/one-person-lab-full.rb
             test "$(git -C tap-source diff --name-only)" = Casks/one-person-lab-full.rb
@@ -290,18 +411,65 @@ jobs:
             result_commit="$(git -C tap-source rev-parse HEAD)"
             push_count=1
             outcome=write_once
+            node --experimental-strip-types scripts/release-operation-deadline.ts check \
+              --operation append_full --started-at "$operation_started_at" --deadline-at "$operation_deadline_at"
+            push_timeout_seconds="$(node -e '
+            const remaining = Date.parse(process.argv[1]) - Date.now();
+            const reserve = 4 * 60_000;
+            const bounded = Math.min(5 * 60_000, remaining - reserve);
+            if (!Number.isFinite(remaining) || bounded < 1_000) process.exit(1);
+            process.stdout.write((bounded / 1000).toFixed(3));
+            ' "$operation_deadline_at")"
             set +e
-            git -C tap-source push --no-force origin HEAD:refs/heads/main
+            timeout --foreground --signal=TERM --kill-after=5s "${push_timeout_seconds}s" \
+              git -C tap-source push --no-force origin "$result_commit:refs/heads/main"
             push_status=$?
             set -e
-            remote_commit="$(git ls-remote https://github.com/gaofeng21cn/homebrew-one-person-lab.git refs/heads/main | awk '{print $1}')"
-            if [ "$remote_commit" != "$result_commit" ]; then
-              echo "::error::Homebrew push was not read back as the exact candidate commit; no second push is allowed (status=$push_status remote=$remote_commit)."
+            push_attempt="gha-${GITHUB_RUN_ID}-homebrew-full-push"
+            write_framework_homebrew_receipt unknown "$push_attempt"
+            framework-executor/bin/opl release publish \
+              --bundle "$bundle_digest" --executor-receipt homebrew-full-framework.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > homebrew-full-unknown-persisted.json
+            test "$(jq -r .release_bundle_publish.status homebrew-full-unknown-persisted.json)" = reconcile_only
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$bundle_digest" --output homebrew-full-unknown-checkpoint \
+            --store "$store" --json > homebrew-full-unknown-checkpoint-export.json
+          original_standard_receipt="$(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name standard-build-receipt.json -print -quit)"
+          original_full_receipt="$(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name full-build-receipt.json -print -quit)"
+          test -n "$original_standard_receipt"
+          test -n "$original_full_receipt"
+          cp "$original_standard_receipt" standard-build-receipt.json
+          cp "$original_full_receipt" full-build-receipt.json
+          framework-executor/bin/opl release status \
+              --bundle "$bundle_digest" --store "$store" --json > homebrew-full-reconcile-status.json
+            test "$(jq -r '.release_bundle_status.active_unknown_markers | length' homebrew-full-reconcile-status.json)" -eq 1
+            marker="$(jq -cer '.release_bundle_status.active_unknown_markers[0]' homebrew-full-reconcile-status.json)"
+            test "$(jq -r .operation_id <<<"$marker")" = "$operation_id"
+            test "$(jq -r .operation_kind <<<"$marker")" = append_full
+            test "$(jq -r .track <<<"$marker")" = full
+            test "$(jq -r .stage_operation <<<"$marker")" = publish
+            test "$(jq -r .publication_scope <<<"$marker")" = external_target
+            test "$(jq -r .remote_target <<<"$marker")" = "$homebrew_remote_target"
+            test "$(jq -r .prior_mutation_attempt_id <<<"$marker")" = "$push_attempt"
+            observed_commit=""
+            observed_cask_sha=""
+            IFS=$'\t' read -r observed_commit observed_cask_sha < <(inspect_remote_cask homebrew-full-observation.json || true)
+            if [ "$observed_cask_sha" != "$expected_cask_sha" ]; then
+              echo "::error::Homebrew Full push outcome remains unknown; no second push was attempted (status=$push_status)."
               exit 1
             fi
+            result_commit="$observed_commit"
+            outcome=idempotent_concurrent
+            if [ "$result_commit" = "$(git -C tap-source rev-parse HEAD)" ]; then outcome=committed; fi
+            write_framework_homebrew_receipt complete "gha-${GITHUB_RUN_ID}-homebrew-full-reconcile" "$push_attempt"
+            framework-executor/bin/opl release reconcile \
+              --bundle "$bundle_digest" --executor-receipt homebrew-full-framework.receipt.json \
+              "${operation_args[@]}" --store "$store" --json > homebrew-full-framework-result.json
+            test "$(jq -r .release_bundle_reconcile.status homebrew-full-framework-result.json)" = complete
           fi
-          remote_cask="$(git -C tap-source show "$result_commit:Casks/one-person-lab-full.rb")"
-          test "sha256:$(printf '%s\n' "$remote_cask" | shasum -a 256 | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
+          IFS=$'\t' read -r observed_commit observed_cask_sha < <(inspect_remote_cask homebrew-full-final-observation.json)
+          test "$observed_cask_sha" = "$expected_cask_sha"
+          test "$observed_commit" = "$result_commit"
           jq -n --arg bundle '${{ needs.prepare-candidate.outputs.bundle_digest }}' \
             --arg version '${{ needs.prepare-candidate.outputs.version }}' \
             --arg base_commit "$base_commit" --arg result_commit "$result_commit" --arg outcome "$outcome" \
@@ -312,11 +480,28 @@ jobs:
             > homebrew-full-publication-receipt.json
 
       - name: Upload Full Homebrew publication receipt
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-release-homebrew-full-${{ github.run_id }}
-          path: homebrew-full-publication-receipt.json
-          if-no-files-found: error
+          path: |
+            homebrew-full-publication-receipt.json
+            homebrew-full-status-before.json
+            homebrew-full-operation-admit.json
+            homebrew-full-github-assets.json
+            homebrew-full-github-assets.receipt.json
+            homebrew-full-track-assets.json
+            homebrew-full-framework.receipt.json
+            homebrew-full-framework-result.json
+            homebrew-full-unknown-persisted.json
+            homebrew-full-unknown-checkpoint-export.json
+            homebrew-full-unknown-checkpoint
+            standard-build-receipt.json
+            full-build-receipt.json
+            homebrew-full-reconcile-status.json
+            homebrew-full-observation.json
+            homebrew-full-final-observation.json
+          if-no-files-found: warn
           retention-days: 30
 
   readback:

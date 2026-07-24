@@ -549,8 +549,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (standardUpdaterOrLatest(full.text)) {
     failures += reportFailure(id, 'append_full must not qualify Standard updater or activate Latest');
   }
-  if (/publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/.test(full.text)) {
-    failures += reportFailure(id, 'append_full must not update or push any Homebrew Cask');
+  if (/publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab\.rb|git\b[^\n]*\bpush\b/.test(full.text)) {
+    failures += reportFailure(id, 'append_full must not directly mutate Homebrew or touch the Standard Cask');
   }
   for (const required of [
     'opl_homebrew_full_follower_handoff.v1',
@@ -558,6 +558,10 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'latest_modified:false',
     'completed_stage:"full_qualified"',
     'qualification_receipt_sha256',
+    'operation_control',
+    'operation_id',
+    'operation_started_at',
+    'operation_deadline_at',
   ]) {
     if (!full.text.includes(required)) failures += reportFailure(id, `append_full handoff is missing ${required}`);
   }
@@ -726,6 +730,8 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'homebrew-full-handoff.json',
     'opl_homebrew_full_follower_handoff.v1',
     '.source.completed_stage == "full_qualified"',
+    '.source.checkpoint_transport_executor == "github_actions"',
+    '.source.transport_run_id',
     '.homebrew_modified == false',
   ]) {
     if (!follower.text.includes(required)) failures += reportFailure(id, `Full Homebrew follower is missing ${required}`);
@@ -788,14 +794,34 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'formula_opl_installed_after == false',
     'active_framework_count == 1',
     'official_profile.status == "passed"',
-    'git -C tap-source push --no-force origin HEAD:refs/heads/main',
-    'no second push is allowed',
+    'append_full_operation_id',
+    'append_full_operation_deadline_at',
+    'publication-scope track_assets',
+    'homebrew:gaofeng21cn/homebrew-one-person-lab/Casks/one-person-lab-full.rb/${expected_cask_sha}',
+    'publication-scope external_target',
+    'release-operation-deadline.ts check',
+    'git -C tap-source push --no-force origin "$result_commit:refs/heads/main"',
+    'active_unknown_markers',
+    'test "$(jq -r .operation_id <<<"$marker")" = "$operation_id"',
+    'prior_mutation_attempt_id',
+    'opl release reconcile',
+    'no second push was attempted',
+    'homebrew-full-unknown-checkpoint',
+    'git -C tap-source ls-remote origin refs/heads/main',
+    'git -C tap-source fetch --no-tags --depth=1 origin "$remote_commit"',
+    "git -C tap-source show 'FETCH_HEAD:Casks/one-person-lab-full.rb'",
     'opl_homebrew_full_publication_receipt.v1',
   ]) {
     if (!publishRuns.includes(required)) failures += reportFailure(id, `Full Homebrew protected publish is missing ${required}`);
   }
+  if (!publisher.text.includes('Restore qualified Full publication checkpoint')) {
+    failures += reportFailure(id, 'Full Homebrew protected publish must restore the exact qualified Full checkpoint');
+  }
   if ((publishRuns.match(/git -C tap-source push --no-force/g) ?? []).length !== 1) {
     failures += reportFailure(id, 'Full Homebrew publisher must contain exactly one non-force Tap push call');
+  }
+  if (publisher.text.includes('contents/Casks/one-person-lab-full.rb?ref=main')) {
+    failures += reportFailure(id, 'Full Homebrew readback must bind Cask bytes to a fetched exact Tap commit');
   }
   if (
     !publisher.text.includes(

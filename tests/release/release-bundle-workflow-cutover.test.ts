@@ -1315,7 +1315,7 @@ test('deadline failures never authorize Framework reconcile without persisted un
   assert.match(standard, /--latest-admission standard-latest-admission\.json/);
 });
 
-test('append_full cannot mutate Homebrew or any Standard publication surface', () => {
+test('append_full delegates Full Homebrew without mutating Standard publication surfaces', () => {
   const full = parseWorkflow('_release-full-addon.yml');
   const source = readWorkflow('_release-full-addon.yml');
   for (const retiredJob of ['publish-homebrew-full', 'homebrew-full-vm', 'homebrew-full-readback']) {
@@ -1323,11 +1323,24 @@ test('append_full cannot mutate Homebrew or any Standard publication surface', (
   }
   assert.doesNotMatch(
     source,
-    /publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab(?:-full)?\.rb|git\b[^\n]*\bpush\b/,
+    /publish-homebrew-full|update-homebrew-tap|OPL_HOMEBREW_TAP_TOKEN|tap-source|Casks\/one-person-lab\.rb|git\b[^\n]*\bpush\b/,
   );
   assert.match(source, /opl_homebrew_full_follower_handoff\.v1/);
   assert.match(source, /completed_stage:"full_qualified"/);
   assert.match(source, /qualification_receipt_sha256/);
+  assert.match(source, /operation_control/);
+  assert.match(source, /operation_id/);
+  assert.match(source, /operation_started_at/);
+  assert.match(source, /operation_deadline_at/);
+  assert.match(source, /checkpoint_transport_executor/);
+  assert.match(source, /transport_run_id/);
+  assert.match(source, /homebrew:\*\)/);
+  assert.match(source, /Casks\/one-person-lab-full\.rb/);
+  assert.match(source, /publication-scope "\$publication_scope"/);
+  assert.match(source, /test "\$\(jq -r \.operation_id <<<"\$marker"\)" = "\$operation_id"/);
+  assert.match(source, /git -C full-resume-tap fetch --no-tags --depth=1 origin "\$remote_commit"/);
+  assert.match(source, /git -C full-resume-tap show 'FETCH_HEAD:Casks\/one-person-lab-full\.rb'/);
+  assert.doesNotMatch(source, /contents\/Casks\/one-person-lab-full\.rb\?ref=main/);
   assert.doesNotMatch(source, /github-activate-latest|opl-updater-upgrade-vm\.yml|latest-arm64-mac\.yml/);
   for (const immutableSurface of [
     'standard_assets_modified:false',
