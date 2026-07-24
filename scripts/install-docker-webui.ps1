@@ -198,6 +198,55 @@ function Invoke-DockerCommandCapture {
   }
 }
 
+function Test-PublicOplGhcrImageReference {
+  param([Parameter(Mandatory = $true)][string]$ImageReference)
+
+  return $ImageReference -match '(?i)^ghcr\.io/gaofeng21cn/one-person-lab-webui(?::|@|$)'
+}
+
+function Test-DockerCredentialHelperFailure {
+  param([AllowNull()][string]$Output)
+
+  if ([string]::IsNullOrWhiteSpace($Output)) {
+    return $false
+  }
+  return $Output -match '(?i)(error getting credentials|docker-credential-|specified logon session does not exist)'
+}
+
+function Invoke-PublicGhcrAnonymousDockerCommandCapture {
+  param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+  $temporaryConfigDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-anonymous-" + [Guid]::NewGuid().ToString('N'))
+  try {
+    New-Item -ItemType Directory -Force -Path $temporaryConfigDir | Out-Null
+    Set-Content `
+      -LiteralPath (Join-Path $temporaryConfigDir 'config.json') `
+      -Value '{"auths":{"ghcr.io":{"auth":"YW5vbnltb3VzOg=="}}}' `
+      -Encoding ASCII
+    return Invoke-DockerCommandCapture -Arguments (@('--config', $temporaryConfigDir) + $Arguments)
+  } finally {
+    Remove-Item -LiteralPath $temporaryConfigDir -Force -Recurse -ErrorAction SilentlyContinue
+  }
+}
+
+function Invoke-DockerPullWithPublicGhcrFallback {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][string]$ImageReference
+  )
+
+  $result = Invoke-DockerCommandCapture -Arguments $Arguments
+  if (
+    $result.ExitCode -ne 0 -and
+    (Test-PublicOplGhcrImageReference -ImageReference $ImageReference) -and
+    (Test-DockerCredentialHelperFailure -Output $result.Output)
+  ) {
+    Write-Step 'Docker credential helper is unavailable; retrying this public OPL GHCR pull anonymously.'
+    $result = Invoke-PublicGhcrAnonymousDockerCommandCapture -Arguments $Arguments
+  }
+  return $result
+}
+
 function Wait-DockerDaemon {
   if ($DryRun) {
     return
@@ -287,7 +336,9 @@ function Resolve-PinnedImageReference {
   }
 
   Write-Step "Resolving WebUI image once at installer entry: $RequestedImageReference"
-  $pull = Invoke-DockerCommandCapture -Arguments @("pull", $RequestedImageReference)
+  $pull = Invoke-DockerPullWithPublicGhcrFallback `
+    -Arguments @("pull", $RequestedImageReference) `
+    -ImageReference $RequestedImageReference
   if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
     Write-Host $pull.Output
   }
@@ -656,7 +707,8 @@ function Register-WebUiAutoUpdate {
 function Invoke-DockerComposeUp {
   param(
     [Parameter(Mandatory = $true)][string]$ComposePath,
-    [Parameter(Mandatory = $true)][string]$Url
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][string]$ImageReference
   )
 
   $pullArgs = @("compose", "-f", $ComposePath, "pull")
@@ -677,7 +729,9 @@ function Invoke-DockerComposeUp {
 
   if ($Update) {
     Write-Step "Running $displayPullCommand"
-    $pull = Invoke-DockerCommandCapture -Arguments $pullArgs
+    $pull = Invoke-DockerPullWithPublicGhcrFallback `
+      -Arguments $pullArgs `
+      -ImageReference $ImageReference
     if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
       Write-Host $pull.Output
     }
@@ -1266,7 +1320,7 @@ Write-Step "Gateway account credentials and API keys are entered inside WebUI fi
 Write-UserPathStatus -Url $url
 
 try {
-  Invoke-DockerComposeUp -ComposePath $composePath -Url $url
+  Invoke-DockerComposeUp -ComposePath $composePath -Url $url -ImageReference $imageReference
 } catch {
   if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
     Collect-WebUiDiagnostics -Reason "compose-up-failed" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null

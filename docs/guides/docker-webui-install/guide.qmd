@@ -57,6 +57,8 @@ lang: zh-CN
 
 普通一键安装器会自动启动已经安装的 Docker Desktop 并等待 Engine 就绪，不需要每次先手工打开。如果 Docker Desktop 首次启动显示许可、WSL 2 或登录提示，请按提示完成一次，再重新运行一键安装命令。
 
+公开 One Person Lab 镜像不要求登录 GHCR。如果 Windows 的 Docker 凭据助手暂时不可用，安装器只会针对公开的 One Person Lab GHCR 镜像自动改用一次性匿名配置重试；不会改写 Docker Desktop 登录状态，也不会把任何凭据写入安装目录。
+
 需要排查依赖时，在普通 PowerShell 中确认：
 
 ```powershell
@@ -230,6 +232,8 @@ Linux:   $HOME/OnePersonLab/projects
 ### Windows 提示找不到 Docker 或 WSL
 
 重新运行普通一键安装命令；安装器会自动尝试启动已安装的 Docker Desktop。如果 Docker Desktop 首次启动仍有许可、WSL 2 或登录提示，请手工打开并完成提示。在 PowerShell 中重新执行 `wsl --status`、`docker version` 和 `docker compose version`；如果依赖确实缺失，再使用前文的管理员依赖安装命令。
+
+如果日志出现 `error getting credentials` 或“指定的登录会话不存在”，请先重新运行最新安装命令。新版安装器会仅对公开 One Person Lab 镜像自动匿名重试；若仍失败，再退出并重新登录 Windows、打开一次 Docker Desktop，然后重试。无需为公开镜像执行 `docker login ghcr.io`。
 
 ### 提示端口 3000 已被占用
 

@@ -149,10 +149,12 @@ test('Docker/WebUI installer shell parses cleanly', () => {
 test('Windows Docker/WebUI installer resolves a moving tag once and pins compose to its digest', () => {
   const windowsInstaller = fs.readFileSync(path.join(appRoot, 'scripts', 'install-docker-webui.ps1'), 'utf8');
   const resolver = windowsInstaller.match(/function Resolve-PinnedImageReference \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  const pullFallback = windowsInstaller.match(/function Invoke-DockerPullWithPublicGhcrFallback \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  const anonymousPull = windowsInstaller.match(/function Invoke-PublicGhcrAnonymousDockerCommandCapture \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const composeWriter = windowsInstaller.match(/function Write-ComposeFile \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const execution = windowsInstaller.slice(windowsInstaller.indexOf('$tagWasProvided ='));
 
-  assert.match(resolver, /Invoke-DockerCommandCapture -Arguments @\("pull", \$RequestedImageReference\)/);
+  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrFallback/);
   assert.match(resolver, /Write-Host \$pull\.Output/);
   assert.doesNotMatch(
     resolver,
@@ -162,6 +164,12 @@ test('Windows Docker/WebUI installer resolves a moving tag once and pins compose
   assert.match(resolver, /docker image inspect --format "\{\{json \.RepoDigests\}\}"/);
   assert.match(resolver, /matchingDigests\.Count -ne 1/);
   assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);
+  assert.match(pullFallback, /Test-PublicOplGhcrImageReference/);
+  assert.match(pullFallback, /Test-DockerCredentialHelperFailure/);
+  assert.match(pullFallback, /Invoke-PublicGhcrAnonymousDockerCommandCapture/);
+  assert.match(anonymousPull, /YW5vbnltb3VzOg==/);
+  assert.match(anonymousPull, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
+  assert.doesNotMatch(anonymousPull, /USERPROFILE|\.docker\\config\.json/);
   assert.match(composeWriter, /pull_policy: missing/);
   assert.doesNotMatch(composeWriter, /pull_policy: always/);
   assert.ok(
