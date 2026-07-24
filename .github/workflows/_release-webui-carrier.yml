@@ -434,6 +434,8 @@ jobs:
         run: |
           set -euo pipefail
           local_image="$(cat webui-carrier/local-image-ref.txt)"
+          docker builder prune --all --force
+          docker image inspect "$local_image" >/dev/null
           docker save "$local_image" | gzip -1 > webui-carrier/qualified-image.tar.gz
           image_artifact_name="webui-qualified-${{ inputs.opl_version }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           printf 'image_artifact_name=%s\n' "$image_artifact_name" >> "$GITHUB_OUTPUT"

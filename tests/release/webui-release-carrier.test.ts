@@ -624,10 +624,19 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const qualificationIndex = build.steps.findIndex(
     (step: { name?: string }) => step.name === 'Qualify exact local runtime before any registry tag is written',
   );
-  assert.ok(
-    imageBuildIndex >= 0 && imageBuildIndex < qualificationIndex,
-    'runtime qualification must follow the one image build',
+  const packageIndex = build.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Package qualified image and evidence for protected immutable publication',
   );
+  assert.ok(
+    imageBuildIndex >= 0 && imageBuildIndex < qualificationIndex && qualificationIndex < packageIndex,
+    'runtime qualification and packaging must follow the one image build in order',
+  );
+  const packageRun = build.steps[packageIndex].run;
+  assert.ok(
+    packageRun.indexOf('docker builder prune --all --force') < packageRun.indexOf('docker save "$local_image"'),
+    'reclaimable multi-stage build cache must be removed before exporting the qualified image',
+  );
+  assert.match(packageRun, /docker image inspect "\$local_image" >\/dev\/null/);
 
   const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
   assert.match(publishRun, /candidate-/);
