@@ -534,9 +534,9 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   }
   if (
     !Array.isArray(profile.codex.session_context_i18n?.['zh-CN']) ||
-    !profile.codex.session_context_i18n['zh-CN'].some((line) => line.includes('你正在 One Person Lab App')) ||
+    !profile.codex.session_context_i18n['zh-CN'].some((line) => line.includes('本对话由 One Person Lab App 发起')) ||
     !Array.isArray(profile.codex.session_context_i18n?.['en-US']) ||
-    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('You are in a Codex session'))
+    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('started from One Person Lab App'))
   ) {
     throw new Error('App product profile must declare localized OPL App session context');
   }

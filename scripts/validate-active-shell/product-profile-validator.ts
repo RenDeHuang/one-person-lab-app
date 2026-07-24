@@ -139,9 +139,13 @@ function validateProductProfileCodexDefaults(profile) {
   const sessionContextI18n = profile.codex?.session_context_i18n;
   if (
     !Array.isArray(sessionContextI18n?.['zh-CN']) ||
-    !sessionContextI18n['zh-CN'].some((line) => typeof line === 'string' && line.includes('你正在 One Person Lab App')) ||
+    !sessionContextI18n['zh-CN'].some(
+      (line) => typeof line === 'string' && line.includes('本对话由 One Person Lab App 发起')
+    ) ||
     !Array.isArray(sessionContextI18n?.['en-US']) ||
-    !sessionContextI18n['en-US'].some((line) => typeof line === 'string' && line.includes('You are in a Codex session'))
+    !sessionContextI18n['en-US'].some(
+      (line) => typeof line === 'string' && line.includes('started from One Person Lab App')
+    )
   ) {
     throw new Error('Product profile must declare localized OPL App session context');
   }
