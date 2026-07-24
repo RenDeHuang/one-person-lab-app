@@ -31,6 +31,12 @@ export function validateReleaseHomebrewDistribution(releaseChannel) {
       software_object: 'opl_app',
       lifecycle_owner: 'one-person-lab-app',
       base_or_packages_mutation_allowed: false,
+      payload_profiles: {
+        standard: ['opl_app'],
+        nightly: ['opl_app'],
+        full: ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
+      },
+      full_seed_activation_owner: 'one-person-lab',
     },
     equivalent_direct_carriers: {
       opl_base: 'framework_installer',

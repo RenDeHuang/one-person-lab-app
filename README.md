@@ -99,10 +99,13 @@ available when needed:
 opl system initialize --json
 ```
 
-The Full Homebrew Cask remains a legacy, unmanaged path while its embedded Base
-and Formula dependency are being reconciled. For a complete first install,
-prefer the Full DMG below. Nightly publication is retired; historical Nightly
-assets are not a current update channel.
+The public Full Homebrew Cask remains an old, unmanaged path: it installs the
+whole Full DMG and also declares the `opl` Formula, so it currently introduces
+two Base carriers. The corrected Full Cask generator is implemented but has not
+been publicly promoted or clean-host qualified; for a complete first install,
+prefer the Full DMG below. Nightly remains the Standard-density prerelease
+concept, but its current publication automation is absent and historical
+Nightly assets are not a continuing update channel.
 
 ### One-Shot Installer
 
@@ -113,10 +116,14 @@ implementation prepares the Framework and adds the App where supported:
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-Today it injects `--with-app --skip-packages`, so it is not yet the
-platform-aware `official_profile_converged` installer described in the SSOT.
-The stable macOS helper remains a compatibility surface and is intentionally
-not a new-user recommendation.
+The script now routes macOS personal hosts to Desktop, Linux personal hosts to
+a verified Native WebUI candidate when one is available or otherwise to
+Container WebUI, server/isolated hosts to Container WebUI, and explicit
+headless installs to Base only. Its Desktop bootstrap still injects
+`--with-app --skip-packages`, so the overall installer is not yet the
+`official_profile_converged` terminal path described in the SSOT. The stable
+macOS helper remains a compatibility surface and is intentionally not a
+new-user recommendation.
 
 ### Direct Download
 
@@ -129,8 +136,10 @@ For a first-time macOS arm64 install without Homebrew, choose
 first-install asset while Full Homebrew publication remains unmanaged.
 
 For macOS, the current ordinary paths are DMG, Homebrew, and the one-shot
-bootstrap; Linux and server users should use Docker/WebUI. Native WebUI is an
-approved future carrier, not a current OPL download. For a screenshot-based
+bootstrap. Linux personal hosts currently fall back to Container WebUI unless
+an exact verified Native candidate is supplied; server and isolated installs
+remain Container WebUI. Native Linux WebUI packaging and routing exist, but no
+public qualified OPL Native asset is available yet. For a screenshot-based
 first-run walkthrough, start
 from the [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html).
 The same guide is also available as generated latest

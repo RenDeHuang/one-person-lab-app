@@ -7,6 +7,31 @@
     "schema": "opl_app_distribution_install_model.v1",
     "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
     "release_semantics_ref": "contracts/app-release-channel.json#distribution_semantics",
+    "topology_counts": {
+      "counting_rule": "Install entrypoint families, runtime forms, and payload densities are different axes and must be counted separately.",
+      "current_ordinary_install_entrypoint_families": 4,
+      "ordinary_install_entrypoint_families": [
+        "direct_github_release_asset",
+        "homebrew_cask",
+        "app_universal_install_sh",
+        "container_webui_helper_or_compose"
+      ],
+      "current_supported_app_runtime_forms": 2,
+      "supported_app_runtime_forms": [
+        "desktop",
+        "container_webui"
+      ],
+      "approved_target_app_runtime_forms": 3,
+      "target_app_runtime_forms": [
+        "desktop",
+        "native_webui",
+        "container_webui"
+      ],
+      "payload_densities": [
+        "standard",
+        "full"
+      ]
+    },
     "consistency_target": {
       "name": "official_profile_converged",
       "physical_byte_identity_required": false,
@@ -28,6 +53,7 @@
       },
       "native_webui": {
         "source_runtime_status": "active_development_capability",
+        "implementation_status": "verified_candidate_route_and_packaging_source_present",
         "public_install_status": "not_published",
         "opl_support_status": "approved_target_not_supported",
         "electron_required": false,
@@ -102,10 +128,11 @@
         "cask": "one-person-lab-nightly",
         "dmg_profile": "standard_nightly",
         "publication_status": "retired_historical_cask",
+        "product_channel_semantics": "retained_standard_prerelease",
         "full_by_default": false,
         "formula_dependency_current": true,
         "formula_dependency_if_reactivated": true,
-        "new_publication_status": "not_approved_requires_new_product_decision"
+        "new_publication_status": "approved_target_requires_implementation_and_qualification"
       },
       "full": {
         "cask": "one-person-lab-full",
@@ -249,7 +276,11 @@
       "app_must_not_implement_installer": true
     },
     "channel_semantics": {
-      "homebrew": "formula_is_opl_base_carrier_and_cask_is_opl_app_carrier",
+      "homebrew": {
+        "standard": "formula_opl_is_the_base_carrier_and_the_standard_cask_carries_the_app",
+        "nightly_if_reactivated": "formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app",
+        "full_target": "the_full_cask_consumes_the_full_dmg_with_embedded_base_and_package_seeds_without_a_formula_dependency_then_framework_activates_exactly_one_base"
+      },
       "dmg_or_direct": "signed_installer_or_dmg_is_opl_app_carrier_then_first_launch_requests_framework_owned_base_and_packages_reconciliation",
       "headless": "framework_installer_is_opl_base_carrier_without_opl_app"
     },
@@ -288,12 +319,37 @@
       "homebrew_cask": {
         "carries": "opl_app",
         "lifecycle_owner": "one-person-lab-app",
-        "base_or_packages_mutation_allowed": false
+        "base_or_packages_mutation_allowed": false,
+        "payload_profiles": {
+          "standard": [
+            "opl_app"
+          ],
+          "nightly": [
+            "opl_app"
+          ],
+          "full": [
+            "opl_app",
+            "opl_base_offline_seed",
+            "opl_package_offline_seeds"
+          ]
+        },
+        "full_seed_activation_owner": "one-person-lab"
       },
       "signed_installer_or_dmg": {
         "carries": "opl_app",
         "lifecycle_owner": "one-person-lab-app",
-        "base_or_packages_mutation_allowed": false
+        "base_or_packages_mutation_allowed": false,
+        "payload_profiles": {
+          "standard": [
+            "opl_app"
+          ],
+          "full": [
+            "opl_app",
+            "opl_base_offline_seed",
+            "opl_package_offline_seeds"
+          ]
+        },
+        "full_seed_activation_owner": "one-person-lab"
       }
     },
     "transaction_internal_states": {
@@ -1119,11 +1175,25 @@
           "lifecycle_owner": "one-person-lab",
           "packages_allowed": false
         },
-        "cask": {
-          "object": "opl_app",
-          "lifecycle_owner": "one-person-lab-app",
-          "base_or_packages_mutation_allowed": false,
-          "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
+      "cask": {
+        "object": "opl_app",
+        "lifecycle_owner": "one-person-lab-app",
+        "base_or_packages_mutation_allowed": false,
+        "payload_profiles": {
+          "standard": [
+            "opl_app"
+          ],
+          "nightly": [
+            "opl_app"
+          ],
+          "full": [
+            "opl_app",
+            "opl_base_offline_seed",
+            "opl_package_offline_seeds"
+          ]
+        },
+        "full_seed_activation_owner": "one-person-lab",
+        "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation"
         },
         "equivalent_direct_carriers": {
           "opl_base": "framework_installer",

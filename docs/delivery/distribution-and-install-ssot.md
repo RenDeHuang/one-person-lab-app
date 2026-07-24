@@ -13,29 +13,38 @@ Machine owners:
 
 ## 结论
 
-按“受管理的用户载体族”计数，而不是把每条命令、每种 DMG 密度和每个 tag
-都算成独立渠道：
+“OPL 有多少条路径”不能只给一个总数，因为发布载体、生产发布路径、用户安装
+入口、运行形态和载荷密度是不同层。当前统一口径是：
 
-- 当前有 **4 类主要发布路径**：Desktop GitHub Release、Standard Homebrew
-  Cask、Container WebUI GHCR、临时 Manual Full Preview。
-- 当前有 **4 类主要安装路径**：直接 DMG、Standard Homebrew Cask、App
-  `install.sh` 通用路由、Docker/WebUI 一键安装。通用路由已实现，但 Native
-  artifact 与 Official Profile convergence 尚未完成。
-- `Full` 是 Standard 同 cohort 的离线 seed 密度，不是第五个频道。
-- `Latest` 是推荐生产版本指针，不是质量等级。
-- `install.sh --stable-macos-install` 和 `install-stable.sh` 是现行兼容路径，
-  不再作为新文档首选。
-- `one-person-lab-nightly` 只保留历史兼容。它历史上是 Standard Nightly，
-  不是 Full；公开 Nightly 发布当前已退休，恢复发布没有获得批准。
-- `one-person-lab-full` Cask 公开存在，但不在当前 Release Bundle
-  发布流水线中，且仍额外依赖 Formula `opl`。它不是当前推荐安装路径。
-- Native WebUI 是已批准的运行载体目标。App 已有 verified-candidate route/probe，
-  Shell 已有 OPL-owned packaging/installer source；但尚无公开 OPL artifact、公开
-  currentness/readback 和 clean-host qualification，因此不能计入当前受支持安装路径。
+| 层 | 当前数量 | 当前成员 |
+| --- | ---: | --- |
+| 发布载体族 | 3 | App GitHub Releases、Homebrew Tap、WebUI GHCR |
+| 生产发布路径 | 3 | Desktop Stable GitHub Release、Standard Homebrew Cask、Container WebUI GHCR `:latest`（`:stable` 为兼容 alias） |
+| 普通安装入口族 | 4 | 直接 GitHub Release 资产、Homebrew Cask、App `install.sh`、Container WebUI helper/Compose |
+| 已支持 App 运行形态 | 2 | Desktop、Container WebUI |
+| 批准目标运行形态 | 3 | Desktop、Native WebUI、Container WebUI |
+| 载荷密度 | 2 | Standard、Full |
 
-目标形态是 **5 类安装载体**：DMG、Homebrew、通用一键安装、Native WebUI、
-Container WebUI。不同入口必须收敛到同一产品行为与 Official Profile 意图，
-但不要求物理字节相同。
+因此：
+
+- Standard/Full 是同一产品和 Official Profile 的两种首装密度，不是两套产品，
+  也不应被重复计作发布频道或运行形态。
+- `Latest` 是某个载体命名空间内的推荐生产指针，不是“最新构建”的同义词。
+- Desktop GitHub `Latest` 与 WebUI GHCR `:latest` 是两个载体各自的指针；生产
+  follower 将它们绑定到同一 App Stable cohort，开发期仍允许双轨验证。
+- `one-person-lab-nightly` 的产品语义保留：它是 Standard 密度的自动预发布，
+  不是 Full。当前公开发布 workflow 已移除，只剩历史 Release/Cask 兼容；恢复
+  发布已作为目标确认，但在新自动化、隔离 updater、Homebrew 和 clean-install
+  资格验证完成前不能写成当前可持续通道。
+- `one-person-lab-full` 的目标是可正常 Homebrew 安装。当前公开 Cask 仍是旧版且
+  额外依赖 Formula `opl`；本仓生成器已能生成“不装 Formula、直接消费 Full DMG
+  内嵌 Base/seeds”的正确 Cask，但尚未公开晋升和 clean-host readback。
+- Linux Native WebUI 的认知是正确的：WebUI 可以直接运行在 Linux 宿主机，不必
+  使用 Docker。当前已有候选路由和打包/安装源码，但还没有正式公开资产、原子
+  升级/回滚、Official Profile 收敛和非 root clean-host 证据，所以当前默认仍是
+  Container WebUI。
+- `install.sh --stable-macos-install` 与 `install-stable.sh` 只保留兼容；Homebrew、
+  直接 DMG 和通用 `install.sh` 覆盖同类用户需求后应退休重复实现。
 
 ## 正交语义
 
@@ -44,7 +53,7 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 
 | 维度 | 取值 | 含义 |
 | --- | --- | --- |
-| 质量 | Stable / Preview；Nightly 仅历史兼容 | 是否通过对应发布资格；不说明载荷或运行形态 |
+| 质量/预发布通道 | Stable / Nightly / Preview | Stable 是生产资格；Nightly 是自动 opt-in 预发布；Preview 是未达到 Stable 的手工/局部交付 |
 | 推荐指针 | Latest | 当前推荐的生产 Release，可移动 |
 | 载荷密度 | Standard / Full | 在线收敛或预置离线 seed |
 | 运行形态 | Desktop / Native WebUI / Container WebUI | 用户如何运行 App |
@@ -58,7 +67,7 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 3. 手工构建只有通过与自动构建相同的 Stable 门禁并正式晋升后，才可成为
    Latest。未经门禁的手工版本仍是 Preview。
 4. 下一个合格 Stable 发布时，Latest 自动回到该 Stable。
-5. Preview、历史 Nightly、Canary 和单纯的开发环境覆盖都不能成为 Latest。
+5. Preview、Nightly、Canary 和单纯的开发环境覆盖都不能成为生产 Latest。
 6. Full 不拥有独立版本频道、更新器或 Package currentness。
 
 ## 当前发布侧
@@ -68,11 +77,11 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 | Desktop Stable GitHub Release | Active | Standard DMG/ZIP、updater metadata、prepared notes、Latest | 唯一入口是 `release-stable.yml`；`standard` / `resume_standard` / `append_full` |
 | Full additive publish | Active，属于 Desktop Stable | Full DMG + manifest | 与 Standard 同 frozen Bundle/Official Profile；只增加离线 seed，不改 Latest/updater |
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
-| Container WebUI GHCR | Active separate carrier | OCI digest、`:stable` 等 moving tag | 开发可双轨验证；生产通过 Desktop handoff follower，失败不改写 Desktop 终态 |
+| Container WebUI GHCR | Active separate carrier | OCI digest、`:latest`，`:stable` 为同 digest 兼容 alias | 开发可双轨验证；生产通过 Desktop handoff follower，失败不改写 Desktop 终态 |
 | Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | `make_latest=false`；不能改 updater、Homebrew 或 Stable |
-| Nightly | Retired | 历史 Standard Nightly assets/Cask 只读兼容 | 不发布新版本；Canary 不是 Nightly |
-| Full Homebrew Cask | Legacy public presence, unmanaged | `one-person-lab-full` 指向旧 Full DMG | 当前发布流水线不更新；完成迁移门槛前不推荐 |
-| Native WebUI artifacts | Approved target, not published | 未来的 host-native tarball/manifest | 上游 AionUI artifact 不能充当 OPL 发布证据 |
+| Nightly | Product semantics retained; publication implementation absent | 历史 Standard Nightly assets/Cask 只读兼容 | 恢复目标已确认；当前无新发布、无 mutation；Canary 不是 Nightly |
+| Full Homebrew Cask | Generator implemented, public target not promoted | 公开旧 Cask 仍指向旧 Full DMG 并依赖 Formula；目标 Cask 不依赖 Formula | 完成 pre-publication gates、受保护 CAS 发布和 post-publication readback 前不推荐 |
+| Native WebUI artifacts | Implemented candidate, unpublished/unqualified | 首批 Linux amd64 App Release tarball/manifest/install verifier | 独立 follower；不扩写 Stable operations；不改变 Container GHCR tags |
 | Canary | Validation-only，不是发布路径 | 无用户产物、无 moving tag mutation | 不继承发布 secrets，不执行公开写入 |
 
 远端“现在具体是哪一个版本”必须从对应 owner 的 fresh receipt/readback 获取，
@@ -85,12 +94,12 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 | GitHub Release Standard DMG | Desktop App；首启由 Framework 补齐 Base/Packages | Supported | 不使用 Homebrew 时的直接 GUI 路径 |
 | GitHub Release Full DMG | Desktop App + Base/Package offline seeds | Supported | 首次离线或希望最快达到完整能力时使用 |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | Supported | macOS 终端用户首选 |
-| App `install.sh` | 已按 macOS Desktop、Linux verified Native-or-Container fallback、server/isolation Container、headless Base 路由；Desktop bootstrap仍委托 Framework `--with-app --skip-packages` | Supported transitional | 路由已实现，但目前不是 Official Profile 一步收敛 |
+| App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由已实现，但 Desktop bootstrap 仍使用 `--with-app --skip-packages`，目前不是 Official Profile 一步收敛 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
-| Nightly Cask | 历史 Standard Nightly | Historical only | 不作为持续更新安装路径 |
-| Full Cask | Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy/unmanaged | 迁移完成前改用直接 Full DMG |
+| Nightly Cask | 历史 Standard Nightly + Formula `opl` | Historical only | 产品语义保留，但当前不作为持续更新安装路径 |
+| Full Cask | 公开旧 Cask 为 Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy public / target implemented unpublished | 当前改用直接 Full DMG；目标 Cask 只安装 Full DMG，不安装 Formula |
 | Native WebUI | App verified-candidate route 与 Shell OPL-owned packaging/installer source 已实现；public artifact 尚未 promotion/readback | Implemented, unpublished | 不得写成当前受支持 OPL 安装路径 |
 | Framework headless installer | Base-only，无 App runtime form | Supported Framework boundary | 不是 OPL App 安装路径 |
 
@@ -108,16 +117,15 @@ Container WebUI。不同入口必须收敛到同一产品行为与 Official Prof
 
 ```text
 macOS personal       -> Desktop
-Linux personal       -> Native WebUI
+Linux personal       -> verified Native WebUI when available; otherwise Container WebUI
 server / isolation   -> Container WebUI (explicit)
 --headless            -> OPL Base only
 ```
 
-其中 Linux personal 只有在 App Release namespace 中存在可验证的 immutable Native
-candidate 时才选择 Native，否则明确回退 Container；local candidate 必须由用户显式
-选择。当前仍缺 Native WebUI 正式分发和 Official Profile 收敛，所以“路由实现”
-不能提升为“Native supported”或“安装终态已一致”。这些完成后才可退休重复的
-Stable macOS helper。
+Linux local candidate 必须由用户显式选择。当前仍缺 Native WebUI 正式分发和
+Official Profile 收敛，所以“路由实现”不能提升为“Native supported”或“安装终态
+已一致”。这些完成后才可把 Linux personal 默认切到 Native，并退休重复的 Stable
+macOS helper。
 
 ## 一致终态
 
@@ -154,13 +162,16 @@ Stable macOS helper。
 ### Nightly
 
 `one-person-lab-nightly` 历史 Cask 使用 Standard Nightly DMG，并依赖 Formula
-`opl`；它从未等同于 Full。当前新发布已退休，任何恢复都需要新的显式产品
-决策、工作流、不可变资产与 clean-install readback。
+`opl`；它从未等同于 Full。Nightly 的产品定义继续有效，但当前新发布实现已
+退休，现有 bytes 只读兼容。恢复发布不需要重新发明产品语义，但必须补齐新的
+不可变资产、预发布 workflow/updater 隔离、Homebrew 发布和 clean-install readback。
 
 ### Full
 
-当前 `one-person-lab-full` 同时消费已经内嵌 Base/seeds 的 Full DMG 和 Formula
-`opl`，产生重复物理字节，并可能让不同操作选择不同 Base carrier。
+Homebrew Cask 不会把 Full DMG 拆成“GUI 部分”再另装 Base。它会安装整个 App
+bundle，所以 Full DMG 内嵌的 Base/seeds 仍然存在。当前公开 `one-person-lab-full`
+又额外声明 Formula `opl`，因此不是“特意剥离 Base”，而是同时引入两个 Base
+carrier，产生重复物理字节和选择歧义。
 
 批准目标是：
 
@@ -170,10 +181,10 @@ Formula dependency -> absent
 active Framework -> exactly one
 ```
 
-在切换公开 Cask 前必须同时完成：
+生成器和合同已完成第 2 项，但在切换公开 Cask 前仍必须完成全部终态：
 
 1. Shell 对普通、状态、repair/update 操作都选择同一 Framework-owned Base。
-2. Cask 生成器只为 Standard（以及历史上如重新批准的 Nightly）生成 Formula
+2. Cask 生成器只为 Standard（以及恢复后的 Nightly）生成 Formula
    dependency，Full 不生成。
 3. Tap CI、同步逻辑和 App 合同一起更新。
 4. clean VM 证明 Formula 未安装、Full 首启成功、Official Profile 收敛、
@@ -194,26 +205,42 @@ harness 额外执行 `xattr -dr`，不能代表普通用户体验。
 Native WebUI 表示直接在宿主系统运行浏览器工作台，不需要 Electron，也不需要
 Docker。它不是“因为 Docker 里是 Linux，所以天然已经支持”的同义推导。
 
-当前只有：
+当前已有：
 
 - Shell 源码 `webui` 开发入口；
-- 可打包的上游 Web CLI 技术能力；
-- Docker 内运行同类 WebUI runtime 的证明。
+- 可打包的 Web CLI 技术能力；
+- Docker 内运行同类 WebUI runtime 的证明；
 - App `install.sh` 对 exact verifier URL/SHA、App Release namespace、immutable
   version 和 `--probe-artifact` 的 fail-closed candidate route。
 - Shell OPL-owned `pack-web-cli`、`install-web.sh` 和 native distribution tests。
 
-当前缺少：
+这证明 Native WebUI 在 Linux 上技术可行，但 Docker 容器内的 Linux 不等于宿主机
+安装、升级和数据生命周期已经完成。当前仍缺：
 
 - OPL-owned immutable versioned artifacts；
-- host 可写 data/projects/recovery 路径；
+- carrier-neutral frozen Linux amd64 payload 与单独的 Container overlay；
+- `versions/<version>-<digest>`、原子 `current/previous` 指针和可调用 rollback；
 - 公开 OPL Native artifact namespace、promotion/currentness/readback；
-- 安装、升级、回滚与数据保留；
+- 安装、升级、回滚与 data/projects 数据保留；
 - 非 root clean-host qualification；
+- Framework Base 与 Official Profile 自动收敛；
 - App/Shell/Framework exact refs、manifest、digest 和公开 readback。
 
 Container 的批准目标是包装同一 frozen Linux WebUI payload，只增加 OCI
 基础层、mount adapter 和 entrypoint；它不能独立重编译成第二套产品字节。
+
+首批生产拓扑固定为：
+
+```text
+Desktop Standard Latest complete
+  -> exact handoff
+  -> independent Native Linux amd64 follower
+  -> App GitHub Release immutable Native assets
+```
+
+Native follower 失败不能改写 Desktop 或 Container 终态；Stable 仍只有
+`standard`、`resume_standard`、`append_full`，Container GHCR `:latest` / `:stable`
+保持现状。
 
 ## Desktop 与 WebUI cohort
 
@@ -222,7 +249,7 @@ Container 的批准目标是包装同一 frozen Linux WebUI payload，只增加 
 - Desktop 和 Container WebUI 可以独立开发、验证和暂时使用不同版本节奏。
 - 开发发布不能声称已经是同一生产 cohort。
 - 两边仍必须遵守相同产品行为合同，并通过各自 carrier / Package adapter 的
-  fresh terminal readback收敛；Framework只聚合，不拥有第二份生命周期。
+  fresh terminal readback 收敛；Framework 只聚合，不拥有第二份生命周期。
 
 Desktop 发布路径稳定后的生产目标：
 
@@ -233,9 +260,42 @@ one App Stable cohort/version
   -> Container WebUI
 ```
 
-三种形态独立构建、资格验证和失败隔离；同一版本与 Official Profile 是生产
-cohort 要求，物理字节一致不是要求。WebUI follower 失败不得撤销已经完成的
-Desktop Stable/Latest。
+三种形态独立构建、资格验证和失败隔离；同一 App Stable cohort/version 与
+Official Profile 是生产要求，平台物理字节一致不是要求。Native 或 Container
+follower 失败不得撤销已经完成的 Desktop Stable/Latest。
+
+## 最优维护模型
+
+以后只维护以下 owner 链，不再让 README、脚本或下游 Tap 各自解释产品语义：
+
+```text
+App contracts
+  -> 本 SSOT
+  -> build/publish/install implementation
+  -> clean-host + public readback
+  -> ordinary README/user guides
+```
+
+职责固定如下：
+
+| 事实 | 唯一 owner |
+| --- | --- |
+| Stable/Nightly/Preview/Latest、载体状态、cohort | `contracts/app-release-channel.json#distribution_semantics` |
+| 安装入口、平台路由、Homebrew profile、统一终态 | `contracts/app-install-exposure-policy.json#distribution_install_model` |
+| Base/Package 激活、installed/callable、Official Profile reconciliation | OPL Framework |
+| 当前公共版本、资产、tag/digest、Tap commit | 对应远端 fresh readback/receipt |
+| 普通用户说明 | README/用户指南，只消费上述事实，不自创新状态 |
+
+维护原则：
+
+1. 新入口优先复用 `install.sh` 路由，不新增平行的一键脚本。
+2. 新载体复用同一 frozen App/WebUI payload，再增加平台 adapter；不独立编译第二套
+   产品逻辑。
+3. Standard 与 Full 只改变首装密度；首次启动后的管理、更新和卸载行为一致。
+4. Homebrew 只负责索引和安装 App/Base carrier，不拥有 Package lifecycle。
+5. 对外标记 `supported` 前必须同时具备公开不可变资产、clean-host、升级/回滚、
+   数据保留、Official Profile 和 fresh public readback。
+6. 临时开发/Preview 可以独立交付，但不得移动生产 Latest 或伪装成 Stable。
 
 ## 维护与晋升规则
 
@@ -247,7 +307,7 @@ Desktop Stable/Latest。
    `contracts/app-install-exposure-policy.json#distribution_install_model`。
 3. 本文的 current/target 表。
 4. `distribution-install-ssot-validator.ts` 与 mutation tests。
-5. 对应构建、安装、升级、回滚、clean-host 和公开 readback。
+5. 对应构建、安装、升级、回滚、数据保留、Official Profile、clean-host 和公开 readback。
 6. 最后才可在根 README 或公共用户指南中标为当前支持。
 
 状态晋升必须是：
@@ -269,7 +329,7 @@ idea
 
 - Release Bundle schema、checkpoint、receipt 与 reconcile：OPL Framework。
 - Stable 的实际公共版本和 Latest：GitHub fresh readback。
-- GHCR `:stable` 的实际 digest：GHCR anonymous pull readback。
+- GHCR `:latest` 与 `:stable` 的实际 digest 及两者是否一致：GHCR anonymous pull readback。
 - Homebrew 的实际公开 commit/Cask digest：tap publication/readback receipt。
 - Package release/currentness：各 Package owner 与 Framework aggregation。
 - App/Framework/Packages 的兼容关系：对应 compatibility contract。

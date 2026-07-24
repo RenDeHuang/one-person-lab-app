@@ -11,6 +11,30 @@
       "publication_carrier_state",
       "desktop_and_webui_cohort_policy"
     ],
+    "topology_counts": {
+      "counting_rule": "Count publication carrier families, production publication paths, install entrypoints, runtime forms, and payload densities separately; never add them into one total.",
+      "current_publication_carrier_families": 3,
+      "publication_carrier_families": [
+        "app_github_releases",
+        "homebrew_tap",
+        "webui_ghcr"
+      ],
+      "current_production_publication_paths": 3,
+      "production_publication_paths": [
+        "desktop_stable_github_release",
+        "homebrew_standard_cask",
+        "container_webui_latest_with_stable_compatibility_alias"
+      ],
+      "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
+        "desktop_full_additive_asset",
+        "manual_full_preview",
+        "desktop_nightly_historical_distribution",
+        "homebrew_nightly_historical_cask",
+        "homebrew_full_implemented_unpublished_target",
+        "native_webui_implemented_unpublished_target",
+        "canary_validation_only"
+      ]
+    },
     "orthogonal_dimensions": {
       "quality": [
         "stable",
@@ -54,6 +78,8 @@
       "nightly": {
         "dimension": "quality",
         "meaning": "automated_opt_in_desktop_prerelease",
+        "product_channel_semantics": "retained",
+        "current_publication_implementation": "retired_historical_compatibility",
         "default_payload_density": "standard",
         "full_by_default": false,
         "latest_allowed": false
@@ -116,13 +142,31 @@
     },
     "retired_compatibility": {
       "desktop_nightly": {
+        "product_channel_semantics_retained": true,
         "historical_payload_density": "standard",
         "historical_full_by_default": false,
         "historical_latest_allowed": false,
-        "new_publication_status": "not_approved_requires_new_product_decision"
+        "current_publication_workflow_present": false,
+        "new_publication_status": "approved_target_requires_implementation_and_qualification"
       }
     },
     "approved_targets": {
+      "desktop_nightly": {
+        "target": "automated_opt_in_standard_desktop_prerelease",
+        "status": "approved_pending_implementation_and_qualification",
+        "payload_density": "standard",
+        "full_by_default": false,
+        "latest_allowed": false,
+        "homebrew_cask": "one-person-lab-nightly",
+        "promotion_requires": [
+          "immutable_nightly_assets",
+          "prerelease_publication_workflow",
+          "prerelease_updater_isolation",
+          "homebrew_nightly_cask_publication",
+          "clean_install_readback",
+          "official_profile_convergence"
+        ]
+      },
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
         "homebrew_cask": "one-person-lab-full",
@@ -149,12 +193,26 @@
       },
       "native_webui": {
         "target": "opl_owned_immutable_native_webui_distribution",
-        "status": "approved_pending_implementation",
+        "status": "implementation_present_unpublished_unqualified",
+        "initial_platform": "linux_amd64",
+        "publication_carrier": "app_github_release_assets",
+        "production_topology": "independent_follower_after_desktop_standard_latest",
+        "stable_operation_set_must_remain": [
+          "standard",
+          "resume_standard",
+          "append_full"
+        ],
+        "container_ghcr_tags_must_remain_unchanged": [
+          "latest",
+          "stable"
+        ],
         "promotion_requires": [
-          "canonical_webui_entrypoint",
-          "host_writable_data_and_projects_paths",
+          "carrier_neutral_frozen_linux_amd64_payload",
+          "container_overlay_reuses_the_same_frozen_payload",
+          "versioned_runtime_directories_and_atomic_current_pointer",
           "app_owned_versioned_artifacts",
-          "install_update_and_rollback",
+          "install_update_rollback_and_data_preservation",
+          "framework_and_official_profile_convergence",
           "non_root_clean_host_qualification",
           "public_digest_readback"
         ]
@@ -2142,7 +2200,21 @@
       "cask": {
         "software_object": "opl_app",
         "lifecycle_owner": "one-person-lab-app",
-        "base_or_packages_mutation_allowed": false
+        "base_or_packages_mutation_allowed": false,
+        "payload_profiles": {
+          "standard": [
+            "opl_app"
+          ],
+          "nightly": [
+            "opl_app"
+          ],
+          "full": [
+            "opl_app",
+            "opl_base_offline_seed",
+            "opl_package_offline_seeds"
+          ]
+        },
+        "full_seed_activation_owner": "one-person-lab"
       },
       "equivalent_direct_carriers": {
         "opl_base": "framework_installer",

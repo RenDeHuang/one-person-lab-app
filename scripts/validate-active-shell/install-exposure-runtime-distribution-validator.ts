@@ -72,6 +72,21 @@ function validateSoftwareLifecycle(lifecycle) {
       throw new Error(`Install exposure ${id} must be an App-owned OPL App carrier`);
     }
   }
+  assertDeepEqualJson(adapters.homebrew_cask?.payload_profiles, {
+    standard: ['opl_app'],
+    nightly: ['opl_app'],
+    full: ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
+  }, 'Install exposure Homebrew Cask payload profiles');
+  assertDeepEqualJson(adapters.signed_installer_or_dmg?.payload_profiles, {
+    standard: ['opl_app'],
+    full: ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
+  }, 'Install exposure DMG payload profiles');
+  if (
+    adapters.homebrew_cask?.full_seed_activation_owner !== 'one-person-lab' ||
+    adapters.signed_installer_or_dmg?.full_seed_activation_owner !== 'one-person-lab'
+  ) {
+    throw new Error('Install exposure Full payload seeds must be activated by the Framework owner');
+  }
 }
 
 function validateTemporalAutoConfiguration(temporalAutoConfig) {
@@ -356,6 +371,12 @@ function validateHomebrewTransportBoundary(homebrew) {
       object: 'opl_app',
       lifecycle_owner: 'one-person-lab-app',
       base_or_packages_mutation_allowed: false,
+      payload_profiles: {
+        standard: ['opl_app'],
+        nightly: ['opl_app'],
+        full: ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
+      },
+      full_seed_activation_owner: 'one-person-lab',
       post_launch_reconcile_ref: 'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation',
     },
     equivalent_direct_carriers: {

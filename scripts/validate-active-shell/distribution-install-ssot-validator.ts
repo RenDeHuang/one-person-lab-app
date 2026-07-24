@@ -21,6 +21,50 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Distribution install release semantics ref',
   );
 
+  const releaseTopology = release.topology_counts;
+  requireEqual(releaseTopology?.current_publication_carrier_families, 3, 'Publication carrier family count');
+  assertDeepEqualJson(
+    releaseTopology?.publication_carrier_families,
+    ['app_github_releases', 'homebrew_tap', 'webui_ghcr'],
+    'Publication carrier families',
+  );
+  requireEqual(releaseTopology?.current_production_publication_paths, 3, 'Production publication path count');
+  assertDeepEqualJson(
+    releaseTopology?.production_publication_paths,
+    [
+      'desktop_stable_github_release',
+      'homebrew_standard_cask',
+      'container_webui_latest_with_stable_compatibility_alias',
+    ],
+    'Production publication paths',
+  );
+
+  const installTopology = install.topology_counts;
+  requireEqual(installTopology?.current_ordinary_install_entrypoint_families, 4, 'Install entrypoint family count');
+  assertDeepEqualJson(
+    installTopology?.ordinary_install_entrypoint_families,
+    [
+      'direct_github_release_asset',
+      'homebrew_cask',
+      'app_universal_install_sh',
+      'container_webui_helper_or_compose',
+    ],
+    'Install entrypoint families',
+  );
+  requireEqual(installTopology?.current_supported_app_runtime_forms, 2, 'Supported runtime form count');
+  assertDeepEqualJson(
+    installTopology?.supported_app_runtime_forms,
+    ['desktop', 'container_webui'],
+    'Supported runtime forms',
+  );
+  requireEqual(installTopology?.approved_target_app_runtime_forms, 3, 'Target runtime form count');
+  assertDeepEqualJson(
+    installTopology?.target_app_runtime_forms,
+    ['desktop', 'native_webui', 'container_webui'],
+    'Target runtime forms',
+  );
+  assertDeepEqualJson(installTopology?.payload_densities, ['standard', 'full'], 'Payload densities');
+
   assertDeepEqualJson(
     release.orthogonal_dimensions,
     {
@@ -37,6 +81,12 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(release.terms?.stable?.is_pointer, false, 'Stable pointer classification');
   requireEqual(release.terms?.stable?.build_origin_independent, true, 'Stable build-origin independence');
   requireEqual(release.terms?.latest?.default_target, 'newest_production_stable', 'Latest default target');
+  requireEqual(release.terms?.nightly?.product_channel_semantics, 'retained', 'Nightly product semantics');
+  requireEqual(
+    release.terms?.nightly?.current_publication_implementation,
+    'retired_historical_compatibility',
+    'Nightly publication implementation',
+  );
   requireEqual(release.terms?.nightly?.default_payload_density, 'standard', 'Nightly payload density');
   requireEqual(release.terms?.nightly?.full_by_default, false, 'Nightly Full default');
   requireEqual(release.terms?.nightly?.latest_allowed, false, 'Nightly Latest eligibility');
@@ -85,6 +135,11 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Distribution Nightly implementation state',
   );
   requireEqual(
+    release.retired_compatibility?.desktop_nightly?.product_channel_semantics_retained,
+    true,
+    'Nightly retained product semantics',
+  );
+  requireEqual(
     release.retired_compatibility?.desktop_nightly?.historical_payload_density,
     'standard',
     'Nightly historical payload density',
@@ -100,11 +155,21 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Nightly historical Latest policy',
   );
   requireEqual(
+    release.retired_compatibility?.desktop_nightly?.current_publication_workflow_present,
+    false,
+    'Nightly current publication workflow',
+  );
+  requireEqual(
     release.retired_compatibility?.desktop_nightly?.new_publication_status,
-    'not_approved_requires_new_product_decision',
+    'approved_target_requires_implementation_and_qualification',
     'Nightly new publication status',
   );
-  requireEqual(release.approved_targets?.desktop_nightly, undefined, 'Nightly approved target');
+  const nightlyTarget = release.approved_targets?.desktop_nightly;
+  requireEqual(nightlyTarget?.status, 'approved_pending_implementation_and_qualification', 'Nightly target status');
+  requireEqual(nightlyTarget?.payload_density, 'standard', 'Nightly target payload density');
+  requireEqual(nightlyTarget?.full_by_default, false, 'Nightly target Full default');
+  requireEqual(nightlyTarget?.latest_allowed, false, 'Nightly target Latest policy');
+  requireEqual(nightlyTarget?.homebrew_cask, 'one-person-lab-nightly', 'Nightly target Homebrew Cask');
 
   const releaseHomebrew = releaseChannel.homebrew_tap_distribution;
   requireEqual(
@@ -191,6 +256,11 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
 
   const nativeWebui = install.runtime_forms?.native_webui;
   requireEqual(nativeWebui?.source_runtime_status, 'active_development_capability', 'Native WebUI source status');
+  requireEqual(
+    nativeWebui?.implementation_status,
+    'verified_candidate_route_and_packaging_source_present',
+    'Native WebUI implementation status',
+  );
   requireEqual(nativeWebui?.public_install_status, 'not_published', 'Native WebUI public status');
   requireEqual(nativeWebui?.opl_support_status, 'approved_target_not_supported', 'Native WebUI support status');
   requireEqual(nativeWebui?.electron_required, false, 'Native WebUI Electron requirement');
@@ -204,6 +274,46 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     install.runtime_forms?.container_webui?.target,
     'container_adapter_over_same_frozen_webui_runtime_as_native',
     'Container WebUI target',
+  );
+  requireEqual(
+    release.approved_targets?.native_webui?.status,
+    'implementation_present_unpublished_unqualified',
+    'Native WebUI release target status',
+  );
+  requireEqual(release.approved_targets?.native_webui?.initial_platform, 'linux_amd64', 'Native WebUI initial platform');
+  requireEqual(
+    release.approved_targets?.native_webui?.publication_carrier,
+    'app_github_release_assets',
+    'Native WebUI publication carrier',
+  );
+  requireEqual(
+    release.approved_targets?.native_webui?.production_topology,
+    'independent_follower_after_desktop_standard_latest',
+    'Native WebUI production topology',
+  );
+  assertDeepEqualJson(
+    release.approved_targets?.native_webui?.stable_operation_set_must_remain,
+    ['standard', 'resume_standard', 'append_full'],
+    'Native WebUI Stable operation boundary',
+  );
+  assertDeepEqualJson(
+    release.approved_targets?.native_webui?.container_ghcr_tags_must_remain_unchanged,
+    ['latest', 'stable'],
+    'Native WebUI Container tag boundary',
+  );
+  assertDeepEqualJson(
+    release.approved_targets?.native_webui?.promotion_requires,
+    [
+      'carrier_neutral_frozen_linux_amd64_payload',
+      'container_overlay_reuses_the_same_frozen_payload',
+      'versioned_runtime_directories_and_atomic_current_pointer',
+      'app_owned_versioned_artifacts',
+      'install_update_rollback_and_data_preservation',
+      'framework_and_official_profile_convergence',
+      'non_root_clean_host_qualification',
+      'public_digest_readback',
+    ],
+    'Native WebUI promotion gates',
   );
   requireEqual(
     (installExposurePolicy.installer_surfaces ?? []).some((entry) => entry.surface === 'native_webui'),
@@ -246,10 +356,15 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installHomebrew?.standard?.formula_dependency_current, true, 'Standard Cask current Formula dependency');
   requireEqual(installHomebrew?.standard?.formula_dependency_target, true, 'Standard Cask target Formula dependency');
   requireEqual(installHomebrew?.nightly?.dmg_profile, 'standard_nightly', 'Nightly Cask DMG profile');
+  requireEqual(
+    installHomebrew?.nightly?.product_channel_semantics,
+    'retained_standard_prerelease',
+    'Nightly Cask product semantics',
+  );
   requireEqual(installHomebrew?.nightly?.full_by_default, false, 'Nightly Cask Full default');
   requireEqual(
     installHomebrew?.nightly?.new_publication_status,
-    'not_approved_requires_new_product_decision',
+    'approved_target_requires_implementation_and_qualification',
     'Nightly Cask new publication status',
   );
   requireEqual(
@@ -293,8 +408,51 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Homebrew smoke quarantine boundary',
   );
 
+  const expectedCaskPayloadProfiles = {
+    standard: ['opl_app'],
+    nightly: ['opl_app'],
+    full: ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
+  };
+  const lifecycle = installExposurePolicy.software_lifecycle;
+  assertDeepEqualJson(
+    lifecycle?.channel_semantics?.homebrew,
+    {
+      standard: 'formula_opl_is_the_base_carrier_and_the_standard_cask_carries_the_app',
+      nightly_if_reactivated:
+        'formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app',
+      full_target:
+        'the_full_cask_consumes_the_full_dmg_with_embedded_base_and_package_seeds_without_a_formula_dependency_then_framework_activates_exactly_one_base',
+    },
+    'Homebrew profile channel semantics',
+  );
+  assertDeepEqualJson(
+    lifecycle?.carrier_adapters?.homebrew_cask?.payload_profiles,
+    expectedCaskPayloadProfiles,
+    'Homebrew Cask payload profiles',
+  );
+  requireEqual(
+    lifecycle?.carrier_adapters?.homebrew_cask?.full_seed_activation_owner,
+    'one-person-lab',
+    'Homebrew Full seed activation owner',
+  );
+  assertDeepEqualJson(
+    releaseHomebrew?.carrier_adapter_semantics?.cask?.payload_profiles,
+    expectedCaskPayloadProfiles,
+    'Release Homebrew Cask payload profiles',
+  );
+  requireEqual(
+    releaseHomebrew?.carrier_adapter_semantics?.cask?.full_seed_activation_owner,
+    'one-person-lab',
+    'Release Homebrew Full seed activation owner',
+  );
+
   const installChannel = installExposurePolicy.distribution_channels?.homebrew;
   requireEqual(installChannel?.casks?.standard_app, installHomebrew.standard.cask, 'Standard Cask cross-contract name');
   requireEqual(installChannel?.casks?.nightly_standard_app, installHomebrew.nightly.cask, 'Nightly Cask cross-contract name');
   requireEqual(installChannel?.casks?.full_first_install_app, installHomebrew.full.cask, 'Full Cask cross-contract name');
+  assertDeepEqualJson(
+    installChannel?.carrier_adapter_semantics?.cask?.payload_profiles,
+    expectedCaskPayloadProfiles,
+    'Install Homebrew Cask payload profiles',
+  );
 }

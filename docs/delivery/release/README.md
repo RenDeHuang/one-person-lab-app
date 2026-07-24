@@ -96,7 +96,7 @@ Stable, WebUI, Full, Nightly, and Daily are not competing package authorities:
 | Container WebUI | Current browser/server App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
 | Native WebUI | Approved host-native browser target; not currently an OPL publication or install path | No currentness authority until immutable OPL assets and public readback exist |
 | Full | Same Official Profile with additional first-install/offline seeds; additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
-| Nightly | Retired public Standard prerelease; historical bytes remain readable | No currentness authority; daily validation uses Canary |
+| Nightly | Standard-density automated prerelease semantics are retained; the current public publication implementation is retired and historical bytes remain readable | No currentness authority until a newly qualified publication path exists; daily validation uses Canary |
 | OPL Package | Independently published complete Package bytes | Package owner GHCR `latest-stable` plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
 
@@ -322,11 +322,13 @@ become Package lifecycle or currentness authority.
 
 The normal user-facing channel is therefore one App Stable updater plus
 independent owner Package channels. Docker/WebUI and Homebrew carry exact owner bytes;
-Full seeds an offline composition; Nightly publication is retired; Daily is a
-scheduled reconciliation cadence. Historical Nightly distribution stays
-read-compatible. Canary is an independent validation workflow, not a release
-channel. A Package update must not require an App, Base, or unrelated Package
-release, and a carrier failure must not rewrite owner publication currentness.
+Full seeds an offline composition; Nightly remains the Standard-density
+prerelease concept while its current public publication implementation is
+retired; Daily is a scheduled reconciliation cadence. Historical Nightly
+distribution stays read-compatible. Canary is an independent validation
+workflow, not a release channel. A Package update must not require an App, Base,
+or unrelated Package release, and a carrier failure must not rewrite owner
+publication currentness.
 
 The local-install profile is a development and QA path for one Mac. It cannot
 publish, promote, write Homebrew, or stand in for public clean-VM evidence.
