@@ -76,7 +76,7 @@ test('Official Profile apply rejects startup intent before any Package command',
   assert.equal(calls, 0);
 });
 
-test('CLI reads the canonical Official Profile and performs read-only skips for present roots', () => {
+test('CLI accepts explicit root identities and performs read-only skips for present roots', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-official-profile-apply-'));
   const fakeOpl = path.join(root, 'opl');
   const logPath = path.join(root, 'calls.jsonl');
@@ -91,6 +91,10 @@ process.stdout.write(JSON.stringify({version:'g2',opl_agent_package_status:{inst
       'scripts/official-profile-package-apply.ts',
       '--intent',
       'explicit_restore',
+      '--root-package-id',
+      'mas',
+      '--root-package-id',
+      'oma',
       '--opl-bin',
       fakeOpl,
     ], {
@@ -104,7 +108,8 @@ process.stdout.write(JSON.stringify({version:'g2',opl_agent_package_status:{inst
     assert.equal(output.official_profile_package_apply.persistence.desired_state_saved, false);
     assert.equal(output.official_profile_package_apply.persistence.startup_maintenance_registered, false);
     const calls = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-    assert.equal(calls.length, output.official_profile_package_apply.root_package_ids.length);
+    assert.deepEqual(output.official_profile_package_apply.root_package_ids, ['mas', 'oma']);
+    assert.equal(calls.length, 2);
     assert.equal(calls.every((args) => args[0] === 'packages' && args[1] === 'status'), true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

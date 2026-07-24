@@ -4,8 +4,6 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
-
 export type OfficialProfileApplyIntent = 'first_install' | 'explicit_restore';
 
 type OplExecution = {
@@ -161,12 +159,14 @@ export function applyOfficialProfilePackages(input: {
 function parseArgs(argv: string[]) {
   let intent: string | null = null;
   let profilePath: string | undefined;
+  const rootPackageIds: string[] = [];
   let oplBin = process.env.OPL_BIN?.trim() || 'opl';
   let dryRun = false;
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--intent') intent = argv[++index] ?? null;
     else if (token === '--profile') profilePath = argv[++index];
+    else if (token === '--root-package-id') rootPackageIds.push(argv[++index] ?? '');
     else if (token === '--opl-bin') oplBin = argv[++index] ?? '';
     else if (token === '--dry-run') dryRun = true;
     else throw new Error(`Unknown option: ${token}`);
@@ -175,18 +175,26 @@ function parseArgs(argv: string[]) {
     throw new Error('--intent must be first_install or explicit_restore.');
   }
   if (!oplBin) throw new Error('--opl-bin must not be empty.');
-  return { intent, profilePath, oplBin, dryRun } as const;
+  if (rootPackageIds.length === 0 && !profilePath) {
+    throw new Error('Provide --root-package-id at least once, or --profile for App-repo development use.');
+  }
+  return { intent, profilePath, rootPackageIds, oplBin, dryRun } as const;
 }
 
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const profile = readAppProductProfile(options.profilePath);
-  if (!profile.official_profile.apply_on.includes(options.intent)) {
-    throw new Error(`Official Profile does not allow ${options.intent}.`);
+  let rootPackageIds = options.rootPackageIds;
+  if (rootPackageIds.length === 0) {
+    const { readAppProductProfile } = await import('./app-product-profile/profile-contract.ts');
+    const profile = readAppProductProfile(options.profilePath);
+    if (!profile.official_profile.apply_on.includes(options.intent)) {
+      throw new Error(`Official Profile does not allow ${options.intent}.`);
+    }
+    rootPackageIds = profile.official_profile.desired_root_package_ids;
   }
   const result = applyOfficialProfilePackages({
     intent: options.intent,
-    rootPackageIds: profile.official_profile.desired_root_package_ids,
+    rootPackageIds,
     dryRun: options.dryRun,
     runtime: {
       execute: (args) => spawnSync(options.oplBin, args, {
@@ -201,5 +209,5 @@ function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main();
+  void main();
 }
