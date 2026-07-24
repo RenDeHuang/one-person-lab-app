@@ -348,11 +348,16 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   const readyEntryButton = firstRunPage.match(/<Button\s+ref=\{readyEntryRef\}[\s\S]*?<\/Button>/)?.[0] ?? '';
+  const readyEntryRequestGuard = "actionLoading === 'official_profile_first_install'";
   if (
     !readyEntryButton.includes("navigate('/guid', { state: POST_INSTALL_SELF_CHECK_STATE })") ||
-    readyEntryButton.includes('disabled=')
+    !readyEntryButton.includes(`loading={${readyEntryRequestGuard}}`) ||
+    !readyEntryButton.includes(`disabled={${readyEntryRequestGuard}}`) ||
+    (readyEntryButton.match(/\bdisabled=/g)?.length ?? 0) !== 1
   ) {
-    throw new Error('Active shell ready entry must stay enabled and preserve post-install self-check state');
+    throw new Error(
+      'Active shell ready entry must preserve post-install self-check state and only disable while its profile-install action is running',
+    );
   }
   for (const expected of [
     "setAttribute('inert', '')",
