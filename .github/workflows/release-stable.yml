@@ -104,16 +104,30 @@ jobs:
             echo "::error::Stable operations are one-shot; use resume_standard with the portable checkpoint."
             exit 1
           }
-          app_sha="$(git -C app-source rev-parse HEAD)"
-          canonical_app_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git -C app-source ls-remote origin refs/heads/main | awk '{print $1}')"
-          [ "$app_sha" = "$canonical_app_sha" ] || {
-            echo "::error::Stable operation executor must be canonical App main."
-            exit 1
+          require_main_reachable() {
+            local repository="$1"
+            local snapshot_sha="$2"
+            local label="$3"
+            local comparison_json
+            comparison_json="$(
+              timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$repository/compare/$snapshot_sha...main"
+            )" || {
+              echo "::error::Unable to verify $label snapshot reachability."
+              exit 1
+            }
+            jq -e --arg snapshot_sha "$snapshot_sha" '
+              (.status == "identical" or .status == "ahead")
+              and .merge_base_commit.sha == $snapshot_sha
+            ' <<<"$comparison_json" >/dev/null || {
+              echo "::error::$label snapshot must remain reachable from remote main."
+              exit 1
+            }
           }
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          require_main_reachable "$GITHUB_REPOSITORY" "$app_sha" "Stable operation App executor"
           case "$OPERATION" in
             standard)
-              canonical_shell_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git ls-remote https://github.com/gaofeng21cn/opl-aion-shell.git refs/heads/main | awk '{print $1}')"
-              canonical_framework_sha="$(timeout --foreground --signal=TERM --kill-after=5s 30s git ls-remote https://github.com/gaofeng21cn/one-person-lab.git refs/heads/main | awk '{print $1}')"
               [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-r[1-9][0-9]*)?$ ]] || {
                 echo "::error::A new Standard Bundle requires an exact CalVer display version."
                 exit 1
@@ -122,14 +136,8 @@ jobs:
                 echo "::error::A new Standard Bundle requires exact Shell and Framework SHAs."
                 exit 1
               }
-              [ "$SHELL_REF" = "$canonical_shell_sha" ] || {
-                echo "::error::A new Standard Bundle requires canonical Shell main."
-                exit 1
-              }
-              [ "$FRAMEWORK_REF" = "$canonical_framework_sha" ] || {
-                echo "::error::A new Standard Bundle requires the fresh canonical Framework main SHA."
-                exit 1
-              }
+              require_main_reachable "gaofeng21cn/opl-aion-shell" "$SHELL_REF" "Shell"
+              require_main_reachable "gaofeng21cn/one-person-lab" "$FRAMEWORK_REF" "Framework"
               test -z "$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
                 echo "::error::A new Standard Bundle cannot consume a previous run."
                 exit 1

@@ -197,6 +197,7 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_APP_REF: ${{ inputs.app_ref }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           GH_TOKEN: ${{ github.token }}
@@ -208,15 +209,19 @@ jobs:
           app_sha="$(git rev-parse HEAD)"
           shell_sha="$(git -C shells/aionui rev-parse HEAD)"
           framework_sha="$(git -C framework-source rev-parse HEAD)"
-          canonical_app_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          canonical_shell_sha="$(git -C shells/aionui ls-remote origin refs/heads/main | awk '{print $1}')"
-          canonical_framework_sha="$(git -C framework-source ls-remote origin refs/heads/main | awk '{print $1}')"
-          [ "$app_sha" = "$canonical_app_sha" ] || { echo "::error::App source is not canonical main."; exit 1; }
-          [ "$shell_sha" = "$canonical_shell_sha" ] || { echo "::error::Shell source is not canonical main."; exit 1; }
-          [ "$framework_sha" = "$canonical_framework_sha" ] || { echo "::error::Framework source is not canonical main."; exit 1; }
+          [ "$app_sha" = "$REQUESTED_APP_REF" ] || {
+            echo "::error::App checkout differs from the admitted snapshot."
+            exit 1
+          }
+          [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || {
+            echo "::error::Shell checkout differs from the admitted snapshot."
+            exit 1
+          }
+          [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || {
+            echo "::error::Framework checkout differs from the admitted snapshot."
+            exit 1
+          }
           version="$REQUESTED_VERSION"
-          [ "$shell_sha" = "$REQUESTED_SHELL_REF" ] || exit 1
-          [ "$framework_sha" = "$REQUESTED_FRAMEWORK_REF" ] || exit 1
           test -n "$version"
           published_releases_json="$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json"
           published_tags_txt="$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt"

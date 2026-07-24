@@ -231,15 +231,21 @@ test('Stable is the only mutation entry and daily validation uses the independen
   }
 });
 
-test('new Standard binds fresh remote Framework main while Canary uses only a minimum compatible ABI', () => {
+test('new Standard admits exact main-reachable snapshots while Canary uses only a minimum compatible ABI', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
-  assert.match(stableAdmission, /standard\)\n\s+canonical_shell_sha=/);
-  assert.match(stableAdmission, /canonical_framework_sha=.*one-person-lab\.git refs\/heads\/main/);
-  assert.match(stableAdmission, /\[ "\$FRAMEWORK_REF" = "\$canonical_framework_sha" \]/);
+  assert.match(stableAdmission, /require_main_reachable\(\)/);
+  assert.match(stableAdmission, /repos\/\$repository\/compare\/\$snapshot_sha\.\.\.main/);
+  assert.match(stableAdmission, /\.status == "identical" or \.status == "ahead"/);
+  assert.match(stableAdmission, /\.merge_base_commit\.sha == \$snapshot_sha/);
+  assert.match(stableAdmission, /require_main_reachable "\$GITHUB_REPOSITORY" "\$app_sha"/);
+  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/opl-aion-shell" "\$SHELL_REF"/);
+  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/one-person-lab" "\$FRAMEWORK_REF"/);
+  assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
+  assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
   assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$FRAMEWORK_REF" \]/);
   assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_REF/);
@@ -298,6 +304,11 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
     'freeze',
     'Freeze source, version, and compatibility identity',
   ).run);
+  assert.match(identityScript, /\[ "\$app_sha" = "\$REQUESTED_APP_REF" \]/);
+  assert.match(identityScript, /\[ "\$shell_sha" = "\$REQUESTED_SHELL_REF" \]/);
+  assert.match(identityScript, /\[ "\$framework_sha" = "\$REQUESTED_FRAMEWORK_REF" \]/);
+  assert.doesNotMatch(identityScript, /canonical_(?:app|shell|framework)_sha/);
+  assert.doesNotMatch(identityScript, /ls-remote[^\n]*refs\/heads\/main/);
   for (const scratchPath of [
     '$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json',
     '$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt',
