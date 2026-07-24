@@ -18,6 +18,7 @@
     "verification": "docs/delivery/user-guides/docker-webui-install/verification/docker-webui-install-verification.json"
   },
   "download": {
+    "pdf_href": "docker-webui-install-detailed-guide.pdf",
     "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
     "local_image": "one-person-lab-webui:latest",
     "source_repo": "https://github.com/gaofeng21cn/one-person-lab-app",

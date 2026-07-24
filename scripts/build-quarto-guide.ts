@@ -485,6 +485,10 @@ function main() {
   );
 
   const html = fs.readFileSync(htmlOutputPath, 'utf8');
+  const pdfDownloadHref = manifest.download?.pdf_href;
+  if (pdfDownloadHref && !html.includes(`href="${pdfDownloadHref}"`)) {
+    throw new Error(`Generated HTML is missing PDF download link: ${pdfDownloadHref}`);
+  }
   scanText('HTML visible text', htmlVisibleText(html), manifest);
   const text = pdfText(pdfOutputPath);
   scanText('PDF text', text, manifest);
@@ -529,6 +533,12 @@ function main() {
     rendered_pages: rendered.pages.length,
     rendered_dir: relativeToApp(rendered.renderDir),
     html_bytes: html.length,
+    ...(pdfDownloadHref ? {
+      html_pdf_download: {
+        href: pdfDownloadHref,
+        status: 'present',
+      },
+    } : {}),
     screenshot_assets: assetVerification,
     required_terms: manifest.required_terms,
     required_terms_status: 'present',
