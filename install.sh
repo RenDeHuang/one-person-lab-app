@@ -5,6 +5,12 @@ OPL_INSTALL_SCRIPT_URL=${OPL_INSTALL_SCRIPT_URL:-https://raw.githubusercontent.c
 OPL_LOCAL_APP_PATH=${OPL_LOCAL_APP_PATH:-/Applications/One Person Lab.app}
 OPL_APP_RELEASE_REPO=${OPL_APP_RELEASE_REPO:-gaofeng21cn/one-person-lab-app}
 OPL_APP_DOCS_REF=${OPL_APP_DOCS_REF:-main}
+OPL_DOCKER_WEBUI_INSTALLER_URL=${OPL_DOCKER_WEBUI_INSTALLER_URL:-https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh}
+OPL_NATIVE_WEBUI_INSTALLER_URL=${OPL_NATIVE_WEBUI_INSTALLER_URL:-}
+OPL_NATIVE_WEBUI_INSTALLER_SHA256=${OPL_NATIVE_WEBUI_INSTALLER_SHA256:-}
+OPL_NATIVE_WEBUI_MIRROR=${OPL_NATIVE_WEBUI_MIRROR:-}
+OPL_NATIVE_WEBUI_VERSION=${OPL_NATIVE_WEBUI_VERSION:-}
+OPL_INSTALL_RUNTIME_FORM=${OPL_INSTALL_RUNTIME_FORM:-auto}
 
 INSTALL_ARGS=()
 AUTHORIZE_LOCAL_APP=0
@@ -21,16 +27,37 @@ STABLE_MACOS_DMG_URL=${OPL_STABLE_MACOS_DMG_URL:-}
 STABLE_MACOS_DMG_PATH=${OPL_STABLE_MACOS_DMG_PATH:-}
 STABLE_MACOS_OPEN=${OPL_STABLE_MACOS_OPEN:-1}
 STABLE_MACOS_WORK_DIR=''
+INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
+PRINT_INSTALL_ROUTE=0
+OPEN_OPTION_EXPLICIT=''
 
 usage() {
   cat <<'USAGE'
 Usage:
   install.sh [OPL install args...]
+  install.sh [--runtime-form auto|desktop|native-webui|container-webui|headless]
+  install.sh [--server|--isolated|--headless]
   install.sh --stable-macos-install [--full|--standard] [--release-tag vX.Y.Z] [--yes]
   install.sh --authorize-local-app-only [--app-path "/Applications/One Person Lab.app"] [--yes]
 
 Options:
-  By default, install the OPL base plus the optional App GUI without Agent packages.
+  By default, route macOS personal hosts to Desktop, Linux personal hosts to a
+  verified OPL Native WebUI artifact or the Container WebUI fallback, and
+  server/isolated hosts to Container WebUI.
+  --runtime-form <form>      Select auto, desktop, native-webui, container-webui, or headless.
+  --desktop                 Require the macOS Desktop/bootstrap path.
+  --native-webui            Require a verified OPL Native WebUI artifact.
+  --container-webui         Use the Container WebUI installer.
+  --server                  Select the Container WebUI server path.
+  --isolated                Select the Container WebUI isolation path.
+  --headless                Install OPL Base only, without an App runtime form.
+  --native-mirror <url>     Candidate OPL Native WebUI release mirror.
+  --native-version <ver>    Candidate OPL Native WebUI immutable version.
+  --native-installer-url <url>
+                            Exact verifier script URL.
+  --native-installer-sha256 <digest>
+                            Required SHA256 for the verifier script bytes.
+  --print-install-route     Resolve and print the selected route without installing.
   --stable-macos-install     Download, copy, locally authorize, and open the Stable App.
   --full                     Require the Full first-install DMG for --stable-macos-install.
   --standard                 Require the standard App DMG for --stable-macos-install.
@@ -119,9 +146,87 @@ while [ "$#" -gt 0 ]; do
       ;;
     --open)
       STABLE_MACOS_OPEN=1
+      OPEN_OPTION_EXPLICIT=--open
       ;;
     --no-open)
       STABLE_MACOS_OPEN=0
+      OPEN_OPTION_EXPLICIT=--no-open
+      ;;
+    --runtime-form)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --runtime-form\n' >&2
+        exit 1
+      fi
+      OPL_INSTALL_RUNTIME_FORM="$1"
+      ;;
+    --runtime-form=*)
+      OPL_INSTALL_RUNTIME_FORM="${arg#--runtime-form=}"
+      ;;
+    --desktop)
+      OPL_INSTALL_RUNTIME_FORM=desktop
+      ;;
+    --native-webui)
+      OPL_INSTALL_RUNTIME_FORM=native-webui
+      ;;
+    --container-webui)
+      OPL_INSTALL_RUNTIME_FORM=container-webui
+      ;;
+    --server)
+      INSTALL_SCENARIO=server
+      ;;
+    --isolated|--isolation)
+      INSTALL_SCENARIO=isolated
+      ;;
+    --headless)
+      OPL_INSTALL_RUNTIME_FORM=headless
+      ;;
+    --native-mirror)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --native-mirror\n' >&2
+        exit 1
+      fi
+      OPL_NATIVE_WEBUI_MIRROR="$1"
+      ;;
+    --native-mirror=*)
+      OPL_NATIVE_WEBUI_MIRROR="${arg#--native-mirror=}"
+      ;;
+    --native-version)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --native-version\n' >&2
+        exit 1
+      fi
+      OPL_NATIVE_WEBUI_VERSION="$1"
+      ;;
+    --native-version=*)
+      OPL_NATIVE_WEBUI_VERSION="${arg#--native-version=}"
+      ;;
+    --native-installer-url)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --native-installer-url\n' >&2
+        exit 1
+      fi
+      OPL_NATIVE_WEBUI_INSTALLER_URL="$1"
+      ;;
+    --native-installer-url=*)
+      OPL_NATIVE_WEBUI_INSTALLER_URL="${arg#--native-installer-url=}"
+      ;;
+    --native-installer-sha256)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --native-installer-sha256\n' >&2
+        exit 1
+      fi
+      OPL_NATIVE_WEBUI_INSTALLER_SHA256="$1"
+      ;;
+    --native-installer-sha256=*)
+      OPL_NATIVE_WEBUI_INSTALLER_SHA256="${arg#--native-installer-sha256=}"
+      ;;
+    --print-install-route)
+      PRINT_INSTALL_ROUTE=1
       ;;
     --help|-h)
       usage
@@ -149,6 +254,292 @@ arg_present() {
 
 is_macos() {
   [ "$(uname -s)" = "Darwin" ]
+}
+
+platform_family() {
+  case "$(uname -s)" in
+    Darwin)
+      printf 'macos\n'
+      ;;
+    Linux)
+      printf 'linux\n'
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      printf 'windows\n'
+      ;;
+    *)
+      printf 'unsupported\n'
+      ;;
+  esac
+}
+
+normalize_runtime_form() {
+  case "$OPL_INSTALL_RUNTIME_FORM" in
+    auto)
+      printf 'auto\n'
+      ;;
+    desktop)
+      printf 'desktop\n'
+      ;;
+    native|native-webui|native_webui)
+      printf 'native-webui\n'
+      ;;
+    container|container-webui|container_webui|docker)
+      printf 'container-webui\n'
+      ;;
+    headless|base|base-only|base_only)
+      printf 'headless\n'
+      ;;
+    *)
+      printf 'Unsupported runtime form: %s\n' "$OPL_INSTALL_RUNTIME_FORM" >&2
+      exit 1
+      ;;
+  esac
+}
+
+NATIVE_INSTALLER_PATH=''
+
+validate_native_mirror() {
+  case "$OPL_NATIVE_WEBUI_MIRROR" in
+    file://*)
+      return 0
+      ;;
+    https://github.com/gaofeng21cn/one-person-lab-app/releases/download|https://github.com/gaofeng21cn/one-person-lab-app/releases/download/)
+      return 0
+      ;;
+    http://*|https://*)
+      printf 'Remote Native WebUI mirror must be the One Person Lab App GitHub Release base namespace.\n' >&2
+      return 1
+      ;;
+    *)
+      printf 'Native WebUI mirror must be the App GitHub Release base URL or an explicit file:// development candidate.\n' >&2
+      return 1
+      ;;
+  esac
+}
+
+native_mirror_is_local_development() {
+  case "$OPL_NATIVE_WEBUI_MIRROR" in
+    file://*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+validate_native_version() {
+  case "$OPL_NATIVE_WEBUI_VERSION" in
+    ''|*[!0-9A-Za-z._-]*)
+      printf 'Native WebUI version must use only letters, numbers, dots, underscores, or hyphens.\n' >&2
+      return 1
+      ;;
+  esac
+}
+
+expected_native_installer_url() {
+  printf '%s/v%s/install-web.sh\n' "${OPL_NATIVE_WEBUI_MIRROR%/}" "$OPL_NATIVE_WEBUI_VERSION"
+}
+
+sha256_file() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    printf 'shasum or sha256sum is required to verify the Native WebUI verifier.\n' >&2
+    return 1
+  fi
+}
+
+cleanup_native_installer() {
+  if [ -n "$NATIVE_INSTALLER_PATH" ]; then
+    rm -f "$NATIVE_INSTALLER_PATH"
+  fi
+}
+
+prepare_native_installer() {
+  if [ -n "$NATIVE_INSTALLER_PATH" ]; then
+    return 0
+  fi
+  if [ -z "$OPL_NATIVE_WEBUI_MIRROR" ] || [ -z "$OPL_NATIVE_WEBUI_VERSION" ]; then
+    return 1
+  fi
+  validate_native_mirror || return 1
+  validate_native_version || return 1
+  if [ -z "$OPL_NATIVE_WEBUI_INSTALLER_URL" ] || [ -z "$OPL_NATIVE_WEBUI_INSTALLER_SHA256" ]; then
+    printf 'Native WebUI verifier requires an explicit URL and caller-supplied SHA256.\n' >&2
+    return 1
+  fi
+  local expected_installer_url
+  expected_installer_url=$(expected_native_installer_url)
+  if [ "$OPL_NATIVE_WEBUI_INSTALLER_URL" != "$expected_installer_url" ]; then
+    printf 'Native WebUI verifier URL must be the install-web.sh asset from the selected App Release version.\n' >&2
+    return 1
+  fi
+  case "$OPL_NATIVE_WEBUI_INSTALLER_SHA256" in
+    *[!0-9a-f]*|'')
+      printf 'Native WebUI verifier SHA256 must be 64 lowercase hexadecimal characters.\n' >&2
+      return 1
+      ;;
+  esac
+  if [ "${#OPL_NATIVE_WEBUI_INSTALLER_SHA256}" -ne 64 ]; then
+    printf 'Native WebUI verifier SHA256 must be 64 lowercase hexadecimal characters.\n' >&2
+    return 1
+  fi
+  NATIVE_INSTALLER_PATH=$(mktemp "${TMPDIR:-/tmp}/opl-native-webui-installer.XXXXXX")
+  if ! curl -fsSL "$OPL_NATIVE_WEBUI_INSTALLER_URL" -o "$NATIVE_INSTALLER_PATH"; then
+    cleanup_native_installer
+    NATIVE_INSTALLER_PATH=''
+    return 1
+  fi
+  local actual_sha256
+  actual_sha256=$(sha256_file "$NATIVE_INSTALLER_PATH") || return 1
+  if [ "$actual_sha256" != "$OPL_NATIVE_WEBUI_INSTALLER_SHA256" ]; then
+    printf 'Native WebUI verifier SHA256 mismatch.\n' >&2
+    cleanup_native_installer
+    NATIVE_INSTALLER_PATH=''
+    return 1
+  fi
+  if ! grep -Fq -- 'dev.onepersonlab.opl-native-webui-artifact.v1' "$NATIVE_INSTALLER_PATH" ||
+    ! grep -Fq -- '--probe-artifact' "$NATIVE_INSTALLER_PATH"; then
+    printf 'Native WebUI verifier does not implement the OPL immutable artifact guard.\n' >&2
+    cleanup_native_installer
+    NATIVE_INSTALLER_PATH=''
+    return 1
+  fi
+}
+
+verified_native_artifact_available() {
+  prepare_native_installer || return 1
+  bash "$NATIVE_INSTALLER_PATH" \
+    --mirror "$OPL_NATIVE_WEBUI_MIRROR" \
+    --version "$OPL_NATIVE_WEBUI_VERSION" \
+    --probe-artifact >/dev/null 2>&1
+}
+
+resolve_install_route() {
+  local platform runtime_form
+  platform=$(platform_family)
+  runtime_form=$(normalize_runtime_form)
+
+  if [ "$platform" = "unsupported" ]; then
+    printf 'Unsupported platform for OPL App installer: %s\n' "$(uname -s)" >&2
+    exit 1
+  fi
+  case "$INSTALL_SCENARIO" in
+    personal|server|isolated)
+      ;;
+    *)
+      printf 'Unsupported install scenario: %s\n' "$INSTALL_SCENARIO" >&2
+      exit 1
+      ;;
+  esac
+
+  if [ "$runtime_form" = "headless" ]; then
+    printf 'headless\n'
+    return
+  fi
+  if [ "$INSTALL_SCENARIO" = "server" ] || [ "$INSTALL_SCENARIO" = "isolated" ]; then
+    if [ "$runtime_form" != "auto" ] && [ "$runtime_form" != "container-webui" ]; then
+      printf 'Server or isolated installs require the Container WebUI runtime form.\n' >&2
+      exit 1
+    fi
+    printf 'container-webui\n'
+    return
+  fi
+
+  case "$runtime_form" in
+    desktop)
+      if [ "$platform" != "macos" ]; then
+        printf 'Desktop installation is currently supported only on macOS.\n' >&2
+        exit 1
+      fi
+      printf 'desktop\n'
+      ;;
+    native-webui)
+      if [ "$platform" != "linux" ]; then
+        printf 'The Native WebUI development candidate is currently implemented only for Linux hosts.\n' >&2
+        exit 1
+      fi
+      if ! verified_native_artifact_available; then
+        printf 'A verified OPL Native WebUI artifact is required for --native-webui.\n' >&2
+        printf 'Provide mirror/version plus an exact verifier URL and SHA256 for an OPL-owned immutable candidate.\n' >&2
+        exit 1
+      fi
+      printf 'native-webui\n'
+      ;;
+    container-webui)
+      printf 'container-webui\n'
+      ;;
+    auto)
+      case "$platform" in
+        macos)
+          printf 'desktop\n'
+          ;;
+        linux)
+          if native_mirror_is_local_development; then
+            printf 'Local Native WebUI candidates require explicit --native-webui selection; using Container WebUI.\n' >&2
+            printf 'container-webui\n'
+          elif verified_native_artifact_available; then
+            printf 'native-webui\n'
+          else
+            printf 'OPL Native WebUI is not yet available as a verified artifact; using Container WebUI.\n' >&2
+            printf 'container-webui\n'
+          fi
+          ;;
+        windows)
+          printf 'container-webui\n'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+install_desktop_bootstrap() {
+  if ! arg_present "--with-app"; then
+    INSTALL_ARGS+=("--with-app")
+  fi
+  if ! arg_present "--skip-packages" && ! arg_present "--package" && ! arg_present "--packages"; then
+    INSTALL_ARGS+=("--skip-packages")
+  fi
+  curl -fsSL "$OPL_INSTALL_SCRIPT_URL" | bash -s -- "${INSTALL_ARGS[@]}"
+}
+
+install_headless_base() {
+  if ! arg_present "--headless"; then
+    INSTALL_ARGS+=("--headless")
+  fi
+  if ! arg_present "--skip-packages" && ! arg_present "--package" && ! arg_present "--packages"; then
+    INSTALL_ARGS+=("--skip-packages")
+  fi
+  curl -fsSL "$OPL_INSTALL_SCRIPT_URL" | bash -s -- "${INSTALL_ARGS[@]}"
+}
+
+install_container_webui() {
+  local container_args=()
+  if [ "$AUTHORIZE_LOCAL_APP_YES" = "1" ]; then
+    container_args+=("--yes")
+  fi
+  if [ "$OPEN_OPTION_EXPLICIT" = "--no-open" ]; then
+    container_args+=("--no-open")
+  fi
+  if [ "${#container_args[@]}" -eq 0 ]; then
+    curl -fsSL "$OPL_DOCKER_WEBUI_INSTALLER_URL" | bash -s --
+  else
+    curl -fsSL "$OPL_DOCKER_WEBUI_INSTALLER_URL" | bash -s -- "${container_args[@]}"
+  fi
+}
+
+install_native_webui() {
+  prepare_native_installer || {
+    printf 'OPL Native WebUI installer or immutable candidate metadata is unavailable.\n' >&2
+    exit 1
+  }
+  bash "$NATIVE_INSTALLER_PATH" \
+    --mirror "$OPL_NATIVE_WEBUI_MIRROR" \
+    --version "$OPL_NATIVE_WEBUI_VERSION"
 }
 
 count_quarantine_attrs() {
@@ -511,14 +902,31 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! arg_present "--with-app" && ! arg_present "--headless"; then
-  INSTALL_ARGS+=("--with-app")
-fi
-if ! arg_present "--skip-packages" && ! arg_present "--package" && ! arg_present "--packages"; then
-  INSTALL_ARGS+=("--skip-packages")
+trap cleanup_native_installer EXIT
+SELECTED_INSTALL_ROUTE=$(resolve_install_route)
+if [ "$PRINT_INSTALL_ROUTE" = "1" ]; then
+  printf '%s\n' "$SELECTED_INSTALL_ROUTE"
+  exit 0
 fi
 
-curl -fsSL "$OPL_INSTALL_SCRIPT_URL" | bash -s -- "${INSTALL_ARGS[@]}"
+case "$SELECTED_INSTALL_ROUTE" in
+  desktop)
+    install_desktop_bootstrap
+    ;;
+  native-webui)
+    install_native_webui
+    ;;
+  container-webui)
+    install_container_webui
+    ;;
+  headless)
+    install_headless_base
+    ;;
+  *)
+    printf 'Internal installer routing error: %s\n' "$SELECTED_INSTALL_ROUTE" >&2
+    exit 1
+    ;;
+esac
 
 if [ "$AUTHORIZE_LOCAL_APP" = "1" ]; then
   authorize_local_app
