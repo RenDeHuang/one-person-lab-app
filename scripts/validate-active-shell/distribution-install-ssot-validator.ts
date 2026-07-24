@@ -112,12 +112,58 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'legacy_cask_exists_not_managed_by_current_release_pipeline',
     'Full Cask current release state',
   );
-  requireEqual(releaseHomebrew?.excluded_casks?.includes('one-person-lab-full'), true, 'Current Full Cask exclusion');
+  requireEqual(releaseHomebrew?.excluded_casks?.includes('one-person-lab-full'), false, 'Approved Full Cask exclusion');
+  requireEqual(releaseHomebrew?.full_casks?.includes('one-person-lab-full'), true, 'Approved Full Cask target');
   requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, false, 'Current Full Cask publication');
+  requireEqual(
+    releaseHomebrew?.tap_update_policy?.nightly?.mutation_allowed,
+    false,
+    'Retired Nightly Cask mutation',
+  );
   requireEqual(
     release.approved_targets?.homebrew_full?.formula_dependency_target,
     false,
     'Full Cask target Formula dependency',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.generation_status,
+    'implemented_unpublished',
+    'Full Cask target generator status',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.generator,
+    'scripts/update-homebrew-tap.ts',
+    'Full Cask target generator',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.package_kind,
+    'app_full_first_install',
+    'Full Cask target package kind',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.framework_carrier_target,
+    'full_dmg_embedded_opl_base',
+    'Full Cask target Framework carrier',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.active_framework_count_target,
+    1,
+    'Full Cask target active Framework count',
+  );
+  assertDeepEqualJson(
+    release.approved_targets?.homebrew_full?.cask_conflicts_required,
+    ['one-person-lab', 'one-person-lab-nightly'],
+    'Full Cask target conflicts',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.digest_cas_required,
+    true,
+    'Full Cask target digest CAS',
+  );
+  requireEqual(
+    release.approved_targets?.homebrew_full?.public_promotion_status,
+    'not_approved_until_promotion_requirements_pass',
+    'Full Cask target public promotion status',
   );
 
   const consistency = install.consistency_target;
@@ -215,6 +261,26 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installHomebrew?.full?.formula_dependency_current, true, 'Full Cask current Formula dependency');
   requireEqual(installHomebrew?.full?.duplicate_base_carrier_risk_current, true, 'Full Cask current duplicate risk');
   requireEqual(installHomebrew?.full?.formula_dependency_target, false, 'Full Cask target Formula dependency');
+  requireEqual(
+    installHomebrew?.full?.target_generation_status,
+    'implemented_unpublished',
+    'Full Cask install target generator status',
+  );
+  requireEqual(
+    installHomebrew?.full?.target_generator_ref,
+    'scripts/update-homebrew-tap.ts',
+    'Full Cask install target generator',
+  );
+  requireEqual(
+    installHomebrew?.full?.target_framework_carrier,
+    'full_dmg_embedded_opl_base',
+    'Full Cask install target Framework carrier',
+  );
+  requireEqual(
+    installHomebrew?.full?.target_digest_cas_required,
+    true,
+    'Full Cask install target digest CAS',
+  );
   requireEqual(installHomebrew?.full?.target_requires_active_framework_count, 1, 'Full Cask target Framework count');
   requireEqual(
     installHomebrew?.quarantine?.homebrew_cask_automatically_clears_quarantine_current,

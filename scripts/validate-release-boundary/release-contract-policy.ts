@@ -1064,23 +1064,26 @@ export function validateReleaseAccelerationPolicy(
     failures += 1;
   }
   if (
-    !sameStringSet(homebrew?.allowed_casks, ['one-person-lab', 'one-person-lab-nightly']) ||
+    !sameStringSet(homebrew?.allowed_casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
     !sameStringSet(homebrew?.casks, ['one-person-lab']) ||
-    !sameStringSet(homebrew?.initial_live_targets, [
-      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb',
-    ]) ||
-    !sameStringSet(homebrew?.excluded_casks, ['one-person-lab-full']) ||
-    !sameStringSet(homebrew?.full_casks, []) ||
+    !sameStringSet(homebrew?.initial_live_targets, ['Casks/one-person-lab.rb']) ||
+    !sameStringSet(homebrew?.excluded_casks, []) ||
+    !sameStringSet(homebrew?.full_casks, ['one-person-lab-full']) ||
     homebrew?.tap_update_policy?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
-    homebrew?.tap_update_policy?.full?.mode !== 'github_release_assets_only_no_homebrew_target' ||
+    homebrew?.tap_update_policy?.nightly?.mode !== 'retired_historical_read_only' ||
+    homebrew?.tap_update_policy?.nightly?.mutation_allowed !== false ||
+    homebrew?.tap_update_policy?.full?.mode !== 'implemented_unpublished_generator_target' ||
     homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== false ||
-    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== false ||
-    homebrew?.full_first_install_policy !== 'github_release_full_dmg_only; never Homebrew cask or standard updater metadata' ||
+    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== true ||
+    homebrew?.tap_update_policy?.full?.framework_carrier !== 'full_dmg_embedded_opl_base' ||
+    homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
+    homebrew?.tap_update_policy?.full?.promotion_status !== 'not_approved_until_promotion_requirements_pass' ||
+    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
-      'one-person-lab', 'one-person-lab-nightly',
+      'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_full_retirement: Full remains a GitHub Release asset and must not be a live Homebrew cask or workflow target');
+    console.error('FAIL release_homebrew_distribution: Nightly must remain retired and Full must remain implemented but unpublished with embedded Base');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);

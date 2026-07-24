@@ -1,5 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
+import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
 import {
@@ -176,7 +177,7 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseExecutionPolicy(releaseChannel);
-  validateTerminalReleaseHomebrewDistribution(releaseChannel);
+  validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
 }
 
@@ -252,110 +253,6 @@ function validateStandardUpdater(updater) {
     updater?.post_update_reconcile_ref !== 'managed_update_plane.carrier_reconciliation'
   ) {
     throw new Error('Standard updater must remain App-binary-only and join the carrier-neutral Framework reconciliation path');
-  }
-}
-
-function validateTerminalReleaseHomebrewDistribution(releaseChannel) {
-  const homebrew = releaseChannel?.homebrew_tap_distribution;
-  if (
-    homebrew?.owner !== 'one-person-lab-app' ||
-    homebrew?.tap_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
-    homebrew?.role !== 'downstream_opl_base_formula_and_app_cask_index' ||
-    homebrew?.cohort_manifest_required !== true
-  ) {
-    throw new Error('Release channel Homebrew distribution must remain an App-owned cask index');
-  }
-  assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
-  assertDeepEqualJson(homebrew.allowed_formulae, ['opl'], 'Release channel allowed Homebrew formulae');
-  assertDeepEqualJson(
-    homebrew.allowed_casks,
-    ['one-person-lab', 'one-person-lab-nightly'],
-    'Release channel allowed Homebrew casks',
-  );
-  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel live Stable Homebrew casks');
-  assertDeepEqualJson(
-    homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
-    'Release channel Homebrew live targets',
-  );
-  assertDeepEqualJson(homebrew.excluded_casks, ['one-person-lab-full'], 'Release channel retired Homebrew casks');
-  assertDeepEqualJson(homebrew.full_casks, [], 'Release channel Full Homebrew casks');
-  assertDeepEqualJson(homebrew.nightly_formulae, [], 'Release channel nightly formulae');
-  assertDeepEqualJson(homebrew.nightly_casks, ['one-person-lab-nightly'], 'Release channel nightly casks');
-  assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
-    formula: {
-      software_object: 'opl_base',
-      formula: 'opl',
-      lifecycle_owner: 'one-person-lab',
-      app_tap_manages_formula: false,
-      opl_packages_allowed: false,
-    },
-    cask: {
-      software_object: 'opl_app',
-      lifecycle_owner: 'one-person-lab-app',
-      base_or_packages_mutation_allowed: false,
-    },
-    equivalent_direct_carriers: {
-      opl_base: 'framework_installer',
-      opl_app: 'signed_installer_or_dmg',
-    },
-    carrier_choice_changes_lifecycle_owner: false,
-  }, 'Release channel Homebrew carrier adapter semantics');
-  if (
-    homebrew.cask_install_policy?.standard_cask !== 'one-person-lab' ||
-    homebrew.cask_install_policy?.standard_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
-    homebrew.cask_install_policy?.fully_qualified_cask_install !== true ||
-    homebrew.cask_install_policy?.trust_scope !== 'explicit_standard_and_conflicting_cask_refs_not_whole_tap'
-  ) {
-    throw new Error('Release channel Homebrew installs must use the fully qualified Standard cask');
-  }
-  assertDeepEqualJson(
-    homebrew.cask_install_policy.standard_install_trusted_cask_refs,
-    [
-      'gaofeng21cn/one-person-lab/one-person-lab',
-      'gaofeng21cn/one-person-lab/one-person-lab-full',
-      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
-    ],
-    'Release channel Homebrew trusted current and historical conflicting casks',
-  );
-  const tap = homebrew.tap_update_policy;
-  if (
-    tap?.default_remote_write_path !== 'release_bundle_protected_job_digest_bound_direct_commit' ||
-    tap?.default_workflow !== '.github/workflows/_release-bundle.yml' ||
-    tap?.app_release_promotion_workflow !== '.github/workflows/release-stable.yml' ||
-    tap?.app_release_direct_token !== 'release-stable.OPL_HOMEBREW_TAP_TOKEN' ||
-    tap?.app_release_pull_request_allowed !== false ||
-    tap?.app_release_workflow_write_mode !== 'protected_environment_single_attempt_digest_bound_direct_commit' ||
-    tap?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
-    tap?.planner_script !== 'scripts/update-homebrew-tap.ts' ||
-    tap?.stable?.mode !== 'release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest' ||
-    tap?.full?.mode !== 'github_release_assets_only_no_homebrew_target' ||
-    tap?.full?.homebrew_publish_allowed !== false ||
-    tap?.full?.homebrew_clean_vm_gate_required !== false ||
-    tap?.full?.may_update_standard_cask !== false ||
-    tap?.full?.may_update_nightly_cask !== false ||
-    tap?.full?.standard_updater_visible !== false ||
-    tap?.full?.standard_assets_notes_updater_or_latest_may_change !== false
-  ) {
-    throw new Error('Release channel Full must remain GitHub-assets-only with no live Homebrew target');
-  }
-  if (homebrew.full_first_install_policy !== 'github_release_full_dmg_only; never Homebrew cask or standard updater metadata') {
-    throw new Error('Release channel Full first install must use the GitHub Release DMG, not Homebrew');
-  }
-  assertDeepEqualJson(
-    homebrew.opl_packages_boundary?.allowed_homebrew_casks,
-    ['one-person-lab', 'one-person-lab-nightly'],
-    'Release channel Homebrew OPL Packages cask boundary',
-  );
-  if (
-    homebrew.opl_packages_boundary?.homebrew_distribution_allowed !== false ||
-    homebrew.opl_packages_boundary?.homebrew_formula_allowed !== false ||
-    homebrew.opl_packages_boundary?.homebrew_cask_allowed !== false ||
-    homebrew.codex_temporal_policy?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
-    homebrew.codex_temporal_policy?.prefer_valid_newer_system_tool !== true ||
-    homebrew.codex_temporal_policy?.bundled_fallback_allowed !== true
-  ) {
-    throw new Error('Release channel Homebrew must not own OPL Packages and must retain compatible tool fallback');
   }
 }
 

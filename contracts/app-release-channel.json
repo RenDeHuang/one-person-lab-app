@@ -126,7 +126,18 @@
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
         "homebrew_cask": "one-person-lab-full",
+        "generation_status": "implemented_unpublished",
+        "generator": "scripts/update-homebrew-tap.ts",
+        "package_kind": "app_full_first_install",
         "formula_dependency_target": false,
+        "framework_carrier_target": "full_dmg_embedded_opl_base",
+        "active_framework_count_target": 1,
+        "cask_conflicts_required": [
+          "one-person-lab",
+          "one-person-lab-nightly"
+        ],
+        "digest_cas_required": true,
+        "public_promotion_status": "not_approved_until_promotion_requirements_pass",
         "standard_updater_visible": false,
         "promotion_requires": [
           "full_embedded_base_activation",
@@ -2136,7 +2147,8 @@
     ],
     "allowed_casks": [
       "one-person-lab",
-      "one-person-lab-nightly"
+      "one-person-lab-nightly",
+      "one-person-lab-full"
     ],
     "casks": [
       "one-person-lab"
@@ -2154,13 +2166,12 @@
       "rule": "Homebrew user and CI installs use the fully qualified standard cask ref and trust only the standard plus conflicts_with sibling cask refs so installation stays explicit without granting broad trust to the whole tap."
     },
     "initial_live_targets": [
-      "Casks/one-person-lab.rb",
-      "Casks/one-person-lab-nightly.rb"
+      "Casks/one-person-lab.rb"
     ],
-    "excluded_casks": [
+    "excluded_casks": [],
+    "full_casks": [
       "one-person-lab-full"
     ],
-    "full_casks": [],
     "nightly_formulae": [],
     "nightly_casks": [
       "one-person-lab-nightly"
@@ -2182,26 +2193,30 @@
       "direct_commit_conflict_policy": "Push once, then compare exact local and remote tap commits; an unknown or mismatched result fails closed without retry, rerun, or redispatch",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
-        "mode": "not_part_of_desktop_stable_homebrew_critical_path",
-        "may_update_stable": false
+        "mode": "retired_historical_read_only",
+        "may_update_stable": false,
+        "mutation_allowed": false
       },
       "stable": {
         "mode": "release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest",
         "may_consume_nightly_directly": false
       },
       "full": {
-        "mode": "github_release_assets_only_no_homebrew_target",
+        "mode": "implemented_unpublished_generator_target",
         "homebrew_publish_allowed": false,
-        "homebrew_clean_vm_gate_required": false,
+        "homebrew_clean_vm_gate_required": true,
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
         "standard_updater_visible": false,
-        "standard_assets_notes_updater_or_latest_may_change": false
+        "standard_assets_notes_updater_or_latest_may_change": false,
+        "framework_carrier": "full_dmg_embedded_opl_base",
+        "formula_dependency_required": false,
+        "promotion_status": "not_approved_until_promotion_requirements_pass"
       },
       "version_identity": {
         "cask_version": "updater_version",
         "release_tag_and_asset_url": "display_version",
-        "formula_dependency_required": "opl",
+        "formula_dependency_policy": "standard_requires_opl_formula_full_forbids_formula",
         "receipt_binds": [
           "display_version",
           "updater_version",
@@ -2220,7 +2235,7 @@
         "release_set_manifest_digest"
       ]
     },
-    "full_first_install_policy": "github_release_full_dmg_only; never Homebrew cask or standard updater metadata",
+    "full_first_install_policy": "github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
@@ -2260,7 +2275,8 @@
       ],
       "allowed_homebrew_casks": [
         "one-person-lab",
-        "one-person-lab-nightly"
+        "one-person-lab-nightly",
+        "one-person-lab-full"
       ]
     }
   },

@@ -18,7 +18,7 @@ export function validateReleaseHomebrewDistribution(releaseChannel) {
     ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full'],
     'Release channel allowed Homebrew casks',
   );
-  assertDeepEqualJson(homebrew.casks, ['one-person-lab', 'one-person-lab-full'], 'Release channel Homebrew casks');
+  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel currently managed Homebrew casks');
   assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
     formula: {
       software_object: 'opl_base',
@@ -65,7 +65,7 @@ function validateReleaseHomebrewCaskInstallPolicy(homebrew) {
   );
   assertDeepEqualJson(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
+    ['Casks/one-person-lab.rb'],
     'Release channel Homebrew initial live targets',
   );
   assertDeepEqualJson(
@@ -111,7 +111,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       },
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
-        expected: 'release_bundle_standard_before_latest_and_full_after_additive_publish',
+        expected: 'release_bundle_standard_before_latest_only',
       },
       {
         actual: tapUpdate?.direct_commit_conflict_policy,
@@ -119,22 +119,30 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
           'Push once, then compare exact local and remote tap commits; an unknown or mismatched result fails closed without retry, rerun, or redispatch',
       },
       { actual: tapUpdate?.planner_script, expected: 'scripts/update-homebrew-tap.ts' },
-      { actual: tapUpdate?.nightly?.mode, expected: 'not_part_of_desktop_stable_homebrew_critical_path' },
+      { actual: tapUpdate?.nightly?.mode, expected: 'retired_historical_read_only' },
       { actual: tapUpdate?.nightly?.may_update_stable, expected: false },
+      { actual: tapUpdate?.nightly?.mutation_allowed, expected: false },
       {
         actual: tapUpdate?.stable?.mode,
         expected: 'release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
-      { actual: tapUpdate?.full?.mode, expected: 'release_bundle_publishes_full_cask_then_clean_vm_readback_after_full_asset_publish' },
+      { actual: tapUpdate?.full?.mode, expected: 'implemented_unpublished_generator_target' },
+      { actual: tapUpdate?.full?.homebrew_publish_allowed, expected: false },
+      { actual: tapUpdate?.full?.homebrew_clean_vm_gate_required, expected: true },
       { actual: tapUpdate?.full?.may_update_standard_cask, expected: false },
       { actual: tapUpdate?.full?.may_update_nightly_cask, expected: false },
-      { actual: tapUpdate?.full?.manifest, expected: 'opl-release-manifest.json' },
       { actual: tapUpdate?.full?.standard_updater_visible, expected: false },
       { actual: tapUpdate?.full?.standard_assets_notes_updater_or_latest_may_change, expected: false },
+      { actual: tapUpdate?.full?.framework_carrier, expected: 'full_dmg_embedded_opl_base' },
+      { actual: tapUpdate?.full?.formula_dependency_required, expected: false },
+      { actual: tapUpdate?.full?.promotion_status, expected: 'not_approved_until_promotion_requirements_pass' },
       { actual: tapUpdate?.version_identity?.cask_version, expected: 'updater_version' },
       { actual: tapUpdate?.version_identity?.release_tag_and_asset_url, expected: 'display_version' },
-      { actual: tapUpdate?.version_identity?.formula_dependency_required, expected: 'opl' },
+      {
+        actual: tapUpdate?.version_identity?.formula_dependency_policy,
+        expected: 'standard_requires_opl_formula_full_forbids_formula',
+      },
     ],
     'Release channel Homebrew tap update policy must use tap self-sync and separate nightly automation from stable promotion',
   );

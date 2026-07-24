@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { appRoot } from './app-release-boundary-cases/helpers.ts';
@@ -35,6 +37,109 @@ test('distribution/install SSOT validates the current and approved state split',
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_target,
     false,
   );
+  assert.equal(
+    release.distribution_semantics.approved_targets.homebrew_full.generation_status,
+    'implemented_unpublished',
+  );
+  assert.equal(
+    release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed,
+    false,
+  );
+});
+
+test('Homebrew generator keeps Standard on Formula Base and Full on embedded Base', () => {
+  const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-full-carrier-'));
+  const digest = 'a'.repeat(64);
+  const common = [
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--version',
+    '26.7.24',
+    '--updater-version',
+    '26.7.2400',
+    '--tap-root',
+    tapRoot,
+    '--checksum-sha256',
+    digest,
+    '--write',
+  ];
+  const run = (args: string[]) => spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', ...common, ...args],
+    { cwd: appRoot, encoding: 'utf8' },
+  );
+
+  const standard = run([
+    '--package-kind',
+    'app_standard',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/latest-arm64-mac.yml',
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/One-Person-Lab-26.7.24-mac-arm64.dmg',
+    '--cask',
+    'Casks/one-person-lab.rb',
+  ]);
+  assert.equal(standard.status, 0, standard.stderr || standard.stdout);
+
+  fs.writeFileSync(
+    path.join(tapRoot, 'Casks/one-person-lab-full.rb'),
+    [
+      'cask "one-person-lab-full" do',
+      '  version "26.7.2300"',
+      `  sha256 "${'b'.repeat(64)}"`,
+      '  url "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.23/One-Person-Lab-Full-26.7.23-mac-arm64.dmg"',
+      '  conflicts_with cask: ["one-person-lab", "one-person-lab-nightly"]',
+      '  depends_on formula: "gaofeng21cn/one-person-lab/opl"',
+      '  depends_on macos: :big_sur',
+      '  depends_on arch: :arm64',
+      '  app "One Person Lab.app"',
+      'end',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  const full = run([
+    '--package-kind',
+    'app_full_first_install',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/opl-release-manifest.json',
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/One-Person-Lab-Full-26.7.24-mac-arm64.dmg',
+    '--cask',
+    'Casks/one-person-lab-full.rb',
+  ]);
+  assert.equal(full.status, 0, full.stderr || full.stdout);
+
+  const standardCask = fs.readFileSync(path.join(tapRoot, 'Casks/one-person-lab.rb'), 'utf8');
+  const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks/one-person-lab-full.rb'), 'utf8');
+  const standardPlan = JSON.parse(standard.stdout);
+  const fullPlan = JSON.parse(full.stdout);
+  assert.match(standardCask, /depends_on formula: "opl"/);
+  assert.doesNotMatch(fullCask, /depends_on formula:/);
+  assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
+  assert.equal(standardPlan.policy.formula_dependency_required, true);
+  assert.equal(standardPlan.policy.framework_carrier, 'homebrew_formula_opl');
+  assert.equal(fullPlan.policy.formula_dependency_required, false);
+  assert.equal(fullPlan.policy.framework_carrier, 'full_dmg_embedded_opl_base');
+  assert.equal(fullPlan.policy.active_framework_count_target, 1);
+  assert.equal(fullPlan.policy.publishes_or_pushes_remote, false);
+  assert.equal(fullPlan.cas.decision, 'write_once');
+
+  const fullAgain = run([
+    '--package-kind',
+    'app_full_first_install',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/opl-release-manifest.json',
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.24/One-Person-Lab-Full-26.7.24-mac-arm64.dmg',
+    '--cask',
+    'Casks/one-person-lab-full.rb',
+  ]);
+  assert.equal(fullAgain.status, 0, fullAgain.stderr || fullAgain.stdout);
+  assert.equal(JSON.parse(fullAgain.stdout).cas.decision, 'idempotent');
+  assert.equal(JSON.parse(fullAgain.stdout).cas.write_performed, false);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks/one-person-lab-full.rb'), 'utf8'), fullCask);
 });
 
 test('cross-contract drift fails closed for channel, carrier, and convergence mutations', () => {
@@ -55,6 +160,18 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       'Full target retaining Formula dependency',
       (release) => {
         release.distribution_semantics.approved_targets.homebrew_full.formula_dependency_target = true;
+      },
+    ],
+    [
+      'Full target losing digest CAS',
+      (release) => {
+        release.distribution_semantics.approved_targets.homebrew_full.digest_cas_required = false;
+      },
+    ],
+    [
+      'Full generator being presented as publicly promoted',
+      (release) => {
+        release.distribution_semantics.approved_targets.homebrew_full.public_promotion_status = 'published';
       },
     ],
     [

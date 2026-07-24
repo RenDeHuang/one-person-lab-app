@@ -371,6 +371,12 @@ printf '%s\\n' "$*" > "$OPL_INSTALL_ARGS_CAPTURE"
 INNER
 `,
   );
+  writeExecutable(
+    path.join(tempRoot, "uname"),
+    `#!/bin/sh
+printf 'Darwin\\n'
+`,
+  );
 
   try {
     const result = spawnSync("/bin/bash", [path.join(appRoot, "install.sh")], {

@@ -342,13 +342,17 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.standard_assets_modified, false);
   assert.equal(full.latest_modified, false);
   assert.ok(!control.publication.stable.latest_requires.includes("append_full"));
-  assert.deepEqual(release.homebrew_tap_distribution.full_casks, []);
-  assert.deepEqual(release.homebrew_tap_distribution.excluded_casks, ["one-person-lab-full"]);
+  assert.deepEqual(release.homebrew_tap_distribution.full_casks, ["one-person-lab-full"]);
+  assert.deepEqual(release.homebrew_tap_distribution.excluded_casks, []);
   assert.equal(
     release.homebrew_tap_distribution.tap_update_policy.full.mode,
-    "github_release_assets_only_no_homebrew_target",
+    "implemented_unpublished_generator_target",
   );
   assert.equal(release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed, false);
+  assert.equal(
+    release.homebrew_tap_distribution.tap_update_policy.full.promotion_status,
+    "not_approved_until_promotion_requirements_pass",
+  );
 });
 
 test("operation safety is explicit in the machine contract", () => {

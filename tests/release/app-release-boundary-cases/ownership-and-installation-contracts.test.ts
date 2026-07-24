@@ -94,6 +94,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   const releaseUrl = (version: string, assetName: string) =>
     `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/${assetName}`;
   const standardDmg = (version: string) => `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const fullDmg = (version: string) => `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const runTap = ({
     channel = 'stable',
     packageKind,
@@ -250,14 +251,56 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   const homebrew = releaseContract.homebrew_tap_distribution;
-  assert.deepEqual(homebrew.full_casks, []);
-  assert.deepEqual(homebrew.excluded_casks, ['one-person-lab-full']);
-  assert.equal(homebrew.allowed_casks.includes('one-person-lab-full'), false);
+  assert.deepEqual(homebrew.full_casks, ['one-person-lab-full']);
+  assert.deepEqual(homebrew.excluded_casks, []);
+  assert.equal(homebrew.allowed_casks.includes('one-person-lab-full'), true);
   assert.equal(homebrew.casks.includes('one-person-lab-full'), false);
+  assert.deepEqual(homebrew.initial_live_targets, ['Casks/one-person-lab.rb']);
   assert.equal(homebrew.initial_live_targets.includes('Casks/one-person-lab-full.rb'), false);
   assert.equal(homebrew.tap_update_policy.full.homebrew_publish_allowed, false);
-  assert.equal(homebrew.tap_update_policy.full.homebrew_clean_vm_gate_required, false);
+  assert.equal(homebrew.tap_update_policy.full.homebrew_clean_vm_gate_required, true);
   assert.equal(fs.existsSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb')), false);
+
+  fs.writeFileSync(
+    path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'),
+    [
+      'cask "one-person-lab-full" do',
+      '  version "26.6.300"',
+      `  sha256 "${'a'.repeat(64)}"`,
+      `  url "${releaseUrl('26.6.3', fullDmg('26.6.3'))}"`,
+      '  depends_on formula: "gaofeng21cn/one-person-lab/opl"',
+      '  app "One Person Lab.app"',
+      'end',
+      '',
+    ].join('\n'),
+  );
+  const fullMigration = runTap({
+    packageKind: 'app_full_first_install',
+    target: 'Casks/one-person-lab-full.rb',
+    manifest: 'opl-release-manifest.json',
+    download: fullDmg('26.6.4'),
+    write: true,
+  });
+  assert.equal(fullMigration.status, 0, fullMigration.stderr || fullMigration.stdout);
+  const fullMigrationPlan = JSON.parse(fullMigration.stdout);
+  assert.equal(fullMigrationPlan.cas.decision, 'write_once');
+  assert.equal(fullMigrationPlan.cas.write_performed, true);
+  const migratedFullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
+  assert.doesNotMatch(migratedFullCask, /depends_on formula:/);
+  assert.match(migratedFullCask, /framework_carrier: full_dmg_embedded_opl_base/);
+  assert.match(migratedFullCask, /active_framework_count_target: 1/);
+
+  const fullMigrationAgain = runTap({
+    packageKind: 'app_full_first_install',
+    target: 'Casks/one-person-lab-full.rb',
+    manifest: 'opl-release-manifest.json',
+    download: fullDmg('26.6.4'),
+    write: true,
+  });
+  assert.equal(fullMigrationAgain.status, 0, fullMigrationAgain.stderr || fullMigrationAgain.stdout);
+  assert.equal(JSON.parse(fullMigrationAgain.stdout).cas.decision, 'idempotent');
+  assert.equal(JSON.parse(fullMigrationAgain.stdout).cas.write_performed, false);
+  assert.equal(fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8'), migratedFullCask);
 
   const stableRefresh = runTap({
     version: '26.6.5',
@@ -308,10 +351,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     download: standardDmg('26.6.4-nightly.r1'),
     write: true,
   });
-  assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
-  assert.equal(JSON.parse(nightlyResult.stdout).targets[0].path, 'Casks/one-person-lab-nightly.rb');
-  const nightlyPlanRootCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb'), 'utf8');
-  assert.match(nightlyPlanRootCask, /livecheck do[\s\S]*skip "Nightly casks track prerelease cohorts through App release automation"/);
+  assert.notEqual(nightlyResult.status, 0);
+  assert.match(nightlyResult.stderr, /Nightly Homebrew publication is retired/);
+  assert.equal(fs.existsSync(path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb')), false);
 
   const nightlyToStable = runTap({
     channel: 'nightly',
@@ -321,7 +363,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     download: standardDmg('26.6.4-nightly.r1'),
   });
   assert.notEqual(nightlyToStable.status, 0);
-  assert.match(nightlyToStable.stderr, /Nightly Homebrew tap updates may only update the Nightly App cask target/);
+  assert.match(nightlyToStable.stderr, /Nightly Homebrew publication is retired/);
 
   const stableNightlyPromotion = runTap({
     version: '26.6.4-nightly.r1',
