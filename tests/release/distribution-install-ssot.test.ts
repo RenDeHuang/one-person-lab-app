@@ -70,9 +70,17 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       },
     ],
     [
-      'Package currentness owned by App carrier',
+      'Package published current stable owned by App carrier',
       (_, install) => {
-        install.distribution_install_model.consistency_target.package_currentness_owner = 'app_carrier';
+        install.distribution_install_model.consistency_target.package_published_current_stable_authority =
+          'app_carrier';
+      },
+    ],
+    [
+      'Package installed state inferred without carrier readback',
+      (_, install) => {
+        install.distribution_install_model.consistency_target.configured_carrier_terminal_readback_required =
+          false;
       },
     ],
   ];

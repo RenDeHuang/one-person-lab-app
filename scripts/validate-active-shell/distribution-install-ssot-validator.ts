@@ -126,12 +126,21 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(consistency?.base_app_and_packages_version_lockstep_required, false, 'Install version lockstep');
   requireEqual(consistency?.same_product_behavior_contract_required, true, 'Install behavior convergence');
   requireEqual(consistency?.same_official_profile_intent_required, true, 'Install Official Profile convergence');
-  requireEqual(consistency?.framework_reconciliation_receipt_required, true, 'Install reconciliation receipt');
+  requireEqual(
+    consistency?.configured_carrier_terminal_readback_required,
+    true,
+    'Install carrier terminal readback',
+  );
   requireEqual(consistency?.active_framework_count, 1, 'Install active Framework count');
   requireEqual(
-    consistency?.package_currentness_owner,
-    'package_owner_and_framework_aggregation_not_app_carrier',
-    'Package currentness owner',
+    consistency?.package_published_current_stable_authority,
+    'package_owner_per_package_ghcr_latest_stable',
+    'Package published current stable authority',
+  );
+  requireEqual(
+    consistency?.package_installed_callable_authority,
+    'configured_carrier_readback_aggregated_by_framework',
+    'Package installed callable authority',
   );
 
   const nativeWebui = install.runtime_forms?.native_webui;

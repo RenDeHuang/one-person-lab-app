@@ -452,16 +452,62 @@ test('App package consumers keep Framework authority while external registries r
     },
   };
   const profile = readContract('app-product-profile.json');
+  const officialProfile = profile.official_profile;
   const registryProjection = profile.gui.agent_package_registry;
   const registryEntrySchema = readContract('agent-package-surfaces.schema.json').$defs.agent_package_registry_entry;
   assert.equal(fs.existsSync(path.join(appRoot, 'contracts', 'agent-package-registry.json')), false);
-  assert.deepEqual(registryProjection.starter_package_ids, canonicalPackageIds);
+  assert.equal(officialProfile.profile_id, 'opl-official');
+  assert.equal(officialProfile.additional_official_profiles_allowed, false);
+  assert.equal(officialProfile.user_composed_profiles_allowed, true);
+  assert.ok(officialProfile.desired_root_package_ids.length > 0);
+  assert.equal(
+    new Set(officialProfile.desired_root_package_ids).size,
+    officialProfile.desired_root_package_ids.length,
+  );
+  assert.deepEqual(officialProfile.apply_on, ['first_install', 'explicit_restore']);
+  assert.deepEqual(officialProfile.never_apply_on, ['app_startup', 'silent_package_update', 'app_update']);
+  assert.equal(officialProfile.user_removal_policy.explicit_uninstall_is_persistent_preference, true);
+  assert.equal(officialProfile.user_removal_policy.reinstall_before_explicit_restore_allowed, false);
+  assert.equal(officialProfile.composition_policy.composition_gate, 'identity_presence_only');
+  assert.deepEqual(officialProfile.composition_policy.forbidden_composition_or_readiness_gates, [
+    'version_range',
+    'abi',
+    'lock',
+    'payload',
+    'digest',
+    'release_set',
+    'fixed_cohort',
+    'global_product_readiness',
+  ]);
+  assert.equal(
+    officialProfile.distribution_forms.standard.desired_roots_source,
+    officialProfile.distribution_forms.full.desired_roots_source,
+  );
+  assert.equal(officialProfile.distribution_forms.standard.offline_seed, false);
+  assert.equal(officialProfile.distribution_forms.full.offline_seed, true);
+  assert.equal(officialProfile.distribution_forms.full_difference, 'offline_seed_only');
+  assert.equal(officialProfile.distribution_forms.full_additional_desired_roots_allowed, false);
+  assert.equal(
+    officialProfile.package_currentness_policy.published_current_stable_authority,
+    'package_owner_per_package_ghcr_latest_stable',
+  );
+  assert.equal(
+    officialProfile.package_currentness_policy.installed_callable_authority,
+    'framework_fresh_aggregation_of_configured_carrier_readback',
+  );
+  assert.equal(officialProfile.package_currentness_policy.app_carrier_authority, false);
+  assert.equal(officialProfile.package_currentness_policy.app_release_authority, false);
+  assert.equal(
+    officialProfile.package_currentness_policy.shared_release_set_ordinary_update_authority,
+    false,
+  );
   assert.equal(
     registryProjection.directory_lifecycle_authority,
     'app_state.agent_packages.directory+status_index+actions',
   );
-  assert.equal(registryProjection.resolver_currentness_authority, 'one-person-lab#package_repository_resolver');
-  assert.equal(registryProjection.installed_truth_authority, 'one-person-lab#exact_installed_lock');
+  assert.equal('starter_package_ids' in registryProjection, false);
+  assert.equal('resolver_currentness_authority' in registryProjection, false);
+  assert.equal('installed_truth_authority' in registryProjection, false);
   assert.equal(registryProjection.external_registry_role, 'optional_candidate_source_adapter');
   assert.equal(registryProjection.bundled_default_registry_allowed, false);
   assert.equal(registryProjection.external_first_party_identity_claims_allowed, false);

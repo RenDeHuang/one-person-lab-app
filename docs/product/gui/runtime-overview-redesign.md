@@ -114,13 +114,17 @@ heartbeat。Framework 只 join、validate 和公开 unknown。
 
 ### Typed Views
 
-Agent 可以提供一个或多个 typed view。App 的扩展点只有 `view_kind` renderer：
+Agent 可以提供一个或多个 typed view。App 的扩展点只有通用 descriptor 与可选的
+`view_kind` rich renderer：
 
 - MAS 可以提供 `research-roadmap`，但 MAS 拥有 schema、科研语义、医学文案与演进。
 - App/Framework 不复制 MAS node/edge/stage/evidence schema，也不按 `mas` 分支。
-- 未注册、invalid、stale 或 read error 只让该 view 显示 unavailable；task row、
-  selected-item core detail、其他 views 和其他 Agents 保持可用。
-- 新 view kind 通过独立通用 renderer 注册，不改变 Package 安装或 Runtime readiness。
+- 每个合法 descriptor 至少可由 generic metadata/fallback renderer 发现和打开；
+  新 Package、task 或 view descriptor 不要求修改 App source。
+- 已知 rich `view_kind` 可以注册专用 renderer，但这只是可选表现增强，不改变
+  Package 安装、task discovery 或 Runtime readiness。
+- 未注册、invalid、stale 或 read error 只让该 view 使用 generic unavailable；
+  task row、selected-item core detail、其他 views 和其他 Agents 保持可用。
 
 ### Current Compatibility: WorkItemProjection v2
 

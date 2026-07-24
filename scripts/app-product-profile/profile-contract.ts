@@ -13,6 +13,7 @@ import {
   assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
   assertLocalizedUxOverrideShape,
+  assertOfficialProfileShape,
   assertProfessionalAgentPackageUxOverrides,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -917,21 +918,9 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
 
 function assertAgentPackageRegistryProjection(profile: AppProductProfile, profilePath: string): void {
   const projection = profile.gui.agent_package_registry;
-  const expectedStarterPackageIds = [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'obf',
-    'mas-scholar-skills',
-    'opl-flow',
-  ];
   if (
     projection?.directory_lifecycle_authority !==
       'app_state.agent_packages.directory+status_index+actions' ||
-    projection?.resolver_currentness_authority !==
-      'one-person-lab#package_repository_resolver' ||
-    projection?.installed_truth_authority !== 'one-person-lab#exact_installed_lock' ||
     projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
     projection?.bundled_default_registry_allowed !== false ||
     projection?.external_registry_policy_ref !==
@@ -942,14 +931,15 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
     projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('App product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
-  }
-  if (JSON.stringify(projection.starter_package_ids) !== JSON.stringify(expectedStarterPackageIds)) {
-    throw new Error('App product profile must list the replaceable starter package ids');
+    throw new Error('App product profile must keep Package directory lifecycle in Framework while registries remain optional candidate sources');
   }
   const metadata = projection.starter_package_metadata ?? [];
-  if (JSON.stringify(metadata.map((entry) => entry.package_id)) !== JSON.stringify(expectedStarterPackageIds)) {
-    throw new Error('App product profile must provide UI metadata for every starter package');
+  const metadataIds = metadata.map((entry) => entry.package_id);
+  if (
+    metadataIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
+    new Set(metadataIds).size !== metadataIds.length
+  ) {
+    throw new Error('App product profile Package UX metadata ids must be non-empty and unique');
   }
   for (const entry of metadata) {
     assertLocalizedUxOverrideShape(
@@ -1028,6 +1018,7 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomePurposeEntries(profile);
   assertHomeActivityCenterPolicy(profile);
   assertHomeSelectionAndIconPolicy(profile);
+  assertOfficialProfileShape(profile.official_profile, 'App product profile Official Profile');
   assertUiLocalePolicy(profile);
   assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
     requireExactAssistants: true,

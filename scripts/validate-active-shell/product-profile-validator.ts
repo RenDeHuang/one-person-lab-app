@@ -37,6 +37,7 @@ import {
   assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
   assertLocalizedUxOverrideShape,
+  assertOfficialProfileShape,
   assertProfessionalAgentPackageUxOverrides,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -333,21 +334,9 @@ function validateProfessionalAgentPackages(profile) {
 
 function validateAgentPackageRegistryProjection(profile) {
   const projection = profile.gui?.agent_package_registry;
-  const expectedStarterPackageIds = [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'obf',
-    'mas-scholar-skills',
-    'opl-flow',
-  ];
   if (
     projection?.directory_lifecycle_authority !==
       'app_state.agent_packages.directory+status_index+actions' ||
-    projection?.resolver_currentness_authority !==
-      'one-person-lab#package_repository_resolver' ||
-    projection?.installed_truth_authority !== 'one-person-lab#exact_installed_lock' ||
     projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
     projection?.bundled_default_registry_allowed !== false ||
     projection?.external_registry_policy_ref !==
@@ -358,19 +347,16 @@ function validateAgentPackageRegistryProjection(profile) {
     projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('Product profile must keep Package lifecycle and currentness in Framework while registries remain optional candidate sources');
+    throw new Error('Product profile must keep Package directory lifecycle in Framework while registries remain optional candidate sources');
   }
-  assertDeepEqualJson(
-    projection.starter_package_ids,
-    expectedStarterPackageIds,
-    'Product profile starter package ids',
-  );
   const metadata = projection.starter_package_metadata ?? [];
-  assertDeepEqualJson(
-    metadata.map((entry) => entry.package_id),
-    expectedStarterPackageIds,
-    'Product profile starter package metadata ids',
-  );
+  const metadataIds = metadata.map((entry) => entry.package_id);
+  if (
+    metadataIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
+    new Set(metadataIds).size !== metadataIds.length
+  ) {
+    throw new Error('Product profile Package UX metadata ids must be non-empty and unique');
+  }
   for (const entry of metadata) {
     assertLocalizedUxOverrideShape(
       entry.display_name_i18n,
@@ -969,6 +955,7 @@ export function validateProductProfile(
   validateProductProfileIdentity(profile);
   validateProductProfileContractRefs(profile);
   validateProductProfileCodexDefaults(profile);
+  assertOfficialProfileShape(profile.official_profile, 'Product profile Official Profile');
   validateAgentPackageRegistryProjection(profile);
   validateFullFirstInstallCoreReadyPolicy(profile);
   validateStandardPackagePolicy(profile);

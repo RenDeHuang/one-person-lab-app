@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   forbiddenExternalFirstPartyClaimPattern,
   isExternalFirstPartyClaim,
+  assertOfficialProfileShape,
 } from "./app-product-profile-shared-validators.ts";
 
 type AgentRootMap = Map<string, string>;
@@ -783,15 +784,21 @@ function validateRegistryPolicyShape(contract: any): void {
         "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
       framework_directory_lifecycle_authority:
         "app_state.agent_packages.directory+status_index+actions",
-      framework_resolver_currentness_authority:
-        "one-person-lab#package_repository_resolver",
-      installed_truth_authority: "one-person-lab#exact_installed_lock",
+      composition_readiness_policy:
+        "presence_only_required_package_or_capability_identity",
+      package_presence_authority:
+        "one-person-lab#installed_discovery_and_status_aggregation",
+      package_published_current_stable_authority:
+        "package_owner_per_package_ghcr_latest_stable",
+      package_installed_callable_authority:
+        "one-person-lab#fresh_configured_carrier_readback_aggregation",
+      exact_installed_lock_required: false,
       app_bundled_default_registry_allowed: false,
       external_registry_role: "optional_candidate_source_adapter",
       external_registry_configuration_source:
         "framework_projected_configured_sources_or_explicit_user_selected_url",
       starter_package_ids_source_ref:
-        "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_ids",
+        "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
       external_first_party_identity_claims_allowed: false,
       external_first_party_trust_claims_allowed: false,
       external_first_party_collision_failure_code:
@@ -823,6 +830,12 @@ function validateRegistryPolicyShape(contract: any): void {
     },
     "agent registry policy",
   );
+  if (
+    "framework_resolver_currentness_authority" in registryPolicy ||
+    "installed_truth_authority" in registryPolicy
+  ) {
+    fail("agent registry policy must not restore resolver or exact-lock composition authority");
+  }
   assertArrayEqual(
     registryPolicy?.allowed_registry_source_kinds,
     expectedRegistrySourceKinds,
@@ -1529,26 +1542,13 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
     expectedProfessionalPackageIds,
     "profile professional package ids",
   );
+  const officialProfile = profile.official_profile;
+  assertOfficialProfileShape(officialProfile, "App Official Profile", { fail });
   const registryProjection = profile.gui?.agent_package_registry;
-  assertArrayEqual(
-    registryProjection?.starter_package_ids,
-    expectedRegistryPackageIds,
-    "profile starter package ids",
-  );
   assertEqual(
     registryProjection?.directory_lifecycle_authority,
     "app_state.agent_packages.directory+status_index+actions",
     "profile package lifecycle authority",
-  );
-  assertEqual(
-    registryProjection?.resolver_currentness_authority,
-    "one-person-lab#package_repository_resolver",
-    "profile package currentness authority",
-  );
-  assertEqual(
-    registryProjection?.installed_truth_authority,
-    "one-person-lab#exact_installed_lock",
-    "profile installed truth authority",
   );
   assertEqual(
     registryProjection?.external_registry_role,

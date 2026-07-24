@@ -13,6 +13,45 @@ export type AppProductProfile = {
     supported_release_platforms: string[];
   };
   contract_refs: Record<string, string>;
+  official_profile: {
+    profile_id: 'opl-official';
+    authority: 'one-person-lab-app';
+    additional_official_profiles_allowed: false;
+    user_composed_profiles_allowed: true;
+    desired_root_package_ids: string[];
+    apply_on: Array<'first_install' | 'explicit_restore'>;
+    never_apply_on: Array<'app_startup' | 'silent_package_update' | 'app_update'>;
+    user_removal_policy: {
+      explicit_uninstall_is_persistent_preference: true;
+      reinstall_before_explicit_restore_allowed: false;
+    };
+    composition_policy: {
+      required_dependency_resolution: string;
+      optional_dependency_absence_blocks: false;
+      composition_gate: 'identity_presence_only';
+      forbidden_composition_or_readiness_gates: string[];
+    };
+    distribution_forms: {
+      standard: {
+        desired_roots_source: 'official_profile.desired_root_package_ids';
+        offline_seed: false;
+      };
+      full: {
+        desired_roots_source: 'official_profile.desired_root_package_ids';
+        offline_seed: true;
+      };
+      same_desired_roots_required: true;
+      full_difference: 'offline_seed_only';
+      full_additional_desired_roots_allowed: false;
+    };
+    package_currentness_policy: {
+      published_current_stable_authority: 'package_owner_per_package_ghcr_latest_stable';
+      installed_callable_authority: 'framework_fresh_aggregation_of_configured_carrier_readback';
+      app_carrier_authority: false;
+      app_release_authority: false;
+      shared_release_set_ordinary_update_authority: false;
+    };
+  };
   default_session_profile: {
     provider: string;
     provider_name: string;
@@ -573,12 +612,9 @@ export type AppProductProfile = {
     };
     agent_package_registry: {
       directory_lifecycle_authority: string;
-      resolver_currentness_authority: string;
-      installed_truth_authority: string;
       external_registry_role: 'optional_candidate_source_adapter';
       bundled_default_registry_allowed: boolean;
       external_registry_policy_ref: string;
-      starter_package_ids: string[];
       external_first_party_identity_claims_allowed: boolean;
       external_first_party_trust_claims_allowed: boolean;
       collision_failure_code: string;
