@@ -319,11 +319,20 @@ test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and dup
   }
 });
 
-test('Home capability palette is complete, localized, shortcut-independent, and agent-Skill deduplicated', () => {
+test('Home capability palette is dynamic, localized, shortcut-independent, and agent-Skill deduplicated', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const policy = profile.gui.ordinary_capability_selector_policy;
-  assert.deepStrictEqual(policy.palette_required_agent_package_ids, ['mas', 'mag', 'rca', 'obf', 'oma']);
+  assert.equal('palette_required_agent_package_ids' in policy, false);
+  assert.equal(
+    policy.palette_agent_catalog_source_ref,
+    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+  );
+  assert.equal(
+    policy.palette_agent_status_source_ref,
+    'app_state.agent_packages.status_index.packages[]',
+  );
+  assert.equal(policy.palette_unknown_standard_agent_policy, 'include_without_app_package_id_branch');
   assert.deepStrictEqual(policy.palette_agent_group_label_i18n, {
     'zh-CN': '专业智能体',
     'en-US': 'Professional agents',
@@ -346,10 +355,10 @@ test('Home capability palette is complete, localized, shortcut-independent, and 
   profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.filter(
     (shortcut: any) => shortcut.package_id !== 'obf',
   );
-  assert.throws(() => validateProductProfile(profile, installExposure));
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
   const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
-  catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas', 'mag', 'rca', 'oma'];
+  catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['mas'];
   assert.throws(() => validateProductProfile(catalogDrift, installExposure), /ordinary selector/);
 
   const mcpAllowlistRegression = structuredClone(readJson('contracts/app-product-profile.json'));
@@ -362,28 +371,22 @@ test('Home capability palette is complete, localized, shortcut-independent, and 
   );
 });
 
-test('professional Agent metadata requires App-owned localized names and descriptions', () => {
+test('professional Agent metadata stays optional but requires localized names and descriptions when present', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
   const meta = profile.gui.professional_agent_packages.find((entry: any) => entry.package_id === 'oma');
-  assert.deepStrictEqual(
-    Object.fromEntries(
-      profile.gui.professional_agent_packages.map((entry: any) => [entry.package_id, entry.display_name_i18n['zh-CN']]),
-    ),
-    {
-      mas: 'Med Auto Science',
-      mag: 'Med Auto Grant',
-      rca: 'RedCube AI',
-      obf: 'OPL Book Forge',
-      oma: 'OPL Meta Agent',
-    },
-  );
   assert.match(meta.description_i18n['zh-CN'], /创建、接管、检查和改进/);
   meta.description_i18n['zh-CN'] = '';
   assert.throws(
     () => validateProductProfile(profile, installExposure),
     /localized name and description|non-empty zh-CN and en-US/,
   );
+
+  const emptyMetadataProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  emptyMetadataProfile.gui.professional_agent_packages = [];
+  emptyMetadataProfile.gui.assistant_skill_profiles = [];
+  emptyMetadataProfile.gui.home.home_agent_shortcuts = [];
+  assert.doesNotThrow(() => validateProductProfile(emptyMetadataProfile, installExposure));
 
   const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   const starterMetadata = completeProfile.gui.agent_package_registry.starter_package_metadata;

@@ -143,7 +143,13 @@ export function assertAgentReferenceAdmissionPolicy(value: unknown, label: strin
 export const expectedHomeComposerStateContract = {
   contract_id: 'opl_home_composer_state.v1',
   executor: 'codex',
-  shortcut_package_ids: [null, 'mas', 'mag', 'rca', 'obf', 'oma'],
+  shortcut_package_membership_source_ref:
+    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+  shortcut_preference_source_ref:
+    'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+  shortcut_availability_source_ref:
+    'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+  unknown_standard_agent_allowed: true,
   viewports: ['desktop', 'mobile'],
   availability_states: ['available', 'unavailable'],
   invariants: {
@@ -956,6 +962,9 @@ export function assertAppProductProfileRouteReceiptPolicy(
   const policy = profile.gui?.agent_package_invocation_receipt_policy;
   if (
     policy?.scope !== 'package_shortcut_launch_to_codex_conversation' ||
+    policy.required_for_package_shortcuts_source_ref !==
+      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
+    policy.required_for_package_shortcuts !== undefined ||
     policy.route_kind !== 'agent_package_shortcut' ||
     policy.executor !== 'codex_cli' ||
     policy.source !== 'opl_app_home' ||
@@ -963,11 +972,6 @@ export function assertAppProductProfileRouteReceiptPolicy(
     policy.must_not_depend_on_visible_backend_selection !== true
   ) {
     throw new Error(`${label} must require agent package shortcut Codex CLI launch receipts`);
-  }
-  if (options.requireExactAssistants) {
-    assertExactStringArray(policy.required_for_package_shortcuts, managedShortcutIds, `${label} package shortcut receipt ids`);
-  } else {
-    assertStringArrayIncludes(policy.required_for_package_shortcuts, managedShortcutIds, `${label} package shortcut receipt ids`);
   }
   assertStringArrayIncludes(
     policy.required_fields,

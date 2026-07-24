@@ -128,14 +128,10 @@
       "home_composer_state_contract": {
         "contract_id": "opl_home_composer_state.v1",
         "executor": "codex",
-        "shortcut_package_ids": [
-          null,
-          "mas",
-          "mag",
-          "rca",
-          "obf",
-          "oma"
-        ],
+        "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+        "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+        "shortcut_availability_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence",
+        "unknown_standard_agent_allowed": true,
         "viewports": [
           "desktop",
           "mobile"
@@ -205,17 +201,16 @@
         "workspace_selector_entry": "home.new_session_context_bar",
         "unselected_workspace_control_visible": true,
         "unselected_workspace_control_policy": "localized_choose_project_directory_action_not_projectless_status_placeholder",
-        "purpose_entries_visible": [
-          "research",
-          "grant",
-          "ppt",
-          "book"
-        ],
+        "purpose_entry_metadata_source_ref": "gui.home.home_purpose_entries optional migration/display metadata only",
+        "purpose_entry_visibility_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
         "purpose_entry_placement": "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
         "dynamic_question_title": true,
         "starter_limit": null,
-        "starter_visibility_policy": "all_user_visible_configured_shortcuts",
-        "starter_order_policy": "stable_configured_order",
+        "starter_visibility_policy": "installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences",
+        "starter_order_policy": "home_shortcut_preferences_sort_order_then_localized_display_name",
+        "shortcut_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+        "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+        "unknown_standard_agent_policy": "render_when_installed_and_preference_visible_without_app_package_id_branch",
         "starter_layout_policy": "compact_inline_wrap",
         "starter_item_width_policy": "content_sized",
         "starter_count_layout_policy": "center_actual_visible_count_and_wrap_without_navigation_chevrons",
@@ -497,6 +492,12 @@
           "home_entry_policy": "visible_click_to_start"
         }
       ],
+      "home_agent_shortcuts_metadata_policy": {
+        "role": "optional_migration_and_display_metadata",
+        "allowed_uses": ["localized_label_fallback", "shortcut_alias_migration"],
+        "forbidden_authority": ["catalog_membership", "installed", "present", "callable", "visibility", "sort_order", "actions"],
+        "runtime_authority_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]"
+      },
       "home_agent_shortcuts": [
         {
           "shortcut_id": "research",
@@ -725,12 +726,14 @@
               "zh-CN": "专业智能体",
               "en-US": "Professional agents"
             },
-            "source_ref": "professional_agent_packages",
-            "catalog_membership_source_ref": "professional_agent_packages[].package_id",
-            "required_package_ids": ["mas", "mag", "rca", "obf", "oma"],
-            "catalog_order_policy": "stable_professional_agent_packages_order",
+            "source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+            "catalog_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+            "status_source_ref": "app_state.agent_packages.status_index.packages[]",
+            "catalog_order_policy": "home_shortcut_preferences_sort_order_then_localized_display_name",
             "home_shortcut_independence_policy": "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
-            "availability_policy": "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
+            "availability_policy": "join_by_package_id_and_render_fresh_installed_present_callable_state_without_app_allowlist",
+            "action_policy": "render_only_directory_available_actions_and_recommended_action_ref",
+            "unknown_standard_agent_policy": "include_without_app_package_id_branch",
             "existing_session_rebinding_allowed": false,
             "surface_actions": {
               "home_new_session": ["select_new_session_agent_package"],
@@ -1053,13 +1056,7 @@
     },
     "agent_package_invocation_receipt_policy": {
       "scope": "package_shortcut_launch_to_codex_conversation",
-      "required_for_package_shortcuts": [
-        "research",
-        "ppt",
-        "grant",
-        "book",
-        "oma"
-      ],
+      "required_for_package_shortcuts_source_ref": "visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]",
       "route_kind": "agent_package_shortcut",
       "executor": "codex_cli",
       "source": "opl_app_home",
@@ -1107,8 +1104,11 @@
     "ordinary_capability_selector_policy": {
       "scope": "home_composer_and_ordinary_conversation",
       "authority": "app_owned_skill_allowlist_and_mcp_negative_filter",
-      "palette_agent_catalog_source_ref": "professional_agent_packages",
-      "palette_required_agent_package_ids": ["mas", "mag", "rca", "obf", "oma"],
+      "palette_agent_catalog_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      "palette_agent_status_source_ref": "app_state.agent_packages.status_index.packages[]",
+      "palette_agent_availability_policy": "join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable",
+      "palette_agent_action_policy": "directory_available_actions_and_recommended_action_ref_only",
+      "palette_unknown_standard_agent_policy": "include_without_app_package_id_branch",
       "palette_home_shortcut_independence_policy": "complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order",
       "palette_agent_group_label_i18n": {
         "zh-CN": "专业智能体",
@@ -1129,7 +1129,7 @@
         "deliverable_failure_policy": "repair_current_deliverable_never_authorize_agent_engineering",
         "existing_conversation_rebinding_allowed": false
       },
-      "skill_source_ref": "gui.professional_agent_packages.required_skill_ids + optional_skill_ids",
+      "skill_source_ref": "owner_or_carrier_projected_capability_metadata_for_the_selected_package",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible",
       "conversation_loaded_skill_display_policy": "filter_to_ordinary_skill_allowlist",
       "mcp_server_source_ref": "configured_user_and_third_party_mcp_servers",
@@ -1255,8 +1255,8 @@
           "shared_dependencies",
           "other_packages"
         ],
-        "professional_agent_order_source": "gui.professional_agent_packages[].package_id",
-        "professional_agent_order_policy": "match_projected_directory_entries_then_append_unlisted_standard_agents_by_localized_display_name",
+        "professional_agent_order_source": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+        "professional_agent_order_policy": "sort_standard_agent_directory_entries_by_user_sort_order_then_localized_display_name",
         "workflow_profile_policy": "render_in_a_separate_workflow_section_not_mixed_with_runnable_agents",
         "package_role_labels_i18n": {
           "standard_agent": {
@@ -1436,6 +1436,12 @@
         }
       ],
       "shell_consumption_policy": "generated_product_profile_only_no_renderer_literal"
+    },
+    "professional_agent_packages_metadata_policy": {
+      "role": "optional_migration_and_display_metadata",
+      "allowed_uses": ["localized_display_fallback", "legacy_alias_migration"],
+      "forbidden_authority": ["catalog_membership", "installed", "present", "callable", "visibility", "sort_order", "actions", "skill_scope"],
+      "runtime_authority_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index"
     },
     "professional_agent_packages": [
       {
@@ -1717,6 +1723,12 @@
         }
       }
     ],
+    "assistant_skill_profiles_metadata_policy": {
+      "role": "optional_migration_and_display_metadata",
+      "allowed_uses": ["legacy_assistant_alias_migration", "display_hint_fallback"],
+      "forbidden_authority": ["package_membership", "skill_or_capability_scope", "installed", "present", "callable", "actions"],
+      "runtime_authority_ref": "owner_or_carrier_projected_capability_metadata"
+    },
     "assistant_skill_profiles": [
       {
         "assistant_id": "mas",
@@ -1881,7 +1893,7 @@
     },
     "opl_app_session_context": {
       "owner": "one-person-lab-app",
-      "source": "gui.professional_agent_packages.session_routing_summary_i18n",
+      "source": "app_state.agent_packages.directory.entries[package_role=standard_agent] owner-projected localized route summary with optional gui.professional_agent_packages display fallback",
       "delivery": "new_codex_conversation_preset_context",
       "generation_policy": "profile_agent_routes",
       "update_policy": "regenerated_when_app_product_profile_syncs",
@@ -3636,7 +3648,7 @@
           "icon_token": "agents",
           "ia_group": "agents_capabilities",
           "slot_id": "settings_agents",
-          "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts",
+          "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
           "refresh_source": "opl app state --profile fast --json",
           "scope": "user",
           "intent": "manage",

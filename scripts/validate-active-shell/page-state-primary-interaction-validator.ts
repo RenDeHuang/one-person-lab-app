@@ -9,6 +9,34 @@ import {
 } from './app-contract-constants.ts';
 import { assertHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
 
+function validateDynamicHomeComposerStateContract(value, label) {
+  const {
+    shortcut_package_membership_source_ref,
+    shortcut_preference_source_ref,
+    shortcut_availability_source_ref,
+    unknown_standard_agent_allowed,
+  } = value ?? {};
+  assertDeepEqualJson(
+    {
+      shortcut_package_membership_source_ref,
+      shortcut_preference_source_ref,
+      shortcut_availability_source_ref,
+      unknown_standard_agent_allowed,
+    },
+    {
+      shortcut_package_membership_source_ref:
+        'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+      shortcut_preference_source_ref:
+        'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      shortcut_availability_source_ref:
+        'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+      unknown_standard_agent_allowed: true,
+    },
+    `${label} dynamic authority`,
+  );
+  assertHomeComposerStateContract(value, label);
+}
+
 export function validatePrimaryInteractionPages(matrix) {
   if (matrix.schema_version !== 2) {
     throw new Error('App page-state matrix schema_version must be 2');
@@ -34,7 +62,7 @@ function validateGuidHomePage(matrix) {
   validateGuidHomeLayout(homeViewModel);
   validateGuidHomeDefaultAssistants(homeViewModel);
   validateGuidHomeRouteAndPurpose(homeViewModel);
-  assertHomeComposerStateContract(
+  validateDynamicHomeComposerStateContract(
     homeViewModel.home_composer_state_contract,
     'Guid Home page-state composer state contract',
   );
@@ -56,11 +84,12 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     state_source: 'opl app state --profile fast --json',
     refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
-    agent_package_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages',
-    home_agent_shortcut_source_ref: 'contracts/app-gui-product-contract.json#home_agent_shortcuts',
-    agent_package_skill_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids',
+    agent_package_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    agent_package_status_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.packages[]',
+    home_agent_shortcut_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    agent_package_skill_source_ref: 'owner_or_carrier_projected_capability_metadata_for_the_selected_package',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
-    assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
+    assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles optional migration/display metadata only',
     ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
@@ -124,16 +153,18 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   if (homeViewModel.default_assistants?.includes('oma')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
-  assertIncludesAll(
-    homeViewModel.professional_agent_packages,
-    ['mas', 'mag', 'rca', 'obf', 'oma'],
-    'Guid home page professional agent packages',
-  );
-  assertDeepEqualJson(
-    homeViewModel.default_home_agent_packages,
-    ['mas', 'mag', 'rca', 'obf', 'oma'],
-    'Guid home page default home agent packages',
-  );
+  if (
+    homeViewModel.professional_agent_package_membership_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+    homeViewModel.home_agent_package_membership_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]' ||
+    homeViewModel.unknown_standard_agent_policy !==
+      'include_in_palette_and_home_without_app_package_id_branch' ||
+    'professional_agent_packages' in homeViewModel ||
+    'default_home_agent_packages' in homeViewModel
+  ) {
+    throw new Error('Guid home page Agent membership must come from the dynamic Framework directory and user shortcut preferences');
+  }
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
     ['mas', 'mag', 'rca', 'obf'].map((assistant) => requiredSkills[assistant]),

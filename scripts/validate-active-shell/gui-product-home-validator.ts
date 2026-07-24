@@ -12,14 +12,45 @@ import {
 } from './app-contract-constants.ts';
 import {
   assertCapabilityReferenceListShape,
-  assertProfessionalAgentPackageUxOverrides,
-  managedShortcutIds,
-  managedShortcutPackageIds,
-  defaultVisibleShortcutIds,
   starterPackageIds as defaultAssistantIds,
   starterShortcutIds as purposeEntryIds,
 } from '../app-product-profile-shared-validators.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
+
+const optionalDisplayMetadataPolicy = {
+  homeShortcuts: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
+    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
+    runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+  },
+  professionalAgent: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['localized_display_fallback', 'legacy_alias_migration'],
+    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
+    runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
+  },
+  assistantSkills: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['legacy_assistant_alias_migration', 'display_hint_fallback'],
+    forbidden_authority: ['package_membership', 'skill_or_capability_scope', 'installed', 'present', 'callable', 'actions'],
+    runtime_authority_ref: 'owner_or_carrier_projected_capability_metadata',
+  },
+};
+
+function assertLocalizedMetadata(value, label) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    typeof value['zh-CN'] !== 'string' ||
+    !value['zh-CN'].trim() ||
+    typeof value['en-US'] !== 'string' ||
+    !value['en-US'].trim()
+  ) {
+    throw new Error(`${label} must declare non-empty zh-CN and en-US text`);
+  }
+}
 
 function validateGuiProductIdentity(guiContract) {
   if (guiContract.schema_version !== 2) {
@@ -393,16 +424,39 @@ function validateDefaultAssistants(guiContract) {
 }
 
 function validateProfessionalAgentPackages(guiContract) {
-  assertProfessionalAgentPackageUxOverrides(guiContract.professional_agent_packages, 'App GUI contract');
+  assertDeepEqualJson(
+    guiContract.professional_agent_packages_metadata_policy,
+    optionalDisplayMetadataPolicy.professionalAgent,
+    'App GUI contract professional Agent metadata policy',
+  );
+  const packages = guiContract.professional_agent_packages ?? [];
+  const packageIds = packages.map((entry) => entry.package_id);
+  if (
+    packageIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
+    new Set(packageIds).size !== packageIds.length
+  ) {
+    throw new Error('App GUI contract professional Agent metadata package ids must be non-empty and unique');
+  }
+  for (const entry of packages) {
+    assertLocalizedMetadata(entry.display_name_i18n, `App GUI contract professional Agent ${entry.package_id} display_name_i18n`);
+    assertLocalizedMetadata(entry.description_i18n, `App GUI contract professional Agent ${entry.package_id} description_i18n`);
+  }
 }
 
 function validateAssistantSkillProfiles(guiContract) {
-  const skillProfiles = guiContract.assistant_skill_profiles ?? [];
   assertDeepEqualJson(
-    skillProfiles.map((profile) => profile.assistant_id),
-    defaultAssistantIds,
-    'App GUI contract assistant skill profiles',
+    guiContract.assistant_skill_profiles_metadata_policy,
+    optionalDisplayMetadataPolicy.assistantSkills,
+    'App GUI contract assistant Skill metadata policy',
   );
+  const skillProfiles = guiContract.assistant_skill_profiles ?? [];
+  const assistantIds = skillProfiles.map((profile) => profile.assistant_id);
+  if (
+    assistantIds.some((assistantId) => typeof assistantId !== 'string' || !assistantId.trim()) ||
+    new Set(assistantIds).size !== assistantIds.length
+  ) {
+    throw new Error('App GUI contract assistant Skill metadata ids must be non-empty and unique');
+  }
   for (const profile of skillProfiles) {
     assertCapabilityReferenceListShape(
       profile.required_skills,
@@ -426,6 +480,11 @@ function validateAssistantSkillProfiles(guiContract) {
 }
 
 function validatePurposeEntries(guiContract) {
+  assertDeepEqualJson(
+    guiContract.home_agent_shortcuts_metadata_policy,
+    optionalDisplayMetadataPolicy.homeShortcuts,
+    'App GUI contract Home shortcut metadata policy',
+  );
   const purposeEntries = guiContract.home_purpose_entries ?? [];
   assertDeepEqualJson(
     purposeEntries.map((entry) => entry.id),
@@ -443,16 +502,13 @@ function validatePurposeEntries(guiContract) {
     }
   }
   const shortcuts = guiContract.home_agent_shortcuts ?? [];
-  assertDeepEqualJson(
-    shortcuts.map((entry) => entry.shortcut_id),
-    managedShortcutIds,
-    'App GUI contract home agent shortcuts',
-  );
-  assertDeepEqualJson(
-    shortcuts.map((entry) => entry.package_id),
-    managedShortcutPackageIds,
-    'App GUI contract home agent shortcut package targets',
-  );
+  const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
+  if (
+    shortcutIds.some((shortcutId) => typeof shortcutId !== 'string' || !shortcutId.trim()) ||
+    new Set(shortcutIds).size !== shortcutIds.length
+  ) {
+    throw new Error('App GUI contract Home shortcut metadata ids must be non-empty and unique');
+  }
   for (const entry of shortcuts) {
     assertCapabilityReferenceListShape(
       entry.required_skill_ids,
@@ -467,11 +523,8 @@ function validatePurposeEntries(guiContract) {
     ) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (entry.package_id === 'oma' && entry.shortcut_id !== 'oma') {
-      throw new Error('App GUI OMA shortcut id must remain oma');
-    }
-    if (entry.default_visible !== defaultVisibleShortcutIds.includes(entry.shortcut_id)) {
-      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} has invalid default visibility`);
+    if (typeof entry.default_visible !== 'boolean') {
+      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must declare boolean display metadata`);
     }
   }
 }

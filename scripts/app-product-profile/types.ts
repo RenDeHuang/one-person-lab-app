@@ -93,7 +93,10 @@ export type AppProductProfile = {
       home_composer_state_contract: {
         contract_id: 'opl_home_composer_state.v1';
         executor: 'codex';
-        shortcut_package_ids: Array<string | null>;
+        shortcut_package_membership_source_ref: string;
+        shortcut_preference_source_ref: string;
+        shortcut_availability_source_ref: string;
+        unknown_standard_agent_allowed: boolean;
         viewports: string[];
         availability_states: string[];
         invariants: {
@@ -197,6 +200,12 @@ export type AppProductProfile = {
         default_visible: boolean;
         user_configurable: boolean;
       }>;
+      home_agent_shortcuts_metadata_policy: {
+        role: 'optional_migration_and_display_metadata';
+        allowed_uses: string[];
+        forbidden_authority: string[];
+        runtime_authority_ref: string;
+      };
       retired_codex_models_must_not_be_exposed: string[];
       activity_center_policy: {
         source: string;
@@ -225,6 +234,9 @@ export type AppProductProfile = {
         starter_limit: number | null;
         starter_visibility_policy: string;
         starter_order_policy: string;
+        shortcut_membership_source_ref: string;
+        shortcut_preference_source_ref: string;
+        unknown_standard_agent_policy: string;
         starter_layout_policy: string;
         starter_item_width_policy: string;
         starter_count_layout_policy: string;
@@ -393,10 +405,13 @@ export type AppProductProfile = {
           source_ref?: string;
           label_i18n?: Record<'zh-CN' | 'en-US', string>;
           catalog_membership_source_ref?: string;
+          status_source_ref?: string;
           required_package_ids?: string[];
           catalog_order_policy?: string;
           home_shortcut_independence_policy?: string;
           availability_policy?: string;
+          action_policy?: string;
+          unknown_standard_agent_policy?: string;
           agent_owned_skill_deduplication_policy?: string;
           label_policy?: string;
           mode_deduplication_policy?: string;
@@ -531,7 +546,7 @@ export type AppProductProfile = {
     };
     agent_package_invocation_receipt_policy: {
       scope: string;
-      required_for_package_shortcuts: string[];
+      required_for_package_shortcuts_source_ref: string;
       route_kind: string;
       executor: string;
       source: string;
@@ -571,7 +586,11 @@ export type AppProductProfile = {
       authority: string;
       recommendation_authority: string;
       palette_agent_catalog_source_ref: string;
-      palette_required_agent_package_ids: string[];
+      palette_agent_status_source_ref: string;
+      palette_agent_availability_policy: string;
+      palette_agent_action_policy: string;
+      palette_unknown_standard_agent_policy: string;
+      palette_required_agent_package_ids?: string[];
       palette_home_shortcut_independence_policy: string;
       palette_agent_group_label_i18n: Record<'zh-CN' | 'en-US', string>;
       agent_owned_skill_deduplication_policy: string;
@@ -658,7 +677,13 @@ export type AppProductProfile = {
       }>;
       shell_consumption_policy: string;
     };
-    professional_agent_packages: Array<{
+    professional_agent_packages_metadata_policy: {
+      role: 'optional_migration_and_display_metadata';
+      allowed_uses: string[];
+      forbidden_authority: string[];
+      runtime_authority_ref: string;
+    };
+    professional_agent_packages?: Array<{
       package_id: string;
       display_name: string;
       display_name_i18n: Record<'zh-CN' | 'en-US', string>;
@@ -689,7 +714,13 @@ export type AppProductProfile = {
       description_i18n: Record<string, string>;
       prompts_i18n: Record<string, string[]>;
     }>;
-    assistant_skill_profiles: Array<{
+    assistant_skill_profiles_metadata_policy: {
+      role: 'optional_migration_and_display_metadata';
+      allowed_uses: string[];
+      forbidden_authority: string[];
+      runtime_authority_ref: string;
+    };
+    assistant_skill_profiles?: Array<{
       assistant_id: string;
       required_skills: string[];
       optional_skills: string[];

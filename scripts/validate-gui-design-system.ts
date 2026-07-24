@@ -1138,10 +1138,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conversationScope.archived_surface !== 'independent' ||
     homeTarget.title_policy !== 'modest_dynamic_prompt_in_composer_reading_lane' ||
     homeTarget.starter_limit !== null ||
-    homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
-    homeTarget.starter_order_policy !== 'stable_configured_order' ||
+    homeTarget.starter_visibility_policy !==
+      'installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences' ||
+    homeTarget.starter_order_policy !==
+      'home_shortcut_preferences_sort_order_then_localized_display_name' ||
+    homeTarget.shortcut_membership_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+    homeTarget.shortcut_preference_source_ref !==
+      'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
+    homeTarget.unknown_standard_agent_policy !==
+      'render_when_installed_and_preference_visible_without_app_package_id_branch' ||
+    homeTarget.default_visible_shortcut_ids !== undefined ||
     homeTarget.starter_layout_policy !== 'compact_inline_wrap' ||
-    !sameStrings(homeTarget.default_visible_shortcut_ids, ['research', 'ppt', 'grant', 'book', 'oma']) ||
     record(homeTarget.visual_structure).starter_region !==
       'composer_reading_lane_immediately_above_input_not_page_navigation' ||
     record(homeTarget.visual_structure).starter_item_width !== 'content_sized' ||

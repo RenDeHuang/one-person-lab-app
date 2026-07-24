@@ -1371,13 +1371,23 @@ export const appOwnedHomeLayout = {
   unselected_workspace_control_visible: true,
   unselected_workspace_control_policy:
     "localized_choose_project_directory_action_not_projectless_status_placeholder",
-  purpose_entries_visible: ["research", "grant", "ppt", "book"],
+  purpose_entry_metadata_source_ref:
+    "home_purpose_entries optional migration/display metadata only",
+  purpose_entry_visibility_source_ref:
+    "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
   purpose_entry_placement:
     "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
-  starter_visibility_policy: "all_user_visible_configured_shortcuts",
-  starter_order_policy: "stable_configured_order",
+  starter_visibility_policy:
+    "installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences",
+  starter_order_policy: "home_shortcut_preferences_sort_order_then_localized_display_name",
+  shortcut_membership_source_ref:
+    "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+  shortcut_preference_source_ref:
+    "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+  unknown_standard_agent_policy:
+    "render_when_installed_and_preference_visible_without_app_package_id_branch",
   starter_layout_policy: "compact_inline_wrap",
   starter_item_width_policy: "content_sized",
   starter_count_layout_policy: "center_actual_visible_count_and_wrap_without_navigation_chevrons",
@@ -1431,6 +1441,8 @@ export const appOwnedHomeLayout = {
 };
 export const appOwnedPageStateHomeLayout = {
   ...appOwnedHomeLayout,
+  purpose_entry_metadata_source_ref:
+    "contracts/app-gui-product-contract.json#home_purpose_entries optional migration/display metadata only",
   must_not_show: [
     "dashboard-first home",
     "explanatory landing page",
@@ -1587,14 +1599,20 @@ export const appOwnedUnifiedContextMenu = {
         "zh-CN": "专业智能体",
         "en-US": "Professional agents",
       },
-      source_ref: "professional_agent_packages",
-      catalog_membership_source_ref: "professional_agent_packages[].package_id",
-      required_package_ids: ["mas", "mag", "rca", "obf", "oma"],
-      catalog_order_policy: "stable_professional_agent_packages_order",
+      source_ref:
+        "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      catalog_membership_source_ref:
+        "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      status_source_ref: "app_state.agent_packages.status_index.packages[]",
+      catalog_order_policy:
+        "home_shortcut_preferences_sort_order_then_localized_display_name",
       home_shortcut_independence_policy:
         "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
       availability_policy:
-        "show_only_real_app_allowlisted_packages_supported_by_the_active_adapter",
+        "join_by_package_id_and_render_fresh_installed_present_callable_state_without_app_allowlist",
+      action_policy:
+        "render_only_directory_available_actions_and_recommended_action_ref",
+      unknown_standard_agent_policy: "include_without_app_package_id_branch",
       existing_session_rebinding_allowed: false,
       surface_actions: {
         home_new_session: ["select_new_session_agent_package"],

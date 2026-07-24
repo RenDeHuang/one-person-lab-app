@@ -90,8 +90,15 @@ function validateHomeComposerProbe(scenario, label) {
   if (
     probe?.contract_ref !==
       'contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract' ||
-    JSON.stringify(probe.shortcut_package_ids) !==
-      JSON.stringify(expectedHomeComposerStateContract.shortcut_package_ids) ||
+    probe.shortcut_package_membership_source_ref !==
+      expectedHomeComposerStateContract.shortcut_package_membership_source_ref ||
+    probe.shortcut_preference_source_ref !==
+      expectedHomeComposerStateContract.shortcut_preference_source_ref ||
+    probe.shortcut_availability_source_ref !==
+      expectedHomeComposerStateContract.shortcut_availability_source_ref ||
+    probe.unknown_standard_agent_allowed !==
+      expectedHomeComposerStateContract.unknown_standard_agent_allowed ||
+    probe.shortcut_package_ids !== undefined ||
     JSON.stringify(probe.viewports) !== JSON.stringify(expectedHomeComposerStateContract.viewports) ||
     JSON.stringify(probe.availability_states) !==
       JSON.stringify(expectedHomeComposerStateContract.availability_states) ||

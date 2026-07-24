@@ -43,6 +43,34 @@ import {
   validateWorkflowSkillCandidateProjectionContract,
   assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
+
+function validateDynamicHomeComposerStateContract(value, label) {
+  const {
+    shortcut_package_membership_source_ref,
+    shortcut_preference_source_ref,
+    shortcut_availability_source_ref,
+    unknown_standard_agent_allowed,
+  } = value ?? {};
+  assertDeepEqualJson(
+    {
+      shortcut_package_membership_source_ref,
+      shortcut_preference_source_ref,
+      shortcut_availability_source_ref,
+      unknown_standard_agent_allowed,
+    },
+    {
+      shortcut_package_membership_source_ref:
+        'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+      shortcut_preference_source_ref:
+        'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      shortcut_availability_source_ref:
+        'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+      unknown_standard_agent_allowed: true,
+    },
+    `${label} dynamic authority`,
+  );
+  assertHomeComposerStateContract(value, label);
+}
 import {
   validateScheduledTasksPageContract,
   validateScheduledTasksProductPolicy,
@@ -1520,11 +1548,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ],
     'App GUI Home forbidden directory ownership signals',
   );
-  assertHomeComposerStateContract(
+  validateDynamicHomeComposerStateContract(
     guiContract.interaction_baseline?.home?.home_composer_state_contract,
     'App GUI Home composer state contract',
   );
-  assertHomeComposerStateContract(
+  validateDynamicHomeComposerStateContract(
     productProfile.gui?.home?.home_composer_state_contract,
     'App product profile Home composer state contract',
   );
@@ -1574,11 +1602,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI contract must require launch-only agent package shortcut invocation receipts');
   }
-  assertDeepEqualJson(
-    invocationReceiptPolicy.required_for_package_shortcuts,
-    ['research', 'ppt', 'grant', 'book', 'oma'],
-    'App GUI agent package shortcut receipt ids',
-  );
+  if (
+    invocationReceiptPolicy.required_for_package_shortcuts_source_ref !==
+      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
+    invocationReceiptPolicy.required_for_package_shortcuts !== undefined
+  ) {
+    throw new Error('App GUI agent package shortcut receipts must follow dynamically projected visible standard Agents');
+  }
   assertIncludesAll(
     invocationReceiptPolicy.required_fields,
     ['route_kind', 'executor', 'package_id', 'shortcut_id', 'codex_visible_entry', 'required_skill_ids', 'source'],
@@ -1596,9 +1626,17 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     guiContract.ordinary_capability_selector_policy?.authority !==
       'app_owned_skill_allowlist_and_mcp_negative_filter' ||
-    guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
-    JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_required_agent_package_ids) !==
-      JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
+    guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+    guiContract.ordinary_capability_selector_policy?.palette_agent_status_source_ref !==
+      'app_state.agent_packages.status_index.packages[]' ||
+    guiContract.ordinary_capability_selector_policy?.palette_agent_availability_policy !==
+      'join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable' ||
+    guiContract.ordinary_capability_selector_policy?.palette_agent_action_policy !==
+      'directory_available_actions_and_recommended_action_ref_only' ||
+    guiContract.ordinary_capability_selector_policy?.palette_unknown_standard_agent_policy !==
+      'include_without_app_package_id_branch' ||
+    guiContract.ordinary_capability_selector_policy?.palette_required_agent_package_ids !== undefined ||
     JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_agent_group_label_i18n) !==
       JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
     guiContract.ordinary_capability_selector_policy?.palette_home_shortcut_independence_policy !==
@@ -1606,9 +1644,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.ordinary_capability_selector_policy?.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     guiContract.ordinary_capability_selector_policy?.skill_source_ref !==
-      'assistant_skill_profiles.required_skills + optional_skills' ||
+      'owner_or_carrier_projected_capability_metadata_for_the_selected_package' ||
     guiContract.ordinary_capability_selector_policy?.package_skill_source_ref !==
-      'professional_agent_packages.required_skill_ids + optional_skill_ids' ||
+      'app_state.agent_packages.status_index.packages[].capability_exposure plus owner-projected capability metadata' ||
     guiContract.ordinary_capability_selector_policy?.mcp_server_source_ref !==
       'configured_user_and_third_party_mcp_servers' ||
     guiContract.ordinary_capability_selector_policy?.mcp_menu_policy !==
@@ -1866,7 +1904,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_agents.must_show,
     [
       'localized package role labels with no raw internal enum on the ordinary row',
-      'professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
+      'professional Agents ordered by Home shortcut preference then localized display name, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
       'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
       'localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow',
       'verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned',

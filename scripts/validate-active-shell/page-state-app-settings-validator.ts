@@ -195,13 +195,19 @@ function validateCapabilitiesPage(matrix, guiContract) {
   );
   if (
     agentsPage.machine_source !==
-    'opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts'
+    'opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
   ) {
-    throw new Error('Agents page must read package installation truth, active runtime sources, and Home shortcuts only');
+    throw new Error('Agents page must read Package directory, fresh status including Home preferences, and active runtime sources only');
   }
   assertIncludesAll(
     agentsPage.state_sections,
-    ['agent_packages.directory', 'agent_packages.status_index', 'runtime_source_carriers.items', 'modules.items', 'home_agent_shortcuts'],
+    [
+      'agent_packages.directory',
+      'agent_packages.status_index',
+      'runtime_source_carriers.items',
+      'modules.items',
+      'agent_packages.status_index.home_shortcut_preferences',
+    ],
     'Agents page package state sections',
   );
   for (const forbiddenSection of ['modules', 'tools', 'operator.workbench.task_drilldowns']) {

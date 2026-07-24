@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 import {
@@ -14,10 +13,6 @@ import {
   assertHomeComposerStateContract,
   assertLocalizedUxOverrideShape,
   assertOfficialProfileShape,
-  assertProfessionalAgentPackageUxOverrides,
-  managedShortcutIds,
-  managedShortcutPackageIds,
-  defaultVisibleShortcutIds,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
 import type { AppProductProfile } from './types.ts';
@@ -35,6 +30,67 @@ function assertStringArray(value: unknown, label: string, options: { allowBlank?
   ))) {
     throw new Error(`Invalid App product profile ${label}: expected a non-empty string array`);
   }
+}
+
+const optionalDisplayMetadataPolicy = {
+  homeShortcuts: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
+    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
+    runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+  },
+  professionalAgent: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['localized_display_fallback', 'legacy_alias_migration'],
+    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
+    runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
+  },
+  assistantSkills: {
+    role: 'optional_migration_and_display_metadata',
+    allowed_uses: ['legacy_assistant_alias_migration', 'display_hint_fallback'],
+    forbidden_authority: ['package_membership', 'skill_or_capability_scope', 'installed', 'present', 'callable', 'actions'],
+    runtime_authority_ref: 'owner_or_carrier_projected_capability_metadata',
+  },
+} as const;
+
+const dynamicHomeComposerAuthority = {
+  shortcut_package_membership_source_ref:
+    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+  shortcut_preference_source_ref:
+    'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+  shortcut_availability_source_ref:
+    'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+  unknown_standard_agent_allowed: true,
+} as const;
+
+function assertDynamicHomeComposerStateContract(value: AppProductProfile['gui']['home']['home_composer_state_contract'], label: string): void {
+  const {
+    shortcut_package_membership_source_ref,
+    shortcut_preference_source_ref,
+    shortcut_availability_source_ref,
+    unknown_standard_agent_allowed,
+  } = value;
+  if (JSON.stringify({
+    shortcut_package_membership_source_ref,
+    shortcut_preference_source_ref,
+    shortcut_availability_source_ref,
+    unknown_standard_agent_allowed,
+  }) !== JSON.stringify(dynamicHomeComposerAuthority)) {
+    throw new Error(`${label} must use the dynamic Agent Package directory and Home preference authority`);
+  }
+  assertHomeComposerStateContract(value, label);
+}
+
+function assertDynamicPackageInvocationReceiptPolicy(profile: AppProductProfile, label: string): void {
+  const policy = profile.gui.agent_package_invocation_receipt_policy;
+  if (
+    policy.required_for_package_shortcuts_source_ref !==
+      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
+    'required_for_package_shortcuts' in policy
+  ) {
+    throw new Error(`${label} package shortcut receipts must follow dynamically projected visible standard Agents`);
+  }
+  assertAppProductProfileRouteReceiptPolicy(profile, label);
 }
 
 function assertIncludesAll(actual: string[], expected: string[], label: string): void {
@@ -535,7 +591,8 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   }
   if (
     profile.codex.opl_app_session_context?.owner !== 'one-person-lab-app' ||
-    profile.codex.opl_app_session_context.source !== 'gui.professional_agent_packages.session_routing_summary_i18n' ||
+    profile.codex.opl_app_session_context.source !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent] owner-projected localized route summary with optional gui.professional_agent_packages display fallback' ||
     profile.codex.opl_app_session_context.delivery !== 'new_codex_conversation_preset_context' ||
     profile.codex.opl_app_session_context.customization.additional_instructions_key !==
       'codex.oplAppSessionContextAdditional' ||
@@ -553,7 +610,7 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must declare localized OPL App session context');
   }
-  for (const agent of profile.gui.professional_agent_packages) {
+  for (const agent of profile.gui.professional_agent_packages ?? []) {
     if (!agent.session_routing_summary_i18n?.['zh-CN'] || !agent.session_routing_summary_i18n?.['en-US']) {
       throw new Error(`App product profile agent ${agent.package_id} must declare localized session routing summaries`);
     }
@@ -568,7 +625,7 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
     requireEnglishStatusLabel: true,
     requireSelectionPersistence: true,
   });
-  assertHomeComposerStateContract(profile.gui.home.home_composer_state_contract, 'App product profile Home composer state contract');
+  assertDynamicHomeComposerStateContract(profile.gui.home.home_composer_state_contract, 'App product profile Home composer state contract');
   assertStringArray(
     profile.codex.auto_model_policy.frontier_model_preference_order,
     'codex.auto_model_policy.frontier_model_preference_order',
@@ -579,6 +636,12 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
 }
 
 function assertHomePurposeEntries(profile: AppProductProfile): void {
+  if (
+    JSON.stringify(profile.gui.home.home_agent_shortcuts_metadata_policy) !==
+      JSON.stringify(optionalDisplayMetadataPolicy.homeShortcuts)
+  ) {
+    throw new Error('App product profile Home shortcut metadata must not own membership, visibility, order, readiness, or actions');
+  }
   const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('App product profile GUI home must expose exactly research, grant, ppt, and book purpose entries');
@@ -595,11 +658,12 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     }
   }
   const shortcuts = profile.gui.home.home_agent_shortcuts ?? [];
-  if (JSON.stringify(shortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(managedShortcutIds)) {
-    throw new Error('App product profile GUI home must expose configurable MAS, MAG, RCA, OBF, and OMA package shortcuts');
-  }
-  if (JSON.stringify(shortcuts.map((entry) => entry.package_id)) !== JSON.stringify(managedShortcutPackageIds)) {
-    throw new Error('App product profile GUI home shortcuts must target MAS, MAG, RCA, OBF, and OMA packages');
+  const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
+  if (
+    shortcutIds.some((shortcutId) => typeof shortcutId !== 'string' || !shortcutId.trim()) ||
+    new Set(shortcutIds).size !== shortcutIds.length
+  ) {
+    throw new Error('App product profile GUI Home shortcut metadata ids must be non-empty and unique');
   }
   for (const shortcut of shortcuts) {
     assertCapabilityReferenceListShape(
@@ -615,11 +679,8 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     ) {
       throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (shortcut.package_id === 'oma' && shortcut.shortcut_id !== 'oma') {
-      throw new Error('App product profile OMA shortcut id must remain oma');
-    }
-    if (shortcut.default_visible !== defaultVisibleShortcutIds.includes(shortcut.shortcut_id)) {
-      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} has invalid default visibility`);
+    if (typeof shortcut.default_visible !== 'boolean') {
+      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} must declare boolean display metadata`);
     }
   }
   assertStringArray(
@@ -799,16 +860,25 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   if (
     ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
     ordinarySelector.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
-    ordinarySelector.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
-    JSON.stringify(ordinarySelector.palette_required_agent_package_ids) !==
-      JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
+    ordinarySelector.palette_agent_catalog_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+    ordinarySelector.palette_agent_status_source_ref !==
+      'app_state.agent_packages.status_index.packages[]' ||
+    ordinarySelector.palette_agent_availability_policy !==
+      'join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable' ||
+    ordinarySelector.palette_agent_action_policy !==
+      'directory_available_actions_and_recommended_action_ref_only' ||
+    ordinarySelector.palette_unknown_standard_agent_policy !==
+      'include_without_app_package_id_branch' ||
+    ordinarySelector.palette_required_agent_package_ids !== undefined ||
     ordinarySelector.palette_home_shortcut_independence_policy !==
       'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
     JSON.stringify(ordinarySelector.palette_agent_group_label_i18n) !==
       JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
     ordinarySelector.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
-    ordinarySelector.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
+    ordinarySelector.skill_source_ref !==
+      'owner_or_carrier_projected_capability_metadata_for_the_selected_package' ||
     ordinarySelector.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible' ||
     ordinarySelector.conversation_loaded_skill_display_policy !== 'filter_to_ordinary_skill_allowlist' ||
     ordinarySelector.mcp_server_source_ref !== 'configured_user_and_third_party_mcp_servers' ||
@@ -890,15 +960,58 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
 }
 
 function assertProfessionalAgentPackages(profile: AppProductProfile): void {
-  assertProfessionalAgentPackageUxOverrides(profile.gui.professional_agent_packages, 'App product profile');
+  if (
+    JSON.stringify(profile.gui.professional_agent_packages_metadata_policy) !==
+      JSON.stringify(optionalDisplayMetadataPolicy.professionalAgent)
+  ) {
+    throw new Error('App product profile professional Agent metadata must be optional display/migration input only');
+  }
+  const packages = profile.gui.professional_agent_packages ?? [];
+  const packageIds = packages.map((entry) => entry.package_id);
+  if (
+    packageIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
+    new Set(packageIds).size !== packageIds.length
+  ) {
+    throw new Error('App product profile professional Agent metadata package ids must be non-empty and unique');
+  }
+  for (const entry of packages) {
+    assertLocalizedUxOverrideShape(
+      entry.display_name_i18n,
+      `App product profile professional Agent ${entry.package_id} display_name_i18n`,
+    );
+    assertLocalizedUxOverrideShape(
+      entry.description_i18n,
+      `App product profile professional Agent ${entry.package_id} description_i18n`,
+    );
+    if (
+      typeof entry.display_name !== 'string' ||
+      !entry.display_name.trim() ||
+      typeof entry.session_routing_summary_i18n?.['zh-CN'] !== 'string' ||
+      !entry.session_routing_summary_i18n['zh-CN'].trim() ||
+      typeof entry.session_routing_summary_i18n?.['en-US'] !== 'string' ||
+      !entry.session_routing_summary_i18n['en-US'].trim()
+    ) {
+      throw new Error(`App product profile professional Agent ${entry.package_id} display metadata is incomplete`);
+    }
+  }
 }
 
 function assertAssistantSkillProfiles(
   profile: AppProductProfile,
 ): AppProductProfile['gui']['assistant_skill_profiles'] {
+  if (
+    JSON.stringify(profile.gui.assistant_skill_profiles_metadata_policy) !==
+      JSON.stringify(optionalDisplayMetadataPolicy.assistantSkills)
+  ) {
+    throw new Error('App product profile assistant Skill profiles must be optional display/migration input only');
+  }
   const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
-    throw new Error('App product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
+  const assistantIds = skillProfiles.map((entry) => entry.assistant_id);
+  if (
+    assistantIds.some((assistantId) => typeof assistantId !== 'string' || !assistantId.trim()) ||
+    new Set(assistantIds).size !== assistantIds.length
+  ) {
+    throw new Error('App product profile assistant Skill metadata ids must be non-empty and unique');
   }
   for (const entry of skillProfiles) {
     assertCapabilityReferenceListShape(
@@ -933,7 +1046,7 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
   }
 }
 
-function assertAgentPackageRegistryProjection(profile: AppProductProfile, profilePath: string): void {
+function assertAgentPackageRegistryProjection(profile: AppProductProfile): void {
   const projection = profile.gui.agent_package_registry;
   if (
     projection?.directory_lifecycle_authority !==
@@ -985,9 +1098,10 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
   if (
     JSON.stringify(presentation.section_order) !==
       JSON.stringify(['professional_agents', 'workflow_profiles', 'shared_dependencies', 'other_packages']) ||
-    presentation.professional_agent_order_source !== 'gui.professional_agent_packages[].package_id' ||
+    presentation.professional_agent_order_source !==
+      'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
     presentation.professional_agent_order_policy !==
-      'match_projected_directory_entries_then_append_unlisted_standard_agents_by_localized_display_name' ||
+      'sort_standard_agent_directory_entries_by_user_sort_order_then_localized_display_name' ||
     presentation.workflow_profile_policy !==
       'render_in_a_separate_workflow_section_not_mixed_with_runnable_agents' ||
     JSON.stringify(presentation.package_role_labels_i18n) !==
@@ -1037,9 +1151,7 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomeSelectionAndIconPolicy(profile);
   assertOfficialProfileShape(profile.official_profile, 'App product profile Official Profile');
   assertUiLocalePolicy(profile);
-  assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
-    requireExactAssistants: true,
-  });
+  assertDynamicPackageInvocationReceiptPolicy(profile, 'App product profile');
   assertProfessionalAgentPackages(profile);
   assertDefaultAssistantProfileShape(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
@@ -1057,6 +1169,6 @@ function assertProfileShape(profile: AppProductProfile): void {
 export function readAppProductProfile(profilePath = appProductProfilePath): AppProductProfile {
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8')) as AppProductProfile;
   assertProfileShape(profile);
-  assertAgentPackageRegistryProjection(profile, profilePath);
+  assertAgentPackageRegistryProjection(profile);
   return profile;
 }

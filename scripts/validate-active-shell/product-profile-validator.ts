@@ -61,6 +61,48 @@ const ordinaryForbiddenCapabilityPolicy = {
     'tl',
   ],
 };
+
+const dynamicHomeComposerAuthority = {
+  shortcut_package_membership_source_ref:
+    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+  shortcut_preference_source_ref:
+    'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+  shortcut_availability_source_ref:
+    'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+  unknown_standard_agent_allowed: true,
+};
+
+function validateDynamicHomeComposerStateContract(value, label) {
+  const {
+    shortcut_package_membership_source_ref,
+    shortcut_preference_source_ref,
+    shortcut_availability_source_ref,
+    unknown_standard_agent_allowed,
+  } = value ?? {};
+  assertDeepEqualJson(
+    {
+      shortcut_package_membership_source_ref,
+      shortcut_preference_source_ref,
+      shortcut_availability_source_ref,
+      unknown_standard_agent_allowed,
+    },
+    dynamicHomeComposerAuthority,
+    `${label} dynamic authority`,
+  );
+  assertHomeComposerStateContract(value, label);
+}
+
+function validateDynamicPackageInvocationReceiptPolicy(profile, label) {
+  const policy = profile.gui?.agent_package_invocation_receipt_policy;
+  if (
+    policy?.required_for_package_shortcuts_source_ref !==
+      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
+    policy?.required_for_package_shortcuts !== undefined
+  ) {
+    throw new Error(`${label} package shortcut receipts must follow dynamically projected visible standard Agents`);
+  }
+  assertAppProductProfileRouteReceiptPolicy(profile, label);
+}
 const requiredHostTools = [
   'command_line_tools',
   'homebrew',
@@ -155,8 +197,8 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileSettingsVisualSystem(profile, 'Product profile');
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
-  assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
-  assertHomeComposerStateContract(profile.gui?.home?.home_composer_state_contract, 'Product profile Home composer state contract');
+  validateDynamicPackageInvocationReceiptPolicy(profile, 'Product profile');
+  validateDynamicHomeComposerStateContract(profile.gui?.home?.home_composer_state_contract, 'Product profile Home composer state contract');
   validateUiLocalePolicy(profile);
   validateHomeAssistantDefaults(profile);
   validateProfessionalAgentPackages(profile);
@@ -280,11 +322,8 @@ function validateHomeAssistantDefaults(profile) {
     throw new Error('Product profile GUI home purpose entries must target MAS, MAG, RCA, and BookForge');
   }
   const homeAgentShortcuts = profile.gui.home.home_agent_shortcuts ?? [];
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(managedShortcutIds)) {
-    throw new Error('Product profile GUI home must expose configurable MAS, MAG, RCA, OBF, and OMA package shortcuts');
-  }
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(managedShortcutPackageIds)) {
-    throw new Error('Product profile GUI home shortcuts must target MAS, MAG, RCA, OBF, and OMA packages');
+  if (new Set(homeAgentShortcuts.map((entry) => entry.shortcut_id)).size !== homeAgentShortcuts.length) {
+    throw new Error('Product profile GUI home shortcut metadata ids must be unique');
   }
   for (const shortcut of homeAgentShortcuts) {
     assertCapabilityReferenceListShape(
@@ -391,9 +430,10 @@ function validateAgentPackageRegistryProjection(profile) {
     'Product profile Agent catalog section order',
   );
   if (
-    presentation?.professional_agent_order_source !== 'gui.professional_agent_packages[].package_id' ||
+    presentation?.professional_agent_order_source !==
+      'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
     presentation?.professional_agent_order_policy !==
-      'match_projected_directory_entries_then_append_unlisted_standard_agents_by_localized_display_name' ||
+      'sort_standard_agent_directory_entries_by_user_sort_order_then_localized_display_name' ||
     presentation?.workflow_profile_policy !==
       'render_in_a_separate_workflow_section_not_mixed_with_runnable_agents' ||
     JSON.stringify(presentation?.package_role_labels_i18n) !==
@@ -476,8 +516,9 @@ function validateProductProfileSettings(profile) {
 
 function validateAssistantSkillProfiles(profile) {
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
-    throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
+  const profileIds = productSkillProfiles.map((entry) => entry.assistant_id);
+  if (profileIds.some((id) => typeof id !== 'string' || !id.trim()) || new Set(profileIds).size !== profileIds.length) {
+    throw new Error('Product profile assistant skill profile ids must be non-empty and unique');
   }
   for (const entry of productSkillProfiles) {
     assertCapabilityReferenceListShape(
@@ -583,15 +624,21 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
   if (
     policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     policy?.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
-    policy?.palette_agent_catalog_source_ref !== 'professional_agent_packages' ||
-    JSON.stringify(policy?.palette_required_agent_package_ids) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma']) ||
+    policy?.palette_agent_catalog_source_ref !==
+      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+    policy?.palette_agent_status_source_ref !== 'app_state.agent_packages.status_index.packages[]' ||
+    policy?.palette_agent_availability_policy !==
+      'join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable' ||
+    policy?.palette_agent_action_policy !== 'directory_available_actions_and_recommended_action_ref_only' ||
+    policy?.palette_unknown_standard_agent_policy !== 'include_without_app_package_id_branch' ||
+    policy?.palette_required_agent_package_ids !== undefined ||
     JSON.stringify(policy?.palette_agent_group_label_i18n) !==
       JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
     policy?.palette_home_shortcut_independence_policy !==
       'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
     policy?.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
-    policy?.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
+    policy?.skill_source_ref !== 'owner_or_carrier_projected_capability_metadata_for_the_selected_package' ||
     policy?.mcp_server_source_ref !== 'configured_user_and_third_party_mcp_servers' ||
     policy?.mcp_menu_policy !==
       'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
