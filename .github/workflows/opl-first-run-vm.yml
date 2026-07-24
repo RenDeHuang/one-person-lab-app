@@ -614,17 +614,13 @@ jobs:
           ref: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           path: shells/aionui
           fetch-depth: 1
-          sparse-checkout: scripts
-
-      - name: Materialize active shell dependency metadata
-        shell: bash
-        run: |
-          git -C shells/aionui sparse-checkout set --no-cone \
-            /scripts/ \
-            /package.json \
-            /bun.lock \
-            /patches/ \
+          sparse-checkout: |
+            /scripts/
+            /package.json
+            /bun.lock
+            /patches/
             '/packages/*/package.json'
+          sparse-checkout-cone-mode: false
 
       - name: Checkout OPL Framework bootstrap source
         if: ${{ inputs.framework_ref != '' }}

@@ -899,20 +899,12 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   };
 
   const checkout = step('Checkout active shell');
-  assert.equal(checkout.with['sparse-checkout'], 'scripts');
-
-  const materialize = step('Materialize active shell dependency metadata');
-  assert.equal(
-    String(materialize.run).trim(),
-    [
-      'git -C shells/aionui sparse-checkout set --no-cone \\',
-      '  /scripts/ \\',
-      '  /package.json \\',
-      '  /bun.lock \\',
-      '  /patches/ \\',
-      "  '/packages/*/package.json'",
-    ].join('\n'),
+  assert.deepEqual(
+    String(checkout.with['sparse-checkout']).trim().split('\n'),
+    ['/scripts/', '/package.json', '/bun.lock', '/patches/', "'/packages/*/package.json'"],
   );
+  assert.equal(checkout.with['sparse-checkout-cone-mode'], false);
+  assert.equal(stepIndex('Materialize active shell dependency metadata'), -1);
 
   const setupBun = step('Setup bun');
   assert.equal(setupBun.uses, 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6');
@@ -924,11 +916,11 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
 
   const validate = step('Validate smoke scripts');
   assert.match(String(validate.run), /await import\('\.\/shells\/aionui\/scripts\/opl-first-run-tart-smoke\.mjs'\)/);
-  assert.ok(stepIndex('Checkout active shell') < stepIndex('Materialize active shell dependency metadata'));
-  assert.ok(stepIndex('Materialize active shell dependency metadata') < stepIndex('Setup bun'));
+  assert.ok(stepIndex('Checkout active shell') < stepIndex('Setup bun'));
   assert.ok(stepIndex('Setup bun') < stepIndex('Install active shell harness dependencies'));
   assert.ok(stepIndex('Install active shell harness dependencies') < stepIndex('Validate smoke scripts'));
   assert.ok(stepIndex('Validate smoke scripts') < stepIndex('Run clean VM first launch smoke'));
+  assert.doesNotMatch(source, /git -C shells\/aionui sparse-checkout set/);
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
 });
 
