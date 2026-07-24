@@ -235,6 +235,7 @@ function parseCommon(argv: string[]) {
       name: { type: 'string' },
       plan: { type: 'string' },
       prerelease: { type: 'boolean' },
+      'publication-channel': { type: 'string' },
       'operation-started-at': { type: 'string' },
       'operation-deadline-at': { type: 'string' },
       'latest-admission': { type: 'string' },
@@ -1396,13 +1397,35 @@ export function applyPublishPlan(
   const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
   releaseOperationDeadlineTimestamp(operationDeadlineAt);
   const bundle = bundleDocument(requireOption(values, 'bundle'));
-  if (bundle.release.channel !== 'stable' || bundle.release.prerelease !== false) {
+  const publicationChannel = requireOption(values, 'publication-channel');
+  if (publicationChannel !== 'stable' && publicationChannel !== 'nightly') {
     rejectGitHubMutation(
       'github-apply',
       values,
-      'github_mutation_non_stable_bundle',
-      'GitHub mutation operations require a Stable non-prerelease Bundle.',
-      { operation: admission.operation, track: admission.track },
+      'github_mutation_publication_channel_rejected',
+      'GitHub publication requires --publication-channel stable or nightly.',
+    );
+  }
+  const expectedPrerelease = publicationChannel === 'nightly';
+  if (
+    bundle.release.channel !== publicationChannel
+    || bundle.release.prerelease !== expectedPrerelease
+  ) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_mutation_publication_bundle_mismatch',
+      `Publication channel ${publicationChannel} requires a ${publicationChannel} Bundle with prerelease=${expectedPrerelease}.`,
+      { publication_channel: publicationChannel, operation: admission.operation, track: admission.track },
+    );
+  }
+  if (admission.track === 'full' && publicationChannel !== 'stable') {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_mutation_non_stable_full_publication',
+      'Full publication requires the Stable publication channel.',
+      { publication_channel: publicationChannel, operation: admission.operation, track: admission.track },
     );
   }
   const repo = bundle.sources.app.repo;
@@ -1458,7 +1481,7 @@ export function applyPublishPlan(
     name,
     notes: bundle.prepared_notes.markdown,
     targetCommitish: bundle.sources.app.source_commit,
-    prerelease: bundle.release.prerelease,
+    prerelease: publicationChannel === 'nightly',
     operationDeadlineAt,
     runtime,
   });
@@ -1543,6 +1566,10 @@ export function activateLatest(
   const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
   releaseOperationDeadlineTimestamp(operationDeadlineAt);
   const bundle = bundleDocument(requireOption(values, 'bundle'));
+  const publicationChannel = requireOption(values, 'publication-channel');
+  if (publicationChannel !== 'stable') {
+    throw new Error('Only Stable publication can become Latest.');
+  }
   if (bundle.release.channel !== 'stable' || bundle.release.prerelease !== false) {
     throw new Error('Only a Stable Bundle can become Latest.');
   }

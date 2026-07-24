@@ -222,9 +222,6 @@ function validateOptions(options: Options): ResolvedOptions {
   }
 
   const packageKind = inferPackageKind(options);
-  if (options.channel === 'nightly') {
-    throw new Error('Nightly Homebrew publication is retired; historical Cask bytes are read-only.');
-  }
 
   try {
     assertReleaseVersionNotFuture(options.channel, options.version);
@@ -672,6 +669,32 @@ function runSelfCheck(): void {
     throw new Error('Homebrew Full self-check did not use the embedded Base as its single Framework carrier.');
   }
 
+  const nightlyVersion = '26.6.4-nightly.r1';
+  const nightlyPlan = buildPlan({
+    channel: 'nightly',
+    packageKind: 'app_standard',
+    version: nightlyVersion,
+    updaterVersion: resolveReleaseVersionIdentity('nightly', nightlyVersion).updaterVersion,
+    tapRoot: tempRoot,
+    manifestUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${nightlyVersion}/opl-app-component-manifest.json`,
+    checksumSha256: digest,
+    downloadUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${nightlyVersion}/One-Person-Lab-${nightlyVersion}-mac-arm64.dmg`,
+    targets: ['Casks/one-person-lab-nightly.rb'],
+    write: true,
+    summaryPath: null,
+    remoteWriteMode: 'none',
+    expectedCurrentCaskSha256: null,
+    selfCheck: false,
+  });
+  if (
+    nightlyPlan.channel !== 'nightly'
+    || nightlyPlan.package_kind !== 'app_standard'
+    || nightlyPlan.policy.full_first_install_allowed !== false
+    || nightlyPlan.policy.standard_updater_visible !== true
+  ) {
+    throw new Error('Homebrew Nightly self-check did not remain a Standard-only App cask.');
+  }
+
   let rejectedPackageBundleKind = false;
   try {
     parseArgs(['--package-kind', 'package_bundle']);
@@ -683,13 +706,6 @@ function runSelfCheck(): void {
   }
 
   for (const blocked of [
-    {
-      channel: 'nightly' as Channel,
-      packageKind: 'app_standard' as PackageKind,
-      version: '26.6.4-nightly.r1',
-      targets: ['Casks/one-person-lab-nightly.rb'],
-      message: 'Nightly Homebrew publication is retired',
-    },
     {
       channel: 'stable' as Channel,
       packageKind: 'app_standard' as PackageKind,
@@ -733,7 +749,7 @@ function runSelfCheck(): void {
       packageKind: 'app_full_first_install' as PackageKind,
       version: '26.6.4-nightly.r1',
       targets: ['Casks/one-person-lab-full.rb'],
-      message: 'Nightly Homebrew publication is retired',
+      message: 'Full first-install Homebrew cask updates must stay on the stable channel',
     },
     {
       channel: 'stable' as Channel,

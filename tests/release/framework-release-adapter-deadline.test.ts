@@ -42,6 +42,7 @@ function mutationAdmission(
   return {
     operation,
     track,
+    'publication-channel': 'stable',
     'operation-id': operation === 'append_full' ? appendFullOperationId : standardOperationId,
     'operation-started-at': operation === 'append_full'
       ? appendFullOperationStartedAt
@@ -507,6 +508,40 @@ test('GitHub mutation commands require an immutable operation deadline', () => {
   assert.throws(() => activateLatest(mutationAdmission()), /Missing --operation-deadline-at/);
 });
 
+test('GitHub mutation commands require an explicit publication channel before any GitHub call', () => {
+  const files = fixture([]);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+  const values = mutationAdmission();
+  delete values['publication-channel'];
+  assert.throws(
+    () => applyPublishPlan({
+      ...values,
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /Missing --publication-channel/,
+  );
+  assert.throws(
+    () => activateLatest({
+      ...values,
+      bundle: files.bundlePath,
+      status: files.statusPath,
+      'latest-admission': files.admissionPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /Missing --publication-channel/,
+  );
+  assert.equal(calls, 0);
+});
+
 test('GitHub mutation commands reject incomplete operation identity before any gh call', () => {
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
@@ -712,6 +747,101 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
   }, runtime);
   assert.equal(result.status, 'complete');
   assert.equal(calls, 1);
+});
+
+test('github-apply publishes a Nightly Bundle as prerelease and never as Latest', () => {
+  const files = fixture([]);
+  const nightlyVersion = '26.7.22-nightly';
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.release = {
+    channel: 'nightly',
+    version: nightlyVersion,
+    updater_version: '26.7.2290-nightly.0',
+    tag: `v${nightlyVersion}`,
+    prerelease: true,
+  };
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const calls: Array<{ args: string[]; stdin?: string }> = [];
+  let exists = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args, options) {
+      calls.push({ args, stdin: options.input });
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/v${nightlyVersion}`) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success({
+          id: 12345,
+          name: `One Person Lab v${nightlyVersion}`,
+          draft: false,
+          prerelease: true,
+          target_commitish: sourceCommit,
+          body: notes,
+          assets: [],
+        });
+      }
+      if (args.includes('POST')) {
+        exists = true;
+        return success();
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+    'publication-channel': 'nightly',
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  const create = calls.find(({ args }) => args.includes('POST'));
+  assert.ok(create?.stdin);
+  const payload = JSON.parse(create.stdin);
+  assert.equal(payload.prerelease, true);
+  assert.equal(payload.make_latest, 'false');
+});
+
+test('Nightly publication rejects Stable Bundle and Full track before any GitHub call', () => {
+  const stableFiles = fixture([]);
+  const fullFiles = fixture([], 'append_full');
+  const fullBundle = JSON.parse(fs.readFileSync(fullFiles.bundlePath, 'utf8'));
+  fullBundle.release = {
+    channel: 'nightly',
+    version: '26.7.22-nightly',
+    updater_version: '26.7.2290-nightly.0',
+    tag: 'v26.7.22-nightly',
+    prerelease: true,
+  };
+  fs.writeFileSync(fullFiles.bundlePath, `${JSON.stringify(fullBundle)}\n`);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: stableFiles.bundlePath,
+      plan: stableFiles.planPath,
+      'operation-deadline-at': deadlineAt,
+      'publication-channel': 'nightly',
+    }, runtime),
+    (error: any) => error.result?.failure?.failure_taxonomy === 'github_mutation_publication_bundle_mismatch',
+  );
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      bundle: fullFiles.bundlePath,
+      plan: fullFiles.planPath,
+      'operation-deadline-at': deadlineAt,
+      'publication-channel': 'nightly',
+    }, runtime),
+    (error: any) => error.result?.failure?.failure_taxonomy === 'github_mutation_non_stable_full_publication',
+  );
+  assert.equal(calls, 0);
 });
 
 test('raw Latest activation rejects append_full before gh', () => {
