@@ -50,7 +50,7 @@ test('Native follower performs only post-Stable exact public readback', () => {
 test('Native reusable separates non-blocking preparation, protected additive publication, and readback', () => {
   const { source, parsed } = workflow('_release-native-webui-carrier.yml');
   assert.deepEqual(Object.keys(parsed.on), ['workflow_call']);
-  assert.deepEqual(parsed.permissions, { contents: 'read' });
+  assert.equal(parsed.permissions, undefined);
   assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'publish-native-assets', 'readback-native-assets']);
   assert.deepEqual(parsed.jobs['build-and-qualify'].permissions, { contents: 'read', actions: 'read' });
   assert.equal(parsed.jobs['build-and-qualify']['continue-on-error'], true);
@@ -58,7 +58,7 @@ test('Native reusable separates non-blocking preparation, protected additive pub
   assert.equal(parsed.jobs['build-and-qualify'].outputs.prepare_status, '${{ steps.qualified.outputs.prepare_status }}');
   assert.equal(parsed.jobs['publish-native-assets'].environment, 'release-stable');
   assert.equal(parsed.jobs['publish-native-assets']['continue-on-error'], true);
-  assert.deepEqual(parsed.jobs['publish-native-assets'].permissions, { contents: 'write', actions: 'read' });
+  assert.equal(parsed.jobs['publish-native-assets'].permissions, undefined);
   assert.deepEqual(parsed.jobs['readback-native-assets'].permissions, { contents: 'read', actions: 'read' });
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',

@@ -62,9 +62,6 @@ on:
         description: Actions artifact containing publication state, Framework checkpoint, and public readback.
         value: ${{ jobs.publish-native-assets.outputs.publication_artifact_name }}
 
-permissions:
-  contents: read
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -405,9 +402,6 @@ jobs:
     timeout-minutes: 30
     continue-on-error: true
     environment: release-stable
-    permissions:
-      contents: write
-      actions: read
     outputs:
       publication_artifact_name: ${{ steps.publication.outputs.publication_artifact_name }}
     steps:

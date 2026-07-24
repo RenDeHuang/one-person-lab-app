@@ -119,7 +119,7 @@ function isAuthorizedNativeWebuiWriteJob(
   return workflowPath === nativeWebuiCarrierWorkflowPath
     && jobId === 'publish-native-assets'
     && job.environment === 'release-stable'
-    && exactObject(job.permissions, exactStableEntryPermissions);
+    && job.permissions === undefined;
 }
 
 function reportFailure(id: string, message: string): number {
@@ -677,7 +677,7 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       'qualified_artifact_name',
       'publication_artifact_name',
     ])
-    || !exactObject(carrier.workflow.permissions, { contents: 'read' })
+    || carrier.workflow.permissions !== undefined
     || JSON.stringify(Object.keys(carrierJobs)) !== JSON.stringify([
       'startup-canary',
       'build-and-qualify',
