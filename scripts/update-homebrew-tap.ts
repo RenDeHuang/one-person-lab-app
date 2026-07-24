@@ -222,6 +222,9 @@ function validateOptions(options: Options): ResolvedOptions {
   }
 
   const packageKind = inferPackageKind(options);
+  if (options.channel === 'nightly') {
+    throw new Error('Nightly Homebrew publication is retired; historical Cask bytes are read-only.');
+  }
 
   try {
     assertReleaseVersionNotFuture(options.channel, options.version);
@@ -292,6 +295,9 @@ function boundaryBlock(options: ResolvedOptions): string {
     `# cohort: ${fullFirstInstall ? 'full_first_install_homebrew_distribution' : 'standard_desktop_homebrew_distribution'}`,
     `# standard_updater_visible: ${fullFirstInstall ? 'false' : 'true'}`,
     `# bundled_full_runtime_payload_allowed: ${fullFirstInstall ? 'true' : 'false'}`,
+    `# formula_dependency_required: ${fullFirstInstall ? 'false' : 'true'}`,
+    `# framework_carrier: ${fullFirstInstall ? 'full_dmg_embedded_opl_base' : 'homebrew_formula_opl'}`,
+    '# active_framework_count_target: 1',
     '# homebrew_allowed_software_objects: opl_base,opl_app',
     '# opl_packages_lifecycle_owned_by_homebrew: false',
     '# opl_packages_lifecycle_owner: one-person-lab',
@@ -341,7 +347,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
             : `[${conflicts.map((conflict) => `"${conflict}"`).join(', ')}]`}`,
         ]
       : []),
-    '  depends_on formula: "opl"',
+    ...(fullFirstInstall ? [] : ['  depends_on formula: "opl"']),
     '  depends_on macos: :big_sur',
     '  depends_on arch: :arm64',
     '',
@@ -363,24 +369,28 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
   ].join('\n');
 }
 
-function replaceOrAppendBoundaryBlock(content: string, options: ResolvedOptions): string {
-  const nextBlock = boundaryBlock(options);
-  const blockPattern = /# OPL_HOMEBREW_BOUNDARY_START[\s\S]*?# OPL_HOMEBREW_BOUNDARY_END/;
-  if (blockPattern.test(content)) {
-    return content.replace(blockPattern, nextBlock);
+function reconcileFormulaDependency(content: string, options: ResolvedOptions): string {
+  const formulaDependency = /^[ \t]*depends_on formula: ["'](?:gaofeng21cn\/one-person-lab\/)?opl["'][ \t]*\n?/gm;
+  if (options.packageKind === 'app_full_first_install') {
+    return content.replace(formulaDependency, '');
   }
-  return `${content.trimEnd()}\n\n${nextBlock}\n`;
+  if (formulaDependency.test(content)) {
+    return content;
+  }
+  const macosDependency = /^([ \t]*depends_on macos:)/m;
+  if (macosDependency.test(content)) {
+    return content.replace(macosDependency, '  depends_on formula: "opl"\n$1');
+  }
+  return content.replace(/\nend\s*\n?$/, '\n  depends_on formula: "opl"\nend\n');
 }
 
 function updateContent(content: string, targetPath: string, options: ResolvedOptions): string {
-  let next = content.includes('OPL_HOMEBREW_BOUNDARY_START')
-    ? skeletonContent(targetPath, options)
-    : content.trim()
-      ? replaceOrAppendBoundaryBlock(content, options)
-      : skeletonContent(targetPath, options);
+  void content;
+  let next = skeletonContent(targetPath, options);
   next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${options.updaterVersion}"`);
   next = next.replace(/(sha256\s+)["'][^"']+["']/, `$1"${options.checksumSha256}"`);
   next = next.replace(/(url\s+)["'][^"']+["']/, `$1"${renderHomebrewDownloadUrl(targetPath, options)}"`);
+  next = reconcileFormulaDependency(next, options);
   if (!next.endsWith('\n')) next += '\n';
   return next;
 }
@@ -405,7 +415,11 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
   if (target.kind !== 'cask') {
     throw new Error(`${target.path} must be an App cask target.`);
   }
-  if (!target.content.includes('depends_on formula: "opl"')) {
+  const hasFormulaDependency = /depends_on formula: ["'](?:gaofeng21cn\/one-person-lab\/)?opl["']/.test(target.content);
+  if (options.packageKind === 'app_full_first_install' && hasFormulaDependency) {
+    throw new Error(`${target.path} must use the Full DMG embedded Base and must not install the opl formula carrier.`);
+  }
+  if (options.packageKind === 'app_standard' && !hasFormulaDependency) {
     throw new Error(`${target.path} must install the Framework-owned opl formula carrier.`);
   }
   if (!target.content.includes(options.manifestUrl)) {
@@ -428,13 +442,25 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
       'standard_updater_visible: false',
       'cohort: full_first_install_homebrew_distribution',
       'bundled_full_runtime_payload_allowed: true',
+      'formula_dependency_required: false',
+      'framework_carrier: full_dmg_embedded_opl_base',
+      'active_framework_count_target: 1',
     ]) {
       if (!target.content.includes(required)) {
         throw new Error(`${target.path} must declare Full first-install cask boundaries.`);
       }
     }
-  } else if (!target.content.includes('full_first_install_allowed: false')) {
-    throw new Error(`${target.path} must declare that standard Homebrew casks do not distribute Full first-install payloads.`);
+  } else {
+    for (const required of [
+      'full_first_install_allowed: false',
+      'formula_dependency_required: true',
+      'framework_carrier: homebrew_formula_opl',
+      'active_framework_count_target: 1',
+    ]) {
+      if (!target.content.includes(required)) {
+        throw new Error(`${target.path} must declare Standard Homebrew Framework carrier boundaries.`);
+      }
+    }
   }
   const token = path.basename(target.path, '.rb');
   for (const conflictingCask of caskConflictMap[token] ?? []) {
@@ -477,7 +503,7 @@ function buildPlan(inputOptions: Options): {
     expected_current_cask_sha256: string | null;
     write_performed: boolean;
   };
-  policy: Record<string, boolean | string>;
+  policy: Record<string, boolean | number | string>;
 } {
   const options = validateOptions(inputOptions);
   const targets = options.targets.map((targetPath): TapUpdateTarget => {
@@ -567,6 +593,11 @@ function buildPlan(inputOptions: Options): {
       standard_updater_visible: options.packageKind !== 'app_full_first_install',
       full_cask_install_surface: options.packageKind === 'app_full_first_install',
       bundled_full_runtime_payload_allowed: options.packageKind === 'app_full_first_install',
+      formula_dependency_required: options.packageKind !== 'app_full_first_install',
+      framework_carrier: options.packageKind === 'app_full_first_install'
+        ? 'full_dmg_embedded_opl_base'
+        : 'homebrew_formula_opl',
+      active_framework_count_target: 1,
       homebrew_allowed_software_objects: 'opl_base,opl_app',
       opl_packages_lifecycle_owned_by_homebrew: false,
       opl_packages_lifecycle_owner: 'one-person-lab',
@@ -602,6 +633,15 @@ function runSelfCheck(): void {
   if (stablePlan.dry_run || !stablePlan.policy.manifest_required || !stablePlan.policy.checksum_required) {
     throw new Error('Homebrew stable self-check did not produce the required manifest/checksum policy.');
   }
+  const stableCask = fs.readFileSync(path.join(tempRoot, 'Casks/one-person-lab.rb'), 'utf8');
+  if (
+    !stableCask.includes('depends_on formula: "opl"')
+    || stablePlan.policy.formula_dependency_required !== true
+    || stablePlan.policy.framework_carrier !== 'homebrew_formula_opl'
+    || stablePlan.policy.active_framework_count_target !== 1
+  ) {
+    throw new Error('Homebrew Standard self-check did not retain the opl Formula as its single Base carrier.');
+  }
 
   const fullPlan = buildPlan({
     channel: 'stable',
@@ -622,6 +662,15 @@ function runSelfCheck(): void {
   if (!fullPlan.policy.full_first_install_allowed || fullPlan.policy.standard_updater_visible) {
     throw new Error('Homebrew Full self-check did not keep Full cask outside standard updater visibility.');
   }
+  const fullCask = fs.readFileSync(path.join(tempRoot, 'Casks/one-person-lab-full.rb'), 'utf8');
+  if (
+    fullCask.includes('depends_on formula: "opl"')
+    || fullPlan.policy.formula_dependency_required !== false
+    || fullPlan.policy.framework_carrier !== 'full_dmg_embedded_opl_base'
+    || fullPlan.policy.active_framework_count_target !== 1
+  ) {
+    throw new Error('Homebrew Full self-check did not use the embedded Base as its single Framework carrier.');
+  }
 
   let rejectedPackageBundleKind = false;
   try {
@@ -633,33 +682,13 @@ function runSelfCheck(): void {
     throw new Error('Homebrew self-check did not reject Package-bundle kind.');
   }
 
-  const nightlyPlan = buildPlan({
-    channel: 'nightly',
-    packageKind: 'app_standard',
-    version: '26.6.4-nightly.r1',
-    updaterVersion: resolveReleaseVersionIdentity('nightly', '26.6.4-nightly.r1').updaterVersion,
-    tapRoot: tempRoot,
-    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.r1/latest-arm64-mac.yml',
-    checksumSha256: digest,
-    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.r1/One-Person-Lab-26.6.4-nightly.r1-mac-arm64.dmg',
-    targets: ['Casks/one-person-lab-nightly.rb'],
-    write: false,
-    summaryPath: null,
-    remoteWriteMode: 'none',
-    expectedCurrentCaskSha256: null,
-    selfCheck: false,
-  });
-  if (!nightlyPlan.dry_run || nightlyPlan.targets[0]?.path !== 'Casks/one-person-lab-nightly.rb') {
-    throw new Error('Homebrew nightly self-check did not stay on the nightly target.');
-  }
-
   for (const blocked of [
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_standard' as PackageKind,
       version: '26.6.4-nightly.r1',
-      targets: ['Casks/one-person-lab.rb'],
-      message: 'Nightly App cask target',
+      targets: ['Casks/one-person-lab-nightly.rb'],
+      message: 'Nightly Homebrew publication is retired',
     },
     {
       channel: 'stable' as Channel,
@@ -674,13 +703,6 @@ function runSelfCheck(): void {
       version: '026.06.04',
       targets: ['Casks/one-person-lab.rb'],
       message: 'Stable Homebrew tap updates must use YY.M.D',
-    },
-    {
-      channel: 'nightly' as Channel,
-      packageKind: 'app_standard' as PackageKind,
-      version: '026.06.04-nightly.r1',
-      targets: ['Casks/one-person-lab-nightly.rb'],
-      message: 'Nightly Homebrew tap updates must use YY.M.D-nightly',
     },
     {
       channel: 'stable' as Channel,
@@ -711,7 +733,7 @@ function runSelfCheck(): void {
       packageKind: 'app_full_first_install' as PackageKind,
       version: '26.6.4-nightly.r1',
       targets: ['Casks/one-person-lab-full.rb'],
-      message: 'Full first-install Homebrew cask updates must stay on the stable channel',
+      message: 'Nightly Homebrew publication is retired',
     },
     {
       channel: 'stable' as Channel,
@@ -756,7 +778,7 @@ function main(): void {
   const options = parseArgs(process.argv.slice(2));
   if (options.selfCheck) {
     runSelfCheck();
-    console.log('PASS: Homebrew tap boundary validates App cask-only manifest/checksum references, Full cask isolation, Framework-owned OPL Packages, and cohort separation.');
+    console.log('PASS: Homebrew tap boundary validates Standard Formula and Full embedded-Base carriers, App cask-only manifest/checksum references, Full cask isolation, Framework-owned OPL Packages, and cohort separation.');
     return;
   }
 

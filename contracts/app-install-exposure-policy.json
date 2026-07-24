@@ -115,6 +115,10 @@
         "formula_dependency_current": true,
         "duplicate_base_carrier_risk_current": true,
         "formula_dependency_target": false,
+        "target_generation_status": "implemented_unpublished",
+        "target_generator_ref": "scripts/update-homebrew-tap.ts",
+        "target_framework_carrier": "full_dmg_embedded_opl_base",
+        "target_digest_cas_required": true,
         "approved_target": "managed_full_cask_activates_embedded_base_and_official_profile",
         "target_requires_active_framework_count": 1
       },
@@ -1222,9 +1226,7 @@
         "full_first_install_app": "one-person-lab-full"
       },
       "initial_live_targets": [
-        "Casks/one-person-lab.rb",
-        "Casks/one-person-lab-nightly.rb",
-        "Casks/one-person-lab-full.rb"
+        "Casks/one-person-lab.rb"
       ],
       "full_first_install_cask": {
         "name": "one-person-lab-full",
