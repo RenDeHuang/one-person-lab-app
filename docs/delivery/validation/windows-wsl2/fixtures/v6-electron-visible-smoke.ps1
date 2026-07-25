@@ -52,6 +52,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function ConvertFrom-CodePoints([int[]]$CodePoints) {
+  return -join @($CodePoints | ForEach-Object { [char]$_ })
+}
+
 $validationGateName = 'OPL_WINDOWS_WSL2_VALIDATION'
 $validationGateValue = '1'
 $validationDistro = 'OPL-Validation-g0001'
@@ -68,6 +72,40 @@ $protectedOnePersonLabRoot = 'C:\Users\oplrunner\OnePersonLab'
 $wslPath = Join-Path $env:SystemRoot 'System32\wsl.exe'
 $candidateProcessName = 'OPL Windows WSL2 Validation.exe'
 $windowTitle = 'OPL Windows WSL2 Validation'
+$refreshNameZh = ConvertFrom-CodePoints @(0x5237, 0x65b0)
+$chatNameZh = ConvertFrom-CodePoints @(0x804a, 0x5929)
+$loginNameZh = ConvertFrom-CodePoints @(0x767b, 0x5f55)
+$updateNameZh = ConvertFrom-CodePoints @(0x66f4, 0x65b0)
+$repairNameZh = ConvertFrom-CodePoints @(0x4fee, 0x590d)
+$installNameZh = ConvertFrom-CodePoints @(0x5b89, 0x88c5)
+$resetPasswordNameZh = ConvertFrom-CodePoints @(0x5bc6, 0x7801, 0x91cd, 0x7f6e)
+$guestTitleZh = 'Guest ' + (ConvertFrom-CodePoints @(0x8eab, 0x4efd))
+$aioncoreTitleZh =
+  'AionCore ' + (ConvertFrom-CodePoints @(0x5065, 0x5eb7, 0x72b6, 0x6001))
+$frameworkTitleZh =
+  'Framework ' + (ConvertFrom-CodePoints @(0x72b6, 0x6001))
+$boundaryTitleZh =
+  ConvertFrom-CodePoints @(0x6b64, 0x5019, 0x9009, 0x4e0d, 0x63d0, 0x4f9b, 0x7684, 0x80fd, 0x529b)
+$acpBoundaryZh = 'ACP ' + (ConvertFrom-CodePoints @(0x5bf9, 0x8bdd))
+$authenticationBoundaryZh =
+  (ConvertFrom-CodePoints @(0x8ba4, 0x8bc1)) + ' bootstrap'
+$websocketBoundaryZh = 'WebSocket ' + (ConvertFrom-CodePoints @(0x5bf9, 0x8bdd))
+$commandsBoundaryZh = ConvertFrom-CodePoints @(
+  0x767b,
+  0x5f55,
+  0x3001,
+  0x66f4,
+  0x65b0,
+  0x3001,
+  0x4fee,
+  0x590d,
+  0x3001,
+  0x5b89,
+  0x88c5,
+  0x548c,
+  0x4efb,
+  0x610f
+) + ' guest ' + (ConvertFrom-CodePoints @(0x547d, 0x4ee4))
 $runDirectory = Join-Path $EvidenceRoot $RunId
 $receiptPath = Join-Path $runDirectory 'v6-visible-smoke-receipt.json'
 $screenshotPath = Join-Path $runDirectory 'v6-visible-window.png'
@@ -79,6 +117,7 @@ $launchStartedAt = $null
 $trackedProcessIds = [System.Collections.Generic.HashSet[int]]::new()
 $ownedProcessIdentity = @{}
 $wslProcessIdsBefore = @()
+$candidateTreeLocks = @()
 $protectedPathWatch = $null
 $validationPhaseSamples = [System.Collections.Generic.List[string]]::new()
 $windowHandle = [IntPtr]::Zero
@@ -194,38 +233,243 @@ function Get-WslInventory {
   }
 }
 
-function Get-ZipEntrySha256(
-  [string]$ZipPath,
-  [string]$EntryFileName
-) {
-  Add-Type -AssemblyName System.IO.Compression.FileSystem
-  $archive = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+function Get-StreamSha256([System.IO.Stream]$Stream) {
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
   try {
-    $matchingEntries = @(
-      $archive.Entries |
-        Where-Object { [System.IO.Path]::GetFileName($_.FullName) -eq $EntryFileName }
-    )
-    if ($matchingEntries.Count -ne 1) {
-      throw "Candidate ZIP must contain exactly one $EntryFileName entry"
-    }
-    $stream = $matchingEntries[0].Open()
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-      $hashBytes = $sha256.ComputeHash($stream)
-    } finally {
-      $sha256.Dispose()
-      $stream.Dispose()
-    }
+    $hashBytes = $sha256.ComputeHash($Stream)
     return ([System.BitConverter]::ToString($hashBytes) -replace '-', '').ToLowerInvariant()
   } finally {
-    $archive.Dispose()
+    $sha256.Dispose()
   }
+}
+
+function Expand-VerifiedCandidateZip(
+  [string]$ZipPath,
+  [string]$DestinationRoot,
+  [string]$ExpectedSha256,
+  [string]$ExpectedExecutableFileName
+) {
+  Add-Type -AssemblyName System.IO.Compression
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $zipStream = [System.IO.File]::Open(
+    $ZipPath,
+    [System.IO.FileMode]::Open,
+    [System.IO.FileAccess]::Read,
+    [System.IO.FileShare]::Read
+  )
+  try {
+    $sizeBytes = $zipStream.Length
+    $actualSha256 = Get-StreamSha256 -Stream $zipStream
+    if ($actualSha256 -ne $ExpectedSha256.ToLowerInvariant()) {
+      throw 'Candidate ZIP SHA256 does not match the expected artifact'
+    }
+    $zipStream.Position = 0
+
+    $normalizedRoot = Get-NormalizedPath $DestinationRoot
+    $rootPrefix = $normalizedRoot + '\'
+    [void][System.IO.Directory]::CreateDirectory($normalizedRoot)
+    $entryPaths = [System.Collections.Generic.HashSet[string]]::new(
+      [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $candidateEntryCount = 0
+    $candidateEntrySha256 = $null
+    $archive = [System.IO.Compression.ZipArchive]::new(
+      $zipStream,
+      [System.IO.Compression.ZipArchiveMode]::Read,
+      $true
+    )
+    try {
+      foreach ($entry in $archive.Entries) {
+        $normalizedEntryName = ([string]$entry.FullName).Replace('\', '/')
+        $isDirectory = $normalizedEntryName.EndsWith('/')
+        $canonicalEntryName = $normalizedEntryName.TrimEnd('/')
+        if (
+          -not $canonicalEntryName -or
+          $normalizedEntryName.StartsWith('/') -or
+          [System.IO.Path]::IsPathRooted($normalizedEntryName) -or
+          $normalizedEntryName.Contains(':')
+        ) {
+          throw "Candidate ZIP contains an unsafe entry path: $normalizedEntryName"
+        }
+        $segments = @($canonicalEntryName.Split('/'))
+        if (@($segments | Where-Object { -not $_ -or $_ -in @('.', '..') }).Count -ne 0) {
+          throw "Candidate ZIP contains an unsafe entry path: $normalizedEntryName"
+        }
+        if (-not $entryPaths.Add($canonicalEntryName)) {
+          throw "Candidate ZIP contains a duplicate entry path: $canonicalEntryName"
+        }
+
+        $outputPath = [System.IO.Path]::GetFullPath(
+          (Join-Path $normalizedRoot ($segments -join '\'))
+        )
+        if (
+          -not $outputPath.StartsWith(
+            $rootPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase
+          )
+        ) {
+          throw "Candidate ZIP entry escapes the run-owned tree: $normalizedEntryName"
+        }
+        if ($isDirectory) {
+          [void][System.IO.Directory]::CreateDirectory($outputPath)
+          continue
+        }
+
+        [void][System.IO.Directory]::CreateDirectory(
+          [System.IO.Path]::GetDirectoryName($outputPath)
+        )
+        $entryStream = $entry.Open()
+        $outputStream = [System.IO.File]::Open(
+          $outputPath,
+          [System.IO.FileMode]::CreateNew,
+          [System.IO.FileAccess]::Write,
+          [System.IO.FileShare]::None
+        )
+        $entrySha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+          $buffer = [byte[]]::new(65536)
+          while (($readCount = $entryStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $outputStream.Write($buffer, 0, $readCount)
+            [void]$entrySha.TransformBlock($buffer, 0, $readCount, $buffer, 0)
+          }
+          [void]$entrySha.TransformFinalBlock([byte[]]@(), 0, 0)
+          $entrySha256 =
+            ([System.BitConverter]::ToString($entrySha.Hash) -replace '-', '').ToLowerInvariant()
+        } finally {
+          $entrySha.Dispose()
+          $outputStream.Dispose()
+          $entryStream.Dispose()
+        }
+
+        if ($canonicalEntryName -eq $ExpectedExecutableFileName) {
+          $candidateEntryCount += 1
+          $candidateEntrySha256 = $entrySha256
+        }
+      }
+    } finally {
+      $archive.Dispose()
+    }
+
+    if ($candidateEntryCount -ne 1) {
+      throw "Candidate ZIP must contain exactly one root $ExpectedExecutableFileName entry"
+    }
+    $extractedExecutablePath = Join-Path $normalizedRoot $ExpectedExecutableFileName
+    $extractedExecutableSha256 =
+      (Get-FileHash -Algorithm SHA256 -LiteralPath $extractedExecutablePath).Hash.ToLowerInvariant()
+    if ($extractedExecutableSha256 -ne $candidateEntrySha256) {
+      throw 'Extracted candidate executable does not match the locked ZIP entry'
+    }
+    return [pscustomobject]@{
+      sha256 = $actualSha256
+      size_bytes = $sizeBytes
+      executable_sha256 = $candidateEntrySha256
+    }
+  } finally {
+    $zipStream.Dispose()
+  }
+}
+
+function Get-CandidateTreeIdentity([string]$RootPath) {
+  $normalizedRoot = Get-NormalizedPath $RootPath
+  $files = [string[]]@(
+    [System.IO.Directory]::GetFiles(
+      $normalizedRoot,
+      '*',
+      [System.IO.SearchOption]::AllDirectories
+    )
+  )
+  [System.Array]::Sort($files, [System.StringComparer]::Ordinal)
+  if ($files.Count -eq 0) {
+    throw 'Verified candidate tree is empty'
+  }
+
+  $manifest = [System.IO.MemoryStream]::new()
+  $utf8 = [System.Text.UTF8Encoding]::new($false)
+  try {
+    foreach ($filePath in $files) {
+      $relativePath = $filePath.Substring($normalizedRoot.Length + 1).Replace('\', '/')
+      $fileInfo = [System.IO.FileInfo]::new($filePath)
+      $fileSha256 =
+        (Get-FileHash -Algorithm SHA256 -LiteralPath $filePath).Hash.ToLowerInvariant()
+      $recordBytes = $utf8.GetBytes(
+        "$relativePath`0$($fileInfo.Length)`0$fileSha256`n"
+      )
+      $manifest.Write($recordBytes, 0, $recordBytes.Length)
+    }
+    $manifest.Position = 0
+    return [pscustomobject]@{
+      sha256 = Get-StreamSha256 -Stream $manifest
+      file_count = $files.Count
+    }
+  } finally {
+    $manifest.Dispose()
+  }
+}
+
+function Open-CandidateTreeLocks(
+  [string]$RootPath,
+  [string]$ExpectedTreeSha256,
+  [int]$ExpectedFileCount
+) {
+  $normalizedRoot = Get-NormalizedPath $RootPath
+  $files = [string[]]@(
+    [System.IO.Directory]::GetFiles(
+      $normalizedRoot,
+      '*',
+      [System.IO.SearchOption]::AllDirectories
+    )
+  )
+  [System.Array]::Sort($files, [System.StringComparer]::Ordinal)
+  if ($files.Count -ne $ExpectedFileCount) {
+    throw 'Candidate tree file count changed before write locks were acquired'
+  }
+
+  $locks = [System.Collections.Generic.List[System.IO.FileStream]]::new()
+  try {
+    foreach ($filePath in $files) {
+      $locks.Add(
+        [System.IO.File]::Open(
+          $filePath,
+          [System.IO.FileMode]::Open,
+          [System.IO.FileAccess]::Read,
+          [System.IO.FileShare]::Read
+        )
+      )
+    }
+    $lockedIdentity = Get-CandidateTreeIdentity -RootPath $normalizedRoot
+    if (
+      $lockedIdentity.file_count -ne $ExpectedFileCount -or
+      $lockedIdentity.sha256 -ne $ExpectedTreeSha256
+    ) {
+      throw 'Candidate tree changed while write locks were acquired'
+    }
+    return @($locks)
+  } catch {
+    foreach ($lock in $locks) {
+      $lock.Dispose()
+    }
+    throw
+  }
+}
+
+function Close-CandidateTreeLocks {
+  foreach ($lock in $script:candidateTreeLocks) {
+    $lock.Dispose()
+  }
+  $script:candidateTreeLocks = @()
 }
 
 function Get-CandidateProcesses {
   return @(
     Get-CimInstance Win32_Process -Filter "Name='$candidateProcessName'" -ErrorAction Stop |
-      Select-Object ProcessId, ParentProcessId, ExecutablePath, CreationDate
+      Select-Object Name, ProcessId, ParentProcessId, ExecutablePath, CreationDate
+  )
+}
+
+function Get-ProcessInventory {
+  return @(
+    Get-CimInstance Win32_Process -ErrorAction Stop |
+      Select-Object Name, ProcessId, ParentProcessId, ExecutablePath, CreationDate
   )
 }
 
@@ -233,20 +477,66 @@ function Get-TrackedCandidateProcesses {
   if (-not $launchStartedAt) {
     return @()
   }
-  $rows = Get-CandidateProcesses
-  $eligibleRows = @(
-    $rows |
-      Where-Object {
-        $resolvedPath = if ($_.ExecutablePath) { Get-NormalizedPath $_.ExecutablePath } else { $null }
-        $createdAt = if ($_.CreationDate) { ([datetime]$_.CreationDate).ToUniversalTime() } else { $null }
+  $rows = Get-ProcessInventory
+
+  # Normalize the root to CIM identity and invalidate reused tracked PIDs before
+  # following any parent links from this inventory snapshot.
+  foreach ($row in $rows) {
+    $processId = [int]$row.ProcessId
+    if (-not $trackedProcessIds.Contains($processId)) {
+      continue
+    }
+    $identity = $ownedProcessIdentity[[string]$processId]
+    $createdAt =
+      if ($row.CreationDate) { ([datetime]$row.CreationDate).ToUniversalTime() } else { $null }
+    $resolvedPath =
+      if ($row.ExecutablePath) { Get-NormalizedPath $row.ExecutablePath } else { $null }
+
+    if ($rootProcess -and $processId -eq $rootProcess.Id) {
+      $rootPathMatches =
         $resolvedPath -and
-        $createdAt -and
-        $createdAt -ge $launchStartedAt.AddSeconds(-2) -and
         [string]::Equals(
           $resolvedPath,
           (Get-NormalizedPath $launchExecutablePath),
           [System.StringComparison]::OrdinalIgnoreCase
         )
+      if ($createdAt -and $createdAt -ge $launchStartedAt.AddSeconds(-2) -and $rootPathMatches) {
+        $ownedProcessIdentity[[string]$processId] = [pscustomobject]@{
+          executable_path = $resolvedPath
+          created_at = $createdAt.ToString('o')
+          parent_process_id = [int]$row.ParentProcessId
+        }
+      } else {
+        [void]$trackedProcessIds.Remove($processId)
+        $ownedProcessIdentity.Remove([string]$processId)
+      }
+      continue
+    }
+
+    $identityMatches =
+      $identity -and
+      $createdAt -and
+      $createdAt.ToString('o') -eq $identity.created_at -and
+      (
+        -not $identity.executable_path -or
+        [string]::Equals(
+          $resolvedPath,
+          $identity.executable_path,
+          [System.StringComparison]::OrdinalIgnoreCase
+        )
+      )
+    if (-not $identityMatches) {
+      [void]$trackedProcessIds.Remove($processId)
+      $ownedProcessIdentity.Remove([string]$processId)
+    }
+  }
+
+  $eligibleRows = @(
+    $rows |
+      Where-Object {
+        $createdAt = if ($_.CreationDate) { ([datetime]$_.CreationDate).ToUniversalTime() } else { $null }
+        $createdAt -and
+        $createdAt -ge $launchStartedAt.AddSeconds(-2)
       }
   )
 
@@ -256,23 +546,18 @@ function Get-TrackedCandidateProcesses {
     foreach ($row in $eligibleRows) {
       $processId = [int]$row.ProcessId
       if ($trackedProcessIds.Contains($processId)) {
-        if ($rootProcess -and $processId -eq $rootProcess.Id) {
-          $ownedProcessIdentity[[string]$processId] = [pscustomobject]@{
-            executable_path = (Get-NormalizedPath $row.ExecutablePath)
-            created_at = ([datetime]$row.CreationDate).ToUniversalTime().ToString('o')
-            parent_process_id = [int]$row.ParentProcessId
-          }
-        }
         continue
       }
-      if (
-        ($rootProcess -and $processId -eq $rootProcess.Id) -or
-        $trackedProcessIds.Contains([int]$row.ParentProcessId)
-      ) {
+      $parentIdentity = $ownedProcessIdentity[[string]([int]$row.ParentProcessId)]
+      $createdAt = ([datetime]$row.CreationDate).ToUniversalTime()
+      $parentCreatedAt =
+        if ($parentIdentity) { [datetime]$parentIdentity.created_at } else { $null }
+      if ($parentIdentity -and $createdAt -ge $parentCreatedAt) {
         [void]$trackedProcessIds.Add($processId)
         $ownedProcessIdentity[[string]$processId] = [pscustomobject]@{
-          executable_path = (Get-NormalizedPath $row.ExecutablePath)
-          created_at = ([datetime]$row.CreationDate).ToUniversalTime().ToString('o')
+          executable_path =
+            if ($row.ExecutablePath) { Get-NormalizedPath $row.ExecutablePath } else { $null }
+          created_at = $createdAt.ToString('o')
           parent_process_id = [int]$row.ParentProcessId
         }
         $madeProgress = $true
@@ -283,9 +568,19 @@ function Get-TrackedCandidateProcesses {
     $rows |
       Where-Object {
         $identity = $ownedProcessIdentity[[string]$_.ProcessId]
+        $resolvedPath =
+          if ($_.ExecutablePath) { Get-NormalizedPath $_.ExecutablePath } else { $null }
         $identity -and
         $_.CreationDate -and
-        ([datetime]$_.CreationDate).ToUniversalTime().ToString('o') -eq $identity.created_at
+        ([datetime]$_.CreationDate).ToUniversalTime().ToString('o') -eq $identity.created_at -and
+        (
+          -not $identity.executable_path -or
+          [string]::Equals(
+            $resolvedPath,
+            $identity.executable_path,
+            [System.StringComparison]::OrdinalIgnoreCase
+          )
+        )
       }
   )
 }
@@ -465,7 +760,7 @@ function Wait-SettledProjection(
       $items |
         Where-Object {
           $_.control_type -eq 'ControlType.Button' -and
-          $_.name -in @('Refresh', '刷新')
+          $_.name -in @('Refresh', $refreshNameZh)
         }
     )
     if ($buttons.Count -eq 1 -and $buttons[0].is_enabled) {
@@ -517,7 +812,7 @@ function Invoke-RefreshAndWait(
   )
   $refreshButtons = @(
     $buttonElements |
-      Where-Object { $_.Current.Name -in @('Refresh', '刷新') }
+      Where-Object { $_.Current.Name -in @('Refresh', $refreshNameZh) }
   )
   if ($refreshButtons.Count -ne 1) {
     throw 'UI Automation could not resolve exactly one Refresh button'
@@ -626,7 +921,7 @@ function Assert-VisibleProjection([object[]]$Items) {
     $Items |
       Where-Object {
         $_.control_type -eq 'ControlType.Button' -and
-        $_.name -in @('Refresh', '刷新')
+        $_.name -in @('Refresh', $refreshNameZh)
       }
   )
   if ($buttons.Count -ne 1) {
@@ -638,12 +933,25 @@ function Assert-VisibleProjection([object[]]$Items) {
     throw 'The candidate must not expose composer, input, or link controls'
   }
 
-  $forbiddenControlName = '(?i)^(chat|聊天|login|登录|update|更新|repair|修复|install|安装|reset password|密码重置)$'
+  $forbiddenControlNames = @(
+    'chat',
+    $chatNameZh,
+    'login',
+    $loginNameZh,
+    'update',
+    $updateNameZh,
+    'repair',
+    $repairNameZh,
+    'install',
+    $installNameZh,
+    'reset password',
+    $resetPasswordNameZh
+  )
   $forbiddenControls = @(
     $Items |
       Where-Object {
         $_.control_type -in @('ControlType.Button', 'ControlType.Edit') -and
-        $_.name -match $forbiddenControlName
+        $_.name.ToLowerInvariant() -in $forbiddenControlNames
       }
   )
   if ($forbiddenControls.Count -ne 0) {
@@ -667,10 +975,10 @@ function Assert-VisibleProjection([object[]]$Items) {
     }
   }
 
-  $guestTitleIndex = Find-TextIndex -Items $Items -Names @('Guest identity', 'Guest 身份')
-  $aioncoreTitleIndex = Find-TextIndex -Items $Items -Names @('AionCore health', 'AionCore 健康状态')
+  $guestTitleIndex = Find-TextIndex -Items $Items -Names @('Guest identity', $guestTitleZh)
+  $aioncoreTitleIndex = Find-TextIndex -Items $Items -Names @('AionCore health', $aioncoreTitleZh)
   $codexTitleIndex = Find-TextIndex -Items $Items -Names @('Direct Codex App Server')
-  $frameworkTitleIndex = Find-TextIndex -Items $Items -Names @('Framework state', 'Framework 状态')
+  $frameworkTitleIndex = Find-TextIndex -Items $Items -Names @('Framework state', $frameworkTitleZh)
   if (
     $guestTitleIndex -lt 0 -or
     $aioncoreTitleIndex -le $guestTitleIndex -or
@@ -688,11 +996,11 @@ function Assert-VisibleProjection([object[]]$Items) {
     'Login, update, repair, installer, and arbitrary guest commands'
   )
   $chineseBoundaries = @(
-    '此候选不提供的能力',
-    'ACP 对话',
-    '认证 bootstrap',
-    'WebSocket 对话',
-    '登录、更新、修复、安装和任意 guest 命令'
+    $boundaryTitleZh,
+    $acpBoundaryZh,
+    $authenticationBoundaryZh,
+    $websocketBoundaryZh,
+    $commandsBoundaryZh
   )
   if (@($englishBoundaries | Where-Object { $_ -notin $textNames }).Count -eq 0) {
     $matchedBoundarySet = $englishBoundaries
@@ -715,14 +1023,14 @@ function Assert-VisibleProjection([object[]]$Items) {
   }
   $guest = Read-StatusGroup `
     -Items $Items `
-    -TitleNames @('Guest identity', 'Guest 身份') `
-    -NextTitleNames @('AionCore health', 'AionCore 健康状态') `
+    -TitleNames @('Guest identity', $guestTitleZh) `
+    -NextTitleNames @('AionCore health', $aioncoreTitleZh) `
     -AllowedStates $(if ($ExpectedPhase -eq 'stopped') { @('unavailable') } else { @('observed') }) `
     -AllowedDetails $guestAllowedDetails
 
   $aioncore = Read-StatusGroup `
     -Items $Items `
-    -TitleNames @('AionCore health', 'AionCore 健康状态') `
+    -TitleNames @('AionCore health', $aioncoreTitleZh) `
     -NextTitleNames @('Direct Codex App Server') `
     -AllowedStates $(if ($ExpectedPhase -eq 'stopped') { @('unavailable') } else { @('unverified', 'unavailable') }) `
     -AllowedDetails @(
@@ -735,7 +1043,7 @@ function Assert-VisibleProjection([object[]]$Items) {
   $codex = Read-StatusGroup `
     -Items $Items `
     -TitleNames @('Direct Codex App Server') `
-    -NextTitleNames @('Framework state', 'Framework 状态') `
+    -NextTitleNames @('Framework state', $frameworkTitleZh) `
     -AllowedStates $(if ($ExpectedPhase -eq 'stopped') { @('unavailable') } else { @('unverified', 'unavailable') }) `
     -AllowedDetails @(
       'Direct Codex App Server is not started by this status-only candidate.',
@@ -744,7 +1052,7 @@ function Assert-VisibleProjection([object[]]$Items) {
     )
   $framework = Read-StatusGroup `
     -Items $Items `
-    -TitleNames @('Framework state', 'Framework 状态') `
+    -TitleNames @('Framework state', $frameworkTitleZh) `
     -NextTitleNames @() `
     -AllowedStates $(if ($ExpectedPhase -eq 'stopped') { @('unavailable') } else { @('unverified', 'unavailable') }) `
     -AllowedDetails @(
@@ -937,6 +1245,10 @@ $receipt = [ordered]@{
     executable_sha256 = $null
     zip_entry_sha256_matches = $false
     tree_origin = 'pending'
+    tree_sha256 = $null
+    tree_file_count = $null
+    tree_write_locks_held = $false
+    tree_unchanged_after_process_exit = $false
     source_ref_binding = 'operator_recorded_not_embedded'
     size_bytes = $null
     zip_file_name = [System.IO.Path]::GetFileName($CandidateZipPath)
@@ -1164,30 +1476,27 @@ public static class OplValidationNativeWindow
     throw 'Writer handoff receipt does not match the authorized VM lease'
   }
   $receipt.vm.writer_handoff.receipt_sha256 = $actualWriterHandoffSha256
-  $receipt.artifact.size_bytes = (Get-Item -LiteralPath $CandidateZipPath).Length
-  $actualArtifactSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $CandidateZipPath).Hash.ToLowerInvariant()
-  if ($actualArtifactSha256 -ne $ExpectedArtifactSha256.ToLowerInvariant()) {
-    throw 'Candidate ZIP SHA256 does not match the expected artifact'
-  }
+  $expandedArtifact = Expand-VerifiedCandidateZip `
+    -ZipPath $CandidateZipPath `
+    -DestinationRoot $runCandidateRoot `
+    -ExpectedSha256 $ExpectedArtifactSha256 `
+    -ExpectedExecutableFileName $candidateExecutableFileName
+  $receipt.artifact.size_bytes = $expandedArtifact.size_bytes
   $receipt.preflight.artifact_path_identity = 'approved_exact_path'
   $receipt.preflight.artifact_sha256_matches = $true
-  Expand-Archive -LiteralPath $CandidateZipPath -DestinationPath $runCandidateRoot
   if (-not (Test-Path -LiteralPath $launchExecutablePath -PathType Leaf)) {
     throw 'Verified ZIP expansion does not contain the candidate executable'
   }
-  $executableSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $launchExecutablePath).Hash.ToLowerInvariant()
-  $zipExecutableSha256 = Get-ZipEntrySha256 `
-    -ZipPath $CandidateZipPath `
-    -EntryFileName $candidateExecutableFileName
-  if ($executableSha256 -ne $zipExecutableSha256) {
-    throw 'Extracted candidate executable does not match the verified ZIP entry'
-  }
+  $executableSha256 = $expandedArtifact.executable_sha256
   if ($executableSha256 -ne $approvedExecutableSha256) {
     throw 'Extracted executable is not the approved V6 candidate executable'
   }
+  $candidateTreeIdentity = Get-CandidateTreeIdentity -RootPath $runCandidateRoot
   $receipt.artifact.executable_sha256 = $executableSha256
   $receipt.artifact.zip_entry_sha256_matches = $true
   $receipt.artifact.tree_origin = 'verified_zip_expansion'
+  $receipt.artifact.tree_sha256 = $candidateTreeIdentity.sha256
+  $receipt.artifact.tree_file_count = $candidateTreeIdentity.file_count
 
   $residualProcesses = @(Get-CandidateProcesses)
   if ($residualProcesses.Count -ne 0) {
@@ -1215,6 +1524,17 @@ public static class OplValidationNativeWindow
   $validationPhaseSamples.Add($preInventory.validation_state)
   $protectedPathWatch = Start-ProtectedPathWatch
   $receipt.preflight.protected_onepersonlab_watch_active = $true
+
+  $candidateTreeLocks = @(
+    Open-CandidateTreeLocks `
+      -RootPath $runCandidateRoot `
+      -ExpectedTreeSha256 $candidateTreeIdentity.sha256 `
+      -ExpectedFileCount $candidateTreeIdentity.file_count
+  )
+  if ($candidateTreeLocks.Count -ne $candidateTreeIdentity.file_count) {
+    throw 'Candidate tree write locks do not cover every extracted file'
+  }
+  $receipt.artifact.tree_write_locks_held = $true
 
   $previousGateValue = [Environment]::GetEnvironmentVariable($validationGateName, 'Process')
   $launchStartedAt = (Get-Date).ToUniversalTime()
@@ -1307,6 +1627,16 @@ public static class OplValidationNativeWindow
   }
   $receipt.process_cleanup.status = 'passed'
 
+  $postProcessTreeIdentity = Get-CandidateTreeIdentity -RootPath $runCandidateRoot
+  if (
+    $postProcessTreeIdentity.file_count -ne $candidateTreeIdentity.file_count -or
+    $postProcessTreeIdentity.sha256 -ne $candidateTreeIdentity.sha256
+  ) {
+    throw 'Candidate tree changed before the owned processes exited'
+  }
+  $receipt.artifact.tree_unchanged_after_process_exit = $true
+  Close-CandidateTreeLocks
+
   $postInventory = Get-WslInventory
   $receipt.post_readback.default_distro_unchanged = $postInventory.default_distro -eq $preInventory.default_distro
   $receipt.post_readback.docker_desktop_state_unchanged =
@@ -1370,6 +1700,7 @@ public static class OplValidationNativeWindow
         'cleanup_reconciliation_required'
       }
     if ($receipt.process_cleanup.status -eq 'passed') {
+      Close-CandidateTreeLocks
       $receipt.process_cleanup.candidate_tree_removed = Remove-RunCandidateTree
     }
   }
@@ -1385,9 +1716,11 @@ public static class OplValidationNativeWindow
     $protectedPathWatch = $null
   }
   if (-not $rootProcess -and (Test-Path -LiteralPath $runCandidateRoot)) {
+    Close-CandidateTreeLocks
     $receipt.process_cleanup.candidate_tree_removed = Remove-RunCandidateTree
   }
 } finally {
+  Close-CandidateTreeLocks
   if (-not $receiptWritten) {
     Write-Receipt -Payload $receipt
   }

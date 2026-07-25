@@ -83,6 +83,10 @@
         "executable_sha256",
         "zip_entry_sha256_matches",
         "tree_origin",
+        "tree_sha256",
+        "tree_file_count",
+        "tree_write_locks_held",
+        "tree_unchanged_after_process_exit",
         "source_ref_binding",
         "size_bytes",
         "zip_file_name",
@@ -111,6 +115,29 @@
             "pending",
             "verified_zip_expansion"
           ]
+        },
+        "tree_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tree_file_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "tree_write_locks_held": {
+          "type": "boolean"
+        },
+        "tree_unchanged_after_process_exit": {
+          "type": "boolean"
         },
         "source_ref_binding": {
           "const": "operator_recorded_not_embedded"
@@ -676,9 +703,22 @@
               "zip_entry_sha256_matches": {
                 "const": true
               },
-              "tree_origin": {
-                "const": "verified_zip_expansion"
-              }
+            "tree_origin": {
+              "const": "verified_zip_expansion"
+            },
+            "tree_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "tree_file_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "tree_write_locks_held": {
+              "const": true
+            },
+            "tree_unchanged_after_process_exit": {
+              "const": true
+            }
             }
           },
           "vm": {

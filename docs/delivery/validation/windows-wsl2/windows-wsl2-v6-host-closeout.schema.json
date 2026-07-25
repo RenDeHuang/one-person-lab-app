@@ -63,17 +63,26 @@
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "sha256",
-        "file_name"
+    "required": [
+      "sha256",
+      "file_name",
+      "tree_sha256",
+      "tree_file_count"
       ],
       "properties": {
         "sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "file_name": {
-          "const": "OPL-Windows-WSL2-Validation-v6.zip"
-        }
+      "file_name": {
+        "const": "OPL-Windows-WSL2-Validation-v6.zip"
+      },
+      "tree_sha256": {
+        "$ref": "#/$defs/sha256"
+      },
+      "tree_file_count": {
+        "type": "integer",
+        "minimum": 1
+      }
       }
     },
     "vm": {
@@ -226,7 +235,9 @@
       "required": [
         "receipt_sha256",
         "screenshot_sha256",
-        "run_id"
+        "run_id",
+        "tree_sha256",
+        "tree_file_count"
       ],
       "properties": {
         "receipt_sha256": {
@@ -238,6 +249,13 @@
         "run_id": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,80}$"
+        },
+        "tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_file_count": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     }

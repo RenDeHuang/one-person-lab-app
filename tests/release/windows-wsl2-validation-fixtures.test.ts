@@ -58,6 +58,8 @@ function makeGuestReceipt({
   shellSha = '2'.repeat(40),
   frameworkSha = '3'.repeat(40),
   vmIdentity = `vmware-bios:${'4'.repeat(32)}`,
+  treeSha = 'e'.repeat(64),
+  treeFileCount = 42,
 } = {}) {
   const passed = status === 'passed';
   const blocked = status === 'blocked';
@@ -80,6 +82,10 @@ function makeGuestReceipt({
       executable_sha256: passed ? 'd'.repeat(64) : null,
       zip_entry_sha256_matches: passed,
       tree_origin: passed ? 'verified_zip_expansion' : 'pending',
+      tree_sha256: passed ? treeSha : null,
+      tree_file_count: passed ? treeFileCount : null,
+      tree_write_locks_held: passed,
+      tree_unchanged_after_process_exit: passed,
       source_ref_binding: 'operator_recorded_not_embedded',
       size_bytes: passed ? 1024 : null,
       zip_file_name: 'OPL-Windows-WSL2-Validation-v6.zip',
@@ -248,10 +254,16 @@ test('V6 Windows Electron smoke runner is exact, visible, and cleanup-bounded', 
     runner,
     /868d6e818583547a5ec982b10b34464a3fa47c10/,
   );
-  assert.match(runner, /Get-FileHash -Algorithm SHA256/);
-  assert.match(runner, /Get-ZipEntrySha256/);
+  assert.match(runner, /Get-StreamSha256/);
+  assert.match(runner, /Expand-VerifiedCandidateZip/);
+  assert.match(runner, /Open-CandidateTreeLocks/);
+  assert.match(runner, /Candidate tree changed before the owned processes exited/);
   assert.match(runner, /zip_entry_sha256_matches/);
-  assert.match(runner, /Expand-Archive -LiteralPath \$CandidateZipPath/);
+  assert.match(runner, /\[System\.IO\.FileShare\]::Read/);
+  assert.match(runner, /Candidate ZIP contains a duplicate entry path/);
+  assert.match(runner, /Candidate ZIP entry escapes the run-owned tree/);
+  assert.doesNotMatch(runner, /Expand-Archive/);
+  assert.doesNotMatch(runner, /[^\x00-\x7F]/);
   assert.match(runner, /Start-Process -FilePath \$launchExecutablePath -PassThru/);
   assert.match(runner, /opl_vm_writer_release\.v1/);
   assert.match(runner, /receipt_sha256/);
@@ -275,6 +287,7 @@ test('V6 Windows Electron smoke runner is exact, visible, and cleanup-bounded', 
   assert.match(runner, /Stop-Process -Id \(\[int\]\$row\.ProcessId\) -Force/);
   assert.match(runner, /ParentProcessId/);
   assert.match(runner, /CreationDate/);
+  assert.match(runner, /Get-CimInstance Win32_Process -ErrorAction Stop/);
   assert.match(runner, /pending_host_soft_shutdown/);
   assert.match(runner, /guest_smoke_pending_host_closeout/);
   assert.match(runner, /terminal_v6_verdict = \$false/);
@@ -344,6 +357,14 @@ test('V6 visible-smoke receipt schema is strict and non-binding', () => {
     'OPL_WINDOWS_WSL2_VALIDATION=1',
   );
   assert.ok(schema.properties.artifact.required.includes('executable_sha256'));
+  assert.ok(schema.properties.artifact.required.includes('tree_sha256'));
+  assert.ok(schema.properties.artifact.required.includes('tree_file_count'));
+  assert.ok(schema.properties.artifact.required.includes('tree_write_locks_held'));
+  assert.ok(
+    schema.properties.artifact.required.includes(
+      'tree_unchanged_after_process_exit',
+    ),
+  );
   assert.ok(
     schema.properties.artifact.required.includes('zip_entry_sha256_matches'),
   );
@@ -389,6 +410,19 @@ test('V6 visible-smoke receipt schema is strict and non-binding', () => {
   assert.equal(
     passedRule.then.properties.artifact.properties.tree_origin.const,
     'verified_zip_expansion',
+  );
+  assert.equal(
+    passedRule.then.properties.artifact.properties.tree_file_count.minimum,
+    1,
+  );
+  assert.equal(
+    passedRule.then.properties.artifact.properties.tree_write_locks_held.const,
+    true,
+  );
+  assert.equal(
+    passedRule.then.properties.artifact.properties
+      .tree_unchanged_after_process_exit.const,
+    true,
   );
   assert.equal(
     passedRule.then.properties.post_readback.properties
@@ -469,6 +503,10 @@ test('V6 host closeout binds two guest phases before releasing the writer', asyn
   const handoffPath = path.join(temporaryRoot, 'writer-handoff.json');
   const stoppedReceiptPath = path.join(temporaryRoot, 'stopped.json');
   const runningReceiptPath = path.join(temporaryRoot, 'running.json');
+  const mismatchedRunningReceiptPath = path.join(
+    temporaryRoot,
+    'running-tree-mismatch.json',
+  );
   const outputDir = path.join(temporaryRoot, 'closeout');
   const canonicalVmxPath =
     '/Volumes/Test SSD/Virtual Machines.localized/validation.vmwarevm/validation.vmx';
@@ -529,56 +567,85 @@ test('V6 host closeout binds two guest phases before releasing the writer', asyn
       }),
     )}\n`,
   );
+  fs.writeFileSync(
+    mismatchedRunningReceiptPath,
+    `${JSON.stringify(
+      makeGuestReceipt({
+        phase: 'running',
+        runId: 'v6-running-tree-mismatch',
+        artifactSha,
+        handoffSha,
+        screenshotSha: sha256File(runningScreenshot),
+        vmIdentity,
+        treeSha: 'f'.repeat(64),
+        ...refs,
+      }),
+    )}\n`,
+  );
 
   const { runHostCloseout } = await import(hostCloseoutPath);
   let poweredOn = true;
-  const result = await runHostCloseout(
-    {
-      vmxPath,
-      expectedVmxSha256: vmxSha,
-      expectedVmBiosUuid: biosUuid,
-      expectedVolumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
-      expectedDeviceIdentifier: 'disk3s2',
-      hostWriterHandoff: handoffPath,
-      expectedWriterHandoffSha256: handoffSha,
-      stoppedGuestReceipt: stoppedReceiptPath,
-      stoppedScreenshot,
-      runningGuestReceipt: runningReceiptPath,
-      runningScreenshot,
-      candidateZip,
-      expectedArtifactSha256: artifactSha,
-      expectedAppSha: refs.appSha,
-      expectedShellSha: refs.shellSha,
-      expectedFrameworkSha: refs.frameworkSha,
-      currentOwnerId: ownerId,
-      releaseReceiptId: 'v6-writer-release',
-      outputDir,
-      timeoutSeconds: 30,
-      requestSoftShutdown: true,
+  const closeoutOptions = {
+    vmxPath,
+    expectedVmxSha256: vmxSha,
+    expectedVmBiosUuid: biosUuid,
+    expectedVolumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
+    expectedDeviceIdentifier: 'disk3s2',
+    hostWriterHandoff: handoffPath,
+    expectedWriterHandoffSha256: handoffSha,
+    stoppedGuestReceipt: stoppedReceiptPath,
+    stoppedScreenshot,
+    runningGuestReceipt: runningReceiptPath,
+    runningScreenshot,
+    candidateZip,
+    expectedArtifactSha256: artifactSha,
+    expectedAppSha: refs.appSha,
+    expectedShellSha: refs.shellSha,
+    expectedFrameworkSha: refs.frameworkSha,
+    currentOwnerId: ownerId,
+    releaseReceiptId: 'v6-writer-release',
+    outputDir,
+    timeoutSeconds: 30,
+    requestSoftShutdown: true,
+  };
+  const injected = {
+    canonicalizeVmxPath: () => canonicalVmxPath,
+    volumeRootFromVmxPath: () => '/Volumes/Test SSD',
+    readDiskIdentity: () => ({
+      internal: false,
+      solidState: true,
+      busProtocol: 'USB',
+      volumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
+      deviceIdentifier: 'disk3s2',
+    }),
+    listRunningVms: () => (poweredOn ? [canonicalVmxPath] : []),
+    listVmxProcesses: () =>
+      poweredOn ? [`vmware-vmx ${canonicalVmxPath}`] : [],
+    stopVmSoft: () => {
+      poweredOn = false;
     },
-    {
-      canonicalizeVmxPath: () => canonicalVmxPath,
-      volumeRootFromVmxPath: () => '/Volumes/Test SSD',
-      readDiskIdentity: () => ({
-        internal: false,
-        solidState: true,
-        busProtocol: 'USB',
-        volumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
-        deviceIdentifier: 'disk3s2',
-      }),
-      listRunningVms: () => (poweredOn ? [canonicalVmxPath] : []),
-      listVmxProcesses: () =>
-        poweredOn ? [`vmware-vmx ${canonicalVmxPath}`] : [],
-      stopVmSoft: () => {
-        poweredOn = false;
+    sleep: async () => {},
+    now: () => new Date('2026-07-25T01:00:00.000Z'),
+  };
+  await assert.rejects(
+    runHostCloseout(
+      {
+        ...closeoutOptions,
+        runningGuestReceipt: mismatchedRunningReceiptPath,
+        outputDir: path.join(temporaryRoot, 'mismatch-closeout'),
       },
-      sleep: async () => {},
-      now: () => new Date('2026-07-25T01:00:00.000Z'),
-    },
+      injected,
+    ),
+    /same extracted candidate tree/,
   );
+  assert.equal(poweredOn, true, 'tree mismatch must fail before soft shutdown');
+
+  const result = await runHostCloseout(closeoutOptions, injected);
 
   assert.equal(result.finalReceipt.terminal_v6_verdict, true);
   assert.equal(result.finalReceipt.status, 'passed');
+  assert.equal(result.finalReceipt.artifact.tree_sha256, 'e'.repeat(64));
+  assert.equal(result.finalReceipt.artifact.tree_file_count, 42);
   assert.equal(result.writerRelease.powered_off_readback, true);
   const validateHostReceipt = compileSchema(hostSchemaPath);
   assert.equal(
