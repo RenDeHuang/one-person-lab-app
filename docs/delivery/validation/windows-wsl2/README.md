@@ -109,7 +109,7 @@ Get-FileHash -Algorithm SHA256 `
   C:\v6-packet\windows-wsl2-v6-intake-manifest.json
 ```
 
-Copy those nine create-once files without changing their bytes into the empty
+Copy those ten create-once files without changing their bytes into the empty
 validation root. The platform owner then writes `writer-lease.json`; record its
 SHA256 and run:
 

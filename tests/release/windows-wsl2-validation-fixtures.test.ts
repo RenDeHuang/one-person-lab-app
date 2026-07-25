@@ -21,6 +21,10 @@ const runnerPath = path.join(fixtureRoot, 'v6-electron-visible-smoke.ps1');
 const buildSealPath = path.join(fixtureRoot, 'v6-build-seal.ps1');
 const materializePath = path.join(fixtureRoot, 'v6-materialize-intake.mjs');
 const hostCloseoutPath = path.join(fixtureRoot, 'v6-host-closeout.mjs');
+const runbookPath = path.join(
+  validationRoot,
+  'windows-wsl2-v6-execution-runbook.md',
+);
 const guestSchemaPath = path.join(
   validationRoot,
   'windows-wsl2-v6-receipt.schema.json',
@@ -190,7 +194,7 @@ function makeIntakeManifest() {
       'hard_vm_poweroff_as_pass',
       'public_release_or_promotion',
     ],
-    packet_files: Array.from({ length: 8 }, (_, index) => ({
+    packet_files: Array.from({ length: 9 }, (_, index) => ({
       file_name: `packet-${index + 1}.json`,
       role: 'contract-fixture',
       size_bytes: 10,
@@ -489,6 +493,7 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   const runner = fs.readFileSync(runnerPath, 'utf8');
   const buildSeal = fs.readFileSync(buildSealPath, 'utf8');
   const materialize = fs.readFileSync(materializePath, 'utf8');
+  const runbook = fs.readFileSync(runbookPath, 'utf8');
   assert.match(runner, /ExpectedIntakeManifestSha256/);
   assert.match(runner, /ExpectedBuildReceiptSha256/);
   assert.match(runner, /ExpectedWriterLeaseSha256/);
@@ -505,6 +510,10 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   assert.match(buildSeal, /ExpectedWriterLeaseSha256/);
   assert.match(materialize, /create_once_build_seal_receipt/);
   assert.match(materialize, /historical_zip_sha256_authoritative: false/);
+  assert.match(materialize, /windows-wsl2-v6-execution-runbook\.md/);
+  assert.match(runbook, /v6_fixture_phase_transition/);
+  assert.match(runbook, /PowerShell Direct[\s\S]*must not be used to run the UI smoke/i);
+  assert.match(runbook, /Stop-VM -Shutdown/);
 });
 
 test('V6 schemas are strict and bind packet, build, lease, and Hyper-V closeout identities', () => {

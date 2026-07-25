@@ -25,6 +25,10 @@ const VM_NAME = 'OPL-V6-WSL2-01';
 
 const packetFiles = [
   {
+    source: 'windows-wsl2-v6-execution-runbook.md',
+    role: 'windows_hyperv_executor_commands_and_receipt_contract',
+  },
+  {
     source: 'fixtures/v6-build-seal.ps1',
     role: 'windows_source_build_and_create_once_seal',
   },
