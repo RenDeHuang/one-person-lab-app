@@ -9,14 +9,18 @@ import {
   verifyAppleReleaseCredentials,
 } from '../../scripts/verify-apple-release-credentials.ts';
 
-const identity = 'Developer ID Application: Example Owner (TEAM123456)';
+const teamId = 'SVVC4TA784';
+const identitySha = 'A'.repeat(40);
+const identity = `Developer ID Application: Example Owner (${teamId})`;
+const normalizedIdentity = `Example Owner (${teamId})`;
+const originalKeychain = '/Users/runner/Library/Keychains/login.keychain-db';
 const credentialEnv = {
   BUILD_CERTIFICATE_BASE64: Buffer.from('fixture-p12').toString('base64'),
   P12_PASSWORD: 'fixture-p12-password',
   APPLE_ID: 'release@example.invalid',
   APPLE_ID_PASSWORD: 'fixture-app-password',
-  TEAM_ID: 'TEAM123456',
-  IDENTITY: 'Example Owner',
+  TEAM_ID: teamId,
+  IDENTITY: normalizedIdentity,
   GITHUB_ACTIONS: 'true',
   GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
   GITHUB_WORKFLOW_REF:
@@ -25,11 +29,13 @@ const credentialEnv = {
   GITHUB_RUN_ATTEMPT: '1',
   GITHUB_EVENT_NAME: 'workflow_dispatch',
   GITHUB_REF: 'refs/heads/main',
-  GITHUB_SHA: 'a'.repeat(40),
+  GITHUB_SHA: 'd'.repeat(40),
 };
 
 function successfulRunner(overrides: {
   teamId?: string;
+  failCodesignArgs?: string[];
+  codesignStderr?: string;
   failImport?: boolean;
   identityOutput?: string;
   notaryStdout?: string;
@@ -47,8 +53,25 @@ function successfulRunner(overrides: {
     if (command === 'security' && args[0] === 'find-identity') {
       return {
         status: 0,
-        stdout: overrides.identityOutput ?? `  1) ${'A'.repeat(40)} "${identity}"\n`,
+        stdout: overrides.identityOutput ?? `  1) ${identitySha} "${identity}"\n`,
         stderr: '',
+      };
+    }
+    if (command === 'security' && args.join(' ') === 'list-keychains -d user') {
+      return { status: 0, stdout: `    "${originalKeychain}"\n`, stderr: '' };
+    }
+    if (command === 'security' && args.join(' ') === 'default-keychain -d user') {
+      return { status: 0, stdout: `    "${originalKeychain}"\n`, stderr: '' };
+    }
+    if (
+      overrides.failCodesignArgs
+      && command === 'codesign'
+      && overrides.failCodesignArgs.every((argument) => args.includes(argument))
+    ) {
+      return {
+        status: 1,
+        stdout: '',
+        stderr: overrides.codesignStderr ?? 'fixture codesign failed',
       };
     }
     if (command === 'codesign' && args[0] === '-dv') {
@@ -57,7 +80,7 @@ function successfulRunner(overrides: {
         stdout: '',
         stderr: [
           `Authority=${identity}`,
-          `TeamIdentifier=${overrides.teamId ?? 'TEAM123456'}`,
+          `TeamIdentifier=${overrides.teamId ?? teamId}`,
           'Runtime Version=15.0.0',
           'Timestamp=Jul 25, 2026 at 12:00:00',
         ].join('\n'),
@@ -95,7 +118,7 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
 
   assert.equal(receipt.status, 'passed');
   assert.equal(receipt.execution.admission_eligible, true);
-  assert.equal(receipt.execution.head_sha, 'a'.repeat(40));
+  assert.equal(receipt.execution.head_sha, 'd'.repeat(40));
   assert.equal(receipt.signing.configured_team_id_match, true);
   assert.equal(receipt.signing.configured_identity_selector_resolved, true);
   assert.equal(receipt.signing.probe_codesign_strict, 'passed');
@@ -112,14 +135,123 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
   assert.equal(
     fixture.calls.some((call) => (
       call.command === 'codesign'
-      && call.args[call.args.indexOf('--sign') + 1] === credentialEnv.IDENTITY
+      && call.args[call.args.indexOf('--sign') + 1] === identitySha
     )),
     true,
   );
+  const signingCall = fixture.calls.find((call) => call.command === 'codesign' && call.args.includes('--sign'));
+  assert.equal(signingCall?.redactedArgs?.[signingCall.redactedArgs.indexOf('--sign') + 1], '<resolved-imported-developer-id>');
   assert.equal(
     fixture.calls.some((call) => call.command === 'xcrun' && call.args.slice(0, 2).join(' ') === 'notarytool history'),
     true,
   );
+  const keychainSearchUpdates = fixture.calls.filter((call) => (
+    call.command === 'security'
+    && call.args[0] === 'list-keychains'
+    && call.args.includes('-s')
+  ));
+  assert.equal(keychainSearchUpdates.length, 2);
+  assert.deepEqual(keychainSearchUpdates.at(-1)?.args, [
+    'list-keychains',
+    '-d',
+    'user',
+    '-s',
+    originalKeychain,
+  ]);
+  const defaultKeychainUpdates = fixture.calls.filter((call) => (
+    call.command === 'security'
+    && call.args[0] === 'default-keychain'
+    && call.args.includes('-s')
+  ));
+  assert.equal(defaultKeychainUpdates.length, 2);
+  assert.deepEqual(defaultKeychainUpdates.at(-1)?.args, [
+    'default-keychain',
+    '-d',
+    'user',
+    '-s',
+    originalKeychain,
+  ]);
+  const receiptText = fs.readFileSync(outputPath, 'utf8');
+  for (const sensitiveValue of [
+    credentialEnv.IDENTITY,
+    identity,
+    identitySha,
+    identitySha.toLowerCase(),
+    credentialEnv.BUILD_CERTIFICATE_BASE64,
+    credentialEnv.P12_PASSWORD,
+    credentialEnv.APPLE_ID,
+    credentialEnv.APPLE_ID_PASSWORD,
+  ]) {
+    assert.doesNotMatch(receiptText, new RegExp(sensitiveValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
+test('Apple credential preflight resolves normalized, full-name, and SHA-1 selectors to the imported SHA-1', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-credential-selectors-'));
+  for (const [index, selector] of [normalizedIdentity, identity, identitySha].entries()) {
+    const fixture = successfulRunner();
+    verifyAppleReleaseCredentials({
+      outputPath: path.join(root, `selector-${index}.json`),
+      env: { ...credentialEnv, IDENTITY: selector },
+      platform: 'darwin',
+      runner: fixture.runner,
+    });
+    const signingCall = fixture.calls.find((call) => call.command === 'codesign' && call.args.includes('--sign'));
+    assert.equal(signingCall?.args[signingCall.args.indexOf('--sign') + 1], identitySha);
+    assert.equal(
+      signingCall?.redactedArgs?.[signingCall.redactedArgs.indexOf('--sign') + 1],
+      '<resolved-imported-developer-id>',
+    );
+  }
+});
+
+test('Apple credential preflight rejects zero, duplicate, and wrong-Team selector matches before codesign', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-credential-selector-failures-'));
+  const noMatch = successfulRunner();
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath: path.join(root, 'no-match.json'),
+      env: { ...credentialEnv, IDENTITY: 'Example Owner' },
+      platform: 'darwin',
+      runner: noMatch.runner,
+    }),
+    /does not resolve to an imported Developer ID Application identity/,
+  );
+  assert.equal(noMatch.calls.some((call) => call.command === 'codesign'), false);
+
+  const duplicate = successfulRunner({
+    identityOutput: [
+      `  1) ${identitySha} "${identity}"`,
+      `  2) ${'B'.repeat(40)} "${identity}"`,
+      '     2 valid identities found',
+    ].join('\n'),
+  });
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath: path.join(root, 'duplicate.json'),
+      env: credentialEnv,
+      platform: 'darwin',
+      runner: duplicate.runner,
+    }),
+    /resolves to multiple imported Developer ID Application identities/,
+  );
+  assert.equal(duplicate.calls.some((call) => call.command === 'codesign'), false);
+
+  const wrongTeamSha = 'C'.repeat(40);
+  const wrongTeamIdentity = 'Developer ID Application: Example Owner (OTHERTEAM1)';
+  const wrongTeam = successfulRunner({
+    identityOutput: `  1) ${wrongTeamSha} "${wrongTeamIdentity}"\n`,
+  });
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath: path.join(root, 'wrong-team.json'),
+      env: { ...credentialEnv, IDENTITY: wrongTeamSha },
+      platform: 'darwin',
+      runner: wrongTeam.runner,
+    }),
+    /identity Team ID does not match configured TEAM_ID/,
+  );
+  assert.equal(wrongTeam.calls.some((call) => call.command === 'codesign'), false);
 });
 
 test('Apple credential preflight fails closed on platform, Team ID, and notary response drift', () => {
@@ -213,4 +345,74 @@ test('command diagnostics redact certificate and notarization passwords', () => 
       return true;
     },
   );
+});
+
+test('codesign diagnostics redact selector, full name, SHA-1, P12, and Apple credentials', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-credential-identity-redaction-'));
+  const diagnostic = [
+    credentialEnv.IDENTITY,
+    identity,
+    identitySha,
+    identitySha.toLowerCase(),
+    credentialEnv.BUILD_CERTIFICATE_BASE64,
+    credentialEnv.P12_PASSWORD,
+    credentialEnv.APPLE_ID,
+    credentialEnv.APPLE_ID_PASSWORD,
+  ].join(' ');
+  for (const failCodesignArgs of [['--sign'], ['--verify'], ['-dv']]) {
+    const fixture = successfulRunner({ failCodesignArgs, codesignStderr: diagnostic });
+    assert.throws(
+      () => verifyAppleReleaseCredentials({
+        outputPath: path.join(root, 'receipt.json'),
+        env: credentialEnv,
+        platform: 'darwin',
+        runner: fixture.runner,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        if (failCodesignArgs.includes('--sign')) {
+          assert.match(error.message, /<resolved-imported-developer-id>/);
+        }
+        for (const sensitiveValue of [
+          credentialEnv.IDENTITY,
+          identity,
+          identitySha,
+          identitySha.toLowerCase(),
+          credentialEnv.BUILD_CERTIFICATE_BASE64,
+          credentialEnv.P12_PASSWORD,
+          credentialEnv.APPLE_ID,
+          credentialEnv.APPLE_ID_PASSWORD,
+        ]) {
+          assert.equal(error.message.includes(sensitiveValue), false);
+        }
+        return true;
+      },
+    );
+    const keychainSearchUpdates = fixture.calls.filter((call) => (
+      call.command === 'security'
+      && call.args[0] === 'list-keychains'
+      && call.args.includes('-s')
+    ));
+    assert.equal(keychainSearchUpdates.length, 2);
+    assert.deepEqual(keychainSearchUpdates.at(-1)?.args, [
+      'list-keychains',
+      '-d',
+      'user',
+      '-s',
+      originalKeychain,
+    ]);
+    const defaultKeychainUpdates = fixture.calls.filter((call) => (
+      call.command === 'security'
+      && call.args[0] === 'default-keychain'
+      && call.args.includes('-s')
+    ));
+    assert.equal(defaultKeychainUpdates.length, 2);
+    assert.deepEqual(defaultKeychainUpdates.at(-1)?.args, [
+      'default-keychain',
+      '-d',
+      'user',
+      '-s',
+      originalKeychain,
+    ]);
+  }
 });

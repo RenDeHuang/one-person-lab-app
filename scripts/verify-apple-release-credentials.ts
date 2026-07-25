@@ -52,6 +52,11 @@ type SigningFacts = {
   timestamp: string | null;
 };
 
+type ImportedDeveloperIdIdentity = {
+  sha1: string;
+  fullName: string;
+};
+
 type GithubExecution = {
   environment: 'github_actions' | 'local';
   admission_eligible: boolean;
@@ -106,13 +111,64 @@ export function parseSigningFacts(output: string): SigningFacts {
   return { teamIdentifier, authorities, runtimeVersion, timestamp };
 }
 
+function parseImportedDeveloperIdIdentities(output: string): ImportedDeveloperIdIdentity[] {
+  return [...output.matchAll(
+    /^\s*\d+\)\s+([0-9a-f]{40})\s+"(Developer ID Application: [^"]+)"$/gim,
+  )].map((match) => ({
+    sha1: match[1]!.toUpperCase(),
+    fullName: match[2]!,
+  }));
+}
+
+function resolveImportedDeveloperIdIdentity(
+  output: string,
+  selector: string,
+  teamId: string,
+): ImportedDeveloperIdIdentity {
+  const prefix = 'Developer ID Application: ';
+  const identities = parseImportedDeveloperIdIdentities(output);
+  if (identities.length === 0) {
+    throw new Error('Imported P12 does not expose a Developer ID Application identity.');
+  }
+  const selectorSha1 = /^[0-9a-f]{40}$/i.test(selector) ? selector.toUpperCase() : null;
+  const matches = identities.filter((candidate) => (
+    selectorSha1 === candidate.sha1
+    || selector === candidate.fullName
+    || selector === candidate.fullName.slice(prefix.length)
+  ));
+  if (matches.length === 0) {
+    throw new Error('Configured IDENTITY does not resolve to an imported Developer ID Application identity.');
+  }
+  if (matches.length > 1) {
+    throw new Error('Configured IDENTITY resolves to multiple imported Developer ID Application identities.');
+  }
+  const resolved = matches[0]!;
+  if (!resolved.fullName.endsWith(` (${teamId})`)) {
+    throw new Error('Imported Developer ID Application identity Team ID does not match configured TEAM_ID.');
+  }
+  return resolved;
+}
+
+function parseKeychainPaths(output: string, label: string): string[] {
+  const paths = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.match(/^"([^"]+)"$/)?.[1] ?? '');
+  if (paths.length === 0 || paths.some((entry) => !entry)) {
+    throw new Error(`${label} did not return quoted Keychain paths.`);
+  }
+  return paths;
+}
+
 function commandText(command: string, args: string[]) {
   return [command, ...args].map((entry) => JSON.stringify(entry)).join(' ');
 }
 
 function redactText(value: string, sensitiveValues: string[] = []) {
-  return sensitiveValues
+  return [...new Set(sensitiveValues)]
     .filter(Boolean)
+    .sort((left, right) => right.length - left.length)
     .reduce((redacted, secret) => redacted.replaceAll(secret, '<redacted>'), value);
 }
 
@@ -229,6 +285,9 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
   const probePath = path.join(tempRoot, 'codesign-probe');
   const keychainPassword = crypto.randomBytes(32).toString('hex');
   let keychainCreated = false;
+  let originalUserKeychains: string[] | null = null;
+  let originalDefaultKeychain: string | null = null;
+  let keychainStateRestored = false;
 
   try {
     fs.writeFileSync(certificatePath, certificateBytes, { mode: 0o600 });
@@ -242,6 +301,28 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       sensitiveValues: [keychainPassword],
     });
     runRequired(runner, 'security', ['set-keychain-settings', '-lut', '900', keychainPath]);
+    originalUserKeychains = parseKeychainPaths(
+      runRequired(runner, 'security', ['list-keychains', '-d', 'user']).stdout,
+      'security list-keychains',
+    );
+    const defaultKeychains = parseKeychainPaths(
+      runRequired(runner, 'security', ['default-keychain', '-d', 'user']).stdout,
+      'security default-keychain',
+    );
+    if (defaultKeychains.length !== 1) {
+      throw new Error('security default-keychain did not return exactly one Keychain path.');
+    }
+    originalDefaultKeychain = defaultKeychains[0]!;
+    runRequired(
+      runner,
+      'security',
+      ['list-keychains', '-d', 'user', '-s', keychainPath, ...originalUserKeychains],
+    );
+    runRequired(
+      runner,
+      'security',
+      ['default-keychain', '-d', 'user', '-s', keychainPath],
+    );
     runRequired(
       runner,
       'security',
@@ -284,14 +365,17 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       ['find-identity', '-v', '-p', 'codesigning', keychainPath],
       { sensitiveValues: [secrets.IDENTITY] },
     );
-    const importedDeveloperIdIdentities = [
-      ...identities.stdout.matchAll(
-        /^\s*\d+\)\s+[0-9a-f]{40}\s+"(Developer ID Application:[^"]+)"$/gim,
-      ),
+    const resolvedIdentity = resolveImportedDeveloperIdIdentity(
+      identities.stdout,
+      secrets.IDENTITY,
+      secrets.TEAM_ID,
+    );
+    const identitySensitiveValues = [
+      resolvedIdentity.fullName,
+      resolvedIdentity.sha1,
+      resolvedIdentity.sha1.toLowerCase(),
+      ...Object.values(secrets),
     ];
-    if (importedDeveloperIdIdentities.length === 0) {
-      throw new Error('Imported P12 does not expose a Developer ID Application identity.');
-    }
 
     fs.copyFileSync('/usr/bin/true', probePath);
     fs.chmodSync(probePath, 0o755);
@@ -306,7 +390,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
         '--keychain',
         keychainPath,
         '--sign',
-        secrets.IDENTITY,
+        resolvedIdentity.sha1,
         probePath,
       ],
       {
@@ -318,17 +402,27 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
           '--keychain',
           keychainPath,
           '--sign',
-          '<configured-identity>',
+          '<resolved-imported-developer-id>',
           probePath,
         ],
-        sensitiveValues: [secrets.IDENTITY],
+        sensitiveValues: identitySensitiveValues,
       },
     );
-    runRequired(runner, 'codesign', ['--verify', '--strict', '--verbose=2', probePath]);
-    const details = runRequired(runner, 'codesign', ['-dv', '--verbose=4', probePath]);
+    runRequired(
+      runner,
+      'codesign',
+      ['--verify', '--strict', '--verbose=2', probePath],
+      { sensitiveValues: identitySensitiveValues },
+    );
+    const details = runRequired(
+      runner,
+      'codesign',
+      ['-dv', '--verbose=4', probePath],
+      { sensitiveValues: identitySensitiveValues },
+    );
     const signingFacts = parseSigningFacts(`${details.stdout}\n${details.stderr}`);
-    if (!signingFacts.authorities.some((authority) => authority.startsWith('Developer ID Application:'))) {
-      throw new Error('Signed probe does not contain a Developer ID Application authority.');
+    if (!signingFacts.authorities.includes(resolvedIdentity.fullName)) {
+      throw new Error('Signed probe authority does not match the resolved Developer ID Application identity.');
     }
     if (signingFacts.teamIdentifier !== secrets.TEAM_ID) {
       throw new Error('Imported Developer ID TeamIdentifier mismatch.');
@@ -339,6 +433,17 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     if (!signingFacts.timestamp) {
       throw new Error('Signed probe does not contain a trusted timestamp.');
     }
+    runRequired(
+      runner,
+      'security',
+      ['list-keychains', '-d', 'user', '-s', ...originalUserKeychains],
+    );
+    runRequired(
+      runner,
+      'security',
+      ['default-keychain', '-d', 'user', '-s', originalDefaultKeychain],
+    );
+    keychainStateRestored = true;
 
     const notary = runRequired(
       runner,
@@ -411,6 +516,10 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     });
     return receipt;
   } finally {
+    if (originalUserKeychains && originalDefaultKeychain && !keychainStateRestored) {
+      runner('security', ['list-keychains', '-d', 'user', '-s', ...originalUserKeychains]);
+      runner('security', ['default-keychain', '-d', 'user', '-s', originalDefaultKeychain]);
+    }
     if (keychainCreated) {
       runner('security', ['delete-keychain', keychainPath]);
     }
