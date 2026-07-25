@@ -872,7 +872,8 @@
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
-          "standard-local-authorization-policy.json",
+          "standard-gatekeeper-launch-policy.json",
+          "standard-apple-notarization-receipt.json",
           "standard_exact_byte_qualification",
           "remote_digest_readback",
           "previous_latest_to_candidate_exact_zip_updater_upgrade",
@@ -1009,7 +1010,8 @@
             "latest-arm64-mac.yml",
             "opl-app-component-manifest.json",
             "opl-release-manifest.json",
-            "standard-local-authorization-policy.json"
+            "standard-gatekeeper-launch-policy.json",
+            "standard-apple-notarization-receipt.json"
           ],
           "stable_release_published_non_prerelease_required": true,
           "stable_latest_required": true,
@@ -1280,7 +1282,8 @@
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
-        "standard-local-authorization-policy.json",
+        "standard-gatekeeper-launch-policy.json",
+        "standard-apple-notarization-receipt.json",
         "prepared_ai_release_notes"
       ],
       "full_addon_may_follow_latest_asynchronously": true,
@@ -1429,21 +1432,31 @@
       "required": true,
       "zip_asset": "One-Person-Lab-<version>-mac-arm64.zip",
       "version_gate": "CFBundleShortVersionString_or_CFBundleVersion_equals_release_version",
-      "codesign_gate": "passed_or_failed_allowed_unsigned",
-      "spctl_gate": "passed_or_rejected_allowed_unsigned",
-      "signature_gate": "diagnostic_only",
-      "team_identifier_required": false,
-      "local_authorization_policy_asset": "standard-local-authorization-policy.json",
-      "replacement_mode": "app_managed_local_authorized_replace",
-      "verification": "npm run verify-remote-release on macos-latest downloads the published ZIP, extracts One Person Lab.app, verifies the bundle version, records codesign/spctl/signature diagnostics, and accepts ad-hoc or unsigned bundles only when standard-local-authorization-policy.json declares Stable local authorization with quarantine removal required",
-      "rule": "standard updater replacement is App-managed local authorization: the updater ZIP must contain the expected One Person Lab.app bundle, and release evidence must include the standard local authorization policy rather than requiring paid Apple Developer ID signing"
+      "codesign_gate": "passed",
+      "spctl_gate": "passed",
+      "signature_gate": "developer_id_application",
+      "team_identifier_required": true,
+      "gatekeeper_policy_asset": "standard-gatekeeper-launch-policy.json",
+      "notarization_receipt_asset": "standard-apple-notarization-receipt.json",
+      "replacement_mode": "developer_id_notarized_replace",
+      "production_distribution_override": {
+        "developer_id_application_required": true,
+        "notarization_status_required": "Accepted",
+        "stapler_validate_required": true,
+        "gatekeeper_required": true,
+        "team_identifier_required": true,
+        "local_authorization_fallback_allowed": false,
+        "rule": "Production Standard publication requires Developer ID, accepted notarization, stapler validation, Gatekeeper, and exact public-byte readback."
+      },
+      "verification": "npm run verify-remote-release on macos-latest downloads the public DMG, ZIP, Gatekeeper policy, and Apple notarization receipt; it binds exact SHA-256 bytes, validates the stapled DMG, mounts the App, extracts the updater App, and requires Developer ID codesign plus Gatekeeper acceptance on both App copies.",
+      "rule": "Production Standard updater replacement is fail-closed: Developer ID, accepted notarization, stapling, Gatekeeper, and exact public-byte evidence are mandatory; local authorization and ad-hoc signatures are non-distributable."
     },
-    "rule": "standard updater metadata is canonical arm64-only latest-arm64-mac.yml, must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence; latest-mac.yml is a legacy compatibility alias only when deliberately published.",
+    "rule": "standard updater metadata is canonical arm64-only latest-arm64-mac.yml, must never point to Full first-install assets, and must bind the final notarized Standard DMG plus Developer ID updater ZIP; latest-mac.yml is a legacy compatibility alias only when deliberately published.",
     "draft_refresh": {
       "allowed": true,
       "published_release_mutation_allowed": false,
       "mode": "unpublished_draft_prebuilt_assets_upload_clobber",
-      "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, and local authorization policy before Stable promotion"
+      "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, Gatekeeper policy, and Apple notarization receipt before Stable promotion"
     },
     "software_object": "opl_app",
     "carrier_adapters": [
@@ -2367,6 +2380,21 @@
     "updater_visible": false,
     "updater_metadata_allowed": false,
     "validation_required": true,
+    "production_macos_trust": {
+      "developer_id_application_required": true,
+      "same_team_id_required_for_app_dmg_and_nested_native_code": true,
+      "notarization_status_required": "Accepted",
+      "stapler_validate_required": true,
+      "dmg_gatekeeper_required": true,
+      "mounted_app_gatekeeper_required": true,
+      "local_authorization_fallback_allowed": false,
+      "required_embedded_evidence": [
+        "opl-release-manifest.json#evidence.gatekeeper_launch_policy",
+        "opl-release-manifest.json#evidence.apple_notarization_receipt",
+        "opl-release-manifest.json#evidence.runtime_native_trust"
+      ],
+      "rule": "Production Full publication fails closed unless the exact final stapled DMG bytes bind Developer ID, Apple notarization Accepted, stapler validation, Gatekeeper, and passed nested native runtime trust."
+    },
     "generated_companion_text_language": "en",
     "required_payloads": {
       "codex_cli": {

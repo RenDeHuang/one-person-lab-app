@@ -177,7 +177,8 @@ function requiredAssetNames(version: string, track: Track): string[] {
         `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
-        'standard-local-authorization-policy.json',
+        'standard-gatekeeper-launch-policy.json',
+        'standard-apple-notarization-receipt.json',
       ];
   }
   return [`One-Person-Lab-Full-${version}-mac-arm64.dmg`, 'opl-release-manifest.json'];

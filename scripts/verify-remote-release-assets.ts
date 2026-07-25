@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { assertLocalAuthorizationPolicy } from "./local-authorization-policy.ts";
+import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from "./macos-gatekeeper-policy.ts";
 import { fileSha256 } from "./release-file-helpers.ts";
 import { runCommand } from "./release-cleanup-helpers.ts";
 import { assertFullRuntimeNativeTrustObject } from "./full-runtime-native-trust.ts";
@@ -114,7 +116,8 @@ function requiredAssetNames(version, includeFullPackage, releaseView) {
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     "latest-arm64-mac.yml",
-    "standard-local-authorization-policy.json",
+    "standard-gatekeeper-launch-policy.json",
+    "standard-apple-notarization-receipt.json",
   ];
   if (!includeFullPackage) {
     return standard;
@@ -275,6 +278,16 @@ function readFullLocalAuthorizationPolicy(downloadDir) {
   );
 }
 
+function readFullGatekeeperLaunchPolicy(downloadDir) {
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  return releaseManifest?.evidence?.gatekeeper_launch_policy ?? null;
+}
+
+function readFullAppleNotarizationReceipt(downloadDir) {
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  return releaseManifest?.evidence?.apple_notarization_receipt ?? null;
+}
+
 function assertStandardMetadata(downloadDir, displayVersion, updaterVersion) {
   const expectedAssets = [
     `One-Person-Lab-${displayVersion}-mac-arm64.dmg`,
@@ -307,12 +320,6 @@ function assertStandardMetadata(downloadDir, displayVersion, updaterVersion) {
   }
 }
 
-function assertStableLocalAuthorizationPolicy(downloadDir, name, packageKind) {
-  const policy = JSON.parse(readText(path.join(downloadDir, name)));
-  assertLocalAuthorizationPolicy(policy, packageKind, name);
-  return policy;
-}
-
 function assertLocalAuthorizationPolicyObject(policy, packageKind, name) {
   assertLocalAuthorizationPolicy(policy, packageKind, name);
   return policy;
@@ -324,6 +331,7 @@ function readCodeSignature(filePath) {
   return {
     signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
     team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
+    authorities: [...output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1].trim()),
   };
 }
 
@@ -377,7 +385,7 @@ function readPlistStringValue(plistPath, key) {
   return match?.[1] ? decodeXmlText(match[1].trim()) : "";
 }
 
-function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, updaterVersion, localAuthorizationPolicy) {
+function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, updaterVersion, gatekeeperPolicy) {
   const zipName = `One-Person-Lab-${displayVersion}-mac-arm64.zip`;
   const zipPath = path.join(downloadDir, zipName);
   const unzipDir = fs.mkdtempSync(path.join(os.tmpdir(), "opl-standard-updater-app-"));
@@ -413,17 +421,20 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, update
     ]);
     const codesignPassed = codesignResult.status === 0;
     const spctlPassed = spctlResult.status === 0;
-    const hasDeveloperIdSignature = Boolean(
-      signature.team_identifier &&
-      signature.team_identifier !== "not set" &&
-      signature.signature &&
-      signature.signature !== "adhoc",
-    );
+    const hasDeveloperIdSignature = signature.team_identifier === gatekeeperPolicy.team_identifier
+      && signature.authorities.some((authority) => authority.startsWith("Developer ID Application:"));
+    if (!hasDeveloperIdSignature || !codesignPassed || !spctlPassed) {
+      throw new Error([
+        `Downloaded Standard updater App failed Developer ID/Gatekeeper verification: ${zipName}`,
+        `team_identifier=${signature.team_identifier || "missing"}`,
+        `codesign_status=${codesignResult.status}`,
+        `spctl_status=${spctlResult.status}`,
+        codesignResult.stderr || codesignResult.stdout || "",
+        spctlResult.stderr || spctlResult.stdout || "",
+      ].filter(Boolean).join("\n"));
+    }
     return {
-      status:
-        hasDeveloperIdSignature && codesignPassed && spctlPassed
-          ? "passed"
-          : "local_authorized_unsigned",
+      status: "passed",
       asset: zipName,
       version: displayVersion,
       display_version: displayVersion,
@@ -432,26 +443,87 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, update
       short_version: shortVersion || null,
       signature: signature.signature,
       team_identifier: signature.team_identifier,
-      codesign_status: codesignPassed ? "passed" : "failed_allowed_unsigned",
-      spctl_status: spctlPassed
-        ? "passed"
-        : codesignPassed
-          ? "rejected_allowed_unsigned"
-          : "failed_allowed_unsigned",
-      apple_developer_id_required: localAuthorizationPolicy.apple_developer_id_required,
-      gatekeeper_required: localAuthorizationPolicy.gatekeeper_required,
-      local_authorization_policy: "standard-local-authorization-policy.json",
+      authorities: signature.authorities,
+      codesign_status: "passed",
+      spctl_status: "passed",
+      apple_developer_id_required: true,
+      gatekeeper_required: true,
+      gatekeeper_policy: "standard-gatekeeper-launch-policy.json",
     };
   } finally {
     fs.rmSync(unzipDir, { recursive: true, force: true });
   }
 }
 
-function assertFullRuntimeNativeTrust(downloadDir, manifest) {
-  assertFullRuntimeNativeTrustObject(
-    readFullReleaseSection(downloadDir, "runtime_native_trust", "full-runtime-native-trust.json"),
-    manifest,
+function assertStandardDistributionTrust(downloadDir, version, verifiedAssets) {
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const dmgAsset = verifiedAssets.find((asset) => asset.name === dmgName);
+  if (!dmgAsset) throw new Error(`Verified assets are missing ${dmgName}.`);
+  const policyPath = path.join(downloadDir, "standard-gatekeeper-launch-policy.json");
+  const receiptPath = path.join(downloadDir, "standard-apple-notarization-receipt.json");
+  const policy = assertGatekeeperLaunchPolicy(
+    JSON.parse(readText(policyPath)),
+    "app_standard",
+    "standard-gatekeeper-launch-policy.json",
   );
+  const receipt = assertAppleNotarizationReceipt(
+    JSON.parse(readText(receiptPath)),
+    "standard-apple-notarization-receipt.json",
+  );
+  if (
+    policy.team_identifier !== receipt.team_identifier
+    || policy.notarization_receipt_sha256 !== fileSha256(receiptPath)
+    || receipt.final_stapled_dmg_sha256 !== dmgAsset.sha256
+    || receipt.final_stapled_dmg_size_bytes !== dmgAsset.size
+  ) {
+    throw new Error(`Standard Developer ID/notarization evidence does not bind ${dmgName} downloaded bytes.`);
+  }
+  if (process.platform !== "darwin") {
+    throw new Error("Standard public Developer ID/notarization verification requires a macOS runner.");
+  }
+  const dmgPath = path.join(downloadDir, dmgName);
+  for (const [command, args] of [
+    ["codesign", ["--verify", "--strict", "--verbose=2", dmgPath]],
+    ["xcrun", ["stapler", "validate", dmgPath]],
+    ["spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=4", dmgPath]],
+  ]) {
+    const result = runCapture(command, args);
+    if (result.status !== 0) {
+      throw new Error(`Downloaded Standard DMG failed ${command} validation: ${result.stderr || result.stdout || result.status}`);
+    }
+  }
+  const mountPoint = fs.mkdtempSync(path.join(os.tmpdir(), "opl-standard-public-dmg-"));
+  let mounted = false;
+  try {
+    const attach = runCapture("hdiutil", ["attach", dmgPath, "-nobrowse", "-readonly", "-mountpoint", mountPoint]);
+    if (attach.status !== 0) throw new Error(`Downloaded Standard DMG could not be mounted: ${attach.stderr || attach.stdout}`);
+    mounted = true;
+    const appPath = path.join(mountPoint, "One Person Lab.app");
+    if (!fs.existsSync(appPath)) throw new Error("Downloaded Standard DMG does not contain One Person Lab.app.");
+    for (const [command, args] of [
+      ["codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]],
+      ["spctl", ["--assess", "--type", "execute", "--verbose=4", appPath]],
+    ]) {
+      const result = runCapture(command, args);
+      if (result.status !== 0) {
+        throw new Error(`Downloaded Standard App failed ${command} validation: ${result.stderr || result.stdout || result.status}`);
+      }
+    }
+  } finally {
+    if (mounted) runCapture("hdiutil", ["detach", mountPoint]);
+    fs.rmSync(mountPoint, { recursive: true, force: true });
+  }
+  return policy;
+}
+
+function assertFullRuntimeNativeTrust(downloadDir, manifest, options = {}) {
+  const trust = readFullReleaseSection(downloadDir, "runtime_native_trust", "full-runtime-native-trust.json");
+  assertFullRuntimeNativeTrustObject(
+    trust,
+    manifest,
+    options,
+  );
+  return trust;
 }
 
 function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
@@ -937,13 +1009,96 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   if (manifest?.package_kind !== "opl_full_first_install_macos_arm64") {
     throw new Error(`Unexpected Full manifest package_kind: ${manifest?.package_kind}`);
   }
-  assertLocalAuthorizationPolicyObject(
-    readFullLocalAuthorizationPolicy(downloadDir),
-    "app_full_first_install",
-    "full-local-authorization-policy.json",
-  );
+  const fullDmgAsset = verifiedAssets.find((asset) => asset.name === fullDmgName);
+  if (!fullDmgAsset) {
+    throw new Error(`Verified assets are missing ${fullDmgName}.`);
+  }
+  let fullGatekeeperPolicy = null;
+  let fullNotarizationReceipt = null;
+  if (releaseManifest) {
+    fullGatekeeperPolicy = assertGatekeeperLaunchPolicy(
+      readFullGatekeeperLaunchPolicy(downloadDir),
+      "app_full_first_install",
+      "opl-release-manifest.json#evidence.gatekeeper_launch_policy",
+    );
+    fullNotarizationReceipt = assertAppleNotarizationReceipt(
+      readFullAppleNotarizationReceipt(downloadDir),
+      "opl-release-manifest.json#evidence.apple_notarization_receipt",
+    );
+    const notarizationReceiptSha256 = crypto
+      .createHash("sha256")
+      .update(`${JSON.stringify(fullNotarizationReceipt, null, 2)}\n`)
+      .digest("hex");
+    if (
+      fullGatekeeperPolicy.team_identifier !== fullNotarizationReceipt.team_identifier
+      || fullGatekeeperPolicy.notarization_receipt_sha256 !== notarizationReceiptSha256
+      || fullNotarizationReceipt.final_stapled_dmg_sha256 !== fullDmgAsset.sha256
+      || fullNotarizationReceipt.final_stapled_dmg_size_bytes !== fullDmgAsset.size
+    ) {
+      throw new Error(`Full Apple distribution evidence does not bind ${fullDmgName} to one Developer ID identity.`);
+    }
+    if (process.platform !== "darwin") {
+      throw new Error("Full public Developer ID/notarization verification requires a macOS runner.");
+    }
+    const dmgPath = path.join(downloadDir, fullDmgName);
+    for (const [command, args] of [
+      ["codesign", ["--verify", "--strict", "--verbose=2", dmgPath]],
+      ["xcrun", ["stapler", "validate", dmgPath]],
+      ["spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=4", dmgPath]],
+    ]) {
+      const result = runCapture(command, args);
+      if (result.status !== 0) {
+        throw new Error(`Downloaded Full DMG failed ${command} validation: ${result.stderr || result.stdout || result.status}`);
+      }
+    }
+    const mountPoint = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-public-dmg-"));
+    let mounted = false;
+    try {
+      const attach = runCapture("hdiutil", ["attach", dmgPath, "-nobrowse", "-readonly", "-mountpoint", mountPoint]);
+      if (attach.status !== 0) throw new Error(`Downloaded Full DMG could not be mounted: ${attach.stderr || attach.stdout}`);
+      mounted = true;
+      const appPath = path.join(mountPoint, "One Person Lab.app");
+      if (!fs.existsSync(appPath)) throw new Error("Downloaded Full DMG does not contain One Person Lab.app.");
+      for (const [command, args] of [
+        ["codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]],
+        ["spctl", ["--assess", "--type", "execute", "--verbose=4", appPath]],
+      ]) {
+        const result = runCapture(command, args);
+        if (result.status !== 0) {
+          throw new Error(`Downloaded Full App failed ${command} validation: ${result.stderr || result.stdout || result.status}`);
+        }
+      }
+    } finally {
+      if (mounted) runCapture("hdiutil", ["detach", mountPoint]);
+      fs.rmSync(mountPoint, { recursive: true, force: true });
+    }
+  } else {
+    assertLocalAuthorizationPolicyObject(
+      readFullLocalAuthorizationPolicy(downloadDir),
+      "app_full_first_install",
+      "full-local-authorization-policy.json",
+    );
+  }
   assertFullRuntimeCurrentnessProbe(downloadDir, manifest);
-  assertFullRuntimeNativeTrust(downloadDir, manifest);
+  const runtimeNativeTrust = assertFullRuntimeNativeTrust(
+    downloadDir,
+    manifest,
+    releaseManifest
+      ? {
+          requireProductionTrust: true,
+          expectedTeamIdentifier: fullNotarizationReceipt.team_identifier,
+        }
+      : {},
+  );
+  if (
+    releaseManifest
+    && (
+      fullGatekeeperPolicy.runtime_native_trust_status !== runtimeNativeTrust.status
+      || fullGatekeeperPolicy.runtime_native_executable_count !== runtimeNativeTrust.executable_count
+    )
+  ) {
+    throw new Error("Full Gatekeeper policy does not bind the embedded runtime native trust receipt.");
+  }
   const optimizationArtifacts = assertFullPackageOptimizationArtifacts(downloadDir, manifest);
 
   const runtimeCacheEvents = readFullReleaseSection(
@@ -962,10 +1117,6 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     throw new Error("README-Full-First-Install.txt must remain English-only.");
   }
 
-  const fullDmgAsset = verifiedAssets.find((asset) => asset.name === fullDmgName);
-  if (!fullDmgAsset) {
-    throw new Error(`Verified assets are missing ${fullDmgName}.`);
-  }
   const fullDmgManifestAsset = releaseManifest?.assets?.find(
     (asset) => asset?.name === fullDmgName,
   );
@@ -1016,16 +1167,16 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   }
 
   assertStandardMetadata(downloadDir, options.version, options.updaterVersion);
-  const standardLocalAuthorizationPolicy = assertStableLocalAuthorizationPolicy(
+  const standardGatekeeperPolicy = assertStandardDistributionTrust(
     downloadDir,
-    "standard-local-authorization-policy.json",
-    "app_standard",
+    options.version,
+    verified,
   );
   const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(
     downloadDir,
     options.version,
     options.updaterVersion,
-    standardLocalAuthorizationPolicy,
+    standardGatekeeperPolicy,
   );
   let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {

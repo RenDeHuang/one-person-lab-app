@@ -423,8 +423,16 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       ],
       signing_policy: {
         matches_standard_release_mode: true,
-        developer_id_when_configured: true,
-        notarization_when_configured: true,
+        production_release: {
+          developer_id_required: true,
+          notarization_required: true,
+          staple_required: true,
+          gatekeeper_required: true,
+          local_authorization_fallback_allowed: false,
+        },
+        development_validation: {
+          local_authorization_output_is_non_distributable: true,
+        },
       },
     },
     components: {

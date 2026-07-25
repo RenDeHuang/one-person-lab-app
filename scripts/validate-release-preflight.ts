@@ -825,7 +825,7 @@ function checkMacosLocalAuthorization(checks: Check[]) {
     checks,
     'macos_local_authorization',
     'passed',
-    'Developer ID signing/notarization secrets are optional; Stable standard macOS releases use App-managed local authorization and quarantine-clear evidence.',
+    'Production Standard and Full macOS releases require Developer ID signing, accepted notarization, stapling, and Gatekeeper evidence; local authorization output is development-only and non-distributable.',
   );
 }
 

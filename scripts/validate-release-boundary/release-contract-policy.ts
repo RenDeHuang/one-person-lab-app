@@ -437,7 +437,8 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
-    'standard-local-authorization-policy.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
     'prepared_ai_release_notes',
   ];
   const fullRequirements = [

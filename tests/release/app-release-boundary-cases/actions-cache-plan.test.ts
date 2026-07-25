@@ -322,7 +322,7 @@ test('Full cache-only workflow freezes exact refs and cannot emit release assets
   );
   for (const name of [
     'Install App shell dependencies',
-    'Verify Full package checksums and optional signing',
+    'Verify Full package checksums and distribution trust',
     'Upload Full DMG-only workflow artifact',
   ]) {
     assert.match(String(fullStep(name)?.if), /!inputs\.cache_only/, name);

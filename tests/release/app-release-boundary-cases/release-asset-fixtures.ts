@@ -1,4 +1,4 @@
-import { fileSha256, fs, os, path, spawnSync, writeExecutable, writeFile } from "./helpers-core.ts";
+import { fileSha256, fs, os, path, sha256, spawnSync, writeExecutable, writeFile } from "./helpers-core.ts";
 import { buildFullPackageManifest } from "../../../scripts/full-first-install-package.ts";
 import { withFullPackageOptimization } from "../../../scripts/build-full-first-install-package/package-optimization.ts";
 
@@ -60,6 +60,62 @@ export function writeStandardLocalAuthorizationPolicy(outDir) {
   );
 }
 
+function appleNotarizationReceipt(outDir, artifactName) {
+  const artifactPath = path.join(outDir, artifactName);
+  return {
+    schema: "opl_apple_notarized_dmg_receipt.v1",
+    status: "passed",
+    artifact: artifactName,
+    team_identifier: "TESTTEAMID",
+    signing_identity: "Developer ID Application: Test (TESTTEAMID)",
+    credential_mode: "test_fixture",
+    notarization: {
+      id: "00000000-0000-0000-0000-000000000001",
+      status: "Accepted",
+    },
+    stapler_validate_status: "passed",
+    dmg_spctl_status: "passed",
+    app_spctl_status: "passed",
+    final_stapled_dmg_sha256: fileSha256(artifactPath),
+    final_stapled_dmg_size_bytes: fs.statSync(artifactPath).size,
+  };
+}
+
+function gatekeeperLaunchPolicy(packageKind, notarizationReceiptSha256, nativeTrust = null) {
+  return {
+    schema: "opl_gatekeeper_launch_policy.v1",
+    package_kind: packageKind,
+    distribution_mode: "developer_id_notarized",
+    app_path: "/Applications/One Person Lab.app",
+    team_identifier: "TESTTEAMID",
+    codesign_status: "passed",
+    spctl_status: "passed",
+    dmg_codesign_status: "passed",
+    dmg_spctl_status: "passed",
+    stapler_validate_status: "passed",
+    notarization_status: "Accepted",
+    notarization_receipt_sha256: notarizationReceiptSha256,
+    ...(nativeTrust
+      ? {
+          runtime_native_trust_status: nativeTrust.status,
+          runtime_native_executable_count: nativeTrust.executable_count,
+        }
+      : {}),
+    local_authorization_required: false,
+    quarantine_removal_required: false,
+  };
+}
+
+export function writeStandardDistributionTrust(outDir, version) {
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const receiptPath = path.join(outDir, "standard-apple-notarization-receipt.json");
+  writeFile(receiptPath, `${JSON.stringify(appleNotarizationReceipt(outDir, dmgName), null, 2)}\n`);
+  writeFile(
+    path.join(outDir, "standard-gatekeeper-launch-policy.json"),
+    `${JSON.stringify(gatekeeperLaunchPolicy("app_standard", fileSha256(receiptPath)), null, 2)}\n`,
+  );
+}
+
 function defaultReleaseBody(tagName) {
   const version = tagName.startsWith("v") ? tagName.slice(1) : tagName;
   return [
@@ -104,7 +160,8 @@ export function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     "latest-arm64-mac.yml",
-    "standard-local-authorization-policy.json",
+    "standard-gatekeeper-launch-policy.json",
+    "standard-apple-notarization-receipt.json",
   ];
 }
 
@@ -159,7 +216,7 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, dmgName), "standard-dmg");
   writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
-  writeStandardLocalAuthorizationPolicy(outDir);
+  writeStandardDistributionTrust(outDir, version);
   const metadata = [
     `version: ${updaterVersion}`,
     "files:",
@@ -336,6 +393,9 @@ export function writeFullRemoteAssets(outDir, version) {
   };
   const readme = "One Person Lab Full First-Install Package\n";
   writeFile(path.join(outDir, fullDmgName), "full-dmg");
+  const notarizationReceipt = appleNotarizationReceipt(outDir, fullDmgName);
+  const notarizationReceiptText = `${JSON.stringify(notarizationReceipt, null, 2)}\n`;
+  const notarizationReceiptSha256 = sha256(notarizationReceiptText);
   writeFile(
     path.join(outDir, "opl-release-manifest.json"),
     `${JSON.stringify(
@@ -359,9 +419,13 @@ export function writeFullRemoteAssets(outDir, version) {
           runtime_native_trust: nativeTrust,
           app_bundle_trim_report: trimReport,
           package_boundary_audit: boundaryAudit,
-          local_authorization_policy: JSON.parse(
-            localAuthorizationPolicy("app_full_first_install"),
+          gatekeeper_launch_policy: gatekeeperLaunchPolicy(
+            "app_full_first_install",
+            notarizationReceiptSha256,
+            nativeTrust,
           ),
+          apple_notarization_receipt: notarizationReceipt,
+          local_authorization_policy: null,
           readme_text: readme,
         },
         transition_legacy_assets: FULL_BUNDLED_EVIDENCE_ASSET_NAMES,

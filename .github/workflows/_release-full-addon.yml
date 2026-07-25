@@ -443,6 +443,7 @@ jobs:
       operation: ${{ inputs.operation }}
       operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+    secrets: inherit
 
   materialize-full-build:
     if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'full_built' }}
@@ -511,6 +512,7 @@ jobs:
       framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
       package_profile: full
       diagnostic_scope: release_gate
+      require_macos_gatekeeper: true
       operation: ${{ inputs.operation }}
       operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}

@@ -384,6 +384,7 @@ export function writeFakeMacosTrustCommands(binDir, options = {}) {
       'if [ "$1" = "-dv" ]; then',
       `  echo ${JSON.stringify(`Signature=${signature}`)} >&2`,
       `  echo ${JSON.stringify(`TeamIdentifier=${teamIdentifier}`)} >&2`,
+      `  echo ${JSON.stringify(`Authority=${signature}`)} >&2`,
       "  exit 0",
       "fi",
       "exit 0",
@@ -393,6 +394,27 @@ export function writeFakeMacosTrustCommands(binDir, options = {}) {
   writeExecutable(
     path.join(binDir, "spctl"),
     "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
+  );
+  writeExecutable(
+    path.join(binDir, "xcrun"),
+    "#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n",
+  );
+  writeExecutable(
+    path.join(binDir, "hdiutil"),
+    [
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      'if [ "${1:-}" = "attach" ]; then',
+      '  mountpoint=""',
+      '  while [ "$#" -gt 0 ]; do',
+      '    if [ "$1" = "-mountpoint" ]; then shift; mountpoint="$1"; fi',
+      "    shift",
+      "  done",
+      '  mkdir -p "$mountpoint/One Person Lab.app"',
+      "fi",
+      "exit 0",
+      "",
+    ].join("\n"),
   );
 }
 

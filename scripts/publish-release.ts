@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
-import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
+import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from './macos-gatekeeper-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
 import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
@@ -157,10 +157,23 @@ function assertStandardArtifactDoesNotContainFullRuntime(
   }
 }
 
-function assertStandardAuthorization(releaseDir: string) {
-  const policyPath = path.join(releaseDir, 'standard-local-authorization-policy.json');
-  if (!fs.existsSync(policyPath)) throw new Error(`Missing Stable local-authorization evidence: ${policyPath}`);
-  assertLocalAuthorizationPolicy(readJson(policyPath), 'app_standard', 'standard-local-authorization-policy.json');
+function assertStandardAuthorization(releaseDir: string, version: string, macArch: string) {
+  const policyPath = path.join(releaseDir, 'standard-gatekeeper-launch-policy.json');
+  const receiptPath = path.join(releaseDir, 'standard-apple-notarization-receipt.json');
+  const dmgPath = path.join(releaseDir, `One-Person-Lab-${version}-mac-${macArch}.dmg`);
+  if (!fs.existsSync(policyPath) || !fs.existsSync(receiptPath) || !fs.existsSync(dmgPath)) {
+    throw new Error('Missing Standard Developer ID/notarization evidence or final DMG.');
+  }
+  const policy = assertGatekeeperLaunchPolicy(readJson(policyPath), 'app_standard', path.basename(policyPath));
+  const receipt = assertAppleNotarizationReceipt(readJson(receiptPath), path.basename(receiptPath));
+  if (
+    policy.team_identifier !== receipt.team_identifier
+    || policy.notarization_receipt_sha256 !== fileSha256(receiptPath)
+    || receipt.final_stapled_dmg_sha256 !== fileSha256(dmgPath)
+    || receipt.final_stapled_dmg_size_bytes !== fs.statSync(dmgPath).size
+  ) {
+    throw new Error('Standard Apple distribution evidence does not bind the final DMG bytes.');
+  }
 }
 
 function standardArtifactNames(releaseDir: string, version: string, macArch: string) {
@@ -170,7 +183,8 @@ function standardArtifactNames(releaseDir: string, version: string, macArch: str
   return fs.readdirSync(releaseDir).filter((name) => (
     artifact.test(name)
     || metadata.test(name)
-    || name === 'standard-local-authorization-policy.json'
+    || name === 'standard-gatekeeper-launch-policy.json'
+    || name === 'standard-apple-notarization-receipt.json'
   ));
 }
 
@@ -198,7 +212,7 @@ function inspectStandardArtifacts(options: Options) {
     options.macArch,
   );
   assertUpdaterMetadataDoesNotReferenceFull(releaseDir, names);
-  assertStandardAuthorization(releaseDir);
+  assertStandardAuthorization(releaseDir, options.version, options.macArch);
   return names.map((name) => path.join(releaseDir, name)).sort();
 }
 
@@ -229,16 +243,42 @@ function inspectFullArtifacts(options: Options) {
   if (releaseManifest.manifest?.distribution?.updater_metadata_allowed !== false) {
     throw new Error('Full first-install assets cannot supply updater metadata.');
   }
-  assertLocalAuthorizationPolicy(
-    releaseManifest.evidence?.local_authorization_policy,
+  const gatekeeperPolicy = assertGatekeeperLaunchPolicy(
+    releaseManifest.evidence?.gatekeeper_launch_policy,
     'app_full_first_install',
-    'opl-release-manifest.json#evidence.local_authorization_policy',
+    'opl-release-manifest.json#evidence.gatekeeper_launch_policy',
   );
+  const notarizationReceipt = assertAppleNotarizationReceipt(
+    releaseManifest.evidence?.apple_notarization_receipt,
+    'opl-release-manifest.json#evidence.apple_notarization_receipt',
+  );
+  const notarizationReceiptSha256 = crypto
+    .createHash('sha256')
+    .update(`${JSON.stringify(notarizationReceipt, null, 2)}\n`)
+    .digest('hex');
+  if (
+    gatekeeperPolicy.team_identifier !== notarizationReceipt.team_identifier
+    || gatekeeperPolicy.notarization_receipt_sha256 !== notarizationReceiptSha256
+    || notarizationReceipt.final_stapled_dmg_sha256 !== asset.sha256
+    || notarizationReceipt.final_stapled_dmg_size_bytes !== asset.size_bytes) {
+    throw new Error(`Full Apple distribution evidence does not bind ${dmgName} to one Developer ID identity.`);
+  }
+  const runtimeNativeTrust = releaseManifest.evidence?.runtime_native_trust;
   assertFullRuntimeNativeTrustObject(
-    releaseManifest.evidence?.runtime_native_trust,
+    runtimeNativeTrust,
     releaseManifest.manifest,
-    { missingMessage: 'Full public release manifest is missing runtime native trust evidence.' },
+    {
+      missingMessage: 'Full public release manifest is missing runtime native trust evidence.',
+      requireProductionTrust: true,
+      expectedTeamIdentifier: notarizationReceipt.team_identifier,
+    },
   );
+  if (
+    gatekeeperPolicy.runtime_native_trust_status !== runtimeNativeTrust.status
+    || gatekeeperPolicy.runtime_native_executable_count !== runtimeNativeTrust.executable_count
+  ) {
+    throw new Error('Full Gatekeeper policy does not bind the embedded runtime native trust receipt.');
+  }
   return [dmgPath, manifestPath];
 }
 

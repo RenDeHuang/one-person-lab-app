@@ -194,20 +194,26 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   );
 });
 
-test("release boundary keeps local authorization policy profile-aware", () => {
+test("release boundary keeps production Gatekeeper policy profile-aware", () => {
   const policy = requireReleaseBoundaryCheck("first_run_vm_local_authorization_policy");
 
-  assert.ok(policy.required.includes("gatekeeper_required: homebrewFullCask"));
-  assert.ok(policy.required.includes("quarantine_removal_required: !homebrewFullCask"));
+  assert.ok(policy.required.includes("gatekeeper_required: gatekeeperRequired"));
+  assert.ok(policy.required.includes("quarantine_removal_required: !gatekeeperRequired"));
+  assert.ok(
+    policy.required.includes(
+      "const gatekeeperRequired = hooks.requireGatekeeper === true || homebrewFullCask",
+    ),
+  );
   assert.ok(
     policy.required.includes(
       "(hooks.countQuarantineAttributes ?? countQuarantineAttributes)(appPath)",
     ),
   );
   assert.ok(
-    policy.required.includes("if (!homebrewFullCask && quarantineAttributeCount !== 0)"),
+    policy.required.includes("if (!gatekeeperRequired && quarantineAttributeCount !== 0)"),
   );
-  assert.ok(policy.required.includes("if (homebrewFullCask && spctl.status !== 0)"));
+  assert.ok(policy.required.includes("if (gatekeeperRequired && spctl.status !== 0)"));
+  assert.ok(policy.required.includes("if (!options.requireGatekeeper)"));
   assert.ok(policy.required.includes("local_authorization_status: localAuthorizationStatus"));
   assert.ok(policy.required.includes("quarantine_attribute_count: quarantineAttributeCount"));
   assert.ok(policy.required.includes("xattr', ['-dr', 'com.apple.quarantine', targetApp]"));

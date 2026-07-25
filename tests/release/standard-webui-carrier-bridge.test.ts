@@ -7,6 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { bindStandardReleaseTrack } from '../../scripts/bind-standard-release-track.ts';
+import { writeStandardDistributionTrust } from './app-release-boundary-cases/helpers.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const adapterPath = path.join(appRoot, 'scripts', 'framework-release-adapter.ts');
@@ -77,7 +78,7 @@ function standardAssets(root: string): string {
   fs.writeFileSync(path.join(root, 'latest-mac.yml'), `version: ${updaterVersion}\npath: ${zipName}\n`);
   fs.writeFileSync(path.join(root, `One-Person-Lab-${version}-mac-arm64.dmg`), 'dmg\n');
   fs.writeFileSync(path.join(root, `${zipName}.blockmap`), 'blockmap\n');
-  fs.writeFileSync(path.join(root, 'standard-local-authorization-policy.json'), '{}\n');
+  writeStandardDistributionTrust(root, version);
   return zipName;
 }
 

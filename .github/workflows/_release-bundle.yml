@@ -438,10 +438,11 @@ jobs:
       opl_updater_version: ${{ needs.freeze.outputs.updater_version }}
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
-      require_macos_gatekeeper: false
+      require_macos_gatekeeper: true
       operation: ${{ inputs.channel == 'stable' && inputs.operation || '' }}
       operation_started_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_started_at || '' }}
       operation_deadline_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_deadline_at || '' }}
+    secrets: inherit
 
   standard-qualification:
     if: ${{ inputs.mode == 'execute' }}
@@ -462,6 +463,7 @@ jobs:
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}
       package_profile: standard
       diagnostic_scope: release_gate
+      require_macos_gatekeeper: true
       operation: ${{ inputs.channel == 'stable' && inputs.operation || '' }}
       operation_started_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_started_at || '' }}
       operation_deadline_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_deadline_at || '' }}

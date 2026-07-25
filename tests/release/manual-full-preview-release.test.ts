@@ -155,7 +155,8 @@ function createCleanupHandoff(
     { name: 'latest-arm64-mac.yml', size_bytes: 27, sha256: 'b'.repeat(64) },
     { name: 'opl-app-component-manifest.json', size_bytes: 24, sha256: '4'.repeat(64) },
     publish.releaseManifest,
-    { name: 'standard-local-authorization-policy.json', size_bytes: 25, sha256: '5'.repeat(64) },
+    { name: 'standard-gatekeeper-launch-policy.json', size_bytes: 25, sha256: '5'.repeat(64) },
+    { name: 'standard-apple-notarization-receipt.json', size_bytes: 26, sha256: '6'.repeat(64) },
   ].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
   const bundleDigest = `sha256:${'d'.repeat(64)}`;
   writeJson(path.join(root, 'manual-full-m2-qualification-receipt.json'), {
@@ -650,7 +651,7 @@ test('workflow and release contract expose only the protected preview exception'
   assert.equal(preview.publication.make_latest, false);
   assert.equal(preview.unknown_outcome.read_only_inspection_maximum, 3);
   assert.equal(preview.cleanup.same_bundle_digest_required, true);
-  assert.equal(preview.cleanup.required_formal_stable_assets.length, 8);
+  assert.equal(preview.cleanup.required_formal_stable_assets.length, 9);
   assert.equal(preview.cleanup.release_and_tag_double_absence_readback_required, true);
   assert.equal(validateManualFullPreviewControlPlane(process.cwd()), 0);
   assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);

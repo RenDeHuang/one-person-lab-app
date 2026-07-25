@@ -13,6 +13,7 @@ function parseArgs(argv: string[]) {
       'runtime-root': { type: 'string' },
       output: { type: 'string' },
       'require-spctl': { type: 'boolean' },
+      'expected-team-id': { type: 'string' },
     },
     allowPositionals: false,
   });
@@ -20,6 +21,7 @@ function parseArgs(argv: string[]) {
     runtimeRoot: values['runtime-root'] ? path.resolve(values['runtime-root']) : '',
     output: values.output ? path.resolve(values.output) : '',
     requireSpctl: Boolean(values['require-spctl']),
+    expectedTeamId: values['expected-team-id']?.trim() || '',
   };
 
   if (!parsed.runtimeRoot) {
@@ -69,11 +71,12 @@ function verifyExecutable(entry: { path: string; relative_path: string; requires
   };
 }
 
-function isTrusted(entry: ReturnType<typeof verifyExecutable>) {
+function isTrusted(entry: ReturnType<typeof verifyExecutable>, expectedTeamId: string) {
   return entry.codesign_status === 'passed'
     && (entry.spctl_status === 'passed' || entry.spctl_status === 'not_required')
     && entry.quarantine_status === 'absent'
     && Boolean(entry.team_identifier)
+    && (!expectedTeamId || entry.team_identifier === expectedTeamId)
     && entry.signature !== 'adhoc';
 }
 
@@ -85,6 +88,9 @@ function main() {
   if (!fs.existsSync(options.runtimeRoot) || !fs.statSync(options.runtimeRoot).isDirectory()) {
     throw new Error(`Full runtime root not found: ${options.runtimeRoot}`);
   }
+  if (options.expectedTeamId && !/^[A-Z0-9]{10}$/.test(options.expectedTeamId)) {
+    throw new Error('--expected-team-id must be an exact 10-character Apple Team ID.');
+  }
 
   const executables = listFullRuntimeNativeExecutables(options.runtimeRoot).map((entry) =>
     verifyExecutable(entry, options.requireSpctl),
@@ -93,7 +99,8 @@ function main() {
     schema: 'opl_full_runtime_native_trust.v1',
     runtime_root: options.runtimeRoot,
     require_spctl: options.requireSpctl,
-    status: executables.every(isTrusted)
+    expected_team_identifier: options.expectedTeamId || null,
+    status: executables.every((entry) => isTrusted(entry, options.expectedTeamId))
       ? 'passed'
       : executables.every((entry) => entry.quarantine_status === 'absent') ? 'local_authorized_unsigned' : 'failed',
     executable_count: executables.length,
@@ -107,7 +114,10 @@ function main() {
   } else {
     process.stdout.write(output);
   }
-  if (payload.status !== 'passed' && payload.status !== 'local_authorized_unsigned') {
+  if (
+    payload.status !== 'passed'
+    && (options.expectedTeamId || payload.status !== 'local_authorized_unsigned')
+  ) {
     throw new Error('Full runtime native executable trust verification failed.');
   }
 }

@@ -11,7 +11,7 @@ import {
   stableInstallCommand,
   validStandardAiReleaseNotes,
   writeReleaseMetadata,
-  writeStandardLocalAuthorizationPolicy,
+  writeStandardDistributionTrust,
   writeFakeMacosTrustCommands,
   buildRemoteReleaseView,
   writeStandardRemoteAssets,
@@ -70,7 +70,7 @@ test('retired direct publisher only renders dry-run asset plans and attempts no 
   writeFile(path.join(outDir, dmgName));
   writeFile(path.join(outDir, `One-Person-Lab-${version}-mac-arm64.zip`));
   writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
+  writeStandardDistributionTrust(outDir, version);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
   writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -144,7 +144,7 @@ test('retired publisher dry-run never interprets remote state as mutation admiss
   writeFile(path.join(releaseAssetsDir, zipName));
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
   writeReleaseMetadata(releaseAssetsDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
+  writeStandardDistributionTrust(releaseAssetsDir, version);
 
   for (const [label, state] of [
     ['stable', { tagName: `v${version}`, isDraft: false, isPrerelease: false, publishedAt: '2026-05-16T00:00:00Z' }],
@@ -280,6 +280,36 @@ process.exit(0);
   assert.equal(fs.existsSync(stateReadsPath), false);
 });
 
+test('publisher inspection rejects a Full manifest with mixed Developer ID identities', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-mixed-identity-'));
+  const fullDir = path.join(tempRoot, 'full');
+  const version = '26.7.13';
+  writeFullRemoteAssets(fullDir, version);
+  const manifestPath = path.join(fullDir, 'opl-release-manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.evidence.gatekeeper_launch_policy.team_identifier = 'OTHERTEAM1';
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullDir,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /does not bind .* to one Developer ID identity/);
+});
+
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-'));
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
@@ -301,7 +331,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   writeFile(path.join(releaseAssetsDir, zipName));
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
-  writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
+  writeStandardDistributionTrust(releaseAssetsDir, version);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -376,9 +406,9 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.standard_updater_app_bundle_trust.version, version);
   assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'TESTTEAMID');
   assert.equal(summary.standard_updater_app_bundle_trust.signature, 'Developer ID Application: Test (TESTTEAMID)');
-  assert.equal(summary.standard_updater_app_bundle_trust.local_authorization_policy, 'standard-local-authorization-policy.json');
-  assert.equal(summary.standard_updater_app_bundle_trust.apple_developer_id_required, false);
-  assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_required, false);
+  assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_policy, 'standard-gatekeeper-launch-policy.json');
+  assert.equal(summary.standard_updater_app_bundle_trust.apple_developer_id_required, true);
+  assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_required, true);
   assert.equal(summary.release_notes.status, 'passed');
   assert.equal(summary.release_notes.body_length, validFullReleaseNotes(version).length);
   assert.equal(summary.full_first_install_budget.status, 'passed');
@@ -393,6 +423,61 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.excluded_module_venv_count, 0);
   assert.equal(summary.full_first_install_budget.required_components.temporal_cli.version, 'temporal version 1.7.0');
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
+});
+
+test('remote release verifier rejects mixed Developer ID identities in Full evidence', () => {
+  const cases = [
+    {
+      label: 'policy-receipt',
+      mutate(manifest) {
+        manifest.evidence.gatekeeper_launch_policy.team_identifier = 'OTHERTEAM1';
+      },
+      expected: /does not bind .* to one Developer ID identity/,
+    },
+    {
+      label: 'nested-runtime',
+      mutate(manifest) {
+        manifest.evidence.runtime_native_trust.executables[0].team_identifier = 'OTHERTEAM1';
+      },
+      expected: /does not match Team ID TESTTEAMID/,
+    },
+  ];
+
+  for (const [index, fixture] of cases.entries()) {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-app-remote-full-${fixture.label}-`));
+    const binDir = path.join(tempRoot, 'bin');
+    const version = `26.5.19-remote-mixed-${index + 1}`;
+    const names = [
+      ...writeStandardRemoteAssets(tempRoot, version),
+      ...writeFullRemoteAssets(tempRoot, version),
+    ];
+    const manifestPath = path.join(tempRoot, 'opl-release-manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    fixture.mutate(manifest);
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`, validFullReleaseNotes(version));
+    writeFakeMacosTrustCommands(binDir);
+
+    const result = runNode([
+      'scripts/verify-remote-release-assets.ts',
+      '--version',
+      version,
+      '--repo',
+      'gaofeng21cn/one-person-lab-app',
+      '--include-full-package',
+      '--download-dir',
+      tempRoot,
+      '--no-download',
+    ], {
+      env: {
+        OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+        PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      },
+    });
+
+    assert.notEqual(result.status, 0, fixture.label);
+    assert.match(result.stderr, fixture.expected, fixture.label);
+  }
 });
 
 test('remote release verifier rejects standard updater metadata that references Full assets', () => {

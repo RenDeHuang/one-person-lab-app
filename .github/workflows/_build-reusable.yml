@@ -784,7 +784,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           OPL_REQUIRE_MACOS_GATEKEEPER: ${{ inputs.require_macos_gatekeeper }}
 
-      - name: Verify macOS Gatekeeper launch policy
+      - name: Verify signed macOS App before distributable finalization
         if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
         shell: bash
         run: |
@@ -796,32 +796,6 @@ jobs:
           fi
           codesign --verify --deep --strict --verbose=2 "$app_path"
           spctl --assess --type execute --verbose=4 "$app_path"
-          node - "$app_path" <<'NODE'
-          const fs = require('node:fs');
-          const appPath = process.argv[2];
-          fs.writeFileSync('out/standard-gatekeeper-launch-policy.json', `${JSON.stringify({
-            schema: 'opl_gatekeeper_launch_policy.v1',
-            package_kind: 'app_standard',
-            app_path: appPath,
-            codesign_status: 'passed',
-            spctl_status: 'passed',
-          }, null, 2)}\n`);
-          NODE
-
-      - name: Write macOS Stable local authorization policy
-        if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
-        shell: bash
-        run: |
-          set -euo pipefail
-          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
-          if [ -z "$app_path" ]; then
-            echo "::error::No packaged One Person Lab.app bundle found under shells/aionui/out."
-            exit 1
-          fi
-          node --experimental-strip-types ../../scripts/local-authorization-policy.ts \
-            --package-kind app_standard \
-            --app-path "$app_path" \
-            --output out/standard-local-authorization-policy.json
 
       - name: Write macOS Stable local authorization policy
         if: startsWith(matrix.platform, 'macos') && !inputs.require_macos_gatekeeper
@@ -894,6 +868,75 @@ jobs:
           npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           ELECTRON_MIRROR: ''
           CI: true
+
+      - name: Finalize Standard Developer ID signing and notarization
+        if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          appleId: ${{ secrets.APPLE_ID }}
+          appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
+          teamId: ${{ secrets.TEAM_ID }}
+          OPL_RUNTIME_CODESIGN_IDENTITY: ${{ secrets.IDENTITY }}
+        run: |
+          set -euo pipefail
+          target_arch="${{ matrix.native_arch || matrix.arch }}"
+          dmg_path="shells/aionui/out/One-Person-Lab-${OPL_RELEASE_VERSION}-mac-${target_arch}.dmg"
+          test -f "$dmg_path"
+          node --experimental-strip-types scripts/notarize-macos-dmg.ts \
+            --dmg "$dmg_path" \
+            --output shells/aionui/out/standard-apple-notarization-receipt.json
+          node --experimental-strip-types scripts/update-electron-updater-metadata.ts \
+            --artifact "$dmg_path" \
+            --metadata-dir shells/aionui/out
+
+      - name: Verify Standard final distribution trust
+        if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          set -euo pipefail
+          target_arch="${{ matrix.native_arch || matrix.arch }}"
+          dmg_path="shells/aionui/out/One-Person-Lab-${OPL_RELEASE_VERSION}-mac-${target_arch}.dmg"
+          receipt="shells/aionui/out/standard-apple-notarization-receipt.json"
+          test -f "$dmg_path" && test -f "$receipt"
+          codesign --verify --strict --verbose=2 "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
+          jq -e --arg team_id "$EXPECTED_TEAM_ID" '
+            .schema == "opl_apple_notarized_dmg_receipt.v1"
+            and .status == "passed"
+            and .team_identifier == $team_id
+            and .app_signature.hardened_runtime == true
+            and .mounted_app_signature.hardened_runtime == true
+            and .notarization.status == "Accepted"
+            and .stapler_validate_status == "passed"
+            and .dmg_spctl_status == "passed"
+            and .app_spctl_status == "passed"
+          ' "$receipt" >/dev/null
+          node - "$receipt" <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const receiptPath = process.argv[2];
+          const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+          fs.writeFileSync('shells/aionui/out/standard-gatekeeper-launch-policy.json', `${JSON.stringify({
+            schema: 'opl_gatekeeper_launch_policy.v1',
+            package_kind: 'app_standard',
+            distribution_mode: 'developer_id_notarized',
+            team_identifier: receipt.team_identifier,
+            codesign_status: 'passed',
+            spctl_status: 'passed',
+            dmg_codesign_status: 'passed',
+            dmg_spctl_status: 'passed',
+            stapler_validate_status: 'passed',
+            notarization_status: receipt.notarization.status,
+            notarization_receipt_sha256: crypto.createHash('sha256').update(fs.readFileSync(receiptPath)).digest('hex'),
+            local_authorization_required: false,
+            quarantine_removal_required: false,
+          }, null, 2)}\n`);
+          NODE
 
       - name: Build with electron-builder (Linux)
         if: startsWith(matrix.platform, 'linux')
@@ -1055,6 +1098,7 @@ jobs:
             shells/aionui/out/*.yml
             shells/aionui/out/standard-local-authorization-policy.json
             shells/aionui/out/standard-gatekeeper-launch-policy.json
+            shells/aionui/out/standard-apple-notarization-receipt.json
           if-no-files-found: warn
           retention-days: 7
 

@@ -26,7 +26,8 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     asset('One-Person-Lab-26.7.13-mac-arm64.dmg', '2'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip', '3'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip.blockmap', '4'),
-    asset('standard-local-authorization-policy.json', '5'),
+    asset('standard-gatekeeper-launch-policy.json', '5'),
+    asset('standard-apple-notarization-receipt.json', '6'),
   ];
   fs.writeFileSync(releaseJson, `${JSON.stringify({
     tagName: 'v26.7.13',
@@ -52,7 +53,7 @@ test('App owner manifest records only immutable standard App artifacts', () => {
   assert.equal(component.release_version, '26.7.13');
   assert.equal(component.updater_version, '26.7.13');
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 5);
+  assert.equal(component.artifacts.length, 6);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.match(component.component_manifest_digest, /^sha256:[0-9a-f]{64}$/);
 });

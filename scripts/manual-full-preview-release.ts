@@ -254,7 +254,8 @@ function requiredFormalStableAssetNames(version: string): string[] {
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-release-manifest.json',
-    'standard-local-authorization-policy.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
   ].sort();
 }
 

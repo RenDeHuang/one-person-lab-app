@@ -80,7 +80,8 @@ function main() {
     `One-Person-Lab-${input.version}-mac-arm64.dmg`,
     `One-Person-Lab-${input.version}-mac-arm64.zip`,
     `One-Person-Lab-${input.version}-mac-arm64.zip.blockmap`,
-    'standard-local-authorization-policy.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
   ]);
   const artifacts = (Array.isArray(release.assets) ? release.assets : [])
     .filter((asset: ReleaseAsset) => standardAssetNames.has(asset.name ?? ''))

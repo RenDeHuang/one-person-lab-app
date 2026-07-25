@@ -153,7 +153,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Inspect optional Full release signing secrets
+      - name: Verify Full signing and notarization credentials
         if: ${{ !inputs.cache_only }}
         shell: bash
         env:
@@ -165,6 +165,7 @@ jobs:
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
           set -euo pipefail
+          production_release="${{ inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}"
           missing=()
           for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
             if [ -z "${!secret_name:-}" ]; then
@@ -173,15 +174,19 @@ jobs:
           done
           if [ "${#missing[@]}" -gt 0 ]; then
             missing_csv="$(IFS=', '; echo "${missing[*]}")"
-            echo "::notice title=Full first-install local authorization mode::Missing optional Apple signing secrets: ${missing_csv}"
-            echo "::notice::Stable Full assets will use local authorization evidence instead of Developer ID notarization."
+            if [ "$production_release" = "true" ]; then
+              echo "::error title=Full production signing preflight failed::Missing GitHub Actions secrets: ${missing_csv}"
+              echo "::error::Production Full assets require Developer ID signing and Apple notarization; local authorization fallback is forbidden."
+              exit 1
+            fi
+            echo "::notice::Development-only Full build has no Apple credentials and will remain non-distributable."
             exit 0
           fi
           if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode >/dev/null 2>&1; then
             echo "::error title=Full first-install release signing preflight failed::BUILD_CERTIFICATE_BASE64 is not valid base64."
             exit 1
           fi
-          echo "Optional Full first-install release signing material is present."
+          echo "Full first-install signing and notarization material is present."
 
       - name: Checkout frozen artifact App source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -844,7 +849,7 @@ jobs:
           rm -rf "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
           mkdir -p "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
 
-      - name: Prepare optional macOS code signing
+      - name: Prepare macOS Developer ID signing
         if: ${{ !inputs.cache_only }}
         shell: bash
         env:
@@ -857,13 +862,24 @@ jobs:
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
           set -euo pipefail
+          production_release="${{ inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}"
           requires_distributable_assets="${{ inputs.upload_full_package_artifact }}"
           echo "OPL_FULL_DISTRIBUTABLE_ASSETS=$requires_distributable_assets" >> "$GITHUB_ENV"
           echo "OPL_MAC_STRICT_SIGNING_CHECKS=false" >> "$GITHUB_ENV"
-          echo "OPL_FULL_PACKAGE_NOTARIZED=false" >> "$GITHUB_ENV"
 
-          if [ -z "${BUILD_CERTIFICATE_BASE64:-}" ] || [ -z "${P12_PASSWORD:-}" ]; then
-            echo "::notice::No Developer ID certificate secrets configured; using Stable local authorization mode."
+          missing=()
+          for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
+            if [ -z "${!secret_name:-}" ]; then
+              missing+=("$secret_name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            missing_csv="$(IFS=', '; echo "${missing[*]}")"
+            if [ "$production_release" = "true" ]; then
+              echo "::error::Production Full signing material became incomplete after preflight: ${missing_csv}"
+              exit 1
+            fi
+            echo "::notice::Development-only Full build remains non-distributable because Apple credentials are absent."
             exit 0
           fi
 
@@ -874,14 +890,11 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           rm certificate.p12
-
-          if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_ID_PASSWORD:-}" ] && [ -n "${TEAM_ID:-}" ] && [ -n "${IDENTITY:-}" ]; then
-            echo "OPL_MAC_STRICT_SIGNING_CHECKS=true" >> "$GITHUB_ENV"
-            echo "OPL_FULL_PACKAGE_NOTARIZED=true" >> "$GITHUB_ENV"
-          else
-            echo "::notice::Developer ID certificate is available, but notarization identity secrets are incomplete; using Stable local authorization mode."
-            exit 0
-          fi
+          security find-identity -v -p codesigning build.keychain | grep -F "$IDENTITY" >/dev/null || {
+            echo "::error::Configured IDENTITY does not resolve to an imported code-signing identity."
+            exit 1
+          }
+          echo "OPL_MAC_STRICT_SIGNING_CHECKS=true" >> "$GITHUB_ENV"
 
       - name: Build Full first-install package
         id: full_package_build
@@ -994,6 +1007,29 @@ jobs:
           fi
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Finalize Full Developer ID signing and notarization
+        if: ${{ !inputs.cache_only }}
+        working-directory: one-person-lab-app
+        shell: bash
+        env:
+          appleId: ${{ secrets.APPLE_ID }}
+          appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
+          teamId: ${{ secrets.TEAM_ID }}
+          OPL_RUNTIME_CODESIGN_IDENTITY: ${{ secrets.IDENTITY }}
+        run: |
+          set -euo pipefail
+          if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" != true ]; then
+            if [ '${{ inputs.operation }}' = append_full ]; then
+              echo "::error::Production Full notarization cannot run without strict Developer ID signing."
+              exit 1
+            fi
+            echo "::notice::Skipping notarization for development-only non-distributable Full output."
+            exit 0
+          fi
+          node --experimental-strip-types scripts/notarize-macos-dmg.ts \
+            --dmg "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg" \
+            --output dist/opl-full-release/full-apple-notarization-receipt.json
+
       - name: Verify cache-only warmup emitted no release assets
         if: ${{ inputs.cache_only }}
         working-directory: one-person-lab-app
@@ -1008,13 +1044,14 @@ jobs:
           forbidden="$(find "$output_dir" -maxdepth 1 -type f \( -name '*.dmg' -o -name 'opl-release-manifest.json' -o -name 'full-package-manifest.json' -o -name 'SHA256SUMS.txt' \) -print)"
           test -z "$forbidden" || { echo "::error::Cache-only warmup emitted forbidden release assets:"; printf '%s\n' "$forbidden"; exit 1; }
 
-      - name: Verify Full package checksums and optional signing
+      - name: Verify Full package checksums and distribution trust
         if: ${{ !inputs.cache_only }}
         shell: bash
+        env:
+          EXPECTED_TEAM_ID: ${{ secrets.TEAM_ID }}
         run: |
           set -euo pipefail
           app_path="$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui/out/mac-arm64/One Person Lab.app"
-          runtime_root="$app_path/Contents/Resources/opl-full-runtime/runtime/current"
           dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
           mounted_app_dir="$(mktemp -d)"
           mounted_app_path=""
@@ -1040,25 +1077,43 @@ jobs:
             --mas-scholar-skills-root "$GITHUB_WORKSPACE/mas-scholar-skills" \
             > one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
           if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
-            codesign --verify --deep --strict --verbose=2 "$app_path"
             codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
-            spctl --assess --type execute --verbose=4 "$app_path"
+            codesign --verify --strict --verbose=2 "$dmg_path"
+            xcrun stapler validate "$dmg_path"
+            spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
+            spctl --assess --type execute --verbose=4 "$mounted_app_path"
+            test -f one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
+            jq -e --arg team_id "$EXPECTED_TEAM_ID" '
+              .schema == "opl_apple_notarized_dmg_receipt.v1"
+              and .status == "passed"
+              and .team_identifier == $team_id
+              and .notarization.status == "Accepted"
+              and .stapler_validate_status == "passed"
+              and .dmg_spctl_status == "passed"
+              and .app_spctl_status == "passed"
+            ' one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json >/dev/null
             node --experimental-strip-types one-person-lab-app/scripts/verify-full-runtime-native-trust.ts \
-              --runtime-root "$runtime_root" \
+              --runtime-root "$mounted_runtime_root" \
               --require-spctl \
+              --expected-team-id "$EXPECTED_TEAM_ID" \
               --output one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
-            node -e 'const fs = require("node:fs"); const appPath = process.argv[1]; const runtimeTrust = JSON.parse(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json", "utf8")); fs.writeFileSync("one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json", `${JSON.stringify({ schema: "opl_gatekeeper_launch_policy.v1", package_kind: "app_full_first_install", app_path: appPath, codesign_status: "passed", spctl_status: "passed", runtime_native_trust_status: runtimeTrust.status, runtime_native_executable_count: runtimeTrust.executable_count }, null, 2)}\n`);' "$app_path"
+            node -e 'const fs = require("node:fs"); const appPath = process.argv[1]; const runtimeTrust = JSON.parse(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json", "utf8")); const notarization = JSON.parse(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json", "utf8")); fs.writeFileSync("one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json", `${JSON.stringify({ schema: "opl_gatekeeper_launch_policy.v1", package_kind: "app_full_first_install", distribution_mode: "developer_id_notarized", app_path: appPath, team_identifier: notarization.team_identifier, codesign_status: "passed", spctl_status: "passed", dmg_codesign_status: "passed", dmg_spctl_status: "passed", stapler_validate_status: "passed", notarization_status: notarization.notarization.status, notarization_receipt_sha256: require("node:crypto").createHash("sha256").update(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json")).digest("hex"), runtime_native_trust_status: runtimeTrust.status, runtime_native_executable_count: runtimeTrust.executable_count, local_authorization_required: false, quarantine_removal_required: false }, null, 2)}\n`);' "$mounted_app_path"
+            node -e 'const fs = require("node:fs"); const file = "one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt"; const text = fs.readFileSync(file, "utf8"); const next = text.replace(/Signing and notarization:.*(?:\n|$)/, "Signing and notarization: this package has completed Developer ID signing, Apple notarization, stapling, and Gatekeeper checks.\n"); fs.writeFileSync(file, next);'
           else
-            echo "::notice::Skipping strict Gatekeeper checks because Stable Full assets use local authorization mode."
+            if [ '${{ inputs.operation }}' = append_full ]; then
+              echo "::error::Production Full verification cannot fall back to local authorization."
+              exit 1
+            fi
+            echo "::notice::Development-only Full output is not a distributable release asset."
             codesign --verify --deep --strict --verbose=2 "$app_path" || true
             codesign --verify --deep --strict --verbose=2 "$mounted_app_path" || true
             spctl --assess --type execute --verbose=4 "$app_path" || true
+            node --experimental-strip-types one-person-lab-app/scripts/local-authorization-policy.ts \
+              --package-kind app_full_first_install \
+              --app-path "$mounted_app_path" \
+              --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
+              --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           fi
-          node --experimental-strip-types one-person-lab-app/scripts/local-authorization-policy.ts \
-            --package-kind app_full_first_install \
-            --app-path "$mounted_app_path" \
-            --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
-            --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           node - "$OPL_RELEASE_VERSION" "$dmg_path" one-person-lab-app/dist/opl-full-release <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
@@ -1088,7 +1143,9 @@ jobs:
               runtime_native_trust: readJson('full-runtime-native-trust.json'),
               app_bundle_trim_report: readJson('full-app-bundle-trim-report.json'),
               package_boundary_audit: readJson('full-package-boundary-audit.json'),
-              local_authorization_policy: readJson('full-local-authorization-policy.json'),
+              gatekeeper_launch_policy: fs.existsSync(path.join(outDir, 'full-gatekeeper-launch-policy.json')) ? readJson('full-gatekeeper-launch-policy.json') : null,
+              apple_notarization_receipt: fs.existsSync(path.join(outDir, 'full-apple-notarization-receipt.json')) ? readJson('full-apple-notarization-receipt.json') : null,
+              local_authorization_policy: fs.existsSync(path.join(outDir, 'full-local-authorization-policy.json')) ? readJson('full-local-authorization-policy.json') : null,
               readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
             },
             transition_legacy_assets: [
@@ -1105,11 +1162,18 @@ jobs:
           hdiutil verify "$dmg_path"
           (
             cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-            grep -Ev '(opl-release-manifest|full-gatekeeper-launch-policy|full-runtime-currentness-probe|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
-            shasum -a 256 opl-release-manifest.json full-runtime-currentness-probe.json full-runtime-native-trust.json full-local-authorization-policy.json >> SHA256SUMS.next
-            if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
-              shasum -a 256 full-gatekeeper-launch-policy.json >> SHA256SUMS.next
-            fi
+            node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          const existing = fs.readFileSync('SHA256SUMS.txt', 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => line.trim().split(/\s+/).at(-1));
+          const required = ['opl-release-manifest.json', 'full-runtime-currentness-probe.json', 'full-runtime-native-trust.json'];
+          if (fs.existsSync('full-gatekeeper-launch-policy.json')) required.push('full-gatekeeper-launch-policy.json');
+          if (fs.existsSync('full-apple-notarization-receipt.json')) required.push('full-apple-notarization-receipt.json');
+          if (fs.existsSync('full-local-authorization-policy.json')) required.push('full-local-authorization-policy.json');
+          const names = [...new Set([...existing, ...required])].filter((name) => name && fs.existsSync(name)).sort();
+          const lines = names.map((name) => `${crypto.createHash('sha256').update(fs.readFileSync(name)).digest('hex')}  ${name}`);
+          fs.writeFileSync('SHA256SUMS.next', `${lines.join('\n')}\n`);
+          NODE
             mv SHA256SUMS.next SHA256SUMS.txt
             shasum -a 256 -c SHA256SUMS.txt
           )
@@ -1316,13 +1380,15 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-app-bundle-trim-report.json
             one-person-lab-app/dist/opl-full-release/full-package-boundary-audit.json
             one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
+            one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json
+            one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
           if-no-files-found: error
           retention-days: 30
 
       - name: Upload Full local authorization policy
-        if: ${{ !inputs.cache_only && inputs.upload_full_package_artifact }}
+        if: ${{ !inputs.cache_only && inputs.upload_full_package_artifact && inputs.operation == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-local-authorization-policy-${{ env.OPL_RELEASE_VERSION }}
@@ -1461,12 +1527,21 @@ jobs:
             --include-full-package
 
       - name: Write Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
+        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         shell: bash
         run: |
           set -euo pipefail
           dmg_path="one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
-          packaged_tree="$(find one-person-lab-app/shells/aionui/out one-person-lab-app/dist/opl-full-release -type d -name '*.app' 2>/dev/null | sort | head -n 1)"
+          mount_point="$(mktemp -d)"
+          mounted=false
+          cleanup_cohort_mount() {
+            if [ "$mounted" = true ]; then hdiutil detach "$mount_point" >/dev/null 2>&1 || true; fi
+            rm -rf "$mount_point"
+          }
+          trap cleanup_cohort_mount EXIT
+          hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null
+          mounted=true
+          packaged_tree="$(find "$mount_point" -maxdepth 2 -type d -name '*.app' | sort | head -n 1)"
           test -f "$dmg_path" && test -n "$packaged_tree"
           node --experimental-strip-types one-person-lab-app/scripts/write-build-artifact-cohort.ts \
             --output "$RUNNER_TEMP/opl-build-cohort.json" \
@@ -1494,7 +1569,7 @@ jobs:
           cp "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" one-person-lab-app/dist/opl-full-release/opl-full-toolchain-observation-receipt.json
 
       - name: Upload Full package workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.upload_full_package_artifact }}
+        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1503,7 +1578,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
+        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
@@ -1512,7 +1587,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
+        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64

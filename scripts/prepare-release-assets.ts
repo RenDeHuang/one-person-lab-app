@@ -44,17 +44,20 @@ function findFilesByName(rootDir: string, fileName: string): string[] {
   return matches;
 }
 
-function preserveStandardLocalAuthorizationPolicy(): void {
-  const policyName = 'standard-local-authorization-policy.json';
-  const sources = findFilesByName(artifactsDir, policyName);
-  if (sources.length === 0) {
-    return;
+function preserveStandardTrustEvidence(): void {
+  for (const evidenceName of [
+    'standard-local-authorization-policy.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
+  ]) {
+    const sources = findFilesByName(artifactsDir, evidenceName);
+    if (sources.length === 0) continue;
+    if (sources.length > 1) {
+      throw new Error(`Expected one ${evidenceName}, found ${sources.length}: ${sources.join(', ')}`);
+    }
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.copyFileSync(sources[0], path.join(outputDir, evidenceName));
   }
-  if (sources.length > 1) {
-    throw new Error(`Expected one ${policyName}, found ${sources.length}: ${sources.join(', ')}`);
-  }
-  fs.mkdirSync(outputDir, { recursive: true });
-  fs.copyFileSync(sources[0], path.join(outputDir, policyName));
 }
 
 function readMetadataVersion(): string {
@@ -104,6 +107,6 @@ function filterStandardAssetsToVersion(version: string): void {
   }
 }
 
-preserveStandardLocalAuthorizationPolicy();
+preserveStandardTrustEvidence();
 ensureCanonicalArm64Metadata();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());

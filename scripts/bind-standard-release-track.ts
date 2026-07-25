@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
+import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from './macos-gatekeeper-policy.ts';
 
 type Channel = 'stable' | 'nightly';
 
@@ -85,7 +86,7 @@ export function bindStandardReleaseTrack(input: {
   const canonicalMetadata = path.join(assetsDir, 'latest-arm64-mac.yml');
   fs.copyFileSync(genericMetadata, canonicalMetadata);
   fs.rmSync(genericMetadata);
-  fs.rmSync(path.join(assetsDir, 'standard-gatekeeper-launch-policy.json'), { force: true });
+  fs.rmSync(path.join(assetsDir, 'standard-local-authorization-policy.json'), { force: true });
 
   const zipName = `One-Person-Lab-${input.version}-mac-arm64.zip`;
   const zipPath = requiredFile(assetsDir, zipName);
@@ -99,12 +100,39 @@ export function bindStandardReleaseTrack(input: {
   }
   validatePackagedVersion(zipPath, input.updaterVersion);
 
+  const dmgName = `One-Person-Lab-${input.version}-mac-arm64.dmg`;
+  const dmgPath = requiredFile(assetsDir, dmgName);
+  const notarizationPath = requiredFile(assetsDir, 'standard-apple-notarization-receipt.json');
+  const gatekeeperPath = requiredFile(assetsDir, 'standard-gatekeeper-launch-policy.json');
+  const notarization = assertAppleNotarizationReceipt(
+    JSON.parse(fs.readFileSync(notarizationPath, 'utf8')),
+    'standard-apple-notarization-receipt.json',
+  );
+  const gatekeeper = assertGatekeeperLaunchPolicy(
+    JSON.parse(fs.readFileSync(gatekeeperPath, 'utf8')),
+    'app_standard',
+    'standard-gatekeeper-launch-policy.json',
+  );
+  if (
+    notarization.final_stapled_dmg_sha256 !== sha256(dmgPath).slice('sha256:'.length)
+    || notarization.final_stapled_dmg_size_bytes !== fs.statSync(dmgPath).size
+  ) {
+    throw new Error(`${dmgName} is not bound by the Standard Apple notarization receipt.`);
+  }
+  if (
+    gatekeeper.team_identifier !== notarization.team_identifier
+    || gatekeeper.notarization_receipt_sha256 !== sha256(notarizationPath).slice('sha256:'.length)
+  ) {
+    throw new Error('Standard Gatekeeper policy is not bound to the Apple notarization receipt.');
+  }
+
   const names = [
-    `One-Person-Lab-${input.version}-mac-arm64.dmg`,
+    dmgName,
     zipName,
     `${zipName}.blockmap`,
     'latest-arm64-mac.yml',
-    'standard-local-authorization-policy.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
   ];
   const assets = names.map((name) => {
     const filePath = requiredFile(assetsDir, name);
@@ -160,6 +188,11 @@ export function bindStandardReleaseTrack(input: {
     },
     updater_metadata: { name: 'latest-arm64-mac.yml', sha256: sha256(canonicalMetadata) },
     updater_zip: { name: zipName, sha256: sha256(zipPath) },
+    apple_distribution_trust: {
+      gatekeeper_policy: { name: 'standard-gatekeeper-launch-policy.json', sha256: sha256(gatekeeperPath) },
+      notarization_receipt: { name: 'standard-apple-notarization-receipt.json', sha256: sha256(notarizationPath) },
+      final_dmg: { name: dmgName, sha256: sha256(dmgPath) },
+    },
     component_manifest: {
       name: 'opl-app-component-manifest.json',
       sha256: sha256(path.resolve(input.componentManifestOutput)),

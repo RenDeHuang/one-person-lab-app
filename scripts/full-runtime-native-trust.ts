@@ -11,7 +11,11 @@ function requiredFullRuntimeNativeTrustPaths(manifest: any): string[] {
 export function assertFullRuntimeNativeTrustObject(
   trust: any,
   manifest: any,
-  options: { missingMessage?: string } = {},
+  options: {
+    missingMessage?: string;
+    requireProductionTrust?: boolean;
+    expectedTeamIdentifier?: string;
+  } = {},
 ): void {
   if (!trust || typeof trust !== 'object' || Array.isArray(trust)) {
     throw new Error(options.missingMessage ?? 'full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
@@ -35,6 +39,28 @@ export function assertFullRuntimeNativeTrustObject(
       entry?.quarantine_status !== 'absent'
     ) {
       throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
+    }
+  }
+  if (options.requireProductionTrust) {
+    if (!/^[A-Z0-9]{10}$/.test(options.expectedTeamIdentifier ?? '')) {
+      throw new Error('Production Full runtime native trust requires an exact Apple Team ID.');
+    }
+    if (trust.status !== 'passed') {
+      throw new Error(`Production Full runtime native trust must pass; got ${trust.status}.`);
+    }
+    for (const entry of executables) {
+      if (
+        entry?.codesign_status !== 'passed'
+        || !['passed', 'not_required'].includes(entry?.spctl_status)
+        || entry?.team_identifier !== options.expectedTeamIdentifier
+        || !entry?.signature
+        || entry.signature === 'adhoc'
+      ) {
+        throw new Error(
+          `Production Full runtime native executable does not match Team ID ${options.expectedTeamIdentifier}: `
+          + `${entry?.relative_path || '(unknown)'}.`,
+        );
+      }
     }
   }
 }

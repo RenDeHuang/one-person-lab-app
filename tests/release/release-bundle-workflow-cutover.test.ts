@@ -956,6 +956,47 @@ test('release-bound nested workflows inherit one operation and absolute deadline
   );
 });
 
+test('production Standard and Full builds fail closed on Apple distribution trust', () => {
+  const bundle = parseWorkflow('_release-bundle.yml');
+  const fullAddon = parseWorkflow('_release-full-addon.yml');
+  const fullBuild = parseWorkflow('full-first-install-release.yml');
+
+  assert.equal(bundle.jobs['standard-build'].with.require_macos_gatekeeper, true);
+  assert.equal(bundle.jobs['standard-build'].secrets, 'inherit');
+  assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
+
+  const credentialGate = fullBuild.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify Full signing and notarization credentials',
+  );
+  assert.match(
+    String(credentialGate.run),
+    /production_release="\$\{\{ inputs\.operation == 'append_full' && inputs\.upload_full_package_artifact \}\}"/,
+  );
+  assert.match(String(credentialGate.run), /Production Full assets require Developer ID signing and Apple notarization/);
+  assert.match(String(credentialGate.run), /Development-only Full build has no Apple credentials/);
+  assert.match(String(credentialGate.run), /exit 1/);
+
+  const finalizer = fullBuild.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization',
+  );
+  assert.equal(finalizer.if, '${{ !inputs.cache_only }}');
+  assert.match(String(finalizer.run), /Production Full notarization cannot run without strict Developer ID signing/);
+  assert.match(String(finalizer.run), /Skipping notarization for development-only non-distributable Full output/);
+  assert.match(String(finalizer.run), /notarize-macos-dmg\.ts/);
+  assert.match(String(finalizer.run), /full-apple-notarization-receipt\.json/);
+
+  for (const name of [
+    'Upload Full package workflow artifact',
+    'Upload Full build artifact cohort manifest',
+    'Upload Full DMG-only workflow artifact',
+  ]) {
+    const upload = fullBuild.jobs['full-first-install'].steps.find(
+      (step: Record<string, unknown>) => step.name === name,
+    );
+    assert.match(String(upload.if), /success\(\)/, `${name} must not upload after notarization or trust failure`);
+  }
+});
+
 test('real build and qualification calls recalculate and consume the same remaining operation budget', () => {
   const build = parseWorkflow('_build-reusable.yml');
   const buildBudget = build.jobs.build.steps.find(

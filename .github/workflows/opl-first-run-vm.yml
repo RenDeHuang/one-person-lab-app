@@ -110,6 +110,11 @@ on:
         required: false
         default: release_gate
         type: string
+      require_macos_gatekeeper:
+        description: 'Preserve quarantine and require Developer ID plus Gatekeeper acceptance before first launch.'
+        required: false
+        default: false
+        type: boolean
       operation:
         description: 'Release operation inherited from the Bundle controller.'
         required: false
@@ -1335,6 +1340,9 @@ jobs:
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
             --compiled-expectations "${{ github.workspace }}/contracts/app-first-run-compiled-expectations.json"
           )
+          if [ "${{ inputs.require_macos_gatekeeper }}" = "true" ]; then
+            CMD+=(--require-gatekeeper)
+          fi
           if [ -n "${{ steps.framework_source.outputs.archive_path }}" ]; then
             CMD+=(--framework-source-archive "${{ steps.framework_source.outputs.archive_path }}")
             CMD+=(--framework-install-script "${{ steps.framework_source.outputs.install_script_path }}")
