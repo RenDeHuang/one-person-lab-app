@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-writer-lease.schema.json",
+  "title": "OPL Windows V6 Hyper-V writer lease",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "host_platform",
+    "factory_root",
+    "vm_name",
+    "vm_identity",
+    "platform_owner_task_id",
+    "executor_task_id",
+    "lease_id",
+    "issued_at",
+    "expires_at",
+    "request",
+    "packet",
+    "vm_paths",
+    "localization",
+    "network",
+    "allowed_operations",
+    "clean_vm_attestation"
+  ],
+  "properties": {
+    "schema": { "const": "opl_windows_v6_vm_writer_lease.v2" },
+    "status": { "const": "active" },
+    "host_platform": { "const": "windows_hyperv" },
+    "factory_root": { "const": "C:\\OPL-VMs" },
+    "vm_name": { "const": "OPL-V6-WSL2-01" },
+    "vm_identity": { "$ref": "#/$defs/vmIdentity" },
+    "platform_owner_task_id": { "const": "019f972b-f550-7961-90be-9873600cd895" },
+    "executor_task_id": { "const": "019f97e4-288a-7140-8850-925c657d8c71" },
+    "lease_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "schema", "factory_root"],
+      "properties": {
+        "path": { "const": "C:\\OPL-VMs\\Leases\\OPL-V6-WSL2-01.request.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "schema": { "const": "opl_windows_vm_lease_request.v2" },
+        "factory_root": { "const": "C:\\OPL-VMs" }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "delivery_commit", "delivery_tree", "frozen_acceptance", "acceptance_tree", "manifest_sha256", "payload_count"],
+      "properties": {
+        "root": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Packets\\\\[0-9a-f]{40}$" },
+        "delivery_commit": { "$ref": "#/$defs/gitSha" },
+        "delivery_tree": { "$ref": "#/$defs/gitSha" },
+        "frozen_acceptance": { "$ref": "#/$defs/gitSha" },
+        "acceptance_tree": { "$ref": "#/$defs/gitSha" },
+        "manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "payload_count": { "type": "integer", "minimum": 9 }
+      }
+    },
+    "vm_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_path", "active_vhdx_path", "vhdx_chain", "evidence_root", "receipt_namespace", "get_vm_receipt_path", "get_vm_receipt_sha256"],
+      "properties": {
+        "config_path": { "$ref": "#/$defs/v6Path" },
+        "active_vhdx_path": { "$ref": "#/$defs/v6Path" },
+        "vhdx_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/vhdxEntry" }
+        },
+        "evidence_root": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence" },
+        "receipt_namespace": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence" },
+        "get_vm_receipt_path": { "$ref": "#/$defs/v6Path" },
+        "get_vm_receipt_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "localization": { "$ref": "#/$defs/localization" },
+    "network": { "$ref": "#/$defs/network" },
+    "allowed_operations": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "v6_build_seal",
+          "v6_fixture_phase_transition",
+          "v6_guest_visible_smoke",
+          "v6_soft_shutdown"
+        ]
+      },
+      "allOf": [
+        { "contains": { "const": "v6_build_seal" } },
+        { "contains": { "const": "v6_fixture_phase_transition" } },
+        { "contains": { "const": "v6_guest_visible_smoke" } },
+        { "contains": { "const": "v6_soft_shutdown" } }
+      ]
+    },
+    "clean_vm_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "vm_id",
+        "vm_identity",
+        "vm_state",
+        "config_path",
+        "active_vhdx_path",
+        "vhdx_chain",
+        "checkpoint_id",
+        "checkpoint_name",
+        "localization",
+        "network",
+        "clean_user_receipt_path",
+        "clean_user_receipt_sha256",
+        "attestation_path",
+        "attestation_sha256",
+        "attested_at"
+      ],
+      "properties": {
+        "status": { "const": "attested" },
+        "vm_id": { "$ref": "#/$defs/uuid" },
+        "vm_identity": { "$ref": "#/$defs/vmIdentity" },
+        "vm_state": { "const": "Off" },
+        "config_path": { "$ref": "#/$defs/v6Path" },
+        "active_vhdx_path": { "$ref": "#/$defs/v6Path" },
+        "vhdx_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/vhdxEntry" }
+        },
+        "checkpoint_id": { "$ref": "#/$defs/uuid" },
+        "checkpoint_name": { "type": "string", "pattern": "^OPL-Clean-Windows-zh-CN-" },
+        "localization": { "$ref": "#/$defs/localization" },
+        "network": { "$ref": "#/$defs/network" },
+        "clean_user_receipt_path": { "$ref": "#/$defs/v6Path" },
+        "clean_user_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "attestation_path": { "$ref": "#/$defs/v6Path" },
+        "attestation_sha256": { "$ref": "#/$defs/sha256" },
+        "attested_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "vmIdentity": { "type": "string", "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "v6Path": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01(?:\\\\.*)?$" },
+    "vhdxEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "parent_path", "vhd_type", "file_size_bytes", "maximum_size_bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/v6Path" },
+        "parent_path": { "oneOf": [{ "$ref": "#/$defs/v6Path" }, { "type": "null" }] },
+        "vhd_type": { "type": "string", "minLength": 3 },
+        "file_size_bytes": { "type": "integer", "minimum": 1 },
+        "maximum_size_bytes": { "type": "integer", "minimum": 68719476736 }
+      }
+    },
+    "localization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installation_media_language", "ui_language", "system_locale", "user_locale", "default_input_method_tip"],
+      "properties": {
+        "installation_media_language": { "const": "zh-CN" },
+        "ui_language": { "const": "zh-CN" },
+        "system_locale": { "const": "zh-CN" },
+        "user_locale": { "const": "zh-CN" },
+        "default_input_method_tip": { "const": "0804:00000804" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["switch_name", "switch_id", "nat_name", "nat_id", "subnet", "guest_ip", "static_mac_address", "host_loopback_port_lease", "inbound_nat_mappings", "writable_surface_overlap_count"],
+      "properties": {
+        "switch_name": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+        "switch_id": { "$ref": "#/$defs/uuid" },
+        "nat_name": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+        "nat_id": { "type": "string", "minLength": 3 },
+        "subnet": { "const": "172.28.102.0/24" },
+        "guest_ip": { "const": "172.28.102.10" },
+        "static_mac_address": { "type": "string", "pattern": "^[0-9A-Fa-f]{12}$" },
+        "host_loopback_port_lease": { "const": "33101-33119" },
+        "inbound_nat_mappings": { "const": 0 },
+        "writable_surface_overlap_count": { "const": 0 }
+      }
+    }
+  }
+}
