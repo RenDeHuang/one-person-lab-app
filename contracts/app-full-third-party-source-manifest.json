@@ -17,8 +17,8 @@
   "sources": {
     "officecli": {
       "repository": "iOfficeAI/OfficeCLI",
-      "ref": "0b3557bbec29f073f5df6b92b4b8dcefa7e3c160",
-      "release_tag": "v1.0.139"
+      "ref": "79515527091fab74821ffb6647e73b29bc78d548",
+      "release_tag": "v1.0.141"
     },
     "mineru": {
       "repository": "opendatalab/MinerU-Ecosystem",
@@ -66,8 +66,8 @@
       "darwin_arm64_archive_sha256": "46b4ac2b603e2b68d684da728bccd938a69acfad9c5e1a469d28d00a64e8bc9c"
     },
     "officecli": {
-      "version": "1.0.139",
-      "darwin_arm64_asset_sha256": "393874f79db58222bdbede7f4f942f2536580386923857d1b5ad9754efe80c19"
+      "version": "1.0.141",
+      "darwin_arm64_asset_sha256": "a9639df060513d73b125849e4c630383f7a80f70e61911ef486dd24ec2208e37"
     }
   },
   "authority_boundary": {
