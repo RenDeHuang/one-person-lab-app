@@ -80,6 +80,8 @@
       "additionalProperties": false,
       "required": [
         "sha256",
+        "intake_manifest_sha256",
+        "build_receipt_sha256",
         "executable_sha256",
         "zip_entry_sha256_matches",
         "tree_origin",
@@ -95,6 +97,12 @@
       ],
       "properties": {
         "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "intake_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sha256": {
           "$ref": "#/$defs/sha256"
         },
         "executable_sha256": {
@@ -140,7 +148,7 @@
           "type": "boolean"
         },
         "source_ref_binding": {
-          "const": "operator_recorded_not_embedded"
+          "const": "sealed_from_exact_source_packet"
         },
         "size_bytes": {
           "type": [
@@ -165,43 +173,51 @@
       "additionalProperties": false,
       "required": [
         "identity",
-        "storage_class",
-        "external_ssd",
-        "writer_handoff",
+        "host_platform",
+        "vm_name",
+        "writer_lease",
         "writer_release"
       ],
       "properties": {
         "identity": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 160
+          "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         },
-        "storage_class": {
-          "const": "external_ssd"
+        "host_platform": {
+          "const": "windows_hyperv"
         },
-        "external_ssd": {
-          "const": true
+        "vm_name": {
+          "const": "OPL-V6-WSL2-01"
         },
-        "writer_handoff": {
+        "writer_lease": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "previous_owner_task_id",
-            "receipt_id",
-            "released_at",
+            "platform_owner_task_id",
+            "executor_task_id",
+            "lease_id",
+            "issued_at",
+            "expires_at",
             "receipt_sha256"
           ],
           "properties": {
-            "previous_owner_task_id": {
+            "platform_owner_task_id": {
               "type": "string",
               "pattern": "^[0-9a-f-]{36}$"
             },
-            "receipt_id": {
+            "executor_task_id": {
+              "const": "019f97e4-288a-7140-8850-925c657d8c71"
+            },
+            "lease_id": {
               "type": "string",
               "minLength": 3,
               "maxLength": 160
             },
-            "released_at": {
+            "issued_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expires_at": {
               "type": "string",
               "format": "date-time"
             },
@@ -723,7 +739,7 @@
           },
           "vm": {
             "properties": {
-              "writer_handoff": {
+              "writer_lease": {
                 "properties": {
                   "receipt_sha256": {
                     "$ref": "#/$defs/sha256"

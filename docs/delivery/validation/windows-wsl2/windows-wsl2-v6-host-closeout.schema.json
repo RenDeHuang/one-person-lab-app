@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-host-closeout.schema.json",
-  "title": "OPL Windows WSL2 V6 host closeout receipt",
+  "title": "OPL Windows WSL2 V6 Hyper-V host closeout receipt",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,9 +12,10 @@
     "status",
     "observed_at",
     "source_refs",
+    "packet",
     "artifact",
     "vm",
-    "writer_handoff",
+    "writer_lease",
     "phase_evidence",
     "writer_release",
     "capability_outcome",
@@ -41,48 +42,51 @@
       "format": "date-time"
     },
     "source_refs": {
+      "$ref": "#/$defs/sourceRefs"
+    },
+    "packet": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "app_sha",
-        "shell_sha",
-        "framework_sha"
+        "intake_manifest_sha256",
+        "build_receipt_sha256"
       ],
       "properties": {
-        "app_sha": {
-          "$ref": "#/$defs/gitSha"
+        "intake_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
         },
-        "shell_sha": {
-          "$ref": "#/$defs/gitSha"
-        },
-        "framework_sha": {
-          "$ref": "#/$defs/gitSha"
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-    "required": [
-      "sha256",
-      "file_name",
-      "tree_sha256",
-      "tree_file_count"
+      "required": [
+        "sha256",
+        "file_name",
+        "executable_sha256",
+        "tree_sha256",
+        "tree_file_count"
       ],
       "properties": {
         "sha256": {
           "$ref": "#/$defs/sha256"
         },
-      "file_name": {
-        "const": "OPL-Windows-WSL2-Validation-v6.zip"
-      },
-      "tree_sha256": {
-        "$ref": "#/$defs/sha256"
-      },
-      "tree_file_count": {
-        "type": "integer",
-        "minimum": 1
-      }
+        "file_name": {
+          "const": "OPL-Windows-WSL2-Validation-v6.zip"
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_file_count": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "vm": {
@@ -90,81 +94,64 @@
       "additionalProperties": false,
       "required": [
         "identity",
-        "vmx_path",
-        "vmx_sha256",
-        "bios_uuid",
-        "storage_class",
-        "external_volume_uuid",
-        "external_device_identifier",
-        "bus_protocol",
-        "solid_state",
-        "powered_off_readback"
+        "host_platform",
+        "vm_name",
+        "vm_id",
+        "powered_off_readback",
+        "final_state"
       ],
       "properties": {
         "identity": {
-          "type": "string",
-          "pattern": "^vmware-bios:[0-9a-f]{32}$"
+          "$ref": "#/$defs/vmIdentity"
         },
-        "vmx_path": {
-          "type": "string",
-          "pattern": "^/Volumes/.+\\.vmx$"
+        "host_platform": {
+          "const": "windows_hyperv"
         },
-        "vmx_sha256": {
-          "$ref": "#/$defs/sha256"
+        "vm_name": {
+          "const": "OPL-V6-WSL2-01"
         },
-        "bios_uuid": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{32}$"
-        },
-        "storage_class": {
-          "const": "external_ssd"
-        },
-        "external_volume_uuid": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 80
-        },
-        "external_device_identifier": {
-          "type": "string",
-          "pattern": "^disk[0-9]+s[0-9]+$"
-        },
-        "bus_protocol": {
-          "type": "string",
-          "minLength": 2,
-          "maxLength": 40
-        },
-        "solid_state": {
-          "const": true
+        "vm_id": {
+          "$ref": "#/$defs/uuid"
         },
         "powered_off_readback": {
           "const": true
+        },
+        "final_state": {
+          "const": "Off"
         }
       }
     },
-    "writer_handoff": {
+    "writer_lease": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "receipt_sha256",
-        "previous_owner_task_id",
-        "receipt_id",
-        "released_at"
+        "platform_owner_task_id",
+        "executor_task_id",
+        "lease_id",
+        "issued_at",
+        "expires_at"
       ],
       "properties": {
         "receipt_sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "previous_owner_task_id": {
+        "platform_owner_task_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "executor_task_id": {
+          "const": "019f97e4-288a-7140-8850-925c657d8c71"
+        },
+        "lease_id": {
           "type": "string",
           "minLength": 3,
           "maxLength": 160
         },
-        "receipt_id": {
+        "issued_at": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 160
+          "format": "date-time"
         },
-        "released_at": {
+        "expires_at": {
           "type": "string",
           "format": "date-time"
         }
@@ -221,6 +208,26 @@
     }
   },
   "$defs": {
+    "sourceRefs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_sha",
+        "shell_sha",
+        "framework_sha"
+      ],
+      "properties": {
+        "app_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "shell_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "framework_sha": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
     "gitSha": {
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
@@ -228,6 +235,14 @@
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "vmIdentity": {
+      "type": "string",
+      "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     },
     "phaseEvidence": {
       "type": "object",
@@ -237,7 +252,8 @@
         "screenshot_sha256",
         "run_id",
         "tree_sha256",
-        "tree_file_count"
+        "tree_file_count",
+        "build_receipt_sha256"
       ],
       "properties": {
         "receipt_sha256": {
@@ -256,6 +272,9 @@
         "tree_file_count": {
           "type": "integer",
           "minimum": 1
+        },
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     }

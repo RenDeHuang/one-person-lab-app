@@ -9,7 +9,15 @@ param(
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9a-fA-F]{64}$')]
-  [string]$ExpectedWriterHandoffSha256,
+  [string]$ExpectedIntakeManifestSha256,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{64}$')]
+  [string]$ExpectedBuildReceiptSha256,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{64}$')]
+  [string]$ExpectedWriterLeaseSha256,
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9a-fA-F]{40}$')]
@@ -29,24 +37,23 @@ param(
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[0-9a-f-]{36}$')]
-  [string]$PreviousWriterTaskId,
+  [string]$PlatformOwnerTaskId,
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$')]
-  [string]$WriterHandoffReceiptId,
+  [string]$WriterLeaseId,
 
   [Parameter(Mandatory = $true)]
-  [datetime]$WriterReleasedAt,
+  [datetime]$WriterLeaseIssuedAt,
+
+  [Parameter(Mandatory = $true)]
+  [datetime]$WriterLeaseExpiresAt,
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$')]
   [string]$VmIdentity,
 
-  [string]$CandidateZipPath = 'C:\Users\oplrunner\OnePersonLabValidation\20260725-wsl2-v6\OPL-Windows-WSL2-Validation-v6.zip',
-
-  [string]$WriterHandoffReceiptPath = 'C:\Users\oplrunner\OnePersonLabValidation\20260725-wsl2-v6\writer-handoff.json',
-
-  [string]$EvidenceRoot = 'C:\Users\oplrunner\OnePersonLabValidation\20260725-wsl2-v6\evidence'
+  [string]$ValidationRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
 )
 
 Set-StrictMode -Version Latest
@@ -59,14 +66,17 @@ function ConvertFrom-CodePoints([int[]]$CodePoints) {
 $validationGateName = 'OPL_WINDOWS_WSL2_VALIDATION'
 $validationGateValue = '1'
 $validationDistro = 'OPL-Validation-g0001'
-$approvedArtifactSha256 = '3b126175f77cad7c0b1ddc83f2008d2102539cef29f87dfd839ee70be86df9dd'
-$approvedExecutableSha256 = '60b86b47b4557e51e12d6d1f687f1544f420841356cdf1d6bae8523a6ebf6c42'
-$approvedShellSha = '868d6e818583547a5ec982b10b34464a3fa47c10'
-$approvedFrameworkSha = 'fe1fafa26f2c59922596718b305761bbc7558c9c'
-$approvedRoot = 'C:\Users\oplrunner\OnePersonLabValidation\20260725-wsl2-v6'
+$approvedRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
 $expectedZipPath = Join-Path $approvedRoot 'OPL-Windows-WSL2-Validation-v6.zip'
-$expectedHandoffReceiptPath = Join-Path $approvedRoot 'writer-handoff.json'
+$expectedWriterLeasePath = Join-Path $approvedRoot 'writer-lease.json'
+$expectedIntakeManifestPath = Join-Path $approvedRoot 'windows-wsl2-v6-intake-manifest.json'
+$expectedBuildReceiptPath = Join-Path $approvedRoot 'v6-build-seal-receipt.json'
 $expectedEvidenceRoot = Join-Path $approvedRoot 'evidence'
+$CandidateZipPath = $expectedZipPath
+$WriterLeasePath = $expectedWriterLeasePath
+$IntakeManifestPath = $expectedIntakeManifestPath
+$BuildReceiptPath = $expectedBuildReceiptPath
+$EvidenceRoot = $expectedEvidenceRoot
 $candidateExecutableFileName = 'OPL Windows WSL2 Validation.exe'
 $protectedOnePersonLabRoot = 'C:\Users\oplrunner\OnePersonLab'
 $wslPath = Join-Path $env:SystemRoot 'System32\wsl.exe'
@@ -1216,11 +1226,20 @@ if ($env:OS -ne 'Windows_NT') {
   throw 'V6 visible smoke must run inside the authorized Windows VM'
 }
 
+Assert-ExactPath -Actual $ValidationRoot -Expected $approvedRoot -Label 'ValidationRoot'
 Assert-ExactPath -Actual $CandidateZipPath -Expected $expectedZipPath -Label 'CandidateZipPath'
 Assert-ExactPath `
-  -Actual $WriterHandoffReceiptPath `
-  -Expected $expectedHandoffReceiptPath `
-  -Label 'WriterHandoffReceiptPath'
+  -Actual $WriterLeasePath `
+  -Expected $expectedWriterLeasePath `
+  -Label 'WriterLeasePath'
+Assert-ExactPath `
+  -Actual $IntakeManifestPath `
+  -Expected $expectedIntakeManifestPath `
+  -Label 'IntakeManifestPath'
+Assert-ExactPath `
+  -Actual $BuildReceiptPath `
+  -Expected $expectedBuildReceiptPath `
+  -Label 'BuildReceiptPath'
 Assert-ExactPath -Actual $EvidenceRoot -Expected $expectedEvidenceRoot -Label 'EvidenceRoot'
 if (Test-Path -LiteralPath $runDirectory) {
   throw "Run evidence directory already exists: $runDirectory"
@@ -1242,6 +1261,8 @@ $receipt = [ordered]@{
   framework_sha = $FrameworkSha.ToLowerInvariant()
   artifact = [ordered]@{
     sha256 = $ExpectedArtifactSha256.ToLowerInvariant()
+    intake_manifest_sha256 = $ExpectedIntakeManifestSha256.ToLowerInvariant()
+    build_receipt_sha256 = $ExpectedBuildReceiptSha256.ToLowerInvariant()
     executable_sha256 = $null
     zip_entry_sha256_matches = $false
     tree_origin = 'pending'
@@ -1249,7 +1270,7 @@ $receipt = [ordered]@{
     tree_file_count = $null
     tree_write_locks_held = $false
     tree_unchanged_after_process_exit = $false
-    source_ref_binding = 'operator_recorded_not_embedded'
+    source_ref_binding = 'sealed_from_exact_source_packet'
     size_bytes = $null
     zip_file_name = [System.IO.Path]::GetFileName($CandidateZipPath)
     executable_file_name = $candidateExecutableFileName
@@ -1257,12 +1278,14 @@ $receipt = [ordered]@{
   }
   vm = [ordered]@{
     identity = $VmIdentity
-    storage_class = 'external_ssd'
-    external_ssd = $true
-    writer_handoff = [ordered]@{
-      previous_owner_task_id = $PreviousWriterTaskId
-      receipt_id = $WriterHandoffReceiptId
-      released_at = $WriterReleasedAt.ToUniversalTime().ToString('o')
+    host_platform = 'windows_hyperv'
+    vm_name = 'OPL-V6-WSL2-01'
+    writer_lease = [ordered]@{
+      platform_owner_task_id = $PlatformOwnerTaskId
+      executor_task_id = '019f97e4-288a-7140-8850-925c657d8c71'
+      lease_id = $WriterLeaseId
+      issued_at = $WriterLeaseIssuedAt.ToUniversalTime().ToString('o')
+      expires_at = $WriterLeaseExpiresAt.ToUniversalTime().ToString('o')
       receipt_sha256 = $null
     }
     writer_release = [ordered]@{
@@ -1377,7 +1400,7 @@ $receipt = [ordered]@{
     'managed_acp_unverified',
     'authenticated_bootstrap_unverified',
     'websocket_conversation_unverified'
-    'source_refs_not_embedded_in_candidate'
+    'source_refs_bound_by_external_build_seal'
   )
   error = $null
 }
@@ -1441,41 +1464,93 @@ public static class OplValidationNativeWindow
   if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'V6 candidate requires Windows x64'
   }
-  if ($ExpectedArtifactSha256.ToLowerInvariant() -ne $approvedArtifactSha256) {
-    throw 'Expected artifact is not the approved V6 candidate ZIP'
+  $nowUtc = (Get-Date).ToUniversalTime()
+  if ($WriterLeaseIssuedAt.ToUniversalTime() -gt $nowUtc) {
+    throw 'Writer lease issue time cannot be in the future'
   }
-  if ($ShellSha.ToLowerInvariant() -ne $approvedShellSha) {
-    throw 'Shell SHA is not the approved V6 candidate source'
-  }
-  if ($FrameworkSha.ToLowerInvariant() -ne $approvedFrameworkSha) {
-    throw 'Framework SHA is not the V6 guest fixture source'
-  }
-  if ($WriterReleasedAt.ToUniversalTime() -gt (Get-Date).ToUniversalTime()) {
-    throw 'Writer handoff release time cannot be in the future'
+  if ($WriterLeaseExpiresAt.ToUniversalTime() -le $nowUtc) {
+    throw 'Writer lease has expired'
   }
   if (-not (Test-Path -LiteralPath $CandidateZipPath -PathType Leaf)) {
     throw 'Candidate ZIP is missing'
   }
-  if (-not (Test-Path -LiteralPath $WriterHandoffReceiptPath -PathType Leaf)) {
-    throw 'Writer handoff receipt is missing'
+  if (-not (Test-Path -LiteralPath $WriterLeasePath -PathType Leaf)) {
+    throw 'Writer lease receipt is missing'
   }
-  $actualWriterHandoffSha256 =
-    (Get-FileHash -Algorithm SHA256 -LiteralPath $WriterHandoffReceiptPath).Hash.ToLowerInvariant()
-  if ($actualWriterHandoffSha256 -ne $ExpectedWriterHandoffSha256.ToLowerInvariant()) {
-    throw 'Writer handoff receipt SHA256 does not match the host-provided identity'
+  if (-not (Test-Path -LiteralPath $IntakeManifestPath -PathType Leaf)) {
+    throw 'V6 intake manifest is missing'
   }
-  $handoffReceipt = Get-Content -Raw -LiteralPath $WriterHandoffReceiptPath | ConvertFrom-Json
+  if (-not (Test-Path -LiteralPath $BuildReceiptPath -PathType Leaf)) {
+    throw 'V6 build-seal receipt is missing'
+  }
+  $actualIntakeManifestSha256 =
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $IntakeManifestPath).Hash.ToLowerInvariant()
+  if ($actualIntakeManifestSha256 -ne $ExpectedIntakeManifestSha256.ToLowerInvariant()) {
+    throw 'V6 intake manifest SHA256 does not match the contract-owner packet'
+  }
+  $intakeManifest = Get-Content -Raw -LiteralPath $IntakeManifestPath | ConvertFrom-Json
   if (
-    $handoffReceipt.schema -ne 'opl_vm_writer_release.v1' -or
-    $handoffReceipt.vmx_storage_class -ne 'external_ssd' -or
-    $handoffReceipt.vm_identity -ne $VmIdentity -or
-    $handoffReceipt.previous_owner_task_id -ne $PreviousWriterTaskId -or
-    $handoffReceipt.receipt_id -ne $WriterHandoffReceiptId -or
-    ([datetime]$handoffReceipt.released_at).ToUniversalTime() -ne $WriterReleasedAt.ToUniversalTime()
+    $intakeManifest.schema -ne 'opl_windows_wsl2_v6_intake_manifest.v1' -or
+    $intakeManifest.validation_state -ne 'validation_only_non_binding' -or
+    $intakeManifest.authority -ne 'one_person_lab_app_acceptance_contract' -or
+    $intakeManifest.target.host_platform -ne 'windows_hyperv' -or
+    $intakeManifest.target.vm_name -ne 'OPL-V6-WSL2-01' -or
+    $intakeManifest.target.validation_root -ne $approvedRoot -or
+    $intakeManifest.source_refs.app_acceptance_sha -ne $AppSha.ToLowerInvariant() -or
+    $intakeManifest.source_refs.shell.git_sha -ne $ShellSha.ToLowerInvariant() -or
+    $intakeManifest.source_refs.framework_fixture_sha -ne $FrameworkSha.ToLowerInvariant()
   ) {
-    throw 'Writer handoff receipt does not match the authorized VM lease'
+    throw 'V6 intake manifest does not match the authorized source packet'
   }
-  $receipt.vm.writer_handoff.receipt_sha256 = $actualWriterHandoffSha256
+  $actualBuildReceiptSha256 =
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $BuildReceiptPath).Hash.ToLowerInvariant()
+  if ($actualBuildReceiptSha256 -ne $ExpectedBuildReceiptSha256.ToLowerInvariant()) {
+    throw 'V6 build-seal receipt SHA256 does not match the host-provided identity'
+  }
+  $buildReceipt = Get-Content -Raw -LiteralPath $BuildReceiptPath | ConvertFrom-Json
+  if (
+    $buildReceipt.schema -ne 'opl_windows_wsl2_v6_build_seal.v1' -or
+    $buildReceipt.status -ne 'sealed' -or
+    $buildReceipt.receipt_stage -ne 'candidate_sealed_pending_guest_smoke' -or
+    $buildReceipt.terminal_v6_verdict -ne $false -or
+    $buildReceipt.packet.intake_manifest_sha256 -ne $actualIntakeManifestSha256 -or
+    $buildReceipt.packet.writer_lease_sha256 -ne
+      $ExpectedWriterLeaseSha256.ToLowerInvariant() -or
+    $buildReceipt.packet.vm_identity -ne $VmIdentity -or
+    $buildReceipt.source_refs.app_acceptance_sha -ne $AppSha.ToLowerInvariant() -or
+    $buildReceipt.source_refs.shell_sha -ne $ShellSha.ToLowerInvariant() -or
+    $buildReceipt.source_refs.framework_fixture_sha -ne $FrameworkSha.ToLowerInvariant() -or
+    $buildReceipt.artifact.sha256 -ne $ExpectedArtifactSha256.ToLowerInvariant() -or
+    $buildReceipt.artifact.file_name -ne 'OPL-Windows-WSL2-Validation-v6.zip'
+  ) {
+    throw 'V6 build-seal receipt does not bind the authorized packet and artifact'
+  }
+  $actualWriterLeaseSha256 =
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $WriterLeasePath).Hash.ToLowerInvariant()
+  if ($actualWriterLeaseSha256 -ne $ExpectedWriterLeaseSha256.ToLowerInvariant()) {
+    throw 'Writer lease receipt SHA256 does not match the host-provided identity'
+  }
+  $writerLease = Get-Content -Raw -LiteralPath $WriterLeasePath | ConvertFrom-Json
+  if (
+    $writerLease.schema -ne 'opl_windows_v6_vm_writer_lease.v1' -or
+    $writerLease.status -ne 'active' -or
+    $writerLease.host_platform -ne 'windows_hyperv' -or
+    $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
+    $writerLease.vm_identity -ne $VmIdentity -or
+    $writerLease.platform_owner_task_id -ne $PlatformOwnerTaskId -or
+    $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
+    $writerLease.lease_id -ne $WriterLeaseId -or
+    ([datetime]$writerLease.issued_at).ToUniversalTime() -ne
+      $WriterLeaseIssuedAt.ToUniversalTime() -or
+    ([datetime]$writerLease.expires_at).ToUniversalTime() -ne
+      $WriterLeaseExpiresAt.ToUniversalTime() -or
+    $writerLease.allowed_operations -notcontains 'v6_build_seal' -or
+    $writerLease.allowed_operations -notcontains 'v6_guest_visible_smoke' -or
+    $writerLease.allowed_operations -notcontains 'v6_soft_shutdown'
+  ) {
+    throw 'Writer lease receipt does not match the authorized VM lease'
+  }
+  $receipt.vm.writer_lease.receipt_sha256 = $actualWriterLeaseSha256
   $expandedArtifact = Expand-VerifiedCandidateZip `
     -ZipPath $CandidateZipPath `
     -DestinationRoot $runCandidateRoot `
@@ -1488,10 +1563,17 @@ public static class OplValidationNativeWindow
     throw 'Verified ZIP expansion does not contain the candidate executable'
   }
   $executableSha256 = $expandedArtifact.executable_sha256
-  if ($executableSha256 -ne $approvedExecutableSha256) {
-    throw 'Extracted executable is not the approved V6 candidate executable'
+  if ($executableSha256 -ne $buildReceipt.artifact.executable_sha256) {
+    throw 'Extracted executable does not match the build-seal receipt'
   }
   $candidateTreeIdentity = Get-CandidateTreeIdentity -RootPath $runCandidateRoot
+  if (
+    [int64]$buildReceipt.artifact.size_bytes -ne [int64]$expandedArtifact.size_bytes -or
+    [int]$buildReceipt.artifact.tree_file_count -ne [int]$candidateTreeIdentity.file_count -or
+    $buildReceipt.artifact.tree_sha256 -ne $candidateTreeIdentity.sha256
+  ) {
+    throw 'Verified ZIP expansion does not match the build-seal tree identity'
+  }
   $receipt.artifact.executable_sha256 = $executableSha256
   $receipt.artifact.zip_entry_sha256_matches = $true
   $receipt.artifact.tree_origin = 'verified_zip_expansion'

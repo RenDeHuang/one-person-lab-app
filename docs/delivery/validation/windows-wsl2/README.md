@@ -45,46 +45,96 @@ identity, AionCore health, direct Codex App Server, and read-only Framework
 state. ACP, authenticated bootstrap, and WebSocket conversation remain clearly
 `unverified` or `unavailable` and must not appear as usable chat.
 
-Before a V6 run that needs guest writes, the current external-SSD VM owner must
-release its single-writer authority. Do not use the historical internal-disk VM
-for large writes, clone or expand a VM, prune Docker, globally shut down WSL, or
-delete `OnePersonLab`/unknown Docker state. The resulting receipt records the
-artifact and gate, external VM identity, guest-writer handoff/release, bounded
-status outcomes, and a sanitized visible-state proof; it does not retain
-credentials, endpoints, complete state payloads, thread/prompt bodies, or raw
-logs.
+The only V6 executor is task
+`019f97e4-288a-7140-8850-925c657d8c71` on the Windows Hyper-V VM
+`OPL-V6-WSL2-01` (`host_platform=windows_hyperv`). It may enter the VM only
+after the Windows platform owner has
+issued an active writer lease matching
+[`windows-wsl2-v6-writer-lease.schema.json`](windows-wsl2-v6-writer-lease.schema.json).
+The lease binds the exact Hyper-V VM ID, executor, clean-VM attestation,
+operations, and validity window. A password, an old VM handoff, or ownership of
+historical bytes is not a writer lease.
 
-The only approved V6 candidate identity is:
+The source-bound V6 identity is:
 
 | Item | Exact identity |
 | --- | --- |
-| Windows ZIP | `OPL-Windows-WSL2-Validation-v6.zip` |
-| ZIP SHA256 | `3b126175f77cad7c0b1ddc83f2008d2102539cef29f87dfd839ee70be86df9dd` |
-| ZIP executable SHA256 | `60b86b47b4557e51e12d6d1f687f1544f420841356cdf1d6bae8523a6ebf6c42` |
+| App acceptance source | `source_refs.app_acceptance_sha` in the immutable intake manifest |
 | Shell candidate source | `868d6e818583547a5ec982b10b34464a3fa47c10` |
+| Shell root tree | `1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7` |
+| Shell validation subtree | `6f8519a26c3075f8b252c79a81e42f328c6efbb8` |
+| Shell `bun.lock` SHA256 | `8975e67539a778ef9058419d990646b21ce35757d4cdaf45e0b101e4ce3cff7b` |
 | Guest Framework fixture | `fe1fafa26f2c59922596718b305761bbc7558c9c` |
-| Guest ZIP path | `C:\Users\oplrunner\OnePersonLabValidation\20260725-wsl2-v6\OPL-Windows-WSL2-Validation-v6.zip` |
+| Windows VM | `OPL-V6-WSL2-01` with identity `hyperv-vmid:<VM-ID>` |
+| Validation root | `C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1` |
+| Sealed ZIP | `OPL-Windows-WSL2-Validation-v6.zip`, identity created by the build-seal receipt |
 
-The App SHA in a receipt identifies the acceptance runner and docs revision
-used for that run; it is not claimed to be embedded in the Shell-built ZIP.
+The App SHA identifies the acceptance source revision and is not claimed to be
+embedded in the Shell-built ZIP. The historical Intel-VM ZIP SHA256
+`3b126175...9dd` and executable SHA256 `60b86b47...f6c42` are provenance only.
+ZIP timestamps, Bun/Node versions, cache state, and compression inputs were not
+fully pinned, so those historical digests are not the acceptance authority for
+a fresh Windows build.
 
 ## Fixtures
 
 `fixtures/` contains disposable validation-only scripts. They do not implement
 an App, Shell, Framework, AionCore, installer, or release route.
 
-The eleven committed PowerShell fixtures include the V0-V3 probes and the V6
-visible-smoke runner; `v6-host-closeout.mjs` is a host-only finalizer.
+The committed PowerShell fixtures include the V0-V3 probes, the V6 source
+builder/sealer, and the V6 visible-smoke runner. `v6-materialize-intake.mjs`
+creates the immutable source packet and `v6-host-closeout.mjs` is the Hyper-V
+host finalizer.
+The packet and receipts are validated against:
+
+- [`windows-wsl2-v6-intake-manifest.schema.json`](windows-wsl2-v6-intake-manifest.schema.json);
+- [`windows-wsl2-v6-build-seal.schema.json`](windows-wsl2-v6-build-seal.schema.json);
+- [`windows-wsl2-v6-writer-lease.schema.json`](windows-wsl2-v6-writer-lease.schema.json);
+- [`windows-wsl2-v6-receipt.schema.json`](windows-wsl2-v6-receipt.schema.json); and
+- [`windows-wsl2-v6-host-closeout.schema.json`](windows-wsl2-v6-host-closeout.schema.json).
+
 Previously executed PowerShell fixtures were parsed in the Windows guest with
 `System.Management.Automation.Language.Parser::ParseFile`; a new or changed
 fixture still requires a zero-error target-Windows parse before its result can
 be accepted.
 
+From a clean checkout at the exact App acceptance commit, create the packet
+once:
+
+```powershell
+node .\docs\delivery\validation\windows-wsl2\fixtures\v6-materialize-intake.mjs `
+  --app-sha <APP_ACCEPTANCE_SHA> `
+  --output-dir C:\v6-packet
+Get-FileHash -Algorithm SHA256 `
+  C:\v6-packet\windows-wsl2-v6-intake-manifest.json
+```
+
+Copy those nine create-once files without changing their bytes into the empty
+validation root. The platform owner then writes `writer-lease.json`; record its
+SHA256 and run:
+
+```powershell
+.\v6-build-seal.ps1 `
+  -ExpectedIntakeManifestSha256 <INTAKE_MANIFEST_SHA256> `
+  -ExpectedWriterLeaseSha256 <WRITER_LEASE_SHA256>
+```
+
+The build seal uses a fresh detached Shell checkout, validates its commit,
+tree, lock and harness inputs, runs frozen install plus the focused tests,
+builds the x64 ZIP target, and creates
+`v6-build-seal-receipt.json`. The receipt records the exact Windows build,
+Git/Bun/Node and builder tools, environment evidence, commands and logs, ZIP,
+executable, `app.asar`, expanded tree, and file count. It identifies that
+specific build; source equality alone does not predict its ZIP digest.
+
 Run
 [`fixtures/v6-electron-visible-smoke.ps1`](fixtures/v6-electron-visible-smoke.ps1)
-only after the external-SSD VM owner has issued an explicit writer-release
-receipt. It verifies that fixed-path JSON receipt and its SHA, validates the
-exact candidate ZIP digest, keeps the same read-only archive stream locked
+twice under the same active lease and build receipt, first with
+`-ExpectedPhase stopped` and a distinct stopped `-RunId`, then with
+`-ExpectedPhase running` and a distinct running `-RunId`. Supply the exact
+App/Shell/Framework refs, manifest/build/lease/ZIP digests, VM identity, lease
+ID and times on both commands. The runner verifies those fixed-path receipts,
+validates the exact sealed ZIP digest, keeps the same read-only archive stream locked
 against writers while rejecting zip-slip and duplicate paths and expanding
 into the current `RunId` directory, then launches only that run-owned tree.
 The runner holds read handles that deny writes and deletion across every
@@ -98,12 +148,10 @@ process tree owned by that launch, removes only the run-owned expansion, and
 compares WSL state before and after. It does not start, stop, import, unregister,
 or adopt a WSL distribution and never calls Docker.
 
-The writer handoff must exist both as the fixed guest JSON consumed by the
-runner and as an authoritative host receipt. Its host bytes bind the exact
-external-SSD VMX canonical path and SHA, VMware BIOS UUID, external volume UUID,
-previous owner, next owner, receipt ID, and release time. The guest runner also
-requires the host-provided handoff SHA256; comparing caller-supplied fields
-alone is insufficient.
+The runner writes each receipt and screenshot under
+`<validation-root>\evidence\<RunId>\`. A `passed` guest receipt is still
+non-terminal and keeps `writer_release.status=pending_host_soft_shutdown`.
+It cannot release the writer or claim a product verdict.
 
 The sanitized output must match
 [`windows-wsl2-v6-receipt.schema.json`](windows-wsl2-v6-receipt.schema.json).
@@ -117,10 +165,10 @@ After distinct stopped and running runs pass, use
 [`fixtures/v6-host-closeout.mjs`](fixtures/v6-host-closeout.mjs). It validates
 both guest receipts with Draft 2020-12 JSON Schema, binds their receipt,
 screenshot, and identical stopped/running tree identities to the same artifact,
-source refs, VM identity, and writer handoff, verifies the VMX on the expected
-external SSD, requests only a bounded
-VMware soft shutdown, and waits for both `vmrun list` and the `vmware-vmx`
-process readback to clear. Only then may it write
+source refs, Hyper-V VM identity, active writer lease, intake manifest, and
+build-seal receipt. It queries `Get-VM`, requests only
+`Stop-VM -Shutdown`, and waits for the exact VM ID to read back `State=Off`.
+Only then may it write
 [`windows-wsl2-v6-host-closeout.schema.json`](windows-wsl2-v6-host-closeout.schema.json)
 evidence with `terminal_v6_verdict=true` and a released writer receipt. A soft
 shutdown timeout is a failed closeout; hard power-off cannot be substituted.

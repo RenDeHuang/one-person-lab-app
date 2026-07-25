@@ -18,12 +18,29 @@ const validationRoot = path.join(
 );
 const fixtureRoot = path.join(validationRoot, 'fixtures');
 const runnerPath = path.join(fixtureRoot, 'v6-electron-visible-smoke.ps1');
-const schemaPath = path.join(validationRoot, 'windows-wsl2-v6-receipt.schema.json');
+const buildSealPath = path.join(fixtureRoot, 'v6-build-seal.ps1');
+const materializePath = path.join(fixtureRoot, 'v6-materialize-intake.mjs');
+const hostCloseoutPath = path.join(fixtureRoot, 'v6-host-closeout.mjs');
+const guestSchemaPath = path.join(
+  validationRoot,
+  'windows-wsl2-v6-receipt.schema.json',
+);
+const intakeSchemaPath = path.join(
+  validationRoot,
+  'windows-wsl2-v6-intake-manifest.schema.json',
+);
+const buildSchemaPath = path.join(
+  validationRoot,
+  'windows-wsl2-v6-build-seal.schema.json',
+);
+const leaseSchemaPath = path.join(
+  validationRoot,
+  'windows-wsl2-v6-writer-lease.schema.json',
+);
 const hostSchemaPath = path.join(
   validationRoot,
   'windows-wsl2-v6-host-closeout.schema.json',
 );
-const hostCloseoutPath = path.join(fixtureRoot, 'v6-host-closeout.mjs');
 const readmePath = path.join(validationRoot, 'README.md');
 const planPath = path.join(
   appRoot,
@@ -31,194 +48,19 @@ const planPath = path.join(
   'architecture',
   'windows-wsl2-execution-validation-plan.md',
 );
-const pwshPath = findPwsh();
 
 function findPwsh() {
-  if (process.env.PWSH) {
-    return process.env.PWSH;
-  }
+  if (process.env.PWSH) return process.env.PWSH;
   const result = spawnSync('/bin/sh', ['-lc', 'command -v pwsh'], {
     encoding: 'utf8',
   });
   return result.status === 0 ? result.stdout.trim() : '';
 }
 
+const pwshPath = findPwsh();
+
 function sha256File(filePath: string) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-function makeGuestReceipt({
-  phase = 'running',
-  status = 'passed',
-  runId = `v6-${phase}`,
-  artifactSha = 'a'.repeat(64),
-  handoffSha = 'b'.repeat(64),
-  screenshotSha = 'c'.repeat(64),
-  appSha = '1'.repeat(40),
-  shellSha = '2'.repeat(40),
-  frameworkSha = '3'.repeat(40),
-  vmIdentity = `vmware-bios:${'4'.repeat(32)}`,
-  treeSha = 'e'.repeat(64),
-  treeFileCount = 42,
-} = {}) {
-  const passed = status === 'passed';
-  const blocked = status === 'blocked';
-  const guestState = phase === 'stopped' ? 'unavailable' : 'observed';
-  const receipt: any = {
-    schema: 'opl_windows_wsl2_v6_visible_smoke.v1',
-    validation_state: 'validation_only_non_binding',
-    assessment_scope: 'status_projection_only',
-    receipt_stage: 'guest_smoke_pending_host_closeout',
-    terminal_v6_verdict: false,
-    status,
-    run_id: runId,
-    expected_phase: phase,
-    observed_at: '2026-07-25T00:00:00.000Z',
-    app_sha: appSha,
-    shell_sha: shellSha,
-    framework_sha: frameworkSha,
-    artifact: {
-      sha256: artifactSha,
-      executable_sha256: passed ? 'd'.repeat(64) : null,
-      zip_entry_sha256_matches: passed,
-      tree_origin: passed ? 'verified_zip_expansion' : 'pending',
-      tree_sha256: passed ? treeSha : null,
-      tree_file_count: passed ? treeFileCount : null,
-      tree_write_locks_held: passed,
-      tree_unchanged_after_process_exit: passed,
-      source_ref_binding: 'operator_recorded_not_embedded',
-      size_bytes: passed ? 1024 : null,
-      zip_file_name: 'OPL-Windows-WSL2-Validation-v6.zip',
-      executable_file_name: 'OPL Windows WSL2 Validation.exe',
-      gate_environment: 'OPL_WINDOWS_WSL2_VALIDATION=1',
-    },
-    vm: {
-      identity: vmIdentity,
-      storage_class: 'external_ssd',
-      external_ssd: true,
-      writer_handoff: {
-        previous_owner_task_id: '019f91db-b1d4-7011-9429-6694cf3b3224',
-        receipt_id: 'webui-to-v6',
-        released_at: '2026-07-25T00:00:00.000Z',
-        receipt_sha256: passed ? handoffSha : null,
-      },
-      writer_release: {
-        status: 'pending_host_soft_shutdown',
-        receipt_id: null,
-        released_at: null,
-      },
-    },
-    preflight: {
-      windows_build: '10.0.26100.0',
-      windows_x64: passed,
-      artifact_path_identity: passed ? 'approved_exact_path' : 'pending',
-      artifact_sha256_matches: passed,
-      no_residual_candidate_processes: passed,
-      wsl_inventory_readable: passed,
-      wsl_version: passed ? 'WSL version: 2.5.10.0' : null,
-      default_distro: passed ? 'OPL-Validation-g0001' : null,
-      validation_distro: 'OPL-Validation-g0001',
-      validation_distro_state: passed
-        ? phase === 'stopped'
-          ? 'Stopped'
-          : 'Running'
-        : null,
-      validation_distro_version: passed ? 2 : null,
-      expected_phase_matches: passed,
-      docker_desktop_state: passed ? 'Stopped' : null,
-      protected_onepersonlab_present: passed,
-      protected_onepersonlab_watch_active: passed,
-    },
-    visible_window: {
-      observed: passed,
-      title: 'OPL Windows WSL2 Validation',
-      process_id: passed ? 4312 : null,
-      main_window_handle_observed: passed,
-      ui_automation_document_observed: passed,
-      ui_automation_root_type: passed ? 'document' : null,
-      refresh_button_name: passed ? 'Refresh' : null,
-      refresh_invoked: passed,
-      refresh_disabled_observed: passed,
-      status_group_order: [
-        'guest_identity',
-        'aioncore_health',
-        'direct_codex_app_server',
-        'framework_state',
-      ],
-    },
-    status_groups: {
-      guest_identity: {
-        projection_result: passed ? 'passed' : 'not_observed',
-        visible_state: passed ? guestState : null,
-        capability_verification: 'identity_only',
-      },
-      aioncore_health: {
-        projection_result: passed ? 'passed' : 'not_observed',
-        visible_state: passed ? 'unavailable' : null,
-        capability_verification: 'unverified_or_unavailable',
-      },
-      direct_codex_app_server: {
-        projection_result: passed ? 'passed' : 'not_observed',
-        visible_state: passed ? 'unavailable' : null,
-        capability_verification: 'unverified_or_unavailable',
-      },
-      framework_state: {
-        projection_result: passed ? 'passed' : 'not_observed',
-        visible_state: passed ? 'unavailable' : null,
-        capability_verification: 'unverified_or_unavailable',
-      },
-    },
-    negative_boundaries: {
-      validation_gate_visible: passed,
-      only_refresh_button: passed,
-      edit_control_count: passed ? 0 : null,
-      hyperlink_control_count: passed ? 0 : null,
-      forbidden_command_control_count: passed ? 0 : null,
-      acp_visible_as_unavailable: passed,
-      authentication_visible_as_unavailable: passed,
-      websocket_visible_as_unavailable: passed,
-      forbidden_ready_states_absent: passed,
-      status: passed ? 'passed' : 'not_observed',
-    },
-    process_cleanup: {
-      launched_root_pid: passed ? 4312 : status === 'failed' ? 4312 : null,
-      tracked_pids: passed || status === 'failed' ? [4312] : [],
-      close_requested: passed,
-      forced_cleanup: false,
-      inventory_readable: passed,
-      wsl_survivor_count: passed ? 0 : null,
-      candidate_tree_removed: passed,
-      survivor_count: passed ? 0 : null,
-      status: passed ? 'passed' : 'not_run',
-    },
-    post_readback: {
-      default_distro_unchanged: passed,
-      docker_desktop_state_unchanged: passed,
-      validation_distro_state_unchanged: passed,
-      protected_onepersonlab_present_before: passed,
-      protected_onepersonlab_present_after: passed,
-      protected_onepersonlab_presence_unchanged: passed,
-      protected_onepersonlab_mutation_event_count: passed ? 0 : null,
-      protected_onepersonlab_watch_overflow_count: passed ? 0 : null,
-      protected_onepersonlab_no_mutation_events_observed: passed,
-      validation_distro_state_samples: passed
-        ? Array(4).fill(phase === 'stopped' ? 'Stopped' : 'Running')
-        : status === 'failed'
-          ? ['Running']
-          : [],
-      status: passed ? 'passed' : 'not_run',
-    },
-    screenshot: {
-      sha256: passed ? screenshotSha : null,
-      width: passed ? 1280 : null,
-      height: passed ? 800 : null,
-      format: 'png',
-      target_window_only: true,
-    },
-    blocked_or_unavailable_items: ['managed_acp_unverified'],
-    error: passed ? null : blocked ? 'preflight blocked' : 'postlaunch failed',
-  };
-  return receipt;
 }
 
 function compileSchema(schemaFile: string) {
@@ -231,368 +73,608 @@ function compileSchema(schemaFile: string) {
   return ajv.compile(JSON.parse(fs.readFileSync(schemaFile, 'utf8')));
 }
 
-test('V6 Windows Electron smoke runner is exact, visible, and cleanup-bounded', () => {
+function writeJson(filePath: string, value: unknown) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+const refs = {
+  appSha: '1'.repeat(40),
+  shellSha: '868d6e818583547a5ec982b10b34464a3fa47c10',
+  frameworkSha: 'fe1fafa26f2c59922596718b305761bbc7558c9c',
+};
+const vmId = '11111111-2222-3333-4444-555555555555';
+const vmIdentity = `hyperv-vmid:${vmId}`;
+const leaseId = 'v6-lease-20260725-01';
+const leaseTimes = {
+  issuedAt: '2026-07-25T00:00:00.000Z',
+  expiresAt: '2026-07-25T23:59:59.000Z',
+};
+
+function makeLease() {
+  return {
+    schema: 'opl_windows_v6_vm_writer_lease.v1',
+    status: 'active',
+    host_platform: 'windows_hyperv',
+    vm_name: 'OPL-V6-WSL2-01',
+    vm_identity: vmIdentity,
+    platform_owner_task_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
+    lease_id: leaseId,
+    issued_at: leaseTimes.issuedAt,
+    expires_at: leaseTimes.expiresAt,
+    allowed_operations: [
+      'v6_build_seal',
+      'v6_guest_visible_smoke',
+      'v6_soft_shutdown',
+    ],
+    clean_vm_attestation: {
+      status: 'attested',
+      vm_id: vmId,
+      checkpoint_id: 'checkpoint-v6-clean-01',
+      attested_at: leaseTimes.issuedAt,
+    },
+  };
+}
+
+function makeIntakeManifest() {
+  return {
+    schema: 'opl_windows_wsl2_v6_intake_manifest.v1',
+    validation_state: 'validation_only_non_binding',
+    authority: 'one_person_lab_app_acceptance_contract',
+    terminal_v6_verdict: false,
+    target: {
+      host_platform: 'windows_hyperv',
+      vm_name: 'OPL-V6-WSL2-01',
+      validation_root:
+        'C:\\Users\\Public\\Documents\\OnePersonLabValidation\\windows-wsl2-v6-v1',
+      clean_vm_required: true,
+      platform_owner_writer_lease_required: true,
+    },
+    source_refs: {
+      app_acceptance_sha: refs.appSha,
+      app_acceptance_tree_sha: '2'.repeat(40),
+      app_repository: 'https://github.com/gaofeng21cn/one-person-lab-app.git',
+      shell: {
+        repository: 'https://github.com/gaofeng21cn/opl-aion-shell.git',
+        git_sha: refs.shellSha,
+        root_tree_sha: '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7',
+        validation_tree_sha: '6f8519a26c3075f8b252c79a81e42f328c6efbb8',
+        bun_lock_sha256:
+          '8975e67539a778ef9058419d990646b21ce35757d4cdaf45e0b101e4ce3cff7b',
+        build_script_sha256:
+          '5d1511a89038ca583bceb27881c8f025ce1575b0f0059535145382894c0cd381',
+        harness_package_sha256:
+          '0a12c4887a746e465978ced9439cdef6f9a7a994c94e43bd0c5f1208f64737c5',
+      },
+      framework_fixture_sha: refs.frameworkSha,
+    },
+    toolchain_contract: {
+      node_range: '>=22 <25',
+      electron_version: '37.10.3',
+      electron_builder_manifest_range: '^26.6.0',
+      electron_builder_lock_version: '26.8.1',
+      package_manager: 'bun',
+      package_install_argv: ['install', '--frozen-lockfile', '--ignore-scripts'],
+      focused_test_script: 'test:windows:wsl2:validation',
+      build_script: 'build:windows:wsl2:validation',
+      builder_override_policy: 'all_overrides_must_be_absent',
+      output_policy: 'fresh_unique_checkout_and_output_absent',
+    },
+    artifact_contract: {
+      source_zip_relative_path:
+        'out/windows-wsl2-validation/OPL Windows WSL2 Validation-0.0.0-validation.0-win.zip',
+      source_executable_relative_path:
+        'out/windows-wsl2-validation/win-unpacked/OPL Windows WSL2 Validation.exe',
+      sealed_zip_file_name: 'OPL-Windows-WSL2-Validation-v6.zip',
+      root_executable_file_name: 'OPL Windows WSL2 Validation.exe',
+      identity_authority: 'create_once_build_seal_receipt',
+      historical_zip_sha256_authoritative: false,
+    },
+    execution_contract: {
+      phases: ['stopped', 'running'],
+      distinct_run_ids_required: true,
+      same_build_receipt_required: true,
+      same_zip_and_tree_identity_required: true,
+      target_window_screenshot_required: true,
+      candidate_process_survivor_count: 0,
+      wsl_process_survivor_count: 0,
+      host_soft_shutdown_required: true,
+      powered_off_readback_required: true,
+    },
+    prohibited_operations: [
+      'legacy_imac_vm_execution',
+      'docker_prune',
+      'global_wsl_shutdown',
+      'wsl_unregister',
+      'hard_vm_poweroff_as_pass',
+      'public_release_or_promotion',
+    ],
+    packet_files: Array.from({ length: 8 }, (_, index) => ({
+      file_name: `packet-${index + 1}.json`,
+      role: 'contract-fixture',
+      size_bytes: 10,
+      sha256: `${index + 1}`.repeat(64).slice(0, 64),
+    })),
+  };
+}
+
+function makeBuildReceipt({
+  intakeManifestSha256,
+  writerLeaseSha256,
+  artifactSha256,
+  treeSha = 'e'.repeat(64),
+} : {
+  intakeManifestSha256: string;
+  writerLeaseSha256: string;
+  artifactSha256: string;
+  treeSha?: string;
+}) {
+  const tool = {
+    version: 'test',
+    path: 'C:\\tools\\tool.exe',
+    sha256: 'a'.repeat(64),
+  };
+  const command = (label: string) => ({
+    label,
+    executable: 'C:\\tools\\bun.exe',
+    executable_sha256: 'b'.repeat(64),
+    argv: ['bun', label],
+    working_directory: 'C:\\build',
+    started_at: leaseTimes.issuedAt,
+    finished_at: '2026-07-25T00:01:00.000Z',
+    exit_code: 0,
+    log_file_name: `${label}.log`,
+    log_sha256: 'c'.repeat(64),
+  });
+  return {
+    schema: 'opl_windows_wsl2_v6_build_seal.v1',
+    validation_state: 'validation_only_non_binding',
+    receipt_stage: 'candidate_sealed_pending_guest_smoke',
+    terminal_v6_verdict: false,
+    status: 'sealed',
+    receipt_id: 'windows-v6-build-seal-v1',
+    sealed_at: '2026-07-25T00:01:00.000Z',
+    packet: {
+      intake_manifest_sha256: intakeManifestSha256,
+      app_acceptance_sha: refs.appSha,
+      writer_lease_sha256: writerLeaseSha256,
+      vm_identity: vmIdentity,
+    },
+    source_refs: {
+      app_acceptance_sha: refs.appSha,
+      shell_sha: refs.shellSha,
+      shell_tree_sha: '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7',
+      framework_fixture_sha: refs.frameworkSha,
+    },
+    checkout: {
+      repository: 'https://github.com/gaofeng21cn/opl-aion-shell.git',
+      head_sha: refs.shellSha,
+      root_tree_sha: '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7',
+      clean: true,
+      output_absent_before_build: true,
+    },
+    toolchain: {
+      windows_build: '10.0.26100.0',
+      windows_architecture: 'X64',
+      powershell_version: '5.1.26100.1',
+      git: tool,
+      bun: tool,
+      node: tool,
+      dependency_versions: {
+        electron: '37.10.3',
+        electron_builder: '26.8.1',
+        app_builder_lib: '26.8.1',
+        builder_util: '26.8.1',
+        seven_zip_bin: '5.2.0',
+        app_builder_bin: '5.0.0-alpha.12',
+      },
+      electron_builder_cli: { path: 'C:\\tools\\builder.js', sha256: 'd'.repeat(64) },
+      seven_zip: { path: 'C:\\tools\\7za.exe', sha256: 'f'.repeat(64) },
+      app_builder: { path: 'C:\\tools\\app-builder.exe', sha256: '1'.repeat(64) },
+      overrides_absent: true,
+      environment: {
+        ...Object.fromEntries(
+          [
+            'CI',
+            'OPL_ELECTRON_BUILDER_CLI',
+            'OPL_WINDOWS_WSL2_ELECTRON_DIST',
+            'USE_SYSTEM_7ZA',
+            'ELECTRON_BUILDER_COMPRESSION_LEVEL',
+            'ELECTRON_MIRROR',
+            'ELECTRON_CACHE',
+            'HTTP_PROXY',
+            'HTTPS_PROXY',
+            'NO_PROXY',
+          ].map((name) => [name, { present: false, value_sha256: null }]),
+        ),
+        timezone_id: 'UTC',
+        culture_name: 'en-US',
+      },
+    },
+    commands: [
+      'git-clone',
+      'git-checkout',
+      'bun-install',
+      'focused-test',
+      'candidate-build',
+    ].map(command),
+    artifact: {
+      file_name: 'OPL-Windows-WSL2-Validation-v6.zip',
+      sha256: artifactSha256,
+      size_bytes: 1024,
+      executable_sha256: '2'.repeat(64),
+      app_asar_sha256: '3'.repeat(64),
+      zip_entry_manifest_sha256: '4'.repeat(64),
+      tree_sha256: treeSha,
+      tree_file_count: 42,
+    },
+    error: null,
+  };
+}
+
+function makeGuestReceipt({
+  phase,
+  artifactSha256,
+  intakeManifestSha256,
+  buildReceiptSha256,
+  writerLeaseSha256,
+  screenshotSha256,
+  treeSha = 'e'.repeat(64),
+}: {
+  phase: 'stopped' | 'running';
+  artifactSha256: string;
+  intakeManifestSha256: string;
+  buildReceiptSha256: string;
+  writerLeaseSha256: string;
+  screenshotSha256: string;
+  treeSha?: string;
+}) {
+  const passed = true;
+  return {
+    schema: 'opl_windows_wsl2_v6_visible_smoke.v1',
+    validation_state: 'validation_only_non_binding',
+    assessment_scope: 'status_projection_only',
+    receipt_stage: 'guest_smoke_pending_host_closeout',
+    terminal_v6_verdict: false,
+    status: 'passed',
+    run_id: `v6-${phase}-01`,
+    expected_phase: phase,
+    observed_at: '2026-07-25T00:02:00.000Z',
+    app_sha: refs.appSha,
+    shell_sha: refs.shellSha,
+    framework_sha: refs.frameworkSha,
+    artifact: {
+      sha256: artifactSha256,
+      intake_manifest_sha256: intakeManifestSha256,
+      build_receipt_sha256: buildReceiptSha256,
+      executable_sha256: '2'.repeat(64),
+      zip_entry_sha256_matches: true,
+      tree_origin: 'verified_zip_expansion',
+      tree_sha256: treeSha,
+      tree_file_count: 42,
+      tree_write_locks_held: true,
+      tree_unchanged_after_process_exit: true,
+      source_ref_binding: 'sealed_from_exact_source_packet',
+      size_bytes: 1024,
+      zip_file_name: 'OPL-Windows-WSL2-Validation-v6.zip',
+      executable_file_name: 'OPL Windows WSL2 Validation.exe',
+      gate_environment: 'OPL_WINDOWS_WSL2_VALIDATION=1',
+    },
+    vm: {
+      identity: vmIdentity,
+      host_platform: 'windows_hyperv',
+      vm_name: 'OPL-V6-WSL2-01',
+      writer_lease: {
+        platform_owner_task_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
+        lease_id: leaseId,
+        issued_at: leaseTimes.issuedAt,
+        expires_at: leaseTimes.expiresAt,
+        receipt_sha256: writerLeaseSha256,
+      },
+      writer_release: {
+        status: 'pending_host_soft_shutdown',
+        receipt_id: null,
+        released_at: null,
+      },
+    },
+    preflight: {
+      windows_build: '10.0.26100.0',
+      windows_x64: true,
+      artifact_path_identity: 'approved_exact_path',
+      artifact_sha256_matches: true,
+      no_residual_candidate_processes: true,
+      wsl_inventory_readable: true,
+      wsl_version: 'WSL version: 2.5.10.0',
+      default_distro: 'docker-desktop',
+      validation_distro: 'OPL-Validation-g0001',
+      validation_distro_state: phase === 'stopped' ? 'Stopped' : 'Running',
+      validation_distro_version: 2,
+      expected_phase_matches: true,
+      docker_desktop_state: 'Stopped',
+      protected_onepersonlab_present: true,
+      protected_onepersonlab_watch_active: true,
+    },
+    visible_window: {
+      observed: true,
+      title: 'OPL Windows WSL2 Validation',
+      process_id: 4312,
+      main_window_handle_observed: true,
+      ui_automation_document_observed: true,
+      ui_automation_root_type: 'document',
+      refresh_button_name: 'Refresh',
+      refresh_invoked: true,
+      refresh_disabled_observed: true,
+      status_group_order: [
+        'guest_identity',
+        'aioncore_health',
+        'direct_codex_app_server',
+        'framework_state',
+      ],
+    },
+    status_groups: {
+      guest_identity: {
+        projection_result: 'passed',
+        visible_state: phase === 'stopped' ? 'unavailable' : 'observed',
+        capability_verification: 'identity_only',
+      },
+      aioncore_health: {
+        projection_result: 'passed',
+        visible_state: 'unavailable',
+        capability_verification: 'unverified_or_unavailable',
+      },
+      direct_codex_app_server: {
+        projection_result: 'passed',
+        visible_state: 'unavailable',
+        capability_verification: 'unverified_or_unavailable',
+      },
+      framework_state: {
+        projection_result: 'passed',
+        visible_state: 'unavailable',
+        capability_verification: 'unverified_or_unavailable',
+      },
+    },
+    negative_boundaries: {
+      validation_gate_visible: true,
+      only_refresh_button: true,
+      edit_control_count: 0,
+      hyperlink_control_count: 0,
+      forbidden_command_control_count: 0,
+      acp_visible_as_unavailable: true,
+      authentication_visible_as_unavailable: true,
+      websocket_visible_as_unavailable: true,
+      forbidden_ready_states_absent: true,
+      status: 'passed',
+    },
+    process_cleanup: {
+      launched_root_pid: 4312,
+      tracked_pids: [4312],
+      close_requested: true,
+      forced_cleanup: false,
+      inventory_readable: true,
+      wsl_survivor_count: 0,
+      candidate_tree_removed: true,
+      survivor_count: 0,
+      status: 'passed',
+    },
+    post_readback: {
+      default_distro_unchanged: true,
+      docker_desktop_state_unchanged: true,
+      validation_distro_state_unchanged: true,
+      protected_onepersonlab_present_before: true,
+      protected_onepersonlab_present_after: true,
+      protected_onepersonlab_presence_unchanged: true,
+      protected_onepersonlab_mutation_event_count: 0,
+      protected_onepersonlab_watch_overflow_count: 0,
+      protected_onepersonlab_no_mutation_events_observed: true,
+      validation_distro_state_samples: Array(4).fill(
+        phase === 'stopped' ? 'Stopped' : 'Running',
+      ),
+      status: 'passed',
+    },
+    screenshot: {
+      sha256: screenshotSha256,
+      width: 1280,
+      height: 800,
+      format: 'png',
+      target_window_only: true,
+    },
+    blocked_or_unavailable_items: ['managed_acp_unverified'],
+    error: null,
+  };
+}
+
+test('V6 source-bound packet and Hyper-V runner have no legacy artifact authority', () => {
   const runner = fs.readFileSync(runnerPath, 'utf8');
-
-  assert.match(runner, /OPL_WINDOWS_WSL2_VALIDATION/);
-  assert.match(runner, /OPL-Validation-g0001/);
+  const buildSeal = fs.readFileSync(buildSealPath, 'utf8');
+  const materialize = fs.readFileSync(materializePath, 'utf8');
+  assert.match(runner, /ExpectedIntakeManifestSha256/);
+  assert.match(runner, /ExpectedBuildReceiptSha256/);
+  assert.match(runner, /ExpectedWriterLeaseSha256/);
+  assert.match(runner, /sealed_from_exact_source_packet/);
+  assert.match(runner, /opl_windows_v6_vm_writer_lease\.v1/);
+  assert.doesNotMatch(runner, /3b126175f77cad7c0b1ddc83f2008d2102539cef29f87dfd839ee70be86df9dd/);
+  assert.doesNotMatch(runner, /60b86b47b4557e51e12d6d1f687f1544f420841356cdf1d6bae8523a6ebf6c42/);
   assert.match(
-    runner,
-    /C:\\Users\\oplrunner\\OnePersonLabValidation\\20260725-wsl2-v6/,
+    buildSeal,
+    /'install', '--frozen-lockfile', '--ignore-scripts'/,
   );
-  assert.match(runner, /ExpectedPhase/);
-  assert.match(runner, /ExpectedWriterHandoffSha256/);
-  assert.match(
-    runner,
-    /3b126175f77cad7c0b1ddc83f2008d2102539cef29f87dfd839ee70be86df9dd/,
-  );
-  assert.match(
-    runner,
-    /60b86b47b4557e51e12d6d1f687f1544f420841356cdf1d6bae8523a6ebf6c42/,
-  );
-  assert.match(
-    runner,
-    /868d6e818583547a5ec982b10b34464a3fa47c10/,
-  );
-  assert.match(runner, /Get-StreamSha256/);
-  assert.match(runner, /Expand-VerifiedCandidateZip/);
-  assert.match(runner, /Open-CandidateTreeLocks/);
-  assert.match(runner, /Candidate tree changed before the owned processes exited/);
-  assert.match(runner, /zip_entry_sha256_matches/);
-  assert.match(runner, /\[System\.IO\.FileShare\]::Read/);
-  assert.match(runner, /Candidate ZIP contains a duplicate entry path/);
-  assert.match(runner, /Candidate ZIP entry escapes the run-owned tree/);
-  assert.doesNotMatch(runner, /Expand-Archive/);
-  assert.doesNotMatch(runner, /[^\x00-\x7F]/);
-  assert.match(runner, /Start-Process -FilePath \$launchExecutablePath -PassThru/);
-  assert.match(runner, /opl_vm_writer_release\.v1/);
-  assert.match(runner, /receipt_sha256/);
-  assert.match(runner, /MainWindowHandle/);
-  assert.match(runner, /UIAutomationClient/);
-  assert.match(runner, /ControlType\]::Document/);
-  assert.match(runner, /ControlType\.Button/);
-  assert.match(runner, /ControlType\.Edit/);
-  assert.match(runner, /ControlType\.Hyperlink/);
-  assert.match(runner, /InvokePattern/);
-  assert.match(runner, /refresh_disabled_observed/);
-  assert.match(runner, /FileSystemWatcher/);
-  assert.match(runner, /protected_onepersonlab_mutation_event_count/);
-  assert.match(runner, /protected_onepersonlab_watch_overflow_count/);
-  assert.match(runner, /protected_onepersonlab_no_mutation_events_observed/);
-  assert.match(runner, /Status groups are missing or out of the required visible order/);
-  assert.match(runner, /GetWindowRect/);
-  assert.match(runner, /PrintWindow/);
-  assert.doesNotMatch(runner, /CopyFromScreen/);
-  assert.match(runner, /taskkill\.exe \/PID \$rootProcess\.Id \/T \/F/);
-  assert.match(runner, /Stop-Process -Id \(\[int\]\$row\.ProcessId\) -Force/);
-  assert.match(runner, /ParentProcessId/);
-  assert.match(runner, /CreationDate/);
-  assert.match(runner, /Get-CimInstance Win32_Process -ErrorAction Stop/);
-  assert.match(runner, /pending_host_soft_shutdown/);
-  assert.match(runner, /guest_smoke_pending_host_closeout/);
-  assert.match(runner, /terminal_v6_verdict = \$false/);
-  assert.match(runner, /validation_only_non_binding/);
-  assert.doesNotMatch(runner, /Invoke-Expression/);
-  assert.doesNotMatch(runner, /--shutdown/);
-  assert.doesNotMatch(runner, /--unregister/);
-  assert.doesNotMatch(runner, /\bdocker(?:\.exe)?\s+(?:system\s+)?prune\b/i);
-  assert.doesNotMatch(runner, /Remove-Item[\s\S]{0,160}OnePersonLab/i);
-  assert.doesNotMatch(
-    runner,
-    /SetEnvironmentVariable\([^,]+,[^,]+,\s*'(?:User|Machine)'\)/,
-  );
+  assert.match(buildSeal, /electron_builder.*26\.8\.1/);
+  assert.match(buildSeal, /output_absent_before_build/);
+  assert.match(buildSeal, /ExpectedWriterLeaseSha256/);
+  assert.match(materialize, /create_once_build_seal_receipt/);
+  assert.match(materialize, /historical_zip_sha256_authoritative: false/);
 });
 
-test('V6 visible-smoke receipt schema is strict and non-binding', () => {
-  const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-
-  assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
-  assert.equal(schema.additionalProperties, false);
+test('V6 schemas are strict and bind packet, build, lease, and Hyper-V closeout identities', () => {
+  const guest = JSON.parse(fs.readFileSync(guestSchemaPath, 'utf8'));
+  const intake = JSON.parse(fs.readFileSync(intakeSchemaPath, 'utf8'));
+  const build = JSON.parse(fs.readFileSync(buildSchemaPath, 'utf8'));
+  const lease = JSON.parse(fs.readFileSync(leaseSchemaPath, 'utf8'));
+  const host = JSON.parse(fs.readFileSync(hostSchemaPath, 'utf8'));
+  assert.equal(guest.additionalProperties, false);
+  assert.equal(intake.additionalProperties, false);
+  assert.equal(build.additionalProperties, false);
+  assert.equal(lease.additionalProperties, false);
+  assert.equal(host.additionalProperties, false);
+  assert.equal(guest.properties.vm.properties.host_platform.const, 'windows_hyperv');
+  assert.equal(guest.properties.vm.properties.vm_name.const, 'OPL-V6-WSL2-01');
   assert.equal(
-    schema.properties.schema.const,
-    'opl_windows_wsl2_v6_visible_smoke.v1',
-  );
-  assert.equal(
-    schema.properties.validation_state.const,
-    'validation_only_non_binding',
-  );
-  assert.equal(schema.properties.assessment_scope.const, 'status_projection_only');
-  assert.equal(
-    schema.properties.receipt_stage.const,
-    'guest_smoke_pending_host_closeout',
-  );
-  assert.equal(schema.properties.terminal_v6_verdict.const, false);
-  assert.deepEqual(schema.properties.status.enum, ['passed', 'failed', 'blocked']);
-  assert.ok(Array.isArray(schema.allOf));
-  assert.ok(
-    schema.allOf.some(
-      (rule: any) =>
-        rule.if?.properties?.status?.const === 'passed' &&
-        rule.then?.properties?.process_cleanup?.properties?.status?.const ===
-          'passed',
-    ),
-    'passed receipts must be conditionally bound to cleanup and evidence',
-  );
-  for (const field of [
-    'artifact',
-    'vm',
-    'preflight',
-    'visible_window',
-    'status_groups',
-    'negative_boundaries',
-    'process_cleanup',
-    'post_readback',
-    'screenshot',
-    'blocked_or_unavailable_items',
-  ]) {
-    assert.ok(schema.required.includes(field), `${field} must be required`);
-    assert.equal(
-      schema.properties[field].additionalProperties ?? false,
-      false,
-      `${field} must reject unknown fields`,
-    );
-  }
-  assert.equal(
-    schema.properties.artifact.properties.gate_environment.const,
-    'OPL_WINDOWS_WSL2_VALIDATION=1',
-  );
-  assert.ok(schema.properties.artifact.required.includes('executable_sha256'));
-  assert.ok(schema.properties.artifact.required.includes('tree_sha256'));
-  assert.ok(schema.properties.artifact.required.includes('tree_file_count'));
-  assert.ok(schema.properties.artifact.required.includes('tree_write_locks_held'));
-  assert.ok(
-    schema.properties.artifact.required.includes(
-      'tree_unchanged_after_process_exit',
-    ),
-  );
-  assert.ok(
-    schema.properties.artifact.required.includes('zip_entry_sha256_matches'),
-  );
-  assert.deepEqual(
-    schema.properties.artifact.properties.tree_origin.enum,
-    ['pending', 'verified_zip_expansion'],
-  );
-  assert.equal(
-    schema.properties.artifact.properties.source_ref_binding.const,
-    'operator_recorded_not_embedded',
-  );
-  assert.equal(schema.properties.vm.properties.external_ssd.const, true);
-  assert.equal(
-    schema.properties.vm.properties.writer_release.properties.status.const,
-    'pending_host_soft_shutdown',
-  );
-  assert.equal(
-    schema.properties.vm.properties.writer_release.properties.receipt_id.const,
-    null,
-  );
-  assert.equal(
-    schema.properties.vm.properties.writer_release.properties.released_at.const,
-    null,
-  );
-  assert.equal(
-    schema.properties.post_readback.properties.validation_distro_state_samples
-      .minItems,
-    undefined,
-  );
-  assert.equal(
-    schema.properties.preflight.properties.validation_distro.const,
-    'OPL-Validation-g0001',
-  );
-  assert.equal(
-    schema.$defs.unverifiedProjection.properties.capability_verification.const,
-    'unverified_or_unavailable',
-  );
-  assert.equal(schema.properties.screenshot.properties.target_window_only.const, true);
-
-  const passedRule = schema.allOf.find(
-    (rule: any) => rule.if?.properties?.status?.const === 'passed',
-  );
-  assert.equal(
-    passedRule.then.properties.artifact.properties.tree_origin.const,
-    'verified_zip_expansion',
-  );
-  assert.equal(
-    passedRule.then.properties.artifact.properties.tree_file_count.minimum,
-    1,
-  );
-  assert.equal(
-    passedRule.then.properties.artifact.properties.tree_write_locks_held.const,
+    build.properties.packet.required.includes('writer_lease_sha256'),
     true,
   );
+  assert.equal(host.properties.vm.properties.final_state.const, 'Off');
   assert.equal(
-    passedRule.then.properties.artifact.properties
-      .tree_unchanged_after_process_exit.const,
-    true,
-  );
-  assert.equal(
-    passedRule.then.properties.post_readback.properties
-      .validation_distro_state_samples.minItems,
-    4,
-  );
-  assert.equal(
-    passedRule.then.properties.post_readback.properties
-      .protected_onepersonlab_watch_overflow_count.const,
-    0,
-  );
-
-  const nonPassingRule = schema.allOf.find((rule: any) =>
-    rule.if?.properties?.status?.enum?.includes('failed'),
-  );
-  assert.equal(nonPassingRule.then.properties.error.type, 'string');
-  assert.equal(nonPassingRule.then.properties.error.minLength, 1);
-
-  const blockedRule = schema.allOf.find(
-    (rule: any) => rule.if?.properties?.status?.const === 'blocked',
-  );
-  assert.equal(
-    blockedRule.then.properties.process_cleanup.properties.launched_root_pid.const,
-    null,
-  );
-  assert.equal(
-    blockedRule.then.properties.visible_window.properties.observed.const,
-    false,
+    lease.properties.executor_task_id.const,
+    '019f97e4-288a-7140-8850-925c657d8c71',
   );
 });
 
-test('V6 receipt schema validates runner-shaped terminal and failure states', () => {
-  const validate = compileSchema(schemaPath);
-  const passed = makeGuestReceipt();
-  const blocked = makeGuestReceipt({ status: 'blocked' });
-  const failed = makeGuestReceipt({ status: 'failed' });
-
-  for (const [label, receipt] of [
-    ['passed', passed],
-    ['blocked', blocked],
-    ['failed', failed],
-  ] as const) {
-    assert.equal(
-      validate(receipt),
-      true,
-      `${label}: ${JSON.stringify(validate.errors)}`,
-    );
-  }
-
-  const invalidMutants = [
-    { label: 'passed without cleanup', mutate: (value: any) => (value.process_cleanup.status = 'not_run') },
-    { label: 'passed with short samples', mutate: (value: any) => (value.post_readback.validation_distro_state_samples = ['Running']) },
-    { label: 'passed with promoted capability', mutate: (value: any) => (value.status_groups.aioncore_health.capability_verification = 'verified') },
-    { label: 'blocked with a root PID', mutate: (value: any) => (value.process_cleanup.launched_root_pid = 4312) },
-    { label: 'blocked without an error', mutate: (value: any) => (value.error = null) },
-    { label: 'pending guest receipt released', mutate: (value: any) => (value.vm.writer_release.status = 'released') },
-  ];
-  for (const { label, mutate } of invalidMutants) {
-    const candidate = structuredClone(
-      label.startsWith('blocked') ? blocked : passed,
-    );
-    mutate(candidate);
-    assert.equal(validate(candidate), false, label);
+test('V6 receipt schemas validate passed and reject identity mutants', () => {
+  const validateGuest = compileSchema(guestSchemaPath);
+  const validateIntake = compileSchema(intakeSchemaPath);
+  const validateLease = compileSchema(leaseSchemaPath);
+  const validateBuild = compileSchema(buildSchemaPath);
+  const intake = makeIntakeManifest();
+  const lease = makeLease();
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-v6-schema-'));
+  try {
+    const intakePath = path.join(temporaryRoot, 'intake.json');
+    const leasePath = path.join(temporaryRoot, 'lease.json');
+    writeJson(intakePath, intake);
+    writeJson(leasePath, lease);
+    const intakeSha = sha256File(intakePath);
+    const leaseSha = sha256File(leasePath);
+    const artifactPath = path.join(temporaryRoot, 'artifact.zip');
+    fs.writeFileSync(artifactPath, 'sealed artifact');
+    const artifactSha = sha256File(artifactPath);
+    const build = makeBuildReceipt({
+      intakeManifestSha256: intakeSha,
+      writerLeaseSha256: leaseSha,
+      artifactSha256: artifactSha,
+    });
+    const buildPath = path.join(temporaryRoot, 'build.json');
+    writeJson(buildPath, build);
+    const buildSha = sha256File(buildPath);
+    const stoppedScreenshot = path.join(temporaryRoot, 'stopped.png');
+    const runningScreenshot = path.join(temporaryRoot, 'running.png');
+    fs.writeFileSync(stoppedScreenshot, 'stopped');
+    fs.writeFileSync(runningScreenshot, 'running');
+    const stopped = makeGuestReceipt({
+      phase: 'stopped',
+      artifactSha256: artifactSha,
+      intakeManifestSha256: intakeSha,
+      buildReceiptSha256: buildSha,
+      writerLeaseSha256: leaseSha,
+      screenshotSha256: sha256File(stoppedScreenshot),
+    });
+    const running = makeGuestReceipt({
+      phase: 'running',
+      artifactSha256: artifactSha,
+      intakeManifestSha256: intakeSha,
+      buildReceiptSha256: buildSha,
+      writerLeaseSha256: leaseSha,
+      screenshotSha256: sha256File(runningScreenshot),
+    });
+    assert.equal(validateIntake(intake), true, JSON.stringify(validateIntake.errors));
+    assert.equal(validateLease(lease), true, JSON.stringify(validateLease.errors));
+    assert.equal(validateBuild(build), true, JSON.stringify(validateBuild.errors));
+    assert.equal(validateGuest(stopped), true, JSON.stringify(validateGuest.errors));
+    assert.equal(validateGuest(running), true, JSON.stringify(validateGuest.errors));
+    const mutant = structuredClone(running);
+    mutant.artifact.build_receipt_sha256 = 'f'.repeat(64);
+    assert.equal(validateGuest(mutant), true, 'schema permits identity comparison at host layer');
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
 });
 
-test('V6 host closeout binds two guest phases before releasing the writer', async (t) => {
+test('V6 Hyper-V host closeout fails before shutdown on tree mismatch and passes on Off readback', async (t) => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-v6-closeout-'));
   t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
-
-  const vmxPath = path.join(temporaryRoot, 'validation.vmx');
   const candidateZip = path.join(
     temporaryRoot,
     'OPL-Windows-WSL2-Validation-v6.zip',
   );
+  fs.writeFileSync(candidateZip, 'sealed artifact');
+  const intakePath = path.join(temporaryRoot, 'intake.json');
+  const leasePath = path.join(temporaryRoot, 'lease.json');
+  const buildPath = path.join(temporaryRoot, 'build.json');
   const stoppedScreenshot = path.join(temporaryRoot, 'stopped.png');
   const runningScreenshot = path.join(temporaryRoot, 'running.png');
-  const handoffPath = path.join(temporaryRoot, 'writer-handoff.json');
+  fs.writeFileSync(stoppedScreenshot, 'stopped');
+  fs.writeFileSync(runningScreenshot, 'running');
+  writeJson(intakePath, makeIntakeManifest());
+  writeJson(leasePath, makeLease());
+  const intakeSha = sha256File(intakePath);
+  const leaseSha = sha256File(leasePath);
+  const artifactSha = sha256File(candidateZip);
+  writeJson(
+    buildPath,
+    makeBuildReceipt({
+      intakeManifestSha256: intakeSha,
+      writerLeaseSha256: leaseSha,
+      artifactSha256: artifactSha,
+    }),
+  );
+  const buildSha = sha256File(buildPath);
   const stoppedReceiptPath = path.join(temporaryRoot, 'stopped.json');
   const runningReceiptPath = path.join(temporaryRoot, 'running.json');
-  const mismatchedRunningReceiptPath = path.join(
-    temporaryRoot,
-    'running-tree-mismatch.json',
+  const mismatchReceiptPath = path.join(temporaryRoot, 'mismatch.json');
+  writeJson(
+    stoppedReceiptPath,
+    makeGuestReceipt({
+      phase: 'stopped',
+      artifactSha256: artifactSha,
+      intakeManifestSha256: intakeSha,
+      buildReceiptSha256: buildSha,
+      writerLeaseSha256: leaseSha,
+      screenshotSha256: sha256File(stoppedScreenshot),
+    }),
+  );
+  writeJson(
+    runningReceiptPath,
+    makeGuestReceipt({
+      phase: 'running',
+      artifactSha256: artifactSha,
+      intakeManifestSha256: intakeSha,
+      buildReceiptSha256: buildSha,
+      writerLeaseSha256: leaseSha,
+      screenshotSha256: sha256File(runningScreenshot),
+    }),
+  );
+  writeJson(
+    mismatchReceiptPath,
+    makeGuestReceipt({
+      phase: 'running',
+      artifactSha256: artifactSha,
+      intakeManifestSha256: intakeSha,
+      buildReceiptSha256: buildSha,
+      writerLeaseSha256: leaseSha,
+      screenshotSha256: sha256File(runningScreenshot),
+      treeSha: 'f'.repeat(64),
+    }),
   );
   const outputDir = path.join(temporaryRoot, 'closeout');
-  const canonicalVmxPath =
-    '/Volumes/Test SSD/Virtual Machines.localized/validation.vmwarevm/validation.vmx';
-  const biosUuid = '56 4d 23 d9 29 b6 71 8c-5f 6f 79 3c 85 41 96 85';
-  const vmIdentity = `vmware-bios:${biosUuid.replaceAll(/[^0-9a-f]/gi, '').toLowerCase()}`;
-  const ownerId = 'windows-wsl2-v6-owner';
-
-  fs.writeFileSync(vmxPath, `uuid.bios = "${biosUuid}"\n`);
-  fs.writeFileSync(candidateZip, 'candidate-zip');
-  fs.writeFileSync(stoppedScreenshot, 'stopped-window');
-  fs.writeFileSync(runningScreenshot, 'running-window');
-  const vmxSha = sha256File(vmxPath);
-  const handoff = {
-    schema: 'opl_vm_writer_release.v1',
-    vmx_storage_class: 'external_ssd',
-    vm_identity: vmIdentity,
-    previous_owner_task_id: '019f91db-b1d4-7011-9429-6694cf3b3224',
-    receipt_id: 'webui-to-v6',
-    released_at: '2026-07-25T00:00:00.000Z',
-    vmx_path: canonicalVmxPath,
-    vmx_sha256: vmxSha,
-    external_volume_uuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
-    next_owner_id: ownerId,
-  };
-  fs.writeFileSync(handoffPath, `${JSON.stringify(handoff)}\n`);
-  const handoffSha = sha256File(handoffPath);
-  const artifactSha = sha256File(candidateZip);
-  const refs = {
-    appSha: '1'.repeat(40),
-    shellSha: '2'.repeat(40),
-    frameworkSha: '3'.repeat(40),
-  };
-  fs.writeFileSync(
-    stoppedReceiptPath,
-    `${JSON.stringify(
-      makeGuestReceipt({
-        phase: 'stopped',
-        runId: 'v6-stopped',
-        artifactSha,
-        handoffSha,
-        screenshotSha: sha256File(stoppedScreenshot),
-        vmIdentity,
-        ...refs,
-      }),
-    )}\n`,
-  );
-  fs.writeFileSync(
-    runningReceiptPath,
-    `${JSON.stringify(
-      makeGuestReceipt({
-        phase: 'running',
-        runId: 'v6-running',
-        artifactSha,
-        handoffSha,
-        screenshotSha: sha256File(runningScreenshot),
-        vmIdentity,
-        ...refs,
-      }),
-    )}\n`,
-  );
-  fs.writeFileSync(
-    mismatchedRunningReceiptPath,
-    `${JSON.stringify(
-      makeGuestReceipt({
-        phase: 'running',
-        runId: 'v6-running-tree-mismatch',
-        artifactSha,
-        handoffSha,
-        screenshotSha: sha256File(runningScreenshot),
-        vmIdentity,
-        treeSha: 'f'.repeat(64),
-        ...refs,
-      }),
-    )}\n`,
-  );
-
   const { runHostCloseout } = await import(hostCloseoutPath);
-  let poweredOn = true;
-  const closeoutOptions = {
-    vmxPath,
-    expectedVmxSha256: vmxSha,
-    expectedVmBiosUuid: biosUuid,
-    expectedVolumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
-    expectedDeviceIdentifier: 'disk3s2',
-    hostWriterHandoff: handoffPath,
-    expectedWriterHandoffSha256: handoffSha,
+  let state = 'Running';
+  const dependencies = {
+    queryVm: () => ({ name: 'OPL-V6-WSL2-01', id: vmId, state }),
+    stopVmSoft: () => {
+      state = 'Off';
+    },
+    now: () => new Date('2026-07-25T01:00:00.000Z'),
+    sleep: async () => {},
+  };
+  const baseOptions = {
+    vmName: 'OPL-V6-WSL2-01',
+    expectedVmId: vmId,
+    writerLease: leasePath,
+    expectedWriterLeaseSha256: leaseSha,
+    intakeManifest: intakePath,
+    expectedIntakeManifestSha256: intakeSha,
+    buildReceipt: buildPath,
+    expectedBuildReceiptSha256: buildSha,
     stoppedGuestReceipt: stoppedReceiptPath,
     stoppedScreenshot,
     runningGuestReceipt: runningReceiptPath,
@@ -602,109 +684,65 @@ test('V6 host closeout binds two guest phases before releasing the writer', asyn
     expectedAppSha: refs.appSha,
     expectedShellSha: refs.shellSha,
     expectedFrameworkSha: refs.frameworkSha,
-    currentOwnerId: ownerId,
-    releaseReceiptId: 'v6-writer-release',
+    releaseReceiptId: 'v6-release-01',
     outputDir,
     timeoutSeconds: 30,
     requestSoftShutdown: true,
   };
-  const injected = {
-    canonicalizeVmxPath: () => canonicalVmxPath,
-    volumeRootFromVmxPath: () => '/Volumes/Test SSD',
-    readDiskIdentity: () => ({
-      internal: false,
-      solidState: true,
-      busProtocol: 'USB',
-      volumeUuid: 'F38D7FC5-E974-4B63-87DE-23E685F05E7E',
-      deviceIdentifier: 'disk3s2',
-    }),
-    listRunningVms: () => (poweredOn ? [canonicalVmxPath] : []),
-    listVmxProcesses: () =>
-      poweredOn ? [`vmware-vmx ${canonicalVmxPath}`] : [],
-    stopVmSoft: () => {
-      poweredOn = false;
-    },
-    sleep: async () => {},
-    now: () => new Date('2026-07-25T01:00:00.000Z'),
-  };
   await assert.rejects(
     runHostCloseout(
-      {
-        ...closeoutOptions,
-        runningGuestReceipt: mismatchedRunningReceiptPath,
-        outputDir: path.join(temporaryRoot, 'mismatch-closeout'),
-      },
-      injected,
+      { ...baseOptions, runningGuestReceipt: mismatchReceiptPath },
+      dependencies,
     ),
     /same extracted candidate tree/,
   );
-  assert.equal(poweredOn, true, 'tree mismatch must fail before soft shutdown');
-
-  const result = await runHostCloseout(closeoutOptions, injected);
-
+  assert.equal(state, 'Running', 'mismatch must fail before soft shutdown');
+  const result = await runHostCloseout(baseOptions, dependencies);
   assert.equal(result.finalReceipt.terminal_v6_verdict, true);
-  assert.equal(result.finalReceipt.status, 'passed');
-  assert.equal(result.finalReceipt.artifact.tree_sha256, 'e'.repeat(64));
-  assert.equal(result.finalReceipt.artifact.tree_file_count, 42);
+  assert.equal(result.finalReceipt.vm.final_state, 'Off');
   assert.equal(result.writerRelease.powered_off_readback, true);
-  const validateHostReceipt = compileSchema(hostSchemaPath);
   assert.equal(
-    validateHostReceipt(result.finalReceipt),
+    compileSchema(hostSchemaPath)(result.finalReceipt),
     true,
-    JSON.stringify(validateHostReceipt.errors),
   );
 });
 
-test('V6 documentation preserves the non-binding and prior-launch boundary', () => {
+test('V6 documentation preserves validation-only and non-blocking boundaries', () => {
   const readme = fs.readFileSync(readmePath, 'utf8');
   const plan = fs.readFileSync(planPath, 'utf8');
-
-  assert.match(readme, /v6-electron-visible-smoke\.ps1/);
-  assert.match(readme, /windows-wsl2-v6-receipt\.schema\.json/);
-  assert.match(readme, /windows-wsl2-v6-host-closeout\.schema\.json/);
-  assert.match(readme, /v6-host-closeout\.mjs/);
-  assert.match(readme, /eleven committed PowerShell fixtures/);
-  assert.match(
-    readme,
-    /previous uncontrolled candidate launch[\s\S]*does not count as a V6 smoke/i,
-  );
-  assert.match(readme, /does not start, stop,/i);
-  assert.match(readme, /import, unregister,\s+or adopt a WSL distribution/i);
-  assert.match(readme, /guest_smoke_pending_host_closeout/);
+  assert.match(readme, /windows-wsl2-v6-intake-manifest\.schema\.json/);
+  assert.match(readme, /windows-wsl2-v6-build-seal\.schema\.json/);
+  assert.match(readme, /windows-wsl2-v6-writer-lease\.schema\.json/);
+  assert.match(readme, /windows_hyperv/i);
   assert.match(readme, /terminal_v6_verdict=false/);
-  assert.match(readme, /requests only a bounded\s+VMware soft shutdown/i);
-  assert.match(
-    readme,
-    /Only then may it write[\s\S]*terminal_v6_verdict=true/i,
-  );
-  assert.match(
-    plan,
-    /visible-smoke pass validates the bounded projection,\s+not the\s+unavailable capabilities/i,
-  );
+  assert.match(readme, /Only then may it write[\s\S]*terminal_v6_verdict=true/i);
   assert.doesNotMatch(readme, /Windows support is complete/i);
+  assert.match(plan, /does not block unrelated development/i);
+  assert.match(plan, /Hyper-V/i);
 });
 
 if (pwshPath) {
-  test('V6 PowerShell runner parses when PowerShell is available', () => {
-    const escapedPath = runnerPath.replaceAll("'", "''");
-    const result = spawnSync(
-      pwshPath,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        `$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile('${escapedPath}',[ref]$tokens,[ref]$errors) | Out-Null;if($errors.Count){$errors | ForEach-Object { Write-Error $_ }; exit 1 }`,
-      ],
-      {
-        cwd: appRoot,
-        encoding: 'utf8',
-      },
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout || result.error?.message);
+  test('V6 PowerShell fixtures parse when PowerShell is available', () => {
+    for (const fixturePath of [runnerPath, buildSealPath]) {
+      const escapedPath = fixturePath.replaceAll("'", "''");
+      const result = spawnSync(
+        pwshPath,
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          `$tokens=$null;$errors=$null;[System.Management.Automation.Language.Parser]::ParseFile('${escapedPath}',[ref]$tokens,[ref]$errors) | Out-Null;if($errors.Count){$errors | ForEach-Object { Write-Error $_ }; exit 1 }`,
+        ],
+        { cwd: appRoot, encoding: 'utf8' },
+      );
+      assert.equal(
+        result.status,
+        0,
+        result.stderr || result.stdout || result.error?.message,
+      );
+    }
   });
 } else {
-  test.skip('V6 PowerShell runner parses on target Windows', () => {
-    // The target-Windows AST parse is a required guest-only acceptance item.
-  });
+  test.skip('V6 PowerShell fixtures parse on target Windows', () => {});
 }
