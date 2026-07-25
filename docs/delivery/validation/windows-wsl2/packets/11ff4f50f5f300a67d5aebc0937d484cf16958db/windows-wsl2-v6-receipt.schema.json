@@ -1,0 +1,1124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-visible-smoke-receipt.schema.json",
+  "title": "OPL Windows WSL2 V6 visible-smoke receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "validation_state",
+    "assessment_scope",
+    "receipt_stage",
+    "terminal_v6_verdict",
+    "status",
+    "run_id",
+    "expected_phase",
+    "observed_at",
+    "app_sha",
+    "shell_sha",
+    "framework_sha",
+    "artifact",
+    "vm",
+    "preflight",
+    "visible_window",
+    "status_groups",
+    "negative_boundaries",
+    "process_cleanup",
+    "post_readback",
+    "screenshot",
+    "blocked_or_unavailable_items",
+    "error"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_windows_wsl2_v6_visible_smoke.v1"
+    },
+    "validation_state": {
+      "const": "validation_only_non_binding"
+    },
+    "assessment_scope": {
+      "const": "status_projection_only"
+    },
+    "receipt_stage": {
+      "const": "guest_smoke_pending_host_closeout"
+    },
+    "terminal_v6_verdict": {
+      "const": false
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "blocked"
+      ]
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,80}$"
+    },
+    "expected_phase": {
+      "enum": [
+        "stopped",
+        "running"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "app_sha": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "shell_sha": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "framework_sha": {
+      "$ref": "#/$defs/gitSha"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "intake_manifest_sha256",
+        "build_receipt_sha256",
+        "executable_sha256",
+        "zip_entry_sha256_matches",
+        "tree_origin",
+        "tree_sha256",
+        "tree_file_count",
+        "tree_write_locks_held",
+        "tree_unchanged_after_process_exit",
+        "source_ref_binding",
+        "size_bytes",
+        "zip_file_name",
+        "executable_file_name",
+        "gate_environment"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "intake_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "build_receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "executable_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "zip_entry_sha256_matches": {
+          "type": "boolean"
+        },
+        "tree_origin": {
+          "enum": [
+            "pending",
+            "verified_zip_expansion"
+          ]
+        },
+        "tree_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tree_file_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "tree_write_locks_held": {
+          "type": "boolean"
+        },
+        "tree_unchanged_after_process_exit": {
+          "type": "boolean"
+        },
+        "source_ref_binding": {
+          "const": "sealed_from_exact_source_packet"
+        },
+        "size_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "zip_file_name": {
+          "const": "OPL-Windows-WSL2-Validation-v6.zip"
+        },
+        "executable_file_name": {
+          "const": "OPL Windows WSL2 Validation.exe"
+        },
+        "gate_environment": {
+          "const": "OPL_WINDOWS_WSL2_VALIDATION=1"
+        }
+      }
+    },
+    "vm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity",
+        "host_platform",
+        "vm_name",
+        "writer_lease",
+        "writer_release"
+      ],
+      "properties": {
+        "identity": {
+          "type": "string",
+          "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "host_platform": {
+          "const": "windows_hyperv"
+        },
+        "vm_name": {
+          "const": "OPL-V6-WSL2-01"
+        },
+        "writer_lease": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "platform_owner_task_id",
+            "executor_task_id",
+            "lease_id",
+            "issued_at",
+            "expires_at",
+            "receipt_sha256"
+          ],
+          "properties": {
+            "platform_owner_task_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f-]{36}$"
+            },
+            "executor_task_id": {
+              "const": "019f97e4-288a-7140-8850-925c657d8c71"
+            },
+            "lease_id": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 160
+            },
+            "issued_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "receipt_sha256": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "writer_release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "receipt_id",
+            "released_at"
+          ],
+          "properties": {
+            "status": {
+              "const": "pending_host_soft_shutdown"
+            },
+            "receipt_id": {
+              "const": null
+            },
+            "released_at": {
+              "const": null
+            }
+          }
+        }
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windows_build",
+        "windows_x64",
+        "artifact_path_identity",
+        "artifact_sha256_matches",
+        "no_residual_candidate_processes",
+        "wsl_inventory_readable",
+        "wsl_version",
+        "default_distro",
+        "validation_distro",
+        "validation_distro_state",
+        "validation_distro_version",
+        "expected_phase_matches",
+        "docker_desktop_state",
+        "protected_onepersonlab_present",
+        "protected_onepersonlab_watch_active"
+      ],
+      "properties": {
+        "windows_build": {
+          "type": "string",
+          "minLength": 1
+        },
+        "windows_x64": {
+          "type": "boolean"
+        },
+        "artifact_path_identity": {
+          "enum": [
+            "pending",
+            "approved_exact_path"
+          ]
+        },
+        "artifact_sha256_matches": {
+          "type": "boolean"
+        },
+        "no_residual_candidate_processes": {
+          "type": "boolean"
+        },
+        "wsl_inventory_readable": {
+          "type": "boolean"
+        },
+        "wsl_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "default_distro": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "validation_distro": {
+          "const": "OPL-Validation-g0001"
+        },
+        "validation_distro_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "validation_distro_version": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "expected_phase_matches": {
+          "type": "boolean"
+        },
+        "docker_desktop_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protected_onepersonlab_present": {
+          "type": "boolean"
+        },
+        "protected_onepersonlab_watch_active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "visible_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed",
+        "title",
+        "process_id",
+        "main_window_handle_observed",
+        "ui_automation_document_observed",
+        "ui_automation_root_type",
+        "refresh_button_name",
+        "refresh_invoked",
+        "refresh_disabled_observed",
+        "status_group_order"
+      ],
+      "properties": {
+        "observed": {
+          "type": "boolean"
+        },
+        "title": {
+          "const": "OPL Windows WSL2 Validation"
+        },
+        "process_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "main_window_handle_observed": {
+          "type": "boolean"
+        },
+        "ui_automation_document_observed": {
+          "type": "boolean"
+        },
+        "ui_automation_root_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "document",
+            "window_fallback",
+            null
+          ]
+        },
+        "refresh_button_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "Refresh",
+            "刷新",
+            null
+          ]
+        },
+        "refresh_invoked": {
+          "type": "boolean"
+        },
+        "refresh_disabled_observed": {
+          "type": "boolean"
+        },
+        "status_group_order": {
+          "const": [
+            "guest_identity",
+            "aioncore_health",
+            "direct_codex_app_server",
+            "framework_state"
+          ]
+        }
+      }
+    },
+    "status_groups": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guest_identity",
+        "aioncore_health",
+        "direct_codex_app_server",
+        "framework_state"
+      ],
+      "properties": {
+        "guest_identity": {
+          "$ref": "#/$defs/identityProjection"
+        },
+        "aioncore_health": {
+          "$ref": "#/$defs/unverifiedProjection"
+        },
+        "direct_codex_app_server": {
+          "$ref": "#/$defs/unverifiedProjection"
+        },
+        "framework_state": {
+          "$ref": "#/$defs/unverifiedProjection"
+        }
+      }
+    },
+    "negative_boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_gate_visible",
+        "only_refresh_button",
+        "edit_control_count",
+        "hyperlink_control_count",
+        "forbidden_command_control_count",
+        "acp_visible_as_unavailable",
+        "authentication_visible_as_unavailable",
+        "websocket_visible_as_unavailable",
+        "forbidden_ready_states_absent",
+        "status"
+      ],
+      "properties": {
+        "validation_gate_visible": {
+          "type": "boolean"
+        },
+        "only_refresh_button": {
+          "type": "boolean"
+        },
+        "edit_control_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "hyperlink_control_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "forbidden_command_control_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "acp_visible_as_unavailable": {
+          "type": "boolean"
+        },
+        "authentication_visible_as_unavailable": {
+          "type": "boolean"
+        },
+        "websocket_visible_as_unavailable": {
+          "type": "boolean"
+        },
+        "forbidden_ready_states_absent": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "not_observed",
+            "passed",
+            "failed"
+          ]
+        }
+      }
+    },
+    "process_cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "launched_root_pid",
+        "tracked_pids",
+        "close_requested",
+        "forced_cleanup",
+        "inventory_readable",
+        "wsl_survivor_count",
+        "candidate_tree_removed",
+        "survivor_count",
+        "status"
+      ],
+      "properties": {
+        "launched_root_pid": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "tracked_pids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "uniqueItems": true
+        },
+        "close_requested": {
+          "type": "boolean"
+        },
+        "forced_cleanup": {
+          "type": "boolean"
+        },
+        "inventory_readable": {
+          "type": "boolean"
+        },
+        "wsl_survivor_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "candidate_tree_removed": {
+          "type": "boolean"
+        },
+        "survivor_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "not_run",
+            "passed",
+            "failed",
+            "cleanup_reconciliation_required"
+          ]
+        }
+      }
+    },
+    "post_readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_distro_unchanged",
+        "docker_desktop_state_unchanged",
+        "validation_distro_state_unchanged",
+        "protected_onepersonlab_present_before",
+        "protected_onepersonlab_present_after",
+        "protected_onepersonlab_presence_unchanged",
+        "protected_onepersonlab_mutation_event_count",
+        "protected_onepersonlab_watch_overflow_count",
+        "protected_onepersonlab_no_mutation_events_observed",
+        "validation_distro_state_samples",
+        "status"
+      ],
+      "properties": {
+        "default_distro_unchanged": {
+          "type": "boolean"
+        },
+        "docker_desktop_state_unchanged": {
+          "type": "boolean"
+        },
+        "validation_distro_state_unchanged": {
+          "type": "boolean"
+        },
+        "protected_onepersonlab_present_before": {
+          "type": "boolean"
+        },
+        "protected_onepersonlab_present_after": {
+          "type": "boolean"
+        },
+        "protected_onepersonlab_presence_unchanged": {
+          "type": "boolean"
+        },
+        "protected_onepersonlab_mutation_event_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "protected_onepersonlab_watch_overflow_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "protected_onepersonlab_no_mutation_events_observed": {
+          "type": "boolean"
+        },
+        "validation_distro_state_samples": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "status": {
+          "enum": [
+            "not_run",
+            "passed",
+            "failed"
+          ]
+        }
+      }
+    },
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "width",
+        "height",
+        "format",
+        "target_window_only"
+      ],
+      "properties": {
+        "sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "format": {
+          "const": "png"
+        },
+        "target_window_only": {
+          "const": true
+        }
+      }
+    },
+    "blocked_or_unavailable_items": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 160
+      },
+      "uniqueItems": true
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifact": {
+            "properties": {
+              "executable_sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "zip_entry_sha256_matches": {
+                "const": true
+              },
+            "tree_origin": {
+              "const": "verified_zip_expansion"
+            },
+            "tree_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "tree_file_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "tree_write_locks_held": {
+              "const": true
+            },
+            "tree_unchanged_after_process_exit": {
+              "const": true
+            }
+            }
+          },
+          "vm": {
+            "properties": {
+              "writer_lease": {
+                "properties": {
+                  "receipt_sha256": {
+                    "$ref": "#/$defs/sha256"
+                  }
+                }
+              }
+            }
+          },
+          "preflight": {
+            "properties": {
+              "windows_x64": {
+                "const": true
+              },
+              "artifact_path_identity": {
+                "const": "approved_exact_path"
+              },
+              "artifact_sha256_matches": {
+                "const": true
+              },
+              "no_residual_candidate_processes": {
+                "const": true
+              },
+              "wsl_inventory_readable": {
+                "const": true
+              },
+              "validation_distro_version": {
+                "const": 2
+              },
+              "expected_phase_matches": {
+                "const": true
+              },
+              "protected_onepersonlab_watch_active": {
+                "const": true
+              }
+            }
+          },
+          "visible_window": {
+            "properties": {
+              "observed": {
+                "const": true
+              },
+              "main_window_handle_observed": {
+                "const": true
+              },
+              "refresh_invoked": {
+                "const": true
+              },
+              "refresh_disabled_observed": {
+                "const": true
+              }
+            }
+          },
+          "status_groups": {
+            "properties": {
+              "guest_identity": {
+                "properties": {
+                  "projection_result": {
+                    "const": "passed"
+                  }
+                }
+              },
+              "aioncore_health": {
+                "properties": {
+                  "projection_result": {
+                    "const": "passed"
+                  }
+                }
+              },
+              "direct_codex_app_server": {
+                "properties": {
+                  "projection_result": {
+                    "const": "passed"
+                  }
+                }
+              },
+              "framework_state": {
+                "properties": {
+                  "projection_result": {
+                    "const": "passed"
+                  }
+                }
+              }
+            }
+          },
+          "negative_boundaries": {
+            "properties": {
+              "validation_gate_visible": {
+                "const": true
+              },
+              "only_refresh_button": {
+                "const": true
+              },
+              "edit_control_count": {
+                "const": 0
+              },
+              "hyperlink_control_count": {
+                "const": 0
+              },
+              "forbidden_command_control_count": {
+                "const": 0
+              },
+              "acp_visible_as_unavailable": {
+                "const": true
+              },
+              "authentication_visible_as_unavailable": {
+                "const": true
+              },
+              "websocket_visible_as_unavailable": {
+                "const": true
+              },
+              "forbidden_ready_states_absent": {
+                "const": true
+              },
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "process_cleanup": {
+            "properties": {
+              "inventory_readable": {
+                "const": true
+              },
+              "wsl_survivor_count": {
+                "const": 0
+              },
+              "candidate_tree_removed": {
+                "const": true
+              },
+              "survivor_count": {
+                "const": 0
+              },
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "post_readback": {
+            "properties": {
+              "default_distro_unchanged": {
+                "const": true
+              },
+              "docker_desktop_state_unchanged": {
+                "const": true
+              },
+              "validation_distro_state_unchanged": {
+                "const": true
+              },
+              "protected_onepersonlab_presence_unchanged": {
+                "const": true
+              },
+              "protected_onepersonlab_mutation_event_count": {
+                "const": 0
+              },
+              "protected_onepersonlab_watch_overflow_count": {
+                "const": 0
+              },
+              "protected_onepersonlab_no_mutation_events_observed": {
+                "const": true
+              },
+              "validation_distro_state_samples": {
+                "minItems": 4
+              },
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "screenshot": {
+            "properties": {
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          },
+          "error": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          },
+          "expected_phase": {
+            "const": "stopped"
+          }
+        },
+        "required": [
+          "status",
+          "expected_phase"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status_groups": {
+            "properties": {
+              "guest_identity": {
+                "properties": {
+                  "visible_state": {
+                    "const": "unavailable"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          },
+          "expected_phase": {
+            "const": "running"
+          }
+        },
+        "required": [
+          "status",
+          "expected_phase"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status_groups": {
+            "properties": {
+              "guest_identity": {
+                "properties": {
+                  "visible_state": {
+                    "const": "observed"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "failed",
+              "blocked"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "visible_window": {
+            "properties": {
+              "observed": {
+                "const": false
+              },
+              "process_id": {
+                "const": null
+              },
+              "main_window_handle_observed": {
+                "const": false
+              },
+              "refresh_invoked": {
+                "const": false
+              }
+            }
+          },
+          "process_cleanup": {
+            "properties": {
+              "launched_root_pid": {
+                "const": null
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identityProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_result",
+        "visible_state",
+        "capability_verification"
+      ],
+      "properties": {
+        "projection_result": {
+          "enum": [
+            "not_observed",
+            "passed",
+            "failed"
+          ]
+        },
+        "visible_state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "observed",
+            "unavailable",
+            "absent",
+            null
+          ]
+        },
+        "capability_verification": {
+          "const": "identity_only"
+        }
+      }
+    },
+    "unverifiedProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_result",
+        "visible_state",
+        "capability_verification"
+      ],
+      "properties": {
+        "projection_result": {
+          "enum": [
+            "not_observed",
+            "passed",
+            "failed"
+          ]
+        },
+        "visible_state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "unverified",
+            "unavailable",
+            null
+          ]
+        },
+        "capability_verification": {
+          "const": "unverified_or_unavailable"
+        }
+      }
+    }
+  }
+}

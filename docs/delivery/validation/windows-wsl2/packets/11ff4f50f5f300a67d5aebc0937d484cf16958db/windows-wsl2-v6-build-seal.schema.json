@@ -1,0 +1,484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-build-seal.schema.json",
+  "title": "OPL Windows WSL2 V6 create-once build seal receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "validation_state",
+    "receipt_stage",
+    "terminal_v6_verdict",
+    "status",
+    "receipt_id",
+    "sealed_at",
+    "packet",
+    "source_refs",
+    "checkout",
+    "toolchain",
+    "commands",
+    "artifact",
+    "error"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_windows_wsl2_v6_build_seal.v1"
+    },
+    "validation_state": {
+      "const": "validation_only_non_binding"
+    },
+    "receipt_stage": {
+      "const": "candidate_sealed_pending_guest_smoke"
+    },
+    "terminal_v6_verdict": {
+      "const": false
+    },
+    "status": {
+      "const": "sealed"
+    },
+    "receipt_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$"
+    },
+    "sealed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intake_manifest_sha256",
+        "app_acceptance_sha",
+        "writer_lease_sha256",
+        "vm_identity"
+      ],
+      "properties": {
+        "intake_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "app_acceptance_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "writer_lease_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "vm_identity": {
+          "$ref": "#/$defs/vmIdentity"
+        }
+      }
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_acceptance_sha",
+        "shell_sha",
+        "shell_tree_sha",
+        "framework_fixture_sha"
+      ],
+      "properties": {
+        "app_acceptance_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "shell_sha": {
+          "const": "868d6e818583547a5ec982b10b34464a3fa47c10"
+        },
+        "shell_tree_sha": {
+          "const": "1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7"
+        },
+        "framework_fixture_sha": {
+          "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+        }
+      }
+    },
+    "checkout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "head_sha",
+        "root_tree_sha",
+        "clean",
+        "output_absent_before_build"
+      ],
+      "properties": {
+        "repository": {
+          "const": "https://github.com/gaofeng21cn/opl-aion-shell.git"
+        },
+        "head_sha": {
+          "const": "868d6e818583547a5ec982b10b34464a3fa47c10"
+        },
+        "root_tree_sha": {
+          "const": "1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7"
+        },
+        "clean": {
+          "const": true
+        },
+        "output_absent_before_build": {
+          "const": true
+        }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windows_build",
+        "windows_architecture",
+        "powershell_version",
+        "git",
+        "bun",
+        "node",
+        "dependency_versions",
+        "electron_builder_cli",
+        "seven_zip",
+        "app_builder",
+        "overrides_absent",
+        "environment"
+      ],
+      "properties": {
+        "windows_build": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "windows_architecture": {
+          "const": "X64"
+        },
+        "powershell_version": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 40
+        },
+        "git": {
+          "$ref": "#/$defs/tool"
+        },
+        "bun": {
+          "$ref": "#/$defs/tool"
+        },
+        "node": {
+          "$ref": "#/$defs/tool"
+        },
+        "dependency_versions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "electron",
+            "electron_builder",
+            "app_builder_lib",
+            "builder_util",
+            "seven_zip_bin",
+            "app_builder_bin"
+          ],
+          "properties": {
+            "electron": {
+              "const": "37.10.3"
+            },
+            "electron_builder": {
+              "const": "26.8.1"
+            },
+            "app_builder_lib": {
+              "const": "26.8.1"
+            },
+            "builder_util": {
+              "const": "26.8.1"
+            },
+            "seven_zip_bin": {
+              "const": "5.2.0"
+            },
+            "app_builder_bin": {
+              "const": "5.0.0-alpha.12"
+            }
+          }
+        },
+        "electron_builder_cli": {
+          "$ref": "#/$defs/fileIdentity"
+        },
+        "seven_zip": {
+          "$ref": "#/$defs/fileIdentity"
+        },
+        "app_builder": {
+          "$ref": "#/$defs/fileIdentity"
+        },
+        "overrides_absent": {
+          "const": true
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "CI",
+            "OPL_ELECTRON_BUILDER_CLI",
+            "OPL_WINDOWS_WSL2_ELECTRON_DIST",
+            "USE_SYSTEM_7ZA",
+            "ELECTRON_BUILDER_COMPRESSION_LEVEL",
+            "ELECTRON_MIRROR",
+            "ELECTRON_CACHE",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "timezone_id",
+            "culture_name"
+          ],
+          "properties": {
+            "CI": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "OPL_ELECTRON_BUILDER_CLI": {
+              "$ref": "#/$defs/absentEnvironmentValue"
+            },
+            "OPL_WINDOWS_WSL2_ELECTRON_DIST": {
+              "$ref": "#/$defs/absentEnvironmentValue"
+            },
+            "USE_SYSTEM_7ZA": {
+              "$ref": "#/$defs/absentEnvironmentValue"
+            },
+            "ELECTRON_BUILDER_COMPRESSION_LEVEL": {
+              "$ref": "#/$defs/absentEnvironmentValue"
+            },
+            "ELECTRON_MIRROR": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "ELECTRON_CACHE": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "HTTP_PROXY": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "HTTPS_PROXY": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "NO_PROXY": {
+              "$ref": "#/$defs/environmentValue"
+            },
+            "timezone_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "culture_name": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_name",
+        "sha256",
+        "size_bytes",
+        "executable_sha256",
+        "app_asar_sha256",
+        "zip_entry_manifest_sha256",
+        "tree_sha256",
+        "tree_file_count"
+      ],
+      "properties": {
+        "file_name": {
+          "const": "OPL-Windows-WSL2-Validation-v6.zip"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "app_asar_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "zip_entry_manifest_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tree_file_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "error": {
+      "type": "null"
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "vmIdentity": {
+      "type": "string",
+      "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "fileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "path": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "environmentValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "value_sha256"
+      ],
+      "properties": {
+        "present": {
+          "type": "boolean"
+        },
+        "value_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "absentEnvironmentValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present",
+        "value_sha256"
+      ],
+      "properties": {
+        "present": {
+          "const": false
+        },
+        "value_sha256": {
+          "type": "null"
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "executable",
+        "executable_sha256",
+        "argv",
+        "working_directory",
+        "started_at",
+        "finished_at",
+        "exit_code",
+        "log_file_name",
+        "log_sha256"
+      ],
+      "properties": {
+        "label": {
+          "enum": [
+            "git-clone",
+            "git-checkout",
+            "bun-install",
+            "focused-test",
+            "candidate-build"
+          ]
+        },
+        "executable": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "working_directory": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "exit_code": {
+          "const": 0
+        },
+        "log_file_name": {
+          "type": "string",
+          "pattern": "^[a-z-]+\\.log$"
+        },
+        "log_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

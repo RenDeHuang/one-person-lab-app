@@ -77,14 +77,14 @@ fully pinned, so those historical digests are not the acceptance authority for
 a fresh Windows build.
 
 The current immutable intake is
-[`packets/99898a9220753e75cb6f645398b3609f14edda62/`](packets/99898a9220753e75cb6f645398b3609f14edda62/).
+[`packets/11ff4f50f5f300a67d5aebc0937d484cf16958db/`](packets/11ff4f50f5f300a67d5aebc0937d484cf16958db/).
 Its manifest SHA256 is
-`a1560e3673dcfef5db6cc143f63592d30c44800b6b2ed247968174eb89601cd6`.
-The directory binds acceptance source `99898a9220753e75cb6f645398b3609f14edda62`;
+`6ce41f790380d8ea5d82a678d6d15da58341101ee06f27cde5452203bc636ff2`.
+The directory binds acceptance source `11ff4f50f5f300a67d5aebc0937d484cf16958db`;
 the commit that publishes the directory is transport provenance, not a
 replacement for that acceptance source.
-The earlier `441c457c.../ce701258...` intake remains immutable provenance but
-is superseded and must not be executed.
+The earlier `441c457c.../ce701258...` and `99898a92.../a1560e36...` intakes
+remain immutable provenance but are superseded and must not be executed.
 
 ## Fixtures
 
