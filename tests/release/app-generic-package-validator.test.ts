@@ -198,7 +198,7 @@ test('fixed Agent, Skill, and Home metadata may drift without redefining runtime
   ));
 });
 
-test('an unknown installed standard Agent is admitted by directory, fresh status, and Home preference', () => {
+test('an unknown standard Agent remains admitted when Home-visible even if it is not installed', () => {
   const profile = readJson('contracts/app-product-profile.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   const palettePolicy = profile.gui.ordinary_capability_selector_policy;
@@ -218,18 +218,42 @@ test('an unknown installed standard Agent is admitted by directory, fresh status
   );
   assert.equal(
     guiContract.home_layout.unknown_standard_agent_policy,
-    'render_when_installed_and_preference_visible_without_app_package_id_branch',
+    'render_when_default_or_user_preference_visible_without_app_package_id_branch_and_independent_of_installed_state',
+  );
+  assert.equal(
+    guiContract.home_layout.starter_visibility_policy,
+    'standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state',
   );
   assert.equal(
     shortcutPolicy.runtime_authority_ref,
     'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
   );
 
+  const unavailableDirectoryEntry = {
+    ...syntheticDirectoryEntry,
+    installed: false,
+    readiness: {
+      status: 'unavailable',
+      launch_allowed: false,
+      reason: 'package_not_installed',
+    },
+  };
+  const unavailableStatusProjection = {
+    ...syntheticStatusProjection,
+    presence: {
+      ...syntheticStatusProjection.presence,
+      installed: false,
+      present: false,
+      callable: false,
+      status: 'missing',
+      reason: 'package_not_installed',
+    },
+  };
   const appState = {
     agent_packages: {
-      directory: { entries: [syntheticDirectoryEntry] },
+      directory: { entries: [unavailableDirectoryEntry] },
       status_index: {
-        packages: [syntheticStatusProjection],
+        packages: [unavailableStatusProjection],
         home_shortcut_preferences: [syntheticHomeShortcutPreference],
       },
     },
@@ -245,8 +269,10 @@ test('an unknown installed standard Agent is admitted by directory, fresh status
   );
 
   assert.deepEqual(standardAgents.map((entry) => entry.package_id), ['community-clinical-agent']);
-  assert.equal(status?.presence.present, true);
-  assert.equal(status?.presence.callable, true);
+  assert.equal(standardAgents[0]?.installed, false);
+  assert.equal(status?.presence.present, false);
+  assert.equal(status?.presence.callable, false);
+  assert.equal(status?.presence.reason, 'package_not_installed');
   assert.equal(preference?.visible, true);
   assert.equal(preference?.sort_order, 7);
   assert.equal(

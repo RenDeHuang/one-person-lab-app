@@ -1374,20 +1374,20 @@ export const appOwnedHomeLayout = {
   purpose_entry_metadata_source_ref:
     "home_purpose_entries optional migration/display metadata only",
   purpose_entry_visibility_source_ref:
-    "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+    "contracts/app-product-profile.json#gui.home.home_agent_shortcuts[default_visible=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
   purpose_entry_placement:
     "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
   starter_visibility_policy:
-    "installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences",
+    "standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state",
   starter_order_policy: "home_shortcut_preferences_sort_order_then_localized_display_name",
   shortcut_membership_source_ref:
     "app_state.agent_packages.directory.entries[package_role=standard_agent]",
   shortcut_preference_source_ref:
     "app_state.agent_packages.status_index.home_shortcut_preferences[]",
   unknown_standard_agent_policy:
-    "render_when_installed_and_preference_visible_without_app_package_id_branch",
+    "render_when_default_or_user_preference_visible_without_app_package_id_branch_and_independent_of_installed_state",
   starter_layout_policy: "compact_inline_wrap",
   starter_item_width_policy: "content_sized",
   starter_count_layout_policy: "center_actual_visible_count_and_wrap_without_navigation_chevrons",

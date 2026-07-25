@@ -1139,7 +1139,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     homeTarget.title_policy !== 'modest_dynamic_prompt_in_composer_reading_lane' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !==
-      'installed_standard_agent_directory_entries_with_visible_home_shortcut_preferences' ||
+      'standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state' ||
     homeTarget.starter_order_policy !==
       'home_shortcut_preferences_sort_order_then_localized_display_name' ||
     homeTarget.shortcut_membership_source_ref !==
@@ -1147,7 +1147,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     homeTarget.shortcut_preference_source_ref !==
       'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
     homeTarget.unknown_standard_agent_policy !==
-      'render_when_installed_and_preference_visible_without_app_package_id_branch' ||
+      'render_when_default_or_user_preference_visible_without_app_package_id_branch_and_independent_of_installed_state' ||
     homeTarget.default_visible_shortcut_ids !== undefined ||
     homeTarget.starter_layout_policy !== 'compact_inline_wrap' ||
     record(homeTarget.visual_structure).starter_region !==
