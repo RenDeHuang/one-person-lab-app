@@ -52,6 +52,11 @@ type SigningFacts = {
   timestamp: string | null;
 };
 
+type ImportedDeveloperIdIdentity = {
+  sha1: string;
+  fullName: string;
+};
+
 type GithubExecution = {
   environment: 'github_actions' | 'local';
   admission_eligible: boolean;
@@ -106,13 +111,52 @@ export function parseSigningFacts(output: string): SigningFacts {
   return { teamIdentifier, authorities, runtimeVersion, timestamp };
 }
 
+function parseImportedDeveloperIdIdentities(output: string): ImportedDeveloperIdIdentity[] {
+  return [...output.matchAll(
+    /^\s*\d+\)\s+([0-9a-f]{40})\s+"(Developer ID Application: [^"]+)"$/gim,
+  )].map((match) => ({
+    sha1: match[1]!.toUpperCase(),
+    fullName: match[2]!,
+  }));
+}
+
+function resolveImportedDeveloperIdIdentity(
+  output: string,
+  selector: string,
+  teamId: string,
+): ImportedDeveloperIdIdentity {
+  const prefix = 'Developer ID Application: ';
+  const identities = parseImportedDeveloperIdIdentities(output);
+  if (identities.length === 0) {
+    throw new Error('Imported P12 does not expose a Developer ID Application identity.');
+  }
+  const selectorSha1 = /^[0-9a-f]{40}$/i.test(selector) ? selector.toUpperCase() : null;
+  const matches = identities.filter((candidate) => (
+    selectorSha1 === candidate.sha1
+    || selector === candidate.fullName
+    || selector === candidate.fullName.slice(prefix.length)
+  ));
+  if (matches.length === 0) {
+    throw new Error('Configured IDENTITY does not resolve to an imported Developer ID Application identity.');
+  }
+  if (matches.length > 1) {
+    throw new Error('Configured IDENTITY resolves to multiple imported Developer ID Application identities.');
+  }
+  const resolved = matches[0]!;
+  if (!resolved.fullName.endsWith(` (${teamId})`)) {
+    throw new Error('Imported Developer ID Application identity Team ID does not match configured TEAM_ID.');
+  }
+  return resolved;
+}
+
 function commandText(command: string, args: string[]) {
   return [command, ...args].map((entry) => JSON.stringify(entry)).join(' ');
 }
 
 function redactText(value: string, sensitiveValues: string[] = []) {
-  return sensitiveValues
+  return [...new Set(sensitiveValues)]
     .filter(Boolean)
+    .sort((left, right) => right.length - left.length)
     .reduce((redacted, secret) => redacted.replaceAll(secret, '<redacted>'), value);
 }
 
@@ -284,14 +328,17 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       ['find-identity', '-v', '-p', 'codesigning', keychainPath],
       { sensitiveValues: [secrets.IDENTITY] },
     );
-    const importedDeveloperIdIdentities = [
-      ...identities.stdout.matchAll(
-        /^\s*\d+\)\s+[0-9a-f]{40}\s+"(Developer ID Application:[^"]+)"$/gim,
-      ),
+    const resolvedIdentity = resolveImportedDeveloperIdIdentity(
+      identities.stdout,
+      secrets.IDENTITY,
+      secrets.TEAM_ID,
+    );
+    const identitySensitiveValues = [
+      resolvedIdentity.fullName,
+      resolvedIdentity.sha1,
+      resolvedIdentity.sha1.toLowerCase(),
+      ...Object.values(secrets),
     ];
-    if (importedDeveloperIdIdentities.length === 0) {
-      throw new Error('Imported P12 does not expose a Developer ID Application identity.');
-    }
 
     fs.copyFileSync('/usr/bin/true', probePath);
     fs.chmodSync(probePath, 0o755);
@@ -306,7 +353,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
         '--keychain',
         keychainPath,
         '--sign',
-        secrets.IDENTITY,
+        resolvedIdentity.sha1,
         probePath,
       ],
       {
@@ -318,17 +365,27 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
           '--keychain',
           keychainPath,
           '--sign',
-          '<configured-identity>',
+          '<resolved-imported-developer-id>',
           probePath,
         ],
-        sensitiveValues: [secrets.IDENTITY],
+        sensitiveValues: identitySensitiveValues,
       },
     );
-    runRequired(runner, 'codesign', ['--verify', '--strict', '--verbose=2', probePath]);
-    const details = runRequired(runner, 'codesign', ['-dv', '--verbose=4', probePath]);
+    runRequired(
+      runner,
+      'codesign',
+      ['--verify', '--strict', '--verbose=2', probePath],
+      { sensitiveValues: identitySensitiveValues },
+    );
+    const details = runRequired(
+      runner,
+      'codesign',
+      ['-dv', '--verbose=4', probePath],
+      { sensitiveValues: identitySensitiveValues },
+    );
     const signingFacts = parseSigningFacts(`${details.stdout}\n${details.stderr}`);
-    if (!signingFacts.authorities.some((authority) => authority.startsWith('Developer ID Application:'))) {
-      throw new Error('Signed probe does not contain a Developer ID Application authority.');
+    if (!signingFacts.authorities.includes(resolvedIdentity.fullName)) {
+      throw new Error('Signed probe authority does not match the resolved Developer ID Application identity.');
     }
     if (signingFacts.teamIdentifier !== secrets.TEAM_ID) {
       throw new Error('Imported Developer ID TeamIdentifier mismatch.');
