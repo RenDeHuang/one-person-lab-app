@@ -37,6 +37,37 @@ blockers:
 Contract-only rows and docs are not pass evidence. The gate runner writes a
 typed blocker when the current host cannot prove a requested gate.
 
+## Bounded Recovery Loop
+
+Windows VM validation must pursue the usable terminal state. A timeout or
+non-zero exit stops the **current operation**, not the validation objective.
+The operator keeps one active recovery loop for one `RunId`:
+
+1. Run the clean-install fixture and retain its run directory.
+2. If an installer command, Docker query, or worker exceeds its budget, stop
+   only that validation process tree and write the structured breakpoint.
+   Do not start parallel `vmrun`, PowerShell, Docker, or browser probes.
+3. Read `supervisor-breakpoint.json`, `runner-error.txt`, and the bounded host
+   readback once. Repair the first reported issue, for example by restoring
+   Docker Desktop readiness, resolving GHCR connectivity, or freeing only
+   unreferenced validation artifacts.
+4. Re-read the authoritative host state, then resume the same `RunId`. Do not
+   blindly rerun an operation whose external result is unknown.
+5. Continue until the installer, data preservation, scheduled-task, digest,
+   HTTP, and UI checks all pass. Only a missing permission, safety/data
+   integrity risk, or required external input may pause the objective.
+
+The fixture defaults are deliberately finite: a 55-minute interactive worker
+budget, a 5 GiB C: free-space floor, and 30-second Docker/WSL readback calls.
+The floor stops the validation worker before the guest disk is exhausted; it
+does not authorize Docker prune, data deletion, or deletion of referenced
+images. Repair the storage condition and resume the same `RunId`.
+
+When Docker Desktop is the first breakpoint, allow one targeted restart after
+the bounded readback, then read state again. A second failure is a repair
+breakpoint with logs and next action, not a reason to wait indefinitely or to
+claim success.
+
 ## Commands
 
 Run these from the App repo root:
