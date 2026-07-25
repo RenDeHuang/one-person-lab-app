@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-host-closeout.schema.json",
+  "title": "OPL Windows WSL2 V6 host closeout receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "validation_state",
+    "assessment_scope",
+    "terminal_v6_verdict",
+    "status",
+    "observed_at",
+    "source_refs",
+    "artifact",
+    "vm",
+    "writer_handoff",
+    "phase_evidence",
+    "writer_release",
+    "capability_outcome",
+    "error"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_windows_wsl2_v6_host_closeout.v1"
+    },
+    "validation_state": {
+      "const": "validation_only_non_binding"
+    },
+    "assessment_scope": {
+      "const": "status_projection_only"
+    },
+    "terminal_v6_verdict": {
+      "const": true
+    },
+    "status": {
+      "const": "passed"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_sha",
+        "shell_sha",
+        "framework_sha"
+      ],
+      "properties": {
+        "app_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "shell_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "framework_sha": {
+          "$ref": "#/$defs/gitSha"
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "file_name"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_name": {
+          "const": "OPL-Windows-WSL2-Validation-v6.zip"
+        }
+      }
+    },
+    "vm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity",
+        "vmx_path",
+        "vmx_sha256",
+        "bios_uuid",
+        "storage_class",
+        "external_volume_uuid",
+        "external_device_identifier",
+        "bus_protocol",
+        "solid_state",
+        "powered_off_readback"
+      ],
+      "properties": {
+        "identity": {
+          "type": "string",
+          "pattern": "^vmware-bios:[0-9a-f]{32}$"
+        },
+        "vmx_path": {
+          "type": "string",
+          "pattern": "^/Volumes/.+\\.vmx$"
+        },
+        "vmx_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bios_uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "storage_class": {
+          "const": "external_ssd"
+        },
+        "external_volume_uuid": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "external_device_identifier": {
+          "type": "string",
+          "pattern": "^disk[0-9]+s[0-9]+$"
+        },
+        "bus_protocol": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "solid_state": {
+          "const": true
+        },
+        "powered_off_readback": {
+          "const": true
+        }
+      }
+    },
+    "writer_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_sha256",
+        "previous_owner_task_id",
+        "receipt_id",
+        "released_at"
+      ],
+      "properties": {
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_owner_task_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "receipt_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "released_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "phase_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stopped",
+        "running"
+      ],
+      "properties": {
+        "stopped": {
+          "$ref": "#/$defs/phaseEvidence"
+        },
+        "running": {
+          "$ref": "#/$defs/phaseEvidence"
+        }
+      }
+    },
+    "writer_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "receipt_id",
+        "released_at",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "status": {
+          "const": "released"
+        },
+        "receipt_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "released_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "capability_outcome": {
+      "const": "visible_status_projection_passed_capabilities_remain_unverified"
+    },
+    "error": {
+      "type": "null"
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "phaseEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_sha256",
+        "screenshot_sha256",
+        "run_id"
+      ],
+      "properties": {
+        "receipt_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "screenshot_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,80}$"
+        }
+      }
+    }
+  }
+}
