@@ -221,12 +221,18 @@ function validateLease({ lease, expected, now }) {
   assert.equal(lease.platform_owner_task_id, PLATFORM_OWNER_TASK_ID);
   assert.ok(new Date(lease.issued_at) <= now, 'writer lease is not active yet');
   assert.ok(new Date(lease.expires_at) > now, 'writer lease has expired');
-  for (const operation of [
+  const expectedOperations = [
     'v6_build_seal',
     'v6_fixture_phase_transition',
     'v6_guest_visible_smoke',
     'v6_soft_shutdown',
-  ]) {
+  ];
+  assert.deepEqual(
+    [...lease.allowed_operations].sort(),
+    [...expectedOperations].sort(),
+    'writer lease operations are not exact',
+  );
+  for (const operation of expectedOperations) {
     assert.ok(
       lease.allowed_operations.includes(operation),
       `writer lease does not allow ${operation}`,
@@ -234,6 +240,10 @@ function validateLease({ lease, expected, now }) {
   }
   assert.equal(lease.clean_vm_attestation.status, 'attested');
   assert.equal(lease.clean_vm_attestation.vm_id, expected.vmId);
+  assert.ok(
+    new Date(lease.clean_vm_attestation.attested_at) <= now,
+    'clean VM attestation is in the future',
+  );
 }
 
 function validateGuestReceipt({

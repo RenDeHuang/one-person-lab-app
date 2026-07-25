@@ -508,6 +508,10 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   assert.match(buildSeal, /electron_builder.*26\.8\.1/);
   assert.match(buildSeal, /output_absent_before_build/);
   assert.match(buildSeal, /ExpectedWriterLeaseSha256/);
+  assert.match(buildSeal, /clean_vm_attestation\.vm_id/);
+  assert.match(buildSeal, /allowed_operations\)\.Count -ne 4/);
+  assert.match(runner, /clean_vm_attestation\.vm_id/);
+  assert.match(runner, /allowed_operations\)\.Count -ne 4/);
   assert.match(materialize, /create_once_build_seal_receipt/);
   assert.match(materialize, /historical_zip_sha256_authoritative: false/);
   assert.match(materialize, /windows-wsl2-v6-execution-runbook\.md/);

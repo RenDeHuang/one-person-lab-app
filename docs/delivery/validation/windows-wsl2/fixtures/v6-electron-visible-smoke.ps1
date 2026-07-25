@@ -50,7 +50,7 @@ param(
   [datetime]$WriterLeaseExpiresAt,
 
   [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$')]
+  [ValidatePattern('^hyperv-vmid:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')]
   [string]$VmIdentity,
 
   [string]$ValidationRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
@@ -1532,24 +1532,30 @@ public static class OplValidationNativeWindow
     throw 'Writer lease receipt SHA256 does not match the host-provided identity'
   }
   $writerLease = Get-Content -Raw -LiteralPath $WriterLeasePath | ConvertFrom-Json
+  $writerLeaseVmId = ([string]$writerLease.vm_identity) -replace '^hyperv-vmid:', ''
   if (
     $writerLease.schema -ne 'opl_windows_v6_vm_writer_lease.v1' -or
     $writerLease.status -ne 'active' -or
     $writerLease.host_platform -ne 'windows_hyperv' -or
-  $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
-  $writerLease.vm_identity -ne $VmIdentity -or
-  $PlatformOwnerTaskId -ne $expectedPlatformOwnerTaskId -or
-  $writerLease.platform_owner_task_id -ne $expectedPlatformOwnerTaskId -or
+    $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
+    $writerLease.vm_identity -ne $VmIdentity -or
+    $PlatformOwnerTaskId -ne $expectedPlatformOwnerTaskId -or
+    $writerLease.platform_owner_task_id -ne $expectedPlatformOwnerTaskId -or
     $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
     $writerLease.lease_id -ne $WriterLeaseId -or
     ([datetime]$writerLease.issued_at).ToUniversalTime() -ne
       $WriterLeaseIssuedAt.ToUniversalTime() -or
     ([datetime]$writerLease.expires_at).ToUniversalTime() -ne
       $WriterLeaseExpiresAt.ToUniversalTime() -or
+    @($writerLease.allowed_operations).Count -ne 4 -or
     $writerLease.allowed_operations -notcontains 'v6_build_seal' -or
     $writerLease.allowed_operations -notcontains 'v6_fixture_phase_transition' -or
     $writerLease.allowed_operations -notcontains 'v6_guest_visible_smoke' -or
-    $writerLease.allowed_operations -notcontains 'v6_soft_shutdown'
+    $writerLease.allowed_operations -notcontains 'v6_soft_shutdown' -or
+    $writerLease.clean_vm_attestation.status -ne 'attested' -or
+    $writerLease.clean_vm_attestation.vm_id -ne $writerLeaseVmId -or
+    ([datetime]$writerLease.clean_vm_attestation.attested_at).ToUniversalTime() -gt
+      $nowUtc
   ) {
     throw 'Writer lease receipt does not match the authorized VM lease'
   }
