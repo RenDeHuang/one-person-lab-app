@@ -18,6 +18,19 @@ import {
   writeFullRemoteAssets,
 } from './helpers.ts';
 
+const fakeMacosPlatformNodeOptions =
+  '--import=data:text/javascript,Object.defineProperty(process%2C%22platform%22%2C%7Bvalue%3A%22darwin%22%7D)%3B';
+const fakeNonMacosPlatformNodeOptions =
+  '--import=data:text/javascript,Object.defineProperty(process%2C%22platform%22%2C%7Bvalue%3A%22linux%22%7D)%3B';
+
+function fakeMacosTrustEnvironment(binDir, fields = {}) {
+  return {
+    ...fields,
+    NODE_OPTIONS: fakeMacosPlatformNodeOptions,
+    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  };
+}
+
 function validFullReleaseNotes(version) {
   return `One Person Lab v${version}
 
@@ -385,10 +398,9 @@ test('remote release verifier validates standard and Full assets from GitHub rel
     summaryPath,
     '--no-download',
   ], {
-    env: {
+    env: fakeMacosTrustEnvironment(binDir, {
       OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
-      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-    },
+    }),
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -469,10 +481,9 @@ test('remote release verifier rejects mixed Developer ID identities in Full evid
       tempRoot,
       '--no-download',
     ], {
-      env: {
+      env: fakeMacosTrustEnvironment(binDir, {
         OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
-        PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-      },
+      }),
     });
 
     assert.notEqual(result.status, 0, fixture.label);
@@ -505,6 +516,35 @@ test('remote release verifier rejects standard updater metadata that references 
   assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
 });
 
+test('remote release verifier keeps real non-macOS public trust validation fail closed', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-non-macos-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-remote-non-macos';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version', version,
+    '--repo', 'gaofeng21cn/one-person-lab-app',
+    '--download-dir', tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      NODE_OPTIONS: fakeNonMacosPlatformNodeOptions,
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /Standard public Developer ID\/notarization verification requires a macOS runner\./,
+  );
+});
+
 test('remote release verifier separates revision asset names from updater and CFBundle identity', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-revision-'));
   const binDir = path.join(tempRoot, 'bin');
@@ -524,10 +564,9 @@ test('remote release verifier separates revision asset names from updater and CF
     '--summary-path', summaryPath,
     '--no-download',
   ], {
-    env: {
+    env: fakeMacosTrustEnvironment(binDir, {
       OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
-      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-    },
+    }),
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
