@@ -2863,6 +2863,34 @@
       "may_block_standard_terminal": false,
       "required_before_append_full_operation": true
     },
+    "standard_admission_manifest": {
+      "schema": "opl_stable_release_admission_manifest.v1",
+      "script": "scripts/stable-release-admission-manifest.ts",
+      "producer_workflow": ".github/workflows/release-apple-credentials-preflight.yml",
+      "consumer_workflow": ".github/workflows/release-stable.yml",
+      "protected_environment": "release-stable",
+      "artifact_name": "opl-stable-admission-<producer_run_id>",
+      "digest_algorithm": "sha256",
+      "standard_dispatch_inputs": [
+        "operation",
+        "admission_run_id",
+        "admission_manifest_digest"
+      ],
+      "raw_standard_version_or_ref_inputs_allowed": false,
+      "required_bindings": [
+        "final_app_shell_framework_main_shas",
+        "critical_workflow_git_blobs_and_sha256",
+        "apple_protected_secret_names_6_of_6",
+        "developer_id_and_notary_authentication_receipt",
+        "cross_namespace_stable_version_allocator",
+        "github_release_and_tag_namespace",
+        "anonymous_webui_namespace",
+        "homebrew_standard_cask_and_policy",
+        "zero_other_active_release_runs"
+      ],
+      "fresh_verify_before_expensive_work": true,
+      "unknown_dispatch_result_policy": "read_only_reconcile_without_rerun_redispatch_or_cancel"
+    },
     "summary_artifacts": [
       "freeze-request.json",
       "freeze-result.json"
@@ -2875,7 +2903,11 @@
       "package_release_set_and_exact_package_fields_absent",
       "prepared_ai_release_notes_marker",
       "prepared_ai_release_notes_standard_scope",
-      "framework_freeze_request_schema"
+      "framework_freeze_request_schema",
+      "stable_admission_manifest_digest",
+      "apple_credentials_runtime_receipt",
+      "cross_namespace_version_allocator",
+      "zero_other_active_release_runs"
     ],
     "failure_budget": "fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full",
     "source_gate": {

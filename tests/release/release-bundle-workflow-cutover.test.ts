@@ -233,23 +233,34 @@ test('Stable is the only mutation entry and daily validation uses the independen
   }
 });
 
-test('new Standard admits exact main-reachable snapshots while Canary uses only a minimum compatible ABI', () => {
+test('new Standard admits only a protected digest-bound manifest while Canary uses a minimum compatible ABI', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
+  assert.equal(stable.on.workflow_dispatch.inputs.admission_run_id.required, false);
+  assert.equal(stable.on.workflow_dispatch.inputs.admission_manifest_digest.required, false);
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
-  assert.match(stableAdmission, /require_main_reachable\(\)/);
-  assert.match(stableAdmission, /repos\/\$repository\/compare\/\$snapshot_sha\.\.\.main/);
-  assert.match(stableAdmission, /\.status == "identical" or \.status == "ahead"/);
-  assert.match(stableAdmission, /\.merge_base_commit\.sha == \$snapshot_sha/);
-  assert.match(stableAdmission, /require_main_reachable "\$GITHUB_REPOSITORY" "\$app_sha"/);
-  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/opl-aion-shell" "\$SHELL_REF"/);
-  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/one-person-lab" "\$FRAMEWORK_REF"/);
+  assert.match(
+    stableAdmission,
+    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT"/,
+  );
+  assert.match(stableAdmission, /actions\/runs\/\$ADMISSION_RUN_ID/);
+  assert.match(stableAdmission, /\.status == "completed"/);
+  assert.match(stableAdmission, /\.conclusion == "success"/);
+  assert.match(stableAdmission, /\.run_attempt == 1/);
+  assert.match(stableAdmission, /\.head_sha == \$app_sha/);
+  assert.match(stableAdmission, /\.path == \$workflow/);
+  assert.match(stableAdmission, /opl-stable-admission-\$ADMISSION_RUN_ID/);
+  assert.match(stableAdmission, /stable-release-admission-manifest\.ts verify/);
+  assert.match(stableAdmission, /--expected-digest "\$ADMISSION_MANIFEST_DIGEST"/);
+  assert.match(stableAdmission, /VERSION="\$\(jq -er \.version\.display verified-stable-admission\.json\)"/);
+  assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell_sha verified-stable-admission\.json\)"/);
+  assert.match(stableAdmission, /FRAMEWORK_REF="\$\(jq -er \.cohort\.framework_sha verified-stable-admission\.json\)"/);
   assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
   assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
-  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$FRAMEWORK_REF" \]/);
+  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$REQUESTED_FRAMEWORK_REF" \]/);
   assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_REF/);
   assert.doesNotMatch(
     stableAdmission.slice(stableAdmission.indexOf('resume_standard|append_full)')),
@@ -1019,14 +1030,26 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     'opl-apple-release-credentials-preflight-${{ github.run_id }}',
   );
   assert.deepEqual(Object.keys(credentialPreflight.on), ['workflow_dispatch']);
-  assert.deepEqual(credentialPreflight.permissions, { contents: 'read' });
+  assert.deepEqual(credentialPreflight.permissions, { contents: 'read', actions: 'read' });
   assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-14');
   assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
-  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 10);
+  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 15);
   assert.equal(credentialPreflight.concurrency['cancel-in-progress'], false);
   assert.equal(
     credentialPreflight.jobs.validate.steps.some(
       (step: Record<string, unknown>) => String(step.run ?? '').includes('verify-apple-release-credentials.ts'),
+    ),
+    true,
+  );
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
+    ),
+    true,
+  );
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, any>) => step.with?.name === 'opl-stable-admission-${{ github.run_id }}',
     ),
     true,
   );
