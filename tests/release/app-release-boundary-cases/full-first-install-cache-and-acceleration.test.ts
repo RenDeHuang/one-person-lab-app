@@ -74,14 +74,28 @@ test("Full workflow provisions the frozen Python through uv on macOS arm64", () 
       "utf8",
     ),
   );
+  const prunePolicy = JSON.parse(
+    fs.readFileSync(
+      path.join(appRoot, "contracts/full-runtime-prune-policy.json"),
+      "utf8",
+    ),
+  );
 
   assert.doesNotMatch(workflow, /actions\/setup-python@/);
   assert.match(
     workflow,
     /astral-sh\/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244[\s\S]*version: '0\.11\.29'[\s\S]*uv python install --managed-python "\$EXPECTED_PYTHON_VERSION"[\s\S]*uv python find --managed-python "\$EXPECTED_PYTHON_VERSION"[\s\S]*uv pip install --python "\$toolchain_root\/bin\/python" --no-deps "uv==\$EXPECTED_UV_VERSION"/,
   );
+  assert.equal(sourceManifest.toolchain.python.version, "3.12.12");
   assert.equal(sourceManifest.toolchain.python.source, "uv-managed CPython standalone release");
   assert.equal(sourceManifest.toolchain.uv.source, "PyPI exact-version distribution");
+  const pythonRoot = `python/cpython-${sourceManifest.toolchain.python.version}-macos-aarch64-none/`;
+  const pythonExamples = [
+    ...prunePolicy.validation_examples.runtime_tree.excluded,
+    ...prunePolicy.validation_examples.runtime_tree.retained,
+  ].filter((entry: string) => entry.startsWith("python/cpython-"));
+  assert.ok(pythonExamples.length > 0);
+  assert.ok(pythonExamples.every((entry: string) => entry.startsWith(pythonRoot)));
 });
 
 test("Full runtime cache classifies hit and miss modes from one canonical key", async () => {

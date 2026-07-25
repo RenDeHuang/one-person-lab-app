@@ -41,7 +41,7 @@
       "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
     },
     "python": {
-      "version": "3.12.13",
+      "version": "3.12.12",
       "source": "uv-managed CPython standalone release",
       "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
     },
