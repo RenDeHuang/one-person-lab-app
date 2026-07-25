@@ -467,6 +467,7 @@ jobs:
           command: bun install --cwd shells/aionui --frozen-lockfile
 
       - name: Install App release tooling dependencies
+        working-directory: ${{ github.workspace }}
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Run postinstall
