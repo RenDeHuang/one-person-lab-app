@@ -16,7 +16,7 @@ const credentialEnv = {
   APPLE_ID: 'release@example.invalid',
   APPLE_ID_PASSWORD: 'fixture-app-password',
   TEAM_ID: 'TEAM123456',
-  IDENTITY: identity,
+  IDENTITY: 'Example Owner',
   GITHUB_ACTIONS: 'true',
   GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
   GITHUB_WORKFLOW_REF:
@@ -31,6 +31,7 @@ const credentialEnv = {
 function successfulRunner(overrides: {
   teamId?: string;
   failImport?: boolean;
+  identityOutput?: string;
   notaryStdout?: string;
 } = {}) {
   const calls: Array<{ command: string; args: string[]; redactedArgs?: string[] }> = [];
@@ -44,7 +45,11 @@ function successfulRunner(overrides: {
       };
     }
     if (command === 'security' && args[0] === 'find-identity') {
-      return { status: 0, stdout: `  1) ABCDEF "${identity}"\n`, stderr: '' };
+      return {
+        status: 0,
+        stdout: overrides.identityOutput ?? `  1) ${'A'.repeat(40)} "${identity}"\n`,
+        stderr: '',
+      };
     }
     if (command === 'codesign' && args[0] === '-dv') {
       return {
@@ -92,7 +97,7 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
   assert.equal(receipt.execution.admission_eligible, true);
   assert.equal(receipt.execution.head_sha, 'a'.repeat(40));
   assert.equal(receipt.signing.configured_team_id_match, true);
-  assert.equal(receipt.signing.configured_identity_match, true);
+  assert.equal(receipt.signing.configured_identity_selector_resolved, true);
   assert.equal(receipt.signing.probe_codesign_strict, 'passed');
   assert.equal(receipt.notarization.authentication, 'passed');
   assert.equal(receipt.notarization.history_count, 1);
@@ -102,6 +107,13 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
   assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
   assert.equal(
     fixture.calls.some((call) => call.command === 'codesign' && call.args.includes('--timestamp')),
+    true,
+  );
+  assert.equal(
+    fixture.calls.some((call) => (
+      call.command === 'codesign'
+      && call.args[call.args.indexOf('--sign') + 1] === credentialEnv.IDENTITY
+    )),
     true,
   );
   assert.equal(
@@ -138,6 +150,17 @@ test('Apple credential preflight fails closed on platform, Team ID, and notary r
       runner: successfulRunner({ notaryStdout: 'not-json' }).runner,
     }),
     /did not return a JSON object/,
+  );
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath: path.join(root, 'identity.json'),
+      env: credentialEnv,
+      platform: 'darwin',
+      runner: successfulRunner({
+        identityOutput: `  1) ${'B'.repeat(40)} "Apple Development: Example Owner (TEAM123456)"\n`,
+      }).runner,
+    }),
+    /does not expose a Developer ID Application identity/,
   );
 });
 

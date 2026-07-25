@@ -281,8 +281,13 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       ['find-identity', '-v', '-p', 'codesigning', keychainPath],
       { sensitiveValues: [secrets.IDENTITY] },
     );
-    if (!identities.stdout.includes(`"${secrets.IDENTITY}"`)) {
-      throw new Error('Imported P12 does not expose the configured Developer ID Application identity.');
+    const importedDeveloperIdIdentities = [
+      ...identities.stdout.matchAll(
+        /^\s*\d+\)\s+[0-9a-f]{40}\s+"(Developer ID Application:[^"]+)"$/gim,
+      ),
+    ];
+    if (importedDeveloperIdIdentities.length === 0) {
+      throw new Error('Imported P12 does not expose a Developer ID Application identity.');
     }
 
     fs.copyFileSync('/usr/bin/true', probePath);
@@ -322,8 +327,8 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     if (signingFacts.teamIdentifier !== secrets.TEAM_ID) {
       throw new Error('Imported Developer ID TeamIdentifier mismatch.');
     }
-    if (!signingFacts.authorities.includes(secrets.IDENTITY)) {
-      throw new Error('Signed probe authority does not match the configured Developer ID Application identity.');
+    if (!signingFacts.authorities.some((authority) => authority.startsWith('Developer ID Application:'))) {
+      throw new Error('Signed probe does not contain a Developer ID Application authority.');
     }
     if (!signingFacts.runtimeVersion) {
       throw new Error('Signed probe does not contain the hardened runtime flag.');
@@ -374,7 +379,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       required_secret_names: [...requiredSecretNames],
       required_secret_count: requiredSecretNames.length,
       signing: {
-        configured_identity_match: true,
+        configured_identity_selector_resolved: true,
         configured_team_id_match: true,
         developer_id_application: true,
         hardened_runtime: true,
