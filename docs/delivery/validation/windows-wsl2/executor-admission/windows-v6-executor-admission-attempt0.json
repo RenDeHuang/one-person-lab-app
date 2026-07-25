@@ -1,0 +1,187 @@
+{
+  "schema": "opl_windows_v6_executor_admission.v1",
+  "status": "prepared_waiting_for_platform_lease",
+  "execution_authorized": false,
+  "attempt": 0,
+  "executor": {
+    "task_id": "019f97e4-288a-7140-8850-925c657d8c71",
+    "role": "windows_v6_guest_executor_only",
+    "platform_owner_task_id": "019f972b-f550-7961-90be-9873600cd895",
+    "contract_owner_task_id": "019f9366-5e75-7802-8bcc-03c5d16c16f2"
+  },
+  "fresh_ssot": {
+    "app_main_commit": "0f9895a71d64fa9436602c3fc347bcd7c8f10b83",
+    "app_main_tree": "7b3f8ff64dc9f974e3912b5cab1ad931837984b1",
+    "semantic_input_only": {
+      "delivery_commit": "f13fc5dabaa3ad190b2fb00420f016100ad7887f",
+      "acceptance_commit": "11ff4f50f5f300a67d5aebc0937d484cf16958db",
+      "manifest_sha256": "6ce41f790380d8ea5d82a678d6d15da58341101ee06f27cde5452203bc636ff2"
+    },
+    "superseded_inputs_must_not_execute": [
+      "delivery:f13fc5dabaa3ad190b2fb00420f016100ad7887f",
+      "acceptance:11ff4f50f5f300a67d5aebc0937d484cf16958db",
+      "manifest:6ce41f790380d8ea5d82a678d6d15da58341101ee06f27cde5452203bc636ff2",
+      "request:6992727b3c61513efb24c599004283a55c43b2b996a1ace07f49776e274e30c4",
+      "host_root:E:\\OPL-VMs"
+    ]
+  },
+  "expected_fresh_platform_input": {
+    "host_root": "C:\\OPL-VMs",
+    "vm_name": "OPL-V6-WSL2-01",
+    "packet": {
+      "packet_root_path": "required_absolute_path_under_C_root",
+      "delivery_commit": "required_40_lower_hex",
+      "delivery_tree": "required_40_lower_hex",
+      "acceptance_commit": "required_40_lower_hex",
+      "acceptance_tree": "required_40_lower_hex",
+      "manifest_path": "required_absolute_path_under_packet_root",
+      "manifest_sha256": "required_64_lower_hex",
+      "manifest_file_count": "required_positive_integer",
+      "payload_count": "required_positive_integer",
+      "all_payload_name_size_sha256_verified": true,
+      "windows_wsl_byte_parity": true,
+      "source_current_against_app_main": "0f9895a71d64fa9436602c3fc347bcd7c8f10b83"
+    },
+    "vm_identity": {
+      "hyperv_vm_id": "required_uuid_lowercase",
+      "vm_identity": "hyperv-vmid:<same_uuid>",
+      "vm_configuration_path": "required_absolute_path_under_C_root",
+      "vhdx_paths": "required_nonempty_array_under_C_root",
+      "powered_off_before_lease": true,
+      "powered_off_observed_at": "required_date_time",
+      "get_vm_receipt_path": "required_absolute_path_under_C_root",
+      "get_vm_receipt_sha256": "required_64_lower_hex"
+    },
+    "clean_baseline": {
+      "checkpoint_name": "OPL-Clean-Windows-zh-CN",
+      "checkpoint_id": "required_uuid_lowercase",
+      "checkpoint_attestation_path": "required_absolute_path_under_C_root",
+      "checkpoint_attestation_sha256": "required_64_lower_hex",
+      "clean_user_receipt_path": "required_absolute_path_under_C_root",
+      "clean_user_receipt_sha256": "required_64_lower_hex",
+      "media_language": "zh-CN",
+      "ui_language": "zh-CN",
+      "system_locale": "zh-CN",
+      "user_locale": "zh-CN",
+      "input_tip": "0804:00000804",
+      "no_webui_state": true,
+      "no_shared_vm_or_vhdx": true
+    },
+    "writer_lease": {
+      "lease_path": "required_absolute_path_under_C_root",
+      "lease_sha256": "required_64_lower_hex",
+      "schema_path": "required_absolute_path_under_fresh_packet_root",
+      "schema_sha256": "required_64_lower_hex",
+      "status": "active",
+      "host_platform": "windows_hyperv",
+      "vm_name": "OPL-V6-WSL2-01",
+      "vm_identity": "hyperv-vmid:<same_uuid>",
+      "platform_owner_task_id": "019f972b-f550-7961-90be-9873600cd895",
+      "executor_task_id": "019f97e4-288a-7140-8850-925c657d8c71",
+      "request_sha256": "required_fresh_C_root_request_sha256",
+      "packet_manifest_sha256": "required_same_as_fresh_packet_manifest",
+      "issued_at": "required_date_time_not_in_future",
+      "expires_at": "required_date_time_after_operation_budget",
+      "allowed_operations_exact": [
+        "v6_build_seal",
+        "v6_fixture_phase_transition",
+        "v6_guest_visible_smoke",
+        "v6_soft_shutdown"
+      ],
+      "clean_vm_attestation_binds_same_vm_checkpoint_and_zh_cn_receipts": true
+    }
+  },
+  "guest_admission_gates": {
+    "validation_root": "C:\\Users\\Public\\Documents\\OnePersonLabValidation\\windows-wsl2-v6-v1",
+    "validation_root_must_be_absent_before_copy": true,
+    "packet_and_lease_rehash_before_copy": true,
+    "packet_and_lease_rehash_after_copy": true,
+    "interactive_desktop_required_for_visible_smoke": true,
+    "powershell_direct_for_visible_smoke": false,
+    "wsl2_only": {
+      "required": true,
+      "distro_identity_must_be_fresh_packet_authoritative": true,
+      "codex_execution_plane": "linux_wsl2_only",
+      "aioncore_execution_plane": "linux_wsl2_only",
+      "framework_execution_plane": "linux_wsl2_only",
+      "native_windows_fallback_allowed": false,
+      "global_wsl_shutdown_allowed": false,
+      "wsl_unregister_allowed": false
+    },
+    "zh_cn_readback_before_build": true,
+    "same_active_lease_required_for_all_phases": true
+  },
+  "one_shot_sequence": [
+    "readback_host_packet_vm_checkpoint_lease_and_hashes",
+    "start_exact_v6_vm_once",
+    "readback_zh_cn_clean_guest_baseline",
+    "copy_fresh_packet_and_lease_to_absent_validation_root",
+    "provision_or_verify_packet_authoritative_wsl2_fixture",
+    "build_and_install_codex_aioncore_framework_on_wsl2_only",
+    "create_once_build_seal",
+    "visible_smoke_fixture_stopped",
+    "visible_smoke_fixture_running",
+    "guest_restart_persistence_readback",
+    "export_exact_receipts_screenshots_build_seal_and_candidate",
+    "scoped_process_listener_and_fixture_cleanup",
+    "host_closeout_graceful_shutdown",
+    "powered_off_writer_process_listener_zero_readback"
+  ],
+  "operation_semantics": {
+    "first_nonzero_exit_or_identity_mismatch": "fail_closed_stop_current_operation",
+    "unknown_external_result": "read_only_reconcile_no_retry",
+    "automatic_retry_allowed": false,
+    "new_attempt_requires_platform_re_adjudication_and_fresh_lease": true,
+    "hard_poweroff_can_pass": false,
+    "terminal_product_verdict_owner": "019f9366-5e75-7802-8bcc-03c5d16c16f2"
+  },
+  "terminal_receipt_contract": {
+    "build_seal_receipt": "required_path_and_sha256",
+    "sealed_candidate": "required_path_size_sha256_and_tree_identity",
+    "stopped_smoke_receipt": "required_path_and_sha256",
+    "stopped_visible_window_screenshot": "required_path_and_sha256",
+    "running_smoke_receipt": "required_path_and_sha256",
+    "running_visible_window_screenshot": "required_path_and_sha256",
+    "restart_persistence_receipt": "required_path_and_sha256",
+    "cleanup_receipt": {
+      "required": true,
+      "candidate_process_survivors": 0,
+      "introduced_wsl_process_survivors": 0,
+      "owned_listeners": 0,
+      "owned_temporary_paths": 0,
+      "unrelated_resources_untouched": true
+    },
+    "writer_release_receipt": "required_path_and_sha256",
+    "host_closeout_receipt": "required_path_and_sha256",
+    "powered_off_readback": {
+      "same_vm_identity": true,
+      "state": "Off",
+      "writer_count": 0,
+      "owned_process_count": 0,
+      "owned_listener_count": 0
+    },
+    "same_turn_delivery_targets": [
+      "019f972b-f550-7961-90be-9873600cd895",
+      "019f9366-5e75-7802-8bcc-03c5d16c16f2"
+    ]
+  },
+  "prohibited_scope": [
+    "OPL-WEBUI-CLEAN-01",
+    "docker_webui_smoke",
+    "host_hyperv_factory_mutation",
+    "main_branch_cas_or_absorption",
+    "release_workflow_tag_or_public_mutation",
+    "legacy_E_root_packet_request_or_lease",
+    "legacy_iMac_vm_or_candidate"
+  ],
+  "admission_decision": {
+    "ready_for_exact_input_readback": true,
+    "ready_for_execution": false,
+    "blocking_inputs": [
+      "fresh_C_root_packet_identity_and_hash_receipt",
+      "fresh_C_root_vm_identity_and_powered_off_readback",
+      "zh_CN_clean_user_and_checkpoint_attestation",
+      "fresh_exact_writer_lease_path_and_sha256"
+    ]
+  }
+}
