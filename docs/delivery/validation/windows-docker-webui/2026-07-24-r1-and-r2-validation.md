@@ -1,134 +1,141 @@
-# Windows Docker/WebUI Validation Receipt: Public r1 and Frozen r2
+# Windows Docker/WebUI Validation Receipt: Public r3
 
-Validation run ID: `20260724-windows-docker-webui-r1-r2`
-State: `r1_reproduced_r2_publication_pending`
+Validation run ID: `20260724-25-windows-docker-webui-r3`
+State: `r3_install_update_persistence_pass_first_login_fix_pending_public_digest`
 Lane: `windows_x64_docker_desktop_manual_vm`
-Date: `2026-07-24`
+Date: `2026-07-25`
 
 ## Scope
 
 This run exercised the beginner Windows installer in an external-SSD VMware
-Windows 11 x64 VM with Docker Desktop and WSL 2. It covered first install,
-manual update, scheduled automatic update registration, persistent
-`data`/`projects`, first-run recovery UI, Gateway account and API Key forms, and
-the public image's cold-start behavior.
+Windows 11 x64 VM with Docker Desktop and WSL 2. It covered update from the
+predecessor image, a clean-data first start, persistent `data`/`projects`,
+manual and scheduled updates, ordinary startup, first-run recovery, Gateway
+account/API Key forms, and an authenticated fresh-login route.
 
 The VM has `4` vCPU and `32768 MiB` memory. Its virtual disk is stored under
-`/Volumes/My Passport/Virtual Machines.localized/`; no VM disk, Docker data, or
-large evidence directory was copied to the internal disk. No Docker prune or
-VM snapshot was used.
+`/Volumes/My Passport/Virtual Machines.localized/`; no VM disk or Docker data
+was moved to the internal 512 GB disk. The host ended this validation with about
+`40 GiB` free internally and `608 GiB` free on the external SSD. No Docker
+prune or VM snapshot was used.
 
-The disposable guest account and password are intentionally excluded from this
-receipt.
+The guest account, VMware guest password, temporary WebUI validation password,
+Gateway credentials, API keys, raw authentication cookies, and full logs are
+intentionally excluded from this receipt.
 
-## Public r1 Identity
+## Canonical Public Identity
 
-Anonymous OCI readback on `2026-07-25T02:55+08:00` returned the same manifest
-digest for `latest`, `stable`, and `26.7.24-r1`:
-
-```text
-sha256:89b37c4b561ba4b614bfa1b4358e60fc0a39b2bd99d416b9e03f911ca9079de4
-```
-
-The public amd64 config labels bind:
+Anonymous OCI readback on `2026-07-25` returned the same manifest digest for
+`latest`, `stable`, and `26.7.24-r3`:
 
 ```text
-App       d9446b8803e23965bf6b0b58520a8d3815cf1255
-Shell     c376e122e8fb55d778711806e600a19a93547cb5
-Framework 02790aea1352f0a62aa0993327583d6814339e6d
-Version   26.7.24-r1
+sha256:e3cdd3806ef40f3414e81d990c718cc454c7bb58623367ee51f6fdbd2138aaeb
 ```
 
-`26.7.24-r2` returned `404` at that readback and was not public.
+The public amd64 image labels bind:
 
-## Passed r1 Surfaces
+```text
+Version   26.7.24-r3
+App       cc0467ca171b79e50029a3de406bc6d2aca9109e
+Shell     6b83b181b46c74c5c9195ecc2e9b1fbf0327287e
+Framework 4b415104a3bdbe1b2c6bfaad0cefbc0712fee62b
+Bundle    sha256:9a64d2efbfc0523dc150433b3004431c2f4dd22b5b9e5496101fa10d03bb2c21
+```
+
+No image was published or retagged by this validation lane.
+
+## Passed r3 Surfaces
 
 | Surface | Result | Bounded readback |
 | --- | --- | --- |
-| One-click Windows install | `passed_with_runner_correction_required` | The public installer created `compose.yaml`, persistent `data` and `projects`, started the service, and reached HTTP `200`. The original runner later proved capable of reusing an old same-name Compose container, so this pass is not treated as true cold-install proof. |
-| Manual update | `passed` | `install-docker-webui.ps1 -Update -Yes` completed and retained `compose.yaml`, `data`, and `projects`. |
-| Automatic update | `passed` | Scheduled task `One Person Lab WebUI Latest Update` was registered for `03:00`, Interactive, limited user, following `latest`. |
-| Missing-configuration recovery | `passed` | The lower-left `完成首次设置` entry remained available. A blocked send showed a local recovery message below the composer and retained the draft. |
-| First-run forms | `passed` | The three-step first-run page exposed OPL Gateway email/password login and API Key compatibility without populated credentials. |
-| Windows credential-helper recovery | `source_fixed_vm_revalidation_pending` | The public installer source now retries a public OPL GHCR pull with a temporary anonymous Docker config when the Windows credential helper is unavailable. |
+| Windows installer and HTTP | `passed` | Fixed installer completed with exit `0` in about 16 seconds, pinned `latest` to the r3 digest, reused the local image, kept Compose running, and reached HTTP `200`. |
+| Timeout cleanup | `source_fixed_and_retested` | A child-process exit race made `taskkill` stderr fatal under PowerShell `Stop`. App commit `b56cb716` suppresses only that cleanup stderr; focused installer tests pass. |
+| Update from predecessor | `passed` | Host update resolved the immutable r3 digest and recreated/reused the Compose service without deleting persistent directories. |
+| Persistent data | `passed` | `data` grew from 5,903 files / 1,267,764,448 bytes to 5,912 files / 1,321,295,401 bytes; `projects` retained its 78-byte sentinel. |
+| Mounts | `passed` | Windows `OnePersonLab/data` and `OnePersonLab/projects` remained bound to `/data` and `/projects`. |
+| Scheduled update | `passed` | `One Person Lab WebUI Latest Update` is Ready with daily 03:00 and AtLogOn triggers, user `oplrunner`, Interactive logon, Limited run level, and last result `0`. |
+| AtLogOn execution | `passed` | A one-time login triggered the task. Auto-logon registry values and LSA private data were then removed and read back absent. No Windows password remains stored. |
+| Ordinary startup | `passed` | A new browser context reached an enabled Guid workbench in about 0.4 seconds; a clean-data context loaded the workbench in about 0.26 seconds and did not wait 20 seconds. |
+| Home recovery placement | `passed` | In incomplete Core state, Home showed only the lower-left `完成首次设置` entry with `不影响浏览`; the former central `本机运行环境需要处理` banner was absent. |
+| First-run UI | `passed` | Direct recovery opened the three-step setup. Clean data resolved Workspace and Local assistant ready, Model access missing, with OPL Gateway account login first, API Key compatibility, and existing-config recheck. |
+| Console stability | `passed_with_expected_auth_probe` | Local-auto and setup pages had no React errors or blank screen. Password-auth login page emitted the expected initial unauthenticated `/api/auth/user` 401 only. |
+| Disk cleanup boundary | `passed` | When guest C: reached zero earlier in the run, only seven known unreferenced validation images were removed. No prune or broad cache deletion was used. Final C: free space was about 23.4 GiB. |
 
-## Confirmed r1 Defects
+## Remaining r3 Defect: Fresh Login Auto-Route Race
 
-1. A fresh WebUI login with incomplete Core state stayed on `#/guid` instead
-   of automatically opening first-run setup.
-2. After state loading, Home displayed a central `本机运行环境需要处理`
-   banner above the composer. The lower-left entry and send-time local recovery
-   were sufficient; the central banner was redundant and visually disruptive.
-3. A true container recreation stopped responding during
-   `opl system startup-maintenance --scope runtime_substrate --json`. The old
-   Framework attempted a remote Framework update into the Windows bind mount,
-   while the image should own Framework bytes.
-4. The first clean-install validation runner moved the install directory but
-   did not reliably stop the existing Compose project. A same-name old
-   container could therefore make a clean-install attempt appear healthy.
-
-The four linked screenshots contain no credentials and record only the UI
-surfaces needed to reproduce items 1, 2, and the already-correct recovery
-forms.
-
-- [Central environment banner reproduction](screenshots/r1-guid-attention.png)
-- [Draft-preserving send-time recovery](screenshots/r1-send-inline-recovery.png)
-- [Gateway account login form](screenshots/r1-first-run-gateway-login.png)
-- [API Key compatibility form](screenshots/r1-first-run-api-key.png)
-
-## Runner Repair
-
-`windows-clean-install-run.ps1` now:
-
-- runs `docker compose down --remove-orphans` before moving the old install
-  root;
-- supplies the original install root as `--project-directory`, so moving the
-  directory cannot change Compose project identity;
-- uses a temporary empty Docker config for public pulls during validation;
-- records `previous_runtime_down` and `install_root_moved`;
-- persists the successful runtime-down fact before moving the directory and
-  refuses a retry whose rollback directory has no matching marker;
-- avoids copying the installer onto itself in the scheduled worker.
-
-A release test requires those properties and restricts the committed Windows
-fixture directory to the clean-install runner, host readback, and README.
-
-## Frozen r2 Repair Inputs
-
-Stable run [`30111150192`](https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/30111150192)
-uploaded immutable Bundle:
+A clean-data password-authenticated login exercised the exact product boundary.
+The fresh fast-state request returned in `11,486 ms`, below the `20,000 ms`
+UI deadline, and explicitly reported:
 
 ```text
-Version       26.7.24-r2
-Bundle digest sha256:047da98566e32aef1a912150411cdc8499244acaf263aac635ccb452c15b2e56
-App           98081eebbc5c3dfe765d283270c5c074d5c0a4d8
-Shell         8647acb7845cea2dcfda168828f2e6b3e74212ff
-Framework     eeb18aa51f148478d04a29821290dafbaa546a03
+codex installed=true
+model_access_ready=false
+model_access_status=missing
 ```
 
-The Shell ref contains the fresh-login first-run routing fix and removal of the
-new-task setup notice. The Framework ref keeps Framework updates image-owned.
-This binds exact repair inputs, but it is not a public WebUI pass. The failed
-Desktop Standard run must not be rerun or presented as Desktop publication.
+The page nevertheless remained on `#/guid` and rendered only the lower-left
+recovery entry instead of replacing Guid with `#/first-run`.
+
+The root cause was a renderer authority race. Multiple App-state consumers share
+the same fast-state request. After the fresh-login consumer obtained a live
+payload, another consumer's cache-update event could downgrade its provenance
+from `live` to `derived_bootstrap`. Guid correctly fails open for bootstrap
+or unknown state, so it lost the known-incomplete auto-route signal.
+
+The Shell repair is:
+
+```text
+opl-aion-shell main 0928ce1f92e8777318b959523c770d8f6dd25863
+fix(first-run): preserve live login readiness
+```
+
+The patch keeps already-established live authority across shared cache
+broadcasts and adds a regression test for this race. Focused DOM validation
+passed `4` files / `69` tests, with formatting and diff checks clean.
+
+This source repair is on Shell `main`, but public r3 still contains Shell
+`6b83b181...`. Therefore r3 is not the terminal fresh-login pass and must not
+be described as if it contains `0928ce1f9`.
+
+## Installer Repair Checkpoint
+
+The Windows installer cleanup correction is on the App task branch:
+
+```text
+one-person-lab-app b56cb71694f85dee54a6b2db573b089b8de1e278
+fix(webui): tolerate Windows timeout cleanup races
+```
+
+It changes only the best-effort `taskkill` cleanup path and the matching
+installer contract/test text. Focused Windows installer tests passed `8/8`.
+
+## Security and Cleanup Readback
+
+- One-time Windows auto-login is disabled.
+- `AutoLogonCount` and plaintext `DefaultPassword` are absent.
+- LSA `DefaultPassword` readback reports no secret.
+- The temporary password-auth validation container, directories, and scripts
+  were removed.
+- The canonical r3 Compose container was restored and returned HTTP `200`.
+- The guest validation port and host loopback forward are temporary surfaces
+  and must be removed before VM shutdown.
+- No Gateway password, API Key, Windows password, or browser session is retained
+  in committed evidence.
 
 ## Remaining Terminal Acceptance
 
-The authorized next route is the independent
-`.github/workflows/release-webui-development.yml` workflow with exact inputs
-`source_run_id=30111150192` and `expected_version=26.7.24-r2`. Completion still
-requires:
+Completion now requires:
 
-1. protected WebUI publication success and anonymous OCI readback proving
-   `26.7.24-r2 = stable = latest`;
-2. a true cold Windows install with the repaired runner, HTTP `200`, and no
-   image-owned startup-maintenance deadlock;
-3. fresh login automatically opening first-run setup when configuration is
-   incomplete;
-4. Home without the central environment banner, while keeping the lower-left
-   recovery entry and send-time draft-preserving message;
-5. manual and automatic update readback with `data` and `projects` preserved;
-6. public HTML and PDF guide readback after the validated current behavior is
-   published.
+1. the unique WebUI publication owner to build and qualify a successor digest
+   containing Shell `0928ce1f9` and the App installer correction;
+2. protected `latest`/`stable` promotion with anonymous exact-digest readback;
+3. Windows update from public r3 to that exact successor digest while preserving
+   `data` and `projects`;
+4. a clean-data authenticated login that automatically enters `#/first-run`
+   after known incomplete Core readiness;
+5. ordinary startup still entering Guid immediately, central Home alert absent,
+   lower-left recovery retained, and no React error/blank screen;
+6. final public HTML and PDF guide build/readback from App `main`.
 
-Until all six complete, this receipt remains
-`r1_reproduced_r2_publication_pending`.
+Until those six complete, this receipt remains
+`r3_install_update_persistence_pass_first_login_fix_pending_public_digest`.
