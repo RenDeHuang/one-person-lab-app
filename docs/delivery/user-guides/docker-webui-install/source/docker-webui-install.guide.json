@@ -42,7 +42,7 @@
       "run_one_click_installer",
       "open_browser_and_establish_local_webui_session",
       "auto_open_first_run_after_fresh_login_when_core_is_explicitly_incomplete",
-      "fail_open_to_guid_after_five_seconds_or_unknown_state",
+      "wait_up_to_twenty_seconds_then_open_the_workbench_for_unknown_or_failed_state",
       "open_explicit_first_run_recovery_from_the_lower_left_entry_when_needed",
       "show_inline_recovery_only_after_a_send_is_blocked_and_preserve_the_draft",
       "configure_webui_gateway_account_or_api_key_or_reuse_persisted_webui_data",

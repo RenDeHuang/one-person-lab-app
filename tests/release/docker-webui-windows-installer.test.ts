@@ -178,7 +178,8 @@ test('Windows Docker/WebUI image pulls are bounded and terminate the stalled pro
 
   assert.match(installer, /\[int\]\$DockerPullTimeoutSeconds = 1800/);
   assert.match(boundedCapture, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
-  assert.match(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F/);
+  assert.match(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F 2>\$null/);
+  assert.doesNotMatch(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F 2>&1/);
   assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\)/);
   assert.match(boundedCapture, /Stop-Process -Id \$process\.Id -Force/);
   assert.match(boundedCapture, /ExitCode = 124/);

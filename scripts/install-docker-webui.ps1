@@ -216,7 +216,7 @@ exit `$exitCode
       -WindowStyle Hidden `
       -PassThru
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-      & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null
+      & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
       $killDeadline = (Get-Date).AddSeconds(5)
       while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
         Start-Sleep -Milliseconds 100
