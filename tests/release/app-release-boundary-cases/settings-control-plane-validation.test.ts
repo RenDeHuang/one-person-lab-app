@@ -1,5 +1,8 @@
 import { appRoot, assert, fs, path, test } from "./helpers.ts";
-import { validateAppGuiProductContract } from "../../../scripts/validate-active-shell/gui-product-contract-validator.ts";
+import {
+  appOwnedOfficialProfileRestoreAction,
+  validateAppGuiProductContract,
+} from "../../../scripts/validate-active-shell/gui-product-contract-validator.ts";
 import { validatePageStateMatrix } from "../../../scripts/validate-active-shell/page-state-matrix-validator.ts";
 import { validateSettingsControlPlane } from "../../../scripts/validate-active-shell/settings-control-plane-validator.ts";
 import {
@@ -299,6 +302,61 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
   );
 });
 
+test("Settings exposes Official Profile restore only as an explicit App-owned secondary action", () => {
+  const values = contracts();
+  const agentsPage = values.pageStateMatrix.pages.find((page) => page.id === "agents");
+
+  assert.deepStrictEqual(
+    values.guiContract.pages.settings_agents.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.experience_contract.page_contracts.agents.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+  );
+  assert.deepStrictEqual(
+    agentsPage.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+  );
+  assert.ok(
+    agentsPage.required_dom.always.includes("settings-agents-restore-official-profile"),
+  );
+  assert.ok(
+    values.controlPlane.experience_contract.page_contracts.agents.surface_inventory.action.some(
+      (entry) => entry.id === "official_profile_restore" && entry.owner === "agents",
+    ),
+  );
+  assert.doesNotThrow(() => validateGui(values.guiContract));
+  assert.doesNotThrow(() =>
+    validatePageStateMatrix(
+      values.pageStateMatrix,
+      values.adapterContract,
+      values.guiContract,
+    ),
+  );
+
+  const automaticReapply = contracts();
+  automaticReapply.guiContract.pages.settings_agents.official_profile_restore_action
+    .automatic_invocation.daily_maintenance = true;
+  assert.throws(
+    () => validateGui(automaticReapply.guiContract),
+    /Official Profile restore action/,
+  );
+
+  const firstInstallFromSettings = contracts();
+  firstInstallFromSettings.pageStateMatrix.pages.find((page) => page.id === "agents")
+    .official_profile_restore_action.request.payload.intent = "first_install";
+  assert.throws(
+    () =>
+      validatePageStateMatrix(
+        firstInstallFromSettings.pageStateMatrix,
+        firstInstallFromSettings.adapterContract,
+        firstInstallFromSettings.guiContract,
+      ),
+    /Official Profile restore action/,
+  );
+});
+
 test("Settings Agents treats the canonical directory as discovery truth and exposes the complete ordinary-user catalog path", () => {
   const values = contracts();
   assert.doesNotThrow(() => validate(values));
@@ -573,6 +631,44 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
 
 });
 
+test("GUI contract assigns one visible Files panel toggle owner per viewport state", () => {
+  const values = contracts();
+  const expectedOwnership = {
+    visible_toggle_count_per_viewport_state: 1,
+    collapsed_owner: "conversation_header",
+    expanded_owner: "workspace_panel_header",
+    global_titlebar_duplicate_allowed: false,
+    floating_handle_duplicate_allowed: false,
+  };
+
+  assert.deepStrictEqual(
+    values.guiContract.right_context_inspector.toggle_ownership,
+    expectedOwnership,
+  );
+  assert.deepStrictEqual(
+    values.guiContract.interaction_baseline.context_surfaces.side_panel
+      .toggle_ownership,
+    expectedOwnership,
+  );
+  assert.doesNotThrow(() => validateGui(values.guiContract));
+
+  const duplicateGlobalToggle = contracts();
+  duplicateGlobalToggle.guiContract.right_context_inspector.toggle_ownership
+    .global_titlebar_duplicate_allowed = true;
+  assert.throws(
+    () => validateGui(duplicateGlobalToggle.guiContract),
+    /advanced workspace surface policy/,
+  );
+
+  const mismatchedInteractionOwner = contracts();
+  mismatchedInteractionOwner.guiContract.interaction_baseline.context_surfaces
+    .side_panel.toggle_ownership.expanded_owner = "floating_handle";
+  assert.throws(
+    () => validateGui(mismatchedInteractionOwner.guiContract),
+    /side-panel toggle ownership/,
+  );
+});
+
 test("Settings Capabilities owns local MCP, image, and voice controls without Preferences duplication", () => {
   const values = contracts();
   assert.doesNotThrow(() => validate(values));
@@ -750,6 +846,34 @@ test("Settings configuration catalog projection preserves owner, page, persisten
     values.productProfile.settings.control_plane
       .configuration_catalog_projection,
     projection,
+  );
+  assert.equal(
+    projection.items.some(
+      (item) => item.configuration_id === "opl_app_session_context",
+    ),
+    false,
+  );
+  const additionalInstructionsItem = projection.items.find(
+    (item) => item.configuration_id === "new_conversation_additional_instructions",
+  );
+  assert.deepStrictEqual(
+    {
+      truth_owner: additionalInstructionsItem.truth_owner,
+      value_type: additionalInstructionsItem.value_type,
+      anchor: additionalInstructionsItem.anchor,
+      write_route: additionalInstructionsItem.write_route,
+      storage_key_status: additionalInstructionsItem.storage_key_status,
+      verify_ref: additionalInstructionsItem.verify_ref,
+    },
+    {
+      truth_owner: "user",
+      value_type: "optional_user_text",
+      anchor: "additional-instructions",
+      write_route: "configService:codex.oplAppSessionContextAdditional",
+      storage_key_status: "legacy_compatibility_storage_key",
+      verify_ref:
+        "new conversation preset_context contains only non-empty user-authored additional instructions; empty injects nothing",
+    },
   );
   const logDirectoryItem = projection.items.find(
     (item) => item.configuration_id === "log_directory",

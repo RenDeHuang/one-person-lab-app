@@ -14,7 +14,7 @@ on:
           - resume_standard
           - append_full
       version:
-        description: Stable display version; required only for a new Standard Bundle
+        description: Legacy raw Standard input; must be empty because the admission manifest owns version allocation
         required: false
         default: ''
         type: string
@@ -24,12 +24,12 @@ on:
         default: false
         type: boolean
       shell_ref:
-        description: Exact Shell main SHA; required only for a new Standard Bundle
+        description: Legacy raw Standard input; must be empty because the admission manifest owns the cohort
         required: false
         default: ''
         type: string
       framework_ref:
-        description: Exact Framework main SHA for a new Standard Bundle; optional expected Bundle binding for resume/append
+        description: Legacy raw Standard input; optional expected Bundle binding only for resume/append
         required: false
         default: ''
         type: string
@@ -40,6 +40,16 @@ on:
         type: string
       source_artifact:
         description: Exact Framework portable checkpoint artifact name
+        required: false
+        default: ''
+        type: string
+      admission_run_id:
+        description: Exact successful protected admission run; required only for a new Standard Bundle
+        required: false
+        default: ''
+        type: string
+      admission_manifest_digest:
+        description: Exact sha256 digest of the immutable Stable admission manifest
         required: false
         default: ''
         type: string
@@ -91,12 +101,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           OPERATION: ${{ inputs.operation }}
-          VERSION: ${{ inputs.version }}
+          REQUESTED_VERSION: ${{ inputs.version }}
           INCLUDE_FULL: ${{ inputs.include_full }}
-          SHELL_REF: ${{ inputs.shell_ref }}
-          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          ADMISSION_RUN_ID: ${{ inputs.admission_run_id }}
+          ADMISSION_MANIFEST_DIGEST: ${{ inputs.admission_manifest_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -104,46 +116,73 @@ jobs:
             echo "::error::Stable operations are one-shot; use resume_standard with the portable checkpoint."
             exit 1
           }
-          require_main_reachable() {
-            local repository="$1"
-            local snapshot_sha="$2"
-            local label="$3"
-            local comparison_json
-            comparison_json="$(
-              timeout --foreground --signal=TERM --kill-after=5s 30s \
-                gh api "repos/$repository/compare/$snapshot_sha...main"
-            )" || {
-              echo "::error::Unable to verify $label snapshot reachability."
-              exit 1
-            }
-            jq -e --arg snapshot_sha "$snapshot_sha" '
-              (.status == "identical" or .status == "ahead")
-              and .merge_base_commit.sha == $snapshot_sha
-            ' <<<"$comparison_json" >/dev/null || {
-              echo "::error::$label snapshot must remain reachable from remote main."
-              exit 1
-            }
-          }
           app_sha="$(git -C app-source rev-parse HEAD)"
-          require_main_reachable "$GITHUB_REPOSITORY" "$app_sha" "Stable operation App executor"
+          VERSION="$REQUESTED_VERSION"
+          SHELL_REF="$REQUESTED_SHELL_REF"
+          FRAMEWORK_REF="$REQUESTED_FRAMEWORK_REF"
           case "$OPERATION" in
             standard)
-              [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-r[1-9][0-9]*)?$ ]] || {
-                echo "::error::A new Standard Bundle requires an exact CalVer display version."
+              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
+                echo "::error::A new Standard Bundle accepts only the immutable admission run and manifest digest."
                 exit 1
               }
-              [[ "$SHELL_REF" =~ ^[0-9a-f]{40}$ && "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
-                echo "::error::A new Standard Bundle requires exact Shell and Framework SHAs."
+              [[ "$ADMISSION_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+                echo "::error::A new Standard Bundle requires an exact protected admission run id."
                 exit 1
               }
-              require_main_reachable "gaofeng21cn/opl-aion-shell" "$SHELL_REF" "Shell"
-              require_main_reachable "gaofeng21cn/one-person-lab" "$FRAMEWORK_REF" "Framework"
-              test -z "$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
-                echo "::error::A new Standard Bundle cannot consume a previous run."
+              [[ "$ADMISSION_MANIFEST_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+                echo "::error::A new Standard Bundle requires the exact admission manifest SHA-256."
                 exit 1
               }
               test "$INCLUDE_FULL" = false || {
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
+                exit 1
+              }
+              admission_run_json="$(
+                timeout --foreground --signal=TERM --kill-after=5s 30s \
+                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ADMISSION_RUN_ID"
+              )"
+              jq -e \
+                --arg app_sha "$app_sha" \
+                --arg workflow ".github/workflows/release-apple-credentials-preflight.yml" \
+                '
+                  .status == "completed"
+                  and .conclusion == "success"
+                  and .run_attempt == 1
+                  and .event == "workflow_dispatch"
+                  and .head_branch == "main"
+                  and .head_sha == $app_sha
+                  and .path == $workflow
+                ' <<<"$admission_run_json" >/dev/null || {
+                  echo "::error::Stable admission must come from one successful first-attempt protected preflight on this exact App main."
+                  exit 1
+                }
+              rm -rf stable-admission-evidence
+              mkdir -p stable-admission-evidence
+              timeout --foreground --signal=TERM --kill-after=5s 60s \
+                gh run download "$ADMISSION_RUN_ID" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --name "opl-stable-admission-$ADMISSION_RUN_ID" \
+                  --dir stable-admission-evidence
+              manifest_path="stable-admission-evidence/stable-release-admission-manifest.json"
+              credential_receipt_path="stable-admission-evidence/apple-release-credentials-preflight.json"
+              test -f "$manifest_path" -a ! -L "$manifest_path" \
+                -a -f "$credential_receipt_path" -a ! -L "$credential_receipt_path" || {
+                  echo "::error::Stable admission artifact must contain exact regular manifest and credential receipt files."
+                  exit 1
+                }
+              node --experimental-strip-types app-source/scripts/stable-release-admission-manifest.ts verify \
+                --manifest "$manifest_path" \
+                --credential-receipt "$credential_receipt_path" \
+                --expected-digest "$ADMISSION_MANIFEST_DIGEST" \
+                --current-run-id "$GITHUB_RUN_ID" \
+                --output verified-stable-admission.json
+              VERSION="$(jq -er .version.display verified-stable-admission.json)"
+              SHELL_REF="$(jq -er .cohort.shell_sha verified-stable-admission.json)"
+              FRAMEWORK_REF="$(jq -er .cohort.framework_sha verified-stable-admission.json)"
+              verified_app_ref="$(jq -er .cohort.app_sha verified-stable-admission.json)"
+              test "$verified_app_ref" = "$app_sha" || {
+                echo "::error::Verified Stable admission App ref does not match the workflow executor."
                 exit 1
               }
               ;;
@@ -156,7 +195,11 @@ jobs:
                 echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
                 exit 1
               }
-              if [ -n "$FRAMEWORK_REF" ]; then
+              test -z "$ADMISSION_RUN_ID$ADMISSION_MANIFEST_DIGEST" || {
+                echo "::error::$OPERATION cannot consume a new Standard admission manifest."
+                exit 1
+              }
+              if [ -n "$REQUESTED_FRAMEWORK_REF" ]; then
                 [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
                   echo "::error::$OPERATION optional Framework expectation must be an exact lowercase SHA."
                   exit 1
@@ -196,7 +239,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-release-operation-admission-${{ github.run_id }}
-          path: release-operation-admission.json
+          path: |
+            release-operation-admission.json
+            verified-stable-admission.json
           if-no-files-found: error
           retention-days: 30
 

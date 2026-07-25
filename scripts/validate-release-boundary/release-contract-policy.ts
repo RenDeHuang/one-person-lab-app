@@ -629,6 +629,10 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'prepared_ai_release_notes_marker',
     'prepared_ai_release_notes_standard_scope',
     'framework_freeze_request_schema',
+    'stable_admission_manifest_digest',
+    'apple_credentials_runtime_receipt',
+    'cross_namespace_version_allocator',
+    'zero_other_active_release_runs',
   ]) {
     if (!preflight?.required_fast_checks?.includes(checkId)) {
       console.error(`FAIL release_preflight_contract: missing required fast check ${checkId}`);
@@ -638,6 +642,42 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   for (const artifact of ['freeze-request.json', 'freeze-result.json']) {
     if (!preflight?.summary_artifacts?.includes(artifact)) {
       console.error(`FAIL release_preflight_contract: missing summary artifact ${artifact}`);
+      failures += 1;
+    }
+  }
+  const standardAdmission = preflight?.standard_admission_manifest;
+  if (
+    standardAdmission?.schema !== 'opl_stable_release_admission_manifest.v1'
+    || standardAdmission?.script !== 'scripts/stable-release-admission-manifest.ts'
+    || standardAdmission?.producer_workflow !== '.github/workflows/release-apple-credentials-preflight.yml'
+    || standardAdmission?.consumer_workflow !== '.github/workflows/release-stable.yml'
+    || standardAdmission?.protected_environment !== 'release-stable'
+    || standardAdmission?.artifact_name !== 'opl-stable-admission-<producer_run_id>'
+    || standardAdmission?.digest_algorithm !== 'sha256'
+    || !sameStringSet(
+      standardAdmission?.standard_dispatch_inputs,
+      ['operation', 'admission_run_id', 'admission_manifest_digest'],
+    )
+    || standardAdmission?.raw_standard_version_or_ref_inputs_allowed !== false
+    || standardAdmission?.fresh_verify_before_expensive_work !== true
+    || standardAdmission?.unknown_dispatch_result_policy !== 'read_only_reconcile_without_rerun_redispatch_or_cancel'
+  ) {
+    console.error('FAIL release_preflight_contract: Standard dispatch must consume one protected digest-bound admission manifest');
+    failures += 1;
+  }
+  for (const binding of [
+    'final_app_shell_framework_main_shas',
+    'critical_workflow_git_blobs_and_sha256',
+    'apple_protected_secret_names_6_of_6',
+    'developer_id_and_notary_authentication_receipt',
+    'cross_namespace_stable_version_allocator',
+    'github_release_and_tag_namespace',
+    'anonymous_webui_namespace',
+    'homebrew_standard_cask_and_policy',
+    'zero_other_active_release_runs',
+  ]) {
+    if (!standardAdmission?.required_bindings?.includes(binding)) {
+      console.error(`FAIL release_preflight_contract: Standard admission manifest missing binding ${binding}`);
       failures += 1;
     }
   }

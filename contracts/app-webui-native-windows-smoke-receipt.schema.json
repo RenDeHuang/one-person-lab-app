@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/contracts/app-webui-native-windows-smoke-receipt.schema.json",
+  "title": "One Person Lab WebUI Native Windows Smoke Receipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "run_id",
+    "observed_at",
+    "lane",
+    "publication",
+    "image",
+    "host",
+    "runtime",
+    "http",
+    "ui",
+    "persistence",
+    "no_secondary_fetch",
+    "cleanup",
+    "bounded_execution"
+  ],
+  "properties": {
+    "schema": { "const": "opl_app_webui_native_windows_smoke_receipt.v1" },
+    "status": { "enum": ["passed", "failed"] },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{5,63}$" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "lane": { "const": "windows_wsl2_native_post_public_smoke" },
+    "publication": {
+      "type": "object",
+      "required": [
+        "source_run_id",
+        "version",
+        "app_sha",
+        "shell_sha",
+        "framework_sha",
+        "bundle_digest",
+        "cohort_ref",
+        "label_parity"
+      ],
+      "properties": {
+        "source_run_id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "version": { "type": "string", "minLength": 1 },
+        "app_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "shell_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "framework_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "bundle_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "cohort_ref": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "label_parity": { "const": "passed" }
+      },
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "requested_ref",
+        "repository",
+        "digest",
+        "image_id",
+        "repo_digests",
+        "os",
+        "architecture",
+        "labels"
+      ],
+      "properties": {
+        "requested_ref": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/gaofeng21cn/one-person-lab-webui@sha256:[0-9a-f]{64}$"
+        },
+        "repository": { "const": "ghcr.io/gaofeng21cn/one-person-lab-webui" },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "image_id": { "type": "string", "minLength": 1 },
+        "repo_digests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "os": { "const": "linux" },
+        "architecture": { "const": "amd64" },
+        "labels": {
+          "type": "object",
+          "required": [
+            "org.opencontainers.image.source",
+            "org.opencontainers.image.revision",
+            "org.opencontainers.image.version",
+            "dev.onepersonlab.release.bundle-digest",
+            "dev.onepersonlab.release.cohort-ref",
+            "dev.onepersonlab.release.shell-revision",
+            "dev.onepersonlab.release.framework-revision"
+          ],
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "host": {
+      "type": "object",
+      "required": ["platform", "wsl2", "docker", "storage"],
+      "properties": {
+        "platform": { "const": "windows_wsl2" },
+        "wsl2": { "type": "object" },
+        "docker": { "type": "object" },
+        "storage": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["container_name", "container_id", "container_image_id", "container_labels", "internal_network", "internal_network_name", "network_names", "ingress"],
+      "properties": {
+        "container_name": { "type": "string", "minLength": 1 },
+        "container_id": { "type": "string", "minLength": 1 },
+        "container_image_id": { "type": "string", "minLength": 1 },
+        "container_labels": {
+          "type": "object",
+          "required": [
+            "org.opencontainers.image.source",
+            "org.opencontainers.image.revision",
+            "org.opencontainers.image.version",
+            "dev.onepersonlab.release.bundle-digest",
+            "dev.onepersonlab.release.cohort-ref",
+            "dev.onepersonlab.release.shell-revision",
+            "dev.onepersonlab.release.framework-revision",
+            "dev.onepersonlab.validation.owner",
+            "dev.onepersonlab.validation.run-id"
+          ],
+          "additionalProperties": { "type": "string" }
+        },
+        "internal_network": { "const": true },
+        "internal_network_name": { "type": "string", "minLength": 1 },
+        "network_names": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ingress": {
+          "type": "object",
+          "required": ["container_name", "container_id", "container_image_id", "container_labels", "same_exact_image", "read_only", "host_volumes", "tmpfs_mounts", "non_root", "fixed_node_tcp_proxy", "cap_drop_all", "no_new_privileges", "proxy_environment_cleared", "network_names"],
+          "properties": {
+            "container_name": { "type": "string", "minLength": 1 },
+            "container_id": { "type": "string", "minLength": 1 },
+            "container_image_id": { "type": "string", "minLength": 1 },
+            "container_labels": {
+              "type": "object",
+              "required": [
+                "org.opencontainers.image.source",
+                "org.opencontainers.image.revision",
+                "org.opencontainers.image.version",
+                "dev.onepersonlab.release.bundle-digest",
+                "dev.onepersonlab.release.cohort-ref",
+                "dev.onepersonlab.release.shell-revision",
+                "dev.onepersonlab.release.framework-revision",
+                "dev.onepersonlab.validation.owner",
+                "dev.onepersonlab.validation.run-id",
+                "dev.onepersonlab.validation.role"
+              ],
+              "additionalProperties": { "type": "string" }
+            },
+            "same_exact_image": { "const": true },
+            "read_only": { "const": true },
+            "host_volumes": { "const": 0 },
+            "tmpfs_mounts": { "const": 3 },
+            "non_root": { "const": true },
+            "fixed_node_tcp_proxy": { "const": true },
+            "cap_drop_all": { "const": true },
+            "no_new_privileges": { "const": true },
+            "proxy_environment_cleared": { "const": true },
+            "network_names": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "http": {
+      "type": "object",
+      "required": ["root", "webmanifest", "assets", "login_session"],
+      "properties": {
+        "root": { "$ref": "#/$defs/passed_http_probe" },
+        "webmanifest": { "$ref": "#/$defs/passed_http_probe" },
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/passed_http_probe" }
+        },
+        "login_session": {
+          "allOf": [
+            { "$ref": "#/$defs/passed_http_probe" },
+            {
+              "type": "object",
+              "required": ["session_cookie_observed", "json_object"],
+              "properties": {
+                "session_cookie_observed": { "const": true },
+                "json_object": { "const": true }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "required": [
+        "status",
+        "browser",
+        "url",
+        "root_hydrated",
+        "visible_text_chars",
+        "screenshot"
+      ],
+      "properties": {
+        "status": { "const": "passed" },
+        "browser": { "const": "windows_chrome_headless" },
+        "url": { "type": "string", "minLength": 1 },
+        "root_hydrated": { "const": true },
+        "visible_text_chars": { "type": "integer", "minimum": 20 },
+        "screenshot": {
+          "type": "object",
+          "required": ["path", "bytes", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "bytes": { "type": "integer", "minimum": 1000 },
+            "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "persistence": {
+      "type": "object",
+      "required": ["status", "data_marker", "projects_marker", "recreate_count"],
+      "properties": {
+        "status": { "const": "passed" },
+        "data_marker": { "const": "preserved" },
+        "projects_marker": { "const": "preserved" },
+        "recreate_count": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "no_secondary_fetch": {
+      "type": "object",
+      "required": [
+        "status",
+        "isolated_empty_docker_config",
+        "compose_pull_policy",
+        "compose_up_pull_mode",
+        "internal_network",
+        "image_pull_events_after_initial_pull",
+        "ingress_uses_same_exact_image",
+        "webui_only_internal_network",
+        "pull_provenance"
+      ],
+      "properties": {
+        "status": { "const": "passed" },
+        "isolated_empty_docker_config": { "const": true },
+        "compose_pull_policy": { "const": "never" },
+        "compose_up_pull_mode": { "const": "never" },
+        "internal_network": { "const": true },
+        "image_pull_events_after_initial_pull": { "const": 0 },
+        "ingress_uses_same_exact_image": { "const": true },
+        "webui_only_internal_network": { "const": true },
+        "pull_provenance": {
+          "type": "object",
+          "required": ["mode", "exact_pull_ref", "exact_pull_count_total", "evidence_path", "evidence_sha256"],
+          "properties": {
+            "mode": { "enum": ["performed_in_this_run", "reused_prior_exact_pull"] },
+            "exact_pull_ref": { "type": "string", "pattern": "^ghcr\\.io/gaofeng21cn/one-person-lab-webui@sha256:[0-9a-f]{64}$" },
+            "exact_pull_count_total": { "const": 1 },
+            "evidence_path": { "type": "string", "minLength": 1 },
+            "evidence_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cleanup": {
+      "type": "object",
+      "required": ["status", "owned_containers_remaining", "owned_networks_remaining", "runtime_directory_remaining"],
+      "properties": {
+        "status": { "const": "passed" },
+        "owned_containers_remaining": { "const": 0 },
+        "owned_networks_remaining": { "const": 0 },
+        "runtime_directory_remaining": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "bounded_execution": {
+      "type": "object",
+      "required": ["pull_timeout_seconds", "command_timeout_seconds", "health_timeout_seconds", "cleanup_always_runs"],
+      "properties": {
+        "pull_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "command_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "health_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "cleanup_always_runs": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "failure": { "type": ["object", "null"] }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "passed_http_probe": {
+      "type": "object",
+      "required": ["status", "url", "http_status"],
+      "properties": {
+        "status": { "const": "passed" },
+        "url": { "type": "string", "minLength": 1 },
+        "http_status": { "type": "integer", "minimum": 200, "maximum": 399 },
+        "content_type": { "type": ["string", "null"] },
+        "session_cookie_observed": { "type": "boolean" },
+        "json_object": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

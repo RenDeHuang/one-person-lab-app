@@ -276,6 +276,11 @@ test("App product profile check verifies the deterministic compatibility project
 
     const written = syncAppProductProfileToShell(shellRoot);
     assert.equal(written.synced, true);
+    assert.equal(
+      fs.readFileSync(written.targetPath, 'utf8'),
+      fs.readFileSync(path.join(appRoot, 'contracts/app-product-profile.json'), 'utf8'),
+      'Shell must consume the exact App product profile bytes',
+    );
     assert.equal(syncAppProductProfileToShell(shellRoot, { check: true }).verified, true);
 
     fs.appendFileSync(written.targetPath, '{"stale":true}\n');

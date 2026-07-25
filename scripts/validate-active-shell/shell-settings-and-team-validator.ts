@@ -247,6 +247,40 @@ const settingsShellAdapterSlotExpected = [
   'withWrapper={false}',
 ];
 
+const officialProfileRestoreCallerExpected = [
+  'const restoreOfficialProfile = () => {',
+  'Modal.confirm({',
+  "beginPackageAction('restore_official_profile')",
+  "ipcBridge.oplRuntime.applyOfficialProfile.invoke({ intent: 'explicit_restore' })",
+  "appStateQuery.load('fast', { showRefreshing: true, forceFresh: true })",
+  "data-testid='settings-agents-restore-official-profile'",
+];
+
+const officialProfileRestoreIpcExpected = [
+  'export type IOplOfficialProfileApplyRequest = {',
+  "intent: 'first_install' | 'explicit_restore';",
+  'applyOfficialProfile: runtimeProvider<IOplRuntimeCommandResult, IOplOfficialProfileApplyRequest>(',
+  "'opl-runtime.apply-official-profile'",
+  "'/api/opl-runtime/official-profile/apply'",
+];
+
+const officialProfileRestoreProcessExpected = [
+  'function buildOfficialProfileApplyCommand(',
+  "request.intent !== 'first_install' && request.intent !== 'explicit_restore'",
+  "path.join(resolvedResourcesPath, 'official-profile-package-apply.ts')",
+  'OPL_PRODUCT_PROFILE.official_profile.desired_root_package_ids',
+  'ipcBridge.oplRuntime.applyOfficialProfile.provider((request) =>',
+  'runSpawnJsonCommand(buildOfficialProfileApplyCommand(request))',
+];
+
+const officialProfileRestoreHelperExpected = [
+  "export type OfficialProfileApplyIntent = 'first_install' | 'explicit_restore';",
+  "input.intent !== 'first_install' && input.intent !== 'explicit_restore'",
+  'desired_state_saved: false',
+  'startup_maintenance_registered: false',
+  'automatic_reapply_allowed: false',
+];
+
 const settingsModalForbidden = [
   'ModelModalContent',
   'AgentModalContent',
@@ -384,6 +418,87 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsShellAdapterSlotExpected,
     'Active shell SettingsShellAdapterSlot App-owned slot renderer',
   );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/CapabilitiesSettings.tsx',
+    officialProfileRestoreCallerExpected,
+    'Active shell Settings Official Profile explicit restore caller',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/common/adapter/ipcBridge.ts',
+    officialProfileRestoreIpcExpected,
+    'Active shell Official Profile IPC contract',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/bridge/oplRuntimeBridge.ts',
+    officialProfileRestoreProcessExpected,
+    'Active shell Official Profile process bridge',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'resources/official-profile-package-apply.ts',
+    officialProfileRestoreHelperExpected,
+    'Active shell packaged Official Profile helper',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/electron-builder.yml',
+    ['from: resources/official-profile-package-apply.ts', 'to: official-profile-package-apply.ts'],
+    'Active shell Official Profile helper packaging',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/settings/CapabilitiesSettings.dom.test.tsx',
+    [
+      'restores the Official Profile only after explicit Settings confirmation',
+      "fireEvent.click(screen.getByTestId('settings-agents-restore-official-profile'))",
+      "toHaveBeenCalledWith({ intent: 'explicit_restore' })",
+      "loadAppState).toHaveBeenCalledWith('fast', {",
+      'forceFresh: true',
+    ],
+    'Active shell Settings Official Profile restore behavior test',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/opl-runtime/oplRuntimeBridge.test.ts',
+    [
+      'builds an explicit user-authorized Official Profile restore command',
+      "{ intent: 'explicit_restore' }",
+      "--intent explicit_restore --root-package-id <profile-roots>",
+    ],
+    'Active shell Official Profile restore bridge test',
+  );
+  const firstRun = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/FirstRun/index.tsx',
+    ["ipcBridge.oplRuntime.applyOfficialProfile", ".invoke({ intent: 'first_install' })"],
+    'Active shell Official Profile first-install caller',
+  );
+  assertTextExcludesAll(firstRun, ["intent: 'explicit_restore'"], 'Active shell first-run explicit restore isolation');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/opl-runtime/FirstRun.dom.test.tsx',
+    [
+      'keeps the completion state in place even when initialize reports a non-first-run ready install',
+      'is_first_run: false',
+      'expect(bridgeMocks.applyOfficialProfileInvoke).not.toHaveBeenCalled()',
+    ],
+    'Active shell restart does not reapply Official Profile test',
+  );
+  for (const [relativePath, label] of [
+    ['packages/desktop/src/renderer/services/managedUpdateMaintenance.ts', 'daily maintenance'],
+    ['packages/desktop/src/renderer/services/desktopAutoUpdateProjection.ts', 'App update projection'],
+    ['packages/desktop/src/renderer/components/settings/UpdateModal.tsx', 'App update UI'],
+    ['packages/desktop/src/process/bridge/updateBridge.ts', 'App carrier update bridge'],
+  ]) {
+    assertTextExcludesAll(
+      readShellText(shellPaths, relativePath),
+      ['applyOfficialProfile'],
+      `Active shell ${label} Official Profile automatic reapply isolation`,
+    );
+  }
   const settingsFooter = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/layout/Sider/SiderFooter.tsx',

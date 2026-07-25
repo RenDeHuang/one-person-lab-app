@@ -599,14 +599,49 @@ function validateProductProfileDefaults(shellPaths) {
   const productProfilePath = 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json';
   const productProfile = readShellText(shellPaths, productProfilePath);
   const productProfileJson = readShellJson(shellPaths, productProfilePath, 'product profile');
-  const professionalAgentIds = productProfileJson?.gui?.professional_agent_packages
-    ?.map((entry: { package_id?: unknown }) => entry.package_id);
-  if (JSON.stringify(professionalAgentIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma'])) {
-    throw new Error('Active shell product profile must carry the five canonical professional Agent package ids');
+  for (const field of [
+    'professional_agent_packages',
+    'professional_agent_packages_metadata_policy',
+    'default_assistants',
+    'non_default_assistants',
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(productProfileJson?.gui ?? {}, field)) {
+      throw new Error(`Active shell product profile must not carry App-owned Agent presentation authority gui.${field}`);
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(productProfileJson?.gui?.home ?? {}, 'home_purpose_entries')) {
+    throw new Error(
+      'Active shell product profile must not carry App-owned Agent presentation authority gui.home.home_purpose_entries',
+    );
+  }
+  for (const field of [
+    'opl_app_session_context',
+    'default_visible_skills',
+    'skill_priority',
+    'session_context_lines',
+    'session_context_i18n',
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(productProfileJson?.codex ?? {}, field)) {
+      throw new Error(`Active shell product profile must not carry legacy Codex authority codex.${field}`);
+    }
+  }
+  const additionalInstructions = productProfileJson?.codex?.new_conversation_additional_instructions;
+  if (
+    additionalInstructions?.content_owner !== 'user' ||
+    additionalInstructions?.delivery !== 'new_conversation_additional_instructions_only' ||
+    additionalInstructions?.storage_key !== 'codex.oplAppSessionContextAdditional' ||
+    additionalInstructions?.storage_key_status !== 'legacy_compatibility_storage_key' ||
+    additionalInstructions?.generated_base_context_allowed !== false ||
+    additionalInstructions?.agent_route_fallback_allowed !== false ||
+    additionalInstructions?.empty_value_policy !== 'inject_nothing' ||
+    additionalInstructions?.reset_behavior !== 'clear_additional_instructions' ||
+    additionalInstructions?.effect !== 'next_new_conversation'
+  ) {
+    throw new Error('Active shell product profile must limit new-conversation additions to optional user-authored text');
   }
   const ordinaryPolicy = productProfileJson?.gui?.ordinary_capability_selector_policy;
   if (
-    ordinaryPolicy?.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
+    ordinaryPolicy?.authority !== 'owner_or_carrier_skill_projection_and_mcp_negative_filter' ||
     ordinaryPolicy?.agent_reference_admission_policy?.active_agent_package_cardinality !== 'zero_or_one' ||
     ordinaryPolicy?.agent_reference_admission_policy?.selection_authority !==
       'home_starter_new_session_capability_palette_explicit_capability_route_or_explicit_pre_send_at_mention_agent_selection' ||
@@ -620,7 +655,8 @@ function validateProductProfileDefaults(shellPaths) {
     ordinaryPolicy?.agent_reference_admission_policy?.existing_conversation_rebinding_contract !== undefined ||
     ordinaryPolicy?.mcp_menu_policy !==
       'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
-    ordinaryPolicy?.visible_mcp_server_ids !== undefined
+    ordinaryPolicy?.visible_mcp_server_ids !== undefined ||
+    ordinaryPolicy?.forbidden_skill_examples !== undefined
   ) {
     throw new Error('Active shell product profile must carry new-session-only Agent selection and MCP negative-filter authority');
   }
@@ -649,6 +685,107 @@ function validateProductProfileDefaults(shellPaths) {
     throw new Error('Active shell product profile must carry the exact App Codex session configuration menu');
   }
   assertTextIncludesAll(productProfile, productProfileDefaultsExpected, 'Active shell product profile App Codex default');
+}
+
+function validateStaticAuthorityConsumerRemoval(shellPaths) {
+  const profileLoader = readShellText(
+    shellPaths,
+    'packages/desktop/src/common/config/oplProductProfile/index.ts',
+  );
+  assertTextIncludesAll(
+    profileLoader,
+    [
+      "authority: 'owner_or_carrier_skill_projection_and_mcp_negative_filter'",
+      "conversation_loaded_skill_display_policy: 'preserve_owner_or_carrier_projected_loaded_skills'",
+      'getOplNewConversationAdditionalInstructionsPolicy',
+      "value.content_owner !== 'user'",
+      "value.empty_value_policy !== 'inject_nothing'",
+      'return names.flatMap((name) =>',
+      'return skills.flatMap((skill) =>',
+    ],
+    'Active shell Product Profile dynamic Skill and user-instruction consumers',
+  );
+  assertTextExcludesAll(
+    profileLoader,
+    [
+      'readProfessionalAgentPackages',
+      'readDefaultHomeAssistants',
+      'readNonDefaultAssistants',
+      'readHomePurposeEntries',
+      'getOplProfessionalAgentPackage',
+      'getOplProfessionalAgentPackages',
+      'getOplDefaultHomeAssistants',
+      'getOplDefaultCodexSkills',
+      'getOplSkillPriority',
+      'getOplAppSessionContextPolicy',
+      'getOplCodexSessionContextForLocale',
+      'getOplDefaultPackagedCodexSkills',
+      'getOplPackagedCodexSkills',
+      "const forbidden = new Set(OPL_PRODUCT_PROFILE.gui.ordinary_capability_selector_policy.forbidden_skill_examples)",
+    ],
+    'Active shell retired static Product Profile consumers',
+  );
+
+  const conversationParams = readShellText(
+    shellPaths,
+    'packages/desktop/src/common/utils/buildAgentConversationParams.ts',
+  );
+  assertTextIncludesAll(
+    conversationParams,
+    [
+      'mergeNewConversationInstructions',
+      "configService.get('codex.oplAppSessionContextAdditional')?.trim()",
+      'if (presetContext) extra.preset_context = presetContext',
+      'if (additionalInstructions)',
+    ],
+    'Active shell optional user-authored new-conversation instructions',
+  );
+  assertTextExcludesAll(
+    conversationParams,
+    [
+      'getOplAppSessionContextPolicy',
+      'getOplCodexSessionContextForLocale',
+      'resolveEffectiveOplAppSessionContext',
+      'opl_app_session_context',
+      'appState',
+      '## Additional User Instructions',
+      '## 用户附加说明',
+    ],
+    'Active shell generated session-context fallback and diagnostics',
+  );
+
+  const ipcBridge = readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts');
+  assertTextExcludesAll(
+    ipcBridge,
+    ['opl_app_session_context'],
+    'Active shell retired session-context diagnostics IPC type',
+  );
+
+  const personalization = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/SystemModalContent/OplPersonalizationSettings.tsx',
+  );
+  assertTextIncludesAll(
+    personalization,
+    [
+      "id='additional-instructions'",
+      "data-testid='settings-additional-instructions-editor'",
+      "configService.set('codex.oplAppSessionContextAdditional', additionalContextDraft)",
+      "configService.set('codex.oplAppSessionContextAdditional', '')",
+    ],
+    'Active shell user-authored additional-instructions settings surface',
+  );
+  assertTextExcludesAll(
+    personalization,
+    [
+      'resolveEffectiveOplAppSessionContext',
+      'generatedContext',
+      'settings-generated-context-action',
+      'settings-generated-context-preview',
+      'agent_packages',
+    ],
+    'Active shell generated Agent guidance preview and route fallback',
+  );
 }
 
 function validateExistingConversationAgentRebindRemoval(shellPaths) {
@@ -1689,14 +1826,27 @@ export function validateRuntimePageImplementation(shellPaths) {
 }
 
 function validateSkillsHubImplementation(shellPaths) {
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx', [
-    'getOplDefaultPackagedCodexSkills',
-    'getOplPackagedCodexSkills',
-    'appVisibleSkills',
-    "skills.filter((skill) => skill.source !== 'builtin' || appVisibleSkills.has(skill.name))",
-    'appPackagedSkills',
-    'autoSkills.filter((skill) => appPackagedSkills.has(skill.name))',
-  ], 'Active shell SkillsHubSettings App packaged policy');
+  const skillsHub = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx',
+    [
+      'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
+      'setAvailableSkills(skills)',
+      'const autoSkills = await ipcBridge.fs.listBuiltinAutoSkills.invoke()',
+      'setBuiltinAutoSkills(autoSkills)',
+    ],
+    'Active shell SkillsHubSettings IPC Skill projection',
+  );
+  assertTextExcludesAll(
+    skillsHub,
+    [
+      'getOplDefaultPackagedCodexSkills',
+      'getOplPackagedCodexSkills',
+      'appVisibleSkills',
+      'appPackagedSkills',
+    ],
+    'Active shell SkillsHubSettings retired App-packaged Skill allowlist',
+  );
 }
 
 function validateStorageCarrierImplementation(shellPaths) {
@@ -1734,6 +1884,7 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   const guidPage = validateGuidHomeImplementation(shellPaths);
   validateGuidAgentSelection(shellPaths);
   validateProductProfileDefaults(shellPaths);
+  validateStaticAuthorityConsumerRemoval(shellPaths);
   validateExistingConversationAgentRebindRemoval(shellPaths);
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
   validateCodexConversationImplementation(shellPaths);

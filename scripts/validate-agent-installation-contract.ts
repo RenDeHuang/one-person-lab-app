@@ -51,7 +51,6 @@ const expectedDefaultPluginAgentIds = ["mas", "mag", "rca", "obf"];
 const expectedRepoPackagedPluginAgentIds = ["mas", "mag", "rca"];
 const expectedGeneratedAgentIds = ["oma", "obf"];
 const expectedRequiredAgentIds = ["mas", "mag", "rca", "oma", "obf"];
-const expectedProfessionalPackageIds = ["mas", "mag", "rca", "obf", "oma"];
 const expectedRegistryPackageIds = [
   "mas",
   "mag",
@@ -1536,12 +1535,6 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
     );
   }
 
-  const profilePackages = profile.gui?.professional_agent_packages ?? [];
-  assertArrayEqual(
-    profilePackages.map((entry: any) => entry.package_id),
-    expectedProfessionalPackageIds,
-    "profile professional package ids",
-  );
   const officialProfile = profile.official_profile;
   assertOfficialProfileShape(officialProfile, "App Official Profile", { fail });
   const registryProjection = profile.gui?.agent_package_registry;
@@ -1576,7 +1569,6 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
     expectedRegistryPackageIds,
     "profile starter package metadata ids",
   );
-  const profileById = new Map(profilePackages.map((entry: any) => [entry.package_id, entry]));
   for (const entry of starterMetadata) {
     validateRegistryEntryMetadata({
       ...entry,
@@ -1603,12 +1595,6 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any 
       `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`,
       `first-party metadata ${entry.package_id} manifest fixture`,
     );
-    if (entry.package_kind === "domain_agent_package" && !profileById.has(entry.package_id)) {
-      fail(`domain-agent metadata ${entry.package_id} has no professional profile metadata`);
-    }
-    if (entry.package_kind !== "domain_agent_package" && profileById.has(entry.package_id)) {
-      fail(`non-agent metadata ${entry.package_id} must not be a professional agent profile`);
-    }
   }
 
   const entries = registry?.entries ?? [];
@@ -1650,9 +1636,6 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
     );
   }
   const manifestSchema = schemaDef(schema, "opl_package_manifest");
-  const profilePackages = new Map(
-    (profile.gui?.professional_agent_packages ?? []).map((entry: any) => [entry.package_id, entry]),
-  );
   const starterMetadata = profile.gui?.agent_package_registry?.starter_package_metadata ?? [];
   assertArrayEqual(
     fs
@@ -1665,18 +1648,12 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
   for (const starterEntry of starterMetadata) {
     const fixturePath = path.join(appRoot, starterEntry.manifest_fixture_ref);
     const manifest = readJson(fixturePath);
-    const profileEntry = profilePackages.get(starterEntry.package_id);
     const registryEntry = {
       ...starterEntry,
-      codex_visible_entry:
-        profileEntry?.codex_visible_entry ?? manifest.codex_surface?.plugin_ids?.[0],
-      required_skill_ids:
-        profileEntry?.required_skill_ids ?? manifest.codex_surface?.required_skill_ids ?? [],
-      optional_skill_ids:
-        profileEntry?.optional_skill_ids ?? manifest.codex_surface?.optional_skill_ids ?? [],
-      home_shortcut_ids:
-        profileEntry?.home_shortcut_ids ??
-        (manifest.entrypoints ?? []).map((entry: any) => entry.shortcut_id),
+      codex_visible_entry: manifest.codex_surface?.plugin_ids?.[0],
+      required_skill_ids: manifest.codex_surface?.required_skill_ids ?? [],
+      optional_skill_ids: manifest.codex_surface?.optional_skill_ids ?? [],
+      home_shortcut_ids: (manifest.entrypoints ?? []).map((entry: any) => entry.shortcut_id),
     };
     const missing = expectedManifestRequiredFields.filter(
       (field) =>
@@ -1709,14 +1686,9 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
         manifest.package_id,
         `${registryEntry.package_id} manifest canonical agent id`,
       );
-      if (!profileEntry) {
-        fail(
-          `domain-agent manifest fixture ${registryEntry.package_id} has no matching profile package`,
-        );
-      }
-    } else if (manifest.agent_id !== undefined || profileEntry) {
+    } else if (manifest.agent_id !== undefined) {
       fail(
-        `non-agent manifest fixture ${registryEntry.package_id} must not define agent identity or a professional profile`,
+        `non-agent manifest fixture ${registryEntry.package_id} must not define agent identity`,
       );
     }
     assertEqual(
@@ -1767,13 +1739,6 @@ function validateFirstPartyManifestFixtures(profile: any, schema: any): void {
       registryEntry.optional_skill_ids,
       `${registryEntry.package_id} manifest optional skill ids`,
     );
-    if (profileEntry) {
-      assertArrayEqual(
-        manifest.codex_surface?.required_skill_ids,
-        profileEntry.required_skill_ids,
-        `${registryEntry.package_id} manifest profile required skill ids`,
-      );
-    }
     if (!Array.isArray(manifest.skill_packs) || manifest.skill_packs.length !== 1) {
       fail(
         `manifest fixture ${registryEntry.package_id} must declare one required skill pack`,

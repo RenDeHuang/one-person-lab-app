@@ -1,3 +1,24 @@
+export const appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy = {
+  projection_field: "stage_run_current_owner_delta",
+  owner_field: "owner",
+  accepted_return_shapes_field: "accepted_return_shapes",
+  acceptance_or_blocker_refs_field: "artifact_or_blocker_refs",
+  currentness_guard_refs_field: "readiness_false_flag_refs",
+  unknown_owner_policy: "unknown_fail_closed_no_acceptance_or_currentness_inference",
+  missing_refs_policy: "unknown_fail_closed_no_acceptance_or_currentness_inference",
+  app_role: "display_only_refs_consumer_no_owner_verdict_authority",
+};
+
+export const retiredMasOwnerAcceptanceMirrorFields = [
+  "mas_runtime_acceptance_display_policy",
+  "mas_owner_consumption_status",
+  "mas_owner_consumption_ref",
+  "mas_owner_consumed_stage_attempt_id",
+  "mas_owner_consumed_closeout_ref",
+  "mas_owner_consumption_matches_runtime_closeout",
+  "mas_currentness_drift_text",
+];
+
 export const appOwnedProjectGroupExpansionPolicy = {
   running_group_default: "expanded",
   attention_group_default: "visible_when_nonempty",
@@ -18,9 +39,7 @@ export const appOwnedProjectGroupExpansionPolicy = {
     "next_visible_step",
     "runtime_closeout_observed",
     "runtime_closeout_ref",
-    "mas_owner_consumption_status",
-    "mas_owner_consumed_stage_attempt_id",
-    "mas_owner_consumption_matches_runtime_closeout",
+    "stage_run_current_owner_delta",
   ],
 };
 
@@ -962,7 +981,7 @@ export const appOwnedSettingsPageAnchors = {
     "artifacts",
     "personalization",
     "system-agents",
-    "opl-app-context",
+    "additional-instructions",
   ],
   agents: ["catalog", "package-role", "availability", "source", "home-visibility"],
   capabilities: ["opl-flow-managed", "third-party"],
@@ -1005,7 +1024,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "workspace.permissions",
     "workspace.artifacts",
     "personalization.system_agents",
-    "personalization.opl_app_context",
+    "personalization.additional_instructions",
   ],
   agents: [
     "agents.catalog",
@@ -1371,11 +1390,11 @@ export const appOwnedHomeLayout = {
   unselected_workspace_control_visible: true,
   unselected_workspace_control_policy:
     "localized_choose_project_directory_action_not_projectless_status_placeholder",
-  purpose_entry_metadata_source_ref:
-    "home_purpose_entries optional migration/display metadata only",
-  purpose_entry_visibility_source_ref:
-    "contracts/app-product-profile.json#gui.home.home_agent_shortcuts[default_visible=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
-  purpose_entry_placement:
+  home_presentation_source_ref:
+    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + home_agent_shortcuts optional migration/display metadata only",
+  home_shortcut_visibility_source_ref:
+    "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+  home_shortcut_placement:
     "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
@@ -1441,8 +1460,8 @@ export const appOwnedHomeLayout = {
 };
 export const appOwnedPageStateHomeLayout = {
   ...appOwnedHomeLayout,
-  purpose_entry_metadata_source_ref:
-    "contracts/app-gui-product-contract.json#home_purpose_entries optional migration/display metadata only",
+  home_presentation_source_ref:
+    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + contracts/app-gui-product-contract.json#home_agent_shortcuts optional migration/display metadata only",
   must_not_show: [
     "dashboard-first home",
     "explanatory landing page",
@@ -1624,13 +1643,13 @@ export const appOwnedUnifiedContextMenu = {
       scope: "surface_specific_configuration_or_invocation",
       source_ref: "ordinary_capability_selector_policy",
       availability_policy:
-        "show_global_app_allowlisted_skills_without_an_agent_then_scope_to_the_selected_professional_agent_profile",
+        "show_owner_or_carrier_projected_skills_without_an_agent_then_scope_to_the_selected_agent_package_projection",
       agent_owned_skill_deduplication_policy:
         "on_home_new_session_exclude_required_skill_ids_owned_by_rendered_professional_agents_from_the_standalone_skills_group",
       existing_session_rebinding_allowed: false,
       surface_actions: {
         home_new_session: ["configure_new_session_scoped_skill"],
-        existing_conversation: ["invoke_loaded_allowlisted_skill"],
+        existing_conversation: ["invoke_loaded_owner_or_carrier_projected_skill"],
       },
     },
     {
@@ -1675,7 +1694,7 @@ export const appOwnedUnifiedContextMenu = {
       "management_entries_are_explicit_fallbacks_not_fake_session_selection",
   },
   authority_policy:
-    "render_only_real_picker_actions_App_allowlisted_skills_and_non_forbidden_configured_session_connections_supported_by_the_active_adapter",
+    "render_only_real_picker_actions_owner_or_carrier_projected_skills_and_non_forbidden_configured_session_connections_supported_by_the_active_adapter",
   forbidden_entries: [
     "project_object",
     "workspace_or_initial_cwd",
@@ -2140,6 +2159,13 @@ export const appOwnedRightContextInspectorPolicy = {
   opens_on_user_or_task_request_only: true,
   chat_canvas_remains_primary: true,
   scope: "selected_workspace_and_conversation",
+  toggle_ownership: {
+    visible_toggle_count_per_viewport_state: 1,
+    collapsed_owner: "conversation_header",
+    expanded_owner: "workspace_panel_header",
+    global_titlebar_duplicate_allowed: false,
+    floating_handle_duplicate_allowed: false,
+  },
   workspace_surface: {
     id: "files_changes",
     label: "Files / Changes",

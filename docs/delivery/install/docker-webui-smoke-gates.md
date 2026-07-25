@@ -79,6 +79,104 @@ npm run smoke:docker-webui:existing-docker -- --artifacts tmp/docker-webui-smoke
 npm run smoke:docker-webui:old-data -- --artifacts tmp/docker-webui-smoke/old-data
 ```
 
+### Windows + WSL2 Native Post-Public Smoke
+
+The native Windows lane is a fast post-public digest acceptance lane. It does
+not replace `clean_windows_vm`, test Docker Desktop installation, or own any
+source, workflow, tag, dispatch, or publication mutation. Its input must be the
+exact public WebUI digest supplied by the unique publication owner.
+
+Before the successor digest exists, generate the bounded command, output, and
+judgment plan without inventing a digest:
+
+```bash
+npm run smoke:docker-webui:native-windows -- \
+  --plan-only \
+  --artifacts tmp/docker-webui-native-windows-smoke/successor-plan
+```
+
+Capture the current Windows, WSL2, Docker, storage, and zero-owned-resource
+baseline without pulling or starting an image:
+
+```bash
+npm run smoke:docker-webui:native-windows -- \
+  --baseline-only \
+  --artifacts tmp/docker-webui-native-windows-smoke/baseline
+```
+
+An optional anonymous descriptor readback may inspect an existing immutable
+prestate without pulling or running it:
+
+```bash
+npm run smoke:docker-webui:native-windows -- \
+  --descriptor-only \
+  --image ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<exact-digest> \
+  --artifacts tmp/docker-webui-native-windows-smoke/prestate-descriptor
+```
+
+After the publication owner supplies the successor digest, run:
+
+```bash
+npm run smoke:docker-webui:native-windows -- \
+  --image ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<successor-digest> \
+  --source-run-id <source-run-id> \
+  --expected-version <version> \
+  --expected-app-sha <40hex> \
+  --expected-shell-sha <40hex> \
+  --expected-framework-sha <40hex> \
+  --expected-bundle-digest sha256:<64hex> \
+  --expected-cohort-ref sha256:<64hex> \
+  --artifacts tmp/docker-webui-native-windows-smoke/successor \
+  --json
+```
+
+The runner uses an empty isolated `DOCKER_CONFIG` for anonymous pull-by-digest,
+then starts the pinned image twice with `pull_policy: never`, `--pull never`,
+and an internal Docker network. The WebUI service remains attached only to the
+internal network. A non-root, read-only TCP ingress made from the same exact
+image connects that network to the loopback-only host port, avoiding Docker
+Desktop's suppression of published ports on internal-only networks without
+granting the WebUI service an outbound route. It has no host bind or volume;
+three bounded ephemeral `tmpfs` mounts cover the image-declared data volumes.
+It verifies required OCI labels, the actual
+container image ID, `/`, `/manifest.webmanifest`, JS/CSS assets, the local
+`/api/auth/user` session, a hydrated Windows Chrome render with screenshot
+digest, and `/data` plus `/projects` marker persistence across
+recreation. Docker image events after the initial pull must contain zero pull
+events. The six expected OCI label values must exactly match the publication
+owner's version, bundle/cohort digests, and App/Shell/Framework SHAs. The
+publication source run ID is preserved in the receipt as correlation evidence;
+it is not represented as an image label. Cleanup is owner/run-id scoped and must leave zero task-owned
+containers, networks, or runtime directories; it never prunes Docker and does
+not remove the pulled image.
+
+If a bounded operation completed the exact pull but failed before HTTP
+qualification, a repaired operation may reuse that local image without a
+second registry request only when `--reuse-local-image` is paired with
+`--initial-pull-evidence <prior-command-index.json>` and
+`--initial-pull-evidence-sha256 sha256:<digest>`. The runner verifies those
+exact bytes, rejects any additional pull command, requires every prior Compose
+start to use `--pull never`, and then re-inspects the local image by exact
+digest. The final receipt binds the prior command-index digest and proves the
+total exact pull count remained one.
+
+The terminal artifact is
+`native-windows-smoke-receipt.json`, validated against
+`contracts/app-webui-native-windows-smoke-receipt.schema.json` and by:
+
+```bash
+npm run smoke:docker-webui:native-windows -- \
+  --validate-receipt tmp/docker-webui-native-windows-smoke/successor/native-windows-smoke-receipt.json \
+  --json
+```
+
+Capability split:
+
+| Lane | Owned acceptance | Explicitly not owned |
+| --- | --- | --- |
+| Windows + WSL2 native | Exact digest pull, labels, health/UI/local login, persistence, no-secondary-fetch, bounded receipt, cleanup | Source, App/Shell/Framework main, workflows, tags, dispatch, publication |
+| Intel iMac Windows VM | Clean Windows user, Docker Desktop installer/update, public tutorial, soft shutdown | Native WSL2 digest harness and public publication |
+
 Each artifact directory must be uploaded as one reviewer-visible package. Keep
 the four directories separate so release review can map evidence back to the
 gate that produced it:

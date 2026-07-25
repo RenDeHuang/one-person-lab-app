@@ -178,14 +178,6 @@ export type AppProductProfile = {
           label_en: string;
         }>;
       };
-      home_purpose_entries: Array<{
-        id: string;
-        primary_label: string;
-        target_assistant_id: string;
-        target_assistant_short_name: string;
-        display_policy: string;
-        home_entry_policy: string;
-      }>;
       home_agent_shortcuts: Array<{
         shortcut_id: string;
         package_id: string;
@@ -228,8 +220,9 @@ export type AppProductProfile = {
         workspace_selector_entry: string;
         unselected_workspace_control_visible: boolean;
         unselected_workspace_control_policy: string;
-        purpose_entries_visible: string[];
-        purpose_entry_placement: string;
+        home_presentation_source_ref: string;
+        home_shortcut_visibility_source_ref: string;
+        home_shortcut_placement: string;
         dynamic_question_title: boolean;
         starter_limit: number | null;
         starter_visibility_policy: string;
@@ -615,7 +608,6 @@ export type AppProductProfile = {
       mcp_server_source_ref: string;
       mcp_menu_policy: string;
       conversation_loaded_mcp_display_policy: string;
-      forbidden_skill_examples: string[];
       forbidden_mcp_policy: string;
       forbidden_mcp_examples: string[];
       conversation_snapshot_policy: string;
@@ -677,54 +669,6 @@ export type AppProductProfile = {
       }>;
       shell_consumption_policy: string;
     };
-    professional_agent_packages_metadata_policy: {
-      role: 'optional_migration_and_display_metadata';
-      allowed_uses: string[];
-      forbidden_authority: string[];
-      runtime_authority_ref: string;
-    };
-    professional_agent_packages?: Array<{
-      package_id: string;
-      display_name: string;
-      display_name_i18n: Record<'zh-CN' | 'en-US', string>;
-      description_i18n: Record<'zh-CN' | 'en-US', string>;
-      short_name: string;
-      role: string;
-      package_kind: string;
-      installed_manageable: boolean;
-      default_home_visible: boolean;
-      codex_visible_entry: string;
-      home_shortcut_ids: string[];
-      required_skill_ids: string[];
-      optional_skill_ids: string[];
-      session_routing_summary_i18n: Record<'zh-CN' | 'en-US', string>;
-      required_skill_policy: string;
-      optional_skill_policy: string;
-      skill_menu_policy: string;
-    }>;
-    default_assistants: Array<{
-      id: string;
-      display_name: string;
-      short_name: string;
-      home_purpose_label: string;
-      home_entry_display_policy: string;
-      role: string;
-      home_entry_policy: string;
-      avatar: string;
-      description_i18n: Record<string, string>;
-      prompts_i18n: Record<string, string[]>;
-    }>;
-    non_default_assistants: Array<{
-      id: string;
-      display_name: string;
-      short_name: string;
-      role: string;
-      home_entry_policy: string;
-      home_default_visible: boolean;
-      avatar: string;
-      description_i18n: Record<string, string>;
-      prompts_i18n: Record<string, string[]>;
-    }>;
   };
   codex: {
     default_model: string;
@@ -790,25 +734,17 @@ export type AppProductProfile = {
       dependency_policy: string;
       migration_policy: string;
     };
-    opl_app_session_context: {
-      owner: string;
-      source: string;
+    new_conversation_additional_instructions: {
+      content_owner: 'user';
       delivery: string;
-      generation_policy: string;
-      update_policy: string;
-      user_agents_policy: string;
-      customization: {
-        additional_instructions_key: string;
-        base_context_edit_policy: string;
-        user_edit_policy: string;
-        reset_behavior: string;
-        effect: string;
-      };
+      storage_key: string;
+      storage_key_status: 'legacy_compatibility_storage_key';
+      generated_base_context_allowed: boolean;
+      agent_route_fallback_allowed: boolean;
+      empty_value_policy: string;
+      reset_behavior: string;
+      effect: string;
     };
-    default_visible_skills: string[];
-    skill_priority: string[];
-    session_context_lines: string[];
-    session_context_i18n?: Record<'zh-CN' | 'en-US', string[]>;
   };
   first_run: {
     readiness_layers: string[];

@@ -1,6 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from "./assertions.ts";
 import {
   appOwnedAgentModuleStatusPanel,
+  appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
   appOwnedPrimaryGroupingPolicy,
   appOwnedProjectGroupExpansionPolicy,
   appOwnedQueueStatusPolicy,
@@ -8,6 +9,7 @@ import {
   appOwnedRunningStatePolicy,
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
+  retiredMasOwnerAcceptanceMirrorFields,
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
   actionOwnerKinds,
@@ -2427,6 +2429,11 @@ export function validateUserTaskStatusProjectionContract(
     }
   }
   assertDeepEqualJson(
+    userTaskStatus.generic_owner_acceptance_currentness_ref_policy,
+    appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
+    `${label} generic_owner_acceptance_currentness_ref_policy`,
+  );
+  assertDeepEqualJson(
     userTaskStatus.scope_fields,
     runtimeScopeRequiredFields,
     `${label} scope_fields`,
@@ -2518,6 +2525,14 @@ export function validateUserTaskStatusProjectionContract(
     ],
     `${label} task_fields`,
   );
+  for (const retiredField of retiredMasOwnerAcceptanceMirrorFields) {
+    if (
+      Object.hasOwn(userTaskStatus, retiredField)
+      || userTaskStatus.task_fields.includes(retiredField)
+    ) {
+      throw new Error(`${label} must not mirror retired MAS owner field ${retiredField}`);
+    }
+  }
   for (const [field, expected] of Object.entries({
     running_task_count:
       "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -2657,7 +2672,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label, expect
       "codex_cli_and_model_access_core_state",
       "core_ready_separate_from_background_maintenance",
       "ui_language_policy",
-      "session_scoped_opl_app_context",
+      "user_authored_additional_instructions_optional_and_never_generated",
       "user_and_repo_agents_md_respected_no_overwrite",
       "official_profile_user_preferences_and_presence_only_package_scope",
       "installed_or_selected_package_configured_carrier_readback",

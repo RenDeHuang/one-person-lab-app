@@ -444,7 +444,10 @@ Online release drafting uses
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
 `OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
 `OPL_RELEASE_NOTES_CODEX_API_KEY`, and
-`OPL_RELEASE_NOTES_MODEL=gpt-5.6-luna` route. The writer also accepts
+`OPL_RELEASE_NOTES_MODEL=gpt-5.6-luna` route. Stable keeps Luna first and sets
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS=gpt-5.6-luna,gpt-5.4` so a
+transport failure can move to the second online model without falling back to
+template copy. The writer also accepts
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY` for non-release probes or local
 diagnostics. GitHub Models is not in the release path. Online pre-release

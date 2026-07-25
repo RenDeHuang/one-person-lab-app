@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
@@ -27,25 +26,24 @@ export function syncAppProductProfileToShell(
 
   const profile = readAppProductProfile();
   const shellProfile = buildShellCompatibilityProfile(profile);
-  const expected = `${JSON.stringify(shellProfile, null, 2)}\n`;
+  const expected = fs.readFileSync(appProductProfilePath, 'utf8');
+  if (JSON.stringify(JSON.parse(expected)) !== JSON.stringify(shellProfile)) {
+    throw new Error('Shell compatibility profile must preserve the exact App product profile structure');
+  }
   if (options.check) {
-    let actual: unknown = null;
+    let actual = '';
     try {
-      actual = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
+      actual = fs.readFileSync(targetPath, 'utf8');
     } catch {
-      actual = null;
+      actual = '';
     }
-    if (JSON.stringify(actual) !== JSON.stringify(shellProfile)) {
+    if (actual !== expected) {
       throw new Error(`Active shell generated product profile does not match the deterministic App profile: ${targetPath}`);
     }
     return { synced: false, verified: true, targetPath };
   }
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, expected, 'utf8');
-  const localOxfmt = path.join(shellRoot, 'node_modules', '.bin', 'oxfmt');
-  if (fs.existsSync(localOxfmt)) {
-    spawnSync(localOxfmt, [targetPath], { cwd: shellRoot, stdio: 'ignore' });
-  }
   return { synced: true, verified: true, targetPath };
 }
 

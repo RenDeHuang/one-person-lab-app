@@ -144,7 +144,7 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.equal(paletteGroups.agent_packages.scope, 'new_session_configuration_only');
   assert.deepStrictEqual(
     paletteGroups.skills.surface_actions.existing_conversation,
-    ['invoke_loaded_allowlisted_skill'],
+    ['invoke_loaded_owner_or_carrier_projected_skill'],
   );
   assert.equal(paletteGroups.session_modes.mode_deduplication_policy, 'exclude_permission_access_equivalent_modes');
   assert.deepStrictEqual(guiContract.interaction_baseline.capability_selection.selection_surfaces, [

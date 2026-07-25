@@ -61,7 +61,7 @@ function validateGuidHomePage(matrix) {
   validateGuidHomeViewModelFields(homeViewModel);
   validateGuidHomeLayout(homeViewModel);
   validateGuidHomeAgentPackageAuthority(homeViewModel);
-  validateGuidHomeRouteAndPurpose(homeViewModel);
+  validateGuidHomeRouteCompatibility(homeViewModel);
   validateDynamicHomeComposerStateContract(
     homeViewModel.home_composer_state_contract,
     'Guid Home page-state composer state contract',
@@ -155,7 +155,12 @@ function validateGuidHomeAgentPackageAuthority(homeViewModel) {
     homeViewModel.unknown_standard_agent_policy !==
       'include_in_palette_and_home_without_app_package_id_branch' ||
     'professional_agent_packages' in homeViewModel ||
-    'default_home_agent_packages' in homeViewModel
+    'default_home_agent_packages' in homeViewModel ||
+    'default_assistants' in homeViewModel ||
+    'default_assistant_purpose_labels' in homeViewModel ||
+    'home_purpose_entries' in homeViewModel ||
+    'assistant_source_ref' in homeViewModel ||
+    'purpose_entry_source_ref' in homeViewModel
   ) {
     throw new Error('Guid home page Agent membership must come from the dynamic Framework directory and user shortcut preferences');
   }
@@ -180,19 +185,17 @@ function validateGuidHomeAgentPackageAuthority(homeViewModel) {
   );
 }
 
-function validateGuidHomeRouteAndPurpose(homeViewModel) {
+function validateGuidHomeRouteCompatibility(homeViewModel) {
   assertDeepEqualJson(
     fieldsFrom(homeViewModel, {
-      purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
       route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
       legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
     }),
     {
-      purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
       route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
       legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
     },
-    'Guid home page route and purpose source refs',
+    'Guid home page route receipt source refs',
   );
   assertIncludesAll(
     homeViewModel.route_receipt_required_fields,
@@ -225,21 +228,6 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
       throw new Error(`Guid home page optional shortcut metadata ${shortcut?.shortcut_id ?? '<unknown>'} must preserve the generic Codex route shape`);
     }
   }
-  const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
-  const purposeEntryIds = homePurposeEntries.map((entry) => entry?.id);
-  if (new Set(purposeEntryIds).size !== purposeEntryIds.length) {
-    throw new Error('Guid home page optional purpose metadata ids must be unique');
-  }
-  for (const entry of homePurposeEntries) {
-    if (
-      !isNonEmptyString(entry?.id) ||
-      !isNonEmptyString(entry?.target_assistant_id) ||
-      entry?.display_policy !== 'purpose_first' ||
-      entry?.home_entry_policy !== 'visible_click_to_start'
-    ) {
-      throw new Error(`Guid home page optional purpose metadata ${entry?.id ?? '<unknown>'} must preserve the generic Agent route shape`);
-    }
-  }
 }
 
 function isNonEmptyString(value) {
@@ -261,8 +249,8 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'active capability shown by a quiet selected shortcut state without a second composer label',
     'all user-visible configured OPL starters in stable order without silent truncation',
     'assistant-scoped skill menu with required skill checked',
-    'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
-    'one composer-width searchable grouped plus palette for files, folders, allowlisted Agent Packages, scoped Skills, adapter-reported nonduplicate modes, and available App connections',
+    'ordinary Skill selector preserves owner-or-carrier projected Skills without an App allowlist',
+    'one composer-width searchable grouped plus palette for files, folders, projected Agent Packages, projected Skills, adapter-reported nonduplicate modes, and available App connections',
     'new-session working directory selected from an independent context bar above the composer',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
@@ -422,7 +410,7 @@ function validateOrdinaryConversationPage(matrix) {
     'compact active capability chip',
     'desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer',
     'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
-    'composer-width searchable grouped plus palette for files, folders, real allowlisted loaded capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection',
+    'composer-width searchable grouped plus palette for files, folders, real owner-or-carrier projected capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
     'failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input',
     'permission and access mode in user language',
@@ -494,6 +482,7 @@ function validateRightContextInspectorPage(matrix) {
   assertIncludesAll(rightContextInspectorPage.must_show, [
     'no third column mounted by default',
     'Files and Changes workspace surface opened only by user or task need',
+    'exactly one Files and Changes panel toggle visible per viewport state, owned by conversation header while closed and panel header while open',
     'Preview opened as an independent surface for artifact, file, URL, or result',
     'Review defaults to Unstaged, exposes Staged, Commit, Branch, and Last turn, supports uncommitted, base branch, commit, and custom targets with inline or detached delivery, and shows PR context unavailable when gh is missing',
     'Terminal and Browser opened from Environment or task need',
@@ -503,6 +492,7 @@ function validateRightContextInspectorPage(matrix) {
     'legacy equal-weight Review, Terminal, Browser, Files, Artifacts, Runtime, Actions, and Memory taxonomy',
     'Runtime duplicate outside the message timeline current task instance',
     'advanced work surfaces open by default',
+    'duplicate Files and Changes panel toggles in the global titlebar, conversation header, panel header, or floating handle',
   ], 'Advanced workspace surface page hidden signals');
   assertIncludesAll(
     rightContextInspectorPage.must_not_own,

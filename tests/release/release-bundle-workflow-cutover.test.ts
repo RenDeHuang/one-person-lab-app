@@ -30,6 +30,43 @@ const frameworkOwnedLineageFields = [
   'full_source_build_run_id',
 ] as const;
 
+function runStandardCheckpointStageGuard(
+  tracks: Record<string, unknown>,
+  checkpointStage: string,
+) {
+  const workflow = parseWorkflow('_release-bundle.yml');
+  const checkpointStep = workflow.jobs['checkpoint-standard'].steps.find(
+    (step: Record<string, unknown>) =>
+      step.name === 'Bind Desktop bytes and export one portable checkpoint',
+  );
+  const run = String(checkpointStep?.run ?? '');
+  const guardStart = run.indexOf("if jq -e '.tracks.webui'");
+  assert.notEqual(guardStart, -1, 'Standard checkpoint step must derive its expected stage');
+  const guard = run.slice(guardStart);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-checkpoint-stage-'));
+  try {
+    fs.mkdirSync(path.join(root, 'bundle'));
+    fs.writeFileSync(
+      path.join(root, 'bundle', 'release-bundle.json'),
+      `${JSON.stringify({ tracks })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, 'checkpoint-export.json'),
+      `${JSON.stringify({
+        release_bundle_checkpoint_export: {
+          checkpoint_stage: checkpointStage,
+        },
+      })}\n`,
+    );
+    return spawnSync('bash', ['-e', '-u', '-o', 'pipefail', '-c', guard], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function gitFixture(root: string, name: string) {
   const directory = path.join(root, name);
   fs.mkdirSync(directory, { recursive: true });
@@ -233,23 +270,34 @@ test('Stable is the only mutation entry and daily validation uses the independen
   }
 });
 
-test('new Standard admits exact main-reachable snapshots while Canary uses only a minimum compatible ABI', () => {
+test('new Standard admits only a protected digest-bound manifest while Canary uses a minimum compatible ABI', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
+  assert.equal(stable.on.workflow_dispatch.inputs.admission_run_id.required, false);
+  assert.equal(stable.on.workflow_dispatch.inputs.admission_manifest_digest.required, false);
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
-  assert.match(stableAdmission, /require_main_reachable\(\)/);
-  assert.match(stableAdmission, /repos\/\$repository\/compare\/\$snapshot_sha\.\.\.main/);
-  assert.match(stableAdmission, /\.status == "identical" or \.status == "ahead"/);
-  assert.match(stableAdmission, /\.merge_base_commit\.sha == \$snapshot_sha/);
-  assert.match(stableAdmission, /require_main_reachable "\$GITHUB_REPOSITORY" "\$app_sha"/);
-  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/opl-aion-shell" "\$SHELL_REF"/);
-  assert.match(stableAdmission, /require_main_reachable "gaofeng21cn\/one-person-lab" "\$FRAMEWORK_REF"/);
+  assert.match(
+    stableAdmission,
+    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT"/,
+  );
+  assert.match(stableAdmission, /actions\/runs\/\$ADMISSION_RUN_ID/);
+  assert.match(stableAdmission, /\.status == "completed"/);
+  assert.match(stableAdmission, /\.conclusion == "success"/);
+  assert.match(stableAdmission, /\.run_attempt == 1/);
+  assert.match(stableAdmission, /\.head_sha == \$app_sha/);
+  assert.match(stableAdmission, /\.path == \$workflow/);
+  assert.match(stableAdmission, /opl-stable-admission-\$ADMISSION_RUN_ID/);
+  assert.match(stableAdmission, /stable-release-admission-manifest\.ts verify/);
+  assert.match(stableAdmission, /--expected-digest "\$ADMISSION_MANIFEST_DIGEST"/);
+  assert.match(stableAdmission, /VERSION="\$\(jq -er \.version\.display verified-stable-admission\.json\)"/);
+  assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell_sha verified-stable-admission\.json\)"/);
+  assert.match(stableAdmission, /FRAMEWORK_REF="\$\(jq -er \.cohort\.framework_sha verified-stable-admission\.json\)"/);
   assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
   assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
-  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$FRAMEWORK_REF" \]/);
+  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$REQUESTED_FRAMEWORK_REF" \]/);
   assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_REF/);
   assert.doesNotMatch(
     stableAdmission.slice(stableAdmission.indexOf('resume_standard|append_full)')),
@@ -334,6 +382,13 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
     '_release-bundle.yml',
     'freeze',
     'Prepare and validate online AI notes',
+  );
+  assert.equal(step.env.OPL_RELEASE_NOTES_MODE, 'ai');
+  assert.equal(step.env.OPL_RELEASE_NOTES_PROVIDER, 'openai_compatible');
+  assert.equal(step.env.OPL_RELEASE_NOTES_MODEL, 'gpt-5.6-luna');
+  assert.equal(
+    step.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS,
+    'gpt-5.6-luna,gpt-5.4',
   );
   const script = String(step.run);
   assert.doesNotMatch(script, /--include-full-package|--full-payload-authority|--full-package-manifest/);
@@ -958,11 +1013,118 @@ test('release-bound nested workflows inherit one operation and absolute deadline
 
 test('production Standard and Full builds fail closed on Apple distribution trust', () => {
   const bundle = parseWorkflow('_release-bundle.yml');
+  const reusableBuild = parseWorkflow('_build-reusable.yml');
+  const credentialPreflight = parseWorkflow('release-apple-credentials-preflight.yml');
+  const canary = parseWorkflow('release-bundle-canary.yml');
   const fullAddon = parseWorkflow('_release-full-addon.yml');
   const fullBuild = parseWorkflow('full-first-install-release.yml');
+  const protectedPreflightEnvironment = "${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}";
+  const protectedMacosBuildEnvironment = "${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}";
+  const signingPreflight = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Import Developer ID identity and authenticate notarization',
+  );
+  const signingPreflightCheckout = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Checkout exact credential preflight source',
+  );
+  const signingPreflightUpload = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload sanitized Apple credential preflight receipt',
+  );
+  const setupSigning = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Setup macOS code signing (macOS only)',
+  );
+  const macosBuild = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Build with electron-builder (macOS)',
+  );
+  const standardFinalizer = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Finalize Standard Developer ID signing and notarization',
+  );
+  const cleanupSigning = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Clean up keychain (macOS only)',
+  );
 
   assert.equal(bundle.jobs['standard-build'].with.require_macos_gatekeeper, true);
   assert.equal(bundle.jobs['standard-build'].secrets, 'inherit');
+  assert.deepEqual(bundle.jobs['standard-build'].permissions, {
+    contents: 'read',
+    actions: 'read',
+  });
+  assert.equal(reusableBuild.permissions, undefined);
+  assert.equal(reusableBuild.jobs['macos-signing-preflight']['runs-on'], 'macos-14');
+  assert.equal(reusableBuild.jobs['macos-signing-preflight']['timeout-minutes'], 10);
+  assert.equal(reusableBuild.jobs['macos-signing-preflight'].environment, protectedPreflightEnvironment);
+  assert.equal(reusableBuild.jobs.build.environment, protectedMacosBuildEnvironment);
+  assert.deepEqual(
+    Object.entries(reusableBuild.jobs)
+      .filter(([, job]: [string, any]) => job.environment !== undefined)
+      .map(([jobName]) => jobName),
+    ['macos-signing-preflight', 'build'],
+  );
+  assert.equal(canary.jobs['nested-standard-build'].with.require_macos_gatekeeper, undefined);
+  assert.equal(canary.jobs['nested-standard-build'].secrets, undefined);
+  assert.deepEqual(canary.jobs['nested-standard-build'].permissions, {
+    contents: 'read',
+    actions: 'read',
+  });
+  assert.deepEqual(signingPreflight.env, {
+    BUILD_CERTIFICATE_BASE64: '${{ secrets.BUILD_CERTIFICATE_BASE64 }}',
+    P12_PASSWORD: '${{ secrets.P12_PASSWORD }}',
+    APPLE_ID: '${{ secrets.APPLE_ID }}',
+    APPLE_ID_PASSWORD: '${{ secrets.APPLE_ID_PASSWORD }}',
+    TEAM_ID: '${{ secrets.TEAM_ID }}',
+    IDENTITY: '${{ secrets.IDENTITY }}',
+  });
+  assert.equal(signingPreflightCheckout.with.ref, '${{ inputs.ref }}');
+  assert.match(String(signingPreflight.run), /verify-apple-release-credentials\.ts/);
+  assert.equal(
+    signingPreflightUpload.with.name,
+    'opl-apple-release-credentials-preflight-${{ github.run_id }}',
+  );
+  assert.deepEqual(Object.keys(credentialPreflight.on), ['workflow_dispatch']);
+  assert.deepEqual(credentialPreflight.permissions, { contents: 'read', actions: 'read' });
+  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-14');
+  assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
+  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 15);
+  assert.equal(credentialPreflight.concurrency['cancel-in-progress'], false);
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, unknown>) => String(step.run ?? '').includes('verify-apple-release-credentials.ts'),
+    ),
+    true,
+  );
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
+    ),
+    true,
+  );
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, any>) => step.with?.name === 'opl-stable-admission-${{ github.run_id }}',
+    ),
+    true,
+  );
+  assert.equal(setupSigning.env.BUILD_CERTIFICATE_BASE64, '${{ secrets.BUILD_CERTIFICATE_BASE64 }}');
+  assert.equal(setupSigning.env.P12_PASSWORD, '${{ secrets.P12_PASSWORD }}');
+  assert.match(String(setupSigning.run), /security set-keychain-settings -lut 21600 build\.keychain/);
+  assert.match(String(setupSigning.run), /security default-keychain -d user -s build\.keychain/);
+  assert.match(String(setupSigning.run), /security list-keychains -d user -s build\.keychain/);
+  assert.equal(macosBuild.env.appleId, '${{ secrets.APPLE_ID }}');
+  assert.equal(macosBuild.env.appleIdPassword, '${{ secrets.APPLE_ID_PASSWORD }}');
+  assert.equal(macosBuild.env.teamId, '${{ secrets.TEAM_ID }}');
+  assert.equal(macosBuild.env.identity, '${{ secrets.IDENTITY }}');
+  assert.equal(standardFinalizer.env.KEYCHAIN_PASSWORD, "${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}");
+  assert.match(String(standardFinalizer.run), /security unlock-keychain -p "\$KEYCHAIN_PASSWORD" build\.keychain/);
+  assert.match(String(standardFinalizer.run), /security default-keychain -d user -s build\.keychain/);
+  assert.match(String(standardFinalizer.run), /security list-keychains -d user -s build\.keychain/);
+  assert.match(
+    String(standardFinalizer.run),
+    /security find-identity -v -p codesigning build\.keychain \| grep -F "\$OPL_RUNTIME_CODESIGN_IDENTITY" >\/dev\/null/,
+  );
+  const buildSteps = reusableBuild.jobs.build.steps;
+  assert.ok(buildSteps.indexOf(setupSigning) < buildSteps.indexOf(standardFinalizer));
+  assert.ok(buildSteps.indexOf(standardFinalizer) < buildSteps.indexOf(cleanupSigning));
+  assert.equal(cleanupSigning.if, "startsWith(matrix.platform, 'macos') && always()");
+  assert.match(String(cleanupSigning.run), /security delete-keychain build\.keychain/);
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
 
   const credentialGate = fullBuild.jobs['full-first-install'].steps.find(
@@ -1079,6 +1241,20 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   assert.doesNotMatch(source, /'\/packages\/\*\/package\.json'/);
   assert.doesNotMatch(source, /git -C shells\/aionui sparse-checkout set/);
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
+});
+
+test('first-run VM uploads critical diagnostics only on a real failure path', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const step = (name: string) => {
+    const found = steps.find((candidate) => candidate.name === name);
+    assert.ok(found, `clean-vm-first-run is missing ${name}`);
+    return found;
+  };
+
+  assert.equal(step('Write first-run VM critical diagnostics').if, '${{ always() }}');
+  assert.equal(step('Upload first-run VM critical diagnostics').if, '${{ failure() }}');
+  assert.equal(step('Upload first-run VM artifacts').if, '${{ always() }}');
 });
 
 test('first-run VM prefetches frozen Codex install assets from a physical script', () => {
@@ -1580,11 +1756,51 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
   assert.match(webuiSource, /--base-image-index/);
   assert.match(webuiSource, /--frozen-codex-tarball/);
   assert.doesNotMatch(source, /--track webui|webui-qualification-receipt|opl-webui-carrier\.json/);
-  assert.match(source, /checkpoint_stage checkpoint-export\.json\)" = stable_qualified/);
+  assert.match(source, /jq -e '\.tracks\.webui' bundle\/release-bundle\.json/);
+  assert.match(source, /expected_checkpoint_stage=standard_qualified/);
+  assert.match(source, /expected_checkpoint_stage=stable_qualified/);
   assert.doesNotMatch(
     source.slice(source.indexOf('Freeze canonical Framework Bundle')),
     /npm view[^\n]+latest|git ls-remote[^\n]+(?:shells\/aionui|framework-source)[^\n]+after-freeze/,
   );
+});
+
+test('Standard checkpoint stage follows the immutable Bundle track set', () => {
+  for (const fixture of [
+    {
+      label: 'Desktop-only Bundle',
+      tracks: { standard: {}, full: {} },
+      stage: 'standard_qualified',
+    },
+    {
+      label: 'unified WebUI Bundle',
+      tracks: { standard: {}, webui: {}, full: {} },
+      stage: 'stable_qualified',
+    },
+  ]) {
+    const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);
+    assert.equal(result.status, 0, `${fixture.label}: ${result.stderr || result.stdout}`);
+  }
+
+  for (const fixture of [
+    {
+      label: 'Desktop-only Bundle rejects unified stage',
+      tracks: { standard: {}, full: {} },
+      stage: 'stable_qualified',
+      expected: 'standard_qualified',
+    },
+    {
+      label: 'unified WebUI Bundle rejects Desktop-only stage',
+      tracks: { standard: {}, webui: {}, full: {} },
+      stage: 'standard_qualified',
+      expected: 'stable_qualified',
+    },
+  ]) {
+    const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);
+    assert.notEqual(result.status, 0, fixture.label);
+    assert.match(result.stdout, new RegExp(`expected ${fixture.expected}`));
+    assert.match(result.stdout, new RegExp(`got ${fixture.stage}`));
+  }
 });
 
 test('Standard moving pointers require only Desktop readback and the Standard promotion barrier', () => {
