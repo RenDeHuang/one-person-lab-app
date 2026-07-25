@@ -39,12 +39,6 @@ const optionalDisplayMetadataPolicy = {
     forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
     runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
   },
-  professionalAgent: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['localized_display_fallback', 'legacy_alias_migration'],
-    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
-    runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
-  },
 } as const;
 
 const dynamicHomeComposerAuthority = {
@@ -122,7 +116,7 @@ function assertPostInstallAiSelfCheckEntry(
       'codex_cli_and_model_access_core_state',
       'core_ready_separate_from_background_maintenance',
       'ui_language_policy',
-      'session_scoped_opl_app_context',
+      'user_authored_additional_instructions_optional_and_never_generated',
       'user_and_repo_agents_md_respected_no_overwrite',
       'official_profile_user_preferences_and_presence_only_package_scope',
       'installed_or_selected_package_configured_carrier_readback',
@@ -494,36 +488,12 @@ function assertCompanionPayloadProfileShape(profile: AppProductProfile): void {
   );
   assertStringArray(profile.companion_payloads.additional_package_skill_ids, 'companion_payloads.additional_package_skill_ids');
   assertStringArray(profile.companion_payloads.domain_plugin_skill_ids, 'companion_payloads.domain_plugin_skill_ids');
-  const visibleSkills = new Set(profile.codex.default_visible_skills);
   const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
   const additionalPackageSkills = new Set(profile.companion_payloads.additional_package_skill_ids);
-  const missingPackagedVisibleSkills = profile.codex.default_visible_skills
-    .filter((skill) => !defaultPackagedSkills.has(skill));
-  if (missingPackagedVisibleSkills.length > 0) {
-    throw new Error(`App product profile default visible skills must be packaged: ${missingPackagedVisibleSkills.join(', ')}`);
-  }
-  const hiddenDefaultPackagedSkills = profile.companion_payloads.default_packaged_codex_skill_ids
-    .filter((skill) => !visibleSkills.has(skill));
-  if (hiddenDefaultPackagedSkills.length > 0) {
-    throw new Error(
-      `App product profile default packaged skills must be default visible: ${hiddenDefaultPackagedSkills.join(', ')}`,
-    );
-  }
-  const missingPrioritySkills = profile.codex.default_visible_skills
-    .filter((skill) => !profile.codex.skill_priority.includes(skill));
-  if (missingPrioritySkills.length > 0) {
-    throw new Error(`App product profile skill_priority is missing default visible skills: ${missingPrioritySkills.join(', ')}`);
-  }
-  const overlappingExplicitSkills = [...additionalPackageSkills].filter((skill) => visibleSkills.has(skill));
-  if (overlappingExplicitSkills.length > 0) {
-    throw new Error(
-      `App product profile additional package skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
-    );
-  }
   if (!additionalPackageSkills.has('opl-meta-agent')) {
-    throw new Error('App product profile must mark opl-meta-agent as packaged but not default visible');
+    throw new Error('App product profile must mark opl-meta-agent as an additional packaged skill');
   }
-  if (profile.codex.skill_priority.includes('morph-ppt') || defaultPackagedSkills.has('morph-ppt') || additionalPackageSkills.has('morph-ppt')) {
+  if (defaultPackagedSkills.has('morph-ppt') || additionalPackageSkills.has('morph-ppt')) {
     throw new Error('App product profile must not include retired morph-ppt skill wiring');
   }
   if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
@@ -583,30 +553,29 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must consume the OPL Flow package context policy');
   }
+  const additionalInstructions = profile.codex.new_conversation_additional_instructions;
   if (
-    profile.codex.opl_app_session_context?.owner !== 'one-person-lab-app' ||
-    profile.codex.opl_app_session_context.source !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent] owner-projected localized route summary with optional gui.professional_agent_packages display fallback' ||
-    profile.codex.opl_app_session_context.delivery !== 'new_codex_conversation_preset_context' ||
-    profile.codex.opl_app_session_context.customization.additional_instructions_key !==
-      'codex.oplAppSessionContextAdditional' ||
-    profile.codex.opl_app_session_context.customization.base_context_edit_policy !== 'generated_read_only' ||
-    profile.codex.opl_app_session_context.customization.user_edit_policy !== 'append_additional_instructions_only' ||
-    profile.codex.opl_app_session_context.customization.reset_behavior !== 'clear_additional_instructions'
+    additionalInstructions?.content_owner !== 'user' ||
+    additionalInstructions.delivery !== 'new_conversation_additional_instructions_only' ||
+    additionalInstructions.storage_key !== 'codex.oplAppSessionContextAdditional' ||
+    additionalInstructions.storage_key_status !== 'legacy_compatibility_storage_key' ||
+    additionalInstructions.generated_base_context_allowed !== false ||
+    additionalInstructions.agent_route_fallback_allowed !== false ||
+    additionalInstructions.empty_value_policy !== 'inject_nothing' ||
+    additionalInstructions.reset_behavior !== 'clear_additional_instructions' ||
+    additionalInstructions.effect !== 'next_new_conversation'
   ) {
-    throw new Error('App product profile must own the editable OPL App session context');
+    throw new Error('App product profile must limit new-conversation additions to optional user-authored text');
   }
-  if (
-    !Array.isArray(profile.codex.session_context_i18n?.['zh-CN']) ||
-    !profile.codex.session_context_i18n['zh-CN'].some((line) => line.includes('本对话由 One Person Lab App 发起')) ||
-    !Array.isArray(profile.codex.session_context_i18n?.['en-US']) ||
-    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('started from One Person Lab App'))
-  ) {
-    throw new Error('App product profile must declare localized OPL App session context');
-  }
-  for (const agent of profile.gui.professional_agent_packages ?? []) {
-    if (!agent.session_routing_summary_i18n?.['zh-CN'] || !agent.session_routing_summary_i18n?.['en-US']) {
-      throw new Error(`App product profile agent ${agent.package_id} must declare localized session routing summaries`);
+  for (const field of [
+    'opl_app_session_context',
+    'default_visible_skills',
+    'skill_priority',
+    'session_context_lines',
+    'session_context_i18n',
+  ]) {
+    if (field in profile.codex) {
+      throw new Error(`App product profile must not restore legacy Codex authority codex.${field}`);
     }
   }
 }
@@ -629,27 +598,12 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
   });
 }
 
-function assertHomePurposeEntries(profile: AppProductProfile): void {
+function assertHomeShortcutCompatibilityMetadata(profile: AppProductProfile): void {
   if (
     JSON.stringify(profile.gui.home.home_agent_shortcuts_metadata_policy) !==
       JSON.stringify(optionalDisplayMetadataPolicy.homeShortcuts)
   ) {
     throw new Error('App product profile Home shortcut metadata must not own membership, visibility, order, readiness, or actions');
-  }
-  const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
-  if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
-    throw new Error('App product profile GUI home must expose exactly research, grant, ppt, and book purpose entries');
-  }
-  if (JSON.stringify(purposeEntries.map((entry) => entry.primary_label)) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
-    throw new Error('App product profile GUI home purpose labels must be 科研, 基金, 演示, 写书');
-  }
-  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
-    throw new Error('App product profile GUI home purpose entries must route to MAS, MAG, RCA, and BookForge');
-  }
-  for (const entry of purposeEntries) {
-    if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
-      throw new Error(`App product profile GUI home purpose entry ${entry.id} must be purpose-first and click-to-start`);
-    }
   }
   const shortcuts = profile.gui.home.home_agent_shortcuts ?? [];
   const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
@@ -816,29 +770,27 @@ function assertUiLocalePolicy(profile: AppProductProfile): void {
   }
 }
 
-function assertDefaultAssistantProfileShape(profile: AppProductProfile): void {
-  const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
-  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
-    throw new Error('App product profile default home assistants must be MAS, MAG, RCA, and BookForge');
-  }
-  const purposeLabels = profile.gui.default_assistants?.map((assistant) => assistant.home_purpose_label) ?? [];
-  if (JSON.stringify(purposeLabels) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
-    throw new Error('App product profile default assistants must expose purpose-first home labels');
-  }
-  for (const assistantId of ['mas', 'mag', 'rca', 'obf']) {
-    if (!defaultAssistantIds.includes(assistantId)) {
-      throw new Error(`App product profile missing default assistant ${assistantId}`);
+function assertNoFixedAgentHomePresentation(profile: AppProductProfile): void {
+  const gui = profile.gui as unknown as Record<string, unknown>;
+  const home = profile.gui.home as unknown as Record<string, unknown>;
+  for (const field of [
+    'default_assistants',
+    'non_default_assistants',
+    'professional_agent_packages',
+    'professional_agent_packages_metadata_policy',
+  ]) {
+    if (field in gui) {
+      throw new Error(`App product profile must not restore fixed Agent/Home presentation field gui.${field}`);
     }
   }
-  if (defaultAssistantIds.includes('mds') || defaultAssistantIds.includes('oma')) {
-    throw new Error('App product profile must not include MDS or OMA as a default home assistant');
+  if ('home_purpose_entries' in home) {
+    throw new Error('App product profile must not restore fixed Agent/Home presentation field gui.home.home_purpose_entries');
   }
-  for (const assistant of profile.gui.default_assistants ?? []) {
-    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
-      throw new Error(`Default assistant ${assistant.id} must use purpose-first home display`);
-    }
-    assertStringArray(Object.keys(assistant.description_i18n ?? {}), `gui.default_assistants.${assistant.id}.description_i18n`);
-    assertStringArray(Object.keys(assistant.prompts_i18n ?? {}), `gui.default_assistants.${assistant.id}.prompts_i18n`);
+  if (
+    profile.gui.home.home_layout.home_presentation_source_ref !==
+    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + gui.home.home_agent_shortcuts optional migration/display metadata only'
+  ) {
+    throw new Error('App product profile Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
   }
 }
 
@@ -853,7 +805,7 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   );
   if (
     ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
-    ordinarySelector.authority !== 'app_owned_skill_allowlist_and_mcp_negative_filter' ||
+    ordinarySelector.authority !== 'owner_or_carrier_skill_projection_and_mcp_negative_filter' ||
     ordinarySelector.palette_agent_catalog_source_ref !==
       'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
     ordinarySelector.palette_agent_status_source_ref !==
@@ -874,26 +826,18 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
     ordinarySelector.skill_source_ref !==
       'owner_or_carrier_projected_capability_metadata_for_the_selected_package' ||
     ordinarySelector.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible' ||
-    ordinarySelector.conversation_loaded_skill_display_policy !== 'filter_to_ordinary_skill_allowlist' ||
+    ordinarySelector.conversation_loaded_skill_display_policy !== 'preserve_owner_or_carrier_projected_loaded_skills' ||
     ordinarySelector.mcp_server_source_ref !== 'configured_user_and_third_party_mcp_servers' ||
     ordinarySelector.mcp_menu_policy !==
       'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
     ordinarySelector.conversation_loaded_mcp_display_policy !== 'preserve_non_forbidden_configured_servers' ||
     ordinarySelector.forbidden_mcp_policy !==
       'exclude_only_explicit_team_or_internal_matches_preserve_all_other_user_and_third_party_servers' ||
-    ordinarySelector.unmatched_mcp_policy !== 'preserve_end_to_end_without_app_allowlist_membership'
+    ordinarySelector.unmatched_mcp_policy !== 'preserve_end_to_end_without_app_allowlist_membership' ||
+    Object.prototype.hasOwnProperty.call(ordinarySelector, 'forbidden_skill_examples')
   ) {
-    throw new Error('App product profile ordinary capability selector must preserve the Skill allowlist and MCP negative filter');
+    throw new Error('App product profile ordinary capability selector must use owner/carrier Skill projection and the MCP negative filter');
   }
-  assertStringArray(
-    ordinarySelector.forbidden_skill_examples,
-    'gui.ordinary_capability_selector_policy.forbidden_skill_examples',
-  );
-  assertIncludesAll(
-    ordinarySelector.forbidden_skill_examples,
-    ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
-    'gui.ordinary_capability_selector_policy.forbidden_skill_examples',
-  );
   assertIncludesAll(
     ordinarySelector.forbidden_mcp_examples,
     ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
@@ -950,50 +894,6 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
     ])
   ) {
     throw new Error('App product profile ordinary MCP selector must preserve every non-forbidden MCP carrier');
-  }
-}
-
-function assertProfessionalAgentPackages(profile: AppProductProfile): void {
-  if (
-    JSON.stringify(profile.gui.professional_agent_packages_metadata_policy) !==
-      JSON.stringify(optionalDisplayMetadataPolicy.professionalAgent)
-  ) {
-    throw new Error('App product profile professional Agent metadata must be optional display/migration input only');
-  }
-  const packages = profile.gui.professional_agent_packages ?? [];
-  const packageIds = packages.map((entry) => entry.package_id);
-  if (
-    packageIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
-    new Set(packageIds).size !== packageIds.length
-  ) {
-    throw new Error('App product profile professional Agent metadata package ids must be non-empty and unique');
-  }
-  for (const entry of packages) {
-    assertLocalizedUxOverrideShape(
-      entry.display_name_i18n,
-      `App product profile professional Agent ${entry.package_id} display_name_i18n`,
-    );
-    assertLocalizedUxOverrideShape(
-      entry.description_i18n,
-      `App product profile professional Agent ${entry.package_id} description_i18n`,
-    );
-    if (
-      typeof entry.display_name !== 'string' ||
-      !entry.display_name.trim() ||
-      typeof entry.session_routing_summary_i18n?.['zh-CN'] !== 'string' ||
-      !entry.session_routing_summary_i18n['zh-CN'].trim() ||
-      typeof entry.session_routing_summary_i18n?.['en-US'] !== 'string' ||
-      !entry.session_routing_summary_i18n['en-US'].trim()
-    ) {
-      throw new Error(`App product profile professional Agent ${entry.package_id} display metadata is incomplete`);
-    }
-  }
-}
-
-function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void {
-  const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
-  if (!oma || oma.home_default_visible !== true || oma.home_entry_policy !== 'settings_managed_home_shortcut') {
-    throw new Error('App product profile must expose OMA through its default settings-managed Home shortcut');
   }
 }
 
@@ -1097,19 +997,14 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertDefaultCodexSessionProfile(profile);
   assertCodexOplFlowContext(profile);
   assertHomeCodexProfileShape(profile);
-  assertHomePurposeEntries(profile);
+  assertHomeShortcutCompatibilityMetadata(profile);
   assertHomeActivityCenterPolicy(profile);
   assertHomeSelectionAndIconPolicy(profile);
   assertOfficialProfileShape(profile.official_profile, 'App product profile Official Profile');
   assertUiLocalePolicy(profile);
   assertDynamicPackageInvocationReceiptPolicy(profile, 'App product profile');
-  assertProfessionalAgentPackages(profile);
-  assertDefaultAssistantProfileShape(profile);
+  assertNoFixedAgentHomePresentation(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
-  assertNonDefaultAssistantProfileShape(profile);
-  assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
-  assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
-  assertStringArray(profile.codex.session_context_lines, 'codex.session_context_lines', { allowBlank: true });
   assertFirstRunProfileShape(profile);
   assertSettingsProfileShape(profile);
   assertCompanionPayloadProfileShape(profile);

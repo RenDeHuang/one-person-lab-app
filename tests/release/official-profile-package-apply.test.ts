@@ -66,14 +66,51 @@ test('Official Profile apply mutates only missing roots or missing required clos
   assert.equal(calls.some((args) => args.includes('obf')), true, 'later roots continue after an earlier failure');
 });
 
-test('Official Profile apply rejects startup intent before any Package command', () => {
-  let calls = 0;
-  assert.throws(() => applyOfficialProfilePackages({
-    intent: 'app_startup' as any,
+test('user removal survives restart, daily maintenance, and App update until explicit restore', () => {
+  let installed = false;
+  const calls: string[][] = [];
+  const runtime = {
+    execute(args: string[]) {
+      calls.push(args);
+      if (args[1] === 'status') {
+        return { status: 0, stdout: JSON.stringify(status(installed)), stderr: '' };
+      }
+      if (args[1] === 'install') {
+        installed = true;
+        return { status: 0, stdout: JSON.stringify({ version: 'g2', result: { status: 'completed' } }), stderr: '' };
+      }
+      return { status: 1, stdout: '', stderr: `unexpected Package command: ${args.join(' ')}` };
+    },
+  };
+
+  for (const intent of ['app_restart', 'daily_maintenance', 'app_update']) {
+    assert.throws(() => applyOfficialProfilePackages({
+      intent: intent as any,
+      rootPackageIds: ['mas'],
+      runtime,
+    }), /first_install or explicit_restore/);
+    assert.equal(installed, false, `${intent} must preserve the user's removal`);
+    assert.equal(calls.length, 0, `${intent} must not execute a Package command`);
+  }
+
+  const result = applyOfficialProfilePackages({
+    intent: 'explicit_restore',
     rootPackageIds: ['mas'],
-    runtime: { execute: () => { calls += 1; return { status: 0, stdout: '{}', stderr: '' }; } },
-  }), /first_install or explicit_restore/);
-  assert.equal(calls, 0);
+    runtime,
+  });
+  assert.equal(installed, true);
+  assert.deepEqual(calls.map((args) => args.slice(0, 2)), [
+    ['packages', 'status'],
+    ['packages', 'install'],
+    ['packages', 'status'],
+  ]);
+  assert.equal(result.official_profile_package_apply.status, 'completed');
+  assert.equal(result.official_profile_package_apply.intent, 'explicit_restore');
+  assert.deepEqual(result.official_profile_package_apply.persistence, {
+    desired_state_saved: false,
+    startup_maintenance_registered: false,
+    automatic_reapply_allowed: false,
+  });
 });
 
 test('CLI accepts explicit root identities and performs read-only skips for present roots', () => {
@@ -107,6 +144,7 @@ process.stdout.write(JSON.stringify({version:'g2',opl_agent_package_status:{inst
     assert.equal(output.official_profile_package_apply.status, 'completed');
     assert.equal(output.official_profile_package_apply.persistence.desired_state_saved, false);
     assert.equal(output.official_profile_package_apply.persistence.startup_maintenance_registered, false);
+    assert.equal(output.official_profile_package_apply.persistence.automatic_reapply_allowed, false);
     const calls = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     assert.deepEqual(output.official_profile_package_apply.root_package_ids, ['mas', 'oma']);
     assert.equal(calls.length, 2);

@@ -345,6 +345,12 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
     policy.agent_owned_skill_deduplication_policy,
     'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills',
   );
+  assert.equal(policy.authority, 'owner_or_carrier_skill_projection_and_mcp_negative_filter');
+  assert.equal(
+    policy.conversation_loaded_skill_display_policy,
+    'preserve_owner_or_carrier_projected_loaded_skills',
+  );
+  assert.equal('forbidden_skill_examples' in policy, false);
   assert.equal(policy.visible_mcp_server_ids, undefined);
   assert.equal(
     policy.mcp_menu_policy,
@@ -369,23 +375,11 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
   );
 });
 
-test('professional Agent metadata stays optional but requires localized names and descriptions when present', () => {
+test('starter metadata stays localized without restoring an App-owned professional Agent overlay', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
-  const meta = profile.gui.professional_agent_packages[0];
-  assert.ok(meta.description_i18n['zh-CN'].trim());
-  meta.description_i18n['zh-CN'] = '';
-  assert.throws(
-    () => validateProductProfile(profile, installExposure),
-    /localized name and description|non-empty zh-CN and en-US/,
-  );
-
-  const emptyMetadataProfile = structuredClone(readJson('contracts/app-product-profile.json'));
-  emptyMetadataProfile.gui.professional_agent_packages = [];
-  emptyMetadataProfile.gui.home.home_agent_shortcuts = [];
-  assert.doesNotThrow(() => validateProductProfile(emptyMetadataProfile, installExposure));
-
   const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  assert.equal('professional_agent_packages' in completeProfile.gui, false);
+  assert.equal('professional_agent_packages_metadata_policy' in completeProfile.gui, false);
   const starterMetadata = completeProfile.gui.agent_package_registry.starter_package_metadata;
   const starterMetadataIds = starterMetadata.map((entry: any) => entry.package_id);
   assert.equal(starterMetadataIds.every((packageId: unknown) => typeof packageId === 'string' && packageId.trim()), true);
@@ -409,8 +403,6 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
   const guidHome = matrix.pages.find((page: any) => page.id === 'guid_home');
   const home = guidHome.home_view_model;
 
-  home.default_assistants = ['community-clinical-agent'];
-  home.default_assistant_purpose_labels = { 'community-clinical-agent': '临床' };
   home.default_assistant_required_skills = {
     'community-clinical-agent': ['owner-required-capability'],
   };
@@ -431,14 +423,9 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
     default_visible: false,
     user_configurable: true,
   }];
-  home.home_purpose_entries = [{
-    id: 'community-clinical',
-    primary_label: '临床',
-    target_assistant_id: 'community-clinical-agent',
-    target_assistant_short_name: 'CCA',
-    display_policy: 'purpose_first',
-    home_entry_policy: 'visible_click_to_start',
-  }];
+  assert.equal('default_assistants' in home, false);
+  assert.equal('default_assistant_purpose_labels' in home, false);
+  assert.equal('home_purpose_entries' in home, false);
   const agentPackageGroup = matrix.pages
     .find((page: any) => page.id === 'ordinary_conversation').conversation_view_model
     .unified_context_menu.groups.find((group: any) => group.id === 'agent_packages');
@@ -492,6 +479,10 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
       value.pages.find((page: any) => page.id === 'ordinary_conversation').conversation_view_model
         .unified_context_menu.groups.find((group: any) => group.id === 'agent_packages')
         .action_policy = 'app_allowlisted_action_ids';
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model
+        .default_assistants = ['fixed-package-id'];
     },
   ]) {
     const drift = structuredClone(matrix);

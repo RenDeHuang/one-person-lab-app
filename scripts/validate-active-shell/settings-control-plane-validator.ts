@@ -1338,10 +1338,10 @@ function validateSettingsUserNavigationProjection(projection, settingsIa) {
         anchor: "system-agents",
       },
       {
-        content_id: "opl_app_session_context",
+        content_id: "new_conversation_additional_instructions",
         user_destination_id: "instructions_context",
         transport_route_id: "workspace",
-        anchor: "opl-app-context",
+        anchor: "additional-instructions",
       },
       {
         content_id: "app_log_directory",
@@ -2481,7 +2481,7 @@ function validatePageSurfaceInventory(pageId, inventory) {
       [
         "workspace_selection",
         "codex_user_instructions",
-        "opl_app_session_context",
+        "new_conversation_additional_instructions",
       ],
       "Settings Workspace and Personalization configuration ownership",
     );
@@ -2493,7 +2493,7 @@ function validatePageSurfaceInventory(pageId, inventory) {
     if (
       preferenceConfigurationIds.includes("log_directory") ||
       preferenceConfigurationIds.includes("codex_user_instructions") ||
-      preferenceConfigurationIds.includes("opl_app_session_context")
+      preferenceConfigurationIds.includes("new_conversation_additional_instructions")
     ) {
       throw new Error(
         "Settings Preferences must not duplicate Workspace paths or personalization",
@@ -2767,7 +2767,8 @@ export function validateSettingsExperienceContract(experience) {
       docker_mapping:
         "host_projects_directory_is_bound_to_/projects_and_Settings_does_not_rewire_the_bind_mount",
       docker_volume_rewire_allowed: false,
-      generated_base_context_editable: false,
+      generated_base_context_allowed: false,
+      agent_route_fallback_allowed: false,
       additional_instructions_editable: true,
       restore_default_confirmation_required: true,
       personalization_changes_apply_to: "next_new_conversation",

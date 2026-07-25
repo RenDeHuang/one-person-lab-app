@@ -253,6 +253,8 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   重绑或 rail 重分组；新任务初始 cwd 只从 composer `+` 菜单选择，projectless adoption 留在 rail。
 - Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
+- Files/Changes 开关在每个 viewport 状态只能有一个可见 owner：关闭时由 conversation header
+  负责打开，展开时由 panel header 负责收回；全局 titlebar 与浮动 handle 不得重复同源开关。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
 - Thread identity/history 归 Codex Core/App Server。Shell 只保留一个用户触发的 App Server

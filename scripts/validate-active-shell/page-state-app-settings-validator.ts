@@ -10,6 +10,7 @@ import {
 import {
   validateEnvironmentModuleMaintenanceEntry,
 } from './managed-update-plane-validator.ts';
+import { appOwnedOfficialProfileRestoreAction } from './gui-product-contract-validator.ts';
 import { settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 
@@ -171,6 +172,31 @@ function validateCapabilitiesPage(matrix, guiContract) {
   }
   if (agentsPage.refresh_source !== 'opl app state --profile fast --json') {
     throw new Error('Agents page must refresh through opl app state --profile fast --json');
+  }
+  assertDeepEqualJson(
+    guiAgentsPage?.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+    'App GUI Official Profile restore action',
+  );
+  assertDeepEqualJson(
+    agentsPage.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+    'Agents page Official Profile restore action',
+  );
+  assertDeepEqualJson(
+    settingsControlPlane.experience_contract?.page_contracts?.agents?.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+    'Settings experience Official Profile restore action',
+  );
+  if (
+    !agentsPage.required_dom?.always?.includes(
+      appOwnedOfficialProfileRestoreAction.required_dom_testid,
+    ) ||
+    !settingsControlPlane.experience_contract?.page_contracts?.agents?.surface_inventory?.action?.some(
+      (entry) => entry.id === appOwnedOfficialProfileRestoreAction.id && entry.owner === 'agents',
+    )
+  ) {
+    throw new Error('Settings Agents must expose Official Profile restore as an App-owned secondary action');
   }
   assertDeepEqualJson(
     agentsPage.developer_mode_control,

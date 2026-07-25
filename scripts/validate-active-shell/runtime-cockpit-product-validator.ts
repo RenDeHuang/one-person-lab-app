@@ -497,6 +497,38 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     `${label}.domain_detail_views.capability_absent_behavior`,
   );
   assertDeepEqualJson(
+    domainViews?.renderer_extension_abi,
+    {
+      schema: 'opl_app.domain_detail_renderer_extension.v1',
+      delivery_owner: 'domain_agent_package_owner',
+      registry_composition_owner: 'shell',
+      delivery_mode: 'owner_source_composed_into_trusted_shell_build',
+      registration_key: 'view_kind',
+      registration_required_fields: [
+        'view_kind',
+        'owner_package_id',
+        'renderer_id',
+        'schema_compatibility',
+        'component',
+      ],
+      schema_compatibility_source: 'owner_renderer_extension',
+      payload_schema_and_validation_owner: 'domain_owner_renderer_extension',
+      runtime_dynamic_code_loading_allowed: false,
+      descriptor_supplied_module_path_or_url_allowed: false,
+      agent_id_branching_allowed: false,
+      app_registered_view_kind_or_domain_schema_mirror_allowed: false,
+      unknown_or_incompatible_policy: 'localized_unavailable_preserve_work_item_and_return_to_runtime',
+      registered_renderer_removal_policy: {
+        opaque_generic_fallback_is_equivalent_replacement: false,
+        removal_requires: [
+          'owner_producer_retirement_evidence_for_view_kind',
+          'or_compatible_replacement_renderer_with_equivalent_user_visible_acceptance',
+        ],
+      },
+    },
+    `${label}.domain_detail_views.renderer_extension_abi`,
+  );
+  assertDeepEqualJson(
     domainViews?.availability_states,
     domainDetailViewAvailabilityValues,
     `${label}.domain_detail_views.availability_states`,

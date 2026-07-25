@@ -6,6 +6,7 @@ import { validateOptionalRuntimeRoute } from '../../scripts/validate-active-shel
 import {
   validateAgentAvailabilityProjectionContract,
   validateRuntimeScopeProjectionContract,
+  validateUserTaskStatusProjectionContract,
   validateWorkItemRowIdentityFixture,
   validateWorkItemProjectionContract,
 } from '../../scripts/validate-active-shell/shared-contract-validators.ts';
@@ -42,7 +43,73 @@ test('Runtime V2 product, projection, scope, availability, and page-state contra
   assert.doesNotThrow(() => validateAgentAvailabilityProjectionContract(bridge.agent_availability_projection, 'test agents'));
 });
 
+test('Runtime owner acceptance and currentness use generic refs and fail closed', () => {
+  const bridge = runtimeBridge();
+  const userTaskStatus = bridge.user_task_status_projection;
+  const genericPolicy = userTaskStatus.generic_owner_acceptance_currentness_ref_policy;
+  assert.deepEqual(genericPolicy, {
+    projection_field: 'stage_run_current_owner_delta',
+    owner_field: 'owner',
+    accepted_return_shapes_field: 'accepted_return_shapes',
+    acceptance_or_blocker_refs_field: 'artifact_or_blocker_refs',
+    currentness_guard_refs_field: 'readiness_false_flag_refs',
+    unknown_owner_policy: 'unknown_fail_closed_no_acceptance_or_currentness_inference',
+    missing_refs_policy: 'unknown_fail_closed_no_acceptance_or_currentness_inference',
+    app_role: 'display_only_refs_consumer_no_owner_verdict_authority',
+  });
+
+  const retiredMasFields = [
+    'mas_runtime_acceptance_display_policy',
+    'mas_owner_consumption_status',
+    'mas_owner_consumption_ref',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_owner_consumed_closeout_ref',
+    'mas_owner_consumption_matches_runtime_closeout',
+    'mas_currentness_drift_text',
+  ];
+  const guiContract = runtimeContract();
+  const guiInactiveSummaryFields = guiContract.framework_surfaces.runtime_default_attention
+    .project_group_expansion_policy.inactive_summary_fields;
+  const bridgeInactiveSummaryFields = bridge.project_progress_projection.active_project_line_projection
+    .project_group_expansion_policy.inactive_summary_fields;
+  for (const field of retiredMasFields) {
+    assert.equal(userTaskStatus.task_fields.includes(field), false);
+    assert.equal(guiInactiveSummaryFields.includes(field), false);
+    assert.equal(bridgeInactiveSummaryFields.includes(field), false);
+    assert.equal(bridge.runtime_progress_page_display_policy.advanced_only_fields.includes(field), false);
+  }
+  assert.equal(guiInactiveSummaryFields.includes('stage_run_current_owner_delta'), true);
+  assert.equal(bridgeInactiveSummaryFields.includes('stage_run_current_owner_delta'), true);
+
+  for (const mutate of [
+    (candidate: any) => {
+      candidate.user_task_status_projection.generic_owner_acceptance_currentness_ref_policy.unknown_owner_policy =
+        'infer_acceptance_from_agent_id';
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.generic_owner_acceptance_currentness_ref_policy.missing_refs_policy =
+        'treat_runtime_closeout_as_owner_acceptance';
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.task_fields.push('mas_owner_consumption_status');
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.mas_runtime_acceptance_display_policy =
+        'infer acceptance from a MAS-only runtime mirror';
+    },
+  ]) {
+    const candidate = runtimeBridge();
+    mutate(candidate);
+    assert.throws(() => validateUserTaskStatusProjectionContract(
+      candidate.user_task_status_projection,
+      'mutated owner acceptance/currentness projection',
+      candidate.stage_run_cockpit_projection,
+    ));
+  }
+});
+
 test('typed owner views use a generic transport envelope without an App domain schema mirror', () => {
+  const product = runtimeContract().pages.runtime_status.runtime_cockpit_product_contract;
   const bridge = runtimeBridge().work_item_projection;
   const descriptor = bridge.field_contracts.domain_detail_views;
   const read = bridge.domain_detail_view_read_contract;
@@ -67,6 +134,28 @@ test('typed owner views use a generic transport envelope without an App domain s
   assert.equal(Object.hasOwn(read, 'payload_contracts'), false);
   assert.equal(read.app_payload_shape_interpretation_allowed, false);
   assert.deepEqual(read.response_optional_fields, ['digest', 'generation', 'payload_schema_ref', 'payload_schema']);
+  assert.deepEqual(product.domain_detail_views.renderer_extension_abi, {
+    schema: 'opl_app.domain_detail_renderer_extension.v1',
+    delivery_owner: 'domain_agent_package_owner',
+    registry_composition_owner: 'shell',
+    delivery_mode: 'owner_source_composed_into_trusted_shell_build',
+    registration_key: 'view_kind',
+    registration_required_fields: ['view_kind', 'owner_package_id', 'renderer_id', 'schema_compatibility', 'component'],
+    schema_compatibility_source: 'owner_renderer_extension',
+    payload_schema_and_validation_owner: 'domain_owner_renderer_extension',
+    runtime_dynamic_code_loading_allowed: false,
+    descriptor_supplied_module_path_or_url_allowed: false,
+    agent_id_branching_allowed: false,
+    app_registered_view_kind_or_domain_schema_mirror_allowed: false,
+    unknown_or_incompatible_policy: 'localized_unavailable_preserve_work_item_and_return_to_runtime',
+    registered_renderer_removal_policy: {
+      opaque_generic_fallback_is_equivalent_replacement: false,
+      removal_requires: [
+        'owner_producer_retirement_evidence_for_view_kind',
+        'or_compatible_replacement_renderer_with_equivalent_user_visible_acceptance',
+      ],
+    },
+  });
 });
 
 test('explicit Runtime route gate rejects an absent optional route', () => {
@@ -180,6 +269,7 @@ test('Runtime bridge display policy uses global row identity and one semantic ar
     (bridge: any) => { bridge.runtime_progress_page_display_policy.default_field_allowlist.push('action.title_args'); },
     (bridge: any) => { bridge.runtime_progress_page_display_policy.next_step_copy_policy.source_priority = ['action.title_key + action.title_args']; },
     (bridge: any) => { bridge.runtime_progress_page_display_policy.next_step_copy_policy.compatibility_fallback_fields.push('action.copy_locale'); },
+    (bridge: any) => { bridge.runtime_progress_page_display_policy.advanced_only_fields.push('mas_owner_consumption_ref'); },
   ]) {
     const bridge = runtimeBridge();
     mutate(bridge);
@@ -261,6 +351,14 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.layout_contract.machine_fields_visible = true; },
     (contract: any) => { contract.domain_detail_views.layout_contract.horizontal_page_overflow_allowed = true; },
     (contract: any) => { contract.domain_detail_views.registered_view_kinds = ['private_view']; },
+    (contract: any) => { delete contract.domain_detail_views.renderer_extension_abi; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.delivery_owner = 'shell'; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.runtime_dynamic_code_loading_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.descriptor_supplied_module_path_or_url_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.agent_id_branching_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.app_registered_view_kind_or_domain_schema_mirror_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.registered_renderer_removal_policy.opaque_generic_fallback_is_equivalent_replacement = true; },
+    (contract: any) => { contract.domain_detail_views.renderer_extension_abi.registered_renderer_removal_policy.removal_requires = ['unknown_view_kind_fallback']; },
     (contract: any) => { contract.domain_detail_views.availability_is_transport_state_only = false; },
     (contract: any) => { contract.domain_detail_views.transport_state_may_be_interpreted_as_domain_outcome = true; },
     (contract: any) => { contract.domain_detail_views.unknown_view_kind_policy = 'global_failure'; },

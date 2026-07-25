@@ -227,31 +227,9 @@ const expectedReasoningLabels = {
 type GuiLike = NonNullable<ProductProfileLike['gui']>;
 type HomeLike = GuiLike['home'];
 type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_model_display_options']>;
-type ProfessionalAgentPackageLike = {
-  package_id?: unknown;
-  agent_id?: unknown;
-  display_name_i18n?: unknown;
-  description_i18n?: unknown;
-  installed_manageable?: unknown;
-  codex_visible_entry?: unknown;
-  required_skill_ids?: unknown;
-  optional_skill_ids?: unknown;
-  required_skill_policy?: unknown;
-  optional_skill_policy?: unknown;
-  skill_menu_policy?: unknown;
-  package_kind?: unknown;
-  default_home_visible?: unknown;
-  home_shortcut_ids?: unknown;
-};
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} must be ${JSON.stringify(expected)}`);
-  }
-}
-
-function assertNonEmptyString(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`${label} must be a non-empty string`);
   }
 }
 
@@ -362,62 +340,6 @@ export function assertLocalizedUxOverrideShape(value: unknown, label: string): v
     || !localized['en-US'].trim()
   ) {
     throw new Error(`${label} must declare non-empty zh-CN and en-US text`);
-  }
-}
-
-export function assertProfessionalAgentPackageUxOverrides(
-  packages: ProfessionalAgentPackageLike[] | undefined,
-  label: string,
-): void {
-  if (packages !== undefined && !Array.isArray(packages)) {
-    throw new Error(`${label} professional agent package UX overrides must be an array`);
-  }
-  const entries = packages ?? [];
-  const packageIds = new Set<string>();
-  for (const entry of entries) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-      throw new Error(`${label} professional agent package UX override must be an object`);
-    }
-    assertNonEmptyString(entry.package_id, `${label} professional agent package_id`);
-    if (packageIds.has(entry.package_id)) {
-      throw new Error(`${label} professional agent package_id ${entry.package_id} must be unique`);
-    }
-    packageIds.add(entry.package_id);
-    assertNonEmptyString(entry.agent_id, `${label} professional agent package ${entry.package_id} agent_id`);
-    assertNonEmptyString(
-      entry.codex_visible_entry,
-      `${label} professional agent package ${entry.package_id} codex_visible_entry`,
-    );
-    assertNonEmptyString(entry.package_kind, `${label} professional agent package ${entry.package_id} package_kind`);
-    assertCapabilityReferenceListShape(
-      entry.required_skill_ids,
-      `${label} professional agent package ${entry.package_id} required_skill_ids`,
-    );
-    assertCapabilityReferenceListShape(
-      entry.optional_skill_ids,
-      `${label} professional agent package ${entry.package_id} optional_skill_ids`,
-    );
-    assertCapabilityReferenceListShape(
-      entry.home_shortcut_ids,
-      `${label} professional agent package ${entry.package_id} home_shortcut_ids`,
-    );
-    assertLocalizedUxOverrideShape(
-      entry.display_name_i18n,
-      `${label} professional agent package ${entry.package_id} display_name_i18n`,
-    );
-    assertLocalizedUxOverrideShape(
-      entry.description_i18n,
-      `${label} professional agent package ${entry.package_id} description_i18n`,
-    );
-    if (
-      entry.installed_manageable !== true ||
-      typeof entry.default_home_visible !== 'boolean' ||
-      entry.required_skill_policy !== 'checked_locked' ||
-      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
-      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
-    ) {
-      throw new Error(`${label} professional agent package ${entry.package_id} has invalid common UX policy`);
-    }
   }
 }
 

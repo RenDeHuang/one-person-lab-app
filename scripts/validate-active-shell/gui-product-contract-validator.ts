@@ -44,6 +44,37 @@ import {
   assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
 
+export const appOwnedOfficialProfileRestoreAction = {
+  id: 'official_profile_restore',
+  owner: 'one-person-lab-app',
+  surface: 'settings_agents_secondary_action',
+  scope: 'whole_official_profile',
+  confirmation_required: true,
+  invocation_policy: 'explicit_user_confirmation_only',
+  request: {
+    bridge: 'ipcBridge.oplRuntime.applyOfficialProfile',
+    helper: 'official-profile-package-apply',
+    payload: { intent: 'explicit_restore' },
+  },
+  desired_roots_source_ref: 'contracts/app-product-profile.json#official_profile.desired_root_package_ids',
+  framework_projected_single_package_action: false,
+  automatic_invocation: {
+    app_startup_or_restart: false,
+    daily_maintenance: false,
+    app_update_or_carrier_change: false,
+  },
+  persistence: {
+    desired_state_saved: false,
+    startup_maintenance_registered: false,
+    automatic_reapply_allowed: false,
+  },
+  post_success_readback: {
+    source: 'opl app state --profile fast --json',
+    force_fresh: true,
+  },
+  required_dom_testid: 'settings-agents-restore-official-profile',
+};
+
 function validateDynamicHomeComposerStateContract(value, label) {
   const {
     shortcut_package_membership_source_ref,
@@ -1625,7 +1656,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     guiContract.ordinary_capability_selector_policy?.authority !==
-      'app_owned_skill_allowlist_and_mcp_negative_filter' ||
+      'owner_or_carrier_skill_projection_and_mcp_negative_filter' ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !==
       'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_status_source_ref !==
@@ -1652,13 +1683,17 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.ordinary_capability_selector_policy?.mcp_menu_policy !==
       'preserve_configured_user_and_third_party_servers_except_explicit_forbidden_matchers' ||
     guiContract.ordinary_capability_selector_policy?.conversation_loaded_skill_display_policy !==
-      'filter_to_ordinary_skill_allowlist' ||
+      'preserve_owner_or_carrier_projected_loaded_skills' ||
     guiContract.ordinary_capability_selector_policy?.conversation_loaded_mcp_display_policy !==
       'preserve_non_forbidden_configured_servers' ||
     guiContract.ordinary_capability_selector_policy?.unmatched_mcp_policy !==
-      'preserve_end_to_end_without_app_allowlist_membership'
+      'preserve_end_to_end_without_app_allowlist_membership' ||
+    Object.prototype.hasOwnProperty.call(
+      guiContract.ordinary_capability_selector_policy,
+      'forbidden_skill_examples',
+    )
   ) {
-    throw new Error('App GUI ordinary selector must use the App Skill allowlist and MCP negative filter');
+    throw new Error('App GUI ordinary selector must use owner/carrier Skill projection and the MCP negative filter');
   }
   assertAgentReferenceAdmissionPolicy(
     guiContract.ordinary_capability_selector_policy.agent_reference_admission_policy,
@@ -1670,11 +1705,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI capability selection must reference the canonical Agent admission policy');
   }
-  assertIncludesAll(
-    guiContract.ordinary_capability_selector_policy.forbidden_skill_examples,
-    ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
-    'App GUI ordinary selector forbidden skills',
-  );
   assertIncludesAll(
     guiContract.ordinary_capability_selector_policy.forbidden_mcp_examples,
     ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
@@ -1713,7 +1743,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertIncludesAll(
     pages.guid_home.must_show,
-    ['ordinary skill selector filtered to App-owned assistant profile skill allowlist'],
+    ['ordinary Skill selector preserves owner-or-carrier projected Skills without an App allowlist'],
     'App GUI home ordinary selector must_show',
   );
   assertIncludesAll(
@@ -1881,6 +1911,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   const agentDirectoryTarget = pages.settings_agents.codex_plugin_directory_target;
   const agentStatusModel = pages.settings_agents.status_model;
+  assertDeepEqualJson(
+    pages.settings_agents.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+    'Settings Agents Official Profile restore action',
+  );
+  assertDeepEqualJson(
+    settingsControlPlane.experience_contract?.page_contracts?.agents?.official_profile_restore_action,
+    appOwnedOfficialProfileRestoreAction,
+    'Settings Agents experience Official Profile restore action',
+  );
   if (
     agentDirectoryTarget?.primary_layout !==
       'compact_grouped_package_list_with_inline_dependency_children_and_right_details_panel' ||
@@ -1929,10 +1969,25 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'Settings Agents Agent Package lifecycle UX',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
+  const additionalInstructions = guiContract.new_conversation_additional_instructions;
+  if (
+    additionalInstructions?.content_owner !== 'user' ||
+    additionalInstructions.delivery !== 'new_conversation_additional_instructions_only' ||
+    additionalInstructions.storage_key !== 'codex.oplAppSessionContextAdditional' ||
+    additionalInstructions.storage_key_status !== 'legacy_compatibility_storage_key' ||
+    additionalInstructions.generated_base_context_allowed !== false ||
+    additionalInstructions.agent_route_fallback_allowed !== false ||
+    additionalInstructions.empty_value_policy !== 'inject_nothing' ||
+    additionalInstructions.reset_behavior !== 'clear_additional_instructions' ||
+    additionalInstructions.effect !== 'next_new_conversation' ||
+    Object.prototype.hasOwnProperty.call(guiContract, 'opl_app_session_context')
+  ) {
+    throw new Error('App GUI must limit new-conversation additions to optional user-authored text');
+  }
   if (
     pages.settings_workspace?.ia_group !== 'workspace' ||
     !pages.settings_workspace.sections?.includes('system_agents') ||
-    !pages.settings_workspace.sections?.includes('opl_app_context') ||
+    !pages.settings_workspace.sections?.includes('new_conversation_additional_instructions') ||
     !pages.settings_workspace.must_show?.includes(
       'Workspace as a top-level Settings group with Working Directory and Data & Storage destinations',
     ) ||
@@ -1941,7 +1996,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ) ||
     !pages.settings_workspace.must_show?.includes('Codex instruction editors use unframed field groups without nested cards') ||
     !pages.settings_workspace.must_not_show?.includes('App log directory controls owned by Logs & Diagnostics') ||
-    !pages.settings_workspace.must_not_show?.includes('System AGENTS.md or new-conversation context presented as Workspace children') ||
+    !pages.settings_workspace.must_not_show?.includes('System AGENTS.md or new-conversation instructions presented as Workspace children') ||
     !pages.settings_workspace.must_not_show?.includes('App log directory presented as a Workspace child') ||
     !pages.settings_workspace.must_not_show?.includes('Framework and raw paths duplicated from Maintenance diagnostics')
   ) {

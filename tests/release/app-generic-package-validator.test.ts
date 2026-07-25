@@ -1,98 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
-import {
-  assertProfessionalAgentPackageUxOverrides,
-} from '../../scripts/app-product-profile-shared-validators.ts';
 import { readAppProductProfile } from '../../scripts/app-product-profile/profile-contract.ts';
 import { validateGuiProductHomeContract } from '../../scripts/validate-active-shell/gui-product-home-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
-
-const syntheticPackage = {
-  package_id: 'community-clinical-agent',
-  agent_id: 'community-clinical-route',
-  display_name: 'Community Clinical Agent',
-  display_name_i18n: {
-    'zh-CN': 'Community Clinical Agent zh-CN',
-    'en-US': 'Community Clinical Agent',
-  },
-  description_i18n: {
-    'zh-CN': 'A clinical workflow supplied by its Package owner for zh-CN.',
-    'en-US': 'A clinical workflow supplied by its Package owner.',
-  },
-  short_name: 'CCA',
-  role: 'owner_defined_clinical_agent',
-  package_kind: 'owner_defined_professional_agent_package',
-  installed_manageable: true,
-  default_home_visible: false,
-  codex_visible_entry: 'community-clinical-plugin',
-  home_shortcut_ids: ['community-clinical'],
-  required_skill_ids: ['owner-required-capability'],
-  optional_skill_ids: ['owner-optional-capability'],
-  session_routing_summary_i18n: {
-    'zh-CN': 'community clinical workflows zh-CN',
-    'en-US': 'community clinical workflows',
-  },
-  required_skill_policy: 'checked_locked',
-  optional_skill_policy: 'unchecked_user_selectable',
-  skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
-};
-
-function replacePackageAndCapabilityIdentities(contract: any): any {
-  const value = structuredClone(contract);
-  const gui = value.gui ?? value;
-  gui.professional_agent_packages = [syntheticPackage];
-  const homeShortcuts = gui.home?.home_agent_shortcuts ?? gui.home_agent_shortcuts;
-  homeShortcuts[0].required_skill_ids = ['owner-shortcut-capability'];
-  return value;
-}
-
-function clearOptionalAgentMetadata(contract: any): any {
-  const value = structuredClone(contract);
-  const gui = value.gui ?? value;
-  gui.professional_agent_packages = [];
-  if (gui.home?.home_agent_shortcuts) {
-    gui.home.home_agent_shortcuts = [];
-  } else {
-    gui.home_agent_shortcuts = [];
-  }
-  return value;
-}
-
-function driftOptionalAgentMetadata(contract: any): any {
-  const value = clearOptionalAgentMetadata(contract);
-  const gui = value.gui ?? value;
-  gui.professional_agent_packages = [{
-    ...syntheticPackage,
-    package_id: 'display-only-agent',
-    agent_id: 'display-only-agent',
-  }];
-  const shortcuts = [{
-    shortcut_id: 'display-only-shortcut',
-    package_id: 'display-only-agent',
-    agent_id: 'display-only-agent',
-    primary_label: 'Display only',
-    package_short_name: 'Display',
-    codex_visible_entry: 'display-only-agent',
-    required_skill_ids: ['display-only-required-capability'],
-    source: 'opl_app_home',
-    executor: 'codex_cli',
-    display_policy: 'purpose_first',
-    home_entry_policy: 'visible_click_to_start',
-    default_visible: false,
-    user_configurable: true,
-  }];
-  if (gui.home) {
-    gui.home.home_agent_shortcuts = shortcuts;
-  } else {
-    gui.home_agent_shortcuts = shortcuts;
-  }
-  return value;
-}
 
 const syntheticDirectoryEntry = {
   package_id: 'community-clinical-agent',
@@ -127,75 +40,85 @@ const syntheticHomeShortcutPreference = {
   sort_order: 7,
 };
 
-test('professional Agent Package UX validation accepts an unknown Package and opaque capability identities', () => {
-  assert.doesNotThrow(() => assertProfessionalAgentPackageUxOverrides(
-    [syntheticPackage],
-    'Synthetic product profile',
-  ));
+test('App-owned Agent, Skill, and generated session authorities stay absent and cannot be restored', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const productProfile = readJson('contracts/app-product-profile.json');
+  const pageState = readJson('contracts/app-page-state-matrix.json');
+  const homeViewModel = pageState.pages.find((page: any) => page.id === 'guid_home').home_view_model;
 
-  const guiContract = replacePackageAndCapabilityIdentities(
-    readJson('contracts/app-gui-product-contract.json'),
-  );
-  assert.doesNotThrow(() => validateGuiProductHomeContract(guiContract));
-
-  const productProfile = replacePackageAndCapabilityIdentities(
-    readJson('contracts/app-product-profile.json'),
-  );
-  assert.doesNotThrow(() => validateProductProfile(
-    productProfile,
-    readJson('contracts/app-install-exposure-policy.json'),
-  ));
-
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-generic-package-validator-'));
-  const profilePath = path.join(tempRoot, 'app-product-profile.json');
-  try {
-    fs.writeFileSync(profilePath, `${JSON.stringify(productProfile, null, 2)}\n`, 'utf8');
-    assert.doesNotThrow(() => readAppProductProfile(profilePath));
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
+  for (const field of [
+    'default_assistants',
+    'non_default_assistants',
+    'home_purpose_entries',
+    'professional_agent_packages',
+    'professional_agent_packages_metadata_policy',
+  ]) {
+    assert.equal(field in guiContract, false, `GUI contract must not carry ${field}`);
   }
-});
+  assert.equal('retired_domain_agents' in guiContract, false);
+  assert.equal('default_assistants' in productProfile.gui, false);
+  assert.equal('non_default_assistants' in productProfile.gui, false);
+  assert.equal('home_purpose_entries' in productProfile.gui.home, false);
+  assert.equal('professional_agent_packages' in productProfile.gui, false);
+  assert.equal('professional_agent_packages_metadata_policy' in productProfile.gui, false);
+  for (const field of [
+    'opl_app_session_context',
+    'default_visible_skills',
+    'skill_priority',
+    'session_context_lines',
+    'session_context_i18n',
+  ]) {
+    assert.equal(field in productProfile.codex, false, `Product profile must not carry codex.${field}`);
+  }
+  assert.equal('forbidden_skill_examples' in productProfile.gui.ordinary_capability_selector_policy, false);
+  assert.equal(
+    productProfile.gui.ordinary_capability_selector_policy.authority,
+    'owner_or_carrier_skill_projection_and_mcp_negative_filter',
+  );
+  assert.deepEqual(productProfile.codex.new_conversation_additional_instructions, {
+    content_owner: 'user',
+    delivery: 'new_conversation_additional_instructions_only',
+    storage_key: 'codex.oplAppSessionContextAdditional',
+    storage_key_status: 'legacy_compatibility_storage_key',
+    generated_base_context_allowed: false,
+    agent_route_fallback_allowed: false,
+    empty_value_policy: 'inject_nothing',
+    reset_behavior: 'clear_additional_instructions',
+    effect: 'next_new_conversation',
+  });
+  assert.doesNotThrow(() => readAppProductProfile());
+  assert.equal('default_assistants' in homeViewModel, false);
+  assert.equal('default_assistant_purpose_labels' in homeViewModel, false);
+  assert.equal('home_purpose_entries' in homeViewModel, false);
 
-test('professional Agent Package UX validation still rejects malformed presentation overrides', () => {
-  const invalid = structuredClone(syntheticPackage);
-  invalid.display_name_i18n['en-US'] = '';
-
+  const restoredGui = structuredClone(guiContract);
+  restoredGui.default_assistants = [{ id: 'fixed-package-id' }];
   assert.throws(
-    () => assertProfessionalAgentPackageUxOverrides([invalid], 'Synthetic product profile'),
-    /display_name_i18n must declare non-empty zh-CN and en-US text/,
-  );
-});
-
-test('fixed Agent, Skill, and Home metadata may be empty without becoming runtime authority', () => {
-  const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  const guiContract = clearOptionalAgentMetadata(
-    readJson('contracts/app-gui-product-contract.json'),
-  );
-  const productProfile = clearOptionalAgentMetadata(
-    readJson('contracts/app-product-profile.json'),
+    () => validateGuiProductHomeContract(restoredGui),
+    /must not restore fixed Agent\/Home presentation field default_assistants/,
   );
 
-  assert.equal(
-    'palette_required_agent_package_ids' in guiContract.ordinary_capability_selector_policy,
-    false,
+  const restoredProfile = structuredClone(productProfile);
+  restoredProfile.gui.professional_agent_packages = [];
+  assert.throws(
+    () => validateProductProfile(restoredProfile, installExposure),
+    /must not restore fixed Agent\/Home presentation field gui.professional_agent_packages/,
   );
-  assert.equal(
-    'palette_required_agent_package_ids' in productProfile.gui.ordinary_capability_selector_policy,
-    false,
-  );
-  assert.doesNotThrow(() => validateGuiProductHomeContract(guiContract));
-  assert.doesNotThrow(() => validateProductProfile(productProfile, installExposure));
-});
 
-test('fixed Agent, Skill, and Home metadata may drift without redefining runtime membership', () => {
-  const installExposure = readJson('contracts/app-install-exposure-policy.json');
-  assert.doesNotThrow(() => validateGuiProductHomeContract(
-    driftOptionalAgentMetadata(readJson('contracts/app-gui-product-contract.json')),
-  ));
-  assert.doesNotThrow(() => validateProductProfile(
-    driftOptionalAgentMetadata(readJson('contracts/app-product-profile.json')),
-    installExposure,
-  ));
+  const restoredSkillAllowlist = structuredClone(productProfile);
+  restoredSkillAllowlist.gui.ordinary_capability_selector_policy.forbidden_skill_examples = ['skill-creator'];
+  assert.throws(
+    () => validateProductProfile(restoredSkillAllowlist, installExposure),
+    /owner\/carrier Skill projection/,
+  );
+
+  const restoredSessionContext = structuredClone(productProfile);
+  restoredSessionContext.codex.opl_app_session_context = { owner: 'one-person-lab-app' };
+  assert.throws(
+    () => validateProductProfile(restoredSessionContext, installExposure),
+    /must not restore legacy Codex authority codex.opl_app_session_context/,
+  );
 });
 
 test('an unknown standard Agent remains admitted when Home-visible even if it is not installed', () => {
@@ -275,24 +198,16 @@ test('an unknown standard Agent remains admitted when Home-visible even if it is
   assert.equal(status?.presence.reason, 'package_not_installed');
   assert.equal(preference?.visible, true);
   assert.equal(preference?.sort_order, 7);
-  assert.equal(
-    profile.gui.professional_agent_packages.some(
-      (entry: any) => entry.package_id === syntheticDirectoryEntry.package_id,
-    ),
-    false,
-  );
+  assert.equal('professional_agent_packages' in profile.gui, false);
 });
 
-test('malformed optional Agent presentation metadata still fails closed', () => {
+test('App-owned Agent presentation overlay restoration fails closed', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const invalidProfile = structuredClone(readJson('contracts/app-product-profile.json'));
-  invalidProfile.gui.professional_agent_packages = [{
-    ...syntheticPackage,
-    display_name_i18n: { 'zh-CN': '', 'en-US': 'Community Clinical Agent' },
-  }];
+  invalidProfile.gui.professional_agent_packages_metadata_policy = {};
 
   assert.throws(
     () => validateProductProfile(invalidProfile, installExposure),
-    /display_name_i18n must declare non-empty zh-CN and en-US text/,
+    /must not restore fixed Agent\/Home presentation field gui.professional_agent_packages_metadata_policy/,
   );
 });

@@ -88,8 +88,6 @@
         },
         "home_agent_shortcut_source_ref": "opl app state --profile fast --json#app_state.agent_packages.status_index.home_shortcut_preferences[]",
         "agent_package_skill_source_ref": "owner_or_carrier_projected_capability_metadata_for_the_selected_package",
-        "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
-        "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
         "conversation_model_status_display_policy": "single_session_configuration_menu_with_model_reasoning_and_reset_summary_rows_no_separate_status_pill",
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
@@ -163,9 +161,9 @@
           "workspace_selector_entry": "home.new_session_context_bar",
           "unselected_workspace_control_visible": true,
           "unselected_workspace_control_policy": "localized_choose_project_directory_action_not_projectless_status_placeholder",
-          "purpose_entry_metadata_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries optional migration/display metadata only",
-          "purpose_entry_visibility_source_ref": "contracts/app-product-profile.json#gui.home.home_agent_shortcuts[default_visible=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
-          "purpose_entry_placement": "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
+          "home_presentation_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + contracts/app-gui-product-contract.json#home_agent_shortcuts optional migration/display metadata only",
+          "home_shortcut_visibility_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+          "home_shortcut_placement": "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
           "dynamic_question_title": true,
           "starter_limit": null,
           "starter_visibility_policy": "standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state",
@@ -256,21 +254,9 @@
         ],
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
-        "default_assistants": [
-          "mas",
-          "mag",
-          "rca",
-          "obf"
-        ],
         "professional_agent_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
         "home_agent_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
         "unknown_standard_agent_policy": "include_in_palette_and_home_without_app_package_id_branch",
-        "default_assistant_purpose_labels": {
-          "mas": "科研",
-          "mag": "基金",
-          "rca": "演示",
-          "obf": "写书"
-        },
         "default_assistant_required_skills": {
           "mas": [
             "med-autoscience"
@@ -392,40 +378,6 @@
             "user_configurable": true
           }
         ],
-        "home_purpose_entries": [
-          {
-            "id": "research",
-            "primary_label": "科研",
-            "target_assistant_id": "mas",
-            "target_assistant_short_name": "MAS",
-            "display_policy": "purpose_first",
-            "home_entry_policy": "visible_click_to_start"
-          },
-          {
-            "id": "grant",
-            "primary_label": "基金",
-            "target_assistant_id": "mag",
-            "target_assistant_short_name": "MAG",
-            "display_policy": "purpose_first",
-            "home_entry_policy": "visible_click_to_start"
-          },
-          {
-            "id": "ppt",
-            "primary_label": "演示",
-            "target_assistant_id": "rca",
-            "target_assistant_short_name": "RCA",
-            "display_policy": "purpose_first",
-            "home_entry_policy": "visible_click_to_start"
-          },
-          {
-            "id": "book",
-            "primary_label": "写书",
-            "target_assistant_id": "obf",
-            "target_assistant_short_name": "OBF",
-            "display_policy": "purpose_first",
-            "home_entry_policy": "visible_click_to_start"
-          }
-        ],
         "hero_prompt_policy": "modest_dynamic_prompt_in_composer_reading_lane",
         "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
         "home_experience": {
@@ -480,8 +432,8 @@
         "selected starter preserves the existing quiet fill and aria-pressed without a trailing check or selection glyph",
         "all user-visible configured OPL starters in stable order without silent truncation",
         "assistant-scoped skill menu with required skill checked",
-        "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
-        "one composer-width searchable grouped plus palette for files, folders, allowlisted Agent Packages, scoped Skills, adapter-reported nonduplicate modes, and available App connections",
+        "ordinary Skill selector preserves owner-or-carrier projected Skills without an App allowlist",
+        "one composer-width searchable grouped plus palette for files, folders, projected Agent Packages, projected Skills, adapter-reported nonduplicate modes, and available App connections",
         "new-session working directory selected from an independent context bar above the composer",
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
         "workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs",
@@ -727,12 +679,12 @@
               "id": "skills",
               "scope": "surface_specific_configuration_or_invocation",
               "source_ref": "ordinary_capability_selector_policy",
-              "availability_policy": "show_global_app_allowlisted_skills_without_an_agent_then_scope_to_the_selected_professional_agent_profile",
+              "availability_policy": "show_owner_or_carrier_projected_skills_without_an_agent_then_scope_to_the_selected_agent_package_projection",
               "agent_owned_skill_deduplication_policy": "on_home_new_session_exclude_required_skill_ids_owned_by_rendered_professional_agents_from_the_standalone_skills_group",
               "existing_session_rebinding_allowed": false,
               "surface_actions": {
                 "home_new_session": ["configure_new_session_scoped_skill"],
-                "existing_conversation": ["invoke_loaded_allowlisted_skill"]
+                "existing_conversation": ["invoke_loaded_owner_or_carrier_projected_skill"]
               }
             },
             {
@@ -769,7 +721,7 @@
             "existing_conversation": "attach_local_inputs_invoke_loaded_skills_show_loaded_connection_status_change_adapter_reported_nonduplicate_modes_without_rebinding",
             "settings_route_policy": "management_entries_are_explicit_fallbacks_not_fake_session_selection"
           },
-          "authority_policy": "render_only_real_picker_actions_App_allowlisted_skills_and_non_forbidden_configured_session_connections_supported_by_the_active_adapter",
+          "authority_policy": "render_only_real_picker_actions_owner_or_carrier_projected_skills_and_non_forbidden_configured_session_connections_supported_by_the_active_adapter",
           "forbidden_entries": [
             "project_object",
             "workspace_or_initial_cwd",
@@ -1035,7 +987,7 @@
         "desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer",
         "mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions",
         "400x600 mobile plus sheet with one internal scroll owner and every action reachable",
-        "composer-width searchable grouped plus palette for files, folders, real allowlisted loaded capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection",
+        "composer-width searchable grouped plus palette for files, folders, real owner-or-carrier projected capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection",
         "explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only",
         "failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input",
         "permission and access mode in user language",
@@ -1093,6 +1045,13 @@
         "opens_on_user_or_task_request_only": true,
         "chat_canvas_remains_primary": true,
         "scope": "selected_workspace_and_conversation",
+        "toggle_ownership": {
+          "visible_toggle_count_per_viewport_state": 1,
+          "collapsed_owner": "conversation_header",
+          "expanded_owner": "workspace_panel_header",
+          "global_titlebar_duplicate_allowed": false,
+          "floating_handle_duplicate_allowed": false
+        },
         "workspace_surface": {
           "id": "files_changes",
           "label": "Files / Changes",
@@ -1267,6 +1226,7 @@
       "must_show": [
         "no third column mounted by default",
         "Files and Changes workspace surface opened only by user or task need",
+        "exactly one Files and Changes panel toggle visible per viewport state, owned by conversation header while closed and panel header while open",
         "Preview opened as an independent surface for artifact, file, URL, or result",
         "Review defaults to Unstaged, exposes Staged, Commit, Branch, and Last turn, supports uncommitted, base branch, commit, and custom targets with inline or detached delivery, and shows PR context unavailable when gh is missing",
         "Terminal and Browser opened from Environment or task need",
@@ -1279,7 +1239,8 @@
       "must_not_show": [
         "legacy equal-weight Review, Terminal, Browser, Files, Artifacts, Runtime, Actions, and Memory taxonomy",
         "Runtime duplicate outside the message timeline current task instance",
-        "advanced work surfaces open by default"
+        "advanced work surfaces open by default",
+        "duplicate Files and Changes panel toggles in the global titlebar, conversation header, panel header, or floating handle"
       ],
       "must_not_own": [
         "runtime truth",
@@ -3041,7 +3002,7 @@
             "codex_cli_and_model_access_core_state",
             "core_ready_separate_from_background_maintenance",
             "ui_language_policy",
-            "session_scoped_opl_app_context",
+            "user_authored_additional_instructions_optional_and_never_generated",
             "user_and_repo_agents_md_respected_no_overwrite",
             "official_profile_user_preferences_and_presence_only_package_scope",
             "installed_or_selected_package_configured_carrier_readback",
@@ -3248,14 +3209,14 @@
         "workspace_summary",
         "workspace_action",
         "system_agents",
-        "opl_app_context",
+        "new_conversation_additional_instructions",
         "technical_details"
       ],
       "state_sections": [
         "paths",
         "developer_profile.workspace_trust",
         "codex_personalization",
-        "app_session_context"
+        "new_conversation_additional_instructions"
       ],
       "must_show": [
         "current workspace identity, path, and writability merged into one normal-state summary",
@@ -3265,7 +3226,7 @@
         "standalone WebUI logical workspace root shown read-only from the owner projection without executing workspace_root_set",
         "Docker WebUI logical workspace root shown read-only as /projects from OPL_WORKSPACE_ROOT without executing workspace_root_set",
         "editable user-level AGENTS.md with stale-write protection and backup",
-        "generated OPL App base context read-only plus editable additional instructions",
+        "optional user-authored additional instructions for the next new conversation; empty means no injected context",
         "one change workspace action",
         "Workspace as a top-level Settings group with Working Directory and Data & Storage destinations",
         "content-width responsive single-column rows when the Settings reading lane is narrow",
@@ -3277,10 +3238,10 @@
         "raw path JSON as primary page language",
         "workspace changes without confirmation",
         "App log directory controls owned by Logs & Diagnostics",
-        "generated OPL App base context as editable content",
+        "generated App base context, Agent route directory, or fallback prompt",
         "repository AGENTS.md as an App-owned editable file",
         "Framework and raw paths duplicated from Maintenance diagnostics",
-        "System AGENTS.md or new-conversation context presented as Workspace children",
+        "System AGENTS.md or new-conversation instructions presented as Workspace children",
         "App log directory presented as a Workspace child"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
@@ -3298,7 +3259,7 @@
           "destination_id": "instructions_context"
         },
         {
-          "anchor": "opl-app-context",
+          "anchor": "additional-instructions",
           "owner_group_id": "agents_capabilities",
           "destination_id": "instructions_context"
         }
@@ -3317,7 +3278,7 @@
           "settings-workspace-primary-action",
           "settings-personalization-instructions",
           "settings-system-agents-editor",
-          "settings-opl-app-context-editor"
+          "settings-new-conversation-additional-instructions-editor"
         ],
         "conditional": [
           {
@@ -3336,14 +3297,14 @@
         "artifacts",
         "personalization",
         "system-agents",
-        "opl-app-context"
+        "additional-instructions"
       ],
       "search_entry_ids": [
         "workspace.current",
         "workspace.permissions",
         "workspace.artifacts",
         "personalization.system_agents",
-        "personalization.opl_app_context"
+        "personalization.additional_instructions"
       ],
       "primary_action_id": "change_workspace",
       "technical_details_default": "explicit_action_modal",
@@ -3879,6 +3840,38 @@
       "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, Home shortcut preferences, and readiness refs; selected project directory is session cwd and future domain workspace identity only",
       "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
       "refresh_source": "opl app state --profile fast --json",
+      "official_profile_restore_action": {
+        "id": "official_profile_restore",
+        "owner": "one-person-lab-app",
+        "surface": "settings_agents_secondary_action",
+        "scope": "whole_official_profile",
+        "confirmation_required": true,
+        "invocation_policy": "explicit_user_confirmation_only",
+        "request": {
+          "bridge": "ipcBridge.oplRuntime.applyOfficialProfile",
+          "helper": "official-profile-package-apply",
+          "payload": {
+            "intent": "explicit_restore"
+          }
+        },
+        "desired_roots_source_ref": "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
+        "framework_projected_single_package_action": false,
+        "automatic_invocation": {
+          "app_startup_or_restart": false,
+          "daily_maintenance": false,
+          "app_update_or_carrier_change": false
+        },
+        "persistence": {
+          "desired_state_saved": false,
+          "startup_maintenance_registered": false,
+          "automatic_reapply_allowed": false
+        },
+        "post_success_readback": {
+          "source": "opl app state --profile fast --json",
+          "force_fresh": true
+        },
+        "required_dom_testid": "settings-agents-restore-official-profile"
+      },
       "page_contract": "settings_agents",
       "sections": [
         "availability",
@@ -4158,7 +4151,7 @@
         "receipt refs, physical surfaces, paths, manifests, or raw package ids as first-screen density",
         "AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings",
         "availability, source, and Home visibility collapsed into one opaque status",
-        "professional_agent_packages used as the directory collection, OMA seed, availability source, status source, or action source",
+        "App-owned static Agent presentation overlay used as the directory collection, OMA seed, availability source, status source, or action source",
         "Settings global search presented as the package catalog search",
         "registry refresh hidden inside technical details",
       "package status, ready state, action id, or action payload inferred by the Shell",
@@ -4187,6 +4180,7 @@
           "settings-agents-status-filter",
           "settings-agents-source-filter",
           "settings-agents-registry-refresh",
+          "settings-agents-restore-official-profile",
           "settings-agents-technical-details",
           "settings-agents-primary-action",
           "opl-developer-profile-control"

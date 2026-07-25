@@ -445,22 +445,23 @@
         "editable_reason": "Codex reads this user-owned instruction file for every task; the App provides a safe editor without making OPL Flow the session prompt owner."
       },
       {
-        "stable_id": "settings.configuration.opl_app_session_context",
-        "configuration_id": "opl_app_session_context",
+        "stable_id": "settings.configuration.new_conversation_additional_instructions",
+        "configuration_id": "new_conversation_additional_instructions",
         "owner_class": "app_local",
-        "truth_owner": "one-person-lab-app",
+        "truth_owner": "user",
         "page_id": "workspace",
-        "anchor": "opl-app-context",
+        "anchor": "additional-instructions",
         "lifecycle": "persistent_new_conversation_configuration",
-        "value_type": "generated_markdown_plus_optional_additional_text",
+        "value_type": "optional_user_text",
         "sensitivity": "ordinary",
-        "current_value_source_ref": "app product profile agent routes + desktop client additional instructions",
+        "current_value_source_ref": "desktop client legacy compatibility storage key only",
         "write_route": "configService:codex.oplAppSessionContextAdditional",
+        "storage_key_status": "legacy_compatibility_storage_key",
         "persistence_target_ref": "desktop_client_settings",
-        "verify_ref": "new conversation preset_context",
+        "verify_ref": "new conversation preset_context contains only non-empty user-authored additional instructions; empty injects nothing",
         "risk": "low_next_conversation_only",
         "confirmation_required": false,
-        "editable_reason": "The generated App-owned agent directory stays current while the user may append or clear personal routing notes without replacing it."
+        "editable_reason": "The user may add or clear optional instructions for the next new conversation; the App never generates Agent routes or fallback context."
       },
       {
         "stable_id": "settings.configuration.display_preferences",
@@ -794,8 +795,8 @@
         "owner_group_id": "agents_capabilities",
         "route_id": "workspace",
         "anchor": "personalization",
-        "label_zh": "指令与上下文",
-        "label_en": "Instructions & Context",
+        "label_zh": "指令",
+        "label_en": "Instructions",
         "transport_owner_policy": "reuse_workspace_personalization_carrier_without_presenting_the_destination_under_Workspace"
       },
       {
@@ -839,10 +840,10 @@
         "anchor": "system-agents"
       },
       {
-        "content_id": "opl_app_session_context",
+        "content_id": "new_conversation_additional_instructions",
         "user_destination_id": "instructions_context",
         "transport_route_id": "workspace",
-        "anchor": "opl-app-context"
+        "anchor": "additional-instructions"
       },
       {
         "content_id": "app_log_directory",
@@ -1766,7 +1767,7 @@
           "completion_boundary": "this control-plane contract requires canonical public directory entries and their projected actions for manageable rows; status_index, runtime_source_carriers, modules, and Home shortcuts may enrich diagnostics only and never define catalog membership, lifecycle, readiness, or actions"
         },
         "forbidden_sources": [
-          "professional_agent_packages, starter_package_metadata, or any App-owned Package id list as directory collection or seed",
+          "any App-owned static Agent presentation overlay, starter_package_metadata, or App-owned Package id list as directory collection or seed",
           "shell-inferred package status or action payload",
           "Team MCP ordinary surface"
         ]
@@ -2306,7 +2307,7 @@
         "goal": "Preferences explains App behavior, timeout, notifications, display, fonts, and themes while Instructions & Context owns personalization.",
         "evidence_required": [
           "preferences anchors contain behavior/notifications/models-performance/display-fonts/themes only",
-          "workspace carrier anchors contain workspace/personalization/system-agents/opl-app-context while visible ownership remains split by destination",
+          "workspace carrier anchors contain workspace/personalization/system-agents/additional-instructions while visible ownership remains split by destination",
           "raw milliseconds and Electron flags stay collapsed",
           "Preferences has inline controls and no page-level primary action",
           "Preferences exposes System, Light, and Dark but no CSS theme preset gallery"
@@ -3214,7 +3215,7 @@
           "permission or trust explanation only when attention is required",
           "where project and task artifacts are stored",
         "system-level Codex user instructions with stale-write protection and backup",
-          "read-only generated new-conversation additions plus editable additional instructions",
+          "optional user-authored additional instructions for the next new conversation; empty means no injected context",
           "open workspace as an inline action and change workspace as the sole page-level primary action"
         ],
       "first_viewport_groups": [
@@ -3232,7 +3233,7 @@
               "owner": "workspace"
             },
             {
-              "id": "opl_app_session_context",
+              "id": "new_conversation_additional_instructions",
               "owner": "workspace"
             }
           ],
@@ -3282,7 +3283,8 @@
         "desktop_directory_mapping": "project_workspace_is_the_Framework_logical_workspace_root",
         "docker_mapping": "host_projects_directory_is_bound_to_/projects_and_Settings_does_not_rewire_the_bind_mount",
         "docker_volume_rewire_allowed": false,
-          "generated_base_context_editable": false,
+          "generated_base_context_allowed": false,
+          "agent_route_fallback_allowed": false,
           "additional_instructions_editable": true,
           "restore_default_confirmation_required": true,
           "personalization_changes_apply_to": "next_new_conversation",
@@ -3307,7 +3309,7 @@
             "settings-workspace-primary-action",
             "settings-personalization-instructions",
             "settings-system-agents-editor",
-            "settings-opl-app-context-editor"
+            "settings-new-conversation-additional-instructions-editor"
           ],
           "conditional": [
             {
@@ -3326,14 +3328,14 @@
           "artifacts",
         "personalization",
           "system-agents",
-          "opl-app-context"
+          "additional-instructions"
         ],
         "search_entry_ids": [
           "workspace.current",
           "workspace.permissions",
           "workspace.artifacts",
           "personalization.system_agents",
-          "personalization.opl_app_context"
+          "personalization.additional_instructions"
         ]
       },
       "capabilities": {
@@ -3437,6 +3439,38 @@
         "matrix_page_id": "agents",
         "label_zh": "智能体",
         "label_en": "Agents",
+        "official_profile_restore_action": {
+          "id": "official_profile_restore",
+          "owner": "one-person-lab-app",
+          "surface": "settings_agents_secondary_action",
+          "scope": "whole_official_profile",
+          "confirmation_required": true,
+          "invocation_policy": "explicit_user_confirmation_only",
+          "request": {
+            "bridge": "ipcBridge.oplRuntime.applyOfficialProfile",
+            "helper": "official-profile-package-apply",
+            "payload": {
+              "intent": "explicit_restore"
+            }
+          },
+          "desired_roots_source_ref": "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
+          "framework_projected_single_package_action": false,
+          "automatic_invocation": {
+            "app_startup_or_restart": false,
+            "daily_maintenance": false,
+            "app_update_or_carrier_change": false
+          },
+          "persistence": {
+            "desired_state_saved": false,
+            "startup_maintenance_registered": false,
+            "automatic_reapply_allowed": false
+          },
+          "post_success_readback": {
+            "source": "opl app state --profile fast --json",
+            "force_fresh": true
+          },
+          "required_dom_testid": "settings-agents-restore-official-profile"
+        },
         "primary_information": [
           "all discoverable Agent, Framework capability, and workflow profile packages from app_state.agent_packages.directory.entries",
           "dedicated package catalog search with package role, availability status, and source filters",
@@ -3552,6 +3586,10 @@
             {
               "id": "agent_lifecycle_operations",
               "owner": "agents"
+            },
+            {
+              "id": "official_profile_restore",
+              "owner": "agents"
             }
           ],
           "diagnostic": [
@@ -3588,6 +3626,7 @@
           "settings-agents-status-filter",
           "settings-agents-source-filter",
           "settings-agents-registry-refresh",
+          "settings-agents-restore-official-profile",
           "settings-agents-technical-details",
             "settings-agents-primary-action",
             "opl-developer-profile-control"
@@ -5114,9 +5153,9 @@
           ]
         },
         {
-          "id": "personalization.opl_app_context",
+          "id": "personalization.additional_instructions",
           "page_id": "workspace",
-          "anchor": "opl-app-context",
+          "anchor": "additional-instructions",
           "label_zh": "新对话附加说明",
           "label_en": "New conversation additions",
           "keywords_zh": [

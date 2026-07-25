@@ -12,8 +12,6 @@ import {
 } from './app-contract-constants.ts';
 import {
   assertCapabilityReferenceListShape,
-  starterPackageIds as defaultAssistantIds,
-  starterShortcutIds as purposeEntryIds,
 } from '../app-product-profile-shared-validators.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
@@ -24,27 +22,7 @@ const optionalDisplayMetadataPolicy = {
     forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
     runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
   },
-  professionalAgent: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['localized_display_fallback', 'legacy_alias_migration'],
-    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions', 'skill_scope'],
-    runtime_authority_ref: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
-  },
 };
-
-function assertLocalizedMetadata(value, label) {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    typeof value['zh-CN'] !== 'string' ||
-    !value['zh-CN'].trim() ||
-    typeof value['en-US'] !== 'string' ||
-    !value['en-US'].trim()
-  ) {
-    throw new Error(`${label} must declare non-empty zh-CN and en-US text`);
-  }
-}
 
 function validateGuiProductIdentity(guiContract) {
   if (guiContract.schema_version !== 2) {
@@ -191,7 +169,7 @@ function validateHomeLayout(guiContract) {
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_show, [
     'desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer',
     'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
-    'composer-width searchable grouped plus palette for files, folders, real allowlisted loaded capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection',
+    'composer-width searchable grouped plus palette for files, folders, real owner-or-carrier projected capabilities, adapter-reported nonduplicate modes, and available App connections without workspace selection',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
     'failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
@@ -372,6 +350,11 @@ function validateRightContextInspector(guiContract) {
   );
   validateReviewSurface(reviewSurface, 'App GUI right-context Review');
   validateReviewSurface(interactionReviewSurface, 'App GUI interaction-baseline Review');
+  assertDeepEqualJson(
+    guiContract.interaction_baseline?.context_surfaces?.side_panel?.toggle_ownership,
+    appOwnedRightContextInspectorPolicy.toggle_ownership,
+    'App GUI interaction side-panel toggle ownership',
+  );
   for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
     if (legacyField in inspector) {
       throw new Error(`App GUI must not restore legacy equal-weight inspector taxonomy field ${legacyField}`);
@@ -388,6 +371,7 @@ function validateRightContextInspector(guiContract) {
   assertIncludesAll(guiContract.pages?.right_context_inspector?.must_show, [
     'no third column mounted by default',
     'Files and Changes workspace surface opened only by user or task need',
+    'exactly one Files and Changes panel toggle visible per viewport state, owned by conversation header while closed and panel header while open',
     'Preview opened as an independent surface for artifact, file, URL, or result',
     'Terminal and Browser opened from Environment or task need',
   ], 'App GUI advanced workspace visible signals');
@@ -395,70 +379,16 @@ function validateRightContextInspector(guiContract) {
     'legacy equal-weight Review, Terminal, Browser, Files, Artifacts, Runtime, Actions, and Memory taxonomy',
     'Runtime duplicate outside the message timeline current task instance',
     'advanced work surfaces open by default',
+    'duplicate Files and Changes panel toggles in the global titlebar, conversation header, panel header, or floating handle',
   ], 'App GUI advanced workspace forbidden signals');
 }
 
-function validateDefaultAssistants(guiContract) {
-  const assistants = new Map((guiContract.default_assistants ?? []).map((assistant) => [assistant.id, assistant]));
-  for (const assistantId of defaultAssistantIds) {
-    const assistant = assistants.get(assistantId);
-    if (!assistant) {
-      throw new Error(`App GUI contract missing default assistant ${assistantId}`);
-    }
-    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
-      throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
-    }
-  }
-  if (assistants.has('oma')) {
-    throw new Error('OMA must not be a default App GUI assistant');
-  }
-  if (assistants.has('mds')) {
-    throw new Error('MDS must not be a default App GUI assistant');
-  }
-}
-
-function validateProfessionalAgentPackages(guiContract) {
-  assertDeepEqualJson(
-    guiContract.professional_agent_packages_metadata_policy,
-    optionalDisplayMetadataPolicy.professionalAgent,
-    'App GUI contract professional Agent metadata policy',
-  );
-  const packages = guiContract.professional_agent_packages ?? [];
-  const packageIds = packages.map((entry) => entry.package_id);
-  if (
-    packageIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
-    new Set(packageIds).size !== packageIds.length
-  ) {
-    throw new Error('App GUI contract professional Agent metadata package ids must be non-empty and unique');
-  }
-  for (const entry of packages) {
-    assertLocalizedMetadata(entry.display_name_i18n, `App GUI contract professional Agent ${entry.package_id} display_name_i18n`);
-    assertLocalizedMetadata(entry.description_i18n, `App GUI contract professional Agent ${entry.package_id} description_i18n`);
-  }
-}
-
-function validatePurposeEntries(guiContract) {
+function validateHomeShortcutCompatibilityMetadata(guiContract) {
   assertDeepEqualJson(
     guiContract.home_agent_shortcuts_metadata_policy,
     optionalDisplayMetadataPolicy.homeShortcuts,
     'App GUI contract Home shortcut metadata policy',
   );
-  const purposeEntries = guiContract.home_purpose_entries ?? [];
-  assertDeepEqualJson(
-    purposeEntries.map((entry) => entry.id),
-    purposeEntryIds,
-    'App GUI contract purpose entries',
-  );
-  assertDeepEqualJson(
-    purposeEntries.map((entry) => entry.target_assistant_id),
-    defaultAssistantIds,
-    'App GUI contract purpose entry targets',
-  );
-  for (const entry of purposeEntries) {
-    if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
-      throw new Error(`App GUI purpose entry ${entry.id} must be purpose-first and click-to-start`);
-    }
-  }
   const shortcuts = guiContract.home_agent_shortcuts ?? [];
   const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
   if (
@@ -487,14 +417,24 @@ function validatePurposeEntries(guiContract) {
   }
 }
 
-function validateNonDefaultAndRetiredAssistants(guiContract) {
-  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
-  if (!oma || oma.home_default_visible !== true || oma.home_entry_policy !== 'settings_managed_home_shortcut') {
-    throw new Error('App GUI contract must expose OMA through its default settings-managed Home shortcut');
+function validateNoFixedAgentHomePresentation(guiContract) {
+  for (const field of [
+    'default_assistants',
+    'non_default_assistants',
+    'home_purpose_entries',
+    'retired_domain_agents',
+    'professional_agent_packages',
+    'professional_agent_packages_metadata_policy',
+  ]) {
+    if (field in guiContract) {
+      throw new Error(`App GUI contract must not restore fixed Agent/Home presentation field ${field}`);
+    }
   }
-  const retiredMds = (guiContract.retired_domain_agents ?? []).find((agent) => agent.id === 'mds');
-  if (retiredMds?.default_display_allowed !== false) {
-    throw new Error('App GUI contract must mark MDS as not default-displayed');
+  if (
+    guiContract.home_layout?.home_presentation_source_ref !==
+    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + home_agent_shortcuts optional migration/display metadata only'
+  ) {
+    throw new Error('App GUI Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
   }
 }
 
@@ -506,8 +446,6 @@ export function validateGuiProductHomeContract(guiContract) {
   validateSessionDirectoryPolicy(guiContract);
   validateAiFirstInteractionModel(guiContract);
   validateRightContextInspector(guiContract);
-  validateProfessionalAgentPackages(guiContract);
-  validateDefaultAssistants(guiContract);
-  validatePurposeEntries(guiContract);
-  validateNonDefaultAndRetiredAssistants(guiContract);
+  validateHomeShortcutCompatibilityMetadata(guiContract);
+  validateNoFixedAgentHomePresentation(guiContract);
 }
