@@ -293,8 +293,16 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
-          summary="$(find vm -type f -name tart-smoke-summary.json -print -quit)"
-          test -f "$summary"
+          vm_summaries=()
+          while IFS= read -r receipt; do
+            vm_summaries+=("$receipt")
+          done < <(find vm -type f -name tart-smoke-summary.json -print | LC_ALL=C sort)
+          if [ "${#vm_summaries[@]}" -ne 1 ]; then
+            echo "::error::Full Homebrew publication requires exactly one VM summary; found ${#vm_summaries[@]}."
+            exit 1
+          fi
+          summary="${vm_summaries[0]}"
+          test -f "$summary" && test ! -L "$summary"
           jq -e '
             .status == "passed" and .smoke_profile == "homebrew-full-cask" and .runtime_profile == "full"
             and .guest_summary.install_origin == "homebrew_full_cask"
@@ -434,10 +442,22 @@ jobs:
           framework-executor/bin/opl release checkpoint export \
             --bundle "$bundle_digest" --output homebrew-full-unknown-checkpoint \
             --store "$store" --json > homebrew-full-unknown-checkpoint-export.json
-          original_standard_receipt="$(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name standard-build-receipt.json -print -quit)"
-          original_full_receipt="$(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name full-build-receipt.json -print -quit)"
-          test -n "$original_standard_receipt"
-          test -n "$original_full_receipt"
+          standard_build_receipts=()
+          while IFS= read -r receipt; do
+            standard_build_receipts+=("$receipt")
+          done < <(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name standard-build-receipt.json -print | LC_ALL=C sort)
+          full_build_receipts=()
+          while IFS= read -r receipt; do
+            full_build_receipts+=("$receipt")
+          done < <(find '${{ steps.checkpoint.outputs.checkpoint_dir }}' -type f -name full-build-receipt.json -print | LC_ALL=C sort)
+          if [ "${#standard_build_receipts[@]}" -ne 1 ] || [ "${#full_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Full Homebrew checkpoint requires exactly one Standard and one Full build receipt; found ${#standard_build_receipts[@]} and ${#full_build_receipts[@]}."
+            exit 1
+          fi
+          original_standard_receipt="${standard_build_receipts[0]}"
+          original_full_receipt="${full_build_receipts[0]}"
+          test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
+          test -f "$original_full_receipt" && test ! -L "$original_full_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
           cp "$original_full_receipt" full-build-receipt.json
           framework-executor/bin/opl release status \

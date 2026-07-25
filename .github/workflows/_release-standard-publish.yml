@@ -347,8 +347,16 @@ jobs:
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > operation-admit-result.json
           test "$(jq -r .release_bundle_operation_admit.operation_control.operation_id operation-admit-result.json)" = "$operation_id"
-          original_standard_receipt="$(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print -quit)"
-          test -n "$original_standard_receipt"
+          standard_build_receipts=()
+          while IFS= read -r receipt; do
+            standard_build_receipts+=("$receipt")
+          done < <(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print | LC_ALL=C sort)
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Checkpoint must contain exactly one Standard build receipt; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          original_standard_receipt="${standard_build_receipts[0]}"
+          test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
           standard_identity_receipts=()
           while IFS= read -r identity_receipt; do
@@ -1328,9 +1336,23 @@ jobs:
           UPDATER_VERSION: ${{ needs.restore.outputs.updater_version }}
           BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
         run: |
-          publication="$(find homebrew-publication -name homebrew-standard-publication-receipt.json -type f -print -quit)"
-          vm="$(find homebrew-vm -name tart-smoke-summary.json -type f -print -quit)"
-          test -n "$publication" && test -n "$vm"
+          set -euo pipefail
+          publication_receipts=()
+          while IFS= read -r receipt; do
+            publication_receipts+=("$receipt")
+          done < <(find homebrew-publication -name homebrew-standard-publication-receipt.json -type f -print | LC_ALL=C sort)
+          vm_receipts=()
+          while IFS= read -r receipt; do
+            vm_receipts+=("$receipt")
+          done < <(find homebrew-vm -name tart-smoke-summary.json -type f -print | LC_ALL=C sort)
+          if [ "${#publication_receipts[@]}" -ne 1 ] || [ "${#vm_receipts[@]}" -ne 1 ]; then
+            echo "::error::Standard Homebrew readback requires exactly one publication receipt and one VM summary; found ${#publication_receipts[@]} and ${#vm_receipts[@]}."
+            exit 1
+          fi
+          publication="${publication_receipts[0]}"
+          vm="${vm_receipts[0]}"
+          test -f "$publication" && test ! -L "$publication"
+          test -f "$vm" && test ! -L "$vm"
           test "$(jq -r .schema "$publication")" = opl_bundle_homebrew_publication_receipt.v1
           test "$(jq -r .status "$publication")" = passed
           test "$(jq -r .track "$publication")" = standard

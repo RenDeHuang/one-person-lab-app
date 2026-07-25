@@ -21,8 +21,10 @@ test('VM finalizer skips absent source artifacts and always has typed receipt pa
   assert.match(download, /if: \$\{\{ inputs\.release_artifact_name != '' && inputs\.release_artifact_run_id != '' \}\}/);
   assert.match(download, /run-id: \$\{\{ inputs\.release_artifact_run_id \}\}/);
   assert.match(receipt, /mkdir -p recovered-artifact-manifest recovered-vm-evidence/);
-  assert.equal((receipt.match(/-print -quit 2>\/dev\/null \|\| true/g) || []).length, 4);
-  assert.match(receipt, /-name vm-gate-failure-summary\.json/);
+  assert.doesNotMatch(receipt, /-print -quit/);
+  assert.match(receipt, /must appear at most once/);
+  assert.match(receipt, /LC_ALL=C sort/);
+  assert.match(receipt, /vm-gate-failure-summary\.json/);
   assert.match(receipt, /--critical-diagnostics "\$critical_diagnostics"/);
 });
 

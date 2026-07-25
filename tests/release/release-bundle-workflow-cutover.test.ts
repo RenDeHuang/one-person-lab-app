@@ -1288,6 +1288,83 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
 });
 
+test('first-run VM validates both production Runtime refresh routes before writing qualification evidence', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const stepIndex = (name: string) => steps.findIndex((step) => step.name === name);
+  const validationIndex = stepIndex('Validate production Settings Runtime refresh evidence');
+  const validation = steps[validationIndex];
+
+  assert.ok(validation, 'clean-vm-first-run is missing production Settings Runtime evidence validation');
+  assert.equal(validation.id, 'settings_runtime_evidence');
+  assert.equal(
+    validation.if,
+    "${{ steps.vm_smoke.outcome == 'success' && needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}",
+  );
+  assert.match(String(validation.run), /validate-settings-smoke-runtime-evidence\.ts/);
+  assert.match(String(validation.run), /settings-smoke-summary\.json/);
+  assert.match(String(validation.run), /settings-runtime-refresh-verification\.json/);
+  assert.ok(stepIndex('Run clean VM first launch smoke') < validationIndex);
+  const receiptIndex = stepIndex('Write exact-artifact qualification receipt');
+  assert.ok(validationIndex < receiptIndex);
+  assert.match(String(steps[receiptIndex].if), /steps\.settings_runtime_evidence\.outcome == 'success'/);
+});
+
+test('active release workflows fail closed on duplicate critical evidence instead of selecting the first match', () => {
+  const activeWorkflows = [
+    '_build-reusable.yml',
+    '_release-bundle.yml',
+    '_release-full-addon.yml',
+    '_release-homebrew-full-publish.yml',
+    '_release-standard-publish.yml',
+    'full-first-install-release.yml',
+    'opl-first-run-vm.yml',
+  ];
+
+  for (const workflowName of activeWorkflows) {
+    const source = readWorkflow(workflowName);
+    assert.doesNotMatch(source, /find[^\n]*-print -quit/, `${workflowName} still selects the first critical evidence match`);
+    assert.doesNotMatch(
+      source,
+      /find[^\n]*\|[^\n]*head\s+-n?\s*1/,
+      `${workflowName} still selects the first sorted release artifact match`,
+    );
+    assert.match(source, /LC_ALL=C sort/, `${workflowName} must deterministically order critical evidence matches`);
+  }
+
+  assert.match(readWorkflow('_release-bundle.yml'), /must contain exactly one artifact qualification receipt/);
+  assert.match(readWorkflow('_release-full-addon.yml'), /must contain at most one Full build receipt/);
+  assert.match(readWorkflow('_release-standard-publish.yml'), /requires exactly one publication receipt and one VM summary/);
+  assert.match(readWorkflow('_release-homebrew-full-publish.yml'), /requires exactly one Standard and one Full build receipt/);
+  assert.match(readWorkflow('opl-first-run-vm.yml'), /must appear at most once/);
+});
+
+test('release helpers reject duplicate mounted Apps, promotion receipts, and packaged runtime executables', () => {
+  const installer = fs.readFileSync(path.join(process.cwd(), 'install.sh'), 'utf8');
+  const promotion = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'framework-release-promotion-step.sh'),
+    'utf8',
+  );
+  const runtimeLayers = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'build-full-first-install-package', 'runtime-layers.ts'),
+    'utf8',
+  );
+  const runtimeWrappers = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'full-first-install-runtime-wrappers.ts'),
+    'utf8',
+  );
+
+  for (const source of [installer, promotion, runtimeLayers, runtimeWrappers]) {
+    assert.doesNotMatch(source, /find[^\n]*(?:-print -quit|\|[^\n]*head\s+-n?\s*1)/);
+    assert.match(source, /LC_ALL=C sort/);
+  }
+  assert.match(installer, /Mounted DMG must contain exactly one App bundle/);
+  assert.match(promotion, /must contain exactly one JSON receipt/);
+  assert.match(runtimeLayers, /multiple executable temporal binaries/);
+  assert.match(runtimeLayers, /multiple executable codex binaries/);
+  assert.match(runtimeWrappers, /multiple Python bin roots/);
+});
+
 test('first-run VM uploads critical diagnostics only on a real failure path', () => {
   const workflow = parseWorkflow('opl-first-run-vm.yml');
   const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;

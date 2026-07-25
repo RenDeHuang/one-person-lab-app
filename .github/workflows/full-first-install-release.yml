@@ -1065,11 +1065,16 @@ jobs:
           trap cleanup_mounted_full_dmg EXIT
           hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mounted_app_dir" >/dev/null
           mounted_full_dmg="true"
-          mounted_app_path="$(find "$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
-          if [ -z "$mounted_app_path" ]; then
-            echo "::error::Full first-install DMG does not contain One Person Lab.app."
+          mounted_app_paths=()
+          while IFS= read -r candidate; do mounted_app_paths+=("$candidate"); done < <(
+            find "$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
+          )
+          if [ "${#mounted_app_paths[@]}" -ne 1 ]; then
+            echo "::error::Full first-install DMG must contain exactly one One Person Lab.app; found ${#mounted_app_paths[@]}."
             exit 1
           fi
+          mounted_app_path="${mounted_app_paths[0]}"
+          test -d "$mounted_app_path" && test ! -L "$mounted_app_path"
           mounted_runtime_root="$mounted_app_path/Contents/Resources/opl-full-runtime/runtime/current"
           node --experimental-strip-types one-person-lab-app/scripts/assert-full-runtime-currentness.ts \
             --runtime-root "$mounted_runtime_root" \
@@ -1541,8 +1546,17 @@ jobs:
           trap cleanup_cohort_mount EXIT
           hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null
           mounted=true
-          packaged_tree="$(find "$mount_point" -maxdepth 2 -type d -name '*.app' | sort | head -n 1)"
-          test -f "$dmg_path" && test -n "$packaged_tree"
+          packaged_trees=()
+          while IFS= read -r candidate; do packaged_trees+=("$candidate"); done < <(
+            find "$mount_point" -maxdepth 2 -type d -name '*.app' -print | LC_ALL=C sort
+          )
+          if [ "${#packaged_trees[@]}" -ne 1 ]; then
+            echo "::error::Full build cohort requires exactly one packaged App tree; found ${#packaged_trees[@]}."
+            exit 1
+          fi
+          packaged_tree="${packaged_trees[0]}"
+          test -f "$dmg_path" && test ! -L "$dmg_path"
+          test -d "$packaged_tree" && test ! -L "$packaged_tree"
           node --experimental-strip-types one-person-lab-app/scripts/write-build-artifact-cohort.ts \
             --output "$RUNNER_TEMP/opl-build-cohort.json" \
             --artifact "$dmg_path" \

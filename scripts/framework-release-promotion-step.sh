@@ -39,8 +39,16 @@ run_id="$(gh api --method GET "repos/${OPL_FRAMEWORK_REPO}/actions/artifacts" \
 }
 
 gh run download "$run_id" --repo "$OPL_FRAMEWORK_REPO" --name "$artifact" --dir "$OPL_RECEIPT_OUTPUT_DIR"
-receipt="$(find "$OPL_RECEIPT_OUTPUT_DIR" -name '*.json' -type f -print -quit)"
-[ -n "$receipt" ] && [ -f "$receipt" ] || { echo "::error::Framework receipt artifact $artifact has no JSON receipt."; exit 1; }
+receipts=()
+while IFS= read -r candidate; do receipts+=("$candidate"); done < <(
+  find "$OPL_RECEIPT_OUTPUT_DIR" -name '*.json' -type f -print | LC_ALL=C sort
+)
+if [ "${#receipts[@]}" -ne 1 ]; then
+  echo "::error::Framework receipt artifact $artifact must contain exactly one JSON receipt; found ${#receipts[@]}."
+  exit 1
+fi
+receipt="${receipts[0]}"
+[ -f "$receipt" ] && [ ! -L "$receipt" ] || { echo "::error::Framework receipt artifact $artifact has an invalid JSON receipt path."; exit 1; }
 
 args=(
   node --experimental-strip-types scripts/validate-framework-release-promotion-receipt.ts

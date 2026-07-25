@@ -802,11 +802,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
-          if [ -z "$app_path" ]; then
-            echo "::error::No packaged One Person Lab.app bundle found under shells/aionui/out."
+          app_paths=()
+          while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
+            find out -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
+          )
+          if [ "${#app_paths[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one packaged One Person Lab.app bundle under shells/aionui/out; found ${#app_paths[@]}."
             exit 1
           fi
+          app_path="${app_paths[0]}"
+          test -d "$app_path" && test ! -L "$app_path"
           codesign --verify --deep --strict --verbose=2 "$app_path"
           spctl --assess --type execute --verbose=4 "$app_path"
 
@@ -815,11 +820,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
-          if [ -z "$app_path" ]; then
-            echo "::error::No packaged One Person Lab.app bundle found under shells/aionui/out."
+          app_paths=()
+          while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
+            find out -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
+          )
+          if [ "${#app_paths[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one packaged One Person Lab.app bundle under shells/aionui/out; found ${#app_paths[@]}."
             exit 1
           fi
+          app_path="${app_paths[0]}"
+          test -d "$app_path" && test ! -L "$app_path"
           node --experimental-strip-types ../../scripts/local-authorization-policy.ts \
             --package-kind app_standard \
             --app-path "$app_path" \
@@ -839,11 +849,16 @@ jobs:
             exit 0
           fi
 
-          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
-          if [ -z "$app_path" ]; then
-            echo "::error::Cannot build missing standard updater ZIP because no packaged One Person Lab.app bundle was found under shells/aionui/out."
+          app_paths=()
+          while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
+            find out -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
+          )
+          if [ "${#app_paths[@]}" -ne 1 ]; then
+            echo "::error::Cannot build the Standard updater ZIP without exactly one packaged One Person Lab.app bundle; found ${#app_paths[@]}."
             exit 1
           fi
+          app_path="${app_paths[0]}"
+          test -d "$app_path" && test ! -L "$app_path"
 
           echo "::warning title=Missing standard updater ZIP::${expected_zip} was not produced by the primary macOS build; rebuilding macOS dmg+zip updater targets from ${app_path}."
           bunx electron-builder \
@@ -1070,9 +1085,22 @@ jobs:
           OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
         run: |
           set -euo pipefail
-          dmg_path="$(find out -maxdepth 1 -type f -name '*.dmg' | sort | head -n 1)"
-          packaged_tree="$(find out -type d -name '*.app' | sort | head -n 1)"
-          test -n "$dmg_path" && test -n "$packaged_tree"
+          dmg_paths=()
+          while IFS= read -r candidate; do dmg_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name '*.dmg' -print | LC_ALL=C sort
+          )
+          packaged_trees=()
+          while IFS= read -r candidate; do packaged_trees+=("$candidate"); done < <(
+            find out -type d -name '*.app' -print | LC_ALL=C sort
+          )
+          if [ "${#dmg_paths[@]}" -ne 1 ] || [ "${#packaged_trees[@]}" -ne 1 ]; then
+            echo "::error::Build cohort requires exactly one DMG and one packaged App tree; found ${#dmg_paths[@]} and ${#packaged_trees[@]}."
+            exit 1
+          fi
+          dmg_path="${dmg_paths[0]}"
+          packaged_tree="${packaged_trees[0]}"
+          test -f "$dmg_path" && test ! -L "$dmg_path"
+          test -d "$packaged_tree" && test ! -L "$packaged_tree"
           artifact_name="${{ inputs.append_commit_hash && format('{0}-{1}-dmg', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg', matrix.artifact-name) }}"
           node --experimental-strip-types ../../scripts/write-build-artifact-cohort.ts \
             --output out/opl-build-cohort.json \

@@ -817,11 +817,19 @@ copy_app_from_dmg() {
   local work_dir="$2"
   local mount_dir="$work_dir/mount"
   local source_app
+  local source_apps=()
   mkdir -p "$mount_dir"
   hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_path" >/tmp/opl-stable-macos-install.hdiutil-attach.log
-  source_app=$(find "$mount_dir" -maxdepth 2 -type d -name '*.app' -print -quit)
-  if [ -z "$source_app" ]; then
-    printf 'Mounted DMG did not contain an App bundle.\n' >&2
+  while IFS= read -r candidate; do source_apps+=("$candidate"); done < <(
+    find "$mount_dir" -maxdepth 2 -type d -name '*.app' -print | LC_ALL=C sort
+  )
+  if [ "${#source_apps[@]}" -ne 1 ]; then
+    printf 'Mounted DMG must contain exactly one App bundle; found %s.\n' "${#source_apps[@]}" >&2
+    exit 1
+  fi
+  source_app="${source_apps[0]}"
+  if [ ! -d "$source_app" ] || [ -L "$source_app" ]; then
+    printf 'Mounted DMG App bundle path is invalid.\n' >&2
     exit 1
   fi
   ensure_app_target_path

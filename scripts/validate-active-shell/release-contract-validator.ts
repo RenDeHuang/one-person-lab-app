@@ -176,7 +176,7 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
-  validateReleaseExecutionPolicy(releaseChannel);
+  validateReleaseExecutionPolicy(releaseChannel, shellPaths);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
 }
@@ -256,7 +256,7 @@ function validateStandardUpdater(updater) {
   }
 }
 
-function validateReleaseExecutionPolicy(releaseChannel) {
+function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   const control = releaseChannel?.release_bundle_control_plane;
   const framework = control?.framework_authority;
   const live = control?.live_authority;
@@ -273,6 +273,7 @@ function validateReleaseExecutionPolicy(releaseChannel) {
   const validationCanary = control?.validation_canary;
   const acceleration = releaseChannel?.release_acceleration;
   const settingsReadiness = acceleration?.settings_page_readiness_policy;
+  const settingsRuntimeRefresh = acceleration?.settings_runtime_refresh_evidence_policy;
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
 
   assertRetiredReleaseControlPlaneAbsent(releaseChannel);
@@ -570,6 +571,74 @@ function validateReleaseExecutionPolicy(releaseChannel) {
     ['localized_button_copy', 'localized_heading_copy', 'retired_runtime_status_label'],
     'Settings VM forbidden copy gates',
   );
+  assertDeepEqualJson(
+    settingsRuntimeRefresh,
+    {
+      schema: 'opl_settings_runtime_refresh_evidence_policy.v1',
+      production_default_targets_required: true,
+      synthetic_target_injection_allowed: false,
+      required_routes: [
+        {
+          id: 'runtime-settings-alias',
+          requested_hash: '#/settings/runtime',
+          allowed_resolved_hash_prefixes: ['#/settings/environment'],
+        },
+        {
+          id: 'runtime-status',
+          requested_hash: '#/runtime',
+          allowed_resolved_hash_prefixes: ['#/runtime'],
+        },
+      ],
+      required_evidence_fields: [
+        'id',
+        'requested_hash',
+        'resolved_hash',
+        'interactions.runtimeRefresh.requested_hash',
+        'interactions.runtimeRefresh.resolved_hash',
+        'interactions.runtimeRefresh.readiness.hash',
+        'interactions.runtimeRefresh.readiness.state',
+        'interactions.runtimeRefresh.readiness.pageReady',
+        'interactions.runtimeRefresh.refresh.before_click.buttonReady',
+        'interactions.runtimeRefresh.refresh.after_click.buttonReady',
+      ],
+      allowed_readiness_states: ['ready', 'empty'],
+      distinct_entry_per_route_required: true,
+      default_timeout_ms: 30000,
+      phase_timeout_binding: 'min_timeout_ms_and_codex_readiness_phase_timeout_ms_or_timeout_ms',
+      validator: 'scripts/validate-settings-smoke-runtime-evidence.ts',
+      workflow: '.github/workflows/opl-first-run-vm.yml',
+      verification_artifact: 'artifacts/opl-first-run-vm/artifacts/settings-runtime-refresh-verification.json',
+      source_implementation_failure_mode: 'fail_closed_before_expensive_build_or_vm',
+      runtime_evidence_failure_mode: 'fail_closed_before_qualification_receipt_or_publication',
+      rule: 'Production Settings smoke must exercise both the legacy Settings Runtime alias and the standalone Runtime route with independent requested/resolved route identity, structural readiness, and pre/post refresh idle evidence. Synthetic target injection may support unit tests but cannot satisfy the production release gate.',
+    },
+    'Settings Runtime refresh production evidence policy',
+  );
+  if (shellPaths) {
+    assertShellTextIncludesAll(
+      shellPaths,
+      'scripts/opl-first-run-vm-smoke.mjs',
+      [
+        'function buildRuntimeRefreshProbePlan(requestedHash, timeoutMs = DEFAULT_RUNTIME_REFRESH_TIMEOUT_MS)',
+        "requestedHash === '#/settings/runtime'",
+        "? ['#/settings/environment']",
+        "requestedHash === '#/runtime'",
+        "? ['#/runtime']",
+        'async function exerciseRuntimeRefresh(client, targetHash, timeoutMs = DEFAULT_RUNTIME_REFRESH_TIMEOUT_MS)',
+        'requested_hash: targetHash',
+        'resolved_hash: resolvedHash',
+        'const runtimeRefreshTimeoutMs = Math.min(',
+        'options.codexReadinessPhaseTimeoutMs ?? options.timeoutMs',
+        "const settingsRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+        "'#/settings/runtime',",
+        "id: 'runtime-settings-alias'",
+        "const standaloneRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+        "'#/runtime',",
+        "id: 'runtime-status'",
+      ],
+      'production Settings Runtime dual-route refresh evidence',
+    );
+  }
   assertDeepEqualJson(
     assistantRouteSmoke?.standard?.required,
     [

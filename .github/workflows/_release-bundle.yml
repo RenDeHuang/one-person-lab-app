@@ -580,8 +580,16 @@ jobs:
             --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
             --store "$RUNNER_TEMP/store" --json > standard-build-result.json
-          legacy_receipt="$(find standard-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
-          test -n "$legacy_receipt" || { echo "::error::Standard qualification receipt is missing."; exit 1; }
+          legacy_receipts=()
+          while IFS= read -r receipt; do
+            legacy_receipts+=("$receipt")
+          done < <(find standard-qualification -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort)
+          if [ "${#legacy_receipts[@]}" -ne 1 ]; then
+            echo "::error::Standard qualification must contain exactly one artifact qualification receipt; found ${#legacy_receipts[@]}."
+            exit 1
+          fi
+          legacy_receipt="${legacy_receipts[0]}"
+          test -f "$legacy_receipt" && test ! -L "$legacy_receipt"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
             --bundle bundle/release-bundle.json --track standard \
             --legacy-qualification "$legacy_receipt" --output standard-qualification-receipt.json

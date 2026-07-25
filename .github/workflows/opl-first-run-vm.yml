@@ -1101,14 +1101,31 @@ jobs:
           elif [ -n "${DMG_PATH:-}" ]; then
             true
           elif [ "${{ steps.package_profile.outputs.profile }}" = "standard" ]; then
-            DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' | sort | head -n 1)"
+            dmg_candidates=()
+            while IFS= read -r candidate; do dmg_candidates+=("$candidate"); done < <(
+              find artifacts/release -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' -print | LC_ALL=C sort
+            )
+            if [ "${#dmg_candidates[@]}" -ne 1 ]; then
+              echo "::error::Standard first-run VM smoke requires exactly one DMG artifact; found ${#dmg_candidates[@]}."
+              exit 1
+            fi
+            DMG_PATH="${dmg_candidates[0]}"
           else
-            DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' | sort | head -n 1)"
+            dmg_candidates=()
+            while IFS= read -r candidate; do dmg_candidates+=("$candidate"); done < <(
+              find artifacts/release -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' -print | LC_ALL=C sort
+            )
+            if [ "${#dmg_candidates[@]}" -ne 1 ]; then
+              echo "::error::Full first-run VM smoke requires exactly one DMG artifact; found ${#dmg_candidates[@]}."
+              exit 1
+            fi
+            DMG_PATH="${dmg_candidates[0]}"
           fi
           if [ "${{ steps.package_profile.outputs.install_mode }}" != "homebrew-cask" ] && [ -z "$DMG_PATH" ]; then
             echo "::error::No ${{ steps.package_profile.outputs.profile }} DMG artifact found for first-run VM smoke."
             exit 1
           fi
+          if [ -n "${DMG_PATH:-}" ]; then test -f "$DMG_PATH" && test ! -L "$DMG_PATH"; fi
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "Using DMG: $DMG_PATH"
 
@@ -1436,8 +1453,18 @@ jobs:
 
           exit "$SMOKE_STATUS"
 
+      - name: Validate production Settings Runtime refresh evidence
+        id: settings_runtime_evidence
+        if: ${{ steps.vm_smoke.outcome == 'success' && needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/validate-settings-smoke-runtime-evidence.ts \
+            --summary artifacts/opl-first-run-vm/artifacts/settings-smoke-summary.json \
+            > artifacts/opl-first-run-vm/artifacts/settings-runtime-refresh-verification.json
+
       - name: Write exact-artifact qualification receipt
-        if: ${{ always() && inputs.release_artifact_name != '' && inputs.release_bundle_digest != '' && inputs.release_cohort_ref != '' }}
+        if: ${{ always() && inputs.release_artifact_name != '' && inputs.release_bundle_digest != '' && inputs.release_cohort_ref != '' && (needs.validate-vm-inputs.outputs.diagnostic_scope == 'bootstrap_only' || steps.settings_runtime_evidence.outcome == 'success') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1612,10 +1639,27 @@ jobs:
             failure) status=failed; taxonomy=unknown ;;
             skipped) status=incomplete; taxonomy=operator ;;
           esac
-          manifest="$(find recovered-artifact-manifest recovered-vm-evidence -name opl-build-cohort.json -type f -print -quit 2>/dev/null || true)"
-          strict_receipt="$(find recovered-vm-evidence -name artifact-qualification-receipt.json -type f -print -quit 2>/dev/null || true)"
-          smoke_summary="$(find recovered-vm-evidence -name tart-smoke-summary.json -type f -print -quit 2>/dev/null || true)"
-          critical_diagnostics="$(find recovered-vm-evidence -name vm-gate-failure-summary.json -type f -print -quit 2>/dev/null || true)"
+          select_optional_evidence() {
+            local label="$1"
+            local filename="$2"
+            shift 2
+            local matches=()
+            while IFS= read -r match; do
+              matches+=("$match")
+            done < <(find "$@" -name "$filename" -type f -print 2>/dev/null | LC_ALL=C sort)
+            if [ "${#matches[@]}" -gt 1 ]; then
+              echo "::error::$label must appear at most once; found ${#matches[@]}." >&2
+              return 1
+            fi
+            if [ "${#matches[@]}" -eq 1 ]; then
+              test -f "${matches[0]}" && test ! -L "${matches[0]}" || return 1
+              printf '%s\n' "${matches[0]}"
+            fi
+          }
+          manifest="$(select_optional_evidence 'Build cohort manifest' opl-build-cohort.json recovered-artifact-manifest recovered-vm-evidence)" || exit 1
+          strict_receipt="$(select_optional_evidence 'Artifact qualification receipt' artifact-qualification-receipt.json recovered-vm-evidence)" || exit 1
+          smoke_summary="$(select_optional_evidence 'Tart smoke summary' tart-smoke-summary.json recovered-vm-evidence)" || exit 1
+          critical_diagnostics="$(select_optional_evidence 'VM gate failure summary' vm-gate-failure-summary.json recovered-vm-evidence)" || exit 1
           args=(
             --output qualification-attempt-receipt.json
             --status "$status"

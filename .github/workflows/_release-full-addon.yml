@@ -332,11 +332,33 @@ jobs:
           framework-executor/bin/opl release checkpoint export \
             --bundle "$BUNDLE_DIGEST" --output append-full-operation-checkpoint \
             --store "$store" --json > append-operation-checkpoint-export.json
-          original_standard_receipt="$(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print -quit)"
-          test -n "$original_standard_receipt"
+          standard_build_receipts=()
+          while IFS= read -r receipt; do
+            standard_build_receipts+=("$receipt")
+          done < <(find checkpoint-identity-bootstrap -type f -name standard-build-receipt.json -print | LC_ALL=C sort)
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Checkpoint must contain exactly one Standard build receipt; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          original_standard_receipt="${standard_build_receipts[0]}"
+          test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
-          original_full_receipt="$(find checkpoint-identity-bootstrap -type f -name full-build-receipt.json -print -quit || true)"
-          if [ -n "$original_full_receipt" ]; then cp "$original_full_receipt" full-build-receipt.json; fi
+          full_build_receipts=()
+          while IFS= read -r receipt; do
+            full_build_receipts+=("$receipt")
+          done < <(find checkpoint-identity-bootstrap -type f -name full-build-receipt.json -print | LC_ALL=C sort)
+          case "${#full_build_receipts[@]}" in
+            0) ;;
+            1)
+              original_full_receipt="${full_build_receipts[0]}"
+              test -f "$original_full_receipt" && test ! -L "$original_full_receipt"
+              cp "$original_full_receipt" full-build-receipt.json
+              ;;
+            *)
+              echo "::error::Checkpoint must contain at most one Full build receipt; found ${#full_build_receipts[@]}."
+              exit 1
+              ;;
+          esac
           {
             echo "source_run_id=$GITHUB_RUN_ID"
             echo "source_artifact=opl-release-append-full-operation-checkpoint-${GITHUB_RUN_ID}"
@@ -590,17 +612,41 @@ jobs:
                 --store "$store" --json > full-build-result.json
               ;;
             full_built)
-              original_full_receipt="$(find imported-checkpoint -type f -name full-build-receipt.json -print -quit)"
-              test -n "$original_full_receipt"
+              full_build_receipts=()
+              while IFS= read -r receipt; do
+                full_build_receipts+=("$receipt")
+              done < <(find imported-checkpoint -type f -name full-build-receipt.json -print | LC_ALL=C sort)
+              if [ "${#full_build_receipts[@]}" -ne 1 ]; then
+                echo "::error::Imported checkpoint must contain exactly one Full build receipt; found ${#full_build_receipts[@]}."
+                exit 1
+              fi
+              original_full_receipt="${full_build_receipts[0]}"
+              test -f "$original_full_receipt" && test ! -L "$original_full_receipt"
               cp "$original_full_receipt" full-build-receipt.json
               ;;
             *) exit 1 ;;
           esac
-          original_standard_receipt="$(find imported-checkpoint -type f -name standard-build-receipt.json -print -quit)"
-          test -n "$original_standard_receipt"
+          standard_build_receipts=()
+          while IFS= read -r receipt; do
+            standard_build_receipts+=("$receipt")
+          done < <(find imported-checkpoint -type f -name standard-build-receipt.json -print | LC_ALL=C sort)
+          if [ "${#standard_build_receipts[@]}" -ne 1 ]; then
+            echo "::error::Imported checkpoint must contain exactly one Standard build receipt; found ${#standard_build_receipts[@]}."
+            exit 1
+          fi
+          original_standard_receipt="${standard_build_receipts[0]}"
+          test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
-          legacy_receipt="$(find full-qualification -type f -name artifact-qualification-receipt.json -print -quit)"
-          test -n "$legacy_receipt"
+          legacy_receipts=()
+          while IFS= read -r receipt; do
+            legacy_receipts+=("$receipt")
+          done < <(find full-qualification -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort)
+          if [ "${#legacy_receipts[@]}" -ne 1 ]; then
+            echo "::error::Full qualification must contain exactly one artifact qualification receipt; found ${#legacy_receipts[@]}."
+            exit 1
+          fi
+          legacy_receipt="${legacy_receipts[0]}"
+          test -f "$legacy_receipt" && test ! -L "$legacy_receipt"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
             --bundle "$bundle" --track full --legacy-qualification "$legacy_receipt" \
             --output full-qualification.receipt.json

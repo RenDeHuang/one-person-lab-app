@@ -13,7 +13,15 @@ set -euo pipefail
 SYSTEM_PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export PATH="$SYSTEM_PATH:$PATH"
 RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-PYTHON_BIN="$(find "$RUNTIME_HOME/python" -maxdepth 2 -path '*/bin' -type d 2>/dev/null | sort -r | head -n 1 || true)"
+PYTHON_BIN_CANDIDATES=()
+while IFS= read -r candidate; do PYTHON_BIN_CANDIDATES+=("$candidate"); done < <(
+  find "$RUNTIME_HOME/python" -maxdepth 2 -path '*/bin' -type d -print 2>/dev/null | LC_ALL=C sort
+)
+if [[ "\${#PYTHON_BIN_CANDIDATES[@]}" -gt 1 ]]; then
+  printf 'Packaged Full runtime contains multiple Python bin roots: %s\n' "\${#PYTHON_BIN_CANDIDATES[@]}" >&2
+  exit 1
+fi
+PYTHON_BIN="\${PYTHON_BIN_CANDIDATES[0]:-}"
 export OPL_FULL_RUNTIME_HOME="$RUNTIME_HOME"
 export OPL_PACKAGED_SKILLS_ROOT="$RUNTIME_HOME/skills"
 export OPL_CODEX_BIN="$RUNTIME_HOME/bin/codex"

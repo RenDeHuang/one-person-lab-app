@@ -91,9 +91,16 @@ if [[ ! -x "$TEMPORAL_BIN" ]]; then
   mkdir -p "$EXTRACT_ROOT"
   tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
   if [[ ! -x "$TEMPORAL_BIN" ]]; then
-    candidate="$(find "$EXTRACT_ROOT" -type f -name temporal -perm -111 | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-      TEMPORAL_BIN="$candidate"
+    candidates=()
+    while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
+      find "$EXTRACT_ROOT" -type f -name temporal -perm -111 -print | LC_ALL=C sort
+    )
+    if [[ "\${#candidates[@]}" -gt 1 ]]; then
+      printf 'Packaged Temporal CLI archive contains multiple executable temporal binaries: %s\n' "\${#candidates[@]}" >&2
+      exit 1
+    fi
+    if [[ "\${#candidates[@]}" -eq 1 ]]; then
+      TEMPORAL_BIN="\${candidates[0]}"
     fi
   fi
 fi
@@ -130,10 +137,17 @@ if [[ ! -x "$CODEX_BIN" ]]; then
   mkdir -p "$EXTRACT_ROOT"
   tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
   if [[ ! -x "$CODEX_BIN" ]]; then
-    candidate="$(find "$EXTRACT_ROOT" -type f -path '*/bin/codex' -perm -111 | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-      CODEX_BIN="$candidate"
-      CODEX_PATH_DIR="$(cd "$(dirname "$candidate")/.." && pwd)/codex-path"
+    candidates=()
+    while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
+      find "$EXTRACT_ROOT" -type f -path '*/bin/codex' -perm -111 -print | LC_ALL=C sort
+    )
+    if [[ "\${#candidates[@]}" -gt 1 ]]; then
+      printf 'Packaged Codex CLI archive contains multiple executable codex binaries: %s\n' "\${#candidates[@]}" >&2
+      exit 1
+    fi
+    if [[ "\${#candidates[@]}" -eq 1 ]]; then
+      CODEX_BIN="\${candidates[0]}"
+      CODEX_PATH_DIR="$(cd "$(dirname "\${candidates[0]}")/.." && pwd)/codex-path"
     fi
   fi
 fi

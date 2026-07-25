@@ -604,6 +604,57 @@ test("Full runtime wrapper labels only its own Temporal default as packaged loca
   }
 });
 
+test("Full runtime executable discovery fails closed on duplicate archive or Python candidates", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-runtime-duplicate-candidates-"));
+  const runtimeRoot = path.join(tempRoot, "runtime");
+  try {
+    const { writeTemporalCliWrapper, writeCodexCliWrapper } =
+      await import("../../../scripts/build-full-first-install-package/runtime-layers.ts");
+    const { writeRuntimeWrappers } =
+      await import("../../../scripts/full-first-install-runtime-wrappers.ts");
+
+    const makeDuplicateArchive = (archivePath, relativePaths) => {
+      const sourceRoot = fs.mkdtempSync(path.join(tempRoot, "archive-source-"));
+      for (const relativePath of relativePaths) {
+        writeExecutable(path.join(sourceRoot, relativePath), "#!/bin/sh\nexit 0\n");
+      }
+      fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+      const result = spawnSync("tar", ["-czf", archivePath, "-C", sourceRoot, "."], { encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+    };
+
+    const temporalWrapper = path.join(runtimeRoot, "bin", "temporal");
+    writeTemporalCliWrapper(temporalWrapper, "temporal 1.0.0");
+    makeDuplicateArchive(
+      path.join(runtimeRoot, "vendor", "temporal", "temporal_cli_darwin_arm64.tar.gz"),
+      ["one/temporal", "two/temporal"],
+    );
+    const temporal = spawnSync(temporalWrapper, ["server"], { encoding: "utf8" });
+    assert.notEqual(temporal.status, 0);
+    assert.match(temporal.stderr, /multiple executable temporal binaries/);
+
+    const codexWrapper = path.join(runtimeRoot, "bin", "codex");
+    writeCodexCliWrapper(codexWrapper, "codex-cli 1.0.0");
+    makeDuplicateArchive(
+      path.join(runtimeRoot, "vendor", "codex", "codex_cli_darwin_arm64.tar.gz"),
+      ["one/bin/codex", "two/bin/codex"],
+    );
+    const codex = spawnSync(codexWrapper, ["exec"], { encoding: "utf8" });
+    assert.notEqual(codex.status, 0);
+    assert.match(codex.stderr, /multiple executable codex binaries/);
+
+    writeExecutable(path.join(runtimeRoot, "opl", "bin", "opl"), "#!/bin/sh\nexit 0\n");
+    fs.mkdirSync(path.join(runtimeRoot, "python", "3.11", "bin"), { recursive: true });
+    fs.mkdirSync(path.join(runtimeRoot, "python", "3.12", "bin"), { recursive: true });
+    writeRuntimeWrappers(runtimeRoot);
+    const opl = spawnSync(path.join(runtimeRoot, "bin", "opl"), [], { encoding: "utf8" });
+    assert.notEqual(opl.status, 0);
+    assert.match(opl.stderr, /multiple Python bin roots/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("real Full domain and prepareRuntime builders package the current MAS Scholar Skills closure", async () => {
   const fixture = createFullRuntimeFixture();
   const previousStrictSigning = process.env.OPL_MAC_STRICT_SIGNING_CHECKS;

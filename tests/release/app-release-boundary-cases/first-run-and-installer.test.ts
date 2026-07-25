@@ -194,6 +194,27 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   );
 });
 
+test("release boundary requires production Runtime refresh evidence for both routes", () => {
+  const policy = requireReleaseBoundaryCheck("first_run_vm_runtime_refresh_production_evidence");
+
+  for (const token of [
+    "function buildRuntimeRefreshProbePlan(requestedHash, timeoutMs = DEFAULT_RUNTIME_REFRESH_TIMEOUT_MS)",
+    "requestedHash === '#/settings/runtime'",
+    "? ['#/settings/environment']",
+    "requestedHash === '#/runtime'",
+    "? ['#/runtime']",
+    "requested_hash: targetHash",
+    "resolved_hash: resolvedHash",
+    "const runtimeRefreshTimeoutMs = Math.min(",
+    "options.codexReadinessPhaseTimeoutMs ?? options.timeoutMs",
+    "const settingsRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+    "const standaloneRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+  ]) {
+    assert.ok(policy.required.includes(token), `missing Runtime evidence source gate: ${token}`);
+  }
+  assert.deepEqual(policy.forbidden, []);
+});
+
 test("release boundary keeps production Gatekeeper policy profile-aware", () => {
   const policy = requireReleaseBoundaryCheck("first_run_vm_local_authorization_policy");
 

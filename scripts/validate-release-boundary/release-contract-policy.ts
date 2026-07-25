@@ -859,6 +859,7 @@ export function validateReleaseAccelerationPolicy(
   const legacy = control?.legacy_compatibility;
   const validationCanary = control?.validation_canary;
   const acceleration = releaseContract.release_acceleration;
+  const settingsRuntimeRefresh = acceleration?.settings_runtime_refresh_evidence_policy;
   const homebrew = releaseContract.homebrew_tap_distribution;
 
   for (const violation of retiredReleaseControlPlaneViolations(releaseContract)) {
@@ -1102,6 +1103,47 @@ export function validateReleaseAccelerationPolicy(
   }
   if (JSON.stringify(validationCanary) !== JSON.stringify(requiredValidationCanary)) {
     console.error('FAIL release_validation_canary: Canary must start the complete reusable topology in validation-only mode without secrets, builds, VMs, or external writes');
+    failures += 1;
+  }
+  if (
+    settingsRuntimeRefresh?.schema !== 'opl_settings_runtime_refresh_evidence_policy.v1' ||
+    settingsRuntimeRefresh?.production_default_targets_required !== true ||
+    settingsRuntimeRefresh?.synthetic_target_injection_allowed !== false ||
+    JSON.stringify(settingsRuntimeRefresh?.required_routes) !== JSON.stringify([
+      {
+        id: 'runtime-settings-alias',
+        requested_hash: '#/settings/runtime',
+        allowed_resolved_hash_prefixes: ['#/settings/environment'],
+      },
+      {
+        id: 'runtime-status',
+        requested_hash: '#/runtime',
+        allowed_resolved_hash_prefixes: ['#/runtime'],
+      },
+    ]) ||
+    !sameStringSet(settingsRuntimeRefresh?.required_evidence_fields, [
+      'id',
+      'requested_hash',
+      'resolved_hash',
+      'interactions.runtimeRefresh.requested_hash',
+      'interactions.runtimeRefresh.resolved_hash',
+      'interactions.runtimeRefresh.readiness.hash',
+      'interactions.runtimeRefresh.readiness.state',
+      'interactions.runtimeRefresh.readiness.pageReady',
+      'interactions.runtimeRefresh.refresh.before_click.buttonReady',
+      'interactions.runtimeRefresh.refresh.after_click.buttonReady',
+    ]) ||
+    !sameStringSet(settingsRuntimeRefresh?.allowed_readiness_states, ['ready', 'empty']) ||
+    settingsRuntimeRefresh?.distinct_entry_per_route_required !== true ||
+    settingsRuntimeRefresh?.default_timeout_ms !== 30000 ||
+    settingsRuntimeRefresh?.phase_timeout_binding !== 'min_timeout_ms_and_codex_readiness_phase_timeout_ms_or_timeout_ms' ||
+    settingsRuntimeRefresh?.validator !== 'scripts/validate-settings-smoke-runtime-evidence.ts' ||
+    settingsRuntimeRefresh?.workflow !== '.github/workflows/opl-first-run-vm.yml' ||
+    settingsRuntimeRefresh?.verification_artifact !== 'artifacts/opl-first-run-vm/artifacts/settings-runtime-refresh-verification.json' ||
+    settingsRuntimeRefresh?.source_implementation_failure_mode !== 'fail_closed_before_expensive_build_or_vm' ||
+    settingsRuntimeRefresh?.runtime_evidence_failure_mode !== 'fail_closed_before_qualification_receipt_or_publication'
+  ) {
+    console.error('FAIL release_settings_runtime_refresh: production VM evidence must prove both Runtime routes without synthetic target substitution');
     failures += 1;
   }
   if (
