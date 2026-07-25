@@ -346,6 +346,13 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
     'freeze',
     'Prepare and validate online AI notes',
   );
+  assert.equal(step.env.OPL_RELEASE_NOTES_MODE, 'ai');
+  assert.equal(step.env.OPL_RELEASE_NOTES_PROVIDER, 'openai_compatible');
+  assert.equal(step.env.OPL_RELEASE_NOTES_MODEL, 'gpt-5.6-luna');
+  assert.equal(
+    step.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS,
+    'gpt-5.6-luna,gpt-5.4',
+  );
   const script = String(step.run);
   assert.doesNotMatch(script, /--include-full-package|--full-payload-authority|--full-package-manifest/);
   assert.match(script, /notes_root="\$RUNNER_TEMP\/opl-release-prepared-notes-\$GITHUB_RUN_ID"/);
