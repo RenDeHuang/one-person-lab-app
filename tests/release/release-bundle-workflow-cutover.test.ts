@@ -1206,6 +1206,20 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
 });
 
+test('first-run VM uploads critical diagnostics only on a real failure path', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const step = (name: string) => {
+    const found = steps.find((candidate) => candidate.name === name);
+    assert.ok(found, `clean-vm-first-run is missing ${name}`);
+    return found;
+  };
+
+  assert.equal(step('Write first-run VM critical diagnostics').if, '${{ always() }}');
+  assert.equal(step('Upload first-run VM critical diagnostics').if, '${{ failure() }}');
+  assert.equal(step('Upload first-run VM artifacts').if, '${{ always() }}');
+});
+
 test('first-run VM prefetches frozen Codex install assets from a physical script', () => {
   const workflow = parseWorkflow('opl-first-run-vm.yml');
   const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;

@@ -1489,7 +1489,7 @@ jobs:
           VM_SMOKE_CONCLUSION: ${{ steps.vm_smoke.conclusion || 'skipped' }}
 
       - name: Upload first-run VM critical diagnostics
-        if: ${{ always() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-first-run-vm-critical-diagnostics-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
