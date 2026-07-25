@@ -229,7 +229,8 @@ jobs:
 
   macos-signing-preflight:
     name: macOS release signing preflight
-    runs-on: ubuntu-latest
+    runs-on: macos-14
+    timeout-minutes: 10
     if: ${{ inputs.mode != 'canary' }}
     environment: ${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}
 
@@ -241,9 +242,20 @@ jobs:
           echo "Gatekeeper-required signing is disabled for this caller."
           echo "This preflight job succeeds intentionally so reusable workflow callers can continue when the build job produces the local authorization evidence."
 
-      - name: Verify Apple signing and notarization secrets
+      - name: Checkout exact credential preflight source
         if: ${{ inputs.require_macos_gatekeeper }}
-        shell: bash
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node.js for credential preflight
+        if: ${{ inputs.require_macos_gatekeeper }}
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Import Developer ID identity and authenticate notarization
+        if: ${{ inputs.require_macos_gatekeeper }}
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -252,24 +264,17 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
-          set -euo pipefail
-          missing=()
-          for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
-            if [ -z "${!secret_name:-}" ]; then
-              missing+=("$secret_name")
-            fi
-          done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            missing_csv="$(IFS=', '; echo "${missing[*]}")"
-            echo "::error title=macOS release signing preflight failed::Missing GitHub Actions secrets: ${missing_csv}"
-            echo "::error::Configure Developer ID signing and Apple notarization secrets before dispatching a Gatekeeper-required macOS release build."
-            exit 1
-          fi
-          if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode >/dev/null 2>&1; then
-            echo "::error title=macOS release signing preflight failed::BUILD_CERTIFICATE_BASE64 is not valid base64."
-            exit 1
-          fi
-          echo "macOS release signing preflight passed."
+          node --experimental-strip-types scripts/verify-apple-release-credentials.ts \
+            --output "$RUNNER_TEMP/apple-release-credentials-preflight.json"
+
+      - name: Upload sanitized Apple credential preflight receipt
+        if: ${{ inputs.require_macos_gatekeeper }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-apple-release-credentials-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/apple-release-credentials-preflight.json
+          if-no-files-found: error
+          retention-days: 30
 
   build:
     name: Build ${{ matrix.platform }}

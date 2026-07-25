@@ -959,13 +959,20 @@ test('release-bound nested workflows inherit one operation and absolute deadline
 test('production Standard and Full builds fail closed on Apple distribution trust', () => {
   const bundle = parseWorkflow('_release-bundle.yml');
   const reusableBuild = parseWorkflow('_build-reusable.yml');
+  const credentialPreflight = parseWorkflow('release-apple-credentials-preflight.yml');
   const canary = parseWorkflow('release-bundle-canary.yml');
   const fullAddon = parseWorkflow('_release-full-addon.yml');
   const fullBuild = parseWorkflow('full-first-install-release.yml');
   const protectedPreflightEnvironment = "${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}";
   const protectedMacosBuildEnvironment = "${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}";
   const signingPreflight = reusableBuild.jobs['macos-signing-preflight'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Verify Apple signing and notarization secrets',
+    (step: Record<string, unknown>) => step.name === 'Import Developer ID identity and authenticate notarization',
+  );
+  const signingPreflightCheckout = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Checkout exact credential preflight source',
+  );
+  const signingPreflightUpload = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload sanitized Apple credential preflight receipt',
   );
   const setupSigning = reusableBuild.jobs.build.steps.find(
     (step: Record<string, unknown>) => step.name === 'Setup macOS code signing (macOS only)',
@@ -981,6 +988,8 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     actions: 'read',
   });
   assert.equal(reusableBuild.permissions, undefined);
+  assert.equal(reusableBuild.jobs['macos-signing-preflight']['runs-on'], 'macos-14');
+  assert.equal(reusableBuild.jobs['macos-signing-preflight']['timeout-minutes'], 10);
   assert.equal(reusableBuild.jobs['macos-signing-preflight'].environment, protectedPreflightEnvironment);
   assert.equal(reusableBuild.jobs.build.environment, protectedMacosBuildEnvironment);
   assert.deepEqual(
@@ -1003,6 +1012,24 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     TEAM_ID: '${{ secrets.TEAM_ID }}',
     IDENTITY: '${{ secrets.IDENTITY }}',
   });
+  assert.equal(signingPreflightCheckout.with.ref, '${{ inputs.ref }}');
+  assert.match(String(signingPreflight.run), /verify-apple-release-credentials\.ts/);
+  assert.equal(
+    signingPreflightUpload.with.name,
+    'opl-apple-release-credentials-preflight-${{ github.run_id }}',
+  );
+  assert.deepEqual(Object.keys(credentialPreflight.on), ['workflow_dispatch']);
+  assert.deepEqual(credentialPreflight.permissions, { contents: 'read' });
+  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-14');
+  assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
+  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 10);
+  assert.equal(credentialPreflight.concurrency['cancel-in-progress'], false);
+  assert.equal(
+    credentialPreflight.jobs.validate.steps.some(
+      (step: Record<string, unknown>) => String(step.run ?? '').includes('verify-apple-release-credentials.ts'),
+    ),
+    true,
+  );
   assert.equal(setupSigning.env.BUILD_CERTIFICATE_BASE64, '${{ secrets.BUILD_CERTIFICATE_BASE64 }}');
   assert.equal(setupSigning.env.P12_PASSWORD, '${{ secrets.P12_PASSWORD }}');
   assert.equal(macosBuild.env.appleId, '${{ secrets.APPLE_ID }}');
