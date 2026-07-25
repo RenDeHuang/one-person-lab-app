@@ -7,6 +7,19 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 import { updateElectronUpdaterMetadataForArtifact } from '../../scripts/update-electron-updater-metadata.ts';
 
+test('installs App release tooling before finalized metadata is updated', () => {
+  const workflow = fs.readFileSync(
+    path.join(process.cwd(), '.github', 'workflows', '_build-reusable.yml'),
+    'utf8',
+  );
+  const installIndex = workflow.indexOf('name: Install App release tooling dependencies');
+  const updateIndex = workflow.indexOf('scripts/update-electron-updater-metadata.ts');
+
+  assert.notEqual(installIndex, -1);
+  assert.match(workflow.slice(installIndex, updateIndex), /npm ci --ignore-scripts --no-audit --no-fund/);
+  assert.ok(installIndex < updateIndex);
+});
+
 test('rebinds only the finalized DMG entries in electron-updater metadata', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-updater-final-dmg-'));
   try {

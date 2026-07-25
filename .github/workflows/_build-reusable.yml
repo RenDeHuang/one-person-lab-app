@@ -466,6 +466,9 @@ jobs:
           retry_wait_seconds: 30
           command: bun install --cwd shells/aionui --frozen-lockfile
 
+      - name: Install App release tooling dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Run postinstall
         run: bun run postinstall || true
 
