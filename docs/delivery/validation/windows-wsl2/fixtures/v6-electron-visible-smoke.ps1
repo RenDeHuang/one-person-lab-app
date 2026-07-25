@@ -67,6 +67,7 @@ $validationGateName = 'OPL_WINDOWS_WSL2_VALIDATION'
 $validationGateValue = '1'
 $validationDistro = 'OPL-Validation-g0001'
 $approvedRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
+$expectedPlatformOwnerTaskId = '019f972b-f550-7961-90be-9873600cd895'
 $expectedZipPath = Join-Path $approvedRoot 'OPL-Windows-WSL2-Validation-v6.zip'
 $expectedWriterLeasePath = Join-Path $approvedRoot 'writer-lease.json'
 $expectedIntakeManifestPath = Join-Path $approvedRoot 'windows-wsl2-v6-intake-manifest.json'
@@ -1535,9 +1536,10 @@ public static class OplValidationNativeWindow
     $writerLease.schema -ne 'opl_windows_v6_vm_writer_lease.v1' -or
     $writerLease.status -ne 'active' -or
     $writerLease.host_platform -ne 'windows_hyperv' -or
-    $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
-    $writerLease.vm_identity -ne $VmIdentity -or
-    $writerLease.platform_owner_task_id -ne $PlatformOwnerTaskId -or
+  $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
+  $writerLease.vm_identity -ne $VmIdentity -or
+  $PlatformOwnerTaskId -ne $expectedPlatformOwnerTaskId -or
+  $writerLease.platform_owner_task_id -ne $expectedPlatformOwnerTaskId -or
     $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
     $writerLease.lease_id -ne $WriterLeaseId -or
     ([datetime]$writerLease.issued_at).ToUniversalTime() -ne
@@ -1545,6 +1547,7 @@ public static class OplValidationNativeWindow
     ([datetime]$writerLease.expires_at).ToUniversalTime() -ne
       $WriterLeaseExpiresAt.ToUniversalTime() -or
     $writerLease.allowed_operations -notcontains 'v6_build_seal' -or
+    $writerLease.allowed_operations -notcontains 'v6_fixture_phase_transition' -or
     $writerLease.allowed_operations -notcontains 'v6_guest_visible_smoke' -or
     $writerLease.allowed_operations -notcontains 'v6_soft_shutdown'
   ) {

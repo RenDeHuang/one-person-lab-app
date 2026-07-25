@@ -36,7 +36,7 @@
       "pattern": "^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     },
     "platform_owner_task_id": {
-      "$ref": "#/$defs/uuid"
+      "const": "019f972b-f550-7961-90be-9873600cd895"
     },
     "executor_task_id": {
       "const": "019f97e4-288a-7140-8850-925c657d8c71"
@@ -55,12 +55,13 @@
     },
     "allowed_operations": {
       "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
+      "minItems": 4,
+      "maxItems": 4,
       "uniqueItems": true,
       "items": {
         "enum": [
           "v6_build_seal",
+          "v6_fixture_phase_transition",
           "v6_guest_visible_smoke",
           "v6_soft_shutdown"
         ]
@@ -69,6 +70,11 @@
         {
           "contains": {
             "const": "v6_build_seal"
+          }
+        },
+        {
+          "contains": {
+            "const": "v6_fixture_phase_transition"
           }
         },
         {

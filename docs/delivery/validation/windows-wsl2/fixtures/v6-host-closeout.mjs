@@ -18,6 +18,7 @@ const GUEST_STAGE = 'guest_smoke_pending_host_closeout';
 const VALIDATION_STATE = 'validation_only_non_binding';
 const VM_NAME = 'OPL-V6-WSL2-01';
 const EXECUTOR_TASK_ID = '019f97e4-288a-7140-8850-925c657d8c71';
+const PLATFORM_OWNER_TASK_ID = '019f972b-f550-7961-90be-9873600cd895';
 const HYPERV_IDENTITY_PREFIX = 'hyperv-vmid:';
 
 function parseArgs(argv) {
@@ -217,11 +218,12 @@ function validateLease({ lease, expected, now }) {
   assert.equal(lease.vm_name, VM_NAME);
   assert.equal(lease.vm_identity, expected.vmIdentity);
   assert.equal(lease.executor_task_id, EXECUTOR_TASK_ID);
-  assert.ok(lease.platform_owner_task_id);
+  assert.equal(lease.platform_owner_task_id, PLATFORM_OWNER_TASK_ID);
   assert.ok(new Date(lease.issued_at) <= now, 'writer lease is not active yet');
   assert.ok(new Date(lease.expires_at) > now, 'writer lease has expired');
   for (const operation of [
     'v6_build_seal',
+    'v6_fixture_phase_transition',
     'v6_guest_visible_smoke',
     'v6_soft_shutdown',
   ]) {

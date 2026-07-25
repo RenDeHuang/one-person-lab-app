@@ -97,13 +97,14 @@ function makeLease() {
     host_platform: 'windows_hyperv',
     vm_name: 'OPL-V6-WSL2-01',
     vm_identity: vmIdentity,
-    platform_owner_task_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    platform_owner_task_id: '019f972b-f550-7961-90be-9873600cd895',
     executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
     lease_id: leaseId,
     issued_at: leaseTimes.issuedAt,
     expires_at: leaseTimes.expiresAt,
     allowed_operations: [
       'v6_build_seal',
+      'v6_fixture_phase_transition',
       'v6_guest_visible_smoke',
       'v6_soft_shutdown',
     ],
@@ -365,7 +366,7 @@ function makeGuestReceipt({
       host_platform: 'windows_hyperv',
       vm_name: 'OPL-V6-WSL2-01',
       writer_lease: {
-        platform_owner_task_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        platform_owner_task_id: '019f972b-f550-7961-90be-9873600cd895',
         executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
         lease_id: leaseId,
         issued_at: leaseTimes.issuedAt,
@@ -527,6 +528,14 @@ test('V6 schemas are strict and bind packet, build, lease, and Hyper-V closeout 
   assert.equal(
     lease.properties.executor_task_id.const,
     '019f97e4-288a-7140-8850-925c657d8c71',
+  );
+  assert.equal(
+    lease.properties.platform_owner_task_id.const,
+    '019f972b-f550-7961-90be-9873600cd895',
+  );
+  assert.equal(
+    lease.properties.allowed_operations.maxItems,
+    4,
   );
 });
 

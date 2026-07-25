@@ -305,10 +305,15 @@ if (
   $writerLease.status -ne 'active' -or
   $writerLease.host_platform -ne 'windows_hyperv' -or
   $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
+  $writerLease.platform_owner_task_id -ne
+    '019f972b-f550-7961-90be-9873600cd895' -or
   $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
   ([datetime]$writerLease.issued_at).ToUniversalTime() -gt $nowUtc -or
   ([datetime]$writerLease.expires_at).ToUniversalTime() -le $nowUtc -or
-  $writerLease.allowed_operations -notcontains 'v6_build_seal'
+  $writerLease.allowed_operations -notcontains 'v6_build_seal' -or
+  $writerLease.allowed_operations -notcontains 'v6_fixture_phase_transition' -or
+  $writerLease.allowed_operations -notcontains 'v6_guest_visible_smoke' -or
+  $writerLease.allowed_operations -notcontains 'v6_soft_shutdown'
 ) {
   throw 'V6 writer lease does not authorize this build seal'
 }
