@@ -712,7 +712,7 @@ async function collectObservation(
   };
 }
 
-function firstDifference(actual: unknown, expected: unknown, pointer = '$'): string | null {
+export function firstDifference(actual: unknown, expected: unknown, pointer = '$'): string | null {
   if (Object.is(actual, expected)) return null;
   if (Array.isArray(actual) && Array.isArray(expected)) {
     if (actual.length !== expected.length) return `${pointer}.length`;
@@ -739,6 +739,7 @@ function firstDifference(actual: unknown, expected: unknown, pointer = '$'): str
       );
       if (difference) return difference;
     }
+    return null;
   }
   return pointer;
 }

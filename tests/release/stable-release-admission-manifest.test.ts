@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
   buildStableReleaseAdmissionManifest,
   canonicalJson,
+  firstDifference,
   parseGitHubJsonLookup,
   stableAdmissionManifestDigest,
   type StableAdmissionInput,
@@ -235,6 +236,25 @@ test('GitHub lookup failures and non-JSON responses fail closed', () => {
       stderr: '',
     }),
     /did not return JSON/,
+  );
+});
+
+test('manifest comparison accepts equal nested objects and reports exact drift pointers', () => {
+  const actual = {
+    allocator: {
+      selected_version: '26.7.25-r1',
+      observed_same_day_versions: ['26.7.25'],
+    },
+  };
+  assert.equal(firstDifference(actual, structuredClone(actual)), null);
+  assert.equal(
+    firstDifference(actual, {
+      allocator: {
+        ...actual.allocator,
+        selected_version: '26.7.25-r2',
+      },
+    }),
+    '$.allocator.selected_version',
   );
 });
 
