@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-wsl2-v6-intake-manifest.schema.json",
+  "title": "OPL Windows WSL2 V6 immutable intake manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "validation_state",
+    "authority",
+    "terminal_v6_verdict",
+    "target",
+    "source_refs",
+    "toolchain_contract",
+    "artifact_contract",
+    "execution_contract",
+    "prohibited_operations",
+    "packet_files"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_windows_wsl2_v6_intake_manifest.v1"
+    },
+    "validation_state": {
+      "const": "validation_only_non_binding"
+    },
+    "authority": {
+      "const": "one_person_lab_app_acceptance_contract"
+    },
+    "terminal_v6_verdict": {
+      "const": false
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_platform",
+        "vm_name",
+        "factory_root",
+        "validation_root",
+        "clean_vm_required",
+        "platform_owner_writer_lease_required"
+      ],
+      "properties": {
+        "host_platform": {
+          "const": "windows_hyperv"
+        },
+        "vm_name": {
+          "const": "OPL-V6-WSL2-01"
+        },
+        "factory_root": {
+          "const": "C:\\OPL-VMs"
+        },
+        "validation_root": {
+          "const": "C:\\Users\\Public\\Documents\\OnePersonLabValidation\\windows-wsl2-v6-v1"
+        },
+        "clean_vm_required": {
+          "const": true
+        },
+        "platform_owner_writer_lease_required": {
+          "const": true
+        }
+      }
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_acceptance_sha",
+        "app_acceptance_tree_sha",
+        "app_repository",
+        "shell",
+        "framework_fixture_sha",
+        "framework"
+      ],
+      "properties": {
+        "app_acceptance_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "app_acceptance_tree_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "app_repository": {
+          "const": "https://github.com/gaofeng21cn/one-person-lab-app.git"
+        },
+        "shell": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "git_sha",
+            "root_tree_sha",
+            "validation_tree_sha",
+            "bun_lock_sha256",
+            "build_script_sha256",
+            "harness_package_sha256"
+          ],
+          "properties": {
+            "repository": {
+              "const": "https://github.com/gaofeng21cn/opl-aion-shell.git"
+            },
+            "git_sha": {
+              "const": "868d6e818583547a5ec982b10b34464a3fa47c10"
+            },
+            "root_tree_sha": {
+              "const": "1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7"
+            },
+            "validation_tree_sha": {
+              "const": "6f8519a26c3075f8b252c79a81e42f328c6efbb8"
+            },
+            "bun_lock_sha256": {
+              "const": "8975e67539a778ef9058419d990646b21ce35757d4cdaf45e0b101e4ce3cff7b"
+            },
+            "build_script_sha256": {
+              "const": "5d1511a89038ca583bceb27881c8f025ce1575b0f0059535145382894c0cd381"
+            },
+            "harness_package_sha256": {
+              "const": "0a12c4887a746e465978ced9439cdef6f9a7a994c94e43bd0c5f1208f64737c5"
+            }
+          }
+        },
+        "framework_fixture_sha": {
+          "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+        },
+        "framework": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "git_sha",
+            "root_tree_sha",
+            "cli_blob_path",
+            "cli_blob_git_sha",
+            "cli_blob_sha256"
+          ],
+          "properties": {
+            "repository": {
+              "const": "https://github.com/gaofeng21cn/one-person-lab.git"
+            },
+            "git_sha": {
+              "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+            },
+            "root_tree_sha": {
+              "const": "5b27bf9fbe74815446e9ee401e81e0a192973d75"
+            },
+            "cli_blob_path": {
+              "const": "src/entrypoints/cli.ts"
+            },
+            "cli_blob_git_sha": {
+              "const": "9a81790365e5140c7965cad870c109c6afa4b564"
+            },
+            "cli_blob_sha256": {
+              "const": "e040d5ddab2e4c6cb660e5ba728e61172fe9e7e2f272974b19c7c4b653e159a5"
+            }
+          }
+        }
+      }
+    },
+    "toolchain_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_range",
+        "electron_version",
+        "electron_builder_manifest_range",
+        "electron_builder_lock_version",
+        "package_manager",
+        "package_install_argv",
+        "focused_test_script",
+        "build_script",
+        "builder_override_policy",
+        "output_policy"
+      ],
+      "properties": {
+        "node_range": {
+          "const": ">=22 <25"
+        },
+        "electron_version": {
+          "const": "37.10.3"
+        },
+        "electron_builder_manifest_range": {
+          "const": "^26.6.0"
+        },
+        "electron_builder_lock_version": {
+          "const": "26.8.1"
+        },
+        "package_manager": {
+          "const": "bun"
+        },
+        "package_install_argv": {
+          "const": [
+            "install",
+            "--frozen-lockfile",
+            "--ignore-scripts"
+          ]
+        },
+        "focused_test_script": {
+          "const": "test:windows:wsl2:validation"
+        },
+        "build_script": {
+          "const": "build:windows:wsl2:validation"
+        },
+        "builder_override_policy": {
+          "const": "all_overrides_must_be_absent"
+        },
+        "output_policy": {
+          "const": "fresh_unique_checkout_and_output_absent"
+        }
+      }
+    },
+    "artifact_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_zip_relative_path",
+        "source_executable_relative_path",
+        "sealed_zip_file_name",
+        "root_executable_file_name",
+        "identity_authority",
+        "historical_zip_sha256_authoritative"
+      ],
+      "properties": {
+        "source_zip_relative_path": {
+          "const": "out/windows-wsl2-validation/OPL Windows WSL2 Validation-0.0.0-validation.0-win.zip"
+        },
+        "source_executable_relative_path": {
+          "const": "out/windows-wsl2-validation/win-unpacked/OPL Windows WSL2 Validation.exe"
+        },
+        "sealed_zip_file_name": {
+          "const": "OPL-Windows-WSL2-Validation-v6.zip"
+        },
+        "root_executable_file_name": {
+          "const": "OPL Windows WSL2 Validation.exe"
+        },
+        "identity_authority": {
+          "const": "create_once_build_seal_receipt"
+        },
+        "historical_zip_sha256_authoritative": {
+          "const": false
+        }
+      }
+    },
+    "execution_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phases",
+        "distinct_run_ids_required",
+        "same_build_receipt_required",
+        "same_zip_and_tree_identity_required",
+        "target_window_screenshot_required",
+        "candidate_process_survivor_count",
+        "wsl_process_survivor_count",
+        "host_soft_shutdown_required",
+        "powered_off_readback_required",
+        "restart_persistence_readback_required",
+        "host_cleanup_counts_required",
+        "canonical_source_closeout_required"
+      ],
+      "properties": {
+        "phases": {
+          "const": [
+            "stopped",
+            "running",
+            "restart_persistence"
+          ]
+        },
+        "distinct_run_ids_required": {
+          "const": true
+        },
+        "same_build_receipt_required": {
+          "const": true
+        },
+        "same_zip_and_tree_identity_required": {
+          "const": true
+        },
+        "target_window_screenshot_required": {
+          "const": true
+        },
+        "candidate_process_survivor_count": {
+          "const": 0
+        },
+        "wsl_process_survivor_count": {
+          "const": 0
+        },
+        "host_soft_shutdown_required": {
+          "const": true
+        },
+        "powered_off_readback_required": {
+          "const": true
+        },
+        "restart_persistence_readback_required": {
+          "const": true
+        },
+        "host_cleanup_counts_required": {
+          "const": true
+        },
+        "canonical_source_closeout_required": {
+          "const": true
+        }
+      }
+    },
+    "prohibited_operations": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 3
+      },
+      "allOf": [
+        {
+          "contains": {
+            "const": "legacy_imac_vm_execution"
+          }
+        },
+        {
+          "contains": {
+            "const": "docker_prune"
+          }
+        },
+        {
+          "contains": {
+            "const": "global_wsl_shutdown"
+          }
+        },
+        {
+          "contains": {
+            "const": "wsl_unregister"
+          }
+        },
+        {
+          "contains": {
+            "const": "hard_vm_poweroff_as_pass"
+          }
+        },
+        {
+          "contains": {
+            "const": "public_release_or_promotion"
+          }
+        }
+      ]
+    },
+    "packet_files": {
+      "type": "array",
+      "minItems": 9,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file_name",
+          "role",
+          "size_bytes",
+          "sha256"
+        ],
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,100}$"
+          },
+          "role": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
