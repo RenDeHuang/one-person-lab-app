@@ -34,8 +34,10 @@ function writeRootPackage(root: string, overrides = {}): void {
       scripts: requiredScripts,
       devDependencies: {
         '@types/node': '22.15.3',
+        ajv: '8.18.0',
+        'ajv-formats': '3.0.1',
         typescript: '5.8.3',
-        yaml: '2.8.1',
+        yaml: '2.9.0',
       },
       ...overrides,
     }, null, 2)}\n`,

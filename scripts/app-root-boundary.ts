@@ -92,8 +92,10 @@ function assertRootPackageJson(packageJsonPath: string, failures: string[]): voi
   const devDependencies = packageJson.devDependencies;
   const expectedDevDependencies = {
     '@types/node': '22.15.3',
+    ajv: '8.18.0',
+    'ajv-formats': '3.0.1',
     typescript: '5.8.3',
-    yaml: '2.8.1',
+    yaml: '2.9.0',
   };
   const normalizedDevDependencies = devDependencies && typeof devDependencies === 'object'
     ? Object.fromEntries(Object.entries(devDependencies).sort(([left], [right]) => left.localeCompare(right)))
