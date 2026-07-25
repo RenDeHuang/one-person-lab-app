@@ -1,0 +1,130 @@
+{
+  "schema": "opl_windows_wsl2_v6_intake_manifest.v1",
+  "validation_state": "validation_only_non_binding",
+  "authority": "one_person_lab_app_acceptance_contract",
+  "terminal_v6_verdict": false,
+  "target": {
+    "host_platform": "windows_hyperv",
+    "vm_name": "OPL-V6-WSL2-01",
+    "validation_root": "C:\\Users\\Public\\Documents\\OnePersonLabValidation\\windows-wsl2-v6-v1",
+    "clean_vm_required": true,
+    "platform_owner_writer_lease_required": true
+  },
+  "source_refs": {
+    "app_acceptance_sha": "99898a9220753e75cb6f645398b3609f14edda62",
+    "app_acceptance_tree_sha": "ce084b73929f4204419a4f11f598840049079421",
+    "app_repository": "https://github.com/gaofeng21cn/one-person-lab-app.git",
+    "shell": {
+      "repository": "https://github.com/gaofeng21cn/opl-aion-shell.git",
+      "git_sha": "868d6e818583547a5ec982b10b34464a3fa47c10",
+      "root_tree_sha": "1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7",
+      "validation_tree_sha": "6f8519a26c3075f8b252c79a81e42f328c6efbb8",
+      "bun_lock_sha256": "8975e67539a778ef9058419d990646b21ce35757d4cdaf45e0b101e4ce3cff7b",
+      "build_script_sha256": "5d1511a89038ca583bceb27881c8f025ce1575b0f0059535145382894c0cd381",
+      "harness_package_sha256": "0a12c4887a746e465978ced9439cdef6f9a7a994c94e43bd0c5f1208f64737c5"
+    },
+    "framework_fixture_sha": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+  },
+  "toolchain_contract": {
+    "node_range": ">=22 <25",
+    "electron_version": "37.10.3",
+    "electron_builder_manifest_range": "^26.6.0",
+    "electron_builder_lock_version": "26.8.1",
+    "package_manager": "bun",
+    "package_install_argv": [
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts"
+    ],
+    "focused_test_script": "test:windows:wsl2:validation",
+    "build_script": "build:windows:wsl2:validation",
+    "builder_override_policy": "all_overrides_must_be_absent",
+    "output_policy": "fresh_unique_checkout_and_output_absent"
+  },
+  "artifact_contract": {
+    "source_zip_relative_path": "out/windows-wsl2-validation/OPL Windows WSL2 Validation-0.0.0-validation.0-win.zip",
+    "source_executable_relative_path": "out/windows-wsl2-validation/win-unpacked/OPL Windows WSL2 Validation.exe",
+    "sealed_zip_file_name": "OPL-Windows-WSL2-Validation-v6.zip",
+    "root_executable_file_name": "OPL Windows WSL2 Validation.exe",
+    "identity_authority": "create_once_build_seal_receipt",
+    "historical_zip_sha256_authoritative": false
+  },
+  "execution_contract": {
+    "phases": [
+      "stopped",
+      "running"
+    ],
+    "distinct_run_ids_required": true,
+    "same_build_receipt_required": true,
+    "same_zip_and_tree_identity_required": true,
+    "target_window_screenshot_required": true,
+    "candidate_process_survivor_count": 0,
+    "wsl_process_survivor_count": 0,
+    "host_soft_shutdown_required": true,
+    "powered_off_readback_required": true
+  },
+  "prohibited_operations": [
+    "legacy_imac_vm_execution",
+    "docker_prune",
+    "global_wsl_shutdown",
+    "wsl_unregister",
+    "hard_vm_poweroff_as_pass",
+    "public_release_or_promotion"
+  ],
+  "packet_files": [
+    {
+      "file_name": "v6-build-seal.ps1",
+      "role": "windows_source_build_and_create_once_seal",
+      "size_bytes": 19665,
+      "sha256": "bc7d8ef8dfb6a06b9a15ba4a28188b5f18ac28059b845fe8f6616a7d82a19c07"
+    },
+    {
+      "file_name": "v6-electron-visible-smoke.ps1",
+      "role": "windows_guest_stopped_and_running_visible_smoke",
+      "size_bytes": 65976,
+      "sha256": "791f9e557446e887054d5f1fc37dfba3ce9244277a350d8ba00f8c93e2d238e7"
+    },
+    {
+      "file_name": "v6-host-closeout.mjs",
+      "role": "windows_hyperv_terminal_closeout",
+      "size_bytes": 19578,
+      "sha256": "824d0316c0b10983375b26816090774795fa11c585aabd8886d4b7321967bcca"
+    },
+    {
+      "file_name": "windows-wsl2-v6-build-seal.schema.json",
+      "role": "build_seal_receipt_schema",
+      "size_bytes": 11481,
+      "sha256": "13740aefbbc3b328b55cadffc86cbb0726cd039c41a6e7ae2815d7972dddf185"
+    },
+    {
+      "file_name": "windows-wsl2-v6-execution-runbook.md",
+      "role": "windows_hyperv_executor_commands_and_receipt_contract",
+      "size_bytes": 8246,
+      "sha256": "7df24397b2ae9723bd43d6d0f2e159588d6c656629c17b4835b449a0d704ea00"
+    },
+    {
+      "file_name": "windows-wsl2-v6-host-closeout.schema.json",
+      "role": "terminal_host_closeout_receipt_schema",
+      "size_bytes": 6392,
+      "sha256": "fcd5936c5e143d34cfb6fdd20afeb7e047e21f68e88aa69ea6a70e5304a25982"
+    },
+    {
+      "file_name": "windows-wsl2-v6-intake-manifest.schema.json",
+      "role": "intake_manifest_schema",
+      "size_bytes": 8915,
+      "sha256": "c3a7100f2c30503f0446f594bf3becff9cf07460ac2b59ca1917fc3d8c44be8f"
+    },
+    {
+      "file_name": "windows-wsl2-v6-receipt.schema.json",
+      "role": "guest_visible_smoke_receipt_schema",
+      "size_bytes": 26718,
+      "sha256": "64ca128cbe97ff95657b56b0e20a88196785be8647893a249f91e33e1366a83d"
+    },
+    {
+      "file_name": "windows-wsl2-v6-writer-lease.schema.json",
+      "role": "windows_platform_owner_writer_lease_schema",
+      "size_bytes": 2826,
+      "sha256": "bf98cfc623d451e94f6259362741a7c0dce35442a31497ac1550758c1a570b2c"
+    }
+  ]
+}
