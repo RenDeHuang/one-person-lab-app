@@ -958,11 +958,57 @@ test('release-bound nested workflows inherit one operation and absolute deadline
 
 test('production Standard and Full builds fail closed on Apple distribution trust', () => {
   const bundle = parseWorkflow('_release-bundle.yml');
+  const reusableBuild = parseWorkflow('_build-reusable.yml');
+  const canary = parseWorkflow('release-bundle-canary.yml');
   const fullAddon = parseWorkflow('_release-full-addon.yml');
   const fullBuild = parseWorkflow('full-first-install-release.yml');
+  const protectedPreflightEnvironment = "${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}";
+  const protectedMacosBuildEnvironment = "${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}";
+  const signingPreflight = reusableBuild.jobs['macos-signing-preflight'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify Apple signing and notarization secrets',
+  );
+  const setupSigning = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Setup macOS code signing (macOS only)',
+  );
+  const macosBuild = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Build with electron-builder (macOS)',
+  );
 
   assert.equal(bundle.jobs['standard-build'].with.require_macos_gatekeeper, true);
   assert.equal(bundle.jobs['standard-build'].secrets, 'inherit');
+  assert.deepEqual(bundle.jobs['standard-build'].permissions, {
+    contents: 'read',
+    actions: 'read',
+  });
+  assert.equal(reusableBuild.permissions, undefined);
+  assert.equal(reusableBuild.jobs['macos-signing-preflight'].environment, protectedPreflightEnvironment);
+  assert.equal(reusableBuild.jobs.build.environment, protectedMacosBuildEnvironment);
+  assert.deepEqual(
+    Object.entries(reusableBuild.jobs)
+      .filter(([, job]: [string, any]) => job.environment !== undefined)
+      .map(([jobName]) => jobName),
+    ['macos-signing-preflight', 'build'],
+  );
+  assert.equal(canary.jobs['nested-standard-build'].with.require_macos_gatekeeper, undefined);
+  assert.equal(canary.jobs['nested-standard-build'].secrets, undefined);
+  assert.deepEqual(canary.jobs['nested-standard-build'].permissions, {
+    contents: 'read',
+    actions: 'read',
+  });
+  assert.deepEqual(signingPreflight.env, {
+    BUILD_CERTIFICATE_BASE64: '${{ secrets.BUILD_CERTIFICATE_BASE64 }}',
+    P12_PASSWORD: '${{ secrets.P12_PASSWORD }}',
+    APPLE_ID: '${{ secrets.APPLE_ID }}',
+    APPLE_ID_PASSWORD: '${{ secrets.APPLE_ID_PASSWORD }}',
+    TEAM_ID: '${{ secrets.TEAM_ID }}',
+    IDENTITY: '${{ secrets.IDENTITY }}',
+  });
+  assert.equal(setupSigning.env.BUILD_CERTIFICATE_BASE64, '${{ secrets.BUILD_CERTIFICATE_BASE64 }}');
+  assert.equal(setupSigning.env.P12_PASSWORD, '${{ secrets.P12_PASSWORD }}');
+  assert.equal(macosBuild.env.appleId, '${{ secrets.APPLE_ID }}');
+  assert.equal(macosBuild.env.appleIdPassword, '${{ secrets.APPLE_ID_PASSWORD }}');
+  assert.equal(macosBuild.env.teamId, '${{ secrets.TEAM_ID }}');
+  assert.equal(macosBuild.env.identity, '${{ secrets.IDENTITY }}');
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
 
   const credentialGate = fullBuild.jobs['full-first-install'].steps.find(

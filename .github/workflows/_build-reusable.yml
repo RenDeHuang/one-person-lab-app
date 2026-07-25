@@ -231,6 +231,7 @@ jobs:
     name: macOS release signing preflight
     runs-on: ubuntu-latest
     if: ${{ inputs.mode != 'canary' }}
+    environment: ${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}
 
     steps:
       - name: Record local authorization mode
@@ -273,6 +274,7 @@ jobs:
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    environment: ${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}
     needs:
       - workflow-lint
       - lint-format
