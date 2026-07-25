@@ -76,6 +76,14 @@ ZIP timestamps, Bun/Node versions, cache state, and compression inputs were not
 fully pinned, so those historical digests are not the acceptance authority for
 a fresh Windows build.
 
+The current immutable intake is
+[`packets/441c457c6ca1e95dfa4eb3f335d80a672eaf0355/`](packets/441c457c6ca1e95dfa4eb3f335d80a672eaf0355/).
+Its manifest SHA256 is
+`ce701258c50efd47e2d32659d077e4960f7fcce68e818f36c1cc4772ff717335`.
+The directory binds acceptance source `441c457c6ca1e95dfa4eb3f335d80a672eaf0355`;
+the commit that publishes the directory is transport provenance, not a
+replacement for that acceptance source.
+
 ## Fixtures
 
 `fixtures/` contains disposable validation-only scripts. They do not implement
