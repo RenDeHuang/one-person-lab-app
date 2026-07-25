@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import { forbiddenAuthorityOwners } from './app-contract-constants.ts';
+import {
+  appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
+  forbiddenAuthorityOwners,
+} from './app-contract-constants.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import { assertFile, commandMaxBuffer, root } from './validation-config.ts';
 import { lookupPath } from './value-helpers.ts';
@@ -1204,6 +1207,11 @@ function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
 
 export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   const policy = runtimeBridge.runtime_progress_page_display_policy;
+  assertDeepEqualJson(
+    runtimeBridge.user_task_status_projection?.generic_owner_acceptance_currentness_ref_policy,
+    appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
+    'Runtime generic owner acceptance/currentness ref policy',
+  );
   if (policy?.owner !== 'one-person-lab-app') {
     throw new Error('Runtime progress page display policy must be App-owned');
   }
@@ -1396,9 +1404,9 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'readback_text',
     'runtime_readback_ref',
     'runtime_closeout_ref',
-    'mas_owner_consumption_ref',
-    'mas_owner_consumed_stage_attempt_id',
-    'mas_currentness_drift_text',
+    'stage_run_current_owner_delta.accepted_return_shapes',
+    'stage_run_current_owner_delta.artifact_or_blocker_refs',
+    'stage_run_current_owner_delta.readiness_false_flag_refs',
     'provider',
     'projection',
     'ledger',

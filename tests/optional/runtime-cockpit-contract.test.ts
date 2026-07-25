@@ -6,6 +6,7 @@ import { validateOptionalRuntimeRoute } from '../../scripts/validate-active-shel
 import {
   validateAgentAvailabilityProjectionContract,
   validateRuntimeScopeProjectionContract,
+  validateUserTaskStatusProjectionContract,
   validateWorkItemRowIdentityFixture,
   validateWorkItemProjectionContract,
 } from '../../scripts/validate-active-shell/shared-contract-validators.ts';
@@ -40,6 +41,71 @@ test('Runtime V2 product, projection, scope, availability, and page-state contra
   assert.doesNotThrow(() => validateRuntimeProgressPageDisplayPolicy(bridge));
   assert.doesNotThrow(() => validateRuntimeScopeProjectionContract(bridge.runtime_scope_projection, 'test scope'));
   assert.doesNotThrow(() => validateAgentAvailabilityProjectionContract(bridge.agent_availability_projection, 'test agents'));
+});
+
+test('Runtime owner acceptance and currentness use generic refs and fail closed', () => {
+  const bridge = runtimeBridge();
+  const userTaskStatus = bridge.user_task_status_projection;
+  const genericPolicy = userTaskStatus.generic_owner_acceptance_currentness_ref_policy;
+  assert.deepEqual(genericPolicy, {
+    projection_field: 'stage_run_current_owner_delta',
+    owner_field: 'owner',
+    accepted_return_shapes_field: 'accepted_return_shapes',
+    acceptance_or_blocker_refs_field: 'artifact_or_blocker_refs',
+    currentness_guard_refs_field: 'readiness_false_flag_refs',
+    unknown_owner_policy: 'unknown_fail_closed_no_acceptance_or_currentness_inference',
+    missing_refs_policy: 'unknown_fail_closed_no_acceptance_or_currentness_inference',
+    app_role: 'display_only_refs_consumer_no_owner_verdict_authority',
+  });
+
+  const retiredMasFields = [
+    'mas_runtime_acceptance_display_policy',
+    'mas_owner_consumption_status',
+    'mas_owner_consumption_ref',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_owner_consumed_closeout_ref',
+    'mas_owner_consumption_matches_runtime_closeout',
+    'mas_currentness_drift_text',
+  ];
+  const guiContract = runtimeContract();
+  const guiInactiveSummaryFields = guiContract.framework_surfaces.runtime_default_attention
+    .project_group_expansion_policy.inactive_summary_fields;
+  const bridgeInactiveSummaryFields = bridge.project_progress_projection.active_project_line_projection
+    .project_group_expansion_policy.inactive_summary_fields;
+  for (const field of retiredMasFields) {
+    assert.equal(userTaskStatus.task_fields.includes(field), false);
+    assert.equal(guiInactiveSummaryFields.includes(field), false);
+    assert.equal(bridgeInactiveSummaryFields.includes(field), false);
+    assert.equal(bridge.runtime_progress_page_display_policy.advanced_only_fields.includes(field), false);
+  }
+  assert.equal(guiInactiveSummaryFields.includes('stage_run_current_owner_delta'), true);
+  assert.equal(bridgeInactiveSummaryFields.includes('stage_run_current_owner_delta'), true);
+
+  for (const mutate of [
+    (candidate: any) => {
+      candidate.user_task_status_projection.generic_owner_acceptance_currentness_ref_policy.unknown_owner_policy =
+        'infer_acceptance_from_agent_id';
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.generic_owner_acceptance_currentness_ref_policy.missing_refs_policy =
+        'treat_runtime_closeout_as_owner_acceptance';
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.task_fields.push('mas_owner_consumption_status');
+    },
+    (candidate: any) => {
+      candidate.user_task_status_projection.mas_runtime_acceptance_display_policy =
+        'infer acceptance from a MAS-only runtime mirror';
+    },
+  ]) {
+    const candidate = runtimeBridge();
+    mutate(candidate);
+    assert.throws(() => validateUserTaskStatusProjectionContract(
+      candidate.user_task_status_projection,
+      'mutated owner acceptance/currentness projection',
+      candidate.stage_run_cockpit_projection,
+    ));
+  }
 });
 
 test('typed owner views use a generic transport envelope without an App domain schema mirror', () => {
@@ -180,6 +246,7 @@ test('Runtime bridge display policy uses global row identity and one semantic ar
     (bridge: any) => { bridge.runtime_progress_page_display_policy.default_field_allowlist.push('action.title_args'); },
     (bridge: any) => { bridge.runtime_progress_page_display_policy.next_step_copy_policy.source_priority = ['action.title_key + action.title_args']; },
     (bridge: any) => { bridge.runtime_progress_page_display_policy.next_step_copy_policy.compatibility_fallback_fields.push('action.copy_locale'); },
+    (bridge: any) => { bridge.runtime_progress_page_display_policy.advanced_only_fields.push('mas_owner_consumption_ref'); },
   ]) {
     const bridge = runtimeBridge();
     mutate(bridge);

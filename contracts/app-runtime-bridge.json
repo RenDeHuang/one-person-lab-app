@@ -753,11 +753,6 @@
       "stage_run_current_owner_delta",
       "runtime_closeout_observed",
       "runtime_closeout_ref",
-      "mas_owner_consumption_status",
-      "mas_owner_consumption_ref",
-      "mas_owner_consumed_stage_attempt_id",
-      "mas_owner_consumed_closeout_ref",
-      "mas_owner_consumption_matches_runtime_closeout",
       "artifact_or_blocker",
       "review_receipt",
       "action_receipt",
@@ -857,7 +852,16 @@
       "confirmation_required": true,
       "confirmation_must_explain_archive_does_not_stop_work": true
     },
-    "mas_runtime_acceptance_display_policy": "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
+    "generic_owner_acceptance_currentness_ref_policy": {
+      "projection_field": "stage_run_current_owner_delta",
+      "owner_field": "owner",
+      "accepted_return_shapes_field": "accepted_return_shapes",
+      "acceptance_or_blocker_refs_field": "artifact_or_blocker_refs",
+      "currentness_guard_refs_field": "readiness_false_flag_refs",
+      "unknown_owner_policy": "unknown_fail_closed_no_acceptance_or_currentness_inference",
+      "missing_refs_policy": "unknown_fail_closed_no_acceptance_or_currentness_inference",
+      "app_role": "display_only_refs_consumer_no_owner_verdict_authority"
+    },
     "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
     "must_not_default_display_terms": [
       "Temporal",
@@ -1056,9 +1060,9 @@
       "readback_text",
       "runtime_readback_ref",
       "runtime_closeout_ref",
-      "mas_owner_consumption_ref",
-      "mas_owner_consumed_stage_attempt_id",
-      "mas_currentness_drift_text",
+      "stage_run_current_owner_delta.accepted_return_shapes",
+      "stage_run_current_owner_delta.artifact_or_blocker_refs",
+      "stage_run_current_owner_delta.readiness_false_flag_refs",
       "provider",
       "projection",
       "ledger",
@@ -2029,9 +2033,7 @@
           "next_visible_step",
           "runtime_closeout_observed",
           "runtime_closeout_ref",
-          "mas_owner_consumption_status",
-          "mas_owner_consumed_stage_attempt_id",
-          "mas_owner_consumption_matches_runtime_closeout"
+          "stage_run_current_owner_delta"
         ]
       },
       "required_fields": [

@@ -1,3 +1,24 @@
+export const appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy = {
+  projection_field: "stage_run_current_owner_delta",
+  owner_field: "owner",
+  accepted_return_shapes_field: "accepted_return_shapes",
+  acceptance_or_blocker_refs_field: "artifact_or_blocker_refs",
+  currentness_guard_refs_field: "readiness_false_flag_refs",
+  unknown_owner_policy: "unknown_fail_closed_no_acceptance_or_currentness_inference",
+  missing_refs_policy: "unknown_fail_closed_no_acceptance_or_currentness_inference",
+  app_role: "display_only_refs_consumer_no_owner_verdict_authority",
+};
+
+export const retiredMasOwnerAcceptanceMirrorFields = [
+  "mas_runtime_acceptance_display_policy",
+  "mas_owner_consumption_status",
+  "mas_owner_consumption_ref",
+  "mas_owner_consumed_stage_attempt_id",
+  "mas_owner_consumed_closeout_ref",
+  "mas_owner_consumption_matches_runtime_closeout",
+  "mas_currentness_drift_text",
+];
+
 export const appOwnedProjectGroupExpansionPolicy = {
   running_group_default: "expanded",
   attention_group_default: "visible_when_nonempty",
@@ -18,9 +39,7 @@ export const appOwnedProjectGroupExpansionPolicy = {
     "next_visible_step",
     "runtime_closeout_observed",
     "runtime_closeout_ref",
-    "mas_owner_consumption_status",
-    "mas_owner_consumed_stage_attempt_id",
-    "mas_owner_consumption_matches_runtime_closeout",
+    "stage_run_current_owner_delta",
   ],
 };
 

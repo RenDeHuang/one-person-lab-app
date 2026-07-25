@@ -1950,9 +1950,7 @@
           "next_visible_step",
           "runtime_closeout_observed",
           "runtime_closeout_ref",
-          "mas_owner_consumption_status",
-          "mas_owner_consumed_stage_attempt_id",
-          "mas_owner_consumption_matches_runtime_closeout"
+          "stage_run_current_owner_delta"
         ]
       },
       "must_not_default_display_terms": [

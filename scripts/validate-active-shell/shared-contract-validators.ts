@@ -1,6 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from "./assertions.ts";
 import {
   appOwnedAgentModuleStatusPanel,
+  appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
   appOwnedPrimaryGroupingPolicy,
   appOwnedProjectGroupExpansionPolicy,
   appOwnedQueueStatusPolicy,
@@ -8,6 +9,7 @@ import {
   appOwnedRunningStatePolicy,
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
+  retiredMasOwnerAcceptanceMirrorFields,
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
   actionOwnerKinds,
@@ -2427,6 +2429,11 @@ export function validateUserTaskStatusProjectionContract(
     }
   }
   assertDeepEqualJson(
+    userTaskStatus.generic_owner_acceptance_currentness_ref_policy,
+    appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
+    `${label} generic_owner_acceptance_currentness_ref_policy`,
+  );
+  assertDeepEqualJson(
     userTaskStatus.scope_fields,
     runtimeScopeRequiredFields,
     `${label} scope_fields`,
@@ -2518,6 +2525,14 @@ export function validateUserTaskStatusProjectionContract(
     ],
     `${label} task_fields`,
   );
+  for (const retiredField of retiredMasOwnerAcceptanceMirrorFields) {
+    if (
+      Object.hasOwn(userTaskStatus, retiredField)
+      || userTaskStatus.task_fields.includes(retiredField)
+    ) {
+      throw new Error(`${label} must not mirror retired MAS owner field ${retiredField}`);
+    }
+  }
   for (const [field, expected] of Object.entries({
     running_task_count:
       "count user tasks projected as actively running or advancing, never raw provider attempts",
