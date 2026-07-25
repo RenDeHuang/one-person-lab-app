@@ -583,3 +583,12 @@ test('manual latest commands and operator guide remain discoverable', () => {
     true,
   );
 });
+
+test('manual latest build resolves UI UX Pro Max only from its owner checkout', () => {
+  const source = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'manual-latest-build.ts'),
+    'utf8',
+  );
+  assert.match(source, /path\.join\(workspaceRoot, 'ui-ux-pro-max-skill'\)/);
+  assert.doesNotMatch(source, new RegExp(['ai', 'skills', 'library'].join('-')));
+});
