@@ -517,7 +517,30 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   assert.match(materialize, /windows-wsl2-v6-execution-runbook\.md/);
   assert.match(runbook, /v6_fixture_phase_transition/);
   assert.match(runbook, /PowerShell Direct[\s\S]*must not be used to run the UI smoke/i);
+  assert.match(
+    runbook,
+    /-ArgumentList '-d OPL-Validation-g0001 --exec sleep 2147483647'/,
+  );
+  assert.match(runbook, /keeper exited before Running state/);
+  assert.match(runbook, /Timed out waiting for OPL-Validation-g0001 to reach Running state/);
+  assert.doesNotMatch(runbook, /while :; do sleep 30; done/);
   assert.match(runbook, /Stop-VM -Shutdown/);
+});
+
+test('V6 host closeout resolves schemas beside an immutable packet script', async (t) => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-v6-packet-'));
+  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  for (const schemaPath of [
+    guestSchemaPath,
+    intakeSchemaPath,
+    buildSchemaPath,
+    leaseSchemaPath,
+  ]) {
+    fs.copyFileSync(schemaPath, path.join(temporaryRoot, path.basename(schemaPath)));
+  }
+  const { resolveSchemaRoot } = await import(hostCloseoutPath);
+  assert.equal(resolveSchemaRoot(temporaryRoot), temporaryRoot);
+  assert.equal(resolveSchemaRoot(fixtureRoot), validationRoot);
 });
 
 test('V6 schemas are strict and bind packet, build, lease, and Hyper-V closeout identities', () => {

@@ -111,9 +111,13 @@ First require the fixture to be stopped and run the stopped smoke:
 ```powershell
 wsl.exe --terminate OPL-Validation-g0001
 if ($LASTEXITCODE -ne 0) { throw 'Failed to stop only OPL-Validation-g0001' }
+$PhaseDeadline = [DateTime]::UtcNow.AddSeconds(60)
 do {
   Start-Sleep -Seconds 1
   $Inventory = wsl.exe --list --verbose
+  if ([DateTime]::UtcNow -ge $PhaseDeadline) {
+    throw 'Timed out waiting for OPL-Validation-g0001 to stop'
+  }
 } while ($Inventory -match 'OPL-Validation-g0001\s+Running')
 
 & $Runner @Common -ExpectedPhase stopped -RunId v6-stopped-01
@@ -124,26 +128,28 @@ terminate only that fixture:
 
 ```powershell
 $PhaseKeeper = Start-Process -FilePath "$env:SystemRoot\System32\wsl.exe" `
-  -ArgumentList @(
-    '-d',
-    'OPL-Validation-g0001',
-    '--exec',
-    'sh',
-    '-lc',
-    'while :; do sleep 30; done'
-  ) `
+  -ArgumentList '-d OPL-Validation-g0001 --exec sleep 2147483647' `
   -PassThru
 try {
+  $PhaseDeadline = [DateTime]::UtcNow.AddSeconds(60)
   do {
     Start-Sleep -Seconds 1
+    if ($PhaseKeeper.HasExited) {
+      throw "OPL-Validation-g0001 keeper exited before Running state: $($PhaseKeeper.ExitCode)"
+    }
     $Inventory = wsl.exe --list --verbose
+    if ([DateTime]::UtcNow -ge $PhaseDeadline) {
+      throw 'Timed out waiting for OPL-Validation-g0001 to reach Running state'
+    }
   } while ($Inventory -notmatch 'OPL-Validation-g0001\s+Running')
 
   & $Runner @Common -ExpectedPhase running -RunId v6-running-01
 } finally {
   wsl.exe --terminate OPL-Validation-g0001
   if ($LASTEXITCODE -ne 0) { throw 'Failed to stop only OPL-Validation-g0001' }
-  $PhaseKeeper.WaitForExit(30000)
+  if (-not $PhaseKeeper.WaitForExit(30000)) {
+    throw 'OPL-Validation-g0001 keeper did not exit after targeted termination'
+  }
 }
 ```
 

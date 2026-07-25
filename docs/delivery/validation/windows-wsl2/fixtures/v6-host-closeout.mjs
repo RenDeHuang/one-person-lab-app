@@ -148,6 +148,19 @@ function createValidator(schemaPath) {
   return ajv.compile(readJson(schemaPath));
 }
 
+export function resolveSchemaRoot(scriptDirectory) {
+  const schemaFile = 'windows-wsl2-v6-receipt.schema.json';
+  if (fs.existsSync(path.join(scriptDirectory, schemaFile))) {
+    return scriptDirectory;
+  }
+  const sourceSchemaRoot = path.resolve(scriptDirectory, '..');
+  assert.ok(
+    fs.existsSync(path.join(sourceSchemaRoot, schemaFile)),
+    `V6 closeout schemas are absent beside the script and in ${sourceSchemaRoot}`,
+  );
+  return sourceSchemaRoot;
+}
+
 function assertSchema(validate, payload, label) {
   assert.equal(
     validate(payload),
@@ -349,9 +362,8 @@ export async function runHostCloseout(rawOptions, injected = {}) {
       new Promise((resolve) => setTimeout(resolve, milliseconds)),
     ...injected,
   };
-  const schemaRoot = path.resolve(
+  const schemaRoot = resolveSchemaRoot(
     path.dirname(fileURLToPath(import.meta.url)),
-    '..',
   );
   const validateGuestSchema = createValidator(
     path.join(schemaRoot, 'windows-wsl2-v6-receipt.schema.json'),
