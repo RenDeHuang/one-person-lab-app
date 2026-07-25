@@ -218,6 +218,9 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
   const secrets = Object.fromEntries(
     requiredSecretNames.map((name) => [name, requiredEnv(env, name)]),
   ) as Record<RequiredSecretName, string>;
+  if (secrets.IDENTITY === '-') {
+    throw new Error('IDENTITY must select a Developer ID Application certificate; ad-hoc signing is forbidden.');
+  }
   const execution = githubExecution(env);
   const certificateBytes = decodeBase64Strict(secrets.BUILD_CERTIFICATE_BASE64);
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-credential-preflight-'));
@@ -324,11 +327,11 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     runRequired(runner, 'codesign', ['--verify', '--strict', '--verbose=2', probePath]);
     const details = runRequired(runner, 'codesign', ['-dv', '--verbose=4', probePath]);
     const signingFacts = parseSigningFacts(`${details.stdout}\n${details.stderr}`);
-    if (signingFacts.teamIdentifier !== secrets.TEAM_ID) {
-      throw new Error('Imported Developer ID TeamIdentifier mismatch.');
-    }
     if (!signingFacts.authorities.some((authority) => authority.startsWith('Developer ID Application:'))) {
       throw new Error('Signed probe does not contain a Developer ID Application authority.');
+    }
+    if (signingFacts.teamIdentifier !== secrets.TEAM_ID) {
+      throw new Error('Imported Developer ID TeamIdentifier mismatch.');
     }
     if (!signingFacts.runtimeVersion) {
       throw new Error('Signed probe does not contain the hardened runtime flag.');

@@ -144,6 +144,15 @@ test('Apple credential preflight fails closed on platform, Team ID, and notary r
   );
   assert.throws(
     () => verifyAppleReleaseCredentials({
+      outputPath: path.join(root, 'ad-hoc.json'),
+      env: { ...credentialEnv, IDENTITY: '-' },
+      platform: 'darwin',
+      runner: successfulRunner().runner,
+    }),
+    /ad-hoc signing is forbidden/,
+  );
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
       outputPath: path.join(root, 'notary.json'),
       env: credentialEnv,
       platform: 'darwin',
