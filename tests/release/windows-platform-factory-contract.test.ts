@@ -313,7 +313,7 @@ function makeFactoryGate() {
       verified: true,
     },
     cutover: {
-      source_root: 'E:\\OPL-VMs',
+      source_root: 'E:\\_Original-E-20260726\\OPL-VMs',
       source_mode: 'read_only_recovery',
       target_root: 'C:\\OPL-VMs',
       manifest_sha256: sha,
@@ -355,7 +355,7 @@ function makeFactoryGate() {
 test('Windows platform contract statically binds one C-root factory and two isolated zh-CN targets', () => {
   assert.deepEqual(validateWindowsPlatformFactoryContract(), {
     factoryRoot: 'C:\\OPL-VMs',
-    recoverySource: 'E:\\OPL-VMs',
+    recoverySource: 'E:\\_Original-E-20260726\\OPL-VMs',
     targetCount: 2,
     runtimeInputsValidated: [],
   });
@@ -400,6 +400,10 @@ test('post-resize factory gate accepts exact C capacity, zh-CN ISO, cutover and 
   const stale = structuredClone(gate);
   stale.iso.path = stale.iso.path.replace('C:\\OPL-VMs', 'E:\\OPL-VMs');
   assert.equal(validate(stale), false);
+
+  const staleRecoverySource = structuredClone(gate);
+  staleRecoverySource.cutover.source_root = 'E:\\OPL-VMs';
+  assert.equal(validate(staleRecoverySource), false);
 
   const prematureTerminal = structuredClone(gate);
   prematureTerminal.stage = 'terminal_closeout';

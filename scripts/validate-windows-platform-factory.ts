@@ -80,7 +80,7 @@ export function validateWindowsPlatformFactoryContract(inputs: Inputs = {}) {
   const plan = readJson(planPath) as Record<string, any>;
   assert.equal(plan.schema, 'opl_windows_platform_factory_plan.v1');
   assert.equal(plan.factory_root, 'C:\\OPL-VMs');
-  assert.equal(plan.recovery_source.root, 'E:\\OPL-VMs');
+  assert.equal(plan.recovery_source.root, 'E:\\_Original-E-20260726\\OPL-VMs');
   assert.equal(plan.recovery_source.delete_authorized, false);
   assert.deepEqual(
     plan.targets.map((target: Record<string, unknown>) => target.vm_name).sort(),
