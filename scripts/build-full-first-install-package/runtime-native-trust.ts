@@ -89,19 +89,48 @@ function readCodeSignature(filePath) {
   };
 }
 
-function signMacosRuntimeExecutable(filePath, identity) {
-  if (!identity) {
-    return;
-  }
-  run('codesign', [
+export function macosRuntimeCodesignArgs(filePath, identity) {
+  return [
     '--force',
+    // The designated requirement is Team-bound and must be regenerated for the release identity.
+    '--preserve-metadata=identifier,entitlements,flags,runtime',
     '--options',
     'runtime',
     '--timestamp',
     '--sign',
     identity,
     filePath,
-  ]);
+  ];
+}
+
+export function signedRuntimeExecutableSmokeArgs(relativePath) {
+  return relativePath === 'runtime/current/bin/officecli' ? ['--version'] : null;
+}
+
+export function assertSignedRuntimeExecutableSmoke(filePath, relativePath, runCaptureCommand = runCapture) {
+  const args = signedRuntimeExecutableSmokeArgs(relativePath);
+  if (!args) {
+    return null;
+  }
+  const result = runCaptureCommand(filePath, args);
+  const output = `${result.stdout || ''}${result.stderr || ''}`.trim();
+  if (result.status !== 0 || !output) {
+    throw new Error([
+      `Signed Full runtime executable smoke failed: ${relativePath}`,
+      `exit_status=${result.status ?? 'missing'}`,
+      result.signal ? `signal=${result.signal}` : '',
+      output ? `output:\n${output.slice(0, 4096)}` : 'output=missing',
+    ].filter(Boolean).join('\n'));
+  }
+  return output;
+}
+
+function signMacosRuntimeExecutable(filePath, relativePath, identity) {
+  if (!identity) {
+    return;
+  }
+  run('codesign', macosRuntimeCodesignArgs(filePath, identity));
+  assertSignedRuntimeExecutableSmoke(filePath, relativePath);
 }
 
 function verifyMacosRuntimeExecutable(filePath, options) {
@@ -180,7 +209,7 @@ export function ensureFullRuntimeNativeTrust(runtimeRoot) {
 
   for (const executable of executables) {
     if (identity) {
-      signMacosRuntimeExecutable(executable.path, identity);
+      signMacosRuntimeExecutable(executable.path, executable.relative_path, identity);
     }
   }
 
