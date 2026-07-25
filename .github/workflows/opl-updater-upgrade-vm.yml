@@ -212,7 +212,7 @@ jobs:
             test "sha256:$candidate_zip_sha256" = "$checkpoint_zip_sha256" || { echo "::error::Candidate ZIP SHA-256 does not match tracks/standard/assets.json."; exit 1; }
             test "$candidate_zip_size" = "$checkpoint_zip_size" || { echo "::error::Candidate ZIP size does not match tracks/standard/assets.json."; exit 1; }
             metadata_json="$(ruby -ryaml -rjson -e '
-              doc = YAML.safe_load(File.read(ARGV[0]), aliases: true) || {}
+              doc = YAML.safe_load(File.read(ARGV[0]), permitted_classes: [Time], aliases: true) || {}
               name = ARGV[1]
               entry = Array(doc["files"]).find { |candidate| File.basename(candidate["url"].to_s) == name }
               abort("missing updater metadata file entry") unless entry

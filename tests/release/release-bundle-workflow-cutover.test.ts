@@ -735,6 +735,51 @@ test('every Stable updater baseline passes before the first public release mutat
     'upgrade',
     'Download and fingerprint the installed predecessor',
   ).run);
+  const metadataParser = fingerprint.match(
+    /metadata_json="\$\(ruby -ryaml -rjson -e '\n([\s\S]*?)\n\s*' "\$metadata" "\$\(basename "\$zip"\)"\)"/,
+  )?.[1];
+  assert.ok(metadataParser, 'updater metadata parser is missing');
+  assert.match(
+    metadataParser,
+    /YAML\.safe_load\(File\.read\(ARGV\[0\]\), permitted_classes: \[Time\], aliases: true\)/,
+  );
+  assert.match(metadataParser, /File\.basename\(candidate\["url"\]\.to_s\) == name/);
+  assert.match(fingerprint, /Candidate ZIP SHA-256 does not match tracks\/standard\/assets\.json/);
+  assert.match(fingerprint, /Candidate ZIP size does not match tracks\/standard\/assets\.json/);
+  assert.match(fingerprint, /Updater metadata SHA-512 does not match candidate ZIP/);
+  assert.match(fingerprint, /Updater metadata size does not match candidate ZIP/);
+
+  const metadataRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-updater-time-metadata-'));
+  const zipName = 'One-Person-Lab-26.7.26-mac-arm64.zip';
+  const metadataPath = path.join(metadataRoot, 'latest-arm64-mac.yml');
+  try {
+    fs.writeFileSync(metadataPath, [
+      'version: 26.7.2600',
+      'releaseDate: 2026-07-25T21:29:28Z',
+      'files:',
+      `  - url: ${zipName}`,
+      '    sha512: updater-sha512',
+      '    size: 465998660',
+      '',
+    ].join('\n'));
+    const parsedMetadata = spawnSync('ruby', [
+      '-ryaml',
+      '-rjson',
+      '-e',
+      metadataParser,
+      metadataPath,
+      zipName,
+    ], { encoding: 'utf8' });
+    assert.equal(parsedMetadata.status, 0, parsedMetadata.stderr);
+    assert.deepEqual(JSON.parse(parsedMetadata.stdout), {
+      sha512: 'updater-sha512',
+      size: 465998660,
+      url: zipName,
+    });
+  } finally {
+    fs.rmSync(metadataRoot, { recursive: true, force: true });
+  }
+
   const sha512Command = fingerprint.match(/^\s*actual_sha512="\$\((.+)\)"$/m)?.[1];
   assert.ok(sha512Command, 'updater SHA-512 calculation is missing');
   assert.match(sha512Command, /openssl dgst -sha512 -binary "\$zip" \| base64 \| awk '\{printf "%s", \$0\}'/);
