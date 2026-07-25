@@ -84,8 +84,13 @@ Run
 [`fixtures/v6-electron-visible-smoke.ps1`](fixtures/v6-electron-visible-smoke.ps1)
 only after the external-SSD VM owner has issued an explicit writer-release
 receipt. It verifies that fixed-path JSON receipt and its SHA, validates the
-exact candidate ZIP digest, expands the verified ZIP into the current `RunId`
-directory, and launches only that run-owned tree. It sets
+exact candidate ZIP digest, keeps the same read-only archive stream locked
+against writers while rejecting zip-slip and duplicate paths and expanding
+into the current `RunId` directory, then launches only that run-owned tree.
+The runner holds read handles that deny writes and deletion across every
+extracted file from the final pre-launch tree check until the owned processes
+exit, then verifies the complete tree again. Each receipt binds that tree's
+SHA256 and file count. It sets
 `OPL_WINDOWS_WSL2_VALIDATION=1` only for the launched process, waits for a real
 `MainWindowHandle`, reads the Chromium accessibility surface through Windows UI
 Automation, captures the target window through `PrintWindow`, closes only the
@@ -110,9 +115,10 @@ capabilities into a product claim. This runner emits only
 `guest_smoke_pending_host_closeout` evidence with `terminal_v6_verdict=false`.
 After distinct stopped and running runs pass, use
 [`fixtures/v6-host-closeout.mjs`](fixtures/v6-host-closeout.mjs). It validates
-both guest receipts with Draft 2020-12 JSON Schema, binds their receipt and
-screenshot digests to the same artifact, source refs, VM identity, and writer
-handoff, verifies the VMX on the expected external SSD, requests only a bounded
+both guest receipts with Draft 2020-12 JSON Schema, binds their receipt,
+screenshot, and identical stopped/running tree identities to the same artifact,
+source refs, VM identity, and writer handoff, verifies the VMX on the expected
+external SSD, requests only a bounded
 VMware soft shutdown, and waits for both `vmrun list` and the `vmware-vmx`
 process readback to clear. Only then may it write
 [`windows-wsl2-v6-host-closeout.schema.json`](windows-wsl2-v6-host-closeout.schema.json)

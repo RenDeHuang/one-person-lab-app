@@ -247,6 +247,10 @@ function validateGuestReceipt({
   assert.equal(receipt.framework_sha, expected.frameworkSha);
   assert.equal(receipt.artifact.sha256, expected.artifactSha256);
   assert.equal(receipt.artifact.tree_origin, 'verified_zip_expansion');
+  assert.match(receipt.artifact.tree_sha256, /^[0-9a-f]{64}$/);
+  assert.ok(receipt.artifact.tree_file_count > 0);
+  assert.equal(receipt.artifact.tree_write_locks_held, true);
+  assert.equal(receipt.artifact.tree_unchanged_after_process_exit, true);
   assert.equal(receipt.vm.identity, expected.vmIdentity);
   assert.equal(receipt.vm.storage_class, 'external_ssd');
   assert.equal(receipt.vm.external_ssd, true);
@@ -281,6 +285,8 @@ function validateGuestReceipt({
     receipt_sha256: sha256File(receiptPath),
     screenshot_sha256: receipt.screenshot.sha256,
     run_id: receipt.run_id,
+    tree_sha256: receipt.artifact.tree_sha256,
+    tree_file_count: receipt.artifact.tree_file_count,
   };
 }
 
@@ -417,6 +423,16 @@ export async function runHostCloseout(rawOptions, injected = {}) {
     runningEvidence.run_id,
     'stopped and running evidence must use distinct RunId values',
   );
+  assert.equal(
+    stoppedEvidence.tree_sha256,
+    runningEvidence.tree_sha256,
+    'stopped and running evidence must bind the same extracted candidate tree',
+  );
+  assert.equal(
+    stoppedEvidence.tree_file_count,
+    runningEvidence.tree_file_count,
+    'stopped and running evidence must bind the same candidate file count',
+  );
 
   const runningBeforeShutdown = dependencies.listRunningVms(options);
   assert.ok(
@@ -469,6 +485,8 @@ export async function runHostCloseout(rawOptions, injected = {}) {
     artifact: {
       sha256: artifactSha256,
       file_name: path.basename(options.candidateZip),
+      tree_sha256: stoppedEvidence.tree_sha256,
+      tree_file_count: stoppedEvidence.tree_file_count,
     },
     vm: {
       identity: vmIdentity,
