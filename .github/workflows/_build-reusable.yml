@@ -546,7 +546,9 @@ jobs:
 
             # Create temporary keychain
             security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-            security default-keychain -s build.keychain
+            security set-keychain-settings -lut 21600 build.keychain
+            security default-keychain -d user -s build.keychain
+            security list-keychains -d user -s build.keychain
             security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
 
             # Import certificate
@@ -885,11 +887,19 @@ jobs:
           appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
           teamId: ${{ secrets.TEAM_ID }}
           OPL_RUNTIME_CODESIGN_IDENTITY: ${{ secrets.IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}
         run: |
           set -euo pipefail
           target_arch="${{ matrix.native_arch || matrix.arch }}"
           dmg_path="shells/aionui/out/One-Person-Lab-${OPL_RELEASE_VERSION}-mac-${target_arch}.dmg"
           test -f "$dmg_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -d user -s build.keychain
+          security list-keychains -d user -s build.keychain
+          security find-identity -v -p codesigning build.keychain | grep -F "$OPL_RUNTIME_CODESIGN_IDENTITY" >/dev/null || {
+            echo "::error::Configured Developer ID identity is not available in build.keychain."
+            exit 1
+          }
           node --experimental-strip-types scripts/notarize-macos-dmg.ts \
             --dmg "$dmg_path" \
             --output shells/aionui/out/standard-apple-notarization-receipt.json

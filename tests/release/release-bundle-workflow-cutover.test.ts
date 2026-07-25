@@ -991,6 +991,12 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const macosBuild = reusableBuild.jobs.build.steps.find(
     (step: Record<string, unknown>) => step.name === 'Build with electron-builder (macOS)',
   );
+  const standardFinalizer = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Finalize Standard Developer ID signing and notarization',
+  );
+  const cleanupSigning = reusableBuild.jobs.build.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Clean up keychain (macOS only)',
+  );
 
   assert.equal(bundle.jobs['standard-build'].with.require_macos_gatekeeper, true);
   assert.equal(bundle.jobs['standard-build'].secrets, 'inherit');
@@ -1055,10 +1061,26 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.equal(setupSigning.env.BUILD_CERTIFICATE_BASE64, '${{ secrets.BUILD_CERTIFICATE_BASE64 }}');
   assert.equal(setupSigning.env.P12_PASSWORD, '${{ secrets.P12_PASSWORD }}');
+  assert.match(String(setupSigning.run), /security set-keychain-settings -lut 21600 build\.keychain/);
+  assert.match(String(setupSigning.run), /security default-keychain -d user -s build\.keychain/);
+  assert.match(String(setupSigning.run), /security list-keychains -d user -s build\.keychain/);
   assert.equal(macosBuild.env.appleId, '${{ secrets.APPLE_ID }}');
   assert.equal(macosBuild.env.appleIdPassword, '${{ secrets.APPLE_ID_PASSWORD }}');
   assert.equal(macosBuild.env.teamId, '${{ secrets.TEAM_ID }}');
   assert.equal(macosBuild.env.identity, '${{ secrets.IDENTITY }}');
+  assert.equal(standardFinalizer.env.KEYCHAIN_PASSWORD, "${{ secrets.KEYCHAIN_PASSWORD || 'temp-keychain-password' }}");
+  assert.match(String(standardFinalizer.run), /security unlock-keychain -p "\$KEYCHAIN_PASSWORD" build\.keychain/);
+  assert.match(String(standardFinalizer.run), /security default-keychain -d user -s build\.keychain/);
+  assert.match(String(standardFinalizer.run), /security list-keychains -d user -s build\.keychain/);
+  assert.match(
+    String(standardFinalizer.run),
+    /security find-identity -v -p codesigning build\.keychain \| grep -F "\$OPL_RUNTIME_CODESIGN_IDENTITY" >\/dev\/null/,
+  );
+  const buildSteps = reusableBuild.jobs.build.steps;
+  assert.ok(buildSteps.indexOf(setupSigning) < buildSteps.indexOf(standardFinalizer));
+  assert.ok(buildSteps.indexOf(standardFinalizer) < buildSteps.indexOf(cleanupSigning));
+  assert.equal(cleanupSigning.if, "startsWith(matrix.platform, 'macos') && always()");
+  assert.match(String(cleanupSigning.run), /security delete-keychain build\.keychain/);
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
 
   const credentialGate = fullBuild.jobs['full-first-install'].steps.find(
