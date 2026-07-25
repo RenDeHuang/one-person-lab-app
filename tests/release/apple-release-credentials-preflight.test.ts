@@ -13,6 +13,7 @@ const teamId = 'SVVC4TA784';
 const identitySha = 'A'.repeat(40);
 const identity = `Developer ID Application: Example Owner (${teamId})`;
 const normalizedIdentity = `Example Owner (${teamId})`;
+const originalKeychain = '/Users/runner/Library/Keychains/login.keychain-db';
 const credentialEnv = {
   BUILD_CERTIFICATE_BASE64: Buffer.from('fixture-p12').toString('base64'),
   P12_PASSWORD: 'fixture-p12-password',
@@ -55,6 +56,12 @@ function successfulRunner(overrides: {
         stdout: overrides.identityOutput ?? `  1) ${identitySha} "${identity}"\n`,
         stderr: '',
       };
+    }
+    if (command === 'security' && args.join(' ') === 'list-keychains -d user') {
+      return { status: 0, stdout: `    "${originalKeychain}"\n`, stderr: '' };
+    }
+    if (command === 'security' && args.join(' ') === 'default-keychain -d user') {
+      return { status: 0, stdout: `    "${originalKeychain}"\n`, stderr: '' };
     }
     if (
       overrides.failCodesignArgs
@@ -138,6 +145,32 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
     fixture.calls.some((call) => call.command === 'xcrun' && call.args.slice(0, 2).join(' ') === 'notarytool history'),
     true,
   );
+  const keychainSearchUpdates = fixture.calls.filter((call) => (
+    call.command === 'security'
+    && call.args[0] === 'list-keychains'
+    && call.args.includes('-s')
+  ));
+  assert.equal(keychainSearchUpdates.length, 2);
+  assert.deepEqual(keychainSearchUpdates.at(-1)?.args, [
+    'list-keychains',
+    '-d',
+    'user',
+    '-s',
+    originalKeychain,
+  ]);
+  const defaultKeychainUpdates = fixture.calls.filter((call) => (
+    call.command === 'security'
+    && call.args[0] === 'default-keychain'
+    && call.args.includes('-s')
+  ));
+  assert.equal(defaultKeychainUpdates.length, 2);
+  assert.deepEqual(defaultKeychainUpdates.at(-1)?.args, [
+    'default-keychain',
+    '-d',
+    'user',
+    '-s',
+    originalKeychain,
+  ]);
   const receiptText = fs.readFileSync(outputPath, 'utf8');
   for (const sensitiveValue of [
     credentialEnv.IDENTITY,
@@ -355,5 +388,31 @@ test('codesign diagnostics redact selector, full name, SHA-1, P12, and Apple cre
         return true;
       },
     );
+    const keychainSearchUpdates = fixture.calls.filter((call) => (
+      call.command === 'security'
+      && call.args[0] === 'list-keychains'
+      && call.args.includes('-s')
+    ));
+    assert.equal(keychainSearchUpdates.length, 2);
+    assert.deepEqual(keychainSearchUpdates.at(-1)?.args, [
+      'list-keychains',
+      '-d',
+      'user',
+      '-s',
+      originalKeychain,
+    ]);
+    const defaultKeychainUpdates = fixture.calls.filter((call) => (
+      call.command === 'security'
+      && call.args[0] === 'default-keychain'
+      && call.args.includes('-s')
+    ));
+    assert.equal(defaultKeychainUpdates.length, 2);
+    assert.deepEqual(defaultKeychainUpdates.at(-1)?.args, [
+      'default-keychain',
+      '-d',
+      'user',
+      '-s',
+      originalKeychain,
+    ]);
   }
 });

@@ -149,6 +149,18 @@ function resolveImportedDeveloperIdIdentity(
   return resolved;
 }
 
+function parseKeychainPaths(output: string, label: string): string[] {
+  const paths = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.match(/^"([^"]+)"$/)?.[1] ?? '');
+  if (paths.length === 0 || paths.some((entry) => !entry)) {
+    throw new Error(`${label} did not return quoted Keychain paths.`);
+  }
+  return paths;
+}
+
 function commandText(command: string, args: string[]) {
   return [command, ...args].map((entry) => JSON.stringify(entry)).join(' ');
 }
@@ -273,6 +285,9 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
   const probePath = path.join(tempRoot, 'codesign-probe');
   const keychainPassword = crypto.randomBytes(32).toString('hex');
   let keychainCreated = false;
+  let originalUserKeychains: string[] | null = null;
+  let originalDefaultKeychain: string | null = null;
+  let keychainStateRestored = false;
 
   try {
     fs.writeFileSync(certificatePath, certificateBytes, { mode: 0o600 });
@@ -286,6 +301,28 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       sensitiveValues: [keychainPassword],
     });
     runRequired(runner, 'security', ['set-keychain-settings', '-lut', '900', keychainPath]);
+    originalUserKeychains = parseKeychainPaths(
+      runRequired(runner, 'security', ['list-keychains', '-d', 'user']).stdout,
+      'security list-keychains',
+    );
+    const defaultKeychains = parseKeychainPaths(
+      runRequired(runner, 'security', ['default-keychain', '-d', 'user']).stdout,
+      'security default-keychain',
+    );
+    if (defaultKeychains.length !== 1) {
+      throw new Error('security default-keychain did not return exactly one Keychain path.');
+    }
+    originalDefaultKeychain = defaultKeychains[0]!;
+    runRequired(
+      runner,
+      'security',
+      ['list-keychains', '-d', 'user', '-s', keychainPath, ...originalUserKeychains],
+    );
+    runRequired(
+      runner,
+      'security',
+      ['default-keychain', '-d', 'user', '-s', keychainPath],
+    );
     runRequired(
       runner,
       'security',
@@ -396,6 +433,17 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     if (!signingFacts.timestamp) {
       throw new Error('Signed probe does not contain a trusted timestamp.');
     }
+    runRequired(
+      runner,
+      'security',
+      ['list-keychains', '-d', 'user', '-s', ...originalUserKeychains],
+    );
+    runRequired(
+      runner,
+      'security',
+      ['default-keychain', '-d', 'user', '-s', originalDefaultKeychain],
+    );
+    keychainStateRestored = true;
 
     const notary = runRequired(
       runner,
@@ -468,6 +516,10 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     });
     return receipt;
   } finally {
+    if (originalUserKeychains && originalDefaultKeychain && !keychainStateRestored) {
+      runner('security', ['list-keychains', '-d', 'user', '-s', ...originalUserKeychains]);
+      runner('security', ['default-keychain', '-d', 'user', '-s', originalDefaultKeychain]);
+    }
     if (keychainCreated) {
       runner('security', ['delete-keychain', keychainPath]);
     }
