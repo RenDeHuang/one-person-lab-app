@@ -5,6 +5,8 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "22.15.3",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
     "typescript": "5.8.3",
     "yaml": "2.8.1"
   },
@@ -52,6 +54,7 @@
     "validate:shell-candidates": "node --experimental-strip-types scripts/validate-shell-candidates.ts",
     "validate:gui-design-system": "node --experimental-strip-types scripts/validate-gui-design-system.ts",
     "validate:runtime-route": "node --experimental-strip-types scripts/validate-runtime-route.ts",
+    "validate:windows-platform-factory": "node --experimental-strip-types scripts/validate-windows-platform-factory.ts",
     "validate:candidate:hermes": "npm run validate:shell-candidates -- --candidate hermes-codex && node --experimental-strip-types scripts/validate-hermes-candidate.ts",
     "validate:candidate:agui": "npm run validate:shell-candidates -- --candidate agui-codex",
     "validate:candidate:native": "npm run validate:shell-candidates -- --candidate opl-native-workbench",

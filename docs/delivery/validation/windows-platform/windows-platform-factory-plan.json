@@ -1,0 +1,70 @@
+{
+  "schema": "opl_windows_platform_factory_plan.v1",
+  "state": "validation_only_non_binding",
+  "platform_owner_task_id": "019f972b-f550-7961-90be-9873600cd895",
+  "factory_root": "C:\\OPL-VMs",
+  "recovery_source": {
+    "root": "E:\\OPL-VMs",
+    "mode": "read_only_until_terminal_closeout",
+    "delete_authorized": false
+  },
+  "localization": {
+    "installation_media_language": "zh-CN",
+    "ui_language": "zh-CN",
+    "system_locale": "zh-CN",
+    "user_locale": "zh-CN",
+    "default_input_method_tip": "0804:00000804"
+  },
+  "targets": [
+    {
+      "vm_name": "OPL-V6-WSL2-01",
+      "execution_owner_thread": "019f97e4-288a-7140-8850-925c657d8c71",
+      "guest_root": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01",
+      "evidence_root": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence",
+      "runtime_namespace": "OPL-V6-WSL2-01",
+      "receipt_namespace": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence",
+      "network": {
+        "switch_name": "OPL-NAT-OPL-V6-WSL2-01",
+        "nat_name": "OPL-NAT-OPL-V6-WSL2-01",
+        "subnet": "172.28.102.0/24",
+        "host_gateway": "172.28.102.1",
+        "guest_ip": "172.28.102.10",
+        "host_loopback_port_lease": "33101-33119"
+      },
+      "webui_runtime_authority": 0
+    },
+    {
+      "vm_name": "OPL-WEBUI-CLEAN-01",
+      "execution_owner_thread": "019f972b-f550-7961-90be-9873600cd895",
+      "guest_root": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01",
+      "evidence_root": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Evidence",
+      "runtime_namespace": "OPL-WEBUI-CLEAN-01",
+      "receipt_namespace": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Evidence",
+      "network": {
+        "switch_name": "OPL-NAT-OPL-WEBUI-CLEAN-01",
+        "nat_name": "OPL-NAT-OPL-WEBUI-CLEAN-01",
+        "subnet": "172.28.101.0/24",
+        "host_gateway": "172.28.101.1",
+        "guest_ip": "172.28.101.10",
+        "host_loopback_port_lease": "33001-33019"
+      },
+      "webui_runtime_authority": 0
+    }
+  ],
+  "required_script_receipt_names": [
+    "Test-OPLHyperVStorageCompatibility.ps1",
+    "New-OPLWindows11VM.ps1",
+    "New-OPLVMIsolatedNetwork.ps1",
+    "Seal-OPLCleanWindowsBaseline.ps1",
+    "Grant-OPLVMLease.ps1",
+    "Grant-OPLV6WriterLease.ps1"
+  ],
+  "operation_policy": {
+    "unknown_result": "read_only_reconcile_no_second_mutation",
+    "storage_probe_exactly_once": true,
+    "vm_create_exactly_once": true,
+    "lease_create_once": true,
+    "webui_runtime_authority": 0,
+    "stable_release_authority": 0
+  }
+}

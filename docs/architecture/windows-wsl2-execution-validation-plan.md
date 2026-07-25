@@ -64,13 +64,15 @@ machine truth and do not authorize a second runtime or lifecycle authority.
    success from process creation, `/health`, a registered distribution, or a
    partial log.
 5. A failed or unavailable VM blocks only the corresponding validation item. It
-   does not block macOS/Linux development or create a product gap.
+   does not block unrelated development or create a product gap.
 6. Delete or quarantine disposable credentials and guest data after the run.
-7. A guest with Docker/WebUI or another validation owner's state has one active
-   guest writer. Obtain that owner's explicit release before any V6 guest write;
-   never use a shared credential as an implicit handoff. Keep the VM, its disks,
-   and large build/cache writes on the external SSD. Do not clone, expand, or
-   generate large caches on the internal-disk historical VM.
+7. A guest has one active writer. V6 guest execution is owned only by task
+   `019f97e4-288a-7140-8850-925c657d8c71` on Hyper-V VM
+   `OPL-V6-WSL2-01`, after the Windows platform owner issues an active writer
+   lease that binds the exact VM ID, clean-VM attestation, executor, operations,
+   and validity window. A shared credential or historical handoff is not
+   authority. Do not start, stop, enter, clone, or expand the historical Intel
+   iMac VM for V6.
 8. Preserve existing Docker containers, images, Docker data, and
    `OnePersonLab` data. V6 must not run Docker prune, global `wsl --shutdown`,
    unregister a distribution, or delete unknown guest data. After the bounded
@@ -204,7 +206,9 @@ V6 is the smallest usable Windows technical-validation build. It is a
 diagnostic status surface, not the route-complete product described by the
 reference blueprint's development definition of done. The candidate must be
 visibly identified as `validation_only_non_binding`, explicitly gated away from
-the ordinary App path, and built from recorded App and Shell refs.
+the ordinary App path, and bound to a recorded App acceptance revision plus the
+Shell candidate source. The App revision is not claimed to be embedded in the
+Shell-built ZIP.
 
 On a real Windows VM, the V6 smoke passes only when the exact Electron
 candidate:
@@ -226,14 +230,30 @@ candidate:
    success state for those routes; and
 5. renders each failed or unavailable readback distinctly, does not infer
    readiness from a process, imported distribution, or `/health` alone, and
-   tears down only processes it owns when the candidate closes.
+   tears down only processes it owns when the candidate closes; and
+6. passes distinct stopped, running, and post-restart persistence guest phases
+   against one create-once
+   Windows build-seal receipt. The build starts from an immutable intake
+   manifest that binds the App acceptance revision, Shell source
+   `868d6e818583547a5ec982b10b34464a3fa47c10` and root tree
+   `1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7`, plus Framework fixture
+   `fe1fafa26f2c59922596718b305761bbc7558c9c`, repository
+   `https://github.com/gaofeng21cn/one-person-lab.git`, root tree
+   `5b27bf9fbe74815446e9ee401e81e0a192973d75`, and CLI blob Git/SHA256
+   identities. The seal records the fresh
+   checkout, frozen dependency install, resolved toolchain, command evidence,
+   ZIP/executable/`app.asar` digests, and expanded tree identity. A historical
+   ZIP digest is provenance only and cannot authorize a new run.
 
-V6 permits only the bounded read-only probes required for these four status
-groups. Login, password reset, update, repair, installer, importer, destructive
-WSL, Docker, and general Framework-action routes remain outside the candidate.
-Passing V6 does not complete V3, V4, V5, or the reference blueprint's
-development validation; it is not a Windows support, installer, upgrade, or
-release-readiness claim.
+V6 permits only bounded read-only product/API probes and the transient process
+state needed to launch the explicitly gated candidate under an acquired VM
+writer lease. Login, password reset, update, repair, installer, importer,
+destructive WSL, Docker, and general Framework-action routes remain outside the
+candidate. A visible-smoke pass validates the bounded projection, not the
+unavailable capabilities: `unverified` and `unavailable` remain negative
+capability outcomes even when the UI renders them correctly. Passing V6 does
+not complete V3, V4, V5, or the reference blueprint's development validation;
+it is not a Windows support, installer, upgrade, or release-readiness claim.
 
 ## 4. Evidence and Exit
 
@@ -248,20 +268,34 @@ fixture_and_component_digests
 selected_transport_and_lifecycle_strategy
 vm_storage_and_guest_write_authority
 commands_and_readbacks
-visible_smoke_receipt
 positive_results
 negative_results
 blocked_or_unavailable_items
 cleanup_result
 ```
 
-A V6 receipt additionally records the exact Electron artifact digest, its
-explicit validation gate, a sanitized visible-state proof (for example a
-redacted screenshot digest and dimensions), the external-SSD VM identity, the
-guest writer handoff and release, and one outcome for each required status
-group. It records `unverified` and `unavailable` as observed outcomes rather
-than converting them into a pass. It must not contain a guest password, token,
-full state payload, endpoint, thread/prompt body, or raw terminal log.
+A V6 receipt additionally records `visible_smoke_evidence`: the exact Electron
+artifact digest, its explicit validation gate, a sanitized visible-state proof
+(for example a target-window screenshot digest and dimensions), the exact
+Hyper-V VM identity, the platform-owner writer lease and release, and one outcome
+for each required status group. It records `unverified` and `unavailable` as
+observed outcomes rather than converting them into a capability pass. It must
+not contain a guest password, token, full state payload, endpoint, thread/prompt
+body, or raw terminal log.
+
+A guest visible-smoke receipt is intentionally non-terminal:
+`receipt_stage=guest_smoke_pending_host_closeout` and
+`terminal_v6_verdict=false`, even when its bounded status is `passed`. The
+terminal V6 receipt is a separate host closeout. It validates the stopped,
+running, and restart-persistence guest receipts and screenshots against one
+artifact, source-ref set, VM identity, intake manifest, build-seal receipt, and
+authoritative writer lease;
+queries the exact `OPL-V6-WSL2-01` Hyper-V VM ID; performs only bounded
+`Stop-VM -Shutdown`; and confirms `Get-VM` reads `State=Off` before recording
+writer release. It also requires operation-owned guest and host process,
+listener, writer, and active-lease counts to be zero. No partial guest pass,
+stale lease, mismatched tree, shutdown timeout, or hard power-off can produce
+`terminal_v6_verdict=true`.
 
 The validation lane may update the parent exploration and this blueprint with
 observed facts, rejected options, and narrowed uncertainty. It may not promote

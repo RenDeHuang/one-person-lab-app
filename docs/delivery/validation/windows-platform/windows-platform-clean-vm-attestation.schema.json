@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-platform-clean-vm-attestation.schema.json",
+  "title": "OPL C-root clean Simplified Chinese Windows VM attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "factory_root",
+    "attested_at",
+    "vm_name",
+    "vm_id",
+    "vm_identity",
+    "vm_state",
+    "config_path",
+    "active_vhdx_path",
+    "vhdx_chain",
+    "checkpoint_id",
+    "checkpoint_name",
+    "checkpoint_created_at",
+    "localization",
+    "network",
+    "clean_user_receipt_path",
+    "clean_user_receipt_sha256",
+    "request_path",
+    "request_sha256",
+    "network_receipt_path",
+    "network_receipt_sha256"
+  ],
+  "properties": {
+    "schema": { "const": "opl_windows_clean_vm_attestation.v2" },
+    "status": { "const": "attested" },
+    "factory_root": { "const": "C:\\OPL-VMs" },
+    "attested_at": { "type": "string", "format": "date-time" },
+    "vm_name": { "enum": ["OPL-V6-WSL2-01", "OPL-WEBUI-CLEAN-01"] },
+    "vm_id": { "$ref": "#/$defs/uuid" },
+    "vm_identity": { "type": "string", "pattern": "^hyperv-vmid:[0-9a-f-]{36}$" },
+    "vm_state": { "const": "Off" },
+    "config_path": { "$ref": "#/$defs/cRootPath" },
+    "active_vhdx_path": { "$ref": "#/$defs/cRootPath" },
+    "vhdx_chain": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/vhdxEntry" }
+    },
+    "checkpoint_id": { "$ref": "#/$defs/uuid" },
+    "checkpoint_name": { "type": "string", "pattern": "^OPL-Clean-Windows-zh-CN-" },
+    "checkpoint_created_at": { "type": "string", "format": "date-time" },
+    "localization": { "$ref": "#/$defs/localization" },
+    "network": { "$ref": "#/$defs/network" },
+    "clean_user_receipt_path": { "$ref": "#/$defs/cRootPath" },
+    "clean_user_receipt_sha256": { "$ref": "#/$defs/sha256" },
+    "request_path": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Leases\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\.request\\.json$" },
+    "request_sha256": { "$ref": "#/$defs/sha256" },
+    "network_receipt_path": { "$ref": "#/$defs/cRootPath" },
+    "network_receipt_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "vm_name": { "const": "OPL-V6-WSL2-01" } }, "required": ["vm_name"] },
+      "then": {
+        "properties": {
+          "config_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Virtual Machines" },
+          "active_vhdx_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+          "vhdx_chain": { "items": { "$ref": "#/$defs/v6VhdxEntry" } },
+          "network": {
+            "properties": {
+              "switch_name": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+              "nat_name": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+              "subnet": { "const": "172.28.102.0/24" },
+              "guest_ip": { "const": "172.28.102.10" },
+              "host_loopback_port_lease": { "const": "33101-33119" }
+            }
+          },
+          "clean_user_receipt_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01\\\\Evidence\\\\.+\\.json$" },
+          "request_path": { "const": "C:\\OPL-VMs\\Leases\\OPL-V6-WSL2-01.request.json" },
+          "network_receipt_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence\\isolated-network-receipt.json" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "vm_name": { "const": "OPL-WEBUI-CLEAN-01" } }, "required": ["vm_name"] },
+      "then": {
+        "properties": {
+          "config_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Virtual Machines" },
+          "active_vhdx_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-WEBUI-CLEAN-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+          "vhdx_chain": { "items": { "$ref": "#/$defs/webuiVhdxEntry" } },
+          "network": {
+            "properties": {
+              "switch_name": { "const": "OPL-NAT-OPL-WEBUI-CLEAN-01" },
+              "nat_name": { "const": "OPL-NAT-OPL-WEBUI-CLEAN-01" },
+              "subnet": { "const": "172.28.101.0/24" },
+              "guest_ip": { "const": "172.28.101.10" },
+              "host_loopback_port_lease": { "const": "33001-33019" }
+            }
+          },
+          "clean_user_receipt_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-WEBUI-CLEAN-01\\\\Evidence\\\\.+\\.json$" },
+          "request_path": { "const": "C:\\OPL-VMs\\Leases\\OPL-WEBUI-CLEAN-01.request.json" },
+          "network_receipt_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Evidence\\isolated-network-receipt.json" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "cRootPath": { "type": "string", "pattern": "^C:\\\\OPL-VMs(?:\\\\.*)?$" },
+    "vhdxEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "parent_path", "vhd_type", "file_size_bytes", "maximum_size_bytes"],
+      "properties": {
+        "path": { "$ref": "#/$defs/cRootPath" },
+        "parent_path": { "oneOf": [{ "$ref": "#/$defs/cRootPath" }, { "type": "null" }] },
+        "vhd_type": { "enum": ["Dynamic", "Differencing", "Fixed"] },
+        "file_size_bytes": { "type": "integer", "minimum": 1 },
+        "maximum_size_bytes": { "type": "integer", "minimum": 68719476736 }
+      }
+    },
+    "v6VhdxEntry": {
+      "allOf": [
+        { "$ref": "#/$defs/vhdxEntry" },
+        {
+          "properties": {
+            "path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+            "parent_path": {
+              "oneOf": [
+                { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "webuiVhdxEntry": {
+      "allOf": [
+        { "$ref": "#/$defs/vhdxEntry" },
+        {
+          "properties": {
+            "path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-WEBUI-CLEAN-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+            "parent_path": {
+              "oneOf": [
+                { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-WEBUI-CLEAN-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "localization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installation_media_language", "ui_language", "system_locale", "user_locale", "default_input_method_tip"],
+      "properties": {
+        "installation_media_language": { "const": "zh-CN" },
+        "ui_language": { "const": "zh-CN" },
+        "system_locale": { "const": "zh-CN" },
+        "user_locale": { "const": "zh-CN" },
+        "default_input_method_tip": { "const": "0804:00000804" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["switch_name", "switch_id", "nat_name", "nat_id", "subnet", "guest_ip", "static_mac_address", "host_loopback_port_lease", "inbound_nat_mappings", "writable_surface_overlap_count"],
+      "properties": {
+        "switch_name": { "type": "string", "pattern": "^OPL-NAT-OPL-(?:V6-WSL2|WEBUI-CLEAN)-01$" },
+        "switch_id": { "$ref": "#/$defs/uuid" },
+        "nat_name": { "type": "string", "pattern": "^OPL-NAT-OPL-(?:V6-WSL2|WEBUI-CLEAN)-01$" },
+        "nat_id": { "type": "string", "minLength": 3 },
+        "subnet": { "enum": ["172.28.101.0/24", "172.28.102.0/24"] },
+        "guest_ip": { "enum": ["172.28.101.10", "172.28.102.10"] },
+        "static_mac_address": { "type": "string", "pattern": "^[0-9A-Fa-f]{12}$" },
+        "host_loopback_port_lease": { "enum": ["33001-33019", "33101-33119"] },
+        "inbound_nat_mappings": { "const": 0 },
+        "writable_surface_overlap_count": { "const": 0 }
+      }
+    }
+  }
+}
