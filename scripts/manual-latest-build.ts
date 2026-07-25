@@ -643,7 +643,6 @@ Guide: docs/delivery/release/manual-latest-builds.md`);
 function resolveUiUxRoot(workspaceRoot: string, explicit: string | null) {
   const candidates = [
     explicit,
-    path.join(workspaceRoot, 'ai-skills-library', 'ui-ux-pro-max'),
     path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
   ].filter((candidate): candidate is string => Boolean(candidate));
   const found = candidates.find((candidate) => fs.statSync(candidate, { throwIfNoEntry: false })?.isDirectory());
