@@ -4,7 +4,7 @@
   "platform_owner_task_id": "019f972b-f550-7961-90be-9873600cd895",
   "factory_root": "C:\\OPL-VMs",
   "recovery_source": {
-    "root": "E:\\OPL-VMs",
+    "root": "E:\\_Original-E-20260726\\OPL-VMs",
     "mode": "read_only_until_terminal_closeout",
     "delete_authorized": false
   },

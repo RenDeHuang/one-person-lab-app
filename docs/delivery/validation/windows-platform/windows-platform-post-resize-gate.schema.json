@@ -94,7 +94,7 @@
       "additionalProperties": false,
       "required": ["source_root", "source_mode", "target_root", "manifest_sha256", "file_count", "total_bytes", "verified", "source_deleted"],
       "properties": {
-        "source_root": { "const": "E:\\OPL-VMs" },
+        "source_root": { "const": "E:\\_Original-E-20260726\\OPL-VMs" },
         "source_mode": { "const": "read_only_recovery" },
         "target_root": { "const": "C:\\OPL-VMs" },
         "manifest_sha256": { "$ref": "#/$defs/sha256" },

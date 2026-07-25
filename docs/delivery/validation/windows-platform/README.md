@@ -2,10 +2,10 @@
 
 State: `validation_only_non_binding`
 
-The only active factory root for this cohort is `C:\OPL-VMs`. The historical
-`E:\OPL-VMs` tree remains a read-only recovery source until terminal closeout.
-No request, lease, VM configuration, VHDX, checkpoint, runtime namespace, or
-receipt namespace may resolve below E:.
+The only active factory root for this cohort is `C:\OPL-VMs`. The recovered
+`E:\_Original-E-20260726\OPL-VMs` tree remains a read-only recovery source until
+terminal closeout. No request, lease, VM configuration, VHDX, checkpoint,
+runtime namespace, or receipt namespace may resolve below that recovery tree.
 
 The factory creates two isolated Simplified Chinese Windows 11 VMs:
 
@@ -21,12 +21,12 @@ runtime and receipt namespaces must be disjoint.
 ## Copy, Verify, Cut Over
 
 Copy only the official ISO, base cache, platform scripts, immutable packets and
-necessary sanitized evidence from E: into a random absent
+necessary sanitized evidence from the exact recovery source into a random absent
 `C:\OPL-VMs.staging-<GUID>` directory. Generate a sorted relative-path, size and
 SHA256 manifest, verify every destination file against the source, then rename
-the staging directory once to `C:\OPL-VMs`. Keep E: unchanged. Existing E-root
-request and lease JSON files are recovery evidence only and must not be copied
-into the active `C:\OPL-VMs\Leases` namespace.
+the staging directory once to `C:\OPL-VMs`. Keep the recovery source unchanged.
+Existing recovery-source request and lease JSON files are evidence only and
+must not be copied into the active `C:\OPL-VMs\Leases` namespace.
 
 Every task-owned host script placed under `C:\OPL-VMs\Scripts` is sealed in the
 post-resize gate receipt by exact path and SHA256. The canonical source owns the
