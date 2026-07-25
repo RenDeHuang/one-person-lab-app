@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -93,6 +94,87 @@ test('Native reusable separates non-blocking preparation, protected additive pub
   assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml/);
 });
 
+test('Native qualification renders a pinned installer without resolving GitHub Latest', (t) => {
+  const { source } = workflow('_release-native-webui-carrier.yml');
+  const materializationLine = source
+    .split('\n')
+    .find((line) => line.includes("sed '") && line.includes('scripts/install-web.sh'));
+  const expression = materializationLine?.match(/sed '([^']+)' scripts\/install-web\.sh/)?.[1];
+  assert.ok(expression, 'Native workflow must materialize the pinned installer with an explicit sed expression');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-native-webui-installer-version-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const embeddedVersion = '26.7.25';
+  const explicitVersion = '26.7.26';
+  const shellRoot = process.env.OPL_APP_SHELL_ROOT?.trim() || path.join(process.cwd(), 'shells', 'aionui');
+  const shellInstaller = path.join(shellRoot, 'scripts', 'install-web.sh');
+  const sourceInstaller = path.join(root, 'install-web.source.sh');
+  const generatedInstaller = path.join(root, 'native-release', 'install-web.sh');
+  const mirrorRoot = path.join(root, 'native-release');
+  const fakeBin = path.join(root, 'fake-bin');
+  const curlLog = path.join(root, 'curl.log');
+  const defaultAssignment = 'VERSION="${VERSION:-__VERSION__}"';
+  const generatedAssignment = `VERSION="\${VERSION:-${embeddedVersion}}"`;
+  const placeholderLine = '    local version_placeholder="__VER""SION__"';
+  const guardLine = '    if [[ "$VERSION" == "latest" || "$VERSION" == "$version_placeholder" ]]; then';
+
+  fs.mkdirSync(path.dirname(generatedInstaller), { recursive: true });
+  fs.mkdirSync(fakeBin, { recursive: true });
+  const sourceBytes = fs.readFileSync(shellInstaller, 'utf8');
+  assert.equal(
+    sourceBytes.split('\n').filter((line) => line === defaultAssignment).length,
+    1,
+    'selected Shell installer must expose exactly one CI default-version assignment',
+  );
+  assert.ok(sourceBytes.includes(placeholderLine), 'selected Shell installer must retain the split placeholder');
+  assert.ok(sourceBytes.includes(guardLine), 'selected Shell installer must retain the placeholder guard');
+  fs.writeFileSync(sourceInstaller, sourceBytes);
+  fs.writeFileSync(path.join(fakeBin, 'curl'), `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$OPL_NATIVE_WEBUI_CURL_LOG"
+exit 99
+`);
+  fs.chmodSync(path.join(fakeBin, 'curl'), 0o755);
+
+  const materialized = spawnSync('sed', [expression.replace('${{ inputs.opl_version }}', embeddedVersion), sourceInstaller], {
+    encoding: 'utf8',
+  });
+  assert.equal(materialized.status, 0, materialized.stderr);
+  assert.equal(
+    materialized.stdout,
+    sourceBytes.replace(defaultAssignment, generatedAssignment),
+    'Native materialization must change only the selected Shell default-version assignment',
+  );
+  assert.ok(materialized.stdout.includes(placeholderLine), 'materialization must preserve the split placeholder');
+  assert.ok(materialized.stdout.includes(guardLine), 'materialization must preserve the placeholder guard');
+  fs.writeFileSync(generatedInstaller, materialized.stdout);
+  fs.chmodSync(generatedInstaller, 0o755);
+
+  const runInstaller = (args: string[]) => spawnSync('bash', [generatedInstaller, ...args], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HOME: path.join(root, 'home'),
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
+      OPL_NATIVE_WEBUI_CURL_LOG: curlLog,
+    },
+  });
+  const defaultResult = runInstaller(['--mirror', `file://${mirrorRoot}`, '--no-path', '--no-symlink']);
+  assert.equal(defaultResult.status, 1, `${defaultResult.stdout}\n${defaultResult.stderr}`);
+  assert.match(defaultResult.stdout, new RegExp(`Using specified version: .*v${embeddedVersion}`));
+  assert.match(defaultResult.stderr, /OPL artifact metadata not found at local mirror/);
+
+  const explicitResult = runInstaller([
+    '--mirror', `file://${mirrorRoot}`,
+    '--version', explicitVersion,
+    '--no-path',
+    '--no-symlink',
+  ]);
+  assert.equal(explicitResult.status, 1, `${explicitResult.stdout}\n${explicitResult.stderr}`);
+  assert.match(explicitResult.stdout, new RegExp(`Using specified version: .*v${explicitVersion}`));
+  assert.match(explicitResult.stderr, /OPL artifact metadata not found at local mirror/);
+  assert.equal(fs.existsSync(curlLog), false, 'an explicit local version must not resolve GitHub Latest');
+});
+
 test('Standard publishes Native only from a qualified same-run artifact without changing Desktop success', () => {
   const { parsed } = workflow('_release-bundle.yml');
   const prepare = parsed.jobs['prepare-native-webui'];
@@ -184,6 +266,32 @@ function fixtureManifest(t: test.TestContext) {
   });
   return { root, manifest };
 }
+
+test('Native seal CLI accepts the workflow qualification receipt path without escaping the checkout', (t) => {
+  const current = fixtureManifest(t);
+  const byRole = Object.fromEntries(current.manifest.assets.map((asset) => [asset.role, asset.path]));
+  const output = path.join(current.root, 'cli-publication-manifest.json');
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/release-native-webui-carrier.ts',
+    'seal',
+    '--repository', current.manifest.repository,
+    '--version', current.manifest.version,
+    '--release-bundle-digest', current.manifest.release_bundle_digest,
+    '--stable-authority-run-id', current.manifest.stable_authority_run_id,
+    '--app-sha', current.manifest.cohort.app_sha,
+    '--shell-sha', current.manifest.cohort.shell_sha,
+    '--framework-sha', current.manifest.cohort.framework_sha,
+    '--runtime-tarball', byRole.runtime_tarball,
+    '--runtime-metadata', byRole.runtime_metadata,
+    '--installer', byRole.installer,
+    '--installer-sha256', byRole.installer_sha256,
+    '--qualification-receipt', current.manifest.qualification_receipt.path,
+    '--output', output,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, 'utf8')), current.manifest);
+});
 
 function remoteAssets(manifest: ReturnType<typeof fixtureManifest>['manifest']): NativeWebuiRemoteAsset[] {
   return manifest.assets.map((asset, index) => ({

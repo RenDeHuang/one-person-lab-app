@@ -563,7 +563,7 @@ function main(): void {
   });
   const command = parsed.positionals[0];
   if (command === 'seal') {
-    const qualificationReceipt = path.resolve(option(parsed.values, 'qualification-receipt'));
+    const qualificationReceipt = option(parsed.values, 'qualification-receipt');
     const manifest = sealNativeWebuiPublicationManifest({
       repository: option(parsed.values, 'repository'),
       version: option(parsed.values, 'version'),

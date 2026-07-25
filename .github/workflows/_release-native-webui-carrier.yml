@@ -210,7 +210,7 @@ jobs:
           mkdir -p ../native-release/v${{ inputs.opl_version }}
           cp dist-web-cli/one-person-lab-webui-${{ inputs.opl_version }}-linux-x86_64.tar.gz* \
             ../native-release/v${{ inputs.opl_version }}/
-          sed 's/__VERSION__/${{ inputs.opl_version }}/g' scripts/install-web.sh \
+          sed 's|^VERSION="\${VERSION:-__VERSION__}"$|VERSION="${VERSION:-${{ inputs.opl_version }}}"|' scripts/install-web.sh \
             > ../native-release/install-web.sh
           chmod +x ../native-release/install-web.sh
           (cd ../native-release && shasum -a 256 install-web.sh | awk '{print $1"  install-web.sh"}' > install-web.sh.sha256)
