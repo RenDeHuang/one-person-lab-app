@@ -121,8 +121,75 @@ function envValue(...names: string[]) {
   return '';
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function nonEmptyText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function structuredTextParts(value: unknown, acceptedTypes: Set<string>) {
+  if (!Array.isArray(value)) return null;
+  const text = value
+    .map((entry) => {
+      const part = record(entry);
+      return part && typeof part.type === 'string' && acceptedTypes.has(part.type)
+        ? nonEmptyText(part.text)
+        : null;
+    })
+    .filter((entry): entry is string => entry !== null)
+    .join('\n')
+    .trim();
+  return text || null;
+}
+
+export function extractOpenAICompatibleText(payload: unknown) {
+  const response = record(payload);
+  if (!response) return null;
+
+  const choices = Array.isArray(response.choices) ? response.choices : [];
+  const firstChoice = record(choices[0]);
+  const message = record(firstChoice?.message);
+  const chatContent = nonEmptyText(message?.content)
+    ?? structuredTextParts(message?.content, new Set(['text', 'output_text']));
+  if (chatContent) return chatContent;
+
+  const outputText = nonEmptyText(response.output_text);
+  if (outputText) return outputText;
+
+  const output = Array.isArray(response.output) ? response.output : [];
+  const responsesText = output
+    .map((entry) => {
+      const item = record(entry);
+      return item?.type === 'message'
+        ? structuredTextParts(item.content, new Set(['output_text']))
+        : null;
+    })
+    .filter((entry): entry is string => entry !== null)
+    .join('\n')
+    .trim();
+  return responsesText || null;
+}
+
+function providerResponseShape(payload: unknown) {
+  const response = record(payload);
+  const choices = response && Array.isArray(response.choices) ? response.choices : null;
+  const firstChoice = record(choices?.[0]);
+  const message = record(firstChoice?.message);
+  return JSON.stringify({
+    top_level_keys: response ? Object.keys(response).sort() : [],
+    choices_type: Array.isArray(response?.choices) ? 'array' : typeof response?.choices,
+    message_content_type: Array.isArray(message?.content) ? 'array' : typeof message?.content,
+    output_text_type: typeof response?.output_text,
+    output_type: Array.isArray(response?.output) ? 'array' : typeof response?.output,
+  });
+}
+
 function parseChatCompletionsContent(stdout: string, providerLabel: string, token: string) {
-  let payload: any;
+  let payload: unknown;
   try {
     payload = JSON.parse(stdout);
   } catch {
@@ -133,13 +200,13 @@ function parseChatCompletionsContent(stdout: string, providerLabel: string, toke
       `${providerLabel} returned invalid JSON: ${redactProviderOutput(stdout, token).slice(0, 400)}`,
     );
   }
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string' || !content.trim()) {
+  const content = extractOpenAICompatibleText(payload);
+  if (!content) {
     throw new ReleaseNotesProviderFailure(
       'provider_response_invalid',
       1,
       false,
-      `${providerLabel} response did not include choices[0].message.content.`,
+      `${providerLabel} response did not include supported Chat Completions or Responses text. shape=${providerResponseShape(payload)}`,
     );
   }
   return content;

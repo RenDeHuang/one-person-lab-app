@@ -15,6 +15,7 @@ import {
   completeAiReleaseNotesWithEvidence,
   publicMarkdownBeforeTechnicalDetails,
 } from '../../scripts/release-notes-ai-writer-parts/markdown-normalization.ts';
+import { extractOpenAICompatibleText } from '../../scripts/release-notes-ai-writer-parts/provider-transport.ts';
 import { validateAiReleaseNotes } from '../../scripts/release-notes-ai-writer-parts/validation.ts';
 
 function runNode(args, options = {}) {
@@ -375,6 +376,76 @@ function runWithFakeOpenAiNotes(evidence: any, responses: string[]) {
     requests: JSON.parse(fs.readFileSync(requestLogPath, 'utf8')),
   };
 }
+
+function writeOpenAiCompatibleCurlResponse(binDir: string, response: unknown) {
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(path.join(binDir, 'curl'), `#!/usr/bin/env node
+process.stdout.write(${JSON.stringify(JSON.stringify(response))});
+`, { mode: 0o755 });
+}
+
+test('OpenAI-compatible text extraction accepts typed Chat and Responses shapes only', () => {
+  assert.equal(
+    extractOpenAICompatibleText({ choices: [{ message: { content: 'chat text' } }] }),
+    'chat text',
+  );
+  assert.equal(
+    extractOpenAICompatibleText({
+      choices: [{ message: { content: [{ type: 'text', text: 'part one' }, { type: 'output_text', text: 'part two' }] } }],
+    }),
+    'part one\npart two',
+  );
+  assert.equal(extractOpenAICompatibleText({ output_text: 'responses convenience text' }), 'responses convenience text');
+  assert.equal(
+    extractOpenAICompatibleText({
+      object: 'response',
+      output: [{
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: 'responses item text' }],
+      }],
+    }),
+    'responses item text',
+  );
+  assert.equal(
+    extractOpenAICompatibleText({ choices: [{ message: { content: null, reasoning_content: 'private reasoning' } }] }),
+    null,
+  );
+  assert.equal(extractOpenAICompatibleText({ error: { message: 'provider failure' } }), null);
+});
+
+test('OpenAI-compatible provider probe accepts a Responses output message', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-responses-probe-'));
+  const binDir = path.join(tempRoot, 'bin');
+  writeOpenAiCompatibleCurlResponse(binDir, {
+    object: 'response',
+    output: [{
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: 'OPL_RELEASE_NOTES_PROVIDER_OK' }],
+    }],
+  });
+
+  const result = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--probe-openai-compatible',
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'responses-fixture',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    status: 'ok',
+    provider: 'openai_compatible',
+    model: 'responses-fixture',
+    endpoint: '127.0.0.1:3001',
+  });
+});
 
 test('AI release notes writer auto provider prefers the OpenAI-compatible online endpoint', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-notes-'));
