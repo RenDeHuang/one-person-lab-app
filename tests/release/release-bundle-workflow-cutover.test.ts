@@ -30,6 +30,43 @@ const frameworkOwnedLineageFields = [
   'full_source_build_run_id',
 ] as const;
 
+function runStandardCheckpointStageGuard(
+  tracks: Record<string, unknown>,
+  checkpointStage: string,
+) {
+  const workflow = parseWorkflow('_release-bundle.yml');
+  const checkpointStep = workflow.jobs['checkpoint-standard'].steps.find(
+    (step: Record<string, unknown>) =>
+      step.name === 'Bind Desktop bytes and export one portable checkpoint',
+  );
+  const run = String(checkpointStep?.run ?? '');
+  const guardStart = run.indexOf("if jq -e '.tracks.webui'");
+  assert.notEqual(guardStart, -1, 'Standard checkpoint step must derive its expected stage');
+  const guard = run.slice(guardStart);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-checkpoint-stage-'));
+  try {
+    fs.mkdirSync(path.join(root, 'bundle'));
+    fs.writeFileSync(
+      path.join(root, 'bundle', 'release-bundle.json'),
+      `${JSON.stringify({ tracks })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, 'checkpoint-export.json'),
+      `${JSON.stringify({
+        release_bundle_checkpoint_export: {
+          checkpoint_stage: checkpointStage,
+        },
+      })}\n`,
+    );
+    return spawnSync('bash', ['-e', '-u', '-o', 'pipefail', '-c', guard], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function gitFixture(root: string, name: string) {
   const directory = path.join(root, name);
   fs.mkdirSync(directory, { recursive: true });
@@ -1719,11 +1756,51 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
   assert.match(webuiSource, /--base-image-index/);
   assert.match(webuiSource, /--frozen-codex-tarball/);
   assert.doesNotMatch(source, /--track webui|webui-qualification-receipt|opl-webui-carrier\.json/);
-  assert.match(source, /checkpoint_stage checkpoint-export\.json\)" = stable_qualified/);
+  assert.match(source, /jq -e '\.tracks\.webui' bundle\/release-bundle\.json/);
+  assert.match(source, /expected_checkpoint_stage=standard_qualified/);
+  assert.match(source, /expected_checkpoint_stage=stable_qualified/);
   assert.doesNotMatch(
     source.slice(source.indexOf('Freeze canonical Framework Bundle')),
     /npm view[^\n]+latest|git ls-remote[^\n]+(?:shells\/aionui|framework-source)[^\n]+after-freeze/,
   );
+});
+
+test('Standard checkpoint stage follows the immutable Bundle track set', () => {
+  for (const fixture of [
+    {
+      label: 'Desktop-only Bundle',
+      tracks: { standard: {}, full: {} },
+      stage: 'standard_qualified',
+    },
+    {
+      label: 'unified WebUI Bundle',
+      tracks: { standard: {}, webui: {}, full: {} },
+      stage: 'stable_qualified',
+    },
+  ]) {
+    const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);
+    assert.equal(result.status, 0, `${fixture.label}: ${result.stderr || result.stdout}`);
+  }
+
+  for (const fixture of [
+    {
+      label: 'Desktop-only Bundle rejects unified stage',
+      tracks: { standard: {}, full: {} },
+      stage: 'stable_qualified',
+      expected: 'standard_qualified',
+    },
+    {
+      label: 'unified WebUI Bundle rejects Desktop-only stage',
+      tracks: { standard: {}, webui: {}, full: {} },
+      stage: 'standard_qualified',
+      expected: 'stable_qualified',
+    },
+  ]) {
+    const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);
+    assert.notEqual(result.status, 0, fixture.label);
+    assert.match(result.stdout, new RegExp(`expected ${fixture.expected}`));
+    assert.match(result.stdout, new RegExp(`got ${fixture.stage}`));
+  }
 });
 
 test('Standard moving pointers require only Desktop readback and the Standard promotion barrier', () => {

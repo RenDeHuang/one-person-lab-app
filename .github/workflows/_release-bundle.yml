@@ -595,7 +595,16 @@ jobs:
           framework-source/bin/opl release checkpoint export \
             --bundle "$BUNDLE_DIGEST" --output standard-checkpoint \
             --store "$RUNNER_TEMP/store" --json > checkpoint-export.json
-          test "$(jq -er .release_bundle_checkpoint_export.checkpoint_stage checkpoint-export.json)" = stable_qualified
+          if jq -e '.tracks.webui' bundle/release-bundle.json >/dev/null; then
+            expected_checkpoint_stage=stable_qualified
+          else
+            expected_checkpoint_stage=standard_qualified
+          fi
+          actual_checkpoint_stage="$(jq -er .release_bundle_checkpoint_export.checkpoint_stage checkpoint-export.json)"
+          if [ "$actual_checkpoint_stage" != "$expected_checkpoint_stage" ]; then
+            echo "::error::Framework checkpoint stage mismatch: expected $expected_checkpoint_stage, got $actual_checkpoint_stage."
+            exit 1
+          fi
 
       - name: Expose Framework checkpoint result and transport provenance
         id: provenance
