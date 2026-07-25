@@ -13,7 +13,9 @@ Reference blueprint:
 
 The owner has explicitly authorized technical validation of the conditional
 Windows WSL2-only direction. This authorization is narrower than product
-promotion and implementation authorization.
+promotion and ordinary product implementation authorization. It permits the
+small, explicitly gated validation build described in V6 only to obtain
+evidence; it does not promote that build into the ordinary App path.
 
 Validation may:
 
@@ -23,6 +25,8 @@ Validation may:
 - create disposable scripts and sanitized fixtures or receipts under this
   validation surface; keep raw logs in private guest/staging quarantine outside
   version control; and
+- build an explicitly `validation_only` Windows Electron candidate whose
+  bounded, read-only status surface is limited to V6; and
 - update this document, the parent exploration, and the reference blueprint
   when validation changes the documented evidence boundary.
 
@@ -30,9 +34,12 @@ Validation must not:
 
 - add a row to `docs/active/app-ideal-state-gap-plan.md` or another product gap
   plan;
-- change `contracts/`, generated expectations, supported-platform truth, Shell
-  source, Framework source, AionCore source, release workflows, installer bytes,
-  or public support claims;
+- change `contracts/`, generated expectations, supported-platform truth,
+  Framework source, AionCore source, release workflows, installer bytes, or
+  public support claims;
+- make a validation-only Shell route part of the ordinary/default product path,
+  select a native Windows executor, or present the validation candidate as a
+  supported App experience;
 - make Windows a release blocker or a prerequisite for unrelated development;
 - mutate a user's existing WSL distribution, default distribution, or
   `docker-desktop`; or
@@ -59,6 +66,16 @@ machine truth and do not authorize a second runtime or lifecycle authority.
 5. A failed or unavailable VM blocks only the corresponding validation item. It
    does not block macOS/Linux development or create a product gap.
 6. Delete or quarantine disposable credentials and guest data after the run.
+7. A guest with Docker/WebUI or another validation owner's state has one active
+   guest writer. Obtain that owner's explicit release before any V6 guest write;
+   never use a shared credential as an implicit handoff. Keep the VM, its disks,
+   and large build/cache writes on the external SSD. Do not clone, expand, or
+   generate large caches on the internal-disk historical VM.
+8. Preserve existing Docker containers, images, Docker data, and
+   `OnePersonLab` data. V6 must not run Docker prune, global `wsl --shutdown`,
+   unregister a distribution, or delete unknown guest data. After the bounded
+   run, soft-shut down the fixture when appropriate and explicitly release the
+   guest write authority.
 
 ## 3. Validation Sequence
 
@@ -181,6 +198,43 @@ Only when a disposable clean Windows VM is available:
 
 V5 is a validation exercise, not an installer release gate.
 
+### V6: Windows Electron technical-validation surface
+
+V6 is the smallest usable Windows technical-validation build. It is a
+diagnostic status surface, not the route-complete product described by the
+reference blueprint's development definition of done. The candidate must be
+visibly identified as `validation_only_non_binding`, explicitly gated away from
+the ordinary App path, and built from recorded App and Shell refs.
+
+On a real Windows VM, the V6 smoke passes only when the exact Electron
+candidate:
+
+1. launches a visible Windows Electron window and exposes a bounded readiness
+   state instead of relying on a terminal-only process result;
+2. discovers the disposable `OPL-Validation-g0001` guest and shows its bounded
+   identity. An absent, stopped, mismatched, or non-WSL2 guest must be shown as
+   unavailable; the candidate must not adopt another distribution, the default
+   distribution, or `docker-desktop`;
+3. shows only sanitized status for the discovered guest identity, AionCore
+   health, direct Codex App Server, and read-only Framework state. It may retain
+   stable status names, versions, digests, and top-level response keys, but not
+   passwords, tokens, endpoints, complete Framework state, thread bodies,
+   prompts, raw logs, or an unrestricted guest command channel;
+4. labels AionCore ACP, authenticated user/bootstrap, and WebSocket
+   conversation as `unverified` or `unavailable` until independently proven.
+   It must not show an enabled chat/composer, streaming conversation, or a
+   success state for those routes; and
+5. renders each failed or unavailable readback distinctly, does not infer
+   readiness from a process, imported distribution, or `/health` alone, and
+   tears down only processes it owns when the candidate closes.
+
+V6 permits only the bounded read-only probes required for these four status
+groups. Login, password reset, update, repair, installer, importer, destructive
+WSL, Docker, and general Framework-action routes remain outside the candidate.
+Passing V6 does not complete V3, V4, V5, or the reference blueprint's
+development validation; it is not a Windows support, installer, upgrade, or
+release-readiness claim.
+
 ## 4. Evidence and Exit
 
 Each validation run records a small receipt with:
@@ -189,14 +243,25 @@ Each validation run records a small receipt with:
 validation_run_id
 host_and_vm_identity
 app_shell_framework_refs
+candidate_artifact_and_validation_gate
 fixture_and_component_digests
 selected_transport_and_lifecycle_strategy
+vm_storage_and_guest_write_authority
 commands_and_readbacks
+visible_smoke_receipt
 positive_results
 negative_results
 blocked_or_unavailable_items
 cleanup_result
 ```
+
+A V6 receipt additionally records the exact Electron artifact digest, its
+explicit validation gate, a sanitized visible-state proof (for example a
+redacted screenshot digest and dimensions), the external-SSD VM identity, the
+guest writer handoff and release, and one outcome for each required status
+group. It records `unverified` and `unavailable` as observed outcomes rather
+than converting them into a pass. It must not contain a guest password, token,
+full state payload, endpoint, thread/prompt body, or raw terminal log.
 
 The validation lane may update the parent exploration and this blueprint with
 observed facts, rejected options, and narrowed uncertainty. It may not promote
