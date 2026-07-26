@@ -1,0 +1,165 @@
+{
+  "surface_kind": "opl_unknown_agent_consumer_fixture.v1",
+  "app_state": {
+    "schema_version": "opl_app_state.v1",
+    "agent_packages": {
+      "directory": {
+        "entries": [
+          {
+            "package_id": "future.agent-lab",
+            "package_kind": "domain_agent_package",
+            "package_role": "standard_agent",
+            "display_name": "Future Agent Lab",
+            "description": "A dynamic Agent projected from its owner descriptor.",
+            "display_name_i18n": {
+              "zh-CN": "未来智能体实验室",
+              "en-US": "Future Agent Lab"
+            },
+            "description_i18n": {
+              "zh-CN": "由 Package 所有者 descriptor 投影的动态智能体。",
+              "en-US": "A dynamic Agent projected from its owner descriptor."
+            },
+            "session_routing_summary_i18n": {
+              "zh-CN": "启动未来研究会话。",
+              "en-US": "Start a future research session."
+            },
+            "installed": true,
+            "activated": true,
+            "readiness": {
+              "status": "available",
+              "operational_ready": true,
+              "launch_allowed": true,
+              "reason": null
+            },
+            "home_shortcuts": [
+              {
+                "shortcut_id": "future-main",
+                "label_i18n": {
+                  "zh-CN": "开始未来研究",
+                  "en-US": "Start Future Research"
+                },
+                "default_visible": true,
+                "user_configurable": true,
+                "route": {
+                  "route_kind": "agent_package_shortcut",
+                  "executor": "codex_cli",
+                  "codex_visible_entry": "future-agent"
+                }
+              }
+            ],
+            "available_actions": [
+              {
+                "action_id": "future_agent_inspect",
+                "action_ref": "app_state.actions#future_agent_inspect",
+                "semantic": "custom",
+                "surface": "settings",
+                "payload": {
+                  "package_id": "future.agent-lab"
+                },
+                "required_payload_fields": [],
+                "confirmation_required": false
+              }
+            ]
+          }
+        ]
+      },
+      "status_index": {
+        "packages": {
+          "future.agent-lab": {
+            "package_id": "future.agent-lab",
+            "presence": {
+              "registered": true,
+              "installed": true,
+              "present": true,
+              "callable": true,
+              "status": "present",
+              "reason": null
+            }
+          }
+        },
+        "home_shortcut_preferences": [
+          {
+            "package_id": "future.agent-lab",
+            "shortcut_id": "future-main",
+            "visible": true,
+            "sort_order": 7
+          }
+        ]
+      }
+    },
+    "actions": {
+      "future_agent_inspect": {
+        "action_id": "future_agent_inspect",
+        "owner": "future.agent-lab",
+        "mutation": false
+      }
+    },
+    "operator": {
+      "status": "ready",
+      "workbench": {
+        "work_item_projection_v2": {
+          "surface_kind": "opl_work_item_projection",
+          "schema_version": "work-item-projection.v2",
+          "profile": "fast",
+          "agent_catalog": [
+            {
+              "agent_id": "future.agent-lab",
+              "domain_id": "future-research",
+              "display_name": "Future Agent Lab",
+              "short_label": "Future Agent Lab",
+              "package_id": "future.agent-lab",
+              "scope_id": "agent:future.agent-lab"
+            }
+          ],
+          "agent_availability": [
+            {
+              "agent_id": "future.agent-lab",
+              "domain_id": "future-research",
+              "display_name": "Future Agent Lab",
+              "availability": "available",
+              "reason": "package_health_ready",
+              "package_id": "future.agent-lab",
+              "source_ref": "opl-package://future.agent-lab"
+            }
+          ],
+          "project_catalog": [],
+          "summary": {
+            "agent_count": 1,
+            "project_count": 0,
+            "work_item_count": 1,
+            "visible_work_item_count": 1,
+            "archived_work_item_count": 0,
+            "total_work_item_count": 1,
+            "running_count": 1,
+            "user_attention_count": 0,
+            "system_attention_count": 0,
+            "telemetry_observed_count": 0,
+            "telemetry_missing_count": 1
+          },
+          "items": [
+            {
+              "item_id": "future.agent-lab:task-1",
+              "agent_id": "future.agent-lab",
+              "project_id": "future-project",
+              "work_item_id": "task-1",
+              "display_name": "Future task",
+              "lifecycle": {
+                "primary_state": "automatically_advancing",
+                "business_state": "active",
+                "visibility_state": "visible"
+              }
+            }
+          ],
+          "authority_boundary": {
+            "projection_only": true,
+            "can_write_domain_truth": false,
+            "can_create_owner_receipt": false,
+            "can_create_typed_blocker": false,
+            "can_authorize_quality_verdict": false,
+            "temporal_is_work_item_inventory": false
+          }
+        }
+      }
+    }
+  }
+}

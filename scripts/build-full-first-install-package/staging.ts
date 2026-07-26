@@ -30,6 +30,7 @@ import {
 export function prepareRuntime(options, sources, sourceResolutions = {}) {
   const masScholarSkillsSource = sourceResolutions.masScholarSkills
     ?? resolveMasScholarSkillsFullRuntimeSource(options);
+  const resolvedSelectedBundleDescriptor = sourceResolutions.resolvedSelectedBundleDescriptor ?? null;
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-runtime-'));
   const runtimeRoot = path.join(stagingRoot, 'current');
   fs.mkdirSync(path.join(runtimeRoot, 'bin'), { recursive: true });
@@ -39,7 +40,12 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
     selectedPackageSet,
     layerKeyInputs: cacheKeyInputs,
     layers: cacheKeys,
-  } = buildRuntimeCacheContext(options, sources);
+  } = buildRuntimeCacheContext(
+    options,
+    sources,
+    undefined,
+    resolvedSelectedBundleDescriptor,
+  );
   const cacheEvents = [
     runCachedLayer(options, 'toolchain', cacheKeys.toolchain, runtimeRoot, (layerRoot) => {
       buildToolchainLayer(layerRoot, sources);
@@ -51,7 +57,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       buildOplLayer(layerRoot, options);
     }),
     runCachedLayer(options, 'skills', cacheKeys.skills, runtimeRoot, (layerRoot) => {
-      buildSkillsLayer(layerRoot, options);
+      buildSkillsLayer(layerRoot, options, resolvedSelectedBundleDescriptor);
     }),
   ];
   assertOplRuntimeProductionDependencies(path.join(runtimeRoot, 'opl'));
@@ -95,7 +101,9 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
     officecli: { source_path: sources.officeCliBin, version: officeCliVersion, size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
     mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
     skills: {
-      source_path: 'contracts/app-product-profile.json#companion_payloads',
+      source_path: resolvedSelectedBundleDescriptor
+        ? 'resolved_selected_bundle_descriptor'
+        : 'contracts/app-product-profile.json#companion_payloads',
       size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')),
     },
   };
@@ -117,6 +125,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
 
   const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components, {
     masScholarSkills: masScholarSkillsSource,
+    resolvedSelectedBundleDescriptor,
   });
   const manifest = writeFullRuntimeManifest(
     runtimeRoot,
@@ -132,6 +141,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
     masRoot: options.masRoot,
     masScholarSkillsRoot: options.masScholarSkillsRoot,
     masScholarSkillsRef: options.masScholarSkillsRef,
+    resolvedSelectedBundleDescriptor,
   });
 
   return {
@@ -144,6 +154,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       keys: cacheKeys,
       key_inputs: cacheKeyInputs,
       selected_package_set: selectedPackageSet,
+      resolved_selected_bundle_descriptor: resolvedSelectedBundleDescriptor,
       events: cacheEvents,
       currentness,
     },

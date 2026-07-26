@@ -14,6 +14,7 @@ import {
   writeExecutable,
   writeReleaseMetadata,
 } from "./helpers.ts";
+import { pathToFileURL } from "node:url";
 import { listFullRuntimeProductionNodeModulePaths } from "../../../scripts/full-first-install-package.ts";
 import {
   copyOfficeCliUpstreamSkill,
@@ -22,6 +23,37 @@ import {
 
 function writeJson(filePath, value) {
   writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function resolveFrameworkSelectedBundleFixture(tempRoot) {
+  const producerModulePath = process.env.OPL_FRAMEWORK_DESCRIPTOR_MODULE;
+  if (!producerModulePath) return null;
+  const { resolveSelectedBundleDescriptor } = await import(
+    pathToFileURL(path.resolve(producerModulePath)).href,
+  );
+  const packageRecord = (packageId, skillRoot) => {
+    const carrierRoot = path.join(tempRoot, 'resolved-selected-bundle', packageId);
+    writeJson(path.join(carrierRoot, 'owner.json'), { package_id: packageId });
+    writeJson(path.join(carrierRoot, '.codex-plugin', 'plugin.json'), {
+      name: `${packageId}-plugin`,
+      skills: skillRoot ? [skillRoot] : [],
+    });
+    if (skillRoot) {
+      writeFile(path.join(carrierRoot, skillRoot, 'SKILL.md'), `# ${packageId}\n`);
+      writeFile(path.join(carrierRoot, skillRoot, 'references', 'nested.md'), 'nested descriptor resource\n');
+    }
+    return {
+      packageId,
+      carrierRoot,
+      ownerManifestPath: 'owner.json',
+      pluginManifestPath: '.codex-plugin/plugin.json',
+    };
+  };
+  const zeroSkill = packageRecord('runtime-zero-skill', '');
+  const selectedSkill = packageRecord('runtime-selected-skill', 'skills/runtime-selected-skill');
+  const unselected = packageRecord('runtime-unselected-fixed-package', 'skills/runtime-unselected-fixed-package');
+  const descriptor = resolveSelectedBundleDescriptor([zeroSkill, selectedSkill]);
+  return { descriptor, unselected };
 }
 
 function fileSha256Ref(filePath) {
@@ -606,6 +638,7 @@ test("Full runtime wrapper labels only its own Temporal default as packaged loca
 
 test("real Full domain and prepareRuntime builders package the current MAS Scholar Skills closure", async () => {
   const fixture = createFullRuntimeFixture();
+  const selectedBundle = await resolveFrameworkSelectedBundleFixture(fixture.tempRoot);
   const previousStrictSigning = process.env.OPL_MAC_STRICT_SIGNING_CHECKS;
   process.env.OPL_MAC_STRICT_SIGNING_CHECKS = "false";
   let prepared;
@@ -632,7 +665,11 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
 
     const { prepareRuntime } =
       await import("../../../scripts/build-full-first-install-package/staging.ts");
-    prepared = prepareRuntime(fixture.options, fixture.sources);
+    prepared = prepareRuntime(
+      fixture.options,
+      fixture.sources,
+      selectedBundle ? { resolvedSelectedBundleDescriptor: selectedBundle.descriptor } : {},
+    );
     const packagedSkillsRoot = path.join(prepared.runtimeRoot, "skills");
     assert.equal(
       fs.existsSync(path.join(packagedSkillsRoot, "agent-reach")),
@@ -641,12 +678,62 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     );
     assert.equal(
       prepared.manifest.components.skills.source_path,
-      "contracts/app-product-profile.json#companion_payloads",
+      selectedBundle
+        ? 'resolved_selected_bundle_descriptor'
+        : "contracts/app-product-profile.json#companion_payloads",
     );
     assert.equal(
       prepared.manifest.components.skills.role,
       "packaged_codex_skill_carrier_seeds_declared_by_app_product_profile",
     );
+    if (selectedBundle) {
+      assert.equal(
+        prepared.manifest.components.skills.source_path,
+        'resolved_selected_bundle_descriptor',
+      );
+      assert.deepEqual(fs.readdirSync(packagedSkillsRoot).sort(), ['runtime-selected-skill']);
+      assert.equal(
+        fs.readFileSync(path.join(packagedSkillsRoot, 'runtime-selected-skill', 'references', 'nested.md'), 'utf8'),
+        'nested descriptor resource\n',
+      );
+      assert.equal(
+        fs.existsSync(path.join(packagedSkillsRoot, selectedBundle.unselected.packageId)),
+        false,
+      );
+      assert.equal(
+        prepared.runtime_cache.key_inputs.skills.resolved_selected_bundle.digest,
+        selectedBundle.descriptor.digest,
+      );
+      assert.deepEqual(
+        prepared.runtime_cache.key_inputs.skills.resolved_selected_bundle.package_ids,
+        ['runtime-zero-skill', 'runtime-selected-skill'],
+      );
+      assert.equal(
+        prepared.manifest.runtime_assertions.resolved_selected_bundle_descriptor.digest,
+        selectedBundle.descriptor.digest,
+      );
+      assert.equal(
+        prepared.runtime_cache.currentness.resolved_selected_bundle_checksum_status,
+        'verified',
+      );
+      assert.equal('app_product_profile_sha256' in prepared.runtime_cache.key_inputs.skills, false);
+      assert.equal('med_autoscience_skill_source' in prepared.runtime_cache.key_inputs.skills, false);
+      assert.equal('skills_packager_sha256' in prepared.runtime_cache.key_inputs.skills, false);
+      fs.rmSync(path.join(fixture.tempRoot, 'resolved-selected-bundle'), {
+        recursive: true,
+        force: true,
+      });
+      const { assertFullRuntimeCurrentness: assertSourceFreeCurrentness } =
+        await import("../../../scripts/build-full-first-install-package/runtime-currentness.ts");
+      const sourceFreeCurrentness = assertSourceFreeCurrentness(prepared.runtimeRoot, {
+        frameworkRoot: fixture.options.frameworkRoot,
+        masRoot: fixture.options.masRoot,
+        masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
+        masScholarSkillsRef: fixture.options.masScholarSkillsRef,
+      });
+      assert.equal(sourceFreeCurrentness.resolved_selected_bundle_descriptor_digest, selectedBundle.descriptor.digest);
+      assert.equal(sourceFreeCurrentness.resolved_selected_bundle_checksum_status, 'verified');
+    }
     const skillsCacheInputs = prepared.runtime_cache.key_inputs.skills;
     assert.equal("opl_flow_commit" in skillsCacheInputs, false);
     assert.equal("opl_flow_workflow_policy_sha256" in skillsCacheInputs, false);

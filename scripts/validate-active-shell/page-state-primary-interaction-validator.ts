@@ -167,75 +167,30 @@ function validateGuidHomeAgentPackageAuthority(homeViewModel) {
   assertDeepEqualJson(
     homeViewModel.home_agent_shortcuts_metadata_policy,
     {
-      role: 'optional_migration_and_display_metadata',
-      allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
-      forbidden_authority: [
-        'catalog_membership',
-        'installed',
-        'present',
-        'callable',
-        'visibility',
-        'sort_order',
-        'actions',
-      ],
-      runtime_authority_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      role: 'owner_projected_package_presentation',
+      shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
+      preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      package_id_allowlist_allowed: false,
+      fallback_policy: 'omit_invalid_shortcut_and_preserve_other_packages',
     },
-    'Guid home page optional shortcut metadata authority',
+    'Guid home page owner-projected shortcut authority',
   );
 }
 
 function validateGuidHomeRouteCompatibility(homeViewModel) {
-  assertDeepEqualJson(
-    fieldsFrom(homeViewModel, {
-      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
-      legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
-    }),
-    {
-      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
-      legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
-    },
-    'Guid home page route receipt source refs',
-  );
-  assertIncludesAll(
-    homeViewModel.route_receipt_required_fields,
-    ['route_kind', 'executor', 'package_id', 'shortcut_id', 'codex_visible_entry', 'required_skill_ids', 'source'],
-    'Guid home page route receipt fields',
-  );
-  assertIncludesAll(
-    homeViewModel.route_receipt_must_not_govern,
-    ['session_behavior', 'domain_workflow', 'domain_readiness'],
-    'Guid home page route receipt non-authority fields',
-  );
-  const homeAgentShortcuts = homeViewModel.home_agent_shortcuts ?? [];
-  const shortcutIds = homeAgentShortcuts.map((entry) => entry?.shortcut_id);
-  if (new Set(shortcutIds).size !== shortcutIds.length) {
-    throw new Error('Guid home page optional shortcut metadata ids must be unique');
-  }
-  for (const shortcut of homeAgentShortcuts) {
-    if (
-      !isNonEmptyString(shortcut?.shortcut_id) ||
-      !isNonEmptyString(shortcut?.package_id) ||
-      !isNonEmptyString(shortcut?.codex_visible_entry) ||
-      shortcut?.executor !== 'codex_cli' ||
-      shortcut?.source !== 'opl_app_home' ||
-      shortcut?.display_policy !== 'purpose_first' ||
-      shortcut?.home_entry_policy !== 'visible_click_to_start' ||
-      typeof shortcut?.default_visible !== 'boolean' ||
-      shortcut?.user_configurable !== true ||
-      !isUniqueStringArray(shortcut?.required_skill_ids)
-    ) {
-      throw new Error(`Guid home page optional shortcut metadata ${shortcut?.shortcut_id ?? '<unknown>'} must preserve the generic Codex route shape`);
+  for (const forbiddenField of [
+    'route_receipt_source_ref',
+    'legacy_route_receipt_alias_source_ref',
+    'route_receipt_required_fields',
+    'route_receipt_must_not_govern',
+    'home_agent_shortcuts',
+    'default_assistant_required_skills',
+    'default_agent_package_required_skills',
+  ]) {
+    if (forbiddenField in homeViewModel) {
+      throw new Error(`Guid home page must not restore private Agent route field ${forbiddenField}`);
     }
   }
-}
-
-function isNonEmptyString(value) {
-  return typeof value === 'string' && Boolean(value.trim());
-}
-
-function isUniqueStringArray(value) {
-  return Array.isArray(value) && value.every(isNonEmptyString) && new Set(value).size === value.length;
 }
 
 function validateGuidHomeVisibleSignals(guidHomePage) {
@@ -347,12 +302,10 @@ function validateOrdinaryConversationPage(matrix) {
   assertDeepEqualJson(
     {
       ...Object.fromEntries(
-        Object.entries(ordinaryConversationPage.conversation_view_model ?? {})
-          .filter(([key]) => key !== 'agent_package_invocation_receipt_required')
-          .map(([key, value]) => [
-            key,
-            key === 'mobile_action_sheet' ? baseMobileActionSheet : value,
-          ]),
+        Object.entries(ordinaryConversationPage.conversation_view_model ?? {}).map(([key, value]) => [
+          key,
+          key === 'mobile_action_sheet' ? baseMobileActionSheet : value,
+        ]),
       ),
       current_task_slice: Object.fromEntries(
         Object.entries(ordinaryConversationPage.conversation_view_model?.current_task_slice ?? {}).filter(
@@ -388,9 +341,6 @@ function validateOrdinaryConversationPage(matrix) {
     },
     'Ordinary conversation mobile action-sheet reachability',
   );
-  if (ordinaryConversationPage.conversation_view_model?.agent_package_invocation_receipt_required !== true) {
-    throw new Error('Ordinary conversation view model must require agent package invocation receipts');
-  }
   assertIncludesAll(
     ordinaryConversationPage.conversation_view_model?.current_task_slice?.fields,
     [
@@ -417,7 +367,6 @@ function validateOrdinaryConversationPage(matrix) {
     'projectless text conversation when no workspace is selected',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
     'read-only Conversation Environment showing the recorded workspace and live Git context when available',
-    'assistant route receipt',
     'Codex default model and reasoning status',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',

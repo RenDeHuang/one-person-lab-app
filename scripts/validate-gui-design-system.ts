@@ -1186,7 +1186,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.primary_selection_surface !== 'home_starter' ||
     capabilitySelection.palette_selection_scope !== 'new_session_before_first_send_only' ||
     capabilitySelection.selection_equivalence_policy !==
-      'same_active_capability_route_receipt_and_send_time_readiness_gate' ||
+      'same_active_capability_identity_and_send_time_readiness_gate' ||
     capabilitySelection.selection_cancellation_policy !==
       'return_to_no_active_capability_without_changing_executor_workspace_or_draft' ||
     capabilitySelection.starter_palette_selection_sync !==

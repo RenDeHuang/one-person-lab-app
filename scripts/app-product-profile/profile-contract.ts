@@ -7,11 +7,9 @@ import {
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
-  assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
   assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
-  assertLocalizedUxOverrideShape,
   assertOfficialProfileShape,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
@@ -32,12 +30,13 @@ function assertStringArray(value: unknown, label: string, options: { allowBlank?
   }
 }
 
-const optionalDisplayMetadataPolicy = {
+const dynamicPackagePresentationPolicy = {
   homeShortcuts: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
-    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
-    runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    role: 'owner_projected_package_presentation',
+    shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
+    preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    package_id_allowlist_allowed: false,
+    fallback_policy: 'omit_invalid_shortcut_and_preserve_other_packages',
   },
 } as const;
 
@@ -67,18 +66,6 @@ function assertDynamicHomeComposerStateContract(value: AppProductProfile['gui'][
     throw new Error(`${label} must use the dynamic Agent Package directory and Home preference authority`);
   }
   assertHomeComposerStateContract(value, label);
-}
-
-function assertDynamicPackageInvocationReceiptPolicy(profile: AppProductProfile, label: string): void {
-  const policy = profile.gui.agent_package_invocation_receipt_policy;
-  if (
-    policy.required_for_package_shortcuts_source_ref !==
-      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
-    'required_for_package_shortcuts' in policy
-  ) {
-    throw new Error(`${label} package shortcut receipts must follow dynamically projected visible standard Agents`);
-  }
-  assertAppProductProfileRouteReceiptPolicy(profile, label);
 }
 
 function assertIncludesAll(actual: string[], expected: string[], label: string): void {
@@ -601,35 +588,12 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
 function assertHomeShortcutCompatibilityMetadata(profile: AppProductProfile): void {
   if (
     JSON.stringify(profile.gui.home.home_agent_shortcuts_metadata_policy) !==
-      JSON.stringify(optionalDisplayMetadataPolicy.homeShortcuts)
+      JSON.stringify(dynamicPackagePresentationPolicy.homeShortcuts)
   ) {
-    throw new Error('App product profile Home shortcut metadata must not own membership, visibility, order, readiness, or actions');
+    throw new Error('App product profile Home shortcuts must come from owner-projected Package presentation');
   }
-  const shortcuts = profile.gui.home.home_agent_shortcuts ?? [];
-  const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
-  if (
-    shortcutIds.some((shortcutId) => typeof shortcutId !== 'string' || !shortcutId.trim()) ||
-    new Set(shortcutIds).size !== shortcutIds.length
-  ) {
-    throw new Error('App product profile GUI Home shortcut metadata ids must be non-empty and unique');
-  }
-  for (const shortcut of shortcuts) {
-    assertCapabilityReferenceListShape(
-      shortcut.required_skill_ids,
-      `App product profile GUI home shortcut ${shortcut.shortcut_id} required_skill_ids`,
-    );
-    if (
-      shortcut.executor !== 'codex_cli' ||
-      shortcut.source !== 'opl_app_home' ||
-      shortcut.display_policy !== 'purpose_first' ||
-      shortcut.home_entry_policy !== 'visible_click_to_start' ||
-      shortcut.user_configurable !== true
-    ) {
-      throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
-    }
-    if (typeof shortcut.default_visible !== 'boolean') {
-      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} must declare boolean display metadata`);
-    }
+  if ('home_agent_shortcuts' in profile.gui.home) {
+    throw new Error('App product profile must not restore an App-owned Home shortcut list');
   }
   assertStringArray(
     profile.gui.home.retired_codex_models_must_not_be_exposed,
@@ -788,7 +752,7 @@ function assertNoFixedAgentHomePresentation(profile: AppProductProfile): void {
   }
   if (
     profile.gui.home.home_layout.home_presentation_source_ref !==
-    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + gui.home.home_agent_shortcuts optional migration/display metadata only'
+    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
   ) {
     throw new Error('App product profile Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
   }
@@ -900,49 +864,26 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
 function assertAgentPackageRegistryProjection(profile: AppProductProfile): void {
   const projection = profile.gui.agent_package_registry;
   if (
-    projection?.directory_lifecycle_authority !==
-      'app_state.agent_packages.directory+status_index+actions' ||
-    projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
-    projection?.bundled_default_registry_allowed !== false ||
-    projection?.external_registry_policy_ref !==
-      'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy' ||
-    projection?.external_first_party_identity_claims_allowed !== false ||
-    projection?.external_first_party_trust_claims_allowed !== false ||
-    projection?.collision_failure_code !== 'agent_package_registry_first_party_identity_collision' ||
-    projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
+    projection?.directory_projection_authority !== 'app_state.agent_packages.directory.entries' ||
+    projection?.status_projection_authority !== 'app_state.agent_packages.status_index' ||
+    projection?.action_projection_authority !==
+      'app_state.agent_packages.directory.entries[].available_actions[] + app_state.actions' ||
+    projection?.presentation_source !== 'app_state.agent_packages.directory.entries' ||
+    projection?.unknown_package_policy !== 'render_without_app_package_id_branch' ||
+    projection?.manifest_lock_receipt_parser_allowed !== false ||
+    projection?.action_id_allowlist_allowed !== false ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('App product profile must keep Package directory lifecycle in Framework while registries remain optional candidate sources');
+    throw new Error('App product profile must consume generic Framework Package projections without private metadata or lifecycle parsers');
   }
-  const metadata = projection.starter_package_metadata ?? [];
-  const metadataIds = metadata.map((entry) => entry.package_id);
-  if (
-    metadataIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
-    new Set(metadataIds).size !== metadataIds.length
-  ) {
-    throw new Error('App product profile Package UX metadata ids must be non-empty and unique');
-  }
-  for (const entry of metadata) {
-    assertLocalizedUxOverrideShape(
-      entry.display_name_i18n,
-      `App product profile first-party metadata is incomplete or not localized for ${entry.package_id}; display_name_i18n`,
-    );
-    assertLocalizedUxOverrideShape(
-      entry.description_i18n,
-      `App product profile first-party metadata is incomplete or not localized for ${entry.package_id}; description_i18n`,
-    );
-    if (
-      !entry.package_kind ||
-      !entry.display_name ||
-      entry.publisher !== 'one-person-lab' ||
-      entry.source !== 'first_party' ||
-      entry.trust_tier !== 'first_party' ||
-      !entry.description?.trim() ||
-      !Array.isArray(entry.tags) ||
-      entry.tags.length === 0 ||
-      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
-    ) {
-      throw new Error(`App product profile first-party metadata is incomplete or not localized for ${entry.package_id}`);
+  for (const forbiddenField of [
+    'starter_package_metadata',
+    'first_party_manifest_fixture_dir',
+    'external_registry_policy_ref',
+    'directory_lifecycle_authority',
+  ]) {
+    if (forbiddenField in projection) {
+      throw new Error(`App product profile must not restore private Package consumer field ${forbiddenField}`);
     }
   }
   const presentation = projection.catalog_presentation_policy;
@@ -1002,7 +943,6 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomeSelectionAndIconPolicy(profile);
   assertOfficialProfileShape(profile.official_profile, 'App product profile Official Profile');
   assertUiLocalePolicy(profile);
-  assertDynamicPackageInvocationReceiptPolicy(profile, 'App product profile');
   assertNoFixedAgentHomePresentation(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
   assertFirstRunProfileShape(profile);

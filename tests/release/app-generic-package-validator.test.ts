@@ -7,38 +7,12 @@ import { validateProductProfile } from '../../scripts/validate-active-shell/prod
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
-const syntheticDirectoryEntry = {
-  package_id: 'community-clinical-agent',
-  display_name: 'Community Clinical Agent',
-  description: 'A community supplied clinical workflow.',
-  package_role: 'standard_agent',
-  installed: true,
-  readiness: {
-    status: 'available',
-    launch_allowed: true,
-  },
-  recommended_action_ref: null,
-  available_actions: [],
-};
-
-const syntheticStatusProjection = {
-  package_id: syntheticDirectoryEntry.package_id,
-  presence: {
-    registered: true,
-    installed: true,
-    present: true,
-    callable: true,
-    status: 'present',
-    reason: null,
-  },
-};
-
-const syntheticHomeShortcutPreference = {
-  package_id: syntheticDirectoryEntry.package_id,
-  shortcut_id: 'community-clinical',
-  visible: true,
-  sort_order: 7,
-};
+const unknownAgentFixture = readJson('contracts/fixtures/opl-app-state-unknown-agent.fixture.json');
+const syntheticDirectoryEntry = unknownAgentFixture.app_state.agent_packages.directory.entries[0];
+const syntheticStatusProjection =
+  unknownAgentFixture.app_state.agent_packages.status_index.packages[syntheticDirectoryEntry.package_id];
+const syntheticHomeShortcutPreference =
+  unknownAgentFixture.app_state.agent_packages.status_index.home_shortcut_preferences[0];
 
 test('App-owned Agent, Skill, and generated session authorities stay absent and cannot be restored', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
@@ -46,6 +20,11 @@ test('App-owned Agent, Skill, and generated session authorities stay absent and 
   const productProfile = readJson('contracts/app-product-profile.json');
   const pageState = readJson('contracts/app-page-state-matrix.json');
   const homeViewModel = pageState.pages.find((page: any) => page.id === 'guid_home').home_view_model;
+
+  assert.equal('sync_and_install_contract' in installExposure, false);
+  assert.equal('transaction_internal_states' in installExposure.software_lifecycle, false);
+  assert.equal(installExposure.capability_governance.lifecycle_authority, 'configured_carrier');
+  assert.equal(installExposure.software_lifecycle.lifecycle_owners.opl_packages, 'configured_carrier');
 
   for (const field of [
     'default_assistants',
@@ -121,7 +100,7 @@ test('App-owned Agent, Skill, and generated session authorities stay absent and 
   );
 });
 
-test('an unknown standard Agent remains admitted when Home-visible even if it is not installed', () => {
+test('one unknown Agent projection covers Settings, Home, Runtime, and projected actions without an App id branch', () => {
   const profile = readJson('contracts/app-product-profile.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   const palettePolicy = profile.gui.ordinary_capability_selector_policy;
@@ -148,56 +127,39 @@ test('an unknown standard Agent remains admitted when Home-visible even if it is
     'standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state',
   );
   assert.equal(
-    shortcutPolicy.runtime_authority_ref,
-    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    shortcutPolicy.shortcut_source_ref,
+    'app_state.agent_packages.directory.entries[].home_shortcuts[]',
   );
+  assert.equal(shortcutPolicy.package_id_allowlist_allowed, false);
 
-  const unavailableDirectoryEntry = {
-    ...syntheticDirectoryEntry,
-    installed: false,
-    readiness: {
-      status: 'unavailable',
-      launch_allowed: false,
-      reason: 'package_not_installed',
-    },
-  };
-  const unavailableStatusProjection = {
-    ...syntheticStatusProjection,
-    presence: {
-      ...syntheticStatusProjection.presence,
-      installed: false,
-      present: false,
-      callable: false,
-      status: 'missing',
-      reason: 'package_not_installed',
-    },
-  };
-  const appState = {
-    agent_packages: {
-      directory: { entries: [unavailableDirectoryEntry] },
-      status_index: {
-        packages: [unavailableStatusProjection],
-        home_shortcut_preferences: [syntheticHomeShortcutPreference],
-      },
-    },
-  };
+  const appState = unknownAgentFixture.app_state;
   const standardAgents = appState.agent_packages.directory.entries.filter(
     (entry) => entry.package_role === 'standard_agent',
   );
-  const status = appState.agent_packages.status_index.packages.find(
-    (entry) => entry.package_id === syntheticDirectoryEntry.package_id,
-  );
+  const status = appState.agent_packages.status_index.packages[syntheticDirectoryEntry.package_id];
   const preference = appState.agent_packages.status_index.home_shortcut_preferences.find(
     (entry) => entry.package_id === syntheticDirectoryEntry.package_id,
   );
 
-  assert.deepEqual(standardAgents.map((entry) => entry.package_id), ['community-clinical-agent']);
-  assert.equal(standardAgents[0]?.installed, false);
-  assert.equal(status?.presence.present, false);
-  assert.equal(status?.presence.callable, false);
-  assert.equal(status?.presence.reason, 'package_not_installed');
+  assert.deepEqual(standardAgents.map((entry) => entry.package_id), ['future.agent-lab']);
+  assert.equal(standardAgents[0]?.installed, true);
+  assert.equal(status?.presence.present, true);
+  assert.equal(status?.presence.callable, true);
+  assert.equal(status?.presence.reason, null);
   assert.equal(preference?.visible, true);
   assert.equal(preference?.sort_order, 7);
+  assert.deepEqual(standardAgents[0]?.available_actions.map((action: any) => action.action_id), [
+    'future_agent_inspect',
+  ]);
+  assert.deepEqual(Object.keys(appState.actions), ['future_agent_inspect']);
+  assert.deepEqual(
+    appState.operator.workbench.work_item_projection_v2.agent_catalog.map((agent: any) => agent.package_id),
+    ['future.agent-lab'],
+  );
+  assert.deepEqual(
+    appState.operator.workbench.work_item_projection_v2.items.map((item: any) => item.agent_id),
+    ['future.agent-lab'],
+  );
   assert.equal('professional_agent_packages' in profile.gui, false);
 });
 

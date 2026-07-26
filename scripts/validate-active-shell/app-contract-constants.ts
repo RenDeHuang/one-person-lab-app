@@ -1391,7 +1391,7 @@ export const appOwnedHomeLayout = {
   unselected_workspace_control_policy:
     "localized_choose_project_directory_action_not_projectless_status_placeholder",
   home_presentation_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + home_agent_shortcuts optional migration/display metadata only",
+    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
   home_shortcut_visibility_source_ref:
     "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
   home_shortcut_placement:
@@ -1461,7 +1461,7 @@ export const appOwnedHomeLayout = {
 export const appOwnedPageStateHomeLayout = {
   ...appOwnedHomeLayout,
   home_presentation_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + contracts/app-gui-product-contract.json#home_agent_shortcuts optional migration/display metadata only",
+    "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
   must_not_show: [
     "dashboard-first home",
     "explanatory landing page",
@@ -1722,9 +1722,9 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
     available_auto_confirm:
       "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",
     localized_owner_action_required:
-      "owner_projection_requires_one_explicit_non_target_workspace_action_with_an_exact_action_or_reason_copy_mapping",
+      "owner_projection_requires_one_complete_settings_action_with_projected_semantic_surface_payload_and_confirmation",
     unlocalized_owner_attention:
-      "owner_projection_requires_user_intervention_but_no_exact_localized_action_or_reason_copy_mapping_exists",
+      "owner_projection_requires_user_intervention_but_no_complete_settings_action_is_projected",
     temporarily_unavailable: "owner_projection_reports_blocked_failed_or_status_read_error",
     checking: "canonical_directory_or_readiness_state_is_loading_unknown_or_stale",
   },
@@ -1773,59 +1773,16 @@ export const appOwnedAgentPackageUserStatusProjection = {
       primary_action_policy: "none",
     },
     {
-      id: "install_required",
-      when: "localized_owner_action_required_and_exact_action_id_install_from_manifest_url",
-      user_status_id: "install_required",
-      label_i18n: { "zh-CN": "需要安装", "en-US": "Install required" },
+      id: "owner_projected_action_available",
+      when: "localized_owner_action_required",
+      user_status_id: "action_available",
+      label_i18n: { "zh-CN": "可继续处理", "en-US": "Action available" },
       explanation_i18n: {
-        "zh-CN": "安装此智能体后即可发起对话。",
-        "en-US": "Install this agent to start a conversation.",
+        "zh-CN": "提供者已给出下一步操作。",
+        "en-US": "The provider has projected the next action.",
       },
-      primary_action_policy: "show_the_exact_owner_projected_install_from_manifest_url_action",
-    },
-    {
-      id: "enable_required",
-      when: "localized_owner_action_required_and_exact_action_is_enable_or_unhide",
-      user_status_id: "enable_required",
-      label_i18n: { "zh-CN": "需要启用", "en-US": "Enable required" },
-      explanation_i18n: {
-        "zh-CN": "启用此智能体后即可发起对话。",
-        "en-US": "Enable this agent to start a conversation.",
-      },
-      primary_action_policy: "show_the_exact_owner_projected_preferences_enable_or_unhide_action",
-    },
-    {
-      id: "update_required",
-      when: "localized_owner_action_required_and_exact_action_id_agent_package_update",
-      user_status_id: "update_required",
-      label_i18n: { "zh-CN": "需要更新", "en-US": "Update required" },
-      explanation_i18n: {
-        "zh-CN": "更新此智能体后即可继续使用。",
-        "en-US": "Update this agent to continue using it.",
-      },
-      primary_action_policy: "show_the_exact_owner_projected_agent_package_update_action",
-    },
-    {
-      id: "repair_required",
-      when: "localized_owner_action_required_and_exact_action_id_agent_package_repair",
-      user_status_id: "repair_required",
-      label_i18n: { "zh-CN": "需要修复", "en-US": "Repair required" },
-      explanation_i18n: {
-        "zh-CN": "修复此智能体后即可继续使用。",
-        "en-US": "Repair this agent to continue using it.",
-      },
-      primary_action_policy: "show_the_exact_owner_projected_agent_package_repair_action",
-    },
-    {
-      id: "reconnect_required",
-      when: "localized_owner_action_required_and_exact_owner_reason_maps_to_reconnect_with_an_executable_projected_action",
-      user_status_id: "reconnect_required",
-      label_i18n: { "zh-CN": "需要重新连接", "en-US": "Reconnect required" },
-      explanation_i18n: {
-        "zh-CN": "重新连接所需服务后即可继续使用。",
-        "en-US": "Reconnect the required service to continue using this agent.",
-      },
-      primary_action_policy: "show_only_the_exact_owner_projected_reconnect_action",
+      primary_action_policy:
+        "show_the_complete_recommended_action_ref_without_mapping_or_branching_on_action_id",
     },
     {
       id: "unlocalized_owner_attention",
@@ -1959,7 +1916,6 @@ const appOwnedOrdinaryConversation = {
   composer_position: "floating_bottom_with_safe_inset",
   active_capability_chip_visible: true,
   persistent_purpose_selector_visible: false,
-  assistant_route_receipt_required: true,
   backend_selector_visible: false,
   model_selector_visible: true,
   permission_mode_selector_visible: true,
