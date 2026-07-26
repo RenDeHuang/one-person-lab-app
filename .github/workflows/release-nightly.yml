@@ -1,0 +1,219 @@
+name: OPL Standard Nightly Release
+run-name: OPL Standard Nightly
+
+on:
+  schedule:
+    - cron: '17 19 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-standard-nightly
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    name: Freeze exact Nightly request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.request.outputs.version }}
+      updater_version: ${{ steps.request.outputs.updater_version }}
+      tag: ${{ steps.request.outputs.tag }}
+      app_ref: ${{ steps.request.outputs.app_ref }}
+      shell_ref: ${{ steps.request.outputs.shell_ref }}
+      framework_ref: ${{ steps.request.outputs.framework_ref }}
+      request_digest: ${{ steps.request.outputs.request_digest }}
+    steps:
+      - name: Checkout canonical App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Freeze one automatic Standard preview request
+        id: request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || {
+            echo "::error::Nightly is one-shot; reruns require a new scheduled run and version."
+            exit 1
+          }
+          test "$GITHUB_REF" = refs/heads/main
+          app_ref="$(git rev-parse HEAD)"
+          remote_app_ref="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$app_ref" = "$remote_app_ref" || {
+            echo "::error::Nightly must freeze canonical App main."
+            exit 1
+          }
+          shell_ref="$(git ls-remote https://github.com/gaofeng21cn/opl-aion-shell.git refs/heads/main | awk '{print $1}')"
+          framework_ref="$(git ls-remote https://github.com/gaofeng21cn/one-person-lab.git refs/heads/main | awk '{print $1}')"
+          [[ "$shell_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$framework_ref" =~ ^[0-9a-f]{40}$ ]]
+          base_version="$(TZ=Asia/Shanghai date '+%y.%-m.%-d')-nightly"
+          existing_refs="$RUNNER_TEMP/nightly-existing-refs.txt"
+          {
+            git ls-remote --tags origin "refs/tags/v${base_version}" "refs/tags/v${base_version}.r*"
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+              --exclude-drafts=false --exclude-pre-releases=false --json tagName --jq '.[].tagName'
+          } | sort -u > "$existing_refs"
+          node --experimental-strip-types scripts/resolve-nightly-release-request.ts \
+            --base-version "$base_version" \
+            --existing-ref-file "$existing_refs" \
+            --app-ref "$app_ref" \
+            --shell-ref "$shell_ref" \
+            --framework-ref "$framework_ref" \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --output opl-nightly-request.json \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload immutable Nightly request
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-nightly-request-${{ github.run_id }}
+          path: opl-nightly-request.json
+          if-no-files-found: error
+          retention-days: 14
+
+  standard-build:
+    name: Build exact Standard preview assets
+    needs: [admission]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_build-reusable.yml
+    with:
+      matrix: >-
+        {"include":[
+          {"platform":"macos-arm64","os":"macos-14","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"nightly-macos-arm64","arch":"arm64","native_arch":"arm64"}
+        ]}
+      ref: ${{ needs.admission.outputs.app_ref }}
+      shell_ref: ${{ needs.admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.admission.outputs.framework_ref }}
+      skip_code_quality: false
+      append_commit_hash: false
+      upload_installers_only: false
+      opl_release_version: ${{ needs.admission.outputs.version }}
+      opl_updater_version: ${{ needs.admission.outputs.updater_version }}
+      require_macos_gatekeeper: false
+
+  qualify-and-publish:
+    name: Qualify assets and publish immutable prerelease
+    needs: [admission, standard-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-nightly
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout exact App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.admission.outputs.app_ref }}
+
+      - name: Checkout exact active shell asset adapter
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ needs.admission.outputs.shell_ref }}
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download immutable Nightly request
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-nightly-request-${{ github.run_id }}
+          path: nightly-request
+
+      - name: Download Standard build assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: nightly-macos-arm64
+          path: build-artifacts
+
+      - name: Download Standard build cohort
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: nightly-macos-arm64-dmg-cohort
+          path: build-cohort
+
+      - name: Normalize and qualify Standard-only assets
+        env:
+          OPL_RELEASE_VERSION: ${{ needs.admission.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts nightly-assets
+          node --experimental-strip-types scripts/nightly-release-qualification.ts \
+            --request nightly-request/opl-nightly-request.json \
+            --assets-dir nightly-assets \
+            --cohort build-cohort/opl-build-cohort.json \
+            --output nightly-qualification.json
+          test "$(jq -r .request_digest nightly-qualification.json)" = '${{ needs.admission.outputs.request_digest }}'
+          test "$(jq -r .stable_qualified nightly-qualification.json)" = false
+          test "$(jq -r .heavy_vm_required nightly-qualification.json)" = false
+
+      - name: Write deterministic Nightly notes
+        shell: bash
+        run: |
+          cat > nightly-notes.md <<'NOTES'
+          Automated Standard preview.
+
+          This prerelease is built from exact App, Shell, and Framework commits with the same physical Standard build pipeline used by Stable. It is not Stable-qualified, does not include Full or WebUI, does not change GitHub Latest, and does not require the Stable heavy VM gate. A sampled clean-VM follower may run independently after publication.
+          NOTES
+
+      - name: Publish one immutable non-Latest prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          node --experimental-strip-types scripts/nightly-release-publisher.ts \
+            --request nightly-request/opl-nightly-request.json \
+            --qualification nightly-qualification.json \
+            --assets-dir nightly-assets \
+            --notes nightly-notes.md \
+            --output nightly-publication.json
+          test "$(jq -r .github_release.prerelease nightly-publication.json)" = true
+          test "$(jq -r .github_release.make_latest nightly-publication.json)" = false
+          test "$(jq -r .github_release.latest_before nightly-publication.json)" = \
+            "$(jq -r .github_release.latest_after nightly-publication.json)"
+
+      - name: Upload exact Nightly publication handoff
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-nightly-publication-${{ github.run_id }}
+          path: |
+            nightly-request/opl-nightly-request.json
+            nightly-qualification.json
+            nightly-publication.json
+          if-no-files-found: error
+          retention-days: 30

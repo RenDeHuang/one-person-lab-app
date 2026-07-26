@@ -18,7 +18,11 @@ export function validateReleaseHomebrewDistribution(releaseChannel) {
     ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full'],
     'Release channel allowed Homebrew casks',
   );
-  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel currently managed Homebrew casks');
+  assertDeepEqualJson(
+    homebrew.casks,
+    ['one-person-lab', 'one-person-lab-nightly'],
+    'Release channel currently managed Homebrew casks',
+  );
   assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
     formula: {
       software_object: 'opl_base',
@@ -71,7 +75,7 @@ function validateReleaseHomebrewCaskInstallPolicy(homebrew) {
   );
   assertDeepEqualJson(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
     'Release channel Homebrew initial live targets',
   );
   assertDeepEqualJson(
@@ -125,9 +129,23 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
           'Push once, then compare exact local and remote tap commits; an unknown or mismatched result fails closed without retry, rerun, or redispatch',
       },
       { actual: tapUpdate?.planner_script, expected: 'scripts/update-homebrew-tap.ts' },
-      { actual: tapUpdate?.nightly?.mode, expected: 'retired_historical_read_only' },
+      {
+        actual: tapUpdate?.nightly?.mode,
+        expected: 'post_publication_digest_bound_single_attempt_follower',
+      },
+      {
+        actual: tapUpdate?.nightly?.workflow,
+        expected: '.github/workflows/release-nightly-homebrew-follower.yml',
+      },
+      { actual: tapUpdate?.nightly?.environment, expected: 'release-nightly' },
+      { actual: tapUpdate?.nightly?.target, expected: 'Casks/one-person-lab-nightly.rb' },
       { actual: tapUpdate?.nightly?.may_update_stable, expected: false },
-      { actual: tapUpdate?.nightly?.mutation_allowed, expected: false },
+      { actual: tapUpdate?.nightly?.mutation_allowed, expected: true },
+      { actual: tapUpdate?.nightly?.stable_cask_must_remain_exact, expected: true },
+      {
+        actual: tapUpdate?.nightly?.unknown_or_conflicting_result,
+        expected: 'fail_closed_no_retry_rerun_or_redispatch',
+      },
       {
         actual: tapUpdate?.stable?.mode,
         expected: 'release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest',

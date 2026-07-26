@@ -126,12 +126,14 @@
       "nightly": {
         "cask": "one-person-lab-nightly",
         "dmg_profile": "standard_nightly",
-        "publication_status": "retired_historical_cask",
+        "publication_status": "implemented_pending_first_follower_readback",
         "product_channel_semantics": "retained_standard_prerelease",
         "full_by_default": false,
         "formula_dependency_current": true,
-        "formula_dependency_if_reactivated": true,
-        "new_publication_status": "approved_target_requires_implementation_and_qualification"
+        "formula_dependency_required": true,
+        "new_publication_status": "implemented_pending_first_follower_readback",
+        "publication_workflow": ".github/workflows/release-nightly-homebrew-follower.yml",
+        "stable_cask_mutation_allowed": false
       },
       "full": {
         "cask": "one-person-lab-full",
@@ -277,7 +279,7 @@
     "channel_semantics": {
       "homebrew": {
         "standard": "formula_opl_is_the_base_carrier_and_the_standard_cask_carries_the_app",
-        "nightly_if_reactivated": "formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app",
+        "nightly": "formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app",
         "full_target": "the_full_cask_consumes_the_full_dmg_with_embedded_base_and_package_seeds_without_a_formula_dependency_then_framework_activates_exactly_one_base"
       },
       "dmg_or_direct": "signed_installer_or_dmg_is_opl_app_carrier_then_first_launch_requests_framework_owned_base_and_packages_reconciliation",
@@ -1314,7 +1316,8 @@
         "full_first_install_app": "one-person-lab-full"
       },
       "initial_live_targets": [
-        "Casks/one-person-lab.rb"
+        "Casks/one-person-lab.rb",
+        "Casks/one-person-lab-nightly.rb"
       ],
       "full_first_install_cask": {
         "name": "one-person-lab-full",
@@ -1743,6 +1746,18 @@
   },
   "release_validation": {
     "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
+    "nightly_publication_gates": [
+      "release_boundary_contract",
+      "active_shell_quick_validation",
+      "standard_macos_arm64_build",
+      "local_standard_asset_validation",
+      "remote_standard_release_verification"
+    ],
+    "nightly_post_publication_followers": [
+      "homebrew_nightly_digest_follower",
+      "sampled_standard_dmg_clean_vm_smoke"
+    ],
+    "nightly_heavy_vm_blocking": false,
     "stable_install_gates": [
       "standard_dmg_clean_vm_smoke",
       "homebrew_standard_cask_clean_vm_smoke",

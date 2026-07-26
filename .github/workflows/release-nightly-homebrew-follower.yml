@@ -1,0 +1,187 @@
+name: OPL Nightly Homebrew Follower
+run-name: Nightly Homebrew follower for run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Standard Nightly Release
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-nightly-homebrew-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish-nightly-cask:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release-nightly
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact App follower
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Bind one successful Nightly publication run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-nightly.yml"
+            and .event == "schedule"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' source-run.json >/dev/null
+          artifact="opl-nightly-publication-${SOURCE_RUN_ID}"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" > artifacts.json
+          test "$(jq -r --arg name "$artifact" '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' artifacts.json)" = 1
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+
+      - name: Download exact publication handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: nightly-publication
+
+      - name: Publish one digest-bound Nightly Cask commit
+        env:
+          OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt=nightly-publication/nightly-publication.json
+          jq -e '
+            .schema == "opl_standard_nightly_publication_receipt.v1"
+            and (.status == "published" or .status == "already_complete")
+            and .github_release.draft == false
+            and .github_release.prerelease == true
+            and .github_release.make_latest == false
+            and .github_release.latest_before == .github_release.latest_after
+            and .stable_qualified == false
+            and .heavy_vm_blocking == false
+            and .homebrew_modified == false
+            and .full_modified == false
+            and .webui_modified == false
+            and (.request_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and (.primary_dmg.sha256 | test("^[0-9a-f]{64}$"))
+          ' "$receipt" >/dev/null
+          test "$(jq -r .cohort.app_sha "$receipt")" = "$(git rev-parse HEAD)"
+          test -n "$OPL_HOMEBREW_TAP_TOKEN"
+          export GH_TOKEN="$OPL_HOMEBREW_TAP_TOKEN"
+          gh auth setup-git
+          tap_repo=gaofeng21cn/homebrew-one-person-lab
+          default_branch="$(gh api "repos/$tap_repo" --jq .default_branch)"
+          git clone --depth=1 "https://github.com/${tap_repo}.git" tap-source
+          tap_base="$(git -C tap-source rev-parse HEAD)"
+          git -C tap-source show HEAD:Casks/one-person-lab.rb > stable-cask-before.rb
+          stable_before="sha256:$(shasum -a 256 stable-cask-before.rb | awk '{print $1}')"
+          version="$(jq -er .version "$receipt")"
+          updater_version="$(jq -er .updater_version "$receipt")"
+          dmg_sha="$(jq -er .primary_dmg.sha256 "$receipt")"
+          dmg_url="$(jq -er .primary_dmg.url "$receipt")"
+          manifest_url="$(jq -er .updater_metadata.url "$receipt")"
+          node --experimental-strip-types scripts/update-homebrew-tap.ts \
+            --channel nightly --package-kind app_standard \
+            --version "$version" --updater-version "$updater_version" \
+            --tap-root tap-source --cask Casks/one-person-lab-nightly.rb \
+            --manifest-url "$manifest_url" --checksum-sha256 "$dmg_sha" --download-url "$dmg_url" \
+            --remote-write-mode inspect_only --summary-path nightly-cask-plan.json >/dev/null
+          decision="$(jq -er .cas.decision nightly-cask-plan.json)"
+          test "$decision" != version_conflict || {
+            echo "::error::Nightly Cask version exists with different bytes; the next schedule must allocate a revision."
+            exit 1
+          }
+          current_cask="$(jq -er '.targets[0].current_cask_sha256 // "absent"' nightly-cask-plan.json)"
+          expected_cask="$(jq -er .targets[0].expected_cask_sha256 nightly-cask-plan.json)"
+          candidate_commit="$tap_base"
+          push_exit_status=not_required
+          if [ "$decision" = write_once ]; then
+            node --experimental-strip-types scripts/update-homebrew-tap.ts \
+              --channel nightly --package-kind app_standard \
+              --version "$version" --updater-version "$updater_version" \
+              --tap-root tap-source --cask Casks/one-person-lab-nightly.rb \
+              --manifest-url "$manifest_url" --checksum-sha256 "$dmg_sha" --download-url "$dmg_url" \
+              --remote-write-mode direct_commit --expected-current-cask-sha256 "$current_cask" \
+              --summary-path nightly-cask-candidate.json --write >/dev/null
+            test "sha256:$(shasum -a 256 tap-source/Casks/one-person-lab-nightly.rb | awk '{print $1}')" = "$expected_cask"
+            git -C tap-source config user.name "github-actions[bot]"
+            git -C tap-source config user.email "github-actions[bot]@users.noreply.github.com"
+            git -C tap-source add Casks/one-person-lab-nightly.rb
+            git -C tap-source commit -m "chore(cask): update One Person Lab Nightly ${version}"
+            candidate_commit="$(git -C tap-source rev-parse HEAD)"
+            set +e
+            git -C tap-source push --no-force origin "HEAD:${default_branch}"
+            push_status=$?
+            set -e
+            push_exit_status="$push_status"
+          fi
+          git -C tap-source fetch --no-tags origin "$default_branch"
+          remote_head="$(git -C tap-source rev-parse FETCH_HEAD)"
+          test "$remote_head" = "$candidate_commit" || {
+            echo "::error::Nightly Cask push outcome is unknown or conflicting; no retry is allowed."
+            exit 1
+          }
+          curl -fsSL "https://raw.githubusercontent.com/${tap_repo}/${remote_head}/Casks/one-person-lab-nightly.rb" > nightly-cask-readback.rb
+          test "sha256:$(shasum -a 256 nightly-cask-readback.rb | awk '{print $1}')" = "$expected_cask"
+          grep -F "# display_version: ${version}" nightly-cask-readback.rb >/dev/null
+          grep -F "# checksum: sha256:${dmg_sha}" nightly-cask-readback.rb >/dev/null
+          curl -fsSL "https://raw.githubusercontent.com/${tap_repo}/${remote_head}/Casks/one-person-lab.rb" > stable-cask-after.rb
+          stable_after="sha256:$(shasum -a 256 stable-cask-after.rb | awk '{print $1}')"
+          test "$stable_after" = "$stable_before"
+          jq -n \
+            --arg source_run_id '${{ github.event.workflow_run.id }}' \
+            --arg request_digest "$(jq -er .request_digest "$receipt")" \
+            --arg version "$version" --arg updater_version "$updater_version" \
+            --arg dmg_sha256 "sha256:$dmg_sha" --arg tap_base "$tap_base" \
+            --arg tap_commit "$remote_head" --arg cask_sha256 "$expected_cask" \
+            --arg stable_before "$stable_before" --arg stable_after "$stable_after" \
+            --arg decision "$decision" --arg push_exit_status "$push_exit_status" \
+            '{schema:"opl_standard_nightly_homebrew_receipt.v1",status:"passed",source_run_id:$source_run_id,request_digest:$request_digest,version:$version,updater_version:$updater_version,dmg_sha256:$dmg_sha256,tap:{repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$tap_base,commit:$tap_commit,cask:"Casks/one-person-lab-nightly.rb",cask_sha256:$cask_sha256,decision:$decision,push_exit_status:$push_exit_status,push_attempts:(if $decision == "write_once" then 1 else 0 end)},stable_cask:{before_sha256:$stable_before,after_sha256:$stable_after,modified:false},latest_modified:false,full_modified:false,retry_performed:false}' \
+            > nightly-homebrew-receipt.json
+
+      - name: Upload Nightly Homebrew readback
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-nightly-homebrew-${{ github.event.workflow_run.id }}
+          path: nightly-homebrew-receipt.json
+          if-no-files-found: error
+          retention-days: 30

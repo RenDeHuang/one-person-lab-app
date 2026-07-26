@@ -436,7 +436,7 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
       release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed = true;
     },
     (release) => {
-      release.homebrew_tap_distribution.tap_update_policy.nightly.mutation_allowed = true;
+      release.homebrew_tap_distribution.tap_update_policy.nightly.may_update_stable = true;
     },
     (release) => {
       release.release_bundle_control_plane.cutover.permanently_rejected_bundle_digests = [];

@@ -23,7 +23,7 @@ test('distribution/install SSOT validates the current and approved state split',
   assert.doesNotThrow(() => validateDistributionInstallSsot(release, install));
   assert.equal(
     release.distribution_semantics.retired_compatibility.desktop_nightly.new_publication_status,
-    'approved_target_requires_implementation_and_qualification',
+    'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
   assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 3);

@@ -84,7 +84,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(release.terms?.nightly?.product_channel_semantics, 'retained', 'Nightly product semantics');
   requireEqual(
     release.terms?.nightly?.current_publication_implementation,
-    'retired_historical_compatibility',
+    'implemented_pending_first_publication_readback',
     'Nightly publication implementation',
   );
   requireEqual(release.terms?.nightly?.default_payload_density, 'standard', 'Nightly payload density');
@@ -124,14 +124,14 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
 
   requireEqual(
     releaseChannel.nightly_standard?.status,
-    'publication_retired_historical_compatibility',
+    'implemented_pending_first_publication_readback',
     'Current Nightly publication state',
   );
   requireEqual(releaseChannel.nightly_standard?.full_first_install_allowed, false, 'Current Nightly Full policy');
   requireEqual(releaseChannel.nightly_standard?.latest_release_allowed, false, 'Current Nightly Latest policy');
   requireEqual(
     release.implementation_state?.desktop_nightly,
-    'retired_historical_read_compatibility',
+    'implemented_pending_first_publication_readback',
     'Distribution Nightly implementation state',
   );
   requireEqual(
@@ -156,16 +156,16 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.retired_compatibility?.desktop_nightly?.current_publication_workflow_present,
-    false,
+    true,
     'Nightly current publication workflow',
   );
   requireEqual(
     release.retired_compatibility?.desktop_nightly?.new_publication_status,
-    'approved_target_requires_implementation_and_qualification',
+    'implemented_pending_first_publication_readback',
     'Nightly new publication status',
   );
   const nightlyTarget = release.approved_targets?.desktop_nightly;
-  requireEqual(nightlyTarget?.status, 'approved_pending_implementation_and_qualification', 'Nightly target status');
+  requireEqual(nightlyTarget?.status, 'implemented_pending_first_publication_readback', 'Nightly target status');
   requireEqual(nightlyTarget?.payload_density, 'standard', 'Nightly target payload density');
   requireEqual(nightlyTarget?.full_by_default, false, 'Nightly target Full default');
   requireEqual(nightlyTarget?.latest_allowed, false, 'Nightly target Latest policy');
@@ -182,8 +182,8 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, false, 'Current Full Cask publication');
   requireEqual(
     releaseHomebrew?.tap_update_policy?.nightly?.mutation_allowed,
-    false,
-    'Retired Nightly Cask mutation',
+    true,
+    'Nightly Cask follower mutation',
   );
   requireEqual(
     release.approved_targets?.homebrew_full?.formula_dependency_target,
@@ -364,13 +364,13 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installHomebrew?.nightly?.full_by_default, false, 'Nightly Cask Full default');
   requireEqual(
     installHomebrew?.nightly?.new_publication_status,
-    'approved_target_requires_implementation_and_qualification',
+    'implemented_pending_first_follower_readback',
     'Nightly Cask new publication status',
   );
   requireEqual(
-    installHomebrew?.nightly?.formula_dependency_if_reactivated,
+    installHomebrew?.nightly?.formula_dependency_required,
     true,
-    'Nightly Cask historical Formula relationship',
+    'Nightly Cask Formula relationship',
   );
   requireEqual(installHomebrew?.full?.dmg_embeds_opl_base, true, 'Full Cask embedded Base');
   requireEqual(installHomebrew?.full?.formula_dependency_current, true, 'Full Cask current Formula dependency');
@@ -418,7 +418,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     lifecycle?.channel_semantics?.homebrew,
     {
       standard: 'formula_opl_is_the_base_carrier_and_the_standard_cask_carries_the_app',
-      nightly_if_reactivated:
+      nightly:
         'formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app',
       full_target:
         'the_full_cask_consumes_the_full_dmg_with_embedded_base_and_package_seeds_without_a_formula_dependency_then_framework_activates_exactly_one_base',

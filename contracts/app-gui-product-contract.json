@@ -5343,19 +5343,19 @@
     "nightly": {
       "channel_id": "nightly_standard",
       "source": "contracts/app-release-channel.json#release_validation_profiles.nightly_standard",
-      "status": "publication_retired_validation_only",
+      "status": "implemented_pending_first_publication_readback",
       "selectable": false,
-      "publication_available": false,
-      "mutation_available": false,
-      "display_policy": "historical_compatibility_status_not_channel_option",
+      "publication_available": true,
+      "mutation_available": true,
+      "display_policy": "automatic_opt_in_standard_prerelease_not_an_in_app_channel_selector",
       "must_gate": [
         "release_boundary_contract",
-        "reusable_topology_startup"
-      ],
-      "must_not_gate": [
+        "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification",
+        "remote_standard_release_verification"
+      ],
+      "must_not_gate": [
         "webui_ghcr_publish",
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
@@ -5363,8 +5363,14 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
-        "operator_evidence_bundle"
+        "operator_evidence_bundle",
+        "stable_latest_activation"
       ],
+      "post_publication_followers": [
+        "homebrew_nightly_digest_follower",
+        "sampled_standard_dmg_clean_vm_smoke"
+      ],
+      "post_publication_followers_block_github_prerelease": false,
       "latest_policy": "never_mark_latest"
     }
   },

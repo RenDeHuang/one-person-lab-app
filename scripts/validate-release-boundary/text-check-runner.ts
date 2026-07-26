@@ -26,6 +26,10 @@ const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-
 const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
 const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
+const nightlyReleaseWorkflowPath = '.github/workflows/release-nightly.yml';
+const nightlyHomebrewFollowerWorkflowPath =
+  '.github/workflows/release-nightly-homebrew-follower.yml';
+const nightlySampledVmWorkflowPath = '.github/workflows/release-nightly-sampled-vm.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -895,6 +899,151 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
   return failures;
 }
 
+export function validateNightlyReleaseTopology(appRoot: string): number {
+  const id = 'nightly_release_topology';
+  const release = parseWorkflow(appRoot, nightlyReleaseWorkflowPath, id);
+  const homebrew = parseWorkflow(appRoot, nightlyHomebrewFollowerWorkflowPath, id);
+  const sampledVm = parseWorkflow(appRoot, nightlySampledVmWorkflowPath, id);
+  if (!release || !homebrew || !sampledVm) {
+    return [release, homebrew, sampledVm].filter((value) => !value).length;
+  }
+  let failures = 0;
+  const releaseJobs = workflowJobs(release.workflow);
+  if (
+    JSON.stringify(Object.keys(release.workflow.on ?? {})) !== JSON.stringify(['schedule'])
+    || JSON.stringify(release.workflow.on?.schedule) !== JSON.stringify([{ cron: '17 19 * * *' }])
+    || !exactObject(release.workflow.permissions, exactReadPermissions)
+    || !exactObject(release.workflow.concurrency, {
+      group: 'opl-standard-nightly',
+      'cancel-in-progress': false,
+    })
+    || JSON.stringify(Object.keys(releaseJobs)) !==
+      JSON.stringify(['admission', 'standard-build', 'qualify-and-publish'])
+  ) {
+    failures += reportFailure(id, 'Nightly must be one automatic scheduled Standard prerelease lane with its own concurrency');
+  }
+  const admission = releaseJobs.admission;
+  const build = releaseJobs['standard-build'];
+  const publish = releaseJobs['qualify-and-publish'];
+  if (
+    !admission
+    || !exactObject(admission.permissions, exactReadPermissions)
+    || !build
+    || build.uses !== './.github/workflows/_build-reusable.yml'
+    || !needsExactly(build, ['admission'])
+    || !exactObject(build.permissions, exactReadPermissions)
+    || build.secrets !== undefined
+    || build.with?.require_macos_gatekeeper !== false
+    || Object.prototype.hasOwnProperty.call(build.with ?? {}, 'release_bundle_digest')
+    || Object.prototype.hasOwnProperty.call(build.with ?? {}, 'release_cohort_ref')
+    || Object.prototype.hasOwnProperty.call(build.with ?? {}, 'operation')
+    || !publish
+    || !needsExactly(publish, ['admission', 'standard-build'])
+    || publish.environment !== 'release-nightly'
+    || !exactObject(publish.permissions, exactStableStandardPermissions)
+  ) {
+    failures += reportFailure(id, 'Nightly must reuse the physical build without Stable Bundle authority and protect only its thin publisher');
+  }
+  for (const required of [
+    'test "$GITHUB_RUN_ATTEMPT" = 1',
+    'refs/heads/main',
+    'TZ=Asia/Shanghai',
+    'resolve-nightly-release-request.ts',
+    'nightly-release-qualification.ts',
+    'nightly-release-publisher.ts',
+    'require_macos_gatekeeper: false',
+    'github_release.make_latest',
+    'heavy_vm_required',
+  ]) {
+    if (!release.text.includes(required)) {
+      failures += reportFailure(id, `Nightly release is missing ${required}`);
+    }
+  }
+  if (
+    /workflow_dispatch:|opl-release-bundle-global|uses: \.\/\.github\/workflows\/_release-bundle\.yml|uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml|require_macos_gatekeeper: true|make_latest:\s*(?:true|'true')|_release-full-addon|release-webui/.test(
+      release.text,
+    )
+  ) {
+    failures += reportFailure(id, 'Nightly source must not enter Stable Bundle, heavy VM, Full, WebUI, or Latest paths');
+  }
+
+  const homebrewJobs = workflowJobs(homebrew.workflow);
+  const homebrewJob = homebrewJobs['publish-nightly-cask'];
+  if (
+    JSON.stringify(Object.keys(homebrew.workflow.on ?? {})) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(homebrew.workflow.on?.workflow_run?.workflows) !==
+      JSON.stringify(['OPL Standard Nightly Release'])
+    || JSON.stringify(homebrew.workflow.on?.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(homebrew.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(homebrewJobs)) !== JSON.stringify(['publish-nightly-cask'])
+    || !homebrewJob
+    || homebrewJob.environment !== 'release-nightly'
+    || !exactObject(homebrewJob.permissions, exactReadPermissions)
+  ) {
+    failures += reportFailure(id, 'Nightly Homebrew must be one protected post-publication follower');
+  }
+  const homebrewRuns = jobRuns(homebrewJob);
+  for (const required of [
+    '.path == ".github/workflows/release-nightly.yml"',
+    '.event == "schedule"',
+    '.run_attempt == 1',
+    'update-homebrew-tap.ts',
+    '--channel nightly',
+    'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab.rb',
+    'stable_before',
+    'stable_after',
+    'no retry is allowed',
+    'retry_performed:false',
+  ]) {
+    if (!homebrewRuns.includes(required)) {
+      failures += reportFailure(id, `Nightly Homebrew follower is missing ${required}`);
+    }
+  }
+  if ((homebrewRuns.match(/git -C tap-source push --no-force/g) ?? []).length !== 1) {
+    failures += reportFailure(id, 'Nightly Homebrew follower must contain exactly one ordinary non-force push');
+  }
+  if (
+    /workflow_dispatch:|opl-first-run-vm|one-person-lab-full\.rb|make_latest:\s*(?:true|'true')|gh workflow run|gh run (?:rerun|cancel)/.test(
+      homebrew.text,
+    )
+  ) {
+    failures += reportFailure(id, 'Nightly Homebrew follower must not contain VM, Full, Latest, dispatch, or retry paths');
+  }
+
+  const vmJobs = workflowJobs(sampledVm.workflow);
+  const resolve = vmJobs['resolve-sample'];
+  const vm = vmJobs['sampled-standard-vm'];
+  if (
+    JSON.stringify(Object.keys(sampledVm.workflow.on ?? {})) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(sampledVm.workflow.on?.workflow_run?.workflows) !==
+      JSON.stringify(['OPL Standard Nightly Release'])
+    || JSON.stringify(sampledVm.workflow.on?.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(sampledVm.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(vmJobs)) !== JSON.stringify(['resolve-sample', 'sampled-standard-vm'])
+    || !resolve
+    || !exactObject(resolve.permissions, exactReadPermissions)
+    || !vm
+    || vm.uses !== './.github/workflows/opl-first-run-vm.yml'
+    || !needsExactly(vm, ['resolve-sample'])
+    || !exactObject(vm.permissions, exactReadPermissions)
+    || vm.with?.package_profile !== 'standard'
+    || vm.with?.require_macos_gatekeeper !== false
+    || Object.prototype.hasOwnProperty.call(vm.with ?? {}, 'release_bundle_digest')
+    || Object.prototype.hasOwnProperty.call(vm.with ?? {}, 'operation')
+  ) {
+    failures += reportFailure(id, 'Nightly VM must be a sampled read-only post-publication Standard follower');
+  }
+  if (
+    !sampledVm.text.includes('TZ=Asia/Shanghai date +%u')
+    || !sampledVm.text.includes('heavy_vm_blocking == false')
+    || /workflow_dispatch:|contents: write|packages: write|update-homebrew|make_latest:\s*(?:true|'true')|make_latest\s*==\s*true|gh release/.test(sampledVm.text)
+  ) {
+    failures += reportFailure(id, 'Nightly sampled VM must stay low-frequency and mutation-free');
+  }
+  return failures;
+}
+
 function standardUpdaterOrLatest(text: string): boolean {
   return text.includes('uses: ./.github/workflows/opl-updater-upgrade-vm.yml') ||
     /^\s*activate-latest:/m.test(text) ||
@@ -1288,6 +1437,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
   let failures = validateStableReleaseControlPlane(appRoot) +
     validateReleaseBundleTopology(appRoot) +
     validateReleaseBundleCanaryTopology(appRoot) +
+    validateNightlyReleaseTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
     validateNativeWebuiPublicationTopology(appRoot) +
     validateHomebrewFullPromotionTopology(appRoot);
