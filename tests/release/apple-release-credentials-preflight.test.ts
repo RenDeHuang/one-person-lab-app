@@ -24,7 +24,7 @@ const credentialEnv = {
   GITHUB_ACTIONS: 'true',
   GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
   GITHUB_WORKFLOW_REF:
-    'gaofeng21cn/one-person-lab-app/.github/workflows/release-apple-credentials-preflight.yml@refs/heads/main',
+    'gaofeng21cn/one-person-lab-app/.github/workflows/release-stable.yml@refs/heads/main',
   GITHUB_RUN_ID: '123456789',
   GITHUB_RUN_ATTEMPT: '1',
   GITHUB_EVENT_NAME: 'workflow_dispatch',

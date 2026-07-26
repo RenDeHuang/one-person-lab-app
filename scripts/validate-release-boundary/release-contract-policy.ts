@@ -629,6 +629,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'prepared_ai_release_notes_marker',
     'prepared_ai_release_notes_standard_scope',
     'framework_freeze_request_schema',
+    'source_qualification_receipt_digest',
     'stable_admission_manifest_digest',
     'apple_credentials_runtime_receipt',
     'cross_namespace_version_allocator',
@@ -649,14 +650,14 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   if (
     standardAdmission?.schema !== 'opl_stable_release_admission_manifest.v1'
     || standardAdmission?.script !== 'scripts/stable-release-admission-manifest.ts'
-    || standardAdmission?.producer_workflow !== '.github/workflows/release-apple-credentials-preflight.yml'
+    || standardAdmission?.producer_workflow !== '.github/workflows/release-stable.yml'
     || standardAdmission?.consumer_workflow !== '.github/workflows/release-stable.yml'
     || standardAdmission?.protected_environment !== 'release-stable'
-    || standardAdmission?.artifact_name !== 'opl-stable-admission-<producer_run_id>'
+    || standardAdmission?.artifact_name !== 'opl-stable-admission-<stable_run_id>'
     || standardAdmission?.digest_algorithm !== 'sha256'
     || !sameStringSet(
       standardAdmission?.standard_dispatch_inputs,
-      ['operation', 'admission_run_id', 'admission_manifest_digest'],
+      ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'],
     )
     || standardAdmission?.raw_standard_version_or_ref_inputs_allowed !== false
     || standardAdmission?.fresh_verify_before_expensive_work !== true
@@ -666,6 +667,8 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     failures += 1;
   }
   for (const binding of [
+    'app_owned_source_qualification_receipt',
+    'one_local_build_and_one_clean_tart_vm',
     'final_app_shell_framework_main_shas',
     'critical_workflow_git_blobs_and_sha256',
     'apple_protected_secret_names_6_of_6',
@@ -680,6 +683,51 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
       console.error(`FAIL release_preflight_contract: Standard admission manifest missing binding ${binding}`);
       failures += 1;
     }
+  }
+  const sourceQualification = preflight?.source_qualification;
+  if (
+    sourceQualification?.schema !== 'opl_app_source_qualification_receipt.v1'
+    || sourceQualification?.workflow !== '.github/workflows/release-source-qualification.yml'
+    || sourceQualification?.receipt_script !== 'scripts/source-qualification-receipt.ts'
+    || sourceQualification?.validator !== 'scripts/validate-source-qualification-receipt.ts'
+    || sourceQualification?.runner !== 'self_hosted_macos_opl_gui_vm'
+    || sourceQualification?.secrets_allowed !== false
+    || sourceQualification?.run_attempt_required !== 1
+    || sourceQualification?.build_invocation_count !== 1
+    || sourceQualification?.tart_vm_invocation_count !== 1
+    || sourceQualification?.local_dmg_is_diagnostic_only !== true
+    || sourceQualification?.release_authority !== false
+    || sourceQualification?.namespace_reservation !== false
+    || sourceQualification?.final_signed_byte_authority !== false
+    || sourceQualification?.accepted_consumer !== '.github/workflows/release-stable.yml'
+  ) {
+    console.error('FAIL release_preflight_contract: source qualification must be one no-secret local build and Tart receipt without release authority');
+    failures += 1;
+  }
+  if (
+    preflight?.apple_credentials_diagnostic?.workflow !== '.github/workflows/release-apple-credentials-preflight.yml'
+    || preflight?.apple_credentials_diagnostic?.authority !== 'diagnostic_only'
+    || preflight?.apple_credentials_diagnostic?.may_create_stable_admission_manifest !== false
+    || preflight?.apple_credentials_diagnostic?.may_dispatch_standard !== false
+  ) {
+    console.error('FAIL release_preflight_contract: standalone Apple credential preflight must be diagnostic-only');
+    failures += 1;
+  }
+  const observability = preflight?.attempt_observability;
+  if (
+    observability?.schema !== 'opl_release_attempt_observation.v1'
+    || observability?.workflow !== '.github/workflows/release-attempt-observability.yml'
+    || observability?.script !== 'scripts/release-attempt-observability.ts'
+    || observability?.trigger !== 'release_stable_workflow_run_completed'
+    || observability?.storage !== 'append_only_per_run_artifact'
+    || observability?.first_terminal_classification !== 'machine_job_name_and_completed_at'
+    || observability?.release_state_authority !== false
+    || observability?.framework_status_authority !== false
+    || observability?.mutation_authority !== false
+    || observability?.may_authorize_retry_rerun_or_redispatch !== false
+  ) {
+    console.error('FAIL release_preflight_contract: attempt observability must remain an append-only non-authoritative follower');
+    failures += 1;
   }
   const sourceGate = preflight?.source_gate;
   if (

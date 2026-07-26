@@ -44,6 +44,13 @@ and operator receipts remain readable for audit, but they cannot admit,
 schedule, dispatch, rebuild, rerun, cancel, publish, promote, or reconcile a new
 release.
 
+The App-owned source qualification receipt is also not Bundle or mutation
+authority. It binds one exact main-only App/Shell/Framework cohort to one local
+unsigned Standard build and one clean Tart VM pass. It exists to move repeatable
+source, packaging, install, Settings, assistant-route, and Runtime smoke failures
+ahead of protected signing and public publication. It does not reserve a
+version, bind final signed bytes, or permit a Standard dispatch by itself.
+
 ## Portable Checkpoints
 
 The five portable stages are `frozen`, `standard_built`,
@@ -163,6 +170,16 @@ Latest, and both display and machine versions must increase.
 historical Nightly tags, assets, updater metadata, and receipts remain readable,
 while the daily schedule runs the validation-only Canary.
 
+A new `standard` operation consumes an exact successful
+`.github/workflows/release-source-qualification.yml` run id and receipt digest.
+The Stable run first verifies that main-only, first-attempt, no-secret receipt,
+then its read-only `protected-admission` job enters `release-stable`, performs
+the Apple credential probes, allocates the version, and seals the same-run
+Stable admission manifest. Standard receives version and cohort only from that
+protected job; the caller cannot inject raw version or source refs. The
+standalone Apple credential workflow remains diagnostic-only and cannot create
+the manifest or dispatch Standard.
+
 Desktop Standard alone reaches Latest. After that terminal readback,
 `.github/workflows/release-webui-follower.yml` consumes the successful Stable
 run through `workflow_run`, verifies the exact handoff, and owns WebUI build,
@@ -181,6 +198,11 @@ Only the publish job may receive bounded write permission, under the protected
 digest-idempotent: upload a missing asset, treat the same name and digest as
 complete, and fail closed on the same name with a different digest. An unknown
 API result permits reconcile only, never redispatch, rerun, or cancel.
+
+`.github/workflows/release-attempt-observability.yml` follows completed Stable
+runs and writes one append-only observation artifact per run. Its stage and
+timing classification is operational evidence only; it has no Framework state,
+release-state, retry, rerun, redispatch, cancellation, or mutation authority.
 
 Homebrew mutations are performed inside protected Bundle jobs with the scoped
 tap credential. Each cask push is attempted once and accepted only after exact

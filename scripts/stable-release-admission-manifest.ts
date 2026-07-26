@@ -16,6 +16,10 @@ import {
   assertPromotionTargetIsNewerThanPublishedStable,
   type PublishedRelease,
 } from './stable-release-version-order.ts';
+import {
+  validateSourceQualificationReceipt,
+  type SourceQualificationReceipt,
+} from './source-qualification-receipt.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,9 +41,12 @@ const requiredSecretNames = [
 ] as const;
 const requiredWorkflowPaths = [
   '.github/workflows/release-stable.yml',
+  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_build-reusable.yml',
-  '.github/workflows/release-apple-credentials-preflight.yml',
+  'contracts/app-source-qualification-receipt.schema.json',
+  'scripts/source-qualification-receipt.ts',
+  'scripts/validate-source-qualification-receipt.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
@@ -84,6 +91,8 @@ export type StableAdmissionObservation = {
     framework: string;
   };
   workflowBlobs: WorkflowBlob[];
+  sourceQualificationReceipt: JsonRecord;
+  sourceQualificationReceiptBytes: Buffer;
   credentialReceipt: JsonRecord;
   credentialReceiptBytes: Buffer;
   publishedReleases: PublishedRelease[];
@@ -120,7 +129,7 @@ export type StableAdmissionManifest = {
   workflow_blobs: WorkflowBlob[];
   apple_credentials: {
     producer_run_id: string;
-    producer_workflow: '.github/workflows/release-apple-credentials-preflight.yml';
+    producer_workflow: '.github/workflows/release-stable.yml';
     protected_environment: 'release-stable';
     receipt_sha256: string;
     required_secret_names: string[];
@@ -128,6 +137,18 @@ export type StableAdmissionManifest = {
     signing_status: 'passed';
     notarization_authentication: 'passed';
     submission_performed: false;
+  };
+  source_qualification: {
+    producer_run_id: string;
+    producer_workflow: '.github/workflows/release-source-qualification.yml';
+    artifact_name: string;
+    receipt_digest: string;
+    receipt_file_sha256: string;
+    local_dmg_sha256: string;
+    mode: 'development_validation';
+    release_authority: false;
+    namespace_reservation: false;
+    final_signed_byte_authority: false;
   };
   allocator: {
     observed_namespace_versions: string[];
@@ -161,7 +182,7 @@ export type StableAdmissionManifest = {
     workflow: '.github/workflows/release-stable.yml';
     ref: 'main';
     artifact_name: string;
-    accepted_inputs: ['operation', 'admission_run_id', 'admission_manifest_digest'];
+    accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'];
     raw_standard_version_or_ref_inputs_allowed: false;
     unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel';
   };
@@ -235,7 +256,7 @@ function validateCredentialReceipt(
     || execution.admission_eligible !== true
     || execution.repository !== appRepository
     || typeof execution.workflow_ref !== 'string'
-    || !execution.workflow_ref.includes('/.github/workflows/release-apple-credentials-preflight.yml@refs/heads/main')
+    || !execution.workflow_ref.includes('/.github/workflows/release-stable.yml@refs/heads/main')
     || execution.run_id !== input.admissionRunId
     || execution.run_attempt !== 1
     || execution.event_name !== 'workflow_dispatch'
@@ -339,6 +360,17 @@ export function buildStableReleaseAdmissionManifest(
     }
   }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
+  const sourceQualification = validateSourceQualificationReceipt(
+    observation.sourceQualificationReceipt,
+    { headSha: input.appRef },
+  );
+  if (
+    sourceQualification.cohort.app.sha !== input.appRef
+    || sourceQualification.cohort.shell.sha !== input.shellRef
+    || sourceQualification.cohort.framework.sha !== input.frameworkRef
+  ) {
+    throw new Error('Source qualification receipt does not bind the frozen Stable cohort.');
+  }
   validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
     throw new Error(
@@ -412,7 +444,7 @@ export function buildStableReleaseAdmissionManifest(
     workflow_blobs: workflowBlobs,
     apple_credentials: {
       producer_run_id: input.admissionRunId,
-      producer_workflow: '.github/workflows/release-apple-credentials-preflight.yml',
+      producer_workflow: '.github/workflows/release-stable.yml',
       protected_environment: 'release-stable',
       receipt_sha256: sha256Bytes(observation.credentialReceiptBytes),
       required_secret_names: [...requiredSecretNames],
@@ -420,6 +452,18 @@ export function buildStableReleaseAdmissionManifest(
       signing_status: 'passed',
       notarization_authentication: 'passed',
       submission_performed: false,
+    },
+    source_qualification: {
+      producer_run_id: sourceQualification.execution.run_id,
+      producer_workflow: '.github/workflows/release-source-qualification.yml',
+      artifact_name: `opl-source-qualification-${sourceQualification.execution.run_id}`,
+      receipt_digest: sourceQualification.receipt_digest,
+      receipt_file_sha256: sha256Bytes(observation.sourceQualificationReceiptBytes),
+      local_dmg_sha256: sourceQualification.artifact.sha256,
+      mode: 'development_validation',
+      release_authority: false,
+      namespace_reservation: false,
+      final_signed_byte_authority: false,
     },
     allocator: {
       observed_namespace_versions: observedNamespaceVersions,
@@ -468,7 +512,7 @@ export function buildStableReleaseAdmissionManifest(
       workflow: '.github/workflows/release-stable.yml',
       ref: 'main',
       artifact_name: `opl-stable-admission-${input.admissionRunId}`,
-      accepted_inputs: ['operation', 'admission_run_id', 'admission_manifest_digest'],
+      accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'],
       raw_standard_version_or_ref_inputs_allowed: false,
       unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel',
     },
@@ -682,10 +726,12 @@ function shanghaiDate(now = new Date()): string {
 
 async function collectObservation(
   input: StableAdmissionInput,
+  sourceQualificationReceiptPath: string,
   credentialReceiptPath: string,
   excludedRunId: string,
   checkedAt = new Date().toISOString(),
 ): Promise<StableAdmissionObservation> {
+  const sourceQualificationReceiptBytes = fs.readFileSync(sourceQualificationReceiptPath);
   const credentialReceiptBytes = fs.readFileSync(credentialReceiptPath);
   const releaseContractBytes = fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'));
   const releaseContract = object(JSON.parse(releaseContractBytes.toString('utf8')), 'App release contract');
@@ -698,6 +744,11 @@ async function collectObservation(
       framework: repositoryMainRef(frameworkRepository),
     },
     workflowBlobs: localWorkflowBlobs(input.appRef),
+    sourceQualificationReceipt: object(
+      JSON.parse(sourceQualificationReceiptBytes.toString('utf8')),
+      'Source qualification receipt',
+    ),
+    sourceQualificationReceiptBytes,
     credentialReceipt: object(
       JSON.parse(credentialReceiptBytes.toString('utf8')),
       'Apple credential receipt',
@@ -746,6 +797,7 @@ export function firstDifference(actual: unknown, expected: unknown, pointer = '$
 
 export async function verifyStableReleaseAdmissionManifest(options: {
   manifest: StableAdmissionManifest;
+  sourceQualificationReceiptPath: string;
   credentialReceiptPath: string;
   expectedDigest: string;
   currentRunId: string;
@@ -775,6 +827,7 @@ export async function verifyStableReleaseAdmissionManifest(options: {
   };
   const observation = await collectObservation(
     input,
+    options.sourceQualificationReceiptPath,
     options.credentialReceiptPath,
     runId(options.currentRunId, 'Current Standard run id'),
     manifest.checked_at,
@@ -804,6 +857,7 @@ function cliOptions() {
       'shell-ref': { type: 'string' },
       'framework-ref': { type: 'string' },
       'admission-run-id': { type: 'string' },
+      'source-qualification-receipt': { type: 'string' },
       'credential-receipt': { type: 'string' },
       manifest: { type: 'string' },
       'expected-digest': { type: 'string' },
@@ -813,6 +867,10 @@ function cliOptions() {
   });
   const command = positionals[0] ?? '';
   const output = requiredString(values.output, '--output');
+  const sourceQualificationReceiptPath = path.resolve(requiredString(
+    values['source-qualification-receipt'],
+    '--source-qualification-receipt',
+  ));
   const credentialReceiptPath = path.resolve(requiredString(
     values['credential-receipt'],
     '--credential-receipt',
@@ -821,6 +879,7 @@ function cliOptions() {
     return {
       command,
       output,
+      sourceQualificationReceiptPath,
       credentialReceiptPath,
       input: {
         baseVersion: requiredString(values['base-version'], '--base-version'),
@@ -835,6 +894,7 @@ function cliOptions() {
     return {
       command,
       output,
+      sourceQualificationReceiptPath,
       credentialReceiptPath,
       manifestPath: path.resolve(requiredString(values.manifest, '--manifest')),
       expectedDigest: requiredString(values['expected-digest'], '--expected-digest'),
@@ -849,6 +909,7 @@ async function main(): Promise<void> {
   if (options.command === 'create') {
     const observation = await collectObservation(
       options.input,
+      options.sourceQualificationReceiptPath,
       options.credentialReceiptPath,
       options.input.admissionRunId,
     );
@@ -869,6 +930,7 @@ async function main(): Promise<void> {
   ) as StableAdmissionManifest;
   const verified = await verifyStableReleaseAdmissionManifest({
     manifest,
+    sourceQualificationReceiptPath: options.sourceQualificationReceiptPath,
     credentialReceiptPath: options.credentialReceiptPath,
     expectedDigest: options.expectedDigest,
     currentRunId: options.currentRunId,
@@ -879,6 +941,7 @@ async function main(): Promise<void> {
     manifest_digest: verified.manifest_digest,
     version: verified.version,
     cohort: verified.cohort,
+    source_qualification: verified.source_qualification,
     admission_run_id: verified.apple_credentials.producer_run_id,
   };
   writeJson(options.output, output);

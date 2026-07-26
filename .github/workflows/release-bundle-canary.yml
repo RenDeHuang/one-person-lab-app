@@ -20,6 +20,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  framework-checkpoint-roundtrip:
+    name: Real Framework checkpoint and deadline semantics
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout current Framework main
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: main
+          path: framework
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Install Framework validation dependencies
+        working-directory: framework
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Prove checkpoint roundtrip, no rebuild, and expired deadline rejection
+        working-directory: framework
+        run: |
+          node --experimental-strip-types --test \
+            --test-name-pattern='portable checkpoint switches executors|elapsed absolute deadline blocks' \
+            tests/src/cli/cases/release-bundle.test.ts
+
   standard:
     uses: ./.github/workflows/_release-bundle.yml
     permissions:

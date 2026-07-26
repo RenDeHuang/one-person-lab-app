@@ -50,6 +50,16 @@ wrong or unverifiable, data/security/permission boundaries are at risk, the
 target name has a conflicting digest, an external mutation result is unknown,
 or required human/owner authority is unavailable.
 
+Desktop source qualification is the pre-release cost-control gate. Run
+`.github/workflows/release-source-qualification.yml` on exact `main` before a
+new Standard operation. It performs one unsigned local Standard build and one
+clean Tart VM qualification on the self-hosted macOS runner, then emits an
+immutable `opl_app_source_qualification_receipt.v1` binding the App, Shell, and
+Framework cohort. The receipt is `development_validation`: it reserves no
+version, proves no final signed byte, grants no release authority, and performs
+no public mutation. Its purpose is to expose source, packaging, install, and VM
+smoke defects before the protected signing/notarization path pays for them.
+
 ## Development And Production Modes
 
 WebUI has two explicit task modes that share the same carrier build,
@@ -126,7 +136,10 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | --- | --- |
 | Bundle schema, canonical digest, store, checkpoint, executor and operation receipts | OPL Framework `opl release` |
 | Stable product operations and public asset policy | `contracts/app-release-channel.json#release_bundle_control_plane` |
+| Desktop source qualification | `.github/workflows/release-source-qualification.yml` plus `opl_app_source_qualification_receipt.v1`; development validation only |
 | Stable manual entry | `.github/workflows/release-stable.yml` |
+| Protected same-run credential check and version/cohort admission | `release-stable.yml#protected-admission`; read-only `release-stable` environment gate |
+| Per-attempt failure timing and stage observation | `.github/workflows/release-attempt-observability.yml`; append-only read-only follower without retry authority |
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
@@ -165,7 +178,12 @@ argument.
 `standard` freezes one new Bundle, builds and qualifies Standard, exports a
 portable checkpoint, qualifies the actual updater ZIP before any public Release
 mutation, and then publishes, reads back, updates Homebrew, and activates Latest.
-Its absolute operation budget is 90 minutes.
+Its absolute operation budget is 90 minutes. The manual dispatch accepts only
+the exact successful source-qualification run id and receipt digest. The same
+Stable run enters `release-stable`, verifies Apple credentials without
+submission, allocates the unoccupied version, seals the cohort/admission
+manifest, and only then calls the Standard Bundle implementation. Raw version or
+source refs are not Standard inputs.
 
 `resume_standard` imports an existing Framework checkpoint and completes the
 remaining Standard publication path without rebuilding a completed stage. It
@@ -182,6 +200,12 @@ before each remote write. `github.run_attempt` must be `1`; partial workflow
 reruns are rejected. Recovery uses a fresh executor invocation over the exact
 Framework checkpoint and inherited operation control, never an Actions rerun or
 a reconstructed App session.
+
+After a Stable attempt reaches terminal state,
+`.github/workflows/release-attempt-observability.yml` records the first terminal
+job, stage, conclusion, and wall time in one artifact named for that run. This
+follower is diagnostic only: it cannot change Framework state or authorize a
+retry, rerun, redispatch, cancellation, or release mutation.
 
 ## Checkpoint Handoff
 

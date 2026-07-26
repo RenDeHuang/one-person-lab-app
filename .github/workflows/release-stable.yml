@@ -1,5 +1,5 @@
 name: OPL Stable Release Bundle
-run-name: OPL Stable ${{ inputs.operation }} ${{ inputs.version || inputs.source_run_id }}
+run-name: OPL Stable ${{ inputs.operation }} ${{ inputs.source_qualification_run_id || inputs.source_run_id }}
 
 on:
   workflow_dispatch:
@@ -43,13 +43,13 @@ on:
         required: false
         default: ''
         type: string
-      admission_run_id:
-        description: Exact successful protected admission run; required only for a new Standard Bundle
+      source_qualification_run_id:
+        description: Exact successful main-only source qualification run; required only for a new Standard Bundle
         required: false
         default: ''
         type: string
-      admission_manifest_digest:
-        description: Exact sha256 digest of the immutable Stable admission manifest
+      source_qualification_receipt_digest:
+        description: Exact sha256 digest of the immutable App source qualification receipt
         required: false
         default: ''
         type: string
@@ -88,6 +88,8 @@ jobs:
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
       package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
       package_compatibility_version_range: ${{ steps.admission.outputs.package_compatibility_version_range }}
+      source_qualification_run_id: ${{ steps.admission.outputs.source_qualification_run_id }}
+      source_qualification_receipt_digest: ${{ steps.admission.outputs.source_qualification_receipt_digest }}
     steps:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -107,8 +109,8 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
-          ADMISSION_RUN_ID: ${{ inputs.admission_run_id }}
-          ADMISSION_MANIFEST_DIGEST: ${{ inputs.admission_manifest_digest }}
+          SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+          SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ inputs.source_qualification_receipt_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -123,28 +125,28 @@ jobs:
           case "$OPERATION" in
             standard)
               test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
-                echo "::error::A new Standard Bundle accepts only the immutable admission run and manifest digest."
+                echo "::error::A new Standard Bundle accepts only one immutable source qualification run and receipt digest."
                 exit 1
               }
-              [[ "$ADMISSION_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
-                echo "::error::A new Standard Bundle requires an exact protected admission run id."
+              [[ "$SOURCE_QUALIFICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+                echo "::error::A new Standard Bundle requires an exact source qualification run id."
                 exit 1
               }
-              [[ "$ADMISSION_MANIFEST_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                echo "::error::A new Standard Bundle requires the exact admission manifest SHA-256."
+              [[ "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+                echo "::error::A new Standard Bundle requires the exact source qualification receipt digest."
                 exit 1
               }
               test "$INCLUDE_FULL" = false || {
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
                 exit 1
               }
-              admission_run_json="$(
+              qualification_run_json="$(
                 timeout --foreground --signal=TERM --kill-after=5s 30s \
-                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ADMISSION_RUN_ID"
+                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_QUALIFICATION_RUN_ID"
               )"
               jq -e \
                 --arg app_sha "$app_sha" \
-                --arg workflow ".github/workflows/release-apple-credentials-preflight.yml" \
+                --arg workflow ".github/workflows/release-source-qualification.yml" \
                 '
                   .status == "completed"
                   and .conclusion == "success"
@@ -153,36 +155,33 @@ jobs:
                   and .head_branch == "main"
                   and .head_sha == $app_sha
                   and .path == $workflow
-                ' <<<"$admission_run_json" >/dev/null || {
-                  echo "::error::Stable admission must come from one successful first-attempt protected preflight on this exact App main."
+                ' <<<"$qualification_run_json" >/dev/null || {
+                  echo "::error::Stable admission requires one successful first-attempt source qualification on this exact App main."
                   exit 1
                 }
-              rm -rf stable-admission-evidence
-              mkdir -p stable-admission-evidence
+              rm -rf source-qualification-evidence
+              mkdir -p source-qualification-evidence
               timeout --foreground --signal=TERM --kill-after=5s 60s \
-                gh run download "$ADMISSION_RUN_ID" \
+                gh run download "$SOURCE_QUALIFICATION_RUN_ID" \
                   --repo "$GITHUB_REPOSITORY" \
-                  --name "opl-stable-admission-$ADMISSION_RUN_ID" \
-                  --dir stable-admission-evidence
-              manifest_path="stable-admission-evidence/stable-release-admission-manifest.json"
-              credential_receipt_path="stable-admission-evidence/apple-release-credentials-preflight.json"
-              test -f "$manifest_path" -a ! -L "$manifest_path" \
-                -a -f "$credential_receipt_path" -a ! -L "$credential_receipt_path" || {
-                  echo "::error::Stable admission artifact must contain exact regular manifest and credential receipt files."
+                  --name "opl-source-qualification-$SOURCE_QUALIFICATION_RUN_ID" \
+                  --dir source-qualification-evidence
+              qualification_receipt_path="source-qualification-evidence/source-qualification-receipt.json"
+              test -f "$qualification_receipt_path" -a ! -L "$qualification_receipt_path" || {
+                  echo "::error::Source qualification artifact must contain one regular receipt file."
                   exit 1
                 }
-              node --experimental-strip-types app-source/scripts/stable-release-admission-manifest.ts verify \
-                --manifest "$manifest_path" \
-                --credential-receipt "$credential_receipt_path" \
-                --expected-digest "$ADMISSION_MANIFEST_DIGEST" \
-                --current-run-id "$GITHUB_RUN_ID" \
-                --output verified-stable-admission.json
-              VERSION="$(jq -er .version.display verified-stable-admission.json)"
-              SHELL_REF="$(jq -er .cohort.shell_sha verified-stable-admission.json)"
-              FRAMEWORK_REF="$(jq -er .cohort.framework_sha verified-stable-admission.json)"
-              verified_app_ref="$(jq -er .cohort.app_sha verified-stable-admission.json)"
+              node --experimental-strip-types app-source/scripts/source-qualification-receipt.ts verify \
+                --receipt "$qualification_receipt_path" \
+                --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
+                --expected-run-id "$SOURCE_QUALIFICATION_RUN_ID" \
+                --expected-head-sha "$app_sha" \
+                --output verified-source-qualification.json
+              SHELL_REF="$(jq -er .cohort.shell.sha verified-source-qualification.json)"
+              FRAMEWORK_REF="$(jq -er .cohort.framework.sha verified-source-qualification.json)"
+              verified_app_ref="$(jq -er .cohort.app.sha verified-source-qualification.json)"
               test "$verified_app_ref" = "$app_sha" || {
-                echo "::error::Verified Stable admission App ref does not match the workflow executor."
+                echo "::error::Verified source qualification App ref does not match the workflow executor."
                 exit 1
               }
               ;;
@@ -195,8 +194,8 @@ jobs:
                 echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
                 exit 1
               }
-              test -z "$ADMISSION_RUN_ID$ADMISSION_MANIFEST_DIGEST" || {
-                echo "::error::$OPERATION cannot consume a new Standard admission manifest."
+              test -z "$SOURCE_QUALIFICATION_RUN_ID$SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
+                echo "::error::$OPERATION cannot consume a new source qualification receipt."
                 exit 1
               }
               if [ -n "$REQUESTED_FRAMEWORK_REF" ]; then
@@ -232,6 +231,8 @@ jobs:
             echo "operation_deadline_at=$operation_deadline_at"
             echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
             echo "package_compatibility_version_range=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE"
+            echo "source_qualification_run_id=$SOURCE_QUALIFICATION_RUN_ID"
+            echo "source_qualification_receipt_digest=$SOURCE_QUALIFICATION_RECEIPT_DIGEST"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable operation admission
@@ -241,13 +242,108 @@ jobs:
           name: opl-release-operation-admission-${{ github.run_id }}
           path: |
             release-operation-admission.json
-            verified-stable-admission.json
+            verified-source-qualification.json
+          if-no-files-found: error
+          retention-days: 30
+
+  protected-admission:
+    if: ${{ needs.admission.outputs.operation == 'standard' }}
+    needs: [admission]
+    runs-on: macos-14
+    timeout-minutes: 15
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.manifest.outputs.version }}
+      updater_version: ${{ steps.manifest.outputs.updater_version }}
+      app_ref: ${{ needs.admission.outputs.app_ref }}
+      shell_ref: ${{ needs.admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.admission.outputs.framework_ref }}
+      manifest_digest: ${{ steps.manifest.outputs.manifest_digest }}
+    steps:
+      - name: Checkout exact Stable executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.admission.outputs.app_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Download exact source qualification receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-source-qualification-${{ needs.admission.outputs.source_qualification_run_id }}
+          run-id: ${{ needs.admission.outputs.source_qualification_run_id }}
+          github-token: ${{ github.token }}
+          path: source-qualification-evidence
+
+      - name: Verify protected Apple credentials in the Stable entry
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          IDENTITY: ${{ secrets.IDENTITY }}
+        run: |
+          node --experimental-strip-types scripts/verify-apple-release-credentials.ts \
+            --output "$RUNNER_TEMP/apple-release-credentials-preflight.json"
+
+      - name: Seal one same-run Stable admission manifest
+        id: manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_REF: ${{ needs.admission.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admission.outputs.shell_ref }}
+          FRAMEWORK_REF: ${{ needs.admission.outputs.framework_ref }}
+          SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ needs.admission.outputs.source_qualification_receipt_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          qualification_receipt="source-qualification-evidence/source-qualification-receipt.json"
+          node --experimental-strip-types scripts/validate-source-qualification-receipt.ts \
+            --receipt "$qualification_receipt" \
+            --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
+            --expected-run-id '${{ needs.admission.outputs.source_qualification_run_id }}' \
+            --expected-head-sha "$APP_REF"
+          base_version="$(node -e 'const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Shanghai",year:"2-digit",month:"numeric",day:"numeric"}).formatToParts(new Date());const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));process.stdout.write(`${values.year}.${values.month}.${values.day}`)')"
+          node --experimental-strip-types scripts/stable-release-admission-manifest.ts create \
+            --base-version "$base_version" \
+            --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
+            --admission-run-id "$GITHUB_RUN_ID" \
+            --source-qualification-receipt "$qualification_receipt" \
+            --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \
+            --output "$RUNNER_TEMP/stable-release-admission-manifest.json"
+          node - "$RUNNER_TEMP/stable-release-admission-manifest.json" "$GITHUB_OUTPUT" <<'NODE'
+          const fs = require('fs');
+          const [manifestPath, outputPath] = process.argv.slice(2);
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          fs.appendFileSync(outputPath, [
+            `version=${manifest.version.display}`,
+            `updater_version=${manifest.version.updater}`,
+            `manifest_digest=${manifest.manifest_digest}`,
+            '',
+          ].join('\n'));
+          NODE
+
+      - name: Upload same-run protected admission evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-admission-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/stable-release-admission-manifest.json
+            ${{ runner.temp }}/apple-release-credentials-preflight.json
+            source-qualification-evidence/source-qualification-receipt.json
           if-no-files-found: error
           retention-days: 30
 
   standard:
     if: ${{ needs.admission.outputs.operation == 'standard' }}
-    needs: [admission]
+    needs: [admission, protected-admission]
     permissions:
       contents: write
       actions: read
@@ -256,13 +352,13 @@ jobs:
       mode: execute
       operation: standard
       channel: stable
-      version: ${{ needs.admission.outputs.version }}
+      version: ${{ needs.protected-admission.outputs.version }}
       include_full: ${{ fromJSON(needs.admission.outputs.include_full) }}
       package_compatibility_abi: ${{ needs.admission.outputs.package_compatibility_abi }}
       package_compatibility_version_range: ${{ needs.admission.outputs.package_compatibility_version_range }}
-      app_ref: ${{ needs.admission.outputs.app_ref }}
-      shell_ref: ${{ needs.admission.outputs.shell_ref }}
-      framework_ref: ${{ needs.admission.outputs.framework_ref }}
+      app_ref: ${{ needs.protected-admission.outputs.app_ref }}
+      shell_ref: ${{ needs.protected-admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.protected-admission.outputs.framework_ref }}
       operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit

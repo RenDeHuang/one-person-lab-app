@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/contracts/app-source-qualification-receipt.schema.json",
+  "title": "One Person Lab App Source Qualification Receipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "mode",
+    "completed_at",
+    "execution",
+    "cohort",
+    "artifact",
+    "evidence",
+    "qualification",
+    "authority",
+    "workflow_blobs",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema": { "const": "opl_app_source_qualification_receipt.v1" },
+    "status": { "const": "passed" },
+    "mode": { "const": "development_validation" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "execution": {
+      "type": "object",
+      "required": ["repository", "workflow", "event", "ref", "head_sha", "run_id", "run_attempt", "runner_labels"],
+      "properties": {
+        "repository": { "const": "gaofeng21cn/one-person-lab-app" },
+        "workflow": { "const": ".github/workflows/release-source-qualification.yml" },
+        "event": { "const": "workflow_dispatch" },
+        "ref": { "const": "refs/heads/main" },
+        "head_sha": { "$ref": "#/$defs/git_sha" },
+        "run_id": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "run_attempt": { "const": 1 },
+        "runner_labels": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "cohort": {
+      "type": "object",
+      "required": ["app", "shell", "framework"],
+      "properties": {
+        "app": { "$ref": "#/$defs/repository_identity" },
+        "shell": { "$ref": "#/$defs/repository_identity" },
+        "framework": { "$ref": "#/$defs/repository_identity" }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["kind", "basename", "size_bytes", "sha256", "diagnostic_only"],
+      "properties": {
+        "kind": { "const": "local_unsigned_standard_dmg" },
+        "basename": { "type": "string", "pattern": "^One-Person-Lab-[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?-mac-arm64\\.dmg$" },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "diagnostic_only": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["command_manifest", "cohort_manifest", "build_cohort", "smoke_summary", "vm_closeout"],
+      "properties": {
+        "command_manifest": { "$ref": "#/$defs/file_evidence" },
+        "cohort_manifest": { "$ref": "#/$defs/file_evidence" },
+        "build_cohort": { "$ref": "#/$defs/file_evidence" },
+        "smoke_summary": { "$ref": "#/$defs/file_evidence" },
+        "vm_closeout": { "$ref": "#/$defs/file_evidence" }
+      },
+      "additionalProperties": false
+    },
+    "qualification": {
+      "type": "object",
+      "required": [
+        "runtime_profile",
+        "settings_pages",
+        "assistant_routes",
+        "runtime_routes",
+        "build_invocation_count",
+        "tart_vm_invocation_count",
+        "target_vm_final_state",
+        "source_vm_final_state"
+      ],
+      "properties": {
+        "runtime_profile": { "const": "standard" },
+        "settings_pages": {
+          "const": ["general", "environment", "capabilities", "access", "appearance", "diagnostics", "about", "runtime-status"]
+        },
+        "assistant_routes": { "const": ["mas", "mag", "rca"] },
+        "runtime_routes": { "const": ["#/settings/runtime", "#/runtime"] },
+        "build_invocation_count": { "const": 1 },
+        "tart_vm_invocation_count": { "const": 1 },
+        "target_vm_final_state": { "const": "absent" },
+        "source_vm_final_state": { "const": "stopped" }
+      },
+      "additionalProperties": false
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "release_authority",
+        "namespace_reservation",
+        "final_signed_byte_authority",
+        "public_mutation_performed",
+        "accepted_consumer"
+      ],
+      "properties": {
+        "release_authority": { "const": false },
+        "namespace_reservation": { "const": false },
+        "final_signed_byte_authority": { "const": false },
+        "public_mutation_performed": { "const": false },
+        "accepted_consumer": { "const": ".github/workflows/release-stable.yml" }
+      },
+      "additionalProperties": false
+    },
+    "workflow_blobs": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["path", "git_blob_sha", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "git_blob_sha": { "$ref": "#/$defs/git_sha" },
+          "sha256": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "receipt_digest": { "$ref": "#/$defs/digest" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "repository_identity": {
+      "type": "object",
+      "required": ["sha", "tree"],
+      "properties": {
+        "sha": { "$ref": "#/$defs/git_sha" },
+        "tree": { "$ref": "#/$defs/git_sha" }
+      },
+      "additionalProperties": false
+    },
+    "file_evidence": {
+      "type": "object",
+      "required": ["basename", "size_bytes", "sha256"],
+      "properties": {
+        "basename": { "type": "string", "minLength": 1 },
+        "size_bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

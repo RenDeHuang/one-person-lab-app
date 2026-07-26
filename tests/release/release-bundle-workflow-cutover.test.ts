@@ -270,11 +270,11 @@ test('Stable is the only mutation entry and daily validation uses the independen
   }
 });
 
-test('new Standard admits only a protected digest-bound manifest while Canary uses a minimum compatible ABI', () => {
+test('new Standard consumes one source receipt and seals protected admission in the same run', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
-  assert.equal(stable.on.workflow_dispatch.inputs.admission_run_id.required, false);
-  assert.equal(stable.on.workflow_dispatch.inputs.admission_manifest_digest.required, false);
+  assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_run_id.required, false);
+  assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_receipt_digest.required, false);
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
@@ -282,18 +282,17 @@ test('new Standard admits only a protected digest-bound manifest while Canary us
     stableAdmission,
     /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT"/,
   );
-  assert.match(stableAdmission, /actions\/runs\/\$ADMISSION_RUN_ID/);
+  assert.match(stableAdmission, /actions\/runs\/\$SOURCE_QUALIFICATION_RUN_ID/);
   assert.match(stableAdmission, /\.status == "completed"/);
   assert.match(stableAdmission, /\.conclusion == "success"/);
   assert.match(stableAdmission, /\.run_attempt == 1/);
   assert.match(stableAdmission, /\.head_sha == \$app_sha/);
   assert.match(stableAdmission, /\.path == \$workflow/);
-  assert.match(stableAdmission, /opl-stable-admission-\$ADMISSION_RUN_ID/);
-  assert.match(stableAdmission, /stable-release-admission-manifest\.ts verify/);
-  assert.match(stableAdmission, /--expected-digest "\$ADMISSION_MANIFEST_DIGEST"/);
-  assert.match(stableAdmission, /VERSION="\$\(jq -er \.version\.display verified-stable-admission\.json\)"/);
-  assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell_sha verified-stable-admission\.json\)"/);
-  assert.match(stableAdmission, /FRAMEWORK_REF="\$\(jq -er \.cohort\.framework_sha verified-stable-admission\.json\)"/);
+  assert.match(stableAdmission, /opl-source-qualification-\$SOURCE_QUALIFICATION_RUN_ID/);
+  assert.match(stableAdmission, /source-qualification-receipt\.ts verify/);
+  assert.match(stableAdmission, /--expected-digest "\$SOURCE_QUALIFICATION_RECEIPT_DIGEST"/);
+  assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell\.sha verified-source-qualification\.json\)"/);
+  assert.match(stableAdmission, /FRAMEWORK_REF="\$\(jq -er \.cohort\.framework\.sha verified-source-qualification\.json\)"/);
   assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
   assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
@@ -303,6 +302,16 @@ test('new Standard admits only a protected digest-bound manifest while Canary us
     stableAdmission.slice(stableAdmission.indexOf('resume_standard|append_full)')),
     /canonical_framework_sha|OPL_FRAMEWORK_RELEASE_ABI_REF/,
   );
+  const protectedAdmission = stable.jobs['protected-admission'];
+  assert.equal(protectedAdmission.environment, 'release-stable');
+  assert.deepEqual(protectedAdmission.needs, ['admission']);
+  assert.equal(protectedAdmission.steps.some(
+    (step: Record<string, unknown>) => step.name === 'Verify protected Apple credentials in the Stable entry',
+  ), true);
+  assert.equal(protectedAdmission.steps.some(
+    (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
+  ), true);
+  assert.equal(stable.jobs.standard.needs.includes('protected-admission'), true);
 
   for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
     const workflow = parseWorkflow(name);
@@ -1140,14 +1149,19 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     credentialPreflight.jobs.validate.steps.some(
       (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
     ),
-    true,
+    false,
   );
   assert.equal(
     credentialPreflight.jobs.validate.steps.some(
       (step: Record<string, any>) => step.with?.name === 'opl-stable-admission-${{ github.run_id }}',
     ),
-    true,
+    false,
   );
+  const stableWorkflow = parseWorkflow('release-stable.yml');
+  assert.equal(stableWorkflow.jobs['protected-admission'].environment, 'release-stable');
+  assert.equal(stableWorkflow.jobs['protected-admission'].steps.some(
+    (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
+  ), true);
   assert.equal(setupSigning.env.BUILD_CERTIFICATE_BASE64, '${{ secrets.BUILD_CERTIFICATE_BASE64 }}');
   assert.equal(setupSigning.env.P12_PASSWORD, '${{ secrets.P12_PASSWORD }}');
   assert.match(String(setupSigning.run), /security set-keychain-settings -lut 21600 build\.keychain/);

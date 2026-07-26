@@ -12,6 +12,7 @@ import {
   type StableAdmissionInput,
   type StableAdmissionObservation,
 } from '../../scripts/stable-release-admission-manifest.ts';
+import { sourceQualificationReceiptDigest } from '../../scripts/source-qualification-receipt.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const appRef = '1'.repeat(40);
@@ -20,9 +21,12 @@ const frameworkRef = '3'.repeat(40);
 const admissionRunId = '30150000001';
 const workflowPaths = [
   '.github/workflows/release-stable.yml',
+  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_build-reusable.yml',
-  '.github/workflows/release-apple-credentials-preflight.yml',
+  'contracts/app-source-qualification-receipt.schema.json',
+  'scripts/source-qualification-receipt.ts',
+  'scripts/validate-source-qualification-receipt.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
@@ -58,7 +62,7 @@ function receipt() {
       admission_eligible: true,
       repository: 'gaofeng21cn/one-person-lab-app',
       workflow_ref:
-        'gaofeng21cn/one-person-lab-app/.github/workflows/release-apple-credentials-preflight.yml@refs/heads/main',
+        'gaofeng21cn/one-person-lab-app/.github/workflows/release-stable.yml@refs/heads/main',
       run_id: admissionRunId,
       run_attempt: 1,
       event_name: 'workflow_dispatch',
@@ -89,8 +93,76 @@ function receipt() {
   };
 }
 
+function sourceQualificationReceipt() {
+  const core = {
+    schema: 'opl_app_source_qualification_receipt.v1' as const,
+    status: 'passed' as const,
+    mode: 'development_validation' as const,
+    completed_at: '2026-07-25T04:30:00.000Z',
+    execution: {
+      repository: 'gaofeng21cn/one-person-lab-app' as const,
+      workflow: '.github/workflows/release-source-qualification.yml' as const,
+      event: 'workflow_dispatch' as const,
+      ref: 'refs/heads/main' as const,
+      head_sha: appRef,
+      run_id: '30149999999',
+      run_attempt: 1 as const,
+      runner_labels: ['ARM64', 'macOS', 'opl-gui-vm', 'self-hosted'],
+    },
+    cohort: {
+      app: { sha: appRef, tree: 'a'.repeat(40) },
+      shell: { sha: shellRef, tree: 'b'.repeat(40) },
+      framework: { sha: frameworkRef, tree: 'c'.repeat(40) },
+    },
+    artifact: {
+      kind: 'local_unsigned_standard_dmg' as const,
+      basename: 'One-Person-Lab-26.7.25-mac-arm64.dmg',
+      size_bytes: 451000000,
+      sha256: `sha256:${'d'.repeat(64)}`,
+      diagnostic_only: true as const,
+    },
+    evidence: Object.fromEntries(
+      ['command_manifest', 'cohort_manifest', 'build_cohort', 'smoke_summary', 'vm_closeout']
+        .map((name, index) => [name, {
+          basename: `${name}.json`,
+          size_bytes: index + 1,
+          sha256: `sha256:${((index + 4) % 16).toString(16).repeat(64)}`,
+        }]),
+    ) as any,
+    qualification: {
+      runtime_profile: 'standard' as const,
+      settings_pages: ['general', 'environment', 'capabilities', 'access', 'appearance', 'diagnostics', 'about', 'runtime-status'],
+      assistant_routes: ['mas', 'mag', 'rca'],
+      runtime_routes: ['#/settings/runtime', '#/runtime'],
+      build_invocation_count: 1 as const,
+      tart_vm_invocation_count: 1 as const,
+      target_vm_final_state: 'absent' as const,
+      source_vm_final_state: 'stopped' as const,
+    },
+    authority: {
+      release_authority: false as const,
+      namespace_reservation: false as const,
+      final_signed_byte_authority: false as const,
+      public_mutation_performed: false as const,
+      accepted_consumer: '.github/workflows/release-stable.yml' as const,
+    },
+    workflow_blobs: [
+      '.github/workflows/release-source-qualification.yml',
+      'contracts/app-source-qualification-receipt.schema.json',
+      'scripts/source-qualification-receipt.ts',
+      'scripts/validate-source-qualification-receipt.ts',
+    ].map((workflowPath, index) => ({
+      path: workflowPath,
+      git_blob_sha: (index + 8).toString(16).repeat(40),
+      sha256: `sha256:${((index + 9) % 16).toString(16).repeat(64)}`,
+    })),
+  };
+  return { ...core, receipt_digest: sourceQualificationReceiptDigest(core) };
+}
+
 function observation(overrides: Partial<StableAdmissionObservation> = {}): StableAdmissionObservation {
   const credentialReceipt = receipt();
+  const qualificationReceipt = sourceQualificationReceipt();
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -103,6 +175,8 @@ function observation(overrides: Partial<StableAdmissionObservation> = {}): Stabl
       git_blob_sha: (index + 4).toString(16).repeat(40),
       sha256: `sha256:${((index + 11) % 16).toString(16).repeat(64)}`,
     })),
+    sourceQualificationReceipt: qualificationReceipt,
+    sourceQualificationReceiptBytes: Buffer.from(`${JSON.stringify(qualificationReceipt)}\n`),
     credentialReceipt,
     credentialReceiptBytes: Buffer.from(`${JSON.stringify(credentialReceipt)}\n`),
     publishedReleases: [
@@ -137,6 +211,9 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.deepEqual(manifest.allocator.observed_same_day_versions, ['26.7.25']);
   assert.deepEqual(manifest.namespace.webui_tags, ['26.7.25']);
   assert.equal(manifest.apple_credentials.required_secret_count, 6);
+  assert.equal(manifest.source_qualification.producer_run_id, '30149999999');
+  assert.equal(manifest.source_qualification.release_authority, false);
+  assert.equal(manifest.source_qualification.final_signed_byte_authority, false);
   assert.deepEqual(manifest.apple_credentials.required_secret_names, requiredSecretNames);
   assert.equal(manifest.dispatcher_contract.raw_standard_version_or_ref_inputs_allowed, false);
   const { manifest_digest: digest, ...core } = manifest;
@@ -151,6 +228,20 @@ test('admission fails closed when any frozen main ref drifts', () => {
   assert.throws(
     () => buildStableReleaseAdmissionManifest(input(), drifted),
     /Shell live main drifted/,
+  );
+});
+
+test('admission fails closed when source qualification does not bind the exact Stable cohort', () => {
+  const qualificationReceipt = sourceQualificationReceipt();
+  qualificationReceipt.cohort.shell.sha = 'f'.repeat(40);
+  const { receipt_digest: _ignored, ...core } = qualificationReceipt;
+  qualificationReceipt.receipt_digest = sourceQualificationReceiptDigest(core);
+  assert.throws(
+    () => buildStableReleaseAdmissionManifest(input(), observation({
+      sourceQualificationReceipt: qualificationReceipt,
+      sourceQualificationReceiptBytes: Buffer.from(`${JSON.stringify(qualificationReceipt)}\n`),
+    })),
+    /does not bind the frozen Stable cohort/,
   );
 });
 

@@ -2866,18 +2866,20 @@
     "standard_admission_manifest": {
       "schema": "opl_stable_release_admission_manifest.v1",
       "script": "scripts/stable-release-admission-manifest.ts",
-      "producer_workflow": ".github/workflows/release-apple-credentials-preflight.yml",
+      "producer_workflow": ".github/workflows/release-stable.yml",
       "consumer_workflow": ".github/workflows/release-stable.yml",
       "protected_environment": "release-stable",
-      "artifact_name": "opl-stable-admission-<producer_run_id>",
+      "artifact_name": "opl-stable-admission-<stable_run_id>",
       "digest_algorithm": "sha256",
       "standard_dispatch_inputs": [
         "operation",
-        "admission_run_id",
-        "admission_manifest_digest"
+        "source_qualification_run_id",
+        "source_qualification_receipt_digest"
       ],
       "raw_standard_version_or_ref_inputs_allowed": false,
       "required_bindings": [
+        "app_owned_source_qualification_receipt",
+        "one_local_build_and_one_clean_tart_vm",
         "final_app_shell_framework_main_shas",
         "critical_workflow_git_blobs_and_sha256",
         "apple_protected_secret_names_6_of_6",
@@ -2890,6 +2892,40 @@
       ],
       "fresh_verify_before_expensive_work": true,
       "unknown_dispatch_result_policy": "read_only_reconcile_without_rerun_redispatch_or_cancel"
+    },
+    "source_qualification": {
+      "schema": "opl_app_source_qualification_receipt.v1",
+      "workflow": ".github/workflows/release-source-qualification.yml",
+      "receipt_script": "scripts/source-qualification-receipt.ts",
+      "validator": "scripts/validate-source-qualification-receipt.ts",
+      "runner": "self_hosted_macos_opl_gui_vm",
+      "secrets_allowed": false,
+      "run_attempt_required": 1,
+      "build_invocation_count": 1,
+      "tart_vm_invocation_count": 1,
+      "local_dmg_is_diagnostic_only": true,
+      "release_authority": false,
+      "namespace_reservation": false,
+      "final_signed_byte_authority": false,
+      "accepted_consumer": ".github/workflows/release-stable.yml"
+    },
+    "apple_credentials_diagnostic": {
+      "workflow": ".github/workflows/release-apple-credentials-preflight.yml",
+      "authority": "diagnostic_only",
+      "may_create_stable_admission_manifest": false,
+      "may_dispatch_standard": false
+    },
+    "attempt_observability": {
+      "schema": "opl_release_attempt_observation.v1",
+      "workflow": ".github/workflows/release-attempt-observability.yml",
+      "script": "scripts/release-attempt-observability.ts",
+      "trigger": "release_stable_workflow_run_completed",
+      "storage": "append_only_per_run_artifact",
+      "first_terminal_classification": "machine_job_name_and_completed_at",
+      "release_state_authority": false,
+      "framework_status_authority": false,
+      "mutation_authority": false,
+      "may_authorize_retry_rerun_or_redispatch": false
     },
     "summary_artifacts": [
       "freeze-request.json",
@@ -2904,6 +2940,7 @@
       "prepared_ai_release_notes_marker",
       "prepared_ai_release_notes_standard_scope",
       "framework_freeze_request_schema",
+      "source_qualification_receipt_digest",
       "stable_admission_manifest_digest",
       "apple_credentials_runtime_receipt",
       "cross_namespace_version_allocator",

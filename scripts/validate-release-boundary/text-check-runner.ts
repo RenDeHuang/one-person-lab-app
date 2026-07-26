@@ -35,6 +35,8 @@ const exactWebuiStablePromotionPermissions = {
 export const stableReleaseActionPaths = [...new Set([
   '.github/actions/setup-active-shell-deps/action.yml',
   '.github/workflows/opl-updater-upgrade-vm.yml',
+  '.github/workflows/release-attempt-observability.yml',
+  '.github/workflows/release-source-qualification.yml',
   ...releaseWorkflowPaths,
 ])];
 
@@ -146,15 +148,18 @@ const stableEntrySpecs = {
     operation: 'standard',
     workflow: './.github/workflows/_release-bundle.yml',
     if: "${{ needs.admission.outputs.operation == 'standard' }}",
+    needs: ['admission', 'protected-admission'],
     requiredInputs: {
       mode: 'execute',
       operation: 'standard',
       channel: 'stable',
-      version: '${{ needs.admission.outputs.version }}',
+      version: '${{ needs.protected-admission.outputs.version }}',
       include_full: '${{ fromJSON(needs.admission.outputs.include_full) }}',
-      app_ref: '${{ needs.admission.outputs.app_ref }}',
-      shell_ref: '${{ needs.admission.outputs.shell_ref }}',
-      framework_ref: '${{ needs.admission.outputs.framework_ref }}',
+      package_compatibility_abi: '${{ needs.admission.outputs.package_compatibility_abi }}',
+      package_compatibility_version_range: '${{ needs.admission.outputs.package_compatibility_version_range }}',
+      app_ref: '${{ needs.protected-admission.outputs.app_ref }}',
+      shell_ref: '${{ needs.protected-admission.outputs.shell_ref }}',
+      framework_ref: '${{ needs.protected-admission.outputs.framework_ref }}',
       operation_started_at: '${{ needs.admission.outputs.operation_started_at }}',
       operation_deadline_at: '${{ needs.admission.outputs.operation_deadline_at }}',
     },
@@ -164,6 +169,7 @@ const stableEntrySpecs = {
     operation: 'resume_standard',
     workflow: './.github/workflows/_release-standard-publish.yml',
     if: "${{ needs.admission.outputs.operation == 'resume_standard' }}",
+    needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
       operation: 'resume_standard',
@@ -176,6 +182,7 @@ const stableEntrySpecs = {
     operation: 'append_full',
     workflow: './.github/workflows/_release-full-addon.yml',
     if: "${{ needs.admission.outputs.operation == 'append_full' }}",
+    needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
       operation: 'append_full',
@@ -216,7 +223,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   }
 
   const jobs = workflowJobs(workflow);
-  const expectedJobs = ['admission', ...Object.keys(stableEntrySpecs)].sort();
+  const expectedJobs = ['admission', 'protected-admission', ...Object.keys(stableEntrySpecs)].sort();
   if (JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(expectedJobs)) {
     failures += reportFailure(id, `jobs must be exactly ${expectedJobs.join(', ')}`);
   }
@@ -247,10 +254,52 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     failures += reportFailure(id, 'only new standard and append_full operations may resolve a fresh operation window');
   }
 
+  const protectedAdmission = jobs['protected-admission'];
+  const protectedAdmissionRun = jobRuns(protectedAdmission);
+  if (
+    !protectedAdmission
+    || !needsExactly(protectedAdmission, ['admission'])
+    || protectedAdmission.if !== "${{ needs.admission.outputs.operation == 'standard' }}"
+    || protectedAdmission.environment !== 'release-stable'
+    || !exactObject(protectedAdmission.permissions, exactReadPermissions)
+  ) {
+    failures += reportFailure(
+      id,
+      'protected-admission must be a read-only release-stable job selected only by a new Standard operation',
+    );
+  }
+  if (workflowMutationCommandPattern.test(protectedAdmissionRun)) {
+    failures += reportFailure(id, 'protected-admission must not perform release or public mutation');
+  }
+  for (const binding of [
+    'scripts/verify-apple-release-credentials.ts',
+    'scripts/validate-source-qualification-receipt.ts',
+    'scripts/stable-release-admission-manifest.ts create',
+    '--admission-run-id "$GITHUB_RUN_ID"',
+    'opl-stable-admission-${{ github.run_id }}',
+  ]) {
+    if (!protectedAdmissionRun.includes(binding) && !text.includes(binding)) {
+      failures += reportFailure(id, `protected-admission is missing same-run protected binding ${binding}`);
+    }
+  }
+  const protectedOutputs = protectedAdmission?.outputs ?? {};
+  for (const [name, expected] of Object.entries({
+    version: '${{ steps.manifest.outputs.version }}',
+    updater_version: '${{ steps.manifest.outputs.updater_version }}',
+    app_ref: '${{ needs.admission.outputs.app_ref }}',
+    shell_ref: '${{ needs.admission.outputs.shell_ref }}',
+    framework_ref: '${{ needs.admission.outputs.framework_ref }}',
+    manifest_digest: '${{ steps.manifest.outputs.manifest_digest }}',
+  })) {
+    if (protectedOutputs[name] !== expected) {
+      failures += reportFailure(id, `protected-admission must bind ${name} to the same-run admitted value`);
+    }
+  }
+
   for (const [jobId, spec] of Object.entries(stableEntrySpecs)) {
     const job = jobs[jobId];
     if (!job) continue;
-    if (!needsExactly(job, ['admission']) || job.if !== spec.if) {
+    if (!needsExactly(job, [...spec.needs]) || job.if !== spec.if) {
       failures += reportFailure(id, `${jobId} must be selected only by the admitted ${spec.operation} operation`);
     }
     if (job.uses !== spec.workflow || Object.prototype.hasOwnProperty.call(job, 'steps')) {
