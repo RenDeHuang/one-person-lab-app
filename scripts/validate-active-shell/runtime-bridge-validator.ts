@@ -178,449 +178,60 @@ function validateGatewayAccountFixture(fixture) {
   }
 }
 
-const agentPackageDirectoryFields = [
-  'surface_kind',
-  'status',
-  'source_catalog_kind',
-  'detail',
-  'entry_count',
-  'installed_package_count',
-  'installable_package_count',
-  'migration_required_count',
-  'entries',
-  'authority_boundary',
-];
-const agentPackageDirectoryEntryFields = [
+const runtimeBridgePackageDirectoryEntryFields = [
   'package_id',
-  'display_name',
-  'publisher',
-  'description',
-  'tags',
+  'package_kind',
   'package_role',
-  'role_state',
-  'trust_tier',
-  'source_explanation',
-  'manifest_url',
-  'selected_version',
-  'stable_version',
-  'installed_version',
+  'display_name',
+  'description',
+  'display_name_i18n',
+  'description_i18n',
+  'tags',
   'installed',
   'activated',
-  'installability',
   'readiness',
-  'exposure',
-  'recommended_action',
+  'home_shortcuts',
+  'capability_metadata',
   'recommended_action_ref',
   'available_actions',
-  'authority_boundary',
 ];
-const agentPackageActionFields = [
+const runtimeBridgeProjectedActionFields = [
   'action_id',
   'action_ref',
+  'semantic',
+  'surface',
   'payload',
   'required_payload_fields',
   'confirmation_required',
 ];
 
-function assertExactObjectFields(value, expectedFields, label) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-  assertDeepEqualJson(
-    Object.keys(value).sort(),
-    [...expectedFields].sort(),
-    `${label} fields`,
-  );
-}
-
-function validateAgentPackageDirectoryAction(action, label) {
-  assertExactObjectFields(action, agentPackageActionFields, label);
-  if (
-    typeof action.action_id !== 'string'
-    || action.action_ref !== `app_state.actions#${action.action_id}`
-    || !action.payload
-    || typeof action.payload !== 'object'
-    || Array.isArray(action.payload)
-    || !Array.isArray(action.required_payload_fields)
-    || action.required_payload_fields.some((field) => typeof field !== 'string' || !field)
-    || typeof action.confirmation_required !== 'boolean'
-  ) {
-    throw new Error(`${label} must use the canonical five-field Framework action object`);
-  }
-}
-
 export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   const directory = lookupPath(fixture, 'app_state.agent_packages.directory');
-  assertExactObjectFields(directory, agentPackageDirectoryFields, 'Agent Package directory fixture');
-  if (
-    directory.surface_kind !== 'opl_agent_package_directory.v1'
-    || directory.source_catalog_kind !== 'opl_package_catalog.v1+opl_agent_package_registry_cache'
-    || directory.detail !== 'fast'
-    || !['available', 'attention_required'].includes(directory.status)
-    || !Array.isArray(directory.entries)
-    || directory.entries.length < 3
-  ) {
-    throw new Error('Agent Package directory fixture must be a representative fast opl_agent_package_directory.v1 projection');
+  if (!directory || !Array.isArray(directory.entries) || directory.entries.length === 0) {
+    throw new Error('Agent Package directory fixture must expose at least one projected entry');
   }
-  if (
-    directory.entry_count !== directory.entries.length
-    || directory.installed_package_count !== directory.entries.filter((entry) => entry.installed).length
-    || directory.installable_package_count !== directory.entries.filter((entry) => entry.installability?.installable).length
-    || directory.migration_required_count !== directory.entries.filter((entry) => entry.installability?.status === 'migration_required').length
-  ) {
-    throw new Error('Agent Package directory fixture counts must match its entries');
-  }
-  const publicActions = lookupPath(fixture, 'app_state.actions');
-  if (
-    !Array.isArray(publicActions)
-    || publicActions.some((action) => action?.action_id === 'agent_package_activate')
-  ) {
-    throw new Error('Fast App-state public actions must exclude Framework Stage runtime activation');
-  }
-
+  const seenPackageIds = new Set();
   for (const entry of directory.entries) {
-    assertExactObjectFields(entry, agentPackageDirectoryEntryFields, `Agent Package directory entry ${entry?.package_id ?? '<unknown>'}`);
     if (
-      typeof entry.package_id !== 'string'
+      typeof entry?.package_id !== 'string'
       || typeof entry.display_name !== 'string'
-      || typeof entry.publisher !== 'string'
       || typeof entry.description !== 'string'
-      || !Array.isArray(entry.tags)
-      || !['standard_agent', 'framework_capability_package', 'workflow_profile'].includes(entry.package_role)
-      || typeof entry.trust_tier !== 'string'
-      || typeof entry.manifest_url !== 'string'
+      || typeof entry.package_role !== 'string'
       || typeof entry.installed !== 'boolean'
-      || typeof entry.activated !== 'boolean'
+      || !entry.readiness
+      || typeof entry.readiness !== 'object'
+      || !Array.isArray(entry.available_actions)
     ) {
-      throw new Error(`Agent Package directory entry ${entry?.package_id ?? '<unknown>'} has invalid identity or lifecycle metadata`);
+      throw new Error('Agent Package directory fixture entries must expose a generic identity, presentation, readiness, and action envelope');
     }
-    assertExactObjectFields(
-      entry.role_state,
-      ['status', 'source', 'discovered_role', 'installed_role', 'diagnostic'],
-      `Agent Package directory entry ${entry.package_id} role_state`,
-    );
-    assertExactObjectFields(
-      entry.source_explanation,
-      ['kind', 'source', 'summary', 'catalog_ref', 'registry_url', 'registry_source_ref', 'version_source_ref'],
-      `Agent Package directory entry ${entry.package_id} source_explanation`,
-    );
-    assertExactObjectFields(
-      entry.installability,
-      ['status', 'installable'],
-      `Agent Package directory entry ${entry.package_id} installability`,
-    );
-    assertExactObjectFields(
-      entry.readiness,
-      ['status', 'operational_ready', 'launch_allowed', 'verification_deferred', 'reason', 'detail_surface', 'status_read_error'],
-      `Agent Package directory entry ${entry.package_id} readiness`,
-    );
-    if (entry.installed) {
-      assertExactObjectFields(
-        entry.exposure,
-        ['enabled', 'visibility', 'codex_visible'],
-        `Agent Package directory entry ${entry.package_id} exposure`,
-      );
-      if (
-        typeof entry.exposure.enabled !== 'boolean'
-        || !['visible', 'hidden'].includes(entry.exposure.visibility)
-        || entry.exposure.codex_visible !== (entry.exposure.enabled && entry.exposure.visibility === 'visible')
-      ) {
-        throw new Error(`Agent Package directory entry ${entry.package_id} has invalid orthogonal exposure state`);
-      }
-    } else if (entry.exposure !== null) {
-      throw new Error(`Uninstalled Agent Package directory entry ${entry.package_id} exposure must be null`);
+    if (seenPackageIds.has(entry.package_id)) {
+      throw new Error('Agent Package directory fixture must not duplicate package ids');
     }
-    if (
-      typeof entry.source_explanation.kind !== 'string'
-      || typeof entry.source_explanation.source !== 'string'
-      || typeof entry.source_explanation.summary !== 'string'
-      || typeof entry.source_explanation.version_source_ref !== 'string'
-      || typeof entry.installability.installable !== 'boolean'
-      || typeof entry.readiness.status !== 'string'
-      || typeof entry.readiness.operational_ready !== 'boolean'
-      || typeof entry.readiness.launch_allowed !== 'boolean'
-      || typeof entry.readiness.verification_deferred !== 'boolean'
-      || typeof entry.readiness.detail_surface !== 'string'
-    ) {
-      throw new Error(`Agent Package directory entry ${entry.package_id} has invalid source, installability, or readiness metadata`);
-    }
-    if (!Array.isArray(entry.available_actions) || entry.available_actions.length === 0) {
-      throw new Error(`Agent Package directory entry ${entry.package_id} must expose available_actions`);
-    }
-    for (const action of entry.available_actions) {
-      validateAgentPackageDirectoryAction(action, `Agent Package directory entry ${entry.package_id} action`);
-    }
-    if (entry.available_actions.some((action) => action.action_id === 'agent_package_activate')) {
-      throw new Error(`Agent Package directory entry ${entry.package_id} must not expose Framework Stage runtime activation`);
-    }
-    const recommended = entry.available_actions.find((action) => action.action_id === entry.recommended_action) ?? null;
-    if (entry.recommended_action === null) {
-      if (entry.recommended_action_ref !== null) {
-        throw new Error(`Agent Package directory entry ${entry.package_id} recommended_action_ref must be null`);
-      }
-    } else if (!recommended || JSON.stringify(entry.recommended_action_ref) !== JSON.stringify(recommended)) {
-      throw new Error(`Agent Package directory entry ${entry.package_id} recommended_action_ref must exactly match available_actions`);
-    }
+    seenPackageIds.add(entry.package_id);
   }
-
-  const installEntry = directory.entries.find((entry) =>
-    entry.installed === false
-    && entry.installability?.installable === true
-    && entry.recommended_action === 'install_from_manifest_url'
-  );
-  if (
-    !installEntry
-    || installEntry.readiness.status !== 'not_installed'
-    || installEntry.recommended_action_ref?.payload?.package_id !== installEntry.package_id
-  ) {
-    throw new Error('Agent Package directory fixture must include an uninstalled package with its canonical install action');
-  }
-  const inactiveEntry = directory.entries.find((entry) =>
-    entry.installed === true
-    && entry.activated === false
-    && entry.readiness?.status === 'activation_required'
-  );
-  if (
-    !inactiveEntry
-    || inactiveEntry.recommended_action !== null
-    || inactiveEntry.recommended_action_ref !== null
-    || inactiveEntry.available_actions.some((action) => action.action_id === 'agent_package_activate')
-  ) {
-    throw new Error('Agent Package directory fixture must keep activation-required status diagnostic-only for Framework Stage runtime');
-  }
-  const activatedEntry = directory.entries.find((entry) => entry.installed === true && entry.activated === true);
-  if (
-    !activatedEntry
-    || activatedEntry.readiness.status !== 'verification_deferred'
-    || activatedEntry.readiness.verification_deferred !== true
-    || activatedEntry.readiness.reason !== 'live_verification_deferred'
-    || activatedEntry.readiness.operational_ready !== false
-    || activatedEntry.readiness.launch_allowed !== false
-    || activatedEntry.recommended_action !== null
-    || activatedEntry.recommended_action_ref !== null
-  ) {
-    throw new Error('Agent Package fast directory fixture must keep activated readiness verification deferred until full verification');
-  }
-
   const statusIndex = lookupPath(fixture, 'app_state.agent_packages.status_index');
-  const representativeStatus = statusIndex?.packages?.[activatedEntry.package_id];
-  assertExactObjectFields(
-    representativeStatus,
-    [
-      'surface_kind',
-      'package_id',
-      'status',
-      'package_version',
-      'installed_version',
-      'version',
-      'source_kind',
-      'package_lock_ref',
-      'lock_ref',
-      'action_receipt_ref',
-      'rollback_ref',
-      'physical_surface',
-      'codex_visible',
-      'capability_exposure',
-      'dependency_readiness',
-      'package_dependency_readiness',
-      'materialization_readiness',
-      'runtime_source_readiness',
-      'operational_ready',
-      'operational_ready_scope',
-      'launch_allowed',
-      'launch_blocked_reason',
-      'allowed_when_blocked',
-      'repair_action',
-      'repair_command',
-      'activation_action',
-      'dependent_guard',
-      'currentness_detail_deferred',
-      'detail_surface',
-    ],
-    'Agent Package representative fast status',
-  );
-  assertExactObjectFields(
-    representativeStatus.package_dependency_readiness,
-    ['status', 'operational_ready', 'repair_command', 'dependencies'],
-    'Agent Package dependency readiness',
-  );
-  assertExactObjectFields(
-    representativeStatus.capability_exposure,
-    ['enabled', 'visibility', 'codex_visible'],
-    'Agent Package canonical orthogonal exposure',
-  );
-  if (
-    representativeStatus.capability_exposure.enabled !== true
-    || representativeStatus.capability_exposure.visibility !== 'visible'
-    || representativeStatus.capability_exposure.codex_visible !== true
-  ) {
-    throw new Error('Agent Package representative status must project orthogonal exposure fields');
-  }
-  assertExactObjectFields(
-    representativeStatus.dependency_readiness,
-    ['status', 'required_count', 'ready_count', 'checks', 'closure'],
-    'Agent Package canonical dependency readiness',
-  );
-  for (const check of representativeStatus.dependency_readiness.checks) {
-    assertExactObjectFields(
-      check,
-      [
-        'package_id',
-        'required',
-        'installed',
-        'enabled',
-        'version_requirement',
-        'installed_version',
-        'version_satisfied',
-        'capability_abi',
-        'installed_capability_abi',
-        'abi_satisfied',
-        'required_export_ids',
-        'available_export_ids',
-        'exports_satisfied',
-        'content_lock_digest',
-        'physical_surface_status',
-        'ready',
-        'failure_reasons',
-      ],
-      `Agent Package canonical dependency check ${check?.package_id ?? '<unknown>'}`,
-    );
-  }
-  assertExactObjectFields(
-    representativeStatus.dependency_readiness.closure,
-    [
-      'transaction_id',
-      'closure_digest',
-      'last_known_good_transaction_id',
-      'last_known_good_closure_digest',
-    ],
-    'Agent Package canonical dependency closure',
-  );
-  assertExactObjectFields(
-    representativeStatus.repair_action,
-    ['action_id', 'command_ref', 'enabled', 'reason_code'],
-    'Agent Package canonical repair action',
-  );
-  assertExactObjectFields(
-    representativeStatus.activation_action,
-    ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
-    'Agent Package canonical activation action',
-  );
-  assertExactObjectFields(
-    representativeStatus.dependent_guard,
-    ['required_by_package_ids', 'disable', 'uninstall'],
-    'Agent Package canonical dependent guard',
-  );
-  assertExactObjectFields(
-    representativeStatus.dependent_guard.disable,
-    ['allowed', 'reason_code'],
-    'Agent Package canonical disable guard',
-  );
-  assertExactObjectFields(
-    representativeStatus.dependent_guard.uninstall,
-    ['allowed', 'reason_code'],
-    'Agent Package canonical uninstall guard',
-  );
-  for (const dependency of representativeStatus.package_dependency_readiness.dependencies) {
-    assertExactObjectFields(
-      dependency,
-      [
-        'package_id',
-        'required',
-        'version_requirement',
-        'capability_abi',
-        'required_export_ids',
-        'required_module_ids',
-        'installed_version',
-        'manifest_sha256',
-        'content_digest',
-        'status',
-        'reasons',
-        'missing_required_export_ids',
-        'missing_required_module_ids',
-      ],
-      `Agent Package dependency ${dependency?.package_id ?? '<unknown>'}`,
-    );
-  }
-  assertExactObjectFields(
-    representativeStatus.materialization_readiness,
-    [
-      'status',
-      'scope',
-      'target_root',
-      'required_skill_ids',
-      'materialized_skill_ids',
-      'expected_digest',
-      'actual_digest',
-      'repair_command',
-      'lifecycle_receipt_ref',
-      'core_readiness',
-      'specialty_exposure',
-    ],
-    'Agent Package materialization readiness',
-  );
-  assertExactObjectFields(
-    representativeStatus.runtime_source_readiness,
-    [
-      'status',
-      'operational_ready',
-      'module_id',
-      'checkout_path',
-      'expected_tree_sha256',
-      'actual_tree_sha256',
-      'reason',
-      'verification_mode',
-      'live_verification_deferred',
-      'live_verification_surface',
-    ],
-    'Agent Package runtime source readiness',
-  );
-  assertExactObjectFields(
-    representativeStatus.physical_surface,
-    [
-      'surface_kind',
-      'status',
-      'package_id',
-      'plugin_id',
-      'marketplace_id',
-      'codex_home',
-      'codex_config_path',
-      'codex_config_preexisting',
-      'plugin_source_path',
-      'plugin_manifest_path',
-      'codex_plugin_cache_path',
-      'marketplace_root',
-      'marketplace_path',
-      'marketplace_plugin_path',
-      'plugin_payload_manifest_url',
-      'plugin_payload_manifest_sha256',
-      'plugin_payload_cache_path',
-      'materialized_required_skill_ids',
-      'materialized_required_skill_paths',
-      'removed_paths',
-      'writes_performed',
-      'reload_required',
-      'failure_reason',
-      'note',
-      'profile_config',
-      'profile_migration',
-      'managed_policy_config',
-      'workflow_policy_migration',
-      'authority_boundary',
-    ],
-    'Agent Package canonical physical surface',
-  );
-  if (
-    representativeStatus.status !== 'verification_deferred'
-    || representativeStatus.operational_ready !== false
-    || representativeStatus.launch_allowed !== false
-    || representativeStatus.launch_blocked_reason !== 'live_verification_deferred'
-    || representativeStatus.package_dependency_readiness.status !== 'current'
-    || representativeStatus.dependency_readiness.status !== 'ready'
-    || representativeStatus.activation_action.action_id !== 'agent_package_activate'
-    || representativeStatus.dependent_guard.disable.allowed !== true
-  ) {
-    throw new Error('Agent Package fast status fixture must preserve the advisory producer ABI and canonical status-index fields');
+  if (statusIndex !== undefined && (!statusIndex || typeof statusIndex !== 'object' || Array.isArray(statusIndex))) {
+    throw new Error('Agent Package status index fixture must be an optional package-id-keyed diagnostic projection');
   }
 }
 
@@ -1806,49 +1417,37 @@ function validatePackageReadinessProjection(runtimeBridge) {
   }
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['directory.entries[]'],
-    agentPackageDirectoryEntryFields,
-    'Runtime bridge package directory entry fields',
+    runtimeBridgePackageDirectoryEntryFields,
+    'Runtime bridge Package directory entry fields',
   );
-  assertIncludesAll(
-    packageRow?.allowed_action_refs,
-    ['agent_package_repair', 'agent_package_uninstall', 'agent_package_preferences_set'],
-    'Runtime bridge package Settings actions',
-  );
-  if (packageRow?.allowed_action_refs?.includes('agent_package_activate')) {
-    throw new Error('Runtime bridge Settings action refs must exclude Framework Stage runtime activation');
-  }
   assertDeepEqualJson(
-    packageRow?.framework_stage_runtime_internal_action_refs,
-    ['agent_package_activate'],
-    'Runtime bridge Framework Stage runtime internal actions',
+    packageRow?.required_projection_fields?.['directory.entries[].available_actions[]'],
+    runtimeBridgeProjectedActionFields,
+    'Runtime bridge projected Settings action fields',
   );
-  if (packageRow?.allowed_action_refs?.includes('repair_dependency_closure')) {
-    throw new Error('Runtime bridge package actions must not expose legacy repair_dependency_closure');
-  }
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
-    ['surface_kind', 'package_id', 'status', 'package_version', 'installed_version', 'version', 'source_kind', 'package_lock_ref', 'lock_ref', 'action_receipt_ref', 'rollback_ref', 'physical_surface', 'codex_visible', 'capability_exposure', 'dependency_readiness', 'package_dependency_readiness', 'materialization_readiness', 'runtime_source_readiness', 'operational_ready', 'operational_ready_scope', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'repair_command', 'activation_action', 'dependent_guard', 'currentness_detail_deferred', 'detail_surface', 'status_read_error'],
-    'Runtime bridge canonical package status diagnostic fields',
+    ['presence', 'dependent_guard', 'capability_exposure', 'runtime_source_readiness', 'status_read_error'],
+    'Runtime bridge Package diagnostic join fields',
   );
   assertDeepEqualJson(
     packageRow?.optional_enrichment_fields?.['runtime_source_carriers.items[package_id]'],
-    ['source_origin', 'source_path', 'source_policy', 'git'],
+    ['source_origin', 'source_policy', 'git'],
     'Runtime bridge optional active source diagnostic fields',
   );
-  const activation = packageRow?.agent_package_activation_contract;
   if (
-    activation?.contract_ref !== 'contracts/app-gui-product-contract.json#agent_package_activation_policy'
-    || activation.execution_owner !== 'one-person-lab_family_runtime'
-    || activation.workspace_locator_source !== 'StageRun.workspace_locator_or_StageAttempt.workspace_locator'
-    || activation.settings_execution_allowed !== false
-    || activation.new_conversation_shell_execution_allowed !== false
-    || activation.ordinary_send_shell_execution_allowed !== false
+    packageRow?.settings_action_source !== 'app_state.agent_packages.directory.entries[].available_actions[]'
+    || packageRow.action_id_allowlist_allowed !== false
+    || packageRow.shell_action_inference_allowed !== false
+    || Object.hasOwn(packageRow, 'allowed_action_refs')
+    || Object.hasOwn(packageRow, 'framework_stage_runtime_internal_action_refs')
+    || Object.hasOwn(packageRow, 'agent_package_activation_contract')
   ) {
-    throw new Error('Runtime bridge package activation must remain Framework Stage runtime-only');
+    throw new Error('Runtime bridge Package rows must consume generic projected Settings actions without private action authority');
   }
   if (
     !packageRow?.projection_authority_policy?.includes('directory.entries owns catalog membership')
-    || !packageRow.projection_authority_policy.includes('cannot override directory lifecycle or action availability')
+    || !packageRow.projection_authority_policy.includes('cannot override directory lifecycle, readiness, or action availability')
     || packageRow?.fallback_policy?.manageable_collection_fallback !== null
     || packageRow?.fallback_policy?.can_define_collection_membership !== false
     || packageRow?.fallback_policy?.can_define_actions !== false

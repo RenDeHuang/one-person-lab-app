@@ -71,11 +71,14 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
     [oplPackagesProjectionStatusSource],
     `${label} OPL Packages projection status source`,
   );
-  assertIncludesAll(
-    entry?.required_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'MAS Scholar Skills'],
-    `${label} module maintenance modules`,
-  );
+  if (
+    entry?.module_collection_source !== 'app_state.modules.items[]' ||
+    entry?.module_collection_policy !==
+      'render every Framework-projected Package module without an App Package-id allowlist' ||
+    'required_modules' in entry
+  ) {
+    throw new Error(`${label} module maintenance must consume the dynamic Framework module collection`);
+  }
   assertIncludesAll(
     entry?.required_status,
     [
@@ -83,11 +86,18 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
       'recommended action',
       'post-update sync status',
       'refresh Codex guidance when package projection changed',
-      'repair and rollback refs',
     ],
     `${label} module maintenance status`,
   );
-  assertDeepEqualJson(entry?.manual_action_mapping, manualActionMapping, `${label} module maintenance action mapping`);
+  if (
+    entry?.projected_action_source !== 'app_state.agent_packages.directory.entries[].available_actions[]' ||
+    entry?.ordinary_action_policy !==
+      'navigate_to_Settings_Agents_and_execute_only_the_selected_row_projected_action' ||
+    entry?.private_command_mapping_allowed !== false ||
+    'manual_action_mapping' in entry
+  ) {
+    throw new Error(`${label} module maintenance must delegate Package actions to the dynamic Agents directory`);
+  }
 }
 
 export function validateManagedUpdatePlaneBinding(plane, label, options = {}) {

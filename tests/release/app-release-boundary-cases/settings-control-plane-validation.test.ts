@@ -262,7 +262,7 @@ test("Settings exposes seven primary groups over ten stable carrier pages with b
   assert.throws(() => validate(workspaceOwnsContext), /secondary owner bindings/);
 });
 
-test("Settings validator keeps runnable package lifecycle on Agents", () => {
+test("Settings validator keeps generic projected Package actions on Agents", () => {
   const values = contracts();
   assert.doesNotThrow(() => validate(values));
   assert.doesNotThrow(() => validateGui(values.guiContract));
@@ -274,11 +274,10 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
 
   const staleProfileRef = contracts();
   staleProfileRef.controlPlane.page_adapter_policy.required_pages.agents
-    .directory_projection_surface.stage_runtime_activation_contract_ref =
-    "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy";
+    .directory_projection_surface.settings_action_scope = "shell_owned_lifecycle_actions";
   assert.throws(
     () => validate(staleProfileRef),
-    /Settings Agents directory projection.*Framework Stage runtime/,
+    /execute only complete Framework-projected Settings actions/,
   );
 
   const packageManagementOnCapabilities = contracts();
@@ -289,15 +288,15 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
     /Settings Agents must own Agent package and Home shortcut management/,
   );
 
-  const missingActivationAxis = contracts();
+  const missingPresenceAxis = contracts();
   const agentsStatusModel =
-    missingActivationAxis.controlPlane.page_adapter_policy.required_pages.agents
+    missingPresenceAxis.controlPlane.page_adapter_policy.required_pages.agents
       .directory_projection_surface.status_model;
   agentsStatusModel.axes = agentsStatusModel.axes.filter(
-    (axis) => axis !== "activation_action",
+    (axis) => axis !== "presence",
   );
   assert.throws(
-    () => validate(missingActivationAxis),
+    () => validate(missingPresenceAxis),
     /Settings Agents status axes/,
   );
 });
@@ -398,6 +397,8 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.deepStrictEqual(lifecycle.canonical_action_contract.required_action_fields, [
     "action_id",
     "action_ref",
+    "semantic",
+    "surface",
     "payload",
     "required_payload_fields",
     "confirmation_required",
@@ -450,19 +451,18 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.equal(available.label_i18n["zh-CN"], "可用");
   assert.match(available.explanation_i18n["zh-CN"], /已安装，可直接发起对话，无需提前设置/);
   assert.equal(available.primary_action_policy, "none");
-  for (const [ruleId, label] of [
-    ["install_required", "需要安装"],
-    ["enable_required", "需要启用"],
-    ["update_required", "需要更新"],
-    ["repair_required", "需要修复"],
-    ["reconnect_required", "需要重新连接"],
-  ]) {
-    assert.equal(
-      lifecycle.user_facing_status_projection.rules.find((rule: any) => rule.id === ruleId)
-        .label_i18n["zh-CN"],
-      label,
-    );
-  }
+  const projectedAction = lifecycle.user_facing_status_projection.rules.find(
+    (rule: any) => rule.id === "owner_projected_action_available",
+  );
+  assert.equal(projectedAction.label_i18n["zh-CN"], "可继续处理");
+  assert.equal(
+    projectedAction.primary_action_policy,
+    "show_the_complete_recommended_action_ref_without_mapping_or_branching_on_action_id",
+  );
+  assert.equal(
+    JSON.stringify(lifecycle.user_facing_status_projection).includes("install_from_manifest_url"),
+    false,
+  );
   const unlocalized = lifecycle.user_facing_status_projection.rules.find(
     (rule: any) => rule.id === "unlocalized_owner_attention",
   );
@@ -478,49 +478,24 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   ]);
   assert.equal(lifecycle.directory_controls.catalog_search_is_settings_global_search, false);
   assert.ok(lifecycle.directory_controls.top_controls.includes("refresh_registry"));
-  assert.ok(lifecycle.directory_controls.row_actions.includes("install"));
-  assert.equal(lifecycle.directory_controls.row_actions.includes("activate"), false);
-  assert.deepStrictEqual(lifecycle.advanced_manifest_install_contract, {
-    action_id: "install_from_manifest_url",
-    visibility: "advanced_only",
-    payload_fields: ["manifest_url", "trust_tier"],
-    trust_tier_required: true,
-    default_trust_tier: null,
-    missing_trust_tier_policy: "disable_submit_and_show_validation",
-    registry_selected_install_affected: false,
-  });
-  assert.equal(lifecycle.workspace_activation_contract.framework_entrypoint, "ensureFamilyRuntimePackageLaunchReady");
-  assert.equal(lifecycle.workspace_activation_contract.workspace_locator_source, "StageRun.workspace_locator_or_StageAttempt.workspace_locator");
-  assert.equal(lifecycle.workspace_activation_contract.settings_execution_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.new_conversation_shell_execution_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.ordinary_send_shell_execution_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.scope_inference_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.surface_scope, "Framework_stage_runtime_only");
-  assert.equal(lifecycle.workspace_activation_contract.selected_session_directory_activation_target_allowed, false);
-  assert.equal(lifecycle.workspace_activation_contract.settings_target_workspace_source, null);
-  assert.equal(lifecycle.workspace_activation_contract.scope_materialization_missing_settings_policy, "show_available_with_no_preflight_action_or_activation_CTA");
-  assert.equal(lifecycle.workspace_activation_contract.global_workspace_root_activation_target_allowed, false);
-  assert.deepStrictEqual(
-    lifecycle.package_projection_contract.dependent_guard_missing_policy,
-    {
-      disable_enabled_only_when: "dependent_guard.disable.allowed === true",
-      uninstall_enabled_only_when: "dependent_guard.uninstall.allowed === true",
-      missing_or_invalid_reason_code: "dependent_guard_unavailable",
-      unaffected_actions: ["hide", "unhide", "enable"],
-    },
+  assert.equal(
+    lifecycle.directory_controls.row_actions_source,
+    "directory.entries[].available_actions[]",
   );
-  assert.deepStrictEqual(
-    lifecycle.package_projection_contract.launch_pretransition_reason_codes,
-    ["package_activation_required", "live_verification_deferred", "use_boundary_reconciliation_ready"],
+  assert.equal(Object.hasOwn(lifecycle.directory_controls, "row_actions"), false);
+  assert.equal(Object.hasOwn(lifecycle, "advanced_manifest_install_contract"), false);
+  assert.equal(lifecycle.consistent_action_interaction.action_id_allowlist_allowed, false);
+  assert.equal(
+    lifecycle.consistent_action_interaction.semantic_source,
+    "directory.entries[].available_actions[].semantic",
   );
   assert.equal(
-    lifecycle.package_projection_contract.degraded_reason_codes.includes("live_verification_deferred"),
-    true,
+    lifecycle.consistent_action_interaction.surface_policy,
+    "execute only complete actions projected for the settings surface",
   );
-  assert.equal(
-    lifecycle.package_projection_contract.package_unavailable_reason_codes.includes("live_verification_deferred"),
-    false,
-  );
+  assert.equal(lifecycle.package_projection_contract.schema, "opl_app_package_consumer_projection.v1");
+  assert.ok(lifecycle.package_projection_contract.forbidden_private_fields.includes("package_lock_ref"));
+  assert.ok(lifecycle.package_projection_contract.forbidden_private_fields.includes("lifecycle_receipt_ref"));
   assert.deepStrictEqual(lifecycle.exposure_state_contract.state_fields, ["enabled", "visibility"]);
 
   const directory =
@@ -533,27 +508,23 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   );
   assert.equal(Object.hasOwn(directory, "static_metadata_overlay_source"), false);
   assert.equal(Object.hasOwn(directory, "static_metadata_overlay_fields"), false);
-  assert.ok(
-    values.productProfile.gui.agent_package_registry.starter_package_metadata.length > 0,
+  assert.equal(
+    Object.hasOwn(values.productProfile.gui.agent_package_registry, "starter_package_metadata"),
+    false,
   );
   assert.equal(
     directory.display_metadata_policy,
     "use owner-projected display metadata with a package-id fallback; App profile metadata must not define catalog membership, ordering, status, readiness, or actions",
   );
   assert.equal(
-    values.productProfile.gui.agent_package_registry.directory_lifecycle_authority,
-    "app_state.agent_packages.directory+status_index+actions",
+    values.productProfile.gui.agent_package_registry.directory_projection_authority,
+    "app_state.agent_packages.directory.entries",
   );
-  assert.equal(directory.settings_action_scope, "owner_projected_non_activation_actions_only");
-  assert.equal(directory.settings_activation_execution_allowed, false);
-  assert.equal(directory.new_conversation_activation_execution_allowed, false);
-  assert.equal(directory.ordinary_send_activation_execution_allowed, false);
-  assert.equal(directory.settings_target_workspace_source, null);
-  assert.equal(directory.global_workspace_root_activation_target_allowed, false);
-  assert.equal(directory.stage_runtime_activation_owner, "one-person-lab_family_runtime");
-  assert.equal(directory.stage_runtime_workspace_locator_source, "StageRun.workspace_locator_or_StageAttempt.workspace_locator");
-  assert.equal(directory.scope_inference_allowed, false);
-  assert.equal(directory.session_launch_authority, false);
+  assert.equal(directory.settings_action_scope, "owner_projected_settings_actions_only");
+  assert.equal(directory.settings_action_inference_allowed, false);
+  assert.equal(Object.hasOwn(directory, "stage_runtime_activation_contract_ref"), false);
+  assert.equal(Object.hasOwn(directory, "settings_activation_execution_allowed"), false);
+  assert.equal(Object.hasOwn(directory, "stage_runtime_activation_owner"), false);
 
   const collectionRegression = contracts();
   collectionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
@@ -565,35 +536,25 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     .fallback_state_surface = "app_state.modules.items[]";
   assert.throws(
     () => validateGui(fallbackRegression.guiContract),
-    /must not substitute modules or static metadata/,
+    /must not restore private Package fallback/,
   );
 
-  const scalarActionRegression = contracts();
-  scalarActionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .canonical_action_contract.source_fields[1] = "directory.entries[].recommended_action";
-  assert.throws(() => validateGui(scalarActionRegression.guiContract), /canonical actions|lifecycle UX/);
+  const incompleteActionRegression = contracts();
+  incompleteActionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .canonical_action_contract.required_action_fields = ["action_id", "action_ref", "payload"];
+  assert.throws(() => validateGui(incompleteActionRegression.guiContract), /projected action fields/);
 
   const globalSearchRegression = contracts();
   globalSearchRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
     .directory_controls.catalog_search_is_settings_global_search = true;
   assert.throws(() => validateGui(globalSearchRegression.guiContract), /catalog search|lifecycle UX/);
 
-  const workspaceRegression = contracts();
-  workspaceRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .workspace_activation_contract.global_workspace_root_activation_target_allowed = true;
-  assert.throws(() => validateGui(workspaceRegression.guiContract), /workspace activation|lifecycle UX/);
-
-  const packageIdOnlyRegression = contracts();
-  packageIdOnlyRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .workspace_activation_contract.settings_execution_allowed = true;
-  assert.throws(() => validateGui(packageIdOnlyRegression.guiContract), /workspace activation|lifecycle UX/);
-
-  const inferredScopeRegression = contracts();
-  inferredScopeRegression.controlPlane.page_adapter_policy.required_pages.agents
-    .directory_projection_surface.scope_inference_allowed = true;
+  const privateActivationRegression = contracts();
+  privateActivationRegression.controlPlane.page_adapter_policy.required_pages.agents
+    .directory_projection_surface.stage_runtime_activation_contract_ref = "private-action-contract";
   assert.throws(
-    () => validate(inferredScopeRegression),
-    /Settings Agents directory projection.*Framework Stage runtime/,
+    () => validate(privateActivationRegression),
+    /must not restore private activation field/,
   );
 
   const inferredPageStatePayloadRegression = contracts();
@@ -601,7 +562,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     (page) => page.id === "agents",
   );
   agentsPage.must_show = agentsPage.must_show.filter(
-    (item) => !item.includes("Settings, new conversation, and ordinary composer send never execute agent_package_activate"),
+    (item) => !item.includes("Settings executes only actions projected for the Settings surface"),
   );
   assert.throws(
     () => validatePageStateMatrix(
@@ -609,24 +570,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
       inferredPageStatePayloadRegression.adapterContract,
       inferredPageStatePayloadRegression.guiContract,
     ),
-    /agents must_show must include Settings, new conversation, and ordinary composer send never execute agent_package_activate/,
-  );
-
-  const implicitTrustRegression = contracts();
-  implicitTrustRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .advanced_manifest_install_contract.default_trust_tier = "third_party_verified";
-  assert.throws(
-    () => validateGui(implicitTrustRegression.guiContract),
-    /advanced manifest install trust assignment|lifecycle UX/,
-  );
-
-  const permissiveGuardRegression = contracts();
-  permissiveGuardRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .package_projection_contract.dependent_guard_missing_policy.disable_enabled_only_when =
-    "dependent_guard.disable.allowed !== false";
-  assert.throws(
-    () => validateGui(permissiveGuardRegression.guiContract),
-    /dependency closure readiness|lifecycle UX/,
+    /agents must_show must include Settings executes only actions projected for the Settings surface/,
   );
 
 });

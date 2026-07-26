@@ -1,917 +1,110 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json",
-  "title": "OPL Package Surfaces",
+  "title": "OPL App generic Package consumer surfaces",
   "type": "object",
   "additionalProperties": false,
-  "properties": {
-    "external_agent_package_registry": {
-      "$ref": "#/$defs/external_agent_package_registry"
-    },
-    "agent_package_registry_entry": {
-      "$ref": "#/$defs/agent_package_registry_entry"
-    },
-    "opl_package_manifest": {
-      "$ref": "#/$defs/opl_package_manifest"
-    },
-    "home_shortcut_metadata": {
-      "$ref": "#/$defs/home_shortcut_metadata"
-    },
-    "invocation_receipt": {
-      "$ref": "#/$defs/invocation_receipt"
-    },
-    "package_lock_receipt": {
-      "$ref": "#/$defs/package_lock_receipt"
-    },
-    "agent_package_activation_request": {
-      "$ref": "#/$defs/agent_package_activation_request"
-    },
-    "agent_package_activation_result": {
-      "$ref": "#/$defs/agent_package_activation_result"
-    },
-    "agent_package_recovery_readback": {
-      "$ref": "#/$defs/agent_package_recovery_readback"
-    },
-    "agent_package_use_binding": {
-      "$ref": "#/$defs/agent_package_use_binding"
-    },
-    "agent_package_activation_action": {
-      "$ref": "#/$defs/agent_package_activation_action"
-    }
-  },
   "$defs": {
-    "string_array": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
+    "localized_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "zh-CN": { "type": "string", "minLength": 1 },
+        "en-US": { "type": "string", "minLength": 1 }
       },
-      "uniqueItems": true
+      "minProperties": 1
     },
-    "external_agent_package_registry": {
+    "home_shortcut": {
       "type": "object",
       "additionalProperties": true,
-      "required": [
-        "owner",
-        "purpose",
-        "state",
-        "version",
-        "registry_id",
-        "registry_name",
-        "registry_source_kind",
-        "registry_url",
-        "discovery_only",
-        "install_authority_allowed",
-        "canonical_first_party_entries_allowed",
-        "first_party_trust_claims_allowed",
-        "entries"
-      ],
+      "required": ["shortcut_id", "label_i18n", "default_visible", "user_configurable", "route"],
       "properties": {
-        "owner": {"type": "string", "minLength": 1},
-        "purpose": {"const": "external_agent_package_registry_catalog"},
-        "state": {"const": "active_external_discovery_source"},
-        "version": {"type": "integer", "minimum": 1},
-        "registry_id": {"type": "string", "minLength": 1},
-        "registry_name": {"type": "string", "minLength": 1},
-        "registry_source_kind": {
-          "enum": [
-            "organization_registry_url",
-            "user_registry_url"
-          ]
-        },
-        "registry_url": {"type": "string", "minLength": 1},
-        "discovery_only": {"const": true},
-        "install_authority_allowed": {"const": false},
-        "canonical_first_party_entries_allowed": {"const": false},
-        "first_party_trust_claims_allowed": {"const": false},
-        "entries": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/agent_package_registry_entry"}
+        "shortcut_id": { "type": "string", "minLength": 1 },
+        "label_i18n": { "$ref": "#/$defs/localized_text" },
+        "default_visible": { "type": "boolean" },
+        "user_configurable": { "type": "boolean" },
+        "route": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["route_kind", "executor", "codex_visible_entry"],
+          "properties": {
+            "route_kind": { "const": "agent_package_shortcut" },
+            "executor": { "type": "string", "minLength": 1 },
+            "codex_visible_entry": { "type": "string", "minLength": 1 }
+          }
         }
       }
     },
-    "agent_package_registry_entry": {
+    "projected_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_ref",
+        "semantic",
+        "surface",
+        "payload",
+        "required_payload_fields",
+        "confirmation_required"
+      ],
+      "properties": {
+        "action_id": { "type": "string", "minLength": 1 },
+        "action_ref": { "type": "string", "pattern": "^app_state\\.actions#" },
+        "semantic": { "type": "string", "minLength": 1 },
+        "surface": { "type": "string", "minLength": 1 },
+        "payload": { "type": "object" },
+        "required_payload_fields": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "confirmation_required": { "type": "boolean" }
+      }
+    },
+    "directory_entry": {
       "type": "object",
       "additionalProperties": true,
       "required": [
         "package_id",
         "package_kind",
-        "display_name",
-        "publisher",
-        "description",
-        "tags",
         "package_role",
-        "source",
-        "manifest_url",
-        "version_source_ref",
-        "selected_version",
-        "stable_version",
-        "manifest_validation",
-        "trust_tier"
+        "display_name",
+        "description",
+        "installed",
+        "readiness",
+        "available_actions"
       ],
       "properties": {
-        "package_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "package_kind": {
-          "type": "string",
-          "minLength": 1
-        },
-        "display_name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "publisher": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S"
-        },
-        "tags": {
+        "package_id": { "type": "string", "minLength": 1 },
+        "package_kind": { "type": "string", "minLength": 1 },
+        "package_role": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "display_name_i18n": { "$ref": "#/$defs/localized_text" },
+        "description_i18n": { "$ref": "#/$defs/localized_text" },
+        "installed": { "type": "boolean" },
+        "readiness": { "type": "object" },
+        "home_shortcuts": {
           "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "\\S"
-          }
+          "items": { "$ref": "#/$defs/home_shortcut" }
         },
-        "package_role": {
-          "type": "string",
-          "enum": [
-            "standard_agent",
-            "framework_capability_package",
-            "workflow_profile"
-          ]
-        },
-        "source": {
-          "type": "string",
-          "minLength": 1,
-          "not": {
-            "pattern": "^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]"
-          }
-        },
-        "manifest_url": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version_source_ref": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "#/version$"
-        },
-        "selected_version": {
-          "type": ["string", "null"],
-          "minLength": 1,
-          "pattern": "\\S"
-        },
-        "stable_version": {
-          "type": ["string", "null"],
-          "minLength": 1,
-          "pattern": "\\S"
-        },
-        "manifest_validation": {
-          "type": "string",
-          "enum": ["deferred", "fetched_manifest", "catalog_inline_manifest"]
-        },
-        "trust_tier": {
-          "type": "string",
-          "minLength": 1,
-          "not": {"pattern": "^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]"}
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projected_action" }
         }
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "manifest_validation": {"const": "deferred"},
-            "selected_version": {"type": "null"},
-            "stable_version": {"type": "null"}
-          }
-        },
-        {
-          "properties": {
-            "manifest_validation": {
-              "enum": ["fetched_manifest", "catalog_inline_manifest"]
-            },
-            "selected_version": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            },
-            "stable_version": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "\\S"
-            }
-          }
-        }
-      ]
-    },
-    "agent_package_activation_request": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["package_id"],
-      "properties": {
-        "package_id": {"type": "string", "minLength": 1},
-        "scope": {
-          "type": "string",
-          "enum": ["workspace"]
-        },
-        "target_workspace": {"type": "string", "minLength": 1}
       }
-    },
-    "agent_package_use_binding": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": ["root_package", "scope", "target_root"],
-      "properties": {
-        "root_package": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["package_id", "package_version"],
-          "properties": {
-            "package_id": {"type": "string", "minLength": 1},
-            "package_version": {"type": "string", "minLength": 1}
-          }
-        },
-        "scope": {"const": "workspace"},
-        "target_root": {"type": "string", "minLength": 1}
-      }
-    },
-    "agent_package_recovery_readback": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "surface_kind",
-        "vocabulary_version",
-        "status",
-        "launch_blocked_reason",
-        "managed_update_lock",
-        "recovery_action",
-        "recovery_action_state",
-        "recovery_action_executable",
-        "recovery_action_ref"
-      ],
-      "properties": {
-        "surface_kind": {"const": "opl_agent_package_recovery_readback"},
-        "vocabulary_version": {"const": "opl-agent-package-recovery.v1"},
-        "status": {
-          "enum": ["not_required", "recovery_in_progress", "recovery_required", "recovered"]
-        },
-        "launch_blocked_reason": {
-          "type": ["string", "null"],
-          "enum": [null, "package_recovery_in_progress", "package_recovery_required"]
-        },
-        "managed_update_lock": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["status"],
-          "properties": {
-            "status": {"type": "string", "minLength": 1}
-          }
-        },
-        "recovery_action": {"type": ["string", "null"]},
-        "recovery_action_state": {
-          "enum": ["not_required", "wait_only", "executable", "manual_owner_intervention_required"]
-        },
-        "recovery_action_executable": {"type": "boolean"},
-        "recovery_action_ref": {"type": ["string", "null"], "minLength": 1}
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "status": {"const": "recovery_in_progress"},
-            "launch_blocked_reason": {"const": "package_recovery_in_progress"},
-            "recovery_action_state": {"const": "wait_only"},
-            "recovery_action_executable": {"const": false},
-            "recovery_action_ref": {"type": "null"}
-          }
-        },
-        {
-          "properties": {
-            "status": {"const": "recovery_required"},
-            "launch_blocked_reason": {"const": "package_recovery_required"},
-            "recovery_action_state": {"const": "executable"},
-            "recovery_action_executable": {"const": true},
-            "recovery_action_ref": {"const": "app_state.actions#agent_package_repair"}
-          }
-        },
-        {
-          "properties": {
-            "status": {"const": "recovery_required"},
-            "launch_blocked_reason": {"const": "package_recovery_required"},
-            "recovery_action_state": {"const": "manual_owner_intervention_required"},
-            "recovery_action_executable": {"const": false},
-            "recovery_action_ref": {"type": "null"}
-          }
-        },
-        {
-          "properties": {
-            "status": {"enum": ["not_required", "recovered"]},
-            "launch_blocked_reason": {"type": "null"},
-            "recovery_action_state": {"const": "not_required"},
-            "recovery_action_executable": {"const": false},
-            "recovery_action_ref": {"type": "null"}
-          }
-        }
-      ]
     },
     "agent_package_activation_result": {
-      "description": "Normalized live package launch disposition. Ready and degraded preserve send; package_unavailable blocks only the selected package.",
       "type": "object",
       "additionalProperties": true,
       "required": ["launch_state", "launch_allowed", "package_id", "launch_state_reason"],
       "properties": {
-        "launch_state": {
-          "enum": ["ready", "degraded", "package_unavailable"]
-        },
-        "launch_allowed": {"type": "boolean"},
-        "launch_state_reason": {"type": ["string", "null"]},
-        "package_id": {"type": "string", "minLength": 1},
-        "package_version": {"type": "string", "minLength": 1},
-        "package_lock": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["package_id", "package_version"],
-          "properties": {
-            "package_id": {"type": "string", "minLength": 1},
-            "package_version": {"type": "string", "minLength": 1}
-          }
-        },
-        "launch_blocked_reason": {"type": ["string", "null"]},
-        "use_receipt_ref": {"type": "string", "minLength": 1},
-        "use_binding": {
-          "oneOf": [
-            {"type": "null"},
-            {"$ref": "#/$defs/agent_package_use_binding"}
-          ]
-        },
-        "package_use_binding": {
-          "oneOf": [
-            {"type": "null"},
-            {"$ref": "#/$defs/agent_package_use_binding"}
-          ]
-        }
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "launch_state": {"const": "ready"},
-            "launch_allowed": {"const": true},
-            "launch_state_reason": {"type": "null"},
-            "launch_blocked_reason": {"type": "null"}
-          },
-          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
-        },
-        {
-          "properties": {
-            "launch_state": {"const": "degraded"},
-            "launch_allowed": {"const": true},
-            "launch_state_reason": {"type": "string", "minLength": 1},
-            "launch_blocked_reason": {"type": "null"}
-          },
-          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
-        },
-        {
-          "properties": {
-            "launch_state": {"const": "package_unavailable"},
-            "launch_allowed": {"const": false},
-            "launch_state_reason": {"type": "string", "minLength": 1},
-            "launch_blocked_reason": {"type": "string", "minLength": 1}
-          },
-          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
-        }
-      ]
-    },
-    "agent_package_activation_action": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "action_id",
-        "command_ref",
-        "enabled",
-        "preparation_status",
-        "reason_code"
-      ],
-      "properties": {
-        "action_id": {
-          "const": "agent_package_activate"
-        },
-        "command_ref": {
-          "const": "opl app action execute --action agent_package_activate --payload <json> --json"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "preparation_status": {
-          "type": "string",
-          "enum": ["not_installed", "prepare_required", "ready"]
-        },
-        "reason_code": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "oneOf": [
-        {
-          "properties": {
-            "enabled": {"const": false},
-            "preparation_status": {"const": "not_installed"},
-            "reason_code": {"const": "package_not_installed"}
-          }
-        },
-        {
-          "properties": {
-            "enabled": {"const": true},
-            "preparation_status": {"const": "prepare_required"},
-            "reason_code": {"const": "scope_reconciliation_required"}
-          }
-        },
-        {
-          "properties": {
-            "enabled": {"const": true},
-            "preparation_status": {"const": "ready"},
-            "reason_code": {"const": "use_boundary_reconciliation_ready"}
-          }
-        },
-        {
-          "properties": {
-            "enabled": {"const": false},
-            "preparation_status": {"enum": ["prepare_required", "ready"]},
-            "reason_code": {
-              "enum": [
-                "package_disabled",
-                "recovery_in_progress",
-                "recovery_required",
-                "recovery_owner_intervention_required",
-                "status_unavailable"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "opl_package_manifest": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "package_id",
-        "package_kind",
-        "display_name",
-        "publisher",
-        "version",
-        "source",
-        "codex_surface",
-        "skill_packs",
-        "entrypoints",
-        "health_check",
-        "permissions",
-        "update_channel",
-        "rollback_ref"
-      ],
-      "properties": {
-        "package_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "package_kind": {
-          "enum": [
-            "domain_agent_package",
-            "framework_capability_package",
-            "workflow_plugin_package"
-          ]
-        },
-        "agent_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "display_name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "publisher": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "source": {
-          "type": "string",
-          "minLength": 1
-        },
-        "distribution_payload": {
-          "type": "object",
-          "additionalProperties": true
-        },
-        "codex_surface": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": [
-            "plugin_ids",
-            "required_skill_ids"
-          ],
-          "properties": {
-            "plugin_ids": {
-              "$ref": "#/$defs/string_array"
-            },
-            "required_skill_ids": {
-              "$ref": "#/$defs/string_array"
-            },
-            "optional_skill_ids": {
-              "$ref": "#/$defs/string_array"
-            },
-            "plugin_source_path": {
-              "type": "string",
-              "minLength": 1
-            },
-            "plugin_source_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "plugin_payload_manifest_url": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        },
-        "skill_packs": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "required": [
-              "id",
-              "source_kind",
-              "source",
-              "install_mode"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "source_kind": {
-                "enum": [
-                  "repo_plugin_skill",
-                  "opl_generated_plugin_surface"
-                ]
-              },
-              "source": {
-                "type": "string",
-                "minLength": 1
-              },
-              "semantic_pack_root": {
-                "type": "string",
-                "minLength": 1
-              },
-              "generated_surface_owner": {
-                "const": "one-person-lab"
-              },
-              "version": {
-                "type": "string",
-                "minLength": 1
-              },
-              "lock_ref": {
-                "type": "string",
-                "minLength": 1
-              },
-              "install_mode": {
-                "enum": [
-                  "required",
-                  "optional"
-                ]
-              }
-            }
-          }
-        },
-        "entrypoints": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "required": [
-              "shortcut_id",
-              "label",
-              "required_skill_ids",
-              "shortcut_eligible"
-            ],
-            "properties": {
-              "shortcut_id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "label": {
-                "type": "string",
-                "minLength": 1
-              },
-              "required_skill_ids": {
-                "$ref": "#/$defs/string_array"
-              },
-              "shortcut_eligible": {
-                "type": "boolean"
-              }
-            }
-          }
-        },
-        "health_check": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": [
-            "kind",
-            "required_surfaces"
-          ],
-          "properties": {
-            "kind": {
-              "const": "opl_package_receipt"
-            },
-            "required_surfaces": {
-              "$ref": "#/$defs/string_array"
-            }
-          }
-        },
-        "permissions": {
-          "type": "array"
-        },
-        "update_channel": {
-          "type": "string",
-          "minLength": 1
-        },
-        "rollback_ref": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "package_kind": {
-                "const": "domain_agent_package"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "agent_id"
-            ]
-          },
-          "else": {
-            "not": {
-              "required": [
-                "agent_id"
-              ]
-            }
-          }
-        }
-      ],
-      "not": {
-        "anyOf": [
-          {
-            "required": [
-              "session_contract_ref"
-            ]
-          },
-          {
-            "required": [
-              "domain_workflow_schema"
-            ]
-          },
-          {
-            "required": [
-              "prompt_body"
-            ]
-          },
-          {
-            "required": [
-              "artifact_schema"
-            ]
-          },
-          {
-            "required": [
-              "readiness_verdict_rule"
-            ]
-          },
-          {
-            "required": [
-              "quality_verdict_rule"
-            ]
-          },
-          {
-            "required": [
-              "owner_receipt_authority"
-            ]
-          }
-        ]
-      }
-    },
-    "home_shortcut_metadata": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "shortcut_id",
-        "package_id",
-        "primary_label",
-        "codex_visible_entry",
-        "required_skill_ids",
-        "source",
-        "executor",
-        "display_policy",
-        "default_visible",
-        "user_configurable"
-      ],
-      "properties": {
-        "shortcut_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "package_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "primary_label": {
-          "type": "string",
-          "minLength": 1
-        },
-        "codex_visible_entry": {
-          "type": "string",
-          "minLength": 1
-        },
-        "required_skill_ids": {
-          "$ref": "#/$defs/string_array"
-        },
-        "source": {
-          "const": "opl_app_home"
-        },
-        "executor": {
-          "const": "codex_cli"
-        },
-        "display_policy": {
-          "type": "string",
-          "minLength": 1
-        },
-        "default_visible": {
-          "type": "boolean"
-        },
-        "user_configurable": {
-          "type": "boolean"
-        }
-      }
-    },
-    "invocation_receipt": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "receipt_type",
-        "executor",
-        "package_id",
-        "agent_id",
-        "skill_ids",
-        "source",
-        "launched_from",
-        "display_policy"
-      ],
-      "properties": {
-        "receipt_type": {
-          "const": "capability_invocation"
-        },
-        "executor": {
-          "const": "codex_cli"
-        },
-        "package_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "agent_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "skill_ids": {
-          "$ref": "#/$defs/string_array"
-        },
-        "source": {
-          "type": "string",
-          "minLength": 1
-        },
-        "launched_from": {
-          "type": "string",
-          "minLength": 1
-        },
-        "display_policy": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
-    "package_lock_receipt": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "package_id",
-        "version_or_source_digest",
-        "installed_at",
-        "updated_at",
-        "codex_visible_entry",
-        "bundled_required_skill_ids",
-        "optional_skill_refs",
-        "source_kind",
-        "trust_tier",
-        "action_receipt_id",
-        "rollback_ref",
-        "physical_surface"
-      ],
-      "properties": {
-        "package_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version_or_source_digest": {
-          "type": "string",
-          "minLength": 1
-        },
-        "installed_at": {
-          "type": "string",
-          "minLength": 1
-        },
-        "updated_at": {
-          "type": "string",
-          "minLength": 1
-        },
-        "codex_visible_entry": {
-          "type": "string",
-          "minLength": 1
-        },
-        "bundled_required_skill_ids": {
-          "$ref": "#/$defs/string_array"
-        },
-        "optional_skill_refs": {
-          "$ref": "#/$defs/string_array"
-        },
-        "source_kind": {
-          "type": "string",
-          "minLength": 1
-        },
-        "trust_tier": {
-          "type": "string",
-          "minLength": 1
-        },
-        "action_receipt_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "rollback_ref": {
-          "type": "string",
-          "minLength": 1
-        },
-        "physical_surface": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "status": {
-              "type": "string",
-              "minLength": 1
-            },
-            "materialized_required_skill_ids": {
-              "$ref": "#/$defs/string_array"
-            },
-            "materialized_required_skill_paths": {
-              "$ref": "#/$defs/string_array"
-            },
-            "plugin_payload_manifest_url": {
-              "type": "string",
-              "minLength": 1
-            },
-            "plugin_payload_manifest_sha256": {
-              "type": "string",
-              "minLength": 1
-            },
-            "plugin_payload_cache_path": {
-              "type": "string",
-              "minLength": 1
-            },
-            "reload_required": {
-              "type": "boolean"
-            }
-          }
-        },
-        "oci_ref": {
-          "type": "string",
-          "minLength": 1
-        },
-        "resolved_digest": {
-          "type": "string",
-          "minLength": 1
-        },
-        "moving_tag": {
-          "type": "string",
-          "minLength": 1
-        }
+        "launch_state": { "enum": ["ready", "degraded", "package_unavailable"] },
+        "launch_allowed": { "type": "boolean" },
+        "package_id": { "type": "string", "minLength": 1 },
+        "launch_state_reason": { "type": ["string", "null"] },
+        "launch_blocked_reason": { "type": ["string", "null"] },
+        "route_ready": { "type": "boolean" }
       }
     }
   }

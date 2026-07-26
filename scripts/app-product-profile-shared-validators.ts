@@ -35,8 +35,6 @@ type ProductProfileLike = {
     };
     ordinary_conversation?: Record<string, unknown>;
     right_context_inspector?: Record<string, unknown>;
-    builtin_assistant_route_receipt_policy?: Record<string, unknown>;
-    agent_package_invocation_receipt_policy?: Record<string, unknown>;
   };
   settings?: {
     control_plane?: {
@@ -54,10 +52,6 @@ type HomePolicyOptions = {
 
 type ModelDisplayOptions = {
   requireAutoIdAndDescriptions?: boolean;
-};
-
-type RouteReceiptOptions = {
-  requireExactAssistants?: boolean;
 };
 
 type OfficialProfileLike = {
@@ -104,11 +98,6 @@ type OfficialProfileValidationOptions = {
   fail?: (message: string) => never;
 };
 
-export const starterPackageIds = ['mas', 'mag', 'rca', 'obf'];
-export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
-export const managedShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
-export const managedShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
-export const defaultVisibleShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
 export const forbiddenExternalFirstPartyClaimPattern =
   '^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]';
 
@@ -197,15 +186,6 @@ export function assertHomeComposerStateContract(value: unknown, label: string): 
     throw new Error(`${label} must preserve the fixed Codex executor controls for every Home shortcut state`);
   }
 }
-const agentPackageReceiptRequiredFields = [
-  'route_kind',
-  'executor',
-  'package_id',
-  'shortcut_id',
-  'codex_visible_entry',
-  'required_skill_ids',
-  'source',
-];
 const expectedCodexVisibleModels = [
   { id: 'gpt-5.6-sol', label_zh: '5.6 Sol', label_en: '5.6 Sol' },
   { id: 'gpt-5.6-terra', label_zh: '5.6 Terra', label_en: '5.6 Terra' },
@@ -874,63 +854,4 @@ function assertRetiredCodexModelsHidden(
       throw new Error(`${label} GUI home must not expose retired Codex model ${model.id} as an ordinary visible model`);
     }
   }
-}
-
-export function assertAppProductProfileRouteReceiptPolicy(
-  profile: ProductProfileLike,
-  label = 'App product profile',
-  options: RouteReceiptOptions = {},
-): void {
-  const policy = profile.gui?.agent_package_invocation_receipt_policy;
-  if (
-    policy?.scope !== 'package_shortcut_launch_to_codex_conversation' ||
-    policy.required_for_package_shortcuts_source_ref !==
-      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
-    policy.required_for_package_shortcuts !== undefined ||
-    policy.route_kind !== 'agent_package_shortcut' ||
-    policy.executor !== 'codex_cli' ||
-    policy.source !== 'opl_app_home' ||
-    policy.receipt_authority !== 'launch_fact_only_no_session_behavior_domain_workflow_or_readiness' ||
-    policy.must_not_depend_on_visible_backend_selection !== true
-  ) {
-    throw new Error(`${label} must require agent package shortcut Codex CLI launch receipts`);
-  }
-  assertStringArrayIncludes(
-    policy.required_fields,
-    agentPackageReceiptRequiredFields,
-    `${label} package shortcut receipt fields`,
-  );
-  assertStringArrayIncludes(
-    policy.must_not_govern,
-    ['session_behavior', 'domain_workflow', 'domain_readiness'],
-    `${label} package shortcut receipt non-authority fields`,
-  );
-
-  const legacyPolicy = profile.gui?.builtin_assistant_route_receipt_policy;
-  if (
-    legacyPolicy &&
-    (
-      legacyPolicy.migration_alias_for !== 'agent_package_invocation_receipt_policy' ||
-      legacyPolicy.scope !== 'home_purpose_entry_to_conversation' ||
-      legacyPolicy.route_kind !== 'builtin_capability' ||
-      legacyPolicy.executor !== 'codex_cli' ||
-      legacyPolicy.source !== 'opl_app_home' ||
-      legacyPolicy.must_not_depend_on_visible_backend_selection !== true
-    )
-  ) {
-    throw new Error(`${label} legacy built-in assistant route receipt policy must stay a migration alias`);
-  }
-  if (!legacyPolicy) {
-    return;
-  }
-  if (options.requireExactAssistants) {
-    assertExactStringArray(legacyPolicy.required_for_assistants, starterPackageIds, `${label} route receipt assistants`);
-  } else {
-    assertStringArrayIncludes(legacyPolicy.required_for_assistants, starterPackageIds, `${label} route receipt assistants`);
-  }
-  assertStringArrayIncludes(
-    legacyPolicy.required_fields,
-    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
-    `${label} route receipt fields`,
-  );
 }

@@ -23,6 +23,10 @@ import {
 } from './filesystem.ts';
 import { readGitHead } from './git.ts';
 import { commandOutput, run } from './process.ts';
+import {
+  materializeResolvedSelectedBundleDescriptor,
+  readMaterializedResolvedSelectedBundleDescriptor,
+} from './resolved-selected-bundle-descriptor.ts';
 import { copyPackagedSkills } from './skills.ts';
 
 export function assertOplRuntimeProductionDependencies(oplRoot) {
@@ -466,6 +470,15 @@ function declaredAuthorityFunctionPayloadStatuses(runtimeRoot) {
 }
 
 export function collectRuntimeAssertions(runtimeRoot) {
+  const resolvedSelectedBundle = readMaterializedResolvedSelectedBundleDescriptor(runtimeRoot);
+  const compatibilitySkillPayloads = resolvedSelectedBundle
+    ? []
+    : [
+        runtimePayloadStatus(runtimeRoot, 'skills/med-autoscience/SKILL.md'),
+        runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
+        runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
+        runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
+      ];
   return {
     prune_policy_id: FULL_RUNTIME_PRUNE_POLICY.id,
     prune_policy_hash: buildFullRuntimePrunePolicyHash(),
@@ -486,17 +499,18 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'uv/bin/uv', { executable: true }),
       runtimePayloadStatus(runtimeRoot, 'bin/officecli', { executable: true }),
       runtimePayloadStatus(runtimeRoot, 'bin/mineru-open-api', { executable: true }),
-      runtimePayloadStatus(runtimeRoot, 'skills/med-autoscience/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
+      ...compatibilitySkillPayloads,
       ...declaredAuthorityFunctionPayloadStatuses(runtimeRoot),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
       ...masScholarSkillsPayloadStatuses(runtimeRoot),
       ...oplFlowPluginPayloadStatuses(runtimeRoot),
       ...domainPluginPayloadStatuses(runtimeRoot),
+      ...(resolvedSelectedBundle?.payloads ?? []),
     ],
+    resolved_selected_bundle_descriptor: resolvedSelectedBundle?.assertion ?? {
+      status: 'not_provided',
+    },
     declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),
   };
 }
@@ -595,7 +609,12 @@ export function buildOplLayer(layerRoot, options) {
   pruneTemporalCoreBridgeReleases(path.join(targetRoot, 'node_modules'));
 }
 
-export function buildSkillsLayer(layerRoot, options) {
+export function buildSkillsLayer(layerRoot, options, resolvedSelectedBundleDescriptor: unknown = null) {
+  if (resolvedSelectedBundleDescriptor) {
+    fs.mkdirSync(path.join(layerRoot, 'skills'), { recursive: true });
+    materializeResolvedSelectedBundleDescriptor(layerRoot, resolvedSelectedBundleDescriptor);
+    return;
+  }
   copyPackagedSkills(path.join(layerRoot, 'skills'), options);
 }
 
@@ -621,7 +640,7 @@ export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLay
       copyProductionNodeModules,
       buildOplLayer,
     ],
-    skills: [copyPackagedSkills, buildSkillsLayer],
+    skills: [copyPackagedSkills, materializeResolvedSelectedBundleDescriptor, buildSkillsLayer],
   };
   return crypto.createHash('sha256')
     .update(functions[layerId].map((fn) => fn.toString()).join('\n\n'))
