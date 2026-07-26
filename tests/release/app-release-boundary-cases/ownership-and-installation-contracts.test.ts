@@ -192,7 +192,10 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.deepEqual(homebrew.excluded_casks, []);
   assert.equal(homebrew.allowed_casks.includes('one-person-lab-full'), true);
   assert.equal(homebrew.casks.includes('one-person-lab-full'), false);
-  assert.deepEqual(homebrew.initial_live_targets, ['Casks/one-person-lab.rb']);
+  assert.deepEqual(
+    homebrew.initial_live_targets,
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+  );
   assert.equal(homebrew.initial_live_targets.includes('Casks/one-person-lab-full.rb'), false);
   assert.equal(homebrew.tap_update_policy.full.homebrew_publish_allowed, false);
   assert.equal(homebrew.tap_update_policy.full.homebrew_clean_vm_gate_required, true);

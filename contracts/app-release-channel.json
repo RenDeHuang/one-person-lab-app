@@ -28,8 +28,8 @@
       "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
         "desktop_full_additive_asset",
         "manual_full_preview",
-        "desktop_nightly_historical_distribution",
-        "homebrew_nightly_historical_cask",
+        "desktop_nightly_automated_standard_prerelease",
+        "homebrew_nightly_post_publication_follower",
         "homebrew_full_implemented_unpublished_target",
         "native_webui_implemented_unpublished_target",
         "canary_validation_only"
@@ -79,7 +79,7 @@
         "dimension": "quality",
         "meaning": "automated_opt_in_desktop_prerelease",
         "product_channel_semantics": "retained",
-        "current_publication_implementation": "retired_historical_compatibility",
+        "current_publication_implementation": "implemented_pending_first_publication_readback",
         "default_payload_density": "standard",
         "full_by_default": false,
         "latest_allowed": false
@@ -131,13 +131,13 @@
     "implementation_state": {
       "desktop_stable": "live",
       "desktop_latest": "live_stable_only",
-      "desktop_nightly": "retired_historical_read_compatibility",
+      "desktop_nightly": "implemented_pending_first_publication_readback",
       "manual_full_preview": "live_non_latest_temporary_lane",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier",
       "native_webui": "approved_target_not_published",
       "homebrew_standard": "live_managed",
-      "homebrew_nightly": "historical_cask_exists_publication_retired",
+      "homebrew_nightly": "implemented_pending_first_follower_readback",
       "homebrew_full": "legacy_cask_exists_not_managed_by_current_release_pipeline"
     },
     "retired_compatibility": {
@@ -146,26 +146,30 @@
         "historical_payload_density": "standard",
         "historical_full_by_default": false,
         "historical_latest_allowed": false,
-        "current_publication_workflow_present": false,
-        "new_publication_status": "approved_target_requires_implementation_and_qualification"
+        "current_publication_workflow_present": true,
+        "new_publication_status": "implemented_pending_first_publication_readback"
       }
     },
     "approved_targets": {
       "desktop_nightly": {
         "target": "automated_opt_in_standard_desktop_prerelease",
-        "status": "approved_pending_implementation_and_qualification",
+        "status": "implemented_pending_first_publication_readback",
         "payload_density": "standard",
         "full_by_default": false,
         "latest_allowed": false,
         "homebrew_cask": "one-person-lab-nightly",
-        "promotion_requires": [
+        "required_qualification": [
           "immutable_nightly_assets",
           "prerelease_publication_workflow",
           "prerelease_updater_isolation",
-          "homebrew_nightly_cask_publication",
-          "clean_install_readback",
+          "source_unit_contract_type_lint_build_asset_integrity",
+          "homebrew_nightly_digest_follower"
+        ],
+        "sampled_nonblocking_qualification": [
+          "standard_dmg_clean_vm_smoke",
           "official_profile_convergence"
-        ]
+        ],
+        "heavy_vm_blocks_publication": false
       },
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
@@ -1025,12 +1029,18 @@
         }
       },
       "nightly": {
-        "status": "retired_historical_distribution_compatibility",
-        "publication_available": false,
-        "mutation_available": false,
+        "status": "implemented_pending_first_publication_readback",
+        "publication_available": true,
+        "mutation_available": true,
         "historical_readback_allowed": true,
-        "validation_route": ".github/workflows/release-bundle-canary.yml_schedule",
-        "latest_allowed": false
+        "workflow": ".github/workflows/release-nightly.yml",
+        "trigger": "schedule_only",
+        "latest_allowed": false,
+        "stable_bundle_authority_used": false,
+        "stable_mutation_mutex_used": false,
+        "heavy_vm_blocking": false,
+        "homebrew_follower": ".github/workflows/release-nightly-homebrew-follower.yml",
+        "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml"
       },
       "full": {
         "mode": "same_bundle_cohort_additive_only",
@@ -1336,16 +1346,19 @@
         ]
       },
       "nightly": {
-        "status": "historical_read_only_compatibility",
-        "target_reader": "maintainers interpreting already-published Nightly notes and receipts",
-        "comparison": "previous historical Nightly prerelease when reading existing evidence",
-        "new_note_generation_available": false,
-        "publication_available": false,
+        "status": "automatic_standard_prerelease",
+        "target_reader": "opt-in testers evaluating an automated Standard preview",
+        "comparison": "current frozen App Shell Framework cohort without a Stable qualification claim",
+        "new_note_generation_available": true,
+        "publication_available": true,
+        "writer": "deterministic_scope_and_risk_disclosure",
+        "ai_on_release_critical_path_allowed": false,
         "lead_with": [
-          "historical user-visible behavior",
-          "historical validation scope",
-          "recorded risks or known rough edges",
-          "archived tester actions"
+          "automated Standard preview",
+          "not Stable-qualified",
+          "no Full or WebUI assets",
+          "does not change Latest",
+          "sampled clean-VM follow-up is non-blocking"
         ]
       }
     },
@@ -1382,7 +1395,8 @@
         "dry_run",
         "diagnostic_preview"
       ],
-      "rule": "Template release notes preserve evidence facts and technical details only when the operator requested a dry-run or diagnostic preview; template output is not the default polished public Stable or Nightly copy and must not be silently published from the release critical path."
+      "nightly_fixed_scope_disclosure_is_template_fallback": false,
+      "rule": "Template release notes preserve evidence facts and technical details only when the operator requested a dry-run or diagnostic preview and must not replace prepared Stable copy. Automated Nightly uses a separate fixed scope-and-risk disclosure that cannot claim Stable qualification, Full, WebUI, Latest, or heavy-VM completion."
     },
     "public_asset_policy": "Release-note evidence JSON and technical audit output are operator evidence, not public download assets; the public GitHub Release asset list stays focused on install, update, checksum, and manifest entrypoints.",
     "rule": "Public release notes use prepared user copy derived from script-generated evidence before the expensive release train starts. Publish and promote jobs must not call AI to generate or replace notes on the critical path. The body leads with user scenarios, upgrade value, and action items; commit logs, refs, workflow facts, changelog details, and packaging audit material belong in Technical details or evidence artifacts instead of the main narrative."
@@ -1837,17 +1851,22 @@
     }
   },
   "nightly_standard": {
-    "status": "publication_retired_historical_compatibility",
+    "status": "implemented_pending_first_publication_readback",
     "selectable": false,
-    "publication_available": false,
-    "mutation_available": false,
-    "new_version_allocation_allowed": false,
+    "publication_available": true,
+    "mutation_available": true,
+    "new_version_allocation_allowed": true,
     "historical_tag_and_receipt_parsing_allowed": true,
-    "replacement_validation_workflow": ".github/workflows/release-bundle-canary.yml",
-    "trigger": "none",
+    "workflow": ".github/workflows/release-nightly.yml",
+    "homebrew_follower": ".github/workflows/release-nightly-homebrew-follower.yml",
+    "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml",
+    "trigger": "daily_schedule",
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
+    "stable_bundle_authority_used": false,
+    "stable_mutation_mutex_used": false,
+    "heavy_vm_blocks_publication": false,
     "tag_pattern": "v<YY.M.D>-nightly[.r<1-9>]",
     "same_day_rebuild": {
       "first_release_suffix": null,
@@ -1865,7 +1884,7 @@
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
       "latest-arm64-mac.yml"
     ],
-    "rule": "New Nightly publication is retired. Existing Nightly tags, receipts, updater metadata, and installation conflicts remain readable for compatibility; daily validation runs the no-secret Canary and cannot publish or mutate."
+    "rule": "Nightly automatically builds the Standard desktop preview with the shared physical build workflow, publishes an immutable GitHub prerelease, then independently follows with the digest-bound Nightly Cask. It never publishes Full or WebUI, never changes Latest, and does not wait for Stable-grade heavy VM gates; a low-frequency clean-VM follower is non-blocking."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",
@@ -2245,9 +2264,10 @@
       "one-person-lab-nightly",
       "one-person-lab-full"
     ],
-    "casks": [
-      "one-person-lab"
-    ],
+  "casks": [
+    "one-person-lab",
+    "one-person-lab-nightly"
+  ],
     "cask_install_policy": {
       "standard_cask": "one-person-lab",
       "standard_cask_install_ref": "gaofeng21cn/one-person-lab/one-person-lab",
@@ -2260,9 +2280,10 @@
       "trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
       "rule": "Homebrew user and CI installs use the fully qualified standard cask ref and trust only the standard plus conflicts_with sibling cask refs so installation stays explicit without granting broad trust to the whole tap."
     },
-    "initial_live_targets": [
-      "Casks/one-person-lab.rb"
-    ],
+  "initial_live_targets": [
+    "Casks/one-person-lab.rb",
+    "Casks/one-person-lab-nightly.rb"
+  ],
     "excluded_casks": [],
     "full_casks": [
       "one-person-lab-full"
@@ -2287,11 +2308,16 @@
       "stable_release_workflow_write_mode": "release_bundle_standard_before_latest_only",
       "direct_commit_conflict_policy": "Push once, then compare exact local and remote tap commits; an unknown or mismatched result fails closed without retry, rerun, or redispatch",
       "planner_script": "scripts/update-homebrew-tap.ts",
-      "nightly": {
-        "mode": "retired_historical_read_only",
-        "may_update_stable": false,
-        "mutation_allowed": false
-      },
+    "nightly": {
+      "mode": "post_publication_digest_bound_single_attempt_follower",
+      "workflow": ".github/workflows/release-nightly-homebrew-follower.yml",
+      "environment": "release-nightly",
+      "target": "Casks/one-person-lab-nightly.rb",
+      "may_update_stable": false,
+      "mutation_allowed": true,
+      "stable_cask_must_remain_exact": true,
+      "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
+    },
       "stable": {
         "mode": "release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest",
         "may_consume_nightly_directly": false
@@ -3607,26 +3633,30 @@
   },
   "release_validation_profiles": {
     "nightly_standard": {
-      "status": "publication_retired_validation_only",
+      "status": "implemented_pending_first_publication_readback",
       "selectable": false,
-      "publication_available": false,
-      "mutation_available": false,
-      "purpose": "historical Nightly profile tombstone; daily validation starts the reusable topology in Canary mode",
+      "publication_available": true,
+      "mutation_available": true,
+      "purpose": "automatic scheduled Standard prerelease using the shared physical build with no Stable Latest or heavy-VM authority",
       "required_lanes": [
         "release_boundary_contract",
-        "reusable_topology_startup"
-      ],
-      "historical_required_lanes": [
-        "release_boundary_contract",
+        "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification",
-        "webui_ghcr_publish"
+        "remote_standard_release_verification"
       ],
+      "post_publication_followers": [
+        "homebrew_nightly_digest_follower",
+        "sampled_standard_dmg_clean_vm_smoke"
+      ],
+      "post_publication_followers_block_github_prerelease": false,
+      "sampled_vm_schedule": "weekly_saturday_asia_shanghai",
+      "sampled_vm_failure_changes_stable_or_latest": false,
+      "historical_compatibility": {
+        "tag_and_receipt_parsing_allowed": true,
+        "existing_assets_readable": true
+      },
       "forbidden_lanes": [
-        "standard_macos_arm64_build",
-        "local_standard_asset_validation",
-        "remote_standard_release_verification",
         "webui_ghcr_publish",
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
@@ -3634,11 +3664,12 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
-        "operator_evidence_bundle"
+        "operator_evidence_bundle",
+        "stable_latest_activation"
       ],
-      "release_latest_policy": "not_applicable",
-      "github_release_visibility": "none",
-      "replacement_workflow": ".github/workflows/release-bundle-canary.yml"
+      "release_latest_policy": "never_mark_latest",
+      "github_release_visibility": "prerelease",
+      "workflow": ".github/workflows/release-nightly.yml"
     },
     "stable": {
       "purpose": "complete user-install proof before a stable App Release is treated as smooth",

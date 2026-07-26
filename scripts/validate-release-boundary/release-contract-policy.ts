@@ -219,7 +219,6 @@ function retiredReleaseControlPlaneViolations(releaseContract: Record<string, an
     '.github/workflows/desktop-release.yml',
     '.github/workflows/desktop-release-promote.yml',
     '.github/workflows/desktop-release-full-addon.yml',
-    '.github/workflows/release-nightly.yml',
   ]);
 
   const visit = (value: unknown, pathName = 'release_channel') => {
@@ -308,13 +307,18 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.release_notes_modified !== false ||
     fullAddon?.latest_modified !== false ||
     fullAddon?.source_or_bom_change_requires_new_version !== true ||
-    nightly?.status !== 'publication_retired_historical_compatibility' ||
-    nightly?.publication_available !== false ||
-    nightly?.mutation_available !== false ||
-    nightly?.new_version_allocation_allowed !== false ||
+    nightly?.status !== 'implemented_pending_first_publication_readback' ||
+    nightly?.publication_available !== true ||
+    nightly?.mutation_available !== true ||
+    nightly?.new_version_allocation_allowed !== true ||
     nightly?.historical_tag_and_receipt_parsing_allowed !== true ||
-    nightly?.replacement_validation_workflow !== '.github/workflows/release-bundle-canary.yml' ||
-    nightly?.trigger !== 'none' ||
+    nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
+    nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
+    nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml' ||
+    nightly?.trigger !== 'daily_schedule' ||
+    nightly?.stable_bundle_authority_used !== false ||
+    nightly?.stable_mutation_mutex_used !== false ||
+    nightly?.heavy_vm_blocks_publication !== false ||
     nightly?.tag_pattern !== 'v<YY.M.D>-nightly[.r<1-9>]' ||
     sameDayRebuild?.first_release_suffix !== null ||
     sameDayRebuild?.suffix_pattern !== '.r<revision>' ||
@@ -327,7 +331,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.prerelease !== true ||
     nightly?.latest_release_allowed !== false
   ) {
-    console.error('FAIL release_immutability: Full is additive and retired Nightly remains immutable, read-only historical compatibility');
+    console.error('FAIL release_immutability: Full is additive and Nightly is immutable, prerelease-only, non-Latest Standard');
     return 1;
   }
   return 0;
@@ -1061,14 +1065,20 @@ export function validateReleaseAccelerationPolicy(
     failures += 1;
   }
   if (
-    publication?.nightly?.status !== 'retired_historical_distribution_compatibility' ||
-    publication?.nightly?.publication_available !== false ||
-    publication?.nightly?.mutation_available !== false ||
+    publication?.nightly?.status !== 'implemented_pending_first_publication_readback' ||
+    publication?.nightly?.publication_available !== true ||
+    publication?.nightly?.mutation_available !== true ||
     publication?.nightly?.historical_readback_allowed !== true ||
-    publication?.nightly?.validation_route !== '.github/workflows/release-bundle-canary.yml_schedule' ||
-    publication?.nightly?.latest_allowed !== false
+    publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
+    publication?.nightly?.trigger !== 'schedule_only' ||
+    publication?.nightly?.latest_allowed !== false ||
+    publication?.nightly?.stable_bundle_authority_used !== false ||
+    publication?.nightly?.stable_mutation_mutex_used !== false ||
+    publication?.nightly?.heavy_vm_blocking !== false ||
+    publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
+    publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    console.error('FAIL release_nightly_retirement: Nightly must remain historical read-only compatibility with Canary-only daily validation');
+    console.error('FAIL release_nightly_publication: Nightly must remain scheduled Standard-only, non-Latest, outside the Stable Bundle and heavy VM');
     failures += 1;
   }
   if (
@@ -1196,13 +1206,21 @@ export function validateReleaseAccelerationPolicy(
   }
   if (
     !sameStringSet(homebrew?.allowed_casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
-    !sameStringSet(homebrew?.casks, ['one-person-lab']) ||
-    !sameStringSet(homebrew?.initial_live_targets, ['Casks/one-person-lab.rb']) ||
+    !sameStringSet(homebrew?.casks, ['one-person-lab', 'one-person-lab-nightly']) ||
+    !sameStringSet(homebrew?.initial_live_targets, [
+      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb',
+    ]) ||
     !sameStringSet(homebrew?.excluded_casks, []) ||
     !sameStringSet(homebrew?.full_casks, ['one-person-lab-full']) ||
     homebrew?.tap_update_policy?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
-    homebrew?.tap_update_policy?.nightly?.mode !== 'retired_historical_read_only' ||
-    homebrew?.tap_update_policy?.nightly?.mutation_allowed !== false ||
+    homebrew?.tap_update_policy?.nightly?.mode !== 'post_publication_digest_bound_single_attempt_follower' ||
+    homebrew?.tap_update_policy?.nightly?.workflow !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
+    homebrew?.tap_update_policy?.nightly?.environment !== 'release-nightly' ||
+    homebrew?.tap_update_policy?.nightly?.target !== 'Casks/one-person-lab-nightly.rb' ||
+    homebrew?.tap_update_policy?.nightly?.may_update_stable !== false ||
+    homebrew?.tap_update_policy?.nightly?.mutation_allowed !== true ||
+    homebrew?.tap_update_policy?.nightly?.stable_cask_must_remain_exact !== true ||
+    homebrew?.tap_update_policy?.nightly?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
     homebrew?.tap_update_policy?.full?.mode !== 'implemented_unpublished_generator_target' ||
     homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== false ||
     homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== true ||
@@ -1214,7 +1232,7 @@ export function validateReleaseAccelerationPolicy(
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_distribution: Nightly must remain retired and Full must remain implemented but unpublished with embedded Base');
+    console.error('FAIL release_homebrew_distribution: Nightly must use its isolated digest follower and Full must remain implemented but unpublished with embedded Base');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);

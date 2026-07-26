@@ -9,6 +9,7 @@ import {
   validateReleaseBundleCanaryTopology,
   validateReleaseBundleTopology,
   validateHomebrewFullPromotionTopology,
+  validateNightlyReleaseTopology,
   validateNativeWebuiPublicationTopology,
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
@@ -63,10 +64,11 @@ test('release boundary admits the three-operation control plane and real no-secr
   assert.equal(canary.publication_allowed, false);
   assert.equal(canary.uses_stable_mutation_mutex, false);
   assert.ok(canary.triggers.includes('daily_schedule'));
-  assert.equal(fs.existsSync(path.join(process.cwd(), workflowDirectory, 'release-nightly.yml')), false);
+  assert.equal(fs.existsSync(path.join(process.cwd(), workflowDirectory, 'release-nightly.yml')), true);
   assert.equal(validateStableReleaseControlPlane(process.cwd()), 0);
   assert.equal(validateReleaseBundleTopology(process.cwd()), 0);
   assert.equal(validateReleaseBundleCanaryTopology(process.cwd()), 0);
+  assert.equal(validateNightlyReleaseTopology(process.cwd()), 0);
   assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);
 });
 
@@ -180,25 +182,15 @@ test('Full Homebrew follower qualifies one exact candidate before protected Tap 
   assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
 });
 
-test('daily validation cannot restore the retired Nightly publisher or reuse the Stable mutex', (t) => {
+test('Nightly cannot reuse the Stable Bundle, heavy VM, or Stable mutation mutex', (t) => {
   const root = fixture(t);
-  fs.writeFileSync(workflowPath(root, 'release-nightly.yml'), `name: Retired Nightly
-on:
-  schedule:
-    - cron: '0 13 * * *'
-jobs:
-  release:
-    uses: ./.github/workflows/_release-bundle.yml
-    with:
-      mode: execute
-      channel: nightly
-`);
-  updateWorkflow(root, 'release-bundle-canary.yml', (workflow) => {
-    delete workflow.on.schedule;
+  updateWorkflow(root, 'release-nightly.yml', (workflow) => {
     workflow.concurrency.group = 'opl-release-bundle-global';
+    workflow.jobs['standard-build'].uses = './.github/workflows/_release-bundle.yml';
+    workflow.jobs['standard-build'].with.require_macos_gatekeeper = true;
   });
 
-  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleCanaryTopology(root)) >= 2);
+  assert.ok(withoutExpectedDiagnostics(() => validateNightlyReleaseTopology(root)) >= 3);
 });
 
 test('Canary compile ceilings keep reachable jobs read-only and mutation unreachable', (t) => {

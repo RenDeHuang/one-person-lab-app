@@ -33,9 +33,10 @@ Machine owners:
 - Desktop GitHub `Latest` 与 WebUI GHCR `:latest` 是两个载体各自的指针；生产
   follower 将它们绑定到同一 App Stable cohort，开发期仍允许双轨验证。
 - `one-person-lab-nightly` 的产品语义保留：它是 Standard 密度的自动预发布，
-  不是 Full。当前公开发布 workflow 已移除，只剩历史 Release/Cask 兼容；恢复
-  发布已作为目标确认，但在新自动化、隔离 updater、Homebrew 和 clean-install
-  资格验证完成前不能写成当前可持续通道。
+  不是 Full。当前实现每天自动复用与 Stable 相同的物理 Standard build，
+  发布不可变 GitHub prerelease，再由独立 digest-bound follower 更新 Nightly Cask；
+  它不改变 Latest，不进入 Stable Bundle 或重型 VM 门禁。低频 clean-VM 只作
+  发布后抽样、失败不阻塞该次 Nightly。
 - `one-person-lab-full` 的目标是可正常 Homebrew 安装。当前公开 Cask 仍是旧版且
   额外依赖 Formula `opl`；本仓生成器已能生成“不装 Formula、直接消费 Full DMG
   内嵌 Base/seeds”的正确 Cask，但尚未公开晋升和 clean-host readback。
@@ -79,7 +80,7 @@ Machine owners:
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | OCI digest、`:latest`，`:stable` 为同 digest 兼容 alias | 开发可双轨验证；生产通过 Desktop handoff follower，失败不改写 Desktop 终态 |
 | Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | `make_latest=false`；不能改 updater、Homebrew 或 Stable |
-| Nightly | Product semantics retained; publication implementation absent | 历史 Standard Nightly assets/Cask 只读兼容 | 恢复目标已确认；当前无新发布、无 mutation；Canary 不是 Nightly |
+| Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule；不含 Full/WebUI、不改 Latest、不复用 Stable mutex；抽样 VM 非阻塞 |
 | Full Homebrew Cask | Generator implemented, public target not promoted | 公开旧 Cask 仍指向旧 Full DMG 并依赖 Formula；目标 Cask 不依赖 Formula | 完成 pre-publication gates、受保护 CAS 发布和 post-publication readback 前不推荐 |
 | Native WebUI artifacts | Implemented candidate, unpublished/unqualified | 首批 Linux amd64 App Release tarball/manifest/install verifier | 独立 follower；不扩写 Stable operations；不改变 Container GHCR tags |
 | Canary | Validation-only，不是发布路径 | 无用户产物、无 moving tag mutation | 不继承发布 secrets，不执行公开写入 |
@@ -98,7 +99,7 @@ Machine owners:
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
-| Nightly Cask | 历史 Standard Nightly + Formula `opl` | Historical only | 产品语义保留，但当前不作为持续更新安装路径 |
+| Nightly Cask | Standard Nightly + Formula `opl` | Implemented，首个 follower readback 待完成 | 仅由成功 GitHub Nightly publication 的 digest-bound follower 更新，不得改 Stable Cask |
 | Full Cask | 公开旧 Cask 为 Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy public / target implemented unpublished | 当前改用直接 Full DMG；目标 Cask 只安装 Full DMG，不安装 Formula |
 | Native WebUI | App verified-candidate route 与 Shell OPL-owned packaging/installer source 已实现；public artifact 尚未 promotion/readback | Implemented, unpublished | 不得写成当前受支持 OPL 安装路径 |
 | Framework headless installer | Base-only，无 App runtime form | Supported Framework boundary | 不是 OPL App 安装路径 |
@@ -161,10 +162,12 @@ macOS helper。
 
 ### Nightly
 
-`one-person-lab-nightly` 历史 Cask 使用 Standard Nightly DMG，并依赖 Formula
-`opl`；它从未等同于 Full。Nightly 的产品定义继续有效，但当前新发布实现已
-退休，现有 bytes 只读兼容。恢复发布不需要重新发明产品语义，但必须补齐新的
-不可变资产、预发布 workflow/updater 隔离、Homebrew 发布和 clean-install readback。
+`one-person-lab-nightly` 使用 Standard Nightly DMG，并依赖 Formula `opl`；它从未
+等同于 Full。每日 schedule 通过共享 `_build-reusable.yml` 生成 Standard 资产，
+发布 immutable GitHub prerelease，随后独立 follower 只更新
+`Casks/one-person-lab-nightly.rb`。它不进入 Stable Bundle/mutex，不改变 Latest；
+每周抽样 clean-VM 是非阻塞发布后 follower。首个远端 publication、Cask 和抽样
+receipt 出现前，只能称“实现完成、公开 readback 待完成”，不能称通道终态已验证。
 
 ### Full
 
@@ -184,7 +187,7 @@ active Framework -> exactly one
 生成器和合同已完成第 2 项，但在切换公开 Cask 前仍必须完成全部终态：
 
 1. Shell 对普通、状态、repair/update 操作都选择同一 Framework-owned Base。
-2. Cask 生成器只为 Standard（以及恢复后的 Nightly）生成 Formula
+2. Cask 生成器只为 Standard 和 Nightly 生成 Formula
    dependency，Full 不生成。
 3. Tap CI、同步逻辑和 App 合同一起更新。
 4. clean VM 证明 Formula 未安装、Full 首启成功、Official Profile 收敛、

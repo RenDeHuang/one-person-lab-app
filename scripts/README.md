@@ -31,7 +31,10 @@ should happen only when AGUI replay is explicitly requested.
 | `release-bundle.ts` | Reads the retired App-owned Bundle projection for historical receipt compatibility. It can assemble, verify, or report those records, but cannot admit, build, publish, promote, dispatch, or claim readiness for a live release. |
 | `framework-release-adapter.ts` | Adapts App product inputs and exact asset/qualification evidence to the Framework `opl release` ABI. Framework checkpoint state remains authoritative; the adapter does not create an App session, broker ledger, or second release state machine. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
-| `generate-release-notes.ts` | Builds Stable release-note evidence and deterministic template notes for the LLM writer. Historical Nightly support is read/diagnostic compatibility only and cannot authorize a new publication. Stable compares with the previous Stable release, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Release publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. |
+| `generate-release-notes.ts` | Builds Stable release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Stable publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. Nightly uses its own fixed scope-and-risk disclosure. |
+| `resolve-nightly-release-request.ts` | Freezes one scheduled Standard-only Nightly request, exact App/Shell/Framework SHAs, same-day revision, and non-Latest/non-Full/non-WebUI authority. |
+| `nightly-release-qualification.ts` | Verifies the exact shared-build Standard asset set and cohort without claiming Stable qualification or requiring the Stable heavy VM gate. |
+| `nightly-release-publisher.ts` | Publishes or read-reconciles one immutable GitHub prerelease by exact digest; same-name different bytes and unknown mutation outcomes fail closed without retry. |
 | `cleanup-draft-release-candidates.ts` | Discovers stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the Stable release exists. It is read-only; deleting a Release or tag requires a separately authorized product change outside the live Bundle executor. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `cleanup-local-artifacts.ts` | Dry-runs or deletes local ignored generated output: `tmp/`, `docs/site/latest/`, generated Full runtime payload dirs, and stale top-level `artifacts/*` run directories. It never manages tool state or external shell checkouts. |
@@ -103,7 +106,7 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:version:validate -- --channel stable --version <YY.M.D>
-# Historical Nightly compatibility diagnostics only; these commands cannot publish.
+# Nightly source/qualification diagnostics; the scheduled protected workflow owns publication.
 npm run release:version:validate -- --channel nightly --version <YY.M.D-nightly-or-YY.M.D-nightly.r1>
 npm run release:nightly-version:resolve -- --base-version <YY.M.D-nightly> --existing-ref-file <path>
 npm run release:notes -- --version <version> --channel stable --include-full-package
@@ -177,9 +180,13 @@ records `rebuild_performed=false`. `source_build_executor` /
 Stable exposes exactly `standard`, `resume_standard`, and `append_full` through
 `.github/workflows/release-stable.yml`. Resume imports a checkpoint and cannot
 rebuild. Full is additive after Standard qualification and cannot alter Standard
-assets, updater metadata, prepared notes, or Latest. Public Nightly publication
-is retired; historical Nightly bytes remain readable and the daily schedule
-starts only the validation-only Canary.
+assets, updater metadata, prepared notes, or Latest. Nightly uses a separate
+scheduled Standard-only entry that calls the same physical `_build-reusable.yml`,
+publishes a non-Latest prerelease, and hands off to isolated Homebrew and
+sampled-VM followers. It never consumes the Stable Bundle, Stable mutex,
+Full/WebUI lanes, or Stable heavy VM authority. Historical Nightly bytes remain
+readable. The independent daily Canary remains validation-only and performs no
+build, VM, or external write.
 
 Unknown build or publish outcomes block checkpoint export and executor
 switching until a fresh inspection and Framework reconcile resolve them.
@@ -430,18 +437,22 @@ shallow checkout, because the App wrapper calls only
 helper. If that smoke helper starts depending on other shell paths, update the
 workflow checkout and the release-boundary check in the same change.
 
-The daily schedule enters `.github/workflows/release-bundle-canary.yml`. Canary
-starts the reusable topology in validation-only mode without builds, VMs,
-release secrets, external writes, or Stable mutation. Historical Nightly
-releases remain read-compatible; there is no live Nightly entry.
+The daily validation schedule enters `.github/workflows/release-bundle-canary.yml`.
+Canary starts the reusable topology in validation-only mode without builds, VMs,
+release secrets, external writes, or Stable mutation. A separate daily
+`.github/workflows/release-nightly.yml` builds the Standard preview with the
+shared physical build, publishes a prerelease, and never changes Latest. Its
+Homebrew follower is digest-bound and single-attempt; its clean-VM follower is
+weekly sampled and non-blocking.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
 critical-path work. Stable prepares and validates AI-written notes before the
-expensive build; the exact Markdown and evidence digests become Bundle
-identity. Historical Nightly note tooling is diagnostic-only and cannot enter a
-live publisher. Publish cannot call AI, replace the prepared notes, or fall back
-to template output. The writer runs the online provider probe first and fails
-closed when no usable provider is configured.
+expensive build; the exact Markdown and evidence digests become Bundle identity.
+Stable publish cannot call AI, replace the prepared notes, or fall back to
+template output. Automated Nightly uses a fixed disclosure of its Standard-only,
+non-Stable, non-Latest and non-heavy-VM scope rather than calling AI in the
+scheduled critical path. The Stable writer runs the online provider probe first
+and fails closed when no usable provider is configured.
 Online release drafting uses
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
 `OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,

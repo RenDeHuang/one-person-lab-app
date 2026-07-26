@@ -228,9 +228,10 @@ function runPortableStandardBuildReceiptStep(jobName: string, receiptFixture: nu
   }
 }
 
-test('Stable is the only mutation entry and daily validation uses the independent Canary', () => {
+test('Stable is the only Latest mutation entry while Nightly and Canary stay isolated', () => {
   const stable = parseWorkflow('release-stable.yml');
   const canary = parseWorkflow('release-bundle-canary.yml');
+  const nightly = parseWorkflow('release-nightly.yml');
 
   assert.deepEqual(Object.keys(stable.on), ['workflow_dispatch']);
   assert.deepEqual(stable.on.workflow_dispatch.inputs.operation.options, [
@@ -245,7 +246,15 @@ test('Stable is the only mutation entry and daily validation uses the independen
     group: 'opl-release-validation-canary-${{ github.ref }}',
     'cancel-in-progress': true,
   });
-  assert.equal(fs.existsSync(path.join(workflowRoot, 'release-nightly.yml')), false);
+  assert.deepEqual(Object.keys(nightly.on), ['schedule']);
+  assert.deepEqual(nightly.on.schedule, [{ cron: '17 19 * * *' }]);
+  assert.deepEqual(nightly.concurrency, {
+    group: 'opl-standard-nightly',
+    'cancel-in-progress': false,
+  });
+  assert.equal(nightly.jobs['standard-build'].uses, './.github/workflows/_build-reusable.yml');
+  assert.equal(nightly.jobs['standard-build'].with.require_macos_gatekeeper, false);
+  assert.equal(nightly.jobs['qualify-and-publish'].environment, 'release-nightly');
   assert.equal(stable.jobs.standard.uses, './.github/workflows/_release-bundle.yml');
   assert.equal(stable.jobs['resume-standard'].uses, './.github/workflows/_release-standard-publish.yml');
   assert.equal(stable.jobs['append-full'].uses, './.github/workflows/_release-full-addon.yml');

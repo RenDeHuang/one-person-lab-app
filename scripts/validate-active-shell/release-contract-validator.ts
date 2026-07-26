@@ -451,14 +451,20 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     throw new Error('Stable must have one manual dispatch entry and workflow_call-only lower-level topology');
   }
   if (
-    publication?.nightly?.status !== 'retired_historical_distribution_compatibility' ||
-    publication?.nightly?.publication_available !== false ||
-    publication?.nightly?.mutation_available !== false ||
+    publication?.nightly?.status !== 'implemented_pending_first_publication_readback' ||
+    publication?.nightly?.publication_available !== true ||
+    publication?.nightly?.mutation_available !== true ||
     publication?.nightly?.historical_readback_allowed !== true ||
-    publication?.nightly?.validation_route !== '.github/workflows/release-bundle-canary.yml_schedule' ||
-    publication?.nightly?.latest_allowed !== false
+    publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
+    publication?.nightly?.trigger !== 'schedule_only' ||
+    publication?.nightly?.latest_allowed !== false ||
+    publication?.nightly?.stable_bundle_authority_used !== false ||
+    publication?.nightly?.stable_mutation_mutex_used !== false ||
+    publication?.nightly?.heavy_vm_blocking !== false ||
+    publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
+    publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    throw new Error('Nightly publication must remain retired with daily validation routed only through Canary');
+    throw new Error('Nightly publication must stay scheduled, Standard-only, non-Latest, and isolated from Stable authority');
   }
   assertDeepEqualJson(
     publication?.stable?.latest_admission,
