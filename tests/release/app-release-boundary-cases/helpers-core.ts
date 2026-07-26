@@ -101,10 +101,10 @@ export function writeAssistantRouteSmokeScreenshots(tempRoot) {
 
 const canonicalAssistantRouteIds = ["mas", "mag", "rca"];
 const canonicalAssistantShortNames = { mas: "MAS", mag: "MAG", rca: "RCA" };
-const canonicalAssistantTargets = {
+export const canonicalAssistantTargets = {
   mas: { assistant_id: "mas", shortcut_id: "research", package_id: "mas", codex_visible_entry: "med-autoscience", required_skill_ids: ["med-autoscience"], badge: "@科研" },
-  mag: { assistant_id: "mag", shortcut_id: "grant", package_id: "mag", codex_visible_entry: "med-autogrant", required_skill_ids: ["med-autogrant"], badge: "@基金" },
-  rca: { assistant_id: "rca", shortcut_id: "ppt", package_id: "rca", codex_visible_entry: "redcube-ai", required_skill_ids: ["redcube-ai"], badge: "@演示" },
+  mag: { assistant_id: "mag", shortcut_id: "open_grant_user_loop", package_id: "mag", codex_visible_entry: "med-autogrant", required_skill_ids: ["med-autogrant"], badge: "@基金" },
+  rca: { assistant_id: "rca", shortcut_id: "invoke_product_entry", package_id: "rca", codex_visible_entry: "redcube-ai", required_skill_ids: ["redcube-ai"], badge: "@演示" },
 };
 
 function appStateFixture(profile, stageAttemptCount, actions = []) {

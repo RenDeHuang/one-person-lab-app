@@ -29,7 +29,7 @@
           },
           {
             "assistant_id": "mag",
-            "shortcut_id": "grant",
+            "shortcut_id": "open_grant_user_loop",
             "package_id": "mag",
             "codex_visible_entry": "med-autogrant",
             "required_skill_ids": [
@@ -39,7 +39,7 @@
           },
           {
             "assistant_id": "rca",
-            "shortcut_id": "ppt",
+            "shortcut_id": "invoke_product_entry",
             "package_id": "rca",
             "codex_visible_entry": "redcube-ai",
             "required_skill_ids": [
@@ -71,7 +71,7 @@
         },
         "successful_invocation_receipt_expected": false
       },
-      "semantic_digest": "6563ff166385935f38b7e97a5d9d755f46fe4a379fe363228153863de19e14b7",
+      "semantic_digest": "c9fad9c08e2c90dea3203eec411072b1b7f3844cea7a1f57ceab93d29ee34f58",
       "probes": {
         "home_control_testid_templates": [
           "home-starter-<package_id>",
@@ -112,7 +112,7 @@
           },
           {
             "assistant_id": "mag",
-            "shortcut_id": "grant",
+            "shortcut_id": "open_grant_user_loop",
             "package_id": "mag",
             "codex_visible_entry": "med-autogrant",
             "required_skill_ids": [
@@ -122,7 +122,7 @@
           },
           {
             "assistant_id": "rca",
-            "shortcut_id": "ppt",
+            "shortcut_id": "invoke_product_entry",
             "package_id": "rca",
             "codex_visible_entry": "redcube-ai",
             "required_skill_ids": [
@@ -149,7 +149,7 @@
         ],
         "verification_mode": "route_receipt"
       },
-      "semantic_digest": "c3fcddac89939979bb2c9f6d9c80b086155ecea59754c61777fdeb7236943b6e",
+      "semantic_digest": "ce26d3a7710dea45056d0eba87d8f61efee768bab27bc5f0ed3dbee084b2df47",
       "probes": {
         "composer_selector": "[data-testid=\"opl-guid-entry\"]",
         "send_selector": "[data-testid=\"guid-send-btn\"]",
