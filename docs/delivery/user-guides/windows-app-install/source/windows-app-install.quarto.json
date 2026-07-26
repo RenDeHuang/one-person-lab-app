@@ -38,6 +38,8 @@
     "登录并继续",
     "模型访问",
     "WSL 2",
+    "OPL-Linux",
+    "自动安装和修复",
     "Docker Desktop",
     "http://localhost:3000/",
     "检查更新",
@@ -47,7 +49,6 @@
   ],
   "forbidden_phrases": [
     "这是 Windows Stable 版",
-    "自动安装并接管 WSL2",
     "关闭 Windows Defender",
     "在命令行输入 Gateway 密码",
     "把 API Key 粘贴到 PowerShell"
@@ -59,4 +60,3 @@
     "pdf_engine_reason": "The current shared Chinese guide template uses the verified xelatex path for deterministic HTML/PDF publication."
   }
 }
-

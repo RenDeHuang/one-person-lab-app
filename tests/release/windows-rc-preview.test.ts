@@ -19,33 +19,43 @@ function fixture(t: test.TestContext) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const out = path.join(root, 'out');
   const packagedTree = path.join(out, 'win-unpacked');
-  const runtimeRoot = path.join(packagedTree, 'resources', 'bundled-aioncore', 'win32-x64');
+  const runtimeRoot = path.join(packagedTree, 'resources', 'bundled-aioncore', 'linux-x64');
   const toolRoot = path.join(
     runtimeRoot,
     'managed-resources',
     'acp',
     'codex-acp',
     '1.1.2',
-    'win32-x64',
+    'linux-x64',
   );
   const codexRoot = path.join(
     toolRoot,
     'node_modules',
     '@openai',
-    'codex-win32-x64',
+    'codex-linux-x64',
     'vendor',
-    'x86_64-pc-windows-msvc',
+    'x86_64-unknown-linux-musl',
     'bin',
   );
+  const distributionProductRoot = path.join(packagedTree, 'resources', 'opl-linux');
   fs.mkdirSync(codexRoot, { recursive: true });
+  fs.mkdirSync(distributionProductRoot, { recursive: true });
   fs.writeFileSync(path.join(out, 'One-Person-Lab-26.7.26-rc.1-win-x64.exe'), 'installer');
-  fs.writeFileSync(path.join(runtimeRoot, 'aioncore.exe'), 'aioncore');
-  fs.writeFileSync(path.join(runtimeRoot, 'manifest.json'), JSON.stringify({ platform: 'win32', arch: 'x64' }));
+  fs.writeFileSync(path.join(runtimeRoot, 'aioncore'), 'aioncore');
+  fs.writeFileSync(path.join(runtimeRoot, 'manifest.json'), JSON.stringify({ platform: 'linux', arch: 'x64' }));
   fs.writeFileSync(
     path.join(runtimeRoot, 'managed-resources', 'manifest.json'),
     JSON.stringify({ acpTools: [{ slug: 'codex-acp', version: '1.1.2' }] }),
   );
-  fs.writeFileSync(path.join(codexRoot, 'codex.exe'), 'codex');
+  fs.writeFileSync(
+    path.join(distributionProductRoot, 'product.json'),
+    JSON.stringify({
+      framework_ref: frameworkSha,
+      framework_install_script_url: `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/${frameworkSha}/install.sh`,
+      framework_source_archive_url: `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`,
+    }),
+  );
+  fs.writeFileSync(path.join(codexRoot, 'codex'), 'codex');
   fs.writeFileSync(path.join(toolRoot, 'package.json'), '{}');
   return {
     installer: path.join(out, 'One-Person-Lab-26.7.26-rc.1-win-x64.exe'),
@@ -53,7 +63,7 @@ function fixture(t: test.TestContext) {
   };
 }
 
-test('Windows RC cohort seals the exact installer, packaged tree, and bundled native runtime without claiming WSL2-only', (t) => {
+test('Windows RC cohort seals the exact installer, packaged tree, and WSL2-only Linux runtime', (t) => {
   const input = fixture(t);
   const cohort = buildWindowsRcBuildCohort({
     installerPath: input.installer,
@@ -74,11 +84,13 @@ test('Windows RC cohort seals the exact installer, packaged tree, and bundled na
   assert.equal(cohort.release.quality, 'preview');
   assert.equal(cohort.release.latest_allowed, false);
   assert.equal(cohort.source.framework_sha, frameworkSha);
-  assert.equal(cohort.target.runtime_key, 'win32-x64');
-  assert.equal(cohort.runtime.execution_substrate, 'bundled_native_windows_aioncore_and_codex_acp');
-  assert.equal(cohort.runtime.wsl2_only_terminal_claim, false);
-  assert.match(cohort.runtime.codex.path, /@openai\/codex-win32-x64\/vendor\/.+\/bin\/codex\.exe$/);
-  assert.ok(cohort.packaged_tree.file_count >= 5);
+  assert.equal(cohort.target.runtime_key, 'linux-x64');
+  assert.equal(cohort.runtime.execution_substrate, 'dedicated_opl_linux_wsl2');
+  assert.equal(cohort.runtime.wsl2_only_terminal_claim, true);
+  assert.equal(cohort.runtime.native_windows_executor_fallback_allowed, false);
+  assert.match(cohort.runtime.distribution_product.path, /resources\/opl-linux\/product\.json$/);
+  assert.match(cohort.runtime.codex.path, /@openai\/codex-linux-x64\/vendor\/.+\/bin\/codex$/);
+  assert.ok(cohort.packaged_tree.file_count >= 6);
   assert.equal(cohort.packaged_tree.sha256.length, 64);
 });
 
@@ -125,7 +137,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
 });
 
-test('Windows RC Preview remains an isolated non-Latest lane with an explicit WSL2-only gap', () => {
+test('Windows RC Preview remains blocked until exact WSL2-only release-byte acceptance', () => {
   const release = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'));
   const install = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
@@ -138,14 +150,14 @@ test('Windows RC Preview remains an isolated non-Latest lane with an explicit WS
   assert.equal(target.latest_allowed, false);
   assert.equal(target.stable_updater_allowed, false);
   assert.equal(target.homebrew_allowed, false);
-  assert.equal(target.runtime_execution_substrate, 'bundled_native_windows_aioncore_and_codex_acp');
-  assert.equal(target.wsl2_only_terminal_claim, false);
-  assert.ok(target.deferred_supported_release_gates.includes(
+  assert.equal(target.runtime_execution_substrate, 'dedicated_opl_linux_wsl2');
+  assert.equal(target.current_wsl2_only_terminal_claim, false);
+  assert.ok(target.blocking_publication_gates.includes(
     'wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback',
   ));
   assert.equal(routing.current_default_runtime_form, 'container_webui');
   assert.equal(routing.desktop_preview_changes_default_route, false);
-  assert.equal(routing.wsl2_only_supported_desktop_target_requires_separate_qualification, true);
+  assert.equal(routing.wsl2_only_supported_desktop_target_requires_exact_release_acceptance, true);
 });
 
 test('Windows install guide binds the exact RC assets and preserves credential and SmartScreen boundaries', () => {
@@ -165,5 +177,6 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
   assert.match(guide, /不要关闭\s+Microsoft Defender/);
-  assert.match(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
+  assert.match(guide, /这个 RC 的所有 Codex-backed 执行都进入 App 专用的 `OPL-Linux`/);
+  assert.doesNotMatch(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
 });

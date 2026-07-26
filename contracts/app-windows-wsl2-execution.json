@@ -54,6 +54,7 @@
       "distribution_generation",
       "architecture",
       "carrier_activation_digest",
+      "bootstrap_digest",
       "aioncore_digest",
       "codex_digest",
       "framework_digest",

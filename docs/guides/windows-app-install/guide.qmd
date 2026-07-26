@@ -12,8 +12,8 @@ RC Preview 的用户。本教程不要求编程经验。
 PDF 版本：[下载本教程]({{download.pdf_href}})
 
 > 本版本是供真实用户试用和反馈的 RC Preview，不是 Stable，也不会成为 GitHub
-> Latest。它已经通过物理 Windows 主机的安装前技术原型验证，但仍缺代码签名、
-> clean-machine、升级和 WSL2-only 运行时的全部资格。不要在唯一保存重要工作的
+> Latest。它以专用 WSL 2 Linux 环境运行全部 Codex-backed 路径，但仍缺代码签名、
+> 长周期升级和 Stable 渠道资格。不要在唯一保存重要工作的
 > 电脑上把它当作正式稳定版替代品。
 
 ## 先了解这个 RC 的边界
@@ -22,14 +22,15 @@ One Person Lab 的 AionUI Shell 原本已经具备 Windows x64 打包、NSIS 安
 Windows 原生模块、AionCore 和 managed Codex ACP 资产。这个 RC 复用了这些成熟
 的多平台打包能力。
 
-OPL 的长期 Windows 目标更严格：所有 Codex-backed 执行都应进入 WSL 2 Linux，
-不能静默回退到原生 Windows Codex；App 还要负责 WSL 安装/修复、重启恢复、路径
-与文件监听、进程退出和升级回滚。当前 RC 的桌面会话仍使用随包的原生 Windows
-AionCore 和 Codex ACP，因此它用于验证安装、界面、登录和真实任务流，不证明上述
-WSL2-only 目标已经完成。
+这个 RC 的所有 Codex-backed 执行都进入 App 专用的 `OPL-Linux` WSL 2 环境，
+包括 AionCore/ACP、Codex App Server 和 OPL Framework CLI。App 自动安装和修复
+该发行版，并统一使用其中同一个 Linux Codex、`CODEX_HOME` 和工作区；不会静默
+回退到原生 Windows AionCore、Codex 或 Framework。
 
-Docker Desktop 和 WSL 2 是可选 WebUI 路径所需的基础，不是当前 RC 桌面对话的
-自动安装前置。这个 RC 不会静默开启 Windows 功能、创建发行版或修改 Docker。
+WSL 2 是桌面 RC 的运行前提。首次启动时 App 会检查系统并创建或修复
+`OPL-Linux`。只有 Windows 缺少必要功能时，系统才可能显示 UAC 并要求重启；
+重启后再次打开 App 会继续配置。Docker Desktop 只用于可选 WebUI 路径，桌面
+RC 不会安装、修改或接管 Docker。
 
 ## 准备清单
 
@@ -37,11 +38,12 @@ Docker Desktop 和 WSL 2 是可选 WebUI 路径所需的基础，不是当前 RC
 
 - Windows 11 x64；不支持 32 位 Windows。
 - 至少 8 GB 内存，建议 16 GB 或更多。
-- 至少 10 GB 可用磁盘空间，用于 App、运行时、日志和项目缓存。
+- 至少 15 GB 可用磁盘空间，用于 App、`OPL-Linux`、运行时、日志和项目缓存。
 - 可以访问 GitHub Releases 和所选模型服务的网络。
 - 一个单独的测试项目目录，不要直接用唯一的正式数据目录做首次试用。
 - 可选：Gateway 账户。账号、密码和 API Key 只在 App 的安全界面中输入。
-- 可选：Windows 已安装 WSL 2 和 Docker Desktop，用于浏览器 WebUI。
+- Windows Update 没有等待完成的重启；WSL 2 可由 App 在首次启动时检查和启用。
+- 可选：Docker Desktop，用于浏览器 WebUI。
 
 查看系统类型：
 
@@ -120,8 +122,16 @@ Microsoft Defender，也不要修改全局 SmartScreen 策略。
 - 需要其他管理员账户才能写入的目录；
 - 旧 AionUI 或旧 OPL 测试目录。
 
-首次启动比后续启动慢，因为 App 要检查随包 AionCore、managed Node、Codex ACP
-和本机状态。不要在窗口刚出现时重复双击快捷方式。
+首次启动比后续启动慢，因为 App 要检查 WSL 2、创建或修复专用的
+`OPL-Linux`，并激活随包 Linux AionCore、managed Node、Codex ACP 和 OPL
+Framework。按界面中的配置进度等待；不要重复双击快捷方式。
+
+若系统缺少 WSL 必要功能，Windows 可能显示一次 UAC：
+
+1. 确认请求来自 One Person Lab 后允许系统启用功能。
+2. 若 App 显示需要重启，保存其他工作并正常重启 Windows。
+3. 重启后从开始菜单再次打开 One Person Lab。
+4. App 会继续同一配置，不需要手工运行产品 bootstrap 命令。
 
 ## 5. 完成 Gateway 登录
 
@@ -163,7 +173,8 @@ Microsoft Defender，也不要修改全局 SmartScreen 策略。
 
 ## 7. 检查 WSL 2 状态
 
-当前桌面 RC 不会自动安装或接管 WSL 2，但可以在普通 PowerShell 查看现状：
+App 应自动维护专用的 `OPL-Linux`，且不修改你的其他发行版、默认发行版或
+Docker Desktop 发行版。需要诊断时，可以在普通 PowerShell 查看只读状态：
 
 ```powershell
 wsl.exe --version
@@ -171,12 +182,10 @@ wsl.exe --status
 wsl.exe --list --verbose
 ```
 
-如果你只使用当前桌面 RC，WSL 2 缺失不是安装器失败。若要测试 Docker WebUI，
-需要 WSL 2 和 Docker Desktop 的 Linux containers backend。
-
-启用 WSL 属于 Windows 系统变更，可能需要管理员权限和重启。请按照 Microsoft
-和 Docker Desktop 的当前官方说明操作；不要从本教程推断某个发行版已经被 OPL
-创建或配置。
+列表中应出现 `OPL-Linux`，VERSION 应为 `2`。不要手工进入发行版修改
+`/opt/opl`、`/home/opl/.codex` 或 `/home/opl/.opl`；修复应由 App 完成。
+不要运行 `wsl.exe --unregister OPL-Linux` 作为普通故障排除步骤，因为该命令会
+不可恢复地删除发行版内的数据。
 
 ## 8. 可选：安装 Docker WebUI
 
@@ -238,7 +247,8 @@ PATH 仍旧、`PATHEXT` 缺少 `.EXE` 时错误报告“docker CLI was not found
 - WSL 2、Docker Desktop 是否启用；
 - 是否从旧测试版本升级。
 
-默认用户数据和日志位于 Electron 的当前用户 App 数据目录；具体路径以 App
+默认用户数据和日志位于 Electron 的当前用户 App 数据目录，并有一部分受管运行
+状态位于 `OPL-Linux`；具体路径以 App
 “设置 -> 日志与诊断”显示为准，通常在 `%APPDATA%` 下。问题报告前检查文件，
 删除邮箱、项目内容、token、API Key 和其他秘密。
 
@@ -273,7 +283,8 @@ Windows RC Preview 不进入 Stable updater。App 中的“检查更新”可能
 3. 找到 One Person Lab。
 4. 点击“卸载”并完成向导。
 
-卸载程序文件不等于删除用户数据、项目、Gateway 会话或 Docker WebUI volume。
+卸载程序文件不等于删除用户数据、项目、Gateway 会话、`OPL-Linux` 或 Docker
+WebUI volume。
 在确认备份和数据范围前，不要手工递归删除 `%APPDATA%`、项目目录、Docker volume
 或 WSL 发行版。
 
@@ -290,9 +301,9 @@ Windows RC Preview 不进入 Stable updater。App 中的“检查更新”可能
 
 ### 提示找不到 AionCore 或 Codex
 
-确认安装包 SHA-256 正确，并重新运行同一个 RC 安装器执行覆盖修复。当前正式
-打包路径会物化 `win32-x64` AionCore 和 managed Codex ACP；开发目录缺少这些
-字节不等于安装包也缺失。
+确认安装包 SHA-256 正确，并重新运行同一个 RC 安装器执行覆盖修复。正式打包
+路径会物化 `linux-x64` AionCore、managed Codex ACP 和 `OPL-Linux` bootstrap；
+安装包中不应出现 `win32-x64` executor。开发目录缺少这些字节不等于安装包也缺失。
 
 ### Docker 已安装但 PowerShell 找不到 docker
 
@@ -313,7 +324,6 @@ Desktop 安装器，先确认 canonical `docker.exe` 和 Docker Desktop daemon�
 
 ### 是否可以用于正式生产
 
-不建议。RC Preview 用于尽早发现 Windows 安装、路径、运行时和交互问题。正式
-Windows 支持还需 WSL2-only、自动 provisioning、签名、升级、clean-machine
-安装/卸载和完整终态证据。
-
+不建议。RC Preview 已执行 WSL2-only 自动 provisioning，但仍用于尽早发现
+Windows 安装、路径、运行时和交互问题。正式 Windows 支持还需代码签名、长期
+升级、正式安装器验收和 Stable 渠道资格。
