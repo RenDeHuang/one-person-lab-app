@@ -30,6 +30,14 @@ test('compiled first-run expectations exactly match all App contract projections
   assert.match(compiled.profiles.standard.probe_digest, /^[0-9a-f]{64}$/);
   assert.notEqual(compiled.profiles.standard.semantic_digest, compiled.profiles.standard.probe_digest);
   assert.equal(compiled.profiles.full.semantics.artifact_kind, 'full');
+  assert.equal(compiled.profiles.standard.semantics.target_fixture_role, 'release_qualification_probe_input_only');
+  assert.deepEqual(compiled.profiles.standard.semantics.target_projection, {
+    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
+    preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    runtime_catalog_authority: false,
+    unknown_standard_agent_allowed: true,
+  });
   assert.deepEqual(compiled.profiles.standard.semantics.assistant_targets, [
     {
       assistant_id: 'mas', shortcut_id: 'research', package_id: 'mas',
@@ -65,7 +73,13 @@ test('compiler rejects scenario profile refs that do not match package and runti
 
 test('compiler rejects GUI, product-profile, page-state, and release policy drift', () => {
   for (const mutate of [
-    (input) => { input.gui.agent_package_activation_policy.home_shortcut_interaction.configured_shortcut_selectable_before_selection = false; },
+    (input) => { input.gui.home_agent_shortcuts_metadata_policy.package_id_allowlist_allowed = true; },
+    (input) => { input.productProfile.gui.home.home_agent_shortcuts_metadata_policy.package_id_allowlist_allowed = true; },
+    (input) => {
+      input.pageState.pages
+        .find((page) => page.id === 'guid_home')
+        .home_view_model.home_agent_shortcuts_metadata_policy.package_id_allowlist_allowed = true;
+    },
     (input) => { input.productProfile.gui.home.home_layout.shortcut_selection_policy = 'disabled'; },
     (input) => { input.pageState.pages.find((page) => page.id === 'guid_home').home_view_model.home_layout.shortcut_selection_policy = 'disabled'; },
     (input) => { input.release.release_acceleration.assistant_route_smoke_policy.standard.required = []; },
@@ -74,6 +88,30 @@ test('compiler rejects GUI, product-profile, page-state, and release policy drif
     mutate(input);
     assert.throws(() => buildFirstRunCompiledExpectations(input), /qualification SSOT|qualification expectation SSOT/);
   }
+});
+
+test('compiler rejects release target fixtures that gain runtime authority or malformed identities', () => {
+  const authoritative = sources();
+  authoritative.matrix.release_qualification_agent_target_fixture.runtime_authority = true;
+  assert.throws(
+    () => buildFirstRunCompiledExpectations(authoritative),
+    /target fixture boundary/,
+  );
+
+  const malformed = sources();
+  malformed.matrix.release_qualification_agent_target_fixture.targets[0].package_id = '';
+  assert.throws(
+    () => buildFirstRunCompiledExpectations(malformed),
+    /incomplete target mapping/,
+  );
+
+  const duplicate = sources();
+  duplicate.matrix.release_qualification_agent_target_fixture.targets[1].package_id =
+    duplicate.matrix.release_qualification_agent_target_fixture.targets[0].package_id;
+  assert.throws(
+    () => buildFirstRunCompiledExpectations(duplicate),
+    /duplicate package_id/,
+  );
 });
 
 test('semantic and probe digests are independently content-addressed', () => {

@@ -642,8 +642,8 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   assertDeepEqualJson(
     assistantRouteSmoke?.standard?.required,
     [
-      'MAS_MAG_RCA_home_starters_visible',
-      'package_not_installed_starters_selectable',
+      'compiled_release_qualification_targets_visible',
+      'unavailable_projected_targets_selectable',
       'launch_allowed_false_at_send',
       'readiness_and_repair_hint_visible',
     ],
@@ -652,12 +652,14 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   assertIncludesAll(
     assistantRouteSmoke?.full?.required,
     [
+      'compiled_release_qualification_targets_visible',
+      'projected_targets_launchable',
       'selected_project_directory_applied_to_session_and_domain_workspace_identity',
-      'real_guid_composer_send_without_shell_package_activation_per_starter',
-      'conversation_get_readback_per_starter',
-      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter',
-      'Framework_stage_runtime_activation_evidence_per_starter',
-      'agent_package_shortcut_route_receipt_per_starter',
+      'real_guid_composer_send_without_shell_package_activation_per_target',
+      'conversation_get_readback_per_target',
+      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target',
+      'Framework_stage_runtime_activation_evidence_per_target',
+      'release_evidence_route_receipt_per_target',
     ],
     'Full assistant production launch-path requirements',
   );
@@ -667,17 +669,25 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
       'direct_conversation_post',
       'Shell_agent_package_activation_before_or_during_send',
       'synthetic_Framework_stage_runtime_activation_evidence',
-      'synthetic_agent_package_route_receipt',
+      'synthetic_release_evidence_route_receipt',
     ],
     'Full assistant synthetic launch-path prohibitions',
   );
   if (
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
-    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
-    !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter')
+    assistantRouteSmoke?.target_fixture_ref !==
+      'contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture' ||
+    assistantRouteSmoke?.target_fixture_boundary !==
+      'release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority' ||
+    assistantRouteSmoke?.runtime_target_resolution !==
+      'resolve every fixture target from fresh app_state.agent_packages.directory.entries and status_index.home_shortcut_preferences before probing' ||
+    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_full_route_receipt_from_standard_launch_gate') ||
+    !assistantRouteSmoke?.full?.required?.includes('release_evidence_route_receipt_per_target')
   ) {
-    throw new Error('Release assistant smoke must separate Standard launch gates from Full route receipts');
+    throw new Error(
+      'Release assistant smoke must resolve a non-authoritative target fixture and separate Standard launch gates from Full route receipts',
+    );
   }
 }
 

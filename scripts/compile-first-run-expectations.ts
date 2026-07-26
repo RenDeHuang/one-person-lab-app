@@ -47,86 +47,139 @@ export function buildFirstRunCompiledExpectations(input: {
   productProfile: JsonRecord;
   release: JsonRecord;
 }) {
-  const interaction = input.gui.agent_package_activation_policy?.home_shortcut_interaction;
-  requireExact('GUI Home shortcut interaction', interaction, {
-    configured_shortcut_visible: true,
-    configured_shortcut_selectable_before_selection: true,
-    directory_entry_ordinary_discovery_visible_is_separate: true,
-    ordinary_composer_activation_required: false,
-    ordinary_composer_activation_allowed: false,
-    installed_exposed_deferred_status_send_allowed: true,
-    uninstalled_or_disabled_selected_package_send_policy:
-      'block_only_that_send_with_specific_install_or_enable_guidance',
-    domain_readiness_enforcement_phase: 'domain_stage_launch',
-    typed_reason_required: true,
-    draft_preserved: true,
-    owner_repair_guidance_required_for_genuine_unavailability: true,
+  const shortcutProjection = {
+    role: 'owner_projected_package_presentation',
+    shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
+    preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    package_id_allowlist_allowed: false,
+    fallback_policy: 'omit_invalid_shortcut_and_preserve_other_packages',
+  };
+  requireExact('GUI Home shortcut projection', input.gui.home_agent_shortcuts_metadata_policy, shortcutProjection);
+  requireExact(
+    'Product profile Home shortcut projection',
+    input.productProfile.gui?.home?.home_agent_shortcuts_metadata_policy,
+    shortcutProjection,
+  );
+  const homePage = (input.pageState.pages ?? []).find((page: JsonRecord) => page.id === 'guid_home');
+  requireExact(
+    'Page-state Home shortcut projection',
+    homePage?.home_view_model?.home_agent_shortcuts_metadata_policy,
+    shortcutProjection,
+  );
+  const composerProjection = {
+    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    availability_source_ref:
+      'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
+    unknown_standard_agent_allowed: true,
+  };
+  requireExact('Product profile Home composer projection', {
+    membership_source_ref:
+      input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_package_membership_source_ref,
+    preference_source_ref:
+      input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_preference_source_ref,
+    availability_source_ref:
+      input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_availability_source_ref,
+    unknown_standard_agent_allowed:
+      input.productProfile.gui?.home?.home_composer_state_contract?.unknown_standard_agent_allowed,
+  }, composerProjection);
+  requireExact('Page-state Home composer projection', {
+    membership_source_ref:
+      homePage?.home_view_model?.home_composer_state_contract?.shortcut_package_membership_source_ref,
+    preference_source_ref:
+      homePage?.home_view_model?.home_composer_state_contract?.shortcut_preference_source_ref,
+    availability_source_ref:
+      homePage?.home_view_model?.home_composer_state_contract?.shortcut_availability_source_ref,
+    unknown_standard_agent_allowed:
+      homePage?.home_view_model?.home_composer_state_contract?.unknown_standard_agent_allowed,
+  }, composerProjection);
+  const targetFixture = input.matrix.release_qualification_agent_target_fixture;
+  requireExact('Release qualification Agent target fixture boundary', {
+    role: targetFixture?.role,
+    runtime_authority: targetFixture?.runtime_authority,
+    catalog_membership_authority: targetFixture?.catalog_membership_authority,
+    visibility_authority: targetFixture?.visibility_authority,
+    action_authority: targetFixture?.action_authority,
+  }, {
+    role: 'release_qualification_probe_input_only',
+    runtime_authority: false,
+    catalog_membership_authority: false,
+    visibility_authority: false,
+    action_authority: false,
   });
   const shortcutSelectionPolicy =
     'explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness';
   if (input.productProfile.gui?.home?.home_layout?.shortcut_selection_policy !== shortcutSelectionPolicy) {
     throw new Error('Product profile Home shortcut selection policy conflicts with the qualification SSOT.');
   }
-  const homePage = (input.pageState.pages ?? []).find((page: JsonRecord) => page.id === 'guid_home');
   if (homePage?.home_view_model?.home_layout?.shortcut_selection_policy !== shortcutSelectionPolicy) {
     throw new Error('Page-state Home shortcut selection policy conflicts with the qualification SSOT.');
   }
   const standardPolicy = input.release.release_acceleration?.assistant_route_smoke_policy?.standard;
   requireExact('Release Standard assistant route policy', standardPolicy, {
     required: [
-      'MAS_MAG_RCA_home_starters_visible',
-      'package_not_installed_starters_selectable',
+      'compiled_release_qualification_targets_visible',
+      'unavailable_projected_targets_selectable',
       'launch_allowed_false_at_send',
       'readiness_and_repair_hint_visible',
     ],
     forbidden: [
-      'package_not_installed_starter_disabled_before_selection',
-      'claim_agent_package_shortcut_route_receipt',
+      'unavailable_projected_target_disabled_before_selection',
+      'claim_full_route_receipt_from_standard_launch_gate',
     ],
     verification_mode: 'launch_gate',
   });
   const fullPolicy = input.release.release_acceleration?.assistant_route_smoke_policy?.full;
   requireExact('Release Full assistant route policy', fullPolicy, {
     required: [
-      'MAS_MAG_RCA_home_starters_visible',
-      'starters_launchable',
+      'compiled_release_qualification_targets_visible',
+      'projected_targets_launchable',
       'selected_project_directory_applied_to_session_and_domain_workspace_identity',
-      'real_guid_composer_send_without_shell_package_activation_per_starter',
-      'conversation_get_readback_per_starter',
-      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter',
-      'Framework_stage_runtime_activation_evidence_per_starter',
-      'agent_package_shortcut_route_receipt_per_starter',
+      'real_guid_composer_send_without_shell_package_activation_per_target',
+      'conversation_get_readback_per_target',
+      'Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target',
+      'Framework_stage_runtime_activation_evidence_per_target',
+      'release_evidence_route_receipt_per_target',
     ],
     forbidden: [
       'direct_conversation_post',
       'Shell_agent_package_activation_before_or_during_send',
       'synthetic_Framework_stage_runtime_activation_evidence',
-      'synthetic_agent_package_route_receipt',
+      'synthetic_release_evidence_route_receipt',
     ],
     verification_mode: 'route_receipt',
   });
   const scenarios = new Map((input.matrix.scenarios ?? []).map((scenario: JsonRecord) => [scenario.id, scenario]));
-  const targetMappings = ['mas', 'mag', 'rca'].map((assistantId) => {
-    const shortcut = (input.gui.home_agent_shortcuts ?? []).find(
-      (entry: JsonRecord) => entry.agent_id === assistantId,
-    );
-    if (!shortcut) throw new Error(`Missing Home shortcut mapping for ${assistantId}.`);
+  const targetMappings = (targetFixture?.targets ?? []).map((target: JsonRecord) => {
     if (
-      typeof shortcut.package_id !== 'string' || !shortcut.package_id.trim() ||
-      typeof shortcut.codex_visible_entry !== 'string' || !shortcut.codex_visible_entry.trim() ||
-      !Array.isArray(shortcut.required_skill_ids) || shortcut.required_skill_ids.length === 0
+      typeof target.assistant_id !== 'string' || !target.assistant_id.trim() ||
+      typeof target.shortcut_id !== 'string' || !target.shortcut_id.trim() ||
+      typeof target.package_id !== 'string' || !target.package_id.trim() ||
+      typeof target.codex_visible_entry !== 'string' || !target.codex_visible_entry.trim() ||
+      !Array.isArray(target.required_skill_ids) || target.required_skill_ids.length === 0 ||
+      target.required_skill_ids.some((entry: unknown) => typeof entry !== 'string' || !entry.trim()) ||
+      typeof target.badge !== 'string' || !target.badge.trim()
     ) {
-      throw new Error(`Missing package, Codex entry, or required Skill mapping for ${assistantId}.`);
+      throw new Error('Release qualification Agent target fixture contains an incomplete target mapping.');
     }
     return {
-      assistant_id: shortcut.agent_id,
-      shortcut_id: shortcut.shortcut_id,
-      package_id: shortcut.package_id,
-      codex_visible_entry: shortcut.codex_visible_entry,
-      required_skill_ids: shortcut.required_skill_ids,
-      badge: `@${shortcut.primary_label}`,
+      assistant_id: target.assistant_id,
+      shortcut_id: target.shortcut_id,
+      package_id: target.package_id,
+      codex_visible_entry: target.codex_visible_entry,
+      required_skill_ids: target.required_skill_ids,
+      badge: target.badge,
     };
   });
+  if (targetMappings.length === 0) {
+    throw new Error('Release qualification Agent target fixture must contain at least one target.');
+  }
+  for (const identityField of ['assistant_id', 'shortcut_id', 'package_id'] as const) {
+    const values = targetMappings.map((target) => target[identityField]);
+    if (new Set(values).size !== values.length) {
+      throw new Error(`Release qualification Agent target fixture has duplicate ${identityField}.`);
+    }
+  }
   for (const scenarioId of scenarioIds) {
     const scenario = scenarios.get(scenarioId);
     if (!scenario) throw new Error(`Missing Standard first-run scenario ${scenarioId}.`);
@@ -159,7 +212,15 @@ export function buildFirstRunCompiledExpectations(input: {
     artifact_kind: 'standard',
     scenario_ids: scenarioIds,
     assistant_targets: targetMappings,
-    configured_home_shortcut: {
+    target_fixture_role: 'release_qualification_probe_input_only',
+    target_projection: {
+      membership_source_ref: composerProjection.membership_source_ref,
+      shortcut_source_ref: shortcutProjection.shortcut_source_ref,
+      preference_source_ref: shortcutProjection.preference_source_ref,
+      runtime_catalog_authority: false,
+      unknown_standard_agent_allowed: true,
+    },
+    projected_home_shortcut: {
       visible: true,
       selectable_before_selection: true,
     },
@@ -205,8 +266,10 @@ export function buildFirstRunCompiledExpectations(input: {
   return {
     schema: 'opl_app_first_run_compiled_expectations.v1',
     source_contracts: {
-      behavior: 'contracts/app-gui-product-contract.json#agent_package_activation_policy.home_shortcut_interaction',
+      behavior: 'contracts/app-gui-product-contract.json#home_agent_shortcuts_metadata_policy',
       scenarios: 'contracts/app-first-run-test-matrix.json',
+      target_fixture:
+        'contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture',
       product_profile: 'contracts/app-product-profile.json#gui.home.home_layout.shortcut_selection_policy',
       page_state: 'contracts/app-page-state-matrix.json#pages[id=guid_home].home_view_model.home_layout.shortcut_selection_policy',
       release: 'contracts/app-release-channel.json#release_acceleration.assistant_route_smoke_policy.standard',

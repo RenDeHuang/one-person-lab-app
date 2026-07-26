@@ -38,7 +38,9 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   }
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
-    .filter((expectation) => expectation.includes("Packaged GUI route smoke selects MAS"));
+    .filter((expectation) =>
+      expectation.includes("Packaged GUI route smoke resolves every release qualification target"),
+    );
   assert.equal(routeSmokeExpectations.length, 2);
   for (const expectation of routeSmokeExpectations) {
     assert.match(expectation, /hides ordinary backend\/provider selectors/);
@@ -56,14 +58,33 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   ]);
   const launchGateExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
-    .filter((expectation) => expectation.includes("Packaged GUI launch-gate smoke keeps MAS"));
+    .filter((expectation) =>
+      expectation.includes("Packaged GUI launch-gate smoke keeps every release qualification target"),
+    );
   assert.equal(launchGateExpectations.length, 2);
   for (const expectation of launchGateExpectations) {
     assert.match(expectation, /visible and selectable before selection/);
     assert.match(expectation, /blocks only that send with typed repair guidance/);
     assert.doesNotMatch(expectation, /visible but disabled/);
-    assert.match(expectation, /does not claim an agent_package_shortcut invocation receipt/);
+    assert.match(expectation, /does not claim a Full route receipt/);
   }
+  assert.deepEqual(
+    {
+      role: matrix.release_qualification_agent_target_fixture.role,
+      runtime_authority: matrix.release_qualification_agent_target_fixture.runtime_authority,
+      catalog_membership_authority:
+        matrix.release_qualification_agent_target_fixture.catalog_membership_authority,
+      visibility_authority: matrix.release_qualification_agent_target_fixture.visibility_authority,
+      action_authority: matrix.release_qualification_agent_target_fixture.action_authority,
+    },
+    {
+      role: "release_qualification_probe_input_only",
+      runtime_authority: false,
+      catalog_membership_authority: false,
+      visibility_authority: false,
+      action_authority: false,
+    },
+  );
   assert.equal(
     matrix.scenarios.find((scenario) => scenario.id === 'standard_dmg_clean_vm_smoke').compiled_expectation_ref,
     'contracts/app-first-run-compiled-expectations.json#profiles.standard',
@@ -180,10 +201,18 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
   assert.ok(assistantSmoke.forbidden.includes("createAssistantRouteReceiptConversationExpression"));
   assert.ok(assistantSmoke.forbidden.includes("POST /api/conversations"));
-  assert.ok(fullPolicy.required.includes("real_guid_composer_send_without_shell_package_activation_per_starter"));
-  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter"));
-  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_evidence_per_starter"));
-  assert.ok(fullPolicy.required.includes("conversation_get_readback_per_starter"));
+  assert.equal(
+    release.release_acceleration.assistant_route_smoke_policy.target_fixture_ref,
+    "contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture",
+  );
+  assert.equal(
+    release.release_acceleration.assistant_route_smoke_policy.target_fixture_boundary,
+    "release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority",
+  );
+  assert.ok(fullPolicy.required.includes("real_guid_composer_send_without_shell_package_activation_per_target"));
+  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target"));
+  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_evidence_per_target"));
+  assert.ok(fullPolicy.required.includes("conversation_get_readback_per_target"));
   assert.ok(fullPolicy.forbidden.includes("direct_conversation_post"));
 
   const syntheticReceiptAllowed = structuredClone(release);

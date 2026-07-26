@@ -1,8 +1,9 @@
 {
   "schema": "opl_app_first_run_compiled_expectations.v1",
   "source_contracts": {
-    "behavior": "contracts/app-gui-product-contract.json#agent_package_activation_policy.home_shortcut_interaction",
+    "behavior": "contracts/app-gui-product-contract.json#home_agent_shortcuts_metadata_policy",
     "scenarios": "contracts/app-first-run-test-matrix.json",
+    "target_fixture": "contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture",
     "product_profile": "contracts/app-product-profile.json#gui.home.home_layout.shortcut_selection_policy",
     "page_state": "contracts/app-page-state-matrix.json#pages[id=guid_home].home_view_model.home_layout.shortcut_selection_policy",
     "release": "contracts/app-release-channel.json#release_acceleration.assistant_route_smoke_policy.standard"
@@ -47,7 +48,15 @@
             "badge": "@演示"
           }
         ],
-        "configured_home_shortcut": {
+        "target_fixture_role": "release_qualification_probe_input_only",
+        "target_projection": {
+          "membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+          "shortcut_source_ref": "app_state.agent_packages.directory.entries[].home_shortcuts[]",
+          "preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+          "runtime_catalog_authority": false,
+          "unknown_standard_agent_allowed": true
+        },
+        "projected_home_shortcut": {
           "visible": true,
           "selectable_before_selection": true
         },
@@ -62,7 +71,7 @@
         },
         "successful_invocation_receipt_expected": false
       },
-      "semantic_digest": "b6d83a128ad96a48a39a3977e4724a0d2f822b4e758c33d202f47764438fe534",
+      "semantic_digest": "6563ff166385935f38b7e97a5d9d755f46fe4a379fe363228153863de19e14b7",
       "probes": {
         "home_control_testid_templates": [
           "home-starter-<package_id>",
@@ -123,24 +132,24 @@
           }
         ],
         "required": [
-          "MAS_MAG_RCA_home_starters_visible",
-          "starters_launchable",
+          "compiled_release_qualification_targets_visible",
+          "projected_targets_launchable",
           "selected_project_directory_applied_to_session_and_domain_workspace_identity",
-          "real_guid_composer_send_without_shell_package_activation_per_starter",
-          "conversation_get_readback_per_starter",
-          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter",
-          "Framework_stage_runtime_activation_evidence_per_starter",
-          "agent_package_shortcut_route_receipt_per_starter"
+          "real_guid_composer_send_without_shell_package_activation_per_target",
+          "conversation_get_readback_per_target",
+          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target",
+          "Framework_stage_runtime_activation_evidence_per_target",
+          "release_evidence_route_receipt_per_target"
         ],
         "forbidden": [
           "direct_conversation_post",
           "Shell_agent_package_activation_before_or_during_send",
           "synthetic_Framework_stage_runtime_activation_evidence",
-          "synthetic_agent_package_route_receipt"
+          "synthetic_release_evidence_route_receipt"
         ],
         "verification_mode": "route_receipt"
       },
-      "semantic_digest": "fbeede67355d962fa7fd1f9371ae85d43c388a299db5aa93444c0250bf6826fa",
+      "semantic_digest": "c3fcddac89939979bb2c9f6d9c80b086155ecea59754c61777fdeb7236943b6e",
       "probes": {
         "composer_selector": "[data-testid=\"opl-guid-entry\"]",
         "send_selector": "[data-testid=\"guid-send-btn\"]",

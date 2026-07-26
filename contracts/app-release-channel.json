@@ -3453,37 +3453,40 @@
     "assistant_route_smoke_policy": {
       "standard": {
         "required": [
-          "MAS_MAG_RCA_home_starters_visible",
-          "package_not_installed_starters_selectable",
+          "compiled_release_qualification_targets_visible",
+          "unavailable_projected_targets_selectable",
           "launch_allowed_false_at_send",
           "readiness_and_repair_hint_visible"
         ],
         "forbidden": [
-          "package_not_installed_starter_disabled_before_selection",
-          "claim_agent_package_shortcut_route_receipt"
+          "unavailable_projected_target_disabled_before_selection",
+          "claim_full_route_receipt_from_standard_launch_gate"
         ],
         "verification_mode": "launch_gate"
       },
       "full": {
         "required": [
-          "MAS_MAG_RCA_home_starters_visible",
-          "starters_launchable",
+          "compiled_release_qualification_targets_visible",
+          "projected_targets_launchable",
           "selected_project_directory_applied_to_session_and_domain_workspace_identity",
-          "real_guid_composer_send_without_shell_package_activation_per_starter",
-          "conversation_get_readback_per_starter",
-          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_starter",
-          "Framework_stage_runtime_activation_evidence_per_starter",
-          "agent_package_shortcut_route_receipt_per_starter"
+          "real_guid_composer_send_without_shell_package_activation_per_target",
+          "conversation_get_readback_per_target",
+          "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target",
+          "Framework_stage_runtime_activation_evidence_per_target",
+          "release_evidence_route_receipt_per_target"
         ],
         "forbidden": [
           "direct_conversation_post",
           "Shell_agent_package_activation_before_or_during_send",
           "synthetic_Framework_stage_runtime_activation_evidence",
-          "synthetic_agent_package_route_receipt"
+          "synthetic_release_evidence_route_receipt"
         ],
         "verification_mode": "route_receipt"
       },
-      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable and selectable while send remains blocked with a repair path. Full applies the selected project directory as session cwd and future domain workspace identity, creates the conversation through the visible composer without Shell package activation, then reads that conversation back. Separately, a real Framework domain StageRun or StageAttempt must activate from its own workspace_locator and emit matching runtime evidence. Direct conversation POSTs, Shell send-boundary activation, and synthetic runtime or route receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
+      "target_fixture_ref": "contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture",
+      "target_fixture_boundary": "release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority",
+      "runtime_target_resolution": "resolve every fixture target from fresh app_state.agent_packages.directory.entries and status_index.home_shortcut_preferences before probing",
+      "rule": "Standard proves that every release qualification target resolves from fresh Framework projections and that an unavailable projected professional Agent Package remains selectable while send stays blocked with a repair path. Full applies the selected project directory as session cwd and future domain workspace identity, creates the conversation through the visible composer without Shell package activation, then reads that conversation back. Separately, a real Framework domain StageRun or StageAttempt must activate from its own workspace_locator and emit matching runtime evidence. Direct conversation POSTs, Shell send-boundary activation, and synthetic runtime or route evidence cannot satisfy the Full gate. The fixture never creates runtime catalog, visibility, lifecycle, readiness, action, or install authority, and a Standard launch gate must never be counted as a Full route receipt."
     },
     "vm_gates": [
       {

@@ -3,7 +3,8 @@ import { asRecord } from './release-json-helpers.ts';
 import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import { compileCurrentFirstRunExpectations } from './compile-first-run-expectations.ts';
 
-const standardAssistantTargets = compileCurrentFirstRunExpectations().profiles.standard.semantics.assistant_targets;
+const releaseQualificationTargets =
+  compileCurrentFirstRunExpectations().profiles.standard.semantics.assistant_targets;
 
 type EvidenceArtifact = {
   id: string;
@@ -62,7 +63,7 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       return [assistant.id, assistant];
     }),
   );
-  for (const target of standardAssistantTargets) {
+  for (const target of releaseQualificationTargets) {
     const assistantId = target.assistant_id;
     const badges = [target.badge, `@${assistantId.toUpperCase()}`];
     const shortName = assistantId.toUpperCase();
@@ -78,14 +79,14 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       ['badge', target.badge],
     ] as const) {
       if (assistant[field] !== expected) {
-        throw new Error(`${artifact.id}.${assistantId}.${field} must match the compiled assistant target mapping.`);
+        throw new Error(`${artifact.id}.${assistantId}.${field} must match the compiled release target fixture.`);
       }
     }
     if (JSON.stringify(assistant.required_skill_ids) !== JSON.stringify(target.required_skill_ids)) {
-      throw new Error(`${artifact.id}.${assistantId}.required_skill_ids must match the compiled assistant target mapping.`);
+      throw new Error(`${artifact.id}.${assistantId}.required_skill_ids must match the compiled release target fixture.`);
     }
     if (!badges.includes(String(assistant.badge))) {
-      throw new Error(`${artifact.id}.${assistantId} must show an App-owned purpose badge.`);
+      throw new Error(`${artifact.id}.${assistantId} must show the compiled release target badge.`);
     }
     if (record.runtime_profile === 'standard') {
       if (assistant.verification_mode !== 'launch_gate') {
@@ -175,10 +176,12 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
   }
   const required = Array.isArray(evidence.required) ? evidence.required : [];
   const checked = Array.isArray(evidence.checked) ? evidence.checked : [];
-  for (const assistantId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
-    if (!required.includes(assistantId) || !checked.includes(assistantId)) {
+  for (const target of releaseQualificationTargets) {
+    if (!required.includes(target.codex_visible_entry) || !checked.includes(target.codex_visible_entry)) {
       throw new Error(
-        `codex_functional_check_summary must cover MAS/MAG/RCA ${standardProfile ? 'launch gates' : 'route receipts'}.`,
+        `codex_functional_check_summary must cover ${target.codex_visible_entry} ${
+          standardProfile ? 'launch gates' : 'route receipts'
+        }.`,
       );
     }
   }

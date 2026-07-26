@@ -74,6 +74,47 @@
       "full_dmg_clean_vm_smoke"
     ]
   },
+  "release_qualification_agent_target_fixture": {
+    "role": "release_qualification_probe_input_only",
+    "runtime_authority": false,
+    "catalog_membership_authority": false,
+    "visibility_authority": false,
+    "action_authority": false,
+    "runtime_projection_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "selection_policy": "The release harness resolves these exact probe identities against fresh Framework-projected directory entries and shortcuts; missing or mismatched projections fail qualification without creating App catalog truth.",
+    "targets": [
+      {
+        "assistant_id": "mas",
+        "shortcut_id": "research",
+        "package_id": "mas",
+        "codex_visible_entry": "med-autoscience",
+        "required_skill_ids": [
+          "med-autoscience"
+        ],
+        "badge": "@科研"
+      },
+      {
+        "assistant_id": "mag",
+        "shortcut_id": "grant",
+        "package_id": "mag",
+        "codex_visible_entry": "med-autogrant",
+        "required_skill_ids": [
+          "med-autogrant"
+        ],
+        "badge": "@基金"
+      },
+      {
+        "assistant_id": "rca",
+        "shortcut_id": "ppt",
+        "package_id": "rca",
+        "codex_visible_entry": "redcube-ai",
+        "required_skill_ids": [
+          "redcube-ai"
+        ],
+        "badge": "@演示"
+      }
+    ]
+  },
   "shared_progress_model": {
     "producer": "one-person-lab",
     "source_command": "opl system initialize --json",
@@ -418,7 +459,7 @@
         "Codex remains the default executor path",
         "standard state modules are visible after initialization",
         "Domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates do not block ready_to_launch",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+      "Packaged GUI route smoke resolves every release qualification target from fresh Framework-projected professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records cohort-bound route evidence without treating the fixture as runtime catalog authority"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -566,7 +607,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA configured Home shortcuts visible and selectable before selection; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim an agent_package_shortcut invocation receipt"
+      "Packaged GUI launch-gate smoke keeps every release qualification target visible and selectable before selection after resolving it from fresh Framework projections; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim a Full route receipt"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -732,7 +773,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA configured Home shortcuts visible and selectable before selection; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim an agent_package_shortcut invocation receipt",
+      "Packaged GUI launch-gate smoke keeps every release qualification target visible and selectable before selection after resolving it from fresh Framework projections; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim a Full route receipt",
         "Homebrew receipt is treated as install evidence only; activation and agent-pack exposure still come from App/CLI maintenance"
       ],
       "release_evidence_artifacts": [
@@ -900,7 +941,7 @@
         "Desktop preserves an explicit CODEX_HOME and otherwise leaves it unset so Codex, AionCore, managed Codex ACP, and OPL runtime commands use ~/.codex; startup and recheck preserve the config digest, while an explicit Gateway or API Key action may update it only through Framework atomic merge with backup and restore",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+      "Packaged GUI route smoke resolves every release qualification target from fresh Framework-projected professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records cohort-bound route evidence without treating the fixture as runtime catalog authority"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
