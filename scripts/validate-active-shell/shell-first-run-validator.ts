@@ -505,13 +505,23 @@ export function validateFirstRunImplementation(shellPaths) {
   }
   const gatewaySetupBlockStart = firstRunPage.indexOf('const completeGatewayAccountSetup = useCallback');
   const gatewayLoginBlockStart = firstRunPage.indexOf('const loginGatewayAccount = useCallback');
+  const gatewayConfirmationBlockStart = firstRunPage.indexOf('const confirmGatewayModelAccess = useCallback');
   const gatewaySetupBlock = firstRunPage.slice(gatewaySetupBlockStart, gatewayLoginBlockStart);
+  const gatewayLoginBlock = firstRunPage.slice(gatewayLoginBlockStart, gatewayConfirmationBlockStart);
   if (
     gatewaySetupBlockStart < 0 ||
     gatewayLoginBlockStart <= gatewaySetupBlockStart ||
     gatewaySetupBlock.includes("actionId: 'gateway_account_use_for_model_access'")
   ) {
     throw new Error('Active shell Gateway login/setup must not execute the separate model-access mutation');
+  }
+  if (
+    gatewayConfirmationBlockStart <= gatewayLoginBlockStart ||
+    gatewayLoginBlock.includes('refreshInitialize()')
+  ) {
+    throw new Error(
+      'Active shell Gateway login must expose model-access confirmation without a blocking initialize refresh',
+    );
   }
   for (const expected of [
     "const initializeUnresolved = initialize === null;",
