@@ -33,4 +33,3 @@ Update flow:
 The guide describes an opt-in RC Preview. It does not promote Windows to Stable,
 change Latest, authorize the updater, or claim that the WSL2-only supported
 target is complete.
-
