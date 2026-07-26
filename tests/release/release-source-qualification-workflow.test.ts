@@ -22,7 +22,8 @@ test('source qualification is one main-only no-secret self-hosted build and Tart
   assert.match(source, /repos\/gaofeng21cn\/one-person-lab\/commits\/main/);
   assert.match(source, /build_invocation_count: 1/);
   assert.match(source, /tart_vm_invocation_count: 1/);
-  assert.match(source, /node scripts\/build-with-builder\.js arm64 --mac --arm64/);
+  assert.match(source, /node scripts\/build-with-builder\.js arm64 --mac --arm64 --config\.mac\.identity=-/);
+  assert.match(source, /'--config\.mac\.identity=-'/);
   assert.match(source, /node scripts\/opl-first-run-tart-smoke\.mjs/);
   assert.match(source, /--settings-smoke/);
   assert.match(source, /--assistant-route-smoke/);
