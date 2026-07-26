@@ -36,6 +36,7 @@ $script:PreDataInventory = ""
 $script:PreProjectsInventory = ""
 $script:AutoUpdateTaskName = "One Person Lab WebUI Latest Update"
 $script:AutoUpdateInstallerUrl = "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1"
+$script:DockerCliPath = $null
 
 function Write-Step {
   param([string]$Message)
@@ -107,7 +108,12 @@ function Invoke-DiagnosticDockerCommand {
   )
 
   $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
-  $output = & docker @Arguments 2>&1 | Out-String
+  $dockerCli = Resolve-DockerCliPath
+  if ($null -eq $dockerCli) {
+    Write-DiagnosticText -PathValue $OutputPath -Content "`$ $display`nDocker CLI is unavailable."
+    return
+  }
+  $output = & $dockerCli @Arguments 2>&1 | Out-String
   $exitCode = $LASTEXITCODE
   $content = "`$ $display`n$output"
   if ($exitCode -ne 0) {
@@ -156,6 +162,61 @@ function Install-DockerDesktopPrerequisite {
   }
 }
 
+function Update-ProcessEnvironmentFromPersistedPaths {
+  param(
+    [AllowNull()][string]$MachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine"),
+    [AllowNull()][string]$UserPath = [Environment]::GetEnvironmentVariable("Path", "User"),
+    [AllowNull()][string]$MachinePathExt = [Environment]::GetEnvironmentVariable("PATHEXT", "Machine")
+  )
+
+  $segments = [System.Collections.Generic.List[string]]::new()
+  $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($pathValue in @($MachinePath, $UserPath, $env:Path)) {
+    if ([string]::IsNullOrWhiteSpace($pathValue)) {
+      continue
+    }
+    foreach ($segment in ($pathValue -split [System.IO.Path]::PathSeparator)) {
+      $trimmed = $segment.Trim()
+      if (-not [string]::IsNullOrWhiteSpace($trimmed) -and $seen.Add($trimmed)) {
+        $segments.Add($trimmed)
+      }
+    }
+  }
+  $env:Path = $segments -join [System.IO.Path]::PathSeparator
+
+  if (-not [string]::IsNullOrWhiteSpace($MachinePathExt)) {
+    $pathExtEntries = @($env:PATHEXT -split ";" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($pathExtEntries -notcontains ".EXE") {
+      $env:PATHEXT = $MachinePathExt
+    }
+  }
+}
+
+function Resolve-DockerCliPath {
+  $command = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -ne $command -and -not [string]::IsNullOrWhiteSpace($command.Path) -and (Test-Path -LiteralPath $command.Path -PathType Leaf)) {
+    $script:DockerCliPath = [System.IO.Path]::GetFullPath($command.Path)
+    return $script:DockerCliPath
+  }
+
+  $candidates = @()
+  if (-not [string]::IsNullOrWhiteSpace(${env:ProgramFiles})) {
+    $candidates += Join-Path ${env:ProgramFiles} "Docker\Docker\resources\bin\docker.exe"
+  }
+  if (-not [string]::IsNullOrWhiteSpace(${env:LOCALAPPDATA})) {
+    $candidates += Join-Path ${env:LOCALAPPDATA} "Docker\resources\bin\docker.exe"
+  }
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      $script:DockerCliPath = [System.IO.Path]::GetFullPath($candidate)
+      return $script:DockerCliPath
+    }
+  }
+
+  $script:DockerCliPath = $null
+  return $null
+}
+
 function Start-DockerDesktopIfPresent {
   if ($DryRun) {
     Write-Step "Dry run: would ask Docker Desktop to start."
@@ -193,14 +254,24 @@ function Invoke-DockerCommandCaptureWithTimeout {
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds
   )
 
+  $dockerCli = Resolve-DockerCliPath
+  if ($null -eq $dockerCli) {
+    return [pscustomobject]@{
+      ExitCode = 127
+      Output = "Docker CLI is unavailable."
+      TimedOut = $false
+    }
+  }
   $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-command-" + [Guid]::NewGuid().ToString('N'))
   $wrapperPath = Join-Path $temporaryDir 'invoke-docker.ps1'
   $outputPath = Join-Path $temporaryDir 'output.txt'
   $argumentLiterals = @($Arguments | ForEach-Object { Convert-ToPowerShellSingleQuotedLiteral -Value $_ })
+  $dockerCliLiteral = Convert-ToPowerShellSingleQuotedLiteral -Value $dockerCli
   $wrapper = @"
 `$ErrorActionPreference = 'Continue'
+`$dockerCli = $dockerCliLiteral
 `$dockerArguments = @($($argumentLiterals -join ', '))
-`$output = & docker @dockerArguments 2>&1 | Out-String
+`$output = & `$dockerCli @dockerArguments 2>&1 | Out-String
 `$exitCode = `$LASTEXITCODE
 Set-Content -LiteralPath $(Convert-ToPowerShellSingleQuotedLiteral -Value $outputPath) -Value `$output -Encoding UTF8
 exit `$exitCode
@@ -540,12 +611,13 @@ function Assert-DockerCli {
     return
   }
 
-  $docker = Get-Command docker -ErrorAction SilentlyContinue
-  if ($null -eq $docker) {
+  $dockerCli = Resolve-DockerCliPath
+  if ($null -eq $dockerCli) {
     Install-DockerDesktopPrerequisite
-    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    Update-ProcessEnvironmentFromPersistedPaths
+    $dockerCli = Resolve-DockerCliPath
   }
-  if ($null -eq $docker) {
+  if ($null -eq $dockerCli) {
     throw "docker CLI was not found. Install Docker Desktop, for example: winget install Docker.DockerDesktop, then open Docker Desktop and rerun this script."
   }
 

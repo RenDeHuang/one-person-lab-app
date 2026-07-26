@@ -1,0 +1,107 @@
+{
+  "schema": "opl_app_windows_wsl2_execution.v1",
+  "owner": "one-person-lab-app",
+  "purpose": "windows_wsl2_only_desktop_execution_contract",
+  "state": "active_development_publication_blocked",
+  "decision_date": "2026-07-26",
+  "product_outcome": {
+    "supported_host": {
+      "os": "Windows 11",
+      "architecture": "x64",
+      "minimum_release": "22H2"
+    },
+    "user_experience": "The App owns one guided setup, automatic resume, repair, and bounded progress surface. Windows may show UAC only when enabling a missing Windows feature; the App must not ask the user to run product bootstrap commands manually.",
+    "execution_invariant": {
+      "agent_and_framework_plane": "dedicated_opl_linux_wsl2",
+      "native_windows_aioncore_allowed": false,
+      "native_windows_codex_allowed": false,
+      "native_windows_framework_allowed": false,
+      "native_windows_fallback_allowed": false
+    }
+  },
+  "distribution": {
+    "logical_name": "OPL-Linux",
+    "initial_physical_name": "OPL-Linux",
+    "wsl_version": 2,
+    "user_existing_distribution_mutation_allowed": false,
+    "default_distribution_mutation_allowed": false,
+    "docker_desktop_mutation_allowed": false,
+    "guest_user": "opl",
+    "codex_home": "/home/opl/.codex",
+    "workspace_root": "/home/opl/code"
+  },
+  "execution_port": {
+    "owner": "opl-aion-shell",
+    "host_transport": "structured_wsl_exe_direct_child",
+    "guest_entrypoints": {
+      "inspect": "/opt/opl/bootstrap/opl-runtime-inspect",
+      "execute": "/opt/opl/bootstrap/opl-runtime-exec",
+      "control": "/opt/opl/bootstrap/opl-runtime-control"
+    },
+    "allowed_programs": [
+      "aioncore",
+      "codex-app-server",
+      "opl-cli"
+    ],
+    "required_routes": [
+      "aioncore_acp",
+      "direct_codex_app_server",
+      "framework_cli_state_and_action"
+    ],
+    "shared_identity_fields": [
+      "guest_install_id",
+      "physical_distribution",
+      "distribution_generation",
+      "architecture",
+      "carrier_activation_digest",
+      "aioncore_digest",
+      "codex_digest",
+      "framework_digest",
+      "codex_home",
+      "workspace_root"
+    ],
+    "shell_interpolation_allowed": false,
+    "unrestricted_guest_command_allowed": false
+  },
+  "provisioning": {
+    "owner": "opl-aion-shell",
+    "states": [
+      "checking_host",
+      "enabling_wsl",
+      "restart_required",
+      "installing_owned_distribution",
+      "initializing_guest",
+      "activating_owner_artifacts",
+      "validating_routes",
+      "ready",
+      "repair_required",
+      "blocked_by_policy",
+      "cancelled"
+    ],
+    "resume_after_restart_required": true,
+    "same_name_foreign_identity": "fail_closed",
+    "partial_result": "reconcile_before_retry",
+    "automatic_repair_required": true,
+    "unknown_user_data_deletion_allowed": false,
+    "global_wsl_shutdown_allowed": false,
+    "unregister_without_explicit_user_removal_allowed": false
+  },
+  "release_boundary": {
+    "public_rc_allowed": false,
+    "public_rc_gate": "all_required_evidence_must_pass_on_exact_release_bytes",
+    "required_evidence": [
+      "clean_windows_no_wsl_guided_install_uac_restart_resume",
+      "owned_distribution_identity_and_wsl2_readback",
+      "one_linux_codex_realpath_sha_owner_receipt_codex_home_and_workspace_across_all_routes",
+      "aioncore_acp_real_request",
+      "direct_codex_app_server_real_request",
+      "framework_state_and_action_real_request",
+      "no_native_windows_executor_static_and_runtime_inventory",
+      "cancel_app_exit_targeted_restart_and_zero_app_session_survivors",
+      "repair_restart_persistence_and_data_retention",
+      "exact_installer_packaged_tree_runtime_and_source_cohort"
+    ],
+    "stable_and_latest_allowed": false,
+    "code_signing_required_for_stable": true
+  }
+}

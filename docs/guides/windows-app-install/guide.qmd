@@ -1,0 +1,319 @@
+---
+title: "One Person Lab Windows RC 安装与配置教程"
+subtitle: "Windows 11 x64 下载、校验、安装、Gateway 配置与 Docker WebUI"
+lang: zh-CN
+---
+
+适用对象：希望在自己的 Windows 11 x64 电脑上试用 One Person Lab Desktop
+RC Preview 的用户。本教程不要求编程经验。
+
+当前下载页面：<{{download.preview_release_url}}>
+
+PDF 版本：[下载本教程]({{download.pdf_href}})
+
+> 本版本是供真实用户试用和反馈的 RC Preview，不是 Stable，也不会成为 GitHub
+> Latest。它已经通过物理 Windows 主机的安装前技术原型验证，但仍缺代码签名、
+> clean-machine、升级和 WSL2-only 运行时的全部资格。不要在唯一保存重要工作的
+> 电脑上把它当作正式稳定版替代品。
+
+## 先了解这个 RC 的边界
+
+One Person Lab 的 AionUI Shell 原本已经具备 Windows x64 打包、NSIS 安装器、
+Windows 原生模块、AionCore 和 managed Codex ACP 资产。这个 RC 复用了这些成熟
+的多平台打包能力。
+
+OPL 的长期 Windows 目标更严格：所有 Codex-backed 执行都应进入 WSL 2 Linux，
+不能静默回退到原生 Windows Codex；App 还要负责 WSL 安装/修复、重启恢复、路径
+与文件监听、进程退出和升级回滚。当前 RC 的桌面会话仍使用随包的原生 Windows
+AionCore 和 Codex ACP，因此它用于验证安装、界面、登录和真实任务流，不证明上述
+WSL2-only 目标已经完成。
+
+Docker Desktop 和 WSL 2 是可选 WebUI 路径所需的基础，不是当前 RC 桌面对话的
+自动安装前置。这个 RC 不会静默开启 Windows 功能、创建发行版或修改 Docker。
+
+## 准备清单
+
+安装前确认：
+
+- Windows 11 x64；不支持 32 位 Windows。
+- 至少 8 GB 内存，建议 16 GB 或更多。
+- 至少 10 GB 可用磁盘空间，用于 App、运行时、日志和项目缓存。
+- 可以访问 GitHub Releases 和所选模型服务的网络。
+- 一个单独的测试项目目录，不要直接用唯一的正式数据目录做首次试用。
+- 可选：Gateway 账户。账号、密码和 API Key 只在 App 的安全界面中输入。
+- 可选：Windows 已安装 WSL 2 和 Docker Desktop，用于浏览器 WebUI。
+
+查看系统类型：
+
+1. 按 `Win + I` 打开“设置”。
+2. 进入“系统 -> 系统信息”。
+3. 确认“系统类型”包含“基于 x64 的处理器”。
+4. 确认 Windows Update 没有等待完成的重启。
+
+## 1. 下载精确安装包
+
+打开 RC Release 页面：
+
+<{{download.preview_release_url}}>
+
+在 **Assets** 中只下载以下两个文件：
+
+- `{{download.installer_asset}}`
+- `{{download.checksum_asset}}`
+
+不要把 Source code ZIP/TAR 当成安装包。文件名中的 `win-x64` 表示 Windows x64，
+`rc.1` 表示第一个候选预览，不是稳定更新频道。
+
+建议在“下载”目录新建 `OPL-RC` 文件夹，把两个文件放在一起。
+
+## 2. 校验 SHA-256
+
+校验可以确认下载字节与 Release 公布的安装包一致。打开普通 PowerShell，不需要
+管理员权限：
+
+```powershell
+cd "$HOME\Downloads\OPL-RC"
+Get-FileHash -Algorithm SHA256 ".\{{download.installer_asset}}"
+Get-Content ".\{{download.checksum_asset}}"
+```
+
+比较 `Get-FileHash` 输出和 `SHA256SUMS.txt` 中同名 EXE 的 64 位十六进制值：
+
+- 完全一致：继续安装。
+- 任意一位不同：删除 EXE，重新从同一个 RC Release 下载。
+- 文件名不同：不要猜测或改名，回到 Release 重新选择。
+
+不要从聊天群、网盘、邮件附件或第三方镜像获取同名 EXE。哈希一致只证明字节
+一致，不等于这个 RC 已完成正式代码签名。
+
+## 3. 处理 Windows SmartScreen
+
+当前 RC 可能尚未带正式 Authenticode 签名，因此 Windows SmartScreen 可能显示
+“Windows 已保护你的电脑”。这是 Preview 已知限制，不应通过全局关闭安全功能来
+绕过。
+
+在已经确认 SHA-256 一致后：
+
+1. 双击 `{{download.installer_asset}}`。
+2. 若出现 Windows SmartScreen，先确认应用名称和下载文件名。
+3. 点击“更多信息”。
+4. 再点击“仍要运行”。
+
+如果系统显示的文件名、发布者或路径与刚校验的文件不一致，立即取消。不要关闭
+Microsoft Defender，也不要修改全局 SmartScreen 策略。
+
+## 4. 安装 One Person Lab
+
+安装器使用当前用户范围的交互式 NSIS 路径，通常不需要管理员权限。
+
+1. 在安装向导中点击“下一步”。
+2. 保留默认目录，或选择一个本机短路径目录。
+3. 保留“开始菜单快捷方式”。
+4. 需要时保留“桌面快捷方式”。
+5. 点击“安装”，等待文件复制完成。
+6. 勾选启动 One Person Lab，点击“完成”。
+
+如果选择自定义路径，避免：
+
+- 网络共享或同步盘；
+- 含有非常长的多层目录；
+- 需要其他管理员账户才能写入的目录；
+- 旧 AionUI 或旧 OPL 测试目录。
+
+首次启动比后续启动慢，因为 App 要检查随包 AionCore、managed Node、Codex ACP
+和本机状态。不要在窗口刚出现时重复双击快捷方式。
+
+## 5. 完成 Gateway 登录
+
+首次进入后，App 会显示模型访问检查。默认使用 Gateway 账户：
+
+1. 打开“设置 -> 账户与访问”，或按首次设置提示进入。
+2. 选择 Gateway 账户。
+3. 在 App 界面输入邮箱和密码。
+4. 点击“登录并继续”。
+5. 等待模型访问检查完成。
+
+密码、token 和 API Key 不应进入 PowerShell、命令行参数、日志、截图或问题
+报告。需要兼容 API Key 时，也只在 App 的受控输入界面配置。
+
+登录后打开“设置 -> 模型”，确认：
+
+- 模型目录可以读取；
+- Auto 或指定模型可选择；
+- 页面没有要求再次输入同一凭据；
+- 关闭再打开设置后，登录状态仍存在。
+
+## 6. 做一次真实模型访问测试
+
+在工作台创建一个测试任务，选择单独的测试目录。发送一个短且有明确返回标记的
+请求，例如：
+
+```text
+只回复 OPL_WINDOWS_RC_TEST_PASS，不要添加其他内容。
+```
+
+验收结果：
+
+- 回复准确出现 `OPL_WINDOWS_RC_TEST_PASS`；
+- 会话状态结束，不持续显示“正在运行”；
+- 模型和 reasoning 选择保持可见；
+- 关闭 App 后重新打开，同一登录和会话仍可读取。
+
+不要把只打开窗口、只看到首页或只通过本地 health 当成模型访问成功。
+
+## 7. 检查 WSL 2 状态
+
+当前桌面 RC 不会自动安装或接管 WSL 2，但可以在普通 PowerShell 查看现状：
+
+```powershell
+wsl.exe --version
+wsl.exe --status
+wsl.exe --list --verbose
+```
+
+如果你只使用当前桌面 RC，WSL 2 缺失不是安装器失败。若要测试 Docker WebUI，
+需要 WSL 2 和 Docker Desktop 的 Linux containers backend。
+
+启用 WSL 属于 Windows 系统变更，可能需要管理员权限和重启。请按照 Microsoft
+和 Docker Desktop 的当前官方说明操作；不要从本教程推断某个发行版已经被 OPL
+创建或配置。
+
+## 8. 可选：安装 Docker WebUI
+
+浏览器 WebUI 是独立运行形态，适合服务器、隔离环境或希望在浏览器访问的用户。
+完整教程：
+
+<{{download.docker_guide_url}}>
+
+Windows 路径需要：
+
+- WSL 2 可用；
+- Docker Desktop 已安装；
+- Docker Desktop 使用 Linux containers；
+- Docker Engine 和 Compose 已 ready。
+
+在普通 PowerShell 检查：
+
+```powershell
+docker.exe version
+docker.exe compose version
+docker.exe context show
+```
+
+完成 WebUI 安装后访问：
+
+<http://localhost:3000/>
+
+首次登录仍只在浏览器界面输入 Gateway 账户。桌面 App 和 Docker WebUI 是两个
+载体；不要假设它们自动共享所有本机数据目录。
+
+从本 RC 起，Windows Docker helper 在安装 Docker Desktop 后会重新读取持久化
+Machine/User PATH，并优先使用绝对 `docker.exe`。这修复了同一 PowerShell 进程
+PATH 仍旧、`PATHEXT` 缺少 `.EXE` 时错误报告“docker CLI was not found”的问题。
+
+## 9. 重启与退出验证
+
+完成一次真实请求后：
+
+1. 使用窗口右上角关闭 One Person Lab。
+2. 等待 10 秒。
+3. 从开始菜单重新打开。
+4. 确认 Gateway 登录仍有效。
+5. 打开上一条测试会话。
+6. 再发送一个短请求，确认模型访问仍成功。
+7. 再次正常退出。
+
+如果任务管理器中长期残留多个 One Person Lab、Electron、AionCore 或 Codex
+进程，记录时间和操作步骤后再报告。不要直接删除用户数据来掩盖退出问题。
+
+## 10. 日志与问题报告
+
+遇到问题时先记录：
+
+- Windows 版本和 OS build；
+- RC tag 与安装包文件名；
+- EXE SHA-256；
+- 安装阶段、首次启动阶段或模型请求阶段；
+- 可见错误文字；
+- WSL 2、Docker Desktop 是否启用；
+- 是否从旧测试版本升级。
+
+默认用户数据和日志位于 Electron 的当前用户 App 数据目录；具体路径以 App
+“设置 -> 日志与诊断”显示为准，通常在 `%APPDATA%` 下。问题报告前检查文件，
+删除邮箱、项目内容、token、API Key 和其他秘密。
+
+提交问题：
+
+<{{download.issues_url}}>
+
+不要上传整个用户数据目录。优先提供最小日志片段、截图、时间点和 SHA-256。
+
+## 11. 检查更新
+
+Windows RC Preview 不进入 Stable updater。App 中的“检查更新”可能只显示当前
+稳定频道信息，不能用它判断是否有新的 Windows RC。
+
+更新 Preview 时：
+
+1. 查看 One Person Lab App 的 GitHub Prereleases。
+2. 下载新的 `win-x64.exe` 与其 `SHA256SUMS.txt`。
+3. 再次校验 SHA-256。
+4. 正常退出旧 App。
+5. 运行新安装器并保留原安装目录。
+6. 启动后验证登录、会话和真实模型请求。
+
+不要把新的 RC tag 改造成 `v` tag，也不要手工替换 updater metadata。
+
+## 12. 卸载与用户数据
+
+卸载 App：
+
+1. 正常退出 One Person Lab。
+2. 打开“设置 -> 应用 -> 已安装的应用”。
+3. 找到 One Person Lab。
+4. 点击“卸载”并完成向导。
+
+卸载程序文件不等于删除用户数据、项目、Gateway 会话或 Docker WebUI volume。
+在确认备份和数据范围前，不要手工递归删除 `%APPDATA%`、项目目录、Docker volume
+或 WSL 发行版。
+
+需要彻底清理测试数据时，先从“设置 -> 数据与存储”和“日志与诊断”读取当前
+目录，再逐项决定保留、导出或删除。不要执行全局 Docker prune 或注销 WSL
+发行版来卸载桌面 App。
+
+## 常见问题
+
+### 双击后没有窗口
+
+等待 20 秒并查看任务管理器。如果进程立即退出，记录日志路径和退出时间。不要
+连续启动多个实例。
+
+### 提示找不到 AionCore 或 Codex
+
+确认安装包 SHA-256 正确，并重新运行同一个 RC 安装器执行覆盖修复。当前正式
+打包路径会物化 `win32-x64` AionCore 和 managed Codex ACP；开发目录缺少这些
+字节不等于安装包也缺失。
+
+### Docker 已安装但 PowerShell 找不到 docker
+
+关闭当前 PowerShell，从开始菜单重新打开一个普通 PowerShell，再运行：
+
+```powershell
+Get-Command docker.exe
+Test-Path "$env:ProgramFiles\Docker\Docker\resources\bin\docker.exe"
+```
+
+本 RC 对应的 helper 已修复同进程 PATH/PATHEXT 状态转换。不要再次运行 Docker
+Desktop 安装器，先确认 canonical `docker.exe` 和 Docker Desktop daemon。
+
+### 登录成功但模型不可用
+
+打开“设置 -> 账户与访问”和“设置 -> 模型”，重新检测模型访问。只在 App
+界面处理凭据，不要把 Gateway 密码放入问题报告。
+
+### 是否可以用于正式生产
+
+不建议。RC Preview 用于尽早发现 Windows 安装、路径、运行时和交互问题。正式
+Windows 支持还需 WSL2-only、自动 provisioning、签名、升级、clean-machine
+安装/卸载和完整终态证据。
+

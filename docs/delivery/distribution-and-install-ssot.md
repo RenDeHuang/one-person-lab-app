@@ -80,6 +80,7 @@ Machine owners:
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | OCI digest、`:latest`，`:stable` 为同 digest 兼容 alias | 开发可双轨验证；生产通过 Desktop handoff follower，失败不改写 Desktop 终态 |
 | Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | `make_latest=false`；不能改 updater、Homebrew 或 Stable |
+| Windows x64 RC Preview | 实现中，公开发布被 WSL2-only 验收阻断 | 目标为非 `v` prerelease tag、Windows x64 NSIS EXE、SHA256SUMS、Windows RC cohort | 复用 AionUI Windows/NSIS 打包，但禁止 native Windows AionCore/Codex；专属 `OPL-Linux` 自动配置、三路统一 Linux Codex、无 fallback 和 exact-byte 验收通过前不可公开 |
 | Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule；不含 Full/WebUI、不改 Latest、不复用 Stable mutex；抽样 VM 非阻塞 |
 | Full Homebrew Cask | Generator implemented, public target not promoted | 公开旧 Cask 仍指向旧 Full DMG 并依赖 Formula；目标 Cask 不依赖 Formula | 完成 pre-publication gates、受保护 CAS 发布和 post-publication readback 前不推荐 |
 | Native WebUI artifacts | Implemented candidate, unpublished/unqualified | 首批 Linux amd64 App Release tarball/manifest/install verifier | 独立 follower；不扩写 Stable operations；不改变 Container GHCR tags |
@@ -98,6 +99,7 @@ Machine owners:
 | App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由已实现，但 Desktop bootstrap 仍使用 `--with-app --skip-packages`，目前不是 Official Profile 一步收敛 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
+| GitHub Prerelease Windows x64 EXE | Desktop App RC Preview | 尚未公开；WSL2-only 验收通过后才可进入 Opt-in Preview | 目标 EXE 自动配置专属 WSL2 环境，所有 Codex 路径使用同一 Linux Codex；native fallback、Latest、Stable 和 Homebrew 均禁止 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
 | Nightly Cask | Standard Nightly + Formula `opl` | Implemented，首个 follower readback 待完成 | 仅由成功 GitHub Nightly publication 的 digest-bound follower 更新，不得改 Stable Cask |
 | Full Cask | 公开旧 Cask 为 Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy public / target implemented unpublished | 当前改用直接 Full DMG；目标 Cask 只安装 Full DMG，不安装 Formula |
@@ -110,7 +112,7 @@ Machine owners:
 | --- | --- | --- |
 | macOS 个人电脑 | Homebrew Standard 或直接 DMG，运行 Desktop | 保持 Desktop；通用脚本也选择 Desktop |
 | Linux 个人电脑 | Container WebUI | Native WebUI |
-| Windows 个人电脑 | Container WebUI | Native 需单独完成资格验证后再决定 |
+| Windows 个人电脑 | Container WebUI | Desktop RC 仅在自动 provisioning、三路统一 Linux Codex、无 native fallback 和 clean-machine RC 验收完成后开放；Stable 另需签名、升级与正式资格 |
 | Server / cloud / isolation | Container WebUI | 保持 Container WebUI |
 | Headless automation | Framework Base-only | 保持 Base-only |
 

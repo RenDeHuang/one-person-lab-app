@@ -28,6 +28,7 @@
       "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
         "desktop_full_additive_asset",
         "manual_full_preview",
+        "windows_x64_wsl2_only_rc_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
         "homebrew_full_implemented_unpublished_target",
@@ -133,6 +134,7 @@
       "desktop_latest": "live_stable_only",
       "desktop_nightly": "implemented_pending_first_publication_readback",
       "manual_full_preview": "live_non_latest_temporary_lane",
+      "windows_x64_rc_preview": "implementation_in_progress_publication_blocked",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier",
       "native_webui": "approved_target_not_published",
@@ -170,6 +172,49 @@
           "official_profile_convergence"
         ],
         "heavy_vm_blocks_publication": false
+      },
+      "windows_x64_rc_preview": {
+        "target": "manual_opt_in_windows_x64_wsl2_only_prerelease",
+        "status": "implementation_in_progress_publication_blocked",
+        "quality": "preview",
+        "payload_density": "standard",
+        "publication_carrier": "app_github_releases",
+        "tag_pattern": "^windows-rc-[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[1-9][0-9]*$",
+        "installer_asset_pattern": "^One-Person-Lab-[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[1-9][0-9]*-win-x64\\.exe$",
+        "prerelease_required": true,
+        "latest_allowed": false,
+        "stable_updater_allowed": false,
+        "homebrew_allowed": false,
+        "stable_bundle_operation_allowed": false,
+        "runtime_execution_substrate": "dedicated_opl_linux_wsl2",
+        "wsl2_only_terminal_claim_required": true,
+        "current_wsl2_only_terminal_claim": false,
+        "native_windows_executor_fallback_allowed": false,
+        "required_publication_evidence": [
+          "exact_app_shell_framework_refs",
+          "windows_rc_build_cohort_with_installer_and_packaged_tree_sha256",
+          "owned_opl_linux_distribution_and_linux_runtime_sha256",
+          "one_linux_codex_identity_across_aioncore_app_server_and_framework",
+          "clean_windows_no_wsl_install_restart_resume_and_repair_readback",
+          "physical_windows_launch_gateway_runtime_restart_exit_and_zero_survivor_readback",
+          "static_and_runtime_no_native_windows_executor_inventory",
+          "github_prerelease_asset_digest_and_latest_pointer_readback",
+          "public_windows_install_guide"
+        ],
+        "blocking_publication_gates": [
+          "wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback",
+          "automatic_wsl2_substrate_install_repair_and_restart_recovery",
+          "clean_machine_install_and_uninstall_acceptance",
+          "three_route_same_linux_codex_and_codex_home_acceptance",
+          "targeted_wsl_restart_and_app_session_survivor_acceptance"
+        ],
+        "deferred_stable_gates": [
+          "upgrade_from_prior_windows_build",
+          "code_signing_and_smartscreen_provenance",
+          "formal_installer_acceptance",
+          "stable_channel_and_updater_admission"
+        ],
+        "rule": "This lane remains publicly blocked until the exact Windows RC automatically provisions the dedicated OPL-Linux WSL2 environment and proves every Codex-backed route uses one Linux executor identity with no native Windows fallback."
       },
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",

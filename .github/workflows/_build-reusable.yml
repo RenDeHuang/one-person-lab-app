@@ -1079,7 +1079,7 @@ jobs:
           ls -lh out/ || true
 
       - name: Write build artifact cohort manifest
-        if: success()
+        if: success() && startsWith(matrix.platform, 'macos')
         shell: bash
         env:
           OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
@@ -1123,6 +1123,42 @@ jobs:
             --stable-session-id "${{ inputs.release_bundle_digest }}" \
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
+      - name: Write Windows RC build artifact cohort manifest
+        if: success() && startsWith(matrix.platform, 'windows')
+        shell: bash
+        env:
+          OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          installer_paths=()
+          while IFS= read -r candidate; do installer_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name '*.exe' -print | LC_ALL=C sort
+          )
+          if [ "${#installer_paths[@]}" -ne 1 ]; then
+            echo "::error::Windows RC cohort requires exactly one top-level EXE; found ${#installer_paths[@]}."
+            exit 1
+          fi
+          installer_path="${installer_paths[0]}"
+          packaged_tree="out/win-unpacked"
+          test -f "$installer_path" && test ! -L "$installer_path"
+          test -d "$packaged_tree" && test ! -L "$packaged_tree"
+          artifact_name="${{ inputs.append_commit_hash && format('{0}-{1}', matrix.artifact-name, steps.commit.outputs.short) || matrix.artifact-name }}"
+          node --experimental-strip-types ../../scripts/write-windows-rc-build-cohort.ts \
+            --output out/opl-windows-rc-build-cohort.json \
+            --installer "$installer_path" \
+            --packaged-tree "$packaged_tree" \
+            --app-sha "$(git -C ../.. rev-parse HEAD)" \
+            --app-tree "$(git -C ../.. rev-parse 'HEAD^{tree}')" \
+            --shell-sha "$(git rev-parse HEAD)" \
+            --shell-tree "$(git rev-parse 'HEAD^{tree}')" \
+            --framework-sha "${{ inputs.framework_ref }}" \
+            --version "$OPL_BUILD_VERSION" \
+            --platform win32 \
+            --arch "${{ matrix.arch }}" \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --actions-artifact-name "$artifact_name"
+
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success() && startsWith(matrix.platform, 'macos')
@@ -1145,6 +1181,7 @@ jobs:
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
+            shells/aionui/out/opl-windows-rc-build-cohort.json
             shells/aionui/out/standard-local-authorization-policy.json
             shells/aionui/out/standard-gatekeeper-launch-policy.json
             shells/aionui/out/standard-apple-notarization-receipt.json

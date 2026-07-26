@@ -48,6 +48,9 @@
     "runtime_forms": {
       "desktop": {
         "current_status": "supported_macos_carrier",
+        "platform_preview_status": {
+          "windows_x64": "authorized_rc_preview_pending_first_publication_readback"
+        },
         "electron_required": true,
         "browser_only": false
       },
@@ -88,6 +91,14 @@
       },
       "windows_personal": {
         "current_default_runtime_form": "container_webui",
+        "opt_in_desktop_preview": null,
+        "desktop_preview_publication_state": "blocked_until_wsl2_only_acceptance",
+        "desktop_preview_changes_default_route": false,
+        "desktop_target_execution_substrate": "dedicated_opl_linux_wsl2",
+        "automatic_wsl2_provisioning_required": true,
+        "native_windows_executor_fallback_allowed": false,
+        "wsl2_only_desktop_target_contract": "contracts/app-windows-wsl2-execution.json",
+        "wsl2_only_supported_desktop_target_requires_exact_release_acceptance": true,
         "native_webui_target_requires_separate_qualification": true
       }
     },
