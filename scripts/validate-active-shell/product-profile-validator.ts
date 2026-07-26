@@ -32,15 +32,11 @@ import {
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
-  assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
   assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
-  assertLocalizedUxOverrideShape,
   assertOfficialProfileShape,
-  managedShortcutPackageIds,
 } from '../app-product-profile-shared-validators.ts';
-import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
   forbidden_mcp_matchers: {
@@ -89,17 +85,6 @@ function validateDynamicHomeComposerStateContract(value, label) {
   assertHomeComposerStateContract(value, label);
 }
 
-function validateDynamicPackageInvocationReceiptPolicy(profile, label) {
-  const policy = profile.gui?.agent_package_invocation_receipt_policy;
-  if (
-    policy?.required_for_package_shortcuts_source_ref !==
-      'visible standard_agent shortcuts projected from app_state.agent_packages.directory.entries + status_index.home_shortcut_preferences[]' ||
-    policy?.required_for_package_shortcuts !== undefined
-  ) {
-    throw new Error(`${label} package shortcut receipts must follow dynamically projected visible standard Agents`);
-  }
-  assertAppProductProfileRouteReceiptPolicy(profile, label);
-}
 const requiredHostTools = [
   'command_line_tools',
   'homebrew',
@@ -206,7 +191,6 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileSettingsVisualSystem(profile, 'Product profile');
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
-  validateDynamicPackageInvocationReceiptPolicy(profile, 'Product profile');
   validateDynamicHomeComposerStateContract(profile.gui?.home?.home_composer_state_contract, 'Product profile Home composer state contract');
   validateUiLocalePolicy(profile);
   validateHomeAssistantDefaults(profile);
@@ -321,27 +305,8 @@ function validateHomeAssistantDefaults(profile) {
   ) {
     throw new Error('Product profile OPL utility icons must include the App-owned GitHub feedback action');
   }
-  const homeAgentShortcuts = profile.gui.home.home_agent_shortcuts ?? [];
-  if (new Set(homeAgentShortcuts.map((entry) => entry.shortcut_id)).size !== homeAgentShortcuts.length) {
-    throw new Error('Product profile GUI home shortcut metadata ids must be unique');
-  }
-  for (const shortcut of homeAgentShortcuts) {
-    assertCapabilityReferenceListShape(
-      shortcut.required_skill_ids,
-      `Product profile GUI home shortcut ${shortcut.shortcut_id} required_skill_ids`,
-    );
-    if (
-      shortcut.executor !== 'codex_cli' ||
-      shortcut.source !== 'opl_app_home' ||
-      shortcut.display_policy !== 'purpose_first' ||
-      shortcut.home_entry_policy !== 'visible_click_to_start' ||
-      shortcut.user_configurable !== true
-    ) {
-      throw new Error(`Product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
-    }
-    if (typeof shortcut.default_visible !== 'boolean') {
-      throw new Error(`Product profile shortcut ${shortcut.shortcut_id} must declare boolean display metadata`);
-    }
+  if ('home_agent_shortcuts' in profile.gui.home) {
+    throw new Error('Product profile must not restore an App-owned Home shortcut list');
   }
   for (const field of [
     'default_assistants',
@@ -358,7 +323,7 @@ function validateHomeAssistantDefaults(profile) {
   }
   if (
     homeLayout?.home_presentation_source_ref !==
-    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + gui.home.home_agent_shortcuts optional migration/display metadata only'
+    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
   ) {
     throw new Error('Product profile Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
   }
@@ -378,49 +343,26 @@ function validateHomeAssistantDefaults(profile) {
 function validateAgentPackageRegistryProjection(profile) {
   const projection = profile.gui?.agent_package_registry;
   if (
-    projection?.directory_lifecycle_authority !==
-      'app_state.agent_packages.directory+status_index+actions' ||
-    projection?.external_registry_role !== 'optional_candidate_source_adapter' ||
-    projection?.bundled_default_registry_allowed !== false ||
-    projection?.external_registry_policy_ref !==
-      'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy' ||
-    projection?.external_first_party_identity_claims_allowed !== false ||
-    projection?.external_first_party_trust_claims_allowed !== false ||
-    projection?.collision_failure_code !== 'agent_package_registry_first_party_identity_collision' ||
-    projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
+    projection?.directory_projection_authority !== 'app_state.agent_packages.directory.entries' ||
+    projection?.status_projection_authority !== 'app_state.agent_packages.status_index' ||
+    projection?.action_projection_authority !==
+      'app_state.agent_packages.directory.entries[].available_actions[] + app_state.actions' ||
+    projection?.presentation_source !== 'app_state.agent_packages.directory.entries' ||
+    projection?.unknown_package_policy !== 'render_without_app_package_id_branch' ||
+    projection?.manifest_lock_receipt_parser_allowed !== false ||
+    projection?.action_id_allowlist_allowed !== false ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('Product profile must keep Package directory lifecycle in Framework while registries remain optional candidate sources');
+    throw new Error('Product profile must consume generic Framework Package projections without private metadata or lifecycle parsers');
   }
-  const metadata = projection.starter_package_metadata ?? [];
-  const metadataIds = metadata.map((entry) => entry.package_id);
-  if (
-    metadataIds.some((packageId) => typeof packageId !== 'string' || !packageId.trim()) ||
-    new Set(metadataIds).size !== metadataIds.length
-  ) {
-    throw new Error('Product profile Package UX metadata ids must be non-empty and unique');
-  }
-  for (const entry of metadata) {
-    assertLocalizedUxOverrideShape(
-      entry.display_name_i18n,
-      `Product profile first-party metadata is incomplete or not localized for ${entry.package_id}; display_name_i18n`,
-    );
-    assertLocalizedUxOverrideShape(
-      entry.description_i18n,
-      `Product profile first-party metadata is incomplete or not localized for ${entry.package_id}; description_i18n`,
-    );
-    if (
-      !entry.package_kind ||
-      !entry.display_name ||
-      entry.publisher !== 'one-person-lab' ||
-      entry.source !== 'first_party' ||
-      entry.trust_tier !== 'first_party' ||
-      !entry.description?.trim() ||
-      !Array.isArray(entry.tags) ||
-      entry.tags.length === 0 ||
-      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
-    ) {
-      throw new Error(`Product profile first-party metadata is incomplete or not localized for ${entry.package_id}`);
+  for (const forbiddenField of [
+    'starter_package_metadata',
+    'first_party_manifest_fixture_dir',
+    'external_registry_policy_ref',
+    'directory_lifecycle_authority',
+  ]) {
+    if (forbiddenField in projection) {
+      throw new Error(`Product profile must not restore private Package consumer field ${forbiddenField}`);
     }
   }
   const presentation = projection.catalog_presentation_policy;
@@ -959,21 +901,6 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
   );
   if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
     throw new Error('Product profile domain plugin skills must not be companion skill mirrors');
-  }
-  for (const { expected, entry } of expectedDomainExposureEntryMap(
-    profile.companion_payloads?.domain_exposure,
-    installExposurePolicy.domain_exposure,
-    (domainId) => `Product profile companion payloads missing domain exposure ${domainId}`,
-  )) {
-    if (entry.codex_visible_entry !== expected.codex_visible_entry) {
-      throw new Error(`Product profile domain exposure ${expected.domain_id}.codex_visible_entry must be ${expected.codex_visible_entry}`);
-    }
-    if (entry.preferred_app_distribution !== expected.preferred_app_distribution) {
-      throw new Error(`Product profile domain exposure ${expected.domain_id}.preferred_app_distribution must be ${expected.preferred_app_distribution}`);
-    }
-    if (entry.direct_skill_semantics_required !== true) {
-      throw new Error(`Product profile domain exposure ${expected.domain_id} must require direct skill semantics`);
-    }
   }
 }
 

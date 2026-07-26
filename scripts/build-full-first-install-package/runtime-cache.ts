@@ -24,6 +24,7 @@ import {
 } from './hashing.ts';
 import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
+import { resolvedSelectedBundleCacheInput } from './resolved-selected-bundle-descriptor.ts';
 import {
   FULL_RUNTIME_STARTER_PROFILE,
   resolveSelectedPackageSetInput,
@@ -73,6 +74,7 @@ export function buildRuntimeCacheKeyInputs(
   sources,
   selectedPackageSet = null,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+  resolvedSelectedBundleDescriptor: unknown = null,
 ) {
   const packageSet = selectedPackageSet ?? resolveSelectedPackageSetInput(options, packageProfile);
   const nodeRoot = path.dirname(path.dirname(sources.nodeToolchain.nodeBin));
@@ -124,30 +126,37 @@ export function buildRuntimeCacheKeyInputs(
     },
     skills: {
         selected_package_set_identity: packageSet.identity,
-        app_product_profile_sha256: existingFileSha256(
-          path.join(appRepoRoot, 'contracts', 'app-product-profile.json'),
-        ),
-        med_autoscience_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/med-autoscience'),
-        med_autogrant_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/med-autogrant'),
-        redcube_ai_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/redcube-ai'),
-        meta_agent_skill_source: metaAgentSkillSnapshot(options),
-        bookforge_skill_source: bookforgeSkillSnapshot(options),
-        officecli_root_commit: readGitHead(options.officeCliRoot),
-        officecli_core_source: officeCliCoreSkillSnapshot(options),
-        officecli_docx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-docx'), 'skills/officecli-docx'),
-        officecli_pptx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pptx'), 'skills/officecli-pptx'),
-        officecli_xlsx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-xlsx'), 'skills/officecli-xlsx'),
-        officecli_academic_paper_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-academic-paper'), 'skills/officecli-academic-paper'),
-        officecli_data_dashboard_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-data-dashboard'), 'skills/officecli-data-dashboard'),
-        officecli_financial_model_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-financial-model'), 'skills/officecli-financial-model'),
-        officecli_pitch_deck_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pitch-deck'), 'skills/officecli-pitch-deck'),
-        mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
-        mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
-        ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
-        ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
-        skills_packager_sha256: existingFileSha256(
-          path.join(appRepoRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
-        ),
+        ...(resolvedSelectedBundleDescriptor
+          ? {
+              resolved_selected_bundle: resolvedSelectedBundleCacheInput(resolvedSelectedBundleDescriptor),
+            }
+          : {
+              resolved_selected_bundle: null,
+              app_product_profile_sha256: existingFileSha256(
+                path.join(appRepoRoot, 'contracts', 'app-product-profile.json'),
+              ),
+              med_autoscience_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/med-autoscience'),
+              med_autogrant_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/med-autogrant'),
+              redcube_ai_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/redcube-ai'),
+              meta_agent_skill_source: metaAgentSkillSnapshot(options),
+              bookforge_skill_source: bookforgeSkillSnapshot(options),
+              officecli_root_commit: readGitHead(options.officeCliRoot),
+              officecli_core_source: officeCliCoreSkillSnapshot(options),
+              officecli_docx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-docx'), 'skills/officecli-docx'),
+              officecli_pptx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pptx'), 'skills/officecli-pptx'),
+              officecli_xlsx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-xlsx'), 'skills/officecli-xlsx'),
+              officecli_academic_paper_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-academic-paper'), 'skills/officecli-academic-paper'),
+              officecli_data_dashboard_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-data-dashboard'), 'skills/officecli-data-dashboard'),
+              officecli_financial_model_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-financial-model'), 'skills/officecli-financial-model'),
+              officecli_pitch_deck_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pitch-deck'), 'skills/officecli-pitch-deck'),
+              mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
+              mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
+              ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
+              ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
+              skills_packager_sha256: existingFileSha256(
+                path.join(appRepoRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
+              ),
+            }),
         implementation: buildLayerImplementationInput('skills'),
     },
   };
@@ -178,9 +187,16 @@ export function buildRuntimeCacheContext(
   options,
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+  resolvedSelectedBundleDescriptor: unknown = null,
 ) {
   const selectedPackageSet = resolveSelectedPackageSetInput(options, packageProfile);
-  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources, selectedPackageSet, packageProfile);
+  const layerKeyInputs = buildRuntimeCacheKeyInputs(
+    options,
+    sources,
+    selectedPackageSet,
+    packageProfile,
+    resolvedSelectedBundleDescriptor,
+  );
   return {
     selectedPackageSet,
     layerKeyInputs,
@@ -200,11 +216,13 @@ export function buildRuntimeCacheKeyReport(
   options,
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
+  resolvedSelectedBundleDescriptor: unknown = null,
 ) {
   const { selectedPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(
     options,
     sources,
     packageProfile,
+    resolvedSelectedBundleDescriptor,
   );
   return {
     status: 'runtime_cache_keys',

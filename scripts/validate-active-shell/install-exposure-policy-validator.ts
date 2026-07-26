@@ -2,10 +2,6 @@ import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.t
 import {
   forbiddenAuthorityOwners,
 } from './app-contract-constants.ts';
-import {
-  expectedDomainExposureEntryMap,
-  expectedDomainExposureFromProductProfile,
-} from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
 import { assertFirstRunProgressModelShape, assertNonEmptyStringArray } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
@@ -51,11 +47,11 @@ function validateInstallExposureHeader(policy) {
 
 function validateCapabilityGovernance(governance) {
   if (
-    governance?.lifecycle_authority !== 'one-person-lab' ||
-    governance?.lifecycle_surface !== 'opl_framework_package_transaction' ||
+    governance?.lifecycle_authority !== 'configured_carrier' ||
+    governance?.lifecycle_surface !== 'configured_carrier_install_update_remove' ||
     governance?.app_role !== 'gui_and_framework_projection_consumer_only'
   ) {
-    throw new Error('Install exposure capability governance must preserve the Framework -> App projection boundary');
+    throw new Error('Install exposure capability governance must preserve the carrier -> Framework -> App projection boundary');
   }
   if (
     governance.managed_inventory?.source !== 'framework_unified_capability_projection' ||
@@ -78,7 +74,7 @@ function validateCapabilityGovernance(governance) {
       'new_or_rotated_provider_credential_only' ||
     governance.credential_policy?.configure_codex_package_lifecycle_mutation_allowed !== false ||
     governance.credential_policy?.package_reconciliation_requires_provider_configuration !== false ||
-    governance.credential_policy?.package_reconciliation_surface !== 'framework_managed_update_plane'
+    governance.credential_policy?.package_reconciliation_surface !== 'configured_carrier_projected_actions'
   ) {
     throw new Error(
       'Install exposure capability governance must reuse existing Codex access and keep provider configuration separate from package lifecycle',
@@ -89,9 +85,9 @@ function validateCapabilityGovernance(governance) {
     governance.mcp_policy?.manual_and_third_party_projection_group !== 'user_or_third_party_managed' ||
     governance.mcp_policy?.undeclared_user_server_policy !== 'preserve' ||
     governance.mcp_policy?.undeclared_user_server_delete_or_overwrite_allowed !== false ||
-    governance.mcp_policy?.default_managed_server_requires_framework_lifecycle_adapter !== true
+    governance.mcp_policy?.default_managed_server_requires_owner_or_carrier_projection !== true
   ) {
-    throw new Error('Install exposure MCP governance must preserve user surfaces and require Framework lifecycle support');
+    throw new Error('Install exposure MCP governance must preserve user surfaces and require owner or carrier projection');
   }
 }
 
@@ -143,25 +139,22 @@ function validateExposureClasses(policy) {
   const exposureClassById = new Map((policy.exposure_classes ?? []).map((entry) => [entry.id, entry]));
   const domainPluginClass = exposureClassById.get('codex_surface');
   if (
-    domainPluginClass?.sync_target !== 'codex_plugin_registry' ||
+    domainPluginClass?.sync_target !== 'framework_projected_configured_carrier' ||
     domainPluginClass?.software_object !== 'opl_packages' ||
-    domainPluginClass?.visibility_scope !== 'package_capability_visibility_only_not_software_object'
+    domainPluginClass?.visibility_scope !== 'package_capability_visibility_only_not_software_object' ||
+    domainPluginClass?.member_source !== 'app_state.agent_packages.directory.entries[].capabilities[]' ||
+    domainPluginClass?.presentation_source !== 'owner_package_presentation_descriptor' ||
+    'members' in domainPluginClass
   ) {
-    throw new Error('Install exposure domain plugin class must sync to codex_plugin_registry');
+    throw new Error('Install exposure Package capabilities must come from the dynamic Framework directory');
   }
   assertIncludesAll(
-    domainPluginClass?.members,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai'],
-    'Install exposure domain plugin members',
+    domainPluginClass?.must_not_sync_to,
+    ['app_owned_package_member_registry', 'duplicate_bare_skill_mirror', 'default_home_assistant_entry'],
+    'Install exposure Package capability mirror prohibitions',
   );
-  for (const forbiddenMirror of ['~/.codex/skills/med-autoscience', '~/.codex/skills/med-autogrant', '~/.codex/skills/redcube-ai']) {
-    if (!domainPluginClass.must_not_sync_to?.includes(forbiddenMirror)) {
-      throw new Error(`Install exposure domain plugin class must forbid ${forbiddenMirror}`);
-    }
-  }
-  const generatedClass = exposureClassById.get('opl_generated_plugin_surfaces');
-  if (generatedClass?.sync_target !== 'opl_generated_codex_plugin_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
-    throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated local Codex plugin surface');
+  if (exposureClassById.has('opl_generated_plugin_surfaces')) {
+    throw new Error('Install exposure policy must not restore a fixed OPL-generated Package registry');
   }
   if (exposureClassById.has('companion_tools_codex_skills')) {
     throw new Error('Install exposure policy must not duplicate the Framework managed Skill inventory');
@@ -181,36 +174,6 @@ function validateExposureClasses(policy) {
   );
   if (!packagedRuntimeClass?.must_not_sync_to?.includes('implicit_user_codex_skill_install_without_managed_sync')) {
     throw new Error('Install exposure packaged Full runtime payloads must not imply user skill install without managed sync');
-  }
-}
-
-function validateDomainExposure(policy) {
-  const expectedDomainExposures = expectedDomainExposureEntryMap(
-    policy.domain_exposure,
-    expectedDomainExposureFromProductProfile(productProfile),
-    (domainId) => `Install exposure policy missing domain ${domainId}`,
-  );
-  for (const { expected, entry } of expectedDomainExposures) {
-    for (const [field, expectedValue] of Object.entries(expected)) {
-      if (entry[field] !== expectedValue) {
-        throw new Error(`Install exposure domain ${expected.domain_id}.${field} must be ${expectedValue}`);
-      }
-    }
-    if (entry.direct_skill_semantics_required !== true) {
-      throw new Error(`Install exposure domain ${expected.domain_id} must require direct skill semantics`);
-    }
-  }
-  for (const domainId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
-    if (expectedDomainExposures.find(({ expected }) => expected.domain_id === domainId)?.entry.default_home_visible !== true) {
-      throw new Error(`Install exposure domain ${domainId} must be visible on the default home path`);
-    }
-  }
-  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-meta-agent')?.entry.default_home_visible !== true) {
-    throw new Error('Install exposure policy must expose OMA through its default Home shortcut');
-  }
-  const bookforgeExposure = expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-bookforge')?.entry;
-  if (bookforgeExposure?.default_home_visible !== true || bookforgeExposure.home_purpose_entry !== 'book') {
-    throw new Error('Install exposure policy must expose BookForge through the default configurable Home shortcut');
   }
 }
 
@@ -721,7 +684,6 @@ export function validateInstallExposurePolicy(policy) {
   validateCanonicalMetadataSources(policy.canonical_metadata_sources);
   validatePublicAbi(policy.public_abi);
   validateExposureClasses(policy);
-  validateDomainExposure(policy);
   validateInstallerSurfaces(policy);
   validateFirstRunUserPresentation(policy.first_run_user_presentation);
   validateSetupFlowContract(policy.setup_flow_contract);

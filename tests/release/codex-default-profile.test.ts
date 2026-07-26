@@ -237,10 +237,10 @@ test('product profile has one presence-only Official Profile shared by Standard 
   assert.equal('resolver_currentness_authority' in profile.gui.agent_package_registry, false);
   assert.equal('installed_truth_authority' in profile.gui.agent_package_registry, false);
 
-  profile.gui.agent_package_registry.bundled_default_registry_allowed = true;
+  profile.gui.agent_package_registry.manifest_lock_receipt_parser_allowed = true;
   assert.throws(
     () => validateProductProfile(profile, installExposure),
-    /registries remain optional candidate sources/,
+    /without private metadata or lifecycle parsers/,
   );
 
   const syntheticOfficialRoot = structuredClone(readJson('contracts/app-product-profile.json'));
@@ -358,8 +358,8 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
   );
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 
-  profile.gui.home.home_agent_shortcuts = profile.gui.home.home_agent_shortcuts.slice(1);
-  assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
+  profile.gui.home.home_agent_shortcuts = [{ package_id: 'fixed-package-id' }];
+  assert.throws(() => validateProductProfile(profile, installExposure), /App-owned Home shortcut list/);
 
   const catalogDrift = structuredClone(readJson('contracts/app-product-profile.json'));
   catalogDrift.gui.ordinary_capability_selector_policy.palette_required_agent_package_ids = ['fixed-package-id'];
@@ -375,26 +375,19 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
   );
 });
 
-test('starter metadata stays localized without restoring an App-owned professional Agent overlay', () => {
+test('Package presentation stays owner-projected without App-owned starter metadata', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const completeProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   assert.equal('professional_agent_packages' in completeProfile.gui, false);
   assert.equal('professional_agent_packages_metadata_policy' in completeProfile.gui, false);
-  const starterMetadata = completeProfile.gui.agent_package_registry.starter_package_metadata;
-  const starterMetadataIds = starterMetadata.map((entry: any) => entry.package_id);
-  assert.equal(starterMetadataIds.every((packageId: unknown) => typeof packageId === 'string' && packageId.trim()), true);
-  assert.equal(new Set(starterMetadataIds).size, starterMetadataIds.length);
-  for (const entry of starterMetadata) {
-    assert.ok(entry.display_name_i18n['zh-CN'].trim(), entry.package_id);
-    assert.ok(entry.description_i18n['zh-CN'].trim(), entry.package_id);
-    assert.ok(entry.display_name_i18n['en-US'].trim(), entry.package_id);
-    assert.ok(entry.description_i18n['en-US'].trim(), entry.package_id);
-  }
+  assert.equal('starter_package_metadata' in completeProfile.gui.agent_package_registry, false);
+  assert.equal('first_party_manifest_fixture_dir' in completeProfile.gui.agent_package_registry, false);
+  assert.equal(completeProfile.gui.agent_package_registry.presentation_source, 'app_state.agent_packages.directory.entries');
   const dependencyCopyDrift = structuredClone(completeProfile);
-  dependencyCopyDrift.gui.agent_package_registry.starter_package_metadata[0].description_i18n['zh-CN'] = '';
+  dependencyCopyDrift.gui.agent_package_registry.starter_package_metadata = [{ package_id: 'fixed-package-id' }];
   assert.throws(
     () => validateProductProfile(dependencyCopyDrift, installExposure),
-    /incomplete or not localized/,
+    /must not restore private Package consumer field starter_package_metadata/,
   );
 });
 
@@ -403,26 +396,6 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
   const guidHome = matrix.pages.find((page: any) => page.id === 'guid_home');
   const home = guidHome.home_view_model;
 
-  home.default_assistant_required_skills = {
-    'community-clinical-agent': ['owner-required-capability'],
-  };
-  home.default_agent_package_required_skills = {
-    'community-clinical-agent': ['owner-required-capability'],
-  };
-  home.home_agent_shortcuts = [{
-    shortcut_id: 'community-clinical',
-    package_id: 'community-clinical-agent',
-    primary_label: '临床',
-    package_short_name: 'CCA',
-    codex_visible_entry: 'community-clinical-plugin',
-    required_skill_ids: ['owner-required-capability'],
-    source: 'opl_app_home',
-    executor: 'codex_cli',
-    display_policy: 'purpose_first',
-    home_entry_policy: 'visible_click_to_start',
-    default_visible: false,
-    user_configurable: true,
-  }];
   assert.equal('default_assistants' in home, false);
   assert.equal('default_assistant_purpose_labels' in home, false);
   assert.equal('home_purpose_entries' in home, false);
@@ -492,10 +465,10 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
 
   const nonConfigurableShortcut = structuredClone(matrix);
   nonConfigurableShortcut.pages.find((page: any) => page.id === 'guid_home').home_view_model
-    .home_agent_shortcuts[0].user_configurable = false;
+    .home_agent_shortcuts = [{ package_id: 'fixed-package-id' }];
   assert.throws(
     () => validatePrimaryInteractionPages(nonConfigurableShortcut),
-    /generic Codex route shape/,
+    /private Agent route field home_agent_shortcuts/,
   );
 });
 
@@ -1369,9 +1342,12 @@ test('page-state matrix rejects Codex Auto policy source drift', () => {
   assert.throws(() => validatePrimaryInteractionPages(matrix));
 });
 
-test('GUI contract rejects allowing Settings to execute Agent package activation', () => {
+test('GUI contract rejects restoring private Package activation authority', () => {
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.agent_package_activation_policy.shell_execution_policy.settings_execution_allowed = true;
+  assert.equal('agent_package_activation_policy' in guiContract, false);
+  guiContract.agent_package_activation_policy = {
+    internal_action_id: 'fixed-private-action',
+  };
 
   assert.throws(
     () => validateAppGuiProductContract(
@@ -1379,35 +1355,6 @@ test('GUI contract rejects allowing Settings to execute Agent package activation
       readJson('contracts/app-release-channel.json'),
       readJson('contracts/app-install-exposure-policy.json'),
     ),
-    /Shell activation prohibition/,
-  );
-});
-
-test('GUI contract rejects allowing ordinary composer send to execute Agent package activation', () => {
-  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.agent_package_activation_policy.shell_execution_policy.ordinary_composer_send_execution_allowed = true;
-
-  assert.throws(
-    () => validateAppGuiProductContract(
-      guiContract,
-      readJson('contracts/app-release-channel.json'),
-      readJson('contracts/app-install-exposure-policy.json'),
-    ),
-    /Shell activation prohibition/,
-  );
-});
-
-test('GUI contract rejects substituting session cwd for StageRun workspace locator', () => {
-  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.agent_package_activation_policy.workspace_policy
-    .selected_project_directory_is_activation_target = true;
-
-  assert.throws(
-    () => validateAppGuiProductContract(
-      guiContract,
-      readJson('contracts/app-release-channel.json'),
-      readJson('contracts/app-install-exposure-policy.json'),
-    ),
-    /Framework Stage runtime-only|ordinary send/,
+    /must not restore private Package activation authority/,
   );
 });

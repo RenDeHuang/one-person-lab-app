@@ -10,17 +10,15 @@ import {
   appOwnedRightContextInspectorPolicy,
   appOwnedSessionWorkspaceModel,
 } from './app-contract-constants.ts';
-import {
-  assertCapabilityReferenceListShape,
-} from '../app-product-profile-shared-validators.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
-const optionalDisplayMetadataPolicy = {
+const dynamicPackagePresentationPolicy = {
   homeShortcuts: {
-    role: 'optional_migration_and_display_metadata',
-    allowed_uses: ['localized_label_fallback', 'shortcut_alias_migration'],
-    forbidden_authority: ['catalog_membership', 'installed', 'present', 'callable', 'visibility', 'sort_order', 'actions'],
-    runtime_authority_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    role: 'owner_projected_package_presentation',
+    shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
+    preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    package_id_allowlist_allowed: false,
+    fallback_policy: 'omit_invalid_shortcut_and_preserve_other_packages',
   },
 };
 
@@ -136,16 +134,11 @@ function validateHomeLayout(guiContract) {
   }
   assertDeepEqualJson(
     Object.fromEntries(
-      Object.entries(guiContract.ordinary_conversation ?? {}).filter(
-        ([key]) => !['current_task_slice', 'agent_package_invocation_receipt_required'].includes(key),
-      ),
+      Object.entries(guiContract.ordinary_conversation ?? {}).filter(([key]) => key !== 'current_task_slice'),
     ),
     appOwnedGuiContractOrdinaryConversation,
     'App GUI ordinary conversation contract',
   );
-  if (guiContract.ordinary_conversation?.agent_package_invocation_receipt_required !== true) {
-    throw new Error('App GUI ordinary conversation must require agent package invocation receipts');
-  }
   assertDeepEqualJson(
     Object.fromEntries(
       Object.entries(guiContract.ordinary_conversation?.current_task_slice ?? {}).filter(([key]) => key !== 'fields'),
@@ -386,34 +379,11 @@ function validateRightContextInspector(guiContract) {
 function validateHomeShortcutCompatibilityMetadata(guiContract) {
   assertDeepEqualJson(
     guiContract.home_agent_shortcuts_metadata_policy,
-    optionalDisplayMetadataPolicy.homeShortcuts,
-    'App GUI contract Home shortcut metadata policy',
+    dynamicPackagePresentationPolicy.homeShortcuts,
+    'App GUI contract Home shortcut projection policy',
   );
-  const shortcuts = guiContract.home_agent_shortcuts ?? [];
-  const shortcutIds = shortcuts.map((entry) => entry.shortcut_id);
-  if (
-    shortcutIds.some((shortcutId) => typeof shortcutId !== 'string' || !shortcutId.trim()) ||
-    new Set(shortcutIds).size !== shortcutIds.length
-  ) {
-    throw new Error('App GUI contract Home shortcut metadata ids must be non-empty and unique');
-  }
-  for (const entry of shortcuts) {
-    assertCapabilityReferenceListShape(
-      entry.required_skill_ids,
-      `App GUI home agent shortcut ${entry.shortcut_id} required_skill_ids`,
-    );
-    if (
-      entry.executor !== 'codex_cli' ||
-      entry.source !== 'opl_app_home' ||
-      entry.display_policy !== 'purpose_first' ||
-      entry.home_entry_policy !== 'visible_click_to_start' ||
-      entry.user_configurable !== true
-    ) {
-      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
-    }
-    if (typeof entry.default_visible !== 'boolean') {
-      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must declare boolean display metadata`);
-    }
+  if ('home_agent_shortcuts' in guiContract) {
+    throw new Error('App GUI contract must not restore an App-owned Home shortcut list');
   }
 }
 
@@ -425,6 +395,7 @@ function validateNoFixedAgentHomePresentation(guiContract) {
     'retired_domain_agents',
     'professional_agent_packages',
     'professional_agent_packages_metadata_policy',
+    'home_agent_shortcuts',
   ]) {
     if (field in guiContract) {
       throw new Error(`App GUI contract must not restore fixed Agent/Home presentation field ${field}`);
@@ -432,9 +403,9 @@ function validateNoFixedAgentHomePresentation(guiContract) {
   }
   if (
     guiContract.home_layout?.home_presentation_source_ref !==
-    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + home_agent_shortcuts optional migration/display metadata only'
+    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
   ) {
-    throw new Error('App GUI Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
+    throw new Error('App GUI Home presentation must come from the dynamic Agent directory and preferences');
   }
 }
 

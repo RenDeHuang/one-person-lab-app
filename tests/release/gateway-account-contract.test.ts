@@ -10,89 +10,55 @@ import {
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
-test('Fast App state fixture uses the exact public Agent Package directory and action ABI', () => {
+test('Fast App state fixture exposes a generic Package directory envelope', () => {
   const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
   assert.doesNotThrow(() => validateOplAppStateFastAgentPackageDirectoryFixture(fixture));
 
   const directory = fixture.app_state.agent_packages.directory;
-  assert.equal(directory.surface_kind, 'opl_agent_package_directory.v1');
-  assert.equal(directory.detail, 'fast');
-  assert.equal(directory.entries.length, 3);
-  assert.ok(directory.entries.some((entry: any) => !entry.installed && entry.recommended_action === 'install_from_manifest_url'));
-  assert.ok(directory.entries.some((entry: any) =>
-    entry.installed
-    && !entry.activated
-    && entry.readiness.status === 'activation_required'
-    && entry.recommended_action === null
-    && entry.recommended_action_ref === null
-  ));
-  assert.ok(directory.entries.some((entry: any) =>
-    entry.installed
-    && entry.activated
-    && entry.readiness.status === 'verification_deferred'
-    && entry.readiness.verification_deferred === true
-    && entry.readiness.operational_ready === false
-    && entry.readiness.launch_allowed === false
-  ));
+  assert.ok(directory.entries.length > 0);
   assert.equal(
-    directory.entries.some((entry: any) =>
-      entry.available_actions.some((action: any) => action.action_id === 'agent_package_activate')),
-    false,
+    new Set(directory.entries.map((entry: any) => entry.package_id)).size,
+    directory.entries.length,
   );
-  assert.equal(
-    fixture.app_state.actions.some((action: any) => action.action_id === 'agent_package_activate'),
-    false,
-  );
+  for (const entry of directory.entries) {
+    assert.equal(typeof entry.package_id, 'string');
+    assert.equal(typeof entry.display_name, 'string');
+    assert.equal(typeof entry.description, 'string');
+    assert.equal(typeof entry.package_role, 'string');
+    assert.equal(typeof entry.installed, 'boolean');
+    assert.equal(typeof entry.readiness, 'object');
+    assert.ok(Array.isArray(entry.available_actions));
+  }
+
   const packageContract = readJson('contracts/app-runtime-bridge.json')
     .canonical_state_display_action_map.rows.find((row: any) => row.semantic_area === 'package');
-  assert.ok(packageContract.required_projection_fields['status_index.packages[package_id]']);
-  assert.equal(packageContract.optional_enrichment_fields['status_index.packages[package_id]'], undefined);
+  assert.deepEqual(packageContract.required_projection_fields['status_index.packages[package_id]'], [
+    'presence',
+    'dependent_guard',
+    'capability_exposure',
+    'runtime_source_readiness',
+    'status_read_error',
+  ]);
+  assert.equal(packageContract.action_id_allowlist_allowed, false);
 });
 
-test('Fast Agent Package directory rejects public action, source, and readiness ABI drift', () => {
+test('Fast Package directory rejects malformed generic envelopes', () => {
   const cases = [
     (fixture: any) => {
-      delete fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref;
+      delete fixture.app_state.agent_packages.directory.entries[0].package_id;
     },
     (fixture: any) => {
-      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].unexpected = true;
+      delete fixture.app_state.agent_packages.directory.entries[0].display_name;
     },
     (fixture: any) => {
-      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref =
-        'app_state.actions#wrong_action';
+      fixture.app_state.agent_packages.directory.entries[0].available_actions = null;
     },
     (fixture: any) => {
-      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].required_payload_fields =
-        [''];
+      fixture.app_state.agent_packages.directory.entries[1].package_id =
+        fixture.app_state.agent_packages.directory.entries[0].package_id;
     },
     (fixture: any) => {
-      fixture.app_state.agent_packages.directory.entries[0].recommended_action_ref.payload.package_id = 'wrong-package';
-    },
-    (fixture: any) => {
-      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) =>
-        candidate.installed && !candidate.activated);
-      entry.available_actions.push({
-        action_id: 'agent_package_activate',
-        action_ref: 'app_state.actions#agent_package_activate',
-        payload: { package_id: entry.package_id },
-        required_payload_fields: ['package_id', 'target_workspace'],
-        confirmation_required: false,
-      });
-    },
-    (fixture: any) => {
-      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.activated);
-      entry.readiness.status = 'ready';
-      entry.readiness.verification_deferred = false;
-      entry.readiness.reason = null;
-    },
-    (fixture: any) => {
-      delete fixture.app_state.agent_packages.directory.entries[0].source_explanation.version_source_ref;
-    },
-    (fixture: any) => {
-      fixture.app_state.actions.push({
-        action_id: 'agent_package_activate',
-        label: 'Prepare package for launch',
-      });
+      fixture.app_state.agent_packages.status_index = [];
     },
   ];
 
