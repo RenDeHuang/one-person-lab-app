@@ -37,7 +37,21 @@ if (
     throw 'Platform lease request is outside the current C-root contract.'
 }
 $isV6 = $Name -eq 'OPL-V6-WSL2-01'
-$expectedOwner = if ($isV6) { '019f97e4-288a-7140-8850-925c657d8c71' } else { '019f972b-f550-7961-90be-9873600cd895' }
+$sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855'
+$platformOwnerTaskId = [string]$request.platform_owner_task_id
+if (
+    $platformOwnerTaskId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -or
+    $platformOwnerTaskId -eq $sourceCustodianTaskId
+) {
+    throw 'Platform lease requires a distinct activated native-Windows owner task ID.'
+}
+$expectedOwner = if ($isV6) { [string]$request.execution_owner_thread } else { $platformOwnerTaskId }
+if ($isV6 -and $expectedOwner -eq $sourceCustodianTaskId) {
+    throw 'The V6 executor task must be distinct from the source custodian.'
+}
+if ($isV6 -and $expectedOwner -eq $platformOwnerTaskId) {
+    throw 'The V6 executor task must be distinct from the native-Windows platform owner.'
+}
 $expectedLeaseId = if ($isV6) { 'opl-v6-wsl2-01' } else { 'opl-webui-clean-01' }
 $expectedGuestPath = Join-Path $Root "Guests\$Name"
 $expectedConfigPath = Join-Path $expectedGuestPath 'Virtual Machines'
@@ -250,6 +264,7 @@ $lease = [ordered]@{
     released_at = $null
     lease_id = $request.lease_id
     vm_name = $Name
+    platform_owner_task_id = $platformOwnerTaskId
     execution_owner_thread = $request.execution_owner_thread
     previous_owner_thread = $request.lease_transition.previous_owner_thread
     next_owner_thread = $request.lease_transition.next_owner_thread

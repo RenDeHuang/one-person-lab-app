@@ -52,8 +52,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $name = 'OPL-V6-WSL2-01'
-$platformOwnerTaskId = '019f972b-f550-7961-90be-9873600cd895'
-$executorTaskId = '019f97e4-288a-7140-8850-925c657d8c71'
+$sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855'
 $expectedGuestRoot = Join-Path $Root 'Guests\OPL-V6-WSL2-01'
 $expectedConfigRoot = Join-Path $expectedGuestRoot 'Virtual Machines'
 $expectedEvidenceRoot = Join-Path $expectedGuestRoot 'Evidence'
@@ -103,11 +102,18 @@ $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $platformLease = Get-Content -LiteralPath $platformLeasePath -Raw | ConvertFrom-Json
 $attestation = Get-Content -LiteralPath $attestationPath -Raw | ConvertFrom-Json
+$platformOwnerTaskId = [string]$request.platform_owner_task_id
+$executorTaskId = [string]$request.execution_owner_thread
 if (
     $request.schema -ne 'opl_windows_vm_lease_request.v2' -or
     $request.status -ne 'prepared_factory_ready' -or
     $request.factory_root -ne $canonicalRoot -or
     $request.vm_name -ne $name -or
+    $platformOwnerTaskId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -or
+    $platformOwnerTaskId -eq $sourceCustodianTaskId -or
+    $executorTaskId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -or
+    $executorTaskId -eq $sourceCustodianTaskId -or
+    $executorTaskId -eq $platformOwnerTaskId -or
     $request.execution_owner_thread -ne $executorTaskId -or
     $request.lease_transition.next_owner_thread -ne $executorTaskId -or
     $request.lease_id -ne 'opl-v6-wsl2-01' -or
@@ -133,7 +139,10 @@ if (
     $manifest.target.factory_root -ne $canonicalRoot -or
     $manifest.target.vm_name -ne $name -or
     $manifest.target.host_platform -ne 'windows_hyperv' -or
-    $manifest.target.clean_vm_required -ne $true
+    $manifest.target.clean_vm_required -ne $true -or
+    $manifest.authority_bindings.source_custodian_task_id -ne $sourceCustodianTaskId -or
+    $manifest.authority_bindings.platform_owner_task_id -ne $platformOwnerTaskId -or
+    $manifest.authority_bindings.executor_task_id -ne $executorTaskId
 ) {
     throw 'V6 intake manifest is outside the fresh Windows platform contract.'
 }
@@ -153,6 +162,7 @@ if (
     $platformLease.status -ne 'active' -or
     $platformLease.factory_root -ne $canonicalRoot -or
     $platformLease.vm_name -ne $name -or
+    $platformLease.platform_owner_task_id -ne $platformOwnerTaskId -or
     $platformLease.execution_owner_thread -ne $executorTaskId -or
     $platformLease.next_owner_thread -ne $executorTaskId -or
     $platformLease.lease_id -ne 'opl-v6-wsl2-01' -or

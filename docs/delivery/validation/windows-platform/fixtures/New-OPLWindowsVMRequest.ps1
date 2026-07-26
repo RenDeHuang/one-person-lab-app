@@ -24,6 +24,12 @@ param(
     [ValidatePattern('^[0-9a-f]{64}$')]
     [string]$StorageProbeReceiptSha256,
 
+    [ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')]
+    [string]$PlatformOwnerTaskId,
+
+    [ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')]
+    [string]$ExecutionOwnerThread,
+
     [string]$Root = 'C:\OPL-VMs'
 )
 
@@ -58,10 +64,26 @@ if ((Get-FileHash -Algorithm SHA256 -LiteralPath $storageProbeReceiptPath).Hash.
 }
 
 $isV6 = $Name -eq 'OPL-V6-WSL2-01'
-$executionOwner = if ($isV6) {
-    '019f97e4-288a-7140-8850-925c657d8c71'
-} else {
-    '019f972b-f550-7961-90be-9873600cd895'
+$sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855'
+if ([string]::IsNullOrWhiteSpace($PlatformOwnerTaskId)) {
+    throw 'Request generation requires a fresh activated native-Windows platform owner task ID.'
+}
+$platformOwnerTaskId = $PlatformOwnerTaskId.ToLowerInvariant()
+if ($platformOwnerTaskId -eq $sourceCustodianTaskId) {
+    throw 'The native-Windows platform owner must be distinct from the source custodian.'
+}
+if ($isV6 -and [string]::IsNullOrWhiteSpace($ExecutionOwnerThread)) {
+    throw 'V6 request generation requires a fresh activated executor task ID.'
+}
+if (-not $isV6 -and -not [string]::IsNullOrWhiteSpace($ExecutionOwnerThread)) {
+    throw 'WebUI requests remain platform-owned and do not accept an executor override.'
+}
+$executionOwner = if ($isV6) { $ExecutionOwnerThread.ToLowerInvariant() } else { $platformOwnerTaskId }
+if ($isV6 -and $executionOwner -eq $sourceCustodianTaskId) {
+    throw 'The V6 executor task must be distinct from the source custodian.'
+}
+if ($isV6 -and $executionOwner -eq $platformOwnerTaskId) {
+    throw 'The V6 executor task must be distinct from the native-Windows platform owner.'
 }
 $guestRoot = Join-Path $resolvedRoot "Guests\$Name"
 $evidenceRoot = Join-Path $guestRoot 'Evidence'
@@ -75,6 +97,7 @@ $request = [ordered]@{
     factory_root = $canonicalRoot
     lease_id = if ($isV6) { 'opl-v6-wsl2-01' } else { 'opl-webui-clean-01' }
     vm_name = $Name
+    platform_owner_task_id = $platformOwnerTaskId
     execution_owner_thread = $executionOwner
     source_contract = [ordered]@{
         app_acceptance_sha = $AppAcceptanceSha

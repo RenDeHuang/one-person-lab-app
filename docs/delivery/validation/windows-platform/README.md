@@ -9,8 +9,9 @@ runtime namespace, or receipt namespace may resolve below that recovery tree.
 
 The factory creates two isolated Simplified Chinese Windows 11 VMs:
 
-- `OPL-V6-WSL2-01`, whose only guest writer is task
-  `019f97e4-288a-7140-8850-925c657d8c71` after an exact V6 writer lease;
+- `OPL-V6-WSL2-01`, whose guest writer remains unassigned until a fresh
+  Windows-host activation receipt is bound into the immutable packet and exact
+  V6 writer lease;
 - `OPL-WEBUI-CLEAN-01`, which remains powered off with WebUI runtime authority
   `0` until a separate operation is authorized.
 

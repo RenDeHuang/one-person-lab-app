@@ -38,8 +38,12 @@ param(
   [string]$RunId,
 
   [Parameter(Mandatory = $true)]
-  [ValidatePattern('^[0-9a-f-]{36}$')]
+  [ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')]
   [string]$PlatformOwnerTaskId,
+
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')]
+  [string]$ExecutorTaskId,
 
   [Parameter(Mandatory = $true)]
   [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._:-]{2,160}$')]
@@ -69,7 +73,14 @@ $validationGateName = 'OPL_WINDOWS_WSL2_VALIDATION'
 $validationGateValue = '1'
 $validationDistro = 'OPL-Validation-g0001'
 $approvedRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
-$expectedPlatformOwnerTaskId = '019f972b-f550-7961-90be-9873600cd895'
+$sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855'
+if (
+  $PlatformOwnerTaskId -eq $sourceCustodianTaskId -or
+  $ExecutorTaskId -eq $sourceCustodianTaskId -or
+  $ExecutorTaskId -eq $PlatformOwnerTaskId
+) {
+  throw 'The source custodian, native-Windows platform owner, and V6 executor must be distinct.'
+}
 $expectedZipPath = Join-Path $approvedRoot 'OPL-Windows-WSL2-Validation-v6.zip'
 $expectedWriterLeasePath = Join-Path $approvedRoot 'writer-lease.json'
 $expectedIntakeManifestPath = Join-Path $approvedRoot 'windows-wsl2-v6-intake-manifest.json'
@@ -1319,7 +1330,7 @@ $receipt = [ordered]@{
     vm_name = 'OPL-V6-WSL2-01'
     writer_lease = [ordered]@{
       platform_owner_task_id = $PlatformOwnerTaskId
-      executor_task_id = '019f97e4-288a-7140-8850-925c657d8c71'
+      executor_task_id = $ExecutorTaskId
       lease_id = $WriterLeaseId
       issued_at = $WriterLeaseIssuedAt.ToUniversalTime().ToString('o')
       expires_at = $WriterLeaseExpiresAt.ToUniversalTime().ToString('o')
@@ -1538,7 +1549,10 @@ public static class OplValidationNativeWindow
     $intakeManifest.target.validation_root -ne $approvedRoot -or
     $intakeManifest.source_refs.app_acceptance_sha -ne $AppSha.ToLowerInvariant() -or
     $intakeManifest.source_refs.shell.git_sha -ne $ShellSha.ToLowerInvariant() -or
-    $intakeManifest.source_refs.framework_fixture_sha -ne $FrameworkSha.ToLowerInvariant()
+    $intakeManifest.source_refs.framework_fixture_sha -ne $FrameworkSha.ToLowerInvariant() -or
+    $intakeManifest.authority_bindings.source_custodian_task_id -ne $sourceCustodianTaskId -or
+    $intakeManifest.authority_bindings.platform_owner_task_id -ne $PlatformOwnerTaskId -or
+    $intakeManifest.authority_bindings.executor_task_id -ne $ExecutorTaskId
   ) {
     throw 'V6 intake manifest does not match the authorized source packet'
   }
@@ -1585,9 +1599,8 @@ public static class OplValidationNativeWindow
     $writerLease.factory_root -ne 'C:\OPL-VMs' -or
     $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
     $writerLease.vm_identity -ne $VmIdentity -or
-    $PlatformOwnerTaskId -ne $expectedPlatformOwnerTaskId -or
-    $writerLease.platform_owner_task_id -ne $expectedPlatformOwnerTaskId -or
-    $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
+    $writerLease.platform_owner_task_id -ne $PlatformOwnerTaskId -or
+    $writerLease.executor_task_id -ne $ExecutorTaskId -or
     $writerLease.request.schema -ne 'opl_windows_vm_lease_request.v2' -or
     $writerLease.request.factory_root -ne 'C:\OPL-VMs' -or
     $writerLease.packet.manifest_sha256 -ne $actualIntakeManifestSha256 -or

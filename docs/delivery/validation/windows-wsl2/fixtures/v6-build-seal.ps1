@@ -291,11 +291,11 @@ if (
   $manifest.source_refs.shell.git_sha -ne $shellSha -or
   $manifest.source_refs.shell.root_tree_sha -ne $shellTreeSha -or
   $manifest.source_refs.framework_fixture_sha -ne
-    'fe1fafa26f2c59922596718b305761bbc7558c9c' -or
+    'e260ad46e2cf73ea334d2453d901ee448248d9e0' -or
   $manifest.source_refs.framework.repository -ne
     'https://github.com/gaofeng21cn/one-person-lab.git' -or
   $manifest.source_refs.framework.root_tree_sha -ne
-    '5b27bf9fbe74815446e9ee401e81e0a192973d75' -or
+    '6b72719e34a5dc8ac522a758296436be0c97b1bd' -or
   $manifest.source_refs.framework.cli_blob_git_sha -ne
     '9a81790365e5140c7965cad870c109c6afa4b564' -or
   $manifest.source_refs.framework.cli_blob_sha256 -ne
@@ -318,9 +318,16 @@ if (
   $writerLease.vm_name -ne 'OPL-V6-WSL2-01' -or
   $writerLease.vm_identity -notmatch
     '^hyperv-vmid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -or
+  $manifest.authority_bindings.source_custodian_task_id -ne
+    '019f9bc5-8707-78b2-b221-5453d9d9b855' -or
+  $writerLease.platform_owner_task_id -eq
+    $manifest.authority_bindings.source_custodian_task_id -or
+  $writerLease.executor_task_id -eq
+    $manifest.authority_bindings.source_custodian_task_id -or
+  $writerLease.executor_task_id -eq $writerLease.platform_owner_task_id -or
+  $writerLease.executor_task_id -ne $manifest.authority_bindings.executor_task_id -or
   $writerLease.platform_owner_task_id -ne
-    '019f972b-f550-7961-90be-9873600cd895' -or
-  $writerLease.executor_task_id -ne '019f97e4-288a-7140-8850-925c657d8c71' -or
+    $manifest.authority_bindings.platform_owner_task_id -or
   $writerLease.request.schema -ne 'opl_windows_vm_lease_request.v2' -or
   $writerLease.request.factory_root -ne 'C:\OPL-VMs' -or
   $writerLease.packet.manifest_sha256 -ne $actualManifestSha256 -or

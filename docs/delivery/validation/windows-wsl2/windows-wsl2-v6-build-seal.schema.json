@@ -91,10 +91,10 @@
           "const": "1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7"
         },
         "framework_fixture_sha": {
-          "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+          "const": "e260ad46e2cf73ea334d2453d901ee448248d9e0"
         },
         "framework_tree_sha": {
-          "const": "5b27bf9fbe74815446e9ee401e81e0a192973d75"
+          "const": "6b72719e34a5dc8ac522a758296436be0c97b1bd"
         },
         "framework_cli_blob_git_sha": {
           "const": "9a81790365e5140c7965cad870c109c6afa4b564"

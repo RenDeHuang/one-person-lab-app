@@ -172,13 +172,20 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["path", "sha256", "request_sha256", "vm_identity", "executor_task_id", "powered_off", "operation_count"],
+          "required": ["path", "sha256", "request_sha256", "vm_identity", "platform_owner_task_id", "executor_task_id", "powered_off", "operation_count"],
           "properties": {
             "path": { "const": "C:\\OPL-VMs\\Leases\\OPL-V6-WSL2-01.writer-lease.json" },
             "sha256": { "$ref": "#/$defs/sha256" },
             "request_sha256": { "$ref": "#/$defs/sha256" },
             "vm_identity": { "type": "string", "pattern": "^hyperv-vmid:[0-9a-f-]{36}$" },
-            "executor_task_id": { "const": "019f97e4-288a-7140-8850-925c657d8c71" },
+            "platform_owner_task_id": {
+              "$ref": "#/$defs/uuid",
+              "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+            },
+            "executor_task_id": {
+              "$ref": "#/$defs/uuid",
+              "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+            },
             "powered_off": { "const": true },
             "operation_count": { "const": 0 }
           }

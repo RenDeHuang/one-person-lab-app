@@ -13,6 +13,7 @@
     "released_at",
     "lease_id",
     "vm_name",
+    "platform_owner_task_id",
     "execution_owner_thread",
     "previous_owner_thread",
     "next_owner_thread",
@@ -46,9 +47,13 @@
     "released_at": { "type": ["string", "null"], "format": "date-time" },
     "lease_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,80}$" },
     "vm_name": { "enum": ["OPL-V6-WSL2-01", "OPL-WEBUI-CLEAN-01"] },
-    "execution_owner_thread": { "type": "string", "pattern": "^[0-9a-f-]{36}$" },
+    "platform_owner_task_id": {
+      "$ref": "#/$defs/uuid",
+      "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+    },
+    "execution_owner_thread": { "$ref": "#/$defs/uuid" },
     "previous_owner_thread": { "type": ["string", "null"] },
-    "next_owner_thread": { "type": "string", "pattern": "^[0-9a-f-]{36}$" },
+    "next_owner_thread": { "$ref": "#/$defs/uuid" },
     "source_contract": {
       "type": "object",
       "additionalProperties": false,
@@ -141,8 +146,12 @@
       "then": {
         "properties": {
           "lease_id": { "const": "opl-v6-wsl2-01" },
-          "execution_owner_thread": { "const": "019f97e4-288a-7140-8850-925c657d8c71" },
-          "next_owner_thread": { "const": "019f97e4-288a-7140-8850-925c657d8c71" },
+          "execution_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
+          "next_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
           "config_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Virtual Machines" },
           "active_vhdx_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-V6-WSL2-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
           "vhdx_chain": { "items": { "$ref": "#/$defs/v6VhdxEntry" } },
@@ -178,8 +187,12 @@
       "then": {
         "properties": {
           "lease_id": { "const": "opl-webui-clean-01" },
-          "execution_owner_thread": { "const": "019f972b-f550-7961-90be-9873600cd895" },
-          "next_owner_thread": { "const": "019f972b-f550-7961-90be-9873600cd895" },
+          "execution_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
+          "next_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
           "config_path": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Virtual Machines" },
           "active_vhdx_path": { "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-WEBUI-CLEAN-01\\\\Virtual Hard Disks\\\\.+\\.(?:avhdx|vhdx)$" },
           "vhdx_chain": { "items": { "$ref": "#/$defs/webuiVhdxEntry" } },

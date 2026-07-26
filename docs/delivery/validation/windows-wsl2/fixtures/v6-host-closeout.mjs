@@ -17,8 +17,7 @@ const LEASE_SCHEMA = 'opl_windows_v6_vm_writer_lease.v2';
 const GUEST_STAGE = 'guest_smoke_pending_host_closeout';
 const VALIDATION_STATE = 'validation_only_non_binding';
 const VM_NAME = 'OPL-V6-WSL2-01';
-const EXECUTOR_TASK_ID = '019f97e4-288a-7140-8850-925c657d8c71';
-const PLATFORM_OWNER_TASK_ID = '019f972b-f550-7961-90be-9873600cd895';
+const SOURCE_CUSTODIAN_TASK_ID = '019f9bc5-8707-78b2-b221-5453d9d9b855';
 const HYPERV_IDENTITY_PREFIX = 'hyperv-vmid:';
 
 function parseArgs(argv) {
@@ -260,8 +259,8 @@ function validateLease({ lease, expected, now }) {
   assert.equal(lease.factory_root, 'C:\\OPL-VMs');
   assert.equal(lease.vm_name, VM_NAME);
   assert.equal(lease.vm_identity, expected.vmIdentity);
-  assert.equal(lease.executor_task_id, EXECUTOR_TASK_ID);
-  assert.equal(lease.platform_owner_task_id, PLATFORM_OWNER_TASK_ID);
+  assert.equal(lease.executor_task_id, expected.executorTaskId);
+  assert.equal(lease.platform_owner_task_id, expected.platformOwnerTaskId);
   assert.equal(lease.request.factory_root, 'C:\\OPL-VMs');
   assert.equal(lease.packet.manifest_sha256, expected.intakeManifestSha256);
   assert.match(lease.request.path, /^C:\\OPL-VMs\\Leases\\OPL-V6-WSL2-01\.request\.json$/i);
@@ -339,6 +338,14 @@ function validateGuestReceipt({
   assert.equal(receipt.vm.identity, expected.vmIdentity);
   assert.equal(receipt.vm.host_platform, 'windows_hyperv');
   assert.equal(receipt.vm.vm_name, VM_NAME);
+  assert.equal(
+    receipt.vm.writer_lease.platform_owner_task_id,
+    expected.platformOwnerTaskId,
+  );
+  assert.equal(
+    receipt.vm.writer_lease.executor_task_id,
+    expected.executorTaskId,
+  );
   assert.equal(
     receipt.vm.writer_lease.receipt_sha256,
     expected.writerLeaseSha256,
@@ -466,6 +473,15 @@ export async function runHostCloseout(rawOptions, injected = {}) {
   );
   assert.equal(intakeManifest.target.factory_root, 'C:\\OPL-VMs');
   assert.equal(intakeManifest.source_refs.framework.git_sha, expected.frameworkSha);
+  expected.platformOwnerTaskId = intakeManifest.authority_bindings.platform_owner_task_id;
+  expected.executorTaskId = intakeManifest.authority_bindings.executor_task_id;
+  assert.equal(
+    intakeManifest.authority_bindings.source_custodian_task_id,
+    SOURCE_CUSTODIAN_TASK_ID,
+  );
+  assert.notEqual(expected.platformOwnerTaskId, SOURCE_CUSTODIAN_TASK_ID);
+  assert.notEqual(expected.executorTaskId, SOURCE_CUSTODIAN_TASK_ID);
+  assert.notEqual(expected.executorTaskId, expected.platformOwnerTaskId);
 
   const buildReceiptSha256 = sha256File(options.buildReceipt);
   assert.equal(
@@ -596,7 +612,7 @@ export async function runHostCloseout(rawOptions, injected = {}) {
     vm_name: VM_NAME,
     vm_identity: vmIdentity,
     vm_state: vmAfter.state,
-    previous_executor_task_id: EXECUTOR_TASK_ID,
+    previous_executor_task_id: expected.executorTaskId,
     platform_owner_task_id: writerLease.platform_owner_task_id,
     lease_id: writerLease.lease_id,
     lease_sha256: writerLeaseSha256,

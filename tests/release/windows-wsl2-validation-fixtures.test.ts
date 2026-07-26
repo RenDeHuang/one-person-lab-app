@@ -84,12 +84,15 @@ function writeJson(filePath: string, value: unknown) {
 const refs = {
   appSha: '1'.repeat(40),
   shellSha: '868d6e818583547a5ec982b10b34464a3fa47c10',
-  frameworkSha: 'fe1fafa26f2c59922596718b305761bbc7558c9c',
-  frameworkTreeSha: '5b27bf9fbe74815446e9ee401e81e0a192973d75',
+  frameworkSha: 'e260ad46e2cf73ea334d2453d901ee448248d9e0',
+  frameworkTreeSha: '6b72719e34a5dc8ac522a758296436be0c97b1bd',
   frameworkCliBlobGitSha: '9a81790365e5140c7965cad870c109c6afa4b564',
   frameworkCliBlobSha256:
     'e040d5ddab2e4c6cb660e5ba728e61172fe9e7e2f272974b19c7c4b653e159a5',
 };
+const sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855';
+const platformOwnerTaskId = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+const executorTaskId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 const vmId = '11111111-2222-3333-4444-555555555555';
 const vmIdentity = `hyperv-vmid:${vmId}`;
 const leaseId = 'v6-lease-20260725-01';
@@ -135,8 +138,8 @@ function makeLease(manifestSha256 = '8'.repeat(64)) {
     factory_root: 'C:\\OPL-VMs',
     vm_name: 'OPL-V6-WSL2-01',
     vm_identity: vmIdentity,
-    platform_owner_task_id: '019f972b-f550-7961-90be-9873600cd895',
-    executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
+    platform_owner_task_id: platformOwnerTaskId,
+    executor_task_id: executorTaskId,
     lease_id: leaseId,
     issued_at: leaseTimes.issuedAt,
     expires_at: leaseTimes.expiresAt,
@@ -201,6 +204,11 @@ function makeIntakeManifest() {
     validation_state: 'validation_only_non_binding',
     authority: 'one_person_lab_app_acceptance_contract',
     terminal_v6_verdict: false,
+    authority_bindings: {
+      source_custodian_task_id: sourceCustodianTaskId,
+      platform_owner_task_id: platformOwnerTaskId,
+      executor_task_id: executorTaskId,
+    },
     target: {
       host_platform: 'windows_hyperv',
       vm_name: 'OPL-V6-WSL2-01',
@@ -459,8 +467,8 @@ function makeGuestReceipt({
       host_platform: 'windows_hyperv',
       vm_name: 'OPL-V6-WSL2-01',
       writer_lease: {
-        platform_owner_task_id: '019f972b-f550-7961-90be-9873600cd895',
-        executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
+        platform_owner_task_id: platformOwnerTaskId,
+        executor_task_id: executorTaskId,
         lease_id: leaseId,
         issued_at: leaseTimes.issuedAt,
         expires_at: leaseTimes.expiresAt,
@@ -611,10 +619,16 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   assert.match(buildSeal, /ExpectedWriterLeaseSha256/);
   assert.match(buildSeal, /clean_vm_attestation\.vm_id/);
   assert.match(buildSeal, /allowed_operations\)\.Count -ne 4/);
+  assert.match(buildSeal, /\$writerLease\.executor_task_id -eq \$writerLease\.platform_owner_task_id/);
   assert.match(runner, /clean_vm_attestation\.vm_id/);
   assert.match(runner, /allowed_operations\)\.Count -ne 4/);
+  assert.match(runner, /\$ExecutorTaskId -eq \$sourceCustodianTaskId/);
+  assert.match(runner, /\$ExecutorTaskId -eq \$PlatformOwnerTaskId/);
   assert.match(materialize, /create_once_build_seal_receipt/);
   assert.match(materialize, /historical_zip_sha256_authoritative: false/);
+  assert.match(materialize, /platform-owner-task-id/);
+  assert.match(materialize, /executor-task-id/);
+  assert.match(materialize, /authority_bindings/);
   assert.match(materialize, /windows-wsl2-v6-execution-runbook\.md/);
   for (const packetFile of [
     'windows-platform-clean-vm-attestation.schema.json',
@@ -640,6 +654,62 @@ test('V6 source-bound packet and Hyper-V runner have no legacy artifact authorit
   assert.match(runbook, /ExpectedPhase restart_persistence/);
   assert.match(runbook, /PreRestartWindowsBootTime/);
   assert.match(runbook, /restart-persistence-guest-receipt/);
+});
+
+test('V6 packet materialization fails before output without fresh host authority bindings', (t) => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-v6-no-host-authority-'));
+  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  for (const { name, args, error } of [
+    {
+      name: 'missing platform owner',
+      args: ['--executor-task-id', executorTaskId],
+      error: /platformOwnerTaskId|platform-owner-task-id/,
+    },
+    {
+      name: 'missing executor',
+      args: ['--platform-owner-task-id', platformOwnerTaskId],
+      error: /executorTaskId|executor-task-id/,
+    },
+  ]) {
+    const outputDir = path.join(temporaryRoot, name.replaceAll(' ', '-'));
+    const result = spawnSync(
+      process.execPath,
+      [materializePath, '--app-sha', '1'.repeat(40), ...args, '--output-dir', outputDir],
+      { cwd: appRoot, encoding: 'utf8' },
+    );
+    assert.notEqual(result.status, 0, name);
+    assert.match(result.stderr, error, name);
+    assert.equal(fs.existsSync(outputDir), false, name);
+  }
+});
+
+test('V6 packet materialization rejects overlapping source, platform, and executor identities', (t) => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-v6-overlap-authority-'));
+  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  for (const { name, platformOwner, executor } of [
+    { name: 'source-as-platform', platformOwner: sourceCustodianTaskId, executor: executorTaskId },
+    { name: 'source-as-executor', platformOwner: platformOwnerTaskId, executor: sourceCustodianTaskId },
+    { name: 'platform-as-executor', platformOwner: platformOwnerTaskId, executor: platformOwnerTaskId },
+  ]) {
+    const outputDir = path.join(temporaryRoot, name);
+    const result = spawnSync(
+      process.execPath,
+      [
+        materializePath,
+        '--app-sha',
+        '1'.repeat(40),
+        '--platform-owner-task-id',
+        platformOwner,
+        '--executor-task-id',
+        executor,
+        '--output-dir',
+        outputDir,
+      ],
+      { cwd: appRoot, encoding: 'utf8' },
+    );
+    assert.notEqual(result.status, 0, name);
+    assert.equal(fs.existsSync(outputDir), false, name);
+  }
 });
 
 test('V6 host closeout resolves schemas beside an immutable packet script', async (t) => {
@@ -676,14 +746,13 @@ test('V6 schemas are strict and bind packet, build, lease, and Hyper-V closeout 
     true,
   );
   assert.equal(host.properties.vm.properties.final_state.const, 'Off');
-  assert.equal(
-    lease.properties.executor_task_id.const,
-    '019f97e4-288a-7140-8850-925c657d8c71',
-  );
-  assert.equal(
-    lease.properties.platform_owner_task_id.const,
-    '019f972b-f550-7961-90be-9873600cd895',
-  );
+  assert.equal(intake.properties.authority_bindings.properties.source_custodian_task_id.const, sourceCustodianTaskId);
+  assert.equal(intake.properties.authority_bindings.properties.platform_owner_task_id.not.const, sourceCustodianTaskId);
+  assert.equal(intake.properties.authority_bindings.properties.executor_task_id.not.const, sourceCustodianTaskId);
+  assert.equal(host.properties.writer_lease.properties.platform_owner_task_id.not.const, sourceCustodianTaskId);
+  assert.equal(host.properties.writer_lease.properties.executor_task_id.not.const, sourceCustodianTaskId);
+  assert.equal(lease.properties.executor_task_id.not.const, sourceCustodianTaskId);
+  assert.equal(lease.properties.platform_owner_task_id.not.const, sourceCustodianTaskId);
   assert.equal(
     lease.properties.allowed_operations.maxItems,
     4,
@@ -759,6 +828,12 @@ test('V6 receipt schemas validate passed and reject identity mutants', () => {
       true,
       JSON.stringify(validateGuest.errors),
     );
+    const sourcePlatformIntake = structuredClone(intake);
+    sourcePlatformIntake.authority_bindings.platform_owner_task_id = sourceCustodianTaskId;
+    assert.equal(validateIntake(sourcePlatformIntake), false);
+    const sourceExecutorIntake = structuredClone(intake);
+    sourceExecutorIntake.authority_bindings.executor_task_id = sourceCustodianTaskId;
+    assert.equal(validateIntake(sourceExecutorIntake), false);
     const mutant = structuredClone(running);
     mutant.artifact.build_receipt_sha256 = 'f'.repeat(64);
     assert.equal(validateGuest(mutant), true, 'schema permits identity comparison at host layer');

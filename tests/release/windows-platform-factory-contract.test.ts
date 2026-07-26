@@ -5,7 +5,10 @@ import test from 'node:test';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { appRoot } from './release-readiness/helpers.ts';
-import { validateWindowsPlatformFactoryContract } from '../../scripts/validate-windows-platform-factory.ts';
+import {
+  assertWindowsPlatformAuthorityBindings,
+  validateWindowsPlatformFactoryContract,
+} from '../../scripts/validate-windows-platform-factory.ts';
 
 const platformRoot = path.join(
   appRoot,
@@ -23,6 +26,9 @@ const cleanAttestationSchemaPath = path.join(
 const gateSchemaPath = path.join(platformRoot, 'windows-platform-post-resize-gate.schema.json');
 const sha = 'a'.repeat(64);
 const commit = 'b'.repeat(40);
+const sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855';
+const platformOwnerTaskId = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+const executorTaskId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
 function compile(filePath: string) {
   const ajv = new Ajv2020({ allErrors: true, strictSchema: true, strictTypes: false });
@@ -34,8 +40,8 @@ function makeRequest(name: 'OPL-V6-WSL2-01' | 'OPL-WEBUI-CLEAN-01') {
   const isV6 = name === 'OPL-V6-WSL2-01';
   const subnet = isV6 ? '172.28.102' : '172.28.101';
   const owner = isV6
-    ? '019f97e4-288a-7140-8850-925c657d8c71'
-    : '019f972b-f550-7961-90be-9873600cd895';
+    ? executorTaskId
+    : platformOwnerTaskId;
   const guest = `C:\\OPL-VMs\\Guests\\${name}`;
   return {
     schema: 'opl_windows_vm_lease_request.v2',
@@ -43,6 +49,7 @@ function makeRequest(name: 'OPL-V6-WSL2-01' | 'OPL-WEBUI-CLEAN-01') {
     factory_root: 'C:\\OPL-VMs',
     lease_id: isV6 ? 'opl-v6-wsl2-01' : 'opl-webui-clean-01',
     vm_name: name,
+    platform_owner_task_id: platformOwnerTaskId,
     execution_owner_thread: owner,
     source_contract: {
       app_acceptance_sha: commit,
@@ -157,7 +164,8 @@ function makeWriterLeaseSummary() {
     sha256: sha,
     request_sha256: sha,
     vm_identity: 'hyperv-vmid:11111111-2222-3333-4444-555555555555',
-    executor_task_id: '019f97e4-288a-7140-8850-925c657d8c71',
+    platform_owner_task_id: platformOwnerTaskId,
+    executor_task_id: executorTaskId,
     powered_off: true,
     operation_count: 0,
   };
@@ -212,6 +220,7 @@ function makePlatformLease(
     released_at: null,
     lease_id: request.lease_id,
     vm_name: name,
+    platform_owner_task_id: platformOwnerTaskId,
     execution_owner_thread: request.execution_owner_thread,
     previous_owner_thread: request.lease_transition.previous_owner_thread,
     next_owner_thread: request.lease_transition.next_owner_thread,
@@ -359,6 +368,16 @@ test('Windows platform contract statically binds one C-root factory and two isol
     targetCount: 2,
     runtimeInputsValidated: [],
   });
+  const plan = JSON.parse(
+    fs.readFileSync(path.join(platformRoot, 'windows-platform-factory-plan.json'), 'utf8'),
+  );
+  assert.equal(plan.source_custodian_task_id, sourceCustodianTaskId);
+  assert.equal(plan.platform_owner_task_id, null);
+  assert.equal(plan.platform_host_activation_required, true);
+  assert.equal(plan.targets[0].execution_owner_thread, null);
+  assert.equal(plan.targets[0].executor_activation_required, true);
+  assert.equal(plan.targets[1].execution_owner_thread, null);
+  assert.equal(plan.targets[1].executor_activation_required, false);
 });
 
 test('C-root VM requests pass while E-root, path escape, owner, and target mismatches fail closed', () => {
@@ -377,8 +396,26 @@ test('C-root VM requests pass while E-root, path escape, owner, and target misma
   assert.equal(validate(escaped), false);
 
   const wrongOwner = structuredClone(v6);
-  wrongOwner.execution_owner_thread = '019f972b-f550-7961-90be-9873600cd895';
-  assert.equal(validate(wrongOwner), false);
+  wrongOwner.execution_owner_thread = platformOwnerTaskId;
+  wrongOwner.lease_transition.next_owner_thread = platformOwnerTaskId;
+  assert.equal(validate(wrongOwner), true, JSON.stringify(validate.errors));
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(wrongOwner), /distinct/);
+
+  const sourceAsPlatformOwner = structuredClone(v6);
+  sourceAsPlatformOwner.platform_owner_task_id = sourceCustodianTaskId;
+  assert.equal(validate(sourceAsPlatformOwner), false);
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(sourceAsPlatformOwner), /source custodian/);
+
+  const sourceAsExecutor = structuredClone(v6);
+  sourceAsExecutor.execution_owner_thread = sourceCustodianTaskId;
+  sourceAsExecutor.lease_transition.next_owner_thread = sourceCustodianTaskId;
+  assert.equal(validate(sourceAsExecutor), false);
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(sourceAsExecutor), /source custodian/);
+
+  const missingActivation = structuredClone(v6);
+  missingActivation.execution_owner_thread = null;
+  missingActivation.lease_transition.next_owner_thread = null;
+  assert.equal(validate(missingActivation), false);
 
   const crossTargetPaths = structuredClone(v6);
   crossTargetPaths.exclusive_paths = structuredClone(webui.exclusive_paths);
@@ -390,7 +427,8 @@ test('C-root VM requests pass while E-root, path escape, owner, and target misma
 
   const wrongNextOwner = structuredClone(v6);
   wrongNextOwner.lease_transition.next_owner_thread = webui.execution_owner_thread;
-  assert.equal(validate(wrongNextOwner), false);
+  assert.equal(validate(wrongNextOwner), true, JSON.stringify(validate.errors));
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(wrongNextOwner), /next owner mismatch/);
 });
 
 test('post-resize factory gate accepts exact C capacity, zh-CN ISO, cutover and script hashes', () => {
@@ -484,6 +522,22 @@ test('clean attestation and platform lease validate exact C-root identities', ()
   crossTargetLease.receipt_namespace = webuiLease.receipt_namespace;
   crossTargetLease.clean_vm_attestation.path = webuiLease.clean_vm_attestation.path;
   assert.equal(validateLease(crossTargetLease), false);
+
+  const sourceOwnedLease = structuredClone(lease);
+  sourceOwnedLease.platform_owner_task_id = sourceCustodianTaskId;
+  assert.equal(validateLease(sourceOwnedLease), false);
+
+  const sourceExecutedLease = structuredClone(lease);
+  sourceExecutedLease.execution_owner_thread = sourceCustodianTaskId;
+  sourceExecutedLease.next_owner_thread = sourceCustodianTaskId;
+  assert.equal(validateLease(sourceExecutedLease), false);
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(sourceExecutedLease), /source custodian/);
+
+  const platformExecutedLease = structuredClone(lease);
+  platformExecutedLease.execution_owner_thread = platformOwnerTaskId;
+  platformExecutedLease.next_owner_thread = platformOwnerTaskId;
+  assert.equal(validateLease(platformExecutedLease), true, JSON.stringify(validateLease.errors));
+  assert.throws(() => assertWindowsPlatformAuthorityBindings(platformExecutedLease), /distinct/);
 });
 
 test('canonical host scripts bind C-root and contain no E-volume receipt fallback', () => {
@@ -515,4 +569,16 @@ test('canonical host scripts bind C-root and contain no E-volume receipt fallbac
     );
     assert.match(script, /exact target VM namespace|exact C-root VM namespace/, scriptName);
   }
+  assert.match(
+    fs.readFileSync(path.join(platformRoot, 'fixtures', 'New-OPLWindowsVMRequest.ps1'), 'utf8'),
+    /\$executionOwner -eq \$sourceCustodianTaskId/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(platformRoot, 'fixtures', 'Grant-OPLVMLease.ps1'), 'utf8'),
+    /\$expectedOwner -eq \$sourceCustodianTaskId/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(platformRoot, 'fixtures', 'Grant-OPLV6WriterLease.ps1'), 'utf8'),
+    /\$executorTaskId -eq \$sourceCustodianTaskId/,
+  );
 });

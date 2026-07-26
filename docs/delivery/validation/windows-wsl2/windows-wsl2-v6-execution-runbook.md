@@ -1,8 +1,9 @@
 # Windows WSL2 V6 Hyper-V Execution Runbook
 
 State: `validation_only_non_binding`
-Executor task: `019f97e4-288a-7140-8850-925c657d8c71`
-Platform owner task: `019f972b-f550-7961-90be-9873600cd895`
+Executor task: `authority_bindings.executor_task_id` from the immutable intake manifest
+Platform owner task: `authority_bindings.platform_owner_task_id` from the immutable intake manifest
+Source custodian task: `019f9bc5-8707-78b2-b221-5453d9d9b855`
 VM: `OPL-V6-WSL2-01`
 
 This runbook is part of the immutable intake packet. The intake manifest binds
@@ -99,6 +100,7 @@ $Common = @{
   ShellSha = $Manifest.source_refs.shell.git_sha
   FrameworkSha = $Manifest.source_refs.framework_fixture_sha
   PlatformOwnerTaskId = $Lease.platform_owner_task_id
+  ExecutorTaskId = $Lease.executor_task_id
   WriterLeaseId = $Lease.lease_id
   WriterLeaseIssuedAt = [datetime]$Lease.issued_at
   WriterLeaseExpiresAt = [datetime]$Lease.expires_at
@@ -272,7 +274,7 @@ node .\v6-host-closeout.mjs `
   --expected-artifact-sha256 <SEALED_ZIP_SHA256> `
   --expected-app-sha <APP_ACCEPTANCE_SHA> `
   --expected-shell-sha 868d6e818583547a5ec982b10b34464a3fa47c10 `
-  --expected-framework-sha fe1fafa26f2c59922596718b305761bbc7558c9c `
+  --expected-framework-sha e260ad46e2cf73ea334d2453d901ee448248d9e0 `
   --release-receipt-id <UNIQUE_RELEASE_RECEIPT_ID> `
   --output-dir <ABSENT_HOST_CLOSEOUT_DIRECTORY> `
   --timeout-seconds 180 `

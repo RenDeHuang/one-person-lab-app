@@ -18,9 +18,10 @@ const SHELL_BUILD_SCRIPT_SHA256 =
   '5d1511a89038ca583bceb27881c8f025ce1575b0f0059535145382894c0cd381';
 const SHELL_HARNESS_PACKAGE_SHA256 =
   '0a12c4887a746e465978ced9439cdef6f9a7a994c94e43bd0c5f1208f64737c5';
-const FRAMEWORK_FIXTURE_SHA = 'fe1fafa26f2c59922596718b305761bbc7558c9c';
+const SOURCE_CUSTODIAN_TASK_ID = '019f9bc5-8707-78b2-b221-5453d9d9b855';
+const FRAMEWORK_FIXTURE_SHA = 'e260ad46e2cf73ea334d2453d901ee448248d9e0';
 const FRAMEWORK_REPOSITORY = 'https://github.com/gaofeng21cn/one-person-lab.git';
-const FRAMEWORK_TREE_SHA = '5b27bf9fbe74815446e9ee401e81e0a192973d75';
+const FRAMEWORK_TREE_SHA = '6b72719e34a5dc8ac522a758296436be0c97b1bd';
 const FRAMEWORK_CLI_PATH = 'src/entrypoints/cli.ts';
 const FRAMEWORK_CLI_BLOB_GIT_SHA = '9a81790365e5140c7965cad870c109c6afa4b564';
 const FRAMEWORK_CLI_BLOB_SHA256 =
@@ -140,13 +141,30 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 2) {
     const token = argv[index];
     const value = argv[index + 1];
-    assert.match(token ?? '', /^--(?:app-sha|output-dir)$/);
+    assert.match(token ?? '', /^--(?:app-sha|executor-task-id|platform-owner-task-id|output-dir)$/);
     assert.ok(value && !value.startsWith('--'), `${token} requires a value`);
     result[token.slice(2).replaceAll(/-([a-z])/g, (_, letter) =>
       letter.toUpperCase(),
     )] = value;
   }
   assert.match(result.appSha ?? '', /^[0-9a-f]{40}$/);
+  assert.match(
+    result.platformOwnerTaskId ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    '--platform-owner-task-id is required and must be a task UUID',
+  );
+  assert.match(
+    result.executorTaskId ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    '--executor-task-id is required and must be a task UUID',
+  );
+  assert.notEqual(
+    result.executorTaskId,
+    SOURCE_CUSTODIAN_TASK_ID,
+    'executor task must be distinct from the source custodian',
+  );
+  assert.notEqual(result.platformOwnerTaskId, SOURCE_CUSTODIAN_TASK_ID);
+  assert.notEqual(result.executorTaskId, result.platformOwnerTaskId);
   assert.ok(result.outputDir, '--output-dir is required');
   return result;
 }
@@ -154,6 +172,8 @@ function parseArgs(argv) {
 export function buildIntakeManifest({
   appSha,
   appTreeSha,
+  platformOwnerTaskId,
+  executorTaskId,
   files,
 }) {
   return {
@@ -161,6 +181,11 @@ export function buildIntakeManifest({
     validation_state: 'validation_only_non_binding',
     authority: 'one_person_lab_app_acceptance_contract',
     terminal_v6_verdict: false,
+    authority_bindings: {
+      source_custodian_task_id: SOURCE_CUSTODIAN_TASK_ID,
+      platform_owner_task_id: platformOwnerTaskId,
+      executor_task_id: executorTaskId,
+    },
     target: {
       host_platform: 'windows_hyperv',
       vm_name: VM_NAME,
@@ -244,7 +269,24 @@ export function buildIntakeManifest({
   };
 }
 
-export function materializePacket({ appSha, outputDir, appRoot }) {
+export function materializePacket({
+  appSha,
+  platformOwnerTaskId,
+  executorTaskId,
+  outputDir,
+  appRoot,
+}) {
+  assert.match(
+    platformOwnerTaskId ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
+  assert.match(
+    executorTaskId ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
+  assert.notEqual(platformOwnerTaskId, SOURCE_CUSTODIAN_TASK_ID);
+  assert.notEqual(executorTaskId, SOURCE_CUSTODIAN_TASK_ID);
+  assert.notEqual(executorTaskId, platformOwnerTaskId);
   assert.equal(runGit(['rev-parse', 'HEAD'], appRoot), appSha);
   assert.equal(
     runGit(['status', '--porcelain', '--untracked-files=all'], appRoot),
@@ -280,7 +322,13 @@ export function materializePacket({ appSha, outputDir, appRoot }) {
   }
   files.sort((left, right) => left.file_name.localeCompare(right.file_name));
 
-  const manifest = buildIntakeManifest({ appSha, appTreeSha, files });
+  const manifest = buildIntakeManifest({
+    appSha,
+    appTreeSha,
+    platformOwnerTaskId,
+    executorTaskId,
+    files,
+  });
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
   const manifestPath = path.join(
     outputDir,
@@ -308,6 +356,8 @@ async function main() {
   );
   const result = materializePacket({
     appSha: options.appSha,
+    platformOwnerTaskId: options.platformOwnerTaskId,
+    executorTaskId: options.executorTaskId,
     outputDir: path.resolve(options.outputDir),
     appRoot,
   });

@@ -66,13 +66,14 @@ machine truth and do not authorize a second runtime or lifecycle authority.
 5. A failed or unavailable VM blocks only the corresponding validation item. It
    does not block unrelated development or create a product gap.
 6. Delete or quarantine disposable credentials and guest data after the run.
-7. A guest has one active writer. V6 guest execution is owned only by task
-   `019f97e4-288a-7140-8850-925c657d8c71` on Hyper-V VM
-   `OPL-V6-WSL2-01`, after the Windows platform owner issues an active writer
-   lease that binds the exact VM ID, clean-VM attestation, executor, operations,
-   and validity window. A shared credential or historical handoff is not
-   authority. Do not start, stop, enter, clone, or expand the historical Intel
-   iMac VM for V6.
+7. A guest has one active writer. V6 guest execution remains unavailable until
+   fresh native-Windows host receipts supply a platform owner and a V6 executor,
+   both distinct from source custodian `019f9bc5-8707-78b2-b221-5453d9d9b855`
+   and from each other. The immutable packet and active writer lease must bind
+   both host identities, the exact VM ID, clean-VM attestation, operations, and
+   validity window. A shared
+   credential, historical task, or old handoff is not authority. Do not start,
+   stop, enter, clone, or expand the historical Intel iMac VM for V6.
 8. Preserve existing Docker containers, images, Docker data, and
    `OnePersonLab` data. V6 must not run Docker prune, global `wsl --shutdown`,
    unregister a distribution, or delete unknown guest data. After the bounded
@@ -237,9 +238,9 @@ candidate:
    manifest that binds the App acceptance revision, Shell source
    `868d6e818583547a5ec982b10b34464a3fa47c10` and root tree
    `1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7`, plus Framework fixture
-   `fe1fafa26f2c59922596718b305761bbc7558c9c`, repository
+   `e260ad46e2cf73ea334d2453d901ee448248d9e0`, repository
    `https://github.com/gaofeng21cn/one-person-lab.git`, root tree
-   `5b27bf9fbe74815446e9ee401e81e0a192973d75`, and CLI blob Git/SHA256
+   `6b72719e34a5dc8ac522a758296436be0c97b1bd`, and CLI blob Git/SHA256
    identities. The seal records the fresh
    checkout, frozen dependency install, resolved toolchain, command evidence,
    ZIP/executable/`app.asar` digests, and expanded tree identity. A historical

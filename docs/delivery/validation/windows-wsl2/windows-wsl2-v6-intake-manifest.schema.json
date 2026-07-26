@@ -9,6 +9,7 @@
     "validation_state",
     "authority",
     "terminal_v6_verdict",
+    "authority_bindings",
     "target",
     "source_refs",
     "toolchain_contract",
@@ -29,6 +30,32 @@
     },
     "terminal_v6_verdict": {
       "const": false
+    },
+    "authority_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_custodian_task_id",
+        "platform_owner_task_id",
+        "executor_task_id"
+      ],
+      "properties": {
+        "source_custodian_task_id": {
+          "const": "019f9bc5-8707-78b2-b221-5453d9d9b855"
+        },
+        "platform_owner_task_id": {
+          "$ref": "#/$defs/uuid",
+          "not": {
+            "const": "019f9bc5-8707-78b2-b221-5453d9d9b855"
+          }
+        },
+        "executor_task_id": {
+          "$ref": "#/$defs/uuid",
+          "not": {
+            "const": "019f9bc5-8707-78b2-b221-5453d9d9b855"
+          }
+        }
+      }
     },
     "target": {
       "type": "object",
@@ -120,7 +147,7 @@
           }
         },
         "framework_fixture_sha": {
-          "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+          "const": "e260ad46e2cf73ea334d2453d901ee448248d9e0"
         },
         "framework": {
           "type": "object",
@@ -138,10 +165,10 @@
               "const": "https://github.com/gaofeng21cn/one-person-lab.git"
             },
             "git_sha": {
-              "const": "fe1fafa26f2c59922596718b305761bbc7558c9c"
+              "const": "e260ad46e2cf73ea334d2453d901ee448248d9e0"
             },
             "root_tree_sha": {
-              "const": "5b27bf9fbe74815446e9ee401e81e0a192973d75"
+              "const": "6b72719e34a5dc8ac522a758296436be0c97b1bd"
             },
             "cli_blob_path": {
               "const": "src/entrypoints/cli.ts"
@@ -383,6 +410,10 @@
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     }
   }
 }

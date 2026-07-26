@@ -45,11 +45,11 @@ identity, AionCore health, direct Codex App Server, and read-only Framework
 state. ACP, authenticated bootstrap, and WebSocket conversation remain clearly
 `unverified` or `unavailable` and must not appear as usable chat.
 
-The only V6 executor is task
-`019f97e4-288a-7140-8850-925c657d8c71` on the Windows Hyper-V VM
-`OPL-V6-WSL2-01` (`host_platform=windows_hyperv`). It may enter the VM only
-after the Windows platform owner has
-issued an active writer lease matching
+No native-Windows platform owner or V6 executor is currently activated. Fresh
+host receipts must supply both IDs, each distinct from source custodian
+`019f9bc5-8707-78b2-b221-5453d9d9b855` and from each other. Both IDs must be
+bound into the immutable packet and the active writer lease for `OPL-V6-WSL2-01`
+(`host_platform=windows_hyperv`) before any guest entry. The lease must match
 [`windows-wsl2-v6-writer-lease.schema.json`](windows-wsl2-v6-writer-lease.schema.json).
 The lease binds the exact Hyper-V VM ID, executor, clean-VM attestation,
 operations, and validity window. A password, an old VM handoff, or ownership of
@@ -65,8 +65,8 @@ The source-bound V6 identity is:
 | Shell validation subtree | `6f8519a26c3075f8b252c79a81e42f328c6efbb8` |
 | Shell `bun.lock` SHA256 | `8975e67539a778ef9058419d990646b21ce35757d4cdaf45e0b101e4ce3cff7b` |
 | Guest Framework repository | `https://github.com/gaofeng21cn/one-person-lab.git` |
-| Guest Framework fixture | `fe1fafa26f2c59922596718b305761bbc7558c9c` |
-| Guest Framework root tree | `5b27bf9fbe74815446e9ee401e81e0a192973d75` |
+| Guest Framework fixture | `e260ad46e2cf73ea334d2453d901ee448248d9e0` |
+| Guest Framework root tree | `6b72719e34a5dc8ac522a758296436be0c97b1bd` |
 | Guest Framework CLI blob | Git `9a81790365e5140c7965cad870c109c6afa4b564`, SHA256 `e040d5ddab2e4c6cb660e5ba728e61172fe9e7e2f272974b19c7c4b653e159a5` |
 | Windows VM | `OPL-V6-WSL2-01` with identity `hyperv-vmid:<VM-ID>` |
 | Validation root | `C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1` |
@@ -114,6 +114,8 @@ once:
 ```powershell
 node .\docs\delivery\validation\windows-wsl2\fixtures\v6-materialize-intake.mjs `
   --app-sha <APP_ACCEPTANCE_SHA> `
+  --platform-owner-task-id <FRESH_WINDOWS_PLATFORM_OWNER_TASK_ID> `
+  --executor-task-id <FRESH_WINDOWS_EXECUTOR_TASK_ID> `
   --output-dir C:\v6-packet
 Get-FileHash -Algorithm SHA256 `
   C:\v6-packet\windows-wsl2-v6-intake-manifest.json

@@ -10,6 +10,7 @@ import addFormats from 'ajv-formats';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const platformRoot = path.join(appRoot, 'docs', 'delivery', 'validation', 'windows-platform');
 const v6Root = path.join(appRoot, 'docs', 'delivery', 'validation', 'windows-wsl2');
+const sourceCustodianTaskId = '019f9bc5-8707-78b2-b221-5453d9d9b855';
 
 type Inputs = {
   postResizeGate?: string;
@@ -46,6 +47,27 @@ function collectStrings(value: unknown, result: string[] = []): string[] {
   return result;
 }
 
+export function assertWindowsPlatformAuthorityBindings(
+  value: Record<string, any>,
+  label = 'Windows authority contract',
+) {
+  const platformOwnerTaskId = value.platform_owner_task_id;
+  const executorTaskId = value.executor_task_id ?? value.execution_owner_thread;
+  assert.notEqual(platformOwnerTaskId, sourceCustodianTaskId, `${label}: source custodian cannot own the Windows platform`);
+  assert.notEqual(executorTaskId, sourceCustodianTaskId, `${label}: source custodian cannot execute Windows host work`);
+  if (value.vm_name === 'OPL-V6-WSL2-01') {
+    assert.notEqual(executorTaskId, platformOwnerTaskId, `${label}: V6 executor must be distinct from the platform owner`);
+  } else if (value.vm_name === 'OPL-WEBUI-CLEAN-01') {
+    assert.equal(executorTaskId, platformOwnerTaskId, `${label}: WebUI VM remains platform-owned`);
+  }
+  if (value.lease_transition) {
+    assert.equal(value.lease_transition.next_owner_thread, executorTaskId, `${label}: request next owner mismatch`);
+  }
+  if ('next_owner_thread' in value) {
+    assert.equal(value.next_owner_thread, executorTaskId, `${label}: lease next owner mismatch`);
+  }
+}
+
 function parseArgs(argv: string[]): Inputs {
   const inputs: Inputs = {};
   const allowed = new Map<string, keyof Inputs>([
@@ -79,6 +101,9 @@ export function validateWindowsPlatformFactoryContract(inputs: Inputs = {}) {
 
   const plan = readJson(planPath) as Record<string, any>;
   assert.equal(plan.schema, 'opl_windows_platform_factory_plan.v1');
+  assert.equal(plan.source_custodian_task_id, sourceCustodianTaskId);
+  assert.equal(plan.platform_owner_task_id, null);
+  assert.equal(plan.platform_host_activation_required, true);
   assert.equal(plan.factory_root, 'C:\\OPL-VMs');
   assert.equal(plan.recovery_source.root, 'E:\\_Original-E-20260726\\OPL-VMs');
   assert.equal(plan.recovery_source.delete_authorized, false);
@@ -90,6 +115,12 @@ export function validateWindowsPlatformFactoryContract(inputs: Inputs = {}) {
   assert.equal(new Set(plan.targets.map((target: Record<string, unknown>) => target.receipt_namespace)).size, 2);
   assert.equal(new Set(plan.targets.map((target: any) => target.network.subnet)).size, 2);
   assert.ok(plan.targets.every((target: any) => target.webui_runtime_authority === 0));
+  const v6Target = plan.targets.find((target: any) => target.vm_name === 'OPL-V6-WSL2-01');
+  const webuiTarget = plan.targets.find((target: any) => target.vm_name === 'OPL-WEBUI-CLEAN-01');
+  assert.equal(v6Target.execution_owner_thread, null);
+  assert.equal(v6Target.executor_activation_required, true);
+  assert.equal(webuiTarget.execution_owner_thread, null);
+  assert.equal(webuiTarget.executor_activation_required, false);
 
   for (const schemaPath of [
     requestSchemaPath,
@@ -130,10 +161,12 @@ export function validateWindowsPlatformFactoryContract(inputs: Inputs = {}) {
   if (inputs.v6Request) {
     runtime.v6Request = validateFile(requestSchemaPath, inputs.v6Request, 'V6 request');
     assert.equal(runtime.v6Request.vm_name, 'OPL-V6-WSL2-01');
+    assertWindowsPlatformAuthorityBindings(runtime.v6Request, 'V6 request');
   }
   if (inputs.webuiRequest) {
     runtime.webuiRequest = validateFile(requestSchemaPath, inputs.webuiRequest, 'WebUI request');
     assert.equal(runtime.webuiRequest.vm_name, 'OPL-WEBUI-CLEAN-01');
+    assertWindowsPlatformAuthorityBindings(runtime.webuiRequest, 'WebUI request');
   }
   if (runtime.v6Request && runtime.webuiRequest) {
     const v6Strings = new Set(collectStrings(runtime.v6Request.exclusive_paths));
@@ -144,9 +177,11 @@ export function validateWindowsPlatformFactoryContract(inputs: Inputs = {}) {
   }
   if (inputs.platformLease) {
     runtime.platformLease = validateFile(platformLeaseSchemaPath, inputs.platformLease, 'platform lease');
+    assertWindowsPlatformAuthorityBindings(runtime.platformLease, 'platform lease');
   }
   if (inputs.writerLease) {
     runtime.writerLease = validateFile(writerLeaseSchemaPath, inputs.writerLease, 'V6 writer lease');
+    assertWindowsPlatformAuthorityBindings(runtime.writerLease, 'V6 writer lease');
   }
 
   return {
