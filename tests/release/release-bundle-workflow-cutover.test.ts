@@ -133,6 +133,54 @@ function workflowStep(workflowName: string, jobName: string, stepName: string): 
   return step;
 }
 
+function sourceQualificationReceiptResolver(run: string): string {
+  const startMarker = '# source-qualification-receipt-resolver:start';
+  const endMarker = '# source-qualification-receipt-resolver:end';
+  const start = run.indexOf(startMarker);
+  const end = run.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(start, -1, 'source qualification receipt resolver start marker');
+  assert.notEqual(end, -1, 'source qualification receipt resolver end marker');
+  return run.slice(start + startMarker.length, end);
+}
+
+function runSourceQualificationReceiptResolver(
+  resolver: string,
+  fixture: 'nested' | 'missing' | 'duplicate' | 'symlink-only' | 'empty',
+) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-qualification-receipt-'));
+  const evidenceRoot = path.join(root, 'source-qualification-evidence');
+  try {
+    fs.mkdirSync(evidenceRoot, { recursive: true });
+    if (fixture === 'nested' || fixture === 'duplicate' || fixture === 'empty') {
+      const nestedRoot = path.join(evidenceRoot, '_temp', 'opl-source-qualification-30214273664');
+      fs.mkdirSync(nestedRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(nestedRoot, 'source-qualification-receipt.json'),
+        fixture === 'empty' ? '' : '{"status":"passed"}\n',
+      );
+    }
+    if (fixture === 'duplicate') {
+      const duplicateRoot = path.join(evidenceRoot, 'one-person-lab-app', 'evidence');
+      fs.mkdirSync(duplicateRoot, { recursive: true });
+      fs.writeFileSync(path.join(duplicateRoot, 'source-qualification-receipt.json'), '{}\n');
+    }
+    if (fixture === 'symlink-only') {
+      const target = path.join(root, 'source-qualification-receipt-target.json');
+      fs.writeFileSync(target, '{}\n');
+      fs.symlinkSync(target, path.join(evidenceRoot, 'source-qualification-receipt.json'));
+    }
+    return spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', [
+      resolver,
+      'printf "%s\\n" "$qualification_receipt_path"',
+    ].join('\n')], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('active shell ancestry checks receive full history without broadening routine checkouts', () => {
   const setupAction = parseYaml(fs.readFileSync(
     path.join(process.cwd(), '.github', 'actions', 'setup-active-shell-deps', 'action.yml'),
@@ -353,6 +401,42 @@ test('new Standard consumes one source receipt and seals protected admission in 
   assert.equal(
     fullRestore.with['framework-executor-ref'],
     '${{ steps.framework-binding.outputs.framework_source_ref }}',
+  );
+});
+
+test('Stable resolves the unique nested source qualification receipt and fails closed on unsafe layouts', () => {
+  const stable = parseWorkflow('release-stable.yml');
+  const admissionRun = String(stable.jobs.admission.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
+  )?.run ?? '');
+  const protectedAdmission = stable.jobs['protected-admission'];
+  const protectedRun = String(protectedAdmission.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Seal one same-run Stable admission manifest',
+  )?.run ?? '');
+
+  for (const [name, run] of [['admission', admissionRun], ['protected-admission', protectedRun]] as const) {
+    const resolver = sourceQualificationReceiptResolver(run);
+    const nested = runSourceQualificationReceiptResolver(resolver, 'nested');
+    assert.equal(nested.status, 0, `${name}: ${nested.stderr}`);
+    assert.equal(
+      nested.stdout.trim(),
+      'source-qualification-evidence/_temp/opl-source-qualification-30214273664/source-qualification-receipt.json',
+    );
+    for (const fixture of ['missing', 'duplicate', 'symlink-only', 'empty'] as const) {
+      const rejected = runSourceQualificationReceiptResolver(resolver, fixture);
+      assert.notEqual(rejected.status, 0, `${name} must reject ${fixture}`);
+    }
+  }
+
+  assert.match(admissionRun, /--receipt "\$qualification_receipt_path"/);
+  assert.match(protectedRun, /--receipt "\$qualification_receipt_path"/);
+  assert.match(protectedRun, /--source-qualification-receipt "\$qualification_receipt_path"/);
+  const protectedUpload = protectedAdmission.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload same-run protected admission evidence',
+  );
+  assert.match(
+    String(protectedUpload?.with?.path ?? ''),
+    /\$\{\{ steps\.manifest\.outputs\.qualification_receipt_path \}\}/,
   );
 });
 
