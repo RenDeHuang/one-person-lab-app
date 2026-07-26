@@ -1,0 +1,341 @@
+{
+  "schema": "opl_o08_fresh_main_replay_manifest.v2",
+  "lane": "o08_nightly_semantic_replay",
+  "authority": {
+    "mutation_authority": false,
+    "canonical_writer": "Integrator",
+    "order_receipt": {
+      "path": "/Users/gaofeng/Documents/Codex/2026-07-26/opl-closeout-successor-20260726/outputs/opl-o11-app-exact30-order-correction-20260726.md",
+      "sha256": "b5e389bee7ef3e7301ac0bcbfab2bdfbed57b77226aec77ae31a28544dcc77c0",
+      "size_bytes": 1913,
+      "mode": "0444",
+      "supersedes": "replay_order_only"
+    },
+    "forbidden_mutations": [
+      "canonical_main",
+      "canonical_ref",
+      "workflow_dispatch",
+      "tag",
+      "release",
+      "latest",
+      "tap",
+      "public",
+      "cleanup",
+      "archive"
+    ]
+  },
+  "source_basis": {
+    "repository": "https://github.com/gaofeng21cn/one-person-lab-app.git",
+    "commit": "dbdbe9e4049893078ac1394b42ff06bd8527c8d7",
+    "tree": "4bd490da2260fe1bccdaed8daa26f518d6b179e4"
+  },
+  "fresh_main": {
+    "repository": "https://github.com/gaofeng21cn/one-person-lab-app.git",
+    "ref": "refs/heads/main",
+    "commit": "d1a7e7a9da1bc5a73ee03b653145c79b9f35bfdd",
+    "tree": "4dfe9ae51c6b42ec54953baa68f42726ec60d315"
+  },
+  "cohort_currentness": {
+    "shell": {
+      "repository": "https://github.com/gaofeng21cn/opl-aion-shell.git",
+      "ref": "refs/heads/main",
+      "commit": "b8c180c77f4d5cef8bbaa041e41cfd01dc6809a9",
+      "tree": "edda1786b2f515be0aa0b6fba601b7cac52c0ff5"
+    },
+    "framework": {
+      "repository": "https://github.com/gaofeng21cn/one-person-lab.git",
+      "ref": "refs/heads/main",
+      "commit": "53129eba55c26ecb9c95625c93b3951b39ffeaa5",
+      "tree": "aa3ec51fd7666cd063864b9a44e077636d28c690"
+    }
+  },
+  "sources": {
+    "process": {
+      "id": "e306_stable_source",
+      "repository": "https://github.com/gaofeng21cn/one-person-lab-app.git",
+      "ref": "refs/heads/codex/release-real-path-preflight-gates-20260726",
+      "commit": "e306fdab6a6c271505077f7580c29a81182da43d",
+      "tree": "d87adc5db35406e859e7427ac79f9919449d4442",
+      "apply_order": 1,
+      "tracked_path_count": 16,
+      "tracked_changes": [
+        { "status": "M", "path": ".github/workflows/release-source-qualification.yml" },
+        { "status": "M", "path": "contracts/app-release-channel.json" },
+        { "status": "M", "path": "docs/delivery/release/README.md" },
+        { "status": "A", "path": "docs/delivery/release/stable-stage-remediation-matrix-20260726.md" },
+        { "status": "M", "path": "package.json" },
+        { "status": "M", "path": "scripts/README.md" },
+        { "status": "A", "path": "scripts/release-dispatch-guard.ts" },
+        { "status": "M", "path": "scripts/stable-release-admission-manifest.ts" },
+        { "status": "M", "path": "scripts/validate-release-boundary/release-checks.ts" },
+        { "status": "M", "path": "scripts/validate-release-boundary/release-contract-policy.ts" },
+        { "status": "M", "path": "scripts/validate-release-source-gate.ts" },
+        { "status": "A", "path": "scripts/validate-shell-product-profile-consumer.ts" },
+        { "status": "A", "path": "tests/release/release-dispatch-guard.test.ts" },
+        { "status": "M", "path": "tests/release/release-source-gate.test.ts" },
+        { "status": "M", "path": "tests/release/release-source-qualification-workflow.test.ts" },
+        { "status": "M", "path": "tests/release/stable-release-admission-manifest.test.ts" }
+      ],
+      "required_semantics": [
+        "stable_pre_nonce_dispatch_guard",
+        "wire_app_shell_framework_main_identity",
+        "single_logical_owner_run_query",
+        "exact_cohort_source_gate",
+        "temporary_exact_shell_product_profile_projection",
+        "source_shell_mutation_false",
+        "source_qualification_development_validation_only"
+      ]
+    },
+    "nightly": {
+      "id": "o08_standard_nightly",
+      "repository": "https://github.com/gaofeng21cn/one-person-lab-app.git",
+      "ref": "refs/heads/codex/o08-nightly-semantic-replay-20260726",
+      "commit": "f32822c876613c07e08003d8c5d6b35eb1edd4cd",
+      "tree": "2d43bee789b5c7955ff0fe7b9bce793f10d0355d",
+      "apply_order": 2,
+      "tracked_path_count": 17,
+      "tracked_changes": [
+        { "status": "M", "path": ".github/workflows/release-nightly-homebrew-follower.yml" },
+        { "status": "M", "path": ".github/workflows/release-nightly-sampled-vm.yml" },
+        { "status": "M", "path": ".github/workflows/release-nightly.yml" },
+        { "status": "M", "path": "contracts/app-release-channel.json" },
+        { "status": "M", "path": "docs/architecture.md" },
+        { "status": "M", "path": "docs/delivery/release/README.md" },
+        { "status": "M", "path": "docs/status.md" },
+        { "status": "M", "path": "docs/testing/README.md" },
+        { "status": "M", "path": "scripts/nightly-release-publisher.ts" },
+        { "status": "M", "path": "scripts/nightly-release-qualification.ts" },
+        { "status": "M", "path": "scripts/resolve-nightly-release-request.ts" },
+        { "status": "M", "path": "scripts/validate-active-shell/release-contract-validator.ts" },
+        { "status": "M", "path": "scripts/validate-release-boundary/release-contract-policy.ts" },
+        { "status": "M", "path": "scripts/validate-release-boundary/text-check-runner.ts" },
+        { "status": "M", "path": "tests/release/nightly-release.test.ts" },
+        { "status": "M", "path": "tests/release/release-bundle-control-plane-contract.test.ts" },
+        { "status": "M", "path": "tests/release/release-control-plane-boundary.test.ts" }
+      ],
+      "required_semantics": [
+        "single_schedule_only_dispatcher",
+        "immutable_standard_density_assets",
+        "github_prerelease",
+        "make_latest_false",
+        "include_full_false",
+        "no_manual_preview_ancestry",
+        "no_stable_bundle_or_mutex",
+        "homebrew_and_sampled_vm_post_publication_nonblocking_followers"
+      ]
+    }
+  },
+  "replay": {
+    "order": ["e306_stable_source", "o08_standard_nightly"],
+    "successor_chain": {
+      "process": {
+        "commit": "588052b0c11c218be34edefb0d012efdeccf144d",
+        "tree": "7de36e354be56f2144a0156911c4889a92616feb",
+        "parent": "d1a7e7a9da1bc5a73ee03b653145c79b9f35bfdd"
+      },
+      "nightly": {
+        "commit": "ba1031416bb4b2bf768bd9b01685bad457e0f2da",
+        "tree": "553da90abfcc9e056adc5c2a9abf42858bcb9905",
+        "parent": "588052b0c11c218be34edefb0d012efdeccf144d"
+      }
+    },
+    "tracked_path_count": 30,
+    "tracked_paths": [
+      ".github/workflows/release-nightly-homebrew-follower.yml",
+      ".github/workflows/release-nightly-sampled-vm.yml",
+      ".github/workflows/release-nightly.yml",
+      ".github/workflows/release-source-qualification.yml",
+      "contracts/app-release-channel.json",
+      "docs/architecture.md",
+      "docs/delivery/release/README.md",
+      "docs/delivery/release/stable-stage-remediation-matrix-20260726.md",
+      "docs/status.md",
+      "docs/testing/README.md",
+      "package.json",
+      "scripts/README.md",
+      "scripts/nightly-release-publisher.ts",
+      "scripts/nightly-release-qualification.ts",
+      "scripts/release-dispatch-guard.ts",
+      "scripts/resolve-nightly-release-request.ts",
+      "scripts/stable-release-admission-manifest.ts",
+      "scripts/validate-active-shell/release-contract-validator.ts",
+      "scripts/validate-release-boundary/release-checks.ts",
+      "scripts/validate-release-boundary/release-contract-policy.ts",
+      "scripts/validate-release-boundary/text-check-runner.ts",
+      "scripts/validate-release-source-gate.ts",
+      "scripts/validate-shell-product-profile-consumer.ts",
+      "tests/release/nightly-release.test.ts",
+      "tests/release/release-bundle-control-plane-contract.test.ts",
+      "tests/release/release-control-plane-boundary.test.ts",
+      "tests/release/release-dispatch-guard.test.ts",
+      "tests/release/release-source-gate.test.ts",
+      "tests/release/release-source-qualification-workflow.test.ts",
+      "tests/release/stable-release-admission-manifest.test.ts"
+    ],
+    "fresh_main_overlay_path_count": 2,
+    "fresh_main_overlays": [
+      {
+        "path": ".github/workflows/release-source-qualification.yml",
+        "resolution": "hunk_by_hunk_preserve_both",
+        "fresh_main_patch_sha256": "1ab2eef6e86e992b314fd370abb003593b5388eca98d22fad1ab3357f51980c1",
+        "process_patch_sha256": "1f1b4da3691d19b209dbd396d26671ea837e5d748f931fa2f084a8a210cde5cc",
+        "fresh_main_blob": "02e488679e3ab10c5403602571acc450799d267c",
+        "process_blob": "b977189ed10ee9609079a8ac9546d493d0cf093c",
+        "combined_blob": "4e0fb0121c044852cdb1bfee0963c234ec427657"
+      },
+      {
+        "path": "tests/release/release-source-qualification-workflow.test.ts",
+        "resolution": "hunk_by_hunk_preserve_both",
+        "fresh_main_patch_sha256": "74bba5ebc73ea54105610d82ecdb8f339d186589493929e030a08b147dd66fd3",
+        "process_patch_sha256": "21ca361e58f02599bebabba680d02d44f397997369b6f80f786bbe5ffac4c78a",
+        "fresh_main_blob": "04da058fdd7f4e70580df26ea9e2c18e8bde8665",
+        "process_blob": "43453b72960ee8d570885b3fd1dd318f3431db0a",
+        "combined_blob": "588b6ff9162a7c52298461ca441fc6e7ef105c6b"
+      }
+    ],
+    "overlap_path_count": 3,
+    "overlaps": [
+      {
+        "path": "contracts/app-release-channel.json",
+        "resolution": "hunk_by_hunk",
+        "order": ["e306_stable_source", "o08_standard_nightly"],
+        "process_patch_sha256": "5de5a28677b861a55597960f534d8f9bc001501ed7f89ef23ca827c13fdaaacf",
+        "nightly_patch_sha256": "8a140b6b7d511da4924c4a3c804c36e8c52eb27afac74282644fb9b6d9c3fcd9",
+        "process_blob": "09f2df69f7e6bb2c28c214fd316d2ab41b9086bb",
+        "nightly_blob": "30e489587bc529093349c4173c914f96335465e8",
+        "combined_blob": "aa808769cb55fe05a7b2559fd900bbf4c3d59181"
+      },
+      {
+        "path": "docs/delivery/release/README.md",
+        "resolution": "hunk_by_hunk",
+        "order": ["e306_stable_source", "o08_standard_nightly"],
+        "process_patch_sha256": "aa415e293d4884c3979dc77019737e16b4c52017811301271f27ba6ab5b605e9",
+        "nightly_patch_sha256": "ad923978c6c8bb302abb1b83e4ec3182a34d3c278062366d6c5c448f181b40ef",
+        "process_blob": "7c5e65db41de69a171e069c6f57686d2f1124227",
+        "nightly_blob": "12d6a6803fd0b2d327ff8f810c3a25c83566eb79",
+        "combined_blob": "6784d408a81dd9efca544f2cc0620b40f55092a2"
+      },
+      {
+        "path": "scripts/validate-release-boundary/release-contract-policy.ts",
+        "resolution": "hunk_by_hunk",
+        "order": ["e306_stable_source", "o08_standard_nightly"],
+        "process_patch_sha256": "a3c79b908352a4f609a4a009255d6ef6c55fc1d03d1b662e700c78c5c5056377",
+        "nightly_patch_sha256": "6ead590b592e0bb3df16c2471f2fe52bd6421ba57a7ff75080b72e9e118bb9a1",
+        "process_blob": "0213d0c6da2043f7ce20548ce1f6d8dd78010fa5",
+        "nightly_blob": "44b62b87411fd4ee8ebfec2306a1da36d373e30b",
+        "combined_blob": "3cfa54e933189bc3672d3adf56f3a8fa06cc65a1"
+      }
+    ],
+    "validator_support_paths": [
+      "contracts/o08-nightly-fresh-main-replay-manifest.json",
+      "docs/delivery/release/o08-nightly-fresh-main-replay.md",
+      "scripts/validate-o08-nightly-fresh-main-replay.ts",
+      "tests/release/o08-nightly-fresh-main-replay.test.ts"
+    ],
+    "forbidden": {
+      "unknown_replay_path": true,
+      "replay_path_31": true,
+      "whole_file_ours_or_theirs": true,
+      "overlap_blob_drift": true,
+      "source_basis_or_fresh_main_overlay_drift": true,
+      "fresh_main_or_cohort_currentness_drift": true,
+      "successor_chain_drift": true,
+      "source_gate_receipt_before_absorption": true,
+      "stale_or_cross_cohort_source_gate_receipt": true,
+      "source_commit_ancestry_in_post_commit": true
+    }
+  },
+  "generated_surfaces": [
+    { "schema": "opl_app_release_source_gate.v1", "producer": "scripts/validate-release-source-gate.ts", "reuse_allowed": false },
+    { "schema": "opl_release_dispatch_guard.v1", "producer": "scripts/release-dispatch-guard.ts", "reuse_allowed": false },
+    { "schema": "opl_stable_release_admission_manifest.v1", "producer": "scripts/stable-release-admission-manifest.ts", "reuse_allowed": false },
+    { "schema": "opl_stable_release_admission_verification.v1", "producer": "scripts/stable-release-admission-manifest.ts", "reuse_allowed": false },
+    { "schema": "opl_app_source_qualification_receipt.v1", "producer": "scripts/source-qualification-receipt.ts", "reuse_allowed": false },
+    { "schema": "opl_standard_nightly_request.v1", "producer": "scripts/resolve-nightly-release-request.ts", "reuse_allowed": false },
+    { "schema": "opl_standard_nightly_qualification.v1", "producer": "scripts/nightly-release-qualification.ts", "reuse_allowed": false },
+    { "schema": "opl_standard_nightly_publication_receipt.v1", "producer": "scripts/nightly-release-publisher.ts", "reuse_allowed": false },
+    { "schema": "temporary_exact_shell_product_profile_projection", "producer": "scripts/validate-shell-product-profile-consumer.ts", "reuse_allowed": false },
+    { "schema": "opl_app_build_artifact_cohort.v2", "producer": "scripts/write-build-artifact-cohort.ts", "reuse_allowed": false }
+  ],
+  "gate_environment": {
+    "required_variables": [
+      "OPL_FULL_OPL_FLOW_ROOT",
+      "OPL_FLOW_WORKFLOW_POLICY"
+    ],
+    "policy_relative_to_root": "contracts/workflow-policy.json",
+    "mutation_allowed": false
+  },
+  "gates": [
+    {
+      "id": "fresh_replay_validator_focused",
+      "cwd": "app",
+      "command": ["node", "--experimental-strip-types", "--test", "tests/release/o08-nightly-fresh-main-replay.test.ts"]
+    },
+    {
+      "id": "process_focused_38",
+      "cwd": "app",
+      "command": [
+        "node", "--experimental-strip-types", "--test", "--test-concurrency=4",
+        "--test-timeout=120000", "--test-force-exit",
+        "tests/release/release-dispatch-guard.test.ts",
+        "tests/release/release-source-gate.test.ts",
+        "tests/release/release-source-qualification-workflow.test.ts",
+        "tests/release/stable-release-admission-manifest.test.ts"
+      ]
+    },
+    {
+      "id": "nightly_focused_expanded",
+      "cwd": "app",
+      "command": [
+        "node", "--experimental-strip-types", "--test", "--test-concurrency=4",
+        "--test-timeout=120000", "--test-force-exit",
+        "tests/release/nightly-release.test.ts",
+        "tests/release/release-control-plane-boundary.test.ts",
+        "tests/release/release-bundle-control-plane-contract.test.ts",
+        "tests/release/release-bundle-workflow-cutover.test.ts",
+        "tests/release/distribution-install-ssot.test.ts",
+        "tests/release/nightly-homebrew-vm.test.ts"
+      ]
+    },
+    {
+      "id": "release_boundary_static",
+      "cwd": "app",
+      "command": ["npm", "run", "validate:release-boundary"]
+    },
+    {
+      "id": "release_boundary_aggregate",
+      "cwd": "app",
+      "command": ["npm", "run", "test:release-boundary"]
+    },
+    {
+      "id": "active_shell_aggregate",
+      "cwd": "app",
+      "command": ["npm", "run", "validate:active-shell"]
+    }
+  ],
+  "readback": {
+    "post_commit_requires": [
+      "base_is_ancestor",
+      "support_tip_descends_from_nightly_successor",
+      "nightly_successor_to_support_tip_is_exact4",
+      "source_basis_and_fresh_main_exact2_overlay_blobs",
+      "source_commits_are_not_ancestors",
+      "exact30_payload_blobs",
+      "exact4_support_paths",
+      "clean_worktree",
+      "commit_tree",
+      "path_blob_inventory"
+    ],
+    "absorption_requires": [
+      "local_main_equals_wire_main",
+      "post_commit_is_ancestor_of_main",
+      "source_basis_and_fresh_main_exact2_overlay_blobs",
+      "exact30_payload_blobs",
+      "exact4_support_paths",
+      "fresh_source_gate_receipt_bound_to_main_and_exact_cohort",
+      "clean_main_worktree",
+      "main_tree",
+      "path_blob_inventory"
+    ]
+  }
+}

@@ -95,7 +95,7 @@
       },
       {
         "assistant_id": "mag",
-        "shortcut_id": "grant",
+        "shortcut_id": "open_grant_user_loop",
         "package_id": "mag",
         "codex_visible_entry": "med-autogrant",
         "required_skill_ids": [
@@ -105,7 +105,7 @@
       },
       {
         "assistant_id": "rca",
-        "shortcut_id": "ppt",
+        "shortcut_id": "invoke_product_entry",
         "package_id": "rca",
         "codex_visible_entry": "redcube-ai",
         "required_skill_ids": [

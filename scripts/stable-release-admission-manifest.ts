@@ -20,6 +20,10 @@ import {
   validateSourceQualificationReceipt,
   type SourceQualificationReceipt,
 } from './source-qualification-receipt.ts';
+import {
+  readOwnerWorkflowRuns,
+  resolveGitWireRef,
+} from './release-dispatch-guard.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +52,7 @@ const requiredWorkflowPaths = [
   'scripts/source-qualification-receipt.ts',
   'scripts/validate-source-qualification-receipt.ts',
   'scripts/stable-release-admission-manifest.ts',
+  'scripts/release-dispatch-guard.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ] as const;
@@ -569,11 +574,22 @@ function ghJson(endpoint: string, fields: Record<string, string> = {}): unknown 
 }
 
 function repositoryMainRef(repository: string): string {
-  const payload = object(
-    ghJson(`repos/${repository}/git/ref/heads/main`),
-    `${repository} main ref`,
-  );
-  return fullSha(object(payload.object, `${repository} main ref object`).sha, `${repository} main ref`);
+  const remote = repository === appRepository
+    ? 'origin'
+    : `https://github.com/${repository}.git`;
+  const result = resolveGitWireRef({
+    repository,
+    remote,
+    ref: 'refs/heads/main',
+    maxAttempts: 3,
+    cwd: appRoot,
+  });
+  if (result.status === 'failed') {
+    throw new Error(
+      `Git wire lookup ${repository}@refs/heads/main failed as ${result.failure_kind}/${result.failure_code}: ${result.detail}`,
+    );
+  }
+  return result.sha;
 }
 
 function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
@@ -687,28 +703,32 @@ function isReleaseWorkflowPath(value: string): boolean {
 
 function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
   const runs = new Map<number, ActiveReleaseRun>();
-  for (const status of activeReleaseStatuses) {
-    const payload = object(
-      ghJson(`repos/${appRepository}/actions/runs`, { status, per_page: '100' }),
-      `GitHub ${status} Actions runs`,
+  const lookup = readOwnerWorkflowRuns({ maxAttempts: 3, cwd: appRoot });
+  if (lookup.status === 'failed') {
+    throw new Error(
+      `Owner Actions lookup failed as ${lookup.failure_kind}/${lookup.failure_code}: ${lookup.detail}`,
     );
-    if (!Array.isArray(payload.workflow_runs)) {
-      throw new Error(`GitHub ${status} Actions lookup did not return workflow_runs.`);
+  }
+  for (const entry of lookup.runs) {
+    const candidate = object(entry, 'GitHub Actions run');
+    const id = Number(candidate.id);
+    const runPath = requiredString(candidate.path, 'GitHub Actions run path');
+    const status = requiredString(candidate.status, 'GitHub Actions run status');
+    if (
+      !Number.isSafeInteger(id)
+      || id <= 0
+      || String(id) === excludedRunId
+      || !isReleaseWorkflowPath(runPath)
+      || !activeReleaseStatuses.includes(status as (typeof activeReleaseStatuses)[number])
+    ) {
+      continue;
     }
-    for (const entry of payload.workflow_runs) {
-      const candidate = object(entry, `GitHub ${status} Actions run`);
-      const id = Number(candidate.id);
-      const runPath = requiredString(candidate.path, `GitHub ${status} Actions run path`);
-      if (!Number.isSafeInteger(id) || id <= 0 || String(id) === excludedRunId || !isReleaseWorkflowPath(runPath)) {
-        continue;
-      }
-      runs.set(id, {
-        id,
-        path: runPath.split('@')[0]!,
-        status: requiredString(candidate.status, `GitHub ${status} Actions run status`),
-        head_sha: fullSha(candidate.head_sha, `GitHub ${status} Actions run head`),
-      });
-    }
+    runs.set(id, {
+      id,
+      path: runPath.split('@')[0]!,
+      status,
+      head_sha: fullSha(candidate.head_sha, 'GitHub Actions run head'),
+    });
   }
   return [...runs.values()].sort((left, right) => left.id - right.id);
 }

@@ -198,14 +198,17 @@ test("Standard alone may become Latest while Nightly publishes an isolated Stand
   assert.equal(control.publication.nightly.workflow, ".github/workflows/release-nightly.yml");
   assert.equal(control.publication.nightly.trigger, "schedule_only");
   assert.equal(control.publication.nightly.latest_allowed, false);
+  assert.equal(control.publication.nightly.include_full, false);
   assert.equal(control.publication.nightly.stable_bundle_authority_used, false);
   assert.equal(control.publication.nightly.stable_mutation_mutex_used, false);
   assert.equal(control.publication.nightly.heavy_vm_blocking, false);
+  assert.equal(control.publication.nightly.post_publication_followers_block_github_prerelease, false);
   assert.equal(release.nightly_standard.status, "implemented_pending_first_publication_readback");
   assert.equal(release.nightly_standard.publication_available, true);
   assert.equal(release.nightly_standard.mutation_available, true);
   assert.equal(release.nightly_standard.historical_tag_and_receipt_parsing_allowed, true);
   assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
+  assert.equal(release.nightly_standard.include_full, false);
   assert.equal(release.nightly_standard.heavy_vm_blocks_publication, false);
 });
 

@@ -9,6 +9,7 @@ import {
   sha256Canonical,
 } from '../../scripts/compile-first-run-expectations.ts';
 import { appRoot } from './app-release-boundary-cases/helpers.ts';
+import { canonicalAssistantTargets } from './app-release-boundary-cases/helpers-core.ts';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
 const sources = () => ({
@@ -18,6 +19,21 @@ const sources = () => ({
   productProfile: readJson('contracts/app-product-profile.json'),
   release: readJson('contracts/app-release-channel.json'),
 });
+
+const expectedAssistantTargets = [
+  {
+    assistant_id: 'mas', shortcut_id: 'research', package_id: 'mas',
+    codex_visible_entry: 'med-autoscience', required_skill_ids: ['med-autoscience'], badge: '@科研',
+  },
+  {
+    assistant_id: 'mag', shortcut_id: 'open_grant_user_loop', package_id: 'mag',
+    codex_visible_entry: 'med-autogrant', required_skill_ids: ['med-autogrant'], badge: '@基金',
+  },
+  {
+    assistant_id: 'rca', shortcut_id: 'invoke_product_entry', package_id: 'rca',
+    codex_visible_entry: 'redcube-ai', required_skill_ids: ['redcube-ai'], badge: '@演示',
+  },
+];
 
 test('compiled first-run expectations exactly match all App contract projections', () => {
   const compiled = compileCurrentFirstRunExpectations();
@@ -38,23 +54,30 @@ test('compiled first-run expectations exactly match all App contract projections
     runtime_catalog_authority: false,
     unknown_standard_agent_allowed: true,
   });
-  assert.deepEqual(compiled.profiles.standard.semantics.assistant_targets, [
-    {
-      assistant_id: 'mas', shortcut_id: 'research', package_id: 'mas',
-      codex_visible_entry: 'med-autoscience', required_skill_ids: ['med-autoscience'], badge: '@科研',
-    },
-    {
-      assistant_id: 'mag', shortcut_id: 'grant', package_id: 'mag',
-      codex_visible_entry: 'med-autogrant', required_skill_ids: ['med-autogrant'], badge: '@基金',
-    },
-    {
-      assistant_id: 'rca', shortcut_id: 'ppt', package_id: 'rca',
-      codex_visible_entry: 'redcube-ai', required_skill_ids: ['redcube-ai'], badge: '@演示',
-    },
-  ]);
+  assert.deepEqual(compiled.profiles.standard.semantics.assistant_targets, expectedAssistantTargets);
+  assert.deepEqual(compiled.profiles.full.semantics.assistant_targets, expectedAssistantTargets);
+  assert.deepEqual(Object.values(canonicalAssistantTargets), expectedAssistantTargets);
   assert.ok(compiled.profiles.standard.semantics.assistant_targets.every(
     (target) => target.package_id !== target.codex_visible_entry && target.required_skill_ids.includes(target.codex_visible_entry),
   ));
+});
+
+test('corrected MAG probe selects the dynamic shortcut instead of visible identity collisions', () => {
+  const syntheticHome = new Map([
+    ['home-starter-open_grant_user_loop', { visible: true }],
+    ['home-starter-mag', { visible: true }],
+    ['home-starter-grant', { visible: false }],
+  ]);
+  const firstVisibleControl = (assistantId: string, shortcutId: string) => [
+    `home-starter-${shortcutId}`,
+    `preset-pill-${assistantId}`,
+    `home-starter-${assistantId}`,
+    `preset-pill-${shortcutId}`,
+  ].find((testId) => syntheticHome.get(testId)?.visible);
+
+  assert.equal(firstVisibleControl('mag', 'open_grant_user_loop'), 'home-starter-open_grant_user_loop');
+  assert.equal(firstVisibleControl('mag', 'grant'), 'home-starter-mag');
+  assert.equal(syntheticHome.has('home-starter-grant'), true);
 });
 
 test('compiler rejects the retired disabled-before-selection Standard expectation', () => {

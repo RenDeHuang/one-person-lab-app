@@ -111,6 +111,13 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
       return { status: 0, stdout: 'release boundary ok\n', stderr: '' };
     }
     if (
+      command === process.execPath
+      && args.join(' ') === `--experimental-strip-types scripts/validate-shell-product-profile-consumer.ts --shell-root ${shellRoot} --expected-shell-sha ${shellHead}`
+      && commandOptions.cwd === repoRoot
+    ) {
+      return { status: 0, stdout: 'profile consumer ok\n', stderr: '' };
+    }
+    if (
       command === 'git'
       && args[0] === 'rev-parse'
       && args[1] === '--verify'
@@ -334,6 +341,7 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(checkStatus(report, 'app_current_main_identity'), 'passed');
   assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'passed');
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
@@ -440,10 +448,47 @@ test('release source gate stops at the first required gate failure', () => {
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'failed');
   assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
   assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'blocked');
   assert.equal(report.typed_blocker?.phase, 'required_gate_execution');
   assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
   assert.equal(calls.some((call) => call === 'bun run format:check'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source gate stops before Shell-wide gates when current App profile fails the exact consumer', () => {
+  const calls: string[] = [];
+  const consumerCommand = `${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/validate-shell-product-profile-consumer.ts --shell-root ${shellRoot} --expected-shell-sha ${shellHead}`;
+  const baseRunner = runner({
+    [consumerCommand]: {
+      status: 1,
+      stderr: 'gui.home.home_agent_shortcuts must be a non-empty array\n',
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'failed');
+  assert.match(
+    report.checks.find((check) => check.id === 'shell_product_profile_consumer')?.message ?? '',
+    /home_agent_shortcuts/,
+  );
+  assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+  assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
 });
 
 test('release source gate fails active shell node/dom regressions before expensive release work', () => {

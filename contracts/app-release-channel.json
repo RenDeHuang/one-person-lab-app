@@ -1081,9 +1081,11 @@
         "workflow": ".github/workflows/release-nightly.yml",
         "trigger": "schedule_only",
         "latest_allowed": false,
+        "include_full": false,
         "stable_bundle_authority_used": false,
         "stable_mutation_mutex_used": false,
         "heavy_vm_blocking": false,
+        "post_publication_followers_block_github_prerelease": false,
         "homebrew_follower": ".github/workflows/release-nightly-homebrew-follower.yml",
         "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml"
       },
@@ -1907,6 +1909,7 @@
     "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml",
     "trigger": "daily_schedule",
     "prerelease": true,
+    "include_full": false,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
     "stable_bundle_authority_used": false,
@@ -2959,10 +2962,65 @@
         "github_release_and_tag_namespace",
         "anonymous_webui_namespace",
         "homebrew_standard_cask_and_policy",
-        "zero_other_active_release_runs"
+        "zero_other_active_release_runs",
+        "git_wire_main_refs_and_single_owner_run_query"
       ],
       "fresh_verify_before_expensive_work": true,
       "unknown_dispatch_result_policy": "read_only_reconcile_without_rerun_redispatch_or_cancel"
+    },
+    "dispatch_guard": {
+      "schema": "opl_release_dispatch_guard.v1",
+      "script": "scripts/release-dispatch-guard.ts",
+      "package_script": "release:dispatch-guard",
+      "required_before_nonce_consumption": true,
+      "source_gate_report_exact_cohort_binding_required": true,
+      "required_pre_nonce_gates": [
+        "release:source-gate",
+        "current_app_profile_exact_shell_consumer",
+        "git_wire_app_shell_framework_main_identity",
+        "single_owner_workflow_runs_query"
+      ],
+      "cross_repository_ref_identity": {
+        "transport": "git_ls_remote_wire",
+        "commit_or_ref_api_guard_allowed": false,
+        "max_transport_attempts_per_read": 3,
+        "transport_failure_is_credential_failure": false
+      },
+      "owner_run_lookup": {
+        "logical_query_count": 1,
+        "max_transport_attempts": 3,
+        "parser": "node_structured_json_without_jq",
+        "identity_fields": [
+          "workflow_path",
+          "head_sha",
+          "event_workflow_dispatch",
+          "head_branch_main",
+          "run_attempt_1",
+          "operation_started_at_bounded_window"
+        ],
+        "identity_window_seconds": 300,
+        "zero_or_ambiguous_result": "outcome_unknown"
+      },
+      "transport_failure_codes": [
+        "tls_handshake_timeout",
+        "unexpected_eof",
+        "transport_timeout",
+        "transport_error"
+      ],
+      "pre_nonce_failure": {
+        "nonce_consumed": false,
+        "mutation_invocation_count": 0,
+        "read_only_guard_replacement_allowed": true,
+        "dispatch_allowed": false
+      },
+      "post_dispatch_failure": {
+        "nonce_consumed": true,
+        "mutation_invocation_count": 1,
+        "mutation_retry_count": 0,
+        "read_only_reconcile_only": true,
+        "replacement_allowed": false,
+        "redispatch_allowed": false
+      }
     },
     "source_qualification": {
       "schema": "opl_app_source_qualification_receipt.v1",
@@ -2978,7 +3036,12 @@
       "release_authority": false,
       "namespace_reservation": false,
       "final_signed_byte_authority": false,
-      "accepted_consumer": ".github/workflows/release-stable.yml"
+      "accepted_consumer": ".github/workflows/release-stable.yml",
+      "pre_dispatch_profile_consumer_guard": "scripts/validate-shell-product-profile-consumer.ts",
+      "profile_consumer_test": "tests/unit/common-config/oplProductProfile.test.ts",
+      "profile_projection": "current_app_profile_into_temporary_exact_shell_archive",
+      "source_shell_mutation_allowed": false,
+      "must_pass_before_source_workflow_dispatch": true
     },
     "apple_credentials_diagnostic": {
       "workflow": ".github/workflows/release-apple-credentials-preflight.yml",
@@ -3015,7 +3078,8 @@
       "stable_admission_manifest_digest",
       "apple_credentials_runtime_receipt",
       "cross_namespace_version_allocator",
-      "zero_other_active_release_runs"
+      "zero_other_active_release_runs",
+      "current_app_profile_exact_shell_consumer"
     ],
     "failure_budget": "fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full",
     "source_gate": {
@@ -3023,6 +3087,7 @@
       "status": "implemented_enforced_before_expensive_release_jobs",
       "scope": [
         "App release-boundary contract",
+        "current App profile against exact Shell consumer in a temporary archive",
         "shell format",
         "shell type",
         "active shell node/dom tests",
@@ -3038,7 +3103,7 @@
         "webui_ghcr_publish"
       ],
       "failure_next_action": "repair_source_gate",
-      "rule": "The App release source gate must fail before expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, shell format/type, shell ref resolution, or framework ref resolution is invalid."
+      "rule": "The App release source gate must fail before workflow dispatch or expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, current App profile against the exact Shell consumer, shell format/type, shell ref resolution, or framework ref resolution is invalid."
     },
     "rule": "The App freeze-request adapter validates product identity, exact App/Shell/Framework refs, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal and historical Bundle identity remains read-compatible.",
     "stable_operations": [

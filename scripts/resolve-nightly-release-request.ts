@@ -28,6 +28,7 @@ export type NightlyReleaseRequest = {
   publication: {
     github_prerelease: true;
     make_latest: false;
+    include_full: false;
     full_allowed: false;
     webui_allowed: false;
     heavy_vm_blocking: false;
@@ -60,6 +61,22 @@ function digestRequest(value: Omit<NightlyReleaseRequest, 'request_digest'>): `s
 }
 
 export function assertNightlyRequestDigest(request: NightlyReleaseRequest): void {
+  if (
+    request.schema !== 'opl_standard_nightly_request.v1'
+    || request.channel !== 'nightly'
+    || request.package_kind !== 'app_standard'
+    || request.actions?.run_attempt !== '1'
+    || request.publication?.github_prerelease !== true
+    || request.publication?.make_latest !== false
+    || request.publication?.include_full !== false
+    || request.publication?.full_allowed !== false
+    || request.publication?.webui_allowed !== false
+    || request.publication?.heavy_vm_blocking !== false
+    || request.publication?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
+    || request.publication?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml'
+  ) {
+    throw new Error('Nightly request must remain an attempt-one Standard-only non-Latest prerelease.');
+  }
   if (!digestPattern.test(request.request_digest)) throw new Error('Nightly request digest is invalid.');
   const { request_digest: _digest, ...body } = request;
   if (digestRequest(body) !== request.request_digest) {
@@ -104,6 +121,7 @@ export function resolveNightlyReleaseRequest(input: {
     publication: {
       github_prerelease: true,
       make_latest: false,
+      include_full: false,
       full_allowed: false,
       webui_allowed: false,
       heavy_vm_blocking: false,

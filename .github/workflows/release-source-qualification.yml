@@ -56,10 +56,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          resolve_main_wire() {
+            local repository="$1"
+            local remote="https://github.com/${repository}.git"
+            local output=""
+            local status=0
+            local attempt=0
+            local sha=""
+            for attempt in 1 2 3; do
+              set +e
+              output="$(git ls-remote --exit-code --heads "$remote" refs/heads/main 2>&1)"
+              status=$?
+              set -e
+              if [ "$status" -eq 0 ]; then
+                sha="$(awk '$2 == "refs/heads/main" { print $1 }' <<<"$output")"
+                [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || {
+                  echo "::error::Git wire returned an invalid or ambiguous main identity for $repository."
+                  return 1
+                }
+                printf '%s\n' "$sha"
+                return 0
+              fi
+              if [ "$status" -eq 2 ]; then
+                echo "::error::Git wire main ref is missing for $repository."
+                return 2
+              fi
+            done
+            echo "::error::Git wire transport remained unavailable for $repository after 3 bounded read-only attempts: $output"
+            return "$status"
+          }
           app_sha="$(git -C app rev-parse HEAD)"
           app_tree="$(git -C app rev-parse 'HEAD^{tree}')"
-          shell_sha="$(gh api repos/gaofeng21cn/opl-aion-shell/commits/main --jq .sha)"
-          framework_sha="$(gh api repos/gaofeng21cn/one-person-lab/commits/main --jq .sha)"
+          shell_sha="$(resolve_main_wire gaofeng21cn/opl-aion-shell)"
+          framework_sha="$(resolve_main_wire gaofeng21cn/one-person-lab)"
           for identity in "$app_sha" "$app_tree" "$shell_sha" "$framework_sha"; do
             [[ "$identity" =~ ^[0-9a-f]{40}$ ]]
           done

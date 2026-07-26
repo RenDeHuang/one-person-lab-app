@@ -227,6 +227,7 @@ export function publishNightlyRelease(input: {
     qualification.schema !== 'opl_standard_nightly_qualification.v1'
     || qualification.status !== 'passed'
     || qualification.request_digest !== request.request_digest
+    || qualification.include_full !== false
     || qualification.stable_qualified !== false
     || qualification.heavy_vm_required !== false
     || qualification.full_assets_present !== false
@@ -315,6 +316,7 @@ export function publishNightlyRelease(input: {
     tag: request.tag,
     cohort: request.source,
     actions: request.actions,
+    include_full: false,
     github_release: {
       id: release.id,
       url: release.html_url,

@@ -103,7 +103,7 @@ Agents & Capabilities, Runtime & Maintenance, and Preferences over all ten carri
 routes and second-level destinations, with About
 as the only secondary page and Advanced/Update/Theme/Local Services/Personalization
 as compatibility redirects, module path source explanation, Stable/Canary release
-gating plus historical Nightly read compatibility, MDS non-default display, and
+gating plus scheduled Nightly Standard publication and historical read compatibility, MDS non-default display, and
 OPL Flow context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
@@ -222,9 +222,9 @@ release-boundary tests.
 | Root wrapper hygiene | `npm run hygiene:fallow -- --format json --summary` | App-root wrappers, contracts, and docs are free of scoped production hygiene findings; this is not shell build or release evidence. |
 
 Stable, Canary validation, refresh, Homebrew, Full, WebUI, one-shot installer,
-VM smoke, and promote flows use different release profiles. Historical Nightly
-artifacts have read-compatibility coverage only; Public Nightly is not a user
-channel or publish lane. Treat the release guide and contract as the SSOT for
+VM smoke, and promote flows use different release profiles. Public Nightly is a
+schedule-only opt-in Standard prerelease and not an in-App channel selector;
+historical artifacts retain read compatibility. Treat the release guide and contract as the SSOT for
 those profiles; this testing guide should not duplicate their full workflow policy.
 
 Docker/WebUI smoke gate commands, artifact readback, and typed blocker

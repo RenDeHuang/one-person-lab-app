@@ -438,6 +438,14 @@ export function buildReleaseSourceGateReport(
       reason: 'Release source gate must prove the App-owned release boundary before expensive release work.',
     },
     {
+      id: 'shell_product_profile_consumer',
+      required: true,
+      command: 'node --experimental-strip-types scripts/validate-shell-product-profile-consumer.ts',
+      cwd: options.repoRoot,
+      executed: false,
+      reason: 'Release source gate must project the current App profile into an isolated exact Shell archive and run the real consumer test.',
+    },
+    {
       id: 'active_shell_format_check',
       required: true,
       command: 'bun run format:check',
@@ -768,6 +776,7 @@ export function buildReleaseSourceGateReport(
   if (admissionFailedCheckIds.length > 0) {
     const blockedReason = 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
     blockRequiredGate('app_release_boundary_contract', blockedReason);
+    blockRequiredGate('shell_product_profile_consumer', blockedReason);
     blockRequiredGate('active_shell_format_check', blockedReason);
     blockRequiredGate('active_shell_node_dom_tests', blockedReason);
     return finish(admissionFailedCheckIds, {
@@ -796,6 +805,7 @@ export function buildReleaseSourceGateReport(
     command: 'npm run validate:release-boundary',
   });
   if (releaseBoundaryResult.status !== 0) {
+    blockRequiredGate('shell_product_profile_consumer', 'Blocked because the preceding App release-boundary gate failed.');
     blockRequiredGate('active_shell_format_check', 'Blocked because the preceding App release-boundary gate failed.');
     blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the preceding App release-boundary gate failed.');
     return finish([], {
@@ -808,7 +818,41 @@ export function buildReleaseSourceGateReport(
     });
   }
 
+  const productProfileConsumerArgs = [
+    '--experimental-strip-types',
+    'scripts/validate-shell-product-profile-consumer.ts',
+    '--shell-root',
+    shellRoot,
+    '--expected-shell-sha',
+    shellSha!,
+  ];
   requiredGates[1].executed = true;
+  const productProfileConsumerResult = runner(process.execPath, productProfileConsumerArgs, {
+    cwd: options.repoRoot,
+    env: commandEnvironment,
+  });
+  addCheck(checks, {
+    id: 'shell_product_profile_consumer',
+    status: productProfileConsumerResult.status === 0 ? 'passed' : 'failed',
+    message: productProfileConsumerResult.status === 0
+      ? 'Current App product profile passed the exact Shell consumer in an isolated archive.'
+      : `Current App product profile failed the exact Shell consumer.${commandDetail(productProfileConsumerResult) ? `\n${commandDetail(productProfileConsumerResult)}` : ''}`,
+    command: commandText('node', productProfileConsumerArgs.slice(1)),
+  });
+  if (productProfileConsumerResult.status !== 0) {
+    blockRequiredGate('active_shell_format_check', 'Blocked because the App-profile Shell consumer gate failed.');
+    blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the App-profile Shell consumer gate failed.');
+    return finish([], {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'required_gate_execution',
+      blocker_kind: 'required_gate_failed',
+      failed_check_ids: ['shell_product_profile_consumer'],
+      next_action: 'repair_source_gate',
+      reason: 'Repair the App-profile and exact Shell consumer mismatch before workflow dispatch.',
+    });
+  }
+
+  requiredGates[2].executed = true;
   const formatResult = runner('bun', ['run', 'format:check'], { cwd: shellRoot, env: commandEnvironment });
   addCheck(checks, {
     id: 'active_shell_format_check',
@@ -840,7 +884,7 @@ export function buildReleaseSourceGateReport(
     '--max-workers',
     '2',
   ];
-  requiredGates[2].executed = true;
+  requiredGates[3].executed = true;
   const shellTestsResult = runner(process.execPath, shellTestsArgs, { cwd: options.repoRoot, env: commandEnvironment });
   addCheck(checks, {
     id: 'active_shell_node_dom_tests',
