@@ -16,6 +16,17 @@ const appRoot = path.resolve(import.meta.dirname, '../..');
 const appSha = '1'.repeat(40);
 const shellSha = '2'.repeat(40);
 const frameworkSha = '3'.repeat(40);
+const settingsPages = [
+  'general',
+  'environment',
+  'capabilities',
+  'access',
+  'appearance',
+  'diagnostics',
+  'about',
+  'runtime-settings-alias',
+  'runtime-status',
+];
 
 function writeJson(filePath: string, value: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -58,7 +69,7 @@ function fixture(t: TestContext) {
     runtime_profile: 'standard',
     settings_smoke: {
       status: 'passed',
-      pages: ['general', 'environment', 'capabilities', 'access', 'appearance', 'diagnostics', 'about', 'runtime-status'],
+      pages: settingsPages,
     },
     assistant_route_smoke: { status: 'passed', assistants: ['mas', 'mag', 'rca'] },
     vm_cleanup: { status: 'passed', inspection: { state: 'absent' } },
@@ -110,12 +121,41 @@ test('source qualification receipt binds one build, one Tart VM, exact cohort, a
   assert.equal(receipt.execution.head_sha, appSha);
   assert.equal(receipt.qualification.build_invocation_count, 1);
   assert.equal(receipt.qualification.tart_vm_invocation_count, 1);
+  assert.deepEqual(receipt.qualification.settings_pages, settingsPages);
   assert.equal(receipt.authority.release_authority, false);
   assert.equal(receipt.authority.namespace_reservation, false);
   assert.equal(receipt.authority.final_signed_byte_authority, false);
   const { receipt_digest: digest, ...core } = receipt;
   assert.equal(digest, sourceQualificationReceiptDigest(core));
   assert.equal(validateSourceQualificationReceipt(receipt, { digest, runId: '30180000001', headSha: appSha }), receipt);
+});
+
+test('source qualification requires the exact nine-page settings order', (t) => {
+  const { files } = fixture(t);
+  const receipt = buildSourceQualificationReceipt(input(files));
+  assert.deepEqual(receipt.qualification.settings_pages, settingsPages);
+
+  const smoke = JSON.parse(fs.readFileSync(files.smoke, 'utf8'));
+  smoke.settings_smoke.pages = settingsPages.filter((page) => page !== 'runtime-settings-alias');
+  writeJson(files.smoke, smoke);
+  assert.throws(() => buildSourceQualificationReceipt(input(files)), /exact contracted entries/);
+
+  smoke.settings_smoke.pages = [...settingsPages];
+  [smoke.settings_smoke.pages[7], smoke.settings_smoke.pages[8]] = [
+    smoke.settings_smoke.pages[8],
+    smoke.settings_smoke.pages[7],
+  ];
+  writeJson(files.smoke, smoke);
+  assert.throws(() => buildSourceQualificationReceipt(input(files)), /exact contracted order/);
+
+  const wrongOrderReceipt = structuredClone(receipt);
+  [wrongOrderReceipt.qualification.settings_pages[7], wrongOrderReceipt.qualification.settings_pages[8]] = [
+    wrongOrderReceipt.qualification.settings_pages[8],
+    wrongOrderReceipt.qualification.settings_pages[7],
+  ];
+  const { receipt_digest: _ignored, ...core } = wrongOrderReceipt;
+  wrongOrderReceipt.receipt_digest = sourceQualificationReceiptDigest(core);
+  assert.throws(() => validateSourceQualificationReceipt(wrongOrderReceipt), /exact contracted order/);
 });
 
 test('source qualification rejects reruns, cross-cohort manifests, duplicate operation counts, and incomplete VM cleanup', (t) => {

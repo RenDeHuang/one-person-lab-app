@@ -17,6 +17,7 @@ const requiredSettingsPages = [
   'appearance',
   'diagnostics',
   'about',
+  'runtime-settings-alias',
   'runtime-status',
 ] as const;
 const requiredAssistantRoutes = ['mas', 'mag', 'rca'] as const;

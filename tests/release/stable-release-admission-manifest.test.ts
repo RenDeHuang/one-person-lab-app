@@ -132,7 +132,7 @@ function sourceQualificationReceipt() {
     ) as any,
     qualification: {
       runtime_profile: 'standard' as const,
-      settings_pages: ['general', 'environment', 'capabilities', 'access', 'appearance', 'diagnostics', 'about', 'runtime-status'],
+      settings_pages: ['general', 'environment', 'capabilities', 'access', 'appearance', 'diagnostics', 'about', 'runtime-settings-alias', 'runtime-status'],
       assistant_routes: ['mas', 'mag', 'rca'],
       runtime_routes: ['#/settings/runtime', '#/runtime'],
       build_invocation_count: 1 as const,
