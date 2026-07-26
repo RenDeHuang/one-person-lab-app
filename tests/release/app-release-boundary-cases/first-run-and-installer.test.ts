@@ -302,6 +302,67 @@ test("reusable build validates the Shell consumer after syncing the App product 
   );
 });
 
+test("reusable build cohort selects the product App without counting nested Electron helpers", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/_build-reusable.yml"),
+    "utf8",
+  );
+  const stepStart = workflow.indexOf("- name: Write build artifact cohort manifest");
+  const stepEnd = workflow.indexOf("\n      - name:", stepStart + 1);
+  const step = workflow.slice(stepStart, stepEnd);
+  assert.ok(stepStart >= 0 && stepEnd > stepStart, "missing build cohort manifest step");
+  assert.match(
+    step,
+    /find out -maxdepth 2 -type d -name 'One Person Lab\.app' -print \| LC_ALL=C sort/,
+  );
+  assert.doesNotMatch(step, /find out -type d -name '\*\.app'/);
+  assert.match(step, /if \[ "\$\{#dmg_paths\[@\]\}" -ne 1 \] \|\| \[ "\$\{#packaged_trees\[@\]\}" -ne 1 \]/);
+  assert.match(step, /test -d "\$packaged_tree" && test ! -L "\$packaged_tree"/);
+
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-build-cohort-selector-"));
+  const outRoot = path.join(fixtureRoot, "out");
+  const productApp = path.join(outRoot, "mac-arm64", "One Person Lab.app");
+  const helperRoot = path.join(productApp, "Contents", "Frameworks");
+  const select = (args: string[]) => {
+    const result = spawnSync("find", args, { cwd: fixtureRoot, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim().split("\n").filter(Boolean);
+  };
+
+  try {
+    for (const name of [
+      "One Person Lab Helper.app",
+      "One Person Lab Helper (GPU).app",
+      "One Person Lab Helper (Plugin).app",
+      "One Person Lab Helper (Renderer).app",
+    ]) {
+      fs.mkdirSync(path.join(helperRoot, name), { recursive: true });
+    }
+
+    assert.equal(select(["out", "-type", "d", "-name", "*.app", "-print"]).length, 5);
+    assert.deepEqual(
+      select(["out", "-maxdepth", "2", "-type", "d", "-name", "One Person Lab.app", "-print"]),
+      ["out/mac-arm64/One Person Lab.app"],
+    );
+
+    const duplicateApp = path.join(outRoot, "duplicate", "One Person Lab.app");
+    fs.mkdirSync(duplicateApp, { recursive: true });
+    assert.equal(
+      select(["out", "-maxdepth", "2", "-type", "d", "-name", "One Person Lab.app", "-print"]).length,
+      2,
+    );
+
+    fs.rmSync(productApp, { recursive: true, force: true });
+    fs.rmSync(duplicateApp, { recursive: true, force: true });
+    assert.equal(
+      select(["out", "-maxdepth", "2", "-type", "d", "-name", "One Person Lab.app", "-print"]).length,
+      0,
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("App product profile check verifies the deterministic compatibility projection without rewriting it", () => {
   const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-profile-sync-"));
   const policyPath = path.join(shellRoot, "workflow-policy.json");

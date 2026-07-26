@@ -1091,7 +1091,7 @@ jobs:
           )
           packaged_trees=()
           while IFS= read -r candidate; do packaged_trees+=("$candidate"); done < <(
-            find out -type d -name '*.app' -print | LC_ALL=C sort
+            find out -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
           )
           if [ "${#dmg_paths[@]}" -ne 1 ] || [ "${#packaged_trees[@]}" -ne 1 ]; then
             echo "::error::Build cohort requires exactly one DMG and one packaged App tree; found ${#dmg_paths[@]} and ${#packaged_trees[@]}."
