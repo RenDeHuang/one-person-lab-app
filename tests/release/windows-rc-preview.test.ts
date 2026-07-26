@@ -176,6 +176,8 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
+  assert.match(guide, /登录只建立 Gateway 账户会话，不会代替第 6 步的模型访问确认/);
+  assert.match(guide, /点击单独出现的“设为模型访问方式”/);
   assert.match(guide, /不要关闭\s+Microsoft Defender/);
   assert.match(guide, /这个 RC 的所有 Codex-backed 执行都进入 App 专用的 `OPL-Linux`/);
   assert.doesNotMatch(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
