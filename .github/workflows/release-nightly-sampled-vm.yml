@@ -63,6 +63,7 @@ jobs:
             and (.status == "published" or .status == "already_complete")
             and .github_release.prerelease == true
             and .github_release.make_latest == false
+            and .include_full == false
             and .heavy_vm_blocking == false
             and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
             and (.cohort.shell_sha | test("^[0-9a-f]{40}$"))

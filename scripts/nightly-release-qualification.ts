@@ -32,6 +32,7 @@ export type NightlyQualificationReceipt = {
   cohort: NightlyReleaseRequest['source'];
   actions: NightlyReleaseRequest['actions'];
   package_kind: 'app_standard';
+  include_full: false;
   stable_qualified: false;
   heavy_vm_required: false;
   sampled_vm_nonblocking: true;
@@ -149,6 +150,7 @@ export function qualifyNightlyRelease(input: {
     cohort: request.source,
     actions: request.actions,
     package_kind: 'app_standard',
+    include_full: false,
     stable_qualified: false,
     heavy_vm_required: false,
     sampled_vm_nonblocking: true,

@@ -17,6 +17,7 @@ import {
   type NightlyRemoteRelease,
 } from '../../scripts/nightly-release-publisher.ts';
 import {
+  assertNightlyRequestDigest,
   resolveNightlyReleaseRequest,
   type NightlyReleaseRequest,
 } from '../../scripts/resolve-nightly-release-request.ts';
@@ -176,6 +177,7 @@ test('Nightly request freezes exact Standard refs, revision, and non-Stable publ
     framework_sha: frameworkSha,
   });
   assert.equal(frozen.publication.make_latest, false);
+  assert.equal(frozen.publication.include_full, false);
   assert.equal(frozen.publication.full_allowed, false);
   assert.equal(frozen.publication.webui_allowed, false);
   assert.equal(frozen.publication.heavy_vm_blocking, false);
@@ -190,9 +192,18 @@ test('Nightly request freezes exact Standard refs, revision, and non-Stable publ
   }), /attempt 1/);
 });
 
+test('Nightly request rejects digest-valid policy widening', () => {
+  const widened = structuredClone(request()) as NightlyReleaseRequest;
+  widened.publication.include_full = true as false;
+  const { request_digest: _digest, ...body } = widened;
+  widened.request_digest = `sha256:${crypto.createHash('sha256').update(`${JSON.stringify(body)}\n`).digest('hex')}`;
+  assert.throws(() => assertNightlyRequestDigest(widened), /Standard-only non-Latest prerelease/);
+});
+
 test('Nightly qualification binds exact Standard assets without Stable, Full, WebUI, or heavy VM claims', (t) => {
   const input = fixture(t);
   assert.equal(input.qualification.status, 'passed');
+  assert.equal(input.qualification.include_full, false);
   assert.equal(input.qualification.stable_qualified, false);
   assert.equal(input.qualification.heavy_vm_required, false);
   assert.equal(input.qualification.sampled_vm_nonblocking, true);
@@ -220,6 +231,7 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
     remote,
   });
   assert.equal(first.status, 'published');
+  assert.equal(first.include_full, false);
   assert.equal(first.github_release.prerelease, true);
   assert.equal(first.github_release.make_latest, false);
   assert.equal(first.github_release.latest_before, 'v26.7.25');

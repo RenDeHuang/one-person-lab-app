@@ -176,6 +176,7 @@ jobs:
             --cohort build-cohort/opl-build-cohort.json \
             --output nightly-qualification.json
           test "$(jq -r .request_digest nightly-qualification.json)" = '${{ needs.admission.outputs.request_digest }}'
+          test "$(jq -r .include_full nightly-qualification.json)" = false
           test "$(jq -r .stable_qualified nightly-qualification.json)" = false
           test "$(jq -r .heavy_vm_required nightly-qualification.json)" = false
 
@@ -203,6 +204,7 @@ jobs:
             --output nightly-publication.json
           test "$(jq -r .github_release.prerelease nightly-publication.json)" = true
           test "$(jq -r .github_release.make_latest nightly-publication.json)" = false
+          test "$(jq -r .include_full nightly-publication.json)" = false
           test "$(jq -r .github_release.latest_before nightly-publication.json)" = \
             "$(jq -r .github_release.latest_after nightly-publication.json)"
 

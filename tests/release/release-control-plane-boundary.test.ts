@@ -193,6 +193,22 @@ test('Nightly cannot reuse the Stable Bundle, heavy VM, or Stable mutation mutex
   assert.ok(withoutExpectedDiagnostics(() => validateNightlyReleaseTopology(root)) >= 3);
 });
 
+test('Nightly keeps one schedule and moves Homebrew and VM work out of band', (t) => {
+  const root = fixture(t);
+  fs.writeFileSync(workflowPath(root, 'nightly-shadow.yml'), `name: OPL Shadow Nightly
+on:
+  schedule:
+    - cron: '0 0 * * *'
+jobs: {}
+`);
+  assert.ok(withoutExpectedDiagnostics(() => validateNightlyReleaseTopology(root)) > 0);
+
+  fs.rmSync(workflowPath(root, 'nightly-shadow.yml'));
+  const release = workflowPath(root, 'release-nightly.yml');
+  fs.appendFileSync(release, '\n# update-homebrew tap and tart gate\n');
+  assert.ok(withoutExpectedDiagnostics(() => validateNightlyReleaseTopology(root)) > 0);
+});
+
 test('Canary compile ceilings keep reachable jobs read-only and mutation unreachable', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-bundle-canary.yml', (workflow) => {

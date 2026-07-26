@@ -401,9 +401,10 @@ owns the active candidate plan. Hermes docs remain prior-candidate reference:
 `docs/history/shell-candidates/agui-codex-candidate-verification.md` is read only
 for explicit AGUI replay or historical audit. Default Stable packaging continues
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell until
-an explicit release-owner decision changes that contract. Public Nightly
-publication is retired and remains read-compatible only; its historical
-Standard (not Full) meaning and the no-resurrection boundary are maintained in
+an explicit release-owner decision changes that contract. Public Nightly is the
+implemented schedule-only Standard (not Full) prerelease; the first public
+publication and follower readbacks remain pending, while historical bytes stay
+read-compatible. Its exact boundary is maintained in
 `docs/delivery/distribution-and-install-ssot.md`. Scheduled validation uses the
 separate non-user Canary lane.
 

@@ -957,6 +957,20 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     return [release, homebrew, sampledVm].filter((value) => !value).length;
   }
   let failures = 0;
+  const scheduledNightlyDispatchers = fs.readdirSync(path.join(appRoot, '.github/workflows'))
+    .filter((name) => name.endsWith('.yml'))
+    .filter((name) => {
+      const workflow = parseYaml(
+        fs.readFileSync(path.join(appRoot, '.github/workflows', name), 'utf8'),
+      ) as Record<string, any>;
+      return typeof workflow.name === 'string'
+        && /nightly/i.test(workflow.name)
+        && Object.prototype.hasOwnProperty.call(workflow.on ?? {}, 'schedule');
+    })
+    .sort();
+  if (JSON.stringify(scheduledNightlyDispatchers) !== JSON.stringify(['release-nightly.yml'])) {
+    failures += reportFailure(id, 'Nightly must have exactly one scheduled dispatcher: release-nightly.yml');
+  }
   const releaseJobs = workflowJobs(release.workflow);
   if (
     JSON.stringify(Object.keys(release.workflow.on ?? {})) !== JSON.stringify(['schedule'])
@@ -1002,6 +1016,7 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     'nightly-release-publisher.ts',
     'require_macos_gatekeeper: false',
     'github_release.make_latest',
+    '.include_full',
     'heavy_vm_required',
   ]) {
     if (!release.text.includes(required)) {
@@ -1009,11 +1024,11 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     }
   }
   if (
-    /workflow_dispatch:|opl-release-bundle-global|uses: \.\/\.github\/workflows\/_release-bundle\.yml|uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml|require_macos_gatekeeper: true|make_latest:\s*(?:true|'true')|_release-full-addon|release-webui/.test(
+    /workflow_dispatch:|opl-release-bundle-global|uses: \.\/\.github\/workflows\/_release-bundle\.yml|uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml|require_macos_gatekeeper: true|make_latest:\s*(?:true|'true')|_release-full-addon|release-webui|manual-full-preview|update-homebrew|homebrew.*(?:gate|publish|tap|cask)|(?:gate|publish|tap|cask).*homebrew|\btart\b/i.test(
       release.text,
     )
   ) {
-    failures += reportFailure(id, 'Nightly source must not enter Stable Bundle, heavy VM, Full, WebUI, or Latest paths');
+    failures += reportFailure(id, 'Nightly source must not enter Stable Bundle, heavy VM, Full, WebUI, Latest, manual Preview, Homebrew, or Tart paths');
   }
 
   const homebrewJobs = workflowJobs(homebrew.workflow);

@@ -92,6 +92,7 @@ jobs:
             and .github_release.prerelease == true
             and .github_release.make_latest == false
             and .github_release.latest_before == .github_release.latest_after
+            and .include_full == false
             and .stable_qualified == false
             and .heavy_vm_blocking == false
             and .homebrew_modified == false

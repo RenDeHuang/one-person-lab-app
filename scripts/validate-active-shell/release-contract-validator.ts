@@ -458,9 +458,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
     publication?.nightly?.trigger !== 'schedule_only' ||
     publication?.nightly?.latest_allowed !== false ||
+    publication?.nightly?.include_full !== false ||
     publication?.nightly?.stable_bundle_authority_used !== false ||
     publication?.nightly?.stable_mutation_mutex_used !== false ||
     publication?.nightly?.heavy_vm_blocking !== false ||
+    publication?.nightly?.post_publication_followers_block_github_prerelease !== false ||
     publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
