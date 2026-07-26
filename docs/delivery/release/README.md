@@ -60,6 +60,26 @@ version, proves no final signed byte, grants no release authority, and performs
 no public mutation. Its purpose is to expose source, packaging, install, and VM
 smoke defects before the protected signing/notarization path pays for them.
 
+Before consuming a dispatch nonce, run the App source gate and
+`release:dispatch-guard preflight` against the exact App, Shell, and Framework
+SHAs. The source gate projects the current App product profile into a temporary
+archive of the exact Shell commit and runs
+`tests/unit/common-config/oplProductProfile.test.ts`; it never writes the source
+Shell checkout. The dispatch guard resolves all three main identities through
+Git wire reads and performs one logical owner workflow-runs API query. Each
+read-only transport operation has at most three attempts.
+The preflight command requires the passed source-gate JSON and rebinds its exact
+cohort before any wire or owner API read.
+
+TLS handshake timeouts, unexpected EOF, and read timeouts are transport
+failures, not credential failures. A pre-nonce failure consumes no nonce and
+permits only a replacement read-only guard. After the exact dispatch invocation,
+the controller parses the owner API JSON in Node and requires one run matching
+workflow path, App SHA, `workflow_dispatch`, `main`, attempt 1, and the bounded
+operation-start window. Zero, ambiguous, or unreadable results are
+`outcome_unknown`; mutation retry, replacement dispatch, rerun, and cancellation
+remain forbidden.
+
 ## Development And Production Modes
 
 WebUI has two explicit task modes that share the same carrier build,
@@ -137,6 +157,7 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | Bundle schema, canonical digest, store, checkpoint, executor and operation receipts | OPL Framework `opl release` |
 | Stable product operations and public asset policy | `contracts/app-release-channel.json#release_bundle_control_plane` |
 | Desktop source qualification | `.github/workflows/release-source-qualification.yml` plus `opl_app_source_qualification_receipt.v1`; development validation only |
+| Stable pre-nonce and post-dispatch guard | `scripts/release-dispatch-guard.ts`; Git wire identity plus one structured owner-run query, read-only only |
 | Stable manual entry | `.github/workflows/release-stable.yml` |
 | Protected same-run credential check and version/cohort admission | `release-stable.yml#protected-admission`; read-only `release-stable` environment gate |
 | Per-attempt failure timing and stage observation | `.github/workflows/release-attempt-observability.yml`; append-only read-only follower without retry authority |

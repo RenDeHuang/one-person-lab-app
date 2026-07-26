@@ -10,6 +10,7 @@ const requiredHomebrewTrustedCaskRefs = [
 const requiredHomebrewTrustScope = 'explicit_standard_and_conflicting_cask_refs_not_whole_tap';
 const requiredSourceGateScopes = [
   'App release-boundary contract',
+  'current App profile against exact Shell consumer in a temporary archive',
   'shell format',
   'shell type',
   'active shell node/dom tests',
@@ -638,6 +639,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'apple_credentials_runtime_receipt',
     'cross_namespace_version_allocator',
     'zero_other_active_release_runs',
+    'current_app_profile_exact_shell_consumer',
   ]) {
     if (!preflight?.required_fast_checks?.includes(checkId)) {
       console.error(`FAIL release_preflight_contract: missing required fast check ${checkId}`);
@@ -682,11 +684,70 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'anonymous_webui_namespace',
     'homebrew_standard_cask_and_policy',
     'zero_other_active_release_runs',
+    'git_wire_main_refs_and_single_owner_run_query',
   ]) {
     if (!standardAdmission?.required_bindings?.includes(binding)) {
       console.error(`FAIL release_preflight_contract: Standard admission manifest missing binding ${binding}`);
       failures += 1;
     }
+  }
+  const dispatchGuard = preflight?.dispatch_guard;
+  if (
+    dispatchGuard?.schema !== 'opl_release_dispatch_guard.v1'
+    || dispatchGuard?.script !== 'scripts/release-dispatch-guard.ts'
+    || dispatchGuard?.package_script !== 'release:dispatch-guard'
+    || dispatchGuard?.required_before_nonce_consumption !== true
+    || dispatchGuard?.source_gate_report_exact_cohort_binding_required !== true
+    || !sameStringSet(
+      dispatchGuard?.required_pre_nonce_gates,
+      [
+        'release:source-gate',
+        'current_app_profile_exact_shell_consumer',
+        'git_wire_app_shell_framework_main_identity',
+        'single_owner_workflow_runs_query',
+      ],
+    )
+    || dispatchGuard?.cross_repository_ref_identity?.transport !== 'git_ls_remote_wire'
+    || dispatchGuard?.cross_repository_ref_identity?.commit_or_ref_api_guard_allowed !== false
+    || dispatchGuard?.cross_repository_ref_identity?.max_transport_attempts_per_read !== 3
+    || dispatchGuard?.cross_repository_ref_identity?.transport_failure_is_credential_failure !== false
+    || dispatchGuard?.owner_run_lookup?.logical_query_count !== 1
+    || dispatchGuard?.owner_run_lookup?.max_transport_attempts !== 3
+    || dispatchGuard?.owner_run_lookup?.parser !== 'node_structured_json_without_jq'
+    || !sameStringSet(
+      dispatchGuard?.owner_run_lookup?.identity_fields,
+      [
+        'workflow_path',
+        'head_sha',
+        'event_workflow_dispatch',
+        'head_branch_main',
+        'run_attempt_1',
+        'operation_started_at_bounded_window',
+      ],
+    )
+    || dispatchGuard?.owner_run_lookup?.identity_window_seconds !== 300
+    || dispatchGuard?.owner_run_lookup?.zero_or_ambiguous_result !== 'outcome_unknown'
+    || !sameStringSet(
+      dispatchGuard?.transport_failure_codes,
+      ['tls_handshake_timeout', 'unexpected_eof', 'transport_timeout', 'transport_error'],
+    )
+    || JSON.stringify(dispatchGuard?.pre_nonce_failure) !== JSON.stringify({
+      nonce_consumed: false,
+      mutation_invocation_count: 0,
+      read_only_guard_replacement_allowed: true,
+      dispatch_allowed: false,
+    })
+    || JSON.stringify(dispatchGuard?.post_dispatch_failure) !== JSON.stringify({
+      nonce_consumed: true,
+      mutation_invocation_count: 1,
+      mutation_retry_count: 0,
+      read_only_reconcile_only: true,
+      replacement_allowed: false,
+      redispatch_allowed: false,
+    })
+  ) {
+    console.error('FAIL release_dispatch_guard_contract: ref identity and owner-run reconciliation must be bounded, structured, and mutation-safe');
+    failures += 1;
   }
   const sourceQualification = preflight?.source_qualification;
   if (
@@ -704,6 +765,11 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || sourceQualification?.namespace_reservation !== false
     || sourceQualification?.final_signed_byte_authority !== false
     || sourceQualification?.accepted_consumer !== '.github/workflows/release-stable.yml'
+    || sourceQualification?.pre_dispatch_profile_consumer_guard !== 'scripts/validate-shell-product-profile-consumer.ts'
+    || sourceQualification?.profile_consumer_test !== 'tests/unit/common-config/oplProductProfile.test.ts'
+    || sourceQualification?.profile_projection !== 'current_app_profile_into_temporary_exact_shell_archive'
+    || sourceQualification?.source_shell_mutation_allowed !== false
+    || sourceQualification?.must_pass_before_source_workflow_dispatch !== true
   ) {
     console.error('FAIL release_preflight_contract: source qualification must be one no-secret local build and Tart receipt without release authority');
     failures += 1;
@@ -738,8 +804,9 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     sourceGate?.package_script !== 'release:source-gate' ||
     sourceGate?.status !== 'implemented_enforced_before_expensive_release_jobs' ||
     sourceGate?.failure_next_action !== 'repair_source_gate' ||
+    !sourceGate?.scope?.includes('current App profile against exact Shell consumer in a temporary archive') ||
     typeof sourceGate?.rule !== 'string' ||
-    !sourceGate.rule.includes('fail before expensive build, VM, Full, Homebrew, or WebUI work')
+    !sourceGate.rule.includes('fail before workflow dispatch or expensive build, VM, Full, Homebrew, or WebUI work')
   ) {
     console.error('FAIL release_source_gate_contract: source gate must be a contracted fail-fast pre-expensive-gate boundary');
     failures += 1;

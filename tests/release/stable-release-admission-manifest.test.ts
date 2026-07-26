@@ -28,6 +28,7 @@ const workflowPaths = [
   'scripts/source-qualification-receipt.ts',
   'scripts/validate-source-qualification-receipt.ts',
   'scripts/stable-release-admission-manifest.ts',
+  'scripts/release-dispatch-guard.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ];
