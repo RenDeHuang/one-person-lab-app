@@ -258,69 +258,100 @@
         "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "aion_display_role": "Settings Agents package directory rows",
         "workbench_display_role": "Packages panel rows",
-        "action_owner_boundary": "App and shells render complete Framework-projected Settings actions and never infer Package lifecycle semantics or internal runtime actions",
-        "settings_action_source": "app_state.agent_packages.directory.entries[].available_actions[]",
-        "settings_action_required_fields": [
-          "action_id",
-          "action_ref",
-          "semantic",
-          "surface",
-          "payload",
-          "required_payload_fields",
-          "confirmation_required"
+        "action_owner_boundary": "App and shells display/trigger Framework non-activation lifecycle action refs only; agent_package_activate remains a Framework Stage runtime internal action; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
+        "allowed_action_refs": [
+          "refresh_registry",
+          "install_from_manifest_url",
+          "agent_package_update",
+          "agent_package_repair",
+          "agent_package_uninstall",
+          "agent_package_preferences_set"
         ],
-        "action_id_allowlist_allowed": false,
-        "shell_action_inference_allowed": false,
+        "framework_stage_runtime_internal_action_refs": [
+          "agent_package_activate"
+        ],
         "required_projection_fields": {
           "directory.entries[]": [
             "package_id",
-            "package_kind",
-            "package_role",
             "display_name",
+            "publisher",
             "description",
-            "display_name_i18n",
-            "description_i18n",
             "tags",
+            "package_role",
+            "role_state",
+            "trust_tier",
+            "source_explanation",
+            "manifest_url",
+            "selected_version",
+            "stable_version",
+            "installed_version",
             "installed",
             "activated",
+            "installability",
             "readiness",
-            "home_shortcuts",
-            "capability_metadata",
+            "exposure",
+            "recommended_action",
             "recommended_action_ref",
-            "available_actions"
-          ],
-          "directory.entries[].available_actions[]": [
-            "action_id",
-            "action_ref",
-            "semantic",
-            "surface",
-            "payload",
-            "required_payload_fields",
-            "confirmation_required"
+            "available_actions",
+            "authority_boundary"
           ],
           "status_index.packages[package_id]": [
-            "presence",
-            "dependent_guard",
+            "surface_kind",
+            "package_id",
+            "status",
+            "package_version",
+            "installed_version",
+            "version",
+            "source_kind",
+            "package_lock_ref",
+            "lock_ref",
+            "action_receipt_ref",
+            "rollback_ref",
+            "physical_surface",
+            "codex_visible",
             "capability_exposure",
+            "dependency_readiness",
+            "package_dependency_readiness",
+            "materialization_readiness",
             "runtime_source_readiness",
+            "operational_ready",
+            "operational_ready_scope",
+            "launch_allowed",
+            "launch_blocked_reason",
+            "allowed_when_blocked",
+            "repair_action",
+            "repair_command",
+            "activation_action",
+            "dependent_guard",
+            "currentness_detail_deferred",
+            "detail_surface",
             "status_read_error"
           ]
         },
         "optional_enrichment_fields": {
           "runtime_source_carriers.items[package_id]": [
             "source_origin",
+            "source_path",
             "source_policy",
             "git"
           ]
         },
-        "projection_authority_policy": "directory.entries owns catalog membership, presentation, installed state, readiness, and exact actions; status_index adds package-id-keyed diagnostics only and cannot override directory lifecycle, readiness, or action availability",
+        "agent_package_activation_contract": {
+          "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+          "execution_owner": "one-person-lab_family_runtime",
+          "workspace_locator_source": "StageRun.workspace_locator_or_StageAttempt.workspace_locator",
+          "settings_execution_allowed": false,
+          "new_conversation_shell_execution_allowed": false,
+          "ordinary_send_shell_execution_allowed": false
+        },
+        "projection_authority_policy": "directory.entries owns catalog membership plus installed, activated, installability, coarse readiness, orthogonal exposure, and lifecycle actions; status_index adds diagnostics only and cannot override directory lifecycle or action availability",
         "fallback_policy": {
           "manageable_collection_fallback": null,
           "diagnostic_enrichment_sources": [
             "app_state.agent_packages.status_index",
             "app_state.runtime_source_carriers.items[]",
             "app_state.modules.items[]",
-            "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+            "home_agent_shortcuts",
             "task_awareness refs"
           ],
           "canonical_directory_absent_policy": "show loading, empty, last-good stale, or failed without synthesizing rows or actions",
@@ -959,7 +990,13 @@
       "action_label_render_owner": "shell_current_app_locale",
       "framework_hardcoded_locale_copy_default_allowed": false,
       "default_copy_examples": {
-        "agent_or_module": ["owner-projected Agent or Package display name"],
+        "agent_or_module": [
+          "Med Auto Science",
+          "Med Auto Grant",
+          "RedCube AI",
+          "OPL Meta Agent",
+          "OPL Book Forge"
+        ],
         "stage": ["投稿包后续处理", "同步项目状态", "复核运行结果"],
         "telemetry_missing": ["用量未记录", "Usage not recorded"]
       }

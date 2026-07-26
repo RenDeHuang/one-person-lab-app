@@ -1,0 +1,55 @@
+{
+  "package_id": "obf",
+  "package_kind": "domain_agent_package",
+  "agent_id": "obf",
+  "display_name": "OPL Book Forge",
+  "publisher": "one-person-lab",
+  "version": "0.1.0",
+  "source": "first_party",
+  "codex_surface": {
+    "plugin_ids": [
+      "opl-bookforge"
+    ],
+    "required_skill_ids": [
+      "opl-bookforge"
+    ],
+    "optional_skill_ids": [
+      "officecli-docx",
+      "pdf",
+      "mineru-document-extractor"
+    ],
+    "plugin_source_ref": "opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+    "generated_surface_owner": "one-person-lab"
+  },
+  "skill_packs": [
+    {
+      "id": "opl-bookforge-professional-skill-pack",
+      "source_kind": "opl_generated_plugin_surface",
+      "source": "github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+      "semantic_pack_root": "github:gaofeng21cn/opl-bookforge/agent",
+      "generated_surface_owner": "one-person-lab",
+      "version": "0.1.0",
+      "install_mode": "required"
+    }
+  ],
+  "entrypoints": [
+    {
+      "shortcut_id": "book",
+      "label": "Writing",
+      "required_skill_ids": [
+        "opl-bookforge"
+      ],
+      "shortcut_eligible": true
+    }
+  ],
+  "health_check": {
+    "kind": "opl_package_receipt",
+    "required_surfaces": [
+      "plugin_registry",
+      "required_skill_ids"
+    ]
+  },
+  "permissions": [],
+  "update_channel": "managed_opl_packages",
+  "rollback_ref": "package-receipt-ref"
+}

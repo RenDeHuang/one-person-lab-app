@@ -8,7 +8,7 @@ import { validateProductProfile } from '../../../scripts/validate-active-shell/p
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
-test('Flow, carriers, Framework, and App preserve open composition without App lifecycle authority', () => {
+test('Flow, Framework, and App preserve open composition without carrier prerequisites', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const productProfile = readJson('contracts/app-product-profile.json');
   const governance = installExposure.capability_governance;
@@ -18,7 +18,7 @@ test('Flow, carriers, Framework, and App preserve open composition without App l
 
   assert.doesNotThrow(() => validateInstallExposurePolicy(installExposure));
   assert.doesNotThrow(() => validateProductProfile(productProfile, installExposure));
-  assert.equal(governance.lifecycle_surface, 'configured_carrier_install_update_remove');
+  assert.equal(governance.lifecycle_surface, 'opl_framework_package_transaction');
   assert.equal(governance.app_role, 'gui_and_framework_projection_consumer_only');
   assert.equal(governance.managed_inventory.app_second_inventory_allowed, false);
   assert.equal(governance.managed_inventory.source, 'framework_unified_capability_projection');
@@ -40,13 +40,6 @@ test('Flow, carriers, Framework, and App preserve open composition without App l
   const secondInventory = structuredClone(installExposure);
   secondInventory.capability_governance.managed_inventory.app_second_inventory_allowed = true;
   assert.throws(() => validateInstallExposurePolicy(secondInventory), /App-owned managed capability inventory/);
-
-  const restoredFrameworkTransaction = structuredClone(installExposure);
-  restoredFrameworkTransaction.capability_governance.lifecycle_surface = 'opl_framework_package_transaction';
-  assert.throws(
-    () => validateInstallExposurePolicy(restoredFrameworkTransaction),
-    /carrier -> Framework -> App projection boundary/,
-  );
 
   const requiredPayload = structuredClone(installExposure);
   requiredPayload.installer_surfaces.find((entry: any) => entry.surface === 'full_first_install_dmg')

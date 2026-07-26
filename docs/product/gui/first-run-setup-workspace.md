@@ -6,10 +6,8 @@ State: `current_experience_with_target_package_migration`
 Machine boundary: 本文定义 App 首启产品体验；机器真相归
 `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、
 `contracts/app-first-run-test-matrix.json`、Framework initialize 输出、active shell source、
-focused tests 与用户路径截图。Official Profile 的 App contracts、first-install /
-explicit-Restore consumer 与 source helper 已实现；canonical main、隔离 carrier、
-clean-user installed/callable readback 仍分别属于 E2、E3、E4，task branch 或 focused
-test 不能表示产品迁移完成。
+focused tests 与用户路径截图。Official Profile 部分为 `target/planned`，不表示现有
+contracts/source 已实现。
 
 ## 背景
 
@@ -49,13 +47,11 @@ test 不能表示产品迁移完成。
 
 ## Official Profile Package 安装
 
-当前 App source 路径：
+以下为 `target/planned`：
 
 - App 只有一个 `OPL Official Profile`，列出首次安装需要的官方 root Packages。
-  Standard 在线安装，Full 优先使用离线 seed；两者读取同一 Profile 和同一 source
-  helper，Full 不增加第二 root 清单。
-- 首次安装通过 generic Package directory/status/action projection 逐 root 收敛，并按
-  Package 声明补齐 required identity。
+  Standard 在线安装，Full 优先使用离线 seed；两者必须读取同一 Profile。
+- 首次安装自动启动所有 roots 的安装，并按 Package 声明补齐 required identity。
   例如 MAS 需要 `capability:mas-scholar-skills`，但 ScholarSkills 不必重复列为
   Official root。
 - Package 依赖只检查 presence 和 callability，不以 version、ABI、lock、payload、
@@ -66,12 +62,8 @@ test 不能表示产品迁移完成。
   Settings > Agents 显示。自动安装不能变成新的全屏等待门。
 - Profile 只在 first install 或用户显式选择“恢复官方组合”时执行。用户后来卸载
   官方 Package 后，首启检查、普通启动、日更和 App update 都不得重新安装它。
-- helper 只读取 `opl app state --profile fast --json` 并调用 directory entry 提供的
-  opaque action ref；它不调用私有 Package lifecycle 命令，也不决定 Codex Plugin
-  Manager、Git 或其它 carrier。
-- 首次安装完成状态必须来自 configured carrier 的 installed/callable fresh
-  aggregation，不能来自 OPL lock、payload、receipt 或下载成功。该 installed
-  outcome 仍需 canonical E3/E4 验收。
+- 首次安装完成状态必须来自 native platform installed/callable fresh readback，
+  不能来自 OPL lock、payload、receipt 或下载成功。
 
 ## 桌面布局
 

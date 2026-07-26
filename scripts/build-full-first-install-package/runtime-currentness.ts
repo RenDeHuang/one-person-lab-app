@@ -8,7 +8,6 @@ import {
   assertMasScholarSkillsRuntimePayload,
   resolveMasScholarSkillsFullRuntimeSource,
 } from "./manifest-checksum.ts";
-import { assertMaterializedResolvedSelectedBundleDescriptor } from "./resolved-selected-bundle-descriptor.ts";
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = readManagedUpdateLifecycleProviderMap();
 
@@ -298,7 +297,6 @@ export function assertFullRuntimeCurrentness(
     frameworkRoot: string;
     masScholarSkillsRoot: string;
     masScholarSkillsRef: string;
-    resolvedSelectedBundleDescriptor?: unknown;
   },
 ) {
   const command = path.join(runtimeRoot, "bin", "opl");
@@ -316,25 +314,6 @@ export function assertFullRuntimeCurrentness(
     runtimeRoot,
     masScholarSkillsSource,
   );
-  const manifestAssertions = objectValue(manifest.runtime_assertions, "manifest.runtime_assertions");
-  const manifestSelectedBundle = objectValue(
-    manifestAssertions.resolved_selected_bundle_descriptor,
-    "manifest.runtime_assertions.resolved_selected_bundle_descriptor",
-  );
-  const manifestHasSelectedBundle = manifestSelectedBundle.status !== "not_provided";
-  const resolvedSelectedBundle = manifestHasSelectedBundle
-    ? assertMaterializedResolvedSelectedBundleDescriptor(
-        runtimeRoot,
-        options.resolvedSelectedBundleDescriptor,
-      )
-    : null;
-  if (resolvedSelectedBundle) {
-    if (JSON.stringify(manifestSelectedBundle) !== JSON.stringify(resolvedSelectedBundle.assertion)) {
-      throw new Error("Full runtime selected Bundle descriptor manifest assertion drifted.");
-    }
-  } else if (options.resolvedSelectedBundleDescriptor) {
-    throw new Error("Full runtime selected Bundle descriptor input was not recorded in the manifest.");
-  }
   const env = runtimeProbeEnv(runtimeRoot);
   const managedUpdate = assertManagedUpdateProbe(
     parseJsonCommand(command, ["update", "status", "--json"], env),
@@ -359,10 +338,6 @@ export function assertFullRuntimeCurrentness(
     mas_scholar_skills_checksum_status: "verified",
     mas_scholar_skills_currentness_status: "current",
     mas_scholar_skills_payload_file_count: masScholarSkillsPayload.payload_file_count,
-    resolved_selected_bundle_descriptor_digest: resolvedSelectedBundle?.assertion.digest ?? null,
-    resolved_selected_bundle_package_count: resolvedSelectedBundle?.assertion.package_count ?? 0,
-    resolved_selected_bundle_skill_count: resolvedSelectedBundle?.assertion.owner_declared_skill_count ?? 0,
-    resolved_selected_bundle_checksum_status: resolvedSelectedBundle ? "verified" : "not_provided",
     managed_update_surface_id: managedUpdate.surface_id,
     managed_update_components: Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS),
     managed_update_component_providers: REQUIRED_MANAGED_UPDATE_COMPONENTS,

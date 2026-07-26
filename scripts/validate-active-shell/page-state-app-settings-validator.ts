@@ -264,7 +264,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
   if (
     Object.hasOwn(agentsPage.current_runtime_projection_boundary ?? {}, 'legacy_fallback_projection') ||
     agentsPage.current_runtime_projection_boundary?.canonical_directory_absent_policy !==
-      'render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or App metadata'
+      'render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or static metadata'
   ) {
     throw new Error('Agents must keep modules and Home shortcuts diagnostic-only when the canonical directory is unavailable');
   }
@@ -273,7 +273,8 @@ function validateCapabilitiesPage(matrix, guiContract) {
     {
       contract_ref: 'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux',
       primary_state_surface: 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index',
-      required_interactions: ['catalog', 'projected_actions'],
+      required_interactions: ['catalog', 'lifecycle_actions', 'stage_runtime_activation_readback'],
+      stage_runtime_activation_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
     },
     'Agents page Agent Package lifecycle authority reference',
   );
@@ -282,8 +283,8 @@ function validateCapabilitiesPage(matrix, guiContract) {
     guiAgentsPage?.status_model,
     'Agents page status model',
   );
-  if (agentsPage.status_model?.policy !== 'generic_package_status_projection') {
-    throw new Error('Agents page must preserve the generic Package status projection');
+  if (agentsPage.status_model?.policy !== 'multi_axis_package_status_no_single_repair_bucket') {
+    throw new Error('Agents page must preserve multi-axis package status');
   }
   assertDeepEqualJson(
     agentsPage.list_density_policy,

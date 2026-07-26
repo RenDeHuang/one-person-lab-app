@@ -178,12 +178,25 @@ export type AppProductProfile = {
           label_en: string;
         }>;
       };
+      home_agent_shortcuts: Array<{
+        shortcut_id: string;
+        package_id: string;
+        primary_label: string;
+        package_short_name: string;
+        codex_visible_entry: string;
+        required_skill_ids: string[];
+        source: string;
+        executor: string;
+        display_policy: string;
+        home_entry_policy: string;
+        default_visible: boolean;
+        user_configurable: boolean;
+      }>;
       home_agent_shortcuts_metadata_policy: {
-        role: 'owner_projected_package_presentation';
-        shortcut_source_ref: string;
-        preference_source_ref: string;
-        package_id_allowlist_allowed: boolean;
-        fallback_policy: string;
+        role: 'optional_migration_and_display_metadata';
+        allowed_uses: string[];
+        forbidden_authority: string[];
+        runtime_authority_ref: string;
       };
       retired_codex_models_must_not_be_exposed: string[];
       activity_center_policy: {
@@ -324,6 +337,8 @@ export type AppProductProfile = {
       composer_position: string;
       active_capability_chip_visible: boolean;
       persistent_purpose_selector_visible: boolean;
+      agent_package_invocation_receipt_required: boolean;
+      assistant_route_receipt_required: boolean;
       backend_selector_visible: boolean;
       model_selector_visible: boolean;
       permission_mode_selector_visible: boolean;
@@ -522,6 +537,43 @@ export type AppProductProfile = {
       environment_popover_ref: string;
       must_not_own: string[];
     };
+    agent_package_invocation_receipt_policy: {
+      scope: string;
+      required_for_package_shortcuts_source_ref: string;
+      route_kind: string;
+      executor: string;
+      source: string;
+      required_fields: string[];
+      receipt_authority: string;
+      must_not_govern: string[];
+      must_not_depend_on_visible_backend_selection: boolean;
+    };
+    agent_package_activation_policy: {
+      action_id: string;
+      action_route: string;
+      trigger: string;
+      payload_fields: string[];
+      scope_values: string[];
+      scope_target_policy: {
+        workspace: string;
+        quest: string;
+      };
+      result_fields: string[];
+      launch_policy: string;
+      currentness_policy: string;
+      package_identity_policy: string;
+      app_role: string;
+    };
+    builtin_assistant_route_receipt_policy: {
+      migration_alias_for: string;
+      scope: string;
+      required_for_assistants: string[];
+      route_kind: string;
+      executor: string;
+      source: string;
+      required_fields: string[];
+      must_not_depend_on_visible_backend_selection: boolean;
+    };
     ordinary_capability_selector_policy: {
       scope: string;
       authority: string;
@@ -570,13 +622,14 @@ export type AppProductProfile = {
       required_preservation_targets: string[];
     };
     agent_package_registry: {
-      directory_projection_authority: string;
-      status_projection_authority: string;
-      action_projection_authority: string;
-      presentation_source: string;
-      unknown_package_policy: string;
-      manifest_lock_receipt_parser_allowed: boolean;
-      action_id_allowlist_allowed: boolean;
+      directory_lifecycle_authority: string;
+      external_registry_role: 'optional_candidate_source_adapter';
+      bundled_default_registry_allowed: boolean;
+      external_registry_policy_ref: string;
+      external_first_party_identity_claims_allowed: boolean;
+      external_first_party_trust_claims_allowed: boolean;
+      collision_failure_code: string;
+      first_party_manifest_fixture_dir: string;
       catalog_presentation_policy: {
         section_order: string[];
         professional_agent_order_source: string;
@@ -600,6 +653,20 @@ export type AppProductProfile = {
           ordinary_catalog_remains_visible_when_collapsed: boolean;
         };
       };
+      starter_package_metadata: Array<{
+        package_id: string;
+        package_kind: string;
+        display_name: string;
+        display_name_i18n: Record<'zh-CN' | 'en-US', string>;
+        publisher: string;
+        source: 'first_party';
+        trust_tier: 'first_party';
+        description: string;
+        description_i18n: Record<'zh-CN' | 'en-US', string>;
+        tags: string[];
+        package_role: 'standard_agent' | 'framework_capability_package' | 'workflow_profile';
+        manifest_fixture_ref: string;
+      }>;
       shell_consumption_policy: string;
     };
   };
@@ -983,6 +1050,12 @@ export type AppProductProfile = {
     additional_package_skill_ids: string[];
     domain_plugin_skill_ids: string[];
     domain_plugin_skills_must_not_be_companion_mirrors: boolean;
+    domain_exposure: Array<{
+      domain_id: string;
+      codex_visible_entry: string;
+      preferred_app_distribution: string;
+      direct_skill_semantics_required: boolean;
+    }>;
   };
   boundary: {
     app_owns: string[];

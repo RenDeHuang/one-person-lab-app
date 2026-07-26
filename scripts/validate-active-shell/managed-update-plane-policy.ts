@@ -175,8 +175,70 @@ export const managedKernelRunnerResultRequiredFields = [
   'skipped_reasons',
 ];
 
+export const managedKernelComponentReceiptRequiredFields = [
+  'source_manifest_ref',
+  'from_version',
+  'from_digest',
+  'to_version',
+  'to_digest',
+  'verify_result',
+  'activated_at',
+  'post_apply_hooks',
+  'rollback_ref',
+  'repair_action',
+];
+
+export const managedKernelComponentReceiptIdentityFields = [
+  'digest',
+  'sha256',
+  'source_fingerprint',
+  'git_head_sha',
+  'runtime_version',
+  'current_pointer',
+  'staged_root',
+  'plugin_manifest_hash',
+  'skill_pack_hash',
+  'generated_surface_hash',
+];
+
 export const managedUpdateSections = ['opl_base', 'opl_app', 'opl_packages'];
 export const managedUpdateDisplayPlanes = ['opl_base', 'opl_app', 'opl_packages'];
 export const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update', 'opl update status --json#managed_update'];
 export const managedUpdateStatusConsumptionPolicy =
   'show three-object status, conditions, progress refs, and owner routes without reading artifact bodies or mutating OPL Base, OPL Packages, runtime, or domain truth';
+
+export const managedOplPackageIds = [
+  'mas',
+  'mag',
+  'rca',
+  'oma',
+  'obf',
+  'mas-scholar-skills',
+  'opl-flow',
+];
+
+export const managedOplPackageKinds = {
+  mas: 'domain_agent_package',
+  mag: 'domain_agent_package',
+  rca: 'domain_agent_package',
+  oma: 'domain_agent_package',
+  obf: 'domain_agent_package',
+  'mas-scholar-skills': 'framework_capability_package',
+  'opl-flow': 'workflow_plugin_package',
+};
+
+export const oplFlowPackagePolicy = {
+  package_id: 'opl-flow',
+  package_kind: 'workflow_plugin_package',
+  consumer: 'standard_and_full_workflow_baseline',
+  install_command: 'opl packages install opl-flow',
+  update_command: 'opl packages update opl-flow',
+  app_direct_profile_mutation_allowed: false,
+  framework_profile_transaction_allowed: true,
+  framework_profile_migration_hook: 'opl_packages_post_apply',
+  profile_sync_policy: 'codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback',
+  carrier_reconcile_special_case_allowed: false,
+  workflow_profile_semantic_merge_ref:
+    'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
+  standard_updater_allowed: false,
+};

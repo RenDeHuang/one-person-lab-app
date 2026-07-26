@@ -83,6 +83,9 @@
         "executor_policy_ref": "contracts/app-gui-product-contract.json#executor_policy",
         "agent_package_source_ref": "opl app state --profile fast --json#app_state.agent_packages.directory.entries[package_role=standard_agent]",
         "agent_package_status_source_ref": "opl app state --profile fast --json#app_state.agent_packages.status_index.packages[]",
+        "agent_package_activation_policy": {
+          "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
+        },
         "home_agent_shortcut_source_ref": "opl app state --profile fast --json#app_state.agent_packages.status_index.home_shortcut_preferences[]",
         "agent_package_skill_source_ref": "owner_or_carrier_projected_capability_metadata_for_the_selected_package",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
@@ -158,7 +161,7 @@
           "workspace_selector_entry": "home.new_session_context_bar",
           "unselected_workspace_control_visible": true,
           "unselected_workspace_control_policy": "localized_choose_project_directory_action_not_projectless_status_placeholder",
-          "home_presentation_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+          "home_presentation_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[] + contracts/app-gui-product-contract.json#home_agent_shortcuts optional migration/display metadata only",
           "home_shortcut_visibility_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
           "home_shortcut_placement": "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
           "dynamic_question_title": true,
@@ -233,25 +236,160 @@
             "AionUI Team page as ordinary App surface"
           ]
         },
+        "route_receipt_source_ref": "contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy",
+        "legacy_route_receipt_alias_source_ref": "contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy",
+        "route_receipt_required_fields": [
+          "route_kind",
+          "executor",
+          "package_id",
+          "shortcut_id",
+          "codex_visible_entry",
+          "required_skill_ids",
+          "source"
+        ],
+        "route_receipt_must_not_govern": [
+          "session_behavior",
+          "domain_workflow",
+          "domain_readiness"
+        ],
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
         "professional_agent_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
         "home_agent_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
         "unknown_standard_agent_policy": "include_in_palette_and_home_without_app_package_id_branch",
+        "default_assistant_required_skills": {
+          "mas": [
+            "med-autoscience"
+          ],
+          "mag": [
+            "med-autogrant"
+          ],
+          "rca": [
+            "redcube-ai"
+          ],
+          "obf": [
+            "opl-bookforge"
+          ]
+        },
+        "default_agent_package_required_skills": {
+          "mas": [
+            "med-autoscience"
+          ],
+          "mag": [
+            "med-autogrant"
+          ],
+          "rca": [
+            "redcube-ai"
+          ],
+          "obf": [
+            "opl-bookforge"
+          ],
+          "oma": [
+            "opl-meta-agent"
+          ]
+        },
         "ordinary_mcp_server_source": "configured_user_and_third_party_mcp_servers",
         "ordinary_mcp_filter_policy": "exclude_only_explicit_team_or_internal_matches_preserve_all_other_user_and_third_party_servers",
         "home_agent_shortcuts_metadata_policy": {
-          "role": "owner_projected_package_presentation",
-          "shortcut_source_ref": "app_state.agent_packages.directory.entries[].home_shortcuts[]",
-          "preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
-          "package_id_allowlist_allowed": false,
-          "fallback_policy": "omit_invalid_shortcut_and_preserve_other_packages"
+          "role": "optional_migration_and_display_metadata",
+          "allowed_uses": ["localized_label_fallback", "shortcut_alias_migration"],
+          "forbidden_authority": ["catalog_membership", "installed", "present", "callable", "visibility", "sort_order", "actions"],
+          "runtime_authority_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]"
         },
+        "home_agent_shortcuts": [
+          {
+            "shortcut_id": "research",
+            "package_id": "mas",
+            "primary_label": "科研",
+            "package_short_name": "MAS",
+            "codex_visible_entry": "med-autoscience",
+            "required_skill_ids": [
+              "med-autoscience"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": true,
+            "user_configurable": true
+          },
+          {
+            "shortcut_id": "ppt",
+            "package_id": "rca",
+            "primary_label": "演示",
+            "package_short_name": "RCA",
+            "codex_visible_entry": "redcube-ai",
+            "required_skill_ids": [
+              "redcube-ai"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": true,
+            "user_configurable": true
+          },
+          {
+            "shortcut_id": "grant",
+            "package_id": "mag",
+            "primary_label": "基金",
+            "package_short_name": "MAG",
+            "codex_visible_entry": "med-autogrant",
+            "required_skill_ids": [
+              "med-autogrant"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": true,
+            "user_configurable": true
+          },
+          {
+            "shortcut_id": "book",
+            "package_id": "obf",
+            "primary_label": "写书",
+            "package_short_name": "OBF",
+            "codex_visible_entry": "opl-bookforge",
+            "required_skill_ids": [
+              "opl-bookforge"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": true,
+            "user_configurable": true
+          },
+          {
+            "shortcut_id": "oma",
+            "package_id": "oma",
+            "primary_label": "元智能体",
+            "package_short_name": "OMA",
+            "codex_visible_entry": "opl-meta-agent",
+            "required_skill_ids": [
+              "opl-meta-agent"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": true,
+            "user_configurable": true
+          }
+        ],
         "hero_prompt_policy": "modest_dynamic_prompt_in_composer_reading_lane",
         "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
         "home_experience": {
           "layout": "composer_first_single_reading_lane",
           "shortcut_label_policy": "localized_task_verb_primary",
+          "shortcut_labels_zh": {
+            "research": "开展科研",
+            "ppt": "制作演示",
+            "grant": "撰写基金",
+            "book": "写作书稿",
+            "oma": "构建智能体"
+          },
           "runtime_notice_visibility": "exception_only"
         },
         "context_action_sheet_acceptance": {
@@ -286,7 +424,7 @@
         "Codex model selector defaulting to 5.6 Sol",
         "reasoning effort configurable inside the Codex model menu",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first entries from dynamically projected Agent Package shortcuts, including unknown configured Agents",
+        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF",
         "all visible professional-agent shortcuts remain selectable while launch readiness is enforced on send with typed guidance",
         "prompt, compact shortcuts, and composer share one bottom reading lane",
         "active capability shown by a quiet selected shortcut state without a second composer label",
@@ -312,7 +450,7 @@
         "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
         "advanced work surfaces closed by default with no third column",
         "runtime/task progress available from Runtime page, not Home activity grid",
-        "owner-localized task verbs from dynamically projected Home shortcuts",
+        "localized task-verb shortcuts 开展科研, 制作演示, 撰写基金, 写作书稿, and 构建智能体",
         "one compact Runtime notice only when attention or unavailability is present",
         "all context action-sheet controls remain reachable at 400x600 and with the virtual keyboard"
       ],
@@ -417,6 +555,8 @@
         "composer_position": "floating_bottom_with_safe_inset",
         "active_capability_chip_visible": true,
         "persistent_purpose_selector_visible": false,
+        "agent_package_invocation_receipt_required": true,
+        "assistant_route_receipt_required": true,
         "backend_selector_visible": false,
         "model_selector_visible": true,
         "permission_mode_selector_visible": true,
@@ -855,6 +995,7 @@
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
         "workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs",
         "read-only Conversation Environment showing the recorded workspace and live Git context when available",
+        "assistant route receipt",
         "Codex default model and reasoning status",
         "current task status slice when a task is active",
         "current task resource summary for Gateway, Fabric resources, environment, usage, and Console policy refs when active",
@@ -1700,18 +1841,34 @@
           "app_state.modules",
           "managed_update.components[opl_packages].projection_status"
         ],
-        "module_collection_source": "app_state.modules.items[]",
-        "module_collection_policy": "render every Framework-projected Package module without an App Package-id allowlist",
+        "required_modules": [
+          "MAS",
+          "MAG",
+          "RCA",
+          "OMA",
+          "OBF",
+          "MAS Scholar Skills"
+        ],
         "required_status": [
           "OPL Packages state and Codex Surface substatus",
           "recommended action",
           "last run and next run",
           "post-update sync status",
-          "refresh Codex guidance when package projection changed"
+          "refresh Codex guidance when package projection changed",
+          "repair and rollback refs"
         ],
-        "projected_action_source": "app_state.agent_packages.directory.entries[].available_actions[]",
-        "ordinary_action_policy": "navigate_to_Settings_Agents_and_execute_only_the_selected_row_projected_action",
-        "private_command_mapping_allowed": false,
+        "manual_action_mapping": {
+          "refresh": "opl update status --json",
+          "check": "opl update check --json",
+          "plan": "opl update plan --json",
+          "apply_eligible_updates": "opl update apply --json",
+          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
+          "update_opl_app": "standard_updater_or_carrier_host_update_route",
+          "install_opl_package": "opl packages install ... --json",
+          "update_opl_package": "opl packages update ... --json",
+          "repair_opl_package": "opl packages repair --package-id <package_id> --json",
+          "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
+        },
         "advanced_detail_target": "updates_and_maintenance",
         "app_role": "managed_update_status_action_consumer_only",
         "kernel_implementation_allowed": false,
@@ -2224,7 +2381,8 @@
           "source_ref": "app_state.agent_packages.storage_inventory",
           "owner_route": "/settings/agents",
           "ordinary_action": "navigate_to_owner_route",
-          "direct_storage_mutation_allowed": false
+          "direct_storage_mutation_allowed": false,
+          "lifecycle_action_ref": "app_state.actions#agent_package_uninstall"
         },
         "webui_data_volume": {
           "owner": "one-person-lab_framework_with_carrier_host_execution",
@@ -3750,7 +3908,8 @@
           "catalog_search",
           "package_role_filter",
           "package_status_filter",
-          "package_source_filter"
+          "package_source_filter",
+          "manifest_url_install_advanced"
         ],
         "row_controls": [
           "home_shortcut_visibility",
@@ -3778,20 +3937,29 @@
         "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item",
         "advanced_diagnostic_fields": [
           "package_id",
-          "owner_diagnostic_ref",
-          "status_read_error"
+          "codex_visible_entry",
+          "receipt_refs",
+          "rollback_ref",
+          "action_receipt_ref",
+          "physical_surface",
+          "paths",
+          "manifest_ref",
+          "cache_config",
+          "marketplace_config",
+          "raw_refs_json"
         ]
       },
       "current_runtime_projection_boundary": {
         "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "directory_collection_source": "app_state.agent_packages.directory.entries",
-        "display_metadata_source": "app_state.agent_packages.directory.entries",
-        "display_metadata_policy": "owner-projected display metadata only with package-id text fallback",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
+        "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
+        "static_metadata_overlay_fields": ["display_name_i18n", "description_i18n"],
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
         "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
         "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
-    "normalization_policy": "shell uses directory.entries as the only manageable collection, joins optional diagnostics by canonical package_id, and keeps directory lifecycle/readiness/actions authoritative on overlap",
-    "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or App metadata",
+        "normalization_policy": "shell uses directory.entries as the only manageable collection, joins optional diagnostics by canonical package_id, keeps directory lifecycle/readiness/actions authoritative on overlap, and may enrich UI metadata only from the static profile overlay",
+        "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or static metadata",
         "developer_source_examples": [
           "runtime_source_carriers.items[].source_origin=sibling_workspace",
           "runtime_source_carriers.items[].source_policy.effective_install_update_source=git_checkout",
@@ -3806,38 +3974,76 @@
         "primary_state_surface": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index",
         "required_interactions": [
           "catalog",
-          "projected_actions"
-        ]
+          "lifecycle_actions",
+          "stage_runtime_activation_readback"
+        ],
+        "stage_runtime_activation_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
       },
-  "status_model": {
-    "policy": "generic_package_status_projection",
-    "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
-    "localized_metadata_source_ref": "app_state.agent_packages.directory.entries",
-    "axes": [
-      "presence",
-      "install_state",
-      "source_state",
-      "trust_state",
-      "capability_exposure",
-      "directory_readiness",
-      "dependency_readiness",
-      "runtime_source_readiness",
-      "operational_ready",
-      "launch_allowed"
-    ],
+      "status_model": {
+        "policy": "multi_axis_package_status_no_single_repair_bucket",
+        "user_facing_projection_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection",
+        "localized_metadata_source_ref": "contracts/app-product-profile.json#gui.agent_package_registry.starter_package_metadata",
+        "axes": [
+          "install_state",
+          "activation_state",
+          "activation_action",
+          "update_state",
+          "source_state",
+          "trust_state",
+          "codex_surface_state",
+          "capability_exposure",
+          "directory_readiness",
+          "dependency_readiness",
+          "dependent_guard",
+          "materialization_readiness",
+          "runtime_source_readiness",
+          "operational_ready",
+          "launch_allowed"
+        ],
         "source_inputs": [
           "app_state.agent_packages.directory.entries[]",
+          "app_state.agent_packages.directory.entries[].role_state",
+          "app_state.agent_packages.directory.entries[].source_explanation",
+          "app_state.agent_packages.directory.entries[].installability",
+          "app_state.agent_packages.directory.entries[].readiness",
+          "app_state.agent_packages.directory.entries[].available_actions[]",
+          "app_state.agent_packages.directory.entries[].recommended_action_ref",
           "app_state.agent_packages.status_index.packages[]",
           "app_state.agent_packages.status_index.home_shortcut_preferences[]",
-          "app_state.runtime_source_carriers.items[] diagnostic enrichment only"
+          "app_state.agent_packages.status_index.packages[].dependency_readiness",
+          "app_state.agent_packages.status_index.packages[].package_dependency_readiness",
+          "app_state.agent_packages.status_index.packages[].materialization_readiness",
+          "app_state.agent_packages.status_index.packages[].runtime_source_readiness",
+          "app_state.agent_packages.status_index.packages[].operational_ready",
+          "app_state.agent_packages.status_index.packages[].operational_ready_scope",
+          "app_state.agent_packages.status_index.packages[].launch_allowed",
+          "app_state.agent_packages.status_index.packages[].launch_blocked_reason",
+          "app_state.agent_packages.status_index.packages[].allowed_when_blocked",
+          "app_state.agent_packages.status_index.packages[].repair_action",
+          "app_state.agent_packages.status_index.packages[].repair_command",
+          "app_state.agent_packages.status_index.packages[].activation_action",
+          "app_state.agent_packages.status_index.packages[].dependent_guard",
+          "app_state.agent_packages.status_index.packages[].capability_exposure",
+          "app_state.agent_packages.status_index.packages[].action_receipt_ref",
+          "app_state.agent_packages.status_index.packages[].rollback_ref",
+          "app_state.agent_packages.status_index.packages[].physical_surface",
+          "app_state.agent_packages.status_index.packages[].status_read_error",
+          "app_state.runtime_source_carriers.items[].source_origin",
+          "app_state.runtime_source_carriers.items[].source_path",
+          "app_state.runtime_source_carriers.items[].source_policy.effective_install_update_source",
+          "app_state.runtime_source_carriers.items[].source_policy.configured_by",
+          "app_state.runtime_source_carriers.items[].git.sync_status",
+          "app_state.runtime_source_carriers.items[].git.dirty",
+          "app_state.modules.items[] diagnostic enrichment only",
+          "managed_update.components[opl_packages].projection_status"
         ],
-        "forbidden_inputs": [
-          "App-owned Package metadata",
-          "manifest or Package lock",
-          "lifecycle receipts",
-          "rollback or last-known-good state",
-          "physical paths",
-          "Shell-inferred installed state"
+        "developer_source_policy": "active runtime developer checkout semantics must surface explicitly, remain distinct from package installation source, and must not be collapsed into a generic repair bucket",
+        "must_not_collapse": [
+          "developer_checkout",
+          "dirty_checkout",
+          "git_behind",
+          "unknown",
+          "needs_sync"
         ]
       },
       "list_density_policy": {
@@ -3868,18 +4074,29 @@
           "version",
           "source_label",
           "trust_tier",
+          "manifest_url",
+          "manifest_validation",
           "conditions",
-          "owner_diagnostic_ref",
+          "receipt_refs",
+          "physical_surface",
           "last_synced_at",
           "failure_reason_when_failed"
         ],
         "content_block_policy": "directory may include standard_agent, framework_capability_package, and workflow_profile package roles, but Skill, Plugin, workflow internals, connector, resource, and export catalogs remain on Capabilities or their owner pages",
         "advanced_diagnostic_fields": [
           "package_id",
-          "owner_diagnostic_ref",
-          "status_read_error"
+          "codex_visible_entry",
+          "receipt_refs",
+          "rollback_ref",
+          "action_receipt_ref",
+          "physical_surface",
+          "paths",
+          "manifest_ref",
+          "cache_config",
+          "marketplace_config",
+          "raw_refs_json"
         ],
-        "first_screen_policy": "default detail shows user-decision fields and owner-projected diagnostics only; private lifecycle storage and physical paths are not App inputs",
+        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in the Agents page diagnostic disclosure",
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "developer_mode_control": {
@@ -3907,19 +4124,19 @@
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
         "a dedicated package catalog search plus package role, availability status, and source filters",
-      "registry refresh as an ordinary visible action and install or maintenance controls only when projected by Framework",
-      "every complete Settings action rendered from its projected semantic, payload, surface, and confirmation contract without an action-id allowlist",
-      "Settings executes only actions projected for the Settings surface; selected project directories establish session cwd and future domain workspace identity only",
-      "owner-projected localized names and descriptions for every Package directory item, including unknown future Agents",
+        "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
+        "row install, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
+        "Settings, new conversation, and ordinary composer send never execute agent_package_activate; selected project directories establish session cwd and future domain workspace identity only",
+        "the five professional Agent display names remain Med Auto Science, Med Auto Grant, RedCube AI, OPL Book Forge, and OPL Meta Agent in Chinese and English while localized descriptions explain their purpose",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
-      "unknown Agent Packages use the same visibility, ordering, status, and action rules as every other Agent Package",
+        "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
         "Home shortcut visibility and order inline on Agent package rows",
-      "launch readiness and Settings actions bound only to projected Agent Package state",
+        "launch readiness and lifecycle actions bound to projected Agent package state",
         "normal Agent rows visually quiet with package diagnostics collapsed",
         "localized package role labels with no raw internal enum on the ordinary row",
         "professional Agents ordered by Home shortcut preference then localized display name, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
       "runtime source and authorized repository maintenance controls collapsed as advanced configuration by default",
-      "owner-projected localized names and descriptions for every Package directory item, including unknown future Agents",
+      "localized names and descriptions for every current first-party directory item, including OPL Meta Agent, MAS Scholar Skills, and OPL Flow",
       "verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned",
       "one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details",
       "exact owner actions rendered with concrete localized copy such as 需要安装, 需要启用, 需要更新, 需要修复, or 需要重新连接",
@@ -3942,7 +4159,7 @@
       "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
       "global workspace root used as a target_workspace activation value from Settings",
       "scope materialization missing presented as a Settings attention state or preflight action",
-      "Shell-inferred Package activation, workspace targeting, or private lifecycle action ids",
+      "agent_package_activate shown or executed as a Settings, new-conversation, or ordinary-send action",
       "aggregate ready or unavailable counts used as the status of every package",
       "hardcoded package parent-child relationships or duplicate dependency rows"
       ],

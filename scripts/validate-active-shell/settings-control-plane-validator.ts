@@ -54,7 +54,7 @@ const settingsIaRef =
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
 const expectedAgentsRouteStateSource =
-  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]";
+  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts";
 const expectedAgentsPageAdapterStateSource =
   "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]";
 const expectedCapabilitiesStateSource =
@@ -2782,13 +2782,19 @@ export function validateSettingsExperienceContract(experience) {
     pageContracts.agents.management_discoverability,
     {
       primary_row_controls: ["home_visibility", "recommended_action", "manage"],
-      projected_action_source:
-        "app_state.agent_packages.directory.entries[].available_actions[]",
-      projected_action_semantic_source:
-        "app_state.agent_packages.directory.entries[].available_actions[].semantic",
-      action_id_allowlist_allowed: false,
+      lifecycle_actions: [
+        "install",
+        "update",
+        "repair",
+        "enable",
+        "disable",
+        "hide",
+        "unhide",
+        "uninstall",
+      ],
       catalog_search_is_settings_global_search: false,
       registry_refresh_visibility: "ordinary_visible_action",
+      manifest_url_install_visibility: "advanced_only",
       projected_action_policy:
         "execute only Framework action_id and payload; never infer status, readiness, action ids, or payload fields in the Shell",
       raw_source_fallback_allowed: false,
@@ -3543,7 +3549,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.runtime_source_projection !==
       "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]" ||
     directory.source_semantics_policy !==
-      "directory entries own catalog membership, presentation, installed or present state, callability, readiness, recommended_action_ref, and exact available_actions; status_index and fresh carrier readback add package-id-keyed presence, dependent guard, capability exposure, runtime-source readiness, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; the shell infers none of them" ||
+      "directory entries own catalog membership, installed or present state, callability, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index and fresh carrier readback add package-id-keyed dependency presence, repair or activation actions, dependent guard, capability exposure, runtime-source readiness, currentness, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; the shell infers none of them" ||
     directory.diagnostic_enrichment_projection !==
       "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]" ||
     Object.hasOwn(directory, "legacy_fallback_projection")
@@ -3556,59 +3562,58 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.normalization_policy !==
       "shell uses directory.entries as the only manageable collection, joins optional fresh diagnostics by canonical package_id, and keeps directory lifecycle, presence, callability, readiness, and actions authoritative on overlap" ||
     directory.canonical_directory_absent_policy !==
-      "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or App metadata" ||
+      "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or App profile metadata" ||
     directory.runtime_carrier_failure_policy !==
       "fresh carrier failure projects package-local attention_needed and launch_blocked without changing catalog membership or blocking unrelated packages" ||
     directory.catalog_interaction_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.directory_controls" ||
     directory.package_action_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract" ||
-    directory.settings_action_scope !== "owner_projected_settings_actions_only" ||
-    directory.settings_action_inference_allowed !== false
+    directory.stage_runtime_activation_contract_ref !==
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract" ||
+    directory.settings_action_scope !== "owner_projected_non_activation_actions_only" ||
+    directory.settings_activation_execution_allowed !== false ||
+    directory.new_conversation_activation_execution_allowed !== false ||
+    directory.ordinary_send_activation_execution_allowed !== false ||
+    directory.settings_target_workspace_source !== null ||
+    directory.global_workspace_root_activation_target_allowed !== false ||
+    directory.selected_session_directory_activation_target_allowed !== false ||
+    directory.scope_inference_allowed !== false ||
+    directory.session_launch_authority !== false ||
+    directory.stage_runtime_activation_owner !== "one-person-lab_family_runtime" ||
+    directory.stage_runtime_workspace_locator_source !==
+      "StageRun.workspace_locator_or_StageAttempt.workspace_locator"
   ) {
     throw new Error(
-      "Settings Agents directory projection must execute only complete Framework-projected Settings actions",
+      "Settings Agents directory projection must keep activation out of Settings and reserve it for Framework Stage runtime",
     );
-  }
-  for (const forbiddenField of [
-    "stage_runtime_activation_contract_ref",
-    "settings_activation_execution_allowed",
-    "new_conversation_activation_execution_allowed",
-    "ordinary_send_activation_execution_allowed",
-    "settings_target_workspace_source",
-    "global_workspace_root_activation_target_allowed",
-    "selected_session_directory_activation_target_allowed",
-    "scope_inference_allowed",
-    "session_launch_authority",
-    "stage_runtime_activation_owner",
-    "stage_runtime_workspace_locator_source",
-  ]) {
-    if (forbiddenField in directory) {
-      throw new Error(`Settings Agents directory projection must not restore private activation field ${forbiddenField}`);
-    }
   }
   const statusModel = directory.status_model;
   if (
-    statusModel?.policy !== "generic_package_status_projection" ||
+    statusModel?.policy !== "multi_axis_package_status_no_single_repair_bucket" ||
     statusModel?.user_facing_projection_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection" ||
     statusModel?.localized_metadata_source !==
       "app_state.agent_packages.directory.entries"
   ) {
     throw new Error(
-      "Settings Agents must keep the generic Package status model",
+      "Settings Agents must keep a multi-axis package status model",
     );
   }
   assertDeepEqualJson(
     statusModel?.axes,
     [
-      "presence",
       "install_state",
+      "activation_state",
+      "activation_action",
+      "update_state",
       "source_state",
       "trust_state",
+      "codex_surface_state",
       "capability_exposure",
       "directory_readiness",
       "dependency_readiness",
+      "dependent_guard",
       "runtime_source_readiness",
       "operational_ready",
       "launch_allowed",
@@ -3638,7 +3643,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   if (
     detailSurface?.kind !== "desktop_right_side_panel_mobile_drawer" ||
     detailSurface?.first_screen_policy !==
-      "directory presence and callability plus dependency presence, dependent guard, exposure, runtime-source readiness, and launch diagnostics are normal detail fields; private lifecycle storage and physical paths are not App inputs"
+      "directory presence and callability plus dependency presence, activation action, dependent guard, exposure, runtime-source readiness, and launch diagnostics are normal detail fields; receipts, rollback refs, materialization internals, closure digests, and physical surfaces are Advanced diagnostics only"
   ) {
     throw new Error(
       "Settings Agents detail surface must keep package diagnostics in side-panel/drawer density",
@@ -3649,8 +3654,11 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     [
       "directory_readiness",
       "dependency_readiness",
+      "repair_action",
+      "activation_action",
       "dependent_guard",
       "capability_exposure",
+      "package_dependency_readiness",
       "runtime_source_readiness",
       "operational_ready",
       "launch_allowed",
@@ -3662,7 +3670,14 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   );
   assertDeepEqualJson(
     detailSurface?.advanced_diagnostics_fields,
-    ["owner_diagnostic_ref", "status_read_error"],
+    [
+      "receipt_refs",
+      "rollback_ref",
+      "action_receipt_ref",
+      "materialization_readiness",
+      "dependency_closure",
+      "physical_surface",
+    ],
     "Settings Agents advanced diagnostics fields",
   );
   for (const forbiddenField of [

@@ -4,7 +4,9 @@ import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-con
 export function validateInstallExposureRuntimeAndDistribution(policy) {
   validateSoftwareLifecycle(policy.software_lifecycle);
   validateTemporalAutoConfiguration(policy.temporal_auto_configuration);
+  validateSyncAndInstallContract(policy.sync_and_install_contract);
   validateHomebrewDistribution(policy.distribution_channels?.homebrew);
+  validateManagedPackageDistribution(policy.agent_installation_contract?.managed_package_distribution);
   validateReleaseValidation(policy.release_validation);
 }
 
@@ -13,16 +15,19 @@ function validateSoftwareLifecycle(lifecycle) {
   assertDeepEqualJson(lifecycle?.lifecycle_owners, {
     opl_base: 'one-person-lab',
     opl_app: 'one-person-lab-app',
-    opl_packages: 'configured_carrier',
+    opl_packages: 'one-person-lab',
   }, 'Install exposure lifecycle owners');
   assertDeepEqualJson(lifecycle?.app_mutation_scope, ['opl_app'], 'Install exposure App mutation scope');
   assertDeepEqualJson(lifecycle?.app_projection_scope, ['opl_base', 'opl_packages'], 'Install exposure App projection scope');
+  assertDeepEqualJson(lifecycle?.transaction_internal_states, {
+    opl_base: ['runtime_substrate', 'companion_tools'],
+    opl_packages: ['capability_packages', 'codex_surface', 'workflow_profile'],
+  }, 'Install exposure transaction internal states');
   if (
     lifecycle?.schema !== 'opl_software_lifecycle.v1' ||
     lifecycle?.ordinary_component_picker_allowed !== false ||
     lifecycle?.legacy_component_mapping_allowed !== false ||
-    lifecycle?.package_lifecycle_carrier !== 'configured_carrier' ||
-    Object.hasOwn(lifecycle ?? {}, 'transaction_internal_states')
+    lifecycle?.packages_carrier_allowed !== false
   ) {
     throw new Error('Install exposure must use the three-object software lifecycle without legacy mappings or a component picker');
   }
@@ -32,9 +37,11 @@ function validateSoftwareLifecycle(lifecycle) {
     threeLayer?.installation_source?.scope !== 'all_supported_app_carriers' ||
     threeLayer?.installation_source?.app_carrier_registry_ref !== 'installer_surfaces+distribution_channels' ||
     threeLayer?.installation_source?.may_define_base_or_package_currentness !== false ||
-    threeLayer?.management_path?.owner !== 'configured_carrier' ||
-    threeLayer?.management_path?.projection_ref !== 'agent_installation_contract' ||
-    threeLayer?.management_path?.app_role !== 'submit_projected_actions_and_render_fresh_readback' ||
+    threeLayer?.management_path?.owner !== 'one-person-lab' ||
+    threeLayer?.management_path?.reconciliation_ref !==
+      'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation' ||
+    threeLayer?.management_path?.app_role !==
+      'request_and_project_framework_terminal_readback_and_apply_receipts_only' ||
     threeLayer?.management_path?.app_side_dependency_or_package_update_catalog_allowed !== false ||
     threeLayer?.user_behavior?.carrier_choice_changes_post_launch_behavior !== false ||
     threeLayer?.user_behavior?.clean_opl_managed_targets_may_update_silently !== true ||
@@ -156,6 +163,50 @@ function validateTemporalAutoConfiguration(temporalAutoConfig) {
     ],
     'Install exposure Temporal fail-closed states',
   );
+}
+
+function validateSyncAndInstallContract(sync) {
+  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl packages update --json', 'opl connect sync-skills']) {
+    if (!sync?.framework_commands?.includes(command)) {
+      throw new Error(`Install exposure sync contract must include ${command}`);
+    }
+  }
+  if (sync.codex_plugin_registry_owner !== 'one-person-lab') {
+    throw new Error('Install exposure sync contract must keep Codex plugin registry owner in one-person-lab');
+  }
+  if (sync.app_release_payload_owner !== 'one-person-lab-app') {
+    throw new Error('Install exposure sync contract must keep App release payload owner in one-person-lab-app');
+  }
+  if (
+    sync.base_and_package_mutation_owner !== 'one-person-lab' ||
+    sync.app_role !== 'request_status_progress_and_receipt_projection_only' ||
+    sync.companion_skill_management !== 'framework_transaction_internal_post_apply_state' ||
+    sync.codex_surface_management !== 'framework_package_transaction_internal_post_apply_state' ||
+    sync.workflow_profile_management !== 'framework_package_transaction_internal_semantic_merge_state'
+  ) {
+    throw new Error('Install exposure sync contract must keep Base and Packages mutation in Framework transactions');
+  }
+  for (const prevention of [
+    'plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories',
+    'OPL Meta Agent is surfaced as an OPL-generated local Codex plugin surface',
+    'App visible companion skill defaults must be product profile configuration, not shell-local hardcoding',
+  ]) {
+    if (!sync.duplicate_prevention?.includes(prevention)) {
+      throw new Error(`Install exposure duplicate prevention must include ${prevention}`);
+    }
+  }
+  for (const state of [
+    'dirty_managed_checkout',
+    'ahead_or_diverged_managed_checkout',
+    'missing_plugin_manifest',
+    'missing_skill_entry',
+    'duplicate_codex_visible_domain_skill',
+    'unavailable_compatible_package_source',
+  ]) {
+    if (!sync.fail_closed_states?.includes(state)) {
+      throw new Error(`Install exposure fail-closed states must include ${state}`);
+    }
+  }
 }
 
 function validateHomebrewDistribution(homebrew) {
@@ -379,6 +430,36 @@ function validateHomebrewAgentPackPolicy(homebrew) {
     homebrew_formula_allowed: false,
     ordinary_component_picker_allowed: false,
   }, 'Install exposure Homebrew OPL Packages boundary');
+}
+
+function validateManagedPackageDistribution(packageDistribution) {
+  if (
+    packageDistribution?.software_object !== 'opl_packages' ||
+    packageDistribution?.lifecycle_owner !== 'one-person-lab' ||
+    packageDistribution?.app_role !== 'request_status_progress_and_receipt_projection_only' ||
+    packageDistribution?.resolver_authority !== 'one-person-lab#package_repository_resolver' ||
+    packageDistribution?.source_policy !== 'resolve_any_compatible_declared_or_user_selected_source' ||
+    packageDistribution?.package_set_policy !== 'open_directory_without_fixed_required_package_set' ||
+    packageDistribution?.carrier_policy !== 'optional_acceleration_only_not_install_or_readiness_authority' ||
+    packageDistribution?.artifact_evidence_policy !==
+      'record_refs_and_digests_only_for_artifacts_actually_resolved_installed_or_built' ||
+    packageDistribution?.must_not_write_user_codex_state !== true ||
+    packageDistribution?.must_not_define_agent_semantics !== true
+  ) {
+    throw new Error('Install exposure must keep Package resolution open and Framework-owned');
+  }
+  assertIncludesAll(
+    packageDistribution.post_update_sync_required,
+    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
+    'Install exposure capability package distribution post-update sync requirements',
+  );
+  if (
+    packageDistribution.auto_apply?.enabled_for !== 'clean_managed_roots_only' ||
+    packageDistribution.auto_apply?.trigger !== 'framework_projected_compatible_update' ||
+    packageDistribution.auto_apply?.receipt_required !== true
+  ) {
+    throw new Error('Install exposure Package auto-apply must consume Framework compatibility projection');
+  }
 }
 
 function validateReleaseValidation(validation) {

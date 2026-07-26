@@ -856,7 +856,7 @@ function validateGuidSkillRules(shellPaths, guidPage) {
   );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/assistantSkillMenu.ts', ['buildAssistantScopedSkillMenuItems', 'mergeRequiredSkills', 'required_skills', 'locked: isRequired'], 'Active shell Guid skill menu App assistant skill profile rule');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx', ['GuidSkillMenuItem', 'isGuidSkillChecked', 'skill.locked', 'disabled: skill.locked'], 'Active shell Guid action row required assistant skills');
-  const guidSend = assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
+  const guidSend = assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts', ['activeShortcut', 'buildOplShortcutInvocationReceipt', 'opl_agent_package_invocation', 'preset_enabled_skills'], 'Active shell Guid send App shortcut route/skill signal');
   assertTextExcludesAll(
     guidSend,
     ['buildOplShortcutRouteReceipt', 'opl_assistant_route'],
@@ -871,7 +871,7 @@ function validateGuidSkillRules(shellPaths, guidPage) {
     ],
     'Active shell Guid MCP negative-filter send regression',
   );
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/activeShortcut.ts', ['OplActiveShortcut', 'resolveOplActiveShortcut', 'required_skill_ids'], 'Active shell Guid shortcut identity signal');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/activeShortcut.ts', ['OplActiveShortcut', 'resolveOplActiveShortcut', 'required_skill_ids', 'buildOplShortcutInvocationReceipt'], 'Active shell Guid shortcut identity and receipt signal');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/common/utils/buildAgentConversationParams.ts', ['preset_enabled_skills'], 'Active shell create conversation App assistant route/skill signal');
 }
 

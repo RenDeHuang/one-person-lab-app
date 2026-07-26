@@ -163,9 +163,9 @@
       "non_root_clean_host_readback",
       "official_profile_convergence_receipt"
     ],
-    "rule": "Every supported App carrier converges through Framework-owned Base reconciliation, configured Package carriers, and the same Official Profile intent. Full changes seed density; Desktop, Native WebUI, and Container WebUI change runtime form; neither creates a second product or lifecycle authority."
+    "rule": "Every supported App carrier converges through Framework-owned reconciliation to one active Base and the same Official Profile intent. Full changes seed density; Desktop, Native WebUI, and Container WebUI change runtime form; neither creates a second product or lifecycle authority."
   },
-  "machine_boundary": "App-owned installation and Codex-visible exposure policy. Configured carriers own Package install, update, and remove; OPL Framework owns discovery, presence/callability aggregation, projected actions, and read models. Domain agents own skill semantics, domain handlers, action/stage truth, quality verdicts, and artifact authority.",
+  "machine_boundary": "App-owned installation and Codex-visible exposure policy. OPL Framework owns install/sync producers, generated family surfaces, action execution, and read models. Domain agents own skill semantics, domain handlers, action/stage truth, quality verdicts, and artifact authority.",
   "producer_owner": "one-person-lab",
   "product_authority": {
     "source_of_truth": "one-person-lab-app",
@@ -184,8 +184,8 @@
     ]
   },
   "capability_governance": {
-    "lifecycle_authority": "configured_carrier",
-    "lifecycle_surface": "configured_carrier_install_update_remove",
+    "lifecycle_authority": "one-person-lab",
+    "lifecycle_surface": "opl_framework_package_transaction",
     "app_role": "gui_and_framework_projection_consumer_only",
     "managed_inventory": {
       "source": "framework_unified_capability_projection",
@@ -203,14 +203,14 @@
       "explicit_api_key_command_role": "new_or_rotated_provider_credential_only",
       "configure_codex_package_lifecycle_mutation_allowed": false,
       "package_reconciliation_requires_provider_configuration": false,
-      "package_reconciliation_surface": "configured_carrier_projected_actions"
+      "package_reconciliation_surface": "framework_managed_update_plane"
     },
     "mcp_policy": {
       "flow_managed_projection_group": "opl_flow_managed",
       "manual_and_third_party_projection_group": "user_or_third_party_managed",
       "undeclared_user_server_policy": "preserve",
       "undeclared_user_server_delete_or_overwrite_allowed": false,
-      "default_managed_server_requires_owner_or_carrier_projection": true
+      "default_managed_server_requires_framework_lifecycle_adapter": true
     }
   },
   "canonical_metadata_sources": {
@@ -255,7 +255,7 @@
     "lifecycle_owners": {
       "opl_base": "one-person-lab",
       "opl_app": "one-person-lab-app",
-      "opl_packages": "configured_carrier"
+      "opl_packages": "one-person-lab"
     },
     "app_mutation_scope": [
       "opl_app"
@@ -280,7 +280,7 @@
         "nightly_if_reactivated": "formula_opl_is_the_base_carrier_and_the_standard_density_prerelease_cask_carries_the_app",
         "full_target": "the_full_cask_consumes_the_full_dmg_with_embedded_base_and_package_seeds_without_a_formula_dependency_then_framework_activates_exactly_one_base"
       },
-      "dmg_or_direct": "signed_installer_or_dmg_is_opl_app_carrier_then_first_launch_requests_framework_owned_base_reconciliation_and_configured_carrier_package_actions",
+      "dmg_or_direct": "signed_installer_or_dmg_is_opl_app_carrier_then_first_launch_requests_framework_owned_base_and_packages_reconciliation",
       "headless": "framework_installer_is_opl_base_carrier_without_opl_app"
     },
     "three_layer_contract": {
@@ -291,9 +291,9 @@
         "may_define_base_or_package_currentness": false
       },
       "management_path": {
-        "owner": "configured_carrier",
-        "projection_ref": "agent_installation_contract",
-        "app_role": "submit_projected_actions_and_render_fresh_readback",
+        "owner": "one-person-lab",
+        "reconciliation_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation",
+        "app_role": "request_and_project_framework_terminal_readback_and_apply_receipts_only",
         "app_side_dependency_or_package_update_catalog_allowed": false
       },
       "user_behavior": {
@@ -351,13 +351,24 @@
         "full_seed_activation_owner": "one-person-lab"
       }
     },
+    "transaction_internal_states": {
+      "opl_base": [
+        "runtime_substrate",
+        "companion_tools"
+      ],
+      "opl_packages": [
+        "capability_packages",
+        "codex_surface",
+        "workflow_profile"
+      ]
+    },
     "ordinary_component_picker_allowed": false,
     "legacy_component_mapping_allowed": false,
-    "package_lifecycle_carrier": "configured_carrier",
-    "full_first_install_boundary": "A Full carrier may seed Base and Package payloads; Framework activates Base, configured carriers activate Packages, and App renders fresh projected readback.",
+    "packages_carrier_allowed": false,
+    "full_first_install_boundary": "A Full carrier may seed Base and Packages payloads, but Framework lifecycle owns activation and every later mutation.",
     "forbidden_app_mutations": [
       "opl_base_install_update_repair_or_rollback",
-      "direct_package_lifecycle_mutation_outside_projected_action",
+      "opl_packages_install_update_repair_or_rollback",
       "homebrew_formula_upgrade",
       "package_registry_or_lock_write_without_framework_action"
     ]
@@ -368,13 +379,32 @@
       "owner": "one-person-lab",
       "software_object": "opl_packages",
       "visibility_scope": "package_capability_visibility_only_not_software_object",
-      "member_source": "app_state.agent_packages.directory.entries[].capabilities[]",
-      "presentation_source": "owner_package_presentation_descriptor",
+      "members": [
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-bookforge"
+      ],
       "default_app_visible": true,
-      "sync_target": "framework_projected_configured_carrier",
+      "sync_target": "codex_plugin_registry",
       "must_not_sync_to": [
-        "app_owned_package_member_registry",
-        "duplicate_bare_skill_mirror",
+        "~/.codex/skills/med-autoscience",
+        "~/.codex/skills/med-autogrant",
+        "~/.codex/skills/redcube-ai",
+        "~/.codex/skills/opl-bookforge"
+      ]
+    },
+    {
+      "id": "opl_generated_plugin_surfaces",
+      "owner": "one-person-lab",
+      "software_object": "opl_packages",
+      "members": [
+        "opl-meta-agent",
+        "opl-bookforge"
+      ],
+      "default_app_visible": false,
+      "sync_target": "opl_generated_codex_plugin_surface",
+      "must_not_sync_to": [
         "default_home_assistant_entry"
       ]
     },
@@ -428,6 +458,68 @@
       "must_not_sync_to": [
         "implicit_user_codex_skill_install_without_managed_sync"
       ]
+    }
+  ],
+  "domain_exposure": [
+    {
+      "domain_id": "med-autoscience",
+      "package_id": "mas",
+      "agent_id": "mas",
+      "display_name": "Med Auto Science",
+      "home_purpose_entry": "research",
+      "default_home_visible": true,
+      "codex_visible_entry": "med-autoscience",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "med-autogrant",
+      "package_id": "mag",
+      "agent_id": "mag",
+      "display_name": "Med Auto Grant",
+      "home_purpose_entry": "grant",
+      "default_home_visible": true,
+      "codex_visible_entry": "med-autogrant",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "redcube-ai",
+      "package_id": "rca",
+      "agent_id": "rca",
+      "display_name": "RedCube AI",
+      "home_purpose_entry": "ppt",
+      "default_home_visible": true,
+      "codex_visible_entry": "redcube-ai",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "opl-bookforge",
+      "package_id": "obf",
+      "agent_id": "obf",
+      "display_name": "OPL Book Forge",
+      "home_purpose_entry": "book",
+      "default_home_visible": true,
+      "codex_visible_entry": "opl-bookforge",
+      "preferred_app_distribution": "opl_generated_codex_plugin_surface",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "opl_generated_interface_contract_pack"
+    },
+    {
+      "domain_id": "opl-meta-agent",
+      "package_id": "oma",
+      "agent_id": "oma",
+      "display_name": "OPL Meta Agent",
+      "home_purpose_entry": "oma",
+      "default_home_visible": true,
+      "codex_visible_entry": "opl-meta-agent",
+      "preferred_app_distribution": "opl_generated_codex_plugin_surface",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "opl_generated_interface_contract_pack"
     }
   ],
   "installer_surfaces": [
@@ -1251,58 +1343,403 @@
       }
     }
   },
+  "sync_and_install_contract": {
+    "framework_commands": [
+      "opl install",
+      "opl system initialize --json",
+      "opl system startup-maintenance",
+      "opl packages update --json",
+      "opl connect sync-skills"
+    ],
+    "codex_plugin_registry_owner": "one-person-lab",
+    "app_release_payload_owner": "one-person-lab-app",
+    "base_and_package_mutation_owner": "one-person-lab",
+    "app_role": "request_status_progress_and_receipt_projection_only",
+    "companion_skill_management": "framework_transaction_internal_post_apply_state",
+    "codex_surface_management": "framework_package_transaction_internal_post_apply_state",
+    "workflow_profile_management": "framework_package_transaction_internal_semantic_merge_state",
+    "duplicate_prevention": [
+      "plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories",
+      "OPL Meta Agent is surfaced as an OPL-generated local Codex plugin surface",
+      "App visible companion skill defaults must be product profile configuration, not shell-local hardcoding"
+    ],
+    "fail_closed_states": [
+      "dirty_managed_checkout",
+      "ahead_or_diverged_managed_checkout",
+      "missing_plugin_manifest",
+      "missing_skill_entry",
+      "duplicate_codex_visible_domain_skill",
+      "unavailable_compatible_package_source",
+      "invalid_package_manifest",
+      "missing_package_lock_receipt",
+      "package_source_validation_failed",
+      "resolved_package_materialization_incomplete"
+    ]
+  },
   "agent_installation_contract": {
-    "schema": "opl_app_package_consumer_install_exposure.v1",
     "owner": "one-person-lab-app",
     "producer_owner": "one-person-lab",
-    "product_entry_target": "settings_agents",
-    "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + status_index + actions",
-    "directory_contract": {
-      "collection_source": "app_state.agent_packages.directory.entries",
-      "presentation_source": "app_state.agent_packages.directory.entries",
-      "installed_state_source": "fresh configured-carrier readback aggregated by Framework",
-      "unknown_package_policy": "render_without_app_package_id_branch",
-      "App_or_Shell_installed_inference_allowed": false
-    },
-    "action_contract": {
-      "source": "app_state.agent_packages.directory.entries[].available_actions[]",
-      "execution_route": "opl app action execute --action <action_id> [--payload <json>] --json",
-      "required_fields": [
-        "action_id",
-        "action_ref",
-        "semantic",
-        "surface",
-        "payload",
-        "required_payload_fields",
-        "confirmation_required"
+    "unified_sync_command": "opl connect sync-skills",
+    "managed_install_source": "opl_managed_packages",
+    "user_agent_installation_mode": "consume_shared_skill_action_stage_metadata",
+    "codex_plugin_registry_target": "codex_plugin_registry",
+    "direct_skill_target": "codex_user_skill_discovery_path",
+    "product_entry_target": "family-product-entry-manifest-v2",
+    "required_agent_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf"
+    ],
+    "default_plugin_agent_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "obf"
+    ],
+    "generated_plugin_agent_ids": [
+      "oma",
+      "obf"
+    ],
+    "fail_closed_states": [
+      "dirty_managed_checkout",
+      "ahead_or_diverged_managed_checkout",
+      "missing_plugin_manifest",
+      "missing_skill_entry",
+      "duplicate_codex_visible_domain_skill",
+      "unavailable_compatible_package_source",
+      "invalid_package_manifest",
+      "missing_package_lock_receipt",
+      "package_source_validation_failed",
+      "resolved_package_materialization_incomplete"
+    ],
+    "may_use_developer_checkout_by_default": false,
+    "developer_checkout_override_policy": "explicit_opt_in_only",
+    "developer_checkout_override_surface": "Developer Profile source_channel capability",
+    "ordinary_user_package_source": "framework_resolved_compatible_source",
+    "agent_registry_policy": {
+      "policy_surface": "Settings Agents registry discovery, manifest URL install entry, and package receipt display",
+      "framework_directory_lifecycle_authority": "app_state.agent_packages.directory+status_index+actions",
+      "composition_readiness_policy": "presence_only_required_package_or_capability_identity",
+      "package_presence_authority": "one-person-lab#installed_discovery_and_status_aggregation",
+      "package_published_current_stable_authority": "package_owner_per_package_ghcr_latest_stable",
+      "package_installed_callable_authority": "one-person-lab#fresh_configured_carrier_readback_aggregation",
+      "exact_installed_lock_required": false,
+      "app_bundled_default_registry_allowed": false,
+      "external_registry_role": "optional_candidate_source_adapter",
+      "external_registry_configuration_source": "framework_projected_configured_sources_or_explicit_user_selected_url",
+      "starter_package_ids_source_ref": "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
+      "external_first_party_identity_claims_allowed": false,
+      "external_first_party_trust_claims_allowed": false,
+      "external_first_party_collision_failure_code": "agent_package_registry_first_party_identity_collision",
+      "manifest_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
+      "home_shortcut_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata",
+      "invocation_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt",
+      "package_lock_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt",
+      "first_party_manifest_fixture_dir": "contracts/fixtures/agent-package-manifests",
+      "allowed_registry_source_kinds": [
+        "organization_registry_url",
+        "user_registry_url"
       ],
-      "action_id_allowlist_allowed": false,
-      "payload_inference_allowed": false,
-      "post_success_readback": "opl app state --profile fast --json"
+      "registry_management_actions": [
+        "refresh_registry",
+        "install_from_manifest_url"
+      ],
+      "entry_required_fields": [
+        "package_id",
+        "package_kind",
+        "display_name",
+        "publisher",
+        "source",
+        "manifest_url",
+        "version_source_ref",
+        "trust_tier"
+      ],
+      "manifest_required_fields": [
+        "package_id",
+        "package_kind",
+        "display_name",
+        "publisher",
+        "version",
+        "source",
+        "codex_surface",
+        "skill_packs",
+        "entrypoints",
+        "health_check",
+        "permissions",
+        "update_channel",
+        "rollback_ref"
+      ],
+      "registry_is_discovery_only": true,
+      "registry_install_authority_allowed": false,
+      "registry_may_define_currentness": false,
+      "manifest_url_required_for_install": true,
+      "manifest_validation_required_before_install": true,
+      "install_authority": "validated_opl_package_manifest_plus_framework_package_lock_receipt",
+      "mutating_actions_owner": "one-person-lab",
+      "app_role": "display_framework_projected_external_candidates_and_route_selected_manifest_url_without_owning_lifecycle_currentness_or_agent_semantics",
+      "direct_manifest_url_install_allowed": true,
+      "third_party_registry_required_for_manual_install": false,
+      "third_party_entry_policy": "external_registry_entries_may_be_listed_for_discovery_but_must_not_claim_canonical_first_party_identity_or_trust_and_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref",
+      "session_contract_allowed": false,
+      "app_hardcoded_agent_ids_required": false
     },
-    "official_profile_restore": {
-      "intent_owner": "one-person-lab-app",
-      "action_ref": "app_state.actions#official_profile_restore",
-      "framework_single_package_lifecycle_authority": false
+    "package_manager_lifecycle": {
+      "policy_surface": "Settings Agents package manager and app/cli action receipts",
+      "actions": [
+        "refresh_registry",
+        "install_from_manifest_url",
+        "agent_package_update",
+        "agent_package_repair",
+        "agent_package_activate",
+        "agent_package_uninstall",
+        "agent_package_preferences_set"
+      ],
+      "activation_contract": {
+        "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+        "execution_owner": "one-person-lab_family_runtime",
+        "settings_execution_allowed": false,
+        "new_conversation_shell_execution_allowed": false,
+        "ordinary_send_shell_execution_allowed": false,
+        "framework_stage_runtime_execution_allowed": true
+      },
+      "settings_executable_actions": [
+        "refresh_registry",
+        "install_from_manifest_url",
+        "agent_package_update",
+        "agent_package_repair",
+        "agent_package_uninstall",
+        "agent_package_preferences_set"
+      ],
+      "framework_stage_runtime_internal_actions": [
+        "agent_package_activate"
+      ],
+      "exposure_action_values": [
+        "hide",
+        "unhide",
+        "enable",
+        "disable"
+      ],
+      "exposure_state_contract": {
+        "state_fields": ["enabled", "visibility"],
+        "visibility_values": ["visible", "hidden"],
+        "execution_authority": "enabled",
+        "discovery_and_home_authority": "visibility",
+        "codex_visible_derivation": "enabled === true && visibility === 'visible'",
+        "transition_matrix": {
+          "hide": {"enabled": "preserve", "visibility": "hidden"},
+          "unhide": {"enabled": "preserve", "visibility": "visible"},
+          "disable": {"enabled": false, "visibility": "preserve"},
+          "enable": {"enabled": true, "visibility": "preserve"}
+        },
+        "receipt_post_state_fields": ["enabled", "visibility"],
+        "receipt_binding_policy": "result_package_lock_and_lifecycle_receipt_must_agree_on_both_post_state_axes",
+        "disabled_stage_boundary_policy": "Framework_stage_runtime_activation_returns_package_disabled_without_activation_side_effects",
+        "hidden_enabled_conversation_policy": "ordinary discovery and Home default hide the package while an explicit retained shortcut may still start a conversation without Shell activation"
+      },
+      "manual_check_policy": "automatic_daily_check_plus_explicit_user_refresh",
+      "apply_selected_policy": "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",
+      "app_role": "package_manager_carrier_and_action_ref_consumer_only",
+      "mutating_lifecycle_owner": "one-person-lab_framework_action_refs",
+      "mutating_actions_require_action_receipt": true,
+      "rollback_ref_required_for_mutating_actions": true,
+      "rollback_boundary": "agent_package_lifecycle_does_not_define_an_app_or_framework_package_lifecycle_rollback_verb; App displays receipt rollback_ref fail-closed state and repair/update route, while true managed rollback stays with managed_update_plane/runtime substrate/package-channel owners",
+      "package_lock_required": true,
+      "domain_truth_authority_allowed": false,
+      "home_shortcut_preferences_owner": "one-person-lab",
+      "home_shortcut_preferences_action": "agent_package_preferences_set",
+      "home_shortcut_preferences_readback": "opl packages list/status#home_shortcut_preferences",
+      "automatic_apply_policy": {
+        "cadence": "daily_after_core_ready_and_app_startup_check",
+        "source_selection": "framework_projected_compatible_source",
+        "apply_when": [
+          "compatible_update_available",
+          "managed_root_clean",
+          "manifest_permissions_unchanged",
+          "compatibility_gate_passed"
+        ],
+        "require_user_action_when": [
+          "developer_checkout",
+          "dirty_checkout",
+          "permission_scope_changed",
+          "major_compatibility_break",
+          "verification_failed"
+        ],
+        "receipt_required": true
+      }
     },
-    "carrier_boundary": {
-      "configured_carrier_owns_install_update_remove": true,
-      "Framework_role": "adapter discovery, fresh complete-runtime aggregation, route readiness, and projected actions",
-      "App_role": "render projection and submit user intent",
-      "plugin_only_full_package_installed_claim_allowed": false
+    "third_party_manual_source_policy": {
+      "ordinary_user_default_source_kinds": ["framework_resolved_compatible_source"],
+      "manual_third_party_allowed_source_kinds": [
+        "local_manifest_file",
+        "manifest_url",
+        "manifest_import"
+      ],
+      "manual_third_party_requires": [
+        "explicit_user_action",
+        "manifest_validation",
+        "trust_tier_assignment",
+        "package_lock_receipt",
+        "rollback_ref"
+      ],
+      "developer_override_source_kind": "developer_checkout_override",
+      "app_hardcoded_repo_path_allowed": false,
+      "duplicate_bare_skill_mirrors_allowed": false,
+      "homebrew_package_formula_allowed": false,
+      "third_party_catalog_required": false,
+      "validation_scope": "validate manifest shape, declared capability sources, trust tier, and Framework result without hardcoding package ids, transport, channel, lock, or payload"
     },
-    "app_must_not_own": [
-      "Package or Agent id list",
-      "first-party manifest map",
-      "Package manifest parser",
-      "installed lock or payload",
-      "materialization state",
-      "lifecycle receipt or last-known-good state",
-      "rollback manager",
-      "action-id allowlist",
-      "carrier cache or physical path fallback",
-      "Package version or ABI solver"
-    ]
+    "package_lock_receipt_contract": {
+      "lock_owner": "one-person-lab",
+      "app_role": "require_and_display_package_lock_refs_without_owning_domain_semantics",
+      "required_fields": [
+        "package_id",
+        "version_or_source_digest",
+        "installed_at",
+        "updated_at",
+        "codex_visible_entry",
+        "bundled_required_skill_ids",
+        "optional_skill_refs",
+        "source_kind",
+        "trust_tier",
+        "action_receipt_id",
+        "rollback_ref",
+        "physical_surface"
+      ],
+      "source_kind_allowed_values": [
+        "first_party_managed_cohort",
+        "bundled_full_runtime_modules",
+        "local_manifest_file",
+        "manifest_url",
+        "manifest_import",
+        "developer_checkout_override"
+      ],
+      "trust_tier_required": true,
+      "rollback_ref_required": true,
+      "codex_visible_entry_required": true,
+      "optional_skill_refs_are_refs_only": true,
+      "digest_is_install_truth": true
+    },
+    "duplicate_bare_skill_policy": "forbid_domain_plugin_skill_mirrors",
+    "plugin_registration_validation_command": "npm run validate:agent-installation",
+    "plugin_registration_validation_inputs": {
+      "plugin_root_flag": "--agent-root <agent_id>=<path>",
+      "codex_skills_root_flag": "--codex-skills-root <path>",
+      "default_live_codex_skills_root": "~/.codex/skills",
+      "validated_output_fields": [
+        "validated_plugin_roots",
+        "validated_codex_skills_root"
+      ],
+      "codex_skills_root_validation_scope": "fail if med-autoscience, med-autogrant, redcube-ai, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md"
+    },
+    "agents": [
+      {
+        "agent_id": "mas",
+        "display_name": "Med Auto Science",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "med-autoscience",
+        "home_purpose_entry": "research",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "mag",
+        "display_name": "Med Auto Grant",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "med-autogrant",
+        "home_purpose_entry": "grant",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "rca",
+        "display_name": "RedCube AI",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "redcube-ai",
+        "home_purpose_entry": "ppt",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "oma",
+        "display_name": "OPL Meta Agent",
+        "preferred_distribution": "opl_generated_codex_plugin_surface",
+        "codex_visible_entry": "opl-meta-agent",
+        "home_purpose_entry": "oma",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": false,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "opl_generated_interface_contract_pack"
+      },
+      {
+        "agent_id": "obf",
+        "display_name": "OPL Book Forge",
+        "default_home_visible": true,
+        "preferred_distribution": "opl_generated_codex_plugin_surface",
+        "codex_visible_entry": "opl-bookforge",
+        "module_id": "oplbookforge",
+        "repo_name": "opl-bookforge",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": false,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "opl_generated_interface_contract_pack",
+        "authority_boundary": "bookforge_owns_book_truth_quality_export_publication_and_owner_receipts; app_and_opl_generated_surfaces_must_not_claim_production_ready"
+      }
+    ],
+    "managed_package_distribution": {
+      "software_object": "opl_packages",
+      "lifecycle_owner": "one-person-lab",
+      "app_role": "request_status_progress_and_receipt_projection_only",
+      "transaction_visibility": "package_lifecycle_with_internal_projection_and_profile_migration_status",
+      "resolver_authority": "one-person-lab#package_repository_resolver",
+      "source_policy": "resolve_any_compatible_declared_or_user_selected_source",
+      "package_set_policy": "open_directory_without_fixed_required_package_set",
+      "carrier_policy": "optional_acceleration_only_not_install_or_readiness_authority",
+      "artifact_evidence_policy": "record_refs_and_digests_only_for_artifacts_actually_resolved_installed_or_built",
+      "post_update_sync_required": [
+        "codex_plugin_registry",
+        "plugin_packaged_skills",
+        "opl_generated_plugin_surface",
+        "codex_surface"
+      ],
+      "must_not_write_user_codex_state": true,
+      "must_not_define_agent_semantics": true,
+      "auto_apply": {
+        "enabled_for": "clean_managed_roots_only",
+        "trigger": "framework_projected_compatible_update",
+        "skip_when": [
+          "developer_checkout_override",
+          "dirty_checkout",
+          "permission_scope_changed",
+          "major_compatibility_break",
+          "verification_failed",
+          "idempotency_lock_in_progress"
+        ],
+        "receipt_required": true
+      }
+    }
   },
   "release_validation": {
     "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",

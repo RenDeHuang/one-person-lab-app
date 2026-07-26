@@ -1,0 +1,38 @@
+{
+  "package_id": "opl-flow",
+  "package_kind": "workflow_plugin_package",
+  "display_name": "OPL Flow",
+  "publisher": "one-person-lab",
+  "version": "0.1.16",
+  "source": "first_party",
+  "codex_surface": {
+    "plugin_ids": [
+      "opl-flow"
+    ],
+    "required_skill_ids": [
+      "opl-flow"
+    ],
+    "optional_skill_ids": [],
+    "plugin_source_ref": "gaofeng21cn/opl-flow"
+  },
+  "skill_packs": [
+    {
+      "id": "opl-flow-workflow-pack",
+      "source_kind": "repo_plugin_skill",
+      "source": "github:gaofeng21cn/opl-flow/skills/opl-flow",
+      "version": "0.1.16",
+      "install_mode": "required"
+    }
+  ],
+  "entrypoints": [],
+  "health_check": {
+    "kind": "opl_package_receipt",
+    "required_surfaces": [
+      "plugin_registry",
+      "required_skill_ids"
+    ]
+  },
+  "permissions": [],
+  "update_channel": "managed_opl_packages",
+  "rollback_ref": "package-receipt-ref"
+}
