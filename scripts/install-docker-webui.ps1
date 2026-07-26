@@ -100,14 +100,93 @@ function Write-DiagnosticText {
   Set-Content -Path $PathValue -Value (ConvertFrom-DiagnosticSensitiveText $Content) -Encoding UTF8
 }
 
+function Refresh-ProcessPathFromEnvironment {
+  param(
+    [AllowNull()][string]$MachinePath,
+    [AllowNull()][string]$UserPath
+  )
+
+  if (-not $PSBoundParameters.ContainsKey("MachinePath")) {
+    $MachinePath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::Machine)
+  }
+  if (-not $PSBoundParameters.ContainsKey("UserPath")) {
+    $UserPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
+  }
+  $segments = [System.Collections.Generic.List[string]]::new()
+  $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($value in @(
+      $MachinePath,
+      $UserPath,
+      $env:Path
+    )) {
+    if ([string]::IsNullOrWhiteSpace($value)) {
+      continue
+    }
+    foreach ($segment in ($value -split [regex]::Escape([string][System.IO.Path]::PathSeparator))) {
+      $trimmed = $segment.Trim()
+      if (-not [string]::IsNullOrWhiteSpace($trimmed) -and $seen.Add($trimmed)) {
+        $segments.Add($trimmed) | Out-Null
+      }
+    }
+  }
+  $env:Path = $segments -join [System.IO.Path]::PathSeparator
+}
+
+function Resolve-DockerDesktopApplicationPath {
+  $candidates = [System.Collections.Generic.List[string]]::new()
+  if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+    $candidates.Add((Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe")) | Out-Null
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\DockerDesktop\Docker Desktop.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Docker\Docker Desktop.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\Docker\Docker Desktop.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\Docker\Docker\Docker Desktop.exe")) | Out-Null
+  }
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      return [System.IO.Path]::GetFullPath($candidate)
+    }
+  }
+  return $null
+}
+
+function Resolve-DockerCliPath {
+  $command = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -ne $command) {
+    $commandPath = if (-not [string]::IsNullOrWhiteSpace($command.Source)) { $command.Source } else { $command.Path }
+    if (-not [string]::IsNullOrWhiteSpace($commandPath) -and (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+      return [System.IO.Path]::GetFullPath($commandPath)
+    }
+  }
+
+  $candidates = [System.Collections.Generic.List[string]]::new()
+  if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+    $candidates.Add((Join-Path $env:ProgramFiles "Docker\Docker\resources\bin\docker.exe")) | Out-Null
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\DockerDesktop\resources\bin\docker.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Docker\resources\bin\docker.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\Docker\resources\bin\docker.exe")) | Out-Null
+    $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\Docker\Docker\resources\bin\docker.exe")) | Out-Null
+  }
+  foreach ($candidate in $candidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      return [System.IO.Path]::GetFullPath($candidate)
+    }
+  }
+  return $null
+}
+
 function Invoke-DiagnosticDockerCommand {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string]$OutputPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments
   )
 
   $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
-  $output = & docker @Arguments 2>&1 | Out-String
+  $output = & $DockerCliPath @Arguments 2>&1 | Out-String
   $exitCode = $LASTEXITCODE
   $content = "`$ $display`n$output"
   if ($exitCode -ne 0) {
@@ -144,6 +223,10 @@ function Install-DockerDesktopPrerequisite {
   if (-not $InstallPrerequisites) {
     return
   }
+  if ($null -ne (Resolve-DockerCliPath) -or $null -ne (Resolve-DockerDesktopApplicationPath)) {
+    Write-Step "Docker Desktop is already installed; skipping duplicate winget installation."
+    return
+  }
   if (-not (Test-Administrator)) {
     throw "Run PowerShell as Administrator when using -InstallPrerequisites to install Docker Desktop."
   }
@@ -154,9 +237,12 @@ function Install-DockerDesktopPrerequisite {
   Invoke-StepCommand -Display "winget install --id Docker.DockerDesktop --exact --accept-package-agreements --accept-source-agreements" -Command {
     & winget.exe install --id Docker.DockerDesktop --exact --accept-package-agreements --accept-source-agreements
   }
+  Refresh-ProcessPathFromEnvironment
 }
 
 function Start-DockerDesktopIfPresent {
+  param([Parameter(Mandatory = $true)][string]$DockerCliPath)
+
   if ($DryRun) {
     Write-Step "Dry run: would ask Docker Desktop to start."
     return
@@ -164,16 +250,14 @@ function Start-DockerDesktopIfPresent {
 
   Write-Step "Starting Docker Desktop."
   $desktopStart = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
     -Arguments @("desktop", "start") `
     -TimeoutSeconds 30
   if ($desktopStart.ExitCode -eq 0) {
     return
   }
 
-  $dockerDesktop = @(
-    Join-Path ${env:ProgramFiles} "Docker\Docker\Docker Desktop.exe"
-    Join-Path ${env:LOCALAPPDATA} "Docker\Docker Desktop.exe"
-  ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) } | Select-Object -First 1
+  $dockerDesktop = Resolve-DockerDesktopApplicationPath
 
   if ($null -eq $dockerDesktop) {
     throw "Docker CLI is installed but Docker Desktop could not be started. Open Docker Desktop, finish any setup prompts, then rerun this script. Details: $($desktopStart.Output)"
@@ -189,6 +273,7 @@ function Convert-ToPowerShellSingleQuotedLiteral {
 
 function Invoke-DockerCommandCaptureWithTimeout {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds
   )
@@ -197,10 +282,12 @@ function Invoke-DockerCommandCaptureWithTimeout {
   $wrapperPath = Join-Path $temporaryDir 'invoke-docker.ps1'
   $outputPath = Join-Path $temporaryDir 'output.txt'
   $argumentLiterals = @($Arguments | ForEach-Object { Convert-ToPowerShellSingleQuotedLiteral -Value $_ })
+  $dockerCliLiteral = Convert-ToPowerShellSingleQuotedLiteral -Value $DockerCliPath
   $wrapper = @"
 `$ErrorActionPreference = 'Continue'
+`$dockerCliPath = $dockerCliLiteral
 `$dockerArguments = @($($argumentLiterals -join ', '))
-`$output = & docker @dockerArguments 2>&1 | Out-String
+`$output = & `$dockerCliPath @dockerArguments 2>&1 | Out-String
 `$exitCode = `$LASTEXITCODE
 Set-Content -LiteralPath $(Convert-ToPowerShellSingleQuotedLiteral -Value $outputPath) -Value `$output -Encoding UTF8
 exit `$exitCode
@@ -253,11 +340,13 @@ exit `$exitCode
 
 function Invoke-DockerCommandCapture {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [ValidateRange(1, 900)][int]$TimeoutSeconds = 120
   )
 
   return Invoke-DockerCommandCaptureWithTimeout `
+    -DockerCliPath $DockerCliPath `
     -Arguments $Arguments `
     -TimeoutSeconds $TimeoutSeconds
 }
@@ -268,17 +357,9 @@ function Test-PublicOplGhcrImageReference {
   return $ImageReference -match '(?i)^ghcr\.io/gaofeng21cn/one-person-lab-webui(?::|@|$)'
 }
 
-function Test-DockerCredentialHelperFailure {
-  param([AllowNull()][string]$Output)
-
-  if ([string]::IsNullOrWhiteSpace($Output)) {
-    return $false
-  }
-  return $Output -match '(?i)(error getting credentials|docker-credential-|specified logon session does not exist)'
-}
-
 function Invoke-PublicGhcrAnonymousDockerCommandCapture {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds
   )
@@ -288,9 +369,10 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
     New-Item -ItemType Directory -Force -Path $temporaryConfigDir | Out-Null
     Set-Content `
       -LiteralPath (Join-Path $temporaryConfigDir 'config.json') `
-      -Value '{"auths":{"ghcr.io":{"auth":"YW5vbnltb3VzOg=="}}}' `
+      -Value '{"auths":{}}' `
       -Encoding ASCII
     return Invoke-DockerCommandCaptureWithTimeout `
+      -DockerCliPath $DockerCliPath `
       -Arguments (@('--config', $temporaryConfigDir) + $Arguments) `
       -TimeoutSeconds $TimeoutSeconds
   } finally {
@@ -298,35 +380,35 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
   }
 }
 
-function Invoke-DockerPullWithPublicGhcrFallback {
+function Invoke-DockerPullWithPublicGhcrIsolation {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][string]$ImageReference
   )
 
-  $result = Invoke-DockerCommandCaptureWithTimeout `
-    -Arguments $Arguments `
-    -TimeoutSeconds $DockerPullTimeoutSeconds
-  if (
-    -not $result.TimedOut -and
-    $result.ExitCode -ne 0 -and
-    (Test-PublicOplGhcrImageReference -ImageReference $ImageReference) -and
-    (Test-DockerCredentialHelperFailure -Output $result.Output)
-  ) {
-    Write-Step 'Docker credential helper is unavailable; retrying this public OPL GHCR pull anonymously.'
-    $result = Invoke-PublicGhcrAnonymousDockerCommandCapture `
+  if (Test-PublicOplGhcrImageReference -ImageReference $ImageReference) {
+    Write-Step 'Pulling the public OPL GHCR image with an isolated anonymous Docker config.'
+    return Invoke-PublicGhcrAnonymousDockerCommandCapture `
+      -DockerCliPath $DockerCliPath `
       -Arguments $Arguments `
       -TimeoutSeconds $DockerPullTimeoutSeconds
   }
-  return $result
+  return Invoke-DockerCommandCaptureWithTimeout `
+    -DockerCliPath $DockerCliPath `
+    -Arguments $Arguments `
+    -TimeoutSeconds $DockerPullTimeoutSeconds
 }
 
 function Wait-DockerDaemon {
+  param([Parameter(Mandatory = $true)][string]$DockerCliPath)
+
   if ($DryRun) {
     return
   }
   for ($i = 1; $i -le 45; $i++) {
     $info = Invoke-DockerCommandCapture `
+      -DockerCliPath $DockerCliPath `
       -Arguments @("info", "--format", "{{.ServerVersion}}") `
       -TimeoutSeconds 2
     if ($info.ExitCode -eq 0) {
@@ -395,7 +477,10 @@ function Get-ImageRepositoryName {
 }
 
 function Resolve-PinnedImageReference {
-  param([Parameter(Mandatory = $true)][string]$RequestedImageReference)
+  param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$RequestedImageReference
+  )
 
   if ($RequestedImageReference.Contains("@") -and $RequestedImageReference -notmatch "@sha256:[0-9a-f]{64}$") {
     throw "WebUI image digest references must end in @sha256:<64 lowercase hex>."
@@ -412,7 +497,8 @@ function Resolve-PinnedImageReference {
   }
 
   Write-Step "Resolving WebUI image once at installer entry: $RequestedImageReference"
-  $pull = Invoke-DockerPullWithPublicGhcrFallback `
+  $pull = Invoke-DockerPullWithPublicGhcrIsolation `
+    -DockerCliPath $DockerCliPath `
     -Arguments @("pull", $RequestedImageReference) `
     -ImageReference $RequestedImageReference
   if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
@@ -431,6 +517,7 @@ function Resolve-PinnedImageReference {
 
   $repository = Get-ImageRepositoryName -ImageReference $RequestedImageReference
   $repoDigestReadback = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
     -Arguments @("image", "inspect", "--format", "{{json .RepoDigests}}", $RequestedImageReference) `
     -TimeoutSeconds 30
   if ($repoDigestReadback.ExitCode -ne 0) {
@@ -537,19 +624,24 @@ function Assert-DockerCli {
     } else {
       Write-Step "Dry run: would check Docker Desktop/docker CLI availability."
     }
-    return
+    return "docker.exe"
   }
 
-  $docker = Get-Command docker -ErrorAction SilentlyContinue
-  if ($null -eq $docker) {
+  Refresh-ProcessPathFromEnvironment
+  $dockerCliPath = Resolve-DockerCliPath
+  if ($null -eq $dockerCliPath) {
     Install-DockerDesktopPrerequisite
-    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    Refresh-ProcessPathFromEnvironment
+    $dockerCliPath = Resolve-DockerCliPath
   }
-  if ($null -eq $docker) {
+  if ($null -eq $dockerCliPath) {
+    if ($null -ne (Resolve-DockerDesktopApplicationPath)) {
+      throw "Docker Desktop is installed, but docker.exe could not be found in its supported installation locations. Repair or update Docker Desktop, then rerun this script."
+    }
     throw "docker CLI was not found. Install Docker Desktop, for example: winget install Docker.DockerDesktop, then open Docker Desktop and rerun this script."
   }
-
   $client = Invoke-DockerCommandCapture `
+    -DockerCliPath $dockerCliPath `
     -Arguments @("--version") `
     -TimeoutSeconds 10
   if ($client.ExitCode -ne 0) {
@@ -557,24 +649,29 @@ function Assert-DockerCli {
   }
 
   $info = Invoke-DockerCommandCapture `
+    -DockerCliPath $dockerCliPath `
     -Arguments @("info", "--format", "{{.ServerVersion}}") `
     -TimeoutSeconds 5
   if ($info.ExitCode -ne 0) {
-    Start-DockerDesktopIfPresent
-    Wait-DockerDaemon
+    Start-DockerDesktopIfPresent -DockerCliPath $dockerCliPath
+    Wait-DockerDaemon -DockerCliPath $dockerCliPath
     Write-Step "Docker CLI and Docker Desktop daemon are available."
-    return
+    return $dockerCliPath
   }
   Write-Step "Docker CLI and Docker Desktop daemon are available."
+  return $dockerCliPath
 }
 
 function Assert-DockerCompose {
+  param([Parameter(Mandatory = $true)][string]$DockerCliPath)
+
   if ($DryRun) {
     Write-Step "Dry run: would check Docker Compose plugin availability."
     return
   }
 
   $compose = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
     -Arguments @("compose", "version") `
     -TimeoutSeconds 30
   if ($compose.ExitCode -ne 0) {
@@ -796,6 +893,7 @@ function Register-WebUiAutoUpdate {
 
 function Invoke-DockerComposeUp {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string]$ComposePath,
     [Parameter(Mandatory = $true)][string]$Url,
     [Parameter(Mandatory = $true)][string]$ImageReference
@@ -819,7 +917,8 @@ function Invoke-DockerComposeUp {
 
   if ($Update) {
     Write-Step "Running $displayPullCommand"
-    $pull = Invoke-DockerPullWithPublicGhcrFallback `
+    $pull = Invoke-DockerPullWithPublicGhcrIsolation `
+      -DockerCliPath $DockerCliPath `
       -Arguments $pullArgs `
       -ImageReference $ImageReference
     if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
@@ -833,7 +932,7 @@ function Invoke-DockerComposeUp {
     }
   }
   Write-Step "Running $displayUpCommand"
-  $up = Invoke-DockerCommandCapture -Arguments $upArgs
+  $up = Invoke-DockerCommandCapture -DockerCliPath $DockerCliPath -Arguments $upArgs
   if (-not [string]::IsNullOrWhiteSpace($up.Output)) {
     Write-Host $up.Output
   }
@@ -971,6 +1070,7 @@ function Write-PreservationSummary {
 
 function Collect-WebUiDiagnostics {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string]$Reason,
     [string]$TargetDir,
     [Parameter(Mandatory = $true)][string]$ComposePath,
@@ -1027,11 +1127,11 @@ function Collect-WebUiDiagnostics {
   if (Test-Path -LiteralPath $ComposePath) {
     Write-DiagnosticText -PathValue (Join-Path $TargetDir "compose.yaml") -Content (Get-Content -LiteralPath $ComposePath -Raw)
   }
-  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-version.txt") -Arguments @("version")
-  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-version.txt") -Arguments @("compose", "version")
-  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-ps.txt") -Arguments @("compose", "-f", $ComposePath, "ps")
-  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-logs.txt") -Arguments @("compose", "-f", $ComposePath, "logs", "--no-color", "--tail=300")
-  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-image.txt") -Arguments @("image", "inspect", $ImageReference)
+  Invoke-DiagnosticDockerCommand -DockerCliPath $DockerCliPath -OutputPath (Join-Path $TargetDir "docker-version.txt") -Arguments @("version")
+  Invoke-DiagnosticDockerCommand -DockerCliPath $DockerCliPath -OutputPath (Join-Path $TargetDir "docker-compose-version.txt") -Arguments @("compose", "version")
+  Invoke-DiagnosticDockerCommand -DockerCliPath $DockerCliPath -OutputPath (Join-Path $TargetDir "docker-compose-ps.txt") -Arguments @("compose", "-f", $ComposePath, "ps")
+  Invoke-DiagnosticDockerCommand -DockerCliPath $DockerCliPath -OutputPath (Join-Path $TargetDir "docker-compose-logs.txt") -Arguments @("compose", "-f", $ComposePath, "logs", "--no-color", "--tail=300")
+  Invoke-DiagnosticDockerCommand -DockerCliPath $DockerCliPath -OutputPath (Join-Path $TargetDir "docker-image.txt") -Arguments @("image", "inspect", $ImageReference)
   Write-HttpProbeSummary -OutputPath (Join-Path $TargetDir "http-probe.txt") -Url $Url -TimeoutSeconds $HealthTimeoutSeconds
   Write-DirectorySummary -OutputPath (Join-Path $TargetDir "directories.txt") -ComposePath $ComposePath -DataPath $DataPath -ProjectsPath $ProjectsPath
   Write-PreservationSummary -OutputPath (Join-Path $TargetDir "data-preservation.txt") -DataPath $DataPath -ProjectsPath $ProjectsPath
@@ -1286,6 +1386,7 @@ function Write-WindowsEvidenceArchive {
 
 function Wait-WebUiHealth {
   param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string]$Url,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
     [Parameter(Mandatory = $true)][string]$ComposePath,
@@ -1314,7 +1415,7 @@ function Wait-WebUiHealth {
   if ([string]::IsNullOrWhiteSpace($failureDir)) {
     $failureDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-health-timeout-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
   }
-  Collect-WebUiDiagnostics -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
+  Collect-WebUiDiagnostics -DockerCliPath $DockerCliPath -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
   throw "WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostic directory: $failureDir"
 }
 
@@ -1383,10 +1484,10 @@ if ($DisableAutoUpdate) {
   Disable-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath
   exit 0
 }
-Assert-DockerCli
-Assert-DockerCompose
+$dockerCliPath = Assert-DockerCli
+Assert-DockerCompose -DockerCliPath $dockerCliPath
 Assert-Wsl2
-$imageReference = Resolve-PinnedImageReference -RequestedImageReference $requestedImageReference
+$imageReference = Resolve-PinnedImageReference -DockerCliPath $dockerCliPath -RequestedImageReference $requestedImageReference
 Confirm-Run -ComposePath $composePath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -Url $url
 
 $script:PreDataInventory = Get-PathInventoryText -PathValue $resolvedDataDir
@@ -1413,14 +1514,14 @@ Write-Step "Gateway account credentials and API keys are entered inside WebUI fi
 Write-UserPathStatus -Url $url
 
 try {
-  Invoke-DockerComposeUp -ComposePath $composePath -Url $url -ImageReference $imageReference
+  Invoke-DockerComposeUp -DockerCliPath $dockerCliPath -ComposePath $composePath -Url $url -ImageReference $imageReference
 } catch {
   if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
-    Collect-WebUiDiagnostics -Reason "compose-up-failed" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null
+    Collect-WebUiDiagnostics -DockerCliPath $dockerCliPath -Reason "compose-up-failed" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null
   }
   throw
 }
-Wait-WebUiHealth -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
+Wait-WebUiHealth -DockerCliPath $dockerCliPath -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
 if ($EnableAutoUpdate) {
   Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 } elseif (-not $Update) {
@@ -1430,7 +1531,7 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
   Write-WebUiAccessReceipt -TargetDir $resolvedEvidenceDir -Url $url
 }
 if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
-  $collectedDiagnosticsDir = Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url
+  $collectedDiagnosticsDir = Collect-WebUiDiagnostics -DockerCliPath $dockerCliPath -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url
   if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
     Write-WindowsSmokeEvidence -TargetDir $resolvedEvidenceDir -DiagnosticsPath $collectedDiagnosticsDir
     if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceArchive)) {

@@ -13,6 +13,14 @@ function findPwsh() {
   if (process.env.PWSH) {
     return process.env.PWSH;
   }
+  if (process.platform === 'win32') {
+    for (const executable of ['powershell.exe', 'pwsh.exe']) {
+      const result = spawnSync('where.exe', [executable], { encoding: 'utf8' });
+      const resolved = result.stdout.split(/\r?\n/).map((entry) => entry.trim()).find(Boolean);
+      if (result.status === 0 && resolved) return resolved;
+    }
+    return '';
+  }
   const result = spawnSync('/bin/sh', ['-lc', 'command -v pwsh'], { encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : '';
 }
@@ -22,6 +30,24 @@ function runPwsh(args: string[]) {
     return null;
   }
   return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
+}
+
+function extractPowerShellFunction(source: string, name: string) {
+  const start = source.indexOf(`function ${name} {`);
+  assert.notEqual(start, -1, `missing PowerShell function ${name}`);
+  const next = source.indexOf('\nfunction ', start + 1);
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
+function powerShellSingleQuoted(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function runPwshHarness(source: string) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-pwsh-harness-'));
+  const harnessPath = path.join(tempRoot, 'harness.ps1');
+  fs.writeFileSync(harnessPath, source, 'utf8');
+  return runPwsh(['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', harnessPath]);
 }
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { timeout: 30_000 }, () => {
@@ -133,22 +159,85 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     installer.indexOf('function Assert-DockerCompose'),
   );
 
-  assert.match(startFunction, /Invoke-DockerCommandCapture\s+`\s+-Arguments @\("desktop", "start"\)/);
+  assert.match(
+    startFunction,
+    /Invoke-DockerCommandCapture\s+`\s+-DockerCliPath \$DockerCliPath\s+`\s+-Arguments @\("desktop", "start"\)/,
+  );
   assert.match(startFunction, /TimeoutSeconds 30/);
   assert.match(startFunction, /Start-Process -FilePath \$dockerDesktop/);
   assert.match(captureFunction, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
   assert.match(captureFunction, /TimeoutSeconds = 120/);
   assert.match(captureFunction, /Invoke-DockerCommandCaptureWithTimeout/);
-  assert.match(dockerAssertion, /Invoke-DockerCommandCapture\s+`\s+-Arguments @\("--version"\)/);
   assert.match(
     dockerAssertion,
-    /if \(\$info\.ExitCode -ne 0\) \{\s+Start-DockerDesktopIfPresent\s+Wait-DockerDaemon/s,
+    /Invoke-DockerCommandCapture\s+`\s+-DockerCliPath \$dockerCliPath\s+`\s+-Arguments @\("--version"\)/,
+  );
+  assert.match(
+    dockerAssertion,
+    /if \(\$info\.ExitCode -ne 0\) \{\s+Start-DockerDesktopIfPresent -DockerCliPath \$dockerCliPath\s+Wait-DockerDaemon -DockerCliPath \$dockerCliPath/s,
   );
   assert.doesNotMatch(
     dockerAssertion,
     /if \(\$InstallPrerequisites\) \{\s+Start-DockerDesktopIfPresent/s,
     'daemon recovery must also run from the ordinary non-administrator installer path',
   );
+});
+
+test('Windows Docker/WebUI refreshes stale PATH and resolves docker.exe without relying on PATHEXT', {
+  skip: process.platform === 'win32' && pwshPath
+    ? false
+    : 'requires native Windows PowerShell',
+}, () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-docker-cli-resolution-'));
+  const dockerBin = path.join(tempRoot, 'persisted-docker-bin');
+  const dockerExe = path.join(dockerBin, 'docker.exe');
+  fs.mkdirSync(dockerBin, { recursive: true });
+  fs.writeFileSync(dockerExe, '');
+
+  const result = runPwshHarness([
+    extractPowerShellFunction(installer, 'Refresh-ProcessPathFromEnvironment'),
+    extractPowerShellFunction(installer, 'Resolve-DockerCliPath'),
+    `$env:Path = ${powerShellSingleQuoted(path.join(tempRoot, 'stale-process-path'))}`,
+    "$env:PATHEXT = '.CPL'",
+    `Refresh-ProcessPathFromEnvironment -MachinePath ${powerShellSingleQuoted(dockerBin)} -UserPath ''`,
+    '$resolved = Resolve-DockerCliPath',
+    `if ($resolved -ne ${powerShellSingleQuoted(dockerExe)}) { throw "unexpected docker path: $resolved" }`,
+  ].join('\n\n'));
+
+  assert.ok(result);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('Windows Docker/WebUI does not invoke winget for a non-admin per-user Docker Desktop install outside PATH', {
+  skip: process.platform === 'win32' && pwshPath
+    ? false
+    : 'requires native Windows PowerShell',
+}, () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-existing-docker-desktop-'));
+  const localAppData = path.join(tempRoot, 'local');
+  const desktopExe = path.join(localAppData, 'Programs', 'DockerDesktop', 'Docker Desktop.exe');
+  fs.mkdirSync(path.dirname(desktopExe), { recursive: true });
+  fs.writeFileSync(desktopExe, '');
+
+  const result = runPwshHarness([
+    extractPowerShellFunction(installer, 'Resolve-DockerDesktopApplicationPath'),
+    extractPowerShellFunction(installer, 'Resolve-DockerCliPath'),
+    extractPowerShellFunction(installer, 'Install-DockerDesktopPrerequisite'),
+    '$InstallPrerequisites = $true',
+    `$env:ProgramFiles = ${powerShellSingleQuoted(tempRoot)}`,
+    `$env:LOCALAPPDATA = ${powerShellSingleQuoted(localAppData)}`,
+    "$env:Path = ''",
+    "$env:PATHEXT = '.CPL'",
+    'function Test-Administrator { return $false }',
+    'function Write-Step { param([string]$Message) }',
+    "function Invoke-StepCommand { throw 'winget must not be invoked' }",
+    'Install-DockerDesktopPrerequisite',
+  ].join('\n\n'));
+
+  assert.ok(result);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('Windows Docker/WebUI image resolution returns only the pinned image reference', () => {
@@ -158,7 +247,7 @@ test('Windows Docker/WebUI image resolution returns only the pinned image refere
     installer.indexOf('function Convert-ToComposeScalar'),
   );
 
-  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrFallback/);
+  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrIsolation/);
   assert.match(resolver, /-Arguments @\("pull", \$RequestedImageReference\)/);
   assert.match(resolver, /-ImageReference \$RequestedImageReference/);
   assert.match(resolver, /Write-Host \$pull\.Output/);
@@ -189,7 +278,7 @@ test('Windows Docker/WebUI image pulls are bounded and terminate the stalled pro
   assert.match(resolver, /Invoke-DockerCommandCapture[\s\S]*"image", "inspect"/);
 });
 
-test('Windows Docker/WebUI anonymous pull recovery is limited to the public OPL GHCR image', () => {
+test('Windows Docker/WebUI isolates public OPL GHCR pulls from host credentials', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const fallback = installer.slice(
     installer.indexOf('function Test-PublicOplGhcrImageReference'),
@@ -197,8 +286,9 @@ test('Windows Docker/WebUI anonymous pull recovery is limited to the public OPL 
   );
 
   assert.match(fallback, /ghcr\\\.io\/gaofeng21cn\/one-person-lab-webui/);
-  assert.match(fallback, /Test-DockerCredentialHelperFailure/);
-  assert.match(fallback, /Invoke-PublicGhcrAnonymousDockerCommandCapture/);
+  assert.match(fallback, /return Invoke-PublicGhcrAnonymousDockerCommandCapture/);
+  assert.match(fallback, /return Invoke-DockerCommandCaptureWithTimeout/);
+  assert.doesNotMatch(fallback, /Test-DockerCredentialHelperFailure/);
   assert.match(fallback, /@\('--config', \$temporaryConfigDir\) \+ \$Arguments/);
   assert.match(fallback, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
 });
@@ -210,13 +300,34 @@ test('Windows Docker/WebUI compose commands use exit codes instead of native std
     installer.indexOf('function Test-WebUiHttpHealth'),
   );
 
-  assert.match(composeUp, /Invoke-DockerPullWithPublicGhcrFallback/);
+  assert.match(composeUp, /Invoke-DockerPullWithPublicGhcrIsolation/);
   assert.match(composeUp, /-Arguments \$pullArgs/);
   assert.match(composeUp, /-ImageReference \$ImageReference/);
-  assert.match(composeUp, /Invoke-DockerCommandCapture -Arguments \$upArgs/);
+  assert.match(composeUp, /Invoke-DockerCommandCapture -DockerCliPath \$DockerCliPath -Arguments \$upArgs/);
   assert.match(composeUp, /\$pull\.ExitCode -ne 0/);
   assert.match(composeUp, /\$up\.ExitCode -ne 0/);
   assert.doesNotMatch(composeUp, /& docker/);
+});
+
+test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every native Docker invocation', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const resolver = installer.slice(
+    installer.indexOf('function Refresh-ProcessPathFromEnvironment'),
+    installer.indexOf('function Invoke-DiagnosticDockerCommand'),
+  );
+  const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
+
+  assert.match(resolver, /Get-Command docker\.exe -CommandType Application/);
+  assert.match(resolver, /Docker\\Docker\\resources\\bin\\docker\.exe/);
+  assert.match(resolver, /Programs\\DockerDesktop\\resources\\bin\\docker\.exe/);
+  assert.match(installer, /\$output = & \$DockerCliPath @Arguments/);
+  assert.match(installer, /`\$output = & `\$dockerCliPath @dockerArguments/);
+  assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
+  assert.match(execution, /Resolve-PinnedImageReference -DockerCliPath \$dockerCliPath/);
+  assert.match(execution, /Invoke-DockerComposeUp -DockerCliPath \$dockerCliPath/);
+  assert.match(execution, /Collect-WebUiDiagnostics -DockerCliPath \$dockerCliPath/);
+  assert.doesNotMatch(installer, /Get-Command docker(?!\.exe)/);
+  assert.doesNotMatch(installer, /& docker(?:\s|$)/);
 });
 
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {

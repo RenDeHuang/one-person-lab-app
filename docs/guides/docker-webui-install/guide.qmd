@@ -57,7 +57,9 @@ lang: zh-CN
 
 普通一键安装器会自动启动已经安装的 Docker Desktop 并等待 Engine 就绪，不需要每次先手工打开。如果 Docker Desktop 首次启动显示许可、WSL 2 或登录提示，请按提示完成一次，再重新运行一键安装命令。
 
-公开 One Person Lab 镜像不要求登录 GHCR。如果 Windows 的 Docker 凭据助手暂时不可用，安装器只会针对公开的 One Person Lab GHCR 镜像自动改用一次性匿名配置重试；不会改写 Docker Desktop 登录状态，也不会把任何凭据写入安装目录。
+使用 `-InstallPrerequisites` 安装 Docker Desktop 后，安装器会刷新当前 PowerShell 进程的 Machine/User PATH，并解析受支持安装位置中的绝对 `docker.exe`；后续启动、拉取、Compose 和诊断都使用同一个绝对路径。这样即使命令来自 WSL interop、当前 `PATHEXT` 不含 `.EXE`，也不会把已成功安装的 Docker Desktop 误报为缺失或重复调用 `winget`。
+
+公开 One Person Lab 镜像不要求登录 GHCR。Windows 安装器从第一次拉取开始，就只针对公开的 One Person Lab GHCR 镜像使用一次性匿名 Docker 配置，避免管理员 PowerShell 会话被 Docker 凭据助手卡住；不会改写 Docker Desktop 登录状态，也不会把任何凭据写入安装目录。自定义或私有镜像仍使用当前 Docker 登录配置。
 
 需要排查依赖时，在普通 PowerShell 中确认：
 
@@ -245,7 +247,7 @@ Linux:   $HOME/OnePersonLab/projects
 
 重新运行普通一键安装命令；安装器会自动尝试启动已安装的 Docker Desktop。如果 Docker Desktop 首次启动仍有许可、WSL 2 或登录提示，请手工打开并完成提示。在 PowerShell 中重新执行 `wsl --status`、`docker version` 和 `docker compose version`；如果依赖确实缺失，再使用前文的管理员依赖安装命令。
 
-如果日志出现 `error getting credentials` 或“指定的登录会话不存在”，请先重新运行最新安装命令。新版安装器会仅对公开 One Person Lab 镜像自动匿名重试；若仍失败，再退出并重新登录 Windows、打开一次 Docker Desktop，然后重试。无需为公开镜像执行 `docker login ghcr.io`。
+如果旧版日志停在 `Resolving WebUI image`，或出现 `error getting credentials`、`指定的登录会话不存在`，请重新运行最新安装命令。新版安装器会从第一次拉取开始隔离公开 One Person Lab 镜像的匿名配置，不再进入当前 Windows 会话的 Docker 凭据助手；若仍失败，再检查 GHCR 网络、代理/VPN 和 Docker Desktop 状态。无需为公开镜像执行 `docker login ghcr.io`。
 
 如果日志提示镜像拉取超过 30 分钟，说明这次 GHCR 连接没有完成。安装器已经停止对应的卡住进程；请确认浏览器能够访问 `https://ghcr.io`，临时关闭或修正拦截 GHCR 的代理/VPN，重新打开 Docker Desktop，然后直接重跑同一条安装命令。不要连续打开多个安装窗口，也不需要执行 Docker prune。
 

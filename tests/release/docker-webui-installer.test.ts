@@ -149,12 +149,12 @@ test('Docker/WebUI installer shell parses cleanly', () => {
 test('Windows Docker/WebUI installer resolves a moving tag once and pins compose to its digest', () => {
   const windowsInstaller = fs.readFileSync(path.join(appRoot, 'scripts', 'install-docker-webui.ps1'), 'utf8');
   const resolver = windowsInstaller.match(/function Resolve-PinnedImageReference \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  const pullFallback = windowsInstaller.match(/function Invoke-DockerPullWithPublicGhcrFallback \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  const pullRoute = windowsInstaller.match(/function Invoke-DockerPullWithPublicGhcrIsolation \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const anonymousPull = windowsInstaller.match(/function Invoke-PublicGhcrAnonymousDockerCommandCapture \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const composeWriter = windowsInstaller.match(/function Write-ComposeFile \{([\s\S]*?)\n\}/)?.[1] ?? '';
   const execution = windowsInstaller.slice(windowsInstaller.indexOf('$tagWasProvided ='));
 
-  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrFallback/);
+  assert.match(resolver, /Invoke-DockerPullWithPublicGhcrIsolation/);
   assert.match(resolver, /Write-Host \$pull\.Output/);
   assert.doesNotMatch(
     resolver,
@@ -167,10 +167,14 @@ test('Windows Docker/WebUI installer resolves a moving tag once and pins compose
   );
   assert.match(resolver, /matchingDigests\.Count -ne 1/);
   assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);
-  assert.match(pullFallback, /Test-PublicOplGhcrImageReference/);
-  assert.match(pullFallback, /Test-DockerCredentialHelperFailure/);
-  assert.match(pullFallback, /Invoke-PublicGhcrAnonymousDockerCommandCapture/);
-  assert.match(anonymousPull, /YW5vbnltb3VzOg==/);
+  assert.match(pullRoute, /Test-PublicOplGhcrImageReference/);
+  assert.match(pullRoute, /\[Parameter\(Mandatory = \$true\)\]\[string\]\$DockerCliPath/);
+  assert.match(pullRoute, /return Invoke-PublicGhcrAnonymousDockerCommandCapture/);
+  assert.match(pullRoute, /-DockerCliPath \$DockerCliPath/);
+  assert.match(pullRoute, /return Invoke-DockerCommandCaptureWithTimeout/);
+  assert.doesNotMatch(pullRoute, /Test-DockerCredentialHelperFailure/);
+  assert.match(anonymousPull, /'\{"auths":\{\}\}'/);
+  assert.doesNotMatch(anonymousPull, /"auth"\s*:|"credsStore"\s*:/);
   assert.match(anonymousPull, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
   assert.doesNotMatch(anonymousPull, /USERPROFILE|\.docker\\config\.json/);
   assert.match(composeWriter, /pull_policy: missing/);
@@ -179,6 +183,7 @@ test('Windows Docker/WebUI installer resolves a moving tag once and pins compose
     execution.indexOf('Assert-DockerCompose') < execution.indexOf('Resolve-PinnedImageReference'),
     'tag resolution must run only after Docker is available',
   );
+  assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
   assert.ok(
     execution.indexOf('Resolve-PinnedImageReference') < execution.indexOf('Write-ComposeFile'),
     'compose must be written only after the immutable digest is resolved',

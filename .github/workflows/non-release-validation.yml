@@ -17,6 +17,30 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  windows-installer:
+    name: Windows installer behavior
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run Windows installer behavior tests with Windows PowerShell 5.1
+        env:
+          PWSH: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+        run: >-
+          node --experimental-strip-types --test --test-timeout=120000
+          tests/release/docker-webui-windows-installer.test.ts
+
   release-boundary:
     name: App release-boundary tests
     runs-on: ubuntu-latest

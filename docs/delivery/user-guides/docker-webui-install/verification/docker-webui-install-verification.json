@@ -21,7 +21,7 @@
   },
   "rendered_pages": 12,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2982527,
+  "html_bytes": 2982964,
   "html_pdf_download": {
     "href": "docker-webui-install-detailed-guide.pdf",
     "status": "present"
@@ -123,6 +123,10 @@
     "Linux containers",
     "Linux",
     "PowerShell",
+    "PATH",
+    "docker.exe",
+    "一次性匿名 Docker 配置",
+    "Resolving WebUI image",
     "-Update",
     "-EnableAutoUpdate",
     "One Person Lab WebUI Latest Update",
