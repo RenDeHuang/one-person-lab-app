@@ -166,11 +166,24 @@ jobs:
                   --repo "$GITHUB_REPOSITORY" \
                   --name "opl-source-qualification-$SOURCE_QUALIFICATION_RUN_ID" \
                   --dir source-qualification-evidence
-              qualification_receipt_path="source-qualification-evidence/source-qualification-receipt.json"
-              test -f "$qualification_receipt_path" -a ! -L "$qualification_receipt_path" || {
-                  echo "::error::Source qualification artifact must contain one regular receipt file."
-                  exit 1
-                }
+              # source-qualification-receipt-resolver:start
+              qualification_receipts=()
+              while IFS= read -r receipt; do
+                qualification_receipts+=("$receipt")
+              done < <(
+                find source-qualification-evidence -type f -name source-qualification-receipt.json -print \
+                  | LC_ALL=C sort
+              )
+              if [ "${#qualification_receipts[@]}" -ne 1 ]; then
+                echo "::error::Source qualification artifact must contain exactly one regular receipt file; found ${#qualification_receipts[@]}."
+                exit 1
+              fi
+              qualification_receipt_path="${qualification_receipts[0]}"
+              test -s "$qualification_receipt_path" && test ! -L "$qualification_receipt_path" || {
+                echo "::error::Source qualification receipt must be one non-empty regular file, not a symlink."
+                exit 1
+              }
+              # source-qualification-receipt-resolver:end
               node --experimental-strip-types app-source/scripts/source-qualification-receipt.ts verify \
                 --receipt "$qualification_receipt_path" \
                 --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
@@ -304,9 +317,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          qualification_receipt="source-qualification-evidence/source-qualification-receipt.json"
+          # source-qualification-receipt-resolver:start
+          qualification_receipts=()
+          while IFS= read -r receipt; do
+            qualification_receipts+=("$receipt")
+          done < <(
+            find source-qualification-evidence -type f -name source-qualification-receipt.json -print \
+              | LC_ALL=C sort
+          )
+          if [ "${#qualification_receipts[@]}" -ne 1 ]; then
+            echo "::error::Source qualification artifact must contain exactly one regular receipt file; found ${#qualification_receipts[@]}."
+            exit 1
+          fi
+          qualification_receipt_path="${qualification_receipts[0]}"
+          test -s "$qualification_receipt_path" && test ! -L "$qualification_receipt_path" || {
+            echo "::error::Source qualification receipt must be one non-empty regular file, not a symlink."
+            exit 1
+          }
+          # source-qualification-receipt-resolver:end
           node --experimental-strip-types scripts/validate-source-qualification-receipt.ts \
-            --receipt "$qualification_receipt" \
+            --receipt "$qualification_receipt_path" \
             --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
             --expected-run-id '${{ needs.admission.outputs.source_qualification_run_id }}' \
             --expected-head-sha "$APP_REF"
@@ -315,7 +345,7 @@ jobs:
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
             --admission-run-id "$GITHUB_RUN_ID" \
-            --source-qualification-receipt "$qualification_receipt" \
+            --source-qualification-receipt "$qualification_receipt_path" \
             --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \
             --output "$RUNNER_TEMP/stable-release-admission-manifest.json"
           node - "$RUNNER_TEMP/stable-release-admission-manifest.json" "$GITHUB_OUTPUT" <<'NODE'
@@ -329,6 +359,7 @@ jobs:
             '',
           ].join('\n'));
           NODE
+          echo "qualification_receipt_path=$qualification_receipt_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload same-run protected admission evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -337,7 +368,7 @@ jobs:
           path: |
             ${{ runner.temp }}/stable-release-admission-manifest.json
             ${{ runner.temp }}/apple-release-credentials-preflight.json
-            source-qualification-evidence/source-qualification-receipt.json
+            ${{ steps.manifest.outputs.qualification_receipt_path }}
           if-no-files-found: error
           retention-days: 30
 
