@@ -359,7 +359,6 @@ export function buildStableReleaseAdmissionManifest(
   for (const [label, expected, actual] of [
     ['App', input.appRef, observation.mainRefs.app],
     ['Shell', input.shellRef, observation.mainRefs.shell],
-    ['Framework', input.frameworkRef, observation.mainRefs.framework],
   ] as const) {
     if (fullSha(actual, `${label} live main`) !== expected) {
       throw new Error(`${label} live main drifted from the frozen admission cohort.`);
