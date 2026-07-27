@@ -584,7 +584,20 @@ jobs:
           $sqliteNode = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
 
           Write-Host "Rebuilding native modules for Electron $electronVer ($arch)"
-          bun x --yes prebuild-install --runtime=electron --target=$electronVer --platform=win32 --arch=$arch --force
+          $bunPath = (Get-Command bun -CommandType Application).Source
+          $prebuild = Start-Process -FilePath $bunPath -ArgumentList @(
+            'x',
+            '--yes',
+            'prebuild-install',
+            '--runtime=electron',
+            "--target=$electronVer",
+            '--platform=win32',
+            "--arch=$arch",
+            '--force'
+          ) -NoNewWindow -Wait -PassThru
+          if ($prebuild.ExitCode -ne 0) {
+            Write-Warning "No matching better-sqlite3 prebuild was available; falling back to electron-rebuild."
+          }
           if (-not (Test-Path $sqliteNode)) {
             bunx electron-rebuild -f -w better-sqlite3
           }
