@@ -6,12 +6,12 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T16:04:30Z",
+  "generated_at": "2026-07-27T16:08:00Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "77d043e955e81b142b59bf40531d1cb603fee0ba",
-    "tree": "9a36d13a84e51d491ad55b7e36e95ac6d92f3546",
+    "commit": "e0add8ff7a639d084c034ef2aa313d57d6faac82",
+    "tree": "0754db971813662d511f1aeba9e8f8cb458d837b",
     "observation": "local main and origin/main aligned; wire/API parity is an owner terminal readback, not asserted by this snapshot"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
