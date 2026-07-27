@@ -43,12 +43,15 @@ removed, or replaced without editing the App for every package. The same
 generic complexity must have one owner.
 
 First-party OPL Packages currently publish their complete official bytes to
-independent GHCR repositories. Each Package owner alone advances its
-`latest-stable`; the shared `one-person-lab-manifest:latest-stable` is not
-ordinary currentness and remains only a Full/offline/integration-test/QA
-snapshot. GHCR is the official first-party publication store, while the
-Package's identity, installed truth, capabilities, dependencies, task state,
-and typed views remain carrier- and executor-neutral.
+independent GHCR repositories. Immutable version refs identify exact bytes,
+`candidate` carries Preview input, and each Package owner alone advances its
+Stable/LKG `latest-stable` after full qualification; bare `latest` is retired
+and Nightly is not a Package consumption channel. The shared
+`one-person-lab-manifest:latest-stable` is not ordinary currentness and remains
+only a Full/offline/integration-test/QA snapshot. GHCR is the official
+first-party publication store, while the Package's identity, installed truth,
+capabilities, dependencies, task state, and typed views remain carrier- and
+executor-neutral.
 
 Package composition, physical carriage, and execution are independent:
 
@@ -107,7 +110,7 @@ The following are separate dimensions and must not share a currentness flag:
 
 | Dimension | Owner and meaning |
 | --- | --- |
-| Package publication | A first-party Package owner publishes complete bytes to its own GHCR repository and advances only its own `latest-stable`; other owners may use another declared store. |
+| Package publication | A first-party Package owner publishes complete bytes to its own GHCR repository. Immutable version refs are exact, `candidate` is Preview input, and only a fully qualified digest advances that owner's Stable/LKG `latest-stable`; bare `latest` is retired. Other owners may use another declared store. |
 | Package carrier | Codex Plugin Manager, Git, an OS package manager, or a Package-declared runtime adapter installs and updates one Package. The thin Base OCI adapter only downloads, verifies, and hands off bytes; it never installs or updates a Package. |
 | Installed truth | Framework aggregates fresh carrier readback for the complete Package; a Plugin projection alone cannot prove a runtime-bearing Package installed. |
 | Executor route | Codex CLI, Claude Code, Hermes Agent, or another executor reports route readiness without redefining Package identity or installed state. |
@@ -167,7 +170,7 @@ shared recovery ledger.
 The current first-party online transition is intentionally narrow:
 
 ```text
-Package owner -> per-Package GHCR latest-stable
+Package owner -> immutable version -> candidate qualification -> per-Package GHCR latest-stable
               -> Base thin OCI download adapter
               -> Codex Plugin/config/cache activation
               -> Package-declared carrier/runtime adapter activation
@@ -184,11 +187,15 @@ after an unchanged Release Set no longer hides a newer per-Package
 updates, Codex Plugin/config/cache and the complete runtime survive restart,
 and Full offline installs the same Official Profile without network access.
 
-Release health remains a separate question. No docs or source migration proves
-that “latest” is stable. Fresh terminal evidence is still required for:
+Release health remains a separate question. `quality_status`, `build_trigger`,
+and Latest are independent: Latest is an updater pointer, not proof that the
+selected artifact is Stable. Fresh terminal evidence is still required for:
 
 ```text
-App Stable -> GitHub Latest -> updater readback
+qualified App Stable -> GitHub Latest expected-current CAS -> updater readback
+exact published Preview + protected single-use authority
+                     -> GitHub Latest expected-current CAS
+                     -> non-Stable/skipped-gate disclosure + updater readback
 WebUI exact digest -> :stable -> anonymous pull
 one installed Package silent update -> dependent presence retained
                                   -> Base/App/unrelated Packages unchanged
@@ -208,7 +215,7 @@ GUI 产品定义刻意分层。`docs/product/gui/ideal-interaction-spec.md` 定�
 The current machine-contract compatibility snapshot follows; fields for
 assistant profiles, starter metadata, Package invocation receipts, companion
 skills, and Package install exposure are not the target Package architecture.
-`contracts/app-gui-product-contract.json` is the canonical App-owned GUI product contract. It covers the Codex CLI fixed executor experience, hidden home and ordinary-conversation backend/provider selectors, visible App-owned model/reasoning and user-language permission/access controls, purpose-first home entries, migration-era assistant/profile metadata, the home prompt, and the App-owned Settings IA: seven visible groups over ten stable carrier routes, with Resources & Connections under Connections & Deployment, Instructions & Context under Agents & Capabilities, and Service Status / Updates & Repair / Logs & Diagnostics under Runtime & Maintenance. It also owns About as the bottom auxiliary page, compatibility redirects, startup snapshot/performance policy, first-launch `ready_to_launch` before the first conversation but never before `/guid`, module path source explanation, Stable gates, MDS retirement from default display, and the OPL Flow context shown in Settings. Nightly is the schedule-only Standard-density prerelease: one App dispatcher publishes immutable non-Latest GitHub assets with `include_full=false`, while Homebrew and sampled VM run only as post-publication followers; Canary is a separate validation-only schedule. Authenticated ordinary launch routes directly to `/guid`; fast App state and managed-agent discovery hydrate in the background rather than through a visible `StartupGate`. The installed launch target is at most 1,500 ms from OS launch request to a visible, enabled, focusable Guid composer, but remains an unverified target rather than a measured SLA. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, updater cache cleanup, and bounded log rotation controls. Current first-party Agent shortcuts are replaceable examples discovered through the Official Profile and Package projection, not a fixed inventory, count, or upper bound. Current invocation receipts, locked payload refs and visible companion fields are compatibility surfaces to delete after generic Package/capability consumers land; they are not target identity, dependency, currentness, or readiness authority. `contracts/app-runtime-bridge.json` is the App-owned bridge contract that binds a replaceable shell adapter to OPL-owned CLI state/action/drilldown surfaces. `contracts/app-product-profile.json` carries desktop session defaults, first-run intent, Full readiness/background maintenance behavior, Settings presentation and startup policy, legacy settings route redirects, install exposure refs, migration-era assistant/profile metadata, and generated shell profile data. App/Shell do not parse OPL Flow's companion Skill list. `contracts/app-page-state-matrix.json` and `contracts/app-first-run-test-matrix.json` define page-state and first-run expectations.
+`contracts/app-gui-product-contract.json` is the canonical App-owned GUI product contract. It covers the Codex CLI fixed executor experience, hidden home and ordinary-conversation backend/provider selectors, visible App-owned model/reasoning and user-language permission/access controls, purpose-first home entries, migration-era assistant/profile metadata, the home prompt, and the App-owned Settings IA: seven visible groups over ten stable carrier routes, with Resources & Connections under Connections & Deployment, Instructions & Context under Agents & Capabilities, and Service Status / Updates & Repair / Logs & Diagnostics under Runtime & Maintenance. It also owns About as the bottom auxiliary page, compatibility redirects, startup snapshot/performance policy, first-launch `ready_to_launch` before the first conversation but never before `/guid`, module path source explanation, Stable gates, MDS retirement from default display, and the OPL Flow context shown in Settings. Release quality is Stable or Preview, build trigger is Manual or Automated, and `preview_kind` is derived: Manual Preview is Dev, Automated Preview is Nightly, and Stable has no preview kind. Nightly is therefore the automated Standard-density Preview: one App dispatcher publishes immutable GitHub prerelease assets with `include_full=false` and scheduled `make_latest=false`, while Homebrew and sampled VM run only as post-publication followers. A separate protected single-use pointer operation may temporarily select an exact published Nightly without changing its Preview quality; the next qualified Stable reclaims Latest by default. Canary is a separate validation-only schedule. Authenticated ordinary launch routes directly to `/guid`; fast App state and managed-agent discovery hydrate in the background rather than through a visible `StartupGate`. The installed launch target is at most 1,500 ms from OS launch request to a visible, enabled, focusable Guid composer, but remains an unverified target rather than a measured SLA. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, updater cache cleanup, and bounded log rotation controls. Current first-party Agent shortcuts are replaceable examples discovered through the Official Profile and Package projection, not a fixed inventory, count, or upper bound. Current invocation receipts, locked payload refs and visible companion fields are compatibility surfaces to delete after generic Package/capability consumers land; they are not target identity, dependency, currentness, or readiness authority. `contracts/app-runtime-bridge.json` is the App-owned bridge contract that binds a replaceable shell adapter to OPL-owned CLI state/action/drilldown surfaces. `contracts/app-product-profile.json` carries desktop session defaults, first-run intent, Full readiness/background maintenance behavior, Settings presentation and startup policy, legacy settings route redirects, install exposure refs, migration-era assistant/profile metadata, and generated shell profile data. App/Shell do not parse OPL Flow's companion Skill list. `contracts/app-page-state-matrix.json` and `contracts/app-first-run-test-matrix.json` define page-state and first-run expectations.
 
 Capability governance follows one authority chain: an installed OPL Flow Package
 declares capability intent, configured carriers install missing identities,

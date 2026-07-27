@@ -46,10 +46,13 @@ digests. Canonical live catalog equality and host installed/effective currentnes
 are not prebuild conditions.
 
 Installed/effective and clean-machine readback remain post-build artifact
-qualification. A formal Stable may become Latest only after its applicable
-qualification passes. A cohort can be invalidated only by a frozen byte, tree,
-or digest mismatch; an artifact build or integrity failure; or an explicit
-security revocation bound to a frozen ref or digest.
+qualification. Promoting an exact Preview digest to Stable requires the same
+qualification as a direct Stable and does not move Latest. A qualified Stable
+takes or reclaims Latest by default; a separately protected single-use pointer
+operation may instead select any exact published Preview while preserving its
+quality and disclosing skipped or failed gates. A cohort can be invalidated only
+by a frozen byte, tree, or digest mismatch; an artifact build or integrity
+failure; or an explicit security revocation bound to a frozen ref or digest.
 
 ## Commands
 
@@ -168,10 +171,15 @@ receipt, Host QA receipt, Full package manifest, and public release manifest.
 
 The resulting tag is
 `manual-full-preview-<YY.M.D>-m1-<source-lock-sha256-first12>`. It is
-preview-only, is not updater-visible, and cannot become GitHub Latest. The
-published Release is a prerelease and its notes state that minimum Host QA has
-passed, M2 clean-VM/full qualification is pending, and Stable, automatic update,
-Latest, updater metadata, Homebrew, and the Standard checkpoint are unchanged.
+published as a Manual Dev Preview with `make_latest=false`; this publisher does
+not make it updater-visible. A separate protected single-use pointer operation
+may temporarily select the exact published tag and digest through
+expected-current CAS plus public readback. That operation keeps the artifact
+Preview, discloses non-Stable and skipped gates, and changes neither updater
+metadata nor Homebrew. The published Release notes state that minimum Host QA
+has passed, M2 clean-VM/full qualification is pending, and Stable, automatic
+update, Latest, updater metadata, Homebrew, and the Standard checkpoint are
+unchanged by publication.
 
 ## Preview Cleanup Handoff
 
