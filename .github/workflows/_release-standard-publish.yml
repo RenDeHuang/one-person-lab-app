@@ -36,6 +36,11 @@ on:
         required: false
         default: checkpoint_v1
         type: string
+      standard_identity_sha256:
+        description: Exact sealed Standard identity digest; empty is legacy checkpoint compatibility only
+        required: false
+        default: ''
+        type: string
       framework_executor_ref:
         description: Optional exact Framework SHA expectation; the checkpoint Bundle selects the executor checkout
         required: false
@@ -178,6 +183,7 @@ jobs:
       highest_public_stable_dmg_url: ${{ steps.identity.outputs.highest_public_stable_dmg_url }}
       highest_public_stable_dmg_sha256: ${{ steps.identity.outputs.highest_public_stable_dmg_sha256 }}
       completed_stage: ${{ steps.identity.outputs.completed_stage }}
+      standard_identity_sha256: ${{ steps.standard-identity.outputs.standard_identity_sha256 }}
       checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
       transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
       operation_id: ${{ steps.operation.outputs.operation_id }}
@@ -210,6 +216,56 @@ jobs:
           path: checkpoint-identity-bootstrap
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
+
+      - name: Verify sealed Standard identity
+        id: standard-identity
+        env:
+          EXPECTED_STANDARD_IDENTITY_SHA256: ${{ inputs.standard_identity_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity_receipts=()
+          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          if [ "${#identity_receipts[@]}" -eq 0 ] && [ -z "$EXPECTED_STANDARD_IDENTITY_SHA256" ]; then
+            echo "standard_identity_sha256=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "${#identity_receipts[@]}" -eq 1 || {
+            echo "::error::Standard checkpoint must contain exactly one identity receipt."
+            exit 1
+          }
+          identity_receipt="${identity_receipts[0]}"
+          test -s "$identity_receipt" && test ! -L "$identity_receipt"
+          observed="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          if [ -n "$EXPECTED_STANDARD_IDENTITY_SHA256" ] && [ "$observed" != "$EXPECTED_STANDARD_IDENTITY_SHA256" ]; then
+            echo "::error::Standard identity digest mismatch: expected $EXPECTED_STANDARD_IDENTITY_SHA256, got $observed."
+            exit 1
+          fi
+          bundle_receipts=()
+          while IFS= read -r bundle; do bundle_receipts+=("$bundle"); done < <(
+            find checkpoint-identity-bootstrap -type f -name bundle.json -print | LC_ALL=C sort
+          )
+          test "${#bundle_receipts[@]}" -eq 1
+          bundle="${bundle_receipts[0]}"
+          jq -e \
+            --arg bundle "$(jq -er .bundle_digest "$bundle")" \
+            --arg app "$(jq -er .sources.app.source_commit "$bundle")" \
+            --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
+            --arg framework "$(jq -er .sources.framework.source_commit "$bundle")" \
+            '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .source.run_attempt == 1
+              and .release.bundle_digest == $bundle
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$identity_receipt" >/dev/null
+          echo "standard_identity_sha256=$observed" >> "$GITHUB_OUTPUT"
 
       - name: Resolve Bundle-bound Framework identity
         id: framework-binding
@@ -587,11 +643,11 @@ jobs:
           retention-days: 30
 
   publish-standard-nonlatest:
-    if: ${{ always() && needs.restore.result == 'success' && ((needs.restore.outputs.channel == 'preview' && !inputs.latest_override_requested) || (needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped'))) }}
+    if: ${{ needs.restore.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview' }}
-    needs: [restore, updater-upgrade-qualification, updater-upgrade-qualification-highest]
+    needs: [restore]
     steps:
       - name: Reject partial rerun before Standard GitHub mutation
         shell: bash
@@ -893,65 +949,15 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  updater-upgrade-qualification:
-    if: ${{ needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested }}
-    needs: [restore]
-    permissions:
-      contents: read
-      actions: read
-    uses: ./.github/workflows/opl-updater-upgrade-vm.yml
-    with:
-      mode: execute
-      candidate_artifact_name: ${{ needs.restore.outputs.source_artifact }}
-      candidate_artifact_run_id: ${{ needs.restore.outputs.source_run_id }}
-      baseline_dmg_url: ${{ needs.restore.outputs.previous_latest_dmg_url }}
-      baseline_dmg_sha256: ${{ needs.restore.outputs.previous_latest_dmg_sha256 }}
-      baseline_display_version: ${{ needs.restore.outputs.previous_latest_display_version }}
-      baseline_updater_version: ${{ needs.restore.outputs.previous_latest_updater_version }}
-      candidate_display_version: ${{ needs.restore.outputs.version }}
-      candidate_updater_version: ${{ needs.restore.outputs.updater_version }}
-      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
-      app_ref: ${{ needs.restore.outputs.app_ref }}
-      shell_ref: ${{ needs.restore.outputs.shell_ref }}
-      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
-      operation: ${{ needs.restore.outputs.release_operation }}
-      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
-      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
-
-  updater-upgrade-qualification-highest:
-    if: ${{ (needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested) && needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
-    needs: [restore]
-    permissions:
-      contents: read
-      actions: read
-    uses: ./.github/workflows/opl-updater-upgrade-vm.yml
-    with:
-      mode: execute
-      candidate_artifact_name: ${{ needs.restore.outputs.source_artifact }}
-      candidate_artifact_run_id: ${{ needs.restore.outputs.source_run_id }}
-      baseline_dmg_url: ${{ needs.restore.outputs.highest_public_stable_dmg_url }}
-      baseline_dmg_sha256: ${{ needs.restore.outputs.highest_public_stable_dmg_sha256 }}
-      baseline_display_version: ${{ needs.restore.outputs.highest_public_stable_display_version }}
-      baseline_updater_version: ${{ needs.restore.outputs.highest_public_stable_updater_version }}
-      candidate_display_version: ${{ needs.restore.outputs.version }}
-      candidate_updater_version: ${{ needs.restore.outputs.updater_version }}
-      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
-      app_ref: ${{ needs.restore.outputs.app_ref }}
-      shell_ref: ${{ needs.restore.outputs.shell_ref }}
-      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
-      operation: ${{ needs.restore.outputs.release_operation }}
-      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
-      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
-
   publish-homebrew-standard:
-    if: ${{ always() && needs.restore.outputs.channel == 'stable' && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') }}
+    if: ${{ needs.restore.outputs.channel == 'stable' && needs.remote-digest-verify.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: release-stable
     permissions:
       contents: read
       actions: read
-    needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest]
+    needs: [restore, remote-digest-verify]
     steps:
       - name: Reject partial rerun before Standard Homebrew mutation
         shell: bash
@@ -1337,33 +1343,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  homebrew-standard-vm:
-    if: ${{ needs.restore.outputs.channel == 'stable' }}
-    needs: [restore, publish-homebrew-standard]
-    permissions:
-      contents: read
-      actions: read
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      mode: execute
-      release_tag: ${{ needs.restore.outputs.tag }}
-      release_bundle_digest: ${{ needs.restore.outputs.bundle_digest }}
-      release_cohort_ref: ${{ needs.restore.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.restore.outputs.app_ref }}
-      shell_ref: ${{ needs.restore.outputs.shell_ref }}
-      smoke_harness_ref: ${{ needs.restore.outputs.shell_ref }}
-      framework_ref: ${{ needs.restore.outputs.framework_source_ref }}
-      package_profile: homebrew-standard
-      diagnostic_scope: release_gate
-      operation: ${{ needs.restore.outputs.release_operation }}
-      operation_started_at: ${{ needs.restore.outputs.operation_started_at }}
-      operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
-
   homebrew-standard-readback:
     if: ${{ needs.restore.outputs.channel == 'stable' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [restore, homebrew-standard-vm, publish-homebrew-standard]
+    needs: [restore, publish-homebrew-standard]
     permissions:
       contents: read
       actions: read
@@ -1374,13 +1358,7 @@ jobs:
           name: opl-release-homebrew-standard-${{ github.run_id }}
           path: homebrew-publication
 
-      - name: Download Standard Homebrew clean-VM evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
-          path: homebrew-vm
-
-      - name: Bind public cask and installed-App readback
+      - name: Bind public cask publication readback
         env:
           VERSION: ${{ needs.restore.outputs.version }}
           UPDATER_VERSION: ${{ needs.restore.outputs.updater_version }}
@@ -1391,18 +1369,12 @@ jobs:
           while IFS= read -r receipt; do
             publication_receipts+=("$receipt")
           done < <(find homebrew-publication -name homebrew-standard-publication-receipt.json -type f -print | LC_ALL=C sort)
-          vm_receipts=()
-          while IFS= read -r receipt; do
-            vm_receipts+=("$receipt")
-          done < <(find homebrew-vm -name tart-smoke-summary.json -type f -print | LC_ALL=C sort)
-          if [ "${#publication_receipts[@]}" -ne 1 ] || [ "${#vm_receipts[@]}" -ne 1 ]; then
-            echo "::error::Standard Homebrew readback requires exactly one publication receipt and one VM summary; found ${#publication_receipts[@]} and ${#vm_receipts[@]}."
+          if [ "${#publication_receipts[@]}" -ne 1 ]; then
+            echo "::error::Standard Homebrew readback requires exactly one publication receipt; found ${#publication_receipts[@]}."
             exit 1
           fi
           publication="${publication_receipts[0]}"
-          vm="${vm_receipts[0]}"
           test -f "$publication" && test ! -L "$publication"
-          test -f "$vm" && test ! -L "$vm"
           test "$(jq -r .schema "$publication")" = opl_bundle_homebrew_publication_receipt.v1
           test "$(jq -r .status "$publication")" = passed
           test "$(jq -r .track "$publication")" = standard
@@ -1412,15 +1384,11 @@ jobs:
           [[ "$(jq -r .tap_commit "$publication")" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(jq -r .cask.sha256 "$publication")" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$(jq -r .artifact.sha256 "$publication")" =~ ^sha256:[0-9a-f]{64}$ ]]
-          test "$(jq -r .surface_id "$vm")" = opl_tart_gui_first_run_smoke
-          test "$(jq -r .status "$vm")" = passed
-          test "$(jq '[.homebrew_install_attempts[]? | select(.status == "passed")] | length' "$vm")" -ge 1
           publication_sha="$(shasum -a 256 "$publication" | awk '{print $1}')"
-          vm_sha="$(shasum -a 256 "$vm" | awk '{print $1}')"
           jq -n \
             --arg bundle "$BUNDLE_DIGEST" --arg release "$VERSION" --arg updater "$UPDATER_VERSION" \
-            --arg publication "sha256:$publication_sha" --arg vm "sha256:$vm_sha" \
-            '{schema:"opl_bundle_homebrew_readback_receipt.v1",status:"passed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,publication_receipt_sha256:$publication,clean_vm_receipt_sha256:$vm}' \
+            --arg publication "sha256:$publication_sha" \
+            '{schema:"opl_bundle_homebrew_publication_readback_receipt.v1",status:"passed",track:"standard",bundle_digest:$bundle,release_version:$release,updater_version:$updater,publication_receipt_sha256:$publication}' \
             > homebrew-standard-readback.json
 
       - name: Upload Standard Homebrew readback
@@ -1432,11 +1400,12 @@ jobs:
           retention-days: 30
 
   activate-latest:
-    if: ${{ always() && (needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested) && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') && ((needs.restore.outputs.channel == 'stable' && needs.homebrew-standard-readback.result == 'success') || (needs.restore.outputs.channel == 'preview' && needs.homebrew-standard-readback.result == 'skipped')) }}
+    # No supported operation can enter this legacy VM-bound route.
+    if: ${{ inputs.operation == 'disabled_vm_bound_latest' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview-latest' }}
-    needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest, homebrew-standard-readback]
+    needs: [restore, remote-digest-verify, homebrew-standard-readback]
     steps:
       - name: Reject partial rerun before Latest mutation
         shell: bash

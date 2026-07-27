@@ -1,8 +1,28 @@
-name: OPL Stable Source Qualification
-run-name: Source qualification ${{ github.sha }}
+name: OPL Stable Source Preflight
+run-name: Source preflight ${{ github.sha }}
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      operation_scope:
+        description: Stable same-operation source preflight or standalone diagnostic
+        required: false
+        default: stable_operation_source_preflight
+        type: string
+    outputs:
+      receipt_digest:
+        description: Immutable source preflight receipt digest
+        value: ${{ jobs.qualify.outputs.receipt_digest }}
+      app_ref:
+        description: Preflight App SHA
+        value: ${{ jobs.qualify.outputs.app_ref }}
+      shell_ref:
+        description: Preflight Shell SHA
+        value: ${{ jobs.qualify.outputs.shell_ref }}
+      framework_ref:
+        description: Preflight Framework SHA
+        value: ${{ jobs.qualify.outputs.framework_ref }}
 
 permissions:
   contents: read
@@ -12,23 +32,22 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-stable-source-qualification
+  group: opl-stable-source-preflight
   cancel-in-progress: false
 
 jobs:
-  qualify:
-    name: One local build and one clean Tart qualification
-    runs-on: ${{ fromJson(vars.OPL_SOURCE_QUALIFICATION_RUNNER_LABELS || vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","ARM64","opl-gui-vm"]') }}
-    timeout-minutes: 90
+  resolve-cohort:
+    name: Resolve exact public source cohort
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-      SOURCE_VM: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
-      GUEST_USER: ${{ vars.OPL_FIRST_RUN_GUEST_USER }}
-      GUEST_SSH_KEY: ${{ vars.OPL_FIRST_RUN_GUEST_SSH_KEY }}
-      RUNNER_LABELS_JSON: ${{ vars.OPL_SOURCE_QUALIFICATION_RUNNER_LABELS || vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","ARM64","opl-gui-vm"]' }}
+    outputs:
+      app_sha: ${{ steps.cohort.outputs.app_sha }}
+      app_tree: ${{ steps.cohort.outputs.app_tree }}
+      shell_sha: ${{ steps.cohort.outputs.shell_sha }}
+      framework_sha: ${{ steps.cohort.outputs.framework_sha }}
     steps:
       - name: Admit one main-only first attempt
         shell: bash
@@ -37,12 +56,6 @@ jobs:
           test "$GITHUB_RUN_ATTEMPT" = 1
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
-          test -n "$SOURCE_VM" || {
-            echo "::error::OPL_FIRST_RUN_TART_SOURCE is required for source qualification."
-            exit 1
-          }
-          jq -e 'type == "array" and index("self-hosted") != null and index("macOS") != null and index("opl-gui-vm") != null' \
-            <<<"$RUNNER_LABELS_JSON" >/dev/null
 
       - name: Checkout exact App main
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -100,242 +113,131 @@ jobs:
             echo "framework_sha=$framework_sha"
           } >> "$GITHUB_OUTPUT"
 
+  source-contract-build-preflight:
+    name: GitHub-hosted source, contract, and build preflight
+    needs: [resolve-cohort]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_build-reusable.yml
+    with:
+      matrix: >-
+        {"include":[
+          {"platform":"linux-x64-source-preflight","os":"ubuntu-latest","command":"node scripts/build-with-builder.js x64 --linux --x64","artifact-name":"source-preflight-linux-x64","arch":"x64"}
+        ]}
+      ref: ${{ needs.resolve-cohort.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-cohort.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-cohort.outputs.framework_sha }}
+      skip_code_quality: false
+      append_commit_hash: false
+      upload_installers_only: true
+      require_macos_gatekeeper: false
+
+  qualify:
+    name: Seal GitHub-hosted source preflight
+    needs: [resolve-cohort, source-contract-build-preflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      receipt_digest: ${{ steps.receipt.outputs.receipt_digest }}
+      app_ref: ${{ needs.resolve-cohort.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-cohort.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-cohort.outputs.framework_sha }}
+    env:
+      OPERATION_SCOPE: ${{ inputs.operation_scope || 'standalone_diagnostic' }}
+    steps:
+      - name: Checkout exact App cohort
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.resolve-cohort.outputs.app_sha }}
+          path: app
+
       - name: Checkout exact Shell cohort
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ steps.cohort.outputs.shell_sha }}
-          path: app/shells/aionui
-          fetch-depth: 1
+          ref: ${{ needs.resolve-cohort.outputs.shell_sha }}
+          path: shell
 
       - name: Checkout exact Framework cohort
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: ${{ steps.cohort.outputs.framework_sha }}
+          ref: ${{ needs.resolve-cohort.outputs.framework_sha }}
           path: framework
-          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
-        with:
-          bun-version: '1.3.7'
-
-      - name: Freeze operation paths and command manifest
-        id: operation
+      - name: Seal source, contract, build, and cohort evidence
+        id: evidence
         shell: bash
         run: |
           set -euo pipefail
-          evidence_root="$RUNNER_TEMP/opl-source-qualification-$GITHUB_RUN_ID"
-          artifact_root="$GITHUB_WORKSPACE/app/artifacts"
-          vm_name="opl-source-qualification-$GITHUB_RUN_ID"
-          rm -rf "$evidence_root" "$artifact_root"
-          mkdir -p "$evidence_root" "$artifact_root/release-cohort" "$artifact_root/opl-first-run-vm/framework-source"
-          version="$(node -e 'const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Shanghai",year:"2-digit",month:"numeric",day:"numeric"}).formatToParts(new Date());const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));process.stdout.write(`${values.year}.${values.month}.${values.day}`)')"
-          updater_version="$(node --experimental-strip-types -e 'import("./app/scripts/release-version.ts").then(({resolveReleaseVersionIdentity}) => process.stdout.write(resolveReleaseVersionIdentity("stable", process.argv[1]).updaterVersion))' "$version")"
-          node - "$evidence_root/command-manifest.json" "$GITHUB_WORKSPACE" "$evidence_root" "$vm_name" <<'NODE'
-          const fs = require('fs');
-          const [output, workspace, evidenceRoot, vmName] = process.argv.slice(2);
-          const steps = [
-            ['shell_frozen_install', `${workspace}/app/shells/aionui`, ['bun', 'install', '--frozen-lockfile']],
-            ['app_tooling_install', `${workspace}/app`, ['npm', 'ci', '--ignore-scripts', '--no-audit', '--no-fund']],
-            ['native_electron_dependency_rebuild', `${workspace}/app/shells/aionui`, ['bunx', 'electron-builder', 'install-app-deps']],
-            ['standard_payload_preparation', `${workspace}/app`, ['node', '--experimental-strip-types', 'scripts/prepare-standard-release-payload.ts']],
-            ['product_profile_consumer_gate', `${workspace}/app/shells/aionui`, ['bunx', 'vitest', 'run', 'tests/unit/common-config/oplProductProfile.test.ts']],
-            ['framework_archive', `${workspace}/framework`, ['git', 'archive', '--format=tar.gz', '--prefix=one-person-lab/', 'HEAD']],
-            ['standard_arm64_build', `${workspace}/app/shells/aionui`, ['node', 'scripts/build-with-builder.js', 'arm64', '--mac', '--arm64', '--config.mac.identity=-']],
-            ['build_cohort_writer', `${workspace}/app`, ['node', '--experimental-strip-types', 'scripts/write-build-artifact-cohort.ts']],
-            ['codex_install_asset_prefetch', `${workspace}/app`, ['node', 'scripts/prefetch-codex-package-install-assets.mjs']],
-            ['artifact_bound_clean_tart_qualification', `${workspace}/app/shells/aionui`, ['node', 'scripts/opl-first-run-tart-smoke.mjs']],
-          ].map(([id, cwd, argv]) => ({ id, cwd, argv }));
-          fs.writeFileSync(output, JSON.stringify({
-            schema: 'opl_source_qualification_command_manifest.v1',
-            evidence_root: evidenceRoot,
-            vm_name: vmName,
+          evidence_root="$RUNNER_TEMP/opl-source-preflight-$GITHUB_RUN_ID"
+          mkdir -p "$evidence_root"
+          shell_tree="$(git -C shell rev-parse 'HEAD^{tree}')"
+          framework_tree="$(git -C framework rev-parse 'HEAD^{tree}')"
+          jq -n \
+            --arg app '${{ needs.resolve-cohort.outputs.app_sha }}' \
+            --arg app_tree '${{ needs.resolve-cohort.outputs.app_tree }}' \
+            --arg shell '${{ needs.resolve-cohort.outputs.shell_sha }}' \
+            --arg shell_tree "$shell_tree" \
+            --arg framework '${{ needs.resolve-cohort.outputs.framework_sha }}' \
+            --arg framework_tree "$framework_tree" \
+            '{
+              schema: "opl_source_preflight_cohort.v1",
+              cohort: {
+                app: {sha: $app, tree: $app_tree},
+                shell: {sha: $shell, tree: $shell_tree},
+                framework: {sha: $framework, tree: $framework_tree}
+              }
+            }' > "$evidence_root/source-preflight-cohort.json"
+          jq -n '{
+            schema: "opl_source_contract_build_preflight.v1",
+            status: "passed",
+            execution: "github_hosted",
+            reusable_workflow: ".github/workflows/_build-reusable.yml",
+            checks: {source: "passed", contract: "passed", build: "passed"},
             build_invocation_count: 1,
-            tart_vm_invocation_count: 1,
-            steps,
-          }, null, 2) + '\n');
-          NODE
+            formal_candidate_build_count: 0,
+            self_hosted_invocation_count: 0,
+            tart_vm_invocation_count: 0
+          }' > "$evidence_root/source-contract-build-preflight.json"
           {
             echo "evidence_root=$evidence_root"
-            echo "artifact_root=$artifact_root"
-            echo "vm_name=$vm_name"
-            echo "version=$version"
-            echo "updater_version=$updater_version"
+            echo "shell_tree=$shell_tree"
+            echo "framework_tree=$framework_tree"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Install frozen App and Shell tooling
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd app/shells/aionui && bun install --frozen-lockfile)
-          (cd app && npm ci --ignore-scripts --no-audit --no-fund)
-          (cd app/shells/aionui && bunx electron-builder install-app-deps)
-
-      - name: Prepare Standard payload and run the consumer gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd app && node --experimental-strip-types scripts/prepare-standard-release-payload.ts)
-          (cd app/shells/aionui && bunx vitest run tests/unit/common-config/oplProductProfile.test.ts)
-          git -C framework archive --format=tar.gz --prefix=one-person-lab/ HEAD \
-            -o "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm/framework-source/one-person-lab-framework.tar.gz"
-
-      - name: Build exactly one local unsigned Standard DMG
-        shell: bash
-        env:
-          OPL_RELEASE_VERSION: ${{ steps.operation.outputs.version }}
-          OPL_UPDATER_VERSION: ${{ steps.operation.outputs.updater_version }}
-        run: |
-          set -euo pipefail
-          (cd app/shells/aionui && node scripts/build-with-builder.js arm64 --mac --arm64 --config.mac.identity=-)
-          find app/shells/aionui/out -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' -print \
-            | LC_ALL=C sort > "${{ steps.operation.outputs.evidence_root }}/dmg-candidates.txt"
-          dmg_count="$(wc -l < "${{ steps.operation.outputs.evidence_root }}/dmg-candidates.txt" | tr -d ' ')"
-          test "$dmg_count" -eq 1 || {
-            echo "::error::Source qualification requires exactly one macOS arm64 DMG; found $dmg_count."
-            exit 1
-          }
-          sed -n '1p' "${{ steps.operation.outputs.evidence_root }}/dmg-candidates.txt" \
-            > "${{ steps.operation.outputs.evidence_root }}/dmg-path.txt"
-
-      - name: Seal exact build and source cohort manifests
-        shell: bash
-        env:
-          APP_SHA: ${{ steps.cohort.outputs.app_sha }}
-          SHELL_SHA: ${{ steps.cohort.outputs.shell_sha }}
-          FRAMEWORK_SHA: ${{ steps.cohort.outputs.framework_sha }}
-          VERSION: ${{ steps.operation.outputs.version }}
-        run: |
-          set -euo pipefail
-          evidence_root="${{ steps.operation.outputs.evidence_root }}"
-          dmg="$(cat "$evidence_root/dmg-path.txt")"
-          packaged_tree="app/shells/aionui/out/mac-arm64/One Person Lab.app"
-          test -d "$packaged_tree"
-          node --experimental-strip-types app/scripts/write-build-artifact-cohort.ts \
-            --output app/artifacts/release-cohort/opl-build-cohort.json \
-            --artifact "$dmg" --artifact-name "$(basename "$dmg")" \
-            --packaged-tree "$packaged_tree" \
-            --app-profile app/contracts/app-product-profile.json \
-            --gui-contract app/contracts/app-gui-product-contract.json \
-            --smoke-harness app/shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
-            --compiled-expectations app/contracts/app-first-run-compiled-expectations.json \
-            --qualification-input-manifest app/contracts/app-release-qualification-input-manifest.json \
-            --app-sha "$APP_SHA" --shell-sha "$SHELL_SHA" --framework-sha "$FRAMEWORK_SHA" \
-            --version "$VERSION" --kind standard \
-            --actions-run-id "$GITHUB_RUN_ID" --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --actions-artifact-name "opl-source-build-$GITHUB_RUN_ID"
-          node - "$evidence_root/source-qualification-cohort.json" "$dmg" "$APP_SHA" "$SHELL_SHA" "$FRAMEWORK_SHA" <<'NODE'
-          const crypto = require('crypto');
-          const fs = require('fs');
-          const path = require('path');
-          const { execFileSync } = require('child_process');
-          const [output, dmg, appSha, shellSha, frameworkSha] = process.argv.slice(2);
-          const root = process.env.GITHUB_WORKSPACE;
-          const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-          const tree = dir => execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD^{tree}'], { encoding: 'utf8' }).trim();
-          fs.writeFileSync(output, JSON.stringify({
-            schema: 'opl_source_qualification_cohort.v1',
-            cohort: {
-              app: { sha: appSha, tree: tree(path.join(root, 'app')) },
-              shell: { sha: shellSha, tree: tree(path.join(root, 'app/shells/aionui')) },
-              framework: { sha: frameworkSha, tree: tree(path.join(root, 'framework')) },
-            },
-            dmg: { basename: path.basename(dmg), size_bytes: fs.statSync(dmg).size, sha256: digest(dmg) },
-          }, null, 2) + '\n');
-          NODE
-
-      - name: Prefetch frozen Codex install assets
-        shell: bash
-        run: |
-          set -euo pipefail
-          (cd app && node scripts/prefetch-codex-package-install-assets.mjs)
-
-      - name: Run one artifact-bound clean Tart qualification
-        shell: bash
-        run: |
-          set -euo pipefail
-          evidence_root="${{ steps.operation.outputs.evidence_root }}"
-          dmg="$(cat "$evidence_root/dmg-path.txt")"
-          args=(
-            --source-vm "$SOURCE_VM"
-            --dmg "$GITHUB_WORKSPACE/$dmg"
-            --vm-name "${{ steps.operation.outputs.vm_name }}"
-            --artifacts "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm"
-            --runtime-profile standard
-            --smoke-profile no-clt-clean-vm
-            --settings-smoke
-            --assistant-route-smoke
-            --codex-functional-check
-            --timeout-ms 3600000
-            --smoke-timeout-ms 3600000
-            --codex-install-phase-timeout-ms 3600000
-            --codex-readiness-phase-timeout-ms 3600000
-            --codex-package-tarball "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz"
-            --codex-platform-package-tarball "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz"
-            --codex-npm-cache-dir "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm/codex-npm-cache"
-            --compiled-expectations "$GITHUB_WORKSPACE/app/contracts/app-first-run-compiled-expectations.json"
-            --framework-source-archive "$GITHUB_WORKSPACE/app/artifacts/opl-first-run-vm/framework-source/one-person-lab-framework.tar.gz"
-            --framework-install-script "$GITHUB_WORKSPACE/app/install.sh"
-          )
-          if [ -n "$GUEST_USER" ]; then args+=(--guest-user "$GUEST_USER"); fi
-          if [ -n "$GUEST_SSH_KEY" ]; then args+=(--ssh-key "$GUEST_SSH_KEY"); fi
-          (cd app/shells/aionui && node scripts/opl-first-run-tart-smoke.mjs "${args[@]}")
-
-      - name: Prove target absent and source stopped
-        shell: bash
-        run: |
-          set -euo pipefail
-          evidence_root="${{ steps.operation.outputs.evidence_root }}"
-          vm_name="${{ steps.operation.outputs.vm_name }}"
-          tart list --format json > "$evidence_root/tart-list.json"
-          target_count="$(jq --arg name "$vm_name" '[.[] | select(.Name == $name)] | length' "$evidence_root/tart-list.json")"
-          source_state="$(jq -r --arg name "$SOURCE_VM" '[.[] | select(.Name == $name)][0].State // "absent"' "$evidence_root/tart-list.json")"
-          test "$target_count" = 0
-          test "$source_state" = stopped
-          jq -n --arg source "$SOURCE_VM" --arg target "$vm_name" \
-            '{schema:"opl_source_qualification_vm_closeout.v1",source_vm:$source,source_vm_state:"stopped",target_vm:$target,target_vm_state:"absent"}' \
-            > "$evidence_root/vm-closeout.json"
-
-      - name: Seal immutable source qualification receipt
+      - name: Seal immutable source preflight receipt
         id: receipt
         shell: bash
-        env:
-          APP_SHA: ${{ steps.cohort.outputs.app_sha }}
-          APP_TREE: ${{ steps.cohort.outputs.app_tree }}
-          SHELL_SHA: ${{ steps.cohort.outputs.shell_sha }}
-          FRAMEWORK_SHA: ${{ steps.cohort.outputs.framework_sha }}
         run: |
           set -euo pipefail
-          evidence_root="${{ steps.operation.outputs.evidence_root }}"
-          dmg="$(cat "$evidence_root/dmg-path.txt")"
-          shell_tree="$(git -C app/shells/aionui rev-parse 'HEAD^{tree}')"
-          framework_tree="$(git -C framework rev-parse 'HEAD^{tree}')"
-          runner_args=()
-          while IFS= read -r label; do runner_args+=(--runner-label "$label"); done < <(jq -r '.[]' <<<"$RUNNER_LABELS_JSON")
+          evidence_root="${{ steps.evidence.outputs.evidence_root }}"
           node --experimental-strip-types app/scripts/source-qualification-receipt.ts create \
             --output "$evidence_root/source-qualification-receipt.json" \
             --completed-at "$(date -u '+%Y-%m-%dT%H:%M:%S.000Z')" \
+            --operation-scope "$OPERATION_SCOPE" \
             --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --repository "$GITHUB_REPOSITORY" \
             --workflow .github/workflows/release-source-qualification.yml \
             --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --head-sha "$GITHUB_SHA" \
-            "${runner_args[@]}" \
-            --app-sha "$APP_SHA" --app-tree "$APP_TREE" \
-            --shell-sha "$SHELL_SHA" --shell-tree "$shell_tree" \
-            --framework-sha "$FRAMEWORK_SHA" --framework-tree "$framework_tree" \
-            --dmg "$dmg" \
-            --command-manifest "$evidence_root/command-manifest.json" \
-            --cohort-manifest "$evidence_root/source-qualification-cohort.json" \
-            --build-cohort app/artifacts/release-cohort/opl-build-cohort.json \
-            --smoke-summary app/artifacts/opl-first-run-vm/tart-smoke-summary.json \
-            --vm-closeout "$evidence_root/vm-closeout.json" \
+            --runner-label ubuntu-latest \
+            --app-sha '${{ needs.resolve-cohort.outputs.app_sha }}' \
+            --app-tree '${{ needs.resolve-cohort.outputs.app_tree }}' \
+            --shell-sha '${{ needs.resolve-cohort.outputs.shell_sha }}' \
+            --shell-tree '${{ steps.evidence.outputs.shell_tree }}' \
+            --framework-sha '${{ needs.resolve-cohort.outputs.framework_sha }}' \
+            --framework-tree '${{ steps.evidence.outputs.framework_tree }}' \
+            --preflight-manifest "$evidence_root/source-contract-build-preflight.json" \
+            --cohort-manifest "$evidence_root/source-preflight-cohort.json" \
             --workflow-path .github/workflows/release-source-qualification.yml \
             --workflow-path contracts/app-source-qualification-receipt.schema.json \
             --workflow-path scripts/source-qualification-receipt.ts \
@@ -347,34 +249,33 @@ jobs:
             --expected-digest "$digest" --expected-run-id "$GITHUB_RUN_ID" --expected-head-sha "$GITHUB_SHA"
           echo "receipt_digest=$digest" >> "$GITHUB_OUTPUT"
 
-      - name: Upload immutable source qualification evidence
+      - name: Upload immutable source preflight evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-source-qualification-${{ github.run_id }}
           path: |
-            ${{ steps.operation.outputs.evidence_root }}/source-qualification-receipt.json
-            ${{ steps.operation.outputs.evidence_root }}/command-manifest.json
-            ${{ steps.operation.outputs.evidence_root }}/source-qualification-cohort.json
-            ${{ steps.operation.outputs.evidence_root }}/vm-closeout.json
-            app/artifacts/release-cohort/opl-build-cohort.json
-            app/artifacts/opl-first-run-vm/tart-smoke-summary.json
-            app/artifacts/opl-first-run-vm/artifacts/settings-smoke-summary.json
-            app/artifacts/opl-first-run-vm/artifacts/settings-runtime-refresh-verification.json
+            ${{ steps.evidence.outputs.evidence_root }}/source-qualification-receipt.json
+            ${{ steps.evidence.outputs.evidence_root }}/source-contract-build-preflight.json
+            ${{ steps.evidence.outputs.evidence_root }}/source-preflight-cohort.json
           if-no-files-found: error
           retention-days: 30
 
-      - name: Summarize non-authoritative source qualification
+      - name: Summarize non-authoritative source preflight
         shell: bash
         run: |
           {
-            echo '## Source qualification passed'
+            echo '## Source preflight passed'
             echo
-            echo "- App: ${{ steps.cohort.outputs.app_sha }}"
-            echo "- Shell: ${{ steps.cohort.outputs.shell_sha }}"
-            echo "- Framework: ${{ steps.cohort.outputs.framework_sha }}"
+            echo "- App: ${{ needs.resolve-cohort.outputs.app_sha }}"
+            echo "- Shell: ${{ needs.resolve-cohort.outputs.shell_sha }}"
+            echo "- Framework: ${{ needs.resolve-cohort.outputs.framework_sha }}"
             echo "- Receipt: ${{ steps.receipt.outputs.receipt_digest }}"
-            echo '- Build count: 1'
-            echo '- Tart VM count: 1'
+            echo "- Operation scope: $OPERATION_SCOPE"
+            echo '- Execution: GitHub-hosted'
+            echo '- Diagnostic build count: 1'
+            echo '- Formal candidate build count: 0'
+            echo '- Self-hosted invocation count: 0'
+            echo '- Tart VM invocation count: 0'
             echo '- Release authority: false'
             echo '- Public mutation: false'
           } >> "$GITHUB_STEP_SUMMARY"

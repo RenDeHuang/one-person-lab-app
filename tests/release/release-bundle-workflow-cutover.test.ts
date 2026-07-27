@@ -329,25 +329,38 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
   }
 });
 
-test('new Standard consumes one source receipt and seals protected admission in the same run', () => {
+test('new Standard runs source preflight and seals protected admission in the same run', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
   assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_run_id.required, false);
   assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_receipt_digest.required, false);
+  assert.equal(
+    stable.jobs['source-qualification'].uses,
+    './.github/workflows/release-source-qualification.yml',
+  );
+  assert.equal(
+    stable.jobs['source-qualification'].with.operation_scope,
+    'stable_operation_source_preflight',
+  );
+  assert.deepEqual(stable.jobs.admission.needs, ['source-qualification']);
+  assert.match(
+    String(stable.jobs.admission.if),
+    /inputs\.operation != 'standard'.*needs\.source-qualification\.result == 'success'/,
+  );
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
   assert.match(
     stableAdmission,
-    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT"/,
+    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT\$LEGACY_SOURCE_QUALIFICATION_RUN_ID\$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST"/,
   );
-  assert.match(stableAdmission, /actions\/runs\/\$SOURCE_QUALIFICATION_RUN_ID/);
-  assert.match(stableAdmission, /\.status == "completed"/);
-  assert.match(stableAdmission, /\.conclusion == "success"/);
-  assert.match(stableAdmission, /\.run_attempt == 1/);
-  assert.match(stableAdmission, /\.head_sha == \$app_sha/);
-  assert.match(stableAdmission, /\.path == \$workflow/);
-  assert.match(stableAdmission, /opl-source-qualification-\$SOURCE_QUALIFICATION_RUN_ID/);
+  assert.match(stableAdmission, /SOURCE_QUALIFICATION_RUN_ID="\$GITHUB_RUN_ID"/);
+  assert.match(
+    stableAdmission,
+    /SOURCE_QUALIFICATION_RECEIPT_DIGEST='\$\{\{ needs\.source-qualification\.outputs\.receipt_digest \}\}'/,
+  );
+  assert.doesNotMatch(stableAdmission, /actions\/runs\/\$SOURCE_QUALIFICATION_RUN_ID/);
+  assert.doesNotMatch(stableAdmission, /gh run download/);
   assert.match(stableAdmission, /source-qualification-receipt\.ts verify/);
   assert.match(stableAdmission, /--expected-digest "\$SOURCE_QUALIFICATION_RECEIPT_DIGEST"/);
   assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell\.sha verified-source-qualification\.json\)"/);
@@ -403,6 +416,48 @@ test('new Standard consumes one source receipt and seals protected admission in 
   assert.equal(
     fullRestore.with['framework-executor-ref'],
     '${{ steps.framework-binding.outputs.framework_source_ref }}',
+  );
+});
+
+test('one signed Standard build is sealed once and every final consumer binds its identity digest', () => {
+  const bundle = parseWorkflow('_release-bundle.yml');
+  const source = readWorkflow('_release-bundle.yml');
+  assert.equal((source.match(/uses: \.\/\.github\/workflows\/_build-reusable\.yml/g) ?? []).length, 1);
+  assert.deepEqual(bundle.jobs['seal-standard-identity'].needs, ['freeze', 'standard-build']);
+  assert.equal(bundle.jobs['standard-qualification'], undefined);
+  assert.deepEqual(
+    bundle.jobs['checkpoint-standard'].needs,
+    ['freeze', 'seal-standard-identity'],
+  );
+  assert.equal(
+    bundle.jobs['publish-standard'].with.standard_identity_sha256,
+    '${{ needs.checkpoint-standard.outputs.standard_identity_sha256 }}',
+  );
+  assert.match(source, /bind-standard-release-track\.ts/);
+  assert.match(source, /opl-release-standard-bound-\$\{GITHUB_RUN_ID\}/);
+  assert.match(source, /Standard identity digest mismatch/);
+
+  const firstRun = parseWorkflow('opl-first-run-vm.yml');
+  assert.equal(firstRun.on.workflow_call.inputs.standard_identity_sha256.required, false);
+  assert.match(readWorkflow('opl-first-run-vm.yml'), /Standard identity digest mismatch/);
+
+  const publish = parseWorkflow('_release-standard-publish.yml');
+  assert.equal(publish.on.workflow_call.inputs.standard_identity_sha256.required, false);
+  assert.match(readWorkflow('_release-standard-publish.yml'), /Standard identity digest mismatch/);
+  assert.equal(publish.jobs['updater-upgrade-qualification'], undefined);
+  assert.equal(publish.jobs['updater-upgrade-qualification-highest'], undefined);
+
+  const updater = parseWorkflow('opl-updater-upgrade-vm.yml');
+  assert.equal(updater.on.workflow_call.inputs.standard_identity_sha256.required, false);
+  assert.match(readWorkflow('opl-updater-upgrade-vm.yml'), /Standard identity digest mismatch/);
+  assert.doesNotMatch(
+    [
+      source,
+      readWorkflow('_release-standard-publish.yml'),
+      readWorkflow('opl-first-run-vm.yml'),
+      readWorkflow('opl-updater-upgrade-vm.yml'),
+    ].join('\n'),
+    /package_release_set|package-release-set|release_set_manifest|\bbom\b/i,
   );
 });
 
@@ -563,6 +618,7 @@ test('every release-bound low-level admission rejects missing, invalid, or perma
     shell_ref: '2'.repeat(40),
     framework_ref: '3'.repeat(40),
     baseline_dmg_sha256: '4'.repeat(64),
+    standard_identity_sha256: `sha256:${'5'.repeat(64)}`,
   };
   const gates = [
     {
@@ -651,14 +707,15 @@ test('the live control plane is split into Standard build, Standard publish, and
     'admission',
     'freeze',
     'standard-build',
-    'standard-qualification',
+    'seal-standard-identity',
     'checkpoint-standard',
     'prepare-native-webui',
     'publish-standard',
     'publish-native-webui',
   ]);
   assert.ok(standard.jobs.restore);
-  assert.ok(standard.jobs['updater-upgrade-qualification']);
+  assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
+  assert.equal(standard.jobs['homebrew-standard-vm'], undefined);
   assert.ok(standard.jobs['publish-standard-nonlatest']);
   assert.ok(standard.jobs['activate-latest']);
   assert.ok(full.jobs['restore-standard']);
@@ -726,17 +783,9 @@ test('resume admission restores and preserves the checkpoint-owned Standard oper
   assert.match(reconcileRun, /echo "operation_deadline_at=\$operation_deadline_at"/);
 
   for (const jobId of [
-    'updater-upgrade-qualification',
-    'updater-upgrade-qualification-highest',
-    'homebrew-standard-vm',
-  ]) {
-    assert.equal(workflow.jobs[jobId].with.operation, operationRef);
-  }
-  for (const jobId of [
     'publish-standard-nonlatest',
     'remote-digest-verify',
     'publish-homebrew-standard',
-    'activate-latest',
   ]) {
     const jobSource = JSON.stringify(workflow.jobs[jobId]);
     assert.match(jobSource, /needs\.restore\.outputs\.release_operation/);
@@ -804,18 +853,47 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
 });
 
-test('every Stable updater baseline passes before the first public release mutation', () => {
+test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', () => {
   const standard = parseWorkflow('_release-standard-publish.yml');
   const publish = standard.jobs['publish-standard-nonlatest'];
   const homebrew = standard.jobs['publish-homebrew-standard'];
   const latest = standard.jobs['activate-latest'];
 
-  assert.deepEqual(standard.jobs['updater-upgrade-qualification'].needs, ['restore']);
-  assert.deepEqual(standard.jobs['updater-upgrade-qualification-highest'].needs, ['restore']);
-  assert.ok(publish.needs.includes('updater-upgrade-qualification'));
-  assert.ok(publish.needs.includes('updater-upgrade-qualification-highest'));
+  const ancestors = (jobName: string): string[] => {
+    const found = new Set<string>();
+    const visit = (name: string) => {
+      for (const dependency of standard.jobs[name]?.needs ?? []) {
+        if (!found.has(dependency)) {
+          found.add(dependency);
+          visit(dependency);
+        }
+      }
+    };
+    visit(jobName);
+    return [...found].sort();
+  };
+  for (const jobName of [
+    'publish-standard-nonlatest',
+    'remote-digest-verify',
+    'publish-homebrew-standard',
+    'homebrew-standard-readback',
+  ]) {
+    for (const ancestor of ancestors(jobName)) {
+      const source = JSON.stringify(standard.jobs[ancestor]);
+      assert.doesNotMatch(
+        source,
+        /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|(?:^|[^a-z])vm(?:[^a-z]|$)/i,
+        `${jobName} depends on ${ancestor}`,
+      );
+    }
+  }
+  assert.deepEqual(publish.needs, ['restore']);
   assert.ok(homebrew.needs.includes('remote-digest-verify'));
-  assert.ok(latest.needs.includes('updater-upgrade-qualification-highest'));
+  assert.equal(latest.if, "${{ inputs.operation == 'disabled_vm_bound_latest' }}");
+  assert.deepEqual(latest.needs, ['restore', 'remote-digest-verify', 'homebrew-standard-readback']);
+  assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
+  assert.equal(standard.jobs['updater-upgrade-qualification-highest'], undefined);
+  assert.equal(standard.jobs['homebrew-standard-vm'], undefined);
   assert.match(readWorkflow('_release-standard-publish.yml'), /highest_public_stable/);
   assert.match(readWorkflow('_release-bundle.yml'), /resolveStableReleaseVersion/);
   assert.match(readWorkflow('_release-bundle.yml'), /ghcr\.io\/token\?scope=repository:gaofeng21cn\/one-person-lab-webui:pull/);
@@ -1154,10 +1232,7 @@ test('release-bound nested workflows inherit one operation and absolute deadline
     bundleWorkflow.jobs['standard-build'].with.operation,
     "${{ inputs.mode == 'execute' && inputs.operation || '' }}",
   );
-  assert.equal(
-    bundleWorkflow.jobs['standard-qualification'].with.operation,
-    "${{ inputs.mode == 'execute' && inputs.operation || '' }}",
-  );
+  assert.equal(bundleWorkflow.jobs['standard-qualification'], undefined);
 });
 
 test('production Standard and Full builds fail closed on Apple distribution trust', () => {
@@ -1438,12 +1513,14 @@ test('active release workflows fail closed on duplicate critical evidence instea
       /find[^\n]*\|[^\n]*head\s+-n?\s*1/,
       `${workflowName} still selects the first sorted release artifact match`,
     );
-    assert.match(source, /LC_ALL=C sort/, `${workflowName} must deterministically order critical evidence matches`);
+    if (workflowName !== '_release-bundle.yml') {
+      assert.match(source, /LC_ALL=C sort/, `${workflowName} must deterministically order critical evidence matches`);
+    }
   }
 
-  assert.match(readWorkflow('_release-bundle.yml'), /must contain exactly one artifact qualification receipt/);
+  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /artifact qualification receipt/);
   assert.match(readWorkflow('_release-full-addon.yml'), /must contain at most one Full build receipt/);
-  assert.match(readWorkflow('_release-standard-publish.yml'), /requires exactly one publication receipt and one VM summary/);
+  assert.match(readWorkflow('_release-standard-publish.yml'), /requires exactly one publication receipt/);
   assert.match(readWorkflow('_release-homebrew-full-publish.yml'), /requires exactly one Standard and one Full build receipt/);
   assert.match(readWorkflow('opl-first-run-vm.yml'), /must appear at most once/);
 });
@@ -1926,7 +2003,7 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
-    ['freeze', 'standard-build', 'standard-qualification'],
+    ['freeze', 'seal-standard-identity'],
   );
   assert.deepEqual(workflow.jobs['publish-standard'].needs, ['freeze', 'checkpoint-standard']);
   assert.deepEqual(workflow.jobs['prepare-native-webui'].needs, ['freeze']);
@@ -1988,8 +2065,8 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
   assert.match(webuiSource, /--frozen-codex-tarball/);
   assert.doesNotMatch(source, /--track webui|webui-qualification-receipt|opl-webui-carrier\.json/);
   assert.match(source, /jq -e '\.tracks\.webui' bundle\/release-bundle\.json/);
-  assert.match(source, /expected_checkpoint_stage=standard_qualified/);
-  assert.match(source, /expected_checkpoint_stage=stable_qualified/);
+  assert.match(source, /expected_checkpoint_stage=standard_built/);
+  assert.match(source, /expected_checkpoint_stage=stable_built/);
   assert.doesNotMatch(
     source.slice(source.indexOf('Freeze canonical Framework Bundle')),
     /npm view[^\n]+latest|git ls-remote[^\n]+(?:shells\/aionui|framework-source)[^\n]+after-freeze/,
@@ -2001,12 +2078,12 @@ test('Standard checkpoint stage follows the immutable Bundle track set', () => {
     {
       label: 'Desktop-only Bundle',
       tracks: { standard: {}, full: {} },
-      stage: 'standard_qualified',
+      stage: 'standard_built',
     },
     {
       label: 'unified WebUI Bundle',
       tracks: { standard: {}, webui: {}, full: {} },
-      stage: 'stable_qualified',
+      stage: 'stable_built',
     },
   ]) {
     const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);
@@ -2017,14 +2094,14 @@ test('Standard checkpoint stage follows the immutable Bundle track set', () => {
     {
       label: 'Desktop-only Bundle rejects unified stage',
       tracks: { standard: {}, full: {} },
-      stage: 'stable_qualified',
-      expected: 'standard_qualified',
+      stage: 'stable_built',
+      expected: 'standard_built',
     },
     {
       label: 'unified WebUI Bundle rejects Desktop-only stage',
       tracks: { standard: {}, webui: {}, full: {} },
-      stage: 'standard_qualified',
-      expected: 'stable_qualified',
+      stage: 'standard_built',
+      expected: 'stable_built',
     },
   ]) {
     const result = runStandardCheckpointStageGuard(fixture.tracks, fixture.stage);

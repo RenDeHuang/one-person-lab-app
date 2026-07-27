@@ -104,11 +104,13 @@ function sourceQualificationReceipt() {
       repository: 'gaofeng21cn/one-person-lab-app' as const,
       workflow: '.github/workflows/release-source-qualification.yml' as const,
       event: 'workflow_dispatch' as const,
+      operation_scope: 'stable_operation_source_preflight' as const,
       ref: 'refs/heads/main' as const,
       head_sha: appRef,
-      run_id: '30149999999',
+      run_id: admissionRunId,
       run_attempt: 1 as const,
-      runner_labels: ['ARM64', 'macOS', 'opl-gui-vm', 'self-hosted'],
+      runner_labels: ['ubuntu-latest'] as ['ubuntu-latest'],
+      execution_class: 'github_hosted' as const,
     },
     cohort: {
       app: { sha: appRef, tree: 'a'.repeat(40) },
@@ -116,29 +118,33 @@ function sourceQualificationReceipt() {
       framework: { sha: frameworkRef, tree: 'c'.repeat(40) },
     },
     artifact: {
-      kind: 'local_unsigned_standard_dmg' as const,
-      basename: 'One-Person-Lab-26.7.25-mac-arm64.dmg',
-      size_bytes: 451000000,
+      kind: 'github_hosted_source_build_preflight' as const,
+      basename: 'source-contract-build-preflight.json',
+      size_bytes: 451,
       sha256: `sha256:${'d'.repeat(64)}`,
       diagnostic_only: true as const,
+      formal_candidate: false as const,
     },
-    evidence: Object.fromEntries(
-      ['command_manifest', 'cohort_manifest', 'build_cohort', 'smoke_summary', 'vm_closeout']
-        .map((name, index) => [name, {
-          basename: `${name}.json`,
-          size_bytes: index + 1,
-          sha256: `sha256:${((index + 4) % 16).toString(16).repeat(64)}`,
-        }]),
-    ) as any,
+    evidence: {
+      preflight_manifest: {
+        basename: 'source-contract-build-preflight.json',
+        size_bytes: 451,
+        sha256: `sha256:${'d'.repeat(64)}`,
+      },
+      cohort_manifest: {
+        basename: 'source-preflight-cohort.json',
+        size_bytes: 452,
+        sha256: `sha256:${'e'.repeat(64)}`,
+      },
+    },
     qualification: {
-      runtime_profile: 'standard' as const,
-      settings_pages: ['general', 'environment', 'capabilities', 'access', 'appearance', 'diagnostics', 'about', 'runtime-settings-alias', 'runtime-status'],
-      assistant_routes: ['mas', 'mag', 'rca'],
-      runtime_routes: ['#/settings/runtime', '#/runtime'],
+      source_checks: 'passed' as const,
+      contract_checks: 'passed' as const,
+      build_checks: 'passed' as const,
       build_invocation_count: 1 as const,
-      tart_vm_invocation_count: 1 as const,
-      target_vm_final_state: 'absent' as const,
-      source_vm_final_state: 'stopped' as const,
+      formal_candidate_build_count: 0 as const,
+      self_hosted_invocation_count: 0 as const,
+      tart_vm_invocation_count: 0 as const,
     },
     authority: {
       release_authority: false as const,
@@ -212,7 +218,8 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.deepEqual(manifest.allocator.observed_same_day_versions, ['26.7.25']);
   assert.deepEqual(manifest.namespace.webui_tags, ['26.7.25']);
   assert.equal(manifest.apple_credentials.required_secret_count, 6);
-  assert.equal(manifest.source_qualification.producer_run_id, '30149999999');
+  assert.equal(manifest.source_qualification.producer_run_id, admissionRunId);
+  assert.equal(manifest.source_qualification.same_operation, true);
   assert.equal(manifest.source_qualification.release_authority, false);
   assert.equal(manifest.source_qualification.final_signed_byte_authority, false);
   assert.deepEqual(manifest.apple_credentials.required_secret_names, requiredSecretNames);
@@ -244,6 +251,29 @@ test('admission fails closed when source qualification does not bind the exact S
     })),
     /does not bind the frozen Stable cohort/,
   );
+});
+
+test('admission rejects standalone or cross-run source qualification evidence', () => {
+  for (const mutation of [
+    (receipt: ReturnType<typeof sourceQualificationReceipt>) => {
+      receipt.execution.operation_scope = 'standalone_diagnostic';
+    },
+    (receipt: ReturnType<typeof sourceQualificationReceipt>) => {
+      receipt.execution.run_id = '30149999999';
+    },
+  ]) {
+    const qualificationReceipt = sourceQualificationReceipt();
+    mutation(qualificationReceipt);
+    const { receipt_digest: _ignored, ...core } = qualificationReceipt;
+    qualificationReceipt.receipt_digest = sourceQualificationReceiptDigest(core);
+    assert.throws(
+      () => buildStableReleaseAdmissionManifest(input(), observation({
+        sourceQualificationReceipt: qualificationReceipt,
+        sourceQualificationReceiptBytes: Buffer.from(`${JSON.stringify(qualificationReceipt)}\n`),
+      })),
+      /same Stable operation/,
+    );
+  }
 });
 
 test('admission fails closed when a release writer is already active', () => {

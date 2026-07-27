@@ -25,6 +25,11 @@ on:
         description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
+      standard_identity_sha256:
+        description: 'Exact digest of the sealed Standard identity receipt for release-bound qualification.'
+        required: false
+        default: ''
+        type: string
       homebrew_candidate_artifact:
         description: 'Same-run artifact containing exactly one candidate Nightly or Full Cask for pre-publication qualification.'
         required: false
@@ -187,6 +192,7 @@ jobs:
           exec > >(tee -a "$RUNNER_TEMP/opl-vm-admission/stdout.txt") 2> >(tee -a "$RUNNER_TEMP/opl-vm-admission/stderr.txt" >&2)
           printf '%s\0' '${{ inputs.operation }}' '${{ inputs.operation_started_at }}' '${{ inputs.operation_deadline_at }}' \
             '${{ inputs.release_bundle_digest }}' '${{ inputs.artifact_app_ref }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
+            '${{ inputs.standard_identity_sha256 }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > "$RUNNER_TEMP/opl-vm-admission/input-digest.txt"
           input_digest="$(cat "$RUNNER_TEMP/opl-vm-admission/input-digest.txt")"
           status=passed
@@ -203,6 +209,8 @@ jobs:
           if [ "$status" = passed ] && ! [[ '${{ inputs.artifact_app_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=app_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=shell_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=framework_sha_invalid; fi
+          if [ "$status" = passed ] && [ -n '${{ inputs.standard_identity_sha256 }}' ] && ! [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]; then status=failed; reason=standard_identity_invalid; fi
+          if [ "$status" = passed ] && [ '${{ inputs.operation }}' = standard ] && [ '${{ inputs.package_profile }}' = standard ] && [ -n '${{ inputs.release_artifact_name }}' ] && [ -z '${{ inputs.standard_identity_sha256 }}' ]; then status=failed; reason=standard_identity_missing; fi
           jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' --arg input_digest "$input_digest" \
             '{schema:"opl_release_nested_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,input_digest:$input_digest,evidence:{stdout:"stdout.txt",stderr:"stderr.txt"},run_id:env.GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
             > "$RUNNER_TEMP/opl-vm-admission/admission.json"
@@ -238,6 +246,55 @@ jobs:
           [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
           test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
+          if [ '${{ inputs.operation }}' = standard ] && [ '${{ inputs.package_profile }}' = standard ] && [ -n '${{ inputs.release_artifact_name }}' ]; then
+            [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::standard_identity_sha256 must be exact."; exit 1; }
+          fi
+
+      - name: Download sealed Standard identity before VM allocation
+        if: ${{ inputs.standard_identity_sha256 != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.release_artifact_name }}
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: standard-identity-input
+
+      - name: Verify sealed Standard identity before VM allocation
+        if: ${{ inputs.standard_identity_sha256 != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity_receipts=()
+          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+            find standard-identity-input -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#identity_receipts[@]}" -eq 1
+          identity_receipt="${identity_receipts[0]}"
+          test -s "$identity_receipt" && test ! -L "$identity_receipt"
+          observed="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          expected='${{ inputs.standard_identity_sha256 }}'
+          test "$observed" = "$expected" || {
+            echo "::error::Standard identity digest mismatch: expected $expected, got $observed."
+            exit 1
+          }
+          jq -e \
+            --arg run_id '${{ inputs.release_artifact_run_id || github.run_id }}' \
+            --arg bundle '${{ inputs.release_bundle_digest }}' \
+            --arg app '${{ inputs.artifact_app_ref }}' \
+            --arg shell '${{ inputs.shell_ref }}' \
+            --arg framework '${{ inputs.framework_ref }}' \
+            '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .source.run_id == $run_id
+              and .source.run_attempt == 1
+              and .release.bundle_digest == $bundle
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$identity_receipt" >/dev/null
 
       - name: Skip scheduled VM while desktop release is active
         id: scheduled_release_guard
