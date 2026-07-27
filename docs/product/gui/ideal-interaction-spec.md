@@ -104,9 +104,11 @@ Rail 负责 navigation，不承担 dashboard：
   可用时是 Codex session directory authority；carrier 只持有 affinity、draft、preference 和可重建 cache，不拥有 history。
   Git origin URL 与 turn/command runtime `pwd` 只进入 Environment，不作为 Project identity；缺 marker 但已有
   canonical recorded cwd 的 legacy thread 按该 cwd 水合为 bound，不发起 cwd update，也不按 Git origin 合并。
-  Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
-  unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
-  不按标题或 workspace 去重。
+  已带 canonical thread ID、但 canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary
+  projection；仅 overview unavailable 时 fallback cache，非 Codex local row 保留。升级前创建且没有
+  `canonical_thread_id` / `acp_session_id` join key 的 legacy Codex conversation 不能被 overview 证明为
+  stale，必须继续作为 legacy local conversation 可见，不得按标题、workspace 或时间启发式迁移或删除。
+  每个 canonical thread ID 最多一行，不按标题或 workspace 去重。
 - Projectless conversation 继续可用，但不伪造 project/context 层级，也不禁用 attachment、
   任意本地 file/directory picker、paste/drop 或 `/open`。这些访问只服从 Codex
   permission/approval/sandbox。
