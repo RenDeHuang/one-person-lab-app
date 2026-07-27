@@ -310,6 +310,17 @@ test('headless routes to Framework Base-only without an App runtime form', () =>
   assert.doesNotMatch(result.log, /install-docker-webui/);
 });
 
+test('invalid runtime forms fail closed before invoking an installer', () => {
+  const result = runInstaller({
+    osName: 'Linux',
+    args: ['--runtime-form', 'invalid', '--print-install-route'],
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unsupported runtime form: invalid/);
+  assert.equal(result.log, '');
+});
+
 test('unsupported platforms fail closed before invoking an installer', () => {
   const result = runInstaller({ osName: 'Plan9' });
 
