@@ -1,0 +1,70 @@
+{
+  "package_id": "opl-persona",
+  "package_role": "framework_capability_package",
+  "app_contributions": {
+    "schema_version": "opl-app-contributions.v1",
+    "navigation": [
+      {
+        "navigation_id": "persona.today",
+        "label_i18n": {
+          "zh-CN": "Persona",
+          "en-US": "Persona"
+        },
+        "view_id": "persona.today",
+        "sort_order": 200
+      },
+      {
+        "navigation_id": "persona.proposals",
+        "label_i18n": {
+          "zh-CN": "输出提案",
+          "en-US": "Output proposals"
+        },
+        "view_id": "persona.proposals",
+        "sort_order": 210
+      }
+    ],
+    "views": [
+      {
+        "view_id": "persona.today",
+        "view_type": "activity_log",
+        "title_i18n": {
+          "zh-CN": "PI 数字分身",
+          "en-US": "PI Persona"
+        },
+        "data_ref": "personal.context.v1#today"
+      },
+      {
+        "view_id": "persona.proposals",
+        "view_type": "approval_diff",
+        "title_i18n": {
+          "zh-CN": "输出提案审核",
+          "en-US": "Review output proposals"
+        },
+        "data_ref": "personal.context.v1#proposals",
+        "command_ids": [
+          "persona.proposal.inspect",
+          "persona.proposal.approve"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command_id": "persona.proposal.inspect",
+        "label_i18n": {
+          "zh-CN": "查看提案证据",
+          "en-US": "Inspect proposal evidence"
+        },
+        "action_ref": "personal.context.v1#proposal.inspect"
+      },
+      {
+        "command_id": "persona.proposal.approve",
+        "label_i18n": {
+          "zh-CN": "批准提案",
+          "en-US": "Approve proposal"
+        },
+        "action_ref": "personal.context.v1#proposal.approve",
+        "confirmation_required": true
+      }
+    ]
+  }
+}
