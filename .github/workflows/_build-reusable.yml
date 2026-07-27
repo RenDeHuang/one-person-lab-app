@@ -475,6 +475,9 @@ jobs:
 
       - name: Prepare standard App payload
         working-directory: ${{ github.workspace }}
+        env:
+          OPL_STANDARD_PAYLOAD_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          OPL_STANDARD_PAYLOAD_RELEASE_BOUND: ${{ inputs.operation != '' && 'true' || 'false' }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
       - name: Validate synced App product profile consumer
