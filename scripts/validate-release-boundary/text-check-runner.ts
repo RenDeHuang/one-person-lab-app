@@ -544,11 +544,16 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     postPublicationOptionalCertificationWorkflowPath,
     id,
   );
+  const optionalCertificationVm = parseWorkflow(
+    appRoot,
+    '.github/workflows/opl-first-run-vm.yml',
+    id,
+  );
   const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
   const webuiFollower = parseWorkflow(appRoot, '.github/workflows/release-webui-follower.yml', id);
   const webuiStable = parseWorkflow(appRoot, '.github/workflows/release-webui-stable.yml', id);
-  if (!bundle || !standard || !full || !optionalCertification || !webui || !webuiFollower || !webuiStable) {
-    return [bundle, standard, full, optionalCertification, webui, webuiFollower, webuiStable]
+  if (!bundle || !standard || !full || !optionalCertification || !optionalCertificationVm || !webui || !webuiFollower || !webuiStable) {
+    return [bundle, standard, full, optionalCertification, optionalCertificationVm, webui, webuiFollower, webuiStable]
       .filter((value) => !value).length;
   }
   let failures = 0;
@@ -867,18 +872,23 @@ export function validateReleaseBundleTopology(appRoot: string): number {
 
   const certificationTriggers = optionalCertification.workflow.on ?? {};
   const certificationJobs = workflowJobs(optionalCertification.workflow);
+  const expectedCertificationJobs = [
+    'resolve-standard',
+    'admit-standard-vm',
+    'certify-standard-vm',
+    'write-standard-receipts',
+    'resolve-full',
+    'admit-full-vm',
+    'certify-full-vm',
+    'write-full-receipt',
+  ];
   if (
     JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
       JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify([
-      'resolve-standard',
-      'write-standard-receipts',
-      'resolve-full',
-      'write-full-receipt',
-    ])
+    || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify(expectedCertificationJobs)
   ) {
     failures += reportFailure(
       id,
@@ -888,17 +898,79 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     certificationJobs['resolve-standard']?.needs !== undefined
     || certificationJobs['resolve-full']?.needs !== undefined
-    || !needsExactly(certificationJobs['write-standard-receipts'], ['resolve-standard'])
-    || !needsExactly(certificationJobs['write-full-receipt'], ['resolve-full'])
+    || !certificationJobs['admit-standard-vm']
+    || !needsExactly(certificationJobs['admit-standard-vm'], ['resolve-standard'])
+    || !certificationJobs['certify-standard-vm']
+    || !needsExactly(certificationJobs['certify-standard-vm'], ['resolve-standard', 'admit-standard-vm'])
+    || !certificationJobs['write-standard-receipts']
+    || !needsExactly(certificationJobs['write-standard-receipts'], [
+      'resolve-standard',
+      'admit-standard-vm',
+      'certify-standard-vm',
+    ])
+    || !certificationJobs['admit-full-vm']
+    || !needsExactly(certificationJobs['admit-full-vm'], ['resolve-full'])
+    || !certificationJobs['certify-full-vm']
+    || !needsExactly(certificationJobs['certify-full-vm'], ['resolve-full', 'admit-full-vm'])
+    || !certificationJobs['write-full-receipt']
+    || !needsExactly(certificationJobs['write-full-receipt'], [
+      'resolve-full',
+      'admit-full-vm',
+      'certify-full-vm',
+    ])
   ) {
     failures += reportFailure(
       id,
       'optional certification identity resolution must not depend on the Stable or Full publication DAG',
     );
   }
-  for (const [jobId, job] of Object.entries(certificationJobs)) {
-    if (!exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
+  for (const jobId of [
+    'resolve-standard',
+    'admit-standard-vm',
+    'write-standard-receipts',
+    'resolve-full',
+    'admit-full-vm',
+    'write-full-receipt',
+  ]) {
+    const job = certificationJobs[jobId];
+    if (!job || !exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
       failures += reportFailure(id, `optional certification job ${jobId} must be GitHub-hosted and read-only`);
+    }
+  }
+  for (const profile of ['standard', 'full']) {
+    const jobId = `certify-${profile}-vm`;
+    const job = certificationJobs[jobId];
+    if (
+      !job
+      || job.uses !== './.github/workflows/opl-first-run-vm.yml'
+      || Object.prototype.hasOwnProperty.call(job, 'steps')
+      || Object.prototype.hasOwnProperty.call(job, 'runs-on')
+      || !exactObject(job.permissions, exactReadPermissions)
+    ) {
+      failures += reportFailure(
+        id,
+        `optional certification job ${jobId} must be one step-free read-only reusable VM call`,
+      );
+      continue;
+    }
+    const expectedInputs = {
+      mode: 'execute',
+      release_tag: `\${{ needs.resolve-${profile}.outputs.tag }}`,
+      published_artifact_name: `\${{ needs.resolve-${profile}.outputs.artifact_name }}`,
+      published_artifact_digest: `\${{ needs.resolve-${profile}.outputs.artifact_digest }}`,
+      artifact_app_ref: `\${{ needs.resolve-${profile}.outputs.app_sha }}`,
+      shell_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
+      smoke_harness_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
+      framework_ref: `\${{ needs.resolve-${profile}.outputs.framework_sha }}`,
+      package_profile: profile,
+      diagnostic_scope: 'post_publication_optional_certification',
+      require_macos_gatekeeper: true,
+    };
+    if (!exactObject(job.with, expectedInputs)) {
+      failures += reportFailure(
+        id,
+        `${jobId} must bind the exact published ${profile} DMG and immutable cohort to optional VM certification`,
+      );
     }
   }
   for (const required of [
@@ -906,9 +978,24 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl-release-activation-${SOURCE_RUN_ID}',
     'opl-release-full-published-${SOURCE_RUN_ID}',
     'write-optional-certification-receipt.ts',
+    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+    'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
+    'actions/runners?per_page=100',
+    "runner.status === 'online' && runner.busy === false",
+    'published_artifact_name',
+    'published_artifact_digest',
+    'post_publication_optional_certification',
+    'status=unavailable',
+    'capability_admission_failed',
+    'VM_CLASSIFICATION_VALID',
+    'VM_ARTIFACT_VERIFIED',
+    'VM_JOB_STARTED',
+    'VM_EXECUTION_STARTED',
+    "needs.admit-standard-vm.result == 'success'",
+    "needs.admit-full-vm.result == 'success'",
     '--status not_run',
     '--reason-code not_requested',
-    'physical_job_dispatched:false',
+    'physical_job_dispatched:$dispatched',
     'component_manifest_digest',
     'public-component-manifest.json',
   ]) {
@@ -917,7 +1004,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     }
   }
   if (
-    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize|opl-first-run-vm\\.yml/.test(
+    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/.test(
       optionalCertification.text,
     )
   ) {
@@ -925,6 +1012,29 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       id,
       'post-publication certification follower must not dispatch, rebuild, sign, publish, or mutate public state',
     );
+  }
+  for (const required of [
+    'published_artifact_name',
+    'published_artifact_digest',
+    'post_publication_status',
+    'post_publication_reason_code',
+    'published_artifact_verified',
+    'post_publication_job_started',
+    'post_publication_execution_started',
+    'post_publication_classification_valid',
+    'post-publication certification must consume public release bytes, not an Actions artifact',
+    'Verify exact published DMG identity before install',
+    "download_pattern='${{ inputs.published_artifact_name }}'",
+    'Admit exact Tart capability for post-publication certification',
+    'Mark post-publication certification execution started',
+    'clone_vm|configure_display|start_vm|wait_for_ip|wait_for_ssh',
+    'run_guest_smoke|validate_guest_summary',
+    'actual_digest="sha256:$(shasum -a 256 "$dmg_path"',
+    "diagnostic_scope != 'post_publication_optional_certification'",
+  ]) {
+    if (!optionalCertificationVm.text.includes(required)) {
+      failures += reportFailure(id, `optional certification VM path is missing ${required}`);
+    }
   }
 
   const homebrewStandardRuns = jobRuns(standardJobs['publish-homebrew-standard']);

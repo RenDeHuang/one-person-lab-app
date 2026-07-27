@@ -187,9 +187,80 @@ jobs:
             echo "framework_sha=$framework_sha"
           } >> "$GITHUB_OUTPUT"
 
-  write-standard-receipts:
+  admit-standard-vm:
     if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
     needs: [resolve-standard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.capability.outputs.eligible }}
+      reason_code: ${{ steps.capability.outputs.reason_code }}
+    steps:
+      - name: Inspect exact physical capability before queueing a self-hosted job
+        id: capability
+        env:
+          RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+          RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
+          TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_labels="${RUNNER_LABELS:-[\"self-hosted\",\"macOS\",\"opl-gui-vm\"]}"
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' <<< "$runner_labels" >/dev/null
+          if [ -z "$RUNNER_INVENTORY_TOKEN" ] || [ -z "$TART_SOURCE" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=not_authorized" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" \
+            > runner-pages.json
+          runner_count="$(RUNNER_LABELS="$runner_labels" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync('runner-pages.json', 'utf8'));
+          const required = JSON.parse(process.env.RUNNER_LABELS);
+          const runners = pages.flatMap((page) => Array.isArray(page.runners) ? page.runners : []);
+          const eligible = runners.filter((runner) => {
+            const labels = new Set((runner.labels || []).map((label) => label.name));
+            return runner.status === 'online' && runner.busy === false && required.every((label) => labels.has(label));
+          });
+          process.stdout.write(String(eligible.length));
+          NODE
+          )"
+          if [ "$runner_count" = 0 ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=operator_deferred" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            echo "reason_code=" >> "$GITHUB_OUTPUT"
+          fi
+
+  certify-standard-vm:
+    if: ${{ needs.admit-standard-vm.outputs.eligible == 'true' }}
+    needs: [resolve-standard, admit-standard-vm]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.resolve-standard.outputs.tag }}
+      published_artifact_name: ${{ needs.resolve-standard.outputs.artifact_name }}
+      published_artifact_digest: ${{ needs.resolve-standard.outputs.artifact_digest }}
+      artifact_app_ref: ${{ needs.resolve-standard.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-standard.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.resolve-standard.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-standard.outputs.framework_sha }}
+      package_profile: standard
+      diagnostic_scope: post_publication_optional_certification
+      require_macos_gatekeeper: true
+
+  write-standard-receipts:
+    if: ${{ always() && needs.resolve-standard.outputs.eligible == 'true' && needs.admit-standard-vm.result == 'success' }}
+    needs: [resolve-standard, admit-standard-vm, certify-standard-vm]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -202,7 +273,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
-      - name: Write explicit not-run receipts without dispatching physical work
+      - name: Write Standard VM result and explicit residual not-run receipts
         env:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
@@ -212,12 +283,18 @@ jobs:
           APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
           SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
           FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+          VM_ADMITTED: ${{ needs.admit-standard-vm.outputs.eligible }}
+          VM_ADMISSION_REASON: ${{ needs.admit-standard-vm.outputs.reason_code }}
+          VM_JOB_RESULT: ${{ needs.certify-standard-vm.result }}
+          VM_STATUS: ${{ needs.certify-standard-vm.outputs.post_publication_status }}
+          VM_REASON_CODE: ${{ needs.certify-standard-vm.outputs.post_publication_reason_code }}
+          VM_ARTIFACT_VERIFIED: ${{ needs.certify-standard-vm.outputs.published_artifact_verified }}
+          VM_JOB_STARTED: ${{ needs.certify-standard-vm.outputs.post_publication_job_started }}
+          VM_EXECUTION_STARTED: ${{ needs.certify-standard-vm.outputs.post_publication_execution_started }}
+          VM_CLASSIFICATION_VALID: ${{ needs.certify-standard-vm.outputs.post_publication_classification_valid }}
         shell: bash
         run: |
           set -euo pipefail
-          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
-            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
-            > not-run-admission.json
           common_args=(
             --release-tag "$RELEASE_TAG"
             --artifact-name "$ARTIFACT_NAME"
@@ -227,25 +304,108 @@ jobs:
             --shell-sha "$SHELL_SHA"
             --framework-sha "$FRAMEWORK_SHA"
             --source-run-id "$SOURCE_RUN_ID"
-            --status not_run
             --platform macos
-            --reason-code not_requested
-            --admission-evidence-file not-run-admission.json
           )
+
+          standard_status=''
+          standard_reason=''
+          admission_status=not_started
+          dispatched=false
+          if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_JOB_RESULT" = skipped || {
+              echo "::error::A not-admitted Standard VM must not have a non-skipped reusable job."
+              exit 1
+            }
+            standard_status=not_run
+            standard_reason="${VM_ADMISSION_REASON:-operator_deferred}"
+          else
+            test "$VM_CLASSIFICATION_VALID" = true || {
+              echo "::error::The admitted Standard VM did not return one sealable terminal classification."
+              exit 1
+            }
+            test "$VM_ARTIFACT_VERIFIED" = true && test "$VM_JOB_STARTED" = true || {
+              echo "::error::Standard certification cannot seal a receipt before exact public artifact verification and job start."
+              exit 1
+            }
+            dispatched=true
+            admission_status=passed
+            case "$VM_STATUS" in
+              passed)
+                test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Standard passed requires a successful reusable job and a started executor."
+                  exit 1
+                }
+                standard_status=passed
+                ;;
+              failed)
+                test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Standard failed requires a failed reusable job after execution started."
+                  exit 1
+                }
+                standard_status=failed
+                ;;
+              unavailable)
+                test "$VM_JOB_RESULT" = failure || {
+                  echo "::error::Standard unavailable requires a failed started job."
+                  exit 1
+                }
+                standard_status=unavailable
+                standard_reason="${VM_REASON_CODE:-capability_admission_failed}"
+                admission_status=failed
+                ;;
+              *)
+                echo "::error::Standard certification returned an unsupported status."
+                exit 1
+                ;;
+            esac
+          fi
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            --arg status "$admission_status" --arg reason "$standard_reason" --argjson dispatched "$dispatched" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
+            > standard-vm-admission.json
+          standard_args=(
+            "${common_args[@]}"
+            --status "$standard_status"
+            --certification-kind clean_machine_install
+            --capability tart-clean-macos
+            --admission-evidence-file standard-vm-admission.json
+          )
+          case "$standard_status" in
+            passed|failed)
+              jq -n --arg result "$VM_JOB_RESULT" --arg status "$VM_STATUS" --arg run "$GITHUB_RUN_ID" \
+                '{schema:"opl_app_optional_certification_execution_evidence.v1",job_result:$result,classified_status:$status,certification_run_id:$run}' \
+                > standard-vm-evidence.json
+              standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --evidence-file standard-vm-evidence.json)
+              ;;
+            unavailable)
+              standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$standard_reason")
+              ;;
+            not_run)
+              standard_args+=(--reason-code "$standard_reason")
+              ;;
+          esac
           node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
-            "${common_args[@]}" \
-            --certification-kind clean_machine_install \
-            --capability tart-clean-macos \
+            "${standard_args[@]}" \
             --output standard-dmg-clean-machine.json
+
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
+            > residual-not-run-admission.json
           node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
             "${common_args[@]}" \
+            --status not_run \
             --certification-kind homebrew_install \
             --capability tart-homebrew-macos \
+            --reason-code not_requested \
+            --admission-evidence-file residual-not-run-admission.json \
             --output homebrew-standard-clean-machine.json
           node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
             "${common_args[@]}" \
+            --status not_run \
             --certification-kind clean_machine_install \
             --capability tart-one-shot-installer \
+            --reason-code not_requested \
+            --admission-evidence-file residual-not-run-admission.json \
             --output one-shot-installer-clean-machine.json
 
       - name: Upload non-blocking Standard certification receipts
@@ -428,9 +588,80 @@ jobs:
             echo "framework_sha=$framework_sha"
           } >> "$GITHUB_OUTPUT"
 
-  write-full-receipt:
+  admit-full-vm:
     if: ${{ needs.resolve-full.outputs.eligible == 'true' }}
     needs: [resolve-full]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.capability.outputs.eligible }}
+      reason_code: ${{ steps.capability.outputs.reason_code }}
+    steps:
+      - name: Inspect exact physical capability before queueing a self-hosted job
+        id: capability
+        env:
+          RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+          RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
+          TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_labels="${RUNNER_LABELS:-[\"self-hosted\",\"macOS\",\"opl-gui-vm\"]}"
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' <<< "$runner_labels" >/dev/null
+          if [ -z "$RUNNER_INVENTORY_TOKEN" ] || [ -z "$TART_SOURCE" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=not_authorized" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" \
+            > runner-pages.json
+          runner_count="$(RUNNER_LABELS="$runner_labels" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync('runner-pages.json', 'utf8'));
+          const required = JSON.parse(process.env.RUNNER_LABELS);
+          const runners = pages.flatMap((page) => Array.isArray(page.runners) ? page.runners : []);
+          const eligible = runners.filter((runner) => {
+            const labels = new Set((runner.labels || []).map((label) => label.name));
+            return runner.status === 'online' && runner.busy === false && required.every((label) => labels.has(label));
+          });
+          process.stdout.write(String(eligible.length));
+          NODE
+          )"
+          if [ "$runner_count" = 0 ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=operator_deferred" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            echo "reason_code=" >> "$GITHUB_OUTPUT"
+          fi
+
+  certify-full-vm:
+    if: ${{ needs.admit-full-vm.outputs.eligible == 'true' }}
+    needs: [resolve-full, admit-full-vm]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.resolve-full.outputs.tag }}
+      published_artifact_name: ${{ needs.resolve-full.outputs.artifact_name }}
+      published_artifact_digest: ${{ needs.resolve-full.outputs.artifact_digest }}
+      artifact_app_ref: ${{ needs.resolve-full.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-full.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.resolve-full.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-full.outputs.framework_sha }}
+      package_profile: full
+      diagnostic_scope: post_publication_optional_certification
+      require_macos_gatekeeper: true
+
+  write-full-receipt:
+    if: ${{ always() && needs.resolve-full.outputs.eligible == 'true' && needs.admit-full-vm.result == 'success' }}
+    needs: [resolve-full, admit-full-vm, certify-full-vm]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -443,7 +674,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
-      - name: Write explicit Full not-run receipt without dispatching physical work
+      - name: Write exact Full VM certification receipt
         env:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           RELEASE_TAG: ${{ needs.resolve-full.outputs.tag }}
@@ -453,13 +684,75 @@ jobs:
           APP_SHA: ${{ needs.resolve-full.outputs.app_sha }}
           SHELL_SHA: ${{ needs.resolve-full.outputs.shell_sha }}
           FRAMEWORK_SHA: ${{ needs.resolve-full.outputs.framework_sha }}
+          VM_ADMITTED: ${{ needs.admit-full-vm.outputs.eligible }}
+          VM_ADMISSION_REASON: ${{ needs.admit-full-vm.outputs.reason_code }}
+          VM_JOB_RESULT: ${{ needs.certify-full-vm.result }}
+          VM_STATUS: ${{ needs.certify-full-vm.outputs.post_publication_status }}
+          VM_REASON_CODE: ${{ needs.certify-full-vm.outputs.post_publication_reason_code }}
+          VM_ARTIFACT_VERIFIED: ${{ needs.certify-full-vm.outputs.published_artifact_verified }}
+          VM_JOB_STARTED: ${{ needs.certify-full-vm.outputs.post_publication_job_started }}
+          VM_EXECUTION_STARTED: ${{ needs.certify-full-vm.outputs.post_publication_execution_started }}
+          VM_CLASSIFICATION_VALID: ${{ needs.certify-full-vm.outputs.post_publication_classification_valid }}
         shell: bash
         run: |
           set -euo pipefail
+          full_status=''
+          full_reason=''
+          admission_status=not_started
+          dispatched=false
+          if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_JOB_RESULT" = skipped || {
+              echo "::error::A not-admitted Full VM must not have a non-skipped reusable job."
+              exit 1
+            }
+            full_status=not_run
+            full_reason="${VM_ADMISSION_REASON:-operator_deferred}"
+          else
+            test "$VM_CLASSIFICATION_VALID" = true || {
+              echo "::error::The admitted Full VM did not return one sealable terminal classification."
+              exit 1
+            }
+            test "$VM_ARTIFACT_VERIFIED" = true && test "$VM_JOB_STARTED" = true || {
+              echo "::error::Full certification cannot seal a receipt before exact public artifact verification and job start."
+              exit 1
+            }
+            dispatched=true
+            admission_status=passed
+            case "$VM_STATUS" in
+              passed)
+                test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Full passed requires a successful reusable job and a started executor."
+                  exit 1
+                }
+                full_status=passed
+                ;;
+              failed)
+                test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Full failed requires a failed reusable job after execution started."
+                  exit 1
+                }
+                full_status=failed
+                ;;
+              unavailable)
+                test "$VM_JOB_RESULT" = failure || {
+                  echo "::error::Full unavailable requires a failed started job."
+                  exit 1
+                }
+                full_status=unavailable
+                full_reason="${VM_REASON_CODE:-capability_admission_failed}"
+                admission_status=failed
+                ;;
+              *)
+                echo "::error::Full certification returned an unsupported status."
+                exit 1
+                ;;
+            esac
+          fi
           jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
-            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
-            > not-run-admission.json
-          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            --arg status "$admission_status" --arg reason "$full_reason" --argjson dispatched "$dispatched" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
+            > full-vm-admission.json
+          full_args=(
             --release-tag "$RELEASE_TAG" \
             --artifact-name "$ARTIFACT_NAME" \
             --artifact-digest "$ARTIFACT_DIGEST" \
@@ -468,12 +761,28 @@ jobs:
             --shell-sha "$SHELL_SHA" \
             --framework-sha "$FRAMEWORK_SHA" \
             --source-run-id "$SOURCE_RUN_ID" \
-            --status not_run \
+            --status "$full_status" \
             --certification-kind clean_machine_install \
             --platform macos \
             --capability tart-full-clean-macos \
-            --reason-code not_requested \
-            --admission-evidence-file not-run-admission.json \
+            --admission-evidence-file full-vm-admission.json
+          )
+          case "$full_status" in
+            passed|failed)
+              jq -n --arg result "$VM_JOB_RESULT" --arg status "$VM_STATUS" --arg run "$GITHUB_RUN_ID" \
+                '{schema:"opl_app_optional_certification_execution_evidence.v1",job_result:$result,classified_status:$status,certification_run_id:$run}' \
+                > full-vm-evidence.json
+              full_args+=(--certification-run-id "$GITHUB_RUN_ID" --evidence-file full-vm-evidence.json)
+              ;;
+            unavailable)
+              full_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$full_reason")
+              ;;
+            not_run)
+              full_args+=(--reason-code "$full_reason")
+              ;;
+          esac
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${full_args[@]}" \
             --output full-dmg-clean-machine.json
 
       - name: Upload non-blocking Full certification receipt

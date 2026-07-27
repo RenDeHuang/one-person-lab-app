@@ -25,6 +25,16 @@ on:
         description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
+      published_artifact_name:
+        description: 'Exact already-published DMG asset name for post-publication optional certification.'
+        required: false
+        default: ''
+        type: string
+      published_artifact_digest:
+        description: 'Exact sha256 digest of published_artifact_name; verified before mount or install.'
+        required: false
+        default: ''
+        type: string
       standard_identity_sha256:
         description: 'Exact digest of the sealed Standard identity receipt for release-bound qualification.'
         required: false
@@ -135,6 +145,25 @@ on:
         required: false
         default: ''
         type: string
+    outputs:
+      post_publication_status:
+        description: 'passed, failed, or unavailable after an admitted post-publication VM attempt.'
+        value: ${{ jobs.clean-vm-first-run.outputs.post_publication_status }}
+      post_publication_reason_code:
+        description: 'Typed unavailable reason; empty for passed or failed execution.'
+        value: ${{ jobs.clean-vm-first-run.outputs.post_publication_reason_code }}
+      published_artifact_verified:
+        description: 'true only after the exact published asset basename and SHA-256 are verified.'
+        value: ${{ jobs.clean-vm-first-run.outputs.published_artifact_verified }}
+      post_publication_job_started:
+        description: 'true only after the self-hosted job has verified the published artifact and begun capability admission.'
+        value: ${{ jobs.clean-vm-first-run.outputs.post_publication_job_started }}
+      post_publication_execution_started:
+        description: 'true only immediately before the Tart smoke executor starts.'
+        value: ${{ jobs.clean-vm-first-run.outputs.post_publication_execution_started }}
+      post_publication_classification_valid:
+        description: 'true only when the terminal state is safe to seal as passed, failed, or unavailable.'
+        value: ${{ jobs.clean-vm-first-run.outputs.post_publication_classification_valid }}
 concurrency:
   # Scheduled runs collapse to the latest queued run; manual and release-called
   # validation runs use caller-run/profile-scoped groups so stable release
@@ -364,6 +393,8 @@ jobs:
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
           DIAGNOSTIC_SCOPE_INPUT: ${{ inputs.diagnostic_scope }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          PUBLISHED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}
+          PUBLISHED_ARTIFACT_DIGEST: ${{ inputs.published_artifact_digest }}
         run: |
           set -euo pipefail
           profile="$PACKAGE_PROFILE"
@@ -422,7 +453,17 @@ jobs:
               exit 1
               ;;
           esac
-          if [ "$profile" = "full" ] && [ -n "$FRAMEWORK_REF" ] && [ -z "$RELEASE_ARTIFACT_NAME" ]; then
+          if [ "$diagnostic_scope" = "post_publication_optional_certification" ]; then
+            test -n "$PUBLISHED_ARTIFACT_NAME" || { echo "::error::post-publication certification requires published_artifact_name."; exit 1; }
+            [[ "$PUBLISHED_ARTIFACT_NAME" != */* ]] || { echo "::error::published_artifact_name must be one basename."; exit 1; }
+            [[ "$PUBLISHED_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::post-publication certification requires an exact published_artifact_digest."; exit 1; }
+            test -n '${{ inputs.release_tag }}' || { echo "::error::post-publication certification requires one exact release_tag."; exit 1; }
+            test -z "$RELEASE_ARTIFACT_NAME" || { echo "::error::post-publication certification must consume public release bytes, not an Actions artifact."; exit 1; }
+          elif [ -n "$PUBLISHED_ARTIFACT_NAME$PUBLISHED_ARTIFACT_DIGEST" ]; then
+            echo "::error::published artifact identity inputs are accepted only for post_publication_optional_certification."
+            exit 1
+          fi
+          if [ "$profile" = "full" ] && [ -n "$FRAMEWORK_REF" ] && [ -z "$RELEASE_ARTIFACT_NAME" ] && [ "$diagnostic_scope" != "post_publication_optional_certification" ]; then
             echo "::error::package_profile=full executes the Framework bundled inside the DMG; framework_ref cannot override a release_tag or release_dmg_url asset. Build a same-cohort Full artifact and pass release_artifact_name plus release_artifact_run_id."
             exit 1
           fi
@@ -619,6 +660,13 @@ jobs:
     if: ${{ needs.validate-vm-inputs.outputs.skip_vm != 'true' }}
     runs-on: ${{ fromJson(vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]') }}
     timeout-minutes: ${{ inputs.operation == 'append_full' && 50 || 75 }}
+    outputs:
+      post_publication_status: ${{ steps.post_publication_outcome.outputs.status }}
+      post_publication_reason_code: ${{ steps.post_publication_outcome.outputs.reason_code }}
+      published_artifact_verified: ${{ steps.published_artifact_identity.outputs.verified }}
+      post_publication_job_started: ${{ steps.post_publication_job.outputs.started }}
+      post_publication_execution_started: ${{ steps.post_publication_execution.outputs.started }}
+      post_publication_classification_valid: ${{ steps.post_publication_outcome.outputs.valid }}
     permissions:
       actions: read
       contents: read
@@ -686,7 +734,10 @@ jobs:
                 echo "- Configure repository variable \`OPL_FIRST_RUN_TART_SOURCE\` or pass workflow input \`tart_source_vm\`."
               fi
             } >> "$GITHUB_STEP_SUMMARY"
-            if [ "$PROFILE" = "homebrew-standard" ]; then
+            if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = post_publication_optional_certification ]; then
+              echo "source_vm=" >> "$GITHUB_OUTPUT"
+              exit 0
+            elif [ "$PROFILE" = "homebrew-standard" ]; then
               echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_HOMEBREW_TART_SOURCE for package_profile=homebrew-standard."
             else
               echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE."
@@ -715,7 +766,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout OPL Framework bootstrap source
-        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' }}
+        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' && needs.validate-vm-inputs.outputs.diagnostic_scope != 'post_publication_optional_certification' }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: gaofeng21cn/one-person-lab
@@ -762,7 +813,7 @@ jobs:
 
       - name: Prepare OPL Framework bootstrap archive
         id: framework_source
-        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' }}
+        if: ${{ inputs.framework_ref != '' && inputs.package_profile != 'homebrew-full' && needs.validate-vm-inputs.outputs.diagnostic_scope != 'post_publication_optional_certification' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1148,9 +1199,13 @@ jobs:
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
             download_asset_with_retry "${{ inputs.release_dmg_url }}" "$DMG_PATH"
           elif [ -n "${{ inputs.release_tag }}" ]; then
+            download_pattern="${{ steps.package_profile.outputs.download_pattern }}"
+            if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = post_publication_optional_certification ]; then
+              download_pattern='${{ inputs.published_artifact_name }}'
+            fi
             download_release_with_retry "${{ inputs.release_tag }}" \
               --repo "$GITHUB_REPOSITORY" \
-              --pattern "${{ steps.package_profile.outputs.download_pattern }}" \
+              --pattern "$download_pattern" \
               --dir artifacts/release
           else
             download_release_with_retry \
@@ -1191,6 +1246,86 @@ jobs:
           if [ -n "${DMG_PATH:-}" ]; then test -f "$DMG_PATH" && test ! -L "$DMG_PATH"; fi
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "Using DMG: $DMG_PATH"
+
+      - name: Verify exact published DMG identity before install
+        id: published_artifact_identity
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg_path='${{ steps.dmg.outputs.dmg_path }}'
+          expected_name='${{ inputs.published_artifact_name }}'
+          expected_digest='${{ inputs.published_artifact_digest }}'
+          test -f "$dmg_path" && test ! -L "$dmg_path"
+          test "$(basename "$dmg_path")" = "$expected_name" || {
+            echo "::error::Published DMG name does not match the exact resolved release asset."
+            exit 1
+          }
+          actual_digest="sha256:$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
+          test "$actual_digest" = "$expected_digest" || {
+            echo "::error::Published DMG SHA256 does not match the exact resolved release asset digest."
+            exit 1
+          }
+          printf '%s\n' "$actual_digest" > artifacts/release/published-artifact-digest.txt
+          mkdir -p artifacts/opl-first-run-vm
+          jq -n \
+            --arg tag '${{ inputs.release_tag }}' \
+            --arg name "$expected_name" \
+            --arg digest "$actual_digest" \
+            --arg app_sha '${{ inputs.artifact_app_ref }}' \
+            --arg shell_sha '${{ inputs.shell_ref }}' \
+            --arg framework_sha '${{ inputs.framework_ref }}' \
+            '{schema:"opl_app_post_publication_artifact_identity.v1",verified:true,release_tag:$tag,artifact:{name:$name,digest:$digest},cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}}' \
+            > artifacts/opl-first-run-vm/published-artifact-identity.json
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+
+      - name: Mark post-publication certification job started
+        id: post_publication_job
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/opl-first-run-vm
+          jq -n '{schema:"opl_app_optional_certification_job_start.v1",started:true}' \
+            > artifacts/opl-first-run-vm/post-publication-job-start.json
+          echo "started=true" >> "$GITHUB_OUTPUT"
+
+      - name: Admit exact Tart capability for post-publication certification
+        id: post_publication_capability
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_vm='${{ steps.tart_source.outputs.source_vm }}'
+          admission_path=artifacts/opl-first-run-vm/post-publication-capability-admission.json
+          write_admission() {
+            local status="$1"
+            local reason="$2"
+            jq -n --arg status "$status" --arg reason "$reason" --arg source_vm "$source_vm" \
+              '{schema:"opl_app_optional_certification_vm_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_vm:$source_vm}' \
+              > "$admission_path"
+          }
+          test -n "$source_vm" || {
+            write_admission failed capability_admission_failed
+            echo "::error::The admitted post-publication runner no longer has a configured Tart source VM."
+            exit 1
+          }
+          command -v tart >/dev/null 2>&1 || {
+            write_admission failed capability_admission_failed
+            echo "::error::The admitted post-publication runner does not expose Tart."
+            exit 1
+          }
+          if ! tart list --source local --quiet > "$RUNNER_TEMP/opl-post-publication-tart-sources.txt"; then
+            write_admission failed capability_admission_failed
+            echo "::error::The admitted post-publication runner could not read its local Tart source inventory."
+            exit 1
+          fi
+          grep -Fx "$source_vm" "$RUNNER_TEMP/opl-post-publication-tart-sources.txt" >/dev/null || {
+            write_admission failed capability_admission_failed
+            echo "::error::The exact configured Tart source VM is not locally available on the admitted runner."
+            exit 1
+          }
+          write_admission passed ''
 
       - name: Verify downloaded DMG exact bytes against build cohort
         if: ${{ inputs.release_artifact_name != '' }}
@@ -1390,6 +1525,16 @@ jobs:
             echo "codex_install_phase_timeout_ms=$(cap_timeout "$CODEX_INSTALL_PHASE_TIMEOUT_MS")"
             echo "codex_readiness_phase_timeout_ms=$(cap_timeout "$CODEX_READINESS_PHASE_TIMEOUT_MS")"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Mark post-publication certification execution started
+        id: post_publication_execution
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n '{schema:"opl_app_optional_certification_execution_start.v1",started:true}' \
+            > artifacts/opl-first-run-vm/post-publication-execution-start.json
+          echo "started=true" >> "$GITHUB_OUTPUT"
 
       - name: Run clean VM first launch smoke
         id: vm_smoke
@@ -1659,6 +1804,58 @@ jobs:
               node -e 'const fs=require("node:fs");const data=fs.readFileSync(process.argv[1]);const max=64*1024;process.stdout.write("```text\n"+data.subarray(0,max).toString("utf8")+(data.length>max?"\n...[summary truncated at 65536 bytes]":"")+"\n```\n")' artifacts/opl-first-run-vm/tart-smoke-summary.json
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Classify post-publication optional certification outcome
+        id: post_publication_outcome
+        if: ${{ always() && needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          valid=false
+          status=''
+          reason_code=''
+          artifact_verified='${{ steps.published_artifact_identity.outputs.verified }}'
+          job_started='${{ steps.post_publication_job.outputs.started }}'
+          execution_started='${{ steps.post_publication_execution.outputs.started }}'
+          capability_outcome='${{ steps.post_publication_capability.outcome }}'
+          smoke_outcome='${{ steps.vm_smoke.outcome }}'
+          settings_outcome='${{ steps.settings_runtime_evidence.outcome }}'
+          if [ "$artifact_verified" != true ] || [ "$job_started" != true ]; then
+            true
+          elif [ "$capability_outcome" = failure ]; then
+            valid=true
+            status=unavailable
+            reason_code=capability_admission_failed
+          elif [ "$execution_started" = true ] && [ "$smoke_outcome" = success ]; then
+            if [ "$settings_outcome" = success ]; then
+              valid=true
+              status=passed
+            elif [ "$settings_outcome" = failure ]; then
+              valid=true
+              status=failed
+            fi
+          elif [ "$execution_started" = true ] && [ "$smoke_outcome" = failure ]; then
+            summary=artifacts/opl-first-run-vm/tart-smoke-summary.json
+            if [ -f "$summary" ] && [ ! -L "$summary" ]; then
+              failure_stage="$(jq -er '.failure_stage // empty' "$summary")"
+              case "$failure_stage" in
+                clone_vm|configure_display|start_vm|wait_for_ip|wait_for_ssh)
+                  valid=true
+                  status=unavailable
+                  reason_code=vm_admission_failed
+                  ;;
+                run_guest_smoke|validate_guest_summary)
+                  valid=true
+                  status=failed
+                  ;;
+              esac
+            fi
+          fi
+          {
+            echo "valid=$valid"
+            echo "status=$status"
+            echo "reason_code=$reason_code"
+          } >> "$GITHUB_OUTPUT"
 
   qualification-attempt-finalizer:
     name: Persist qualification attempt receipt
