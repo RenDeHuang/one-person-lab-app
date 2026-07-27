@@ -145,6 +145,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(windowsCohort?.run), /out\/win-unpacked/);
   assert.match(String(windowsCohort?.run), /-name '\*\.exe'/);
   assert.match(String(frameworkBinder?.if), /startsWith\(matrix\.platform, 'windows'\)/);
+  assert.equal(frameworkBinder?.shell, 'bash');
   assert.match(String(frameworkBinder?.run), /bind-windows-rc-framework-manifest\.ts/);
   assert.match(String(frameworkBinder?.run), /--framework-ref/);
   assert.match(String(windowsNativeRebuild?.run), /Start-Process[\s\S]+prebuild-install/);

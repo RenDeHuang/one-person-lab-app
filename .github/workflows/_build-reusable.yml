@@ -542,6 +542,7 @@ jobs:
 
       - name: Bind Windows RC Framework manifest
         if: startsWith(matrix.platform, 'windows')
+        shell: bash
         working-directory: ${{ github.workspace }}
         run: |
           node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
