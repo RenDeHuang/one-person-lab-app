@@ -131,6 +131,9 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const windowsRuntimeDownload = steps.find(
     (step) => step.name === 'Download target-executed Linux runtime',
   );
+  const preparedRuntimeBinder = windowsRuntime.steps.find(
+    (step: { name?: string }) => step.name === 'Bind Windows RC Framework manifest for prepared runtime',
+  );
   const windowsBuilder = steps.find(
     (step) => step.name === 'Build with electron-builder (Windows)',
   );
@@ -156,6 +159,10 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     /if \(-not \(Test-Path \$sqliteNode\)\) \{[\s\S]+bunx electron-rebuild/,
   );
   assert.match(String(windowsRuntime?.if), /contains\(inputs\.matrix, 'windows'\)/);
+  assert.equal(preparedRuntimeBinder?.shell, 'bash');
+  assert.match(String(preparedRuntimeBinder?.run), /bind-windows-rc-framework-manifest\.ts/);
+  assert.match(String(preparedRuntimeBinder?.run), /--manifest shells\/aionui\/resources\/opl-linux\/product\.json/);
+  assert.match(String(preparedRuntimeBinder?.run), /--framework-ref/);
   assert.match(
     String(windowsRuntime?.steps?.find((step: { name?: string }) =>
       step.name === 'Prepare target-executed Linux runtime')?.run),
