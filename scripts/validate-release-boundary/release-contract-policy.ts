@@ -331,9 +331,13 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     sameDayRebuild?.github_actions_run_identity_in_version !== false ||
     sameDayRebuild?.exhaustion_policy !== 'fail_closed' ||
     nightly?.prerelease !== true ||
-    nightly?.latest_release_allowed !== false
+    nightly?.quality_status !== 'preview' ||
+    nightly?.build_trigger !== 'automated' ||
+    nightly?.preview_kind !== 'nightly' ||
+    nightly?.scheduled_latest_release_allowed !== false ||
+    nightly?.explicit_user_override_may_move_latest !== true
   ) {
-    console.error('FAIL release_immutability: Full is additive and Nightly is immutable, prerelease-only, non-Latest Standard');
+    console.error('FAIL release_immutability: Full is additive and the Nightly schedule is immutable, prerelease-only, and non-Latest by default');
     return 1;
   }
   return 0;
@@ -1139,7 +1143,8 @@ export function validateReleaseAccelerationPolicy(
     publication?.nightly?.historical_readback_allowed !== true ||
     publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
     publication?.nightly?.trigger !== 'schedule_only' ||
-    publication?.nightly?.latest_allowed !== false ||
+    publication?.nightly?.scheduled_latest_allowed !== false ||
+    publication?.nightly?.explicit_user_override_may_move_latest !== true ||
     publication?.nightly?.include_full !== false ||
     publication?.nightly?.stable_bundle_authority_used !== false ||
     publication?.nightly?.stable_mutation_mutex_used !== false ||
@@ -1148,7 +1153,7 @@ export function validateReleaseAccelerationPolicy(
     publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    console.error('FAIL release_nightly_publication: Nightly must remain scheduled Standard-only, non-Latest, outside the Stable Bundle and heavy VM');
+    console.error('FAIL release_nightly_publication: Nightly schedule must remain Standard-only, non-Latest by default, and outside the Stable Bundle and heavy VM');
     failures += 1;
   }
   if (

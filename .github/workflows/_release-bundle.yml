@@ -14,9 +14,19 @@ on:
         default: standard
         type: string
       channel:
-        description: stable for execute mode; canary for validation-only mode
+        description: stable or preview for execute mode; canary for validation-only mode
         required: true
         type: string
+      publication_channel:
+        description: App publication route; must match channel in execute mode
+        required: false
+        default: ''
+        type: string
+      latest_override_requested:
+        description: Explicit protected Latest override request; Preview defaults false
+        required: false
+        default: false
+        type: boolean
       version:
         description: Exact Stable display version; canary uses a synthetic value
         required: false
@@ -97,6 +107,8 @@ jobs:
         run: |
           test '${{ inputs.operation }}' = standard
           test '${{ inputs.channel }}' = canary
+          test -z '${{ inputs.publication_channel }}'
+          test '${{ inputs.latest_override_requested }}' = false
           test '${{ inputs.app_ref }}' = canary
           test '${{ inputs.framework_ref }}' = "$OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF"
           test '${{ inputs.package_compatibility_abi }}' = opl_packages.v1
@@ -118,9 +130,23 @@ jobs:
           status=passed
           reason=admitted
           if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
-          if [ '${{ inputs.operation }}' != standard ] || [ '${{ inputs.channel }}' != stable ]; then
+          if [ '${{ inputs.operation }}' != standard ]; then
             status=failed
             reason=unsupported_execute_route
+          fi
+          publication_channel='${{ inputs.publication_channel || inputs.channel }}'
+          bundle_channel='${{ inputs.channel }}'
+          case "$publication_channel:$bundle_channel" in
+            stable:stable|preview:preview) ;;
+            *) status=failed; reason=unsupported_publication_route ;;
+          esac
+          if [ "$publication_channel" = stable ] && [ '${{ inputs.latest_override_requested }}' = true ]; then
+            status=failed
+            reason=stable_does_not_use_preview_override
+          fi
+          if [ "$publication_channel" != stable ] && [ '${{ inputs.include_full }}' = true ]; then
+            status=failed
+            reason=non_stable_full_request
           fi
           node <<'NODE' || { status=failed; reason=deadline_invalid; }
           const started = Date.parse('${{ inputs.operation_started_at }}');
@@ -196,6 +222,7 @@ jobs:
         id: identity
         env:
           CHANNEL: ${{ inputs.channel }}
+          PUBLICATION_CHANNEL: ${{ inputs.publication_channel || inputs.channel }}
           REQUESTED_VERSION: ${{ inputs.version }}
           REQUESTED_APP_REF: ${{ inputs.app_ref }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
@@ -205,7 +232,14 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || { echo "::error::Bundle builds cannot be rerun."; exit 1; }
-          test "$CHANNEL" = stable || { echo "::error::Only Stable may execute the Release Bundle."; exit 1; }
+          test "$PUBLICATION_CHANNEL" = "$CHANNEL" || {
+            echo "::error::Publication route must match the Framework Bundle channel."
+            exit 1
+          }
+          case "$CHANNEL" in
+            stable|preview) ;;
+            *) echo "::error::Unsupported execute channel: $CHANNEL"; exit 1 ;;
+          esac
           app_sha="$(git rev-parse HEAD)"
           shell_sha="$(git -C shells/aionui rev-parse HEAD)"
           framework_sha="$(git -C framework-source rev-parse HEAD)"
@@ -225,38 +259,40 @@ jobs:
           test -n "$version"
           published_releases_json="$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json"
           published_tags_txt="$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt"
-          published_webui_tags_txt="$RUNNER_TEMP/opl-published-webui-tags-$GITHUB_RUN_ID.txt"
-          stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
           previous_latest_json="$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json"
+          previous_latest_manifest_json="$RUNNER_TEMP/opl-previous-latest-component-manifest-$GITHUB_RUN_ID.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
           git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
-          webui_base_version="${version%-r*}"
-          registry_token="$(
-            curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
-              "https://ghcr.io/token?scope=repository:gaofeng21cn/one-person-lab-webui:pull" \
-              | jq -er .token
-          )"
-          : > "$published_webui_tags_txt"
-          for revision in {0..9}; do
-            candidate="$webui_base_version"
-            if [ "$revision" != 0 ]; then candidate="$webui_base_version-r$revision"; fi
-            status="$(
-              curl --silent --show-error --connect-timeout 10 --max-time 30 \
-                --output /dev/null --write-out '%{http_code}' \
-                --header "Authorization: Bearer $registry_token" \
-                --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
-                "https://ghcr.io/v2/gaofeng21cn/one-person-lab-webui/manifests/$candidate"
+          if [ "$CHANNEL" = stable ]; then
+            published_webui_tags_txt="$RUNNER_TEMP/opl-published-webui-tags-$GITHUB_RUN_ID.txt"
+            stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
+            webui_base_version="${version%-r*}"
+            registry_token="$(
+              curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+                "https://ghcr.io/token?scope=repository:gaofeng21cn/one-person-lab-webui:pull" \
+                | jq -er .token
             )"
-            case "$status" in
-              200) printf 'v%s\n' "$candidate" >> "$published_webui_tags_txt" ;;
-              404) ;;
-              *) echo "::error::Unable to resolve public WebUI version tag $candidate (HTTP $status)."; exit 1 ;;
-            esac
-          done
-          PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
-            PUBLISHED_WEBUI_TAGS_TXT="$published_webui_tags_txt" \
-            BASE_VERSION="${version%-r*}" VERSION="$version" \
-            node --experimental-strip-types --input-type=module <<'NODE'
+            : > "$published_webui_tags_txt"
+            for revision in {0..9}; do
+              candidate="$webui_base_version"
+              if [ "$revision" != 0 ]; then candidate="$webui_base_version-r$revision"; fi
+              status="$(
+                curl --silent --show-error --connect-timeout 10 --max-time 30 \
+                  --output /dev/null --write-out '%{http_code}' \
+                  --header "Authorization: Bearer $registry_token" \
+                  --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+                  "https://ghcr.io/v2/gaofeng21cn/one-person-lab-webui/manifests/$candidate"
+              )"
+              case "$status" in
+                200) printf 'v%s\n' "$candidate" >> "$published_webui_tags_txt" ;;
+                404) ;;
+                *) echo "::error::Unable to resolve public WebUI version tag $candidate (HTTP $status)."; exit 1 ;;
+              esac
+            done
+            PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
+              PUBLISHED_WEBUI_TAGS_TXT="$published_webui_tags_txt" \
+              BASE_VERSION="${version%-r*}" VERSION="$version" \
+              node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveStableReleaseVersion } from './scripts/release-version.ts';
           const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
@@ -268,26 +304,56 @@ jobs:
             throw new Error(`Stable must use next immutable same-day revision ${resolved.version}; got ${process.env.VERSION}.`);
           }
           NODE
-          node --experimental-strip-types scripts/stable-release-version-order.ts \
-            --target "$version" --published-releases-json "$published_releases_json" > "$stable_version_order_json"
+            node --experimental-strip-types scripts/stable-release-version-order.ts \
+              --target "$version" --published-releases-json "$published_releases_json" > "$stable_version_order_json"
+          else
+            PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
+              BASE_VERSION="${version%-preview.*}" VERSION="$version" \
+              node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { resolvePreviewReleaseVersion } from './scripts/release-version.ts';
+          const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
+          const refs = Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [];
+          refs.push(...fs.readFileSync(process.env.PUBLISHED_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
+          const resolved = resolvePreviewReleaseVersion(process.env.BASE_VERSION, refs);
+          if (resolved.version !== process.env.VERSION) {
+            throw new Error(`Preview must use next immutable same-day revision ${resolved.version}; got ${process.env.VERSION}.`);
+          }
+          NODE
+          fi
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" >/dev/null 2>&1; then
-            echo "::error::Stable v$version already exists; use resume_standard only with its exact checkpoint."
+            echo "::error::Release v$version already exists; resume only its exact failed checkpoint."
             exit 1
           fi
           git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1 && {
-            echo "::error::Stable tag v$version already exists."
+            echo "::error::Release tag v$version already exists."
             exit 1
           }
-          version_json="$(node --experimental-strip-types scripts/release-version.ts --channel stable --version "$version" --json)"
+          version_json="$(node --experimental-strip-types scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
           updater_version="$(jq -er .updater_version <<<"$version_json")"
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$previous_latest_json"
-          previous_display="$(jq -er .tag_name "$previous_latest_json" | sed 's/^v//')"
-          previous_json="$(node --experimental-strip-types scripts/release-version.ts --channel stable --version "$previous_display" --json)"
-          previous_updater="$(jq -er .updater_version <<<"$previous_json")"
+          previous_latest_tag="$(jq -er .tag_name "$previous_latest_json")"
+          previous_display="${previous_latest_tag#v}"
+          previous_target="$(jq -er .target_commitish "$previous_latest_json")"
+          [[ "$previous_target" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Latest target_commitish must be an exact SHA."
+            exit 1
+          }
+          previous_manifest_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' "$previous_latest_json")"
+          gh api --header 'Accept: application/octet-stream' "$previous_manifest_url" > "$previous_latest_manifest_json"
+          previous_identity_json="$RUNNER_TEMP/opl-previous-latest-component-identity-$GITHUB_RUN_ID.json"
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest "$previous_latest_manifest_json" \
+            --expected-tag "$previous_latest_tag" \
+            --release-prerelease "$(jq -er .prerelease "$previous_latest_json")" \
+            --expected-source-commit "$previous_target" \
+            > "$previous_identity_json"
+          test "$(jq -er .display_version "$previous_identity_json")" = "$previous_display"
+          previous_updater="$(jq -er .updater_version "$previous_identity_json")"
           TARGET="$updater_version" CURRENT="$previous_updater" node --experimental-strip-types --input-type=module <<'NODE'
           import { compareUpdaterMachineVersions } from './scripts/release-version.ts';
           if (compareUpdaterMachineVersions(process.env.TARGET, process.env.CURRENT) <= 0) {
-            throw new Error(`Stable updater version ${process.env.TARGET} is not newer than Latest ${process.env.CURRENT}.`);
+            throw new Error(`Candidate updater version ${process.env.TARGET} is not newer than Latest ${process.env.CURRENT}.`);
           }
           NODE
           {
@@ -297,6 +363,7 @@ jobs:
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
+            echo "previous_latest_tag=$previous_latest_tag"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Bundle contracts before paid work
@@ -329,19 +396,62 @@ jobs:
           fi
           npm run release:notes -- \
             --version '${{ steps.identity.outputs.version }}' \
-            --channel '${{ inputs.channel }}' \
+            --channel '${{ inputs.publication_channel || inputs.channel }}' \
             --repo "$GITHUB_REPOSITORY" \
             --shell-root shells/aionui \
+            --previous-tag '${{ steps.identity.outputs.previous_latest_tag }}' \
             --current-tag '${{ steps.identity.outputs.tag }}' \
             --current-app-ref '${{ steps.identity.outputs.app_sha }}' \
             --current-shell-ref '${{ steps.identity.outputs.shell_sha }}' \
             "$@" \
             --evidence-output "$notes_root/notes-evidence.json" \
             --output "$notes_root/notes-template.md"
-          npm run release:notes:prepare -- \
-            --evidence "$notes_root/notes-evidence.json" \
-            --output "$notes_root/notes.md" \
-            --receipt-output notes-prepare-receipt.json
+          if [ '${{ inputs.publication_channel || inputs.channel }}' = preview ]; then
+            npm run release:notes:prepare -- \
+              --evidence "$notes_root/notes-evidence.json" \
+              --output "$notes_root/notes-ai.md" \
+              --receipt-output notes-prepare-receipt.json
+            if ! NOTES_PATH="$notes_root/notes-ai.md" EVIDENCE_PATH="$notes_root/notes-evidence.json" \
+              OUTPUT_PATH="$notes_root/notes-finalized.md" \
+              node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { finalizePreviewReleaseNotesDocument } from './scripts/release-notes.ts';
+          import { validateAiReleaseNotes } from './scripts/release-notes-ai-writer-parts/validation.ts';
+          const evidence = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, 'utf8'));
+          const prepared = fs.readFileSync(process.env.NOTES_PATH, 'utf8');
+          const finalized = finalizePreviewReleaseNotesDocument(prepared, evidence);
+          validateAiReleaseNotes(finalized, evidence);
+          fs.writeFileSync(process.env.OUTPUT_PATH, finalized);
+          NODE
+            then
+              node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = JSON.parse(fs.readFileSync('notes-prepare-receipt.json', 'utf8'));
+          receipt.written_at = new Date().toISOString();
+          receipt.status = 'failed';
+          receipt.notes_sha256 = null;
+          receipt.failure = {
+            taxonomy: 'quality',
+            type: 'preview_notes_finalization_failed',
+            transport_attempts: null,
+            transport_retry_exhausted: false,
+            message: 'Preview deterministic finalization failed after online AI preparation.',
+          };
+          fs.writeFileSync('notes-prepare-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+              exit 1
+            fi
+            npm run release:notes:prepare -- \
+              --evidence "$notes_root/notes-evidence.json" \
+              --input "$notes_root/notes-finalized.md" \
+              --output "$notes_root/notes.md" \
+              --receipt-output notes-prepare-receipt.json
+          else
+            npm run release:notes:prepare -- \
+              --evidence "$notes_root/notes-evidence.json" \
+              --output "$notes_root/notes.md" \
+              --receipt-output notes-prepare-receipt.json
+          fi
 
       - name: Upload notes preparation receipt
         if: ${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}
@@ -367,6 +477,7 @@ jobs:
             --deadline-at '${{ inputs.operation_deadline_at }}'
           node --experimental-strip-types scripts/framework-release-adapter.ts freeze-request \
             --channel '${{ inputs.channel }}' \
+            --publication-channel '${{ inputs.publication_channel || inputs.channel }}' \
             --version '${{ steps.identity.outputs.version }}' \
             --updater-version '${{ steps.identity.outputs.updater_version }}' \
             --app-root . \
@@ -440,9 +551,9 @@ jobs:
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
       require_macos_gatekeeper: true
-      operation: ${{ inputs.channel == 'stable' && inputs.operation || '' }}
-      operation_started_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_started_at || '' }}
-      operation_deadline_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_deadline_at || '' }}
+      operation: ${{ inputs.mode == 'execute' && inputs.operation || '' }}
+      operation_started_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_started_at || '' }}
+      operation_deadline_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_deadline_at || '' }}
     secrets: inherit
 
   standard-qualification:
@@ -465,9 +576,9 @@ jobs:
       package_profile: standard
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
-      operation: ${{ inputs.channel == 'stable' && inputs.operation || '' }}
-      operation_started_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_started_at || '' }}
-      operation_deadline_at: ${{ inputs.channel == 'stable' && needs.freeze.outputs.operation_deadline_at || '' }}
+      operation: ${{ inputs.mode == 'execute' && inputs.operation || '' }}
+      operation_started_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_started_at || '' }}
+      operation_deadline_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_deadline_at || '' }}
 
   checkpoint-standard:
     if: ${{ inputs.mode == 'execute' }}
@@ -490,7 +601,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
-          if [ '${{ inputs.channel }}' = stable ]; then
+          if [ '${{ inputs.mode }}' = execute ]; then
             node <<'NODE'
           const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
           if (!Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
@@ -556,6 +667,7 @@ jobs:
             --repository "$GITHUB_REPOSITORY" \
             --source-run-id "$GITHUB_RUN_ID" \
             --source-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --latest-override-requested '${{ inputs.latest_override_requested }}' \
             --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
             --component-manifest-output standard-assets/opl-app-component-manifest.json \
             --identity-receipt-output standard-identity-receipt.json
@@ -654,7 +766,7 @@ jobs:
           retention-days: 30
 
   prepare-native-webui:
-    if: ${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}
+    if: ${{ inputs.mode == 'execute' && (inputs.publication_channel || inputs.channel) == 'stable' }}
     needs: [freeze]
     permissions:
       contents: read
@@ -676,6 +788,8 @@ jobs:
     with:
       mode: execute
       operation: standard
+      publication_channel: ${{ inputs.publication_channel || inputs.channel }}
+      latest_override_requested: ${{ inputs.latest_override_requested }}
       source_run_id: ${{ github.run_id }}
       source_artifact: opl-release-standard-checkpoint-${{ github.run_id }}
       source_format: checkpoint_v1
@@ -685,7 +799,7 @@ jobs:
     secrets: inherit
 
   publish-native-webui:
-    if: ${{ always() && inputs.mode == 'execute' && inputs.channel == 'stable' && needs.publish-standard.result == 'success' && needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified' }}
+    if: ${{ always() && inputs.mode == 'execute' && (inputs.publication_channel || inputs.channel) == 'stable' && needs.publish-standard.result == 'success' && needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified' }}
     needs: [freeze, checkpoint-standard, prepare-native-webui, publish-standard]
     uses: ./.github/workflows/_release-native-webui-carrier.yml
     with:

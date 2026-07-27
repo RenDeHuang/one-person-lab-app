@@ -68,19 +68,35 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   assertDeepEqualJson(
     release.orthogonal_dimensions,
     {
-      quality: ['stable', 'nightly', 'preview'],
-      recommended_pointer: ['latest'],
+      quality_status: ['stable', 'preview'],
+      build_trigger: ['manual', 'automated'],
+      preview_kind: {
+        source: 'derived_read_only',
+        values: ['dev', 'nightly', null],
+        derivation: {
+          preview_manual: 'dev',
+          preview_automated: 'nightly',
+          stable: null,
+        },
+      },
+      distribution_pointer: ['latest'],
       payload_density: ['standard', 'full'],
       runtime_form: ['desktop', 'native_webui', 'container_webui'],
-      build_origin: ['automated', 'manual'],
       task_mode: ['development_validation', 'production_release'],
     },
     'Distribution orthogonal dimensions',
   );
 
   requireEqual(release.terms?.stable?.is_pointer, false, 'Stable pointer classification');
-  requireEqual(release.terms?.stable?.build_origin_independent, true, 'Stable build-origin independence');
-  requireEqual(release.terms?.latest?.default_target, 'newest_production_stable', 'Latest default target');
+  requireEqual(release.terms?.stable?.build_trigger_independent, true, 'Stable build-trigger independence');
+  requireEqual(release.terms?.stable?.preview_kind, null, 'Stable preview kind');
+  requireEqual(
+    release.terms?.preview?.may_be_promoted_after_same_digest_full_stable_qualification,
+    true,
+    'Preview quality promotion',
+  );
+  requireEqual(release.terms?.latest?.default_target, 'newest_qualified_stable', 'Latest default target');
+  requireEqual(release.terms?.latest?.pointer_move_changes_quality, false, 'Latest quality independence');
   requireEqual(release.terms?.nightly?.product_channel_semantics, 'retained', 'Nightly product semantics');
   requireEqual(
     release.terms?.nightly?.current_publication_implementation,
@@ -89,24 +105,49 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(release.terms?.nightly?.default_payload_density, 'standard', 'Nightly payload density');
   requireEqual(release.terms?.nightly?.full_by_default, false, 'Nightly Full default');
-  requireEqual(release.terms?.nightly?.latest_allowed, false, 'Nightly Latest eligibility');
-  requireEqual(release.terms?.preview?.latest_allowed, false, 'Preview Latest eligibility');
+  requireEqual(release.terms?.nightly?.dimension, 'preview_kind', 'Nightly derived dimension');
+  requireEqual(release.terms?.nightly?.independent_quality_level, false, 'Nightly quality classification');
+  assertDeepEqualJson(
+    release.terms?.nightly?.derived_from,
+    { quality_status: 'preview', build_trigger: 'automated' },
+    'Nightly derivation',
+  );
+  requireEqual(release.terms?.nightly?.scheduled_writer_may_move_latest, false, 'Nightly schedule Latest policy');
+  requireEqual(release.terms?.nightly?.explicit_user_override_may_move_latest, true, 'Nightly user Latest override');
+  assertDeepEqualJson(
+    release.terms?.dev?.derived_from,
+    { quality_status: 'preview', build_trigger: 'manual' },
+    'Dev derivation',
+  );
   requireEqual(release.terms?.full?.independent_long_term_update_channel, false, 'Full channel classification');
 
   const latest = release.latest_policy;
-  requireEqual(latest?.current_admission, 'framework_bundle_stable_only', 'Latest current admission');
+  requireEqual(latest?.default_automatic_writer, 'newest_qualified_stable', 'Latest automatic writer');
   requireEqual(
-    latest?.manual_build_may_become_stable_after_same_production_gates,
-    true,
-    'Manual Stable-equivalent admission',
-  );
-  requireEqual(
-    latest?.manual_ungated_or_preview_build_may_become_latest,
+    latest?.automatic_preview_or_nightly_writer_may_move_latest,
     false,
-    'Ungated manual Latest admission',
+    'Automatic Preview Latest admission',
   );
-  requireEqual(latest?.nightly_may_become_latest, false, 'Nightly Latest admission');
+  const override = latest?.explicit_user_override;
+  requireEqual(override?.target, 'any_exact_published_version', 'Latest override target');
+  assertDeepEqualJson(override?.preview_kinds, ['dev', 'nightly'], 'Latest override Preview kinds');
+  requireEqual(override?.authority, 'protected_single_use', 'Latest override authority');
+  requireEqual(override?.compare_and_swap, 'exact_expected_current', 'Latest override CAS');
+  requireEqual(override?.quality_unchanged, true, 'Latest override quality');
+  requireEqual(override?.persistent_override, false, 'Latest override persistence');
+  requireEqual(
+    override?.non_stable_and_skipped_or_failed_gate_disclosure_required,
+    true,
+    'Latest override disclosure',
+  );
+  requireEqual(latest?.promote_quality?.transition, 'preview_to_stable', 'Quality promotion transition');
+  requireEqual(latest?.promote_quality?.same_exact_artifact_digest_required, true, 'Quality promotion digest');
+  requireEqual(latest?.promote_quality?.full_stable_gates_and_receipt_required, true, 'Quality promotion gates');
+  requireEqual(latest?.promote_quality?.immutable_build_manifest_rewrite_allowed, false, 'Quality manifest immutability');
+  requireEqual(latest?.promote_quality?.moves_latest_pointer, false, 'Quality promotion pointer behavior');
+  requireEqual(latest?.move_latest_pointer?.changes_quality, false, 'Latest pointer quality behavior');
   requireEqual(latest?.next_qualified_stable_reclaims_pointer, true, 'Next Stable Latest behavior');
+  requireEqual(latest?.failure_preserves_current_latest_lkg, true, 'Latest LKG failure behavior');
 
   const currentCohort = release.cohort_policy?.current_development_state;
   const targetCohort = release.cohort_policy?.approved_production_target;
@@ -128,47 +169,58 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Current Nightly publication state',
   );
   requireEqual(releaseChannel.nightly_standard?.full_first_install_allowed, false, 'Current Nightly Full policy');
-  requireEqual(releaseChannel.nightly_standard?.latest_release_allowed, false, 'Current Nightly Latest policy');
+  requireEqual(releaseChannel.nightly_standard?.quality_status, 'preview', 'Current Nightly quality');
+  requireEqual(releaseChannel.nightly_standard?.build_trigger, 'automated', 'Current Nightly trigger');
+  requireEqual(releaseChannel.nightly_standard?.preview_kind, 'nightly', 'Current Nightly preview kind');
+  requireEqual(
+    releaseChannel.nightly_standard?.scheduled_latest_release_allowed,
+    false,
+    'Current Nightly scheduled Latest policy',
+  );
+  requireEqual(
+    releaseChannel.nightly_standard?.explicit_user_override_may_move_latest,
+    true,
+    'Current Nightly user Latest override',
+  );
   requireEqual(
     release.implementation_state?.desktop_nightly,
     'implemented_pending_first_publication_readback',
     'Distribution Nightly implementation state',
   );
   requireEqual(
-    release.retired_compatibility?.desktop_nightly?.product_channel_semantics_retained,
+    release.publication_history?.desktop_nightly?.product_channel_semantics_retained,
     true,
     'Nightly retained product semantics',
   );
   requireEqual(
-    release.retired_compatibility?.desktop_nightly?.historical_payload_density,
+    release.publication_history?.desktop_nightly?.historical_payload_density,
     'standard',
     'Nightly historical payload density',
   );
   requireEqual(
-    release.retired_compatibility?.desktop_nightly?.historical_full_by_default,
+    release.publication_history?.desktop_nightly?.historical_full_by_default,
     false,
     'Nightly historical Full default',
   );
   requireEqual(
-    release.retired_compatibility?.desktop_nightly?.historical_latest_allowed,
-    false,
-    'Nightly historical Latest policy',
-  );
-  requireEqual(
-    release.retired_compatibility?.desktop_nightly?.current_publication_workflow_present,
+    release.publication_history?.desktop_nightly?.current_publication_workflow_present,
     true,
     'Nightly current publication workflow',
   );
   requireEqual(
-    release.retired_compatibility?.desktop_nightly?.new_publication_status,
+    release.publication_history?.desktop_nightly?.new_publication_status,
     'implemented_pending_first_publication_readback',
     'Nightly new publication status',
   );
   const nightlyTarget = release.approved_targets?.desktop_nightly;
   requireEqual(nightlyTarget?.status, 'implemented_pending_first_publication_readback', 'Nightly target status');
+  requireEqual(nightlyTarget?.quality_status, 'preview', 'Nightly target quality');
+  requireEqual(nightlyTarget?.build_trigger, 'automated', 'Nightly target trigger');
+  requireEqual(nightlyTarget?.preview_kind, 'nightly', 'Nightly target Preview kind');
   requireEqual(nightlyTarget?.payload_density, 'standard', 'Nightly target payload density');
   requireEqual(nightlyTarget?.full_by_default, false, 'Nightly target Full default');
-  requireEqual(nightlyTarget?.latest_allowed, false, 'Nightly target Latest policy');
+  requireEqual(nightlyTarget?.scheduled_latest_allowed, false, 'Nightly target scheduled Latest policy');
+  requireEqual(nightlyTarget?.explicit_user_override_may_move_latest, true, 'Nightly target user Latest override');
   requireEqual(nightlyTarget?.homebrew_cask, 'one-person-lab-nightly', 'Nightly target Homebrew Cask');
 
   const releaseHomebrew = releaseChannel.homebrew_tap_distribution;

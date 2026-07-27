@@ -3,17 +3,27 @@
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 
-export type ReleaseOperation = 'standard' | 'resume_standard' | 'append_full';
+export type ReleaseOperation =
+  | 'standard'
+  | 'resume_standard'
+  | 'append_full'
+  | 'move_latest_pointer';
 
 const operationBudgetMinutes: Record<ReleaseOperation, number> = {
   standard: 90,
   resume_standard: 30,
   append_full: 50,
+  move_latest_pointer: 30,
 };
 
 function operation(value: string | undefined): ReleaseOperation {
-  if (value === 'standard' || value === 'resume_standard' || value === 'append_full') return value;
-  throw new Error('Release operation must be standard, resume_standard, or append_full.');
+  if (
+    value === 'standard'
+    || value === 'resume_standard'
+    || value === 'append_full'
+    || value === 'move_latest_pointer'
+  ) return value;
+  throw new Error('Release operation must be standard, resume_standard, append_full, or move_latest_pointer.');
 }
 
 function timestamp(value: string | undefined, label: string): number {
@@ -76,7 +86,7 @@ export function assertReleaseOperationDeadline(input: {
 function usage(): never {
   process.stderr.write(
     'Usage:\n' +
-      '  release-operation-deadline.ts resolve --operation <standard|resume_standard|append_full> --started-at <iso>\n' +
+      '  release-operation-deadline.ts resolve --operation <standard|resume_standard|append_full|move_latest_pointer> --started-at <iso>\n' +
       '  release-operation-deadline.ts check --operation <...> --started-at <iso> --deadline-at <iso> [--now <iso>]\n',
   );
   process.exit(2);

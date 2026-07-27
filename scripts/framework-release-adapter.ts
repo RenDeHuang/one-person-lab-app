@@ -13,15 +13,22 @@ import {
 } from './artifact-qualification-receipt.ts';
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
 import {
+  assertReleaseOperationDeadline,
   releaseOperationDeadlineTimestamp,
   remainingReleaseOperationMilliseconds,
 } from './release-operation-deadline.ts';
+import { assertLatestPointerOperationAdmissionReceipt } from './validate-latest-pointer-operation.ts';
 import { assertStandardLatestAdmissionReceipt } from './validate-standard-latest-admission.ts';
 
 type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
 type StableReleaseOperation = 'standard' | 'resume_standard' | 'append_full';
+type StandardPublicationChannel = 'stable' | 'nightly' | 'preview';
 type AdapterOptionValues = Record<string, string | boolean | string[] | undefined>;
+type GitHubMutationCommand =
+  | 'github-apply'
+  | 'github-activate-latest'
+  | 'github-move-latest-pointer';
 
 const packageIds = [
   'mas',
@@ -240,6 +247,11 @@ function parseCommon(argv: string[]) {
       'operation-started-at': { type: 'string' },
       'operation-deadline-at': { type: 'string' },
       'latest-admission': { type: 'string' },
+      'pointer-admission': { type: 'string' },
+      'component-manifest': { type: 'string' },
+      'pointer-authority': { type: 'string' },
+      'release-inspection': { type: 'string' },
+      'expected-current-latest-tag': { type: 'string' },
       'run-attempt': { type: 'string' },
     },
     allowPositionals: true,
@@ -338,7 +350,13 @@ function frozenBuildInputs(input: {
 
 function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
   const channel = requireOption(values, 'channel');
-  if (channel !== 'stable' && channel !== 'nightly') throw new Error('--channel must be stable or nightly.');
+  if (channel !== 'stable' && channel !== 'nightly' && channel !== 'preview') {
+    throw new Error('--channel must be stable, nightly, or preview.');
+  }
+  const publicationChannel = values['publication-channel'] ?? channel;
+  if (publicationChannel !== channel) {
+    throw new Error('Publication channel must match the Framework Bundle channel.');
+  }
   const version = requireOption(values, 'version');
   const updaterVersion = requireOption(values, 'updater-version');
   assertUpdaterVersionMatchesDisplay(channel, version, updaterVersion);
@@ -347,7 +365,10 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
   const notesPath = path.resolve(requireOption(values, 'notes'));
   const evidencePath = path.resolve(requireOption(values, 'notes-evidence'));
-  requireBooleanOption(values, 'include-full-package');
+  const includeFullPackage = requireBooleanOption(values, 'include-full-package');
+  if (channel !== 'stable' && includeFullPackage) {
+    throw new Error('Only Stable publication may include Full Package inputs.');
+  }
   if (
     requireOption(values, 'package-compatibility-abi') !== packageCompatibility.abi
     || requireOption(values, 'package-compatibility-version-range') !== packageCompatibility.version_range
@@ -361,6 +382,20 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
   const notesEvidence = readJson(evidencePath);
   if (notesEvidence.schema !== 'opl_app_release_notes_evidence.v1') {
     throw new Error('Prepared release notes evidence has an unsupported schema.');
+  }
+  const notesIdentityKeys = ['channel', 'version', 'current_tag'] as const;
+  const presentNotesIdentityKeys = notesIdentityKeys.filter((key) => notesEvidence[key] !== undefined);
+  if (presentNotesIdentityKeys.length === 0) {
+    if (channel !== 'stable') {
+      throw new Error('Non-Stable prepared notes require the complete exact publication identity.');
+    }
+  } else if (
+    presentNotesIdentityKeys.length !== notesIdentityKeys.length
+    || notesEvidence.channel !== channel
+    || notesEvidence.version !== version
+    || notesEvidence.current_tag !== `v${version}`
+  ) {
+    throw new Error('Prepared release notes evidence does not match the complete exact publication identity.');
   }
   if (notesEvidence.payload?.include_full_package !== false) {
     throw new Error(
@@ -929,7 +964,7 @@ export class GitHubMutationFailure extends Error {
 }
 
 function githubMutationFailure(
-  command: 'github-apply' | 'github-activate-latest',
+  command: GitHubMutationCommand,
   values: AdapterOptionValues,
   failureTaxonomy: string,
   message: string,
@@ -970,7 +1005,7 @@ function githubMutationFailure(
 }
 
 function rejectGitHubMutation(
-  command: 'github-apply' | 'github-activate-latest',
+  command: GitHubMutationCommand,
   values: AdapterOptionValues,
   failureTaxonomy: string,
   message: string,
@@ -989,7 +1024,7 @@ function rejectGitHubMutation(
 }
 
 function persistGitHubMutationFailure(
-  command: 'github-apply' | 'github-activate-latest',
+  command: GitHubMutationCommand,
   values: AdapterOptionValues,
   result: JsonRecord,
 ): void {
@@ -1086,6 +1121,37 @@ function assertStableGitHubMutationAdmission(
     );
   }
   return { operation, operationId, operationStartedAt, attemptId, track };
+}
+
+function standardPublicationChannel(
+  command: 'github-apply' | 'github-activate-latest',
+  values: AdapterOptionValues,
+  bundle: JsonRecord,
+): StandardPublicationChannel {
+  const requested = values['publication-channel'];
+  if (requested !== 'stable' && requested !== 'nightly' && requested !== 'preview') {
+    rejectGitHubMutation(
+      command,
+      values,
+      'github_mutation_publication_channel_rejected',
+      'Missing --publication-channel or invalid value; expected stable, nightly, or preview.',
+    );
+  }
+  const publicationChannel = requested as StandardPublicationChannel;
+  const expectedPrerelease = publicationChannel === 'nightly';
+  if (
+    bundle.release?.channel !== publicationChannel
+    || bundle.release?.prerelease !== expectedPrerelease
+  ) {
+    rejectGitHubMutation(
+      command,
+      values,
+      'github_mutation_publication_bundle_mismatch',
+      `Publication channel ${publicationChannel} requires a ${publicationChannel} Bundle with prerelease=${expectedPrerelease}.`,
+      { publication_channel: publicationChannel },
+    );
+  }
+  return publicationChannel;
 }
 
 function ghRead(
@@ -1398,28 +1464,7 @@ export function applyPublishPlan(
   const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
   releaseOperationDeadlineTimestamp(operationDeadlineAt);
   const bundle = bundleDocument(requireOption(values, 'bundle'));
-  const publicationChannel = requireOption(values, 'publication-channel');
-  if (publicationChannel !== 'stable' && publicationChannel !== 'nightly') {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_mutation_publication_channel_rejected',
-      'GitHub publication requires --publication-channel stable or nightly.',
-    );
-  }
-  const expectedPrerelease = publicationChannel === 'nightly';
-  if (
-    bundle.release.channel !== publicationChannel
-    || bundle.release.prerelease !== expectedPrerelease
-  ) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_mutation_publication_bundle_mismatch',
-      `Publication channel ${publicationChannel} requires a ${publicationChannel} Bundle with prerelease=${expectedPrerelease}.`,
-      { publication_channel: publicationChannel, operation: admission.operation, track: admission.track },
-    );
-  }
+  const publicationChannel = standardPublicationChannel('github-apply', values, bundle);
   if (admission.track === 'full' && publicationChannel !== 'stable') {
     rejectGitHubMutation(
       'github-apply',
@@ -1429,6 +1474,11 @@ export function applyPublishPlan(
       { publication_channel: publicationChannel, operation: admission.operation, track: admission.track },
     );
   }
+  assertUpdaterVersionMatchesDisplay(
+    publicationChannel,
+    String(bundle.release?.version ?? ''),
+    String(bundle.release?.updater_version ?? ''),
+  );
   const repo = bundle.sources.app.repo;
   const tag = bundle.release.tag;
   const name = `One Person Lab v${bundle.release.version}`;
@@ -1559,6 +1609,108 @@ export function applyPublishPlan(
   return { status: 'complete', repository: repo, tag, uploaded };
 }
 
+function activateLatestCas(input: {
+  command: GitHubMutationCommand;
+  values: AdapterOptionValues;
+  repo: string;
+  tag: string;
+  expectedCurrentLatestTag: string;
+  attemptId: string;
+  operationDeadlineAt: string;
+  runtime: GitHubAdapterRuntime;
+}): JsonRecord {
+  const inspection = inspectRelease(input.repo, input.tag, input.runtime);
+  if (!inspection.release.exists || !inspection.release.id) {
+    throw new Error(`Release ${input.tag} is missing.`);
+  }
+  const latest = ghRead(
+    ['api', `repos/${input.repo}/releases/latest`],
+    input.runtime,
+    { allow404: true },
+  ) as JsonRecord | null;
+  const observedLatestTag = typeof latest?.tag_name === 'string' ? latest.tag_name : null;
+  if (observedLatestTag === input.tag) {
+    return {
+      status: 'idempotent',
+      repository: input.repo,
+      tag: input.tag,
+      latest_compare_and_swap: {
+        expected_current_tag: input.expectedCurrentLatestTag,
+        observed_current_tag: observedLatestTag,
+        patch_performed: false,
+      },
+    };
+  }
+  if (observedLatestTag !== input.expectedCurrentLatestTag) {
+    rejectGitHubMutation(
+      input.command,
+      input.values,
+      'github_latest_compare_and_swap_drift',
+      `Latest drifted: expected ${input.expectedCurrentLatestTag}, observed ${observedLatestTag ?? '<missing>'}.`,
+      {
+        expected_current_tag: input.expectedCurrentLatestTag,
+        observed_current_tag: observedLatestTag,
+        candidate_tag: input.tag,
+      },
+      'inspect_only_no_patch_require_new_admission',
+    );
+  }
+  const attempt = runGitHubMutation({
+    mutation: 'latest_patch',
+    attemptId: mutationAttemptId(
+      input.attemptId,
+      'latest_patch',
+      `github-latest:${input.repo}@${input.tag}`,
+      input.tag,
+    ),
+    remoteTarget: `github-latest:${input.repo}@${input.tag}`,
+    args: [
+      'api',
+      '--method',
+      'PATCH',
+      `repos/${input.repo}/releases/${inspection.release.id}`,
+      '--input',
+      '-',
+    ],
+    body: JSON.stringify({ make_latest: 'true' }),
+    operationDeadlineAt: input.operationDeadlineAt,
+    runtime: input.runtime,
+  });
+  if (attempt.status !== 'accepted') {
+    return stoppedMutation({
+      attempt,
+      repo: input.repo,
+      tag: input.tag,
+      reconciliation: inspectLatestForReconcile(input.repo, input.runtime),
+    });
+  }
+  const reconciliation = inspectLatestForReconcile(input.repo, input.runtime);
+  if (
+    reconciliation.status !== 'complete'
+    || reconciliation.observation?.tag_name !== input.tag
+  ) {
+    return unknownAfterAcceptedMutation({
+      mutation: 'latest_patch',
+      operationDeadlineAt: input.operationDeadlineAt,
+      attemptEvidence: attempt.evidence,
+      repo: input.repo,
+      tag: input.tag,
+      reconciliation,
+      reason: `Latest readback did not prove ${input.tag}.`,
+    });
+  }
+  return {
+    status: 'complete',
+    repository: input.repo,
+    tag: input.tag,
+    latest_compare_and_swap: {
+      expected_current_tag: input.expectedCurrentLatestTag,
+      observed_current_tag: observedLatestTag,
+      patch_performed: true,
+    },
+  };
+}
+
 export function activateLatest(
   values: AdapterOptionValues,
   runtime: GitHubAdapterRuntime = defaultGitHubRuntime,
@@ -1567,16 +1719,18 @@ export function activateLatest(
   const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
   releaseOperationDeadlineTimestamp(operationDeadlineAt);
   const bundle = bundleDocument(requireOption(values, 'bundle'));
-  const publicationChannel = requireOption(values, 'publication-channel');
-  if (publicationChannel !== 'stable') {
-    throw new Error('Only Stable publication can become Latest.');
-  }
-  if (bundle.release.channel !== 'stable' || bundle.release.prerelease !== false) {
-    throw new Error('Only a Stable Bundle can become Latest.');
-  }
+  const publicationChannel = standardPublicationChannel('github-activate-latest', values, bundle);
+  assertUpdaterVersionMatchesDisplay(
+    publicationChannel,
+    String(bundle.release?.version ?? ''),
+    String(bundle.release?.updater_version ?? ''),
+  );
   const status = readJson(path.resolve(requireOption(values, 'status'))).release_bundle_status;
-  if (status?.bundle_digest !== bundle.bundle_digest || status.latest_eligible !== true) {
-    throw new Error('Framework status does not authorize Latest activation for this Bundle.');
+  if (status?.bundle_digest !== bundle.bundle_digest) {
+    throw new Error('Framework status does not describe the immutable Bundle input.');
+  }
+  if (publicationChannel === 'stable' && status.latest_eligible !== true) {
+    throw new Error('Framework status does not authorize qualified Stable Latest activation for this Bundle.');
   }
   const statusBundle = status.bundle;
   if (
@@ -1605,6 +1759,7 @@ export function activateLatest(
   }
   const latestAdmission = readJson(path.resolve(requireOption(values, 'latest-admission')));
   assertStandardLatestAdmissionReceipt(latestAdmission, {
+    publicationChannel,
     bundleDigest: bundle.bundle_digest,
     candidateDisplayVersion: bundle.release.version,
     candidateUpdaterVersion: bundle.release.updater_version,
@@ -1615,80 +1770,109 @@ export function activateLatest(
   });
   const repo = bundle.sources.app.repo;
   const tag = bundle.release.tag;
-  const inspection = inspectRelease(repo, tag, runtime);
-  if (!inspection.release.exists || !inspection.release.id) throw new Error(`Release ${tag} is missing.`);
-  const latest = ghRead(['api', `repos/${repo}/releases/latest`], runtime, { allow404: true }) as JsonRecord | null;
-  const observedLatestTag = typeof latest?.tag_name === 'string' ? latest.tag_name : null;
   const expectedCurrentLatestTag = latestAdmission.latest_compare_and_swap.expected_current.tag;
-  if (observedLatestTag === tag) {
-    return {
-      status: 'idempotent',
-      repository: repo,
-      tag,
-      latest_compare_and_swap: {
-        expected_current_tag: expectedCurrentLatestTag,
-        observed_current_tag: observedLatestTag,
-        patch_performed: false,
-      },
-    };
-  }
-  if (observedLatestTag !== expectedCurrentLatestTag) {
-    rejectGitHubMutation(
-      'github-activate-latest',
-      values,
-      'github_latest_compare_and_swap_drift',
-      `Latest drifted: expected ${expectedCurrentLatestTag}, observed ${observedLatestTag ?? '<missing>'}.`,
-      {
-        expected_current_tag: expectedCurrentLatestTag,
-        observed_current_tag: observedLatestTag,
-        candidate_tag: tag,
-      },
-      'inspect_only_no_patch_require_new_admission',
-    );
-  }
-  const attempt = runGitHubMutation({
-    mutation: 'latest_patch',
-    attemptId: mutationAttemptId(
-      admission.attemptId,
-      'latest_patch',
-      `github-latest:${repo}@${tag}`,
-      tag,
-    ),
-    remoteTarget: `github-latest:${repo}@${tag}`,
-    args: ['api', '--method', 'PATCH', `repos/${repo}/releases/${inspection.release.id}`, '--input', '-'],
-    body: JSON.stringify({ make_latest: 'true' }),
+  return activateLatestCas({
+    command: 'github-activate-latest',
+    values,
+    repo,
+    tag,
+    expectedCurrentLatestTag,
+    attemptId: admission.attemptId,
     operationDeadlineAt,
     runtime,
   });
-  if (attempt.status !== 'accepted') {
-    return stoppedMutation({
-      attempt,
-      repo,
-      tag,
-      reconciliation: inspectLatestForReconcile(repo, runtime),
-    });
+}
+
+export function activatePublishedLatestPointer(
+  values: AdapterOptionValues,
+  runtime: GitHubAdapterRuntime = defaultGitHubRuntime,
+): JsonRecord {
+  if (values['run-attempt'] !== '1' || values.operation !== 'move_latest_pointer') {
+    rejectGitHubMutation(
+      'github-move-latest-pointer',
+      values,
+      'github_pointer_operation_rejected',
+      'Published Latest pointer mutation requires move_latest_pointer on run attempt 1.',
+    );
   }
-  const reconciliation = inspectLatestForReconcile(repo, runtime);
-  if (reconciliation.status !== 'complete' || reconciliation.observation?.tag_name !== tag) {
-    return unknownAfterAcceptedMutation({
-      mutation: 'latest_patch',
-      operationDeadlineAt,
-      attemptEvidence: attempt.evidence,
-      repo,
-      tag,
-      reconciliation,
-      reason: `Latest readback did not prove ${tag}.`,
-    });
+  const operationId = requireOption(values, 'operation-id');
+  const attemptId = requireOption(values, 'attempt-id');
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(operationId)
+    || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(attemptId)
+  ) {
+    rejectGitHubMutation(
+      'github-move-latest-pointer',
+      values,
+      'github_pointer_operation_identity_rejected',
+      'Published Latest pointer mutation requires exact operation and attempt identities.',
+    );
   }
-  return {
-    status: 'complete',
+  const operationStartedAt = requireOption(values, 'operation-started-at');
+  const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
+  assertReleaseOperationDeadline({
+    operation: 'move_latest_pointer',
+    startedAt: operationStartedAt,
+    deadlineAt: operationDeadlineAt,
+    now: new Date(runtime.now()).toISOString(),
+  });
+  const repo = requireOption(values, 'repo');
+  const tag = requireOption(values, 'tag');
+  const expectedCurrentLatestTag = requireOption(values, 'expected-current-latest-tag');
+  const releaseInspectionPath = path.resolve(requireOption(values, 'release-inspection'));
+  const pointerInput = {
     repository: repo,
+    componentManifestPath: path.resolve(requireOption(values, 'component-manifest')),
+    releaseInspectionPath,
+    authorityPath: path.resolve(requireOption(values, 'pointer-authority')),
+    expectedCurrentLatestTag,
+    runId: operationId,
+    runAttempt: requireOption(values, 'run-attempt'),
+    operationStartedAt,
+    operationDeadlineAt,
+  };
+  const receipt = readJson(path.resolve(requireOption(values, 'pointer-admission')));
+  assertLatestPointerOperationAdmissionReceipt(receipt, pointerInput);
+  const freshInspection = inspectRelease(repo, tag, runtime);
+  exactJson(
+    freshInspection,
+    readJson(releaseInspectionPath),
+    'Published Preview release inspection',
+  );
+  if (
+    tag !== receipt.candidate?.tag
+    || expectedCurrentLatestTag
+      !== receipt.latest_compare_and_swap?.expected_current_tag
+  ) {
+    rejectGitHubMutation(
+      'github-move-latest-pointer',
+      values,
+      'github_pointer_receipt_identity_rejected',
+      'Published Latest pointer mutation differs from its exact admission receipt.',
+    );
+  }
+  const result = activateLatestCas({
+    command: 'github-move-latest-pointer',
+    values,
+    repo,
     tag,
-    latest_compare_and_swap: {
-      expected_current_tag: expectedCurrentLatestTag,
-      observed_current_tag: observedLatestTag,
-      patch_performed: true,
-    },
+    expectedCurrentLatestTag,
+    attemptId,
+    operationDeadlineAt,
+    runtime,
+  });
+  return {
+    ...result,
+    operation: 'move_latest_pointer',
+    component_manifest_digest: receipt.candidate.component_manifest_digest,
+    quality_status: receipt.candidate.quality_status,
+    build_trigger: receipt.candidate.build_trigger,
+    preview_kind: receipt.candidate.preview_kind,
+    quality_unchanged: true,
+    non_stable_notice: true,
+    skipped_gates: receipt.candidate.qualification_disclosure.skipped_gates,
+    persistent_override: false,
+    stable_reclaim: 'next_qualified_stable',
   };
 }
 
@@ -1714,13 +1898,19 @@ function main(): void {
       output = applyPublishPlan(values);
     } else if (command === 'github-activate-latest') {
       output = activateLatest(values);
+    } else if (command === 'github-move-latest-pointer') {
+      output = activatePublishedLatestPointer(values);
     } else {
-      throw new Error('Usage: framework-release-adapter <freeze-request|webui-build-input|executor-receipt|qualification-receipt|github-inspect|github-apply|github-activate-latest> ...');
+      throw new Error('Usage: framework-release-adapter <freeze-request|webui-build-input|executor-receipt|qualification-receipt|github-inspect|github-apply|github-activate-latest|github-move-latest-pointer> ...');
     }
     if (typeof values.output === 'string' && values.output.trim()) writeJson(path.resolve(values.output), output);
     process.stdout.write(`${JSON.stringify(output)}\n`);
   } catch (error) {
-    if (command === 'github-apply' || command === 'github-activate-latest') {
+    if (
+      command === 'github-apply'
+      || command === 'github-activate-latest'
+      || command === 'github-move-latest-pointer'
+    ) {
       const typed = error instanceof GitHubMutationFailure
         ? error
         : githubMutationFailure(

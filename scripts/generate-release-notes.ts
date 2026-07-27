@@ -6,7 +6,7 @@ import { parseArgs as parseNodeArgs } from 'node:util';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
-type Channel = 'stable' | 'nightly';
+type Channel = 'stable' | 'nightly' | 'preview';
 
 type ReleaseNotesCliOptions = {
   version: string;
@@ -76,7 +76,7 @@ function parseArgs(argv: string[]) {
 
   if (values.version) parsed.version = values.version;
   if (values.channel) {
-    if (values.channel !== 'stable' && values.channel !== 'nightly') {
+    if (values.channel !== 'stable' && values.channel !== 'nightly' && values.channel !== 'preview') {
       throw new Error(`Unsupported release note channel: ${values.channel}`);
     }
     parsed.channel = values.channel;

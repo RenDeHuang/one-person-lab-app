@@ -1,0 +1,173 @@
+name: OPL Protected Preview Latest Pointer
+
+on:
+  workflow_call:
+    inputs:
+      app_ref:
+        description: Exact canonical App executor SHA that admitted the pointer operation.
+        required: true
+        type: string
+      target_tag:
+        description: Exact already-published Dev or Nightly Preview tag.
+        required: true
+        type: string
+      expected_current_latest_tag:
+        description: Exact expected-current Latest tag for the single CAS.
+        required: true
+        type: string
+      operation_started_at:
+        description: Immutable outer operation start timestamp.
+        required: true
+        type: string
+      operation_deadline_at:
+        description: Immutable outer operation deadline.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  move-latest-pointer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-preview-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Reject replay before protected pointer mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || {
+            echo "::error::Latest pointer authority is single-use; reruns cannot mutate."
+            exit 1
+          }
+
+      - name: Checkout exact admitted App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          path: app-source
+
+      - name: Download immutable pointer admission
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-latest-pointer-admission-${{ github.run_id }}
+          path: pointer-admission
+
+      - name: Execute one expected-current Latest CAS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pointer-result
+          exec > >(tee pointer-result/stdout.txt) 2> >(tee pointer-result/stderr.txt >&2)
+          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+            --operation move_latest_pointer \
+            --started-at '${{ inputs.operation_started_at }}' \
+            --deadline-at '${{ inputs.operation_deadline_at }}'
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            --repo "$GITHUB_REPOSITORY" \
+            --tag '${{ inputs.target_tag }}' \
+            --output pointer-result/fresh-release-inspection.json
+          cmp \
+            pointer-admission/release-inspection.json \
+            pointer-result/fresh-release-inspection.json
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-move-latest-pointer \
+            --repo "$GITHUB_REPOSITORY" \
+            --tag '${{ inputs.target_tag }}' \
+            --expected-current-latest-tag '${{ inputs.expected_current_latest_tag }}' \
+            --component-manifest pointer-admission/opl-app-component-manifest.json \
+            --pointer-authority pointer-admission/latest-pointer-authority.json \
+            --pointer-admission pointer-admission/latest-pointer-admission.json \
+            --release-inspection pointer-result/fresh-release-inspection.json \
+            --operation move_latest_pointer \
+            --operation-id "$GITHUB_RUN_ID" \
+            --attempt-id "gha-${GITHUB_RUN_ID}-latest-pointer" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation-started-at '${{ inputs.operation_started_at }}' \
+            --operation-deadline-at '${{ inputs.operation_deadline_at }}' \
+            --output pointer-result/latest-pointer-result.json
+          status="$(jq -er .status pointer-result/latest-pointer-result.json)"
+          case "$status" in
+            complete|idempotent) ;;
+            deadline_elapsed|outcome_unknown)
+              echo "::error::Latest pointer outcome is not proven; no second PATCH is allowed."
+              exit 1
+              ;;
+            *) exit 1 ;;
+          esac
+          test "$(jq -er .quality_status pointer-result/latest-pointer-result.json)" = preview
+          test "$(jq -er .quality_unchanged pointer-result/latest-pointer-result.json)" = true
+          test "$(jq -er .non_stable_notice pointer-result/latest-pointer-result.json)" = true
+          test "$(jq -er .persistent_override pointer-result/latest-pointer-result.json)" = false
+          test "$(jq -er .stable_reclaim pointer-result/latest-pointer-result.json)" = next_qualified_stable
+
+      - name: Read back public Latest and immutable Preview disclosure
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_tag='${{ inputs.target_tag }}'
+          expected_manifest_digest="$(
+            jq -er .candidate.component_manifest_digest \
+              pointer-admission/latest-pointer-admission.json
+          )"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "$target_tag"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$target_tag")"
+          manifest_url="$(
+            jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .browser_download_url' \
+              <<<"$release_json"
+          )"
+          curl --fail --location --silent --show-error \
+            --connect-timeout 20 --max-time 60 \
+            "$manifest_url" \
+            --output pointer-result/public-opl-app-component-manifest.json
+          cmp \
+            pointer-admission/opl-app-component-manifest.json \
+            pointer-result/public-opl-app-component-manifest.json
+          test "$(
+            jq -er .component_manifest_digest \
+              pointer-result/public-opl-app-component-manifest.json
+          )" = "$expected_manifest_digest"
+          test "$(
+            jq -er .quality_status pointer-result/public-opl-app-component-manifest.json
+          )" = preview
+          test "$(
+            jq -er .qualification_disclosure.non_stable_notice \
+              pointer-result/public-opl-app-component-manifest.json
+          )" = true
+          test "$(
+            jq -er '.qualification_disclosure.skipped_gates | length' \
+              pointer-result/public-opl-app-component-manifest.json
+          )" -gt 0
+          jq -n \
+            --arg tag "$target_tag" \
+            --arg manifest_digest "$expected_manifest_digest" \
+            --arg result_sha256 "sha256:$(shasum -a 256 pointer-result/latest-pointer-result.json | awk '{print $1}')" \
+            '{
+              schema:"opl_app_latest_pointer_public_readback.v1",
+              status:"passed",
+              latest_tag:$tag,
+              component_manifest_digest:$manifest_digest,
+              mutation_result_sha256:$result_sha256,
+              quality_status:"preview",
+              quality_unchanged:true,
+              non_stable_disclosure_preserved:true,
+              persistent_override:false,
+              stable_reclaim:"next_qualified_stable"
+            }' > pointer-result/latest-pointer-public-readback.json
+
+      - name: Upload terminal pointer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-latest-pointer-result-${{ github.run_id }}
+          path: pointer-result
+          if-no-files-found: warn
+          retention-days: 30
