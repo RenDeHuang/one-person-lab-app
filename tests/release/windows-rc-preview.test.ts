@@ -123,7 +123,6 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const steps = reusable.jobs.build.steps as Array<{ name?: string; if?: string; run?: string; with?: any; env?: any }>;
   const macCohort = steps.find((step) => step.name === 'Write build artifact cohort manifest');
   const windowsCohort = steps.find((step) => step.name === 'Write Windows RC build artifact cohort manifest');
-  const installDependencies = steps.find((step) => step.name === 'Install dependencies');
   const windowsNativeRebuild = steps.find(
     (step) => step.name === 'Rebuild native modules for Electron (Windows)',
   );
@@ -141,10 +140,6 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(windowsCohort?.run), /write-windows-rc-build-cohort\.ts/);
   assert.match(String(windowsCohort?.run), /out\/win-unpacked/);
   assert.match(String(windowsCohort?.run), /-name '\*\.exe'/);
-  assert.match(
-    String(installDependencies?.with?.command),
-    /bun install --cwd shells\/aionui --frozen-lockfile --linker hoisted/,
-  );
   assert.match(String(windowsNativeRebuild?.run), /Start-Process[\s\S]+prebuild-install/);
   assert.match(String(windowsNativeRebuild?.run), /\$prebuild\.ExitCode -ne 0/);
   assert.match(String(windowsNativeRebuild?.run), /falling back to electron-rebuild/);

@@ -527,7 +527,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 30
-          command: bun install --cwd shells/aionui --frozen-lockfile --linker hoisted
+          command: bun install --cwd shells/aionui --frozen-lockfile
 
       - name: Install App release tooling dependencies
         working-directory: ${{ github.workspace }}
