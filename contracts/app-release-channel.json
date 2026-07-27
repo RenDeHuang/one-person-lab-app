@@ -19,10 +19,11 @@
         "homebrew_tap",
         "webui_ghcr"
       ],
-      "current_production_publication_paths": 3,
+      "current_production_publication_paths": 4,
       "production_publication_paths": [
         "desktop_stable_github_release",
         "homebrew_standard_cask",
+        "homebrew_full_cask_post_publication_follower",
         "container_webui_latest_with_stable_compatibility_alias"
       ],
       "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
@@ -30,7 +31,6 @@
         "manual_full_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
-        "homebrew_full_implemented_unpublished_target",
         "native_webui_implemented_unpublished_target",
         "canary_validation_only"
       ]
@@ -200,7 +200,7 @@
       "native_webui": "approved_target_not_published",
       "homebrew_standard": "live_managed",
       "homebrew_nightly": "implemented_pending_first_follower_readback",
-      "homebrew_full": "legacy_cask_exists_not_managed_by_current_release_pipeline"
+      "homebrew_full": "implemented_pending_first_protected_follower_readback"
     },
     "publication_history": {
       "desktop_nightly": {
@@ -239,7 +239,7 @@
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
         "homebrew_cask": "one-person-lab-full",
-        "generation_status": "implemented_unpublished",
+        "generation_status": "implemented_pending_first_protected_follower_readback",
         "generator": "scripts/update-homebrew-tap.ts",
         "package_kind": "app_full_first_install",
         "formula_dependency_target": false,
@@ -250,14 +250,13 @@
           "one-person-lab-nightly"
         ],
         "digest_cas_required": true,
-        "public_promotion_status": "not_approved_until_promotion_requirements_pass",
+        "public_promotion_status": "approved_pending_first_protected_follower_readback",
         "standard_updater_visible": false,
         "promotion_requires": [
-          "full_embedded_base_activation",
-          "single_active_framework_readback",
-          "formula_absent_clean_vm_readback",
-          "official_profile_convergence",
-          "digest_bound_tap_publication"
+          "github_hosted_full_qualification",
+          "exact_public_full_asset_and_manifest_readback",
+          "protected_single_attempt_digest_bound_tap_cas",
+          "exact_public_tap_commit_and_cask_readback"
         ]
       },
       "native_webui": {
@@ -2373,7 +2372,8 @@
     ],
   "casks": [
     "one-person-lab",
-    "one-person-lab-nightly"
+    "one-person-lab-nightly",
+    "one-person-lab-full"
   ],
     "cask_install_policy": {
       "standard_cask": "one-person-lab",
@@ -2389,7 +2389,8 @@
     },
   "initial_live_targets": [
     "Casks/one-person-lab.rb",
-    "Casks/one-person-lab-nightly.rb"
+    "Casks/one-person-lab-nightly.rb",
+    "Casks/one-person-lab-full.rb"
   ],
     "excluded_casks": [],
     "full_casks": [
@@ -2431,8 +2432,13 @@
       "may_consume_nightly_directly": false
       },
       "full": {
-        "mode": "implemented_unpublished_generator_target",
-        "homebrew_publish_allowed": false,
+        "mode": "post_publication_digest_bound_single_attempt_follower",
+        "workflow": ".github/workflows/release-homebrew-full-follower.yml",
+        "environment": "release-stable",
+        "target": "Casks/one-person-lab-full.rb",
+        "homebrew_publish_allowed": true,
+        "mutation_allowed": true,
+        "source_completed_stage": "full_qualified",
         "homebrew_clean_vm_gate_required": false,
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
@@ -2440,7 +2446,8 @@
         "standard_assets_notes_updater_or_latest_may_change": false,
         "framework_carrier": "full_dmg_embedded_opl_base",
         "formula_dependency_required": false,
-        "promotion_status": "not_approved_until_promotion_requirements_pass"
+        "promotion_status": "approved_pending_first_protected_follower_readback",
+        "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
       },
       "version_identity": {
         "cask_version": "updater_version",
@@ -2464,7 +2471,7 @@
         "release_set_manifest_digest"
       ]
     },
-    "full_first_install_policy": "github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded",
+    "full_first_install_policy": "github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,

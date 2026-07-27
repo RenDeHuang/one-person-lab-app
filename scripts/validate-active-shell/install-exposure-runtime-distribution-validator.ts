@@ -360,7 +360,7 @@ function validateHomebrewUserTargets(homebrew) {
   );
   assertDeepEqualJson(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
     'Install exposure Homebrew initial live targets',
   );
   assertDeepEqualJson(
