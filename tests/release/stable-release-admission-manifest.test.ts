@@ -229,14 +229,15 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.equal(canonicalJson(manifest), canonicalJson(JSON.parse(JSON.stringify(manifest))));
 });
 
-test('admission fails closed when an App or Shell main ref drifts', () => {
-  const drifted = observation({
-    mainRefs: { app: appRef, shell: 'f'.repeat(40), framework: frameworkRef },
+test('admission retains the frozen three-repository cohort after later main changes', () => {
+  const manifest = buildStableReleaseAdmissionManifest(input(), observation({
+    mainRefs: { app: 'e'.repeat(40), shell: 'f'.repeat(40), framework: 'd'.repeat(40) },
+  }));
+  assert.deepEqual(manifest.cohort, {
+    app_sha: appRef,
+    shell_sha: shellRef,
+    framework_sha: frameworkRef,
   });
-  assert.throws(
-    () => buildStableReleaseAdmissionManifest(input(), drifted),
-    /Shell live main drifted/,
-  );
 });
 
 test('admission retains its frozen Framework cohort after later Framework main changes', () => {

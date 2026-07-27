@@ -356,14 +356,6 @@ export function buildStableReleaseAdmissionManifest(
       `Stable admission base version ${input.baseVersion} must match Asia/Shanghai date ${observation.currentDate}.`,
     );
   }
-  for (const [label, expected, actual] of [
-    ['App', input.appRef, observation.mainRefs.app],
-    ['Shell', input.shellRef, observation.mainRefs.shell],
-  ] as const) {
-    if (fullSha(actual, `${label} live main`) !== expected) {
-      throw new Error(`${label} live main drifted from the frozen admission cohort.`);
-    }
-  }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
   const sourceQualification = validateSourceQualificationReceipt(
     observation.sourceQualificationReceipt,
