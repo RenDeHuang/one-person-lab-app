@@ -1426,7 +1426,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'CodexThreadSettingsUpdateRequest',
       'codex-threads.update-settings',
       'codexThreads.updateSettings',
-      'adapter.updateThreadSettings',
+      'getActiveAdapter().updateThreadSettings',
     ],
     'Active shell existing Codex App Server thread settings transport',
   );
