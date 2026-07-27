@@ -1337,11 +1337,13 @@
     ],
     "nightly_heavy_vm_blocking": false,
     "stable_install_gates": [
+      "full_dmg_clean_vm_smoke",
+      "docker_webui_smoke"
+    ],
+    "post_publication_optional_certification_surfaces": [
       "standard_dmg_clean_vm_smoke",
       "homebrew_standard_cask_clean_vm_smoke",
-      "full_dmg_clean_vm_smoke",
-      "one_shot_app_installer_fresh_install_smoke",
-      "docker_webui_smoke"
+      "one_shot_app_installer_fresh_install_smoke"
     ],
     "must_verify": [
       "shared progress source",

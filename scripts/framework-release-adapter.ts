@@ -237,6 +237,7 @@ function parseCommon(argv: string[]) {
       'assets-dir': { type: 'string' },
       inspection: { type: 'string' },
       'legacy-qualification': { type: 'string' },
+      'hosted-core-qualification': { type: 'string' },
       status: { type: 'string' },
       repo: { type: 'string' },
       tag: { type: 'string' },
@@ -832,7 +833,74 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
   const bundle = bundleDocument(requireOption(values, 'bundle'));
   const track = requireOption(values, 'track') as Track;
   if (track !== 'standard' && track !== 'full') throw new Error('--track must be standard or full.');
-  const legacyPath = path.resolve(requireOption(values, 'legacy-qualification'));
+  const legacyQualification = values['legacy-qualification'];
+  const hostedCoreQualification = values['hosted-core-qualification'];
+  if (Boolean(legacyQualification) === Boolean(hostedCoreQualification)) {
+    throw new Error('Pass exactly one of --legacy-qualification or --hosted-core-qualification.');
+  }
+  if (hostedCoreQualification) {
+    if (track !== 'full') throw new Error('--hosted-core-qualification supports only the Full track.');
+    const hostedPath = path.resolve(hostedCoreQualification);
+    const hosted = readJson(hostedPath);
+    const subjectName = String(hosted.subject?.asset_name ?? '');
+    const sizeBytes = Number(hosted.subject?.size_bytes);
+    const artifactSha256 = String(hosted.subject?.sha256 ?? '');
+    const requiredNames = bundle.tracks?.full?.required_asset_names;
+    const cohort = hosted.cohort ?? {};
+    const verification = hosted.verification ?? {};
+    if (
+      hosted.schema !== 'opl_app_hosted_full_core_qualification.v1'
+      || hosted.status !== 'passed'
+      || hosted.execution?.execution_class !== 'github_hosted'
+      || hosted.execution?.runner !== 'macos-14'
+      || hosted.execution?.run_attempt !== 1
+      || !/^[1-9][0-9]*$/.test(String(hosted.execution?.run_id ?? ''))
+      || hosted.release?.bundle_digest !== bundle.bundle_digest
+      || hosted.release?.version !== bundle.release.version
+      || !Array.isArray(requiredNames)
+      || !requiredNames.includes(subjectName)
+      || !Number.isSafeInteger(sizeBytes)
+      || sizeBytes <= 0
+      || !digestPattern.test(artifactSha256)
+      || hosted.manifest?.asset_name !== 'opl-release-manifest.json'
+      || !digestPattern.test(String(hosted.manifest?.sha256 ?? ''))
+      || cohort.app_sha !== bundle.sources.app.source_commit
+      || cohort.shell_sha !== bundle.sources.shell.source_commit
+      || cohort.framework_sha !== bundle.sources.framework.source_commit
+      || verification.dmg_verified !== true
+      || verification.read_only_mount !== true
+      || verification.exact_single_app !== true
+      || verification.codesign !== true
+      || verification.stapler !== true
+      || verification.gatekeeper !== true
+      || verification.manifest_bound !== true
+      || verification.full_runtime_native_trust !== true
+      || typeof hosted.evidence_ref !== 'string'
+      || hosted.evidence_ref.trim() === ''
+    ) {
+      throw new Error('Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence.');
+    }
+    return {
+      surface_kind: 'opl_release_bundle_qualification_receipt.v1',
+      schema_ref: 'contracts/opl-framework/release-bundle-qualification-receipt.schema.json',
+      bundle_digest: bundle.bundle_digest,
+      track,
+      subject: {
+        asset_name: subjectName,
+        size_bytes: sizeBytes,
+        sha256: artifactSha256,
+      },
+      cohort: qualificationCohort(bundle),
+      qualification: {
+        kind: 'installed_artifact',
+        result: 'passed',
+        installed_artifact_same_bytes: true,
+        harness_sha256: digestRef(sha256File(hostedPath)),
+        evidence_refs: [hosted.evidence_ref],
+      },
+    };
+  }
+  const legacyPath = path.resolve(String(legacyQualification));
   const legacy = readJson(legacyPath) as ArtifactQualificationReceiptV1;
   const packageProfile = track;
   const artifactSha256 = String(legacy.artifact?.sha256 ?? '').replace(/^sha256:/, '');

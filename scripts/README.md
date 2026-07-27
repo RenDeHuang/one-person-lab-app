@@ -422,8 +422,14 @@ without a miss/forced-rebuild guard.
 Codex App and Computer Use checks are non-blocking exploratory tools;
 release-blocking App readiness must live in deterministic scripts, contracts,
 or GitHub Actions gates.
-The App VM wrapper exposes `diagnostic_scope=release_gate|bootstrap_only`.
-Release workflows use `release_gate`; `desktop-release-diagnostics.yml`
+The App VM wrapper exposes
+`diagnostic_scope=release_gate|post_publication_optional_certification|bootstrap_only`.
+`post_publication_optional_certification` is an independent, non-blocking
+consumer of an exact already-published artifact; it never rebuilds, re-signs,
+publishes, or authorizes Latest. When no physical capability is admitted, the
+dispatcher records `not_run` instead of queueing work or guessing
+`unavailable`. Legacy release workflows use `release_gate`;
+`desktop-release-diagnostics.yml`
 defaults to `bootstrap_only` to skip Codex asset cache restore/prefetch/save,
 Settings sweep, assistant route smoke, and Codex functional/AI checks while
 still installing and launching the App and collecting bootstrap fatal/native

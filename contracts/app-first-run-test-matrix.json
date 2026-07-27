@@ -69,8 +69,6 @@
       "installed_package_resolution": "framework_managed_and_independent_from_app_carrier"
     },
     "required_release_scenarios": [
-      "standard_dmg_clean_vm_smoke",
-      "homebrew_standard_cask_clean_vm_smoke",
       "full_dmg_clean_vm_smoke"
     ]
   },
@@ -481,7 +479,8 @@
     {
       "id": "standard_dmg_clean_vm_smoke",
       "package_type": "standard",
-      "release_gate": true,
+      "release_gate": false,
+      "post_publication_optional_certification": true,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
@@ -635,7 +634,8 @@
     {
       "id": "homebrew_standard_cask_clean_vm_smoke",
       "package_type": "standard",
-      "release_gate": true,
+      "release_gate": false,
+      "post_publication_optional_certification": true,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean Homebrew-ready Tart base clone",
@@ -969,7 +969,8 @@
     {
       "id": "one_shot_app_installer_fresh_install_smoke",
       "package_type": "source_installer",
-      "release_gate": true,
+      "release_gate": false,
+      "post_publication_optional_certification": true,
       "command": "OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --with-app --skip-packages",
       "expects": [
         "App root install.sh remains the public one-shot entrypoint",

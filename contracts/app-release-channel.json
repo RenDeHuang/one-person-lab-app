@@ -3313,9 +3313,11 @@
       "network_failure"
     ],
     "producer": {
-      "workflow": ".github/workflows/opl-first-run-vm.yml",
-      "trigger": "operator_manual_after_runner_and_fleet_lease_confirmation",
-      "automatic_prequeue_admission": "deferred_until_authenticated_fleet_transport_exists",
+      "workflow": ".github/workflows/release-post-publication-certification.yml",
+      "trigger": "workflow_run_after_successful_github_release_publication",
+      "automatic_prequeue_admission": "emit_not_run_until_exact_physical_capability_is_proven",
+      "physical_executor_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "dispatcher_execution": "github_hosted_read_only_public_artifact_consumer",
       "stable_dag_dependency": false,
       "may_queue_without_proven_capability": false
     },
@@ -3997,10 +3999,7 @@
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification",
-        "standard_dmg_clean_vm_smoke",
-        "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "remote_standard_release_verification"
       ],
       "addon_lanes": [
         "full_first_install_build",

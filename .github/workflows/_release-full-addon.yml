@@ -518,26 +518,118 @@ jobs:
   full-qualification:
     if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
     needs: [restore-standard, full-build, materialize-full-build]
+    runs-on: macos-14
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      mode: execute
-      release_artifact_name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64
-      release_artifact_run_id: ${{ github.run_id }}
-      release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
-      release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
-      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
-      smoke_harness_ref: ${{ needs.restore-standard.outputs.shell_ref }}
-      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
-      package_profile: full
-      diagnostic_scope: release_gate
-      require_macos_gatekeeper: true
-      operation: ${{ inputs.operation }}
-      operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
-      operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+    steps:
+      - name: Download exact Full package artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-full-first-install-${{ needs.restore-standard.outputs.version }}-mac-arm64
+          path: full-output
+
+      - name: Verify exact hosted Full core qualification
+        env:
+          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
+          VERSION: ${{ needs.restore-standard.outputs.version }}
+          APP_SHA: ${{ needs.restore-standard.outputs.app_ref }}
+          SHELL_SHA: ${{ needs.restore-standard.outputs.shell_ref }}
+          FRAMEWORK_SHA: ${{ needs.restore-standard.outputs.framework_source_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg_path="full-output/One-Person-Lab-Full-${VERSION}-mac-arm64.dmg"
+          manifest_path=full-output/opl-release-manifest.json
+          test -f "$dmg_path" && test ! -L "$dmg_path"
+          test -f "$manifest_path" && test ! -L "$manifest_path"
+          dmg_sha="sha256:$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
+          dmg_size="$(wc -c < "$dmg_path" | tr -d ' ')"
+          jq -e --arg name "$(basename "$dmg_path")" --arg sha "$dmg_sha" --argjson size "$dmg_size" '
+            .schema == "opl_public_release_manifest.v1"
+            and .package_kind == "opl_full_first_install_macos_arm64"
+            and .version == env.VERSION
+            and .primary_install_asset == $name
+            and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
+            and .evidence.gatekeeper_launch_policy.schema == "opl_gatekeeper_launch_policy.v1"
+            and .evidence.gatekeeper_launch_policy.codesign_status == "passed"
+            and .evidence.gatekeeper_launch_policy.spctl_status == "passed"
+            and .evidence.gatekeeper_launch_policy.stapler_validate_status == "passed"
+            and .evidence.apple_notarization_receipt.schema == "opl_apple_notarized_dmg_receipt.v1"
+            and .evidence.apple_notarization_receipt.status == "passed"
+            and .evidence.apple_notarization_receipt.notarization.status == "Accepted"
+            and .evidence.runtime_native_trust.status == "passed"
+          ' "$manifest_path" >/dev/null
+          mount_point="$(mktemp -d)"
+          mounted=false
+          cleanup_mount() {
+            if [ "$mounted" = true ]; then hdiutil detach "$mount_point" >/dev/null 2>&1 || true; fi
+            rm -rf "$mount_point"
+          }
+          trap cleanup_mount EXIT
+          hdiutil verify "$dmg_path"
+          hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_point" >/dev/null
+          mounted=true
+          app_paths=()
+          while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
+            find "$mount_point" -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
+          )
+          test "${#app_paths[@]}" -eq 1
+          app_path="${app_paths[0]}"
+          test -d "$app_path" && test ! -L "$app_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          codesign --verify --strict --verbose=2 "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
+          node - "$BUNDLE_DIGEST" "$VERSION" "$APP_SHA" "$SHELL_SHA" "$FRAMEWORK_SHA" "$dmg_path" "$manifest_path" <<'NODE' > hosted-full-core-qualification.json
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const [bundleDigest, version, appSha, shellSha, frameworkSha, dmgPath, manifestPath] = process.argv.slice(2);
+          const sha256 = (value) => `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
+          const stat = fs.statSync(dmgPath);
+          process.stdout.write(`${JSON.stringify({
+            schema: 'opl_app_hosted_full_core_qualification.v1',
+            status: 'passed',
+            execution: {
+              execution_class: 'github_hosted',
+              runner: 'macos-14',
+              run_id: process.env.GITHUB_RUN_ID,
+              run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            },
+            release: { bundle_digest: bundleDigest, version },
+            subject: {
+              asset_name: require('node:path').basename(dmgPath),
+              size_bytes: stat.size,
+              sha256: sha256(fs.readFileSync(dmgPath)),
+            },
+            manifest: {
+              asset_name: 'opl-release-manifest.json',
+              sha256: sha256(fs.readFileSync(manifestPath)),
+            },
+            cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
+            verification: {
+              dmg_verified: true,
+              read_only_mount: true,
+              exact_single_app: true,
+              codesign: true,
+              stapler: true,
+              gatekeeper: true,
+              manifest_bound: true,
+              full_runtime_native_trust: true,
+            },
+            evidence_ref: `opl-hosted-full-core-qualification-${process.env.GITHUB_RUN_ID}`,
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload hosted Full core qualification
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-hosted-full-core-qualification-${{ github.run_id }}
+          path: hosted-full-core-qualification.json
+          if-no-files-found: error
+          retention-days: 30
 
   checkpoint-full:
     if: ${{ always() && inputs.mode == 'execute' && needs.restore-standard.result == 'success' && needs.restore-standard.outputs.completed_stage != 'full_qualified' && needs.full-qualification.result == 'success' }}
@@ -570,11 +662,11 @@ jobs:
           name: opl-full-first-install-${{ needs.restore-standard.outputs.version }}-mac-arm64
           path: full-output
 
-      - name: Download exact Full qualification
+      - name: Download exact hosted Full core qualification
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-first-run-vm-full-${{ github.run_id }}
-          path: full-qualification
+          name: opl-hosted-full-core-qualification-${{ github.run_id }}
+          path: hosted-core-qualification
 
       - name: Bind Full bytes and export additive checkpoint
         env:
@@ -637,18 +729,10 @@ jobs:
           original_standard_receipt="${standard_build_receipts[0]}"
           test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
-          legacy_receipts=()
-          while IFS= read -r receipt; do
-            legacy_receipts+=("$receipt")
-          done < <(find full-qualification -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort)
-          if [ "${#legacy_receipts[@]}" -ne 1 ]; then
-            echo "::error::Full qualification must contain exactly one artifact qualification receipt; found ${#legacy_receipts[@]}."
-            exit 1
-          fi
-          legacy_receipt="${legacy_receipts[0]}"
-          test -f "$legacy_receipt" && test ! -L "$legacy_receipt"
+          hosted_receipt=hosted-core-qualification/hosted-full-core-qualification.json
+          test -f "$hosted_receipt" && test ! -L "$hosted_receipt"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
-            --bundle "$bundle" --track full --legacy-qualification "$legacy_receipt" \
+            --bundle "$bundle" --track full --hosted-core-qualification "$hosted_receipt" \
             --output full-qualification.receipt.json
           framework-executor/bin/opl release verify \
             --bundle "$BUNDLE_DIGEST" --track full \

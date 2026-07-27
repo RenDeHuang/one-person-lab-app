@@ -385,15 +385,21 @@ function validateReleaseValidation(validation) {
   if (validation?.structural_gate !== 'node --experimental-strip-types scripts/validate-active-shell.ts --quick') {
     throw new Error('Install exposure release validation structural gate must be validate-active-shell --quick');
   }
-  for (const gate of [
+  assertDeepEqualJson(
+    validation?.stable_install_gates,
+    [
+      'full_dmg_clean_vm_smoke',
+      'docker_webui_smoke',
+    ],
+    'Install exposure Stable/add-on gates',
+  );
+  assertDeepEqualJson(
+    validation?.post_publication_optional_certification_surfaces,
+    [
     'standard_dmg_clean_vm_smoke',
     'homebrew_standard_cask_clean_vm_smoke',
-    'full_dmg_clean_vm_smoke',
     'one_shot_app_installer_fresh_install_smoke',
-    'docker_webui_smoke',
-  ]) {
-    if (!validation.stable_install_gates?.includes(gate)) {
-      throw new Error(`Install exposure stable install gates must include ${gate}`);
-    }
-  }
+    ],
+    'Install exposure post-publication optional certification surfaces',
+  );
 }

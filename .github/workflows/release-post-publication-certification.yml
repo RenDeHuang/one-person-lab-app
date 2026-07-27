@@ -1,0 +1,485 @@
+name: OPL Post-Publication Optional Certification
+run-name: Optional certification for Stable run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Stable Release Bundle
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-post-publication-certification-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-standard:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.identity.outputs.eligible }}
+      tag: ${{ steps.identity.outputs.tag }}
+      artifact_name: ${{ steps.identity.outputs.artifact_name }}
+      artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
+      component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Admit one successful canonical Stable authority run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > stable-authority-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' stable-authority-run.json >/dev/null
+          activation_artifact="opl-release-activation-${SOURCE_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            > stable-authority-artifacts.json
+          count="$(
+            jq -r --arg name "$activation_artifact" \
+              '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+              stable-authority-artifacts.json
+          )"
+          case "$count" in
+            0)
+              echo "activation_artifact_found=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "activation_artifact_found=true" >> "$GITHUB_OUTPUT"
+              echo "activation_artifact=$activation_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stable authority run contains duplicate Latest activation artifacts."
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact Latest activation evidence
+        if: ${{ steps.authority.outputs.activation_artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.activation_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: latest-activation
+
+      - name: Bind exact public Standard identity
+        id: identity
+        if: ${{ always() && steps.authority.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.authority.outputs.activation_artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          manifests=()
+          while IFS= read -r value; do handoffs+=("$value"); done < <(
+            find latest-activation -type f -name webui-follower-handoff.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r value; do manifests+=("$value"); done < <(
+            find latest-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1
+          test "${#manifests[@]}" -eq 1
+          handoff="${handoffs[0]}"
+          activation_manifest="${manifests[0]}"
+          head_sha="$(jq -er .head_sha stable-authority-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$head_sha" '
+            .schema == "opl_app_webui_follower_handoff.v1"
+            and .status == "ready"
+            and .stable_authority == {
+              repository: "gaofeng21cn/one-person-lab-app",
+              workflow: ".github/workflows/release-stable.yml",
+              run_id: $run,
+              run_attempt: 1,
+              executor_head_sha: $head
+            }
+            and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and .latest_activation.admission_schema == "opl_standard_latest_admission_receipt.v1"
+            and .latest_activation.admitted == true
+            and .latest_activation.framework_terminal_status == "complete"
+          ' "$handoff" >/dev/null
+          version="$(jq -er .release.version "$handoff")"
+          tag="v${version}"
+          app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
+          shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
+          framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
+          test "$app_sha" = "$head_sha"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
+          jq -e --arg tag "$tag" --arg head "$head_sha" '
+            .tag_name == $tag
+            and .draft == false
+            and .prerelease == false
+            and .target_commitish == $head
+          ' public-release.json >/dev/null
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          curl --fail --location --retry 0 \
+            "$release_base/opl-app-component-manifest.json" \
+            --output public-component-manifest.json
+          cmp "$activation_manifest" public-component-manifest.json
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest public-component-manifest.json \
+            --expected-tag "$tag" \
+            --release-prerelease false \
+            --expected-source-commit "$head_sha" \
+            > public-component-identity.json
+          artifact_name="$(jq -er .primary_artifact.name public-component-manifest.json)"
+          artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
+          artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
+          test "$artifact_name" = "One-Person-Lab-${version}-mac-arm64.dmg"
+          [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$artifact_size" =~ ^[1-9][0-9]*$ ]]
+          jq -e --arg name "$artifact_name" --argjson size "$artifact_size" '
+            [.assets[] | select(.name == $name and .size == $size)] | length == 1
+          ' public-release.json >/dev/null
+          component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
+          {
+            echo "eligible=true"
+            echo "tag=$tag"
+            echo "artifact_name=$artifact_name"
+            echo "artifact_digest=$artifact_digest"
+            echo "component_manifest_digest=$component_manifest_digest"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  write-standard-receipts:
+    if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
+    needs: [resolve-standard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Write explicit not-run receipts without dispatching physical work
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
+          ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.artifact_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
+            > not-run-admission.json
+          common_args=(
+            --release-tag "$RELEASE_TAG"
+            --artifact-name "$ARTIFACT_NAME"
+            --artifact-digest "$ARTIFACT_DIGEST"
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST"
+            --app-sha "$APP_SHA"
+            --shell-sha "$SHELL_SHA"
+            --framework-sha "$FRAMEWORK_SHA"
+            --source-run-id "$SOURCE_RUN_ID"
+            --status not_run
+            --platform macos
+            --reason-code not_requested
+            --admission-evidence-file not-run-admission.json
+          )
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${common_args[@]}" \
+            --certification-kind clean_machine_install \
+            --capability tart-clean-macos \
+            --output standard-dmg-clean-machine.json
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${common_args[@]}" \
+            --certification-kind homebrew_install \
+            --capability tart-homebrew-macos \
+            --output homebrew-standard-clean-machine.json
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${common_args[@]}" \
+            --certification-kind clean_machine_install \
+            --capability tart-one-shot-installer \
+            --output one-shot-installer-clean-machine.json
+
+      - name: Upload non-blocking Standard certification receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-post-publication-standard-certification-${{ github.event.workflow_run.id }}
+          path: |
+            standard-dmg-clean-machine.json
+            homebrew-standard-clean-machine.json
+            one-shot-installer-clean-machine.json
+          if-no-files-found: error
+          retention-days: 90
+
+  resolve-full:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.identity.outputs.eligible }}
+      tag: ${{ steps.identity.outputs.tag }}
+      artifact_name: ${{ steps.identity.outputs.artifact_name }}
+      artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
+      component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Resolve optional exact Full publication
+        id: publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > stable-authority-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' stable-authority-run.json >/dev/null
+          publication_artifact="opl-release-full-published-${SOURCE_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            > stable-authority-artifacts.json
+          count="$(
+            jq -r --arg name "$publication_artifact" \
+              '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+              stable-authority-artifacts.json
+          )"
+          case "$count" in
+            0)
+              echo "publication_artifact_found=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "publication_artifact_found=true" >> "$GITHUB_OUTPUT"
+              echo "publication_artifact=$publication_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stable authority run contains duplicate Full publication artifacts."
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact Full publication evidence
+        if: ${{ steps.publication.outputs.publication_artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.publication.outputs.publication_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: full-publication
+
+      - name: Bind exact public Full identity
+        id: identity
+        if: ${{ always() && steps.publication.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.publication.outputs.publication_artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          while IFS= read -r value; do handoffs+=("$value"); done < <(
+            find full-publication -type f -name homebrew-full-handoff.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1
+          handoff="${handoffs[0]}"
+          head_sha="$(jq -er .head_sha stable-authority-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$head_sha" '
+            .schema == "opl_homebrew_full_follower_handoff.v1"
+            and .status == "ready"
+            and .operation == "append_full"
+            and .authority == {
+              repository: "gaofeng21cn/one-person-lab-app",
+              workflow: ".github/workflows/release-stable.yml",
+              run_id: $run,
+              run_attempt: 1,
+              executor_head_sha: $head
+            }
+            and (.release.tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
+            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and (.artifact.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and (.manifest.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and .github_full_publication.status == "complete"
+            and .homebrew_modified == false
+            and .latest_modified == false
+          ' "$handoff" >/dev/null
+          tag="$(jq -er .release.tag "$handoff")"
+          artifact_name="$(jq -er .artifact.name "$handoff")"
+          artifact_digest="$(jq -er .artifact.sha256 "$handoff")"
+          artifact_size="$(jq -er .artifact.size_bytes "$handoff")"
+          manifest_name="$(jq -er .manifest.name "$handoff")"
+          manifest_digest="$(jq -er .manifest.sha256 "$handoff")"
+          app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
+          shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
+          framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
+          test "$app_sha" = "$head_sha"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
+          jq -e --arg tag "$tag" --arg head "$head_sha" --arg name "$artifact_name" --argjson size "$artifact_size" '
+            .tag_name == $tag
+            and .draft == false
+            and .prerelease == false
+            and .target_commitish == $head
+            and ([.assets[] | select(.name == $name and .size == $size)] | length == 1)
+          ' public-release.json >/dev/null
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          curl --fail --location --retry 0 \
+            "$release_base/$manifest_name" \
+            --output public-full-manifest.json
+          test "sha256:$(sha256sum public-full-manifest.json | awk '{print $1}')" = "$manifest_digest"
+          jq -e --arg name "$artifact_name" --arg sha "$artifact_digest" --argjson size "$artifact_size" '
+            .schema == "opl_public_release_manifest.v1"
+            and .package_kind == "opl_full_first_install_macos_arm64"
+            and .primary_install_asset == $name
+            and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
+          ' public-full-manifest.json >/dev/null
+          curl --fail --location --retry 0 \
+            "$release_base/opl-app-component-manifest.json" \
+            --output public-component-manifest.json
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest public-component-manifest.json \
+            --expected-tag "$tag" \
+            --release-prerelease false \
+            --expected-source-commit "$head_sha" \
+            > public-component-identity.json
+          component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
+          {
+            echo "eligible=true"
+            echo "tag=$tag"
+            echo "artifact_name=$artifact_name"
+            echo "artifact_digest=$artifact_digest"
+            echo "component_manifest_digest=$component_manifest_digest"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  write-full-receipt:
+    if: ${{ needs.resolve-full.outputs.eligible == 'true' }}
+    needs: [resolve-full]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Write explicit Full not-run receipt without dispatching physical work
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-full.outputs.tag }}
+          ARTIFACT_NAME: ${{ needs.resolve-full.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ needs.resolve-full.outputs.artifact_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-full.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-full.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-full.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-full.outputs.framework_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
+            > not-run-admission.json
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            --release-tag "$RELEASE_TAG" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --artifact-digest "$ARTIFACT_DIGEST" \
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST" \
+            --app-sha "$APP_SHA" \
+            --shell-sha "$SHELL_SHA" \
+            --framework-sha "$FRAMEWORK_SHA" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --status not_run \
+            --certification-kind clean_machine_install \
+            --platform macos \
+            --capability tart-full-clean-macos \
+            --reason-code not_requested \
+            --admission-evidence-file not-run-admission.json \
+            --output full-dmg-clean-machine.json
+
+      - name: Upload non-blocking Full certification receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-post-publication-full-certification-${{ github.event.workflow_run.id }}
+          path: full-dmg-clean-machine.json
+          if-no-files-found: error
+          retention-days: 90

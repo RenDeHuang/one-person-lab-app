@@ -907,9 +907,11 @@ function validateOptionalCertificationPolicy(releaseContract: Record<string, any
       'vm_admission_failed',
       'capability_admission_failed',
     ])
-    || policy?.producer?.workflow !== '.github/workflows/opl-first-run-vm.yml'
-    || policy?.producer?.trigger !== 'operator_manual_after_runner_and_fleet_lease_confirmation'
-    || policy?.producer?.automatic_prequeue_admission !== 'deferred_until_authenticated_fleet_transport_exists'
+    || policy?.producer?.workflow !== '.github/workflows/release-post-publication-certification.yml'
+    || policy?.producer?.trigger !== 'workflow_run_after_successful_github_release_publication'
+    || policy?.producer?.automatic_prequeue_admission !== 'emit_not_run_until_exact_physical_capability_is_proven'
+    || policy?.producer?.physical_executor_workflow !== '.github/workflows/opl-first-run-vm.yml'
+    || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
     || policy?.producer?.stable_dag_dependency !== false
     || policy?.producer?.may_queue_without_proven_capability !== false
   ) {

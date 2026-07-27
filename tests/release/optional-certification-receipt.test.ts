@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -10,6 +11,7 @@ import {
   type OptionalCertificationExpectation,
   type OptionalCertificationStatus,
 } from '../../scripts/validate-optional-certification-receipt.ts';
+import { writeOptionalCertificationReceipt } from '../../scripts/write-optional-certification-receipt.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const digest = (character: string): string => `sha256:${character.repeat(64)}`;
@@ -130,4 +132,55 @@ test('certification is bound to the already-published artifact and may never reb
     'certification must not mutate the component manifest',
     'certification must not resign the component manifest',
   ]);
+});
+
+test('receipt writer emits a self-validating not_run record without inventing a physical job', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = path.join(root, 'admission.json');
+  fs.writeFileSync(admission, '{"status":"not_requested","physical_job_dispatched":false}\n');
+  const value = writeOptionalCertificationReceipt({
+    expected,
+    status: 'not_run',
+    certification: {
+      kind: 'clean_machine_install',
+      platform: 'macos',
+      capability: 'tart-clean-macos',
+    },
+    admissionEvidencePath: admission,
+    reasonCode: 'not_requested',
+    certificationRunId: null,
+    evidencePaths: [],
+    createdAt: '2026-07-28T01:00:00.000Z',
+  });
+  assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
+  assert.equal(value.run.certification_run_id, null);
+  assert.equal(value.run.job_started, false);
+  assert.equal(value.artifact_handling.downloaded_from_published_release, false);
+  assert.equal(value.admission.reason_code, 'not_requested');
+  assert.deepEqual(value.result.evidence_digests, []);
+});
+
+test('receipt writer refuses to classify queue, runner, auth, or network state as unavailable', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = path.join(root, 'admission.json');
+  fs.writeFileSync(admission, '{"status":"failed"}\n');
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected,
+      status: 'unavailable',
+      certification: {
+        kind: 'clean_machine_install',
+        platform: 'macos',
+        capability: 'tart-clean-macos',
+      },
+      admissionEvidencePath: admission,
+      reasonCode: 'runner_offline',
+      certificationRunId: '30260000002',
+      evidencePaths: [],
+      createdAt: '2026-07-28T01:00:00.000Z',
+    }),
+    /typed admission failure/,
+  );
 });
