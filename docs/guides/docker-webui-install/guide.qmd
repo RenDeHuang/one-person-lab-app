@@ -115,7 +115,7 @@ curl -fsSL "$root/scripts/install-docker-webui.sh" |
   bash -s -- --yes
 ```
 
-安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。第一次启动需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。Windows 拉取镜像超过 30 分钟仍未完成时，安装器会自动停止卡住的 Docker 子进程并给出网络排查提示，不需要手工结束 PowerShell。后续启动和更新通常更快。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
+安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。第一次启动需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。Windows 拉取镜像超过 30 分钟仍未完成时，安装器会自动停止卡住的 Docker 子进程并给出网络排查提示，不需要手工结束 PowerShell。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
 | 宿主机目录 | 容器内路径 | 保存内容 |
 |---|---|---|
@@ -131,6 +131,16 @@ http://localhost:3000/
 ## 3. 打开 WebUI
 
 使用 Edge、Chrome 或 Firefox 打开 <http://localhost:3000/>。
+
+### Windows 日常一键启动
+
+首次安装成功后，直接双击桌面的 **One Person Lab**：
+
+1. 如果 Docker Desktop 尚未运行，启动器会自动打开并等待 Docker Engine 就绪。
+2. 启动或复用现有 WebUI 容器，不执行 `docker compose down`，也不会删除 `data` 或 `projects`。
+3. 持续检查真实 WebUI HTTP 状态；服务就绪后自动打开浏览器，不依赖固定等待 20 秒。
+
+`compose.yaml` 使用 `restart: unless-stopped`。Docker Desktop 随 Windows 启动后，WebUI 容器通常会自动恢复；桌面入口仍会确认容器和页面均已就绪再打开浏览器。启动失败时窗口会保留错误信息，按提示重新运行一次安装器即可刷新启动文件和快捷方式。
 
 本机 Docker 安装会自动建立本机 WebUI 会话。登录后的单次 Core 检查上限为 20 秒，明确发现未配置时会尝试自动进入首次设置；检查未知、失败、超时，或自动跳转没有发生时会先进入工作台。无论是否自动跳转，只要左下角出现“完成首次设置”，点击它就会进入同一个向导。普通启动、刷新或打开具体页面不会反复打断当前工作，也不会无条件等待 20 秒。
 
@@ -187,7 +197,7 @@ http://localhost:3000/
 
 ## 5. 日常使用与更新
 
-Windows 日常使用时可以直接重新运行安装器，它会在需要时启动 Docker Desktop；Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
+Windows 日常使用时双击桌面的 **One Person Lab**；只有需要修复启动文件、改变端口或手动更新时才重新运行安装器。Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
 
 ### Windows 自动更新
 
@@ -220,7 +230,7 @@ Get-Content "$env:USERPROFILE\OnePersonLab\updater\logs\current.log" -Tail 80
 {{download.windows_disable_auto_update_command}}
 ```
 
-自定义 `-Image`、非 `latest` 的 `-Tag` 或固定 digest 不会启用自动更新，避免计划任务静默覆盖高级用户的版本选择。`stable` 是 `latest` 的兼容别名，两者必须指向同一已通过质控的 digest；手工发布版本只有通过与 stable 相同的质控后才可以推进 `latest`。
+自定义 `-Image`、非 `latest` 的 `-Tag` 或固定 digest 不会启用自动更新，避免计划任务静默覆盖高级用户的版本选择。`latest` 是 Windows 推荐安装命令跟随的自动更新指针；经人工授权的开发预览可以只推进 `latest`，不代表 `stable` 质量结论。需要固定稳定版本的高级用户应显式选择 `stable` 或版本 tag。
 
 ### Windows 手动更新
 

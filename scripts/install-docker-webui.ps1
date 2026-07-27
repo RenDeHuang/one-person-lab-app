@@ -47,6 +47,7 @@ function Write-UserPathStatus {
 
   Write-Step "User path status:"
   Write-Step "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
+  Write-Step "  daily_start: use the One Person Lab desktop shortcut to start Docker Desktop, wait for WebUI health, and open the browser."
   Write-Step "  browser_webui: open $Url after the health check passes."
   Write-Step "  access_key_settings: sign in to Gateway or enter an API key in WebUI first-run or Settings -> Account & Access."
   Write-Step "  runtime_proxy: WebUI sends Gateway sign-in and API-key configuration through the existing OPL runtime provider."
@@ -550,6 +551,7 @@ services:
   one-person-lab-webui:
     image: $(Convert-ToComposeScalar $ImageReference)
     pull_policy: missing
+    restart: unless-stopped
     ports:
       - $(Convert-ToComposeScalar "127.0.0.1:${HostPort}:3000")
     environment:
@@ -730,6 +732,190 @@ function New-DirectoryIfNeeded {
 function Convert-ToPowerShellSingleQuoted {
   param([Parameter(Mandatory = $true)][string]$Value)
   return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Write-WebUiLauncher {
+  param(
+    [Parameter(Mandatory = $true)][string]$LauncherPath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [AllowEmptyString()][string]$DockerDesktopPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $dockerDesktopLiteral = if ([string]::IsNullOrWhiteSpace($DockerDesktopPath)) {
+    '$null'
+  } else {
+    Convert-ToPowerShellSingleQuoted $DockerDesktopPath
+  }
+  $template = @'
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version 3.0
+$ErrorActionPreference = "Stop"
+$dockerCliPath = __DOCKER_CLI__
+$dockerDesktopPath = __DOCKER_DESKTOP__
+$composePath = __COMPOSE_PATH__
+$url = __WEBUI_URL__
+$healthTimeoutSeconds = __HEALTH_TIMEOUT__
+
+try {
+  $Host.UI.RawUI.WindowTitle = "One Person Lab"
+} catch {
+}
+
+function Test-DockerReady {
+  & $dockerCliPath info --format "{{.ServerVersion}}" 2>$null | Out-Null
+  return $LASTEXITCODE -eq 0
+}
+
+function Start-OnePersonLabDocker {
+  if (Test-DockerReady) {
+    return
+  }
+
+  Write-Host "[One Person Lab] Starting Docker Desktop..."
+  try {
+    $desktopStart = Start-Process `
+      -FilePath $dockerCliPath `
+      -ArgumentList @("desktop", "start") `
+      -WindowStyle Hidden `
+      -PassThru
+    if (-not $desktopStart.WaitForExit(30000)) {
+      Stop-Process -Id $desktopStart.Id -Force -ErrorAction SilentlyContinue
+    }
+  } catch {
+  }
+  if (-not (Test-DockerReady) -and
+      -not [string]::IsNullOrWhiteSpace($dockerDesktopPath) -and
+      (Test-Path -LiteralPath $dockerDesktopPath -PathType Leaf)) {
+    Start-Process -FilePath $dockerDesktopPath | Out-Null
+  }
+
+  $deadline = (Get-Date).AddSeconds(180)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-DockerReady) {
+      return
+    }
+    Start-Sleep -Seconds 2
+  }
+  throw "Docker Desktop did not become ready within 180 seconds. Open Docker Desktop and finish any setup prompts."
+}
+
+function Test-OnePersonLabHealth {
+  try {
+    $response = Invoke-WebRequest -Uri $url -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+  } catch {
+    try {
+      $response = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+      return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+    } catch {
+      return $false
+    }
+  }
+}
+
+try {
+  if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
+    throw "compose.yaml was not found at $composePath. Run the One Person Lab installer once to repair it."
+  }
+
+  Start-OnePersonLabDocker
+  Write-Host "[One Person Lab] Starting the WebUI container..."
+  $composeOutput = & $dockerCliPath compose -f $composePath up -d 2>&1 | Out-String
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker Compose failed: $composeOutput"
+  }
+
+  Write-Host "[One Person Lab] Waiting for WebUI health..."
+  $deadline = (Get-Date).AddSeconds($healthTimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-OnePersonLabHealth) {
+      Write-Host "[One Person Lab] Ready. Opening $url"
+      Start-Process -FilePath $url
+      exit 0
+    }
+    Start-Sleep -Seconds 2
+  }
+  throw "WebUI did not become reachable at $url within $healthTimeoutSeconds seconds."
+} catch {
+  Write-Host ""
+  Write-Host "[One Person Lab] Startup failed: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "Run the installer again to repair the local startup files."
+  Read-Host "Press Enter to close this window"
+  exit 1
+}
+'@
+
+  $content = $template.Replace("__DOCKER_CLI__", (Convert-ToPowerShellSingleQuoted $DockerCliPath))
+  $content = $content.Replace("__DOCKER_DESKTOP__", $dockerDesktopLiteral)
+  $content = $content.Replace("__COMPOSE_PATH__", (Convert-ToPowerShellSingleQuoted $ComposePath))
+  $content = $content.Replace("__WEBUI_URL__", (Convert-ToPowerShellSingleQuoted $Url))
+  $content = $content.Replace("__HEALTH_TIMEOUT__", [string]$TimeoutSeconds)
+  $tokens = $null
+  $parseErrors = $null
+  [System.Management.Automation.Language.Parser]::ParseInput(
+    $content,
+    [ref]$tokens,
+    [ref]$parseErrors
+  ) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    $parseSummary = ($parseErrors | ForEach-Object { $_.Message }) -join "; "
+    throw "Generated One Person Lab launcher is invalid: $parseSummary"
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would write daily launcher $LauncherPath"
+    return
+  }
+
+  $temporaryPath = "$LauncherPath.download"
+  Set-Content -LiteralPath $temporaryPath -Value $content -Encoding UTF8
+  Move-Item -LiteralPath $temporaryPath -Destination $LauncherPath -Force
+}
+
+function Install-WebUiLauncher {
+  param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $installRoot = Split-Path -Parent $ComposePath
+  $launcherPath = Join-Path $installRoot "Start-OnePersonLab.ps1"
+  $dockerDesktopPath = Resolve-DockerDesktopApplicationPath
+  Write-WebUiLauncher `
+    -LauncherPath $launcherPath `
+    -DockerCliPath $DockerCliPath `
+    -DockerDesktopPath $(if ($null -eq $dockerDesktopPath) { "" } else { $dockerDesktopPath }) `
+    -ComposePath $ComposePath `
+    -Url $Url `
+    -TimeoutSeconds $TimeoutSeconds
+
+  if ($DryRun) {
+    Write-Step "Dry run: would create desktop shortcut %USERPROFILE%\Desktop\One Person Lab.lnk"
+    return
+  }
+
+  $desktopPath = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+  if ([string]::IsNullOrWhiteSpace($desktopPath)) {
+    $desktopPath = Join-Path (Get-DefaultUserProfile) "Desktop"
+  }
+  New-Item -ItemType Directory -Force -Path $desktopPath | Out-Null
+  $shortcutPath = Join-Path $desktopPath "One Person Lab.lnk"
+  $powershell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($shortcutPath)
+  $shortcut.TargetPath = $powershell
+  $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $launcherPath + '"'
+  $shortcut.WorkingDirectory = $installRoot
+  $shortcut.Description = "Start One Person Lab and open the local WebUI"
+  $shortcut.IconLocation = "$powershell,0"
+  $shortcut.Save()
+  Write-Step "Daily launcher installed: $shortcutPath"
 }
 
 function Write-WebUiAutoUpdater {
@@ -1522,6 +1708,7 @@ try {
   throw
 }
 Wait-WebUiHealth -DockerCliPath $dockerCliPath -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
+Install-WebUiLauncher -DockerCliPath $dockerCliPath -ComposePath $composePath -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 if ($EnableAutoUpdate) {
   Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 } elseif (-not $Update) {
