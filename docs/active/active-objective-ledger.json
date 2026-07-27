@@ -197,10 +197,10 @@
         "Fresh Codex Plugin Manager readback lists opl-relay@opl-relay version 0.4.0 and opl-persona@opl-persona-local version 0.1.0 as installed and enabled.",
         "Fresh opl app state --profile fast --json still projects exactly seven legacy Packages and omits Relay and Persona from app_state.agent_packages.directory/status_index.",
         "Framework W3 has one formally owned exact4 writer and remote checkpoint db526ad8360442c8fe7a7f7a644475d82db20b15/tree 9ceb4a18696565e038d6d783d19f70a09232cfa4; its current descriptor-discovery implementation is dirty and not yet a fresh terminal proof.",
-        "The real owner-descriptor layout is heterogeneous: Relay currently exposes plugins/opl-relay/opl-package.json, while Persona exposes packages/opl-persona/package.json; Framework discovery must normalize both without recreating registry/cache/lock/receipt authority.",
+        "The real owner-descriptor layout is heterogeneous: Relay currently exposes plugins/opl-relay/opl-package.json, while Persona exposes packages/opl-persona/package.json. The preferred simplification is one plugin-source-root owner descriptor contract; any compatibility fallback must be explicitly bounded and must not recreate registry/cache/lock/receipt authority.",
         "Shell lifecycle has an ACTIVE exact7 capabilities-private-lifecycle retirement lane; aggregate, canonical and family-by-family deletion remain."
       ],
-      "next_action": "Prioritize the existing Framework W3 single writer: discover installed Codex Plugins from native readback, resolve the owner descriptor without requiring legacy registry/cache/lock state, project generic directory/status/actions, and prove isolated fixtures plus a fresh Relay/Persona two-plugin readback with zero private lifecycle writes. Only then switch App/Shell to the generic projection; other non-overlapping retirement inventories may continue in parallel.",
+      "next_action": "Prioritize the existing Framework W3 single writer: discover installed Codex Plugins from native readback, lock the owner descriptor contract at the plugin source root unless a narrowly validated local-owner fallback is genuinely required, project generic directory/status/actions, and prove isolated fixtures plus a fresh Relay/Persona two-plugin readback with zero private lifecycle writes. Persona descriptor alignment may run as a separate non-overlapping producer lane after the descriptor shape is fixed; App/Shell consumption waits for the two-plugin proof, while other retirement inventories may continue in parallel.",
       "integration_order": 6,
       "parallel_group": "package-retirement",
       "estimated_remaining": {
@@ -230,13 +230,13 @@
         "Fresh direct execution of the current dirty W3 resolver returns only opl-relay: Relay has sourcePath/opl-package.json, while Persona keeps its equivalent descriptor at packages/opl-persona/package.json outside the native plugin source root.",
         "Relay native installed metadata is version 0.4.0 while its owner descriptor is version 0.4.1; installed carrier currentness and owner descriptor version must remain distinct and produce an explicit diagnostic instead of being silently conflated."
       ],
-      "next_action": "The existing Framework W3 owner must finish one bounded generic descriptor resolver for admitted plugin-local and same-repository layouts, preserve carrier-neutral identity, fail closed on duplicate package_id or unsafe owner paths, and expose native-versus-descriptor version divergence as currentness evidence. It must then prove isolated fixtures plus fresh native Relay/Persona directory/status/action readback with zero registry cache, lock or receipt writes. After a new ordinary remote checkpoint, App/Shell may consume the generic projection without package-id special cases.",
+      "next_action": "The existing Framework W3 owner must lock the canonical owner descriptor contract, preferably at sourcePath/opl-package.json, preserve carrier-neutral identity, fail closed on duplicate package_id or unsafe owner paths, and expose native-versus-descriptor version divergence as currentness evidence. Once that descriptor shape is fixed, a separate Persona producer owner may align plugins/opl-persona/opl-package.json in parallel; a Framework fallback is allowed only when constrained to an explicit local owner repository. W3 must then prove isolated fixtures plus fresh native Relay/Persona directory/status/action readback with zero registry cache, lock or receipt writes. Only after a new ordinary remote checkpoint may App/Shell consume the generic projection without package-id special cases.",
       "integration_order": 6,
       "parallel_group": "package-retirement",
       "estimated_remaining": {
         "wall_clock": "2-4h for Framework W3 source and fresh readback; App/Shell consumption remains a later slice",
         "steps": [
-          {"name": "owner-descriptor route normalization", "duration": "0.5-1.5h", "necessary": "discover both real installed plugins without a second catalog or legacy registry state"},
+          {"name": "owner-descriptor contract and Persona alignment boundary", "duration": "0.5-1.5h", "necessary": "prefer one plugin-source-root descriptor and avoid permanent repository-path inference"},
           {"name": "isolated and native two-plugin verification", "duration": "1-2h", "necessary": "prove directory, status and action projection against fixtures and the real local Plugin Manager"},
           {"name": "checkpoint and consumer handoff", "duration": "0.5-1h", "necessary": "make the W3 result remotely recoverable before App/Shell integration"}
         ]
