@@ -729,6 +729,15 @@ jobs:
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
+      - name: Bind packaged Windows RC Framework manifest
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+            --manifest shells/aionui/out/win-unpacked/resources/opl-linux/product.json \
+            --framework-ref "${{ inputs.framework_ref }}"
+
       # Clean up any stale disk images before DMG creation (macOS only)
       # 清理可能残留的磁盘镜像，避免 hdiutil "Device not configured" 错误
       - name: Clean up stale disk images (macOS only)

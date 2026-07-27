@@ -140,6 +140,9 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const frameworkBinder = steps.find(
     (step) => step.name === 'Bind Windows RC Framework manifest',
   );
+  const packagedManifestBinder = steps.find(
+    (step) => step.name === 'Bind packaged Windows RC Framework manifest',
+  );
   const upload = steps.find((step) => step.name === 'Upload build artifacts');
 
   assert.match(String(macCohort?.if), /startsWith\(matrix\.platform, 'macos'\)/);
@@ -151,6 +154,21 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(frameworkBinder?.shell, 'bash');
   assert.match(String(frameworkBinder?.run), /bind-windows-rc-framework-manifest\.ts/);
   assert.match(String(frameworkBinder?.run), /--framework-ref/);
+  assert.equal(packagedManifestBinder?.shell, 'bash');
+  assert.match(String(packagedManifestBinder?.run), /bind-windows-rc-framework-manifest\.ts/);
+  assert.match(
+    String(packagedManifestBinder?.run),
+    /--manifest shells\/aionui\/out\/win-unpacked\/resources\/opl-linux\/product\.json/,
+  );
+  assert.match(String(packagedManifestBinder?.run), /--framework-ref/);
+  assert.ok(
+    steps.findIndex((step) => step.name === 'Bind packaged Windows RC Framework manifest') >
+      steps.findIndex((step) => step.name === 'Build with electron-builder (Windows)'),
+  );
+  assert.ok(
+    steps.findIndex((step) => step.name === 'Write Windows RC build artifact cohort manifest') >
+      steps.findIndex((step) => step.name === 'Bind packaged Windows RC Framework manifest'),
+  );
   assert.match(String(windowsNativeRebuild?.run), /Start-Process[\s\S]+prebuild-install/);
   assert.match(String(windowsNativeRebuild?.run), /\$prebuild\.ExitCode -ne 0/);
   assert.match(String(windowsNativeRebuild?.run), /falling back to electron-rebuild/);
