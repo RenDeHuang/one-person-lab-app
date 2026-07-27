@@ -11,10 +11,17 @@ logs.
 This directory holds App-owned product design material. It is for maintainers
 and implementers, not for end-user onboarding.
 
+The cross-repository Persona/Relay/App design authority is
+`opl-persona/docs/architecture-guidance.md` in the sibling `opl-persona`
+repository. App documents should describe the App consumer contract and visual
+behavior; they should not redefine domain ownership or create a second domain
+engine.
+
 ## Entries
 
 | Path | Role |
 | --- | --- |
+| [`opl-persona-integration.md`](opl-persona-integration.md) | OPL Persona Package contribution, App consumer boundary, and production mount gates. |
 | [`gui/ideal-interaction-spec.md`](gui/ideal-interaction-spec.md) | Shell-independent target interaction model for the OPL App. |
 | [`gui/element-audit.md`](gui/element-audit.md) | Human review of ordinary user GUI elements, placement, gaps, and interaction logic. |
 | [`gui/codex-to-opl-app-delta.md`](gui/codex-to-opl-app-delta.md) | Product delta from Codex App baseline to OPL App. |
