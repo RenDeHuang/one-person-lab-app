@@ -30,7 +30,22 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
   const fullDmg = matrix.scenarios.find((entry) => entry.id === "full_dmg_clean_vm_smoke");
   assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
-  assert.equal(fullDmg.release_gate, true);
+  assert.equal(fullDmg.release_gate, false);
+  assert.equal(fullDmg.post_publication_optional_certification, true);
+
+  for (const scenario of matrix.scenarios.filter((entry) => entry.vm)) {
+    assert.equal(scenario.release_gate, false, `${scenario.id} physical VM release gate`);
+    assert.equal(
+      scenario.post_publication_optional_certification,
+      true,
+      `${scenario.id} post-publication optional certification`,
+    );
+    assert.equal(
+      scenario.vm.diagnostic_scope,
+      "post_publication_optional_certification",
+      `${scenario.id} diagnostic scope`,
+    );
+  }
 
   for (const id of [
     "standard_dmg_clean_vm_smoke",

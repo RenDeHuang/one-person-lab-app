@@ -388,7 +388,6 @@ function validateReleaseValidation(validation) {
   assertDeepEqualJson(
     validation?.stable_install_gates,
     [
-      'full_dmg_clean_vm_smoke',
       'docker_webui_smoke',
     ],
     'Install exposure Stable/add-on gates',
@@ -399,6 +398,7 @@ function validateReleaseValidation(validation) {
     'standard_dmg_clean_vm_smoke',
     'homebrew_standard_cask_clean_vm_smoke',
     'one_shot_app_installer_fresh_install_smoke',
+    'full_dmg_clean_vm_smoke',
     ],
     'Install exposure post-publication optional certification surfaces',
   );

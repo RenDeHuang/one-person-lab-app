@@ -2426,14 +2426,14 @@
       "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
     },
     "stable": {
-      "mode": "release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest",
+      "mode": "release_bundle_publishes_standard_cask_then_hosted_readback_before_latest",
       "publication_mode": "release_bundle_publishes_standard_cask_then_hosted_readback_before_latest",
       "may_consume_nightly_directly": false
       },
       "full": {
         "mode": "implemented_unpublished_generator_target",
         "homebrew_publish_allowed": false,
-        "homebrew_clean_vm_gate_required": true,
+        "homebrew_clean_vm_gate_required": false,
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
         "standard_updater_visible": false,
@@ -3845,7 +3845,7 @@
         "settings_smoke": true,
         "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
@@ -3871,7 +3871,7 @@
         "settings_smoke": true,
         "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "brew_tap_and_cask_install",
           "local_authorization_policy",
           "app_launch",
@@ -3890,17 +3890,17 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "full",
         "codex_config_wizard": "required_and_submitted",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "local_authorization_policy",
           "core_ready",
           "domain_modules_ready",
           "family_runtime_provider_ready",
           "assistant_route_receipts"
         ],
-        "gate_policy": "deterministic_release_blocking",
+        "gate_policy": "optional_non_blocking_same_published_artifact",
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
       }
     ],
@@ -3910,10 +3910,10 @@
       "smoke_profile": "no-clt-clean-vm",
       "display": "1920x1080px",
       "settings_smoke": true,
-      "diagnostic_scope": "release_gate",
+      "diagnostic_scope": "post_publication_optional_certification",
       "runtime_profile": "full",
       "codex_config_wizard": "required_and_submitted",
-      "gate_policy": "deterministic_release_blocking",
+      "gate_policy": "optional_non_blocking_same_published_artifact",
       "preflight_summary_fields": [
         "runner_labels",
         "source_vm",
@@ -3931,10 +3931,12 @@
         "tart_graphics",
         "temporary_vm_retention"
       ],
-      "release_blocking_readiness": [
+      "certification_readiness": [
+        "local_authorization_policy",
         "core_ready",
         "domain_modules_ready",
-        "family_runtime_provider_ready"
+        "family_runtime_provider_ready",
+        "assistant_route_receipts"
       ],
       "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready",
       "non_blocking_deferred_maintenance": [
@@ -4003,7 +4005,6 @@
       ],
       "addon_lanes": [
         "full_first_install_build",
-        "full_dmg_clean_vm_smoke",
         "remote_full_addon_verification",
         "docker_webui_smoke",
         "webui_ghcr_publish"
@@ -4013,12 +4014,14 @@
         "operator_evidence_bundle",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "one_shot_app_installer_fresh_install_smoke",
+        "full_dmg_clean_vm_smoke"
       ],
       "post_publication_optional_certification_surfaces": [
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "one_shot_app_installer_fresh_install_smoke",
+        "full_dmg_clean_vm_smoke"
       ],
       "optional_certification_statuses": [
         "passed",

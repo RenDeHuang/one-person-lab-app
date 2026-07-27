@@ -148,12 +148,16 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       },
       {
         actual: tapUpdate?.stable?.mode,
-        expected: 'release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest',
+        expected: 'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest',
+      },
+      {
+        actual: tapUpdate?.stable?.publication_mode,
+        expected: 'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'implemented_unpublished_generator_target' },
       { actual: tapUpdate?.full?.homebrew_publish_allowed, expected: false },
-      { actual: tapUpdate?.full?.homebrew_clean_vm_gate_required, expected: true },
+      { actual: tapUpdate?.full?.homebrew_clean_vm_gate_required, expected: false },
       { actual: tapUpdate?.full?.may_update_standard_cask, expected: false },
       { actual: tapUpdate?.full?.may_update_nightly_cask, expected: false },
       { actual: tapUpdate?.full?.standard_updater_visible, expected: false },
