@@ -6,7 +6,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T16:09:38Z",
+  "generated_at": "2026-07-27T16:11:09Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -113,10 +113,10 @@
       "scope": "Converge Desktop, Native WebUI, Container WebUI, Homebrew and managed install onto one maintained entry model and fresh terminal readbacks.",
       "current_evidence": [
         "source blocker is canonical on current main",
-        "main ab61808b contains the fail-closed installer route fix and regression; its source lane remains registered until owner-native close",
+        "main ab61808b contains the fail-closed installer route fix and regression; fresh lifecycle readback shows its source lane owner-closed",
         "public Latest, Native/Homebrew exposure and managed installed terminal remain separate evidence"
       ],
-      "next_action": "Replay affected aggregate gates and owner-close the absorbed installer lane while Stable runs independently; then finish carrier-specific install/readback bridges and consume the new immutable Desktop cohort.",
+      "next_action": "Finish carrier-specific install/readback bridges while Stable runs independently, then consume the new immutable Desktop cohort and prove managed install parity.",
       "integration_order": 3,
       "parallel_group": "distribution-and-install",
       "estimated_remaining": {
@@ -162,7 +162,7 @@
       ],
       "scope": "Converge useful historical work, prove owner status, and remove only absorbed task-owned worktrees, refs, receipts, holders and temporary artifacts.",
       "current_evidence": [
-        "App has two formally ACTIVE owned non-root lanes: installer-route closeout and this ledger lane; inactive-branch convergence is owner-closed",
+        "App has one formally ACTIVE owned non-root lane: this ledger lane; installer-route and inactive-branch convergence are owner-closed",
         "one historical detached App worktree is exact_merged but requires holder/owner recovery proof",
         "stale receipts remain across App, Relay and iCloud paths"
       ],
@@ -233,8 +233,8 @@
   ],
   "worktree_snapshot": {
     "repository": "one-person-lab-app",
-    "observed_non_root_count": 3,
-    "active_owned_count": 2,
+    "observed_non_root_count": 2,
+    "active_owned_count": 1,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
     "holder_proof_required_count": 1,
