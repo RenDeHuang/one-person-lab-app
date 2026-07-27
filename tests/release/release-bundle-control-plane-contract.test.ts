@@ -165,7 +165,7 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
   assert.equal(control.prepared_notes.template_fallback_may_publish, false);
 });
 
-test("Standard alone may become Latest while Nightly publishes an isolated Standard prerelease", () => {
+test("qualified Stable defaults Latest while scheduled Nightly needs a separate exact override", () => {
   assert.equal(
     control.publication.stable.only_manual_dispatch_workflow,
     ".github/workflows/release-stable.yml",
@@ -197,7 +197,8 @@ test("Standard alone may become Latest while Nightly publishes an isolated Stand
   assert.equal(control.publication.nightly.historical_readback_allowed, true);
   assert.equal(control.publication.nightly.workflow, ".github/workflows/release-nightly.yml");
   assert.equal(control.publication.nightly.trigger, "schedule_only");
-  assert.equal(control.publication.nightly.latest_allowed, false);
+  assert.equal(control.publication.nightly.scheduled_latest_allowed, false);
+  assert.equal(control.publication.nightly.explicit_user_override_may_move_latest, true);
   assert.equal(control.publication.nightly.include_full, false);
   assert.equal(control.publication.nightly.stable_bundle_authority_used, false);
   assert.equal(control.publication.nightly.stable_mutation_mutex_used, false);
@@ -209,6 +210,11 @@ test("Standard alone may become Latest while Nightly publishes an isolated Stand
   assert.equal(release.nightly_standard.historical_tag_and_receipt_parsing_allowed, true);
   assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
   assert.equal(release.nightly_standard.include_full, false);
+  assert.equal(release.nightly_standard.quality_status, "preview");
+  assert.equal(release.nightly_standard.build_trigger, "automated");
+  assert.equal(release.nightly_standard.preview_kind, "nightly");
+  assert.equal(release.nightly_standard.scheduled_latest_release_allowed, false);
+  assert.equal(release.nightly_standard.explicit_user_override_may_move_latest, true);
   assert.equal(release.nightly_standard.heavy_vm_blocks_publication, false);
 });
 

@@ -6,6 +6,30 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 export type AppReleaseChannel = 'stable' | 'nightly' | 'preview';
+export type ReleaseQualityStatus = 'stable' | 'preview';
+export type ReleaseBuildTrigger = 'manual' | 'automated';
+export type ReleasePreviewKind = 'dev' | 'nightly' | null;
+
+export function derivePreviewKind(
+  qualityStatus: ReleaseQualityStatus,
+  buildTrigger: ReleaseBuildTrigger,
+): ReleasePreviewKind {
+  if (qualityStatus === 'stable') return null;
+  return buildTrigger === 'manual' ? 'dev' : 'nightly';
+}
+
+export function assertReleaseSemanticsAxes(input: {
+  qualityStatus: ReleaseQualityStatus;
+  buildTrigger: ReleaseBuildTrigger;
+  previewKind: ReleasePreviewKind;
+}): void {
+  const expected = derivePreviewKind(input.qualityStatus, input.buildTrigger);
+  if (input.previewKind !== expected) {
+    throw new Error(
+      `Release semantics axes disagree: ${input.qualityStatus}/${input.buildTrigger} requires preview_kind=${expected ?? 'null'}.`,
+    );
+  }
+}
 
 export type ReleaseVersionIdentity = {
   channel: AppReleaseChannel;

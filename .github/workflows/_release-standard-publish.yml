@@ -13,6 +13,16 @@ on:
         required: false
         default: standard
         type: string
+      publication_channel:
+        description: Exact GitHub publication route for the Standard bytes
+        required: false
+        default: stable
+        type: string
+      latest_override_requested:
+        description: Explicit protected single-use Latest override for Preview
+        required: false
+        default: false
+        type: boolean
       source_run_id:
         description: Exact run containing the Standard checkpoint source
         required: true
@@ -102,6 +112,19 @@ jobs:
           case '${{ inputs.operation }}' in
             standard|resume_standard) ;;
             *) status=failed; reason=unsupported_execute_route ;;
+          esac
+          case '${{ inputs.publication_channel }}' in
+            stable)
+              if [ '${{ inputs.latest_override_requested }}' = true ]; then
+                status=failed
+                reason=stable_does_not_use_preview_override
+              fi
+              ;;
+            preview) ;;
+            *)
+              status=failed
+              reason=unsupported_publication_channel
+              ;;
           esac
           if [ -n '${{ inputs.operation_started_at }}' ] || [ -n '${{ inputs.operation_deadline_at }}' ]; then
             node <<'NODE' || { status=failed; reason=deadline_invalid; }
@@ -237,8 +260,8 @@ jobs:
           test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
-          test "$(jq -r .release.channel "$bundle")" = stable || {
-            echo "::error::Historical Nightly checkpoints are read-only and cannot enter the live publisher."
+          test "$(jq -r .release.channel "$bundle")" = '${{ inputs.publication_channel }}' || {
+            echo "::error::Checkpoint publication channel differs from the admitted route."
             exit 1
           }
 
@@ -436,7 +459,7 @@ jobs:
           fi
           test "$(jq -r .bundle_digest "$bundle")" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           channel="$(jq -r .release.channel "$bundle")"
-          test "$channel" = stable
+          test "$channel" = '${{ inputs.publication_channel }}'
           version="$(jq -r .release.version "$bundle")"
           updater_version="$(jq -r .release.updater_version "$bundle")"
           previous_latest_tag=''
@@ -453,6 +476,7 @@ jobs:
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > public-releases.json
           git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" 'refs/tags/v*' > public-tags.txt
           if [ '${{ inputs.operation }}' = standard ]; then
+            if [ "$channel" = stable ]; then
               BASE_VERSION="${version%-r*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveStableReleaseVersion } from './app-source/scripts/release-version.ts';
@@ -464,6 +488,19 @@ jobs:
             throw new Error(`Stable version collision: expected next immutable revision ${resolved.version}, got ${process.env.VERSION}.`);
           }
           NODE
+            else
+              BASE_VERSION="${version%-preview.*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { resolvePreviewReleaseVersion } from './app-source/scripts/release-version.ts';
+          const pages = JSON.parse(fs.readFileSync('public-releases.json', 'utf8'));
+          const refs = [...(Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [])];
+          refs.push(...fs.readFileSync('public-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean));
+          const resolved = resolvePreviewReleaseVersion(process.env.BASE_VERSION, refs);
+          if (resolved.version !== process.env.VERSION) {
+            throw new Error(`Preview version collision: expected next immutable revision ${resolved.version}, got ${process.env.VERSION}.`);
+          }
+          NODE
+            fi
           fi
           highest_public_stable_tag="$(node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -484,8 +521,17 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/releases/latest" > previous-latest.json
             previous_latest_tag="$(jq -er .tag_name previous-latest.json)"
             previous_latest_display_version="${previous_latest_tag#v}"
-            previous_json="$(node --experimental-strip-types app-source/scripts/release-version.ts --channel stable --version "$previous_latest_display_version" --json)"
-            previous_latest_updater_version="$(jq -er .updater_version <<<"$previous_json")"
+            previous_latest_target="$(jq -er '.target_commitish | select(test("^[0-9a-f]{40}$"))' previous-latest.json)"
+            previous_latest_manifest_api_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' previous-latest.json)"
+            gh api --header 'Accept: application/octet-stream' "$previous_latest_manifest_api_url" \
+              > previous-latest-component-manifest.json
+            node --experimental-strip-types app-source/scripts/read-opl-app-component-manifest-identity.ts \
+              --manifest previous-latest-component-manifest.json \
+              --expected-tag "$previous_latest_tag" \
+              --release-prerelease "$(jq -er .prerelease previous-latest.json)" \
+              --expected-source-commit "$previous_latest_target" \
+              > previous-latest-component-identity.json
+            previous_latest_updater_version="$(jq -er .updater_version previous-latest-component-identity.json)"
             dmg_name="One-Person-Lab-${previous_latest_display_version}-mac-arm64.dmg"
             previous_latest_dmg_url="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .browser_download_url' previous-latest.json)"
             digest="$(jq -er --arg name "$dmg_name" '.assets[] | select(.name == $name) | .digest' previous-latest.json)"
@@ -541,10 +587,10 @@ jobs:
           retention-days: 30
 
   publish-standard-nonlatest:
-    if: ${{ always() && needs.restore.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') }}
+    if: ${{ always() && needs.restore.result == 'success' && ((needs.restore.outputs.channel == 'preview' && !inputs.latest_override_requested) || (needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: release-stable
+    environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview' }}
     needs: [restore, updater-upgrade-qualification, updater-upgrade-qualification-highest]
     steps:
       - name: Reject partial rerun before Standard GitHub mutation
@@ -634,6 +680,7 @@ jobs:
             --store "$store" --json > publish-plan.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
+            --publication-channel '${{ needs.restore.outputs.channel }}' \
             --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
@@ -820,12 +867,15 @@ jobs:
           test "$(jq -r .release_bundle_publish.status publication.json)" = complete
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          jq -e '
-            .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
-            and .release_bundle_status.stable_promotion_barrier.satisfied == true
-            and .release_bundle_status.latest_eligible == true
-            and .release_bundle_status.tracks.standard.reconcile_required == false
-          ' bundle-status.json >/dev/null
+          jq -e '.release_bundle_status.tracks.standard.reconcile_required == false' \
+            bundle-status.json >/dev/null
+          if [ '${{ needs.restore.outputs.channel }}' = stable ] || [ '${{ inputs.latest_override_requested }}' = true ]; then
+            jq -e '
+              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
+              and .release_bundle_status.stable_promotion_barrier.satisfied == true
+              and .release_bundle_status.latest_eligible == true
+            ' bundle-status.json >/dev/null
+          fi
 
       - name: Upload remote digest proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -844,7 +894,7 @@ jobs:
           retention-days: 30
 
   updater-upgrade-qualification:
-    if: ${{ needs.restore.outputs.channel == 'stable' }}
+    if: ${{ needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested }}
     needs: [restore]
     permissions:
       contents: read
@@ -869,7 +919,7 @@ jobs:
       operation_deadline_at: ${{ needs.restore.outputs.operation_deadline_at }}
 
   updater-upgrade-qualification-highest:
-    if: ${{ needs.restore.outputs.channel == 'stable' && needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
+    if: ${{ (needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested) && needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
     needs: [restore]
     permissions:
       contents: read
@@ -1382,10 +1432,10 @@ jobs:
           retention-days: 30
 
   activate-latest:
-    if: ${{ always() && needs.restore.outputs.channel == 'stable' && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') && needs.homebrew-standard-readback.result == 'success' }}
+    if: ${{ always() && (needs.restore.outputs.channel == 'stable' || inputs.latest_override_requested) && needs.remote-digest-verify.result == 'success' && needs.updater-upgrade-qualification.result == 'success' && (needs.updater-upgrade-qualification-highest.result == 'success' || needs.updater-upgrade-qualification-highest.result == 'skipped') && ((needs.restore.outputs.channel == 'stable' && needs.homebrew-standard-readback.result == 'success') || (needs.restore.outputs.channel == 'preview' && needs.homebrew-standard-readback.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: release-stable
+    environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview-latest' }}
     needs: [restore, remote-digest-verify, updater-upgrade-qualification, updater-upgrade-qualification-highest, homebrew-standard-readback]
     steps:
       - name: Reject partial rerun before Latest mutation
@@ -1435,6 +1485,7 @@ jobs:
 
       - name: Prepare exact WebUI follower source
         id: webui-follower-source
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1501,18 +1552,21 @@ jobs:
           path: latest-admission/updater-highest-stable
 
       - name: Download Standard Homebrew publication receipt
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-release-homebrew-standard-${{ github.run_id }}
           path: latest-admission/homebrew-publication
 
       - name: Download Standard Homebrew clean-VM receipt
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
           path: latest-admission/homebrew-vm
 
       - name: Download Standard Homebrew readback receipt
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-release-homebrew-standard-readback-${{ github.run_id }}
@@ -1561,12 +1615,15 @@ jobs:
             --store "$store" --json > publication.json
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
-          jq -e '
-            .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
-            and .release_bundle_status.stable_promotion_barrier.satisfied == true
-            and .release_bundle_status.latest_eligible == true
-            and .release_bundle_status.tracks.standard.reconcile_required == false
-          ' bundle-status.json >/dev/null
+          jq -e '.release_bundle_status.tracks.standard.reconcile_required == false' \
+            bundle-status.json >/dev/null
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            jq -e '
+              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
+              and .release_bundle_status.stable_promotion_barrier.satisfied == true
+              and .release_bundle_status.latest_eligible == true
+            ' bundle-status.json >/dev/null
+          fi
           one_file() {
             local root="$1" name="$2"
             local matches=()
@@ -1580,26 +1637,59 @@ jobs:
             }
             printf '%s\n' "${matches[0]}"
           }
-          publication_receipt="$(one_file latest-admission/homebrew-publication homebrew-standard-publication-receipt.json)"
-          homebrew_vm_receipt="$(one_file latest-admission/homebrew-vm tart-smoke-summary.json)"
-          homebrew_readback_receipt="$(one_file latest-admission/homebrew-readback homebrew-standard-readback.json)"
+          component_manifest='${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets/opl-app-component-manifest.json'
+          test -s "$component_manifest" && test ! -L "$component_manifest"
+          cp "$component_manifest" latest-component-manifest.json
+          cmp "$component_manifest" latest-component-manifest.json
           admission_args=(
             --bundle "$BUNDLE_DIGEST"
+            --publication-channel '${{ needs.restore.outputs.channel }}'
             --candidate-display-version '${{ needs.restore.outputs.version }}'
             --candidate-updater-version '${{ needs.restore.outputs.updater_version }}'
             --app-sha '${{ needs.restore.outputs.app_ref }}'
             --shell-sha '${{ needs.restore.outputs.shell_ref }}'
             --framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
             --standard-assets '${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets.json'
+            --component-manifest latest-component-manifest.json
             --expected-current-latest-tag '${{ needs.restore.outputs.previous_latest_tag }}'
             --highest-public-stable-tag '${{ needs.restore.outputs.highest_public_stable_tag }}'
             --predecessor '${{ needs.restore.outputs.previous_latest_display_version }}=${{ needs.restore.outputs.previous_latest_updater_version }}'
             --updater-evidence latest-admission/updater-previous-latest
-            --homebrew-publication "$publication_receipt"
-            --homebrew-vm "$homebrew_vm_receipt"
-            --homebrew-readback "$homebrew_readback_receipt"
             --output standard-latest-admission.json
           )
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            publication_receipt="$(one_file latest-admission/homebrew-publication homebrew-standard-publication-receipt.json)"
+            homebrew_vm_receipt="$(one_file latest-admission/homebrew-vm tart-smoke-summary.json)"
+            homebrew_readback_receipt="$(one_file latest-admission/homebrew-readback homebrew-standard-readback.json)"
+            admission_args+=(
+              --homebrew-publication "$publication_receipt"
+              --homebrew-vm "$homebrew_vm_receipt"
+              --homebrew-readback "$homebrew_readback_receipt"
+            )
+          else
+            node --experimental-strip-types app-source/scripts/write-latest-pointer-override-authority.ts \
+              --component-manifest latest-component-manifest.json \
+              --expected-current-latest-tag '${{ needs.restore.outputs.previous_latest_tag }}' \
+              --output latest-override-authority.json
+            jq -e '
+              .status == "admitted"
+              and .operation == "move_latest_pointer"
+              and .authorization == {
+                source: "user_explicit",
+                protected_environment: "release-preview-latest",
+                single_use: true,
+                persistent_override: false
+              }
+              and .candidate.quality_status == "preview"
+              and .candidate.quality_unchanged == true
+              and .candidate.non_stable_notice == true
+              and (.candidate.skipped_gates | length) > 0
+              and .compare_and_swap.expected_current_tag == "${{ needs.restore.outputs.previous_latest_tag }}"
+              and .compare_and_swap.exact_expected_current == true
+              and .readback.required == true
+            ' latest-override-authority.json >/dev/null
+            admission_args+=(--latest-override-authority latest-override-authority.json)
+          fi
           if [ '${{ needs.restore.outputs.highest_public_stable_tag }}' != '${{ needs.restore.outputs.previous_latest_tag }}' ]; then
             admission_args+=(
               --predecessor '${{ needs.restore.outputs.highest_public_stable_display_version }}=${{ needs.restore.outputs.highest_public_stable_updater_version }}'
@@ -1611,6 +1701,7 @@ jobs:
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-activate-latest \
             --bundle "$bundle" --status bundle-status.json \
             --latest-admission standard-latest-admission.json \
+            --publication-channel '${{ needs.restore.outputs.channel }}' \
             --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-latest-activation" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
@@ -1680,6 +1771,7 @@ jobs:
               latest-framework-result.json
           )"
           test "$framework_terminal_status" = complete
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
           if [ '${{ steps.webui-follower-source.outputs.eligible }}' = true ]; then
             jq -n \
               --arg stable_authority_run_id "$GITHUB_RUN_ID" \
@@ -1766,6 +1858,7 @@ jobs:
                 }
               ' > webui-follower-handoff.json
           fi
+          fi
 
       - name: Persist typed Latest activation failure
         if: ${{ failure() }}
@@ -1805,6 +1898,8 @@ jobs:
           path: |
             bundle-status.json
             standard-latest-admission.json
+            latest-component-manifest.json
+            latest-override-authority.json
             latest-result.json
             latest-operation-admit.json
             latest-framework.receipt.json

@@ -28,6 +28,10 @@ test('release operations have bounded independent clocks', () => {
     releaseOperationDeadline({ operation: 'append_full', startedAt }),
     '2026-07-21T00:50:00.000Z',
   );
+  assert.equal(
+    releaseOperationDeadline({ operation: 'move_latest_pointer', startedAt }),
+    '2026-07-21T00:30:00.000Z',
+  );
 });
 
 test('GitHub created_at is canonicalized once before operation control is derived', () => {

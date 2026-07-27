@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  assertReleaseSemanticsAxes,
   assertReleaseVersionNotFuture,
   assertUpdaterVersionMatchesDisplay,
   compareUpdaterMachineVersions,
+  derivePreviewKind,
   encodeStableMachineVersion,
   resolvePreviewReleaseVersion,
   resolveReleaseVersionIdentity,
@@ -103,6 +105,28 @@ test('Preview display identity remains distinct from Stable while sharing its up
     () => assertUpdaterVersionMatchesDisplay('preview', '26.7.24-preview.r3', '26.7.2402'),
     /expected 26\.7\.2403/,
   );
+});
+
+test('quality and trigger derive the only legal Preview kind', () => {
+  assert.equal(derivePreviewKind('preview', 'manual'), 'dev');
+  assert.equal(derivePreviewKind('preview', 'automated'), 'nightly');
+  assert.equal(derivePreviewKind('stable', 'manual'), null);
+  assert.equal(derivePreviewKind('stable', 'automated'), null);
+  assert.doesNotThrow(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'preview',
+    buildTrigger: 'manual',
+    previewKind: 'dev',
+  }));
+  assert.throws(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'preview',
+    buildTrigger: 'manual',
+    previewKind: 'nightly',
+  }), /requires preview_kind=dev/);
+  assert.throws(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'stable',
+    buildTrigger: 'automated',
+    previewKind: 'nightly',
+  }), /requires preview_kind=null/);
 });
 
 test('new-scheme next-day Stable and Nightly remain monotonic after same-day revisions', () => {

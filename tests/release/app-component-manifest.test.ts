@@ -41,8 +41,9 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     'scripts/write-opl-app-component-manifest.ts',
     '--version', '26.7.13',
     '--updater-version', '26.7.13',
-    '--updater-version', '26.7.13',
     '--source-commit', 'a'.repeat(40),
+    '--shell-commit', 'b'.repeat(40),
+    '--framework-commit', 'c'.repeat(40),
     '--release-json', releaseJson,
     '--output', output,
   ], { cwd: appRoot, encoding: 'utf8' });
@@ -52,32 +53,49 @@ test('App owner manifest records only immutable standard App artifacts', () => {
   assert.equal(component.version, '26.7.13');
   assert.equal(component.release_version, '26.7.13');
   assert.equal(component.updater_version, '26.7.13');
-  assert.equal(component.quality, 'stable');
-  assert.equal(component.build_origin, 'automated');
-  assert.equal(component.latest_eligible, true);
+  assert.equal(component.quality_status, 'stable');
+  assert.equal(component.build_trigger, 'manual');
+  assert.equal(component.preview_kind, null);
+  assert.deepEqual(component.source_cohort, {
+    app_sha: 'a'.repeat(40),
+    shell_sha: 'b'.repeat(40),
+    framework_sha: 'c'.repeat(40),
+  });
+  assert.deepEqual(component.distribution_pointer_policy, {
+    pointer: 'latest',
+    automatic_writer: 'qualified_stable_default',
+    explicit_override: 'protected_single_use_exact_version',
+    quality_unchanged: true,
+    stable_reclaim: 'next_qualified_stable',
+  });
+  assert.deepEqual(component.qualification_disclosure, {
+    stable_qualified: true,
+    passed_gates: ['standard_vm'],
+    skipped_gates: [],
+    failed_gates: [],
+    non_stable_notice: false,
+  });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
   assert.equal(component.artifacts.length, 6);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.match(component.component_manifest_digest, /^sha256:[0-9a-f]{64}$/);
 });
 
-test('App owner manifest distinguishes Nightly and Preview quality from the GitHub prerelease bit', () => {
+test('App owner manifest keeps quality, build trigger, and Latest pointer policy orthogonal', () => {
   for (const fixture of [
     {
       version: '26.7.24-nightly',
       updaterVersion: '26.7.2490-nightly.0',
       isPrerelease: true,
-      quality: 'nightly',
-      buildOrigin: 'automated',
-      latestEligible: false,
+      qualityStatus: 'preview',
+      buildTrigger: 'automated',
     },
     {
       version: '26.7.24-preview.r1',
       updaterVersion: '26.7.2401',
       isPrerelease: false,
-      quality: 'preview',
-      buildOrigin: 'manual',
-      latestEligible: true,
+      qualityStatus: 'preview',
+      buildTrigger: 'manual',
     },
   ] as const) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-component-quality-'));
@@ -104,14 +122,48 @@ test('App owner manifest distinguishes Nightly and Preview quality from the GitH
         '--version', fixture.version,
         '--updater-version', fixture.updaterVersion,
         '--source-commit', 'b'.repeat(40),
+        '--shell-commit', 'c'.repeat(40),
+        '--framework-commit', 'd'.repeat(40),
         '--release-json', releaseJson,
         '--output', output,
       ], { cwd: appRoot, encoding: 'utf8' });
       const component = JSON.parse(fs.readFileSync(output, 'utf8'));
       assert.deepEqual(
-        [component.quality, component.build_origin, component.latest_eligible],
-        [fixture.quality, fixture.buildOrigin, fixture.latestEligible],
+        [component.quality_status, component.build_trigger, component.preview_kind],
+        [fixture.qualityStatus, fixture.buildTrigger, fixture.version.includes('-nightly') ? 'nightly' : 'dev'],
       );
+      assert.deepEqual(component.distribution_pointer_policy, {
+        pointer: 'latest',
+        automatic_writer: 'never',
+        explicit_override: 'protected_single_use_exact_version',
+        quality_unchanged: true,
+        stable_reclaim: 'next_qualified_stable',
+      });
+      assert.deepEqual(
+        component.qualification_disclosure,
+        fixture.buildTrigger === 'automated'
+          ? {
+              stable_qualified: false,
+              passed_gates: [],
+              skipped_gates: [
+                'stable_heavy_vm',
+                'homebrew_clean_install',
+                'native_webui',
+                'container_webui',
+                'full',
+              ],
+              failed_gates: [],
+              non_stable_notice: true,
+            }
+          : {
+              stable_qualified: false,
+              passed_gates: ['standard_vm'],
+              skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+              failed_gates: [],
+              non_stable_notice: true,
+            },
+      );
+      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 4 : 6);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -131,7 +183,10 @@ test('App owner manifest fails closed when a standard asset is missing', () => {
     '--experimental-strip-types',
     'scripts/write-opl-app-component-manifest.ts',
     '--version', '26.7.13',
+    '--updater-version', '26.7.13',
     '--source-commit', 'a'.repeat(40),
+    '--shell-commit', 'b'.repeat(40),
+    '--framework-commit', 'c'.repeat(40),
     '--release-json', releaseJson,
     '--output', path.join(root, 'manifest.json'),
   ], { cwd: appRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));

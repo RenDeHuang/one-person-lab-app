@@ -15,6 +15,7 @@ const exactWebUiCompileCeilingPermissions = {
 } as const;
 const exactStableStandardPermissions = { contents: 'write', actions: 'read' } as const;
 const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
+const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml';
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
@@ -30,6 +31,8 @@ const nightlyReleaseWorkflowPath = '.github/workflows/release-nightly.yml';
 const nightlyHomebrewFollowerWorkflowPath =
   '.github/workflows/release-nightly-homebrew-follower.yml';
 const nightlySampledVmWorkflowPath = '.github/workflows/release-nightly-sampled-vm.yml';
+const previewLatestPointerWorkflowPath =
+  '.github/workflows/_release-preview-latest-pointer.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -126,6 +129,120 @@ function isAuthorizedNativeWebuiWriteJob(
     && jobId === 'publish-native-assets'
     && job.environment === 'release-stable'
     && job.permissions === undefined;
+}
+
+function isAuthorizedManualPreviewWriteJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  if (
+    workflowPath !== manualPreviewWorkflowPath
+    || !needsExactly(job, ['admission'])
+    || !exactObject(job.permissions, exactStableEntryPermissions)
+    || job.secrets !== 'inherit'
+    || Object.prototype.hasOwnProperty.call(job, 'steps')
+  ) {
+    return false;
+  }
+  if (jobId === 'preview') {
+    return job.if === "${{ needs.admission.outputs.operation == 'preview' }}"
+      && job.uses === './.github/workflows/_release-bundle.yml'
+      && job.with?.mode === 'execute'
+      && job.with?.operation === 'standard'
+      && job.with?.channel === 'preview'
+      && job.with?.publication_channel === 'preview'
+      && job.with?.latest_override_requested ===
+        "${{ needs.admission.outputs.latest_override_requested == 'true' }}"
+      && job.with?.include_full === false;
+  }
+  if (jobId === 'move-latest-pointer') {
+    return job.if === "${{ needs.admission.outputs.operation == 'move_latest_pointer' }}"
+      && job.uses === './.github/workflows/_release-preview-latest-pointer.yml'
+      && job.with?.app_ref === '${{ needs.admission.outputs.app_ref }}'
+      && job.with?.target_tag === '${{ needs.admission.outputs.target_tag }}'
+      && job.with?.expected_current_latest_tag ===
+        '${{ needs.admission.outputs.expected_current_latest_tag }}'
+      && job.with?.operation_started_at ===
+        '${{ needs.admission.outputs.operation_started_at }}'
+      && job.with?.operation_deadline_at ===
+        '${{ needs.admission.outputs.operation_deadline_at }}';
+  }
+  return jobId === 'resume-preview'
+    && job.if === "${{ needs.admission.outputs.operation == 'resume_preview' }}"
+    && job.uses === './.github/workflows/_release-standard-publish.yml'
+    && job.with?.mode === 'execute'
+    && job.with?.operation === 'resume_standard'
+    && job.with?.publication_channel === 'preview';
+}
+
+function validatePreviewLatestPointerTopology(appRoot: string): number {
+  const id = 'preview_latest_pointer_topology';
+  const parsed = parseWorkflow(appRoot, previewLatestPointerWorkflowPath, id);
+  if (!parsed) return 1;
+  const { workflow, text } = parsed;
+  const inputs = Object.keys(workflow.on?.workflow_call?.inputs ?? {}).sort();
+  const expectedInputs = [
+    'app_ref',
+    'expected_current_latest_tag',
+    'operation_deadline_at',
+    'operation_started_at',
+    'target_tag',
+  ];
+  const jobs = workflow.jobs ?? {};
+  const mutation = jobs['move-latest-pointer'];
+  let failures = 0;
+  if (
+    JSON.stringify(Object.keys(workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
+    || !exactObject(workflow.permissions, exactReadPermissions)
+    || JSON.stringify(inputs) !== JSON.stringify(expectedInputs)
+    || JSON.stringify(Object.keys(jobs)) !== JSON.stringify(['move-latest-pointer'])
+    || mutation?.environment !== 'release-preview-latest'
+    || !exactObject(mutation?.permissions, exactStableEntryPermissions)
+    || !Array.isArray(mutation?.steps)
+  ) {
+    failures += reportFailure(
+      id,
+      'Preview Latest pointer must be one protected reusable-only single writer',
+    );
+  }
+  for (const required of [
+    'test "$GITHUB_RUN_ATTEMPT" = 1',
+    'release-operation-deadline.ts check',
+    '--operation move_latest_pointer',
+    'framework-release-adapter.ts github-move-latest-pointer',
+    '--expected-current-latest-tag',
+    'outcome_unknown',
+    'no second PATCH is allowed',
+    'releases/latest',
+    'public-opl-app-component-manifest.json',
+    'quality_status',
+    'quality_unchanged',
+    'persistent_override',
+    'next_qualified_stable',
+  ]) {
+    if (!text.includes(required)) {
+      failures += reportFailure(id, `Preview Latest pointer reusable is missing ${required}`);
+    }
+  }
+  if (
+    /workflow_dispatch|release create|release upload|gh run (?:rerun|cancel)|--clobber/.test(text)
+  ) {
+    failures += reportFailure(
+      id,
+      'Preview Latest pointer reusable contains a second dispatcher or forbidden release mutation',
+    );
+  }
+  for (const [jobId, job] of Object.entries(jobs)) {
+    failures += validateExactActionPins(
+      previewLatestPointerWorkflowPath,
+      jobId,
+      Array.isArray((job as Record<string, any>).steps)
+        ? (job as Record<string, any>).steps
+        : [],
+    );
+  }
+  return failures;
 }
 
 function reportFailure(id: string, message: string): number {
@@ -445,9 +562,14 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
     failures += reportFailure(id, 'Bundle workflow operation must be standard');
   }
-  if (!bundle.text.includes('Only Stable may execute the Release Bundle.') ||
-      /resolveNightlyReleaseVersion|nightly-operation-request/.test(bundle.text)) {
-    failures += reportFailure(id, 'Bundle execute mode must be Stable-only and contain no Nightly allocation or operation window');
+  if (
+    !bundle.text.includes('stable:stable|preview:preview')
+    || /nightly:nightly|resolveNightlyReleaseVersion|nightly-operation-request/.test(bundle.text)
+  ) {
+    failures += reportFailure(
+      id,
+      'Bundle execute mode must admit Stable or Manual Preview while excluding scheduled Nightly allocation',
+    );
   }
   for (const [jobId, command] of [
     ['freeze', 'opl release freeze'],
@@ -552,9 +674,16 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
 
   const standardJobs = workflowJobs(standard.workflow);
-  if (standardJobs['nightly-terminal'] ||
-      !standard.text.includes('Historical Nightly checkpoints are read-only and cannot enter the live publisher.')) {
-    failures += reportFailure(id, 'Standard publisher must reject Nightly checkpoints and expose no Nightly terminal');
+  if (
+    standardJobs['nightly-terminal']
+    || !standard.text.includes('reason=unsupported_publication_channel')
+    || !standard.text.includes('preview)')
+    || standard.text.includes('nightly)')
+  ) {
+    failures += reportFailure(
+      id,
+      'Standard publisher must admit only Stable or Manual Preview checkpoints and expose no scheduled Nightly terminal',
+    );
   }
   for (const command of ['opl release publish', 'opl release reconcile', 'opl release status']) {
     if (!standard.text.includes(command)) {
@@ -579,10 +708,19 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   ]) {
     if (!standardJobs[jobId]) failures += reportFailure(id, `_release-standard-publish.yml is missing ${jobId}`);
   }
-  for (const jobId of ['publish-standard-nonlatest', 'activate-latest']) {
+  const expectedStandardMutationEnvironments = {
+    'publish-standard-nonlatest':
+      "${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview' }}",
+    'activate-latest':
+      "${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview-latest' }}",
+  };
+  for (const [jobId, expectedEnvironment] of Object.entries(expectedStandardMutationEnvironments)) {
     const job = standardJobs[jobId];
-    if (job && job.environment !== 'release-stable') {
-      failures += reportFailure(id, `${jobId} must use the release-stable environment`);
+    if (job && job.environment !== expectedEnvironment) {
+      failures += reportFailure(
+        id,
+        `${jobId} must select the exact Stable or protected Preview environment`,
+      );
     }
   }
 
@@ -1502,6 +1640,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     validateReleaseBundleTopology(appRoot) +
     validateReleaseBundleCanaryTopology(appRoot) +
     validateNightlyReleaseTopology(appRoot) +
+    validatePreviewLatestPointerTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
     validateNativeWebuiPublicationTopology(appRoot) +
     validateHomebrewFullPromotionTopology(appRoot);
@@ -1543,6 +1682,9 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       }
       if (isAuthorizedNativeWebuiWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedManualPreviewWriteJob(workflowPath, jobId, job)) {
         continue;
       }
       if (
