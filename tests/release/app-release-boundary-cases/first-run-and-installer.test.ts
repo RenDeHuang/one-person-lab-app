@@ -168,21 +168,28 @@ test("release qualification reuses host Codex credentials only for requested con
 
 test("one-shot App installer boundary is enforced by release-boundary checks", () => {
   const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
-  const stable = requireReleaseBoundaryCheck("short_stable_macos_installer");
   const install = readJson("contracts/app-install-exposure-policy.json");
 
   assert.equal(oneShot.file, "install.sh");
   assert.ok(oneShot.required.includes("--stable-macos-install"));
   assert.ok(oneShot.required.includes("--authorize-local-app-only"));
-  assert.equal(stable.file, "install-stable.sh");
-  assert.ok(stable.required.some((entry) => entry.includes("install.sh")));
-  assert.ok(stable.required.some((entry) => entry.includes("--stable-macos-install")));
   assert.deepEqual(install.distribution_install_model.installer_convergence.stable_macos_helper.artifact_integrity, {
     official_release_asset_authority: "exact_github_release_record_asset_digest",
-    custom_url_or_path_authority: "caller_supplied_sha256",
-    verification_order: "before_mount_copy_or_target_replacement",
-    latest_pointer_admission_implies_stable_qualification: false,
+    component_manifest_authority: "exact_github_release_record_component_manifest_asset_digest",
+    custom_url_or_path_authority: "caller_supplied_sha256_quality_not_asserted",
+    verification_order: "dmg_and_component_manifest_before_mount_copy_or_target_replacement",
+    latest_pointer_does_not_imply_stable_qualification: true,
+    non_stable_disclosure_before_target_mutation: true,
   });
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_entrypoints,
+    [],
+  );
+  assert.equal(
+    install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_wrapper_status,
+    "retired",
+  );
+  assert.equal(fs.existsSync(path.join(appRoot, "install-stable.sh")), false);
   assert.equal(fs.existsSync(path.join(appRoot, "install-free.sh")), false);
 });
 
@@ -574,6 +581,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const tag = `v${version}`;
   const fullName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const standardName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const componentManifestName = "opl-app-component-manifest.json";
   const fullBytes = "full-dmg-bytes\n";
   const standardBytes = "standard-dmg-bytes\n";
   const digest = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
@@ -582,25 +590,83 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     digest: `sha256:${digestOverride ?? digest(bytes)}`,
     browser_download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${name}`,
   });
+  const componentManifest = ({
+    qualityStatus = "stable",
+    buildTrigger = "manual",
+    previewKind = null,
+    stableQualified = true,
+    nonStableNotice = false,
+    skippedGates = [] as string[],
+    primaryDigest,
+    primaryName = standardName,
+  }: {
+    qualityStatus?: string;
+    buildTrigger?: string;
+    previewKind?: string | null;
+    stableQualified?: boolean;
+    nonStableNotice?: boolean;
+    skippedGates?: string[];
+    primaryDigest?: string;
+    primaryName?: string;
+  } = {}) => JSON.stringify({
+    surface_kind: "opl_app_component_manifest.v1",
+    component_id: "opl-app",
+    version,
+    release_version: version,
+    release_tag: tag,
+    release_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${tag}`,
+    component_manifest_ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${componentManifestName}`,
+    component_manifest_digest: `sha256:${"a".repeat(64)}`,
+    primary_artifact: {
+      name: primaryName,
+      digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
+    },
+    artifacts: [{
+      name: standardName,
+      digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
+      ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${standardName}`,
+    }],
+    quality_status: qualityStatus,
+    build_trigger: buildTrigger,
+    preview_kind: previewKind,
+    qualification_disclosure: {
+      stable_qualified: stableQualified,
+      non_stable_notice: nonStableNotice,
+      skipped_gates: skippedGates,
+      failed_gates: [],
+    },
+  });
   const writeRelease = ({
     fullPresent = true,
     standardDigest,
+    manifest,
+    manifestAssetDigest,
+    prerelease = false,
   }: {
     fullPresent?: boolean;
     standardDigest?: string;
+    manifest?: Parameters<typeof componentManifest>[0];
+    manifestAssetDigest?: string;
+    prerelease?: boolean;
   } = {}) => {
+    const manifestBytes = componentManifest({
+      ...manifest,
+      primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
+    });
     fs.writeFileSync(
       releaseJsonPath,
       JSON.stringify({
         tag_name: tag,
         draft: false,
-        prerelease: false,
+        prerelease,
         assets: [
           ...(fullPresent ? [asset(fullName, fullBytes)] : []),
           asset(standardName, standardBytes, standardDigest),
+          asset(componentManifestName, manifestBytes, manifestAssetDigest),
         ],
       }),
     );
+    fs.writeFileSync(path.join(tempRoot, componentManifestName), manifestBytes);
   };
   fs.mkdirSync(fakeBin, { recursive: true });
   fs.writeFileSync(customDmgPath, standardBytes);
@@ -651,6 +717,11 @@ case "$url" in
     printf '200'
     exit 0
     ;;
+  *opl-app-component-manifest.json)
+    cp "$OPL_FAKE_COMPONENT_MANIFEST" "$output"
+    printf '200'
+    exit 0
+    ;;
   https://example.invalid/custom.dmg)
     printf 'standard-dmg-bytes\\n' > "$output"
     printf '200'
@@ -667,13 +738,13 @@ esac
     `#!${process.execPath}
 const fs = require("node:fs");
 const args = process.argv.slice(2);
-if (args[0] !== "-extract" || args[2] !== "raw" || args[3] !== "-o" || args[4] !== "-") process.exit(2);
+if (args[0] !== "-extract" || !["raw", "json"].includes(args[2]) || args[3] !== "-o" || args[4] !== "-") process.exit(2);
 let value = JSON.parse(fs.readFileSync(args[5], "utf8"));
 for (const part of args[1].split(".")) {
   if (value == null || !(part in value)) process.exit(1);
   value = value[part];
 }
-process.stdout.write(String(value));
+process.stdout.write(args[2] === "json" ? JSON.stringify(value) : String(value));
 `,
   );
   writeExecutable(
@@ -700,14 +771,26 @@ exit 1
         fullPresent = true,
         standardDigest,
         releaseTag = true,
+        manifest,
+        manifestAssetDigest,
+        prerelease,
       }: {
         fullHttp?: string;
         fullPresent?: boolean;
         standardDigest?: string;
         releaseTag?: boolean;
+        manifest?: Parameters<typeof componentManifest>[0];
+        manifestAssetDigest?: string;
+        prerelease?: boolean;
       } = {},
     ) => {
-      writeRelease({ fullPresent, standardDigest });
+      writeRelease({
+        fullPresent,
+        standardDigest,
+        manifest,
+        manifestAssetDigest,
+        prerelease,
+      });
       fs.writeFileSync(curlArgsPath, "");
       fs.writeFileSync(hdiutilArgsPath, "");
       return spawnSync(
@@ -728,6 +811,7 @@ exit 1
             OPL_CURL_ARGS_CAPTURE: curlArgsPath,
             OPL_HDIUTIL_ARGS_CAPTURE: hdiutilArgsPath,
             OPL_FAKE_RELEASE_JSON: releaseJsonPath,
+            OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
             OPL_FAKE_FULL_HTTP: fullHttp,
             PATH: `${fakeBin}:/usr/bin:/bin`,
           },
@@ -754,7 +838,65 @@ exit 1
       fs.readFileSync(curlArgsPath, "utf8"),
       /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/latest/,
     );
+    assert.match(latestResult.stdout, /Release quality: Stable/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const devPreviewResult = runInstaller(["--standard"], {
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "manual",
+        previewKind: "dev",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: ["homebrew_clean_install"],
+      },
+    });
+    assert.notEqual(devPreviewResult.status, 0, "fake hdiutil should stop after a disclosed Dev Preview download");
+    assert.match(devPreviewResult.stdout, /Release quality: Preview \(Dev\)/);
+    assert.match(
+      devPreviewResult.stdout,
+      /Latest pointer selects this exact release but does not change its declared quality/,
+    );
+    assert.match(devPreviewResult.stdout, /Non-Stable release/);
+    assert.match(devPreviewResult.stdout, /homebrew_clean_install/);
+    assert.doesNotMatch(devPreviewResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const nightlyPreviewResult = runInstaller(["--standard"], {
+      prerelease: true,
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "automated",
+        previewKind: "nightly",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: ["stable_heavy_vm"],
+      },
+    });
+    assert.notEqual(nightlyPreviewResult.status, 0, "fake hdiutil should stop after a disclosed Nightly Preview download");
+    assert.match(nightlyPreviewResult.stdout, /Release quality: Preview \(Nightly\)/);
+    assert.match(
+      nightlyPreviewResult.stdout,
+      /Latest pointer selects this exact release but does not change its declared quality/,
+    );
+    assert.match(nightlyPreviewResult.stdout, /Non-Stable release/);
+    assert.match(nightlyPreviewResult.stdout, /stable_heavy_vm/);
+    assert.doesNotMatch(nightlyPreviewResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const undisclosedPreviewResult = runInstaller(["--standard"], {
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "manual",
+        previewKind: "dev",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: [],
+      },
+    });
+    assert.notEqual(undisclosedPreviewResult.status, 0);
+    assert.match(undisclosedPreviewResult.stderr, /must disclose skipped qualification gates/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
     const fallbackResult = runInstaller([], { fullPresent: false });
     assert.notEqual(fallbackResult.status, 0, "fake Standard download should stop after the fallback");
@@ -795,6 +937,23 @@ exit 1
     assert.match(mismatchResult.stderr, /DMG SHA256 mismatch/);
     assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
+    const manifestIdentityMismatchResult = runInstaller(["--standard"], {
+      manifest: { primaryDigest: "0".repeat(64) },
+    });
+    assert.notEqual(manifestIdentityMismatchResult.status, 0);
+    assert.match(
+      manifestIdentityMismatchResult.stderr,
+      /Component manifest primary Standard DMG identity does not match the selected Release/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const manifestDigestMismatchResult = runInstaller(["--standard"], {
+      manifestAssetDigest: "0".repeat(64),
+    });
+    assert.notEqual(manifestDigestMismatchResult.status, 0);
+    assert.match(manifestDigestMismatchResult.stderr, /Component manifest SHA256 mismatch/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
     const malformedRecordResult = runInstaller(["--standard"], { standardDigest: "missing" });
     assert.notEqual(malformedRecordResult.status, 0);
     assert.match(malformedRecordResult.stderr, /no unique digest-bound DMG asset/);
@@ -832,6 +991,8 @@ exit 1
       digest(standardBytes),
     ]);
     assert.notEqual(customVerified.status, 0, "fake hdiutil should stop after custom DMG verification");
+    assert.match(customVerified.stdout, /Release quality: not asserted for a custom DMG source/);
+    assert.doesNotMatch(fs.readFileSync(curlArgsPath, "utf8"), /api\.github\.com\/repos/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
     const customUrlVerified = runInstaller([
@@ -841,6 +1002,8 @@ exit 1
       digest(standardBytes),
     ]);
     assert.notEqual(customUrlVerified.status, 0, "fake hdiutil should stop after custom URL verification");
+    assert.match(customUrlVerified.stdout, /Release quality: not asserted for a custom DMG source/);
+    assert.doesNotMatch(fs.readFileSync(curlArgsPath, "utf8"), /opl-app-component-manifest/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

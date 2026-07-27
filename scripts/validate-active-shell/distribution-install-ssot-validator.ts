@@ -395,13 +395,35 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installer?.approved_universal_target?.result, 'official_profile_converged', 'Universal result');
   requireEqual(
     installer?.stable_macos_helper?.current_status,
-    'live_compatibility_path',
+    'direct_component_manifest_entrypoint',
     'Stable macOS helper current state',
   );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.compatibility_entrypoints,
+    [],
+    'Direct macOS compatibility entrypoints',
+  );
   requireEqual(
-    installer?.stable_macos_helper?.new_public_documentation_priority,
-    false,
-    'Stable macOS helper documentation priority',
+    installer?.stable_macos_helper?.compatibility_wrapper_status,
+    'retired',
+    'Direct macOS compatibility wrapper status',
+  );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.retired_compatibility_entrypoints,
+    ['install-stable.sh'],
+    'Retired macOS compatibility entrypoints',
+  );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.artifact_integrity,
+    {
+      official_release_asset_authority: 'exact_github_release_record_asset_digest',
+      component_manifest_authority: 'exact_github_release_record_component_manifest_asset_digest',
+      custom_url_or_path_authority: 'caller_supplied_sha256_quality_not_asserted',
+      verification_order: 'dmg_and_component_manifest_before_mount_copy_or_target_replacement',
+      latest_pointer_does_not_imply_stable_qualification: true,
+      non_stable_disclosure_before_target_mutation: true,
+    },
+    'Direct macOS installer artifact and quality authority',
   );
 
   const installHomebrew = install.homebrew_carriers;

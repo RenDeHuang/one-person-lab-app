@@ -89,13 +89,13 @@ function assertLocalAuthorizationPolicy(policy: any): void {
   if (
     policy?.schema !== 'opl_local_authorized_macos_policy.v1'
     || policy?.package_kind !== 'app_standard'
-    || policy?.stable_release_path !== 'local_authorized_unsigned'
+    || policy?.release_install_path !== 'local_authorized_unsigned'
     || policy?.apple_developer_id_required !== false
     || policy?.gatekeeper_required !== false
     || policy?.local_authorization_required !== true
     || policy?.quarantine_removal_required !== true
   ) {
-    throw new Error('Nightly local authorization policy must explicitly describe unsigned Standard preview behavior.');
+    throw new Error('Nightly local authorization policy must explicitly describe direct unsigned Preview behavior.');
   }
 }
 

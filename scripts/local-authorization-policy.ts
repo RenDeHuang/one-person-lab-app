@@ -12,16 +12,16 @@ export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'loca
   if (
     policy?.schema !== LOCAL_AUTHORIZATION_POLICY_SCHEMA
     || policy?.package_kind !== packageKind
-    || policy?.stable_release_path !== 'local_authorized_unsigned'
+    || policy?.release_install_path !== 'local_authorized_unsigned'
     || policy?.apple_developer_id_required !== false
     || policy?.gatekeeper_required !== false
     || policy?.local_authorization_required !== true
     || policy?.quarantine_removal_required !== true
     || policy?.install_entrypoint !== 'install.sh --stable-macos-install --yes'
     || !Array.isArray(policy?.compatibility_entrypoints)
-    || !policy.compatibility_entrypoints.includes('install-stable.sh')
+    || policy.compatibility_entrypoints.length !== 0
   ) {
-    throw new Error(`${name} must declare the Stable local-authorized macOS install policy for ${packageKind}.`);
+    throw new Error(`${name} must declare the direct local-authorized macOS install policy for ${packageKind}.`);
   }
   if (!['passed', 'failed_allowed_unsigned'].includes(policy.codesign_status)) {
     throw new Error(`${name} must record a passed or allowed unsigned codesign diagnostic for ${packageKind}.`);
@@ -30,7 +30,7 @@ export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'loca
     throw new Error(`${name} must record a passed or allowed unsigned spctl diagnostic for ${packageKind}.`);
   }
   if (!['absent', 'removed_by_installer'].includes(policy.quarantine_status)) {
-    throw new Error(`${name} must prove quarantine is absent or removed by the Stable installer for ${packageKind}.`);
+    throw new Error(`${name} must prove quarantine is absent or removed by the direct macOS installer for ${packageKind}.`);
   }
 }
 
@@ -127,13 +127,13 @@ function buildPolicy(options) {
   return {
     schema: LOCAL_AUTHORIZATION_POLICY_SCHEMA,
     package_kind: options.packageKind,
-    stable_release_path: 'local_authorized_unsigned',
+    release_install_path: 'local_authorized_unsigned',
     apple_developer_id_required: false,
     gatekeeper_required: false,
     local_authorization_required: true,
     quarantine_removal_required: true,
     install_entrypoint: 'install.sh --stable-macos-install --yes',
-    compatibility_entrypoints: ['install-stable.sh'],
+    compatibility_entrypoints: [],
     default_package_profile: options.packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: options.appPath,

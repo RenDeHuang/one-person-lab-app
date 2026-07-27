@@ -32,13 +32,13 @@ export function localAuthorizationPolicy(packageKind) {
     {
       schema: "opl_local_authorized_macos_policy.v1",
       package_kind: packageKind,
-      stable_release_path: "local_authorized_unsigned",
+      release_install_path: "local_authorized_unsigned",
       apple_developer_id_required: false,
       gatekeeper_required: false,
       local_authorization_required: true,
       quarantine_removal_required: true,
       install_entrypoint: "install.sh --stable-macos-install --yes",
-      compatibility_entrypoints: ["install-stable.sh"],
+      compatibility_entrypoints: [],
       default_package_profile: packageKind === "app_full_first_install" ? "full" : "standard",
       user_prompt_policy:
         "one_terminal_command_no_system_settings_override_expected_after_quarantine_clear",
