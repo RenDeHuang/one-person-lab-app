@@ -108,23 +108,17 @@ opl system initialize --json
 细节由
 [App release guide](docs/delivery/release/README.md) 与 App contracts 维护。
 
-### 一键安装
+### 可信安装入口
 
-macOS 用户也可以使用一键安装入口。它会准备 One Person Lab 运行环境，并安装或打开桌面应用：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
-```
-
-该入口会显式调用 `--with-app --skip-packages`：先安装同一个可独立使用的 OPL 基座，再加入可选 GUI，不会静默安装任何 Package。只需要基座时，请直接使用 OPL Framework 安装入口。
-
-不使用 Homebrew 的稳定版 macOS 用户，可以使用统一的稳定版安装入口：
+已安装 Homebrew 的 macOS 用户使用摘要绑定的 Standard Cask：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 ```
 
-macOS trust 诊断和内部版本处理细节留在 release guide，不放在公开入口里重复维护。
+未安装 Homebrew 时，从下面的 GitHub Release 下载精确 DMG。不要把可变
+`main` 分支中的 `install.sh` 直接通过管道交给 shell 执行。仓库脚本仍供从已审阅
+source checkout 开发或恢复时运行 `./install.sh`，但它不是公开 Release 资产。
 
 ### 直接下载
 
@@ -136,7 +130,7 @@ macOS trust 诊断和内部版本处理细节留在 release guide，不放在公
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装包也可以通过
 `one-person-lab-full` Homebrew cask 安装。
 
-macOS 可以通过 DMG、一键安装、Homebrew 或 Docker/WebUI 安装。首次启动图文教程以
+macOS 可以通过 DMG、Homebrew 或 Docker/WebUI 安装。首次启动图文教程以
 [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 为主入口；同一份 guide 也提供
 [可转发 PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf)、

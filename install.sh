@@ -623,8 +623,8 @@ print_stable_macos_next_steps() {
   printf '  4. Shareable PDF: %s\n' "$pdf_url"
   printf '  5. Shareable PPTX: %s\n' "$pptx_url"
   printf '  6. Latest release assets: %s\n' "$releases_url"
-  printf 'If macOS still asks for repeated approval, re-run:\n'
-  printf '  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash -s -- --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_APP_RELEASE_REPO" "$OPL_APP_DOCS_REF" "$OPL_LOCAL_APP_PATH"
+  printf 'If macOS still asks for repeated approval, use a reviewed source checkout and run:\n'
+  printf '  ./install.sh --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_LOCAL_APP_PATH"
 }
 
 run_with_sudo_fallback() {
