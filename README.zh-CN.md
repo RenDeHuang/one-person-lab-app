@@ -118,7 +118,14 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 
 未安装 Homebrew 时，从下面的 GitHub Release 下载精确 DMG。不要把可变
 `main` 分支中的 `install.sh` 直接通过管道交给 shell 执行。仓库脚本仍供从已审阅
-source checkout 开发或恢复时运行 `./install.sh`，但它不是公开 Release 资产。
+source checkout 开发或恢复时运行 `./install.sh`。公开 Release 同 tag 的
+`opl-app-installer.sh` 会在任何 App 目标变更前校验其 component manifest 与 DMG：
+
+```bash
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
+chmod 0755 opl-app-installer.sh
+./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+```
 
 ### 直接下载
 

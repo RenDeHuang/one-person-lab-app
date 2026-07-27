@@ -516,6 +516,35 @@ test('remote release verifier rejects standard updater metadata that references 
   assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
 });
 
+test('remote release verifier rejects a Standard release without its immutable installer bootstrap', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-no-installer-'));
+  const version = '26.5.19-remote-no-installer';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  const releaseView = buildRemoteReleaseView(
+    tempRoot,
+    names.filter((name) => name !== 'opl-app-installer.sh'),
+    `v${version}`,
+  );
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /missing asset opl-app-installer\.sh/);
+});
+
 test('remote release verifier keeps real non-macOS public trust validation fail closed', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-non-macos-'));
   const binDir = path.join(tempRoot, 'bin');

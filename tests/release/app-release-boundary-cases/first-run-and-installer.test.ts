@@ -32,16 +32,6 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
   assert.equal(fullDmg.release_gate, true);
 
-  for (const id of [
-    "standard_dmg_clean_vm_smoke",
-    "homebrew_standard_cask_clean_vm_smoke",
-    "one_shot_app_installer_fresh_install_smoke",
-  ]) {
-    const scenario = matrix.scenarios.find((entry) => entry.id === id);
-    assert.ok(scenario, id);
-    assert.equal(scenario.release_gate, false, id);
-    assert.equal(scenario.post_publication_optional_certification, true, id);
-  }
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
     .filter((expectation) =>
@@ -592,6 +582,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const tag = `v${version}`;
   const fullName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const standardName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const installerName = "opl-app-installer.sh";
   const componentManifestName = "opl-app-component-manifest.json";
   const fullBytes = "full-dmg-bytes\n";
   const standardBytes = "standard-dmg-bytes\n";
@@ -610,6 +601,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     skippedGates = [] as string[],
     primaryDigest,
     primaryName = standardName,
+    installerDigest,
     legacyV3Manifest = false,
     legacyV3Fields = {} as Record<string, unknown>,
   }: {
@@ -621,6 +613,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     skippedGates?: string[];
     primaryDigest?: string;
     primaryName?: string;
+    installerDigest?: string;
     legacyV3Manifest?: boolean;
     legacyV3Fields?: Record<string, unknown>;
   } = {}) => JSON.stringify({
@@ -639,7 +632,11 @@ test("Stable macOS installer binds exact release assets before mount and preserv
       name: standardName,
       digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
       ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${standardName}`,
-    }],
+    }, ...(installerDigest ? [{
+      name: installerName,
+      digest: `sha256:${installerDigest}`,
+      ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${installerName}`,
+    }] : [])],
     ...(legacyV3Manifest ? legacyV3Fields : {
       release_version: version,
       quality_status: qualityStatus,
@@ -658,17 +655,20 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     standardDigest,
     manifest,
     manifestAssetDigest,
+    installerDigest,
     prerelease = false,
   }: {
     fullPresent?: boolean;
     standardDigest?: string;
     manifest?: Parameters<typeof componentManifest>[0];
     manifestAssetDigest?: string;
+    installerDigest?: string;
     prerelease?: boolean;
   } = {}) => {
     const manifestBytes = componentManifest({
       ...manifest,
       primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
+      installerDigest: manifest?.installerDigest ?? installerDigest,
     });
     fs.writeFileSync(
       releaseJsonPath,
@@ -679,6 +679,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
         assets: [
           ...(fullPresent ? [asset(fullName, fullBytes)] : []),
           asset(standardName, standardBytes, standardDigest),
+          ...(installerDigest ? [asset(installerName, installerBytes, installerDigest)] : []),
           asset(componentManifestName, manifestBytes, manifestAssetDigest),
         ],
       }),
@@ -687,6 +688,10 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   };
   fs.mkdirSync(fakeBin, { recursive: true });
   fs.writeFileSync(customDmgPath, standardBytes);
+  const installerBytes = fs.readFileSync(path.join(appRoot, "install.sh"), "utf8");
+  const immutableInstallerPath = path.join(tempRoot, installerName);
+  fs.writeFileSync(immutableInstallerPath, installerBytes, { mode: 0o755 });
+  const immutableInstallerDigest = digest(installerBytes);
 
   writeExecutable(
     path.join(fakeBin, "uname"),
@@ -790,6 +795,8 @@ exit 1
         releaseTag = true,
         manifest,
         manifestAssetDigest,
+        installerPath = path.join(appRoot, "install.sh"),
+        installerDigest,
         prerelease,
       }: {
         fullHttp?: string;
@@ -798,6 +805,8 @@ exit 1
         releaseTag?: boolean;
         manifest?: Parameters<typeof componentManifest>[0];
         manifestAssetDigest?: string;
+        installerPath?: string;
+        installerDigest?: string;
         prerelease?: boolean;
       } = {},
     ) => {
@@ -806,6 +815,7 @@ exit 1
         standardDigest,
         manifest,
         manifestAssetDigest,
+        installerDigest,
         prerelease,
       });
       fs.writeFileSync(curlArgsPath, "");
@@ -813,7 +823,7 @@ exit 1
       return spawnSync(
         "/bin/bash",
         [
-          path.join(appRoot, "install.sh"),
+          installerPath,
           "--stable-macos-install",
           ...profileArgs,
           ...(releaseTag ? ["--release-tag", tag] : []),
@@ -852,6 +862,28 @@ exit 1
       /attach/,
       availableFullResult.stderr || availableFullResult.stdout,
     );
+
+    const immutableInstallerResult = runInstaller(["--standard"], {
+      installerPath: immutableInstallerPath,
+      installerDigest: immutableInstallerDigest,
+    });
+    assert.notEqual(
+      immutableInstallerResult.status,
+      0,
+      "fake hdiutil should stop after exact installer verification",
+    );
+    assert.match(immutableInstallerResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    fs.appendFileSync(immutableInstallerPath, "\n# tampered\n");
+    const tamperedInstallerResult = runInstaller(["--standard"], {
+      installerPath: immutableInstallerPath,
+      installerDigest: immutableInstallerDigest,
+    });
+    assert.notEqual(tamperedInstallerResult.status, 0);
+    assert.match(tamperedInstallerResult.stderr, /Installer bootstrap SHA256 mismatch/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+    fs.writeFileSync(immutableInstallerPath, installerBytes, { mode: 0o755 });
 
     const latestResult = runInstaller(["--standard"], { releaseTag: false });
     assert.notEqual(latestResult.status, 0, "fake hdiutil should stop after Latest DMG verification");

@@ -124,8 +124,17 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 
 Without Homebrew, download the exact DMG from the GitHub Release linked below.
 Do not pipe a mutable branch copy of `install.sh` directly into a shell. The
-repository script remains available as `./install.sh` for developers working
-from a reviewed source checkout, but it is not a public release asset.
+tag-scoped `opl-app-installer.sh` Release asset verifies its own component
+manifest and DMG before any App target mutation:
+
+```bash
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
+chmod 0755 opl-app-installer.sh
+./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+```
+
+The repository script remains available as `./install.sh` for developers
+working from a reviewed source checkout.
 
 ### Direct Download
 
