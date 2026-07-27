@@ -220,10 +220,13 @@ Phase 2 执行最多保持四条开发 lane。这里冻结行为、owner、bound
 
 1. fresh fetch对应 repo `main`，确认 canonical authority和当前唯一 writer；
 2. 用结构调用链与字面检索冻结本包 sorted exact write set；
-3. 证明与其他 active write sets交集为零，或明确串行 owner；
-4. 在独立 worktree实现，`unexpected=0`；
-5. producer先进入 canonical main并 readback，consumer才可吸收；
-6. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
+3. 登记与其他 active write sets的交集、field-level conflict owner和最终吸收顺序；
+   overlap不阻止在独立 worktree并行开发和验证；
+4. 在独立 worktree实现，`unexpected=0`，并完成 local-first focused/affected gates；
+5. producer和consumer可并行实现兼容桥、fixture和测试；consumer最终吸收前必须按
+   fresh canonical producer contract semantic replay；
+6. 每个 repo的 shared `main` mutation和wire readback串行，由唯一 integrator解决冲突；
+7. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
 
 ### `W1` Official Profile Consumers
 
@@ -354,16 +357,20 @@ Phase 2 execution
   +-- Lane 4 Read-only QA:      inventories, controls, proof preparation
 ```
 
-并行只适用于独立 worktree和零交叉候选。以下必须串行：
+并发采用
+[`parallel_work_serialized_integration`](parallel-delivery-and-clean-development-ssot.md)：
+独立 worktree中的实现、测试和checkpoint可以并行，即使存在小范围文件/字段交叉；
+交叉只决定最终吸收顺序和冲突解决 owner。以下必须串行：
 
 - producer authority canonical -> consumer absorption；
-- 同 repo/module的 source write set；
 - 每个 repo的 `main` CAS和最终 readback；
 - 真实 lifecycle/public mutation；
 - legacy writer停止、删除和同 outcome复验。
 
 `W1` 不需要等待全部 Framework/Runtime工作；`W5` Package owner可与 `W2`并行。
-只有真实 dependency edge或写集交叉才增加顺序，不建立跨仓总锁。
+`W3`/`W5` producer与 `W4`/`W6` consumer可并行准备，只在consumer canonical吸收前等待
+fresh producer contract。write-set overlap不建立跨仓总锁；发生冲突时由后吸收 owner基于
+最新用户SSOT、fresh `main`和机器合同做semantic replay，不能机械选择旧patch一侧。
 
 ## Per-Family Deletion Loop
 

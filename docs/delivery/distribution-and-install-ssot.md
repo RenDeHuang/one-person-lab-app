@@ -11,6 +11,30 @@ Machine owners:
 机器事实仍由上述两份合同分别拥有；本文不替代 Release Bundle、发布 receipt、
 远端 readback 或 Framework package lifecycle。
 
+跨目标并发、objective owner和开发清洁规则统一消费
+[`../active/parallel-delivery-and-clean-development-ssot.md`](../active/parallel-delivery-and-clean-development-ssot.md)
+及其机器快照
+[`../active/active-objective-ledger.json`](../active/active-objective-ledger.json)，本文不复制
+易漂移的 thread heartbeat、run id或worktree清单。
+
+## 执行协调与开发清洁
+
+- 最新直接用户目标是当前SSOT；旧合同、ledger、callback或失败operation与其冲突时，
+  先修订流程和实现，不得用旧记录拒绝用户终态。
+- Desktop Stable/Latest、WebUI GHCR `stable/latest`、Native/Homebrew exposure、managed
+  install和GUI same-artifact acceptance可以独立并行；一个载体的失败不阻止另一个已经
+  具备权限和输入的载体继续交付。
+- 依赖只约束最终消费顺序：GUI必须等待fresh immutable published artifact，installer
+  readback必须等待对应公开carrier；但source、fixture、compatibility bridge和本地测试
+  可以先行。
+- 小范围write-set overlap不阻止独立worktree开发；每个repo最终main mutation串行，
+  后吸收owner按fresh SSOT semantic replay并解决冲突。
+- 手工开发local-first/push-last；远端Actions只补hosted OS、受保护secret/public mutation
+  和owner-authoritative readback，不作为第一轮调试器。
+- 开发清洁以`stale=0 / ownerless=0 / duplicate_writer=0 / unexpected_dirty=0 / git_locks=0`
+  为终态。活跃owner lane可以保留；已吸收lane必须由原owner完成worktree/ref/receipt/temp
+  的guarded close，不能按标题或clean状态批量删除。
+
 ## 结论
 
 “OPL 有多少条路径”不能只给一个总数，因为发布载体、生产发布路径、用户安装
