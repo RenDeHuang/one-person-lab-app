@@ -6,12 +6,12 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T16:08:00Z",
+  "generated_at": "2026-07-27T16:07:49Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "e0add8ff7a639d084c034ef2aa313d57d6faac82",
-    "tree": "0754db971813662d511f1aeba9e8f8cb458d837b",
+    "commit": "ab61808be60fd6e16b2a8b8826da0fa443e72a48",
+    "tree": "046d2a61e3cd3ac8cdb2932936f2a4ab5a437720",
     "observation": "local main and origin/main aligned; wire/API parity is an owner terminal readback, not asserted by this snapshot"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
@@ -113,10 +113,10 @@
       "scope": "Converge Desktop, Native WebUI, Container WebUI, Homebrew and managed install onto one maintained entry model and fresh terminal readbacks.",
       "current_evidence": [
         "source blocker is canonical on current main",
-        "active app-installer-route-fail-closed lane owns the two Native WebUI routing aggregate regressions discovered by active-shell validation",
+        "main ab61808b contains the fail-closed installer route fix and regression; its source lane remains registered until owner-native close",
         "public Latest, Native/Homebrew exposure and managed installed terminal remain separate evidence"
       ],
-      "next_action": "Fix the two fail-closed Native WebUI routing regressions in the registered installer lane while Stable runs independently; then finish carrier-specific install/readback bridges and consume the new immutable Desktop cohort.",
+      "next_action": "Replay affected aggregate gates and owner-close the absorbed installer lane while Stable runs independently; then finish carrier-specific install/readback bridges and consume the new immutable Desktop cohort.",
       "integration_order": 3,
       "parallel_group": "distribution-and-install",
       "estimated_remaining": {
