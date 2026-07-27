@@ -12,7 +12,7 @@ package scripts, validation output, and candidate package artifacts.
 
 | Role | Shell | Physical checkout | Adapter contract | Default scope |
 | --- | --- | --- | --- | --- |
-| Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable App wrapper commands; historical Nightly read compatibility |
+| Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
 | Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Explicit Native validation/build only |
 | Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Role registry by default; explicit source validation or manual technical replay only |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit AGUI replay only |
@@ -52,7 +52,7 @@ OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模�
 | Workspace、source files、artifact refs | 用户 workspace / domain owner | 可由两个 GUI 指向同一逻辑工作区，但不据此声明并发写安全。 |
 | Renderer、framework、lockfile、`node_modules` | 每个 shell 独立 | AionUI 与 Native 不共享依赖树。 |
 | Window state、panel layout、draft、UI cache | 每个 GUI 私有、可重建 | 不允许直接读取或写入另一个 GUI 的 SQLite、localStorage 或 user-data store。 |
-| Bundle id、updater、release artifact | 每个安装身份隔离；release authority 仍归 App | 可并存安装；candidate updater/package 不进入 Stable；已退休 Nightly 只读。 |
+| Bundle id、updater、release artifact | 每个安装身份隔离；release authority 仍归 App | 可并存安装；candidate shell 在 adoption 前不进入 Stable、Dev 或 Nightly build。Latest pointer selection 不改变 shell role。 |
 
 “共享逻辑基座”不等于“当前共享同一份物理 Runtime”。AionUI 走 managed/packaged
 runtime 路径；Native 通过 App launcher 使用显式 `opl`/`codex` 路径，但直接打开 bundle
@@ -63,7 +63,7 @@ executable path/version/cohort readback 前，不得声称物理 Runtime parity�
 
 | Decision | Meaning | Authority / effect |
 | --- | --- | --- |
-| `active release shell` | Stable 默认发布 GUI；历史 Nightly 读取沿用同一 GUI identity | 只由 `contracts/app-shell-adapter.json` 决定；当前为 AionUI。 |
+| `active release shell` | Stable 与当前 Dev/Nightly Preview 的发布 GUI | 只由 `contracts/app-shell-adapter.json` 决定；当前为 AionUI。 |
 | `local GUI launch target` | 本机本次打开 AionUI 或 Native | 每次 launch 局部选择；不得修改 active adapter、release role 或 updater channel。 |
 | `adoption / promotion` | 候选正式替换默认发布 GUI | 显式修改 active adapter，并完成完整 adoption/release/owner gates。 |
 
@@ -183,8 +183,8 @@ OPL_APP_SHELL_ROOT=../opl-native-workbench npm run package:candidate:native
 
 Candidate package builds and local launches are technical candidate artifacts.
 They do not switch the active release shell, Stable release packaging,
-historical Nightly read compatibility, release readiness, owner acceptance,
-runtime truth, domain truth, artifact authority, or current App release status.
+Dev/Nightly Preview packaging, release readiness, owner acceptance, runtime
+truth, domain truth, artifact authority, or current App release status.
 
 The default release GUI changes only when `contracts/app-shell-adapter.json` is
 edited and the App shell adapter, product profile, page-state, first-run,

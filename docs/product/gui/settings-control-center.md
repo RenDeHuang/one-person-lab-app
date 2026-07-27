@@ -445,10 +445,14 @@ route but appear only under Instructions & Context in the visible hierarchy.
 
 ### About
 
-About shows the App version, the only user-visible Stable update channel, cached
-update status, and one Check for updates action. Public Nightly is an external
-opt-in Standard prerelease through GitHub and its dedicated Homebrew Cask; it
-never appears as an in-App update-channel selector and never changes Latest.
+About shows the App version, cached updater status, and one Check for updates
+action; it does not expose an in-App update-channel selector. Public Nightly is
+an external Automated Standard Preview through GitHub and its dedicated Homebrew
+Cask. Its scheduled publisher defaults to `make_latest=false`, but a separate
+protected single-use expected-current CAS plus exact public readback may
+temporarily select any exact published Dev or Nightly Preview as Latest. That
+operation preserves Preview quality, discloses non-Stable and skipped gates, and
+the next qualified Stable reclaims Latest by default.
 Canary is validation-only and never appears as a user update channel. The App performs one update check after startup
 and publishes it to a shared main-process updater state store. Mounting or
 navigating to About only reads that state and never starts a check. The manual

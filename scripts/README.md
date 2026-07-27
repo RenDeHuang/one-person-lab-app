@@ -30,13 +30,19 @@ should happen only when AGUI replay is explicitly requested.
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `write-opl-app-component-manifest.ts` | Writes the App-owned Standard artifact manifest with its actual source commit and asset digests. This is artifact evidence, not a Package composition authority or installation prerequisite. |
+| `read-opl-app-component-manifest-identity.ts` | Reads back the exact published App manifest identity, verifies Stable/Preview, Manual/Automated, derived Dev/Nightly, source/tag/version/digest, and pointer-policy agreement, while retaining a bounded legacy Stable compatibility path. |
 | `release-bundle.ts` | Reads the retired App-owned Bundle projection for historical receipt compatibility. It can assemble, verify, or report those records, but cannot admit, build, publish, promote, dispatch, or claim readiness for a live release. |
 | `framework-release-adapter.ts` | Adapts App product inputs and exact asset/qualification evidence to the Framework `opl release` ABI. Framework checkpoint state remains authoritative; the adapter does not create an App session, broker ledger, or second release state machine. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `generate-release-notes.ts` | Builds Stable release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Stable publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. Nightly uses its own fixed scope-and-risk disclosure. |
-| `resolve-nightly-release-request.ts` | Freezes one scheduled Standard-only Nightly request, exact App/Shell/Framework SHAs, same-day revision, and non-Latest/non-Full/non-WebUI authority. |
+| `resolve-preview-release-request.ts` | Freezes one Manual Standard Dev Preview or exact recovery request, immutable App/Shell/Framework identity, qualification disclosure, and whether a separate protected Latest override must be admitted. |
+| `resolve-nightly-release-request.ts` | Freezes one scheduled Standard-only Automated Preview request, exact App/Shell/Framework SHAs, same-day revision, and default `make_latest=false`/non-Full/non-WebUI authority. |
 | `nightly-release-qualification.ts` | Verifies the exact shared-build Standard asset set and cohort without claiming Stable qualification or requiring the Stable heavy VM gate. |
 | `nightly-release-publisher.ts` | Publishes or read-reconciles one immutable GitHub prerelease by exact digest; same-name different bytes and unknown mutation outcomes fail closed without retry. |
+| `validate-release-quality-promotion.ts` | Verifies that one exact Preview artifact passed the complete direct-Stable gate set and emits a separate `promote_quality` receipt without rewriting its immutable manifest or moving Latest. |
+| `write-latest-pointer-override-authority.ts` | Derives one user-explicit, protected, single-use, non-persistent Preview pointer authority from the immutable component manifest and exact expected-current Latest tag. |
+| `validate-standard-latest-admission.ts` | Admits the default qualified-Stable Latest takeover or a Standard publisher's same-run Preview override against exact updater predecessors, component identity, pointer authority, CAS, disclosure, and applicable carrier evidence. |
+| `validate-latest-pointer-operation.ts` | Separately admits a pointer-only operation for one already-published exact Dev/Nightly Preview by binding the public release inspection, first Actions attempt, immutable deadline, protected authority, expected-current CAS, quality preservation, and required public readback. |
 | `cleanup-draft-release-candidates.ts` | Discovers stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the Stable release exists. It is read-only; deleting a Release or tag requires a separately authorized product change outside the live Bundle executor. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `cleanup-local-artifacts.ts` | Dry-runs or deletes local ignored generated output: `tmp/`, `docs/site/latest/`, generated Full runtime payload dirs, and stale top-level `artifacts/*` run directories. It never manages tool state or external shell checkouts. |
@@ -184,11 +190,13 @@ Stable exposes exactly `standard`, `resume_standard`, and `append_full` through
 rebuild. Full is additive after Standard qualification and cannot alter Standard
 assets, updater metadata, prepared notes, or Latest. Nightly uses a separate
 scheduled Standard-only entry that calls the same physical `_build-reusable.yml`,
-publishes a non-Latest prerelease, and hands off to isolated Homebrew and
-sampled-VM followers. It never consumes the Stable Bundle, Stable mutex,
-Full/WebUI lanes, or Stable heavy VM authority. Historical Nightly bytes remain
-readable. The independent daily Canary remains validation-only and performs no
-build, VM, or external write.
+publishes an Automated Preview with `make_latest=false`, and hands off to
+isolated Homebrew and sampled-VM followers. That workflow never moves Latest or
+consumes the Stable Bundle, Stable mutex, Full/WebUI lanes, or Stable heavy VM
+authority. A separate protected single-use expected-current CAS may temporarily
+select an exact published Preview without changing its quality; the next
+qualified Stable reclaims Latest by default. The independent daily Canary
+remains validation-only and performs no build, VM, or external write.
 
 Unknown build or publish outcomes block checkpoint export and executor
 switching until a fresh inspection and Framework reconcile resolve them.
@@ -443,7 +451,8 @@ The daily validation schedule enters `.github/workflows/release-bundle-canary.ym
 Canary starts the reusable topology in validation-only mode without builds, VMs,
 release secrets, external writes, or Stable mutation. A separate daily
 `.github/workflows/release-nightly.yml` builds the Standard preview with the
-shared physical build, publishes a prerelease, and never changes Latest. Its
+shared physical build and publishes a prerelease with `make_latest=false`; that
+scheduled workflow does not change Latest. Its
 Homebrew follower is digest-bound and single-attempt; its clean-VM follower is
 weekly sampled and non-blocking.
 
@@ -452,9 +461,11 @@ critical-path work. Stable prepares and validates AI-written notes before the
 expensive build; the exact Markdown and evidence digests become Bundle identity.
 Stable publish cannot call AI, replace the prepared notes, or fall back to
 template output. Automated Nightly uses a fixed disclosure of its Standard-only,
-non-Stable, non-Latest and non-heavy-VM scope rather than calling AI in the
-scheduled critical path. The Stable writer runs the online provider probe first
-and fails closed when no usable provider is configured.
+non-Stable, scheduled `make_latest=false`, and non-heavy-VM scope rather than
+calling AI in the scheduled critical path. Any later pointer override separately
+discloses the exact Preview quality and skipped or failed gates. The Stable
+writer runs the online provider probe first and fails closed when no usable
+provider is configured.
 Online release drafting uses
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
 `OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,

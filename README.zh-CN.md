@@ -118,10 +118,10 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 该入口会显式调用 `--with-app --skip-packages`：先安装同一个可独立使用的 OPL 基座，再加入可选 GUI，不会静默安装任何 Package。只需要基座时，请直接使用 OPL Framework 安装入口。
 
-不使用 Homebrew 的稳定版 macOS 用户，可以使用稳定版安装助手：
+不使用 Homebrew 的稳定版 macOS 用户，可以使用统一的稳定版安装入口：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
 ```
 
 macOS trust 诊断和内部版本处理细节留在 release guide，不放在公开入口里重复维护。

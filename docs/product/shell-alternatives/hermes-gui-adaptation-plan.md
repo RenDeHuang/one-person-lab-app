@@ -63,7 +63,8 @@ Hermes prior foreground alternative reference 的 App-owned 目标态已经由�
 - 默认发布 shell 仍是 AionUI。Hermes 只通过
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json`
   进入 explicit candidate build；不修改 `contracts/app-shell-adapter.json` 前不能成为
-  Stable release shell；公开 Nightly 已退休，历史 bytes 仅保持只读兼容。
+  Stable、Dev 或 Nightly release shell。当前 Automated Nightly Preview 仍使用
+  AionUI active adapter；移动 Latest pointer 不改变 shell role。
 - 普通体验是 chat-first Codex App-like shell。第一屏以 workspace-aware chat、
   conversation timeline 和 composer 为中心；workspace rail、runtime refs、files、
   capabilities、memory、automations 和 diagnostics 都是可收起上下文，不回到 dashboard。

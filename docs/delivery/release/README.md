@@ -122,12 +122,12 @@ Stable, WebUI, Full, Nightly, and Daily are not competing package authorities:
 | Object | Correct meaning | Currentness authority |
 | --- | --- | --- |
 | OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
-| Desktop Stable | App release policy and public Latest/updater metadata | Framework Bundle plus App release executor |
+| Desktop Stable | App Stable quality policy; Latest/updater selection is a separate pointer operation | Framework Bundle plus App release executor and exact public readback |
 | Container WebUI | Current browser/server App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
 | Native WebUI | Approved host-native browser target; not currently an OPL publication or install path | No currentness authority until immutable OPL assets and public readback exist |
 | Full | Same Official Profile with additional first-install/offline seeds; additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
-| Nightly | Implemented schedule-only Standard-density prerelease; publishes immutable non-Latest GitHub assets with `include_full=false`, then starts isolated Homebrew and sampled-VM followers | First public publication and follower readbacks remain pending; historical bytes stay readable and Canary remains validation-only |
-| OPL Package | Independently published complete Package bytes | Package owner GHCR `latest-stable` plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
+| Nightly | Automated Standard-density Preview; its schedule publishes immutable GitHub prerelease assets with `include_full=false` and `make_latest=false`, then starts isolated Homebrew and sampled-VM followers | A separate protected single-use expected-current CAS may temporarily select an exact published Nightly without changing quality; first public publication and follower readbacks remain pending |
+| OPL Package | Independently published complete Package bytes; immutable version refs are exact, `candidate` is Preview input, `latest-stable` is Stable/LKG, and bare `latest` is retired | Package-owner qualification and protected promotion plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
 
 The roots selected by the current Official Profile are replaceable defaults. A
@@ -145,7 +145,10 @@ document, contract tests, a green build, a candidate artifact, or a
 non-terminal workflow run:
 
 ```text
-App Stable -> GitHub Latest -> updater readback
+qualified App Stable -> GitHub Latest expected-current CAS -> updater readback
+exact published Preview + protected single-use authority
+                     -> GitHub Latest expected-current CAS
+                     -> non-Stable/skipped-gate disclosure + updater readback
 WebUI exact digest -> :stable -> anonymous pull
 one Package update -> unchanged Base/App/other Packages remain unchanged
 ```
@@ -156,11 +159,14 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | --- | --- |
 | Bundle schema, canonical digest, store, checkpoint, executor and operation receipts | OPL Framework `opl release` |
 | Stable product operations and public asset policy | `contracts/app-release-channel.json#release_bundle_control_plane` |
+| Stable/Preview quality, Manual/Automated build trigger, derived Dev/Nightly kind, quality promotion, and Latest pointer policy | `contracts/app-release-channel.json` plus [`../distribution-and-install-ssot.md`](../distribution-and-install-ssot.md) |
 | Desktop source qualification | `.github/workflows/release-source-qualification.yml` plus `opl_app_source_qualification_receipt.v1`; development validation only |
 | Stable pre-nonce and post-dispatch guard | `scripts/release-dispatch-guard.ts`; Git wire identity plus one structured owner-run query, read-only only |
 | Stable manual entry | `.github/workflows/release-stable.yml` |
 | Protected same-run credential check and version/cohort admission | `release-stable.yml#protected-admission`; read-only `release-stable` environment gate |
 | Per-attempt failure timing and stage observation | `.github/workflows/release-attempt-observability.yml`; append-only read-only follower without retry authority |
+| Manual Standard Dev Preview entry | `.github/workflows/release-manual-preview.yml`; publishes or resumes one exact Manual Preview, while any Latest selection remains a separately admitted protected one-use CAS |
+| Protected Preview Latest pointer entry | `.github/workflows/release-manual-preview.yml#move_latest_pointer` admits one already-published exact Dev/Nightly Preview, then calls `_release-preview-latest-pointer.yml` for the first-attempt expected-current CAS and exact public quality/readback proof |
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |
@@ -262,8 +268,15 @@ Latest. The base `YY.M.D` and every same-day `-rN` are independent immutable
 releases. Both display version and machine updater version must increase.
 
 The updater baseline includes current Latest and the highest public Stable.
-Source and remote version checks complete before an expensive build. Stable is
-the only live release mutation channel and owns the repository-wide mutation
+Source and remote version checks complete before an expensive build. Publishing
+an immutable artifact, promoting the same exact digest from Preview to Stable,
+and moving Latest are separate operations. `promote_quality` requires the same
+qualification as a direct Stable and does not move Latest. `move_latest_pointer`
+requires protected single-use authority, an expected-current CAS, exact
+tag/digest binding, and public readback; selecting a Preview preserves its
+quality and discloses non-Stable plus skipped or failed gates. The next qualified
+Stable reclaims Latest by default, and any failed operation preserves the
+existing Latest/LKG. Stable Bundle mutation owns its repository-wide mutation
 mutex; the scheduled Canary cannot write Release, Latest, updater, or Homebrew
 state.
 
@@ -299,8 +312,10 @@ reinterpreted as a passed gate.
 
 ## Temporary Manual Full Preview
 
-The Manual Full preview is a temporary public download lane, not a Stable
-operation and not a Framework Release Bundle state transition. Its only entry is
+The Manual Full preview is a temporary public download lane with
+`quality_status=Preview`, `build_trigger=Manual`, and derived
+`preview_kind=Dev`; it is not a Stable operation or a Framework Release Bundle
+state transition. Its publication and cleanup entry is
 `.github/workflows/release-manual-full-preview.yml`, with the two exact
 operations `publish` and `cleanup`. The mutation job is bound to the protected
 `release-stable` environment and the repository-wide release mutex. Ordinary
@@ -315,6 +330,12 @@ with `v`. The Release is published with `prerelease=true` and
 `make_latest=false`; its notes state that M2 clean-VM/full qualification is
 pending and that it is neither Stable nor an automatic update.
 
+After publication, only the separate protected single-use Latest-pointer
+operation may select this exact tag and digest. It must bind the user's explicit
+request, expected-current CAS, public readback, and non-Stable/skipped-gate
+disclosure. The pointer move does not promote quality, change updater metadata,
+or authorize Homebrew; the next qualified Stable reclaims Latest by default.
+
 Large handoff bytes enter through the fixed
 `OPL_MANUAL_PREVIEW_INGRESS_ROOT/<nonce>` directory on the dedicated macOS ARM64
 runner. The read-only ingress job rejects symlinks, extra files, arbitrary
@@ -328,7 +349,8 @@ complete, and fails closed on a conflicting digest. An unknown mutation result
 allows at most three read-only postcondition inspections and never allows a
 retry, workflow rerun, redispatch, or cancel. The mutation allowlist contains
 only the derived preview Release, its assets, and its tag; Stable tags, Latest,
-updater metadata, Homebrew, and Framework checkpoints are read-only.
+updater metadata, Homebrew, and Framework checkpoints are read-only to this
+publisher. The separate pointer operation has its own one-use allowlist and CAS.
 
 `cleanup` is admitted only after M2 reports `standard_qualified` and an exact
 receipt proves that formal Standard plus `append_full` are published and read
@@ -354,7 +376,8 @@ most three read-only remote reconciliations. If exact state remains unknown, the
 operation stops with typed failure evidence and a later bounded checkpoint
 operation must inspect again.
 
-Standard Homebrew publication and clean-VM readback are required before Latest.
+Standard Homebrew publication and clean-VM readback are required before a
+qualified Stable takes or reclaims Latest by default.
 Full Homebrew publication is additive and cannot change the Standard cask or
 Latest.
 
@@ -365,15 +388,17 @@ The Standard updater mutates only the App binary. Current `opl update` and
 to configured carriers and Framework fresh aggregation; release workflows cannot
 become Package lifecycle or currentness authority.
 
-The normal user-facing channel is therefore one App Stable updater plus
-independent owner Package channels. Docker/WebUI and Homebrew carry exact owner bytes;
-Full seeds an offline composition; Nightly is the implemented schedule-only
-Standard-density prerelease, with non-Latest GitHub publication followed by
-isolated Homebrew and sampled-VM workflows; Daily is a scheduled reconciliation
-cadence. Historical Nightly distribution stays read-compatible. Canary is an independent validation
-workflow, not a release channel. A Package update must not require an App, Base,
-or unrelated Package release, and a carrier failure must not rewrite owner
-publication currentness.
+The normal user-facing path is therefore one App updater pointer plus independent
+owner Package channels. Latest normally selects the newest qualified Stable, but
+may temporarily select an exact published Dev or Nightly Preview through the
+protected one-use CAS without changing quality; the next qualified Stable
+reclaims it. Docker/WebUI and Homebrew carry exact owner bytes; Full seeds an
+offline composition. Nightly is the implemented Automated Standard Preview:
+its schedule defaults to `make_latest=false`, followed by isolated Homebrew and
+sampled-VM workflows. Daily is a scheduled reconciliation cadence. Canary is an
+independent validation workflow, not a release channel. A Package update must
+not require an App, Base, or unrelated Package release, and a carrier failure
+must not rewrite owner publication currentness.
 
 The local-install profile is a development and QA path for one Mac. It cannot
 publish, promote, write Homebrew, or stand in for public clean-VM evidence.
