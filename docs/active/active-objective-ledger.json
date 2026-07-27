@@ -6,12 +6,12 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T18:43:10Z",
+  "generated_at": "2026-07-27T18:45:53Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "c2f81c48d7a62bf7a0a55e685196d37bf3e0716c",
-    "tree": "f71a179ba50f7bb8c5f3ded875de449ba298f8fd",
+    "commit": "92e9c22c469bc99ab8851aefd057f21c053a02f1",
+    "tree": "fbd8b7df3a3570e5e05b10a5b589c14285370432",
     "observation": "local main, origin/main and canonical wire aligned before this currentness refresh; task-branch checkpoint, canonical absorption and effective runtime remain separate authorities"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
