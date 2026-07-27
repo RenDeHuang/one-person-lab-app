@@ -577,7 +577,12 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/releases/latest" > previous-latest.json
             previous_latest_tag="$(jq -er .tag_name previous-latest.json)"
             previous_latest_display_version="${previous_latest_tag#v}"
-            previous_latest_target="$(jq -er '.target_commitish | select(test("^[0-9a-f]{40}$"))' previous-latest.json)"
+            export GITHUB_REPOSITORY
+            previous_latest_target="$(
+              node --experimental-strip-types app-source/scripts/resolve-github-target-commit.ts \
+                --target "$(jq -er .target_commitish previous-latest.json)" \
+                --release-tag "$previous_latest_tag"
+            )"
             previous_latest_manifest_api_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' previous-latest.json)"
             gh api --header 'Accept: application/octet-stream' "$previous_latest_manifest_api_url" \
               > previous-latest-component-manifest.json

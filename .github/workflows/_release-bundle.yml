@@ -338,10 +338,12 @@ jobs:
           previous_latest_tag="$(jq -er .tag_name "$previous_latest_json")"
           previous_display="${previous_latest_tag#v}"
           previous_target="$(jq -er .target_commitish "$previous_latest_json")"
-          [[ "$previous_target" =~ ^[0-9a-f]{40}$ ]] || {
-            echo "::error::Latest target_commitish must be an exact SHA."
-            exit 1
-          }
+          export GITHUB_REPOSITORY
+          previous_target="$(
+            node --experimental-strip-types scripts/resolve-github-target-commit.ts \
+              --target "$previous_target" \
+              --release-tag "$previous_latest_tag"
+          )"
           previous_manifest_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' "$previous_latest_json")"
           gh api --header 'Accept: application/octet-stream' "$previous_manifest_url" > "$previous_latest_manifest_json"
           previous_identity_json="$RUNNER_TEMP/opl-previous-latest-component-identity-$GITHUB_RUN_ID.json"

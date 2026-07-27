@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 import { assertReleaseOperationDeadline } from '../../scripts/release-operation-deadline.ts';
+import { resolveGithubReleaseCommit } from '../../scripts/resolve-github-target-commit.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
@@ -29,6 +30,78 @@ const frameworkOwnedLineageFields = [
   'full_source_build_executor',
   'full_source_build_run_id',
 ] as const;
+
+test('Latest target_commitish resolves immutable commit identity from SHA, branch, or tag', () => {
+  const appSha = 'a'.repeat(40);
+  const tagSha = 'b'.repeat(40);
+  const calls: string[] = [];
+  const api = (request: string): unknown => {
+    calls.push(request);
+    const responses: Record<string, unknown> = {
+      'repos/test/repo/git/ref/tags/v-release': { object: { type: 'commit', sha: appSha } },
+      'repos/test/repo/git/ref/heads/main': { object: { type: 'commit', sha: tagSha } },
+      'repos/test/repo/git/ref/tags/v1': { object: { type: 'commit', sha: tagSha } },
+      'repos/test/repo/git/ref/heads/annotated': { object: { type: 'tag', sha: 'c'.repeat(40) } },
+      [`repos/test/repo/git/tags/${'c'.repeat(40)}`]: { object: { type: 'commit', sha: tagSha } },
+    };
+    if (request in responses) return responses[request];
+    throw new Error('HTTP 404');
+  };
+  const previousRepository = process.env.GITHUB_REPOSITORY;
+  process.env.GITHUB_REPOSITORY = 'test/repo';
+  try {
+    assert.equal(resolveGithubReleaseCommit(appSha, 'v-release', api), appSha);
+    assert.equal(resolveGithubReleaseCommit('main', 'v-release', api), appSha);
+    assert.equal(resolveGithubReleaseCommit('v1', 'v-release', api), appSha);
+    assert.equal(resolveGithubReleaseCommit('annotated', 'v-release', api), appSha);
+    assert.deepEqual(calls, [
+      'repos/test/repo/git/ref/tags/v-release',
+      'repos/test/repo/git/ref/tags/v-release',
+      'repos/test/repo/git/ref/heads/main',
+      'repos/test/repo/git/ref/tags/main',
+      'repos/test/repo/git/ref/tags/v-release',
+      'repos/test/repo/git/ref/heads/v1',
+      'repos/test/repo/git/ref/tags/v1',
+      'repos/test/repo/git/ref/tags/v-release',
+      'repos/test/repo/git/ref/heads/annotated',
+      'repos/test/repo/git/tags/' + 'c'.repeat(40),
+      'repos/test/repo/git/ref/tags/annotated',
+    ]);
+  } finally {
+    if (previousRepository === undefined) delete process.env.GITHUB_REPOSITORY;
+    else process.env.GITHUB_REPOSITORY = previousRepository;
+  }
+});
+
+test('Latest target_commitish rejects missing, ambiguous, and non-commit refs', () => {
+  const appSha = 'a'.repeat(40);
+  const otherSha = 'b'.repeat(40);
+  const api = (request: string): unknown => {
+    const responses: Record<string, unknown> = {
+      'repos/test/repo/git/ref/tags/v-release': { object: { type: 'commit', sha: appSha } },
+      'repos/test/repo/git/ref/heads/ambiguous': { object: { type: 'commit', sha: appSha } },
+      'repos/test/repo/git/ref/tags/ambiguous': { object: { type: 'commit', sha: otherSha } },
+      'repos/test/repo/git/ref/heads/same-target': { object: { type: 'commit', sha: appSha } },
+      'repos/test/repo/git/ref/tags/same-target': { object: { type: 'commit', sha: appSha } },
+      'repos/test/repo/git/ref/heads/tree': { object: { type: 'tree', sha: otherSha } },
+    };
+    if (request in responses) return responses[request];
+    throw new Error('HTTP 404');
+  };
+  const previousRepository = process.env.GITHUB_REPOSITORY;
+  process.env.GITHUB_REPOSITORY = 'test/repo';
+  try {
+    assert.throws(() => resolveGithubReleaseCommit('missing', 'v-release', api), /was not found/);
+    assert.throws(() => resolveGithubReleaseCommit('ambiguous', 'v-release', api), /ambiguous/);
+    assert.throws(() => resolveGithubReleaseCommit('same-target', 'v-release', api), /ambiguous/);
+    assert.throws(() => resolveGithubReleaseCommit('tree', 'v-release', api), /must resolve to a commit object/);
+    assert.throws(() => resolveGithubReleaseCommit('../invalid', 'v-release', api), /valid branch\/tag ref/);
+    assert.throws(() => resolveGithubReleaseCommit(otherSha, 'v-release', api), /does not match/);
+  } finally {
+    if (previousRepository === undefined) delete process.env.GITHUB_REPOSITORY;
+    else process.env.GITHUB_REPOSITORY = previousRepository;
+  }
+});
 
 function runStandardCheckpointStageGuard(
   tracks: Record<string, unknown>,
@@ -500,6 +573,7 @@ test('Stable resolves the unique nested source qualification receipt and fails c
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');
+  const standardPublishSource = readWorkflow('_release-standard-publish.yml');
   const frameworkCheckout = workflowStep(
     '_release-bundle.yml',
     'freeze',
@@ -536,6 +610,8 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
   assert.equal(workflow.jobs.freeze['runs-on'], 'macos-latest');
   assert.doesNotMatch(source, /prepare-release-notes-full-payload-authority|notes-full-payload-authority/);
   assert.doesNotMatch(source, /release_set_manifest|latest-stable-descriptor|base-release-set/);
+  assert.match(source, /resolve-github-target-commit\.ts/);
+  assert.match(standardPublishSource, /resolve-github-target-commit\.ts/);
 
   const step = workflowStep(
     '_release-bundle.yml',
