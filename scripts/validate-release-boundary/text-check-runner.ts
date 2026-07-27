@@ -344,13 +344,38 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   }
 
   const jobs = workflowJobs(workflow);
-  const expectedJobs = ['admission', 'protected-admission', ...Object.keys(stableEntrySpecs)].sort();
+  const expectedJobs = [
+    'source-qualification',
+    'admission',
+    'protected-admission',
+    ...Object.keys(stableEntrySpecs),
+  ].sort();
   if (JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(expectedJobs)) {
     failures += reportFailure(id, `jobs must be exactly ${expectedJobs.join(', ')}`);
   }
+  const sourceQualification = jobs['source-qualification'];
+  if (
+    !sourceQualification
+    || sourceQualification.if !== "${{ inputs.operation == 'standard' }}"
+    || sourceQualification.uses !== './.github/workflows/release-source-qualification.yml'
+    || sourceQualification.with?.operation_scope !== 'stable_operation_source_preflight'
+    || !exactObject(sourceQualification.permissions, exactReadPermissions)
+    || Object.prototype.hasOwnProperty.call(sourceQualification, 'steps')
+  ) {
+    failures += reportFailure(
+      id,
+      'source-qualification must be a read-only Standard-only call to the hosted source preflight',
+    );
+  }
   const admission = jobs.admission;
   const admissionRun = jobRuns(admission);
-  if (!admission || !exactObject(admission.permissions, exactReadPermissions)) {
+  if (
+    !admission
+    || !needsExactly(admission, ['source-qualification'])
+    || admission.if !==
+      "${{ always() && (inputs.operation != 'standard' || needs.source-qualification.result == 'success') }}"
+    || !exactObject(admission.permissions, exactReadPermissions)
+  ) {
     failures += reportFailure(id, 'admission must have only contents:read/actions:read');
   }
   if (workflowMutationCommandPattern.test(admissionRun)) {
@@ -551,7 +576,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'admission',
     'freeze',
     'standard-build',
-    'standard-qualification',
+    'seal-standard-identity',
     'checkpoint-standard',
     'prepare-native-webui',
     'publish-standard',
@@ -574,7 +599,6 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   for (const [jobId, command] of [
     ['freeze', 'opl release freeze'],
     ['checkpoint-standard', 'opl release build'],
-    ['checkpoint-standard', 'opl release verify'],
     ['checkpoint-standard', 'opl release checkpoint export'],
   ]) {
     if (!jobRuns(bundleJobs[jobId]).includes(command)) {
@@ -582,7 +606,29 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     }
   }
   failures += validateReusableCall(id, bundleJobs, 'standard-build', './.github/workflows/_build-reusable.yml');
-  failures += validateReusableCall(id, bundleJobs, 'standard-qualification', './.github/workflows/opl-first-run-vm.yml');
+  const sealStandardIdentity = bundleJobs['seal-standard-identity'];
+  if (
+    !sealStandardIdentity
+    || !needsExactly(sealStandardIdentity, ['freeze', 'standard-build'])
+    || !exactObject(sealStandardIdentity.permissions, exactReadPermissions)
+    || !Array.isArray(sealStandardIdentity.steps)
+    || !jobRuns(sealStandardIdentity).includes('bind-standard-release-track.ts')
+    || !jobRuns(sealStandardIdentity).includes('standard_identity_sha256')
+  ) {
+    failures += reportFailure(
+      id,
+      'seal-standard-identity must bind the signed build to one immutable read-only identity',
+    );
+  }
+  if (
+    bundleJobs['standard-qualification']
+    || /\bopl\s+release\s+verify\b/.test(jobRuns(bundleJobs['checkpoint-standard']))
+  ) {
+    failures += reportFailure(
+      id,
+      'Bundle publication must consume sealed identity without reintroducing the retired inline VM gate',
+    );
+  }
   failures += validateReusableCall(
     id,
     bundleJobs,
@@ -693,12 +739,17 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (/\bopl\s+release\s+(?:freeze|build|verify)\b/.test(standard.text)) {
     failures += reportFailure(id, '_release-standard-publish.yml must not rebuild or reverify Bundle bytes');
   }
-  for (const [jobId, workflowPath] of [
-    ['updater-upgrade-qualification', './.github/workflows/opl-updater-upgrade-vm.yml'],
-    ['updater-upgrade-qualification-highest', './.github/workflows/opl-updater-upgrade-vm.yml'],
-    ['homebrew-standard-vm', './.github/workflows/opl-first-run-vm.yml'],
+  for (const retiredInlineVmJob of [
+    'updater-upgrade-qualification',
+    'updater-upgrade-qualification-highest',
+    'homebrew-standard-vm',
   ]) {
-    failures += validateReusableCall(id, standardJobs, jobId, workflowPath, exactReadPermissions);
+    if (standardJobs[retiredInlineVmJob]) {
+      failures += reportFailure(
+        id,
+        `_release-standard-publish.yml must not restore retired inline VM job ${retiredInlineVmJob}`,
+      );
+    }
   }
   for (const jobId of [
     'publish-standard-nonlatest',

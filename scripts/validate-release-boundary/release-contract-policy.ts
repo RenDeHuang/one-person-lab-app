@@ -873,18 +873,15 @@ function validateHomebrewVmGateStaticPolicy(
   const homebrewVm = homebrewVmScenario?.vm;
   const homebrewPolicy = releaseContract.homebrew_tap_distribution?.cask_install_policy;
   const workflowVmText = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
-  const standardPublishText = fs.readFileSync(path.join(appRoot, '.github/workflows/_release-standard-publish.yml'), 'utf8');
   const preflightText = fs.readFileSync(path.join(appRoot, 'scripts/validate-release-preflight.ts'), 'utf8');
 
   if (
     homebrewVm?.homebrew_cask_install_ref !== requiredHomebrewStandardCaskRef ||
     homebrewPolicy?.standard_cask_install_ref !== requiredHomebrewStandardCaskRef ||
     !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`) ||
-    !standardPublishText.includes('uses: ./.github/workflows/opl-first-run-vm.yml') ||
-    !standardPublishText.includes('package_profile: homebrew-standard') ||
     !preflightText.includes(`const requiredHomebrewStandardCaskRef = '${requiredHomebrewStandardCaskRef}'`)
   ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: standard Homebrew VM gate must install the fully qualified App cask ref');
+    console.error('FAIL homebrew_vm_gate_static_policy: the standalone Homebrew VM gate must install the fully qualified App cask ref');
     failures += 1;
   }
   if (
