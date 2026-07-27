@@ -65,7 +65,9 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.ok(parse, 'pwsh should be available for this test');
   assert.equal(parse.status, 0, parse.stderr || parse.stdout);
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-installer-'));
+  const tempRoot = fs.realpathSync.native(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-installer-')),
+  );
   const dataDir = path.join(tempRoot, 'data');
   const projectsDir = path.join(tempRoot, 'projects');
   const dryRun = runPwsh([
@@ -106,8 +108,9 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
-  assert.ok(dryRun.stdout.includes(`${dataDir}:/data`));
-  assert.ok(dryRun.stdout.includes(`${projectsDir}:/projects`));
+  const normalizedDryRun = dryRun.stdout.toLocaleLowerCase('en-US');
+  assert.ok(normalizedDryRun.includes(`${dataDir}:/data`.toLocaleLowerCase('en-US')));
+  assert.ok(normalizedDryRun.includes(`${projectsDir}:/projects`.toLocaleLowerCase('en-US')));
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 
   const rejected = runPwsh(['-NoProfile', '-File', installerPath, '-DryRun', '-ApiKey', 'secret']);
@@ -194,6 +197,7 @@ test('Windows Docker/WebUI refreshes stale PATH and resolves docker.exe without 
   const dockerExe = path.join(dockerBin, 'docker.exe');
   fs.mkdirSync(dockerBin, { recursive: true });
   fs.writeFileSync(dockerExe, '');
+  const canonicalDockerExe = fs.realpathSync.native(dockerExe);
 
   const result = runPwshHarness([
     extractPowerShellFunction(installer, 'Refresh-ProcessPathFromEnvironment'),
@@ -202,7 +206,7 @@ test('Windows Docker/WebUI refreshes stale PATH and resolves docker.exe without 
     "$env:PATHEXT = '.CPL'",
     `Refresh-ProcessPathFromEnvironment -MachinePath ${powerShellSingleQuoted(dockerBin)} -UserPath ''`,
     '$resolved = Resolve-DockerCliPath',
-    `if ($resolved -ne ${powerShellSingleQuoted(dockerExe)}) { throw "unexpected docker path: $resolved" }`,
+    `if (-not [string]::Equals($resolved, ${powerShellSingleQuoted(canonicalDockerExe)}, [System.StringComparison]::OrdinalIgnoreCase)) { throw "unexpected docker path: $resolved" }`,
   ].join('\n\n'));
 
   assert.ok(result);
