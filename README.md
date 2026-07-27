@@ -104,9 +104,14 @@ whole Full DMG and also declares the `opl` Formula, so it currently introduces
 two Base carriers. The corrected Full Cask generator is implemented but has not
 been publicly promoted or clean-host qualified; for a complete first install,
 prefer the Full DMG below. Nightly remains the Standard-density prerelease
-concept. Its publication and digest-bound Homebrew follower automation are
-implemented, but the first public publication and follower readbacks are still
-required before the channel can be called production-verified.
+concept: it is an automated Preview, not a third quality level. Its scheduled
+publication does not move the updater Latest pointer by default. A separate,
+protected single-use pointer operation may temporarily select an exact
+published Preview without promoting its quality; the next qualified Stable
+reclaims Latest by default. Nightly publication and its digest-bound Homebrew
+follower automation are implemented, but the first public publication and
+follower readbacks are still required before the channel can be called
+production-verified.
 
 ### One-Shot Installer
 
