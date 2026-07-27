@@ -6,6 +6,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 import { appRoot } from './app-release-boundary-cases/helpers.ts';
+import { bindWindowsRcFrameworkManifest } from '../../scripts/bind-windows-rc-framework-manifest.ts';
 import { buildWindowsRcBuildCohort } from '../../scripts/write-windows-rc-build-cohort.ts';
 
 const appSha = 'a'.repeat(40);
@@ -133,6 +134,9 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const windowsBuilder = steps.find(
     (step) => step.name === 'Build with electron-builder (Windows)',
   );
+  const frameworkBinder = steps.find(
+    (step) => step.name === 'Bind Windows RC Framework manifest',
+  );
   const upload = steps.find((step) => step.name === 'Upload build artifacts');
 
   assert.match(String(macCohort?.if), /startsWith\(matrix\.platform, 'macos'\)/);
@@ -140,6 +144,9 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(windowsCohort?.run), /write-windows-rc-build-cohort\.ts/);
   assert.match(String(windowsCohort?.run), /out\/win-unpacked/);
   assert.match(String(windowsCohort?.run), /-name '\*\.exe'/);
+  assert.match(String(frameworkBinder?.if), /startsWith\(matrix\.platform, 'windows'\)/);
+  assert.match(String(frameworkBinder?.run), /bind-windows-rc-framework-manifest\.ts/);
+  assert.match(String(frameworkBinder?.run), /--framework-ref/);
   assert.match(String(windowsNativeRebuild?.run), /Start-Process[\s\S]+prebuild-install/);
   assert.match(String(windowsNativeRebuild?.run), /\$prebuild\.ExitCode -ne 0/);
   assert.match(String(windowsNativeRebuild?.run), /falling back to electron-rebuild/);
@@ -166,6 +173,32 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.on.workflow_dispatch.inputs.framework_ref.type, 'string');
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
+});
+
+test('Windows RC Framework binder writes the exact ref and URLs into the packaged product manifest', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-windows-rc-framework-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const manifestPath = path.join(root, 'product.json');
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({ logical_distribution: 'OPL-Linux', framework_ref: 'f'.repeat(40) }),
+  );
+
+  const bound = bindWindowsRcFrameworkManifest(manifestPath, frameworkSha);
+  assert.equal(bound.framework_ref, frameworkSha);
+  assert.equal(
+    bound.framework_install_script_url,
+    `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/${frameworkSha}/install.sh`,
+  );
+  assert.equal(
+    bound.framework_source_archive_url,
+    `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`,
+  );
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')), bound);
+  assert.throws(
+    () => bindWindowsRcFrameworkManifest(manifestPath, 'main'),
+    /exact 40-character Git SHA/,
+  );
 });
 
 test('Windows RC Preview remains blocked until exact WSL2-only release-byte acceptance', () => {

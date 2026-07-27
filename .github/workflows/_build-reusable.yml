@@ -540,6 +540,14 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
+      - name: Bind Windows RC Framework manifest
+        if: startsWith(matrix.platform, 'windows')
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+            --manifest shells/aionui/resources/opl-linux/product.json \
+            --framework-ref "${{ inputs.framework_ref }}"
+
       - name: Validate synced App product profile consumer
         working-directory: shells/aionui
         run: bunx vitest run tests/unit/common-config/oplProductProfile.test.ts
