@@ -1,4 +1,5 @@
-import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import path from 'node:path';
+import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import { appOwnedProjectGroupExpansionPolicy } from './app-contract-constants.ts';
 import { managedUpdateIpcSurfaces } from './managed-update-plane-validator.ts';
 import {
@@ -6,7 +7,129 @@ import {
   validateProviderReadinessRepairProjectionContract,
   validateStateIndexSidecarProjectionContract,
 } from './shared-contract-validators.ts';
+import { root } from './validation-config.ts';
 import { assertCommandSurface } from './value-helpers.ts';
+
+const appContributionCollections = ['navigation', 'views', 'commands', 'badges'];
+const appContributionViewTypes = [
+  'list_detail',
+  'timeline',
+  'approval_diff',
+  'task_board',
+  'artifact_view',
+  'activity_log',
+];
+const appContributionSchemaPath = path.join(root, 'contracts', 'opl-app-contributions.schema.json');
+
+export function validatePackageAppContributionsProductContract(contract) {
+  const schema = readJson(appContributionSchemaPath);
+  if (
+    schema.$schema !== 'https://json-schema.org/draft/2020-12/schema'
+    || schema.$id !== 'https://onepersonlab.dev/contracts/opl-app-contributions.schema.json'
+    || schema.additionalProperties !== false
+    || schema.properties?.schema_version?.const !== 'opl-app-contributions.v1'
+  ) {
+    throw new Error('App contributions schema must be the closed opl-app-contributions.v1 App-owned contract');
+  }
+  assertDeepEqualJson(
+    schema.anyOf,
+    appContributionCollections.map((collection) => ({
+      required: [collection],
+      properties: { [collection]: { minItems: 1 } },
+    })),
+    'App contributions schema non-empty collection alternatives',
+  );
+  for (const [collection, entry] of Object.entries({
+    navigation: 'navigation',
+    views: 'view',
+    commands: 'command',
+    badges: 'badge',
+  })) {
+    const collectionSchema = schema.properties?.[collection];
+    if (
+      collectionSchema?.type !== 'array'
+      || collectionSchema.maxItems !== 100
+      || collectionSchema.uniqueItems !== true
+      || collectionSchema.items?.$ref !== `#/$defs/${entry}`
+    ) {
+      throw new Error(`App contributions schema ${collection} must be a bounded unique structured collection`);
+    }
+  }
+  for (const field of ['command_ids', 'badge_ids']) {
+    if (schema.$defs?.view?.properties?.[field]?.maxItems !== 100) {
+      throw new Error(`App contributions schema view.${field} must be bounded to 100 entries`);
+    }
+  }
+  assertDeepEqualJson(
+    schema.$defs?.view?.properties?.view_type?.enum,
+    appContributionViewTypes,
+    'App contributions schema view types',
+  );
+  for (const [entry, requiredFields] of Object.entries({
+    navigation: ['navigation_id', 'label_i18n', 'view_id'],
+    view: ['view_id', 'view_type', 'title_i18n', 'data_ref'],
+    command: ['command_id', 'label_i18n', 'action_ref'],
+    badge: ['badge_id', 'label_i18n', 'data_ref'],
+  })) {
+    if (schema.$defs?.[entry]?.additionalProperties !== false) {
+      throw new Error(`App contributions schema ${entry} entries must reject arbitrary fields`);
+    }
+    assertDeepEqualJson(
+      schema.$defs?.[entry]?.required,
+      requiredFields,
+      `App contributions schema ${entry} required fields`,
+    );
+    for (const forbiddenField of ['component', 'code', 'path', 'url']) {
+      if (forbiddenField in (schema.$defs?.[entry]?.properties ?? {})) {
+        throw new Error(`App contributions schema ${entry} must not expose ${forbiddenField}`);
+      }
+    }
+  }
+
+  if (
+    contract?.schema_ref !== 'contracts/opl-app-contributions.schema.json'
+    || contract.schema_version !== 'opl-app-contributions.v1'
+    || contract.source_ref !== 'app_state.agent_packages.directory.entries[].app_contributions'
+    || contract.package_role_policy !== 'role_agnostic_no_package_role_filter'
+    || contract.at_least_one_non_empty_collection_required !== true
+    || contract.id_uniqueness_scope !== 'per_package_per_collection'
+    || contract.data_resolution_policy !== 'resolve_data_ref_from_framework_projected_state_only'
+    || contract.action_execution_policy !== 'resolve_action_ref_through_the_existing_app_action_bridge'
+    || contract.invalid_block_policy !== 'reject_entire_package_app_contributions_block_and_preserve_other_packages'
+    || contract.shell_rendering_policy !== 'render_standard_structured_views_only'
+    || contract.arbitrary_plugin_ui_code_allowed !== false
+  ) {
+    throw new Error('App GUI Package contributions must stay role-agnostic, structured, reference-only, and fail closed per Package');
+  }
+  assertDeepEqualJson(
+    contract.optional_collections,
+    appContributionCollections,
+    'App GUI Package contribution collections',
+  );
+  assertDeepEqualJson(
+    contract.supported_view_types,
+    appContributionViewTypes,
+    'App GUI Package contribution view types',
+  );
+  assertDeepEqualJson(
+    contract.stable_id_fields,
+    ['navigation_id', 'view_id', 'command_id', 'badge_id'],
+    'App GUI Package contribution stable ids',
+  );
+  assertDeepEqualJson(
+    contract.reference_integrity,
+    {
+      navigation_view_id: 'must_reference_local_views_view_id',
+      view_command_ids: 'must_reference_local_commands_command_id',
+    },
+    'App GUI Package contribution reference integrity',
+  );
+  assertDeepEqualJson(
+    contract.forbidden_descriptor_fields,
+    ['component', 'code', 'path', 'url'],
+    'App GUI Package contribution forbidden descriptor fields',
+  );
+}
 
 export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy) {
   const installExposure = guiContract.framework_surfaces?.install_exposure_policy;
@@ -25,6 +148,7 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
   if (installExposure.duplicate_skill_policy !== 'plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills') {
     throw new Error('App GUI install exposure must reject duplicate bare skill mirrors');
   }
+  validatePackageAppContributionsProductContract(guiContract.framework_surfaces?.package_app_contributions);
 
   const managedUpdateSurface = guiContract.framework_surfaces?.managed_update_plane;
   const softwareLifecycle = releaseChannel.managed_update_plane?.software_lifecycle;

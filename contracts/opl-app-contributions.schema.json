@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onepersonlab.dev/contracts/opl-app-contributions.schema.json",
+  "title": "OPL App Package Contributions",
+  "type": "object",
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": { "const": "opl-app-contributions.v1" },
+    "navigation": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/navigation" }
+    },
+    "views": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/view" }
+    },
+    "commands": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "badges": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/badge" }
+    }
+  },
+  "anyOf": [
+    {
+      "required": ["navigation"],
+      "properties": { "navigation": { "minItems": 1 } }
+    },
+    {
+      "required": ["views"],
+      "properties": { "views": { "minItems": 1 } }
+    },
+    {
+      "required": ["commands"],
+      "properties": { "commands": { "minItems": 1 } }
+    },
+    {
+      "required": ["badges"],
+      "properties": { "badges": { "minItems": 1 } }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$"
+    },
+    "localized_text": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    },
+    "data_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 257,
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?(?:#[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?)?$"
+    },
+    "navigation": {
+      "type": "object",
+      "required": ["navigation_id", "label_i18n", "view_id"],
+      "properties": {
+        "navigation_id": { "$ref": "#/$defs/stable_id" },
+        "label_i18n": { "$ref": "#/$defs/localized_text" },
+        "view_id": { "$ref": "#/$defs/stable_id" },
+        "icon_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$"
+        },
+        "sort_order": { "type": "integer", "minimum": -10000, "maximum": 10000 }
+      },
+      "additionalProperties": false
+    },
+    "view": {
+      "type": "object",
+      "required": ["view_id", "view_type", "title_i18n", "data_ref"],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/stable_id" },
+        "view_type": {
+          "enum": [
+            "list_detail",
+            "timeline",
+            "approval_diff",
+            "task_board",
+            "artifact_view",
+            "activity_log"
+          ]
+        },
+        "title_i18n": { "$ref": "#/$defs/localized_text" },
+        "data_ref": { "$ref": "#/$defs/data_ref" },
+        "command_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "badge_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_id" }
+        },
+        "empty_state_i18n": { "$ref": "#/$defs/localized_text" }
+      },
+      "additionalProperties": false
+    },
+    "command": {
+      "type": "object",
+      "required": ["command_id", "label_i18n", "action_ref"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/stable_id" },
+        "label_i18n": { "$ref": "#/$defs/localized_text" },
+        "action_ref": { "$ref": "#/$defs/data_ref" },
+        "confirmation_required": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "badge": {
+      "type": "object",
+      "required": ["badge_id", "label_i18n", "data_ref"],
+      "properties": {
+        "badge_id": { "$ref": "#/$defs/stable_id" },
+        "label_i18n": { "$ref": "#/$defs/localized_text" },
+        "data_ref": { "$ref": "#/$defs/data_ref" },
+        "tone": {
+          "enum": ["neutral", "info", "success", "warning", "critical"]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

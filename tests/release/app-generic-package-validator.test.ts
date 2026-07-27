@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { readAppProductProfile } from '../../scripts/app-product-profile/profile-contract.ts';
+import { validatePackageAppContributionsProductContract } from '../../scripts/validate-active-shell/gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from '../../scripts/validate-active-shell/gui-product-home-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 
@@ -172,4 +173,83 @@ test('App-owned Agent presentation overlay restoration fails closed', () => {
     () => validateProductProfile(invalidProfile, installExposure),
     /must not restore fixed Agent\/Home presentation field gui.professional_agent_packages_metadata_policy/,
   );
+});
+
+test('any Package role may project one closed standard App contribution block', () => {
+  const schema = readJson('contracts/opl-app-contributions.schema.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const shellAdapter = readJson('contracts/app-shell-adapter.json');
+  const contributionContract = guiContract.framework_surfaces.package_app_contributions;
+  const viewTypes = [
+    'list_detail',
+    'timeline',
+    'approval_diff',
+    'task_board',
+    'artifact_view',
+    'activity_log',
+  ];
+
+  assert.doesNotThrow(() => validatePackageAppContributionsProductContract(contributionContract));
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.schema_version.const, 'opl-app-contributions.v1');
+  assert.deepEqual(
+    schema.anyOf,
+    ['navigation', 'views', 'commands', 'badges'].map((collection) => ({
+      required: [collection],
+      properties: { [collection]: { minItems: 1 } },
+    })),
+  );
+  for (const collection of ['navigation', 'views', 'commands', 'badges']) {
+    assert.equal(schema.properties[collection].maxItems, 100);
+  }
+  assert.equal(schema.$defs.view.properties.command_ids.maxItems, 100);
+  assert.equal(schema.$defs.view.properties.badge_ids.maxItems, 100);
+  assert.deepEqual(schema.$defs.view.properties.view_type.enum, viewTypes);
+  for (const entry of ['navigation', 'view', 'command', 'badge']) {
+    assert.equal(schema.$defs[entry].additionalProperties, false);
+    for (const forbiddenField of ['component', 'code', 'path', 'url']) {
+      assert.equal(forbiddenField in schema.$defs[entry].properties, false);
+    }
+  }
+
+  assert.equal(contributionContract.package_role_policy, 'role_agnostic_no_package_role_filter');
+  assert.equal(
+    contributionContract.invalid_block_policy,
+    'reject_entire_package_app_contributions_block_and_preserve_other_packages',
+  );
+  assert.deepEqual(contributionContract.supported_view_types, viewTypes);
+  assert.deepEqual(contributionContract.reference_integrity, {
+    navigation_view_id: 'must_reference_local_views_view_id',
+    view_command_ids: 'must_reference_local_commands_command_id',
+  });
+  assert.equal(contributionContract.arbitrary_plugin_ui_code_allowed, false);
+
+  assert.ok(shellAdapter.gui_authority.product_contracts.includes('contracts/opl-app-contributions.schema.json'));
+  assert.ok(shellAdapter.shell_contract.capabilities.includes('app_owned_package_contribution_contract'));
+  assert.deepEqual(shellAdapter.state_surface_contract.package_app_contributions, {
+    contract_ref: 'contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions',
+    schema_ref: 'contracts/opl-app-contributions.schema.json',
+    source_ref: 'app_state.agent_packages.directory.entries[].app_contributions',
+    package_role_filter_allowed: false,
+    invalid_block_policy: 'reject_entire_package_app_contributions_block_and_preserve_other_packages',
+    arbitrary_plugin_ui_code_allowed: false,
+  });
+});
+
+test('App contribution product contract rejects role filters, executable UI, and view-type drift', () => {
+  const source = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
+
+  for (const mutate of [
+    (contract: any) => { contract.package_role_policy = 'standard_agent_only'; },
+    (contract: any) => { contract.arbitrary_plugin_ui_code_allowed = true; },
+    (contract: any) => { contract.supported_view_types.push('custom_react_component'); },
+    (contract: any) => { contract.invalid_block_policy = 'filter_invalid_entries_individually'; },
+  ]) {
+    const invalid = structuredClone(source);
+    mutate(invalid);
+    assert.throws(
+      () => validatePackageAppContributionsProductContract(invalid),
+      /role-agnostic|view types/,
+    );
+  }
 });

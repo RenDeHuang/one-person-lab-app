@@ -90,6 +90,7 @@
     "implementation_role": "active_shell_implementation_carrier",
     "product_contracts": [
       "contracts/app-gui-product-contract.json",
+      "contracts/opl-app-contributions.schema.json",
       "contracts/app-runtime-bridge.json",
       "contracts/app-product-profile.json",
       "contracts/app-install-exposure-policy.json",
@@ -115,7 +116,9 @@
       "App release gate policy",
       "OPL runtime truth",
       "domain truth",
-      "provider implementation"
+      "provider implementation",
+      "Package contribution schema or domain data and action truth",
+      "arbitrary Plugin React, Electron, HTML, JavaScript, path, or remote UI injection"
     ],
     "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
   },
@@ -157,6 +160,7 @@
       "app_managed_host_tool_bootstrap",
       "bundled_runtime_core_ready_without_host_node",
       "app_owned_gui_product_contract",
+      "app_owned_package_contribution_contract",
       "app_owned_runtime_bridge_contract",
       "opl_app_state_bridge",
       "opl_app_action_bridge",
@@ -240,6 +244,14 @@
     "full_state_read_command": "opl app state --profile full --json",
     "full_state_policy": "diagnostic_or_release_evidence_only",
     "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "package_app_contributions": {
+      "contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions",
+      "schema_ref": "contracts/opl-app-contributions.schema.json",
+      "source_ref": "app_state.agent_packages.directory.entries[].app_contributions",
+      "package_role_filter_allowed": false,
+      "invalid_block_policy": "reject_entire_package_app_contributions_block_and_preserve_other_packages",
+      "arbitrary_plugin_ui_code_allowed": false
+    },
     "full_drilldown_exception": "opl runtime app-operator-drilldown --detail full --json",
     "forbidden_gui_truth_sources": [
       "direct opl connect modules --json page aggregation",

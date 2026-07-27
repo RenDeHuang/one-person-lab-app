@@ -1217,6 +1217,49 @@
       "default_presentation": "hide_skill_plugin_packaging_mechanics_by_default",
       "duplicate_skill_policy": "plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills"
     },
+    "package_app_contributions": {
+      "schema_ref": "contracts/opl-app-contributions.schema.json",
+      "schema_version": "opl-app-contributions.v1",
+      "source_ref": "app_state.agent_packages.directory.entries[].app_contributions",
+      "package_role_policy": "role_agnostic_no_package_role_filter",
+      "optional_collections": [
+        "navigation",
+        "views",
+        "commands",
+        "badges"
+      ],
+      "at_least_one_non_empty_collection_required": true,
+      "supported_view_types": [
+        "list_detail",
+        "timeline",
+        "approval_diff",
+        "task_board",
+        "artifact_view",
+        "activity_log"
+      ],
+      "stable_id_fields": [
+        "navigation_id",
+        "view_id",
+        "command_id",
+        "badge_id"
+      ],
+      "id_uniqueness_scope": "per_package_per_collection",
+      "reference_integrity": {
+        "navigation_view_id": "must_reference_local_views_view_id",
+        "view_command_ids": "must_reference_local_commands_command_id"
+      },
+      "data_resolution_policy": "resolve_data_ref_from_framework_projected_state_only",
+      "action_execution_policy": "resolve_action_ref_through_the_existing_app_action_bridge",
+      "invalid_block_policy": "reject_entire_package_app_contributions_block_and_preserve_other_packages",
+      "shell_rendering_policy": "render_standard_structured_views_only",
+      "arbitrary_plugin_ui_code_allowed": false,
+      "forbidden_descriptor_fields": [
+        "component",
+        "code",
+        "path",
+        "url"
+      ]
+    },
     "canonical_state": {
       "schema": "opl_app_state.v1",
       "default_command": "opl app state --profile fast --json",
