@@ -24,6 +24,36 @@ OPL App 的主界面以当前 Codex App 为 1:1 视觉目标。除 One Person La
 
 ## 当前落实状态
 
+### 2026-07-27 visual convergence cohort
+
+本轮不再把 Codex 视觉复刻理解为零散页面各自调 CSS。Fresh source audit 证明主要 gap
+来自五类用户可见 primitive 没有共同实现边界：Home 与 Conversation composer 分叉，
+rail row、icon action、menu 和 Settings row 又各自维护几何与状态样式。结果是单页截图可以
+接近 reference，但跨 route、theme、locale 或窄窗后持续漂移。
+
+机器合同现固定在
+[`contracts/app-gui-visual-reference-cohort.json`](../../../contracts/app-gui-visual-reference-cohort.json)：
+
+- `16` 个 exact scenes 覆盖 Home、Conversation、Rail、Settings；
+- 固定 `1440x900` desktop 与 `400x800` narrow，以及 light/dark、zh-CN/en-US；
+- 每个 scene 使用同名 reference/candidate PNG，尺寸不同、缺图、未声明动态区域均 fail；
+- changed-pixel ratio 上限 `0.015`，mean absolute channel delta 上限 `1.5`，单通道
+  changed-pixel threshold 为 `8`；
+- mask 默认空，声明面积不得超过 scene 的 `8%`，只允许 caret、OS window chrome
+  dynamic 与 live timestamp 三类原因；
+- pixel threshold 通过仍不等于验收。只有 exact SHA-256 绑定的人工 `accepted` review
+  同时存在，才能对该 scene 写 `scene_bound_visual_parity=true`。
+
+Shell 只实现 `composer / rail_row / icon_button / menu / settings_row` 五个 OPL-owned
+primitive，并继续复用既有 React/Arco/IconPark 组件，不创建第二组件框架或转移 App
+authority。`019fa0ef-9514-7293-ba5b-15cb8a509522` 只负责最终 same-cohort installed
+evidence，不拥有 App/Shell source。
+
+当前合同状态仍是
+`reference_assets_complete=false / candidate_assets_complete=false /
+visual_parity_complete=false / installed_current=false / release_ready=false`。合同、validator、
+source checkpoint 或 dev screenshot 都不能提前改变这些轴。
+
 `2026-07-15` 的 clean Shell candidate 从 canonical base
 `b6bba802b83dcb472e4de894aa5c0dd4bff1b871` 重建，并选择性重放本轮用户可见差异。当前
 candidate identity 必须在验证时从 active Shell checkout 读取，不能把过渡 HEAD 固化在本

@@ -262,7 +262,12 @@ export function assertCurrentGuidHomeSelectionSources({
     guidInputCard,
     [
       'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 1, maxRows: 12 }',
-      'className={`${styles.guidInputInner} relative z-1 flex flex-col bg-dialog-fill-0`}',
+      '${styles.guidInputInner} opl-codex-composer',
+      "isInputActive ? 'opl-codex-composer--focused' : ''",
+      "fileDraggingActive ? 'opl-codex-composer--dragging' : ''",
+      "data-composer-palette-boundary='true'",
+      'activeBorderColor',
+      'inactiveBorderColor',
       '!pl-5px',
     ],
     'Active shell compact Guid Home composer',

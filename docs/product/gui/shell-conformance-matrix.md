@@ -129,6 +129,13 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 ## Snapshot evidence
 
+- Visual convergence cohort：App 以
+  `contracts/app-gui-visual-reference-cohort.json` 固定 16 个 Home/Conversation/Rail/Settings
+  scenes 和五个共享 primitive；AionUI comparator 必须读取 reference/candidate PNG、
+  输出 exact SHA-256、mask-aware pixel metrics 与 diff PNG。Contract 为
+  `aligned_contract`；共享 primitive/comparator 进入本轮 source 实现；Pixel、Install、
+  Release 在 exact same-cohort evidence 前均保持 `pixel_unverified / install_unverified /
+  release_unverified`，不得从 source gate 外推。
 - Current visual reference：本机 ChatGPT Codex macOS `26.707.72221`（bundle build `5307`），
   `2026-07-15` 观察，精度与例外见 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。
   `26.707.41301` 继续保留为既有交互 observation；`26.707.31428/31123` 只保留为

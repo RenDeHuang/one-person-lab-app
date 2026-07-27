@@ -1099,6 +1099,15 @@
     },
     "visual_comparison_protocol": {
       "schema": "opl_app_gui_visual_comparison.v1",
+      "active_reference_cohort_ref": "contracts/app-gui-visual-reference-cohort.json",
+      "shell_comparator_ref": "scripts/compare-gui-visual-cohort.ts",
+      "shared_primitive_ids": [
+        "composer",
+        "rail_row",
+        "icon_button",
+        "menu",
+        "settings_row"
+      ],
       "required_binding_fields": [
         "reference_product_build",
         "reference_observed_at",
@@ -1130,6 +1139,12 @@
         "release_ready",
         "installed_current",
         "upstream_absorbed"
+      ],
+      "scene_bound_visual_parity_requires": [
+        "exact_binding_complete",
+        "dimensions_equal",
+        "pixel_thresholds_passed",
+        "visual_delta_reviewed"
       ]
     }
   },

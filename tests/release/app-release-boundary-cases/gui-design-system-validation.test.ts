@@ -69,6 +69,7 @@ function createFixture(): string {
     'contracts/app-shell-candidates.json',
     'contracts/app-product-profile.json',
     'contracts/app-gui-product-contract.json',
+    'contracts/app-gui-visual-reference-cohort.json',
     'contracts/app-page-state-matrix.json',
     'contracts/app-shell-adapter.json',
     'docs/product/gui/evidence/aionui-41301/manifest.json',
@@ -176,6 +177,65 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     entries_verified: 8,
     packaged_command: true,
   });
+  assert.deepEqual(summary.visual_reference_cohort, {
+    contract: 'contracts/app-gui-visual-reference-cohort.json',
+    reference_product_build: '26.707.72221+5307',
+    scenes_required: 16,
+    surface_families: ['home', 'conversation', 'rail', 'settings'],
+    viewports: ['desktop', 'narrow'],
+    themes: ['light', 'dark'],
+    locales: ['zh-CN', 'en-US'],
+    reference_assets_complete: false,
+    scene_bound_visual_parity: false,
+  });
+});
+
+test('GUI design-system validator rejects a weakened visual threshold or undeclared mask reason', () => {
+  const root = createFixture();
+  const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+  const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+  cohort.comparison_contract.changed_pixel_ratio_max = 0.2;
+  cohort.scene_matrix[0].masks.push({
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+    reason: 'hide_visual_gap',
+  });
+  writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must fail closed on dimensions, pixel thresholds, masks, and exact human review|contains an invalid mask/,
+  );
+});
+
+test('GUI design-system validator rejects a missing or reordered visual scene', () => {
+  const root = createFixture();
+  const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+  const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+  cohort.scene_matrix.reverse();
+  cohort.scene_matrix.pop();
+  writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must contain exactly 16 governed scenes|must remain home-default-desktop-light-zh with exact binding fields/,
+  );
+});
+
+test('GUI design-system validator rejects visual evidence ownership drifting into source ownership', () => {
+  const root = createFixture();
+  const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+  const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+  cohort.evidence_boundary.final_evidence_owner_role = 'source_and_release_owner';
+  cohort.evidence_boundary.visual_parity_complete = true;
+  writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must keep source, pixel, installed, release, and final-evidence ownership separate/,
+  );
 });
 
 test('GUI design-system validator rejects explicit candidate detail in default convergence', () => {
