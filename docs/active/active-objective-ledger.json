@@ -6,7 +6,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T16:11:09Z",
+  "generated_at": "2026-07-27T16:17:07Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -114,9 +114,11 @@
       "current_evidence": [
         "source blocker is canonical on current main",
         "main ab61808b contains the fail-closed installer route fix and regression; fresh lifecycle readback shows its source lane owner-closed",
+        "fresh active-shell aggregate still fails only two oplInstallerRouting tests because the Shell consumer has not absorbed the new App fail-closed route semantics",
+        "Shell has an ACTIVE distribution-install-unification lane owned by 019f91f0, currently bounded to the generated product profile",
         "public Latest, Native/Homebrew exposure and managed installed terminal remain separate evidence"
       ],
-      "next_action": "Finish carrier-specific install/readback bridges while Stable runs independently, then consume the new immutable Desktop cohort and prove managed install parity.",
+      "next_action": "Let the existing Shell owner finish/checkpoint its current exact1, then amend or replay the narrow installer-routing consumer/tests in the same controller; rerun active-shell aggregate while Stable and public carrier work continue independently.",
       "integration_order": 3,
       "parallel_group": "distribution-and-install",
       "estimated_remaining": {
@@ -187,8 +189,15 @@
       "execution_owner_threads": [
         "019fa09f-a54e-7d40-aea1-bd728afdb153"
       ],
+      "execution_owner_tasks": [
+        "/root/cross_repo_package_e2e_audit"
+      ],
       "scope": "Retire custom Package Manager lifecycle machinery after carrier-native replacement, affected outcome replay and consumer-zero proof.",
-      "current_evidence": ["managed-runtime bootstrap fallback focused gate reached 23/23", "aggregate, canonical and family-by-family deletion remain"],
+      "current_evidence": [
+        "managed-runtime bootstrap fallback focused gate reached 23/23",
+        "Shell lifecycle has an ACTIVE exact7 capabilities-private-lifecycle retirement lane",
+        "aggregate, canonical and family-by-family deletion remain"
+      ],
       "next_action": "Run Framework producer, carrier lifecycle, App/Shell consumer and consumer-zero inventories in parallel; delete each legacy family only after its replacement and affected OUT proofs are canonical.",
       "integration_order": 6,
       "parallel_group": "package-retirement",
