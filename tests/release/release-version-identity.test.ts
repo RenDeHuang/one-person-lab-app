@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  assertReleaseSemanticsAxes,
   assertReleaseVersionNotFuture,
   assertUpdaterVersionMatchesDisplay,
   compareUpdaterMachineVersions,
+  derivePreviewKind,
   encodeStableMachineVersion,
+  resolvePreviewReleaseVersion,
   resolveReleaseVersionIdentity,
   resolveStableReleaseVersion,
 } from '../../scripts/release-version.ts';
@@ -69,6 +72,61 @@ test('Stable allocator chooses base, r1, and r2 from explicit base cohort refs',
     resolveStableReleaseVersion('26.7.20', ['v26.7.20', 'v26.7.20-r1']).version,
     '26.7.20-r2',
   );
+});
+
+test('Preview consumes the shared updater revision and the next Stable reclaims Latest by upgrading', () => {
+  const preview = resolvePreviewReleaseVersion('26.7.24', ['v26.7.24']);
+  assert.deepEqual(preview, {
+    baseVersion: '26.7.24',
+    version: '26.7.24-preview.r1',
+    revision: 1,
+    updaterVersion: '26.7.2401',
+    observedSameDayVersions: ['26.7.24'],
+  });
+  const stable = resolveStableReleaseVersion('26.7.24', [
+    'v26.7.24',
+    'v26.7.24-preview.r1',
+  ]);
+  assert.equal(stable.version, '26.7.24-r2');
+  assert.equal(stable.updaterVersion, '26.7.2402');
+  assert.ok(compareUpdaterMachineVersions(preview.updaterVersion, stable.updaterVersion) < 0);
+});
+
+test('Preview display identity remains distinct from Stable while sharing its updater lane', () => {
+  assert.deepEqual(resolveReleaseVersionIdentity('preview', '26.7.24-preview.r3'), {
+    channel: 'preview',
+    displayVersion: '26.7.24-preview.r3',
+    updaterVersion: '26.7.2403',
+    tag: 'v26.7.24-preview.r3',
+    revision: 3,
+    legacyMachineVersion: false,
+  });
+  assert.throws(
+    () => assertUpdaterVersionMatchesDisplay('preview', '26.7.24-preview.r3', '26.7.2402'),
+    /expected 26\.7\.2403/,
+  );
+});
+
+test('quality and trigger derive the only legal Preview kind', () => {
+  assert.equal(derivePreviewKind('preview', 'manual'), 'dev');
+  assert.equal(derivePreviewKind('preview', 'automated'), 'nightly');
+  assert.equal(derivePreviewKind('stable', 'manual'), null);
+  assert.equal(derivePreviewKind('stable', 'automated'), null);
+  assert.doesNotThrow(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'preview',
+    buildTrigger: 'manual',
+    previewKind: 'dev',
+  }));
+  assert.throws(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'preview',
+    buildTrigger: 'manual',
+    previewKind: 'nightly',
+  }), /requires preview_kind=dev/);
+  assert.throws(() => assertReleaseSemanticsAxes({
+    qualityStatus: 'stable',
+    buildTrigger: 'automated',
+    previewKind: 'nightly',
+  }), /requires preview_kind=null/);
 });
 
 test('new-scheme next-day Stable and Nightly remain monotonic after same-day revisions', () => {

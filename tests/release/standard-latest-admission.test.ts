@@ -9,6 +9,8 @@ import {
   validateStandardLatestAdmission,
   type StandardLatestAdmissionInput,
 } from '../../scripts/validate-standard-latest-admission.ts';
+import { createLatestPointerOverrideAuthority } from '../../scripts/write-latest-pointer-override-authority.ts';
+import { createAppComponentManifest } from '../../scripts/write-opl-app-component-manifest.ts';
 
 const bundleDigest = `sha256:${'a'.repeat(64)}`;
 const appSha = '1'.repeat(40);
@@ -62,6 +64,82 @@ function createUpdaterEvidence(root: string, baselineDisplay: string, baselineUp
     },
   });
   return directory;
+}
+
+function configureCandidate(
+  root: string,
+  input: StandardLatestAdmissionInput,
+  publicationChannel: 'stable' | 'preview' | 'nightly',
+  version: string,
+  updaterVersion: string,
+): void {
+  input.publicationChannel = publicationChannel;
+  input.candidateDisplayVersion = version;
+  input.candidateUpdaterVersion = updaterVersion;
+  const expectedAssetNames = [
+    'latest-arm64-mac.yml',
+    `One-Person-Lab-${version}-mac-arm64.dmg`,
+    `One-Person-Lab-${version}-mac-arm64.zip`,
+    `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    ...(publicationChannel === 'nightly'
+      ? []
+      : ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']),
+  ];
+  const manifest = createAppComponentManifest({
+    version,
+    updaterVersion,
+    sourceCommit: appSha,
+    shellCommit: shellSha,
+    frameworkCommit: frameworkSha,
+    tag: `v${version}`,
+    releaseUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v${version}`,
+    repo: 'gaofeng21cn/one-person-lab-app',
+    assets: expectedAssetNames.map((name, index) => ({
+      name,
+      url: `https://example.invalid/${name}`,
+      digest: name.endsWith('.dmg')
+        ? `sha256:${dmgSha}`
+        : name.endsWith('.zip')
+          ? `sha256:${zipSha}`
+          : `sha256:${String(index + 1).repeat(64)}`,
+      size: name.endsWith('.dmg') ? dmgSize : name.endsWith('.zip') ? zipSize : 42,
+    })),
+  });
+  writeJson(root, 'component-manifest.json', manifest);
+
+  const staged = JSON.parse(fs.readFileSync(input.standardAssetsPath, 'utf8'));
+  staged.assets.find((asset: any) => asset.name.endsWith('-mac-arm64.zip')).name =
+    `One-Person-Lab-${version}-mac-arm64.zip`;
+  staged.assets.find((asset: any) => asset.name.endsWith('-mac-arm64.dmg')).name =
+    `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const manifestAsset = staged.assets.find((asset: any) => asset.name === 'opl-app-component-manifest.json');
+  const manifestSha = sha256(input.componentManifestPath);
+  if (manifestAsset) manifestAsset.sha256 = manifestSha;
+  else staged.assets.push({
+    name: 'opl-app-component-manifest.json',
+    sha256: manifestSha,
+    size_bytes: fs.statSync(input.componentManifestPath).size,
+  });
+  fs.writeFileSync(input.standardAssetsPath, `${JSON.stringify(staged, null, 2)}\n`);
+
+  for (const directory of input.updaterEvidenceDirs) {
+    const receiptPath = path.join(directory, 'updater-upgrade-qualification-receipt.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    receipt.candidate.display_version = version;
+    receipt.candidate.updater_version = updaterVersion;
+    receipt.qualification.installed_app_version = updaterVersion;
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  }
+
+  if (publicationChannel === 'stable') {
+    input.latestOverrideAuthorityPath = undefined;
+    return;
+  }
+  input.latestOverrideAuthorityPath = writeJson(
+    root,
+    'latest-override-authority.json',
+    createLatestPointerOverrideAuthority(manifest, input.expectedCurrentLatestTag),
+  );
 }
 
 function createFixture(): { root: string; input: StandardLatestAdmissionInput; updateReadback(): void } {
@@ -125,25 +203,29 @@ function createFixture(): { root: string; input: StandardLatestAdmissionInput; u
     });
   };
   updateReadback();
+  const input: StandardLatestAdmissionInput = {
+    publicationChannel: 'stable',
+    bundleDigest,
+    candidateDisplayVersion: '26.7.21-r1',
+    candidateUpdaterVersion: '26.7.2101',
+    appSha,
+    shellSha,
+    frameworkSha,
+    standardAssetsPath,
+    componentManifestPath: path.join(root, 'component-manifest.json'),
+    expectedCurrentLatestTag: 'v26.7.20',
+    highestPublicStableTag: 'v26.7.21',
+    predecessors: ['26.7.20=26.7.20', '26.7.21=26.7.21'],
+    updaterEvidenceDirs,
+    homebrewPublicationPath,
+    homebrewVmPath,
+    homebrewReadbackPath,
+  };
+  configureCandidate(root, input, 'stable', '26.7.21-r1', '26.7.2101');
   return {
     root,
     updateReadback,
-    input: {
-      bundleDigest,
-      candidateDisplayVersion: '26.7.21-r1',
-      candidateUpdaterVersion: '26.7.2101',
-      appSha,
-      shellSha,
-      frameworkSha,
-      standardAssetsPath,
-      expectedCurrentLatestTag: 'v26.7.20',
-      highestPublicStableTag: 'v26.7.21',
-      predecessors: ['26.7.20=26.7.20', '26.7.21=26.7.21'],
-      updaterEvidenceDirs,
-      homebrewPublicationPath,
-      homebrewVmPath,
-      homebrewReadbackPath,
-    },
+    input,
   };
 }
 
@@ -171,6 +253,104 @@ test('Latest admission binds distinct public predecessors to one candidate ZIP a
       candidate: { tag: 'v26.7.21-r1' },
     });
     assert.match(receipt.input_digest, /^sha256:[0-9a-f]{64}$/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Latest admission accepts a qualified Preview as current Latest for Stable reclaim', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.expectedCurrentLatestTag = 'v26.7.20-preview.r1';
+    fixture.input.predecessors[0] = '26.7.20-preview.r1=26.7.2001';
+    fixture.input.updaterEvidenceDirs[0] = createUpdaterEvidence(
+      fixture.root,
+      '26.7.20-preview.r1',
+      '26.7.2001',
+    );
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.latest_compare_and_swap.expected_current.tag, 'v26.7.20-preview.r1');
+    assert.equal(receipt.latest_compare_and_swap.candidate.tag, 'v26.7.21-r1');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('explicit single-use authority may move Latest to Dev Preview without changing quality', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.homebrewPublicationPath = undefined;
+    fixture.input.homebrewVmPath = undefined;
+    fixture.input.homebrewReadbackPath = undefined;
+    configureCandidate(fixture.root, fixture.input, 'preview', '26.7.21-preview.r1', '26.7.2101');
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.publication_channel, 'preview');
+    assert.equal(receipt.operation, 'move_latest_pointer');
+    assert.equal(receipt.classification.quality_status, 'preview');
+    assert.equal(receipt.classification.preview_kind, 'dev');
+    assert.equal(receipt.classification.quality_unchanged, true);
+    assert.equal(receipt.pointer_authority.single_use, true);
+    assert.equal(receipt.pointer_authority.persistent_override, false);
+    assert.equal(receipt.pointer_authority.stable_reclaim, 'next_qualified_stable');
+    assert.equal(receipt.homebrew, null);
+    assert.equal(receipt.latest_compare_and_swap.candidate.tag, 'v26.7.21-preview.r1');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('explicit single-use authority may move Latest to Nightly Preview without changing quality', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.homebrewPublicationPath = undefined;
+    fixture.input.homebrewVmPath = undefined;
+    fixture.input.homebrewReadbackPath = undefined;
+    configureCandidate(
+      fixture.root,
+      fixture.input,
+      'nightly',
+      '26.7.21-nightly.r1',
+      '26.7.2191-nightly.1',
+    );
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.publication_channel, 'nightly');
+    assert.equal(receipt.classification.quality_status, 'preview');
+    assert.equal(receipt.classification.build_trigger, 'automated');
+    assert.equal(receipt.classification.preview_kind, 'nightly');
+    assert.equal(receipt.classification.quality_unchanged, true);
+    assert.equal(receipt.pointer_authority.mode, 'protected_single_use_exact_version');
+    assert.equal(receipt.pointer_authority.failure_policy, 'preserve_current_latest_lkg');
+    assert.equal(receipt.latest_compare_and_swap.candidate.tag, 'v26.7.21-nightly.r1');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Preview Latest admission fails closed without exact single-use authority', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.homebrewPublicationPath = undefined;
+    fixture.input.homebrewVmPath = undefined;
+    fixture.input.homebrewReadbackPath = undefined;
+    configureCandidate(fixture.root, fixture.input, 'preview', '26.7.21-preview.r1', '26.7.2101');
+    fixture.input.latestOverrideAuthorityPath = undefined;
+    assert.throws(
+      () => validateStandardLatestAdmission(fixture.input),
+      /requires protected single-use user authority/,
+    );
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Preview Latest admission rejects Homebrew evidence', () => {
+  const fixture = createFixture();
+  try {
+    configureCandidate(fixture.root, fixture.input, 'preview', '26.7.21-preview.r1', '26.7.2101');
+    assert.throws(
+      () => validateStandardLatestAdmission(fixture.input),
+      /Preview Latest admission rejects Homebrew evidence/,
+    );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

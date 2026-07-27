@@ -276,7 +276,7 @@ function runPortableStandardBuildReceiptStep(jobName: string, receiptFixture: nu
   }
 }
 
-test('Stable is the only Latest mutation entry while Nightly and Canary stay isolated', () => {
+test('Stable and protected Manual Preview are isolated from scheduled Nightly and Canary', () => {
   const stable = parseWorkflow('release-stable.yml');
   const canary = parseWorkflow('release-bundle-canary.yml');
   const nightly = parseWorkflow('release-nightly.yml');
@@ -317,10 +317,12 @@ test('Stable is the only Latest mutation entry while Nightly and Canary stay iso
   assert.match(stableSource, /if: \$\{\{ steps\.admission\.outputs\.operation != 'resume_standard' \}\}/);
   assert.doesNotMatch(stableSource, /run_started_at/);
   const bundleSource = readWorkflow('_release-bundle.yml');
-  assert.match(bundleSource, /Only Stable may execute the Release Bundle/);
+  assert.match(bundleSource, /stable:stable\|preview:preview/);
+  assert.match(bundleSource, /stable_does_not_use_preview_override/);
+  assert.doesNotMatch(bundleSource, /nightly:nightly/);
   assert.doesNotMatch(bundleSource, /resolveNightlyReleaseVersion|nightly-operation-request/);
   const standardPublishSource = readWorkflow('_release-standard-publish.yml');
-  assert.match(standardPublishSource, /Historical Nightly checkpoints are read-only/);
+  assert.match(standardPublishSource, /reason=unsupported_publication_channel/);
   assert.doesNotMatch(standardPublishSource, /^\s*nightly-terminal:/m);
   for (const workflow of ['_release-bundle.yml', '_release-standard-publish.yml', '_release-full-addon.yml']) {
     assert.doesNotMatch(readWorkflow(workflow), /opl-release-bundle-global/);
@@ -1150,11 +1152,11 @@ test('release-bound nested workflows inherit one operation and absolute deadline
   const bundleWorkflow = parseWorkflow('_release-bundle.yml');
   assert.equal(
     bundleWorkflow.jobs['standard-build'].with.operation,
-    "${{ inputs.channel == 'stable' && inputs.operation || '' }}",
+    "${{ inputs.mode == 'execute' && inputs.operation || '' }}",
   );
   assert.equal(
     bundleWorkflow.jobs['standard-qualification'].with.operation,
-    "${{ inputs.channel == 'stable' && inputs.operation || '' }}",
+    "${{ inputs.mode == 'execute' && inputs.operation || '' }}",
   );
 });
 

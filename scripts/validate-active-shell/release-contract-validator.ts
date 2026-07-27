@@ -457,7 +457,8 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.nightly?.historical_readback_allowed !== true ||
     publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
     publication?.nightly?.trigger !== 'schedule_only' ||
-    publication?.nightly?.latest_allowed !== false ||
+    publication?.nightly?.scheduled_latest_allowed !== false ||
+    publication?.nightly?.explicit_user_override_may_move_latest !== true ||
     publication?.nightly?.include_full !== false ||
     publication?.nightly?.stable_bundle_authority_used !== false ||
     publication?.nightly?.stable_mutation_mutex_used !== false ||
@@ -466,7 +467,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    throw new Error('Nightly publication must stay scheduled, Standard-only, non-Latest, and isolated from Stable authority');
+    throw new Error('Nightly schedule must stay Standard-only, non-Latest by default, and isolated from Stable authority');
   }
   assertDeepEqualJson(
     publication?.stable?.latest_admission,

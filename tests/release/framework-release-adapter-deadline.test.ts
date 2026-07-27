@@ -19,6 +19,7 @@ type Asset = { name: string; size_bytes: number; sha256: string; source_path: st
 
 const repo = 'example/one-person-lab-app';
 const version = '26.7.22';
+const updaterVersion = '26.7.2200';
 const tag = `v${version}`;
 const deadlineAt = '2026-07-21T01:00:00.000Z';
 const deadlineMs = Date.parse(deadlineAt);
@@ -28,6 +29,7 @@ const shellCommit = 'c'.repeat(40);
 const frameworkCommit = 'd'.repeat(40);
 const bundleDigest = `sha256:${'b'.repeat(64)}`;
 const latestZip = asset(`One-Person-Lab-${version}-mac-arm64.zip`, '9');
+const componentManifestAsset = asset('opl-app-component-manifest.json', 'f');
 const expectedCurrentLatestTag = 'v26.7.20';
 const standardOperationId = 'operation-standard-1';
 const appendFullOperationId = 'operation-append-full-1';
@@ -67,6 +69,13 @@ function expectedMutationAttemptId(
 
 function sealAdmission(receipt: Record<string, any>): void {
   const evidence = {
+    ...(receipt.publication_channel === undefined
+      ? {}
+      : { publication_channel: receipt.publication_channel }),
+    operation: receipt.operation,
+    classification: receipt.classification,
+    component_manifest: receipt.component_manifest,
+    pointer_authority: receipt.pointer_authority,
     bundle_digest: receipt.bundle_digest,
     candidate: receipt.candidate,
     standard_assets_sha256: receipt.standard_assets_sha256,
@@ -76,6 +85,122 @@ function sealAdmission(receipt: Record<string, any>): void {
     latest_compare_and_swap: receipt.latest_compare_and_swap,
   };
   receipt.input_digest = `sha256:${crypto.createHash('sha256').update(JSON.stringify(evidence)).digest('hex')}`;
+}
+
+function previewFixture() {
+  const files = fixture([]);
+  const previewVersion = '26.7.22-preview.r1';
+  const previewUpdaterVersion = '26.7.2201';
+  const previewTag = `v${previewVersion}`;
+  const previewZip = asset(`One-Person-Lab-${previewVersion}-mac-arm64.zip`, '8');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.release = {
+    channel: 'preview',
+    version: previewVersion,
+    updater_version: previewUpdaterVersion,
+    tag: previewTag,
+    prerelease: false,
+  };
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
+  status.release_bundle_status.latest_eligible = false;
+  status.release_bundle_status.bundle = bundle;
+  status.release_bundle_status.tracks.standard.assets = [previewZip, componentManifestAsset];
+  fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
+  const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
+  admission.publication_channel = 'preview';
+  admission.classification = {
+    quality_status: 'preview',
+    build_trigger: 'manual',
+    preview_kind: 'dev',
+    quality_unchanged: true,
+    non_stable_notice: true,
+    skipped_gates: ['homebrew_clean_install'],
+    failed_gates: [],
+  };
+  admission.pointer_authority = {
+    mode: 'protected_single_use_exact_version',
+    single_use: true,
+    persistent_override: false,
+    authority_digest: `sha256:${'1'.repeat(64)}`,
+    failure_policy: 'preserve_current_latest_lkg',
+    stable_reclaim: 'next_qualified_stable',
+  };
+  admission.candidate = {
+    display_version: previewVersion,
+    updater_version: previewUpdaterVersion,
+    app_sha: sourceCommit,
+    shell_sha: shellCommit,
+    framework_sha: frameworkCommit,
+    zip: {
+      name: previewZip.name,
+      sha256: previewZip.sha256,
+      size_bytes: previewZip.size_bytes,
+    },
+  };
+  admission.homebrew = null;
+  admission.latest_compare_and_swap.candidate.tag = previewTag;
+  sealAdmission(admission);
+  fs.writeFileSync(files.admissionPath, `${JSON.stringify(admission)}\n`);
+  return { ...files, previewVersion, previewUpdaterVersion, previewTag };
+}
+
+function nightlyLatestFixture() {
+  const files = fixture([]);
+  const nightlyVersion = '26.7.22-nightly.r1';
+  const nightlyUpdaterVersion = '26.7.2291-nightly.1';
+  const nightlyTag = `v${nightlyVersion}`;
+  const nightlyZip = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.zip`, '7');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.release = {
+    channel: 'nightly',
+    version: nightlyVersion,
+    updater_version: nightlyUpdaterVersion,
+    tag: nightlyTag,
+    prerelease: true,
+  };
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
+  status.release_bundle_status.latest_eligible = false;
+  status.release_bundle_status.bundle = bundle;
+  status.release_bundle_status.tracks.standard.assets = [nightlyZip, componentManifestAsset];
+  fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
+  const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
+  admission.publication_channel = 'nightly';
+  admission.classification = {
+    quality_status: 'preview',
+    build_trigger: 'automated',
+    preview_kind: 'nightly',
+    quality_unchanged: true,
+    non_stable_notice: true,
+    skipped_gates: ['stable_heavy_vm', 'homebrew_clean_install'],
+    failed_gates: [],
+  };
+  admission.pointer_authority = {
+    mode: 'protected_single_use_exact_version',
+    single_use: true,
+    persistent_override: false,
+    authority_digest: `sha256:${'2'.repeat(64)}`,
+    failure_policy: 'preserve_current_latest_lkg',
+    stable_reclaim: 'next_qualified_stable',
+  };
+  admission.candidate = {
+    display_version: nightlyVersion,
+    updater_version: nightlyUpdaterVersion,
+    app_sha: sourceCommit,
+    shell_sha: shellCommit,
+    framework_sha: frameworkCommit,
+    zip: {
+      name: nightlyZip.name,
+      sha256: nightlyZip.sha256,
+      size_bytes: nightlyZip.size_bytes,
+    },
+  };
+  admission.homebrew = null;
+  admission.latest_compare_and_swap.candidate.tag = nightlyTag;
+  sealAdmission(admission);
+  fs.writeFileSync(files.admissionPath, `${JSON.stringify(admission)}\n`);
+  return { ...files, nightlyVersion, nightlyUpdaterVersion, nightlyTag };
 }
 
 function success(value: unknown = ''): GitHubCommandResult {
@@ -114,7 +239,7 @@ function fixture(
   const bundle = {
     surface_kind: 'opl_release_bundle.v1',
     bundle_digest: bundleDigest,
-    release: { channel: 'stable', version, updater_version: version, tag, prerelease: false },
+    release: { channel: 'stable', version, updater_version: updaterVersion, tag, prerelease: false },
     sources: {
       app: { repo, source_commit: sourceCommit },
       shell: { source_commit: shellCommit },
@@ -158,18 +283,43 @@ function fixture(
       bundle_digest: bundleDigest,
       latest_eligible: true,
       bundle,
-      tracks: { standard: { assets: [latestZip] } },
+      tracks: { standard: { assets: [latestZip, componentManifestAsset] } },
       operation_controls: { standard: operationControl, append_full: null },
     },
   })}\n`);
   const admission: Record<string, any> = {
     schema: 'opl_standard_latest_admission_receipt.v1',
     status: 'passed',
+    publication_channel: 'stable',
+    operation: 'move_latest_pointer',
     latest_activation_admitted: true,
+    classification: {
+      quality_status: 'stable',
+      build_trigger: 'manual',
+      preview_kind: null,
+      quality_unchanged: true,
+      non_stable_notice: false,
+      skipped_gates: [],
+      failed_gates: [],
+    },
+    component_manifest: {
+      manifest_digest: `sha256:${'d'.repeat(64)}`,
+      file_sha256: componentManifestAsset.sha256,
+      source_commit: sourceCommit,
+      artifact_digest: `sha256:${'e'.repeat(64)}`,
+    },
+    pointer_authority: {
+      mode: 'qualified_stable_default',
+      single_use: false,
+      persistent_override: false,
+      authority_digest: null,
+      failure_policy: 'preserve_current_latest_lkg',
+      stable_reclaim: 'next_qualified_stable',
+    },
     bundle_digest: bundleDigest,
     candidate: {
       display_version: version,
-      updater_version: version,
+      updater_version: updaterVersion,
       app_sha: sourceCommit,
       shell_sha: shellCommit,
       framework_sha: frameworkCommit,
@@ -184,13 +334,13 @@ function fixture(
     },
     updater_receipts: [
       {
-        baseline: { display_version: '26.7.20', updater_version: '26.7.20' },
+        baseline: { display_version: '26.7.20', updater_version: '26.7.2000' },
         operation_input_digest: `sha256:${'1'.repeat(64)}`,
         updater_receipt_sha256: `sha256:${'2'.repeat(64)}`,
         candidate_identity_sha256: `sha256:${'3'.repeat(64)}`,
       },
       {
-        baseline: { display_version: '26.7.21', updater_version: '26.7.21' },
+        baseline: { display_version: '26.7.21', updater_version: '26.7.2100' },
         operation_input_digest: `sha256:${'4'.repeat(64)}`,
         updater_receipt_sha256: `sha256:${'5'.repeat(64)}`,
         candidate_identity_sha256: `sha256:${'6'.repeat(64)}`,
@@ -205,7 +355,7 @@ function fixture(
       expected_current: {
         tag: expectedCurrentLatestTag,
         display_version: '26.7.20',
-        updater_version: '26.7.20',
+        updater_version: '26.7.2000',
       },
       candidate: { tag },
     },
@@ -672,7 +822,7 @@ test('Latest rejects a tampered compare-and-swap predecessor before any GitHub c
   admission.latest_compare_and_swap.expected_current = {
     tag: 'v26.7.21',
     display_version: '26.7.21',
-    updater_version: '26.7.21',
+    updater_version: '26.7.2100',
   };
   fs.writeFileSync(files.admissionPath, `${JSON.stringify(admission)}\n`);
   let calls = 0;
@@ -799,6 +949,179 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
   const payload = JSON.parse(create.stdin);
   assert.equal(payload.prerelease, true);
   assert.equal(payload.make_latest, 'false');
+});
+
+test('github-apply publishes a qualified Preview as a non-prerelease without implicitly changing Latest', () => {
+  const files = previewFixture();
+  const calls: Array<{ args: string[]; stdin?: string }> = [];
+  let exists = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args, options) {
+      calls.push({ args, stdin: options.input });
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${files.previewTag}`) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success({
+          id: 12345,
+          name: `One Person Lab v${files.previewVersion}`,
+          draft: false,
+          prerelease: false,
+          target_commitish: sourceCommit,
+          body: notes,
+          assets: [],
+        });
+      }
+      if (args.includes('POST')) {
+        exists = true;
+        return success();
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+    'publication-channel': 'preview',
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  const create = calls.find(({ args }) => args.includes('POST'));
+  assert.ok(create?.stdin);
+  const payload = JSON.parse(create.stdin);
+  assert.equal(payload.prerelease, false);
+  assert.equal(payload.make_latest, 'false');
+});
+
+test('explicit single-use authority may move Latest to Dev Preview without Stable latest_eligible', () => {
+  const files = previewFixture();
+  let latestTag = expectedCurrentLatestTag;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${files.previewTag}`) {
+        return success({
+          id: 12345,
+          name: `One Person Lab v${files.previewVersion}`,
+          draft: false,
+          prerelease: false,
+          target_commitish: sourceCommit,
+          body: notes,
+          assets: [{
+            name: `One-Person-Lab-${files.previewVersion}-mac-arm64.zip`,
+            size: 100,
+            digest: `sha256:${'8'.repeat(64)}`,
+          }],
+        });
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/latest`) {
+        return success({ tag_name: latestTag });
+      }
+      if (args.includes('PATCH')) {
+        latestTag = files.previewTag;
+        return success();
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  const result = activateLatest({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    status: files.statusPath,
+    'latest-admission': files.admissionPath,
+    'operation-deadline-at': deadlineAt,
+    'publication-channel': 'preview',
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.tag, files.previewTag);
+  assert.equal(result.latest_compare_and_swap.patch_performed, true);
+});
+
+test('explicit single-use authority may move Latest to Nightly Preview without Stable latest_eligible', () => {
+  const files = nightlyLatestFixture();
+  let latestTag = expectedCurrentLatestTag;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${files.nightlyTag}`) {
+        return success({
+          id: 12345,
+          name: `One Person Lab v${files.nightlyVersion}`,
+          draft: false,
+          prerelease: true,
+          target_commitish: sourceCommit,
+          body: notes,
+          assets: [{
+            name: `One-Person-Lab-${files.nightlyVersion}-mac-arm64.zip`,
+            size: 100,
+            digest: `sha256:${'7'.repeat(64)}`,
+          }],
+        });
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/latest`) {
+        return success({ tag_name: latestTag });
+      }
+      if (args.includes('PATCH')) {
+        latestTag = files.nightlyTag;
+        return success();
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  const result = activateLatest({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    status: files.statusPath,
+    'latest-admission': files.admissionPath,
+    'operation-deadline-at': deadlineAt,
+    'publication-channel': 'nightly',
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.tag, files.nightlyTag);
+  assert.equal(result.latest_compare_and_swap.patch_performed, true);
+});
+
+test('Preview publication rejects a Stable Bundle and every Full track before any GitHub call', () => {
+  const stableFiles = fixture([]);
+  const previewFull = previewFixture();
+  const plan = JSON.parse(fs.readFileSync(previewFull.planPath, 'utf8'));
+  plan.release_bundle_publish.track = 'full';
+  plan.release_bundle_publish.receipt.release_operation = 'append_full';
+  plan.release_bundle_publish.receipt.operation_control = {
+    operation_id: appendFullOperationId,
+    operation_started_at: appendFullOperationStartedAt,
+    operation_deadline_at: deadlineAt,
+  };
+  fs.writeFileSync(previewFull.planPath, `${JSON.stringify(plan)}\n`);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: stableFiles.bundlePath,
+      plan: stableFiles.planPath,
+      'operation-deadline-at': deadlineAt,
+      'publication-channel': 'preview',
+    }, runtime),
+    (error: any) => error.result?.failure?.failure_taxonomy === 'github_mutation_publication_bundle_mismatch',
+  );
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      bundle: previewFull.bundlePath,
+      plan: previewFull.planPath,
+      'operation-deadline-at': deadlineAt,
+      'publication-channel': 'preview',
+    }, runtime),
+    (error: any) => error.result?.failure?.failure_taxonomy === 'github_mutation_non_stable_full_publication',
+  );
+  assert.equal(calls, 0);
 });
 
 test('Nightly publication rejects Stable Bundle and Full track before any GitHub call', () => {

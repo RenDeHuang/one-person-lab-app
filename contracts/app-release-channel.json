@@ -36,12 +36,28 @@
       ]
     },
     "orthogonal_dimensions": {
-      "quality": [
+      "quality_status": [
         "stable",
-        "nightly",
         "preview"
       ],
-      "recommended_pointer": [
+      "build_trigger": [
+        "manual",
+        "automated"
+      ],
+      "preview_kind": {
+        "source": "derived_read_only",
+        "values": [
+          "dev",
+          "nightly",
+          null
+        ],
+        "derivation": {
+          "preview_manual": "dev",
+          "preview_automated": "nightly",
+          "stable": null
+        }
+      },
+      "distribution_pointer": [
         "latest"
       ],
       "payload_density": [
@@ -53,10 +69,6 @@
         "native_webui",
         "container_webui"
       ],
-      "build_origin": [
-        "automated",
-        "manual"
-      ],
       "task_mode": [
         "development_validation",
         "production_release"
@@ -64,31 +76,48 @@
     },
     "terms": {
       "stable": {
-        "dimension": "quality",
+        "dimension": "quality_status",
         "meaning": "production_qualified_release",
         "is_pointer": false,
-        "build_origin_independent": true
+        "build_trigger_independent": true,
+        "preview_kind": null
+      },
+      "preview": {
+        "dimension": "quality_status",
+        "meaning": "not_fully_stable_qualified_or_not_declared_stable",
+        "is_pointer": false,
+        "may_be_promoted_after_same_digest_full_stable_qualification": true
       },
       "latest": {
-        "dimension": "recommended_pointer",
-        "meaning": "mutable_current_recommended_production_release",
+        "dimension": "distribution_pointer",
+        "meaning": "mutable_exact_version_selected_for_automatic_updates",
         "is_quality_level": false,
-        "default_target": "newest_production_stable"
+        "default_target": "newest_qualified_stable",
+        "pointer_move_changes_quality": false
       },
       "nightly": {
-        "dimension": "quality",
-        "meaning": "automated_opt_in_desktop_prerelease",
+        "dimension": "preview_kind",
+        "meaning": "scheduled_automated_preview",
+        "derived_from": {
+          "quality_status": "preview",
+          "build_trigger": "automated"
+        },
+        "independent_quality_level": false,
         "product_channel_semantics": "retained",
         "current_publication_implementation": "implemented_pending_first_publication_readback",
         "default_payload_density": "standard",
         "full_by_default": false,
-        "latest_allowed": false
+        "scheduled_writer_may_move_latest": false,
+        "explicit_user_override_may_move_latest": true
       },
-      "preview": {
-        "dimension": "quality",
-        "meaning": "manually_distributed_unqualified_or_partially_qualified_prerelease",
-        "latest_allowed": false,
-        "stable_updater_or_homebrew_standard_allowed": false
+      "dev": {
+        "dimension": "preview_kind",
+        "meaning": "manual_preview_for_any_non_stable_reason",
+        "derived_from": {
+          "quality_status": "preview",
+          "build_trigger": "manual"
+        },
+        "independent_quality_level": false
       },
       "development_validation": {
         "dimension": "task_mode",
@@ -101,12 +130,44 @@
       }
     },
     "latest_policy": {
-      "current_admission": "framework_bundle_stable_only",
-      "manual_build_may_become_stable_after_same_production_gates": true,
-      "manual_ungated_or_preview_build_may_become_latest": false,
-      "nightly_may_become_latest": false,
+      "default_automatic_writer": "newest_qualified_stable",
+      "automatic_preview_or_nightly_writer_may_move_latest": false,
+      "explicit_user_override": {
+        "target": "any_exact_published_version",
+        "preview_kinds": [
+          "dev",
+          "nightly"
+        ],
+        "authority": "protected_single_use",
+        "compare_and_swap": "exact_expected_current",
+        "public_readback": "exact_tag_digest_quality_and_disclosure",
+        "quality_unchanged": true,
+        "persistent_override": false,
+        "non_stable_and_skipped_or_failed_gate_disclosure_required": true
+      },
+      "promote_quality": {
+        "operation": "promote_quality",
+        "transition": "preview_to_stable",
+        "same_exact_artifact_digest_required": true,
+        "full_stable_gates_and_receipt_required": true,
+        "immutable_build_manifest_rewrite_allowed": false,
+        "moves_latest_pointer": false
+      },
+      "move_latest_pointer": {
+        "operation": "move_latest_pointer",
+        "target": "any_exact_published_version",
+        "changes_quality": false,
+        "preview_requires_explicit_user_override": true,
+        "entry_workflow": ".github/workflows/release-manual-preview.yml",
+        "reusable_workflow": ".github/workflows/_release-preview-latest-pointer.yml",
+        "protected_environment": "release-preview-latest",
+        "run_attempt": "first_only",
+        "mutation": "single_expected_current_cas",
+        "unknown_outcome": "read_only_reconcile_no_retry"
+      },
       "next_qualified_stable_reclaims_pointer": true,
-      "latest_pointer_does_not_define_highest_published_stable": true
+      "latest_pointer_does_not_define_highest_published_stable": true,
+      "failure_preserves_current_latest_lkg": true
     },
     "cohort_policy": {
       "current_development_state": {
@@ -130,7 +191,8 @@
     },
     "implementation_state": {
       "desktop_stable": "live",
-      "desktop_latest": "live_stable_only",
+      "desktop_latest": "live_qualified_stable_default_with_protected_preview_override",
+      "desktop_dev_preview": "implemented_pending_first_publication_readback",
       "desktop_nightly": "implemented_pending_first_publication_readback",
       "manual_full_preview": "live_non_latest_temporary_lane",
       "full": "live_additive_first_install_asset_not_channel",
@@ -140,12 +202,11 @@
       "homebrew_nightly": "implemented_pending_first_follower_readback",
       "homebrew_full": "legacy_cask_exists_not_managed_by_current_release_pipeline"
     },
-    "retired_compatibility": {
+    "publication_history": {
       "desktop_nightly": {
         "product_channel_semantics_retained": true,
         "historical_payload_density": "standard",
         "historical_full_by_default": false,
-        "historical_latest_allowed": false,
         "current_publication_workflow_present": true,
         "new_publication_status": "implemented_pending_first_publication_readback"
       }
@@ -154,9 +215,13 @@
       "desktop_nightly": {
         "target": "automated_opt_in_standard_desktop_prerelease",
         "status": "implemented_pending_first_publication_readback",
+        "quality_status": "preview",
+        "build_trigger": "automated",
+        "preview_kind": "nightly",
         "payload_density": "standard",
         "full_by_default": false,
-        "latest_allowed": false,
+        "scheduled_latest_allowed": false,
+        "explicit_user_override_may_move_latest": true,
         "homebrew_cask": "one-person-lab-nightly",
         "required_qualification": [
           "immutable_nightly_assets",
@@ -222,7 +287,7 @@
         ]
       }
     },
-    "rule": "Quality, recommendation, payload density, runtime form, build origin, and task mode are independent dimensions. Current implementation state and approved targets must never be presented as the same fact."
+    "rule": "quality_status, build_trigger, derived preview_kind, the Latest distribution pointer, payload density, runtime form, and task mode are independent. promote_quality and move_latest_pointer are separate operations; pointer movement never changes quality."
   },
   "release_repo": "gaofeng21cn/one-person-lab-app",
   "provider_configuration_boundary": {
@@ -1035,7 +1100,9 @@
         "historical_readback_allowed": true,
         "workflow": ".github/workflows/release-nightly.yml",
         "trigger": "schedule_only",
-        "latest_allowed": false,
+        "scheduled_latest_allowed": false,
+        "explicit_user_override_may_move_latest": true,
+        "component_manifest_required": true,
         "include_full": false,
         "stable_bundle_authority_used": false,
         "stable_mutation_mutex_used": false,
@@ -1865,7 +1932,12 @@
     "prerelease": true,
     "include_full": false,
     "full_first_install_allowed": false,
-    "latest_release_allowed": false,
+    "quality_status": "preview",
+    "build_trigger": "automated",
+    "preview_kind": "nightly",
+    "scheduled_latest_release_allowed": false,
+    "explicit_user_override_may_move_latest": true,
+    "component_manifest_required": true,
     "stable_bundle_authority_used": false,
     "stable_mutation_mutex_used": false,
     "heavy_vm_blocks_publication": false,
@@ -1884,9 +1956,10 @@
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
-      "latest-arm64-mac.yml"
+      "latest-arm64-mac.yml",
+      "opl-app-component-manifest.json"
     ],
-    "rule": "Nightly automatically builds the Standard desktop preview with the shared physical build workflow, publishes an immutable GitHub prerelease, then independently follows with the digest-bound Nightly Cask. It never publishes Full or WebUI, never changes Latest, and does not wait for Stable-grade heavy VM gates; a low-frequency clean-VM follower is non-blocking."
+    "rule": "Nightly automatically builds the Standard desktop Preview with the shared physical build workflow, publishes an immutable GitHub prerelease, then independently follows with the digest-bound Nightly Cask. The schedule never publishes Full or WebUI and never changes Latest. A separate explicit protected single-use exact-CAS operation may move Latest to the published Nightly without changing Preview quality; the next qualified Stable reclaims by default."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",

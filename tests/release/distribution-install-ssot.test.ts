@@ -22,7 +22,7 @@ test('distribution/install SSOT validates the current and approved state split',
   const { release, install } = canonicalContracts();
   assert.doesNotThrow(() => validateDistributionInstallSsot(release, install));
   assert.equal(
-    release.distribution_semantics.retired_compatibility.desktop_nightly.new_publication_status,
+    release.distribution_semantics.publication_history.desktop_nightly.new_publication_status,
     'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
@@ -174,15 +174,27 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       },
     ],
     [
-      'Nightly target moving Latest',
+      'Nightly schedule moving Latest automatically',
       (release) => {
-        release.distribution_semantics.approved_targets.desktop_nightly.latest_allowed = true;
+        release.distribution_semantics.approved_targets.desktop_nightly.scheduled_latest_allowed = true;
       },
     ],
     [
-      'ungated Preview moving Latest',
+      'Latest override changing Preview quality',
       (release) => {
-        release.distribution_semantics.latest_policy.manual_ungated_or_preview_build_may_become_latest = true;
+        release.distribution_semantics.latest_policy.explicit_user_override.quality_unchanged = false;
+      },
+    ],
+    [
+      'Latest override becoming persistent',
+      (release) => {
+        release.distribution_semantics.latest_policy.explicit_user_override.persistent_override = true;
+      },
+    ],
+    [
+      'quality promotion rewriting immutable manifest',
+      (release) => {
+        release.distribution_semantics.latest_policy.promote_quality.immutable_build_manifest_rewrite_allowed = true;
       },
     ],
     [

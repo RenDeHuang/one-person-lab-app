@@ -176,6 +176,9 @@ test('Nightly request freezes exact Standard refs, revision, and non-Stable publ
     shell_sha: shellSha,
     framework_sha: frameworkSha,
   });
+  assert.equal(frozen.quality_status, 'preview');
+  assert.equal(frozen.build_trigger, 'automated');
+  assert.equal(frozen.preview_kind, 'nightly');
   assert.equal(frozen.publication.make_latest, false);
   assert.equal(frozen.publication.include_full, false);
   assert.equal(frozen.publication.full_allowed, false);
@@ -207,7 +210,38 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
   assert.equal(input.qualification.stable_qualified, false);
   assert.equal(input.qualification.heavy_vm_required, false);
   assert.equal(input.qualification.sampled_vm_nonblocking, true);
-  assert.equal(input.qualification.assets.length, 4);
+  assert.equal(input.qualification.quality_status, 'preview');
+  assert.equal(input.qualification.build_trigger, 'automated');
+  assert.equal(input.qualification.preview_kind, 'nightly');
+  assert.deepEqual(input.qualification.qualification_disclosure, {
+    stable_qualified: false,
+    passed_gates: [],
+    skipped_gates: [
+      'stable_heavy_vm',
+      'homebrew_clean_install',
+      'native_webui',
+      'container_webui',
+      'full',
+    ],
+    failed_gates: [],
+    non_stable_notice: true,
+  });
+  assert.equal(input.qualification.assets.length, 5);
+  assert.equal(
+    input.qualification.assets.filter((asset) => asset.name === 'opl-app-component-manifest.json').length,
+    1,
+  );
+  const componentManifest = JSON.parse(
+    fs.readFileSync(path.join(input.assetsDir, 'opl-app-component-manifest.json'), 'utf8'),
+  );
+  assert.equal(componentManifest.quality_status, 'preview');
+  assert.equal(componentManifest.build_trigger, 'automated');
+  assert.equal(componentManifest.preview_kind, 'nightly');
+  assert.deepEqual(componentManifest.source_cohort, {
+    app_sha: appSha,
+    shell_sha: shellSha,
+    framework_sha: frameworkSha,
+  });
   assert.ok(input.qualification.assets.every((asset) => !/Full|WebUI/.test(asset.name)));
   assert.equal(input.qualification.primary_dmg.sha256, input.cohort.artifact.sha256);
 
@@ -236,7 +270,7 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(first.github_release.make_latest, false);
   assert.equal(first.github_release.latest_before, 'v26.7.25');
   assert.equal(first.github_release.latest_after, 'v26.7.25');
-  assert.equal(remote.calls.filter((call) => call.startsWith('upload:')).length, 4);
+  assert.equal(remote.calls.filter((call) => call.startsWith('upload:')).length, 5);
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 
   remote.calls = [];

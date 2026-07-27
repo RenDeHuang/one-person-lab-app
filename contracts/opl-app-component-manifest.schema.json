@@ -9,7 +9,13 @@
     "version",
     "release_version",
     "updater_version",
+    "quality_status",
+    "build_trigger",
+    "preview_kind",
+    "distribution_pointer_policy",
+    "qualification_disclosure",
     "source_commit",
+    "source_cohort",
     "release_tag",
     "release_url",
     "primary_artifact",
@@ -26,21 +32,163 @@
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
     },
+    "quality_status": { "enum": ["stable", "preview"] },
+    "build_trigger": { "enum": ["manual", "automated"] },
+    "preview_kind": {
+      "type": ["string", "null"],
+      "enum": [null, "dev", "nightly"]
+    },
+    "distribution_pointer_policy": {
+      "type": "object",
+      "required": ["pointer", "automatic_writer", "explicit_override", "quality_unchanged", "stable_reclaim"],
+      "properties": {
+        "pointer": { "const": "latest" },
+        "automatic_writer": { "enum": ["qualified_stable_default", "never"] },
+        "explicit_override": { "const": "protected_single_use_exact_version" },
+        "quality_unchanged": { "const": true },
+        "stable_reclaim": { "const": "next_qualified_stable" }
+      },
+      "additionalProperties": false
+    },
+    "qualification_disclosure": {
+      "type": "object",
+      "required": ["stable_qualified", "passed_gates", "skipped_gates", "failed_gates", "non_stable_notice"],
+      "properties": {
+        "stable_qualified": { "type": "boolean" },
+        "passed_gates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/qualification_gate" }
+        },
+        "skipped_gates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/qualification_gate" }
+        },
+        "failed_gates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/qualification_gate" }
+        },
+        "non_stable_notice": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
     "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "source_cohort": {
+      "type": "object",
+      "required": ["app_sha", "shell_sha", "framework_sha"],
+      "properties": {
+        "app_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "shell_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "framework_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      },
+      "additionalProperties": false
+    },
     "release_tag": {
       "type": "string",
-      "pattern": "^v[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?))?$"
+      "pattern": "^v[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?)|(?:-preview\\.r[1-9]))?$"
     },
     "release_url": { "type": "string", "minLength": 1 },
     "primary_artifact": { "$ref": "#/$defs/artifact" },
-    "artifacts": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/artifact" } },
+    "artifacts": { "type": "array", "minItems": 4, "maxItems": 6, "items": { "$ref": "#/$defs/artifact" } },
     "component_manifest_ref": { "type": "string", "minLength": 1 },
     "component_manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "quality_status": { "const": "stable" } },
+        "required": ["quality_status"]
+      },
+      "then": {
+        "properties": {
+          "preview_kind": { "const": null },
+          "qualification_disclosure": {
+            "properties": {
+              "stable_qualified": { "const": true },
+              "non_stable_notice": { "const": false }
+            }
+          },
+          "distribution_pointer_policy": {
+            "properties": {
+              "pointer": { "const": "latest" },
+              "automatic_writer": { "const": "qualified_stable_default" },
+              "explicit_override": { "const": "protected_single_use_exact_version" },
+              "quality_unchanged": { "const": true },
+              "stable_reclaim": { "const": "next_qualified_stable" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "quality_status": { "const": "preview" } },
+        "required": ["quality_status"]
+      },
+      "then": {
+        "properties": {
+          "preview_kind": { "enum": ["dev", "nightly"] },
+          "qualification_disclosure": {
+            "properties": {
+              "stable_qualified": { "const": false },
+              "non_stable_notice": { "const": true }
+            }
+          },
+          "distribution_pointer_policy": {
+            "properties": {
+              "pointer": { "const": "latest" },
+              "automatic_writer": { "const": "never" },
+              "explicit_override": { "const": "protected_single_use_exact_version" },
+              "quality_unchanged": { "const": true },
+              "stable_reclaim": { "const": "next_qualified_stable" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "release_version": { "pattern": "-nightly(?:\\.r[1-9])?$" } },
+        "required": ["release_version"]
+      },
+      "then": {
+        "properties": {
+          "quality_status": { "const": "preview" },
+          "build_trigger": { "const": "automated" },
+          "preview_kind": { "const": "nightly" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "release_version": { "pattern": "-preview\\.r[1-9]$" } },
+        "required": ["release_version"]
+      },
+      "then": {
+        "properties": {
+          "quality_status": { "const": "preview" },
+          "build_trigger": { "const": "manual" },
+          "preview_kind": { "const": "dev" }
+        }
+      }
+    }
+  ],
   "$defs": {
+    "qualification_gate": {
+      "enum": [
+        "standard_vm",
+        "stable_heavy_vm",
+        "homebrew_clean_install",
+        "native_webui",
+        "container_webui",
+        "full"
+      ]
+    },
     "release_version": {
       "type": "string",
-      "pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?))?$"
+      "pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])(?:(?:-r[1-9])|(?:-nightly(?:\\.r[1-9])?)|(?:-preview\\.r[1-9]))?$"
     },
     "artifact": {
       "type": "object",

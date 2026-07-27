@@ -11,6 +11,9 @@ import { resolveNightlyReleaseVersion, resolveReleaseVersionIdentity } from './r
 export type NightlyReleaseRequest = {
   schema: 'opl_standard_nightly_request.v1';
   channel: 'nightly';
+  quality_status: 'preview';
+  build_trigger: 'automated';
+  preview_kind: 'nightly';
   package_kind: 'app_standard';
   base_version: string;
   version: string;
@@ -64,6 +67,9 @@ export function assertNightlyRequestDigest(request: NightlyReleaseRequest): void
   if (
     request.schema !== 'opl_standard_nightly_request.v1'
     || request.channel !== 'nightly'
+    || request.quality_status !== 'preview'
+    || request.build_trigger !== 'automated'
+    || request.preview_kind !== 'nightly'
     || request.package_kind !== 'app_standard'
     || request.actions?.run_attempt !== '1'
     || request.publication?.github_prerelease !== true
@@ -104,6 +110,9 @@ export function resolveNightlyReleaseRequest(input: {
   const body: Omit<NightlyReleaseRequest, 'request_digest'> = {
     schema: 'opl_standard_nightly_request.v1',
     channel: 'nightly',
+    quality_status: 'preview',
+    build_trigger: 'automated',
+    preview_kind: 'nightly',
     package_kind: 'app_standard',
     base_version: input.baseVersion,
     version: resolution.version,
