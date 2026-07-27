@@ -394,6 +394,26 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(installer?.approved_universal_target?.headless_explicit, 'opl_base_only', 'Universal headless target');
   requireEqual(installer?.approved_universal_target?.result, 'official_profile_converged', 'Universal result');
+  assertDeepEqualJson(
+    installer?.approved_universal_target?.native_webui_public_discovery,
+    {
+      repository: 'gaofeng21cn/one-person-lab-app',
+      release_selector: 'github_latest_pointer_exact_release',
+      required_asset_roles: [
+        'runtime_tarball',
+        'runtime_metadata',
+        'installer',
+        'installer_sha256',
+        'qualification_receipt',
+      ],
+      installer_digest_authority: 'github_release_asset_digest_sha256',
+      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      exact_tag_download_url_required: true,
+      probe_before_selection_required: true,
+      pre_publication_fallback: 'container_webui',
+    },
+    'Native WebUI public discovery policy',
+  );
   requireEqual(
     installer?.stable_macos_helper?.current_status,
     'direct_component_manifest_entrypoint',
