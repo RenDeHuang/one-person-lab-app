@@ -129,6 +129,7 @@ function createFixture(): { root: string; input: StandardLatestAdmissionInput; u
     root,
     updateReadback,
     input: {
+      publicationChannel: 'stable',
       bundleDigest,
       candidateDisplayVersion: '26.7.21-r1',
       candidateUpdaterVersion: '26.7.2101',
@@ -171,6 +172,73 @@ test('Latest admission binds distinct public predecessors to one candidate ZIP a
       candidate: { tag: 'v26.7.21-r1' },
     });
     assert.match(receipt.input_digest, /^sha256:[0-9a-f]{64}$/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Latest admission accepts a qualified Preview as current Latest for Stable reclaim', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.expectedCurrentLatestTag = 'v26.7.20-preview.r1';
+    fixture.input.predecessors[0] = '26.7.20-preview.r1=26.7.2001';
+    fixture.input.updaterEvidenceDirs[0] = createUpdaterEvidence(
+      fixture.root,
+      '26.7.20-preview.r1',
+      '26.7.2001',
+    );
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.latest_compare_and_swap.expected_current.tag, 'v26.7.20-preview.r1');
+    assert.equal(receipt.latest_compare_and_swap.candidate.tag, 'v26.7.21-r1');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('qualified Preview may become Latest without Homebrew publication evidence', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.publicationChannel = 'preview';
+    fixture.input.candidateDisplayVersion = '26.7.21-preview.r1';
+    fixture.input.homebrewPublicationPath = undefined;
+    fixture.input.homebrewVmPath = undefined;
+    fixture.input.homebrewReadbackPath = undefined;
+    const assets = JSON.parse(fs.readFileSync(fixture.input.standardAssetsPath, 'utf8'));
+    for (const asset of assets.assets) asset.name = asset.name.replace('26.7.21-r1', '26.7.21-preview.r1');
+    fs.writeFileSync(fixture.input.standardAssetsPath, `${JSON.stringify(assets, null, 2)}\n`);
+    for (const directory of fixture.input.updaterEvidenceDirs) {
+      const receiptPath = path.join(directory, 'updater-upgrade-qualification-receipt.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.candidate.display_version = '26.7.21-preview.r1';
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    }
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.equal(receipt.publication_channel, 'preview');
+    assert.equal(receipt.homebrew, null);
+    assert.equal(receipt.latest_compare_and_swap.candidate.tag, 'v26.7.21-preview.r1');
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Preview Latest admission rejects Homebrew evidence', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.publicationChannel = 'preview';
+    fixture.input.candidateDisplayVersion = '26.7.21-preview.r1';
+    const assets = JSON.parse(fs.readFileSync(fixture.input.standardAssetsPath, 'utf8'));
+    for (const asset of assets.assets) asset.name = asset.name.replace('26.7.21-r1', '26.7.21-preview.r1');
+    fs.writeFileSync(fixture.input.standardAssetsPath, `${JSON.stringify(assets, null, 2)}\n`);
+    for (const directory of fixture.input.updaterEvidenceDirs) {
+      const receiptPath = path.join(directory, 'updater-upgrade-qualification-receipt.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      receipt.candidate.display_version = '26.7.21-preview.r1';
+      fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    }
+    assert.throws(
+      () => validateStandardLatestAdmission(fixture.input),
+      /Preview Latest admission rejects Homebrew evidence/,
+    );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

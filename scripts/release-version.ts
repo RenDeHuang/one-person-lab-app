@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-export type AppReleaseChannel = 'stable' | 'nightly';
+export type AppReleaseChannel = 'stable' | 'nightly' | 'preview';
 
 export type ReleaseVersionIdentity = {
   channel: AppReleaseChannel;
@@ -60,8 +60,13 @@ const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
 );
 
-function contractPattern(name: 'stable_version_pattern' | 'nightly_version_pattern'): string {
+function contractPattern(
+  name: 'stable_version_pattern' | 'nightly_version_pattern' | 'preview_version_pattern',
+): string {
   const value = releaseContract?.github_release_name?.[name];
+  if (name === 'preview_version_pattern' && value === undefined) {
+    return '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-preview\\.r[1-9]$';
+  }
   if (typeof value !== 'string' || !value.startsWith('^') || !value.endsWith('$')) {
     throw new Error(`App release contract is missing an anchored github_release_name.${name}.`);
   }
@@ -70,8 +75,10 @@ function contractPattern(name: 'stable_version_pattern' | 'nightly_version_patte
 
 export const stableReleaseVersionPatternSource = contractPattern('stable_version_pattern');
 export const nightlyReleaseVersionPatternSource = contractPattern('nightly_version_pattern');
+export const previewReleaseVersionPatternSource = contractPattern('preview_version_pattern');
 export const stableReleaseVersionPattern = new RegExp(stableReleaseVersionPatternSource);
 export const nightlyReleaseVersionPattern = new RegExp(nightlyReleaseVersionPatternSource);
+export const previewReleaseVersionPattern = new RegExp(previewReleaseVersionPatternSource);
 
 function contractNightlyMaximumRebuildRevision(): number {
   const value = releaseContract?.nightly_standard?.same_day_rebuild?.maximum_revision;
@@ -117,11 +124,13 @@ if (nightlyMachinePatchOffset <= stableMaximumRevision
 }
 
 export function releaseVersionPattern(channel: AppReleaseChannel): RegExp {
-  return channel === 'stable' ? stableReleaseVersionPattern : nightlyReleaseVersionPattern;
+  if (channel === 'stable') return stableReleaseVersionPattern;
+  return channel === 'nightly' ? nightlyReleaseVersionPattern : previewReleaseVersionPattern;
 }
 
 export function releaseVersionPatternSource(channel: AppReleaseChannel): string {
-  return channel === 'stable' ? stableReleaseVersionPatternSource : nightlyReleaseVersionPatternSource;
+  if (channel === 'stable') return stableReleaseVersionPatternSource;
+  return channel === 'nightly' ? nightlyReleaseVersionPatternSource : previewReleaseVersionPatternSource;
 }
 
 export function matchesCanonicalReleaseVersion(channel: AppReleaseChannel, version: string): boolean {
@@ -136,7 +145,9 @@ export function releaseCalendarParts(channel: AppReleaseChannel, version: string
   if (!matchesCanonicalReleaseVersion(channel, version)) return null;
   const datePart = channel === 'nightly'
     ? version.slice(0, version.indexOf('-nightly'))
-    : version.replace(/-r[1-9][0-9]*$/, '');
+    : channel === 'preview'
+      ? version.slice(0, version.indexOf('-preview'))
+      : version.replace(/-r[1-9][0-9]*$/, '');
   const [year, month, day] = datePart.split('.').map(Number);
   const date = new Date(Date.UTC(2000 + year, month - 1, day));
   if (
@@ -159,6 +170,11 @@ function nightlyReleaseRevision(version: string): number {
   assertCanonicalReleaseVersion('nightly', version);
   const match = /\.r([1-9][0-9]*)$/.exec(version);
   return match ? Number(match[1]) : 0;
+}
+
+function previewReleaseRevision(version: string): number {
+  assertCanonicalReleaseVersion('preview', version);
+  return Number(/-preview\.r([1-9][0-9]*)$/.exec(version)?.[1] ?? 0);
 }
 
 function calendarTuple(version: string): [number, number, number] {
@@ -213,6 +229,21 @@ export function resolveReleaseVersionIdentity(
       tag: `v${displayVersion}`,
       revision,
       legacyMachineVersion,
+    };
+  }
+
+  if (channel === 'preview') {
+    const revision = previewReleaseRevision(displayVersion);
+    if (revision < 1 || revision > stableMaximumRevision) {
+      throw new Error(`Preview revision r${revision} must be between r1 and r${stableMaximumRevision}.`);
+    }
+    return {
+      channel,
+      displayVersion,
+      updaterVersion: `${year}.${calendar.month}.${calendar.day * 100 + revision}`,
+      tag: `v${displayVersion}`,
+      revision,
+      legacyMachineVersion: false,
     };
   }
 
@@ -304,7 +335,7 @@ export function assertReleaseVersionNotFuture(
     + current.getUTCDate();
   if (releaseOrdinal > currentOrdinal) {
     throw new Error(
-      `${channel === 'stable' ? 'Stable' : 'Nightly'} version ${version} is future-dated for `
+      `${channel === 'stable' ? 'Stable' : channel === 'nightly' ? 'Nightly' : 'Preview'} version ${version} is future-dated for `
       + `Asia/Shanghai ${currentDate}; use today's version or wait for that calendar date.`,
     );
   }
@@ -324,6 +355,8 @@ export type StableVersionResolution = {
   updaterVersion: string;
   observedSameDayVersions: string[];
 };
+
+export type PreviewVersionResolution = StableVersionResolution;
 
 function normalizeReleaseRef(rawRef: string): string {
   const token = rawRef.trim().split(/\s+/).at(-1) ?? '';
@@ -399,14 +432,19 @@ export function resolveStableReleaseVersion(
 
   const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const canonicalPattern = new RegExp(`^${escapedBase}(?:-r([1-9][0-9]*))?$`);
+  const previewPattern = new RegExp(`^${escapedBase}-preview\\.r([1-9][0-9]*)$`);
   const observed = new Set<string>();
   let highestRevision = -1;
   for (const rawRef of existingRefs) {
     const version = normalizeReleaseRef(rawRef);
     const match = canonicalPattern.exec(version);
-    if (!match) continue;
+    const previewMatch = previewPattern.exec(version);
+    if (!match && !previewMatch) continue;
     observed.add(version);
-    highestRevision = Math.max(highestRevision, match[1] ? Number(match[1]) : 0);
+    highestRevision = Math.max(
+      highestRevision,
+      previewMatch ? Number(previewMatch[1]) : match?.[1] ? Number(match[1]) : 0,
+    );
   }
 
   const revision = highestRevision < 0 ? 0 : highestRevision + 1;
@@ -425,6 +463,46 @@ export function resolveStableReleaseVersion(
   };
 }
 
+export function resolvePreviewReleaseVersion(
+  baseVersion: string,
+  existingRefs: Iterable<string>,
+): PreviewVersionResolution {
+  assertReleaseVersionNotFuture('stable', baseVersion);
+  if (stableReleaseRevision(baseVersion) !== 0) {
+    throw new Error(`Preview base version must not include a revision suffix: ${baseVersion}.`);
+  }
+
+  const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stablePattern = new RegExp(`^${escapedBase}(?:-r([1-9][0-9]*))?$`);
+  const previewPattern = new RegExp(`^${escapedBase}-preview\\.r([1-9][0-9]*)$`);
+  const observed = new Set<string>();
+  let highestRevision = 0;
+  for (const rawRef of existingRefs) {
+    const version = normalizeReleaseRef(rawRef);
+    const stableMatch = stablePattern.exec(version);
+    const previewMatch = previewPattern.exec(version);
+    if (!stableMatch && !previewMatch) continue;
+    observed.add(version);
+    highestRevision = Math.max(
+      highestRevision,
+      previewMatch ? Number(previewMatch[1]) : stableMatch?.[1] ? Number(stableMatch[1]) : 0,
+    );
+  }
+
+  const revision = highestRevision + 1;
+  if (revision > stableMaximumRevision) {
+    throw new Error(`Preview ${baseVersion} cannot allocate r${revision}; revisions stop at r${stableMaximumRevision}.`);
+  }
+  const version = `${baseVersion}-preview.r${revision}`;
+  return {
+    baseVersion,
+    version,
+    revision,
+    updaterVersion: resolveReleaseVersionIdentity('preview', version).updaterVersion,
+    observedSameDayVersions: [...observed].sort(),
+  };
+}
+
 function main(): void {
   const { values } = parseArgs({
     options: {
@@ -436,8 +514,8 @@ function main(): void {
     strict: true,
     allowPositionals: false,
   });
-  if (values.channel !== 'stable' && values.channel !== 'nightly') {
-    throw new Error('Pass --channel stable or --channel nightly.');
+  if (values.channel !== 'stable' && values.channel !== 'nightly' && values.channel !== 'preview') {
+    throw new Error('Pass --channel stable, --channel nightly, or --channel preview.');
   }
   const version = values.version?.trim() ?? '';
   if (!version) throw new Error('Pass --version <version>.');

@@ -5,9 +5,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
+
 type JsonRecord = Record<string, any>;
 
 export type StandardLatestAdmissionInput = {
+  publicationChannel: 'stable' | 'preview';
   bundleDigest: string;
   candidateDisplayVersion: string;
   candidateUpdaterVersion: string;
@@ -19,12 +22,13 @@ export type StandardLatestAdmissionInput = {
   highestPublicStableTag: string;
   predecessors: string[];
   updaterEvidenceDirs: string[];
-  homebrewPublicationPath: string;
-  homebrewVmPath: string;
-  homebrewReadbackPath: string;
+  homebrewPublicationPath?: string;
+  homebrewVmPath?: string;
+  homebrewReadbackPath?: string;
 };
 
 export type StandardLatestAdmissionAuthority = {
+  publicationChannel?: 'stable' | 'preview';
   bundleDigest: string;
   candidateDisplayVersion: string;
   candidateUpdaterVersion: string;
@@ -94,9 +98,31 @@ function parsePredecessor(value: string): { displayVersion: string; updaterVersi
   return { displayVersion, updaterVersion };
 }
 
-function requireReleaseTag(value: unknown, label: string): string {
+function requireStableReleaseTag(value: unknown, label: string): string {
   if (typeof value !== 'string' || !/^v[0-9]+\.[0-9]+\.[0-9]+(?:-r[1-9][0-9]*)?$/.test(value)) {
     throw new Error(`${label} must be an exact Stable release tag.`);
+  }
+  return value;
+}
+
+function requireLatestReleaseTag(value: unknown, label: string): string {
+  if (
+    typeof value !== 'string'
+    || !/^v[0-9]+\.[0-9]+\.[0-9]+(?:(?:-r[1-9][0-9]*)|(?:-preview\.r[1-9][0-9]*))?$/.test(value)
+  ) {
+    throw new Error(`${label} must be an exact Stable or Preview Latest tag.`);
+  }
+  return value;
+}
+
+function requireCandidateReleaseTag(
+  value: unknown,
+  channel: 'stable' | 'preview',
+  label: string,
+): string {
+  if (channel === 'stable') return requireStableReleaseTag(value, label);
+  if (typeof value !== 'string' || !/^v[0-9]+\.[0-9]+\.[0-9]+-preview\.r[1-9][0-9]*$/.test(value)) {
+    throw new Error(`${label} must be an exact Preview release tag.`);
   }
   return value;
 }
@@ -123,9 +149,22 @@ export function assertStandardLatestAdmissionReceipt(
   receipt: JsonRecord,
   authority: StandardLatestAdmissionAuthority,
 ): void {
+  const receiptPublicationChannel = receipt.publication_channel;
+  const publicationChannel = authority.publicationChannel
+    ?? (receiptPublicationChannel === undefined ? 'stable' : receiptPublicationChannel);
+  if (publicationChannel !== 'stable' && publicationChannel !== 'preview') {
+    throw new Error('Latest admission publication channel must be stable or preview.');
+  }
   requireEqual(receipt.schema, 'opl_standard_latest_admission_receipt.v1', 'Latest admission schema');
   requireEqual(receipt.status, 'passed', 'Latest admission status');
   requireEqual(receipt.latest_activation_admitted, true, 'Latest activation admission');
+  if (receiptPublicationChannel === undefined) {
+    if (publicationChannel !== 'stable') {
+      throw new Error('Preview Latest admission receipt must bind its publication channel.');
+    }
+  } else {
+    requireEqual(receiptPublicationChannel, publicationChannel, 'Latest admission publication channel');
+  }
   requireEqual(receipt.bundle_digest, authority.bundleDigest, 'Latest admission bundle_digest');
   requireEqual(receipt.candidate?.display_version, authority.candidateDisplayVersion, 'Latest admission display version');
   requireEqual(receipt.candidate?.updater_version, authority.candidateUpdaterVersion, 'Latest admission updater version');
@@ -155,11 +194,11 @@ export function assertStandardLatestAdmissionReceipt(
     'opl_standard_updater_predecessor_policy.v1',
     'Updater predecessor policy schema',
   );
-  const policyCurrentLatestTag = requireReleaseTag(
+  const policyCurrentLatestTag = requireLatestReleaseTag(
     receipt.updater_predecessor_policy?.current_latest_tag,
     'Updater predecessor current Latest tag',
   );
-  const policyHighestPublicStableTag = requireReleaseTag(
+  const policyHighestPublicStableTag = requireStableReleaseTag(
     receipt.updater_predecessor_policy?.highest_public_stable_tag,
     'Updater predecessor highest public Stable tag',
   );
@@ -192,7 +231,7 @@ export function assertStandardLatestAdmissionReceipt(
     requireDigest(entry.updater_receipt_sha256, 'Updater receipt sha256');
     requireDigest(entry.candidate_identity_sha256, 'Updater candidate identity sha256');
   }
-  const expectedCurrentTag = requireReleaseTag(
+  const expectedCurrentTag = requireLatestReleaseTag(
     receipt.latest_compare_and_swap?.expected_current?.tag,
     'Latest admission expected current tag',
   );
@@ -214,7 +253,11 @@ export function assertStandardLatestAdmissionReceipt(
     'Latest admission expected current updater version',
   );
   requireEqual(
-    requireReleaseTag(receipt.latest_compare_and_swap?.candidate?.tag, 'Latest admission candidate tag'),
+    requireCandidateReleaseTag(
+      receipt.latest_compare_and_swap?.candidate?.tag,
+      publicationChannel,
+      'Latest admission candidate tag',
+    ),
     `v${authority.candidateDisplayVersion}`,
     'Latest admission candidate tag',
   );
@@ -222,11 +265,16 @@ export function assertStandardLatestAdmissionReceipt(
     throw new Error('Latest admission compare-and-swap predecessor must differ from the candidate.');
   }
   requireDigest(receipt.standard_assets_sha256, 'Standard assets receipt sha256');
-  requireDigest(receipt.homebrew?.publication_receipt_sha256, 'Homebrew publication receipt sha256');
-  requireDigest(receipt.homebrew?.clean_vm_receipt_sha256, 'Homebrew clean VM receipt sha256');
-  requireDigest(receipt.homebrew?.readback_receipt_sha256, 'Homebrew readback receipt sha256');
+  if (publicationChannel === 'stable') {
+    requireDigest(receipt.homebrew?.publication_receipt_sha256, 'Homebrew publication receipt sha256');
+    requireDigest(receipt.homebrew?.clean_vm_receipt_sha256, 'Homebrew clean VM receipt sha256');
+    requireDigest(receipt.homebrew?.readback_receipt_sha256, 'Homebrew readback receipt sha256');
+  } else if (receipt.homebrew !== null) {
+    throw new Error('Preview Latest admission must not claim Homebrew publication evidence.');
+  }
 
   const inputEvidence = {
+    ...(receiptPublicationChannel === undefined ? {} : { publication_channel: receiptPublicationChannel }),
     bundle_digest: receipt.bundle_digest,
     candidate: receipt.candidate,
     standard_assets_sha256: receipt.standard_assets_sha256,
@@ -243,6 +291,11 @@ export function assertStandardLatestAdmissionReceipt(
 }
 
 export function validateStandardLatestAdmission(input: StandardLatestAdmissionInput): JsonRecord {
+  assertUpdaterVersionMatchesDisplay(
+    input.publicationChannel,
+    input.candidateDisplayVersion,
+    input.candidateUpdaterVersion,
+  );
   const bundleDigest = requireDigest(input.bundleDigest, 'bundle_digest');
   for (const [label, value] of [
     ['app_sha', input.appSha],
@@ -258,11 +311,11 @@ export function validateStandardLatestAdmission(input: StandardLatestAdmissionIn
   const expectedPredecessors = input.predecessors.map(parsePredecessor);
   const expectedByDisplay = new Map(expectedPredecessors.map((entry) => [entry.displayVersion, entry]));
   const observedPredecessorVersions = [...expectedByDisplay.keys()].sort();
-  const expectedCurrentLatestTag = requireReleaseTag(
+  const expectedCurrentLatestTag = requireLatestReleaseTag(
     input.expectedCurrentLatestTag,
     'Expected current Latest tag',
   );
-  const highestPublicStableTag = requireReleaseTag(
+  const highestPublicStableTag = requireStableReleaseTag(
     input.highestPublicStableTag,
     'Highest public Stable tag',
   );
@@ -370,48 +423,77 @@ export function validateStandardLatestAdmission(input: StandardLatestAdmissionIn
   }).sort((left, right) => left.baseline.display_version.localeCompare(right.baseline.display_version));
   if (observedBaselines.size !== expectedByDisplay.size) throw new Error('Updater predecessor evidence is incomplete.');
 
-  const publicationPath = path.resolve(input.homebrewPublicationPath);
-  const vmPath = path.resolve(input.homebrewVmPath);
-  const readbackPath = path.resolve(input.homebrewReadbackPath);
-  const publication = readJson(publicationPath);
-  const vm = readJson(vmPath);
-  const readback = readJson(readbackPath);
-  requireEqual(publication.schema, 'opl_bundle_homebrew_publication_receipt.v1', 'Homebrew publication schema');
-  requireEqual(publication.status, 'passed', 'Homebrew publication status');
-  requireEqual(publication.track, 'standard', 'Homebrew publication track');
-  requireEqual(publication.bundle_digest, bundleDigest, 'Homebrew publication bundle_digest');
-  requireEqual(publication.release_version, input.candidateDisplayVersion, 'Homebrew release version');
-  requireEqual(publication.updater_version, input.candidateUpdaterVersion, 'Homebrew updater version');
-  requireEqual(publication.tap_repository, standardTapRepository, 'Homebrew tap repository');
-  if (!shaPattern.test(String(publication.tap_commit ?? ''))) throw new Error('Homebrew publication tap_commit must be exact.');
-  requireEqual(publication.cask?.path, standardCaskPath, 'Homebrew Standard cask path');
-  requireDigest(publication.cask?.sha256, 'Homebrew cask sha256');
-  requireEqual(publication.artifact?.name, bundleDmg.name, 'Homebrew DMG name');
-  requireEqual(requireDigest(publication.artifact?.sha256, 'Homebrew DMG sha256'), bundleDmg.sha256, 'Homebrew DMG sha256');
-  const releaseBase = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${input.candidateDisplayVersion}`;
-  requireEqual(publication.artifact?.url, `${releaseBase}/${bundleDmg.name}`, 'Homebrew DMG URL');
-  requireEqual(publication.component_manifest_url, `${releaseBase}/opl-app-component-manifest.json`, 'Homebrew component manifest URL');
-  requireEqual(vm.surface_id, 'opl_tart_gui_first_run_smoke', 'Homebrew clean VM surface');
-  requireEqual(vm.status, 'passed', 'Homebrew clean VM status');
-  requireEqual(vm.smoke_profile, 'homebrew-standard-cask', 'Homebrew clean VM smoke profile');
-  requireEqual(vm.runtime_profile, 'standard', 'Homebrew clean VM runtime profile');
-  if (
-    !Array.isArray(vm.homebrew_install_attempts)
-    || vm.homebrew_install_attempts.length < 1
-    || vm.homebrew_install_attempts.at(-1)?.status !== 'passed'
+  let homebrewEvidence: JsonRecord | null = null;
+  if (input.publicationChannel === 'stable') {
+    const publicationPath = path.resolve(required(input.homebrewPublicationPath, 'homebrew-publication'));
+    const vmPath = path.resolve(required(input.homebrewVmPath, 'homebrew-vm'));
+    const readbackPath = path.resolve(required(input.homebrewReadbackPath, 'homebrew-readback'));
+    const publication = readJson(publicationPath);
+    const vm = readJson(vmPath);
+    const readback = readJson(readbackPath);
+    requireEqual(publication.schema, 'opl_bundle_homebrew_publication_receipt.v1', 'Homebrew publication schema');
+    requireEqual(publication.status, 'passed', 'Homebrew publication status');
+    requireEqual(publication.track, 'standard', 'Homebrew publication track');
+    requireEqual(publication.bundle_digest, bundleDigest, 'Homebrew publication bundle_digest');
+    requireEqual(publication.release_version, input.candidateDisplayVersion, 'Homebrew release version');
+    requireEqual(publication.updater_version, input.candidateUpdaterVersion, 'Homebrew updater version');
+    requireEqual(publication.tap_repository, standardTapRepository, 'Homebrew tap repository');
+    if (!shaPattern.test(String(publication.tap_commit ?? ''))) {
+      throw new Error('Homebrew publication tap_commit must be exact.');
+    }
+    requireEqual(publication.cask?.path, standardCaskPath, 'Homebrew Standard cask path');
+    requireDigest(publication.cask?.sha256, 'Homebrew cask sha256');
+    requireEqual(publication.artifact?.name, bundleDmg.name, 'Homebrew DMG name');
+    requireEqual(
+      requireDigest(publication.artifact?.sha256, 'Homebrew DMG sha256'),
+      bundleDmg.sha256,
+      'Homebrew DMG sha256',
+    );
+    const releaseBase = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${input.candidateDisplayVersion}`;
+    requireEqual(publication.artifact?.url, `${releaseBase}/${bundleDmg.name}`, 'Homebrew DMG URL');
+    requireEqual(
+      publication.component_manifest_url,
+      `${releaseBase}/opl-app-component-manifest.json`,
+      'Homebrew component manifest URL',
+    );
+    requireEqual(vm.surface_id, 'opl_tart_gui_first_run_smoke', 'Homebrew clean VM surface');
+    requireEqual(vm.status, 'passed', 'Homebrew clean VM status');
+    requireEqual(vm.smoke_profile, 'homebrew-standard-cask', 'Homebrew clean VM smoke profile');
+    requireEqual(vm.runtime_profile, 'standard', 'Homebrew clean VM runtime profile');
+    if (
+      !Array.isArray(vm.homebrew_install_attempts)
+      || vm.homebrew_install_attempts.length < 1
+      || vm.homebrew_install_attempts.at(-1)?.status !== 'passed'
+    ) {
+      throw new Error('Homebrew clean VM must contain a passed cask installation attempt.');
+    }
+    requireEqual(readback.schema, 'opl_bundle_homebrew_readback_receipt.v1', 'Homebrew readback schema');
+    requireEqual(readback.status, 'passed', 'Homebrew readback status');
+    requireEqual(readback.track, 'standard', 'Homebrew readback track');
+    requireEqual(readback.bundle_digest, bundleDigest, 'Homebrew readback bundle_digest');
+    requireEqual(readback.release_version, input.candidateDisplayVersion, 'Homebrew readback release version');
+    requireEqual(readback.updater_version, input.candidateUpdaterVersion, 'Homebrew readback updater version');
+    requireEqual(
+      readback.publication_receipt_sha256,
+      sha256File(publicationPath),
+      'Homebrew publication receipt digest',
+    );
+    requireEqual(readback.clean_vm_receipt_sha256, sha256File(vmPath), 'Homebrew clean VM receipt digest');
+    homebrewEvidence = {
+      publication_receipt_sha256: sha256File(publicationPath),
+      clean_vm_receipt_sha256: sha256File(vmPath),
+      readback_receipt_sha256: sha256File(readbackPath),
+    };
+  } else if (
+    input.homebrewPublicationPath !== undefined
+    || input.homebrewVmPath !== undefined
+    || input.homebrewReadbackPath !== undefined
   ) {
-    throw new Error('Homebrew clean VM must contain a passed cask installation attempt.');
+    throw new Error('Preview Latest admission rejects Homebrew evidence.');
   }
-  requireEqual(readback.schema, 'opl_bundle_homebrew_readback_receipt.v1', 'Homebrew readback schema');
-  requireEqual(readback.status, 'passed', 'Homebrew readback status');
-  requireEqual(readback.track, 'standard', 'Homebrew readback track');
-  requireEqual(readback.bundle_digest, bundleDigest, 'Homebrew readback bundle_digest');
-  requireEqual(readback.release_version, input.candidateDisplayVersion, 'Homebrew readback release version');
-  requireEqual(readback.updater_version, input.candidateUpdaterVersion, 'Homebrew readback updater version');
-  requireEqual(readback.publication_receipt_sha256, sha256File(publicationPath), 'Homebrew publication receipt digest');
-  requireEqual(readback.clean_vm_receipt_sha256, sha256File(vmPath), 'Homebrew clean VM receipt digest');
 
   const inputEvidence = {
+    publication_channel: input.publicationChannel,
     bundle_digest: bundleDigest,
     candidate: {
       display_version: input.candidateDisplayVersion,
@@ -429,11 +511,7 @@ export function validateStandardLatestAdmission(input: StandardLatestAdmissionIn
       distinct_predecessor_count: requiredPredecessorVersions.length,
     },
     updater_receipts: updaterReceipts,
-    homebrew: {
-      publication_receipt_sha256: sha256File(publicationPath),
-      clean_vm_receipt_sha256: sha256File(vmPath),
-      readback_receipt_sha256: sha256File(readbackPath),
-    },
+    homebrew: homebrewEvidence,
     latest_compare_and_swap: {
       expected_current: {
         tag: expectedCurrentLatestTag,
@@ -463,6 +541,7 @@ function main(argv: string[]): void {
     strict: true,
     options: {
       bundle: { type: 'string' },
+      'publication-channel': { type: 'string' },
       'candidate-display-version': { type: 'string' },
       'candidate-updater-version': { type: 'string' },
       'app-sha': { type: 'string' },
@@ -479,7 +558,11 @@ function main(argv: string[]): void {
       output: { type: 'string' },
     },
   });
+  if (values['publication-channel'] !== 'stable' && values['publication-channel'] !== 'preview') {
+    throw new Error('--publication-channel must be stable or preview.');
+  }
   const receipt = validateStandardLatestAdmission({
+    publicationChannel: values['publication-channel'],
     bundleDigest: required(values.bundle, 'bundle'),
     candidateDisplayVersion: required(values['candidate-display-version'], 'candidate-display-version'),
     candidateUpdaterVersion: required(values['candidate-updater-version'], 'candidate-updater-version'),
@@ -491,9 +574,9 @@ function main(argv: string[]): void {
     highestPublicStableTag: required(values['highest-public-stable-tag'], 'highest-public-stable-tag'),
     predecessors: values.predecessor ?? [],
     updaterEvidenceDirs: values['updater-evidence'] ?? [],
-    homebrewPublicationPath: required(values['homebrew-publication'], 'homebrew-publication'),
-    homebrewVmPath: required(values['homebrew-vm'], 'homebrew-vm'),
-    homebrewReadbackPath: required(values['homebrew-readback'], 'homebrew-readback'),
+    homebrewPublicationPath: values['homebrew-publication']?.trim() || undefined,
+    homebrewVmPath: values['homebrew-vm']?.trim() || undefined,
+    homebrewReadbackPath: values['homebrew-readback']?.trim() || undefined,
   });
   const output = path.resolve(required(values.output, 'output'));
   fs.mkdirSync(path.dirname(output), { recursive: true });

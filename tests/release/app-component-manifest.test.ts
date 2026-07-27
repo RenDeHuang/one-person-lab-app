@@ -52,10 +52,70 @@ test('App owner manifest records only immutable standard App artifacts', () => {
   assert.equal(component.version, '26.7.13');
   assert.equal(component.release_version, '26.7.13');
   assert.equal(component.updater_version, '26.7.13');
+  assert.equal(component.quality, 'stable');
+  assert.equal(component.build_origin, 'automated');
+  assert.equal(component.latest_eligible, true);
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
   assert.equal(component.artifacts.length, 6);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.match(component.component_manifest_digest, /^sha256:[0-9a-f]{64}$/);
+});
+
+test('App owner manifest distinguishes Nightly and Preview quality from the GitHub prerelease bit', () => {
+  for (const fixture of [
+    {
+      version: '26.7.24-nightly',
+      updaterVersion: '26.7.2490-nightly.0',
+      isPrerelease: true,
+      quality: 'nightly',
+      buildOrigin: 'automated',
+      latestEligible: false,
+    },
+    {
+      version: '26.7.24-preview.r1',
+      updaterVersion: '26.7.2401',
+      isPrerelease: false,
+      quality: 'preview',
+      buildOrigin: 'manual',
+      latestEligible: true,
+    },
+  ] as const) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-component-quality-'));
+    try {
+      const releaseJson = path.join(root, 'release.json');
+      const output = path.join(root, 'manifest.json');
+      fs.writeFileSync(releaseJson, `${JSON.stringify({
+        tagName: `v${fixture.version}`,
+        isDraft: false,
+        isPrerelease: fixture.isPrerelease,
+        url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v${fixture.version}`,
+        assets: [
+          asset('latest-arm64-mac.yml', '1'),
+          asset(`One-Person-Lab-${fixture.version}-mac-arm64.dmg`, '2'),
+          asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip`, '3'),
+          asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip.blockmap`, '4'),
+          asset('standard-gatekeeper-launch-policy.json', '5'),
+          asset('standard-apple-notarization-receipt.json', '6'),
+        ],
+      })}\n`);
+      execFileSync(process.execPath, [
+        '--experimental-strip-types',
+        'scripts/write-opl-app-component-manifest.ts',
+        '--version', fixture.version,
+        '--updater-version', fixture.updaterVersion,
+        '--source-commit', 'b'.repeat(40),
+        '--release-json', releaseJson,
+        '--output', output,
+      ], { cwd: appRoot, encoding: 'utf8' });
+      const component = JSON.parse(fs.readFileSync(output, 'utf8'));
+      assert.deepEqual(
+        [component.quality, component.build_origin, component.latest_eligible],
+        [fixture.quality, fixture.buildOrigin, fixture.latestEligible],
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test('App owner manifest fails closed when a standard asset is missing', () => {

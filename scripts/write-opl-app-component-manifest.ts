@@ -29,21 +29,25 @@ function options(argv: string[]) {
   const version = values.version?.trim() ?? '';
   const updaterVersion = values['updater-version']?.trim() ?? '';
   const sourceCommit = values['source-commit']?.trim() ?? '';
-  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:(?:-r[1-9][0-9]*)|-nightly(?:\.r[1-9][0-9]*)?)?$/.test(version)
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:(?:-r[1-9][0-9]*)|-nightly(?:\.r[1-9][0-9]*)?|-preview\.r[1-9][0-9]*)?$/.test(version)
     || !updaterVersion
     || !/^[0-9a-f]{40}$/.test(sourceCommit)
     || !values['release-json']
     || !values.output) {
     throw new Error('Pass --version <display-version> --updater-version <machine-semver> --source-commit <sha> --release-json <json> --output <json>.');
   }
-  assertUpdaterVersionMatchesDisplay(
-    version.includes('-nightly') ? 'nightly' : 'stable',
-    version,
-    updaterVersion,
-  );
+  const quality = version.includes('-nightly')
+    ? 'nightly'
+    : version.includes('-preview.')
+      ? 'preview'
+      : 'stable';
+  assertUpdaterVersionMatchesDisplay(quality, version, updaterVersion);
   return {
     version,
     updaterVersion,
+    quality,
+    buildOrigin: quality === 'preview' ? 'manual' : 'automated',
+    latestEligible: quality !== 'nightly',
     sourceCommit,
     releaseJson: path.resolve(values['release-json']),
     output: path.resolve(values.output),
@@ -71,7 +75,7 @@ function main() {
   const input = options(process.argv.slice(2));
   const release = JSON.parse(fs.readFileSync(input.releaseJson, 'utf8')) as Record<string, unknown>;
   const tag = String(release.tagName ?? '');
-  const expectedPrerelease = input.version.includes('-nightly');
+  const expectedPrerelease = input.quality === 'nightly';
   if (tag !== `v${input.version}` || release.isPrerelease !== expectedPrerelease) {
     throw new Error(`Release JSON does not describe v${input.version} with the expected channel.`);
   }
@@ -96,6 +100,9 @@ function main() {
     version: input.version,
     release_version: input.version,
     updater_version: input.updaterVersion,
+    quality: input.quality,
+    build_origin: input.buildOrigin,
+    latest_eligible: input.latestEligible,
     source_commit: input.sourceCommit,
     release_tag: tag,
     release_url: String(release.url ?? ''),

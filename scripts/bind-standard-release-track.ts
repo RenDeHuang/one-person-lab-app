@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
 import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from './macos-gatekeeper-policy.ts';
 
-type Channel = 'stable' | 'nightly';
+type Channel = 'stable' | 'nightly' | 'preview';
 
 function sha256(filePath: string): string {
   return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
@@ -223,7 +223,9 @@ function main(argv: string[]): void {
     },
   });
   const channel = values.channel;
-  if (channel !== 'stable' && channel !== 'nightly') throw new Error('--channel must be stable or nightly.');
+  if (channel !== 'stable' && channel !== 'nightly' && channel !== 'preview') {
+    throw new Error('--channel must be stable, nightly, or preview.');
+  }
   const required = (name: keyof typeof values): string => {
     const value = values[name];
     if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing --${String(name)}.`);
