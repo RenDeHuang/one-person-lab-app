@@ -313,6 +313,11 @@ test("reusable build cohort selects the product App without counting nested Elec
   assert.ok(stepStart >= 0 && stepEnd > stepStart, "missing build cohort manifest step");
   assert.match(
     step,
+    /if: success\(\) && startsWith\(matrix\.platform, 'macos'\)/,
+    "DMG/App cohort generation must not run for Linux or Windows source preflight builds",
+  );
+  assert.match(
+    step,
     /find out -maxdepth 2 -type d -name 'One Person Lab\.app' -print \| LC_ALL=C sort/,
   );
   assert.doesNotMatch(step, /find out -type d -name '\*\.app'/);
