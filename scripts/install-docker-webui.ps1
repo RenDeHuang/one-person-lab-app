@@ -311,115 +311,125 @@ function Invoke-DockerCommandCaptureWithTimeout {
     [switch]$StreamOutput
   )
 
-  $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-command-" + [Guid]::NewGuid().ToString('N'))
-  $stdoutPath = Join-Path $temporaryDir 'stdout.txt'
-  $stderrPath = Join-Path $temporaryDir 'stderr.txt'
   $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
-
+  $process = [System.Diagnostics.Process]::new()
   try {
-    New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
-    $process = Start-Process `
-      -FilePath $DockerCliPath `
-      -ArgumentList $argumentLine `
-      -WindowStyle Hidden `
-      -RedirectStandardOutput $stdoutPath `
-      -RedirectStandardError $stderrPath `
-      -PassThru
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $DockerCliPath
+    $startInfo.Arguments = $argumentLine
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+      throw "Docker process did not start."
+    }
     $streamStates = @(
-      [pscustomobject]@{ Path = $stdoutPath; Position = 0 },
-      [pscustomobject]@{ Path = $stderrPath; Position = 0 }
+      [pscustomobject]@{
+        Reader = $process.StandardOutput
+        Buffer = (New-Object char[] 4096)
+        PendingRead = $null
+        Completed = $false
+      },
+      [pscustomobject]@{
+        Reader = $process.StandardError
+        Buffer = (New-Object char[] 4096)
+        PendingRead = $null
+        Completed = $false
+      }
     )
+    foreach ($streamState in $streamStates) {
+      $streamState.PendingRead = $streamState.Reader.ReadAsync(
+        $streamState.Buffer,
+        0,
+        $streamState.Buffer.Length
+      )
+    }
+    $output = [System.Text.StringBuilder]::new()
+    $drainOutput = {
+      $receivedOutput = $false
+      foreach ($streamState in $streamStates) {
+        while (-not $streamState.Completed -and $streamState.PendingRead.IsCompleted) {
+          $readCount = $streamState.PendingRead.GetAwaiter().GetResult()
+          if ($readCount -le 0) {
+            $streamState.Completed = $true
+            break
+          }
+          $chunk = [string]::new($streamState.Buffer, 0, $readCount)
+          [void]$output.Append($chunk)
+          if ($StreamOutput) {
+            Write-Host $chunk -NoNewline
+          }
+          $receivedOutput = $true
+          $streamState.PendingRead = $streamState.Reader.ReadAsync(
+            $streamState.Buffer,
+            0,
+            $streamState.Buffer.Length
+          )
+        }
+      }
+      return $receivedOutput
+    }.GetNewClosure()
+
     $outputWasStreamed = $false
     $startedAt = Get-Date
     $deadline = $startedAt.AddSeconds($TimeoutSeconds)
     $nextHeartbeatAt = $startedAt.AddSeconds(20)
     $timedOut = $false
+    $processExited = $false
 
-    while (-not $process.WaitForExit(250)) {
-      if ($StreamOutput) {
-        $newOutput = [System.Text.StringBuilder]::new()
-        foreach ($streamState in $streamStates) {
-          if (-not (Test-Path -LiteralPath $streamState.Path -PathType Leaf)) {
-            continue
-          }
-          $capturedOutput = [System.IO.File]::ReadAllText($streamState.Path)
-          if ($capturedOutput.Length -gt $streamState.Position) {
-            [void]$newOutput.Append($capturedOutput.Substring($streamState.Position))
-            $streamState.Position = $capturedOutput.Length
-          }
-        }
-        if ($newOutput.Length -gt 0) {
-          Write-Host $newOutput.ToString() -NoNewline
+    while (-not $processExited -or @($streamStates | Where-Object { -not $_.Completed }).Count -gt 0) {
+      if (-not $processExited) {
+        $processExited = $process.WaitForExit(250)
+      } else {
+        Start-Sleep -Milliseconds 50
+      }
+      if (& $drainOutput) {
+        if ($StreamOutput) {
           $outputWasStreamed = $true
           $nextHeartbeatAt = (Get-Date).AddSeconds(20)
-        } elseif ((Get-Date) -ge $nextHeartbeatAt) {
-          $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
-          Write-Step "Docker is still downloading the WebUI image (${elapsedSeconds}s without new layer output). If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
-          $nextHeartbeatAt = (Get-Date).AddSeconds(20)
         }
+      } elseif ($StreamOutput -and (Get-Date) -ge $nextHeartbeatAt) {
+        $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+        Write-Step "Docker is still downloading the WebUI image (${elapsedSeconds}s without new layer output). If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
+        $nextHeartbeatAt = (Get-Date).AddSeconds(20)
       }
-      if ((Get-Date) -ge $deadline) {
+      if (-not $processExited -and (Get-Date) -ge $deadline) {
         $timedOut = $true
         break
       }
     }
 
     if ($timedOut) {
-      & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
-      $killDeadline = (Get-Date).AddSeconds(5)
-      while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
-        Start-Sleep -Milliseconds 100
-        $process.Refresh()
-      }
-      if (-not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-      }
+      $process.Kill()
+      $process.WaitForExit()
     } else {
       $process.WaitForExit()
     }
-
-    if ($StreamOutput) {
-      $remainingOutput = [System.Text.StringBuilder]::new()
-      foreach ($streamState in $streamStates) {
-        if (-not (Test-Path -LiteralPath $streamState.Path -PathType Leaf)) {
-          continue
-        }
-        $capturedOutput = [System.IO.File]::ReadAllText($streamState.Path)
-        if ($capturedOutput.Length -gt $streamState.Position) {
-          [void]$remainingOutput.Append($capturedOutput.Substring($streamState.Position))
-          $streamState.Position = $capturedOutput.Length
-        }
-      }
-      if ($remainingOutput.Length -gt 0) {
-        Write-Host $remainingOutput.ToString() -NoNewline
+    if (& $drainOutput) {
+      if ($StreamOutput) {
         $outputWasStreamed = $true
       }
     }
-    $output = @(
-      foreach ($streamState in $streamStates) {
-        if (Test-Path -LiteralPath $streamState.Path -PathType Leaf) {
-          [System.IO.File]::ReadAllText($streamState.Path)
-        }
-      }
-    ) -join [Environment]::NewLine
-    $output = $output.Trim()
+    $outputText = $output.ToString().Trim()
 
     if ($timedOut) {
       return [pscustomobject]@{
         ExitCode = 124
-        Output = $output
+        Output = $outputText
         TimedOut = $true
         OutputWasStreamed = $outputWasStreamed
       }
     }
     return [pscustomobject]@{
       ExitCode = $process.ExitCode
-      Output = $output
+      Output = $outputText
       TimedOut = $false
       OutputWasStreamed = $outputWasStreamed
     }
   } finally {
-    Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
+    $process.Dispose()
   }
 }
 
@@ -1709,11 +1719,18 @@ function Wait-WebUiHealth {
   }
 
   Write-Step "Waiting up to ${TimeoutSeconds}s for WebUI HTTP health at $Url."
-  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $startedAt = Get-Date
+  $deadline = $startedAt.AddSeconds($TimeoutSeconds)
+  $nextHeartbeatAt = $startedAt.AddSeconds(20)
   while ((Get-Date) -lt $deadline) {
     if (Test-WebUiHttpHealth -Url $Url) {
       Write-Step "WebUI HTTP health check passed: $Url"
       return
+    }
+    if ((Get-Date) -ge $nextHeartbeatAt) {
+      $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+      Write-Step "WebUI is still completing first-time setup (${elapsedSeconds}s). The image download may already be complete; Docker Engine also needs GitHub/GHCR access for initial managed components. If this does not advance, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies."
+      $nextHeartbeatAt = (Get-Date).AddSeconds(20)
     }
     Start-Sleep -Seconds 2
   }

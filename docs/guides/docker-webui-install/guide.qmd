@@ -265,6 +265,8 @@ Linux:   $HOME/OnePersonLab/projects
 
 如果镜像拉取超过 30 分钟，说明这次 GHCR 连接没有完成。安装器已经停止对应的卡住进程；请确认浏览器能够访问 `https://ghcr.io`，临时关闭或修正拦截 GHCR 的代理/VPN，然后重跑同一条安装命令。不要连续打开多个安装窗口，也不需要执行 Docker prune。
 
+如果镜像已经显示 `Image is up to date`，随后持续显示 `WebUI is still completing first-time setup`，说明 WebUI 正在首次准备内置运行时和 Official Profile；这一步同样从 Docker Engine 访问 GitHub/GHCR，Windows 浏览器或系统 VPN 设置不一定会自动传入容器。请在 Docker Desktop 的 **Settings -> Resources -> Proxies** 中配置可用代理，或确认 Docker Engine 能直接访问 GitHub 和 GHCR。安装器会每 20 秒报告一次进度，并在默认 10 分钟窗口结束时保存诊断信息。
+
 ### 提示端口 3000 已被占用
 
 下载脚本后改用其它本机端口，例如：
