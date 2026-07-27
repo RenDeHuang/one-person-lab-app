@@ -500,15 +500,18 @@ jobs:
           bundle="$checkpoint_dir/bundle.json"
           test -f "$bundle"
           if jq -e '.tracks.webui' "$bundle" >/dev/null; then
-            test "$completed_stage" = stable_qualified || {
-              echo "::error::Unified Stable publish requires an exact stable_qualified checkpoint, got $completed_stage."
-              exit 1
-            }
+            case "$completed_stage" in
+              stable_built|stable_qualified|full_built|full_qualified) ;;
+              *)
+                echo "::error::Unified hosted publication requires a checkpoint at or after stable_built, got $completed_stage."
+                exit 1
+                ;;
+            esac
           else
             case "$completed_stage" in
-              standard_qualified|full_built|full_qualified) ;;
+              standard_built|standard_qualified|full_built|full_qualified) ;;
               *)
-                echo "::error::Legacy Standard publish requires a checkpoint at or after standard_qualified, got $completed_stage."
+                echo "::error::Hosted Standard publication requires a checkpoint at or after standard_built, got $completed_stage."
                 exit 1
                 ;;
             esac
@@ -930,13 +933,6 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
           jq -e '.release_bundle_status.tracks.standard.reconcile_required == false' \
             bundle-status.json >/dev/null
-          if [ '${{ needs.restore.outputs.channel }}' = stable ] || [ '${{ inputs.latest_override_requested }}' = true ]; then
-            jq -e '
-              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
-              and .release_bundle_status.stable_promotion_barrier.satisfied == true
-              and .release_bundle_status.latest_eligible == true
-            ' bundle-status.json >/dev/null
-          fi
 
       - name: Upload remote digest proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -1405,8 +1401,7 @@ jobs:
           retention-days: 30
 
   activate-latest:
-    # No supported operation can enter this legacy VM-bound route.
-    if: ${{ inputs.operation == 'disabled_vm_bound_latest' }}
+    if: ${{ needs.restore.result == 'success' && needs.remote-digest-verify.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview-latest' }}
@@ -1512,32 +1507,12 @@ jobs:
               ;;
           esac
 
-      - name: Download previous-Latest updater receipt
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-updater-upgrade-${{ needs.restore.outputs.previous_latest_display_version }}-${{ github.run_id }}
-          path: latest-admission/updater-previous-latest
-
-      - name: Download highest-Stable updater receipt
-        if: ${{ needs.restore.outputs.highest_public_stable_tag != needs.restore.outputs.previous_latest_tag }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-updater-upgrade-${{ needs.restore.outputs.highest_public_stable_display_version }}-${{ github.run_id }}
-          path: latest-admission/updater-highest-stable
-
       - name: Download Standard Homebrew publication receipt
         if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-release-homebrew-standard-${{ github.run_id }}
           path: latest-admission/homebrew-publication
-
-      - name: Download Standard Homebrew clean-VM receipt
-        if: ${{ needs.restore.outputs.channel == 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
-          path: latest-admission/homebrew-vm
 
       - name: Download Standard Homebrew readback receipt
         if: ${{ needs.restore.outputs.channel == 'stable' }}
@@ -1591,13 +1566,6 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > bundle-status.json
           jq -e '.release_bundle_status.tracks.standard.reconcile_required == false' \
             bundle-status.json >/dev/null
-          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
-            jq -e '
-              .release_bundle_status.stable_promotion_barrier.required_tracks == ["standard"]
-              and .release_bundle_status.stable_promotion_barrier.satisfied == true
-              and .release_bundle_status.latest_eligible == true
-            ' bundle-status.json >/dev/null
-          fi
           one_file() {
             local root="$1" name="$2"
             local matches=()
@@ -1626,18 +1594,13 @@ jobs:
             --standard-assets '${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets.json'
             --component-manifest latest-component-manifest.json
             --expected-current-latest-tag '${{ needs.restore.outputs.previous_latest_tag }}'
-            --highest-public-stable-tag '${{ needs.restore.outputs.highest_public_stable_tag }}'
-            --predecessor '${{ needs.restore.outputs.previous_latest_display_version }}=${{ needs.restore.outputs.previous_latest_updater_version }}'
-            --updater-evidence latest-admission/updater-previous-latest
             --output standard-latest-admission.json
           )
           if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
             publication_receipt="$(one_file latest-admission/homebrew-publication homebrew-standard-publication-receipt.json)"
-            homebrew_vm_receipt="$(one_file latest-admission/homebrew-vm tart-smoke-summary.json)"
             homebrew_readback_receipt="$(one_file latest-admission/homebrew-readback homebrew-standard-readback.json)"
             admission_args+=(
               --homebrew-publication "$publication_receipt"
-              --homebrew-vm "$homebrew_vm_receipt"
               --homebrew-readback "$homebrew_readback_receipt"
             )
           else
@@ -1663,12 +1626,6 @@ jobs:
               and .readback.required == true
             ' latest-override-authority.json >/dev/null
             admission_args+=(--latest-override-authority latest-override-authority.json)
-          fi
-          if [ '${{ needs.restore.outputs.highest_public_stable_tag }}' != '${{ needs.restore.outputs.previous_latest_tag }}' ]; then
-            admission_args+=(
-              --predecessor '${{ needs.restore.outputs.highest_public_stable_display_version }}=${{ needs.restore.outputs.highest_public_stable_updater_version }}'
-              --updater-evidence latest-admission/updater-highest-stable
-            )
           fi
           node --experimental-strip-types app-source/scripts/validate-standard-latest-admission.ts "${admission_args[@]}"
           test "$(jq -r .latest_activation_admitted standard-latest-admission.json)" = true

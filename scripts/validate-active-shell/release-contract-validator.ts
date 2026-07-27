@@ -33,37 +33,32 @@ const standardLatestAdmissionContract = {
   required_status: 'passed',
   latest_activation_admitted_required: true,
   framework_latest_eligible_alone_is_sufficient: false,
-  predecessor_policy_schema: 'opl_standard_updater_predecessor_policy.v1',
-  predecessor_selection: 'deduplicated_current_latest_and_highest_public_stable',
+  hosted_publication_floor_schema: 'opl_standard_hosted_publication_floor.v1',
+  source_contract_build_preflight_required: 'passed',
+  remote_digest_readback_required: 'passed',
   current_latest_readback_required: true,
-  highest_public_stable_readback_required: true,
-  receipt_count_must_equal_distinct_predecessor_count: true,
-  predecessor_receipt_schema: 'opl_updater_upgrade_qualification_receipt.v1',
-  predecessor_receipts_must_be_real_updater_vm_evidence: true,
-  synthetic_or_canary_predecessor_receipts_allowed: false,
-  predecessor_receipt_digest_fields: [
-    'updater_receipts[].operation_input_digest',
-    'updater_receipts[].updater_receipt_sha256',
-    'updater_receipts[].candidate_identity_sha256',
-  ],
+  updater_predecessor_receipts_allowed: false,
+  optional_certification_receipts_allowed: false,
+  publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
   required_exact_identity_fields: [
     'bundle_digest',
     'candidate.app_sha',
     'candidate.shell_sha',
     'candidate.framework_sha',
+    'candidate.zip.sha256',
+    'candidate.zip.size_bytes',
+    'candidate.dmg.sha256',
+    'candidate.dmg.size_bytes',
   ],
-  same_candidate_zip_required_for_all_predecessors: true,
-  candidate_zip_identity_fields: ['candidate.zip.sha256', 'candidate.zip.size_bytes'],
   homebrew_evidence: {
     publication_schema: 'opl_bundle_homebrew_publication_receipt.v1',
-    clean_vm_surface_id: 'opl_tart_gui_first_run_smoke',
-    readback_schema: 'opl_bundle_homebrew_readback_receipt.v1',
+    readback_schema: 'opl_bundle_homebrew_publication_readback_receipt.v1',
     required_digest_fields: [
       'homebrew.publication_receipt_sha256',
-      'homebrew.clean_vm_receipt_sha256',
       'homebrew.readback_receipt_sha256',
     ],
-    readback_must_bind_publication_and_clean_vm_actual_file_digests: true,
+    readback_must_bind_publication_actual_file_digest: true,
+    clean_vm_receipt_allowed: false,
   },
   failure_mode: 'fail_closed_before_latest_patch',
 };
@@ -199,8 +194,51 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseExecutionPolicy(releaseChannel, shellPaths);
+  validateOptionalCertificationPolicy(releaseChannel);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateOptionalCertificationPolicy(releaseChannel) {
+  const policy = releaseChannel?.post_publication_optional_certification;
+  if (
+    policy?.schema !== 'opl_app_optional_certification_policy.v1'
+    || policy?.receipt_schema !== 'contracts/app-optional-certification-receipt.schema.json'
+    || policy?.validator !== 'scripts/validate-optional-certification-receipt.ts'
+    || policy?.required_for_publication !== false
+    || policy?.required_for_latest !== false
+    || policy?.artifact_source !== 'exact_immutable_published_release_artifact'
+    || policy?.artifact_rebuild_allowed !== false
+    || policy?.component_manifest_mutation_allowed !== false
+    || policy?.component_manifest_resign_allowed !== false
+    || policy?.producer?.workflow !== '.github/workflows/opl-first-run-vm.yml'
+    || policy?.producer?.trigger !== 'operator_manual_after_runner_and_fleet_lease_confirmation'
+    || policy?.producer?.automatic_prequeue_admission !== 'deferred_until_authenticated_fleet_transport_exists'
+    || policy?.producer?.stable_dag_dependency !== false
+    || policy?.producer?.may_queue_without_proven_capability !== false
+  ) {
+    throw new Error('Optional certification must consume published bytes without blocking Stable publication or Latest');
+  }
+  assertDeepEqualJson(
+    policy.statuses,
+    ['passed', 'failed', 'not_run', 'unavailable'],
+    'Optional certification states',
+  );
+  assertDeepEqualJson(
+    policy.not_run_reason_codes,
+    ['not_requested', 'not_authorized', 'operator_deferred'],
+    'Optional certification not-run reasons',
+  );
+  assertDeepEqualJson(
+    policy.unavailable_reason_codes,
+    [
+      'authority_or_capability_not_provable',
+      'fleet_lease_admission_failed',
+      'vm_admission_failed',
+      'capability_admission_failed',
+    ],
+    'Optional certification unavailable reasons',
+  );
 }
 
 function validateProviderConfigurationBoundary(boundary) {
@@ -295,6 +333,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   const validationCanary = control?.validation_canary;
   const acceleration = releaseChannel?.release_acceleration;
   const preflight = releaseChannel?.release_preflight;
+  const localFirst = preflight?.local_first;
   const stableStageResult = preflight?.stable_stage_result;
   const failureFingerprint = preflight?.dispatch_guard?.failure_fingerprint_circuit_breaker;
   const settingsReadiness = acceleration?.settings_page_readiness_policy;
@@ -546,6 +585,28 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.stable?.latest_admission,
     standardLatestAdmissionContract,
     'Standard Latest admission',
+  );
+  if (
+    localFirst?.entrypoint !== 'scripts/verify.sh release-preflight'
+    || localFirst?.reuses_existing_orchestrator !== true
+    || localFirst?.public_mutation_allowed !== false
+  ) {
+    throw new Error('Local-first release preflight must reuse verify.sh without public mutation');
+  }
+  assertDeepEqualJson(
+    localFirst.local_checks,
+    ['actionlint', 'typecheck', 'active_shell', 'release_boundary', 'candidate_shell', 'standard_package_build'],
+    'Local-first release checks',
+  );
+  assertDeepEqualJson(
+    localFirst.remote_only,
+    [
+      'github_hosted_linux_windows_macos_matrix',
+      'protected_signing_and_notarization_credentials',
+      'public_mutation',
+      'owner_authoritative_remote_readback',
+    ],
+    'Local-first remote-only checks',
   );
   if (
     publisher?.missing_asset !== 'upload' ||

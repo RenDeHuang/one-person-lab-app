@@ -1729,9 +1729,6 @@ export function activateLatest(
   if (status?.bundle_digest !== bundle.bundle_digest) {
     throw new Error('Framework status does not describe the immutable Bundle input.');
   }
-  if (publicationChannel === 'stable' && status.latest_eligible !== true) {
-    throw new Error('Framework status does not authorize qualified Stable Latest activation for this Bundle.');
-  }
   const statusBundle = status.bundle;
   if (
     statusBundle?.bundle_digest !== bundle.bundle_digest

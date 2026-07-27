@@ -29,6 +29,7 @@ const shellCommit = 'c'.repeat(40);
 const frameworkCommit = 'd'.repeat(40);
 const bundleDigest = `sha256:${'b'.repeat(64)}`;
 const latestZip = asset(`One-Person-Lab-${version}-mac-arm64.zip`, '9');
+const latestDmg = asset(`One-Person-Lab-${version}-mac-arm64.dmg`, '8');
 const componentManifestAsset = asset('opl-app-component-manifest.json', 'f');
 const expectedCurrentLatestTag = 'v26.7.20';
 const standardOperationId = 'operation-standard-1';
@@ -79,8 +80,7 @@ function sealAdmission(receipt: Record<string, any>): void {
     bundle_digest: receipt.bundle_digest,
     candidate: receipt.candidate,
     standard_assets_sha256: receipt.standard_assets_sha256,
-    updater_predecessor_policy: receipt.updater_predecessor_policy,
-    updater_receipts: receipt.updater_receipts,
+    hosted_publication_floor: receipt.hosted_publication_floor,
     homebrew: receipt.homebrew,
     latest_compare_and_swap: receipt.latest_compare_and_swap,
   };
@@ -93,6 +93,7 @@ function previewFixture() {
   const previewUpdaterVersion = '26.7.2201';
   const previewTag = `v${previewVersion}`;
   const previewZip = asset(`One-Person-Lab-${previewVersion}-mac-arm64.zip`, '8');
+  const previewDmg = asset(`One-Person-Lab-${previewVersion}-mac-arm64.dmg`, '6');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.release = {
     channel: 'preview',
@@ -105,7 +106,7 @@ function previewFixture() {
   const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
   status.release_bundle_status.latest_eligible = false;
   status.release_bundle_status.bundle = bundle;
-  status.release_bundle_status.tracks.standard.assets = [previewZip, componentManifestAsset];
+  status.release_bundle_status.tracks.standard.assets = [previewZip, previewDmg, componentManifestAsset];
   fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.publication_channel = 'preview';
@@ -137,7 +138,21 @@ function previewFixture() {
       sha256: previewZip.sha256,
       size_bytes: previewZip.size_bytes,
     },
+    dmg: {
+      name: previewDmg.name,
+      sha256: previewDmg.sha256,
+      size_bytes: previewDmg.size_bytes,
+    },
   };
+  admission.hosted_publication_floor.required_assets = [
+    previewDmg.name,
+    previewZip.name,
+    `${previewZip.name}.blockmap`,
+    'latest-arm64-mac.yml',
+    'opl-app-component-manifest.json',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
+  ];
   admission.homebrew = null;
   admission.latest_compare_and_swap.candidate.tag = previewTag;
   sealAdmission(admission);
@@ -151,6 +166,7 @@ function nightlyLatestFixture() {
   const nightlyUpdaterVersion = '26.7.2291-nightly.1';
   const nightlyTag = `v${nightlyVersion}`;
   const nightlyZip = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.zip`, '7');
+  const nightlyDmg = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.dmg`, '5');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.release = {
     channel: 'nightly',
@@ -163,7 +179,7 @@ function nightlyLatestFixture() {
   const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
   status.release_bundle_status.latest_eligible = false;
   status.release_bundle_status.bundle = bundle;
-  status.release_bundle_status.tracks.standard.assets = [nightlyZip, componentManifestAsset];
+  status.release_bundle_status.tracks.standard.assets = [nightlyZip, nightlyDmg, componentManifestAsset];
   fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.publication_channel = 'nightly';
@@ -195,7 +211,19 @@ function nightlyLatestFixture() {
       sha256: nightlyZip.sha256,
       size_bytes: nightlyZip.size_bytes,
     },
+    dmg: {
+      name: nightlyDmg.name,
+      sha256: nightlyDmg.sha256,
+      size_bytes: nightlyDmg.size_bytes,
+    },
   };
+  admission.hosted_publication_floor.required_assets = [
+    nightlyDmg.name,
+    nightlyZip.name,
+    `${nightlyZip.name}.blockmap`,
+    'latest-arm64-mac.yml',
+    'opl-app-component-manifest.json',
+  ];
   admission.homebrew = null;
   admission.latest_compare_and_swap.candidate.tag = nightlyTag;
   sealAdmission(admission);
@@ -283,7 +311,7 @@ function fixture(
       bundle_digest: bundleDigest,
       latest_eligible: true,
       bundle,
-      tracks: { standard: { assets: [latestZip, componentManifestAsset] } },
+      tracks: { standard: { assets: [latestZip, latestDmg, componentManifestAsset] } },
       operation_controls: { standard: operationControl, append_full: null },
     },
   })}\n`);
@@ -324,39 +352,32 @@ function fixture(
       shell_sha: shellCommit,
       framework_sha: frameworkCommit,
       zip: { name: latestZip.name, sha256: latestZip.sha256, size_bytes: latestZip.size_bytes },
+      dmg: { name: latestDmg.name, sha256: latestDmg.sha256, size_bytes: latestDmg.size_bytes },
     },
     standard_assets_sha256: `sha256:${'e'.repeat(64)}`,
-    updater_predecessor_policy: {
-      schema: 'opl_standard_updater_predecessor_policy.v1',
-      current_latest_tag: expectedCurrentLatestTag,
-      highest_public_stable_tag: 'v26.7.21',
-      distinct_predecessor_count: 2,
+    hosted_publication_floor: {
+      schema: 'opl_standard_hosted_publication_floor.v1',
+      source_contract_build_preflight: 'passed',
+      remote_digest_readback: 'passed',
+      required_assets: [
+        latestDmg.name,
+        latestZip.name,
+        `${latestZip.name}.blockmap`,
+        'latest-arm64-mac.yml',
+        'opl-app-component-manifest.json',
+        'standard-gatekeeper-launch-policy.json',
+        'standard-apple-notarization-receipt.json',
+      ],
+      self_hosted_ancestor_count: 0,
+      vm_ancestor_count: 0,
+      tart_ancestor_count: 0,
     },
-    updater_receipts: [
-      {
-        baseline: { display_version: '26.7.20', updater_version: '26.7.2000' },
-        operation_input_digest: `sha256:${'1'.repeat(64)}`,
-        updater_receipt_sha256: `sha256:${'2'.repeat(64)}`,
-        candidate_identity_sha256: `sha256:${'3'.repeat(64)}`,
-      },
-      {
-        baseline: { display_version: '26.7.21', updater_version: '26.7.2100' },
-        operation_input_digest: `sha256:${'4'.repeat(64)}`,
-        updater_receipt_sha256: `sha256:${'5'.repeat(64)}`,
-        candidate_identity_sha256: `sha256:${'6'.repeat(64)}`,
-      },
-    ],
     homebrew: {
       publication_receipt_sha256: `sha256:${'7'.repeat(64)}`,
-      clean_vm_receipt_sha256: `sha256:${'8'.repeat(64)}`,
       readback_receipt_sha256: `sha256:${'a'.repeat(64)}`,
     },
     latest_compare_and_swap: {
-      expected_current: {
-        tag: expectedCurrentLatestTag,
-        display_version: '26.7.20',
-        updater_version: '26.7.2000',
-      },
+      expected_current: { tag: expectedCurrentLatestTag },
       candidate: { tag },
     },
   };
@@ -626,6 +647,37 @@ test('Framework latest_eligible cannot bypass the App Latest admission receipt',
   assert.equal(calls, 0);
 });
 
+test('complete hosted admission does not require legacy Framework latest_eligible state', () => {
+  const files = fixture([]);
+  const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
+  status.release_bundle_status.latest_eligible = false;
+  fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
+  let latestTag = expectedCurrentLatestTag;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      if (isReleaseInspect(args)) return success(releaseResponse([]));
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/latest`) {
+        return success({ tag_name: latestTag });
+      }
+      if (args.includes('PATCH')) {
+        latestTag = tag;
+        return success();
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+  const result = activateLatest({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    status: files.statusPath,
+    'latest-admission': files.admissionPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.latest_compare_and_swap.patch_performed, true);
+});
+
 test('Latest admission for different ZIP bytes fails before any GitHub call', () => {
   const files = fixture([]);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
@@ -785,22 +837,24 @@ test('Latest already pointing at the candidate is idempotent with zero PATCH', (
   assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
 });
 
-test('Latest rejects an admission whose expected current tag is not an admitted predecessor', () => {
+test('Latest compare-and-swap rejects remote drift from the sealed expected current tag', () => {
   const files = fixture([]);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.latest_compare_and_swap.expected_current = {
     tag: 'v26.7.19',
-    display_version: '26.7.19',
-    updater_version: '26.7.19',
   };
   sealAdmission(admission);
   fs.writeFileSync(files.admissionPath, `${JSON.stringify(admission)}\n`);
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
-    run() {
+    run(_command, args) {
       calls += 1;
-      return success();
+      if (isReleaseInspect(args)) return success(releaseResponse([]));
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/latest`) {
+        return success({ tag_name: expectedCurrentLatestTag });
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
     },
   };
   assert.throws(
@@ -811,9 +865,9 @@ test('Latest rejects an admission whose expected current tag is not an admitted 
       'latest-admission': files.admissionPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
-    /policy current Latest tag does not match/,
+    /Latest drifted: expected v26\.7\.19, observed v26\.7\.20/,
   );
-  assert.equal(calls, 0);
+  assert.equal(calls, 2);
 });
 
 test('Latest rejects a tampered compare-and-swap predecessor before any GitHub call', () => {
@@ -821,8 +875,6 @@ test('Latest rejects a tampered compare-and-swap predecessor before any GitHub c
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.latest_compare_and_swap.expected_current = {
     tag: 'v26.7.21',
-    display_version: '26.7.21',
-    updater_version: '26.7.2100',
   };
   fs.writeFileSync(files.admissionPath, `${JSON.stringify(admission)}\n`);
   let calls = 0;
@@ -841,7 +893,7 @@ test('Latest rejects a tampered compare-and-swap predecessor before any GitHub c
       'latest-admission': files.admissionPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
-    /policy current Latest tag does not match/,
+    /Latest admission input_digest does not match/,
   );
   assert.equal(calls, 0);
 });

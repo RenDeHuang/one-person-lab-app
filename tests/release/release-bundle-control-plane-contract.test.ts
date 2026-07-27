@@ -73,8 +73,9 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     "prepared_ai_release_notes_policy",
     "installed_app_acceptance",
     "standard_updater_readback",
-    "predecessor_to_candidate_updater_qualification",
-    "homebrew_cask_publication_and_clean_vm_readback",
+    "hosted_standard_publication_floor",
+    "homebrew_cask_publication_and_readback",
+    "post_publication_optional_certification_policy",
   ]);
   assert.ok(control.app_authority.does_not_own.includes("generic_release_bundle_schema"));
   assert.ok(control.app_authority.does_not_own.includes("generic_publisher_ledger"));
@@ -173,9 +174,9 @@ test("qualified Stable defaults Latest while scheduled Nightly needs a separate 
   assert.equal(control.publication.stable.trigger, "workflow_dispatch");
   assert.equal(control.publication.stable.lower_level_workflows, "workflow_call_only");
   assert.deepEqual(control.publication.stable.latest_requires.slice(-3), [
-    "previous_latest_to_candidate_exact_zip_updater_upgrade",
+    "remote_digest_readback",
     "standard_homebrew_digest_bound_publication",
-    "standard_homebrew_clean_vm_install_and_readback",
+    "standard_homebrew_publication_readback",
   ]);
   assert.deepEqual(control.publication.full.required_assets, [
     "One-Person-Lab-Full-<version>-mac-arm64.dmg",

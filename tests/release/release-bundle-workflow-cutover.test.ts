@@ -965,7 +965,10 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
   }
   assert.deepEqual(publish.needs, ['restore']);
   assert.ok(homebrew.needs.includes('remote-digest-verify'));
-  assert.equal(latest.if, "${{ inputs.operation == 'disabled_vm_bound_latest' }}");
+  assert.equal(
+    latest.if,
+    "${{ needs.restore.result == 'success' && needs.remote-digest-verify.result == 'success' }}",
+  );
   assert.deepEqual(latest.needs, ['restore', 'remote-digest-verify', 'homebrew-standard-readback']);
   assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
   assert.equal(standard.jobs['updater-upgrade-qualification-highest'], undefined);
@@ -1055,6 +1058,16 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
   ].join('\n')], { encoding: 'utf8' });
   assert.equal(calculated.status, 0, calculated.stderr);
   assert.equal(calculated.stdout, expected);
+});
+
+test('hosted publication restores built checkpoints without reintroducing VM-qualified admission', () => {
+  const source = readWorkflow('_release-standard-publish.yml');
+  assert.match(source, /standard_built\|standard_qualified\|full_built\|full_qualified/);
+  assert.match(source, /stable_built\|stable_qualified\|full_built\|full_qualified/);
+  assert.match(source, /Hosted Standard publication requires a checkpoint at or after standard_built/);
+  assert.match(source, /Unified hosted publication requires a checkpoint at or after stable_built/);
+  assert.doesNotMatch(source, /requires a checkpoint at or after standard_qualified/);
+  assert.doesNotMatch(source, /requires an exact stable_qualified checkpoint/);
 });
 
 test('mutation unknown states persist evidence and only use bounded read-only reconciliation', () => {
@@ -2187,17 +2200,18 @@ test('Standard checkpoint stage follows the immutable Bundle track set', () => {
   }
 });
 
-test('Standard moving pointers require only Desktop readback and the Standard promotion barrier', () => {
+test('Standard moving pointers require exact Desktop readback and hosted admission without VM qualification state', () => {
   const workflow = parseWorkflow('_release-standard-publish.yml');
   const source = readWorkflow('_release-standard-publish.yml');
   assert.ok(workflow.jobs['publish-homebrew-standard'].needs.includes('remote-digest-verify'));
   assert.ok(workflow.jobs['activate-latest'].needs.includes('remote-digest-verify'));
   assert.doesNotMatch(source, /docker buildx imagetools inspect "\$(?:latest_)?webui_ref"/);
   assert.doesNotMatch(source, /--track webui --outcome complete/);
-  assert.equal((source.match(/stable_promotion_barrier\.satisfied == true/g) ?? []).length, 2);
-  assert.equal((source.match(/required_tracks == \["standard"\]/g) ?? []).length, 2);
-  assert.match(source, /Unified Stable publish requires an exact stable_qualified checkpoint/);
-  assert.match(source, /Legacy Standard publish requires a checkpoint at or after standard_qualified/);
+  assert.doesNotMatch(source, /stable_promotion_barrier\.satisfied == true/);
+  assert.doesNotMatch(source, /latest_eligible == true/);
+  assert.match(source, /Unified hosted publication requires a checkpoint at or after stable_built/);
+  assert.match(source, /Hosted Standard publication requires a checkpoint at or after standard_built/);
+  assert.doesNotMatch(source, /requires a checkpoint at or after standard_qualified/);
   assert.equal(
     (source.match(/if jq -e '\.tracks\.webui' "\$bundle"/g) ?? []).length,
     1,

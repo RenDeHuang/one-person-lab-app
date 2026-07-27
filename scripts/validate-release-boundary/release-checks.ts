@@ -41,6 +41,57 @@ export const releaseWorkflowPaths = [
 
 const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
+    id: "local_first_release_preflight",
+    file: "scripts/verify.sh",
+    required: [
+      "release-preflight)",
+      "opl_app_local_release_preflight.v1",
+      "actionlint",
+      "npm run typecheck",
+      "npm run validate:active-shell",
+      "npm run test:release-boundary",
+      "npm run validate:shell-candidates",
+      "npm run build-mac:arm64",
+      "github_hosted_linux_windows_macos_matrix",
+      "protected_signing_and_notarization_credentials",
+      "owner_authoritative_remote_readback",
+      "post_publication_clean_machine_certification",
+      "public_mutation_allowed: false",
+    ],
+    forbidden: [
+      "gh workflow run",
+      "gh run rerun",
+      "gh run cancel",
+      "gh release create",
+    ],
+  },
+  {
+    id: "optional_certification_receipt_contract",
+    file: "contracts/app-optional-certification-receipt.schema.json",
+    required: [
+      "opl_app_optional_certification_receipt.v1",
+      "\"passed\"",
+      "\"failed\"",
+      "\"not_run\"",
+      "\"unavailable\"",
+      "\"required_for_publication\"",
+      "\"component_manifest_resigned\"",
+    ],
+  },
+  {
+    id: "optional_certification_receipt_validator",
+    file: "scripts/validate-optional-certification-receipt.ts",
+    required: [
+      "passed",
+      "failed",
+      "not_run",
+      "unavailable",
+      "certification must never rebuild the artifact",
+      "certification must not mutate the component manifest",
+      "queued, runner inventory, authentication, or network state cannot prove unavailable",
+    ],
+  },
+  {
     id: "retired_build_and_release_workflow_absent",
     file: ".github/workflows/build-and-release.yml",
     retired: true,
