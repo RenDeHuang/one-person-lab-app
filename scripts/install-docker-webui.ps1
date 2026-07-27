@@ -267,43 +267,104 @@ function Start-DockerDesktopIfPresent {
   Start-Process -FilePath $dockerDesktop | Out-Null
 }
 
-function Convert-ToPowerShellSingleQuotedLiteral {
+function Convert-ToWindowsProcessArgument {
   param([Parameter(Mandatory = $true)][string]$Value)
-  return "'" + ($Value -replace "'", "''") + "'"
+
+  if ($Value.Length -eq 0) {
+    return '""'
+  }
+  if ($Value -notmatch '[\s"]') {
+    return $Value
+  }
+  $quoted = [System.Text.StringBuilder]::new()
+  [void]$quoted.Append('"')
+  $backslashCount = 0
+  foreach ($character in $Value.ToCharArray()) {
+    if ($character -eq '\') {
+      $backslashCount++
+      continue
+    }
+    if ($character -eq '"') {
+      [void]$quoted.Append([string]::new([char]92, ($backslashCount * 2) + 1))
+      [void]$quoted.Append('"')
+      $backslashCount = 0
+      continue
+    }
+    if ($backslashCount -gt 0) {
+      [void]$quoted.Append([string]::new([char]92, $backslashCount))
+      $backslashCount = 0
+    }
+    [void]$quoted.Append($character)
+  }
+  if ($backslashCount -gt 0) {
+    [void]$quoted.Append([string]::new([char]92, $backslashCount * 2))
+  }
+  [void]$quoted.Append('"')
+  return $quoted.ToString()
 }
 
 function Invoke-DockerCommandCaptureWithTimeout {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
-    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [switch]$StreamOutput
   )
 
   $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-command-" + [Guid]::NewGuid().ToString('N'))
-  $wrapperPath = Join-Path $temporaryDir 'invoke-docker.ps1'
-  $outputPath = Join-Path $temporaryDir 'output.txt'
-  $argumentLiterals = @($Arguments | ForEach-Object { Convert-ToPowerShellSingleQuotedLiteral -Value $_ })
-  $dockerCliLiteral = Convert-ToPowerShellSingleQuotedLiteral -Value $DockerCliPath
-  $wrapper = @"
-`$ErrorActionPreference = 'Continue'
-`$dockerCliPath = $dockerCliLiteral
-`$dockerArguments = @($($argumentLiterals -join ', '))
-`$output = & `$dockerCliPath @dockerArguments 2>&1 | Out-String
-`$exitCode = `$LASTEXITCODE
-Set-Content -LiteralPath $(Convert-ToPowerShellSingleQuotedLiteral -Value $outputPath) -Value `$output -Encoding UTF8
-exit `$exitCode
-"@
+  $stdoutPath = Join-Path $temporaryDir 'stdout.txt'
+  $stderrPath = Join-Path $temporaryDir 'stderr.txt'
+  $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
 
   try {
     New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
-    Set-Content -LiteralPath $wrapperPath -Value $wrapper -Encoding UTF8
-    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $process = Start-Process `
-      -FilePath $powershell `
-      -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $wrapperPath + '"')) `
+      -FilePath $DockerCliPath `
+      -ArgumentList $argumentLine `
       -WindowStyle Hidden `
+      -RedirectStandardOutput $stdoutPath `
+      -RedirectStandardError $stderrPath `
       -PassThru
-    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+    $streamStates = @(
+      [pscustomobject]@{ Path = $stdoutPath; Position = 0 },
+      [pscustomobject]@{ Path = $stderrPath; Position = 0 }
+    )
+    $outputWasStreamed = $false
+    $startedAt = Get-Date
+    $deadline = $startedAt.AddSeconds($TimeoutSeconds)
+    $nextHeartbeatAt = $startedAt.AddSeconds(20)
+    $timedOut = $false
+
+    while (-not $process.WaitForExit(250)) {
+      if ($StreamOutput) {
+        $newOutput = [System.Text.StringBuilder]::new()
+        foreach ($streamState in $streamStates) {
+          if (-not (Test-Path -LiteralPath $streamState.Path -PathType Leaf)) {
+            continue
+          }
+          $capturedOutput = [System.IO.File]::ReadAllText($streamState.Path)
+          if ($capturedOutput.Length -gt $streamState.Position) {
+            [void]$newOutput.Append($capturedOutput.Substring($streamState.Position))
+            $streamState.Position = $capturedOutput.Length
+          }
+        }
+        if ($newOutput.Length -gt 0) {
+          Write-Host $newOutput.ToString() -NoNewline
+          $outputWasStreamed = $true
+          $nextHeartbeatAt = (Get-Date).AddSeconds(20)
+        } elseif ((Get-Date) -ge $nextHeartbeatAt) {
+          $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+          Write-Step "Docker is still downloading the WebUI image (${elapsedSeconds}s without new layer output). If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
+          $nextHeartbeatAt = (Get-Date).AddSeconds(20)
+        }
+      }
+      if ((Get-Date) -ge $deadline) {
+        $timedOut = $true
+        break
+      }
+    }
+
+    if ($timedOut) {
       & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
       $killDeadline = (Get-Date).AddSeconds(5)
       while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
@@ -313,26 +374,49 @@ exit `$exitCode
       if (-not $process.HasExited) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
       }
-      $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
-        (Get-Content -LiteralPath $outputPath -Raw).Trim()
-      } else {
-        ''
+    } else {
+      $process.WaitForExit()
+    }
+
+    if ($StreamOutput) {
+      $remainingOutput = [System.Text.StringBuilder]::new()
+      foreach ($streamState in $streamStates) {
+        if (-not (Test-Path -LiteralPath $streamState.Path -PathType Leaf)) {
+          continue
+        }
+        $capturedOutput = [System.IO.File]::ReadAllText($streamState.Path)
+        if ($capturedOutput.Length -gt $streamState.Position) {
+          [void]$remainingOutput.Append($capturedOutput.Substring($streamState.Position))
+          $streamState.Position = $capturedOutput.Length
+        }
       }
+      if ($remainingOutput.Length -gt 0) {
+        Write-Host $remainingOutput.ToString() -NoNewline
+        $outputWasStreamed = $true
+      }
+    }
+    $output = @(
+      foreach ($streamState in $streamStates) {
+        if (Test-Path -LiteralPath $streamState.Path -PathType Leaf) {
+          [System.IO.File]::ReadAllText($streamState.Path)
+        }
+      }
+    ) -join [Environment]::NewLine
+    $output = $output.Trim()
+
+    if ($timedOut) {
       return [pscustomobject]@{
         ExitCode = 124
         Output = $output
         TimedOut = $true
+        OutputWasStreamed = $outputWasStreamed
       }
-    }
-    $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
-      (Get-Content -LiteralPath $outputPath -Raw).Trim()
-    } else {
-      ''
     }
     return [pscustomobject]@{
       ExitCode = $process.ExitCode
       Output = $output
       TimedOut = $false
+      OutputWasStreamed = $outputWasStreamed
     }
   } finally {
     Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
@@ -362,7 +446,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
-    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [switch]$StreamOutput
   )
 
   $temporaryConfigDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-anonymous-" + [Guid]::NewGuid().ToString('N'))
@@ -375,7 +460,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
     return Invoke-DockerCommandCaptureWithTimeout `
       -DockerCliPath $DockerCliPath `
       -Arguments (@('--config', $temporaryConfigDir) + $Arguments) `
-      -TimeoutSeconds $TimeoutSeconds
+      -TimeoutSeconds $TimeoutSeconds `
+      -StreamOutput:$StreamOutput
   } finally {
     Remove-Item -LiteralPath $temporaryConfigDir -Force -Recurse -ErrorAction SilentlyContinue
   }
@@ -393,12 +479,14 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
     return Invoke-PublicGhcrAnonymousDockerCommandCapture `
       -DockerCliPath $DockerCliPath `
       -Arguments $Arguments `
-      -TimeoutSeconds $DockerPullTimeoutSeconds
+      -TimeoutSeconds $DockerPullTimeoutSeconds `
+      -StreamOutput
   }
   return Invoke-DockerCommandCaptureWithTimeout `
     -DockerCliPath $DockerCliPath `
     -Arguments $Arguments `
-    -TimeoutSeconds $DockerPullTimeoutSeconds
+    -TimeoutSeconds $DockerPullTimeoutSeconds `
+    -StreamOutput
 }
 
 function Wait-DockerDaemon {
@@ -502,7 +590,7 @@ function Resolve-PinnedImageReference {
     -DockerCliPath $DockerCliPath `
     -Arguments @("pull", $RequestedImageReference) `
     -ImageReference $RequestedImageReference
-  if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
+  if (-not $pull.OutputWasStreamed -and -not [string]::IsNullOrWhiteSpace($pull.Output)) {
     Write-Host $pull.Output
   }
   if ($pull.TimedOut) {
@@ -682,6 +770,39 @@ function Assert-DockerCompose {
   Write-Step "Docker Compose plugin is available."
 }
 
+function Invoke-WslStatus {
+  param([Parameter(Mandatory = $true)][string]$WslPath)
+
+  $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-wsl-status-" + [Guid]::NewGuid().ToString('N'))
+  $stdoutPath = Join-Path $temporaryDir "stdout.txt"
+  $stderrPath = Join-Path $temporaryDir "stderr.txt"
+  try {
+    New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
+    $process = Start-Process `
+      -FilePath $WslPath `
+      -ArgumentList @("--status") `
+      -Wait `
+      -PassThru `
+      -NoNewWindow `
+      -RedirectStandardOutput $stdoutPath `
+      -RedirectStandardError $stderrPath
+    $output = @(
+      if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+        Get-Content -LiteralPath $stdoutPath -Raw
+      }
+      if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+        Get-Content -LiteralPath $stderrPath -Raw
+      }
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    return [pscustomobject]@{
+      ExitCode = $process.ExitCode
+      Output = ($output -join [Environment]::NewLine).Trim()
+    }
+  } finally {
+    Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
+  }
+}
+
 function Assert-Wsl2 {
   if ($DryRun) {
     if ($InstallPrerequisites) {
@@ -701,16 +822,16 @@ function Assert-Wsl2 {
     throw "WSL is not available. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then install/open Docker Desktop."
   }
 
-  $statusOutput = & wsl.exe --status 2>&1
-  if ($LASTEXITCODE -ne 0) {
+  $status = Invoke-WslStatus -WslPath $wsl.Source
+  if ($status.ExitCode -ne 0) {
     Install-Wsl2Prerequisites
-    $statusOutput = & wsl.exe --status 2>&1
+    $status = Invoke-WslStatus -WslPath $wsl.Source
   }
-  if ($LASTEXITCODE -ne 0) {
-    throw "WSL status check failed. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then reopen Docker Desktop. Details: $statusOutput"
+  if ($status.ExitCode -ne 0) {
+    throw "WSL status check failed. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then reopen Docker Desktop. Details: $($status.Output)"
   }
 
-  $statusText = ($statusOutput | Out-String)
+  $statusText = $status.Output
   if ($statusText -notmatch "2" -and $statusText -notmatch "WSL2") {
     Write-Warning "WSL is installed, but this script could not confirm WSL 2 from 'wsl --status'. Docker Desktop may still guide you through the WSL 2 backend setup."
   } else {

@@ -115,7 +115,7 @@ curl -fsSL "$root/scripts/install-docker-webui.sh" |
   bash -s -- --yes
 ```
 
-安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。第一次启动需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。Windows 拉取镜像超过 30 分钟仍未完成时，安装器会自动停止卡住的 Docker 子进程并给出网络排查提示，不需要手工结束 PowerShell。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
+安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。首次镜像下载约为 1 GB，安装器会持续显示 Docker layer 下载输出；不需要重新复制命令或重开 PowerShell。首次启动还需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。如果 Docker 20 秒没有新的 layer 输出，安装器会显示已等待时间和 Docker Desktop 代理设置提示，但仍会继续等待到 30 分钟总超时。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
 | 宿主机目录 | 容器内路径 | 保存内容 |
 |---|---|---|
@@ -259,7 +259,11 @@ Linux:   $HOME/OnePersonLab/projects
 
 如果旧版日志停在 `Resolving WebUI image`，或出现 `error getting credentials`、`指定的登录会话不存在`，请重新运行最新安装命令。新版安装器会从第一次拉取开始隔离公开 One Person Lab 镜像的匿名配置，不再进入当前 Windows 会话的 Docker 凭据助手；若仍失败，再检查 GHCR 网络、代理/VPN 和 Docker Desktop 状态。无需为公开镜像执行 `docker login ghcr.io`。
 
-如果日志提示镜像拉取超过 30 分钟，说明这次 GHCR 连接没有完成。安装器已经停止对应的卡住进程；请确认浏览器能够访问 `https://ghcr.io`，临时关闭或修正拦截 GHCR 的代理/VPN，重新打开 Docker Desktop，然后直接重跑同一条安装命令。不要连续打开多个安装窗口，也不需要执行 Docker prune。
+如果停在 `Pulling the public OPL GHCR image`，新版安装器会立即显示 `docker pull` 的 layer 输出。首次镜像约为 1 GB；只要 layer 文本仍在变化，下载正在继续，不需要中断或重新运行。
+
+如果连续 20 秒只看到安装器的等待提示，重点检查 Docker Desktop 的网络，而不仅是浏览器是否能翻墙：打开 **Docker Desktop -> Settings -> Resources -> Proxies**，选择正确的系统或手动代理设置并应用；Docker Engine 不一定继承 Windows 浏览器、PowerShell 或 VPN 的代理。然后重新打开 Docker Desktop，确认 `docker version` 能显示 Server 信息，再直接重跑同一条安装命令。公开 OPL 镜像不需要执行 `docker login ghcr.io`。
+
+如果镜像拉取超过 30 分钟，说明这次 GHCR 连接没有完成。安装器已经停止对应的卡住进程；请确认浏览器能够访问 `https://ghcr.io`，临时关闭或修正拦截 GHCR 的代理/VPN，然后重跑同一条安装命令。不要连续打开多个安装窗口，也不需要执行 Docker prune。
 
 ### 提示端口 3000 已被占用
 
