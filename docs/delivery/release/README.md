@@ -166,6 +166,7 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | Protected same-run credential check and version/cohort admission | `release-stable.yml#protected-admission`; read-only `release-stable` environment gate |
 | Per-attempt failure timing and stage observation | `.github/workflows/release-attempt-observability.yml`; append-only read-only follower without retry authority |
 | Manual Standard Dev Preview entry | `.github/workflows/release-manual-preview.yml`; publishes or resumes one exact Manual Preview, while any Latest selection remains a separately admitted protected one-use CAS |
+| Protected Preview Latest pointer entry | `.github/workflows/release-manual-preview.yml#move_latest_pointer` admits one already-published exact Dev/Nightly Preview, then calls `_release-preview-latest-pointer.yml` for the first-attempt expected-current CAS and exact public quality/readback proof |
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
 | App executor implementation | App reusable Bundle workflows and the thin local executor |

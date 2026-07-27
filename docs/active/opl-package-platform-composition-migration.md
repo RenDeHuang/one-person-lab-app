@@ -2,12 +2,12 @@
 
 Owner: `one-person-lab-app` for the cross-repository product plan. Each
 implementation package below names its producer and consumer owners.
-State: `phase_1_complete_pending_user_evaluation`
+State: `phase_2_family_retirement_in_progress`
 Date: `2026-07-24`
 Purpose: `package_platform_composition_and_dynamic_agent_runtime`
 Machine boundary: 本文是目标架构、current/canonical/sealed 分账、冻结工作包、依赖
 关系和删除门禁。只有本 exact blob 进入 canonical `main` 并完成远端 readback 后才是
-Phase 1 文档 authority；它不是当前实现、安装、发布、Package currentness 或用户状态
+migration SSOT authority；它不是当前实现、安装、发布、Package currentness 或用户状态
 mutation 的证明。机器真相仍在各 repo 的 canonical contracts/source、平台 installed
 state 和 fresh owner readback。
 
@@ -46,20 +46,21 @@ installed lock、payload、materialization、LKG、lifecycle receipt、rollback 
 
 ## 阶段边界
 
-- **Phase 1 - SSOT 与冻结计划**：只允许 current-truth 核对和 docs-only 编辑、验证、
-  canonical absorption/readback。完成后向用户交付本计划，等待评估。
-- **Phase 2 - 获批实施**：只有用户明确批准全部或指定工作包后，才允许在批准的
-  bounded surfaces 内修改 contracts/source/tests 或隔离测试状态。
+- **Phase 1 - SSOT 与冻结计划**：已完成。目标、功能等价 ledger、工作包和删除门禁
+  已进入 canonical documentation authority。
+- **Phase 2 - 逐 family 实施**：已获用户批准并执行中。每条 lane 只在已登记的
+  bounded surfaces 内修改 contracts/source/tests 或隔离测试状态；source checkpoint、
+  canonical absorption、installed/live proof 和 cleanup 继续分账。
 
-Phase 1 不蕴含 Phase 2。candidate、测试通过、owner handoff、内部 ACK、未吸收 commit
-或封存 worktree 都不能产生实施授权。Phase 2 也不自动授权 Package GHCR/tag、
+Phase 2 的实施授权已经成立，但 candidate、测试通过、owner handoff、内部 ACK、未吸收
+commit 或封存 worktree 都不是 canonical 或迁移完成证明。Phase 2 也不自动授权 Package GHCR/tag、
 Stable/Latest、WebUI promotion、真实用户 managed state 或其他 public mutation；这些
 仍需要各自 owner 和独立授权。
 
 本迁移文档不是 Stable、Package publication、Foundry 或任何零交叉工作前置。它们
 可以独立推进，只在同仓 `main` CAS 的瞬间按 fresh exact write set 串行。
 
-### Phase 1 文档写集
+### Phase 1 历史文档写集
 
 Phase 1 只包含以下 SSOT/引用面；exact path 和临时状态不在其他 durable 文档复制：
 
@@ -89,9 +90,9 @@ docs/specs/standard-agent-interface.md
 docs/status.md
 ```
 
-Phase 1 完成条件是两个仓的 docs-only commit 均进入各自 canonical `main`，文档/链接/
-结构/diff 门禁与远端 wire/API/tree/blob/raw readback通过，并向用户提交完成报告。完成
-后 `next_action=等待用户评估与显式 Phase 2 授权`。
+Phase 1 的完成条件已经满足：两个仓的 docs-only commit 均进入各自 canonical `main`，
+文档/链接/结构/diff 门禁与远端 wire/API/tree/blob/raw readback通过。当前
+`next_action=按 Per-Family Deletion Loop 继续 Phase 2 source/canonical/live proof/cleanup`。
 
 ## 持久原则
 
@@ -171,7 +172,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 | Stable release transport/successor-control | `independent_release_lane`：cache assertion修复、fresh Standard 和 protected publication由 release owner控制。 | 本计划不授权或阻塞。只有现有主路径在 fresh、无 deadlock 条件下再次证明不可恢复 deadline failure，才另行评估 successor-control；不预开发 speculative controller。 |
 
 所有 SHA、dirty 行数、测试计数、run id 和本机路径都属于一次性 closeout evidence，
-不写入长期 SSOT。Phase 2 启动必须重新读取 canonical refs 和 live state。
+不写入长期 SSOT。每个 Phase 2 工作包启动或恢复时必须重新读取 canonical refs 和 live state。
 
 ## Functionality-Equivalence Ledger
 
@@ -211,7 +212,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 
 ## Phase 2 Frozen Work Packages
 
-用户批准后最多保持四条开发 lane。这里冻结行为、owner、bounded surfaces、依赖、
+Phase 2 执行最多保持四条开发 lane。这里冻结行为、owner、bounded surfaces、依赖、
 验收和删除目标，不预先列出易漂移的源码路径。
 
 每个工作包启动时必须：
@@ -333,7 +334,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 ## Parallel Execution And Canonical Order
 
 ```text
-Phase 2 authorization
+Phase 2 execution
   |
   +-- Lane 1 App Profile:       E1 -> W1
   |

@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_hermes_gui_adaptation_plan`
-State: `active_plan`
+State: `technical_reference`
 Machine boundary: 本文是人读 GUI 改造方案。机器可读候选状态、adapter contract、
 model policy、first-run gate 和 release gate 仍以 `contracts/`、源码、验证脚本、
 packaged artifact 和测试输出为准。

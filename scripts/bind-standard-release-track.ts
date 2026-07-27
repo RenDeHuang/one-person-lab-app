@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 import { assertUpdaterVersionMatchesDisplay } from './release-version.ts';
 import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from './macos-gatekeeper-policy.ts';
 
-type Channel = 'stable' | 'nightly';
+type Channel = 'stable' | 'nightly' | 'preview';
 
 function sha256(filePath: string): string {
   return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
@@ -65,6 +65,7 @@ export function bindStandardReleaseTrack(input: {
   repository: string;
   sourceRunId: string;
   sourceRunAttempt: number;
+  latestOverrideRequested?: boolean;
   componentManifestScript: string;
   componentManifestOutput: string;
   identityReceiptOutput: string;
@@ -80,6 +81,9 @@ export function bindStandardReleaseTrack(input: {
   }
   if (!/^[1-9][0-9]*$/.test(input.sourceRunId) || input.sourceRunAttempt !== 1) {
     throw new Error('Standard track requires the exact first-attempt source run identity.');
+  }
+  if (input.channel === 'stable' && input.latestOverrideRequested === true) {
+    throw new Error('Stable uses automatic Latest reclaim and cannot claim a Preview override request.');
   }
   const assetsDir = path.resolve(input.assetsDir);
   const genericMetadata = requiredFile(assetsDir, 'latest-mac.yml');
@@ -158,6 +162,8 @@ export function bindStandardReleaseTrack(input: {
     '--version', input.version,
     '--updater-version', input.updaterVersion,
     '--source-commit', input.appSha,
+    '--shell-commit', input.shellSha,
+    '--framework-commit', input.frameworkSha,
     '--release-json', componentInput,
     '--repo', input.repository,
     '--output', path.resolve(input.componentManifestOutput),
@@ -165,6 +171,9 @@ export function bindStandardReleaseTrack(input: {
   if (component.status !== 0) {
     throw new Error(component.stderr.trim() || component.stdout.trim() || 'Component manifest binding failed.');
   }
+  const componentManifest = JSON.parse(
+    fs.readFileSync(path.resolve(input.componentManifestOutput), 'utf8'),
+  );
 
   const identity = {
     schema: 'opl_standard_release_identity_receipt.v2',
@@ -180,6 +189,23 @@ export function bindStandardReleaseTrack(input: {
       updater_version: input.updaterVersion,
       tag: `v${input.version}`,
       bundle_digest: input.bundleDigest,
+    },
+    product_semantics: {
+      quality_status: componentManifest.quality_status,
+      build_trigger: componentManifest.build_trigger,
+      preview_kind: componentManifest.preview_kind,
+      distribution_pointer: {
+        pointer: 'latest',
+        latest_override_requested: input.latestOverrideRequested === true,
+        authority: input.latestOverrideRequested === true
+          ? 'protected_single_use_exact_version'
+          : input.channel === 'stable'
+            ? 'qualified_stable_default'
+            : 'none',
+        quality_unchanged: true,
+        stable_reclaim: 'next_qualified_stable',
+      },
+      qualification_disclosure: componentManifest.qualification_disclosure,
     },
     cohort: {
       app_sha: input.appSha,
@@ -217,13 +243,16 @@ function main(argv: string[]): void {
       repository: { type: 'string' },
       'source-run-id': { type: 'string' },
       'source-run-attempt': { type: 'string' },
+      'latest-override-requested': { type: 'string', default: 'false' },
       'component-manifest-script': { type: 'string' },
       'component-manifest-output': { type: 'string' },
       'identity-receipt-output': { type: 'string' },
     },
   });
   const channel = values.channel;
-  if (channel !== 'stable' && channel !== 'nightly') throw new Error('--channel must be stable or nightly.');
+  if (channel !== 'stable' && channel !== 'nightly' && channel !== 'preview') {
+    throw new Error('--channel must be stable, nightly, or preview.');
+  }
   const required = (name: keyof typeof values): string => {
     const value = values[name];
     if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing --${String(name)}.`);
@@ -232,6 +261,10 @@ function main(argv: string[]): void {
   const sourceRunAttempt = required('source-run-attempt');
   if (sourceRunAttempt !== '1') {
     throw new Error('--source-run-attempt must be the canonical first attempt 1.');
+  }
+  const latestOverrideRequested = values['latest-override-requested'];
+  if (latestOverrideRequested !== 'true' && latestOverrideRequested !== 'false') {
+    throw new Error('--latest-override-requested must be true or false.');
   }
   bindStandardReleaseTrack({
     assetsDir: required('assets-dir'),
@@ -245,6 +278,7 @@ function main(argv: string[]): void {
     repository: required('repository'),
     sourceRunId: required('source-run-id'),
     sourceRunAttempt: Number(sourceRunAttempt),
+    latestOverrideRequested: latestOverrideRequested === 'true',
     componentManifestScript: required('component-manifest-script'),
     componentManifestOutput: required('component-manifest-output'),
     identityReceiptOutput: required('identity-receipt-output'),

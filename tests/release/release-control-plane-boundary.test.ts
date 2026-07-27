@@ -107,6 +107,19 @@ test('all privileged Stable entries remain admission-dependent step-free reusabl
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
+test('Manual Preview write entries remain admission-dependent step-free reusable calls', (t) => {
+  const root = fixture(t);
+  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
+
+  updateWorkflow(root, 'release-manual-preview.yml', (workflow) => {
+    workflow.jobs.preview.needs = [];
+    workflow.jobs.preview.with.include_full = true;
+    workflow.jobs.preview.permissions.actions = 'write';
+  });
+
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
 test('Bundle, Standard publish, and Full append responsibilities cannot collapse back into one DAG', (t) => {
   const root = fixture(t);
   const bundleFile = workflowPath(root, '_release-bundle.yml');

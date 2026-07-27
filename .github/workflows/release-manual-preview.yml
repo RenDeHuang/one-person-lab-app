@@ -1,0 +1,379 @@
+name: OPL Manual Standard Preview
+run-name: OPL Manual Preview ${{ inputs.operation }} ${{ inputs.base_version || inputs.source_run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Publish/resume a Preview or move Latest to one exact published Preview
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - resume_preview
+          - move_latest_pointer
+      base_version:
+        description: Exact unrevised YY.M.D base used to allocate the next Preview revision
+        required: false
+        default: ''
+        type: string
+      shell_ref:
+        description: Exact canonical Shell main SHA
+        required: false
+        default: ''
+        type: string
+      framework_ref:
+        description: Exact canonical Framework main SHA
+        required: false
+        default: ''
+        type: string
+      latest_override_requested:
+        description: Explicitly request one protected exact-CAS move of Latest to this Preview
+        required: false
+        default: false
+        type: boolean
+      target_tag:
+        description: Exact published Dev or Nightly Preview tag for move_latest_pointer
+        required: false
+        default: ''
+        type: string
+      expected_current_latest_tag:
+        description: Exact expected-current Latest tag for move_latest_pointer CAS
+        required: false
+        default: ''
+        type: string
+      source_run_id:
+        description: Failed Preview run containing the exact portable recovery artifact
+        required: false
+        default: ''
+        type: string
+      source_artifact:
+        description: Exact portable recovery artifact named by the failure receipt
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI: opl_packages.v1
+  OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE: '>=0.1.0 <1.0.0'
+
+concurrency:
+  group: opl-release-bundle-global
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.admission.outputs.version }}
+      app_ref: ${{ steps.admission.outputs.app_ref }}
+      shell_ref: ${{ steps.admission.outputs.shell_ref }}
+      framework_ref: ${{ steps.admission.outputs.framework_ref }}
+      operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
+      package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
+      package_compatibility_version_range: ${{ steps.admission.outputs.package_compatibility_version_range }}
+      operation: ${{ steps.admission.outputs.operation }}
+      source_run_id: ${{ steps.admission.outputs.source_run_id }}
+      source_artifact: ${{ steps.admission.outputs.source_artifact }}
+      latest_override_requested: ${{ steps.admission.outputs.latest_override_requested }}
+      target_tag: ${{ steps.admission.outputs.target_tag }}
+      expected_current_latest_tag: ${{ steps.admission.outputs.expected_current_latest_tag }}
+    steps:
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Admit one bounded Manual Preview operation
+        id: admission
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_VERSION: ${{ inputs.base_version }}
+          SHELL_REF: ${{ inputs.shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          PREVIEW_OPERATION: ${{ inputs.operation }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          LATEST_OVERRIDE_REQUESTED: ${{ inputs.latest_override_requested }}
+          TARGET_TAG: ${{ inputs.target_tag }}
+          EXPECTED_CURRENT_LATEST_TAG: ${{ inputs.expected_current_latest_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1 || {
+            echo "::error::Manual Preview operations are one-shot; dispatch a new Preview or exact recovery operation."
+            exit 1
+          }
+          test "$GITHUB_REF" = refs/heads/main
+          app_ref="$(git rev-parse HEAD)"
+          canonical_app_ref="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$app_ref" = "$canonical_app_ref" || {
+            echo "::error::Manual Preview must execute from canonical App main."
+            exit 1
+          }
+          require_main_reachable() {
+            local repository="$1" snapshot_sha="$2" label="$3" comparison_json
+            [[ "$snapshot_sha" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::$label must be an exact lowercase SHA."
+              exit 1
+            }
+            comparison_json="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+              gh api "repos/$repository/compare/$snapshot_sha...main")" || {
+              echo "::error::Unable to verify $label reachability."
+              exit 1
+            }
+            jq -e --arg snapshot_sha "$snapshot_sha" '
+              (.status == "identical" or .status == "ahead")
+              and .merge_base_commit.sha == $snapshot_sha
+            ' <<<"$comparison_json" >/dev/null || {
+              echo "::error::$label must remain reachable from remote main."
+              exit 1
+            }
+          }
+          require_main_reachable "$GITHUB_REPOSITORY" "$app_ref" "App Preview executor"
+
+          if [ "$PREVIEW_OPERATION" = move_latest_pointer ]; then
+            test -z "$BASE_VERSION$SHELL_REF$FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+            [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(preview\.r[1-9][0-9]*|nightly(\.r[1-9][0-9]*)?)$ ]]
+            [[ "$EXPECTED_CURRENT_LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-r[1-9][0-9]*|-preview\.r[1-9][0-9]*|-nightly(\.r[1-9][0-9]*)?)?$ ]]
+            actual_latest_tag="$(
+              timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name
+            )"
+            test "$actual_latest_tag" = "$EXPECTED_CURRENT_LATEST_TAG" || {
+              echo "::error::Latest drifted before pointer admission; dispatch a fresh exact operation."
+              exit 1
+            }
+            operation_started_at="$(
+              timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at
+            )"
+            node --experimental-strip-types scripts/release-operation-deadline.ts resolve \
+              --operation move_latest_pointer \
+              --started-at "$operation_started_at" \
+              --output pointer-operation-window.json >/dev/null
+            operation_started_at="$(jq -er .started_at pointer-operation-window.json)"
+            operation_deadline_at="$(jq -er .deadline_at pointer-operation-window.json)"
+            mkdir -p latest-pointer-admission
+            node --experimental-strip-types scripts/framework-release-adapter.ts github-inspect \
+              --repo "$GITHUB_REPOSITORY" \
+              --tag "$TARGET_TAG" \
+              --output latest-pointer-admission/release-inspection.json
+            manifest_api_url="$(
+              gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TARGET_TAG" \
+                --jq '.assets[] | select(.name == "opl-app-component-manifest.json") | .url'
+            )"
+            test -n "$manifest_api_url"
+            gh api --header 'Accept: application/octet-stream' "$manifest_api_url" \
+              > latest-pointer-admission/opl-app-component-manifest.json
+            node --experimental-strip-types scripts/write-latest-pointer-override-authority.ts \
+              --component-manifest latest-pointer-admission/opl-app-component-manifest.json \
+              --expected-current-latest-tag "$EXPECTED_CURRENT_LATEST_TAG" \
+              --output latest-pointer-admission/latest-pointer-authority.json
+            node --experimental-strip-types scripts/validate-latest-pointer-operation.ts \
+              --repository "$GITHUB_REPOSITORY" \
+              --component-manifest latest-pointer-admission/opl-app-component-manifest.json \
+              --release-inspection latest-pointer-admission/release-inspection.json \
+              --authority latest-pointer-admission/latest-pointer-authority.json \
+              --expected-current-latest-tag "$EXPECTED_CURRENT_LATEST_TAG" \
+              --run-id "$GITHUB_RUN_ID" \
+              --run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --operation-started-at "$operation_started_at" \
+              --operation-deadline-at "$operation_deadline_at" \
+              --output latest-pointer-admission/latest-pointer-admission.json
+            {
+              echo "operation=move_latest_pointer"
+              echo "version="
+              echo "app_ref=$app_ref"
+              echo "shell_ref="
+              echo "framework_ref="
+              echo "operation_started_at=$operation_started_at"
+              echo "operation_deadline_at=$operation_deadline_at"
+              echo "source_run_id="
+              echo "source_artifact="
+              echo "latest_override_requested=true"
+              echo "target_tag=$TARGET_TAG"
+              echo "expected_current_latest_tag=$EXPECTED_CURRENT_LATEST_TAG"
+              echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
+              echo "package_compatibility_version_range=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE"
+            } >> "$GITHUB_OUTPUT"
+          else
+            resolver_args=(
+              --operation "$PREVIEW_OPERATION"
+              --app-ref "$app_ref"
+            )
+            if [ -n "$BASE_VERSION" ]; then resolver_args+=(--base-version "$BASE_VERSION"); fi
+            if [ -n "$SHELL_REF" ]; then resolver_args+=(--shell-ref "$SHELL_REF"); fi
+            if [ -n "$FRAMEWORK_REF" ]; then resolver_args+=(--framework-ref "$FRAMEWORK_REF"); fi
+            if [ -n "$SOURCE_RUN_ID" ]; then resolver_args+=(--source-run-id "$SOURCE_RUN_ID"); fi
+            if [ -n "$SOURCE_ARTIFACT" ]; then resolver_args+=(--source-artifact "$SOURCE_ARTIFACT"); fi
+
+            if [ "$PREVIEW_OPERATION" = preview ]; then
+              resolver_args+=(--latest-override-requested "$LATEST_OVERRIDE_REQUESTED")
+              require_main_reachable gaofeng21cn/opl-aion-shell "$SHELL_REF" Shell
+              require_main_reachable gaofeng21cn/one-person-lab "$FRAMEWORK_REF" Framework
+              published_releases_json="$RUNNER_TEMP/opl-preview-published-releases-$GITHUB_RUN_ID.json"
+              published_tags_txt="$RUNNER_TEMP/opl-preview-published-tags-$GITHUB_RUN_ID.txt"
+              gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
+              git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
+              while IFS= read -r existing_ref; do
+                [ -n "$existing_ref" ] && resolver_args+=(--existing-ref "$existing_ref")
+              done < <(
+                jq -r '.[][] | .tag_name // empty' "$published_releases_json"
+                awk '{print $2}' "$published_tags_txt"
+              )
+              operation_started_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
+              resolver_args+=(--operation-started-at "$operation_started_at")
+            else
+              source_run_json="$RUNNER_TEMP/opl-preview-recovery-run-$SOURCE_RUN_ID.json"
+              timeout --foreground --signal=TERM --kill-after=5s 30s \
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$source_run_json"
+              jq -e '
+                .event == "workflow_dispatch"
+                and .head_branch == "main"
+                and .run_attempt == 1
+                and .conclusion == "failure"
+                and .path == ".github/workflows/release-manual-preview.yml"
+              ' "$source_run_json" >/dev/null || {
+                echo "::error::Preview recovery source must be one failed first-attempt Manual Preview run from main."
+                exit 1
+              }
+              recovery_root="$RUNNER_TEMP/opl-preview-recovery-authorization-$SOURCE_RUN_ID"
+              gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+                --name "$SOURCE_ARTIFACT" --dir "$recovery_root"
+              recovery_receipts=()
+              while IFS= read -r receipt; do recovery_receipts+=("$receipt"); done < <(
+                find "$recovery_root" -type f \( \
+                  -name standard-publication-failure.json -o -name latest-activation-failure.json \
+                \) -print | LC_ALL=C sort
+              )
+              test "${#recovery_receipts[@]}" -eq 1
+              jq -e --arg run "$SOURCE_RUN_ID" --arg artifact "$SOURCE_ARTIFACT" '
+                .schema == "opl_release_mutation_failure_receipt.v1"
+                and .status == "failed"
+                and .framework_reconcile_authorized == true
+                and (
+                  (
+                    .mutation == "github_standard_publish"
+                    and .resume_source == {run_id:$run, artifact:$artifact}
+                  )
+                  or (
+                    .mutation == "github_latest_activation"
+                    and .resume_source_run_id == $run
+                    and .resume_source_artifact == $artifact
+                  )
+                )
+              ' "${recovery_receipts[0]}" >/dev/null
+            fi
+
+            node --experimental-strip-types scripts/resolve-preview-release-request.ts \
+              "${resolver_args[@]}" > preview-request.json
+            test "$(jq -er .publication_channel preview-request.json)" = preview
+            test "$(jq -er .quality_status preview-request.json)" = preview
+            test "$(jq -er .build_trigger preview-request.json)" = manual
+            test "$(jq -er .preview_kind preview-request.json)" = dev
+            test "$(jq -er .qualification_disclosure.stable_qualified preview-request.json)" = false
+            test "$(jq -er .qualification_disclosure.non_stable_notice preview-request.json)" = true
+            {
+              echo "operation=$(jq -er .operation preview-request.json)"
+              echo "version=$(jq -r '.version // ""' preview-request.json)"
+              echo "app_ref=$(jq -er .app_ref preview-request.json)"
+              echo "shell_ref=$(jq -r '.shell_ref // ""' preview-request.json)"
+              echo "framework_ref=$(jq -r '.framework_ref // ""' preview-request.json)"
+              echo "operation_started_at=$(jq -r '.operation_started_at // ""' preview-request.json)"
+              echo "operation_deadline_at=$(jq -r '.operation_deadline_at // ""' preview-request.json)"
+              echo "source_run_id=$(jq -r '.source_run_id // ""' preview-request.json)"
+              echo "source_artifact=$(jq -r '.source_artifact // ""' preview-request.json)"
+              echo "latest_override_requested=$(jq -r '.latest_override_requested // ""' preview-request.json)"
+              echo "target_tag="
+              echo "expected_current_latest_tag="
+              echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
+              echo "package_compatibility_version_range=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload immutable Preview operation admission
+        if: ${{ steps.admission.outputs.operation == 'preview' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-preview-operation-admission-${{ github.run_id }}
+          path: preview-request.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload immutable Latest pointer admission
+        if: ${{ steps.admission.outputs.operation == 'move_latest_pointer' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-latest-pointer-admission-${{ github.run_id }}
+          path: latest-pointer-admission
+          if-no-files-found: error
+          retention-days: 30
+
+  preview:
+    if: ${{ needs.admission.outputs.operation == 'preview' }}
+    needs: [admission]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-bundle.yml
+    with:
+      mode: execute
+      operation: standard
+      channel: preview
+      publication_channel: preview
+      latest_override_requested: ${{ needs.admission.outputs.latest_override_requested == 'true' }}
+      version: ${{ needs.admission.outputs.version }}
+      include_full: false
+      package_compatibility_abi: ${{ needs.admission.outputs.package_compatibility_abi }}
+      package_compatibility_version_range: ${{ needs.admission.outputs.package_compatibility_version_range }}
+      app_ref: ${{ needs.admission.outputs.app_ref }}
+      shell_ref: ${{ needs.admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.admission.outputs.framework_ref }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
+    secrets: inherit
+
+  resume-preview:
+    if: ${{ needs.admission.outputs.operation == 'resume_preview' }}
+    needs: [admission]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-standard-publish.yml
+    with:
+      mode: execute
+      operation: resume_standard
+      publication_channel: preview
+      source_run_id: ${{ needs.admission.outputs.source_run_id }}
+      source_artifact: ${{ needs.admission.outputs.source_artifact }}
+      framework_executor_ref: ${{ needs.admission.outputs.framework_ref }}
+    secrets: inherit
+
+  move-latest-pointer:
+    if: ${{ needs.admission.outputs.operation == 'move_latest_pointer' }}
+    needs: [admission]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/_release-preview-latest-pointer.yml
+    with:
+      app_ref: ${{ needs.admission.outputs.app_ref }}
+      target_tag: ${{ needs.admission.outputs.target_tag }}
+      expected_current_latest_tag: ${{ needs.admission.outputs.expected_current_latest_tag }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
+    secrets: inherit

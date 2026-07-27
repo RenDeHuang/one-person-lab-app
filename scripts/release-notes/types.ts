@@ -1,4 +1,4 @@
-export type ReleaseChannel = 'stable' | 'nightly';
+export type ReleaseChannel = 'stable' | 'nightly' | 'preview';
 
 export type ReleaseNoteOptions = {
   version: string;

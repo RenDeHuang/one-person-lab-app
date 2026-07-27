@@ -15,6 +15,7 @@ import {
   assertNightlyRequestDigest,
   type NightlyReleaseRequest,
 } from './resolve-nightly-release-request.ts';
+import { createAppComponentManifest } from './write-opl-app-component-manifest.ts';
 
 type AssetIdentity = {
   name: string;
@@ -29,6 +30,9 @@ export type NightlyQualificationReceipt = {
   version: string;
   updater_version: string;
   tag: string;
+  quality_status: 'preview';
+  build_trigger: 'automated';
+  preview_kind: 'nightly';
   cohort: NightlyReleaseRequest['source'];
   actions: NightlyReleaseRequest['actions'];
   package_kind: 'app_standard';
@@ -36,6 +40,19 @@ export type NightlyQualificationReceipt = {
   stable_qualified: false;
   heavy_vm_required: false;
   sampled_vm_nonblocking: true;
+  qualification_disclosure: {
+    stable_qualified: false;
+    passed_gates: [];
+    skipped_gates: [
+      'stable_heavy_vm',
+      'homebrew_clean_install',
+      'native_webui',
+      'container_webui',
+      'full',
+    ];
+    failed_gates: [];
+    non_stable_notice: true;
+  };
   full_assets_present: false;
   webui_assets_present: false;
   local_authorization: {
@@ -95,6 +112,7 @@ export function qualifyNightlyRelease(input: {
   const blockmapName = `${zipName}.blockmap`;
   const metadataName = 'latest-arm64-mac.yml';
   const policyName = 'standard-local-authorization-policy.json';
+  const componentManifestName = 'opl-app-component-manifest.json';
   const expectedFiles = [blockmapName, dmgName, metadataName, policyName, zipName].sort();
   const observedFiles = exactDirectoryFiles(assetsDir);
   if (JSON.stringify(observedFiles) !== JSON.stringify(expectedFiles)) {
@@ -136,6 +154,37 @@ export function qualifyNightlyRelease(input: {
   }
 
   const publicNames = [dmgName, zipName, blockmapName, metadataName];
+  const releaseBase =
+    `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${request.tag}`;
+  const componentManifest = createAppComponentManifest({
+    version: request.version,
+    updaterVersion: request.updater_version,
+    sourceCommit: request.source.app_sha,
+    shellCommit: request.source.shell_sha,
+    frameworkCommit: request.source.framework_sha,
+    tag: request.tag,
+    releaseUrl:
+      `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${request.tag}`,
+    repo: 'gaofeng21cn/one-person-lab-app',
+    assets: publicNames.map((name) => ({
+      name,
+      url: `${releaseBase}/${name}`,
+      digest: `sha256:${sha256File(path.join(assetsDir, name))}`,
+      size: fs.statSync(path.join(assetsDir, name)).size,
+      contentType: name.endsWith('.yml') ? 'application/yaml' : 'application/octet-stream',
+    })),
+  });
+  fs.writeFileSync(
+    path.join(assetsDir, componentManifestName),
+    `${JSON.stringify(componentManifest, null, 2)}\n`,
+    'utf8',
+  );
+  const expectedQualifiedFiles = [...expectedFiles, componentManifestName].sort();
+  const qualifiedFiles = exactDirectoryFiles(assetsDir);
+  if (JSON.stringify(qualifiedFiles) !== JSON.stringify(expectedQualifiedFiles)) {
+    throw new Error('Nightly qualification produced an unexpected local asset set.');
+  }
+  publicNames.push(componentManifestName);
   const assets = publicNames.map((name) => identity(path.join(assetsDir, name)));
   for (const asset of assets) {
     if (!digestPattern.test(asset.sha256)) throw new Error(`Invalid Nightly SHA-256 for ${asset.name}.`);
@@ -147,6 +196,9 @@ export function qualifyNightlyRelease(input: {
     version: request.version,
     updater_version: request.updater_version,
     tag: request.tag,
+    quality_status: 'preview',
+    build_trigger: 'automated',
+    preview_kind: 'nightly',
     cohort: request.source,
     actions: request.actions,
     package_kind: 'app_standard',
@@ -154,6 +206,19 @@ export function qualifyNightlyRelease(input: {
     stable_qualified: false,
     heavy_vm_required: false,
     sampled_vm_nonblocking: true,
+    qualification_disclosure: {
+      stable_qualified: false,
+      passed_gates: [],
+      skipped_gates: [
+        'stable_heavy_vm',
+        'homebrew_clean_install',
+        'native_webui',
+        'container_webui',
+        'full',
+      ],
+      failed_gates: [],
+      non_stable_notice: true,
+    },
     full_assets_present: false,
     webui_assets_present: false,
     local_authorization: {

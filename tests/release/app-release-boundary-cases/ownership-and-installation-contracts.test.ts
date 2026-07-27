@@ -669,6 +669,7 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   assert.deepEqual(ownerStorage.sections, ['agent_package_store', 'webui_data_volume']);
   assert.equal(ownerStorage.missing_projection_policy, 'fail_open_keep_shell_owned_categories_available');
   assert.equal(ownerStorage.agent_package_store.ordinary_action, 'navigate_to_/settings/agents');
+  assert.equal(Object.hasOwn(ownerStorage.agent_package_store, 'lifecycle_action_ref'), false);
   assert.equal(ownerStorage.agent_package_store.storage_direct_uninstall_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.execution_owner, 'carrier_host');
   assert.equal(ownerStorage.webui_data_volume.webui_container_execution, 'host_action_required_without_docker_socket');
