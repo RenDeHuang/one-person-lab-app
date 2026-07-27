@@ -6,7 +6,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T15:47:12Z",
+  "generated_at": "2026-07-27T16:04:30Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -85,9 +85,9 @@
       "current_evidence": [
         "main contains absent-release prestate repair 5dc7bc35",
         "main contains hosted Stable floor and optional certification alignment 951bcb3b",
-        "active exact4 source worktree still requires absorption/owner-close readback"
+        "fresh lifecycle readback shows the exact4 worktree absent after main reached 77d043e9; a fresh root-only source gate still precedes production authority"
       ],
-      "next_action": "Finish exact4 canonical parity and owner-native close, run fresh root-only source gate/guard, issue one new single-use authority, then execute one new operation and repair its first real breakpoint until public terminal.",
+      "next_action": "Run fresh root-only source gate/guard, issue one new single-use authority, then execute one new operation and repair its first real breakpoint until public terminal.",
       "integration_order": 1,
       "parallel_group": "desktop-stable",
       "estimated_remaining": {
@@ -100,21 +100,23 @@
           {"name": "optional certification follower", "duration": "non-blocking", "necessary": "record passed/failed/not_run/unavailable without blocking publication"}
         ]
       },
-      "terminal_gaps": ["owner-native source close", "new admitted operation", "immutable public assets", "Latest and anonymous readback"]
+      "terminal_gaps": ["fresh root-only gate", "new admitted operation", "immutable public assets", "Latest and anonymous readback"]
     },
     {
       "id": "distribution-install-unification",
       "status": "ACTIVE",
       "controller_thread": "019f91f0-5ce9-78f2-84cd-aad34c16246d",
       "execution_owner_threads": [
-        "019f91f0-5ce9-78f2-84cd-aad34c16246d"
+        "019f91f0-5ce9-78f2-84cd-aad34c16246d",
+        "019fa145-fd2d-7a80-ac29-39d36138197f"
       ],
       "scope": "Converge Desktop, Native WebUI, Container WebUI, Homebrew and managed install onto one maintained entry model and fresh terminal readbacks.",
       "current_evidence": [
         "source blocker is canonical on current main",
+        "active app-installer-route-fail-closed lane owns the two Native WebUI routing aggregate regressions discovered by active-shell validation",
         "public Latest, Native/Homebrew exposure and managed installed terminal remain separate evidence"
       ],
-      "next_action": "In parallel with Stable, finish carrier-specific install/readback bridges and consume the new immutable Desktop cohort; do not wait on unrelated Package retirement families.",
+      "next_action": "Fix the two fail-closed Native WebUI routing regressions in the registered installer lane while Stable runs independently; then finish carrier-specific install/readback bridges and consume the new immutable Desktop cohort.",
       "integration_order": 3,
       "parallel_group": "distribution-and-install",
       "estimated_remaining": {
@@ -160,7 +162,7 @@
       ],
       "scope": "Converge useful historical work, prove owner status, and remove only absorbed task-owned worktrees, refs, receipts, holders and temporary artifacts.",
       "current_evidence": [
-        "App has four formally ACTIVE owned non-root lanes including this ledger lane; architecture guidance source is now on main and still owes owner-native close",
+        "App has three formally ACTIVE owned non-root lanes: installer-route fix, inactive-branch convergence and this ledger lane",
         "one historical detached App worktree is exact_merged but requires holder/owner recovery proof",
         "stale receipts remain across App, Relay and iCloud paths"
       ],
@@ -204,16 +206,16 @@
     },
     {
       "id": "stable-exact4-owner-close",
-      "status": "ACTIVE",
+      "status": "SAFE_TO_ARCHIVE",
       "controller_thread": "019fa248-2540-7da2-8bcd-5828c01a7eb4",
       "execution_owner_threads": ["019fa248-2540-7da2-8bcd-5828c01a7eb4"],
       "scope": "Close the source lane after proving its exact4 tree is absorbed and no holders or unique docs remain.",
-      "current_evidence": ["worktree is clean and checkpointed", "generic lifecycle classifier requires owner review for merge equivalence"],
-      "next_action": "Perform exact tree/blob parity and affected aggregate replay against current main, restore only owner-proven unique docs if any, then guarded owner-native close.",
+      "current_evidence": ["fresh App lifecycle has no exact4 worktree entry", "main 77d043e9 contains the absorbed source and documentation sequence"],
+      "next_action": "Archive the completed source conversation after retaining its terminal receipt; do not recreate a writer.",
       "integration_order": 1,
       "parallel_group": "desktop-stable",
       "estimated_remaining": {"wall_clock": "0.5-1h", "steps": [{"name": "parity, holder exit and guarded close", "duration": "30-60m", "necessary": "remove source ambiguity and worktree pollution before the next Stable authority"}]},
-      "terminal_gaps": ["tree/blob parity", "holder proof", "worktree/ref/lifecycle absence"]
+      "terminal_gaps": []
     },
     {
       "id": "ledger-coordination",
@@ -231,8 +233,8 @@
   ],
   "worktree_snapshot": {
     "repository": "one-person-lab-app",
-    "observed_non_root_count": 5,
-    "active_owned_count": 4,
+    "observed_non_root_count": 4,
+    "active_owned_count": 3,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
     "holder_proof_required_count": 1,
