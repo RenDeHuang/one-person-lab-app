@@ -7,6 +7,7 @@ import {
   extractUniqueOwnerWorkflowRun,
   type CommandRunner,
 } from '../../scripts/release-dispatch-guard.ts';
+import { createStableFailureFingerprint } from '../../scripts/stable-stage-result.ts';
 
 const appSha = '1'.repeat(40);
 const shellSha = '2'.repeat(40);
@@ -70,6 +71,20 @@ function successfulRunner(runs: unknown[] = []): CommandRunner {
     }
     return { status: 1, stdout: '', stderr: `unexpected command ${command} ${args.join(' ')}` };
   };
+}
+
+function failureFingerprint(environmentCharacter = '5') {
+  return createStableFailureFingerprint({
+    cohort: {
+      app_sha: appSha,
+      shell_sha: shellSha,
+      framework_sha: frameworkSha,
+    },
+    stage_id: 'clean_vm_exact_artifact_qualification',
+    reason_code: 'runtime_action_evidence_unavailable',
+    artifact_digest_or_input_digest: `sha256:${'4'.repeat(64)}`,
+    environment_receipt_digest: `sha256:${environmentCharacter.repeat(64)}`,
+  });
 }
 
 test('pre-nonce TLS handshake failure is bounded transport failure and consumes no nonce', () => {
@@ -218,6 +233,67 @@ test('pre-nonce guard uses three wire reads and one owner query with no cross-re
   assert.equal(report.owner_run_query?.logical_query_count, 1);
   assert.equal(report.dispatch_allowed, true);
   assert.equal(report.nonce_consumed, false);
+});
+
+test('unchanged Stable failure fingerprint denies dispatch before any wire or owner read', () => {
+  let calls = 0;
+  const fingerprint = failureFingerprint();
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    priorFailureFingerprint: fingerprint,
+    currentFailureFingerprint: structuredClone(fingerprint),
+  }, {
+    runner: () => {
+      calls += 1;
+      return { status: 1, stdout: '', stderr: 'must not execute' };
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_class, 'deterministic');
+  assert.equal(report.failure_code, 'unchanged_failure_fingerprint');
+  assert.equal(report.failure_fingerprint_guard.status, 'blocked_unchanged');
+  assert.equal(report.failure_fingerprint_guard.dispatch_count, 0);
+  assert.equal(report.nonce_consumed, false);
+  assert.equal(report.mutation_invocation_count, 0);
+  assert.equal(report.dispatch_allowed, false);
+  assert.equal(report.redispatch_allowed, false);
+});
+
+test('changed environment fingerprint proceeds through the existing read-only pre-nonce gates', () => {
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    priorFailureFingerprint: failureFingerprint('5'),
+    currentFailureFingerprint: failureFingerprint('6'),
+  }, { runner: successfulRunner() });
+
+  assert.equal(report.status, 'passed');
+  assert.equal(report.failure_fingerprint_guard.status, 'changed');
+  assert.equal(report.failure_fingerprint_guard.unchanged, false);
+  assert.equal(report.dispatch_allowed, true);
+});
+
+test('partial failure fingerprint input fails closed before transport', () => {
+  assert.throws(
+    () => buildPreNonceDispatchGuard({
+      workflow,
+      expectedAppSha: appSha,
+      expectedShellSha: shellSha,
+      expectedFrameworkSha: frameworkSha,
+      sourceGateReport: sourceGateReport(),
+      priorFailureFingerprint: failureFingerprint(),
+    }, { runner: successfulRunner() }),
+    /requires both prior and current failure fingerprints/,
+  );
 });
 
 test('pre-nonce guard fails closed on a malformed owner run', () => {
