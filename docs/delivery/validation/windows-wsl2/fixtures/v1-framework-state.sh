@@ -27,7 +27,7 @@ jq -e 'type == "object"' "$state_json" >/dev/null
 
 {
   printf 'observed_at=%s\n' "$(date --iso-8601=seconds)"
-  printf 'framework_ref=%s\n' fe1fafa26f2c59922596718b305761bbc7558c9c
+  printf 'framework_ref=%s\n' e260ad46e2cf73ea334d2453d901ee448248d9e0
   printf 'node_version=%s\n' "$(node --version)"
   printf 'npm_version=%s\n' "$(npm --version)"
   printf 'source_entrypoint=%s\n' "$root/src/entrypoints/cli.ts"
