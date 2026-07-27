@@ -403,7 +403,7 @@ jobs:
             > decision-summary.json
           echo "decision=$(jq -er .decision decision.json)" >> "$GITHUB_OUTPUT"
 
-      - name: Execute at most one WebUI Stable tag mutation and reconcile read-only
+      - name: Execute at most one admitted WebUI tag mutation and reconcile read-only
         env:
           GHCR_TOKEN: ${{ github.token }}
           CAS_DECISION: ${{ steps.decision.outputs.decision }}
@@ -416,6 +416,21 @@ jobs:
           repository="$(jq -er .target.repository "$admission")"
           target_digest="$(jq -er .target.digest "$admission")"
           target_ref="${repository}@${target_digest}"
+          authority_mode="$(jq -er .authority_mode "$admission")"
+          promotion_tags=()
+          while IFS= read -r tag; do promotion_tags+=("$tag"); done < <(
+            jq -er '.target.promotion_tags[]' "$admission"
+          )
+          if [ "$authority_mode" = production_follower ]; then
+            test "${promotion_tags[*]}" = "stable latest"
+            stable_terminal_status=present
+            stable_terminal_digest="$target_digest"
+          else
+            test "$authority_mode" = development_validation
+            test "${promotion_tags[*]}" = latest
+            stable_terminal_status="$(jq -er .expected_prestate.stable.status "$admission")"
+            stable_terminal_digest="$(jq -r .expected_prestate.stable.digest "$admission")"
+          fi
           mkdir -p terminal/readbacks/stable terminal/readbacks/latest
           jq -n '{
             schema:"opl_app_webui_stable_mutation_attempt.v1",
@@ -432,12 +447,12 @@ jobs:
             if printf '%s' "$GHCR_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
               login_performed=true
               set +e
-              oras tag "$target_ref" stable latest > terminal/tag.stdout 2> terminal/tag.stderr
+              oras tag "$target_ref" "${promotion_tags[@]}" > terminal/tag.stdout 2> terminal/tag.stderr
               tag_status=$?
               set -e
               mutation_status=accepted
               if [ "$tag_status" -ne 0 ]; then mutation_status=unknown; fi
-              jq -n --arg status "$mutation_status" --arg attempt_id "gha-${GITHUB_RUN_ID}-webui-stable-tag" \
+              jq -n --arg status "$mutation_status" --arg attempt_id "gha-${GITHUB_RUN_ID}-webui-${authority_mode}-tag" \
                 --argjson exit_code "$tag_status" \
                 --arg stdout_sha256 "sha256:$(shasum -a 256 terminal/tag.stdout | awk '{print $1}')" \
                 --arg stderr_sha256 "sha256:$(shasum -a 256 terminal/tag.stderr | awk '{print $1}')" \
@@ -487,7 +502,9 @@ jobs:
               latest_readback="terminal/readbacks/latest/${attempt}.json"
               observe_tag "$stable_ref" stable "$stable_readback"
               observe_tag "$latest_ref" latest "$latest_readback"
-              if [ "$(jq -r .digest "$stable_readback")" = "$target_digest" ] \
+              if [ "$(jq -er .status "$stable_readback")" = "$stable_terminal_status" ] \
+                && [ "$(jq -r .digest "$stable_readback")" = "$stable_terminal_digest" ] \
+                && [ "$(jq -er .status "$latest_readback")" = present ] \
                 && [ "$(jq -r .digest "$latest_readback")" = "$target_digest" ]; then
                 break
               fi
@@ -534,6 +551,7 @@ jobs:
           latest_ref="$(jq -er .target.latest_ref "$admission")"
           target_digest="$(jq -er .target.digest "$admission")"
           child_digest="$(jq -er .target.child_digest "$admission")"
+          authority_mode="$(jq -er .authority_mode "$admission")"
           mkdir -p terminal/public-oci/blobs
           read_manifest() {
             local ref="$1" name="$2" expected_digest="$3"
@@ -548,10 +566,29 @@ jobs:
             ' "terminal/public-oci/${name}-descriptor.json" >/dev/null
           }
           read_manifest "$version_ref" version-index "$target_digest"
-          read_manifest "$stable_ref" stable-index "$target_digest"
           read_manifest "$latest_ref" latest-index "$target_digest"
-          cmp -s terminal/public-oci/version-index.json terminal/public-oci/stable-index.json
           cmp -s terminal/public-oci/version-index.json terminal/public-oci/latest-index.json
+          stable_matches_target=false
+          stable_unchanged=false
+          stable_status="$(jq -er .status terminal/anonymous-readback.json)"
+          stable_digest="$(jq -r .digest terminal/anonymous-readback.json)"
+          if [ "$authority_mode" = production_follower ]; then
+            read_manifest "$stable_ref" stable-index "$target_digest"
+            cmp -s terminal/public-oci/version-index.json terminal/public-oci/stable-index.json
+            stable_matches_target=true
+          else
+            test "$authority_mode" = development_validation
+            expected_stable_status="$(jq -er .expected_prestate.stable.status "$admission")"
+            expected_stable_digest="$(jq -r .expected_prestate.stable.digest "$admission")"
+            test "$stable_status" = "$expected_stable_status"
+            test "$stable_digest" = "$expected_stable_digest"
+            stable_unchanged=true
+            if [ "$stable_status" = present ]; then
+              read_manifest "$stable_ref" stable-index "$stable_digest"
+            else
+              test "$stable_status" = absent
+            fi
+          fi
           jq -e --arg child "$child_digest" '
             select(
               .mediaType == "application/vnd.oci.image.index.v1+json"
@@ -612,8 +649,13 @@ jobs:
             --arg version_ref "$version_ref" \
             --arg stable_ref "$stable_ref" \
             --arg latest_ref "$latest_ref" \
+            --arg authority_mode "$authority_mode" \
             --arg digest "$target_digest" \
+            --arg stable_status "$stable_status" \
+            --argjson stable_digest "$(if [ "$stable_digest" = null ]; then printf null; else jq -Rn --arg value "$stable_digest" '$value'; fi)" \
             --arg child_digest "$child_digest" \
+            --argjson stable_matches_target "$stable_matches_target" \
+            --argjson stable_unchanged "$stable_unchanged" \
             --argjson index_size "$(wc -c < terminal/public-oci/version-index.json | tr -d ' ')" \
             --argjson child_size "$child_size" \
             --argjson layer_count "$layer_count" \
@@ -621,10 +663,12 @@ jobs:
               schema:"opl_app_webui_public_oci_readback.v1",
               status:"passed",
               anonymous:true,
+              authority_mode:$authority_mode,
               version_ref:$version_ref,
               stable_ref:$stable_ref,
               latest_ref:$latest_ref,
-              manifest_list:{digest:$digest,size_bytes:$index_size,identical_bytes:true},
+              manifest_list:{digest:$digest,size_bytes:$index_size,version_and_latest_identical_bytes:true},
+              stable:{status:$stable_status,digest:$stable_digest,matches_target:$stable_matches_target,unchanged:$stable_unchanged},
               child:{digest:$child_digest,size_bytes:$child_size,platform:"linux/amd64"},
               config_descriptor_verified:true,
               layer_descriptors_verified:true,

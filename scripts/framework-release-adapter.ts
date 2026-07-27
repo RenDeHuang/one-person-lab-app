@@ -783,22 +783,31 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       if (!Array.isArray(inspection.assets) || inspection.assets.length !== 0) {
         throw new Error(`Remote ${track} absent-release inspection must contain an empty asset list.`);
       }
-    } else {
+    } else if (inspection.release?.exists === true) {
       const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
-      const remoteAssets = new Map(inspectedAssets.map((asset: JsonRecord) => [asset.name, asset]));
-      if (remoteAssets.size !== inspectedAssets.length
-        || remoteAssets.size !== requiredNames.length
-        || requiredNames.some((name: string) => !remoteAssets.has(name))) {
-        throw new Error(`Remote ${track} inspection does not contain the exact unique required asset set.`);
-      }
-      assets = requiredNames.map((name: string) => {
-        const asset = remoteAssets.get(name) as JsonRecord;
+      const requiredNameSet = new Set(requiredNames);
+      const remoteAssets = new Map<string, JsonRecord>();
+      for (const inspectedAsset of inspectedAssets) {
+        const asset = inspectedAsset as JsonRecord;
+        const name = typeof asset?.name === 'string' ? asset.name : '';
+        if (!requiredNameSet.has(name)) {
+          throw new Error(`Remote ${track} inspection contains unknown asset ${name || '<missing>'}.`);
+        }
+        if (remoteAssets.has(name)) {
+          throw new Error(`Remote ${track} inspection contains duplicate asset ${name}.`);
+        }
         if (!Number.isSafeInteger(asset.size_bytes) || Number(asset.size_bytes) <= 0
           || !digestPattern.test(String(asset.sha256 ?? ''))) {
           throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
         }
+        remoteAssets.set(name, asset);
+      }
+      assets = requiredNames.filter((name: string) => remoteAssets.has(name)).map((name: string) => {
+        const asset = remoteAssets.get(name) as JsonRecord;
         return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
       });
+    } else {
+      throw new Error(`Remote ${track} inspection has no definitive Release existence state.`);
     }
   }
   return {

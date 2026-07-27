@@ -956,12 +956,53 @@ function validateWebuiGhcrImage(webuiImage) {
     webuiImage.stable_promotion?.compatibility_alias_ref !==
       'ghcr.io/gaofeng21cn/one-person-lab-webui:stable' ||
     webuiImage.stable_promotion?.manual_version_promotion_policy !==
-      'manual_version_may_advance_latest_only_after_the_same_stable_quality_gate' ||
+      'manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable' ||
+    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v4' ||
+    webuiImage.stable_promotion?.admission_schema !==
+      'opl_app_webui_stable_promotion_admission.v4' ||
+    webuiImage.stable_promotion?.decision_schema !==
+      'opl_app_webui_stable_promotion_decision.v2' ||
+    webuiImage.stable_promotion?.receipt_schema !==
+      'opl_app_webui_stable_promotion_receipt.v4' ||
     webuiImage.stable_promotion?.compare_and_swap
-      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true
+      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true ||
+    webuiImage.stable_promotion?.compare_and_swap
+      ?.development_validation_requires_stable_prestate_unchanged !== true ||
+    webuiImage.stable_promotion?.task_modes?.development_validation
+      ?.stable_alias_mutation_allowed !== false ||
+    webuiImage.stable_promotion?.task_modes?.development_validation
+      ?.stable_prestate_must_remain_unchanged !== true
   ) {
     throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before Latest/Stable tags');
   }
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.production_release.promotion_tags,
+    ['stable', 'latest'],
+    'Docker/WebUI production promotion tags',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.development_validation.promotion_tags,
+    ['latest'],
+    'Docker/WebUI development promotion tags',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.development_validation.classification,
+    {
+      quality_status: 'preview',
+      build_trigger: 'manual',
+      preview_kind: 'dev',
+      non_stable_notice: true,
+    },
+    'Docker/WebUI development preview classification',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.compare_and_swap.promotion_tags_by_authority_mode,
+    {
+      production_follower: ['stable', 'latest'],
+      development_validation: ['latest'],
+    },
+    'Docker/WebUI promotion tags by authority mode',
+  );
   assertIncludesAll(
     contract.publish_gate?.must_read_back,
     [

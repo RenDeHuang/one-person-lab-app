@@ -2135,7 +2135,7 @@
       "immutable_version_digest"
     ],
     "stable_promotion": {
-      "schema": "opl_app_webui_stable_promotion_contract.v3",
+      "schema": "opl_app_webui_stable_promotion_contract.v4",
       "writer": "release-webui-stable.yml#promote-webui-stable",
       "workflow": ".github/workflows/release-webui-stable.yml",
       "trigger": "successful_release_stable_workflow_run_follower_after_latest_activation",
@@ -2153,7 +2153,17 @@
           "authority_mode": "production_follower",
           "entry_workflow": ".github/workflows/release-webui-follower.yml",
           "desktop_latest_required": true,
-          "development_receipt_accepted_as_handoff": false
+          "development_receipt_accepted_as_handoff": false,
+          "promotion_tags": [
+            "stable",
+            "latest"
+          ],
+          "classification": {
+            "quality_status": "stable",
+            "build_trigger": "automated",
+            "preview_kind": null,
+            "non_stable_notice": false
+          }
         },
         "development_validation": {
           "authority_mode": "development_validation",
@@ -2161,6 +2171,17 @@
           "source": "exact_first_attempt_terminal_stable_run_frozen_bundle",
           "desktop_latest_required": false,
           "protected_public_mutation_required": true,
+          "promotion_tags": [
+            "latest"
+          ],
+          "stable_alias_mutation_allowed": false,
+          "stable_prestate_must_remain_unchanged": true,
+          "classification": {
+            "quality_status": "preview",
+            "build_trigger": "manual",
+            "preview_kind": "dev",
+            "non_stable_notice": true
+          },
           "receipt_satisfies_production_latest_or_follower_handoff": false,
           "promotion_only_delivery_bridge": {
             "entry_workflow": ".github/workflows/release-webui-development-promote.yml",
@@ -2187,7 +2208,7 @@
       "automatic_update_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
-      "manual_version_promotion_policy": "manual_version_may_advance_latest_only_after_the_same_stable_quality_gate",
+      "manual_version_promotion_policy": "manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable",
       "stable_authority_requirements": [
         "release-stable.yml",
         "main",
@@ -2243,9 +2264,22 @@
         "unexpected_digest_is_conflict_without_mutation": true,
         "prestate_unknown_is_not_absent": true,
         "divergent_aliases_may_only_reconcile_to_same_qualified_target": true,
-        "mutation_command": "oras tag <repository>@<target_digest> stable latest",
+        "promotion_tags_by_authority_mode": {
+          "production_follower": [
+            "stable",
+            "latest"
+          ],
+          "development_validation": [
+            "latest"
+          ]
+        },
+        "mutation_command_by_authority_mode": {
+          "production_follower": "oras tag <repository>@<target_digest> stable latest",
+          "development_validation": "oras tag <repository>@<target_digest> latest"
+        },
+        "development_validation_requires_stable_prestate_unchanged": true,
         "maximum_tag_attempts": 1,
-        "single_command_updates_both_moving_tags": true,
+        "single_command_updates_all_admitted_moving_tags": true,
         "force_allowed": false
       },
       "unknown_outcome": {
@@ -2266,8 +2300,9 @@
         "webui_stable_is_non_blocking_follower": true,
         "webui_failure_may_rollback_or_reactivate_desktop_latest": false
       },
-      "admission_schema": "opl_app_webui_stable_promotion_admission.v3",
-      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v3"
+      "admission_schema": "opl_app_webui_stable_promotion_admission.v4",
+      "decision_schema": "opl_app_webui_stable_promotion_decision.v2",
+      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v4"
     },
     "stable_tags": [
       "<app_or_opl_version>",

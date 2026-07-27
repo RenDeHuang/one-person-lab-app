@@ -482,38 +482,55 @@ test('absent GitHub Release remote inspection rejects missing, non-empty, or dup
   }
 });
 
-test('existing GitHub Release remote inspection still requires the exact unique asset set', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-malformed-release-receipt-'));
+test('existing GitHub Release remote inspection accepts a unique required subset only', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-partial-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
-  try {
-    fs.writeFileSync(bundlePath, `${JSON.stringify({
-      surface_kind: 'opl_release_bundle.v1',
-      bundle_digest: bundleDigest,
-      tracks: { standard: { required_asset_names: ['first.zip', 'second.dmg'] } },
-    })}\n`);
+  const requiredNames = ['first.zip', 'second.dmg'];
+  const execute = (assets: Array<Record<string, unknown>>) => {
     fs.writeFileSync(inspectionPath, `${JSON.stringify({
       surface_kind: 'opl_app_github_release_inspection.v1',
       repository: repo,
       tag,
       release: { exists: true, id: 12345 },
-      assets: [],
+      assets,
     })}\n`);
+    return buildExecutorReceipt({
+      operation: 'remote_inspect',
+      'release-operation': 'standard',
+      'operation-id': standardOperationId,
+      executor: 'remote',
+      'attempt-id': workflowAttemptId,
+      'remote-target': `github-release:${repo}@${tag}`,
+      track: 'standard',
+      outcome: 'complete',
+      'publication-scope': 'track_assets',
+      bundle: bundlePath,
+      inspection: inspectionPath,
+    } as any);
+  };
+  try {
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      tracks: { standard: { required_asset_names: requiredNames } },
+    })}\n`);
+
+    assert.deepEqual(execute([]).assets, []);
+    const second = asset(requiredNames[1]!, '2');
+    assert.deepEqual(execute([second]).assets, [{
+      name: second.name,
+      size_bytes: second.size_bytes,
+      sha256: second.sha256,
+    }]);
     assert.throws(
-      () => buildExecutorReceipt({
-        operation: 'remote_inspect',
-        'release-operation': 'standard',
-        'operation-id': standardOperationId,
-        executor: 'remote',
-        'attempt-id': workflowAttemptId,
-        'remote-target': `github-release:${repo}@${tag}`,
-        track: 'standard',
-        outcome: 'complete',
-        'publication-scope': 'track_assets',
-        bundle: bundlePath,
-        inspection: inspectionPath,
-      } as any),
-      /Remote standard inspection does not contain the exact unique required asset set/,
+      () => execute([asset('unknown.bin', '3')]),
+      /contains unknown asset unknown\.bin/,
+    );
+    assert.throws(() => execute([second, second]), /contains duplicate asset second\.dmg/);
+    assert.throws(
+      () => execute([{ ...second, sha256: 'sha256:not-a-digest' }]),
+      /has no exact digest and positive size/,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

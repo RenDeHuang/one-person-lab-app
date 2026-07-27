@@ -10,6 +10,7 @@ type JsonRecord = Record<string, any>;
 type DescriptorStatus = 'present' | 'absent' | 'unknown';
 type PromotionDecision = 'idempotent' | 'write_once' | 'conflict' | 'prestate_unknown';
 type AuthorityMode = 'production_follower' | 'development_validation';
+type MovingTag = 'stable' | 'latest';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
@@ -77,6 +78,25 @@ function descriptor(value: unknown, expectedRef: string, label: string): JsonRec
   if (status === 'present') digest(observation.digest, `${label}.digest`);
   else if (observation.digest !== null) throw new Error(`${label}.digest must be null unless present.`);
   return observation;
+}
+
+function authorityMode(value: unknown): AuthorityMode {
+  const mode = text(value, 'authority mode') as AuthorityMode;
+  if (!['production_follower', 'development_validation'].includes(mode)) {
+    throw new Error('WebUI promotion authority mode is invalid.');
+  }
+  return mode;
+}
+
+function promotionTags(mode: AuthorityMode): MovingTag[] {
+  return mode === 'production_follower' ? ['stable', 'latest'] : ['latest'];
+}
+
+function descriptorMatches(
+  observation: JsonRecord,
+  expected: JsonRecord,
+): boolean {
+  return observation.status === expected.status && observation.digest === expected.digest;
 }
 
 function validateStableAuthorityRun(
@@ -258,10 +278,7 @@ export type WebuiStableAdmissionInput = {
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
-  const authorityMode = input.authorityMode ?? 'production_follower';
-  if (!['production_follower', 'development_validation'].includes(authorityMode)) {
-    throw new Error('WebUI Stable authority mode is invalid.');
-  }
+  const mode = authorityMode(input.authorityMode ?? 'production_follower');
   if (!runPattern.test(input.stableAuthorityRunId)) throw new Error('Stable authority run id is invalid.');
   if (!runPattern.test(input.triggeredByStableRunId)) {
     throw new Error('triggering Stable authority run id is invalid.');
@@ -283,14 +300,14 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   validateStableAuthorityRun(
     input.stableAuthorityRun,
     input.stableAuthorityRunId,
-    authorityMode,
+    mode,
     cohort.app_sha,
   );
   validateCarrierFollowerRun(
     input.carrierFollowerRun,
     input.carrierFollowerRunId,
     carrierExecutorAppSha,
-    authorityMode,
+    mode,
   );
   validateCarrierFollowerJob(
     input.carrierFollowerJob,
@@ -301,7 +318,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     input.promotionExecutorRun,
     input.promotionExecutorRunId,
     promotionAppSha,
-    authorityMode,
+    mode,
     input.carrierFollowerRunId,
   );
 
@@ -343,7 +360,22 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     latest_prestate_sha256: fileDigest(input.latestPrestatePath),
   };
   const authority = {
-    authority_mode: authorityMode,
+    authority_mode: mode,
+    classification: mode === 'development_validation'
+      ? {
+          quality_status: 'preview',
+          build_trigger: 'manual',
+          preview_kind: 'dev',
+          quality_unchanged: true,
+          non_stable_notice: true,
+        }
+      : {
+          quality_status: 'stable',
+          build_trigger: 'automated',
+          preview_kind: null,
+          quality_unchanged: true,
+          non_stable_notice: false,
+        },
     stable_authority: {
       app_repository: appRepository,
       run_id: input.stableAuthorityRunId,
@@ -359,7 +391,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       carrier_job_id: input.carrierFollowerJob.id,
       carrier_job_name: input.carrierFollowerJob.name,
       app_head_sha: carrierExecutorAppSha,
-      workflow: authorityMode === 'production_follower'
+      workflow: mode === 'production_follower'
         ? '.github/workflows/release-webui-follower.yml'
         : '.github/workflows/release-webui-development.yml',
       triggering_stable_authority_run_id: input.stableAuthorityRunId,
@@ -391,6 +423,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       child_digest: carrier.digest,
       size_bytes: carrier.size_bytes,
       content_fingerprint: carrier.content_fingerprint,
+      promotion_tags: promotionTags(mode),
     },
     expected_prestate: {
       aliases_aligned: aliasesAligned,
@@ -406,7 +439,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     evidence,
   };
   return {
-    schema: 'opl_app_webui_stable_promotion_admission.v3',
+    schema: 'opl_app_webui_stable_promotion_admission.v4',
     status: 'passed',
     mutation_admitted: true,
     input_digest: objectDigest(authority),
@@ -419,10 +452,14 @@ export function decideWebuiStablePromotion(
   currentStableInput: JsonRecord,
   currentLatestInput: JsonRecord,
 ): JsonRecord {
-  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
+  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v4', 'admission schema');
   exact(admission.status, 'passed', 'admission status');
   exact(admission.mutation_admitted, true, 'admission mutation authorization');
+  const mode = authorityMode(admission.authority_mode);
   const target = record(admission.target, 'admission.target');
+  if (JSON.stringify(target.promotion_tags) !== JSON.stringify(promotionTags(mode))) {
+    throw new Error('admission target promotion tags do not match the authority mode.');
+  }
   const expected = record(admission.expected_prestate, 'admission.expected_prestate');
   const expectedStable = record(expected.stable, 'admission.expected_prestate.stable');
   const expectedLatest = record(expected.latest, 'admission.expected_prestate.latest');
@@ -436,20 +473,22 @@ export function decideWebuiStablePromotion(
     text(target.latest_ref, 'target latest ref'),
     'current Latest readback',
   );
-  const expectedMatchesCurrent =
-    expectedStable.status === currentStable.status
-    && expectedLatest.status === currentLatest.status
-    && expectedStable.digest === currentStable.digest
-    && expectedLatest.digest === currentLatest.digest;
+  const stableMatchesExpected = descriptorMatches(currentStable, expectedStable);
+  const latestMatchesExpected = descriptorMatches(currentLatest, expectedLatest);
+  const expectedMatchesCurrent = stableMatchesExpected && latestMatchesExpected;
   let decision: PromotionDecision;
   let writeCount = 0;
   if (currentStable.status === 'unknown' || currentLatest.status === 'unknown') {
     decision = 'prestate_unknown';
   } else if (
-    currentStable.status === 'present'
-    && currentStable.digest === target.digest
-    && currentLatest.status === 'present'
+    currentLatest.status === 'present'
     && currentLatest.digest === target.digest
+    && (
+      (mode === 'production_follower'
+        && currentStable.status === 'present'
+        && currentStable.digest === target.digest)
+      || (mode === 'development_validation' && stableMatchesExpected)
+    )
   ) {
     decision = 'idempotent';
   } else if (expectedMatchesCurrent) {
@@ -463,6 +502,8 @@ export function decideWebuiStablePromotion(
     stable_ref: target.stable_ref,
     latest_ref: target.latest_ref,
     target_digest: target.digest,
+    authority_mode: mode,
+    promotion_tags: promotionTags(mode),
     expected_prestate: expected,
     observed_prestate: {
       stable: { status: currentStable.status, digest: currentStable.digest },
@@ -472,7 +513,7 @@ export function decideWebuiStablePromotion(
     authorized_tag_attempts: writeCount,
   };
   return {
-    schema: 'opl_app_webui_stable_promotion_decision.v1',
+    schema: 'opl_app_webui_stable_promotion_decision.v2',
     status: decision === 'idempotent' || decision === 'write_once' ? 'admitted' : 'rejected',
     decision,
     write_performed: false,
@@ -490,9 +531,12 @@ export function writeWebuiStablePromotionReceipt(input: {
   anonymousReadback: JsonRecord;
   latestAnonymousReadback: JsonRecord;
 }): JsonRecord {
-  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v3', 'admission schema');
-  exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v1', 'decision schema');
+  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v4', 'admission schema');
+  exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v2', 'decision schema');
+  const mode = authorityMode(input.admission.authority_mode);
   const target = record(input.admission.target, 'admission.target');
+  const expected = record(input.admission.expected_prestate, 'admission.expected_prestate');
+  const expectedStable = record(expected.stable, 'admission.expected_prestate.stable');
   const decision = text(input.decision.decision, 'decision.decision') as PromotionDecision;
   const attemptCount = Number(input.mutation.attempt_count);
   if (!Number.isSafeInteger(attemptCount) || attemptCount < 0 || attemptCount > 1) {
@@ -518,14 +562,20 @@ export function writeWebuiStablePromotionReceipt(input: {
     target.latest_ref,
     'anonymous Latest final readback',
   );
-  const targetObserved =
-    anonymous.status === 'present'
-    && anonymous.digest === target.digest
-    && latestAnonymous.status === 'present'
-    && latestAnonymous.digest === target.digest;
-  const boundedTargetObserved = observations.some(
+  const stableFinalObserved = mode === 'production_follower'
+    ? anonymous.status === 'present' && anonymous.digest === target.digest
+    : descriptorMatches(anonymous, expectedStable);
+  const latestFinalObserved =
+    latestAnonymous.status === 'present' && latestAnonymous.digest === target.digest;
+  const targetObserved = stableFinalObserved && latestFinalObserved;
+  const boundedStableObserved = observations.some((entry) =>
+    mode === 'production_follower'
+      ? entry.status === 'present' && entry.digest === target.digest
+      : descriptorMatches(entry, expectedStable));
+  const boundedLatestObserved = latestObservations.some(
     (entry) => entry.status === 'present' && entry.digest === target.digest,
-  ) && latestObservations.some((entry) => entry.status === 'present' && entry.digest === target.digest);
+  );
+  const boundedTargetObserved = boundedStableObserved && boundedLatestObserved;
   let status: 'complete' | 'idempotent' | 'reconciled_complete' | 'outcome_unknown' | 'failed';
   if (decision === 'idempotent') {
     if (attemptCount !== 0) throw new Error('idempotent decision cannot perform a tag mutation.');
@@ -552,6 +602,7 @@ export function writeWebuiStablePromotionReceipt(input: {
   }
   const evidence = {
     authority_mode: input.admission.authority_mode,
+    classification: input.admission.classification,
     admission_input_digest: input.admission.input_digest,
     decision_input_digest: input.decision.input_digest,
     stable_authority: input.admission.stable_authority,
@@ -563,6 +614,7 @@ export function writeWebuiStablePromotionReceipt(input: {
       decision,
       expected_prestate: input.admission.expected_prestate,
       observed_prestate: input.decision.observed_prestate,
+      promotion_tags: promotionTags(mode),
       tag_attempt_count: attemptCount,
       second_tag_attempted: false,
     },
@@ -570,12 +622,8 @@ export function writeWebuiStablePromotionReceipt(input: {
     reconcile: {
       maximum_readbacks: 3,
       performed_readbacks: Math.max(observations.length, latestObservations.length),
-      stable_target_observed: observations.some(
-        (entry) => entry.status === 'present' && entry.digest === target.digest,
-      ),
-      latest_target_observed: latestObservations.some(
-        (entry) => entry.status === 'present' && entry.digest === target.digest,
-      ),
+      stable_expected_state_observed: boundedStableObserved,
+      latest_target_observed: boundedLatestObserved,
     },
     anonymous_readback: {
       stable: {
@@ -587,6 +635,7 @@ export function writeWebuiStablePromotionReceipt(input: {
         digest: latestAnonymous.digest,
       },
       logout_before_readback: input.anonymousReadback.logout_before_readback === true,
+      stable_unchanged: mode === 'development_validation' ? stableFinalObserved : null,
     },
   };
   if (status !== 'failed' && status !== 'outcome_unknown') {
@@ -599,7 +648,7 @@ export function writeWebuiStablePromotionReceipt(input: {
     }
   }
   return {
-    schema: 'opl_app_webui_stable_promotion_receipt.v3',
+    schema: 'opl_app_webui_stable_promotion_receipt.v4',
     status,
     mutation_performed: attemptCount === 1,
     retry_allowed: false,
