@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 const gitShaPattern = /^[0-9a-f]{40}$/;
@@ -40,6 +41,10 @@ export function bindWindowsRcFrameworkManifest(
   return bound;
 }
 
+export function isMainModule(moduleUrl: string, entryUrl: URL): boolean {
+  return moduleUrl === entryUrl.href;
+}
+
 function main() {
   const { values } = parseArgs({
     options: {
@@ -65,6 +70,6 @@ function main() {
   );
 }
 
-if (import.meta.url === `file://${path.resolve(process.argv[1] ?? "")}`) {
+if (isMainModule(import.meta.url, pathToFileURL(process.argv[1] ?? ""))) {
   main();
 }

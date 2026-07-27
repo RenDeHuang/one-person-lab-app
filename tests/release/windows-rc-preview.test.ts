@@ -6,7 +6,10 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 import { appRoot } from './app-release-boundary-cases/helpers.ts';
-import { bindWindowsRcFrameworkManifest } from '../../scripts/bind-windows-rc-framework-manifest.ts';
+import {
+  bindWindowsRcFrameworkManifest,
+  isMainModule,
+} from '../../scripts/bind-windows-rc-framework-manifest.ts';
 import { buildWindowsRcBuildCohort } from '../../scripts/write-windows-rc-build-cohort.ts';
 
 const appSha = 'a'.repeat(40);
@@ -224,6 +227,20 @@ test('Windows RC Framework binder writes the exact ref and URLs into the package
   assert.throws(
     () => bindWindowsRcFrameworkManifest(manifestPath, 'main'),
     /exact 40-character Git SHA/,
+  );
+});
+
+test('Windows RC Framework binder recognizes a Windows file URL entrypoint', () => {
+  const entry = new URL(
+    'file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/bind-windows-rc-framework-manifest.ts',
+  );
+  assert.equal(isMainModule(entry.href, entry), true);
+  assert.equal(
+    isMainModule(
+      'file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/another-script.ts',
+      entry,
+    ),
+    false,
   );
 });
 
