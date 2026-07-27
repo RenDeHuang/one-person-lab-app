@@ -14,6 +14,7 @@ const requiredScripts = {
   'gui': 'node --experimental-strip-types scripts/gui-launcher.ts',
   'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
   'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
+  'validate:windows-platform-factory': 'node --experimental-strip-types scripts/validate-windows-platform-factory.ts',
   'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',
   'release:framework-adapter': 'node --experimental-strip-types scripts/framework-release-adapter.ts',
   'release:deadline': 'node --experimental-strip-types scripts/release-operation-deadline.ts',
@@ -34,6 +35,8 @@ function writeRootPackage(root: string, overrides = {}): void {
       scripts: requiredScripts,
       devDependencies: {
         '@types/node': '22.15.3',
+        ajv: '8.18.0',
+        'ajv-formats': '3.0.1',
         typescript: '5.8.3',
         yaml: '2.8.1',
       },
