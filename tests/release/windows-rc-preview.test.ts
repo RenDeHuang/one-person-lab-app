@@ -120,11 +120,18 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const manualText = fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8');
   const reusable = parseYaml(reusableText) as any;
   const manual = parseYaml(manualText) as any;
-  const steps = reusable.jobs.build.steps as Array<{ name?: string; if?: string; run?: string; with?: any }>;
+  const steps = reusable.jobs.build.steps as Array<{ name?: string; if?: string; run?: string; with?: any; env?: any }>;
   const macCohort = steps.find((step) => step.name === 'Write build artifact cohort manifest');
   const windowsCohort = steps.find((step) => step.name === 'Write Windows RC build artifact cohort manifest');
   const windowsNativeRebuild = steps.find(
     (step) => step.name === 'Rebuild native modules for Electron (Windows)',
+  );
+  const windowsRuntime = reusable.jobs['prepare-windows-linux-runtime'];
+  const windowsRuntimeDownload = steps.find(
+    (step) => step.name === 'Download target-executed Linux runtime',
+  );
+  const windowsBuilder = steps.find(
+    (step) => step.name === 'Build with electron-builder (Windows)',
   );
   const upload = steps.find((step) => step.name === 'Upload build artifacts');
 
@@ -139,6 +146,20 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(
     String(windowsNativeRebuild?.run),
     /if \(-not \(Test-Path \$sqliteNode\)\) \{[\s\S]+bunx electron-rebuild/,
+  );
+  assert.match(String(windowsRuntime?.if), /contains\(inputs\.matrix, 'windows'\)/);
+  assert.match(
+    String(windowsRuntime?.steps?.find((step: { name?: string }) =>
+      step.name === 'Prepare target-executed Linux runtime')?.run),
+    /platform: 'linux'[\s\S]+materializeInternalSymlinksForWindows: true/,
+  );
+  assert.equal(
+    windowsRuntimeDownload?.with?.name,
+    'opl-windows-linux-runtime-${{ github.run_id }}',
+  );
+  assert.equal(
+    windowsBuilder?.env?.AIONUI_PREPARED_AIONCORE_RUNTIME_DIR,
+    '${{ runner.temp }}/opl-windows-linux-runtime',
   );
   assert.match(String(upload?.with?.path), /opl-windows-rc-build-cohort\.json/);
   assert.equal(manual.on.workflow_dispatch.inputs.shell_ref.type, 'string');

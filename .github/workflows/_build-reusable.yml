@@ -227,6 +227,61 @@ jobs:
         working-directory: .
         run: node --experimental-strip-types scripts/run-active-shell-tests.ts --project ${{ matrix.project }} --chunk-size 8 --max-workers 2
 
+  prepare-windows-linux-runtime:
+    name: Prepare Windows Linux runtime
+    runs-on: ubuntu-latest
+    if: ${{ inputs.mode != 'canary' && contains(inputs.matrix, 'windows') }}
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout active shell
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref || 'main' }}
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Prepare target-executed Linux runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const path = require('node:path');
+          const {
+            prepareAioncore,
+          } = require('./shells/aionui/packages/shared-scripts/src/prepare-aioncore.js');
+          const {
+            resolveAioncoreVersion,
+          } = require('./shells/aionui/scripts/resolveAioncoreVersion.js');
+
+          const projectRoot = path.resolve('shells/aionui');
+          prepareAioncore({
+            projectRoot,
+            platform: 'linux',
+            arch: 'x64',
+            version: resolveAioncoreVersion(projectRoot),
+            materializeInternalSymlinksForWindows: true,
+          });
+          NODE
+
+      - name: Upload target-executed Linux runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-windows-linux-runtime-${{ github.run_id }}
+          path: shells/aionui/resources/bundled-aioncore/linux-x64
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
   macos-signing-preflight:
     name: macOS release signing preflight
     runs-on: macos-14
@@ -286,8 +341,9 @@ jobs:
       - typecheck
       - release-boundary
       - active-shell-tests
+      - prepare-windows-linux-runtime
       - macos-signing-preflight
-    if: ${{ always() && inputs.mode != 'canary' && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
+    if: ${{ always() && inputs.mode != 'canary' && (needs['prepare-windows-linux-runtime'].result == 'success' || needs['prepare-windows-linux-runtime'].result == 'skipped') && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
     defaults:
       run:
         working-directory: shells/aionui
@@ -364,6 +420,13 @@ jobs:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
+
+      - name: Download target-executed Linux runtime
+        if: startsWith(matrix.platform, 'windows')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-windows-linux-runtime-${{ github.run_id }}
+          path: ${{ runner.temp }}/opl-windows-linux-runtime
 
       - name: Get commit hash
         id: commit
@@ -621,6 +684,7 @@ jobs:
           iex $env:WINDOWS_BUILD_COMMAND
         env:
           WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
+          AIONUI_PREPARED_AIONCORE_RUNTIME_DIR: ${{ runner.temp }}/opl-windows-linux-runtime
           NODE_OPTIONS: '--max-old-space-size=8192'
           npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
           npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
