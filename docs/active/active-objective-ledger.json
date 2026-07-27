@@ -6,12 +6,12 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T18:34:29Z",
+  "generated_at": "2026-07-27T18:43:10Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "41c849120c811a0903202008a442965ac2bca857",
-    "tree": "67d4274000bdbcf2e331e4c8ef9eb8c1f2479041",
+    "commit": "c2f81c48d7a62bf7a0a55e685196d37bf3e0716c",
+    "tree": "f71a179ba50f7bb8c5f3ded875de449ba298f8fd",
     "observation": "local main, origin/main and canonical wire aligned before this currentness refresh; task-branch checkpoint, canonical absorption and effective runtime remain separate authorities"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
@@ -195,14 +195,16 @@
       "scope": "Retire custom Package Manager lifecycle machinery after carrier-native replacement, affected outcome replay and consumer-zero proof.",
       "current_evidence": [
         "Fresh Codex Plugin Manager readback lists opl-relay@opl-relay version 0.4.1 and opl-persona@opl-persona-local version 0.1.0 as installed and enabled.",
-        "Fresh effective opl app state --profile fast --json projects eight Packages: Relay is present with selected/installed version 0.4.1, ready, operational, launch-allowed and installed/callable through the native carrier; Persona remains absent.",
-        "Relay is ready but the current projection still recommends agent_package_repair, so action recommendation semantics are not yet terminal.",
-        "Framework W3 task branch b273bb7c032aa52fba502f88e5d87a750a833fc5/tree c78ec68d00770cbb38ebe977d51acbd93594d987 is clean and local/tracking/wire aligned; focused directory tests pass 22/22 and typecheck passes. Framework canonical origin/main remains db526ad8360442c8fe7a7f7a644475d82db20b15, so W3 is not canonical.",
-        "The formal W3 lifecycle receipt still records remote recovery db526ad8360442c8fe7a7f7a644475d82db20b15/tree 9ceb4a18696565e038d6d783d19f70a09232cfa4 even though the task branch advanced; the W3 owner must checkpoint the current clean branch before integration.",
-        "The real owner-descriptor layout is heterogeneous: Relay currently exposes plugins/opl-relay/opl-package.json, while Persona exposes packages/opl-persona/package.json. The preferred simplification is one plugin-source-root owner descriptor contract; any compatibility fallback must be explicitly bounded and must not recreate registry/cache/lock/receipt authority.",
-        "Shell main is aligned with its canonical wire and has zero active worktrees; no App, Shell or Persona implementation lane was started by this audit."
+        "Fresh effective opl app state --profile fast --json projects nine Packages and includes both Relay and Persona; both are marked ready, operational, launch-allowed and installed/callable through their native carriers.",
+        "Relay selected/installed versions agree at 0.4.1. Persona selected descriptor version is 0.1.1 while native installed version remains 0.1.0, yet the current projection still reports ready instead of a currentness/update diagnostic.",
+        "Relay and Persona are ready/callable but both currently recommend agent_package_repair, so action recommendation semantics are not yet terminal.",
+        "Framework canonical main fe889c4a5079bd709eda2df44b99b77a091a6353/tree c78ec68d00770cbb38ebe977d51acbd93594d987 now contains the W3 discovery tree. Task branch b273bb7c032aa52fba502f88e5d87a750a833fc5 is clean, local/tracking/wire aligned and tree-equivalent; focused directory tests pass 22/22 and typecheck passes.",
+        "The formal W3 lifecycle receipt still records remote recovery db526ad8360442c8fe7a7f7a644475d82db20b15/tree 9ceb4a18696565e038d6d783d19f70a09232cfa4 even though source is canonical; the original W3 owner must refresh its receipt as needed and close the tree-equivalent lane after holders exit.",
+        "Persona canonical main c96dae11a1a57ff539cf568bdd0e127acc2a85a7/tree 7bbc3f58f4f22ca3d8b4f8dda70bd16677c06e06 now carries plugins/opl-persona/opl-package.json version 0.1.1. Its original candidate branch 139b09229ed2ceaecdeef41a4a5ccb2a15c5022b is tree-equivalent and remains an ACTIVE owner-close obligation while holders are present.",
+        "Relay and Persona now both expose the owner descriptor at sourcePath/opl-package.json, so no repository-wide descriptor fallback is required.",
+        "Shell main is aligned with its canonical wire and has zero active worktrees; this audit started no new App or Shell implementation lane."
       ],
-      "next_action": "The existing Framework W3 owner must first checkpoint b273bb7c032aa52fba502f88e5d87a750a833fc5 in the formal lifecycle receipt, then lock the owner descriptor contract, correct ready-state action recommendations and prove Persona plus Relay in one fresh native two-plugin readback with zero private lifecycle writes. After this ledger refresh is canonical, Persona descriptor alignment may start as a separate non-overlapping producer lane if required; App/Shell consumption still waits for the two-plugin proof and Framework fresh-main absorption.",
+      "next_action": "The original Framework W3 and Persona candidate owners must close their tree-equivalent lanes after holders exit. After this ledger refresh is canonical, open at most one new Framework status/action follow-up lane to project Persona installed 0.1.0 versus descriptor 0.1.1 as explicit currentness/update evidence and stop recommending repair for ready/callable Packages. Discovery and owner descriptors are canonical; App/Shell consumer work still waits for the corrected generic status/action contract.",
       "integration_order": 6,
       "parallel_group": "package-retirement",
       "estimated_remaining": {
@@ -215,7 +217,7 @@
           {"name": "fresh-main absorption and installed proof", "duration": "1-3h", "necessary": "separate source completion from live terminal"}
         ]
       },
-      "terminal_gaps": ["current W3 lifecycle checkpoint", "Persona discovery projection", "Relay/Persona two-plugin fresh readback", "ready-state native action semantics", "Framework canonical absorption", "aggregate gates", "App/Shell consumer switch", "consumer-zero per family", "legacy deletion", "installed proof and cleanup"]
+      "terminal_gaps": ["W3 and Persona candidate owner-close", "installed-versus-descriptor currentness semantics", "ready-state native action semantics", "aggregate gates", "App/Shell consumer switch", "consumer-zero per family", "legacy deletion", "installed proof and cleanup"]
     },
     {
       "id": "carrier-native-installed-package-discovery",
@@ -227,24 +229,23 @@
       "scope": "Make installed and enabled Codex Plugins discoverable as carrier-neutral OPL Packages through Framework dynamic directory, status and action projections, beginning with OPL Relay and OPL Persona.",
       "current_evidence": [
         "opl-relay@opl-relay version 0.4.1 and opl-persona@opl-persona-local version 0.1.0 are installed and enabled in native Codex Plugin Manager readback.",
-        "Effective app_state.agent_packages.directory has entry_count=8 and includes opl-relay; opl-persona count remains zero.",
-        "Relay projects selected_version=installed_version=0.4.1, readiness=ready, operational_ready=true, launch_allowed=true, configured carrier status=installed and executor status=callable.",
-        "Relay still recommends agent_package_repair despite ready/callable state, which remains an unresolved projection semantic.",
-        "The unique Framework W3 branch is clean and remote-recoverable at b273bb7c032aa52fba502f88e5d87a750a833fc5/tree c78ec68d00770cbb38ebe977d51acbd93594d987 with 22/22 focused directory tests and typecheck passing, but it is ahead of canonical Framework main and its formal lifecycle checkpoint is stale.",
-        "Relay has sourcePath/opl-package.json while Persona keeps its equivalent descriptor at packages/opl-persona/package.json outside the native plugin source root; the current W3 resolver therefore discovers Relay only."
+        "Effective app_state.agent_packages.directory has entry_count=9 and includes both opl-relay and opl-persona.",
+        "Relay projects selected_version=installed_version=0.4.1. Persona projects selected_version=0.1.1 and installed_version=0.1.0. Both report readiness=ready, operational_ready=true, launch_allowed=true, carrier status=installed and executor status=callable.",
+        "Both Relay and Persona recommend agent_package_repair despite ready/callable state; Persona also lacks an explicit update/currentness diagnostic for its installed-versus-descriptor version difference.",
+        "Framework canonical main fe889c4a5079bd709eda2df44b99b77a091a6353 has tree c78ec68d00770cbb38ebe977d51acbd93594d987, equal to clean W3 task branch b273bb7c032aa52fba502f88e5d87a750a833fc5. Focused directory tests pass 22/22 and typecheck passes; the task lane remains an owner-close obligation because its lifecycle receipt is stale and holders are present.",
+        "Persona canonical main now places its descriptor at plugins/opl-persona/opl-package.json, matching Relay's sourcePath/opl-package.json contract. The earlier Persona candidate branch is tree-equivalent to canonical and remains only an owner-close obligation."
       ],
-      "next_action": "The existing Framework W3 owner must update the formal checkpoint to b273bb7c032aa52fba502f88e5d87a750a833fc5, fix ready-state recommended-action semantics, and lock the canonical owner descriptor contract, preferably sourcePath/opl-package.json. After this ledger refresh is canonical, a separate Persona producer owner may align plugins/opl-persona/opl-package.json if that contract is selected; any Framework fallback must remain constrained to an explicit local owner repository. W3 must then prove fresh native Relay/Persona directory/status/action readback and zero registry cache, lock or receipt writes before Framework main absorption or App/Shell consumer work.",
+      "next_action": "The original W3 and Persona candidate owners must complete holder-zero owner-close. After this ledger refresh is canonical, one new Framework follow-up owner may project Persona's installed 0.1.0 versus descriptor 0.1.1 as explicit currentness/update evidence and remove agent_package_repair as the recommendation for ready/callable Packages. Rerun affected aggregate gates before any App/Shell consumer implementation; do not reopen discovery or create another descriptor lane.",
       "integration_order": 6,
       "parallel_group": "package-retirement",
       "estimated_remaining": {
-        "wall_clock": "1-3h for W3 checkpoint currentness, Persona discovery and two-plugin proof; App/Shell consumption remains a later slice",
+        "wall_clock": "0.5-2h for owner-close plus one status/action semantic follow-up; App/Shell consumption remains a later slice",
         "steps": [
-          {"name": "formal W3 checkpoint and action-semantic repair", "duration": "0.5-1h", "necessary": "bind the already clean remote branch and avoid recommending repair for a ready Package"},
-          {"name": "owner-descriptor contract and Persona alignment boundary", "duration": "0.5-1h", "necessary": "prefer one plugin-source-root descriptor and avoid permanent repository-path inference"},
-          {"name": "native two-plugin verification and Framework absorption", "duration": "1-2h", "necessary": "prove Relay and Persona through the real Plugin Manager before consumer integration"}
+          {"name": "W3 and Persona holder-zero owner-close", "duration": "0.25-0.75h", "necessary": "remove completed source lanes without recreating writers"},
+          {"name": "currentness and ready-action semantic follow-up", "duration": "0.5-1.5h", "necessary": "expose installed/descriptor drift and avoid recommending repair for ready Packages"}
         ]
       },
-      "terminal_gaps": ["current formal W3 checkpoint", "Persona discovery projection", "two-plugin fresh readback", "ready-state action recommendation", "Framework canonical absorption", "App/Shell consumer switch"]
+      "terminal_gaps": ["W3 and Persona owner-close", "installed-versus-descriptor currentness", "ready-state action recommendation", "App/Shell consumer switch"]
     },
     {
       "id": "stable-exact4-owner-close",
