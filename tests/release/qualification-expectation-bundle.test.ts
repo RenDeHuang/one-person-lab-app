@@ -94,6 +94,14 @@ test('compiler rejects scenario profile refs that do not match package and runti
   assert.throws(() => buildFirstRunCompiledExpectations(input), /compiled Full expectation profile/);
 });
 
+test('compiler keeps Full clean-VM qualification optional after publication', () => {
+  const input = sources();
+  const full = input.matrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
+  assert.equal(full.release_gate, false);
+  assert.equal(full.post_publication_optional_certification, true);
+  assert.deepEqual(input.matrix.provider_configuration_qualification.required_release_scenarios, []);
+});
+
 test('compiler rejects GUI, product-profile, page-state, and release policy drift', () => {
   for (const mutate of [
     (input) => { input.gui.home_agent_shortcuts_metadata_policy.package_id_allowlist_allowed = true; },

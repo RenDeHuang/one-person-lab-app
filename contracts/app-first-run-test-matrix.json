@@ -68,9 +68,7 @@
       "configure_codex_allowed": false,
       "installed_package_resolution": "framework_managed_and_independent_from_app_carrier"
     },
-    "required_release_scenarios": [
-      "full_dmg_clean_vm_smoke"
-    ]
+    "required_release_scenarios": []
   },
   "release_qualification_agent_target_fixture": {
     "role": "release_qualification_probe_input_only",
@@ -315,13 +313,14 @@
           "ecosystem_module_updates"
         ]
       },
-      "release_gate": true,
+      "release_gate": false,
+      "post_publication_optional_certification": true,
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "full"
       },
       "compiled_expectation_ref": "contracts/app-first-run-compiled-expectations.json#profiles.full",
@@ -487,7 +486,7 @@
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard"
       },
       "diagnostics_contract": {
@@ -653,7 +652,7 @@
         "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
         "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard"
       },
       "diagnostics_contract": {
@@ -799,14 +798,15 @@
     {
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
-      "release_gate": true,
+      "release_gate": false,
+      "post_publication_optional_certification": true,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "full"
       },
       "diagnostics_contract": {

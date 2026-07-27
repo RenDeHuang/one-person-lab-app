@@ -944,6 +944,32 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
 });
 
 test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const vmGates = releaseContract.release_acceleration.vm_gates;
+  assert.deepEqual(
+    vmGates.map((gate: Record<string, unknown>) => gate.id),
+    [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+    ],
+  );
+  for (const gate of vmGates) {
+    assert.equal(gate.diagnostic_scope, 'post_publication_optional_certification');
+    assert.equal(gate.gate_policy, 'optional_non_blocking_same_published_artifact');
+    assert.ok(Array.isArray(gate.certification_readiness));
+    assert.equal('release_blocking_readiness' in gate, false);
+  }
+  const stableValidation = releaseContract.release_validation_profiles.stable;
+  assert.equal(stableValidation.addon_gate_blocking_standard_terminal, false);
+  assert.equal(stableValidation.addon_lanes.includes('full_dmg_clean_vm_smoke'), false);
+  assert.equal(
+    stableValidation.post_publication_optional_certification_surfaces.includes('full_dmg_clean_vm_smoke'),
+    true,
+  );
+
   const standard = parseWorkflow('_release-standard-publish.yml');
   const publish = standard.jobs['publish-standard-nonlatest'];
   const homebrew = standard.jobs['publish-homebrew-standard'];

@@ -450,6 +450,71 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
   return failures;
 }
 
+function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
+  const acceleration = releaseContract.release_acceleration;
+  const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  let failures = 0;
+  if (
+    JSON.stringify(vmGates.map((gate) => gate?.id)) !== JSON.stringify([
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+    ]) ||
+    vmGates.some((gate) =>
+      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+      !Array.isArray(gate?.certification_readiness) ||
+      gate.certification_readiness.length === 0 ||
+      'release_blocking_readiness' in gate
+    )
+  ) {
+    console.error('FAIL release_vm_certification_policy: every physical VM gate must be post-publication, same-artifact, and non-blocking');
+    failures += 1;
+  }
+  const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
+  const legacyVmGate = acceleration?.vm_gate;
+  const legacyVmMirrorFields = [
+    'source',
+    'artifact',
+    'smoke_profile',
+    'display',
+    'settings_smoke',
+    'diagnostic_scope',
+    'runtime_profile',
+    'codex_config_wizard',
+    'gate_policy',
+    'certification_readiness',
+    'post_core_ready_background_policy',
+  ];
+  if (
+    !fullVmGate ||
+    !legacyVmGate ||
+    legacyVmMirrorFields.some((field) =>
+      JSON.stringify(legacyVmGate[field]) !== JSON.stringify(fullVmGate[field])
+    ) ||
+    'release_blocking_readiness' in legacyVmGate
+  ) {
+    console.error('FAIL release_vm_legacy_mirror: legacy Full VM policy must mirror the optional certification gate');
+    failures += 1;
+  }
+  const stableValidation = releaseContract.release_validation_profiles?.stable;
+  if (
+    stableValidation?.addon_gate_blocking_standard_terminal !== false ||
+    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !sameStringSet(stableValidation?.post_publication_optional_certification_surfaces, [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'one_shot_app_installer_fresh_install_smoke',
+      'full_dmg_clean_vm_smoke',
+    ])
+  ) {
+    console.error('FAIL release_stable_optional_certification: physical VM coverage must remain outside the Stable publication terminal');
+    failures += 1;
+  }
+  return failures;
+}
+
 function validateReleaseExecutionTracks(releaseContract: Record<string, any>): number {
   const policy = releaseContract.release_execution_tracks;
   const local = policy?.tracks?.local;
@@ -1417,6 +1482,8 @@ export function validateReleaseAccelerationPolicy(
     !sameStringSet(homebrew?.excluded_casks, []) ||
     !sameStringSet(homebrew?.full_casks, ['one-person-lab-full']) ||
     homebrew?.tap_update_policy?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
+    homebrew?.tap_update_policy?.stable?.mode !==
+      'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest' ||
     homebrew?.tap_update_policy?.stable?.publication_mode !==
       'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest' ||
     homebrew?.tap_update_policy?.stable?.may_consume_nightly_directly !== false ||
@@ -1430,7 +1497,7 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.nightly?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
     homebrew?.tap_update_policy?.full?.mode !== 'implemented_unpublished_generator_target' ||
     homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== false ||
-    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== true ||
+    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== false ||
     homebrew?.tap_update_policy?.full?.framework_carrier !== 'full_dmg_embedded_opl_base' ||
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
     homebrew?.tap_update_policy?.full?.promotion_status !== 'not_approved_until_promotion_requirements_pass' ||
@@ -1584,6 +1651,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateOptionalCertificationPolicy(releaseContract);
+  failures += validatePhysicalVmOptionalCertificationPolicy(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
   failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
