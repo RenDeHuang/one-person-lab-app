@@ -6,7 +6,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-27T16:07:49Z",
+  "generated_at": "2026-07-27T16:10:00Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -162,7 +162,7 @@
       ],
       "scope": "Converge useful historical work, prove owner status, and remove only absorbed task-owned worktrees, refs, receipts, holders and temporary artifacts.",
       "current_evidence": [
-        "App has three formally ACTIVE owned non-root lanes: installer-route fix, inactive-branch convergence and this ledger lane",
+        "App has two formally ACTIVE owned non-root lanes: installer-route closeout and this ledger lane; inactive-branch convergence is owner-closed",
         "one historical detached App worktree is exact_merged but requires holder/owner recovery proof",
         "stale receipts remain across App, Relay and iCloud paths"
       ],
@@ -233,8 +233,8 @@
   ],
   "worktree_snapshot": {
     "repository": "one-person-lab-app",
-    "observed_non_root_count": 4,
-    "active_owned_count": 3,
+    "observed_non_root_count": 3,
+    "active_owned_count": 2,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
     "holder_proof_required_count": 1,
