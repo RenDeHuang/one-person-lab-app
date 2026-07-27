@@ -29,14 +29,17 @@ Machine owners:
 
 - Standard/Full 是同一产品和 Official Profile 的两种首装密度，不是两套产品，
   也不应被重复计作发布频道或运行形态。
-- `Latest` 是某个载体命名空间内的推荐生产指针，不是“最新构建”的同义词。
+- `Latest` 是某个载体命名空间内供自动更新器消费的可变指针，不是质量、频道或
+  “最新构建”的同义词。
 - Desktop GitHub `Latest` 与 WebUI GHCR `:latest` 是两个载体各自的指针；生产
-  follower 将它们绑定到同一 App Stable cohort，开发期仍允许双轨验证。
+  默认由各自最新合格 Stable 接管，开发期仍允许双轨验证。
 - `one-person-lab-nightly` 的产品语义保留：它是 Standard 密度的自动预发布，
   不是 Full。当前实现每天自动复用与 Stable 相同的物理 Standard build，
   发布不可变 GitHub prerelease，再由独立 digest-bound follower 更新 Nightly Cask；
-  它不改变 Latest，不进入 Stable Bundle 或重型 VM 门禁。低频 clean-VM 只作
-  发布后抽样、失败不阻塞该次 Nightly。
+  schedule 默认不改变 Latest，也不进入 Stable Bundle 或重型 VM 门禁。用户可以
+  通过独立的 protected single-use pointer operation 临时让某个 exact Nightly
+  接管 Latest；该操作不改变 Preview 质量。低频 clean-VM 只作发布后抽样、失败
+  不阻塞该次 Nightly。
 - `one-person-lab-full` 的目标是可正常 Homebrew 安装。当前公开 Cask 仍是旧版且
   额外依赖 Formula `opl`；本仓生成器已能生成“不装 Formula、直接消费 Full DMG
   内嵌 Base/seeds”的正确 Cask，但尚未公开晋升和 clean-host readback。
@@ -50,37 +53,47 @@ Machine owners:
 ## 正交语义
 
 过去的主要混乱来自把频道、指针、载荷和运行形态混在同一个名字里。以后按
-以下六个维度表达：
+以下七个维度表达：
 
 | 维度 | 取值 | 含义 |
 | --- | --- | --- |
-| 质量/预发布通道 | Stable / Nightly / Preview | Stable 是生产资格；Nightly 是自动 opt-in 预发布；Preview 是未达到 Stable 的手工/局部交付 |
-| 推荐指针 | Latest | 当前推荐的生产 Release，可移动 |
+| `quality_status` | Stable / Preview | 唯一质量轴；Stable 是完整生产资格，Preview 尚未取得或尚未声明该资格 |
+| `build_trigger` | Manual / Automated | 构建如何触发；不单独决定质量或 Latest |
+| `preview_kind` | Dev / Nightly / `null` | 只读派生值：Preview + Manual = Dev，Preview + Automated = Nightly，Stable = `null` |
+| 更新指针 | Latest | 自动更新器当前选择的 exact published version；可移动且不改变质量 |
 | 载荷密度 | Standard / Full | 在线收敛或预置离线 seed |
 | 运行形态 | Desktop / Native WebUI / Container WebUI | 用户如何运行 App |
-| 构建来源 | Automated / Manual | 谁触发构建；不决定质量 |
 | 任务模式 | Development Validation / Production Release | 验证路径或正式生产编排 |
 
 必须遵守：
 
-1. Stable 是质量结论；Latest 是可变指针。
-2. Latest 默认指向最新通过生产门禁的 Stable。
-3. 手工构建只有通过与自动构建相同的 Stable 门禁并正式晋升后，才可成为
-   Latest。未经门禁的手工版本仍是 Preview。
-4. 下一个合格 Stable 发布时，Latest 自动回到该 Stable。
-5. Preview、Nightly、Canary 和单纯的开发环境覆盖都不能成为生产 Latest。
-6. Full 不拥有独立版本频道、更新器或 Package currentness。
+1. `quality_status`、`build_trigger` 和 Latest 是互相独立的轴；Nightly 只是当前
+   产品中的 automated Preview，Dev 只是 manual Preview，不是第三、第四种质量。
+2. `preview_kind` 只能由前两轴派生，不得由调用方独立写入或制造非法组合。
+3. `promote_quality` 只把同一 exact artifact digest 的 Preview 晋升为 Stable；
+   它必须消费与直接 Stable 完全相同的门禁和 qualification receipt，不移动 Latest，
+   也不得回写不可变 build manifest 来伪造质量。
+4. `move_latest_pointer` 只移动自动更新指针。目标可以是任一 exact published
+   Stable、Dev Preview 或 Nightly Preview，质量必须保持不变。
+5. Preview 接管 Latest 必须具备用户明确要求、protected single-use authority、
+   expected-current CAS、exact digest/tag 绑定和 public readback，并持续披露
+   non-Stable 与 skipped/failed gates。
+6. single-use authority 只授权当前一次 CAS，不形成持久 override。最新 qualified
+   Stable 默认接管 Latest；下一个 qualified Stable 默认 reclaim。
+7. 任一发布、晋升或指针操作失败时，现有 Latest/LKG 保持不变。
+8. Canary 和单纯的开发环境覆盖没有 exact published artifact，不能成为 Latest。
+9. Full 不拥有独立版本频道、更新器或 Package currentness。
 
 ## 当前发布侧
 
 | 发布路径 | 当前状态 | 产物或指针 | 维护规则 |
 | --- | --- | --- | --- |
-| Desktop Stable GitHub Release | Active | Standard DMG/ZIP、updater metadata、prepared notes、Latest | 唯一入口是 `release-stable.yml`；`standard` / `resume_standard` / `append_full` |
+| Desktop Stable GitHub Release | Active | Standard DMG/ZIP、updater metadata、prepared notes、Latest | 唯一入口是 `release-stable.yml`；qualified Stable 默认接管 Latest；`standard` / `resume_standard` / `append_full` |
 | Full additive publish | Active，属于 Desktop Stable | Full DMG + manifest | 与 Standard 同 frozen Bundle/Official Profile；只增加离线 seed，不改 Latest/updater |
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | OCI digest、`:latest`，`:stable` 为同 digest 兼容 alias | 开发可双轨验证；生产通过 Desktop handoff follower，失败不改写 Desktop 终态 |
-| Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | `make_latest=false`；不能改 updater、Homebrew 或 Stable |
-| Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule；不含 Full/WebUI、不改 Latest、不复用 Stable mutex；抽样 VM 非阻塞 |
+| Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | 发布默认 `make_latest=false`；独立 protected pointer operation 可选择 exact Preview，但不能暗升 Stable 或改写 Homebrew |
+| Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule 默认不改 Latest；独立 protected pointer operation 可临时选择 exact Nightly；不含 Full/WebUI、不复用 Stable mutex；抽样 VM 非阻塞 |
 | Full Homebrew Cask | Generator implemented, public target not promoted | 公开旧 Cask 仍指向旧 Full DMG 并依赖 Formula；目标 Cask 不依赖 Formula | 完成 pre-publication gates、受保护 CAS 发布和 post-publication readback 前不推荐 |
 | Native WebUI artifacts | Implemented candidate, unpublished/unqualified | 首批 Linux amd64 App Release tarball/manifest/install verifier | 独立 follower；不扩写 Stable operations；不改变 Container GHCR tags |
 | Canary | Validation-only，不是发布路径 | 无用户产物、无 moving tag mutation | 不继承发布 secrets，不执行公开写入 |
@@ -95,7 +108,7 @@ Machine owners:
 | GitHub Release Standard DMG | Desktop App；首启由 Framework 补齐 Base/Packages | Supported | 不使用 Homebrew 时的直接 GUI 路径 |
 | GitHub Release Full DMG | Desktop App + Base/Package offline seeds | Supported | 首次离线或希望最快达到完整能力时使用 |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | Supported | macOS 终端用户首选 |
-| App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由已实现，但 Desktop bootstrap 仍使用 `--with-app --skip-packages`，目前不是 Official Profile 一步收敛 |
+| App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由与 Desktop Official Profile 收敛已实现；Linux Native 仍需正式公开资产、clean-host qualification 和 public readback，完成前自动回退 Container WebUI |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
@@ -144,6 +157,17 @@ macOS helper。
 - Package 发布 current stable 只由各 owner 的 per-Package GHCR `latest-stable`
   定义；本机 installed/callable 只由 carrier readback 经 Framework 聚合定义。
   两者都不绑定 Desktop、DMG、Homebrew、WebUI 或 App Release 版本。
+- Package 的 immutable version tag 是 exact identity；`candidate` 是 Preview 指针，
+  `latest-stable` 是 Stable/current 指针，bare `latest` 保持退休。Nightly 只表示
+  automated build provenance，不另建消费 channel。
+- 同一自动日更 digest 可以先作为 Nightly candidate，通过完整 Stable qualification
+  后以同 digest 晋升 Stable 并更新 `latest-stable`；这表示三轴指向同一 digest，
+  不是 `latest = stable = nightly` 的概念等号。失败或无变化时 `latest-stable`
+  保持上一 LKG。
+- 当前 Package 自动闭环仍未完成：daily workflow 只负责 fingerprint detection 和
+  candidate evidence，immutable candidate publication、完整 qualification、protected
+  automatic promotion 与 anonymous/public readback 仍需由 Framework/Package owner
+  串成闭环。App 只记录该边界，不并写 Package authority。
 
 因此“一致”不是下面任何一种错误要求：
 
@@ -165,9 +189,11 @@ macOS helper。
 `one-person-lab-nightly` 使用 Standard Nightly DMG，并依赖 Formula `opl`；它从未
 等同于 Full。每日 schedule 通过共享 `_build-reusable.yml` 生成 Standard 资产，
 发布 immutable GitHub prerelease，随后独立 follower 只更新
-`Casks/one-person-lab-nightly.rb`。它不进入 Stable Bundle/mutex，不改变 Latest；
-每周抽样 clean-VM 是非阻塞发布后 follower。首个远端 publication、Cask 和抽样
-receipt 出现前，只能称“实现完成、公开 readback 待完成”，不能称通道终态已验证。
+`Casks/one-person-lab-nightly.rb`。它不进入 Stable Bundle/mutex，schedule 默认
+不改变 Latest；只有独立 protected single-use pointer operation 才能临时选择某个
+exact Nightly，且不得改变其 Preview 质量。每周抽样 clean-VM 是非阻塞发布后
+follower。首个远端 publication、Cask 和抽样 receipt 出现前，只能称“实现完成、
+公开 readback 待完成”，不能称通道终态已验证。
 
 ### Full
 
@@ -283,7 +309,7 @@ App contracts
 
 | 事实 | 唯一 owner |
 | --- | --- |
-| Stable/Nightly/Preview/Latest、载体状态、cohort | `contracts/app-release-channel.json#distribution_semantics` |
+| `quality_status`、`build_trigger`、派生 `preview_kind`、Latest、载体状态、cohort | `contracts/app-release-channel.json#distribution_semantics` |
 | 安装入口、平台路由、Homebrew profile、统一终态 | `contracts/app-install-exposure-policy.json#distribution_install_model` |
 | Base/Package 激活、installed/callable、Official Profile reconciliation | OPL Framework |
 | 当前公共版本、资产、tag/digest、Tap commit | 对应远端 fresh readback/receipt |
@@ -298,7 +324,9 @@ App contracts
 4. Homebrew 只负责索引和安装 App/Base carrier，不拥有 Package lifecycle。
 5. 对外标记 `supported` 前必须同时具备公开不可变资产、clean-host、升级/回滚、
    数据保留、Official Profile 和 fresh public readback。
-6. 临时开发/Preview 可以独立交付，但不得移动生产 Latest 或伪装成 Stable。
+6. 临时 Dev/Nightly Preview 可以独立交付；只有独立的 protected single-use exact
+   CAS operation 可以移动 Latest，且不得伪装成 Stable。下一 qualified Stable
+   默认 reclaim。
 
 ## 维护与晋升规则
 

@@ -6,18 +6,19 @@ State: `active`
 Machine boundary: Human-readable status. Use `contracts/` and release/test
 artifacts for machine decisions.
 
-Package composition Phase 1 is complete and pending user evaluation: the target SSOT
-and frozen implementation plan live in
+Package composition Phase 1 is complete and Phase 2 per-family retirement is active. The target SSOT,
+functionality-equivalence ledger and frozen implementation boundaries live in
 [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
-Its exact blob is canonical documentation authority; current contracts/source remain
-compatibility truth. Already-canonical changes are not reverted, but sealed
-commits/worktrees, tests and owner handoffs are not implementation completion or
-Phase 2 authorization. The current Framework main already includes owner-channel
+Its exact blob is canonical documentation authority; current canonical contracts/source and fresh
+platform readback remain implementation truth. Already-canonical changes are not reverted, but
+task commits/worktrees, tests and owner handoffs are only owner-bound checkpoints until fresh-main
+absorption and do not prove implementation completion. The current Framework main already includes owner-channel
 Package currentness and package-local required selection, but App-state still
-projects old lock/ABI/digest/materialization/receipt/LKG state. After canonical
-docs readback the next action is user
-evaluation; it does not automatically start implementation or block independent
-Stable/Package work.
+projects old lock/ABI/digest/materialization/receipt/LKG compatibility state. The next action is to
+continue the migration plan's per-family producer -> consumer -> OUT -> consumer-zero -> physical
+deletion loop. This Phase 2 source authority does not unlock canonical absorption, Stable/Latest,
+Package publication, WebUI promotion, real user managed-state mutation, or cleanup; those retain
+their own fresh owner gates and do not block zero-overlap source work.
 
 Plugin native profile pointer: `contracts/opl-native-profile.json` only declares
 the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
