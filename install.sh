@@ -321,6 +321,8 @@ normalize_runtime_form() {
 }
 
 NATIVE_INSTALLER_PATH=''
+NATIVE_RELEASE_RECORD_PATH=''
+NATIVE_QUALIFICATION_RECEIPT_PATH=''
 
 validate_native_mirror() {
   case "$OPL_NATIVE_WEBUI_MIRROR" in
@@ -380,6 +382,158 @@ cleanup_native_installer() {
   if [ -n "$NATIVE_INSTALLER_PATH" ]; then
     rm -f "$NATIVE_INSTALLER_PATH"
   fi
+  if [ -n "$NATIVE_RELEASE_RECORD_PATH" ]; then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+  fi
+  if [ -n "$NATIVE_QUALIFICATION_RECEIPT_PATH" ]; then
+    rm -f "$NATIVE_QUALIFICATION_RECEIPT_PATH"
+  fi
+}
+
+native_configuration_is_empty() {
+  [ -z "$OPL_NATIVE_WEBUI_MIRROR" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_VERSION" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_INSTALLER_URL" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_INSTALLER_SHA256" ]
+}
+
+discover_public_native_webui() {
+  native_configuration_is_empty || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+
+  NATIVE_RELEASE_RECORD_PATH=$(mktemp "${TMPDIR:-/tmp}/opl-native-webui-release.XXXXXX")
+  if ! curl -fsSL \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -H 'User-Agent: one-person-lab-installer' \
+    'https://api.github.com/repos/gaofeng21cn/one-person-lab-app/releases/latest' \
+    -o "$NATIVE_RELEASE_RECORD_PATH"; then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+    NATIVE_RELEASE_RECORD_PATH=''
+    return 1
+  fi
+
+  local discovery
+  if ! discovery=$(python3 - "$NATIVE_RELEASE_RECORD_PATH" <<'PY'
+import json
+import re
+import sys
+
+record = json.load(open(sys.argv[1], encoding="utf-8"))
+tag = record.get("tag_name")
+if record.get("draft") is not False or record.get("prerelease") is not False:
+    raise SystemExit(1)
+if not isinstance(tag, str) or re.fullmatch(r"v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?", tag) is None:
+    raise SystemExit(1)
+version = tag[1:]
+base = f"one-person-lab-webui-{version}-linux-x86_64"
+required = {
+    f"{base}.tar.gz",
+    f"{base}.tar.gz.sha256",
+    "install-web.sh",
+    "install-web.sh.sha256",
+    f"{base}.qualification.json",
+}
+assets = record.get("assets")
+if not isinstance(assets, list):
+    raise SystemExit(1)
+by_name = {}
+for asset in assets:
+    if not isinstance(asset, dict) or asset.get("name") not in required:
+        continue
+    name = asset["name"]
+    if name in by_name:
+        raise SystemExit(1)
+    expected_url = f"https://github.com/gaofeng21cn/one-person-lab-app/releases/download/{tag}/{name}"
+    digest = asset.get("digest")
+    if (
+        asset.get("state") != "uploaded"
+        or not isinstance(asset.get("size"), int)
+        or asset["size"] <= 0
+        or not isinstance(digest, str)
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None
+        or asset.get("browser_download_url") != expected_url
+    ):
+        raise SystemExit(1)
+    by_name[name] = asset
+if set(by_name) != required:
+    raise SystemExit(1)
+installer = by_name["install-web.sh"]
+qualification = by_name[f"{base}.qualification.json"]
+app_sha = record.get("target_commitish")
+if not isinstance(app_sha, str) or re.fullmatch(r"[0-9a-f]{40}", app_sha) is None:
+    raise SystemExit(1)
+print("\t".join((
+    version,
+    app_sha,
+    installer["browser_download_url"],
+    installer["digest"].removeprefix("sha256:"),
+    qualification["browser_download_url"],
+    qualification["digest"].removeprefix("sha256:"),
+)))
+PY
+  ); then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+    NATIVE_RELEASE_RECORD_PATH=''
+    return 1
+  fi
+
+  local version app_sha installer_url installer_sha256 qualification_url qualification_sha256
+  IFS=$'\t' read -r version app_sha installer_url installer_sha256 qualification_url qualification_sha256 <<< "$discovery"
+  [ -n "$version" ] && [ -n "$app_sha" ] && [ -n "$installer_url" ] && [ -n "$installer_sha256" ] &&
+    [ -n "$qualification_url" ] && [ -n "$qualification_sha256" ] || return 1
+
+  NATIVE_QUALIFICATION_RECEIPT_PATH=$(mktemp "${TMPDIR:-/tmp}/opl-native-webui-qualification.XXXXXX")
+  if ! curl -fsSL "$qualification_url" -o "$NATIVE_QUALIFICATION_RECEIPT_PATH"; then
+    rm -f "$NATIVE_QUALIFICATION_RECEIPT_PATH"
+    NATIVE_QUALIFICATION_RECEIPT_PATH=''
+    return 1
+  fi
+  [ "$(sha256_file "$NATIVE_QUALIFICATION_RECEIPT_PATH")" = "$qualification_sha256" ] || return 1
+  python3 - "$NATIVE_QUALIFICATION_RECEIPT_PATH" "$version" "$app_sha" <<'PY' || return 1
+import json
+import re
+import sys
+
+receipt = json.load(open(sys.argv[1], encoding="utf-8"))
+version = sys.argv[2]
+app_sha = sys.argv[3]
+cohort = receipt.get("cohort")
+lifecycle = receipt.get("lifecycle")
+required_lifecycle = {
+    "first_install",
+    "same_version_idempotence",
+    "cross_version_update",
+    "rollback",
+    "data_preservation",
+    "http_health",
+    "official_profile_first_install",
+}
+if (
+    receipt.get("schema") != "opl_app_native_webui_qualification_receipt.v1"
+    or receipt.get("status") != "passed"
+    or receipt.get("version") != version
+    or not isinstance(receipt.get("stable_authority_run_id"), (str, int))
+    or re.fullmatch(r"[1-9][0-9]*", str(receipt.get("stable_authority_run_id"))) is None
+    or not isinstance(receipt.get("release_bundle_digest"), str)
+    or re.fullmatch(r"sha256:[0-9a-f]{64}", receipt["release_bundle_digest"]) is None
+    or receipt.get("platform") != "linux"
+    or receipt.get("architecture") != "x86_64"
+    or receipt.get("non_root") is not True
+    or not isinstance(cohort, dict)
+    or cohort.get("app_sha") != app_sha
+    or re.fullmatch(r"[0-9a-f]{40}", str(cohort.get("shell_sha", ""))) is None
+    or re.fullmatch(r"[0-9a-f]{40}", str(cohort.get("framework_sha", ""))) is None
+    or not isinstance(lifecycle, dict)
+    or set(lifecycle) != required_lifecycle
+    or any(lifecycle.get(gate) != "passed" for gate in required_lifecycle)
+):
+    raise SystemExit(1)
+PY
+  OPL_NATIVE_WEBUI_MIRROR='https://github.com/gaofeng21cn/one-person-lab-app/releases/download'
+  OPL_NATIVE_WEBUI_VERSION="$version"
+  OPL_NATIVE_WEBUI_INSTALLER_URL="$installer_url"
+  OPL_NATIVE_WEBUI_INSTALLER_SHA256="$installer_sha256"
 }
 
 prepare_native_installer() {
@@ -486,9 +640,12 @@ resolve_install_route() {
         printf 'The Native WebUI development candidate is currently implemented only for Linux hosts.\n' >&2
         exit 1
       fi
+      if native_configuration_is_empty; then
+        discover_public_native_webui || true
+      fi
       if ! verified_native_artifact_available; then
         printf 'A verified OPL Native WebUI artifact is required for --native-webui.\n' >&2
-        printf 'Provide mirror/version plus an exact verifier URL and SHA256 for an OPL-owned immutable candidate.\n' >&2
+        printf 'Publish the exact Native asset set or provide mirror/version plus an exact verifier URL and SHA256 for an OPL-owned immutable candidate.\n' >&2
         exit 1
       fi
       printf 'native-webui\n'
@@ -502,6 +659,9 @@ resolve_install_route() {
           printf 'desktop\n'
           ;;
         linux)
+          if native_configuration_is_empty; then
+            discover_public_native_webui || true
+          fi
           if native_mirror_is_local_development; then
             printf 'Local Native WebUI candidates require explicit --native-webui selection; using Container WebUI.\n' >&2
             printf 'container-webui\n'
@@ -553,6 +713,9 @@ install_container_webui() {
 }
 
 install_native_webui() {
+  if native_configuration_is_empty; then
+    discover_public_native_webui || true
+  fi
   prepare_native_installer || {
     printf 'OPL Native WebUI installer or immutable candidate metadata is unavailable.\n' >&2
     exit 1

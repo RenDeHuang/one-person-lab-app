@@ -34,6 +34,25 @@ test('distribution/install SSOT validates the current and approved state split',
     install.distribution_install_model.runtime_forms.native_webui.public_install_status,
     'not_published',
   );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.approved_universal_target.native_webui_public_discovery,
+    {
+      repository: 'gaofeng21cn/one-person-lab-app',
+      release_selector: 'github_latest_pointer_exact_release',
+      required_asset_roles: [
+        'runtime_tarball',
+        'runtime_metadata',
+        'installer',
+        'installer_sha256',
+        'qualification_receipt',
+      ],
+      installer_digest_authority: 'github_release_asset_digest_sha256',
+      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      exact_tag_download_url_required: true,
+      probe_before_selection_required: true,
+      pre_publication_fallback: 'container_webui',
+    },
+  );
   assert.equal(
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_current,
     true,
