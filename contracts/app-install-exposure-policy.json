@@ -111,6 +111,12 @@
         "current_entrypoint": "install.sh --stable-macos-install",
         "compatibility_wrapper": "install-stable.sh",
         "current_status": "live_compatibility_path",
+        "artifact_integrity": {
+          "official_release_asset_authority": "exact_github_release_record_asset_digest",
+          "custom_url_or_path_authority": "caller_supplied_sha256",
+          "verification_order": "before_mount_copy_or_target_replacement",
+          "latest_pointer_admission_implies_stable_qualification": false
+        },
         "approved_target": "retire_after_homebrew_and_direct_dmg_trust_paths_cover_same_user_need",
         "new_public_documentation_priority": false
       }

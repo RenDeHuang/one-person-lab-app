@@ -25,8 +25,12 @@ STABLE_MACOS_PACKAGE_PROFILE=${OPL_STABLE_MACOS_PACKAGE_PROFILE:-full}
 STABLE_MACOS_RELEASE_TAG=${OPL_STABLE_MACOS_RELEASE_TAG:-}
 STABLE_MACOS_DMG_URL=${OPL_STABLE_MACOS_DMG_URL:-}
 STABLE_MACOS_DMG_PATH=${OPL_STABLE_MACOS_DMG_PATH:-}
+STABLE_MACOS_DMG_SHA256=${OPL_STABLE_MACOS_DMG_SHA256:-}
 STABLE_MACOS_OPEN=${OPL_STABLE_MACOS_OPEN:-1}
 STABLE_MACOS_WORK_DIR=''
+STABLE_MACOS_RESOLVED_DMG_PATH=''
+STABLE_MACOS_RESOLVED_DMG_SHA256=''
+STABLE_MACOS_RELEASE_RECORD_PATH=''
 INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
 PRINT_INSTALL_ROUTE=0
 OPEN_OPTION_EXPLICIT=''
@@ -64,6 +68,7 @@ Options:
   --release-tag <tag>        GitHub Release tag for --stable-macos-install. Defaults to latest.
   --dmg-url <url>            Download a specific DMG URL for --stable-macos-install.
   --dmg-path <path>          Install from a local DMG path for --stable-macos-install.
+  --dmg-sha256 <digest>      Required SHA256 for a custom DMG URL or local DMG path.
   --authorize-local-app      After setup, remove macOS quarantine from a local App bundle.
   --authorize-local-app-only Only run the local App authorization helper.
   --app-path <path>          App bundle path for the local authorization helper.
@@ -122,6 +127,17 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dmg-path=*)
       STABLE_MACOS_DMG_PATH="${arg#--dmg-path=}"
+      ;;
+    --dmg-sha256)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --dmg-sha256\n' >&2
+        exit 1
+      fi
+      STABLE_MACOS_DMG_SHA256="$1"
+      ;;
+    --dmg-sha256=*)
+      STABLE_MACOS_DMG_SHA256="${arg#--dmg-sha256=}"
       ;;
     --authorize-local-app)
       AUTHORIZE_LOCAL_APP=1
@@ -348,7 +364,7 @@ sha256_file() {
   elif command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
   else
-    printf 'shasum or sha256sum is required to verify the Native WebUI verifier.\n' >&2
+    printf 'shasum or sha256sum is required for SHA256 verification.\n' >&2
     return 1
   fi
 }
@@ -714,20 +730,145 @@ confirm_stable_macos_install() {
   fi
 }
 
-resolve_latest_release_tag() {
-  local latest_url effective_url tag
-  latest_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/latest"
-  effective_url=$(curl -fsSIL -o /dev/null -w '%{url_effective}' "$latest_url")
-  tag="${effective_url##*/}"
-  case "$tag" in
-    v*)
-      printf '%s\n' "$tag"
-      ;;
-    *)
-      printf 'Could not resolve latest One Person Lab App release tag from: %s\n' "$effective_url" >&2
-      exit 1
+validate_sha256_value() {
+  case "$1" in
+    *[!0-9a-f]*|'')
+      return 1
       ;;
   esac
+  [ "${#1}" -eq 64 ]
+}
+
+validate_release_tag() {
+  case "$1" in
+    v[0-9A-Za-z._-]*)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  case "$1" in
+    *[!0-9A-Za-z._-]*)
+      return 1
+      ;;
+  esac
+}
+
+release_record_value() {
+  local record_path="$1"
+  local key_path="$2"
+  plutil -extract "$key_path" raw -o - "$record_path"
+}
+
+download_release_record() {
+  local selector="$1"
+  local record_path="$2"
+  local endpoint
+  if ! command -v plutil >/dev/null 2>&1; then
+    printf 'plutil is required to verify the exact GitHub Release record.\n' >&2
+    return 1
+  fi
+  if [ "$selector" = "latest" ]; then
+    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/latest"
+  else
+    validate_release_tag "$selector" || {
+      printf 'Invalid GitHub Release tag: %s\n' "$selector" >&2
+      return 1
+    }
+    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/tags/$selector"
+  fi
+  curl -fsSL \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -H 'User-Agent: one-person-lab-installer' \
+    "$endpoint" \
+    -o "$record_path"
+}
+
+resolve_release_record() {
+  local work_dir="$1"
+  local requested_tag="$STABLE_MACOS_RELEASE_TAG"
+  local selector="${requested_tag:-latest}"
+  local record_path="$work_dir/github-release.json"
+  local resolved_tag draft
+  download_release_record "$selector" "$record_path" || return 1
+  resolved_tag=$(release_record_value "$record_path" tag_name) || {
+    printf 'GitHub Release record does not contain tag_name.\n' >&2
+    return 1
+  }
+  validate_release_tag "$resolved_tag" || {
+    printf 'GitHub Release record returned an invalid tag: %s\n' "$resolved_tag" >&2
+    return 1
+  }
+  if [ -n "$requested_tag" ] && [ "$resolved_tag" != "$requested_tag" ]; then
+    printf 'GitHub Release record tag mismatch: expected %s, got %s.\n' "$requested_tag" "$resolved_tag" >&2
+    return 1
+  fi
+  draft=$(release_record_value "$record_path" draft) || {
+    printf 'GitHub Release record does not contain draft state.\n' >&2
+    return 1
+  }
+  if [ "$draft" != "false" ]; then
+    printf 'Stable macOS install requires a published GitHub Release record.\n' >&2
+    return 1
+  fi
+  STABLE_MACOS_RELEASE_TAG="$resolved_tag"
+  STABLE_MACOS_RELEASE_RECORD_PATH="$record_path"
+}
+
+resolve_latest_release_tag() {
+  local work_dir="$1"
+  resolve_release_record "$work_dir" || return 1
+  printf '%s\n' "$STABLE_MACOS_RELEASE_TAG"
+}
+
+RELEASE_ASSET_URL=''
+RELEASE_ASSET_SHA256=''
+
+resolve_release_asset() {
+  local record_path="$1"
+  local expected_name="$2"
+  local index=0 name digest url matches=0
+  RELEASE_ASSET_URL=''
+  RELEASE_ASSET_SHA256=''
+  while name=$(release_record_value "$record_path" "assets.$index.name" 2>/dev/null); do
+    if [ "$name" = "$expected_name" ]; then
+      matches=$((matches + 1))
+      digest=$(release_record_value "$record_path" "assets.$index.digest") || return 1
+      url=$(release_record_value "$record_path" "assets.$index.browser_download_url") || return 1
+      case "$digest" in
+        sha256:*)
+          digest="${digest#sha256:}"
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      validate_sha256_value "$digest" || return 1
+      RELEASE_ASSET_SHA256="$digest"
+      RELEASE_ASSET_URL="$url"
+    fi
+    index=$((index + 1))
+  done
+  [ "$matches" -eq 1 ]
+}
+
+require_caller_dmg_sha256() {
+  if ! validate_sha256_value "$STABLE_MACOS_DMG_SHA256"; then
+    printf 'Custom DMG URL or path requires --dmg-sha256 with 64 lowercase hexadecimal characters.\n' >&2
+    return 1
+  fi
+}
+
+verify_resolved_dmg() {
+  local dmg_path="$1"
+  local expected_sha256="$2"
+  local actual_sha256
+  actual_sha256=$(sha256_file "$dmg_path") || return 1
+  if [ "$actual_sha256" != "$expected_sha256" ]; then
+    printf 'DMG SHA256 mismatch: expected %s, got %s.\n' "$expected_sha256" "$actual_sha256" >&2
+    return 1
+  fi
 }
 
 release_asset_name() {
@@ -767,46 +908,71 @@ download_release_dmg() {
 
 download_or_use_dmg() {
   local work_dir="$1"
-  local tag asset_name url dmg_path download_status
+  local record_path tag asset_name url expected_url dmg_path download_status
+  STABLE_MACOS_RESOLVED_DMG_PATH=''
+  STABLE_MACOS_RESOLVED_DMG_SHA256=''
   if [ -n "$STABLE_MACOS_DMG_PATH" ]; then
     if [ ! -f "$STABLE_MACOS_DMG_PATH" ]; then
       printf 'DMG path not found: %s\n' "$STABLE_MACOS_DMG_PATH" >&2
-      exit 1
+      return 1
     fi
-    printf '%s\n' "$STABLE_MACOS_DMG_PATH"
+    require_caller_dmg_sha256 || return 1
+    STABLE_MACOS_RESOLVED_DMG_PATH="$STABLE_MACOS_DMG_PATH"
+    STABLE_MACOS_RESOLVED_DMG_SHA256="$STABLE_MACOS_DMG_SHA256"
     return 0
   fi
 
   if [ -n "$STABLE_MACOS_DMG_URL" ]; then
+    require_caller_dmg_sha256 || return 1
     url="$STABLE_MACOS_DMG_URL"
     asset_name="${url##*/}"
+    STABLE_MACOS_RESOLVED_DMG_SHA256="$STABLE_MACOS_DMG_SHA256"
   else
-    tag="$STABLE_MACOS_RELEASE_TAG"
-    if [ -z "$tag" ]; then
-      tag=$(resolve_latest_release_tag)
+    if [ -z "$STABLE_MACOS_RELEASE_TAG" ]; then
+      resolve_latest_release_tag "$work_dir" >/dev/null || return 1
+    else
+      resolve_release_record "$work_dir" || return 1
     fi
+    record_path="$STABLE_MACOS_RELEASE_RECORD_PATH"
+    tag="$STABLE_MACOS_RELEASE_TAG"
     asset_name=$(release_asset_name "$tag" "$STABLE_MACOS_PACKAGE_PROFILE")
-    url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+    if ! resolve_release_asset "$record_path" "$asset_name"; then
+      if [ "$STABLE_MACOS_PACKAGE_PROFILE" = "full" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "0" ]; then
+        asset_name=$(release_asset_name "$tag" standard)
+        printf 'Full DMG is not published for %s; continuing with the Standard DMG.\n' "$tag" >&2
+        resolve_release_asset "$record_path" "$asset_name" || {
+          printf 'GitHub Release record has no unique digest-bound Standard DMG asset: %s\n' "$asset_name" >&2
+          return 1
+        }
+      else
+        printf 'GitHub Release record has no unique digest-bound DMG asset: %s\n' "$asset_name" >&2
+        return 1
+      fi
+    fi
+    expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+    if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+      printf 'GitHub Release asset URL mismatch for %s.\n' "$asset_name" >&2
+      return 1
+    fi
+    if [ -n "$STABLE_MACOS_DMG_SHA256" ]; then
+      validate_sha256_value "$STABLE_MACOS_DMG_SHA256" || {
+        printf -- '--dmg-sha256 must use 64 lowercase hexadecimal characters.\n' >&2
+        return 1
+      }
+      if [ "$STABLE_MACOS_DMG_SHA256" != "$RELEASE_ASSET_SHA256" ]; then
+        printf 'Caller DMG SHA256 does not match the exact GitHub Release record.\n' >&2
+        return 1
+      fi
+    fi
+    url="$RELEASE_ASSET_URL"
+    STABLE_MACOS_RESOLVED_DMG_SHA256="$RELEASE_ASSET_SHA256"
   fi
   dmg_path="$work_dir/$asset_name"
   if download_release_dmg "$url" "$dmg_path"; then
-    printf '%s\n' "$dmg_path"
+    STABLE_MACOS_RESOLVED_DMG_PATH="$dmg_path"
     return 0
   else
     download_status=$?
-  fi
-
-  if [ -z "$STABLE_MACOS_DMG_URL" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE" = "full" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "0" ] && [ "$DOWNLOAD_HTTP_CODE" = "404" ]; then
-    asset_name=$(release_asset_name "$tag" standard)
-    url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
-    dmg_path="$work_dir/$asset_name"
-    printf 'Full DMG is not published for %s; continuing with the Standard DMG.\n' "$tag" >&2
-    if download_release_dmg "$url" "$dmg_path"; then
-      printf '%s\n' "$dmg_path"
-      return 0
-    else
-      return $?
-    fi
   fi
 
   return "$download_status"
@@ -864,7 +1030,6 @@ stable_macos_install() {
   ensure_app_target_path
   confirm_stable_macos_install
 
-  local dmg_path
   STABLE_MACOS_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/opl-stable-macos-install.XXXXXX")
   cleanup_stable_macos_install() {
     if [ -n "$STABLE_MACOS_WORK_DIR" ] && [ -d "$STABLE_MACOS_WORK_DIR/mount" ]; then
@@ -876,8 +1041,9 @@ stable_macos_install() {
   }
   trap cleanup_stable_macos_install EXIT
 
-  dmg_path=$(download_or_use_dmg "$STABLE_MACOS_WORK_DIR")
-  copy_app_from_dmg "$dmg_path" "$STABLE_MACOS_WORK_DIR"
+  download_or_use_dmg "$STABLE_MACOS_WORK_DIR"
+  verify_resolved_dmg "$STABLE_MACOS_RESOLVED_DMG_PATH" "$STABLE_MACOS_RESOLVED_DMG_SHA256"
+  copy_app_from_dmg "$STABLE_MACOS_RESOLVED_DMG_PATH" "$STABLE_MACOS_WORK_DIR"
   AUTHORIZE_LOCAL_APP_YES=1
   authorize_local_app
 
