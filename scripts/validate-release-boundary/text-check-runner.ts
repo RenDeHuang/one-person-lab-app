@@ -27,6 +27,8 @@ const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-
 const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
 const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
+const postPublicationOptionalCertificationWorkflowPath =
+  '.github/workflows/release-post-publication-certification.yml';
 const nightlyReleaseWorkflowPath = '.github/workflows/release-nightly.yml';
 const nightlyHomebrewFollowerWorkflowPath =
   '.github/workflows/release-nightly-homebrew-follower.yml';
@@ -43,6 +45,7 @@ export const stableReleaseActionPaths = [...new Set([
   '.github/actions/setup-active-shell-deps/action.yml',
   '.github/workflows/opl-updater-upgrade-vm.yml',
   '.github/workflows/release-attempt-observability.yml',
+  postPublicationOptionalCertificationWorkflowPath,
   '.github/workflows/release-source-qualification.yml',
   ...releaseWorkflowPaths,
 ])];
@@ -536,11 +539,16 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const bundle = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
   const standard = parseWorkflow(appRoot, '.github/workflows/_release-standard-publish.yml', id);
   const full = parseWorkflow(appRoot, '.github/workflows/_release-full-addon.yml', id);
+  const optionalCertification = parseWorkflow(
+    appRoot,
+    postPublicationOptionalCertificationWorkflowPath,
+    id,
+  );
   const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
   const webuiFollower = parseWorkflow(appRoot, '.github/workflows/release-webui-follower.yml', id);
   const webuiStable = parseWorkflow(appRoot, '.github/workflows/release-webui-stable.yml', id);
-  if (!bundle || !standard || !full || !webui || !webuiFollower || !webuiStable) {
-    return [bundle, standard, full, webui, webuiFollower, webuiStable]
+  if (!bundle || !standard || !full || !optionalCertification || !webui || !webuiFollower || !webuiStable) {
+    return [bundle, standard, full, optionalCertification, webui, webuiFollower, webuiStable]
       .filter((value) => !value).length;
   }
   let failures = 0;
@@ -803,12 +811,35 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     );
   }
   if (fullJobs['full-qualification']) {
-    failures += validateReusableCall(
+    const fullQualification = fullJobs['full-qualification'];
+    const qualificationRuns = jobRuns(fullQualification);
+    if (
+      fullQualification['runs-on'] !== 'macos-14'
+      || fullQualification.uses !== undefined
+      || !needsExactly(fullQualification, ['restore-standard', 'full-build', 'materialize-full-build'])
+      || !exactObject(fullQualification.permissions, exactReadPermissions)
+      || !Array.isArray(fullQualification.steps)
+      || !qualificationRuns.includes('hdiutil attach "$dmg_path" -nobrowse -readonly')
+      || !qualificationRuns.includes('codesign --verify --deep --strict')
+      || !qualificationRuns.includes('xcrun stapler validate')
+      || !qualificationRuns.includes('spctl --assess')
+      || !qualificationRuns.includes('opl_app_hosted_full_core_qualification.v1')
+      || /opl-first-run-vm|tart\\b/i.test(qualificationRuns)
+    ) {
+      failures += reportFailure(
+        id,
+        'full-qualification must be a GitHub-hosted read-only exact Full trust qualification with no VM or Tart dependency',
+      );
+    }
+  }
+  const checkpointFullRuns = jobRuns(fullJobs['checkpoint-full']);
+  if (
+    !checkpointFullRuns.includes('--hosted-core-qualification "$hosted_receipt"')
+    || checkpointFullRuns.includes('--legacy-qualification')
+  ) {
+    failures += reportFailure(
       id,
-      fullJobs,
-      'full-qualification',
-      './.github/workflows/opl-first-run-vm.yml',
-      exactReadPermissions,
+      'checkpoint-full must consume only the exact hosted Full core qualification receipt',
     );
   }
   if (fullJobs['publish-full'] && fullJobs['publish-full'].environment !== 'release-stable') {
@@ -832,6 +863,68 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'operation_deadline_at',
   ]) {
     if (!full.text.includes(required)) failures += reportFailure(id, `append_full handoff is missing ${required}`);
+  }
+
+  const certificationTriggers = optionalCertification.workflow.on ?? {};
+  const certificationJobs = workflowJobs(optionalCertification.workflow);
+  if (
+    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
+      JSON.stringify(['OPL Stable Release Bundle'])
+    || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify([
+      'resolve-standard',
+      'write-standard-receipts',
+      'resolve-full',
+      'write-full-receipt',
+    ])
+  ) {
+    failures += reportFailure(
+      id,
+      'post-publication certification must be one read-only automatic Stable workflow_run follower',
+    );
+  }
+  if (
+    certificationJobs['resolve-standard']?.needs !== undefined
+    || certificationJobs['resolve-full']?.needs !== undefined
+    || !needsExactly(certificationJobs['write-standard-receipts'], ['resolve-standard'])
+    || !needsExactly(certificationJobs['write-full-receipt'], ['resolve-full'])
+  ) {
+    failures += reportFailure(
+      id,
+      'optional certification identity resolution must not depend on the Stable or Full publication DAG',
+    );
+  }
+  for (const [jobId, job] of Object.entries(certificationJobs)) {
+    if (!exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
+      failures += reportFailure(id, `optional certification job ${jobId} must be GitHub-hosted and read-only`);
+    }
+  }
+  for (const required of [
+    '.path == ".github/workflows/release-stable.yml"',
+    'opl-release-activation-${SOURCE_RUN_ID}',
+    'opl-release-full-published-${SOURCE_RUN_ID}',
+    'write-optional-certification-receipt.ts',
+    '--status not_run',
+    '--reason-code not_requested',
+    'physical_job_dispatched:false',
+    'component_manifest_digest',
+    'public-component-manifest.json',
+  ]) {
+    if (!optionalCertification.text.includes(required)) {
+      failures += reportFailure(id, `post-publication certification follower is missing ${required}`);
+    }
+  }
+  if (
+    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize|opl-first-run-vm\\.yml/.test(
+      optionalCertification.text,
+    )
+  ) {
+    failures += reportFailure(
+      id,
+      'post-publication certification follower must not dispatch, rebuild, sign, publish, or mutate public state',
+    );
   }
 
   const homebrewStandardRuns = jobRuns(standardJobs['publish-homebrew-standard']);

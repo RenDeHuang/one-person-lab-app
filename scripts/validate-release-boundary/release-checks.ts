@@ -689,7 +689,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "agent_runtime_changes",
       "buildAgentRuntimeChanges",
       "install_command",
-      "install.sh | bash -s -- --stable-macos-install --yes",
+      "brew install --cask gaofeng21cn/one-person-lab/one-person-lab",
     ],
     forbidden: [],
   },

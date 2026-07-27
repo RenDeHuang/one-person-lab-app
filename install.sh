@@ -623,8 +623,8 @@ print_stable_macos_next_steps() {
   printf '  4. Shareable PDF: %s\n' "$pdf_url"
   printf '  5. Shareable PPTX: %s\n' "$pptx_url"
   printf '  6. Latest release assets: %s\n' "$releases_url"
-  printf 'If macOS still asks for repeated approval, re-run:\n'
-  printf '  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash -s -- --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_APP_RELEASE_REPO" "$OPL_APP_DOCS_REF" "$OPL_LOCAL_APP_PATH"
+  printf 'If macOS still asks for repeated approval, use a reviewed source checkout and run:\n'
+  printf '  ./install.sh --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_LOCAL_APP_PATH"
 }
 
 run_with_sudo_fallback() {
@@ -966,6 +966,35 @@ component_manifest_has_exact_artifact() {
   [ "$matches" -eq 1 ]
 }
 
+verify_release_installer_bootstrap() {
+  local record_path="$1"
+  local manifest_path="$2"
+  local tag="$3"
+  local installer_name='opl-app-installer.sh'
+  local expected_url
+
+  [ "${0##*/}" = "$installer_name" ] || return 0
+  if [ ! -f "$0" ] || [ -L "$0" ]; then
+    printf 'Release installer bootstrap must be a regular file: %s\n' "$0" >&2
+    return 1
+  fi
+  resolve_release_asset "$record_path" "$installer_name" || {
+    printf 'GitHub Release record has no unique digest-bound installer bootstrap asset.\n' >&2
+    return 1
+  }
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$installer_name"
+  if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+    printf 'GitHub Release installer bootstrap URL mismatch.\n' >&2
+    return 1
+  fi
+  component_manifest_has_exact_artifact \
+    "$manifest_path" "$installer_name" "$RELEASE_ASSET_SHA256" "$tag" || {
+    printf 'Component manifest does not bind one exact installer bootstrap from the selected Release.\n' >&2
+    return 1
+  }
+  verify_file_sha256 "$0" "$RELEASE_ASSET_SHA256" 'Installer bootstrap'
+}
+
 download_and_validate_component_manifest() {
   local work_dir="$1"
   local record_path="$2"
@@ -974,7 +1003,7 @@ download_and_validate_component_manifest() {
   local standard_asset_sha256="$5"
   local manifest_path expected_url quality build_trigger preview_kind stable_qualified non_stable_notice
   local release_version version release_tag primary_name primary_digest manifest_ref release_url manifest_digest
-  local skipped_gates failed_gates
+  local skipped_gates failed_gates manifest_asset_sha256
 
   if ! resolve_release_asset "$record_path" 'opl-app-component-manifest.json'; then
     printf 'GitHub Release record has no unique digest-bound App component manifest asset.\n' >&2
@@ -988,6 +1017,7 @@ download_and_validate_component_manifest() {
   manifest_path="$work_dir/opl-app-component-manifest.json"
   download_release_file "$RELEASE_ASSET_URL" "$manifest_path" 'component manifest' || return 1
   verify_file_sha256 "$manifest_path" "$RELEASE_ASSET_SHA256" 'Component manifest' || return 1
+  manifest_asset_sha256="$RELEASE_ASSET_SHA256"
 
   [ "$(component_manifest_value "$manifest_path" surface_kind)" = 'opl_app_component_manifest.v1' ] || {
     printf 'Component manifest surface kind is invalid.\n' >&2
@@ -1102,9 +1132,10 @@ download_and_validate_component_manifest() {
     printf 'Failed qualification gates: %s\n' "$failed_gates"
   fi
   printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
+  verify_release_installer_bootstrap "$record_path" "$manifest_path" "$tag" || return 1
 
   STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
-  STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$RELEASE_ASSET_SHA256"
+  STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$manifest_asset_sha256"
   STABLE_MACOS_RELEASE_QUALITY_ASSERTED=1
 }
 

@@ -111,7 +111,7 @@ on:
         required: false
         type: string
       diagnostic_scope:
-        description: 'VM diagnostic scope: release_gate or bootstrap_only.'
+        description: 'VM diagnostic scope: release_gate, post_publication_optional_certification, or bootstrap_only.'
         required: false
         default: release_gate
         type: string
@@ -415,7 +415,7 @@ jobs:
             fi
           fi
           case "$diagnostic_scope" in
-            release_gate | bootstrap_only)
+            release_gate | post_publication_optional_certification | bootstrap_only)
               ;;
             *)
               echo "::error::Unsupported diagnostic_scope: $diagnostic_scope"
@@ -450,11 +450,13 @@ jobs:
               fi
               ;;
           esac
-          echo "profile=$profile" >> "$GITHUB_OUTPUT"
-          echo "artifact_app_sha=$artifact_app_sha" >> "$GITHUB_OUTPUT"
-          echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
-          echo "smoke_harness_ref=$smoke_harness_ref" >> "$GITHUB_OUTPUT"
-          echo "diagnostic_scope=$diagnostic_scope" >> "$GITHUB_OUTPUT"
+          {
+            echo "profile=$profile"
+            echo "artifact_app_sha=$artifact_app_sha"
+            echo "shell_ref=$shell_ref"
+            echo "smoke_harness_ref=$smoke_harness_ref"
+            echo "diagnostic_scope=$diagnostic_scope"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate active shell ref before VM runner work
         id: shell_ref
@@ -536,8 +538,10 @@ jobs:
             --profile "$profile")"
           proof_base64="$(printf '%s' "$proof" | base64 | tr -d '\n')"
           echo "proof_base64=$proof_base64" >> "$GITHUB_OUTPUT"
+          # shellcheck disable=SC2016
           reuse_allowed="$(node -e 'const proof=JSON.parse(process.argv[1]);process.stdout.write(String(proof.reuse_authorization?.allowed === true))' "$proof")"
           if [ "$reuse_allowed" != true ]; then
+            # shellcheck disable=SC2016
             node -e 'const proof=JSON.parse(process.argv[1]);console.error(`::error::Same-artifact qualification is not authorized: ${proof.reuse_authorization?.reason ?? "unknown"}; forbidden App paths=${(proof.reuse_authorization?.forbidden_paths?.app ?? []).join(",") || "<none>"}; forbidden Shell paths=${(proof.reuse_authorization?.forbidden_paths?.shell ?? []).join(",") || "<none>"}`)' "$proof"
             exit 1
           fi
@@ -677,9 +681,9 @@ jobs:
               echo "- Status: failed"
               echo "- Reason: no Tart source VM configured."
               if [ "$PROFILE" = "homebrew-standard" ]; then
-                echo '- Configure repository variable `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE` with a Homebrew-ready clean VM, or pass workflow input `tart_source_vm`.'
+                echo "- Configure repository variable \`OPL_FIRST_RUN_HOMEBREW_TART_SOURCE\` with a Homebrew-ready clean VM, or pass workflow input \`tart_source_vm\`."
               else
-                echo '- Configure repository variable `OPL_FIRST_RUN_TART_SOURCE` or pass workflow input `tart_source_vm`.'
+                echo "- Configure repository variable \`OPL_FIRST_RUN_TART_SOURCE\` or pass workflow input \`tart_source_vm\`."
               fi
             } >> "$GITHUB_STEP_SUMMARY"
             if [ "$PROFILE" = "homebrew-standard" ]; then
@@ -895,10 +899,12 @@ jobs:
             echo "admission_remaining_budget_ms=$remaining_ms" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "run_timeout_ms=$RUN_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
-          echo "smoke_timeout_ms=$SMOKE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
-          echo "codex_install_phase_timeout_ms=$CODEX_INSTALL_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
-          echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
+          {
+            echo "run_timeout_ms=$RUN_TIMEOUT_MS"
+            echo "smoke_timeout_ms=$SMOKE_TIMEOUT_MS"
+            echo "codex_install_phase_timeout_ms=$CODEX_INSTALL_PHASE_TIMEOUT_MS"
+            echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Restore Codex install asset cache
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
@@ -1347,6 +1353,8 @@ jobs:
         if: ${{ inputs.operation != '' }}
         shell: bash
         env:
+          OPERATION: ${{ inputs.operation }}
+          OPERATION_STARTED_AT: ${{ inputs.operation_started_at }}
           OPERATION_DEADLINE_AT: ${{ inputs.operation_deadline_at }}
           RUN_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.run_timeout_ms }}
           SMOKE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}
@@ -1355,8 +1363,8 @@ jobs:
         run: |
           set -euo pipefail
           node --experimental-strip-types scripts/release-operation-deadline.ts check \
-            --operation '${{ inputs.operation }}' \
-            --started-at '${{ inputs.operation_started_at }}' \
+            --operation "$OPERATION" \
+            --started-at "$OPERATION_STARTED_AT" \
             --deadline-at "$OPERATION_DEADLINE_AT"
           deadline_ms="$(DEADLINE="$OPERATION_DEADLINE_AT" node --input-type=module -e '
             const value = process.env.DEADLINE || "";
@@ -1376,10 +1384,12 @@ jobs:
             local value="$1"
             if [ "$value" -gt "$remaining_ms" ]; then printf '%s' "$remaining_ms"; else printf '%s' "$value"; fi
           }
-          echo "run_timeout_ms=$(cap_timeout "$RUN_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
-          echo "smoke_timeout_ms=$(cap_timeout "$SMOKE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
-          echo "codex_install_phase_timeout_ms=$(cap_timeout "$CODEX_INSTALL_PHASE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
-          echo "codex_readiness_phase_timeout_ms=$(cap_timeout "$CODEX_READINESS_PHASE_TIMEOUT_MS")" >> "$GITHUB_OUTPUT"
+          {
+            echo "run_timeout_ms=$(cap_timeout "$RUN_TIMEOUT_MS")"
+            echo "smoke_timeout_ms=$(cap_timeout "$SMOKE_TIMEOUT_MS")"
+            echo "codex_install_phase_timeout_ms=$(cap_timeout "$CODEX_INSTALL_PHASE_TIMEOUT_MS")"
+            echo "codex_readiness_phase_timeout_ms=$(cap_timeout "$CODEX_READINESS_PHASE_TIMEOUT_MS")"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run clean VM first launch smoke
         id: vm_smoke
@@ -1645,6 +1655,7 @@ jobs:
             fi
             if [ -f artifacts/opl-first-run-vm/tart-smoke-summary.json ]; then
               echo
+              # shellcheck disable=SC2016
               node -e 'const fs=require("node:fs");const data=fs.readFileSync(process.argv[1]);const max=64*1024;process.stdout.write("```text\n"+data.subarray(0,max).toString("utf8")+(data.length>max?"\n...[summary truncated at 65536 bytes]":"")+"\n```\n")' artifacts/opl-first-run-vm/tart-smoke-summary.json
             fi
           } >> "$GITHUB_STEP_SUMMARY"

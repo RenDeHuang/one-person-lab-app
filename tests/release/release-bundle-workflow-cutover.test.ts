@@ -926,6 +926,20 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(run, /full_built\)/);
   assert.match(run, /cp "\$original_full_receipt" full-build-receipt\.json/);
   assert.equal((run.match(/opl release build/g) ?? []).length, 1);
+  assert.match(run, /--hosted-core-qualification "\$hosted_receipt"/);
+  assert.doesNotMatch(run, /--legacy-qualification/);
+  const qualification = full.jobs['full-qualification'];
+  assert.equal(qualification['runs-on'], 'macos-14');
+  assert.equal(qualification.uses, undefined);
+  assert.deepEqual(qualification.permissions, { contents: 'read', actions: 'read' });
+  const qualificationRun = qualification.steps
+    .map((step: Record<string, unknown>) => String(step.run ?? ''))
+    .join('\n');
+  assert.match(qualificationRun, /hdiutil attach "\$dmg_path" -nobrowse -readonly/);
+  assert.match(qualificationRun, /codesign --verify --deep --strict/);
+  assert.match(qualificationRun, /xcrun stapler validate/);
+  assert.match(qualificationRun, /spctl --assess/);
+  assert.doesNotMatch(qualificationRun, /opl-first-run-vm|tart\b/i);
   assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
 });
 
@@ -970,6 +984,30 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
     "${{ needs.restore.result == 'success' && needs.remote-digest-verify.result == 'success' }}",
   );
   assert.deepEqual(latest.needs, ['restore', 'remote-digest-verify', 'homebrew-standard-readback']);
+  const full = parseWorkflow('_release-full-addon.yml');
+  const fullAncestors = (jobName: string): string[] => {
+    const found = new Set<string>();
+    const visit = (name: string) => {
+      const needs = full.jobs[name]?.needs;
+      for (const dependency of typeof needs === 'string' ? [needs] : needs ?? []) {
+        if (!found.has(dependency)) {
+          found.add(dependency);
+          visit(dependency);
+        }
+      }
+    };
+    visit(jobName);
+    return [...found].sort();
+  };
+  assert.ok(fullAncestors('publish-full').includes('full-qualification'));
+  for (const ancestor of fullAncestors('publish-full')) {
+    const source = JSON.stringify(full.jobs[ancestor]);
+    assert.doesNotMatch(
+      source,
+      /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|opl-first-run-vm/i,
+      `publish-full depends on ${ancestor}`,
+    );
+  }
   assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
   assert.equal(standard.jobs['updater-upgrade-qualification-highest'], undefined);
   assert.equal(standard.jobs['homebrew-standard-vm'], undefined);

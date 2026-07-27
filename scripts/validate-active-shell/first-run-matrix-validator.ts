@@ -257,11 +257,7 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     ['base_url', 'experimental_bearer_token'],
     'Connected VM Provider credential fields',
   );
-  const requiredScenarioIds = [
-    'standard_dmg_clean_vm_smoke',
-    'homebrew_standard_cask_clean_vm_smoke',
-    'full_dmg_clean_vm_smoke',
-  ];
+  const requiredScenarioIds = ['full_dmg_clean_vm_smoke'];
   assertDeepEqualJson(
     qualification.required_release_scenarios,
     requiredScenarioIds,
@@ -271,6 +267,19 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     const scenario = scenarioById.get(scenarioId);
     if (scenario?.release_gate !== true || scenario?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
       throw new Error(`Release scenario ${scenarioId} must consume the Provider-independent qualification contract`);
+    }
+  }
+  for (const scenarioId of [
+    'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'one_shot_app_installer_fresh_install_smoke',
+  ]) {
+    const scenario = scenarioById.get(scenarioId);
+    if (
+      scenario?.release_gate !== false
+      || scenario?.post_publication_optional_certification !== true
+    ) {
+      throw new Error(`Post-publication scenario ${scenarioId} must not block publication or Latest`);
     }
   }
   const fullFirstInstall = scenarioById.get('full_first_install_clean_machine');

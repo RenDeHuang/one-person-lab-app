@@ -13,7 +13,7 @@ process.stdout.write(${JSON.stringify(body)});
 `, { mode: 0o755 });
 }
 
-export const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
+export const stableInstallCommand = 'brew install --cask gaofeng21cn/one-person-lab/one-person-lab';
 
 export function validStandardAiReleaseNotes(version) {
   const publicMarkdown = `One Person Lab v${version}

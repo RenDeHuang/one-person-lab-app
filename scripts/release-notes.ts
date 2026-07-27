@@ -34,7 +34,7 @@ export type {
 
 export { buildReleaseTitle } from './release-notes/tags.ts';
 
-const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
+const stableInstallCommand = 'brew install --cask gaofeng21cn/one-person-lab/one-person-lab';
 const onlineAiReleaseNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 
 function sectionBounds(markdown: string, heading: string) {
