@@ -28,14 +28,19 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   const matrix = readJson("contracts/app-first-run-test-matrix.json");
   const adapter = readJson("contracts/app-shell-adapter.json");
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
+  const fullDmg = matrix.scenarios.find((entry) => entry.id === "full_dmg_clean_vm_smoke");
+  assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
+  assert.equal(fullDmg.release_gate, true);
+
   for (const id of [
     "standard_dmg_clean_vm_smoke",
-    "full_dmg_clean_vm_smoke",
     "homebrew_standard_cask_clean_vm_smoke",
+    "one_shot_app_installer_fresh_install_smoke",
   ]) {
     const scenario = matrix.scenarios.find((entry) => entry.id === id);
     assert.ok(scenario, id);
-    assert.equal(scenario.release_gate, true, id);
+    assert.equal(scenario.release_gate, false, id);
+    assert.equal(scenario.post_publication_optional_certification, true, id);
   }
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
@@ -51,7 +56,6 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
     );
     assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
   }
-  const fullDmg = matrix.scenarios.find((scenario) => scenario.id === "full_dmg_clean_vm_smoke");
   assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
     "missing_controls",
     "composer_state",
