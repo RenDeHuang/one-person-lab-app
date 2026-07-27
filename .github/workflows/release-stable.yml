@@ -62,6 +62,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI: opl_packages.v1
   OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE: '>=0.1.0 <1.0.0'
+  OPL_APP_STABLE_STAGE_RESULT_SCHEMA: opl_app_stable_stage_result.v1
+  OPL_APP_STABLE_STAGE_RESULT_AUTHORITY: attempt_observation_only_no_framework_state_projection
 
 concurrency:
   group: opl-release-bundle-global

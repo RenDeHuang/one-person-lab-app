@@ -3034,6 +3034,26 @@
         "transport_timeout",
         "transport_error"
       ],
+      "failure_fingerprint_circuit_breaker": {
+        "schema": "opl_app_stable_failure_fingerprint.v1",
+        "stage_result_schema": "opl_app_stable_stage_result.v1",
+        "identity_fields": [
+          "cohort",
+          "stage_id",
+          "reason_code",
+          "artifact_digest_or_input_digest",
+          "environment_receipt_digest"
+        ],
+        "attempt_included_in_identity": false,
+        "prior_and_current_required_together": true,
+        "unchanged_status": "blocked_unchanged",
+        "unchanged_failure_code": "unchanged_failure_fingerprint",
+        "unchanged_dispatch_allowed": false,
+        "unchanged_dispatch_count": 0,
+        "unchanged_mutation_invocation_count": 0,
+        "evaluated_before_git_wire_or_owner_api": true,
+        "changed_fingerprint_only_continues_read_only_pre_nonce_gates": true
+      },
       "pre_nonce_failure": {
         "nonce_consumed": false,
         "mutation_invocation_count": 0,
@@ -3069,6 +3089,52 @@
       "profile_projection": "current_app_profile_into_temporary_exact_shell_archive",
       "source_shell_mutation_allowed": false,
       "must_pass_before_source_workflow_dispatch": true
+    },
+    "stable_stage_result": {
+      "schema": "opl_app_stable_stage_result.v1",
+      "json_schema": "contracts/app-stable-stage-result.schema.json",
+      "script": "scripts/stable-stage-result.ts",
+      "authority": "attempt_observation_only_no_framework_state_projection",
+      "business_stage_count": 12,
+      "stage_ids": [
+        "admission_and_circuit_breaker",
+        "source_contract_preflight",
+        "native_webui_deterministic_prepare",
+        "credential_runner_and_custody_preflight",
+        "standard_signed_notarized_build_and_seal",
+        "clean_vm_exact_artifact_qualification",
+        "updater_exact_artifact_qualification",
+        "standard_publication",
+        "homebrew_exact_artifact_install",
+        "latest_pointer_activation",
+        "remote_digest_and_clean_user_installed_readback",
+        "terminal_fold_and_idempotent_cleanup"
+      ],
+      "axes": [
+        "qualification_product",
+        "evidence",
+        "transport",
+        "cleanup"
+      ],
+      "primary_failure_rule": "lowest_stage_index_failed_qualification_product_axis",
+      "secondary_failure_rule": "evidence_transport_cleanup_and_later_product_failures_do_not_overwrite_primary",
+      "cleanup_normalization": {
+        "condition": "command_nonzero_and_final_inspection_absent",
+        "status": "cleanup_idempotent_success",
+        "records_command_anomaly": true,
+        "eligible_for_primary_failure": false
+      },
+      "release_state_authority": false,
+      "framework_status_authority": false,
+      "mutation_authority": false,
+      "framework_checkpoint_projection_allowed": false,
+      "placeholder_or_inferred_success_allowed": false,
+      "workflow_binding": {
+        "workflow": ".github/workflows/release-stable.yml",
+        "schema_env": "OPL_APP_STABLE_STAGE_RESULT_SCHEMA",
+        "authority_env": "OPL_APP_STABLE_STAGE_RESULT_AUTHORITY",
+        "stage_inputs_require_real_attempt_evidence": true
+      }
     },
     "apple_credentials_diagnostic": {
       "workflow": ".github/workflows/release-apple-credentials-preflight.yml",

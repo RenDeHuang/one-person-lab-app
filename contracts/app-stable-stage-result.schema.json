@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onepersonlab.dev/contracts/app-stable-stage-result.schema.json",
+  "title": "OPL App Stable Stage Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "authority",
+    "business_stage_count",
+    "observed_stage_count",
+    "status",
+    "cohort",
+    "attempt",
+    "stages",
+    "primary_failure",
+    "secondary_failures",
+    "failure_fingerprint",
+    "cleanup_command_anomalies"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_app_stable_stage_result.v1"
+    },
+    "authority": {
+      "const": "attempt_observation_only_no_framework_state_projection"
+    },
+    "business_stage_count": {
+      "const": 12
+    },
+    "observed_stage_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "incomplete"
+      ]
+    },
+    "cohort": {
+      "$ref": "#/$defs/cohort"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    },
+    "primary_failure": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/failure"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "secondary_failures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/failure"
+      }
+    },
+    "failure_fingerprint": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/fingerprint"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cleanup_command_anomalies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stage_id",
+          "stage_index",
+          "anomaly"
+        ],
+        "properties": {
+          "stage_id": {
+            "$ref": "#/$defs/stage_id"
+          },
+          "stage_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+          },
+          "anomaly": {
+            "$ref": "#/$defs/command_anomaly"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"
+    },
+    "stage_id": {
+      "enum": [
+        "admission_and_circuit_breaker",
+        "source_contract_preflight",
+        "native_webui_deterministic_prepare",
+        "credential_runner_and_custody_preflight",
+        "standard_signed_notarized_build_and_seal",
+        "clean_vm_exact_artifact_qualification",
+        "updater_exact_artifact_qualification",
+        "standard_publication",
+        "homebrew_exact_artifact_install",
+        "latest_pointer_activation",
+        "remote_digest_and_clean_user_installed_readback",
+        "terminal_fold_and_idempotent_cleanup"
+      ]
+    },
+    "axis": {
+      "enum": [
+        "qualification_product",
+        "evidence",
+        "transport",
+        "cleanup"
+      ]
+    },
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_sha",
+        "shell_sha",
+        "framework_sha"
+      ],
+      "properties": {
+        "app_sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "shell_sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "framework_sha": {
+          "$ref": "#/$defs/sha"
+        }
+      }
+    },
+    "command_anomaly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exit_code",
+        "reason_code"
+      ],
+      "properties": {
+        "exit_code": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code"
+        }
+      }
+    },
+    "axis_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason_code",
+        "command_exit_code",
+        "final_inspection",
+        "evidence_ref",
+        "command_anomaly"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "not_run"
+          ]
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code"
+        },
+        "command_exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "final_inspection": {
+          "enum": [
+            "present",
+            "absent",
+            "unknown",
+            null
+          ]
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "command_anomaly": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/command_anomaly"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_id",
+        "stage_index",
+        "cohort",
+        "artifact_digest_or_input_digest",
+        "environment_receipt_digest",
+        "attempt",
+        "axes",
+        "stage_status"
+      ],
+      "properties": {
+        "stage_id": {
+          "$ref": "#/$defs/stage_id"
+        },
+        "stage_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "cohort": {
+          "$ref": "#/$defs/cohort"
+        },
+        "artifact_digest_or_input_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "environment_receipt_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "axes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "qualification_product",
+            "evidence",
+            "transport",
+            "cleanup"
+          ],
+          "properties": {
+            "qualification_product": {
+              "$ref": "#/$defs/axis_result"
+            },
+            "evidence": {
+              "$ref": "#/$defs/axis_result"
+            },
+            "transport": {
+              "$ref": "#/$defs/axis_result"
+            },
+            "cleanup": {
+              "$ref": "#/$defs/axis_result"
+            }
+          }
+        },
+        "stage_status": {
+          "enum": [
+            "passed",
+            "failed",
+            "incomplete"
+          ]
+        }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "digest",
+        "cohort",
+        "stage_id",
+        "reason_code",
+        "artifact_digest_or_input_digest",
+        "environment_receipt_digest"
+      ],
+      "properties": {
+        "schema": {
+          "const": "opl_app_stable_failure_fingerprint.v1"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "cohort": {
+          "$ref": "#/$defs/cohort"
+        },
+        "stage_id": {
+          "$ref": "#/$defs/stage_id"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code"
+        },
+        "artifact_digest_or_input_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "environment_receipt_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_id",
+        "stage_index",
+        "axis",
+        "reason_code",
+        "fingerprint"
+      ],
+      "properties": {
+        "stage_id": {
+          "$ref": "#/$defs/stage_id"
+        },
+        "stage_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "axis": {
+          "$ref": "#/$defs/axis"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/fingerprint"
+        }
+      }
+    }
+  }
+}

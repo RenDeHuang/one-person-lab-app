@@ -160,6 +160,28 @@ const requiredUnknownMarkerFields = [
   'remote_target',
   'prior_mutation_attempt_id',
 ];
+const requiredStableBusinessStageIds = [
+  'admission_and_circuit_breaker',
+  'source_contract_preflight',
+  'native_webui_deterministic_prepare',
+  'credential_runner_and_custody_preflight',
+  'standard_signed_notarized_build_and_seal',
+  'clean_vm_exact_artifact_qualification',
+  'updater_exact_artifact_qualification',
+  'standard_publication',
+  'homebrew_exact_artifact_install',
+  'latest_pointer_activation',
+  'remote_digest_and_clean_user_installed_readback',
+  'terminal_fold_and_idempotent_cleanup',
+];
+const requiredStableStageAxes = ['qualification_product', 'evidence', 'transport', 'cleanup'];
+const requiredStableFailureFingerprintFields = [
+  'cohort',
+  'stage_id',
+  'reason_code',
+  'artifact_digest_or_input_digest',
+  'environment_receipt_digest',
+];
 const requiredValidationCanary = {
   workflow: '.github/workflows/release-bundle-canary.yml',
   mode: 'validation_only',
@@ -983,6 +1005,9 @@ export function validateReleaseAccelerationPolicy(
   const legacy = control?.legacy_compatibility;
   const validationCanary = control?.validation_canary;
   const acceleration = releaseContract.release_acceleration;
+  const preflight = releaseContract.release_preflight;
+  const stableStageResult = preflight?.stable_stage_result;
+  const failureFingerprint = preflight?.dispatch_guard?.failure_fingerprint_circuit_breaker;
   const settingsRuntimeRefresh = acceleration?.settings_runtime_refresh_evidence_policy;
   const homebrew = releaseContract.homebrew_tap_distribution;
 
@@ -1125,6 +1150,53 @@ export function validateReleaseAccelerationPolicy(
     operations?.typed_failure_evidence_uploaded_on_failure !== true
   ) {
     console.error('FAIL release_operation_control: Standard control must be immutable, resume exact, append independent, and late reconcile evidence-only');
+    failures += 1;
+  }
+  if (
+    stableStageResult?.schema !== 'opl_app_stable_stage_result.v1' ||
+    stableStageResult?.json_schema !== 'contracts/app-stable-stage-result.schema.json' ||
+    stableStageResult?.script !== 'scripts/stable-stage-result.ts' ||
+    stableStageResult?.authority !== 'attempt_observation_only_no_framework_state_projection' ||
+    stableStageResult?.business_stage_count !== 12 ||
+    JSON.stringify(stableStageResult?.stage_ids) !== JSON.stringify(requiredStableBusinessStageIds) ||
+    JSON.stringify(stableStageResult?.axes) !== JSON.stringify(requiredStableStageAxes) ||
+    stableStageResult?.primary_failure_rule !== 'lowest_stage_index_failed_qualification_product_axis' ||
+    stableStageResult?.secondary_failure_rule !==
+      'evidence_transport_cleanup_and_later_product_failures_do_not_overwrite_primary' ||
+    stableStageResult?.cleanup_normalization?.condition !==
+      'command_nonzero_and_final_inspection_absent' ||
+    stableStageResult?.cleanup_normalization?.status !== 'cleanup_idempotent_success' ||
+    stableStageResult?.cleanup_normalization?.records_command_anomaly !== true ||
+    stableStageResult?.cleanup_normalization?.eligible_for_primary_failure !== false ||
+    stableStageResult?.release_state_authority !== false ||
+    stableStageResult?.framework_status_authority !== false ||
+    stableStageResult?.mutation_authority !== false ||
+    stableStageResult?.framework_checkpoint_projection_allowed !== false ||
+    stableStageResult?.placeholder_or_inferred_success_allowed !== false ||
+    stableStageResult?.workflow_binding?.workflow !== '.github/workflows/release-stable.yml' ||
+    stableStageResult?.workflow_binding?.schema_env !== 'OPL_APP_STABLE_STAGE_RESULT_SCHEMA' ||
+    stableStageResult?.workflow_binding?.authority_env !== 'OPL_APP_STABLE_STAGE_RESULT_AUTHORITY' ||
+    stableStageResult?.workflow_binding?.stage_inputs_require_real_attempt_evidence !== true
+  ) {
+    console.error('FAIL stable_stage_result_contract: App stage results must be deterministic non-authoritative attempt observations');
+    failures += 1;
+  }
+  if (
+    failureFingerprint?.schema !== 'opl_app_stable_failure_fingerprint.v1' ||
+    failureFingerprint?.stage_result_schema !== 'opl_app_stable_stage_result.v1' ||
+    JSON.stringify(failureFingerprint?.identity_fields) !==
+      JSON.stringify(requiredStableFailureFingerprintFields) ||
+    failureFingerprint?.attempt_included_in_identity !== false ||
+    failureFingerprint?.prior_and_current_required_together !== true ||
+    failureFingerprint?.unchanged_status !== 'blocked_unchanged' ||
+    failureFingerprint?.unchanged_failure_code !== 'unchanged_failure_fingerprint' ||
+    failureFingerprint?.unchanged_dispatch_allowed !== false ||
+    failureFingerprint?.unchanged_dispatch_count !== 0 ||
+    failureFingerprint?.unchanged_mutation_invocation_count !== 0 ||
+    failureFingerprint?.evaluated_before_git_wire_or_owner_api !== true ||
+    failureFingerprint?.changed_fingerprint_only_continues_read_only_pre_nonce_gates !== true
+  ) {
+    console.error('FAIL stable_failure_fingerprint_contract: unchanged fingerprints must deny dispatch before transport');
     failures += 1;
   }
   if (

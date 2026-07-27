@@ -5,6 +5,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import {
+  normalizeStableFailureFingerprint,
+  stableFailureFingerprintsEqual,
+  type StableFailureFingerprint,
+} from './stable-stage-result.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appRepository = 'gaofeng21cn/one-person-lab-app';
@@ -21,7 +26,7 @@ const defaultIdentityWindowMs = 5 * 60_000;
 const createdAtClockSkewMs = 30_000;
 export const ownerRunParser = 'node_structured_json_without_jq' as const;
 
-export type ReadFailureKind = 'transport' | 'credential' | 'not_found' | 'protocol';
+export type ReadFailureKind = 'transport' | 'credential' | 'not_found' | 'protocol' | 'deterministic';
 export type ReadFailureCode =
   | 'tls_handshake_timeout'
   | 'unexpected_eof'
@@ -29,7 +34,8 @@ export type ReadFailureCode =
   | 'transport_error'
   | 'credential_failure'
   | 'not_found'
-  | 'invalid_response';
+  | 'invalid_response'
+  | 'unchanged_failure_fingerprint';
 
 export type CommandResult = {
   status: number | null;
@@ -138,6 +144,8 @@ export type PreNonceGuardInput = {
   expectedFrameworkSha: string;
   workflow: string;
   sourceGateReport: unknown;
+  priorFailureFingerprint?: unknown;
+  currentFailureFingerprint?: unknown;
   maxReadAttempts?: number;
 };
 
@@ -499,6 +507,57 @@ function validateSourceGateReport(input: PreNonceGuardInput): {
   };
 }
 
+export type FailureFingerprintGuard =
+  | {
+      status: 'no_prior_failure';
+      prior: null;
+      current: null;
+      unchanged: false;
+      dispatch_count: 0;
+    }
+  | {
+      status: 'changed';
+      prior: StableFailureFingerprint;
+      current: StableFailureFingerprint;
+      unchanged: false;
+      dispatch_count: 0;
+    }
+  | {
+      status: 'blocked_unchanged';
+      prior: StableFailureFingerprint;
+      current: StableFailureFingerprint;
+      unchanged: true;
+      dispatch_count: 0;
+    };
+
+export function evaluateFailureFingerprintGuard(input: {
+  priorFailureFingerprint?: unknown;
+  currentFailureFingerprint?: unknown;
+}): FailureFingerprintGuard {
+  if (input.priorFailureFingerprint === undefined && input.currentFailureFingerprint === undefined) {
+    return {
+      status: 'no_prior_failure',
+      prior: null,
+      current: null,
+      unchanged: false,
+      dispatch_count: 0,
+    };
+  }
+  if (input.priorFailureFingerprint === undefined || input.currentFailureFingerprint === undefined) {
+    throw new Error('Stable dispatch requires both prior and current failure fingerprints when either is provided.');
+  }
+  const prior = normalizeStableFailureFingerprint(input.priorFailureFingerprint);
+  const current = normalizeStableFailureFingerprint(input.currentFailureFingerprint);
+  const unchanged = stableFailureFingerprintsEqual(prior, current);
+  return {
+    status: unchanged ? 'blocked_unchanged' : 'changed',
+    prior,
+    current,
+    unchanged,
+    dispatch_count: 0,
+  };
+}
+
 export function buildPreNonceDispatchGuard(
   input: PreNonceGuardInput,
   dependencies: { runner?: CommandRunner; cwd?: string } = {},
@@ -512,11 +571,34 @@ export function buildPreNonceDispatchGuard(
     if (!fullShaPattern.test(value)) throw new Error(`Expected ${label} identity must be a full SHA.`);
   }
   const sourceGate = validateSourceGateReport(input);
+  const failureFingerprintGuard = evaluateFailureFingerprintGuard(input);
   const identities: Record<'app' | 'shell' | 'framework', WireRefResult | null> = {
     app: null,
     shell: null,
     framework: null,
   };
+  if (failureFingerprintGuard.status === 'blocked_unchanged') {
+    return {
+      schema: 'opl_release_dispatch_guard.v1',
+      phase: 'pre_nonce',
+      status: 'blocked',
+      failure_class: 'deterministic',
+      failure_code: 'unchanged_failure_fingerprint',
+      credential_failure: false,
+      reason: 'The prior Stable failure fingerprint is unchanged; repair source or change the bound environment receipt before dispatch.',
+      source_gate: sourceGate,
+      failure_fingerprint_guard: failureFingerprintGuard,
+      wire_identities: identities,
+      owner_run_query: null,
+      owner_run_match_count: null,
+      nonce_consumed: false,
+      mutation_invocation_count: 0,
+      mutation_retry_count: 0,
+      read_only_guard_replacement_allowed: true,
+      dispatch_allowed: false,
+      redispatch_allowed: false,
+    } as const;
+  }
   const expected = {
     app: input.expectedAppSha,
     shell: input.expectedShellSha,
@@ -550,6 +632,7 @@ export function buildPreNonceDispatchGuard(
         ? result.detail
         : `${wireRead.name} wire identity ${result.sha} does not match expected ${expected[wireRead.name]}.`,
       source_gate: sourceGate,
+      failure_fingerprint_guard: failureFingerprintGuard,
       wire_identities: identities,
       owner_run_query: null,
       owner_run_match_count: null,
@@ -578,6 +661,7 @@ export function buildPreNonceDispatchGuard(
       credential_failure: ownerRuns.failure_kind === 'credential',
       reason: ownerRuns.detail,
       source_gate: sourceGate,
+      failure_fingerprint_guard: failureFingerprintGuard,
       wire_identities: identities,
       owner_run_query: ownerRuns,
       owner_run_match_count: null,
@@ -600,6 +684,7 @@ export function buildPreNonceDispatchGuard(
       credential_failure: false,
       reason: 'Owner workflow-runs API returned a malformed run.',
       source_gate: sourceGate,
+      failure_fingerprint_guard: failureFingerprintGuard,
       wire_identities: identities,
       owner_run_query: {
         endpoint: ownerRuns.endpoint,
@@ -638,6 +723,7 @@ export function buildPreNonceDispatchGuard(
       ? 'Wire identities match and the single owner workflow-runs query found no active exact attempt.'
       : `Found ${activeMatches.length} active exact owner run(s); a new dispatch is forbidden.`,
     source_gate: sourceGate,
+    failure_fingerprint_guard: failureFingerprintGuard,
     wire_identities: identities,
     owner_run_query: {
       endpoint: ownerRuns.endpoint,
@@ -742,6 +828,8 @@ if (isMainModule()) {
         'expected-shell-sha': { type: 'string' },
         'expected-framework-sha': { type: 'string' },
         'source-gate-report': { type: 'string' },
+        'prior-failure-fingerprint': { type: 'string' },
+        'current-failure-fingerprint': { type: 'string' },
         'operation-started-at': { type: 'string' },
         'observed-at': { type: 'string' },
         output: { type: 'string' },
@@ -760,6 +848,12 @@ if (isMainModule()) {
           path.resolve(requiredOption(values['source-gate-report'], 'source-gate-report')),
           'utf8',
         )),
+        priorFailureFingerprint: typeof values['prior-failure-fingerprint'] === 'string'
+          ? JSON.parse(fs.readFileSync(path.resolve(values['prior-failure-fingerprint']), 'utf8'))
+          : undefined,
+        currentFailureFingerprint: typeof values['current-failure-fingerprint'] === 'string'
+          ? JSON.parse(fs.readFileSync(path.resolve(values['current-failure-fingerprint']), 'utf8'))
+          : undefined,
       });
     } else if (command === 'reconcile') {
       result = buildPostDispatchReconcile({

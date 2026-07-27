@@ -167,6 +167,59 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
   assert.equal(resilience.homebrew_retry_push_on_unknown_allowed, false);
 });
 
+test('Stable attempt results are deterministic observations and unchanged fingerprints stop before dispatch', () => {
+  const release = readJson('contracts/app-release-channel.json');
+  const stageResult = release.release_preflight.stable_stage_result;
+  const fingerprint = release.release_preflight.dispatch_guard.failure_fingerprint_circuit_breaker;
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/release-stable.yml'), 'utf8');
+
+  assert.equal(stageResult.schema, 'opl_app_stable_stage_result.v1');
+  assert.equal(stageResult.json_schema, 'contracts/app-stable-stage-result.schema.json');
+  assert.equal(stageResult.script, 'scripts/stable-stage-result.ts');
+  assert.equal(stageResult.authority, 'attempt_observation_only_no_framework_state_projection');
+  assert.equal(stageResult.business_stage_count, 12);
+  assert.deepEqual(stageResult.axes, ['qualification_product', 'evidence', 'transport', 'cleanup']);
+  assert.equal(stageResult.primary_failure_rule, 'lowest_stage_index_failed_qualification_product_axis');
+  assert.equal(
+    stageResult.secondary_failure_rule,
+    'evidence_transport_cleanup_and_later_product_failures_do_not_overwrite_primary',
+  );
+  assert.deepEqual(stageResult.cleanup_normalization, {
+    condition: 'command_nonzero_and_final_inspection_absent',
+    status: 'cleanup_idempotent_success',
+    records_command_anomaly: true,
+    eligible_for_primary_failure: false,
+  });
+  assert.equal(stageResult.release_state_authority, false);
+  assert.equal(stageResult.framework_status_authority, false);
+  assert.equal(stageResult.mutation_authority, false);
+  assert.equal(stageResult.framework_checkpoint_projection_allowed, false);
+  assert.equal(stageResult.placeholder_or_inferred_success_allowed, false);
+
+  assert.deepEqual(fingerprint.identity_fields, [
+    'cohort',
+    'stage_id',
+    'reason_code',
+    'artifact_digest_or_input_digest',
+    'environment_receipt_digest',
+  ]);
+  assert.equal(fingerprint.attempt_included_in_identity, false);
+  assert.equal(fingerprint.prior_and_current_required_together, true);
+  assert.equal(fingerprint.unchanged_status, 'blocked_unchanged');
+  assert.equal(fingerprint.unchanged_failure_code, 'unchanged_failure_fingerprint');
+  assert.equal(fingerprint.unchanged_dispatch_allowed, false);
+  assert.equal(fingerprint.unchanged_dispatch_count, 0);
+  assert.equal(fingerprint.unchanged_mutation_invocation_count, 0);
+  assert.equal(fingerprint.evaluated_before_git_wire_or_owner_api, true);
+
+  assert.match(workflow, /OPL_APP_STABLE_STAGE_RESULT_SCHEMA: opl_app_stable_stage_result\.v1/);
+  assert.match(
+    workflow,
+    /OPL_APP_STABLE_STAGE_RESULT_AUTHORITY: attempt_observation_only_no_framework_state_projection/,
+  );
+  assert.doesNotMatch(workflow, /stable_stage_result.*framework_checkpoint/i);
+});
+
 test('Standard Latest admission derives exact predecessors from public release truth', () => {
   const stable = readJson('contracts/app-release-channel.json')
     .release_bundle_control_plane.publication.stable;
@@ -439,6 +492,13 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
     },
     (release) => {
       release.release_bundle_control_plane.operation_control.append_full_may_inherit_standard_deadline = true;
+    },
+    (release) => {
+      release.release_preflight.stable_stage_result.release_state_authority = true;
+    },
+    (release) => {
+      release.release_preflight.dispatch_guard.failure_fingerprint_circuit_breaker
+        .unchanged_dispatch_allowed = true;
     },
     (release) => {
       release.release_bundle_control_plane.operation_control.same_operation_jobs_and_mutations_share_exact_deadline = false;
