@@ -1604,7 +1604,6 @@
         "owner": "one-person-lab",
         "readback_ref": "app_state.agent_packages.storage_inventory",
         "ordinary_action": "navigate_to_/settings/agents",
-        "lifecycle_action_ref": "app_state.actions#agent_package_uninstall",
         "storage_direct_uninstall_allowed": false
       },
       "webui_data_volume": {
