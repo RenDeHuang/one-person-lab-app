@@ -998,7 +998,7 @@ download_and_validate_component_manifest() {
     return 1
   }
   release_tag=$(component_manifest_value "$manifest_path" release_tag) || return 1
-  release_version=$(component_manifest_value "$manifest_path" release_version) || return 1
+  release_version=$(component_manifest_value "$manifest_path" release_version 2>/dev/null || true)
   version=$(component_manifest_value "$manifest_path" version) || return 1
   primary_name=$(component_manifest_value "$manifest_path" primary_artifact.name) || return 1
   primary_digest=$(component_manifest_value "$manifest_path" primary_artifact.digest) || return 1
@@ -1009,10 +1009,14 @@ download_and_validate_component_manifest() {
     printf 'Component manifest release tag does not match the selected GitHub Release.\n' >&2
     return 1
   }
-  [ "$release_version" = "${tag#v}" ] && [ "$version" = "${tag#v}" ] || {
+  [ "$version" = "${tag#v}" ] || {
     printf 'Component manifest version does not match the selected GitHub Release.\n' >&2
     return 1
   }
+  if [ -n "$release_version" ] && [ "$release_version" != "${tag#v}" ]; then
+    printf 'Component manifest release version does not match the selected GitHub Release.\n' >&2
+    return 1
+  fi
   [ "$primary_name" = "$standard_asset_name" ] && [ "$primary_digest" = "sha256:$standard_asset_sha256" ] || {
     printf 'Component manifest primary Standard DMG identity does not match the selected Release.\n' >&2
     return 1
@@ -1042,47 +1046,62 @@ download_and_validate_component_manifest() {
       ;;
   esac
 
-  quality=$(component_manifest_value "$manifest_path" quality_status) || return 1
-  build_trigger=$(component_manifest_value "$manifest_path" build_trigger) || return 1
-  preview_kind=$(component_manifest_value "$manifest_path" preview_kind) || return 1
-  stable_qualified=$(component_manifest_value "$manifest_path" qualification_disclosure.stable_qualified) || return 1
-  non_stable_notice=$(component_manifest_value "$manifest_path" qualification_disclosure.non_stable_notice) || return 1
-  skipped_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.skipped_gates) || return 1
-  failed_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.failed_gates) || return 1
+  quality=$(component_manifest_value "$manifest_path" quality_status 2>/dev/null || true)
+  build_trigger=$(component_manifest_value "$manifest_path" build_trigger 2>/dev/null || true)
+  preview_kind=$(component_manifest_value "$manifest_path" preview_kind 2>/dev/null || true)
+  stable_qualified=$(component_manifest_value "$manifest_path" qualification_disclosure.stable_qualified 2>/dev/null || true)
+  non_stable_notice=$(component_manifest_value "$manifest_path" qualification_disclosure.non_stable_notice 2>/dev/null || true)
+  skipped_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.skipped_gates 2>/dev/null || true)
+  failed_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.failed_gates 2>/dev/null || true)
 
-  case "$quality:$build_trigger:$preview_kind:$stable_qualified:$non_stable_notice:$STABLE_MACOS_RELEASE_PRERELEASE" in
-    stable:manual:null:true:false:false|stable:automated:null:true:false:false)
-      [ "$skipped_gates" = '[]' ] || {
-        printf 'Stable component manifest must not claim skipped qualification gates.\n' >&2
-        return 1
-      }
-      printf 'Release quality: Stable\n'
-      ;;
-    preview:manual:dev:false:true:false)
-      [ "$skipped_gates" != '[]' ] || {
-        printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
-        return 1
-      }
-      printf 'Release quality: Preview (Dev)\n'
-      ;;
-    preview:automated:nightly:false:true:true)
-      [ "$skipped_gates" != '[]' ] || {
-        printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
-        return 1
-      }
-      printf 'Release quality: Preview (Nightly)\n'
-      ;;
-    *)
-      printf 'Component manifest has an invalid quality, trigger, preview-kind, disclosure, or release-prerelease combination.\n' >&2
+  if [ -z "$quality$build_trigger$preview_kind$stable_qualified$non_stable_notice$skipped_gates$failed_gates" ]; then
+    [ "$STABLE_MACOS_RELEASE_PRERELEASE" = false ] || {
+      printf 'A legacy component manifest cannot describe a prerelease App.\n' >&2
       return 1
-      ;;
-  esac
-  printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
-  if [ "$quality" = preview ]; then
-    printf 'Non-Stable release: full Stable qualification is not asserted.\n'
+    }
+    printf 'Release quality: unasserted legacy release (V3 Stable/Preview metadata unavailable).\n'
+    printf 'Legacy release manifest predates V3 qualification disclosure.\n'
+  else
+    [ -n "$quality" ] && [ -n "$build_trigger" ] && [ -n "$preview_kind" ] \
+      && [ -n "$stable_qualified" ] && [ -n "$non_stable_notice" ] \
+      && [ -n "$skipped_gates" ] && [ -n "$failed_gates" ] || {
+      printf 'Component manifest must provide every V3 quality and qualification disclosure field.\n' >&2
+      return 1
+    }
+    case "$quality:$build_trigger:$preview_kind:$stable_qualified:$non_stable_notice:$STABLE_MACOS_RELEASE_PRERELEASE" in
+      stable:manual:null:true:false:false|stable:automated:null:true:false:false)
+        [ "$skipped_gates" = '[]' ] || {
+          printf 'Stable component manifest must not claim skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Stable\n'
+        ;;
+      preview:manual:dev:false:true:false)
+        [ "$skipped_gates" != '[]' ] || {
+          printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Preview (Dev)\n'
+        ;;
+      preview:automated:nightly:false:true:true)
+        [ "$skipped_gates" != '[]' ] || {
+          printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Preview (Nightly)\n'
+        ;;
+      *)
+        printf 'Component manifest has an invalid quality, trigger, preview-kind, disclosure, or release-prerelease combination.\n' >&2
+        return 1
+        ;;
+    esac
+    if [ "$quality" = preview ]; then
+      printf 'Non-Stable release: full Stable qualification is not asserted.\n'
+    fi
+    printf 'Skipped qualification gates: %s\n' "$skipped_gates"
+    printf 'Failed qualification gates: %s\n' "$failed_gates"
   fi
-  printf 'Skipped qualification gates: %s\n' "$skipped_gates"
-  printf 'Failed qualification gates: %s\n' "$failed_gates"
+  printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
 
   STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
   STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$RELEASE_ASSET_SHA256"

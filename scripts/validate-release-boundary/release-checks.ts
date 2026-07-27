@@ -1233,6 +1233,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       '"release_quality_source": "exact_component_manifest"',
       '"latest_pointer_is_quality_independent": true',
       '"non_stable_disclosure_before_target_mutation": true',
+      '"legacy_component_manifest_policy": "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure"',
       '"default_package_profile": "full"',
       '"hdiutil attach -nobrowse -readonly"',
       '"ditto"',

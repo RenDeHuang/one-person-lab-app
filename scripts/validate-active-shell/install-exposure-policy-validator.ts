@@ -215,6 +215,13 @@ function validateInstallerSurfaces(policy) {
   ) {
     throw new Error('Direct macOS install exposure must bind the exact component manifest without treating Latest as Stable.');
   }
+  if (
+    policy.distribution_install_model?.installer_convergence?.stable_macos_helper?.artifact_integrity
+      ?.legacy_component_manifest_policy !==
+    'allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure'
+  ) {
+    throw new Error('Direct macOS install exposure must disclose its bounded legacy component-manifest policy.');
+  }
   const forbiddenDependencyFields = [
     'capability_target_closure',
     'capability_source',

@@ -180,6 +180,7 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
     verification_order: "dmg_and_component_manifest_before_mount_copy_or_target_replacement",
     latest_pointer_does_not_imply_stable_qualification: true,
     non_stable_disclosure_before_target_mutation: true,
+    legacy_component_manifest_policy: "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure",
   });
   assert.deepEqual(
     install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_entrypoints,
@@ -599,6 +600,8 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     skippedGates = [] as string[],
     primaryDigest,
     primaryName = standardName,
+    legacyV3Manifest = false,
+    legacyV3Fields = {} as Record<string, unknown>,
   }: {
     qualityStatus?: string;
     buildTrigger?: string;
@@ -608,11 +611,12 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     skippedGates?: string[];
     primaryDigest?: string;
     primaryName?: string;
+    legacyV3Manifest?: boolean;
+    legacyV3Fields?: Record<string, unknown>;
   } = {}) => JSON.stringify({
     surface_kind: "opl_app_component_manifest.v1",
     component_id: "opl-app",
     version,
-    release_version: version,
     release_tag: tag,
     release_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${tag}`,
     component_manifest_ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${componentManifestName}`,
@@ -626,15 +630,18 @@ test("Stable macOS installer binds exact release assets before mount and preserv
       digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
       ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${standardName}`,
     }],
-    quality_status: qualityStatus,
-    build_trigger: buildTrigger,
-    preview_kind: previewKind,
-    qualification_disclosure: {
-      stable_qualified: stableQualified,
-      non_stable_notice: nonStableNotice,
-      skipped_gates: skippedGates,
-      failed_gates: [],
-    },
+    ...(legacyV3Manifest ? legacyV3Fields : {
+      release_version: version,
+      quality_status: qualityStatus,
+      build_trigger: buildTrigger,
+      preview_kind: previewKind,
+      qualification_disclosure: {
+        stable_qualified: stableQualified,
+        non_stable_notice: nonStableNotice,
+        skipped_gates: skippedGates,
+        failed_gates: [],
+      },
+    }),
   });
   const writeRelease = ({
     fullPresent = true,
@@ -830,7 +837,11 @@ exit 1
       availableFullCurlArgs,
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
-    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+    assert.match(
+      fs.readFileSync(hdiutilArgsPath, "utf8"),
+      /attach/,
+      availableFullResult.stderr || availableFullResult.stdout,
+    );
 
     const latestResult = runInstaller(["--standard"], { releaseTag: false });
     assert.notEqual(latestResult.status, 0, "fake hdiutil should stop after Latest DMG verification");
@@ -840,6 +851,31 @@ exit 1
     );
     assert.match(latestResult.stdout, /Release quality: Stable/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const legacyReleaseResult = runInstaller(["--standard"], {
+      manifest: { legacyV3Manifest: true },
+    });
+    assert.notEqual(legacyReleaseResult.status, 0, "fake hdiutil should stop after a legacy release download");
+    assert.match(
+      legacyReleaseResult.stdout,
+      /Release quality: unasserted legacy release \(V3 Stable\/Preview metadata unavailable\)/,
+    );
+    assert.match(legacyReleaseResult.stdout, /Legacy release manifest predates V3 qualification disclosure/);
+    assert.doesNotMatch(legacyReleaseResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const partialLegacyReleaseResult = runInstaller(["--standard"], {
+      manifest: {
+        legacyV3Manifest: true,
+        legacyV3Fields: { quality_status: "preview" },
+      },
+    });
+    assert.notEqual(partialLegacyReleaseResult.status, 0);
+    assert.match(
+      partialLegacyReleaseResult.stderr,
+      /must provide every V3 quality and qualification disclosure field/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
     const devPreviewResult = runInstaller(["--standard"], {
       manifest: {

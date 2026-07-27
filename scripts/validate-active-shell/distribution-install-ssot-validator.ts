@@ -422,6 +422,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
       verification_order: 'dmg_and_component_manifest_before_mount_copy_or_target_replacement',
       latest_pointer_does_not_imply_stable_qualification: true,
       non_stable_disclosure_before_target_mutation: true,
+      legacy_component_manifest_policy: 'allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure',
     },
     'Direct macOS installer artifact and quality authority',
   );

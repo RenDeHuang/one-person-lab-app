@@ -121,7 +121,8 @@
           "custom_url_or_path_authority": "caller_supplied_sha256_quality_not_asserted",
           "verification_order": "dmg_and_component_manifest_before_mount_copy_or_target_replacement",
           "latest_pointer_does_not_imply_stable_qualification": true,
-          "non_stable_disclosure_before_target_mutation": true
+          "non_stable_disclosure_before_target_mutation": true,
+          "legacy_component_manifest_policy": "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure"
         },
         "approved_target": "canonical_direct_release_installer"
       }
