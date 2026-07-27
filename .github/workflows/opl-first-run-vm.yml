@@ -393,6 +393,7 @@ jobs:
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
           DIAGNOSTIC_SCOPE_INPUT: ${{ inputs.diagnostic_scope }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
           PUBLISHED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}
           PUBLISHED_ARTIFACT_DIGEST: ${{ inputs.published_artifact_digest }}
         run: |
@@ -455,9 +456,25 @@ jobs:
           esac
           if [ "$diagnostic_scope" = "post_publication_optional_certification" ]; then
             test -n "$PUBLISHED_ARTIFACT_NAME" || { echo "::error::post-publication certification requires published_artifact_name."; exit 1; }
-            [[ "$PUBLISHED_ARTIFACT_NAME" != */* ]] || { echo "::error::published_artifact_name must be one basename."; exit 1; }
             [[ "$PUBLISHED_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::post-publication certification requires an exact published_artifact_digest."; exit 1; }
-            test -n '${{ inputs.release_tag }}' || { echo "::error::post-publication certification requires one exact release_tag."; exit 1; }
+            [[ "$RELEASE_TAG_INPUT" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-r[1-9][0-9]*)?$ ]] || { echo "::error::post-publication certification requires one canonical Stable release_tag."; exit 1; }
+            release_version="${RELEASE_TAG_INPUT#v}"
+            case "$profile" in
+              standard)
+                expected_published_artifact_name="One-Person-Lab-${release_version}-mac-arm64.dmg"
+                ;;
+              full)
+                expected_published_artifact_name="One-Person-Lab-Full-${release_version}-mac-arm64.dmg"
+                ;;
+              *)
+                echo "::error::post-publication certification supports only Standard or Full published DMGs."
+                exit 1
+                ;;
+            esac
+            test "$PUBLISHED_ARTIFACT_NAME" = "$expected_published_artifact_name" || {
+              echo "::error::published_artifact_name must be the canonical exact DMG basename for release_tag and package_profile."
+              exit 1
+            }
             test -z "$RELEASE_ARTIFACT_NAME" || { echo "::error::post-publication certification must consume public release bytes, not an Actions artifact."; exit 1; }
           elif [ -n "$PUBLISHED_ARTIFACT_NAME$PUBLISHED_ARTIFACT_DIGEST" ]; then
             echo "::error::published artifact identity inputs are accepted only for post_publication_optional_certification."
@@ -822,7 +839,6 @@ jobs:
           install_script_path="one-person-lab/install.sh"
           test -f "$install_script_path"
           git -C one-person-lab archive --format=tar.gz --prefix=one-person-lab/ HEAD -o "$GITHUB_WORKSPACE/$archive_path"
-          chmod +x "$install_script_path"
           echo "archive_path=$archive_path" >> "$GITHUB_OUTPUT"
           echo "install_script_path=$install_script_path" >> "$GITHUB_OUTPUT"
 
@@ -1045,6 +1061,8 @@ jobs:
 
       - name: Resolve release DMG
         id: dmg
+        env:
+          PUBLISHED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1201,7 +1219,7 @@ jobs:
           elif [ -n "${{ inputs.release_tag }}" ]; then
             download_pattern="${{ steps.package_profile.outputs.download_pattern }}"
             if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = post_publication_optional_certification ]; then
-              download_pattern='${{ inputs.published_artifact_name }}'
+              download_pattern="$PUBLISHED_ARTIFACT_NAME"
             fi
             download_release_with_retry "${{ inputs.release_tag }}" \
               --repo "$GITHUB_REPOSITORY" \
@@ -1250,12 +1268,20 @@ jobs:
       - name: Verify exact published DMG identity before install
         id: published_artifact_identity
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        env:
+          DMG_PATH: ${{ steps.dmg.outputs.dmg_path }}
+          EXPECTED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}
+          EXPECTED_ARTIFACT_DIGEST: ${{ inputs.published_artifact_digest }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_APP_SHA: ${{ inputs.artifact_app_ref }}
+          SHELL_SHA: ${{ inputs.shell_ref }}
+          FRAMEWORK_SHA: ${{ inputs.framework_ref }}
         shell: bash
         run: |
           set -euo pipefail
-          dmg_path='${{ steps.dmg.outputs.dmg_path }}'
-          expected_name='${{ inputs.published_artifact_name }}'
-          expected_digest='${{ inputs.published_artifact_digest }}'
+          dmg_path="$DMG_PATH"
+          expected_name="$EXPECTED_ARTIFACT_NAME"
+          expected_digest="$EXPECTED_ARTIFACT_DIGEST"
           test -f "$dmg_path" && test ! -L "$dmg_path"
           test "$(basename "$dmg_path")" = "$expected_name" || {
             echo "::error::Published DMG name does not match the exact resolved release asset."
@@ -1269,12 +1295,12 @@ jobs:
           printf '%s\n' "$actual_digest" > artifacts/release/published-artifact-digest.txt
           mkdir -p artifacts/opl-first-run-vm
           jq -n \
-            --arg tag '${{ inputs.release_tag }}' \
+            --arg tag "$RELEASE_TAG" \
             --arg name "$expected_name" \
             --arg digest "$actual_digest" \
-            --arg app_sha '${{ inputs.artifact_app_ref }}' \
-            --arg shell_sha '${{ inputs.shell_ref }}' \
-            --arg framework_sha '${{ inputs.framework_ref }}' \
+            --arg app_sha "$ARTIFACT_APP_SHA" \
+            --arg shell_sha "$SHELL_SHA" \
+            --arg framework_sha "$FRAMEWORK_SHA" \
             '{schema:"opl_app_post_publication_artifact_identity.v1",verified:true,release_tag:$tag,artifact:{name:$name,digest:$digest},cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}}' \
             > artifacts/opl-first-run-vm/published-artifact-identity.json
           echo "verified=true" >> "$GITHUB_OUTPUT"
@@ -1293,10 +1319,12 @@ jobs:
       - name: Admit exact Tart capability for post-publication certification
         id: post_publication_capability
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        env:
+          SOURCE_VM: ${{ steps.tart_source.outputs.source_vm }}
         shell: bash
         run: |
           set -euo pipefail
-          source_vm='${{ steps.tart_source.outputs.source_vm }}'
+          source_vm="$SOURCE_VM"
           admission_path=artifacts/opl-first-run-vm/post-publication-capability-admission.json
           write_admission() {
             local status="$1"
@@ -1808,6 +1836,9 @@ jobs:
       - name: Classify post-publication optional certification outcome
         id: post_publication_outcome
         if: ${{ always() && needs.validate-vm-inputs.outputs.diagnostic_scope == 'post_publication_optional_certification' }}
+        env:
+          EXPECTED_SOURCE_VM: ${{ steps.tart_source.outputs.source_vm }}
+          EXPECTED_RUNTIME_PROFILE: ${{ steps.package_profile.outputs.runtime_profile }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1820,13 +1851,54 @@ jobs:
           capability_outcome='${{ steps.post_publication_capability.outcome }}'
           smoke_outcome='${{ steps.vm_smoke.outcome }}'
           settings_outcome='${{ steps.settings_runtime_evidence.outcome }}'
+          capability_path=artifacts/opl-first-run-vm/post-publication-capability-admission.json
+          summary=artifacts/opl-first-run-vm/tart-smoke-summary.json
+          capability_passed=false
+          capability_failed=false
+          smoke_passed=false
+          if [ -s "$capability_path" ] && [ -f "$capability_path" ] && [ ! -L "$capability_path" ]; then
+            if jq -e --arg source_vm "$EXPECTED_SOURCE_VM" '
+              type == "object"
+              and (keys == ["reason_code","schema","source_vm","status"])
+              and .schema == "opl_app_optional_certification_vm_admission.v1"
+              and .status == "passed"
+              and .reason_code == null
+              and ($source_vm | length > 0)
+              and .source_vm == $source_vm
+            ' "$capability_path" >/dev/null; then
+              capability_passed=true
+            elif jq -e --arg source_vm "$EXPECTED_SOURCE_VM" '
+              type == "object"
+              and (keys == ["reason_code","schema","source_vm","status"])
+              and .schema == "opl_app_optional_certification_vm_admission.v1"
+              and .status == "failed"
+              and .reason_code == "capability_admission_failed"
+              and ($source_vm | length > 0)
+              and .source_vm == $source_vm
+            ' "$capability_path" >/dev/null; then
+              capability_failed=true
+            fi
+          fi
+          if [ -s "$summary" ] && [ -f "$summary" ] && [ ! -L "$summary" ]; then
+            if jq -e --arg source_vm "$EXPECTED_SOURCE_VM" --arg runtime_profile "$EXPECTED_RUNTIME_PROFILE" '
+              type == "object"
+              and .surface_id == "opl_tart_gui_first_run_smoke"
+              and .status == "passed"
+              and .source_vm == $source_vm
+              and .smoke_profile == "no-clt-clean-vm"
+              and .runtime_profile == $runtime_profile
+              and .framework_source_archive == null
+            ' "$summary" >/dev/null; then
+              smoke_passed=true
+            fi
+          fi
           if [ "$artifact_verified" != true ] || [ "$job_started" != true ]; then
             true
-          elif [ "$capability_outcome" = failure ]; then
+          elif [ "$capability_outcome" = failure ] && [ "$capability_failed" = true ]; then
             valid=true
             status=unavailable
-            reason_code=capability_admission_failed
-          elif [ "$execution_started" = true ] && [ "$smoke_outcome" = success ]; then
+            reason_code="$(jq -er .reason_code "$capability_path")"
+          elif [ "$capability_outcome" = success ] && [ "$capability_passed" = true ] && [ "$execution_started" = true ] && [ "$smoke_outcome" = success ] && [ "$smoke_passed" = true ]; then
             if [ "$settings_outcome" = success ]; then
               valid=true
               status=passed
@@ -1834,10 +1906,20 @@ jobs:
               valid=true
               status=failed
             fi
-          elif [ "$execution_started" = true ] && [ "$smoke_outcome" = failure ]; then
-            summary=artifacts/opl-first-run-vm/tart-smoke-summary.json
-            if [ -f "$summary" ] && [ ! -L "$summary" ]; then
-              failure_stage="$(jq -er '.failure_stage // empty' "$summary")"
+          elif [ "$capability_outcome" = success ] && [ "$capability_passed" = true ] && [ "$execution_started" = true ] && [ "$smoke_outcome" = failure ]; then
+            if [ -s "$summary" ] && [ -f "$summary" ] && [ ! -L "$summary" ]; then
+              failure_stage="$(jq -er --arg source_vm "$EXPECTED_SOURCE_VM" --arg runtime_profile "$EXPECTED_RUNTIME_PROFILE" '
+                select(
+                  type == "object"
+                  and .surface_id == "opl_tart_gui_first_run_smoke"
+                  and .status == "failed"
+                  and .source_vm == $source_vm
+                  and .smoke_profile == "no-clt-clean-vm"
+                  and .runtime_profile == $runtime_profile
+                  and .framework_source_archive == null
+                )
+                | .failure_stage // empty
+              ' "$summary")"
               case "$failure_stage" in
                 clone_vm|configure_display|start_vm|wait_for_ip|wait_for_ssh)
                   valid=true

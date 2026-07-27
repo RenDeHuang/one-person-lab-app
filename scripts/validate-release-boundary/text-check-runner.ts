@@ -998,6 +998,20 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'physical_job_dispatched:$dispatched',
     'component_manifest_digest',
     'public-component-manifest.json',
+    'Download exact Standard VM evidence',
+    'opl-first-run-vm-standard-${{ github.run_id }}',
+    'Download exact Full VM evidence',
+    'opl-first-run-vm-full-${{ github.run_id }}',
+    'published-artifact-identity.json',
+    'post-publication-capability-admission.json',
+    'post-publication-execution-start.json',
+    'tart-smoke-summary.json',
+    'settings-runtime-refresh-verification.json',
+    'installed-framework-source-identity.json',
+    'full-runtime-source-identity.json',
+    'opl_framework_installed_source_identity.v1',
+    'opl_full_runtime_source_identity.v1',
+    'source == "packaged_app_resource"',
   ]) {
     if (!optionalCertification.text.includes(required)) {
       failures += reportFailure(id, `post-publication certification follower is missing ${required}`);
@@ -1013,6 +1027,16 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       'post-publication certification follower must not dispatch, rebuild, sign, publish, or mutate public state',
     );
   }
+  for (const forbidden of [
+    '${VM_REASON_CODE:-capability_admission_failed}',
+    '${VM_ADMISSION_REASON:-operator_deferred}',
+    'standard-vm-evidence.json',
+    'full-vm-evidence.json',
+  ]) {
+    if (optionalCertification.text.includes(forbidden)) {
+      failures += reportFailure(id, `post-publication certification follower must not fabricate ${forbidden}`);
+    }
+  }
   for (const required of [
     'published_artifact_name',
     'published_artifact_digest',
@@ -1024,9 +1048,14 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'post_publication_classification_valid',
     'post-publication certification must consume public release bytes, not an Actions artifact',
     'Verify exact published DMG identity before install',
-    "download_pattern='${{ inputs.published_artifact_name }}'",
+    'PUBLISHED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}',
+    'download_pattern="$PUBLISHED_ARTIFACT_NAME"',
+    'published_artifact_name must be the canonical exact DMG basename for release_tag and package_profile',
     'Admit exact Tart capability for post-publication certification',
     'Mark post-publication certification execution started',
+    'keys == ["reason_code","schema","source_vm","status"]',
+    '.source_vm == $source_vm',
+    '.framework_source_archive == null',
     'clone_vm|configure_display|start_vm|wait_for_ip|wait_for_ssh',
     'run_guest_smoke|validate_guest_summary',
     'actual_digest="sha256:$(shasum -a 256 "$dmg_path"',
@@ -1035,6 +1064,9 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     if (!optionalCertificationVm.text.includes(required)) {
       failures += reportFailure(id, `optional certification VM path is missing ${required}`);
     }
+  }
+  if (optionalCertificationVm.text.includes("download_pattern='${{ inputs.published_artifact_name }}'")) {
+    failures += reportFailure(id, 'optional certification VM must pass published artifact names through step env');
   }
 
   const homebrewStandardRuns = jobRuns(standardJobs['publish-homebrew-standard']);

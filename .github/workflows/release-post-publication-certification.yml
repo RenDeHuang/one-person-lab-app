@@ -273,6 +273,13 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
+      - name: Download exact Standard VM evidence
+        if: ${{ needs.admit-standard-vm.outputs.eligible == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-standard-${{ github.run_id }}
+          path: imported-standard-vm-evidence
+
       - name: Write Standard VM result and explicit residual not-run receipts
         env:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -310,15 +317,41 @@ jobs:
           standard_status=''
           standard_reason=''
           admission_status=not_started
+          admission_evidence=''
           dispatched=false
+          evidence_files=()
+          require_unique_evidence() {
+            local root="$1"
+            local basename="$2"
+            local output_name="$3"
+            local matches=()
+            while IFS= read -r -d '' candidate; do matches+=("$candidate"); done < <(
+              find "$root" -type f -name "$basename" -print0
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::Expected exactly one $basename in $root; found ${#matches[@]}."
+              exit 1
+            }
+            test -s "${matches[0]}" && test ! -L "${matches[0]}" || {
+              echo "::error::Evidence must be one non-empty regular non-symlink file: ${matches[0]}"
+              exit 1
+            }
+            printf -v "$output_name" '%s' "${matches[0]}"
+          }
           if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_ADMITTED" = false || { echo "::error::Standard VM admission must be true or false."; exit 1; }
             test "$VM_JOB_RESULT" = skipped || {
               echo "::error::A not-admitted Standard VM must not have a non-skipped reusable job."
               exit 1
             }
+            case "$VM_ADMISSION_REASON" in
+              not_authorized|operator_deferred) ;;
+              *) echo "::error::A not-admitted Standard VM requires an exact non-execution reason."; exit 1 ;;
+            esac
             standard_status=not_run
-            standard_reason="${VM_ADMISSION_REASON:-operator_deferred}"
+            standard_reason="$VM_ADMISSION_REASON"
           else
+            test "$VM_ADMISSION_REASON" = '' || { echo "::error::An admitted Standard VM must not carry an admission reason."; exit 1; }
             test "$VM_CLASSIFICATION_VALID" = true || {
               echo "::error::The admitted Standard VM did not return one sealable terminal classification."
               exit 1
@@ -329,29 +362,103 @@ jobs:
             }
             dispatched=true
             admission_status=passed
+            require_unique_evidence imported-standard-vm-evidence published-artifact-identity.json artifact_identity
+            require_unique_evidence imported-standard-vm-evidence post-publication-job-start.json job_start
+            require_unique_evidence imported-standard-vm-evidence post-publication-capability-admission.json capability_admission
+            require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
+            jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
+              --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
+              type == "object"
+              and (keys == ["artifact","cohort","release_tag","schema","verified"])
+              and .schema == "opl_app_post_publication_artifact_identity.v1"
+              and .verified == true
+              and .release_tag == $tag
+              and (.artifact | keys == ["digest","name"])
+              and .artifact.name == $name
+              and .artifact.digest == $digest
+              and (.cohort | keys == ["app_sha","framework_sha","shell_sha"])
+              and .cohort.app_sha == $app_sha
+              and .cohort.shell_sha == $shell_sha
+              and .cohort.framework_sha == $framework_sha
+            ' "$artifact_identity" >/dev/null
+            jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
+            source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
+            jq -e --arg source_vm "$source_vm" '
+              type == "object"
+              and .surface_id == "opl_tart_gui_first_run_smoke"
+              and .source_vm == $source_vm
+              and .smoke_profile == "no-clt-clean-vm"
+              and .runtime_profile == "standard"
+              and .framework_source_archive == null
+            ' "$tart_summary" >/dev/null
             case "$VM_STATUS" in
               passed)
-                test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Standard passed requires a successful reusable job and a started executor."
                   exit 1
                 }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
+                require_unique_evidence imported-standard-vm-evidence settings-smoke-summary.json settings_summary
+                require_unique_evidence imported-standard-vm-evidence settings-runtime-refresh-verification.json settings_verification
+                require_unique_evidence imported-standard-vm-evidence installed-framework-source-identity.json framework_identity
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                jq -e '.surface_id == "opl_packaged_gui_settings_smoke" and .status == "passed"' "$settings_summary" >/dev/null
+                jq -e '.schema == "opl_settings_runtime_refresh_evidence_verification.v1" and .status == "passed"' "$settings_verification" >/dev/null
+                jq -e --arg framework_sha "$FRAMEWORK_SHA" '
+                  .schema == "opl_framework_installed_source_identity.v1"
+                  and .status == "passed"
+                  and .install_mode == "archive"
+                  and .expected_framework_sha == $framework_sha
+                  and .observed_framework_sha == $framework_sha
+                  and .exact_match == true
+                ' "$framework_identity" >/dev/null
                 standard_status=passed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary" "$settings_summary" "$settings_verification" "$framework_identity")
                 ;;
               failed)
-                test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Standard failed requires a failed reusable job after execution started."
                   exit 1
                 }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
                 standard_status=failed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary")
+                settings_matches=()
+                while IFS= read -r -d '' candidate; do settings_matches+=("$candidate"); done < <(find imported-standard-vm-evidence -type f -name settings-runtime-refresh-verification.json -print0)
+                test "${#settings_matches[@]}" -le 1 || { echo "::error::Standard failed evidence contains duplicate Settings verification files."; exit 1; }
+                if [ "${#settings_matches[@]}" -eq 1 ]; then
+                  test -s "${settings_matches[0]}" && test ! -L "${settings_matches[0]}"
+                  evidence_files+=("${settings_matches[0]}")
+                fi
                 ;;
               unavailable)
-                test "$VM_JOB_RESULT" = failure || {
+                test "$VM_JOB_RESULT" = failure && test -n "$VM_REASON_CODE" || {
                   echo "::error::Standard unavailable requires a failed started job."
                   exit 1
                 }
                 standard_status=unavailable
-                standard_reason="${VM_REASON_CODE:-capability_admission_failed}"
+                standard_reason="$VM_REASON_CODE"
                 admission_status=failed
+                case "$standard_reason" in
+                  capability_admission_failed)
+                    test "$VM_EXECUTION_STARTED" != true || { echo "::error::Capability admission failure must precede execution start."; exit 1; }
+                    jq -e --arg source_vm "$source_vm" '.status == "failed" and .reason_code == "capability_admission_failed" and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                    admission_evidence="$capability_admission"
+                    ;;
+                  vm_admission_failed)
+                    test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
+                    admission_evidence="$tart_summary"
+                    ;;
+                  *) echo "::error::Standard unavailable requires an exact child reason."; exit 1 ;;
+                esac
                 ;;
               *)
                 echo "::error::Standard certification returned an unsupported status."
@@ -362,20 +469,21 @@ jobs:
           jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
             --arg status "$admission_status" --arg reason "$standard_reason" --argjson dispatched "$dispatched" \
             '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
-            > standard-vm-admission.json
+            > standard-dispatch-admission.json
+          if [ "$standard_status" = not_run ]; then
+            admission_evidence=standard-dispatch-admission.json
+          fi
           standard_args=(
             "${common_args[@]}"
             --status "$standard_status"
             --certification-kind clean_machine_install
             --capability tart-clean-macos
-            --admission-evidence-file standard-vm-admission.json
+            --admission-evidence-file "$admission_evidence"
           )
           case "$standard_status" in
             passed|failed)
-              jq -n --arg result "$VM_JOB_RESULT" --arg status "$VM_STATUS" --arg run "$GITHUB_RUN_ID" \
-                '{schema:"opl_app_optional_certification_execution_evidence.v1",job_result:$result,classified_status:$status,certification_run_id:$run}' \
-                > standard-vm-evidence.json
-              standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --evidence-file standard-vm-evidence.json)
+              standard_args+=(--certification-run-id "$GITHUB_RUN_ID")
+              for evidence_file in "${evidence_files[@]}"; do standard_args+=(--evidence-file "$evidence_file"); done
               ;;
             unavailable)
               standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$standard_reason")
@@ -387,6 +495,9 @@ jobs:
           node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
             "${standard_args[@]}" \
             --output standard-dmg-clean-machine.json
+          mkdir -p standard-receipt-evidence
+          cp "$admission_evidence" standard-receipt-evidence/
+          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" standard-receipt-evidence/; done
 
           jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
             '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
@@ -416,6 +527,8 @@ jobs:
             standard-dmg-clean-machine.json
             homebrew-standard-clean-machine.json
             one-shot-installer-clean-machine.json
+            standard-dispatch-admission.json
+            standard-receipt-evidence
           if-no-files-found: error
           retention-days: 90
 
@@ -674,6 +787,13 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
+      - name: Download exact Full VM evidence
+        if: ${{ needs.admit-full-vm.outputs.eligible == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: imported-full-vm-evidence
+
       - name: Write exact Full VM certification receipt
         env:
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -699,15 +819,41 @@ jobs:
           full_status=''
           full_reason=''
           admission_status=not_started
+          admission_evidence=''
           dispatched=false
+          evidence_files=()
+          require_unique_evidence() {
+            local root="$1"
+            local basename="$2"
+            local output_name="$3"
+            local matches=()
+            while IFS= read -r -d '' candidate; do matches+=("$candidate"); done < <(
+              find "$root" -type f -name "$basename" -print0
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::Expected exactly one $basename in $root; found ${#matches[@]}."
+              exit 1
+            }
+            test -s "${matches[0]}" && test ! -L "${matches[0]}" || {
+              echo "::error::Evidence must be one non-empty regular non-symlink file: ${matches[0]}"
+              exit 1
+            }
+            printf -v "$output_name" '%s' "${matches[0]}"
+          }
           if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_ADMITTED" = false || { echo "::error::Full VM admission must be true or false."; exit 1; }
             test "$VM_JOB_RESULT" = skipped || {
               echo "::error::A not-admitted Full VM must not have a non-skipped reusable job."
               exit 1
             }
+            case "$VM_ADMISSION_REASON" in
+              not_authorized|operator_deferred) ;;
+              *) echo "::error::A not-admitted Full VM requires an exact non-execution reason."; exit 1 ;;
+            esac
             full_status=not_run
-            full_reason="${VM_ADMISSION_REASON:-operator_deferred}"
+            full_reason="$VM_ADMISSION_REASON"
           else
+            test "$VM_ADMISSION_REASON" = '' || { echo "::error::An admitted Full VM must not carry an admission reason."; exit 1; }
             test "$VM_CLASSIFICATION_VALID" = true || {
               echo "::error::The admitted Full VM did not return one sealable terminal classification."
               exit 1
@@ -718,29 +864,103 @@ jobs:
             }
             dispatched=true
             admission_status=passed
+            require_unique_evidence imported-full-vm-evidence published-artifact-identity.json artifact_identity
+            require_unique_evidence imported-full-vm-evidence post-publication-job-start.json job_start
+            require_unique_evidence imported-full-vm-evidence post-publication-capability-admission.json capability_admission
+            require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
+            jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
+              --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
+              type == "object"
+              and (keys == ["artifact","cohort","release_tag","schema","verified"])
+              and .schema == "opl_app_post_publication_artifact_identity.v1"
+              and .verified == true
+              and .release_tag == $tag
+              and (.artifact | keys == ["digest","name"])
+              and .artifact.name == $name
+              and .artifact.digest == $digest
+              and (.cohort | keys == ["app_sha","framework_sha","shell_sha"])
+              and .cohort.app_sha == $app_sha
+              and .cohort.shell_sha == $shell_sha
+              and .cohort.framework_sha == $framework_sha
+            ' "$artifact_identity" >/dev/null
+            jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
+            source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
+            jq -e --arg source_vm "$source_vm" '
+              type == "object"
+              and .surface_id == "opl_tart_gui_first_run_smoke"
+              and .source_vm == $source_vm
+              and .smoke_profile == "no-clt-clean-vm"
+              and .runtime_profile == "full"
+              and .framework_source_archive == null
+            ' "$tart_summary" >/dev/null
             case "$VM_STATUS" in
               passed)
-                test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Full passed requires a successful reusable job and a started executor."
                   exit 1
                 }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
+                require_unique_evidence imported-full-vm-evidence settings-smoke-summary.json settings_summary
+                require_unique_evidence imported-full-vm-evidence settings-runtime-refresh-verification.json settings_verification
+                require_unique_evidence imported-full-vm-evidence full-runtime-source-identity.json full_runtime_identity
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                jq -e '.surface_id == "opl_packaged_gui_settings_smoke" and .status == "passed"' "$settings_summary" >/dev/null
+                jq -e '.schema == "opl_settings_runtime_refresh_evidence_verification.v1" and .status == "passed"' "$settings_verification" >/dev/null
+                jq -e --arg framework_sha "$FRAMEWORK_SHA" '
+                  .schema == "opl_full_runtime_source_identity.v1"
+                  and .status == "passed"
+                  and .source == "packaged_app_resource"
+                  and .expected_framework_sha == $framework_sha
+                  and .observed_framework_sha == $framework_sha
+                  and .exact_match == true
+                ' "$full_runtime_identity" >/dev/null
                 full_status=passed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary" "$settings_summary" "$settings_verification" "$full_runtime_identity")
                 ;;
               failed)
-                test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Full failed requires a failed reusable job after execution started."
                   exit 1
                 }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
                 full_status=failed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary")
+                settings_matches=()
+                while IFS= read -r -d '' candidate; do settings_matches+=("$candidate"); done < <(find imported-full-vm-evidence -type f -name settings-runtime-refresh-verification.json -print0)
+                test "${#settings_matches[@]}" -le 1 || { echo "::error::Full failed evidence contains duplicate Settings verification files."; exit 1; }
+                if [ "${#settings_matches[@]}" -eq 1 ]; then
+                  test -s "${settings_matches[0]}" && test ! -L "${settings_matches[0]}"
+                  evidence_files+=("${settings_matches[0]}")
+                fi
                 ;;
               unavailable)
-                test "$VM_JOB_RESULT" = failure || {
+                test "$VM_JOB_RESULT" = failure && test -n "$VM_REASON_CODE" || {
                   echo "::error::Full unavailable requires a failed started job."
                   exit 1
                 }
                 full_status=unavailable
-                full_reason="${VM_REASON_CODE:-capability_admission_failed}"
+                full_reason="$VM_REASON_CODE"
                 admission_status=failed
+                case "$full_reason" in
+                  capability_admission_failed)
+                    test "$VM_EXECUTION_STARTED" != true || { echo "::error::Capability admission failure must precede execution start."; exit 1; }
+                    jq -e --arg source_vm "$source_vm" '.status == "failed" and .reason_code == "capability_admission_failed" and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                    admission_evidence="$capability_admission"
+                    ;;
+                  vm_admission_failed)
+                    test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
+                    admission_evidence="$tart_summary"
+                    ;;
+                  *) echo "::error::Full unavailable requires an exact child reason."; exit 1 ;;
+                esac
                 ;;
               *)
                 echo "::error::Full certification returned an unsupported status."
@@ -751,7 +971,10 @@ jobs:
           jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
             --arg status "$admission_status" --arg reason "$full_reason" --argjson dispatched "$dispatched" \
             '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
-            > full-vm-admission.json
+            > full-dispatch-admission.json
+          if [ "$full_status" = not_run ]; then
+            admission_evidence=full-dispatch-admission.json
+          fi
           full_args=(
             --release-tag "$RELEASE_TAG" \
             --artifact-name "$ARTIFACT_NAME" \
@@ -765,14 +988,12 @@ jobs:
             --certification-kind clean_machine_install \
             --platform macos \
             --capability tart-full-clean-macos \
-            --admission-evidence-file full-vm-admission.json
+            --admission-evidence-file "$admission_evidence"
           )
           case "$full_status" in
             passed|failed)
-              jq -n --arg result "$VM_JOB_RESULT" --arg status "$VM_STATUS" --arg run "$GITHUB_RUN_ID" \
-                '{schema:"opl_app_optional_certification_execution_evidence.v1",job_result:$result,classified_status:$status,certification_run_id:$run}' \
-                > full-vm-evidence.json
-              full_args+=(--certification-run-id "$GITHUB_RUN_ID" --evidence-file full-vm-evidence.json)
+              full_args+=(--certification-run-id "$GITHUB_RUN_ID")
+              for evidence_file in "${evidence_files[@]}"; do full_args+=(--evidence-file "$evidence_file"); done
               ;;
             unavailable)
               full_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$full_reason")
@@ -784,11 +1005,17 @@ jobs:
           node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
             "${full_args[@]}" \
             --output full-dmg-clean-machine.json
+          mkdir -p full-receipt-evidence
+          cp "$admission_evidence" full-receipt-evidence/
+          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" full-receipt-evidence/; done
 
       - name: Upload non-blocking Full certification receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-post-publication-full-certification-${{ github.event.workflow_run.id }}
-          path: full-dmg-clean-machine.json
+          path: |
+            full-dmg-clean-machine.json
+            full-dispatch-admission.json
+            full-receipt-evidence
           if-no-files-found: error
           retention-days: 90
