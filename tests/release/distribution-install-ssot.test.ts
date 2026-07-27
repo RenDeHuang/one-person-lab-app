@@ -26,7 +26,7 @@ test('distribution/install SSOT validates the current and approved state split',
     'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
-  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 3);
+  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 4);
   assert.equal(install.distribution_install_model.topology_counts.current_ordinary_install_entrypoint_families, 4);
   assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 2);
   assert.equal(install.distribution_install_model.topology_counts.approved_target_app_runtime_forms, 3);
@@ -44,11 +44,11 @@ test('distribution/install SSOT validates the current and approved state split',
   );
   assert.equal(
     release.distribution_semantics.approved_targets.homebrew_full.generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
   );
   assert.equal(
     release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed,
-    false,
+    true,
   );
   assert.equal(
     release.distribution_semantics.approved_targets.native_webui.production_topology,

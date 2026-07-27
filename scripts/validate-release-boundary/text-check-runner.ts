@@ -1127,28 +1127,30 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     JSON.stringify(Object.keys(publisher.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
     || JSON.stringify(Object.keys(publisherInputs)) !== JSON.stringify(['mode', 'authority_run_id', 'handoff_base64', 'handoff_sha256'])
     || !exactObject(publisher.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(publisherJobs)) !== JSON.stringify(['startup-canary', 'prepare-candidate', 'qualify-candidate', 'publish-cask', 'readback'])
+    || JSON.stringify(Object.keys(publisherJobs)) !== JSON.stringify(['startup-canary', 'prepare-candidate', 'publish-cask', 'readback'])
   ) {
-    failures += reportFailure(id, 'Full Homebrew reusable must expose only exact handoff inputs and candidate/qualification/publish/readback jobs');
+    failures += reportFailure(id, 'Full Homebrew reusable must expose only exact handoff inputs and candidate/publish/readback jobs');
   }
   const startup = publisherJobs['startup-canary'];
   const prepare = publisherJobs['prepare-candidate'];
-  const qualify = publisherJobs['qualify-candidate'];
   const publish = publisherJobs['publish-cask'];
   const readback = publisherJobs.readback;
   if (
     !startup || startup.if !== "${{ inputs.mode == 'canary' }}" || !exactObject(startup.permissions, exactReadPermissions)
     || !prepare || prepare.if !== "${{ inputs.mode == 'execute' }}" || !exactObject(prepare.permissions, exactReadPermissions)
-    || !qualify || qualify.if !== "${{ inputs.mode == 'execute' }}" || qualify.uses !== './.github/workflows/opl-first-run-vm.yml'
-    || !needsExactly(qualify, ['prepare-candidate']) || !exactObject(qualify.permissions, exactReadPermissions)
-    || qualify.with?.package_profile !== 'homebrew-full'
-    || qualify.with?.homebrew_candidate_artifact !== '${{ needs.prepare-candidate.outputs.candidate_artifact }}'
-    || !publish || publish.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(publish, ['prepare-candidate', 'qualify-candidate'])
+    || !publish || publish.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(publish, ['prepare-candidate'])
     || publish.environment !== 'release-stable' || !exactObject(publish.permissions, exactReadPermissions)
     || !readback || readback.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(readback, ['prepare-candidate', 'publish-cask'])
     || !exactObject(readback.permissions, exactReadPermissions)
   ) {
-    failures += reportFailure(id, 'Full Homebrew reusable must qualify exact candidate before protected Tap CAS and public readback');
+    failures += reportFailure(id, 'Full Homebrew reusable must publish the exact hosted-qualified candidate before protected Tap CAS and public readback');
+  }
+  if (
+    /qualify-candidate|opl-first-run-vm\.yml|tart-smoke-summary\.json|smoke_harness_sha|shell-harness|opl-first-run-tart-smoke|--homebrew-cask-file/.test(
+      publisher.text,
+    )
+  ) {
+    failures += reportFailure(id, 'Full Homebrew publication must not depend on physical VM certification before protected Tap CAS');
   }
   const prepareRuns = jobRuns(prepare);
   const publishRuns = jobRuns(publish);
@@ -1169,12 +1171,6 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     if (!prepareRuns.includes(required)) failures += reportFailure(id, `Full Homebrew candidate preparation is missing ${required}`);
   }
   for (const required of [
-    'tart-smoke-summary.json',
-    'homebrew-full-cask',
-    'formula_opl_installed_before == false',
-    'formula_opl_installed_after == false',
-    'active_framework_count == 1',
-    'official_profile.status == "passed"',
     'append_full_operation_id',
     'append_full_operation_deadline_at',
     'publication-scope track_assets',
@@ -1192,8 +1188,20 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'git -C tap-source fetch --no-tags --depth=1 origin "$remote_commit"',
     "git -C tap-source show 'FETCH_HEAD:Casks/one-person-lab-full.rb'",
     'opl_homebrew_full_publication_receipt.v1',
+    'qualification_receipt_sha256:$qualification_sha',
+    'cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}',
   ]) {
     if (!publishRuns.includes(required)) failures += reportFailure(id, `Full Homebrew protected publish is missing ${required}`);
+  }
+  for (const forbidden of [
+    'clean_vm_receipt_sha256',
+    'official_profile_first_install',
+    'formula_opl_installed_before',
+    'formula_opl_installed_after',
+  ]) {
+    if (publishRuns.includes(forbidden)) {
+      failures += reportFailure(id, `Full Homebrew publication must not fabricate optional certification field ${forbidden}`);
+    }
   }
   if (!publisher.text.includes('Restore qualified Full publication checkpoint')) {
     failures += reportFailure(id, 'Full Homebrew protected publish must restore the exact qualified Full checkpoint');
@@ -1211,8 +1219,8 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
   ) {
     failures += reportFailure(id, 'Full Homebrew token must be scoped to the protected publish job');
   }
-  if (prepareRuns.includes('OPL_HOMEBREW_TAP_TOKEN') || jobRuns(qualify).includes('OPL_HOMEBREW_TAP_TOKEN')) {
-    failures += reportFailure(id, 'Full Homebrew token must be unreachable before candidate clean-VM qualification passes');
+  if (prepareRuns.includes('OPL_HOMEBREW_TAP_TOKEN')) {
+    failures += reportFailure(id, 'Full Homebrew token must be unreachable before the protected publish job');
   }
   if (/workflow_dispatch:|depends_on formula: "opl"|github-activate-latest|make_latest|release-webui/.test(publisher.text)) {
     failures += reportFailure(id, 'Full Homebrew reusable must remain isolated from Formula, Latest, WebUI, and manual entry paths');

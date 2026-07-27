@@ -28,12 +28,13 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     ['app_github_releases', 'homebrew_tap', 'webui_ghcr'],
     'Publication carrier families',
   );
-  requireEqual(releaseTopology?.current_production_publication_paths, 3, 'Production publication path count');
+  requireEqual(releaseTopology?.current_production_publication_paths, 4, 'Production publication path count');
   assertDeepEqualJson(
     releaseTopology?.production_publication_paths,
     [
       'desktop_stable_github_release',
       'homebrew_standard_cask',
+      'homebrew_full_cask_post_publication_follower',
       'container_webui_latest_with_stable_compatibility_alias',
     ],
     'Production publication paths',
@@ -226,12 +227,12 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   const releaseHomebrew = releaseChannel.homebrew_tap_distribution;
   requireEqual(
     release.implementation_state?.homebrew_full,
-    'legacy_cask_exists_not_managed_by_current_release_pipeline',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask current release state',
   );
   requireEqual(releaseHomebrew?.excluded_casks?.includes('one-person-lab-full'), false, 'Approved Full Cask exclusion');
   requireEqual(releaseHomebrew?.full_casks?.includes('one-person-lab-full'), true, 'Approved Full Cask target');
-  requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, false, 'Current Full Cask publication');
+  requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, true, 'Current Full Cask publication');
   requireEqual(
     releaseHomebrew?.tap_update_policy?.nightly?.mutation_allowed,
     true,
@@ -244,7 +245,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.homebrew_full?.generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask target generator status',
   );
   requireEqual(
@@ -279,7 +280,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.homebrew_full?.public_promotion_status,
-    'not_approved_until_promotion_requirements_pass',
+    'approved_pending_first_protected_follower_readback',
     'Full Cask target public promotion status',
   );
 
@@ -453,7 +454,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installHomebrew?.full?.formula_dependency_target, false, 'Full Cask target Formula dependency');
   requireEqual(
     installHomebrew?.full?.target_generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask install target generator status',
   );
   requireEqual(

@@ -1475,9 +1475,9 @@ export function validateReleaseAccelerationPolicy(
   }
   if (
     !sameStringSet(homebrew?.allowed_casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
-    !sameStringSet(homebrew?.casks, ['one-person-lab', 'one-person-lab-nightly']) ||
+    !sameStringSet(homebrew?.casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
     !sameStringSet(homebrew?.initial_live_targets, [
-      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb',
+      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb',
     ]) ||
     !sameStringSet(homebrew?.excluded_casks, []) ||
     !sameStringSet(homebrew?.full_casks, ['one-person-lab-full']) ||
@@ -1495,18 +1495,24 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.nightly?.mutation_allowed !== true ||
     homebrew?.tap_update_policy?.nightly?.stable_cask_must_remain_exact !== true ||
     homebrew?.tap_update_policy?.nightly?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
-    homebrew?.tap_update_policy?.full?.mode !== 'implemented_unpublished_generator_target' ||
-    homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== false ||
+    homebrew?.tap_update_policy?.full?.mode !== 'post_publication_digest_bound_single_attempt_follower' ||
+    homebrew?.tap_update_policy?.full?.workflow !== '.github/workflows/release-homebrew-full-follower.yml' ||
+    homebrew?.tap_update_policy?.full?.environment !== 'release-stable' ||
+    homebrew?.tap_update_policy?.full?.target !== 'Casks/one-person-lab-full.rb' ||
+    homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== true ||
+    homebrew?.tap_update_policy?.full?.mutation_allowed !== true ||
+    homebrew?.tap_update_policy?.full?.source_completed_stage !== 'full_qualified' ||
     homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== false ||
     homebrew?.tap_update_policy?.full?.framework_carrier !== 'full_dmg_embedded_opl_base' ||
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
-    homebrew?.tap_update_policy?.full?.promotion_status !== 'not_approved_until_promotion_requirements_pass' ||
-    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded' ||
+    homebrew?.tap_update_policy?.full?.promotion_status !== 'approved_pending_first_protected_follower_readback' ||
+    homebrew?.tap_update_policy?.full?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
+    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_distribution: Nightly must use its isolated digest follower and Full must remain implemented but unpublished with embedded Base');
+    console.error('FAIL release_homebrew_distribution: Nightly and Full must use isolated post-publication digest followers; Full must remain independent of physical VM certification with embedded Base');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);

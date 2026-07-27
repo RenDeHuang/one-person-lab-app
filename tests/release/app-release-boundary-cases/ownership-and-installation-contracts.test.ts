@@ -191,18 +191,18 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.deepEqual(homebrew.full_casks, ['one-person-lab-full']);
   assert.deepEqual(homebrew.excluded_casks, []);
   assert.equal(homebrew.allowed_casks.includes('one-person-lab-full'), true);
-  assert.equal(homebrew.casks.includes('one-person-lab-full'), false);
+  assert.equal(homebrew.casks.includes('one-person-lab-full'), true);
   assert.deepEqual(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
   );
-  assert.equal(homebrew.initial_live_targets.includes('Casks/one-person-lab-full.rb'), false);
+  assert.equal(homebrew.initial_live_targets.includes('Casks/one-person-lab-full.rb'), true);
   assert.equal(
     homebrew.tap_update_policy.stable.mode,
     'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest',
   );
   assert.equal(homebrew.tap_update_policy.stable.mode, homebrew.tap_update_policy.stable.publication_mode);
-  assert.equal(homebrew.tap_update_policy.full.homebrew_publish_allowed, false);
+  assert.equal(homebrew.tap_update_policy.full.homebrew_publish_allowed, true);
   assert.equal(homebrew.tap_update_policy.full.homebrew_clean_vm_gate_required, false);
   assert.equal(fs.existsSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb')), false);
 
