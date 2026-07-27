@@ -298,11 +298,15 @@ Release publish/promote must consume prepared release notes and must not call
 AI to generate notes on the critical path. Full runtime bundle preparation is
 owned by OPL Framework and consumed by the App through manifest/lock/readback
 refs; VM smoke qualifies the exact release artifact for the same cohort.
-Standard Stable readiness is now the default critical path: standard publish,
-standard remote verification, the standard VM gate, and one-shot installer
-smoke. Full, Docker/WebUI, and Homebrew keep running as same-cohort add-on
-gates/assets whose status is recorded in `release-addon-readiness-summary`
-without delaying the Standard readiness record.
+Standard Stable publication and Latest now follow the GitHub-hosted mandatory
+floor: source/contract/build preflight, Standard publication, exact remote
+digest and current-Latest readback, and Homebrew publication/readback, all
+bound to the same immutable App/Shell/Framework and ZIP/DMG identity. Tart,
+clean VM, Hyper-V, and WSL2 checks are asynchronous post-publication optional
+certification of those published bytes. Their status is explicit
+`passed|failed|not_run|unavailable`; they never block or queue Standard
+publication or Latest. Full and Docker/WebUI remain separately tracked
+same-cohort add-ons rather than prerequisites for Standard Latest.
 
 The standard updater now treats downloaded and applied as separate states.
 `update_downloaded` only proves that the package is cached. Installation success
