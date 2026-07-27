@@ -9,6 +9,7 @@ import test from 'node:test';
 import {
   activateLatest,
   applyPublishPlan,
+  buildExecutorReceipt,
   inspectRelease,
   type GitHubAdapterRuntime,
   type GitHubCommandOptions,
@@ -398,6 +399,126 @@ function asset(name: string, byte: string): Asset {
 function isReleaseInspect(args: string[]): boolean {
   return args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`;
 }
+
+test('absent GitHub Release remote inspection yields an empty receipt for the first upload plan', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-absent-release-receipt-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const inspectionPath = path.join(root, 'remote-before.json');
+  const requiredNames = ['first.zip', 'second.dmg'];
+  try {
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      tracks: { standard: { required_asset_names: requiredNames } },
+    })}\n`);
+    fs.writeFileSync(inspectionPath, `${JSON.stringify({
+      surface_kind: 'opl_app_github_release_inspection.v1',
+      repository: repo,
+      tag,
+      release: { exists: false },
+      assets: [],
+    })}\n`);
+    const receipt = buildExecutorReceipt({
+      operation: 'remote_inspect',
+      'release-operation': 'standard',
+      'operation-id': standardOperationId,
+      executor: 'remote',
+      'attempt-id': workflowAttemptId,
+      'remote-target': `github-release:${repo}@${tag}`,
+      track: 'standard',
+      outcome: 'complete',
+      'publication-scope': 'track_assets',
+      bundle: bundlePath,
+      inspection: inspectionPath,
+    } as any);
+    assert.deepEqual(receipt.assets, []);
+    assert.equal(receipt.outcome, 'complete');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('absent GitHub Release remote inspection rejects missing, non-empty, or duplicate assets', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-malformed-absent-release-receipt-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const inspectionPath = path.join(root, 'remote-before.json');
+  try {
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      tracks: { standard: { required_asset_names: ['first.zip', 'second.dmg'] } },
+    })}\n`);
+    for (const assets of [
+      undefined,
+      [{ name: 'unexpected.zip' }],
+      [{ name: 'first.zip' }, { name: 'first.zip' }],
+    ]) {
+      fs.writeFileSync(inspectionPath, `${JSON.stringify({
+        surface_kind: 'opl_app_github_release_inspection.v1',
+        repository: repo,
+        tag,
+        release: { exists: false },
+        ...(assets === undefined ? {} : { assets }),
+      })}\n`);
+      assert.throws(
+        () => buildExecutorReceipt({
+          operation: 'remote_inspect',
+          'release-operation': 'standard',
+          'operation-id': standardOperationId,
+          executor: 'remote',
+          'attempt-id': workflowAttemptId,
+          'remote-target': `github-release:${repo}@${tag}`,
+          track: 'standard',
+          outcome: 'complete',
+          'publication-scope': 'track_assets',
+          bundle: bundlePath,
+          inspection: inspectionPath,
+        } as any),
+        /Remote standard absent-release inspection must contain an empty asset list/,
+      );
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('existing GitHub Release remote inspection still requires the exact unique asset set', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-malformed-release-receipt-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const inspectionPath = path.join(root, 'remote-before.json');
+  try {
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      tracks: { standard: { required_asset_names: ['first.zip', 'second.dmg'] } },
+    })}\n`);
+    fs.writeFileSync(inspectionPath, `${JSON.stringify({
+      surface_kind: 'opl_app_github_release_inspection.v1',
+      repository: repo,
+      tag,
+      release: { exists: true, id: 12345 },
+      assets: [],
+    })}\n`);
+    assert.throws(
+      () => buildExecutorReceipt({
+        operation: 'remote_inspect',
+        'release-operation': 'standard',
+        'operation-id': standardOperationId,
+        executor: 'remote',
+        'attempt-id': workflowAttemptId,
+        'remote-target': `github-release:${repo}@${tag}`,
+        track: 'standard',
+        outcome: 'complete',
+        'publication-scope': 'track_assets',
+        bundle: bundlePath,
+        inspection: inspectionPath,
+      } as any),
+      /Remote standard inspection does not contain the exact unique required asset set/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('deadline expiry before asset N prevents asset N and every later mutation', () => {
   const first = asset('first.zip', '1');

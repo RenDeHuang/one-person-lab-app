@@ -709,7 +709,7 @@ function bundleDocument(bundlePath: string): JsonRecord {
   return bundle;
 }
 
-function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
+export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
   const operation = requireOption(values, 'operation');
   const releaseOperation = requireOption(values, 'release-operation') as StableReleaseOperation;
   const operationId = requireOption(values, 'operation-id');
@@ -779,21 +779,27 @@ function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
     && publicationScope === 'track_assets'
   ) {
     const inspection = readJson(path.resolve(requireOption(values, 'inspection')));
-    const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
-    const remoteAssets = new Map(inspectedAssets.map((asset: JsonRecord) => [asset.name, asset]));
-    if (remoteAssets.size !== inspectedAssets.length
-      || remoteAssets.size !== requiredNames.length
-      || requiredNames.some((name: string) => !remoteAssets.has(name))) {
-      throw new Error(`Remote ${track} inspection does not contain the exact unique required asset set.`);
-    }
-    assets = requiredNames.map((name: string) => {
-      const asset = remoteAssets.get(name) as JsonRecord;
-      if (!Number.isSafeInteger(asset.size_bytes) || Number(asset.size_bytes) <= 0
-        || !digestPattern.test(String(asset.sha256 ?? ''))) {
-        throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
+    if (inspection.release?.exists === false) {
+      if (!Array.isArray(inspection.assets) || inspection.assets.length !== 0) {
+        throw new Error(`Remote ${track} absent-release inspection must contain an empty asset list.`);
       }
-      return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
-    });
+    } else {
+      const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
+      const remoteAssets = new Map(inspectedAssets.map((asset: JsonRecord) => [asset.name, asset]));
+      if (remoteAssets.size !== inspectedAssets.length
+        || remoteAssets.size !== requiredNames.length
+        || requiredNames.some((name: string) => !remoteAssets.has(name))) {
+        throw new Error(`Remote ${track} inspection does not contain the exact unique required asset set.`);
+      }
+      assets = requiredNames.map((name: string) => {
+        const asset = remoteAssets.get(name) as JsonRecord;
+        if (!Number.isSafeInteger(asset.size_bytes) || Number(asset.size_bytes) <= 0
+          || !digestPattern.test(String(asset.sha256 ?? ''))) {
+          throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
+        }
+        return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
+      });
+    }
   }
   return {
     surface_kind: 'opl_release_bundle_executor_receipt.v1',
