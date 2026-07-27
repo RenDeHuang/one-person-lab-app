@@ -104,8 +104,9 @@ whole Full DMG and also declares the `opl` Formula, so it currently introduces
 two Base carriers. The corrected Full Cask generator is implemented but has not
 been publicly promoted or clean-host qualified; for a complete first install,
 prefer the Full DMG below. Nightly remains the Standard-density prerelease
-concept, but its current publication automation is absent and historical
-Nightly assets are not a continuing update channel.
+concept. Its publication and digest-bound Homebrew follower automation are
+implemented, but the first public publication and follower readbacks are still
+required before the channel can be called production-verified.
 
 ### One-Shot Installer
 
@@ -119,11 +120,12 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 The script now routes macOS personal hosts to Desktop, Linux personal hosts to
 a verified Native WebUI candidate when one is available or otherwise to
 Container WebUI, server/isolated hosts to Container WebUI, and explicit
-headless installs to Base only. Its Desktop bootstrap still injects
-`--with-app --skip-packages`, so the overall installer is not yet the
-`official_profile_converged` terminal path described in the SSOT. The stable
-macOS helper remains a compatibility surface and is intentionally not a
-new-user recommendation.
+headless installs to Base only. Its Desktop bootstrap passes `--with-app` and
+converges through the Framework-owned Official Profile path. Native Linux still
+requires publicly qualified immutable assets and fresh readback; until those
+exist, automatic Linux routing falls back to Container WebUI. The stable macOS
+helper remains a compatibility surface and is intentionally not a new-user
+recommendation.
 
 ### Direct Download
 

@@ -95,7 +95,7 @@ Machine owners:
 | GitHub Release Standard DMG | Desktop App；首启由 Framework 补齐 Base/Packages | Supported | 不使用 Homebrew 时的直接 GUI 路径 |
 | GitHub Release Full DMG | Desktop App + Base/Package offline seeds | Supported | 首次离线或希望最快达到完整能力时使用 |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | Supported | macOS 终端用户首选 |
-| App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由已实现，但 Desktop bootstrap 仍使用 `--with-app --skip-packages`，目前不是 Official Profile 一步收敛 |
+| App `install.sh` | macOS Desktop；Linux verified Native-or-Container fallback；server/isolation Container；headless Base | Supported transitional | 路由与 Desktop Official Profile 收敛已实现；Linux Native 仍需正式公开资产、clean-host qualification 和 public readback，完成前自动回退 Container WebUI |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
