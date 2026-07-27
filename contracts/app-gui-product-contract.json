@@ -1264,7 +1264,28 @@
         "view_command_ids": "must_reference_local_commands_command_id"
       },
       "data_resolution_policy": "resolve_data_ref_from_framework_projected_state_only",
-      "action_execution_policy": "resolve_action_ref_through_the_existing_app_action_bridge",
+      "action_execution_policy": "resolve_action_ref_through_the_descriptor_neutral_app_contribution_execute_broker",
+      "navigation_identity": [
+        "package_id",
+        "navigation_id"
+      ],
+      "navigation_source_ref": "app_state.agent_packages.directory.entries[].app_contributions.navigation[]",
+      "route_resolution_policy": "resolve_navigation_view_and_command_refs_from_the_same_current_directory_entry_then_require_broker_descriptor_revalidation",
+      "read_broker_command": "opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]",
+      "execute_broker_command": "opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]",
+      "broker_revalidation_policy": "broker_must_recheck_the_current_installed_descriptor_carrier_readiness_and_declared_ref_before_each_read_or_execute",
+      "confirmation_policy": "descriptor_declared_confirmation_is_enforced_by_the_execute_broker_and_never_inferred_or_bypassed_by_the_shell",
+      "invalid_or_stale_projection_policy": "fail_closed_do_not_render_or_fabricate_a_route_when_the_directory_entry_descriptor_or_broker_response_is_missing_stale_or_malformed",
+      "legacy_package_manager_state_allowed": false,
+      "forbidden_legacy_truth_sources": [
+        "registry_cache",
+        "package_lock",
+        "lifecycle_receipt",
+        "payload",
+        "last_known_good",
+        "rollback",
+        "currentness_mirror"
+      ],
       "invalid_block_policy": "reject_entire_package_app_contributions_block_and_preserve_other_packages",
       "shell_rendering_policy": "render_standard_structured_views_only",
       "arbitrary_plugin_ui_code_allowed": false,
