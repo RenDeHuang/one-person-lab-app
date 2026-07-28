@@ -244,6 +244,17 @@ test('admission retains the frozen three-repository cohort without reading movin
   });
 });
 
+test('admission records an executor SHA independently from the frozen App cohort', () => {
+  const credentialReceipt = receipt();
+  credentialReceipt.execution.head_sha = 'd'.repeat(40);
+  const manifest = buildStableReleaseAdmissionManifest(input(), observation({
+    credentialReceipt,
+    credentialReceiptBytes: Buffer.from(`${JSON.stringify(credentialReceipt)}\n`),
+  }));
+  assert.equal(manifest.cohort.app_sha, appRef);
+  assert.equal(manifest.apple_credentials.executor_sha, 'd'.repeat(40));
+});
+
 test('admission retains its frozen Framework cohort from the source gate', () => {
   const manifest = buildStableReleaseAdmissionManifest(input(), observation());
   assert.equal(manifest.cohort.framework_sha, frameworkRef);
