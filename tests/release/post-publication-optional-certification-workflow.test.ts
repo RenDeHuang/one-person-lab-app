@@ -315,7 +315,7 @@ test('Standard and Full VM certification consume the exact published DMG without
     const capabilityStep = admit.steps.find((step: Record<string, any>) => step.id === 'capability');
     assert.equal(
       capabilityStep.env.RUNNER_INVENTORY_TOKEN,
-      '${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+      '${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
     );
     assert.match(capabilityStep.run, /\[ -z "\$RUNNER_INVENTORY_TOKEN" \]/);
     assert.match(capabilityStep.run, /GH_TOKEN="\$RUNNER_INVENTORY_TOKEN" gh api/);
