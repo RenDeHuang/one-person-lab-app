@@ -1214,7 +1214,7 @@ function validateWebuiGhcrImage(webuiImage) {
   );
   assertDeepEqualJson(
     webuiImage.stable_promotion.task_modes.independent_preview.promotion_entry_inputs,
-    ['carrier_follower_run_id', 'carrier_executor_ref', 'carrier_artifact_name'],
+    ['publication_record_ref'],
     'Docker/WebUI independent Preview Latest inputs',
   );
   assertDeepEqualJson(

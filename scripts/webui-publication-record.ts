@@ -12,10 +12,10 @@ export type WebuiPublicationAuthorityMode =
   | 'independent_preview';
 
 const appRepository = 'gaofeng21cn/one-person-lab-app';
-const webuiRepository = 'ghcr.io/gaofeng21cn/one-person-lab-webui';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runPattern = /^[1-9][0-9]*$/;
+const imageRepositoryPattern = /^ghcr\.io\/[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$/;
 const versionPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*|-preview\.r[1-9][0-9]*|-nightly(?:\.r[1-9][0-9]*)?)?$/;
 const previewVersionPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}-preview\.r[1-9][0-9]*$/;
 
@@ -80,6 +80,14 @@ function authorityMode(value: unknown): WebuiPublicationAuthorityMode {
   return mode;
 }
 
+export function validateWebuiImageRepository(value: unknown): string {
+  const repository = text(value, 'WebUI image repository');
+  if (!imageRepositoryPattern.test(repository)) {
+    throw new Error('WebUI image repository must be one lowercase ghcr.io repository without a tag or digest.');
+  }
+  return repository;
+}
+
 function fileDigest(filePath: string, label: string): string {
   const resolved = path.resolve(filePath);
   const stat = fs.lstatSync(resolved);
@@ -117,10 +125,14 @@ function expectedPublicationWorkflow(mode: WebuiPublicationAuthorityMode): strin
     : '.github/workflows/release-webui-development.yml';
 }
 
-function validateCarrierReceipt(value: unknown): {
+function validateCarrierReceipt(
+  value: unknown,
+  imageRepository: string,
+): {
   release: JsonRecord;
   cohort: JsonRecord;
   carrier: JsonRecord;
+  qualification: JsonRecord;
 } {
   const receipt = record(value, 'WebUI carrier receipt');
   exact(receipt.schema, 'opl_app_webui_release_carrier.v1', 'carrier receipt.schema');
@@ -138,24 +150,36 @@ function validateCarrierReceipt(value: unknown): {
   exact(carrier.carrier_kind, 'oci_image', 'carrier receipt.carrier.carrier_kind');
   exact(carrier.package_profile, 'webui-full', 'carrier receipt.carrier.package_profile');
   const childDigest = digest(carrier.digest, 'carrier receipt.carrier.digest');
-  exact(carrier.ref, `${webuiRepository}@${childDigest}`, 'carrier receipt.carrier.ref');
+  exact(carrier.ref, `${imageRepository}@${childDigest}`, 'carrier receipt.carrier.ref');
   positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes');
   digest(carrier.content_fingerprint, 'carrier receipt.carrier.content_fingerprint');
   const qualification = record(receipt.qualification, 'carrier receipt.qualification');
+  exact(qualification.schema, 'opl_app_webui_runtime_qualification.v1', 'carrier receipt.qualification.schema');
   exact(qualification.status, 'passed', 'carrier receipt.qualification.status');
+  exact(qualification.build_stage, 'webui_built', 'carrier receipt.qualification.build_stage');
+  exact(qualification.qualification_stage, 'webui_qualified', 'carrier receipt.qualification.qualification_stage');
   exact(qualification.image_digest, childDigest, 'carrier receipt.qualification.image_digest');
+  digest(qualification.build_input_digest, 'carrier receipt.qualification.build_input_digest');
   exact(
     qualification.content_fingerprint,
     carrier.content_fingerprint,
     'carrier receipt.qualification.content_fingerprint',
   );
-  return { release, cohort, carrier };
+  digest(qualification.runtime_summary_sha256, 'carrier receipt.qualification.runtime_summary_sha256');
+  digest(qualification.registry_readback_sha256, 'carrier receipt.qualification.registry_readback_sha256');
+  text(qualification.runtime_image_id, 'carrier receipt.qualification.runtime_image_id');
+  return { release, cohort, carrier, qualification };
 }
 
-function validateVersionReadback(value: unknown, version: string, childDigest: string): JsonRecord {
+function validateVersionReadback(
+  value: unknown,
+  version: string,
+  childDigest: string,
+  imageRepository: string,
+): JsonRecord {
   const readback = record(value, 'version readback');
   exact(readback.schema, 'opl_app_webui_descriptor_readback.v1', 'version readback.schema');
-  exact(readback.ref, `${webuiRepository}:${version}`, 'version readback.ref');
+  exact(readback.ref, `${imageRepository}:${version}`, 'version readback.ref');
   exact(readback.status, 'present', 'version readback.status');
   digest(readback.digest, 'version readback.digest');
   exact(readback.child_digest, childDigest, 'version readback.child_digest');
@@ -169,6 +193,50 @@ function validateVersionReadback(value: unknown, version: string, childDigest: s
   return readback;
 }
 
+function qualificationDisclosure(
+  mode: WebuiPublicationAuthorityMode,
+  qualificationInput: unknown,
+  stableAuthorityRunId: string | null,
+  sourceAuthority: JsonRecord | null,
+): JsonRecord {
+  const runtimeQualification = record(qualificationInput, 'runtime qualification disclosure');
+  exact(runtimeQualification.schema, 'opl_app_webui_runtime_qualification.v1', 'runtime qualification disclosure.schema');
+  exact(runtimeQualification.status, 'passed', 'runtime qualification disclosure.status');
+  exact(runtimeQualification.build_stage, 'webui_built', 'runtime qualification disclosure.build_stage');
+  exact(runtimeQualification.qualification_stage, 'webui_qualified', 'runtime qualification disclosure.qualification_stage');
+  digest(runtimeQualification.image_digest, 'runtime qualification disclosure.image_digest');
+  digest(runtimeQualification.build_input_digest, 'runtime qualification disclosure.build_input_digest');
+  digest(runtimeQualification.content_fingerprint, 'runtime qualification disclosure.content_fingerprint');
+  digest(runtimeQualification.runtime_summary_sha256, 'runtime qualification disclosure.runtime_summary_sha256');
+  digest(runtimeQualification.registry_readback_sha256, 'runtime qualification disclosure.registry_readback_sha256');
+  text(runtimeQualification.runtime_image_id, 'runtime qualification disclosure.runtime_image_id');
+
+  const stableQualification = mode === 'production_follower'
+    ? {
+        schema: 'opl_app_webui_stable_qualification_disclosure.v1',
+        status: 'passed',
+        stable_authority_run_id: stableAuthorityRunId,
+      }
+    : null;
+  const nonStableGateDisclosure = mode === 'production_follower'
+    ? null
+    : {
+        schema: 'opl_app_webui_non_stable_gate_disclosure.v1',
+        status: 'skipped',
+        reason: mode === 'independent_preview'
+          ? 'independent_preview_not_stable'
+          : 'development_validation_not_stable',
+        stable_authority_run_id: stableAuthorityRunId,
+        source_authority_digest: sourceAuthority?.source_authority_digest ?? null,
+        explicit_latest_override_required: true,
+      };
+  return {
+    runtime_qualification: runtimeQualification,
+    stable_qualification: stableQualification,
+    non_stable_gate_disclosure: nonStableGateDisclosure,
+  };
+}
+
 function canonicalCore(recordValue: JsonRecord): JsonRecord {
   const { publication_record_digest: _digest, ...core } = recordValue;
   return core;
@@ -176,11 +244,13 @@ function canonicalCore(recordValue: JsonRecord): JsonRecord {
 
 export type CreateWebuiPublicationRecordInput = {
   authorityMode: WebuiPublicationAuthorityMode;
+  imageRepository: string;
   carrierReceipt: JsonRecord;
   carrierReceiptSha256: string;
   versionReadback: JsonRecord;
   versionReadbackSha256: string;
   publicationRunId: string;
+  publicationRunAttempt: number;
   publicationExecutorSha: string;
   stableAuthorityRunId?: string;
   sourceAuthority?: JsonRecord;
@@ -189,10 +259,17 @@ export type CreateWebuiPublicationRecordInput = {
 
 export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecordInput): JsonRecord {
   const mode = authorityMode(input.authorityMode);
-  const { release, cohort, carrier } = validateCarrierReceipt(input.carrierReceipt);
+  const imageRepository = validateWebuiImageRepository(input.imageRepository);
+  const { release, cohort, carrier, qualification } = validateCarrierReceipt(input.carrierReceipt, imageRepository);
   const version = text(release.version, 'carrier receipt.release.version');
-  const versionReadback = validateVersionReadback(input.versionReadback, version, String(carrier.digest));
+  const versionReadback = validateVersionReadback(
+    input.versionReadback,
+    version,
+    String(carrier.digest),
+    imageRepository,
+  );
   const publicationRun = runId(input.publicationRunId, 'publication run id');
+  const publicationRunAttempt = positiveInteger(input.publicationRunAttempt, 'publication run attempt');
   const publicationExecutorSha = sha(input.publicationExecutorSha, 'publication executor SHA');
   const stableRun = input.stableAuthorityRunId
     ? runId(input.stableAuthorityRunId, 'Stable authority run id')
@@ -222,6 +299,7 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
   }
 
   const classification = publicationClassification(mode);
+  const disclosure = qualificationDisclosure(mode, qualification, stableRun, sourceAuthority);
   const versionDigest = digest(versionReadback.digest, 'version readback.digest');
   const core = {
     schema: 'opl_app_webui_publication_record.v1',
@@ -240,10 +318,10 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
       framework_sha: sha(cohort.framework_sha, 'carrier receipt.cohort.framework_sha'),
     },
     image: {
-      repository: webuiRepository,
-      version_ref: `${webuiRepository}:${version}`,
-      receipt_ref: `${webuiRepository}:receipt-${version}`,
-      immutable_ref: `${webuiRepository}@${carrier.digest}`,
+      repository: imageRepository,
+      version_ref: `${imageRepository}:${version}`,
+      receipt_ref: `${imageRepository}:receipt-${version}`,
+      immutable_ref: `${imageRepository}@${carrier.digest}`,
       version_digest: versionDigest,
       child_digest: digest(carrier.digest, 'carrier receipt.carrier.digest'),
       size_bytes: positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes'),
@@ -253,7 +331,7 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
       mode,
       publication_workflow: expectedPublicationWorkflow(mode),
       publication_run_id: publicationRun,
-      publication_run_attempt: 1,
+      publication_run_attempt: publicationRunAttempt,
       publication_executor_sha: publicationExecutorSha,
       stable_authority_run_id: stableRun,
       source_authority: sourceAuthority,
@@ -265,6 +343,7 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
         ? digest(input.sourceAuthoritySha256, 'source authority SHA-256')
         : null,
     },
+    qualification_disclosure: disclosure,
   };
   return {
     ...core,
@@ -276,8 +355,11 @@ export function validateWebuiPublicationRecord(value: unknown): JsonRecord {
   const recordValue = record(value, 'WebUI durable publication record');
   const authority = record(recordValue.authority, 'publication authority');
   const evidence = record(recordValue.evidence, 'publication evidence');
+  const image = record(recordValue.image, 'publication image');
+  const disclosure = record(recordValue.qualification_disclosure, 'qualification disclosure');
   const rebuilt = createWebuiPublicationRecord({
     authorityMode: authorityMode(authority.mode),
+    imageRepository: validateWebuiImageRepository(image.repository),
     carrierReceipt: {
       schema: 'opl_app_webui_release_carrier.v1',
       release: recordValue.release,
@@ -286,29 +368,26 @@ export function validateWebuiPublicationRecord(value: unknown): JsonRecord {
         carrier_id: 'docker_webui',
         carrier_kind: 'oci_image',
         package_profile: 'webui-full',
-        ref: record(recordValue.image, 'publication image').immutable_ref,
-        digest: record(recordValue.image, 'publication image').child_digest,
-        size_bytes: record(recordValue.image, 'publication image').size_bytes,
-        content_fingerprint: record(recordValue.image, 'publication image').content_fingerprint,
+        ref: image.immutable_ref,
+        digest: image.child_digest,
+        size_bytes: image.size_bytes,
+        content_fingerprint: image.content_fingerprint,
       },
-      qualification: {
-        status: 'passed',
-        image_digest: record(recordValue.image, 'publication image').child_digest,
-        content_fingerprint: record(recordValue.image, 'publication image').content_fingerprint,
-      },
+      qualification: record(disclosure.runtime_qualification, 'qualification disclosure.runtime_qualification'),
     },
     carrierReceiptSha256: evidence.carrier_receipt_sha256,
     versionReadback: {
       schema: 'opl_app_webui_descriptor_readback.v1',
       status: 'present',
-      ref: record(recordValue.image, 'publication image').version_ref,
-      digest: record(recordValue.image, 'publication image').version_digest,
-      child_digest: record(recordValue.image, 'publication image').child_digest,
+      ref: image.version_ref,
+      digest: image.version_digest,
+      child_digest: image.child_digest,
       manifest_count: 1,
       media_type: 'application/vnd.oci.image.index.v1+json',
     },
     versionReadbackSha256: evidence.version_readback_sha256,
     publicationRunId: authority.publication_run_id,
+    publicationRunAttempt: authority.publication_run_attempt,
     publicationExecutorSha: authority.publication_executor_sha,
     stableAuthorityRunId: authority.stable_authority_run_id ?? undefined,
     sourceAuthority: authority.source_authority ?? undefined,
@@ -340,7 +419,9 @@ function main(argv: string[]): void {
       'carrier-receipt': { type: 'string' },
       'version-readback': { type: 'string' },
       'publication-run-id': { type: 'string' },
+      'publication-run-attempt': { type: 'string' },
       'publication-executor-sha': { type: 'string' },
+      'image-repository': { type: 'string' },
       'stable-authority-run-id': { type: 'string' },
       'source-authority': { type: 'string' },
       input: { type: 'string' },
@@ -353,11 +434,16 @@ function main(argv: string[]): void {
     const sourceAuthorityPath = values['source-authority']?.trim();
     const publication = createWebuiPublicationRecord({
       authorityMode: authorityMode(required(values['authority-mode'], 'authority-mode')),
+      imageRepository: required(values['image-repository'], 'image-repository'),
       carrierReceipt: readJson(carrierReceiptPath, 'carrier receipt'),
       carrierReceiptSha256: fileDigest(carrierReceiptPath, 'carrier receipt'),
       versionReadback: readJson(versionReadbackPath, 'version readback'),
       versionReadbackSha256: fileDigest(versionReadbackPath, 'version readback'),
       publicationRunId: required(values['publication-run-id'], 'publication-run-id'),
+      publicationRunAttempt: positiveInteger(
+        Number(required(values['publication-run-attempt'], 'publication-run-attempt')),
+        'publication run attempt',
+      ),
       publicationExecutorSha: required(values['publication-executor-sha'], 'publication-executor-sha'),
       stableAuthorityRunId: values['stable-authority-run-id']?.trim(),
       sourceAuthority: sourceAuthorityPath ? readJson(sourceAuthorityPath, 'source authority') : undefined,
@@ -376,6 +462,11 @@ function main(argv: string[]): void {
     })}\n`);
     return;
   }
+  if (command === 'validate-repository') {
+    const imageRepository = validateWebuiImageRepository(required(values['image-repository'], 'image-repository'));
+    process.stdout.write(`${JSON.stringify({ status: 'verified', image_repository: imageRepository })}\n`);
+    return;
+  }
   if (command === 'validate') {
     const publication = validateWebuiPublicationRecord(readJson(required(values.input, 'input'), 'publication record'));
     process.stdout.write(`${JSON.stringify({
@@ -386,7 +477,7 @@ function main(argv: string[]): void {
     })}\n`);
     return;
   }
-  throw new Error('Usage: webui-publication-record.ts <create|validate> ...');
+  throw new Error('Usage: webui-publication-record.ts <create|validate|validate-repository> ...');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

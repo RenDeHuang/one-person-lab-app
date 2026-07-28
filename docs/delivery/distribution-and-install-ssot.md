@@ -63,6 +63,12 @@ Machine owners:
   绑定载体命名空间、exact version/tag、不可变 artifact/image digest、质量与
   Preview kind、qualification disclosure 及 public readback；这不会改变该版本的
   质量，也不会改动其他载体的指针。
+- 手工 WebUI independent Preview 的 `latest` promotion 只接受该记录的 exact
+  `publication_record_ref`（GHCR `:receipt-<version>`）；protected workflow 用 ORAS
+  拉取并 canonical-validate sidecar 后，才从记录派生 frozen cohort、qualification、
+  source authority、image 与实际 publication run attempt。它不接受 run id、executor
+  SHA 或会过期的 Actions artifact 作为选择输入，也不改动 WebUI `stable` 或 Desktop
+  指针。
 - `one-person-lab-nightly` 的产品语义保留：它是 Standard 密度的自动预发布，
   不是 Full。当前实现每天自动复用与 Stable 相同的物理 Standard build，
   发布不可变 GitHub prerelease，再由独立 digest-bound follower 更新 Nightly Cask；

@@ -1,19 +1,11 @@
 name: OPL WebUI Independent Preview Latest Promotion
-run-name: Promote WebUI Preview carrier run ${{ inputs.carrier_follower_run_id }} to latest
+run-name: Promote durable WebUI Preview record ${{ inputs.publication_record_ref }} to latest
 
 on:
   workflow_dispatch:
     inputs:
-      carrier_follower_run_id:
-        description: Exact successful first-attempt Preview publication run.
-        required: true
-        type: string
-      carrier_executor_ref:
-        description: Exact App SHA that executed the Preview publication.
-        required: true
-        type: string
-      carrier_artifact_name:
-        description: Exact unexpired carrier receipt artifact from that run.
+      publication_record_ref:
+        description: Exact durable GHCR WebUI Preview publication-record reference.
         required: true
         type: string
 
@@ -38,6 +30,4 @@ jobs:
     with:
       mode: execute
       authority_mode: independent_preview
-      carrier_follower_run_id: ${{ inputs.carrier_follower_run_id }}
-      carrier_executor_ref: ${{ inputs.carrier_executor_ref }}
-      carrier_artifact_name: ${{ inputs.carrier_artifact_name }}
+      publication_record_ref: ${{ inputs.publication_record_ref }}
