@@ -1694,10 +1694,31 @@ function Get-WebUiHealthTimeoutClassification {
   }) -join "`n"
   $networkFailurePattern = "(?i)(?:timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)"
   $networkErrorContextPattern = "(?i)(?:(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp)[^\r\n]*(?:dns|tls|ssl|certificate)|(?:dns|tls|ssl|certificate)[^\r\n]*(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp))"
-  $remoteNetworkFailure = @($evidence -split "`r?`n" | Where-Object {
-    $_ -match "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)" `
-      -and ($_ -match $networkFailurePattern -or $_ -match $networkErrorContextPattern)
-  }).Count -gt 0
+  $networkAdjacentFailurePattern = "(?i)(?:(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b)[^\r\n]{0,80}(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)|(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)[^\r\n]{0,80}(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b))"
+  $evidenceLines = @($evidence -split "`r?`n")
+  $remoteNetworkFailure = $false
+  for ($lineIndex = 0; $lineIndex -lt $evidenceLines.Count; $lineIndex++) {
+    $line = [string]$evidenceLines[$lineIndex]
+    if ($line -notmatch "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)") {
+      continue
+    }
+    if ($line -match $networkFailurePattern -or $line -match $networkErrorContextPattern) {
+      $remoteNetworkFailure = $true
+      break
+    }
+    foreach ($adjacentIndex in @($lineIndex - 1, $lineIndex + 1)) {
+      if ($adjacentIndex -lt 0 -or $adjacentIndex -ge $evidenceLines.Count) {
+        continue
+      }
+      if ([string]$evidenceLines[$adjacentIndex] -match $networkAdjacentFailurePattern) {
+        $remoteNetworkFailure = $true
+        break
+      }
+    }
+    if ($remoteNetworkFailure) {
+      break
+    }
+  }
   if ($remoteNetworkFailure) {
     return [pscustomobject]@{
       Classification = "external_input_required"

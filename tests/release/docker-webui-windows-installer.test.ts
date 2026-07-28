@@ -431,8 +431,11 @@ test('Windows Docker/WebUI health timeout classifies external input only with re
   assert.match(classification, /networkFailurePattern/);
   assert.match(classification, /networkErrorContextPattern/);
   assert.match(classification, /could not resolve/);
-  assert.match(classification, /-and \(\$_ -match \$networkFailurePattern/);
-  assert.match(classification, /-or \$_ -match \$networkErrorContextPattern/);
+  assert.match(classification, /networkAdjacentFailurePattern/);
+  assert.match(classification, /lineIndex - 1/);
+  assert.match(classification, /lineIndex \+ 1/);
+  assert.match(classification, /lineIndex -lt \$evidenceLines\.Count/);
+  assert.match(classification, /if \(\$line -match \$networkFailurePattern -or \$line -match \$networkErrorContextPattern\)/);
   assert.match(healthWait, /Get-WebUiHealthTimeoutClassification -TargetDir \$failureDir/);
   assert.match(healthWait, /health-timeout-classification\.txt/);
   assert.match(healthWait, /external_input_required/);
