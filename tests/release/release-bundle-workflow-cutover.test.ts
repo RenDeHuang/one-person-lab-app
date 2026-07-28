@@ -2172,7 +2172,12 @@ test('Stable Standard publication includes qualified Native bytes before one Rel
     workflow.jobs['publish-standard'].with.qualified_native_artifact_name,
     "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
   );
+  assert.equal(workflow.jobs['publish-standard'].with.qualified_native_source_run_id, "${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}");
   assert.match(standardSource, /Download exact qualified Native artifact for the unified draft carrier/);
+  assert.match(standardSource, /Preserve immutable Stable carrier across the reconciled checkpoint/);
+  assert.match(standardSource, /Restore qualified Native bytes from the portable Stable carrier/);
+  assert.match(standardSource, /opl-release-standard-operation-checkpoint-\[1-9\]\[0-9\]\*/);
+  assert.match(standardSource, /native-qualified\n            stable-operation-control/);
   assert.match(standardSource, /release-native-webui-carrier\.ts upload-actions/);
   assert.match(standardSource, /Desktop and Native Release assets contain duplicate names/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);

@@ -474,6 +474,21 @@ jobs:
             echo "operation_deadline_at=$operation_deadline_at"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Preserve immutable Stable carrier across the reconciled checkpoint
+        if: ${{ inputs.publication_channel == 'stable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for carrier in native-qualified stable-operation-control; do
+            source="checkpoint-identity-bootstrap/$carrier"
+            test -d "$source" && test ! -L "$source"
+            test ! -e "$carrier"
+            cp -a "$source" "$carrier"
+          done
+          test "$(find native-qualified -type f -name publication-manifest.json | wc -l | tr -d ' ')" -eq 1
+          test "$(find stable-operation-control -type f -name stable-operation-control.json | wc -l | tr -d ' ')" -eq 1
+          test "$(find stable-operation-control -type f -name stable-operation-consumption.json | wc -l | tr -d ' ')" -eq 1
+
       - name: Upload reconciled operation checkpoint
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -491,6 +506,8 @@ jobs:
             resume-reconcile.receipt.json
             resume-reconcile-result.json
             homebrew-resume-observation.json
+            native-qualified
+            stable-operation-control
           if-no-files-found: warn
           retention-days: 30
 
@@ -854,6 +871,22 @@ jobs:
           github-token: ${{ github.token }}
           path: native-release
 
+      - name: Restore qualified Native bytes from the portable Stable carrier
+        if: ${{ needs.restore.outputs.channel == 'stable' && inputs.qualified_native_artifact_name == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ '${{ needs.restore.outputs.source_artifact }}' =~ ^opl-release-standard-operation-checkpoint-[1-9][0-9]*$ ]]
+          native_carriers=()
+          while IFS= read -r carrier; do native_carriers+=("$carrier"); done < <(
+            find immutable-carrier-input -type d -name native-qualified -print | LC_ALL=C sort
+          )
+          test "${#native_carriers[@]}" -eq 1
+          test ! -L "${native_carriers[0]}"
+          cp -a "${native_carriers[0]}" native-release
+          test -s native-release/prepare-status.json && test ! -L native-release/prepare-status.json
+          test -s native-release/publication-manifest.json && test ! -L native-release/publication-manifest.json
+
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -865,9 +898,15 @@ jobs:
           exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
           case '${{ needs.restore.outputs.channel }}' in
             stable)
-              [[ '${{ inputs.qualified_native_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
-              [[ '${{ inputs.qualified_native_source_run_id }}' =~ ^[1-9][0-9]*$ ]]
-              test '${{ inputs.qualified_native_source_run_id }}' = '${{ needs.restore.outputs.source_run_id }}'
+              if [ -n '${{ inputs.qualified_native_artifact_name }}' ] || [ -n '${{ inputs.qualified_native_source_run_id }}' ]; then
+                [[ '${{ inputs.qualified_native_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
+                [[ '${{ inputs.qualified_native_source_run_id }}' =~ ^[1-9][0-9]*$ ]]
+                test '${{ inputs.qualified_native_source_run_id }}' = '${{ needs.restore.outputs.source_run_id }}'
+              else
+                [[ '${{ needs.restore.outputs.source_artifact }}' =~ ^opl-release-standard-operation-checkpoint-[1-9][0-9]*$ ]]
+                test -s native-release/prepare-status.json && test ! -L native-release/prepare-status.json
+                test -s native-release/publication-manifest.json && test ! -L native-release/publication-manifest.json
+              fi
               ;;
             preview)
               test -z '${{ inputs.qualified_native_artifact_name }}'
@@ -1106,7 +1145,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Native follower carrier after unified Stable publication
-        if: ${{ always() && inputs.qualified_native_artifact_name != '' && hashFiles('native-release/publication-manifest.json') != '' }}
+        if: ${{ always() && needs.restore.outputs.channel == 'stable' && hashFiles('native-release/publication-manifest.json') != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: native-webui-publication-${{ needs.restore.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
