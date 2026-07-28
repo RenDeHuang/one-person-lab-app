@@ -335,7 +335,9 @@ test('Windows Docker/WebUI image pulls stream progress, identify Docker proxy co
   assert.match(boundedCapture, /Write-Host \$chunk -NoNewline/);
   assert.match(boundedCapture, /Docker Desktop -> Settings -> Resources -> Proxies/);
   assert.match(boundedCapture, /\$nextHeartbeatAt = \$startedAt\.AddSeconds\(20\)/);
-  assert.match(boundedCapture, /\$process\.Kill\(\)/);
+  assert.match(boundedCapture, /if \(-not \$process\.HasExited\)/);
+  assert.match(boundedCapture, /taskkill\.exe" \/PID \$process\.Id \/T \/F 2>\$null/);
+  assert.match(boundedCapture, /catch \[System\.InvalidOperationException\]/);
   assert.match(boundedCapture, /\$process\.WaitForExit\(\)/);
   assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
   assert.match(boundedCapture, /ExitCode = 124/);

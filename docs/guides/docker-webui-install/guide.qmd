@@ -240,6 +240,26 @@ Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显�
 {{download.windows_update_command}}
 ```
 
+```{=latex}
+\newpage
+```
+
+### 手工拉取 latest 后快速应用
+
+如果你已经先运行过：
+
+```powershell
+docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+```
+
+不要手工编辑 `compose.yaml`，也不要删除原容器或 `OnePersonLab/data`。直接运行下面的应用命令：
+
+```powershell
+{{download.windows_update_command}}
+```
+
+安装器仍会校验 `latest` 当前对应的不可变 digest；因为镜像 layer 已在本机，通常会快速显示 `Image is up to date`，随后按新 digest 重建容器并等待 WebUI 健康。若 digest 没有变化，Docker Compose 不会替换正在运行的容器。此流程保留 `OnePersonLab/data` 与 `OnePersonLab/projects`。
+
 如果没有启用计划任务，建议至少每月手动执行一次，并在得知新 `latest` 已发布后及时执行。Linux 重新运行同一条一键安装命令即可。所有更新路径都会保留：
 
 ```text

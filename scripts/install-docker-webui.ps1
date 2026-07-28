@@ -402,7 +402,23 @@ function Invoke-DockerCommandCaptureWithTimeout {
     }
 
     if ($timedOut) {
-      $process.Kill()
+      if (-not $process.HasExited) {
+        try {
+          & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+        } catch {
+        }
+      }
+      $killDeadline = (Get-Date).AddSeconds(5)
+      while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
+        Start-Sleep -Milliseconds 100
+        $process.Refresh()
+      }
+      if (-not $process.HasExited) {
+        try {
+          $process.Kill()
+        } catch [System.InvalidOperationException] {
+        }
+      }
       $process.WaitForExit()
     } else {
       $process.WaitForExit()
