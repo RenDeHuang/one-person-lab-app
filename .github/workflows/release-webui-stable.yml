@@ -38,6 +38,11 @@ on:
         required: false
         default: ''
         type: string
+      operator_confirmation:
+        description: Exact manual confirmation for an independent Preview Latest-only promotion.
+        required: false
+        default: ''
+        type: string
 
 permissions:
   actions: read
@@ -93,6 +98,7 @@ jobs:
         id: publication-record
         env:
           PUBLICATION_RECORD_REF: ${{ inputs.publication_record_ref }}
+          OPERATOR_CONFIRMATION: ${{ inputs.operator_confirmation }}
         shell: bash
         run: |
           set -euo pipefail
@@ -171,6 +177,15 @@ jobs:
             and (.authority.publication_executor_sha | test("^[0-9a-f]{40}$"))
             and (.authority.source_authority | type == "object")
           ' evidence/publication-record.json >/dev/null
+          [[ "$GITHUB_ACTOR" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]] || {
+            echo '::error::Independent Preview Latest promotion requires one human GitHub actor.'
+            exit 1
+          }
+          publication_version="$(jq -er .release.version evidence/publication-record.json)"
+          test "$OPERATOR_CONFIRMATION" = "move-docker-latest:${publication_version}" || {
+            echo '::error::Independent Preview Latest promotion requires an exact version confirmation.'
+            exit 1
+          }
           {
             echo "carrier_follower_run_id=$(jq -er .authority.publication_run_id evidence/publication-record.json)"
             echo "carrier_executor_ref=$(jq -er .authority.publication_executor_sha evidence/publication-record.json)"
@@ -186,6 +201,8 @@ jobs:
           TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ inputs.carrier_follower_run_id || steps.publication-record.outputs.carrier_follower_run_id || github.run_id }}
           CARRIER_EXECUTOR_REF: ${{ inputs.carrier_executor_ref || steps.publication-record.outputs.carrier_executor_ref || github.sha }}
+          OPERATOR: ${{ github.actor }}
+          OPERATOR_CONFIRMATION: ${{ inputs.operator_confirmation }}
           CARRIER_FOLLOWER_RUN_ATTEMPT: ${{ steps.publication-record.outputs.carrier_follower_run_attempt || '1' }}
         shell: bash
         run: |
@@ -497,7 +514,11 @@ jobs:
             --output evidence/admission.json
           )
           if [ "$AUTHORITY_MODE" = independent_preview ]; then
-            admission_args+=(--publication-record evidence/publication-record.json)
+            admission_args+=(
+              --publication-record evidence/publication-record.json
+              --operator "$OPERATOR"
+              --operator-confirmation "$OPERATOR_CONFIRMATION"
+            )
           else
             admission_args+=(
               --stable-authority-run evidence/stable-authority-run.json

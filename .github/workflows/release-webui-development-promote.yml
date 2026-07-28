@@ -1,11 +1,15 @@
 name: OPL WebUI Independent Preview Latest Promotion
-run-name: Promote durable WebUI Preview record ${{ inputs.publication_record_ref }} to latest
+run-name: Promote durable WebUI Preview record ${{ inputs.publication_record_ref }} to latest by ${{ github.actor }}
 
 on:
   workflow_dispatch:
     inputs:
       publication_record_ref:
         description: Exact durable GHCR WebUI Preview publication-record reference.
+        required: true
+        type: string
+      operator_confirmation:
+        description: "Exact confirmation: move-docker-latest:<publication-record version>."
         required: true
         type: string
 
@@ -31,3 +35,4 @@ jobs:
       mode: execute
       authority_mode: independent_preview
       publication_record_ref: ${{ inputs.publication_record_ref }}
+      operator_confirmation: ${{ inputs.operator_confirmation }}

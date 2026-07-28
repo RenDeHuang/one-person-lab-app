@@ -1214,8 +1214,19 @@ function validateWebuiGhcrImage(webuiImage) {
   );
   assertDeepEqualJson(
     webuiImage.stable_promotion.task_modes.independent_preview.promotion_entry_inputs,
-    ['publication_record_ref'],
+    ['publication_record_ref', 'operator_confirmation'],
     'Docker/WebUI independent Preview Latest inputs',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.independent_preview.operator_confirmation,
+    {
+      schema: 'opl_app_webui_latest_operator_authorization.v1',
+      source: 'workflow_dispatch_exact_version_confirmation',
+      actor: 'github.actor_human_login',
+      value: 'move-docker-latest:<publication_record.release.version>',
+      receipt_field: 'operator_authorization.confirmation_digest',
+    },
+    'Docker/WebUI independent Preview Latest operator confirmation',
   );
   assertDeepEqualJson(
     webuiImage.stable_promotion.compare_and_swap.promotion_tags_by_authority_mode,

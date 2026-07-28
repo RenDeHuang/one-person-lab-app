@@ -2378,8 +2378,16 @@
             "exact_source_authority_artifact"
           ],
           "promotion_entry_inputs": [
-            "publication_record_ref"
+            "publication_record_ref",
+            "operator_confirmation"
           ],
+          "operator_confirmation": {
+            "schema": "opl_app_webui_latest_operator_authorization.v1",
+            "source": "workflow_dispatch_exact_version_confirmation",
+            "actor": "github.actor_human_login",
+            "value": "move-docker-latest:<publication_record.release.version>",
+            "receipt_field": "operator_authorization.confirmation_digest"
+          },
           "promotion_protected_environment": "release-preview-publication",
           "receipt_satisfies_production_latest_or_follower_handoff": false
         }
@@ -2397,7 +2405,7 @@
       "operator_evidence_handle_policy_by_mode": {
         "production_follower": "no_operator_supplied_handles",
         "development_validation": "legacy_only",
-        "independent_preview": "carrier_run_executor_sha_and_artifact_name_allowed_but_revalidated_and_not_target_identity"
+        "independent_preview": "durable_publication_record_ref_and_exact_operator_confirmation_revalidated_before_latest_only_mutation"
       },
       "opaque_run_handles_are_release_identity": false,
       "protected_environment_by_mode": {
