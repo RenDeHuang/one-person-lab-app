@@ -13,6 +13,11 @@ uses the same Linux Codex identity. The existing AionUI Windows/NSIS packaging
 is reusable, but its native Windows AionCore and Codex path is not an acceptable
 OPL Windows RC runtime and must never be a fallback.
 
+This publication gate does not block source absorption or continued RC
+development on `main`. Windows RC contracts, manual build support, guides, and
+tests may land incrementally, but the existing Stable/Latest release flow must
+not depend on them, wait for them, or treat their acceptance as a required gate.
+
 ## Frozen Decisions
 
 - Host: Windows 11 x64, 22H2 or later.
@@ -31,6 +36,8 @@ OPL Windows RC runtime and must never be a fallback.
   native fallback are forbidden.
 - No Windows RC publication occurs before exact release-byte acceptance proves
   these invariants.
+- Existing Stable/Latest publication remains independent and non-blocking while
+  Windows RC implementation and physical-host acceptance continue.
 
 ## Repository Write Sets
 

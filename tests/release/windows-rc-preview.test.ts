@@ -246,12 +246,18 @@ test('Windows RC Framework binder recognizes a Windows file URL entrypoint', () 
 
 test('Windows RC Preview remains blocked until exact WSL2-only release-byte acceptance', () => {
   const release = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'));
+  const execution = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-windows-wsl2-execution.json'), 'utf8'),
+  );
   const install = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
   );
   const target = release.distribution_semantics.approved_targets.windows_x64_rc_preview;
   const routing = install.distribution_install_model.platform_routing.windows_personal;
 
+  assert.equal(target.mainline_source_absorption_allowed, true);
+  assert.equal(target.existing_stable_latest_dependency_allowed, false);
+  assert.equal(target.existing_stable_latest_gate_allowed, false);
   assert.equal(target.quality, 'preview');
   assert.equal(target.prerelease_required, true);
   assert.equal(target.latest_allowed, false);
@@ -265,6 +271,14 @@ test('Windows RC Preview remains blocked until exact WSL2-only release-byte acce
   assert.equal(routing.current_default_runtime_form, 'container_webui');
   assert.equal(routing.desktop_preview_changes_default_route, false);
   assert.equal(routing.wsl2_only_supported_desktop_target_requires_exact_release_acceptance, true);
+  assert.equal(execution.release_boundary.mainline_source_absorption_allowed, true);
+  assert.equal(execution.release_boundary.existing_stable_latest_dependency_allowed, false);
+  assert.equal(execution.release_boundary.existing_stable_latest_gate_allowed, false);
+
+  for (const workflowName of ['release-stable.yml', '_release-bundle.yml', '_release-standard-publish.yml']) {
+    const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', workflowName), 'utf8');
+    assert.doesNotMatch(workflow, /windows_x64_rc_preview|windows-rc|win-x64/i);
+  }
 });
 
 test('Windows install guide binds the exact RC assets and preserves credential and SmartScreen boundaries', () => {

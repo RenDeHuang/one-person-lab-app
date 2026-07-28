@@ -29,7 +29,7 @@ function runPwsh(args: string[]) {
   if (!pwshPath) {
     return null;
   }
-  return spawnSync(pwshPath, ['-ExecutionPolicy', 'Bypass', ...args], { cwd: appRoot, encoding: 'utf8' });
+  return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
 }
 
 function extractPowerShellFunction(source: string, name: string) {
@@ -47,7 +47,7 @@ function runPwshHarness(source: string) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-pwsh-harness-'));
   const harnessPath = path.join(tempRoot, 'harness.ps1');
   fs.writeFileSync(harnessPath, source, 'utf8');
-  return runPwsh(['-NoLogo', '-NoProfile', '-File', harnessPath]);
+  return runPwsh(['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', harnessPath]);
 }
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { timeout: 30_000 }, () => {

@@ -241,6 +241,9 @@
       "windows_x64_rc_preview": {
         "target": "manual_opt_in_windows_x64_wsl2_only_prerelease",
         "status": "implementation_in_progress_publication_blocked",
+        "mainline_source_absorption_allowed": true,
+        "existing_stable_latest_dependency_allowed": false,
+        "existing_stable_latest_gate_allowed": false,
         "quality": "preview",
         "payload_density": "standard",
         "publication_carrier": "app_github_releases",

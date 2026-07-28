@@ -88,6 +88,9 @@
     "unregister_without_explicit_user_removal_allowed": false
   },
   "release_boundary": {
+    "mainline_source_absorption_allowed": true,
+    "existing_stable_latest_dependency_allowed": false,
+    "existing_stable_latest_gate_allowed": false,
     "public_rc_allowed": false,
     "public_rc_gate": "all_required_evidence_must_pass_on_exact_release_bytes",
     "required_evidence": [
