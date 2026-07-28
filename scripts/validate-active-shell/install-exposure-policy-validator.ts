@@ -271,20 +271,47 @@ function validateInstallerSurfaces(policy) {
   ) {
     throw new Error('Docker/WebUI install exposure must consume Latest and retain Stable only as its compatibility alias');
   }
-  const windowsAutoUpdate = dockerWebui.installer_model?.windows_auto_update;
+  const hostAutoUpdate = dockerWebui.installer_model?.host_auto_update;
   if (
-    windowsAutoUpdate?.mechanism !== 'user_scoped_windows_scheduled_task' ||
-    windowsAutoUpdate?.task_name !== 'One Person Lab WebUI Latest Update' ||
-    windowsAutoUpdate?.enable_entrypoint !== 'install-docker-webui.ps1 -EnableAutoUpdate' ||
-    windowsAutoUpdate?.disable_entrypoint !== 'install-docker-webui.ps1 -DisableAutoUpdate' ||
-    windowsAutoUpdate?.schedule !== 'daily_at_03_00_and_current_user_logon_start_when_available' ||
-    windowsAutoUpdate?.execution_context !== 'limited_current_user_run_only_when_logged_on' ||
-    windowsAutoUpdate?.channel_policy !== 'default_latest_only_custom_image_tag_or_digest_requires_manual_update' ||
-    windowsAutoUpdate?.follows_ref !== 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
-    !String(windowsAutoUpdate?.security_boundary ?? '').includes('without_Docker_socket_mount')
+    hostAutoUpdate?.scope !== 'optional_current_user_host_scheduler' ||
+    hostAutoUpdate?.entrypoints?.linux_macos_enable !== 'install-docker-webui.sh --enable-auto-update' ||
+    hostAutoUpdate?.entrypoints?.linux_macos_disable !== 'install-docker-webui.sh --disable-auto-update' ||
+    hostAutoUpdate?.entrypoints?.linux_macos_status !== 'install-docker-webui.sh --auto-update-status' ||
+    hostAutoUpdate?.entrypoints?.windows_enable !== 'install-docker-webui.ps1 -EnableAutoUpdate' ||
+    hostAutoUpdate?.entrypoints?.windows_disable !== 'install-docker-webui.ps1 -DisableAutoUpdate' ||
+    hostAutoUpdate?.entrypoints?.windows_status !== 'install-docker-webui.ps1 -AutoUpdateStatus' ||
+    hostAutoUpdate?.platform_schedulers?.windows?.mechanism !== 'user_scoped_windows_scheduled_task' ||
+    hostAutoUpdate?.platform_schedulers?.windows?.id !== 'One Person Lab WebUI Latest Update' ||
+    hostAutoUpdate?.platform_schedulers?.windows?.execution_context !==
+      'limited_current_user_run_only_when_logged_on' ||
+    hostAutoUpdate?.platform_schedulers?.macos?.mechanism !== 'current_user_launch_agent' ||
+    hostAutoUpdate?.platform_schedulers?.macos?.id !== 'cn.onepersonlab.webui-update' ||
+    hostAutoUpdate?.platform_schedulers?.linux_personal?.mechanism !== 'systemd_user_timer' ||
+    hostAutoUpdate?.platform_schedulers?.linux_personal?.id !==
+      'one-person-lab-webui-update.timer' ||
+    hostAutoUpdate?.platform_schedulers?.linux_server?.default_enabled !== false ||
+    hostAutoUpdate?.platform_schedulers?.linux_server?.installer_must_not_create_system_scheduler !==
+      true ||
+    hostAutoUpdate?.channel_policy !==
+      'default_latest_only_custom_image_tag_or_digest_requires_manual_update' ||
+    hostAutoUpdate?.follows_ref !== 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
+    hostAutoUpdate?.result_schema !== 'opl_webui_host_auto_update_result.v1' ||
+    hostAutoUpdate?.config_schema !== 'opl_webui_host_auto_update_config.v1' ||
+    !String(hostAutoUpdate?.reviewed_runner_policy ?? '').includes(
+      'never_downloads_or_executes_mutable_main_branch_installer_code',
+    ) ||
+    !String(hostAutoUpdate?.failure_semantics ?? '').includes(
+      'restore_the_previous_image_digest',
+    ) ||
+    !String(hostAutoUpdate?.security_boundary ?? '').includes('without_Docker_socket_mount')
   ) {
-    throw new Error('Docker/WebUI Windows automatic updates must remain a limited user host task for the default latest channel');
+    throw new Error('Docker/WebUI automatic updates must preserve the shared latest-only host scheduler contract');
   }
+  assertIncludesAll(
+    hostAutoUpdate?.shared_status_fields,
+    ['scheduler', 'enabled', 'runner', 'channel', 'daily_time', 'result', 'status', 'phase', 'rollback', 'completed_at'],
+    'Docker/WebUI shared host auto-update status fields',
+  );
   if (dockerWebui.installer_model?.compose_file !== 'compose.yaml') {
     throw new Error('Docker/WebUI install exposure must declare compose.yaml as the one-click installer compose artifact');
   }
@@ -486,13 +513,24 @@ function validateInstallerSurfaces(policy) {
     throw new Error('Docker/WebUI image currentness must remain status-only and separate from release-ready or applied-update proof');
   }
   if (
-    dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_entrypoint !==
-      'install-docker-webui.ps1 -EnableAutoUpdate' ||
-    dockerWebui.runtime_distribution_model?.image_update_model?.windows_auto_update_mechanism !==
-      'limited_current_user_scheduled_task_running_host_installer_daily_and_at_logon_for_default_latest_only'
+    dockerWebui.runtime_distribution_model?.image_update_model?.host_auto_update_contract_ref !==
+      'installer_surfaces[surface=docker_webui].installer_model.host_auto_update' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.linux_server_auto_update_default !==
+      'disabled_until_administrator_explicitly_configures_a_system_scheduler' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.automatic_channel_policy !==
+      'default_latest_only_custom_image_tag_or_digest_requires_manual_update' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.scheduled_code_policy !==
+      'locally_preserved_reviewed_runner_only_no_mutable_main_branch_download_or_execution' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.health_failure_recovery !==
+      'restore_previous_image_digest_and_recreate_with_pull_disabled'
   ) {
-    throw new Error('Docker/WebUI image automatic updates must reuse the bounded Windows host installer route');
+    throw new Error('Docker/WebUI image automatic updates must reuse the shared host auto-update contract');
   }
+  assertIncludesAll(
+    dockerWebui.runtime_distribution_model?.image_update_model?.host_auto_update_platforms,
+    ['windows_task_scheduler', 'macos_launch_agent', 'linux_systemd_user_timer'],
+    'Docker/WebUI host auto-update platforms',
+  );
   validateDockerWebuiSmokeGateContract(dockerWebui.smoke_gate_contract);
 }
 

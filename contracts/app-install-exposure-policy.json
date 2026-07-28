@@ -566,22 +566,77 @@
         "primary_user_path": "one_click_installer",
         "linux_macos_shell_script": "install-docker-webui.sh",
         "windows_powershell_script": "install-docker-webui.ps1",
-        "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
+        "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes --enable-auto-update",
+        "linux_server_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
         "windows_online_command": "download install-docker-webui.ps1 from raw.githubusercontent.com and run with -EnableAutoUpdate -Yes",
         "windows_prerequisite_mode": "explicit_install_prerequisites_switch_requires_administrator",
         "default_image_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
         "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
-        "windows_auto_update": {
-          "mechanism": "user_scoped_windows_scheduled_task",
-          "task_name": "One Person Lab WebUI Latest Update",
-          "enable_entrypoint": "install-docker-webui.ps1 -EnableAutoUpdate",
-          "disable_entrypoint": "install-docker-webui.ps1 -DisableAutoUpdate",
-          "schedule": "daily_at_03_00_and_current_user_logon_start_when_available",
-          "execution_context": "limited_current_user_run_only_when_logged_on",
-          "updater_script": "OnePersonLab/updater/update-webui.ps1",
+        "host_auto_update": {
+          "scope": "optional_current_user_host_scheduler",
+          "shared_actions": [
+            "enable",
+            "disable",
+            "status",
+            "set_daily_local_time",
+            "manual_update"
+          ],
+          "entrypoints": {
+            "linux_macos_enable": "install-docker-webui.sh --enable-auto-update",
+            "linux_macos_disable": "install-docker-webui.sh --disable-auto-update",
+            "linux_macos_status": "install-docker-webui.sh --auto-update-status",
+            "linux_macos_manual_update": "install-docker-webui.sh --update",
+            "windows_enable": "install-docker-webui.ps1 -EnableAutoUpdate",
+            "windows_disable": "install-docker-webui.ps1 -DisableAutoUpdate",
+            "windows_status": "install-docker-webui.ps1 -AutoUpdateStatus",
+            "windows_manual_update": "install-docker-webui.ps1 -Update"
+          },
+          "platform_schedulers": {
+            "windows": {
+              "mechanism": "user_scoped_windows_scheduled_task",
+              "id": "One Person Lab WebUI Latest Update",
+              "schedule": "daily_at_configured_time_and_current_user_logon_start_when_available",
+              "execution_context": "limited_current_user_run_only_when_logged_on"
+            },
+            "macos": {
+              "mechanism": "current_user_launch_agent",
+              "id": "cn.onepersonlab.webui-update",
+              "schedule": "daily_at_configured_time_and_current_user_login"
+            },
+            "linux_personal": {
+              "mechanism": "systemd_user_timer",
+              "id": "one-person-lab-webui-update.timer",
+              "schedule": "daily_at_configured_time_and_persistent_after_user_manager_start"
+            },
+            "linux_server": {
+              "mechanism": "administrator_owned_scheduler_only",
+              "default_enabled": false,
+              "installer_must_not_create_system_scheduler": true
+            }
+          },
+          "reviewed_runner_policy": "enable_copies_or_generates_a_local_reviewed_runner_and_scheduled_execution_never_downloads_or_executes_mutable_main_branch_installer_code",
+          "runner_paths": {
+            "linux_macos": "OnePersonLab/updater/update-webui.sh",
+            "windows": "OnePersonLab/updater/update-webui.ps1"
+          },
           "channel_policy": "default_latest_only_custom_image_tag_or_digest_requires_manual_update",
           "follows_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
-          "update_semantics": "download_current_host_installer_then_run_Update_Yes_NoOpen_with_preserved_data_projects_port_and_health_configuration",
+          "update_semantics": "resolve_or_pull_latest_on_the_host_recreate_compose_and_commit_only_after_health_passes",
+          "failure_semantics": "restore_the_previous_image_digest_and_compose_service_when_recreate_or_health_validation_fails",
+          "result_schema": "opl_webui_host_auto_update_result.v1",
+          "config_schema": "opl_webui_host_auto_update_config.v1",
+          "shared_status_fields": [
+            "scheduler",
+            "enabled",
+            "runner",
+            "channel",
+            "daily_time",
+            "result",
+            "status",
+            "phase",
+            "rollback",
+            "completed_at"
+          ],
           "log_policy": "bounded_current_and_previous_log_under_OnePersonLab_updater_logs",
           "security_boundary": "host_side_only_without_Docker_socket_mount_or_browser_container_mutation_authority"
         },
@@ -591,7 +646,7 @@
           "host_projects_dir",
           "compose.yaml",
           "browser_webui_url",
-          "windows_auto_update_task_when_enabled"
+          "host_auto_update_scheduler_when_enabled"
         ],
         "persistent_host_dirs": [
           "OnePersonLab/data",
@@ -764,8 +819,16 @@
           "owner": "host_installer_or_administrator",
           "linux_macos_entrypoint": "install-docker-webui.sh --update",
           "windows_entrypoint": "install-docker-webui.ps1 -Update",
-          "windows_auto_update_entrypoint": "install-docker-webui.ps1 -EnableAutoUpdate",
-          "windows_auto_update_mechanism": "limited_current_user_scheduled_task_running_host_installer_daily_and_at_logon_for_default_latest_only",
+          "host_auto_update_contract_ref": "installer_surfaces[surface=docker_webui].installer_model.host_auto_update",
+          "host_auto_update_platforms": [
+            "windows_task_scheduler",
+            "macos_launch_agent",
+            "linux_systemd_user_timer"
+          ],
+          "linux_server_auto_update_default": "disabled_until_administrator_explicitly_configures_a_system_scheduler",
+          "automatic_channel_policy": "default_latest_only_custom_image_tag_or_digest_requires_manual_update",
+          "scheduled_code_policy": "locally_preserved_reviewed_runner_only_no_mutable_main_branch_download_or_execution",
+          "health_failure_recovery": "restore_previous_image_digest_and_recreate_with_pull_disabled",
           "rerun_semantics": "rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate",
           "currentness_status_model": "local_image_digest_and_optional_remote_image_digest_compare_only",
           "currentness_claim_policy": "remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied",

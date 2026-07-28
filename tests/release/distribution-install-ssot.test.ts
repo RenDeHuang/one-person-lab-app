@@ -93,6 +93,28 @@ test('distribution/install SSOT validates the current and approved state split',
     install.software_lifecycle.carrier_adapters.homebrew_cask.full_seed_activation_owner,
     'one-person-lab',
   );
+  const hostAutoUpdate = install.installer_surfaces.find(
+    (surface: any) => surface.surface === 'docker_webui',
+  ).installer_model;
+  assert.match(hostAutoUpdate.linux_macos_online_command, /--enable-auto-update/);
+  assert.doesNotMatch(hostAutoUpdate.linux_server_online_command, /--enable-auto-update/);
+  const autoUpdateContract = hostAutoUpdate.host_auto_update;
+  assert.equal(autoUpdateContract.follows_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest');
+  assert.equal(autoUpdateContract.platform_schedulers.windows.mechanism, 'user_scoped_windows_scheduled_task');
+  assert.equal(autoUpdateContract.platform_schedulers.macos.mechanism, 'current_user_launch_agent');
+  assert.equal(autoUpdateContract.platform_schedulers.linux_personal.mechanism, 'systemd_user_timer');
+  assert.equal(autoUpdateContract.platform_schedulers.linux_server.default_enabled, false);
+  assert.match(autoUpdateContract.reviewed_runner_policy, /never_downloads_or_executes_mutable_main_branch/);
+  assert.match(autoUpdateContract.failure_semantics, /restore_the_previous_image_digest/);
+  assert.equal(autoUpdateContract.config_schema, 'opl_webui_host_auto_update_config.v1');
+  assert.ok(autoUpdateContract.shared_status_fields.includes('daily_time'));
+  assert.deepEqual(autoUpdateContract.shared_actions, [
+    'enable',
+    'disable',
+    'status',
+    'set_daily_local_time',
+    'manual_update',
+  ]);
 });
 
 test('Homebrew generator keeps Standard on Formula Base and Full on embedded Base', () => {
@@ -351,4 +373,27 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
   assert.doesNotMatch(rootReadme, /brew install --cask .*one-person-lab-nightly/);
   assert.doesNotMatch(rootReadme, /brew install --cask .*one-person-lab-full/);
   assert.doesNotMatch(rootReadme, /--stable-macos-install --yes/);
+});
+
+test('Docker WebUI guide exposes the shared host auto-update lifecycle without container-side mutation', () => {
+  const guide = fs.readFileSync(
+    path.join(appRoot, 'docs/guides/docker-webui-install/guide.qmd'),
+    'utf8',
+  );
+  const manifest = readJson(
+    'docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json',
+  );
+  assert.match(guide, /跨平台宿主自动更新/);
+  assert.match(guide, /Task Scheduler/);
+  assert.match(guide, /LaunchAgent/);
+  assert.match(guide, /systemd --user/);
+  assert.match(guide, /Linux 服务器默认不启用自动更新/);
+  assert.match(guide, /不会每天下载并执行 GitHub `main` 上的可变安装器代码/);
+  assert.match(guide, /不要把下载 GitHub `main` 的在线 `curl` 命令直接放进定时任务/);
+  assert.match(guide, /恢复旧 digest/);
+  assert.match(manifest.download.linux_macos_online_command, /--enable-auto-update/);
+  assert.match(manifest.download.linux_server_online_command, /--yes$/);
+  assert.match(manifest.download.windows_auto_update_status_command, /-AutoUpdateStatus/);
+  assert.match(manifest.download.linux_macos_auto_update_status_command, /--auto-update-status/);
+  assert.match(manifest.download.linux_macos_disable_auto_update_command, /--disable-auto-update/);
 });

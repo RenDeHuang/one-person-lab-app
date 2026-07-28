@@ -1,10 +1,10 @@
 ---
 title: "One Person Lab WebUI 图文安装教程"
-subtitle: "Windows Docker Desktop / Linux Docker"
+subtitle: "Windows / macOS / Linux Docker"
 lang: zh-CN
 ---
 
-适用对象：希望在 Windows 或 Linux 电脑上通过浏览器使用 One Person Lab 的用户；默认不要求 Docker 经验。
+适用对象：希望在 Windows、macOS 或 Linux 电脑上通过浏览器使用 One Person Lab 的用户；默认不要求 Docker 经验。
 
 本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会建立本机 WebUI 会话。页面会在后台检查本机助手和模型访问；确认尚未配置时会尝试自动打开首次设置。如果没有自动跳转，不代表安装失败，直接点击工作台左下角的“完成首次设置”即可继续。普通启动不会被这项检查长时间阻塞。
 
@@ -41,6 +41,12 @@ lang: zh-CN
 - 能够运行 Docker Engine 的 x64 Linux 电脑或服务器。
 - 当前用户可以运行 `docker` 和 `docker compose`。
 - 公网服务器不要使用本机免密码路径，参见本文末尾的“服务器部署”。
+
+### macOS
+
+- 已安装并启动 Docker Desktop、OrbStack 或 Colima。
+- 当前用户可以运行 `docker` 和 `docker compose`。
+- Docker WebUI 与 macOS Desktop App 是两种独立使用形态；这里安装的是浏览器 WebUI。
 
 ### 模型访问
 
@@ -106,14 +112,16 @@ docker compose version
 {{download.windows_online_command}}
 ```
 
-### Linux 终端
+### Linux 个人电脑或 macOS 终端
 
 ```bash
 repo='gaofeng21cn/one-person-lab-app'
 root="https://raw.githubusercontent.com/$repo/main"
 curl -fsSL "$root/scripts/install-docker-webui.sh" |
-  bash -s -- --yes
+  bash -s -- --yes --enable-auto-update
 ```
+
+这条个人电脑命令会在当前用户范围启用每天 03:00 的宿主自动更新。macOS 使用 LaunchAgent；Linux 使用 `systemd --user` timer。Linux 服务器默认不启用自动更新，请使用不带 `--enable-auto-update` 的安装命令，再由管理员根据维护窗口显式配置系统级调度。
 
 安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。首次镜像下载约为 1 GB，安装器会持续显示 Docker layer 下载输出；不需要重新复制命令或重开 PowerShell。首次启动还需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。如果 Docker 20 秒没有新的 layer 输出，安装器会显示已等待时间和 Docker Desktop 代理设置提示，但仍会继续等待到 30 分钟总超时。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
@@ -199,22 +207,38 @@ http://localhost:3000/
 
 Windows 日常使用时双击桌面的 **One Person Lab**；只有需要修复启动文件、改变端口或手动更新时才重新运行安装器。Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
 
-### Windows 自动更新
+### 跨平台宿主自动更新
 
-本教程的 Windows 推荐安装命令已包含 `-EnableAutoUpdate`。计划任务以当前普通用户身份运行，不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。它有两个触发器：用户已登录时每天 03:00 运行，以及该用户登录时补跑；因此夜间关机或未登录不会丢掉后续检查。它会下载当前宿主安装器，重新解析 `latest` 的不可变 digest，并以 `-Update -Yes -NoOpen` 更新；digest 未变化时 Docker Compose 不会替换正在运行的容器。以下目录始终保留：
+Windows 推荐命令和 Linux/macOS 个人电脑命令都会启用当前用户范围的宿主自动更新。三平台共享“启用、禁用、状态、更新时间、手动更新”语义，但使用各自原生调度器：
+
+| 平台 | 当前用户调度器 | 默认触发 |
+|---|---|---|
+| Windows | Task Scheduler | 每天 03:00；当前用户登录时补跑 |
+| macOS | LaunchAgent | 每天 03:00；当前用户登录时运行 |
+| Linux 个人电脑 | `systemd --user` timer | 每天 03:00；用户管理器启动后补跑 |
+
+自动任务只跟随 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest`。启用时，安装器会在 `OnePersonLab/updater` 保存一份本地、经过本次安装器生成或复制的固定 runner；以后调度器只运行这个本地副本，不会每天下载并执行 GitHub `main` 上的可变安装器代码。更新会先保留旧 image digest，拉取并启动新 digest，健康检查通过才算成功；拉取、重建或健康检查失败时会恢复旧 digest。整个过程不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。以下目录始终保留：
 
 ```text
 %USERPROFILE%\OnePersonLab\data
 %USERPROFILE%\OnePersonLab\projects
 ```
 
-查看任务状态、两个触发器、最近一次结果和下次计划运行时间：
+Windows 查看调度器和最近一次结果：
 
 ```powershell
 {{download.windows_auto_update_status_command}}
 ```
 
-自动更新日志只保留当前和上一次，位于 `%USERPROFILE%\OnePersonLab\updater\logs`。这项任务只更新 One Person Lab WebUI 镜像；Docker Desktop 自身仍按 Docker Desktop 的更新设置处理。
+Linux/macOS 查看调度器和最近一次结果：
+
+```bash
+{{download.linux_macos_auto_update_status_command}}
+```
+
+对应的本地安装器入口是 `--auto-update-status`。
+
+自动更新日志只保留当前和上一次，位于当前用户的 `OnePersonLab/updater/logs`。这项任务只更新 One Person Lab WebUI 镜像；Docker Desktop、Docker Engine、OrbStack 或 Colima 自身仍按各自更新设置处理。
 
 查看当前日志末尾：
 
@@ -222,22 +246,36 @@ Windows 日常使用时双击桌面的 **One Person Lab**；只有需要修复�
 Get-Content "$env:USERPROFILE\OnePersonLab\updater\logs\current.log" -Tail 80
 ```
 
-如果电脑长期没有登录这个 Windows 用户，计划任务不会保存密码并在无人登录时强行运行；请登录一次等待补跑，或使用下面的手动更新命令。
+当前用户调度器不会获得服务器级后台权限。Windows 用户长期未登录时任务不会保存密码强行运行；Linux 服务器也不会由一键安装器自动创建系统级 timer。需要无人值守服务器更新时，应由管理员先把已审阅的安装器保存到固定本地路径，再让系统级调度调用该本地文件的 `--update`；不要把下载 GitHub `main` 的在线 `curl` 命令直接放进定时任务。
 
-如需关闭 WebUI 自动更新，在普通 PowerShell 中运行：
+关闭自动更新：
 
 ```powershell
 {{download.windows_disable_auto_update_command}}
 ```
 
-自定义 `-Image`、非 `latest` 的 `-Tag` 或固定 digest 不会启用自动更新，避免计划任务静默覆盖高级用户的版本选择。`latest` 是 Windows 推荐安装命令跟随的自动更新指针；经人工授权的开发预览可以只推进 `latest`，不代表 `stable` 质量结论。需要固定稳定版本的高级用户应显式选择 `stable` 或版本 tag。
+```bash
+{{download.linux_macos_disable_auto_update_command}}
+```
 
-### Windows 手动更新
+对应的本地安装器入口是 `--disable-auto-update`。
 
-Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显式 `-Update` 会拉取 `latest`、按不可变 digest 重建容器：
+更改每天运行时间时，重新执行启用命令并传入本地时间，例如 Windows 的 `-AutoUpdateTime 04:15` 或 Linux/macOS 的 `--auto-update-time 04:15`。
+
+自定义 `-Image` / `--image`、非 `latest` 的 tag 或固定 digest 不允许启用自动更新，避免调度器静默覆盖高级用户的版本选择；这些版本只能手动更新。`latest` 是自动更新跟随的发布指针，不等价于容器内自更新能力。
+
+### 手动更新
+
+Windows：
 
 ```powershell
 {{download.windows_update_command}}
+```
+
+Linux/macOS：
+
+```bash
+{{download.linux_macos_update_command}}
 ```
 
 ```{=latex}

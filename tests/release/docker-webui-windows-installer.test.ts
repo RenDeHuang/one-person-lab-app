@@ -422,7 +422,13 @@ test('Windows Docker/WebUI automatic updates stay on the limited host-side lates
     installer.indexOf('function Invoke-DockerComposeUp'),
   );
 
-  assert.match(installer, /raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/scripts\/install-docker-webui\.ps1/);
+  assert.doesNotMatch(
+    installer,
+    /raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/scripts\/install-docker-webui\.ps1/,
+    'the scheduled task must not download and execute a mutable main-branch installer',
+  );
+  assert.match(autoUpdateWriter, /Copy-Item -LiteralPath \$InstallerSourcePath/);
+  assert.match(autoUpdateWriter, /Move-Item -LiteralPath \$installerTemporaryPath -Destination \$installerPath/);
   assert.match(autoUpdateWriter, /`"-Update`"/);
   assert.match(autoUpdateWriter, /`"-Yes`"/);
   assert.match(autoUpdateWriter, /`"-NoOpen`"/);
@@ -434,5 +440,13 @@ test('Windows Docker/WebUI automatic updates stay on the limited host-side lates
   assert.match(autoUpdateRegistration, /-RunLevel Limited/);
   assert.match(autoUpdateRegistration, /-StartWhenAvailable/);
   assert.match(autoUpdateRegistration, /-MultipleInstances IgnoreNew/);
+  assert.match(installer, /\[switch\]\$AutoUpdateStatus/);
+  assert.match(installer, /function Show-WebUiAutoUpdateStatus/);
+  assert.match(installer, /schema=opl_webui_host_auto_update_result\.v1/);
+  assert.match(installer, /schema=opl_webui_host_auto_update_config\.v1/);
+  assert.match(installer, /daily_time=not_configured/);
+  assert.match(autoUpdateWriter, /`\$installerExitCode = `\$LASTEXITCODE/);
+  assert.match(autoUpdateWriter, /phase=installer_update/);
+  assert.match(autoUpdateWriter, /phase=health/);
   assert.doesNotMatch(autoUpdateWriter, /docker\.sock|Docker socket/i);
 });

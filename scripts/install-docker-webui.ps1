@@ -24,6 +24,7 @@ param(
   [switch]$Update,
   [switch]$EnableAutoUpdate,
   [switch]$DisableAutoUpdate,
+  [switch]$AutoUpdateStatus,
   [ValidatePattern("^(?:[01]\d|2[0-3]):[0-5]\d$")]
   [string]$AutoUpdateTime = "03:00",
   [switch]$NoOpen,
@@ -35,7 +36,6 @@ $ErrorActionPreference = "Stop"
 $script:PreDataInventory = ""
 $script:PreProjectsInventory = ""
 $script:AutoUpdateTaskName = "One Person Lab WebUI Latest Update"
-$script:AutoUpdateInstallerUrl = "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1"
 
 function Write-Step {
   param([string]$Message)
@@ -1068,6 +1068,9 @@ function Install-WebUiLauncher {
 function Write-WebUiAutoUpdater {
   param(
     [Parameter(Mandatory = $true)][string]$UpdaterPath,
+    [Parameter(Mandatory = $true)][string]$InstallerSourcePath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
     [Parameter(Mandatory = $true)][string]$DataPath,
     [Parameter(Mandatory = $true)][string]$ProjectsPath,
     [Parameter(Mandatory = $true)][int]$HostPort,
@@ -1077,24 +1080,30 @@ function Write-WebUiAutoUpdater {
 
   $updaterDir = Split-Path -Parent $UpdaterPath
   if ($DryRun) {
-    Write-Step "Dry run: would write automatic updater $UpdaterPath"
+    Write-Step "Dry run: would preserve the reviewed host installer and write automatic updater $UpdaterPath"
     return
   }
 
   New-Item -ItemType Directory -Force -Path $updaterDir | Out-Null
+  $installerPath = Join-Path $updaterDir "install-docker-webui.ps1"
+  $installerTemporaryPath = "$installerPath.download"
+  Copy-Item -LiteralPath $InstallerSourcePath -Destination $installerTemporaryPath -Force
+  Move-Item -LiteralPath $installerTemporaryPath -Destination $installerPath -Force
   $lines = @(
     "[CmdletBinding()]",
     "param()",
     "",
     "Set-StrictMode -Version 3.0",
     "`$ErrorActionPreference = `"Stop`"",
-    "`$installerUrl = $(Convert-ToPowerShellSingleQuoted $script:AutoUpdateInstallerUrl)",
     "`$updaterDir = $(Convert-ToPowerShellSingleQuoted $updaterDir)",
     "`$installerPath = Join-Path `$updaterDir `"install-docker-webui.ps1`"",
-    "`$downloadPath = `"`$installerPath.download`"",
+    "`$dockerCliPath = $(Convert-ToPowerShellSingleQuoted $DockerCliPath)",
+    "`$composePath = $(Convert-ToPowerShellSingleQuoted $ComposePath)",
+    "`$composeBackupPath = `"`$composePath.auto-update-previous`"",
     "`$logDir = Join-Path `$updaterDir `"logs`"",
     "`$currentLog = Join-Path `$logDir `"current.log`"",
     "`$previousLog = Join-Path `$logDir `"previous.log`"",
+    "`$resultPath = Join-Path `$updaterDir `"last-result.env`"",
     "`$mutex = New-Object System.Threading.Mutex(`$false, `"Local\OnePersonLabWebUiLatestUpdate`")",
     "`$lockTaken = `$false",
     "`$transcriptStarted = `$false",
@@ -1110,8 +1119,7 @@ function Write-WebUiAutoUpdater {
     "  }",
     "  Start-Transcript -Path `$currentLog -Force | Out-Null",
     "  `$transcriptStarted = `$true",
-    "  Invoke-WebRequest -UseBasicParsing -Uri `$installerUrl -OutFile `$downloadPath",
-    "  Move-Item -LiteralPath `$downloadPath -Destination `$installerPath -Force",
+    "  Copy-Item -LiteralPath `$composePath -Destination `$composeBackupPath -Force",
     "  `$powershell = Join-Path `$env:SystemRoot `"System32\WindowsPowerShell\v1.0\powershell.exe`"",
     "  `$installerArgs = @(",
     "    `"-NoProfile`",",
@@ -1135,10 +1143,37 @@ function Write-WebUiAutoUpdater {
     "  )",
     "  & `$powershell @installerArgs",
     "  if (`$LASTEXITCODE -ne 0) {",
-    "    throw `"One Person Lab WebUI automatic update failed with exit code `$LASTEXITCODE.`"",
+    "    `$installerExitCode = `$LASTEXITCODE",
+    "    `$rollback = `"failed`"",
+    "    if (Test-Path -LiteralPath `$composeBackupPath -PathType Leaf) {",
+    "      Move-Item -LiteralPath `$composeBackupPath -Destination `$composePath -Force",
+    "      & `$dockerCliPath compose -f `$composePath up -d --pull never --force-recreate",
+    "      if (`$LASTEXITCODE -eq 0) {",
+    "        `$rollback = `"passed`"",
+    "      }",
+    "    }",
+    "    @(",
+    "      `"schema=opl_webui_host_auto_update_result.v1`",",
+    "      `"status=failed`",",
+    "      `"phase=installer_update`",",
+    "      `"rollback=`$rollback`",",
+    "      `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
+    "      `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:latest`",",
+    "      `"installer_exit_code=`$installerExitCode`"",
+    "    ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
+    "    throw `"One Person Lab WebUI automatic update failed with exit code `$installerExitCode.`"",
     "  }",
+    "  @(",
+    "    `"schema=opl_webui_host_auto_update_result.v1`",",
+    "    `"status=passed`",",
+    "    `"phase=health`",",
+    "    `"rollback=not_required`",",
+    "    `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
+    "    `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:latest`",",
+    "    `"installer_exit_code=0`"",
+    "  ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
+    "  Remove-Item -LiteralPath `$composeBackupPath -Force -ErrorAction SilentlyContinue",
     "} finally {",
-    "  Remove-Item -LiteralPath `$downloadPath -Force -ErrorAction SilentlyContinue",
     "  if (`$transcriptStarted) {",
     "    Stop-Transcript | Out-Null",
     "  }",
@@ -1167,12 +1202,46 @@ function Disable-WebUiAutoUpdate {
     Unregister-ScheduledTask -TaskName $script:AutoUpdateTaskName -Confirm:$false
   }
   Remove-Item -LiteralPath $UpdaterPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path (Split-Path -Parent $UpdaterPath) "config.env") -Force -ErrorAction SilentlyContinue
   Write-Step "Automatic WebUI updates are disabled. Manual -Update remains available."
+}
+
+function Show-WebUiAutoUpdateStatus {
+  param([Parameter(Mandatory = $true)][string]$UpdaterPath)
+
+  $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue
+  Write-Output "scheduler=windows_task_scheduler"
+  Write-Output "enabled=$(([string]($null -ne $task)).ToLowerInvariant())"
+  Write-Output "runner=$UpdaterPath"
+  $configPath = Join-Path (Split-Path -Parent $UpdaterPath) "config.env"
+  if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+    Get-Content -LiteralPath $configPath
+  } else {
+    Write-Output "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+    Write-Output "daily_time=not_configured"
+  }
+  $resultPath = Join-Path (Split-Path -Parent $UpdaterPath) "last-result.env"
+  Write-Output "result=$resultPath"
+  if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
+    Get-Content -LiteralPath $resultPath
+  } else {
+    Write-Output "status=not_run"
+  }
+  if ($null -ne $task) {
+    $taskInfo = $task | Get-ScheduledTaskInfo
+    Write-Output "task_state=$($task.State)"
+    Write-Output "last_run_time=$($taskInfo.LastRunTime.ToString('o'))"
+    Write-Output "last_task_result=$($taskInfo.LastTaskResult)"
+    Write-Output "next_run_time=$($taskInfo.NextRunTime.ToString('o'))"
+  }
 }
 
 function Register-WebUiAutoUpdate {
   param(
     [Parameter(Mandatory = $true)][string]$UpdaterPath,
+    [Parameter(Mandatory = $true)][string]$InstallerSourcePath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
     [Parameter(Mandatory = $true)][string]$DataPath,
     [Parameter(Mandatory = $true)][string]$ProjectsPath,
     [Parameter(Mandatory = $true)][int]$HostPort,
@@ -1180,7 +1249,7 @@ function Register-WebUiAutoUpdate {
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds
   )
 
-  Write-WebUiAutoUpdater -UpdaterPath $UpdaterPath -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url -TimeoutSeconds $TimeoutSeconds
+  Write-WebUiAutoUpdater -UpdaterPath $UpdaterPath -InstallerSourcePath $InstallerSourcePath -DockerCliPath $DockerCliPath -ComposePath $ComposePath -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url -TimeoutSeconds $TimeoutSeconds
   if ($DryRun) {
     Write-Step "Dry run: would register scheduled task $script:AutoUpdateTaskName at $AutoUpdateTime and at the current user's next logon."
     return
@@ -1218,6 +1287,16 @@ function Register-WebUiAutoUpdate {
     -Principal $principal `
     -Description "Checks the One Person Lab WebUI latest image from the Windows host and preserves data/projects." `
     -Force | Out-Null
+
+  $configPath = Join-Path (Split-Path -Parent $UpdaterPath) "config.env"
+  $configTemporaryPath = "$configPath.download"
+  @(
+    "schema=opl_webui_host_auto_update_config.v1",
+    "scheduler=windows_task_scheduler",
+    "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+    "daily_time=$AutoUpdateTime"
+  ) | Set-Content -LiteralPath $configTemporaryPath -Encoding ASCII
+  Move-Item -LiteralPath $configTemporaryPath -Destination $configPath -Force
 
   $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction Stop
   $taskInfo = $task | Get-ScheduledTaskInfo
@@ -1795,6 +1874,10 @@ $resolvedProjectsDir = Resolve-FullPath $ProjectsDir
 $composeDir = Split-Path -Parent $resolvedDataDir
 $composePath = Join-Path $composeDir "compose.yaml"
 $autoUpdaterPath = Join-Path $composeDir "updater\update-webui.ps1"
+$autoUpdateActionCount = @($EnableAutoUpdate, $DisableAutoUpdate, $AutoUpdateStatus).Where({ $_ }).Count
+if ($autoUpdateActionCount -gt 1) {
+  throw "Choose only one of -EnableAutoUpdate, -DisableAutoUpdate, or -AutoUpdateStatus."
+}
 $resolvedEvidenceDir = ""
 if (-not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
   $resolvedEvidenceDir = Resolve-FullPath $EvidenceDir
@@ -1822,6 +1905,10 @@ Assert-WindowsHost
 Assert-PowerShellVersion
 if ($DisableAutoUpdate) {
   Disable-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath
+  exit 0
+}
+if ($AutoUpdateStatus) {
+  Show-WebUiAutoUpdateStatus -UpdaterPath $autoUpdaterPath
   exit 0
 }
 $dockerCliPath = Assert-DockerCli
@@ -1864,7 +1951,7 @@ try {
 Wait-WebUiHealth -DockerCliPath $dockerCliPath -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
 Install-WebUiLauncher -DockerCliPath $dockerCliPath -ComposePath $composePath -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 if ($EnableAutoUpdate) {
-  Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
+  Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -InstallerSourcePath $PSCommandPath -DockerCliPath $dockerCliPath -ComposePath $composePath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 } elseif (-not $Update) {
   Write-Step "Automatic WebUI updates are not enabled. Rerun with -EnableAutoUpdate or run -Update at least monthly."
 }
