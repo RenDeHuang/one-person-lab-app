@@ -240,6 +240,26 @@ Windows 更新 WebUI 时，在普通 PowerShell 中运行下面这一行；显�
 {{download.windows_update_command}}
 ```
 
+```{=latex}
+\newpage
+```
+
+### 手工拉取 latest 后快速应用
+
+如果你已经先运行过：
+
+```powershell
+docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+```
+
+不要手工编辑 `compose.yaml`，也不要删除原容器或 `OnePersonLab/data`。直接运行下面的应用命令：
+
+```powershell
+{{download.windows_update_command}}
+```
+
+安装器仍会校验 `latest` 当前对应的不可变 digest；因为镜像 layer 已在本机，通常会快速显示 `Image is up to date`，随后按新 digest 重建容器并等待 WebUI 健康。若 digest 没有变化，Docker Compose 不会替换正在运行的容器。此流程保留 `OnePersonLab/data` 与 `OnePersonLab/projects`。
+
 如果没有启用计划任务，建议至少每月手动执行一次，并在得知新 `latest` 已发布后及时执行。Linux 重新运行同一条一键安装命令即可。所有更新路径都会保留：
 
 ```text
@@ -264,6 +284,8 @@ Linux:   $HOME/OnePersonLab/projects
 如果连续 20 秒只看到安装器的等待提示，重点检查 Docker Desktop 的网络，而不仅是浏览器是否能翻墙：打开 **Docker Desktop -> Settings -> Resources -> Proxies**，选择正确的系统或手动代理设置并应用；Docker Engine 不一定继承 Windows 浏览器、PowerShell 或 VPN 的代理。然后重新打开 Docker Desktop，确认 `docker version` 能显示 Server 信息，再直接重跑同一条安装命令。公开 OPL 镜像不需要执行 `docker login ghcr.io`。
 
 如果镜像拉取超过 30 分钟，说明这次 GHCR 连接没有完成。安装器已经停止对应的卡住进程；请确认浏览器能够访问 `https://ghcr.io`，临时关闭或修正拦截 GHCR 的代理/VPN，然后重跑同一条安装命令。不要连续打开多个安装窗口，也不需要执行 Docker prune。
+
+如果镜像已经显示 `Image is up to date`，随后持续显示 `WebUI is still completing first-time setup`，说明 WebUI 正在首次准备内置运行时和 Official Profile；这一步同样从 Docker Engine 访问 GitHub/GHCR，Windows 浏览器或系统 VPN 设置不一定会自动传入容器。请在 Docker Desktop 的 **Settings -> Resources -> Proxies** 中配置可用代理，或确认 Docker Engine 能直接访问 GitHub 和 GHCR。安装器会每 20 秒报告一次进度，并在默认 10 分钟窗口结束时保存诊断信息。
 
 ### 提示端口 3000 已被占用
 
