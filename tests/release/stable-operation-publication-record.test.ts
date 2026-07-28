@@ -37,11 +37,15 @@ const criticalBlobPaths = [
   'scripts/framework-release-adapter.ts',
   'scripts/release-dispatch-guard.ts',
   'scripts/stable-operation-control.ts',
+  'scripts/stable-operation-publication-record.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/validate-release-source-gate.ts',
 ];
 const criticalBlobs = Object.fromEntries(
-  criticalBlobPaths.map((file, index) => [file, `sha256:${(index + 3).toString(16).repeat(64)}`]),
+  criticalBlobPaths.map((file, index) => [
+    file,
+    `sha256:${'0123456789abcdef'[(index + 3) % 16]!.repeat(64)}`,
+  ]),
 );
 
 function sha256(bytes: Buffer | string): string {

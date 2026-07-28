@@ -797,7 +797,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
-          path: native-release
+          path: native-qualified
 
       - name: Download consumed Stable operation control for durable carrier binding
         if: ${{ inputs.channel == 'stable' }}
@@ -855,7 +855,7 @@ jobs:
           if [ '${{ inputs.channel }}' = stable ]; then
             manifests=()
             while IFS= read -r manifest; do manifests+=("$manifest"); done < <(
-              find native-release -type f -name publication-manifest.json -print | LC_ALL=C sort
+              find native-qualified -type f -name publication-manifest.json -print | LC_ALL=C sort
             )
             test "${#manifests[@]}" -eq 1
             node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
