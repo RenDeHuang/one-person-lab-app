@@ -10,7 +10,9 @@ export type JsonRecord = Record<string, any>;
 export type ManualLocalAppIdentity = {
   build_kind: 'local-development';
   public_updater_version: string;
-  bundle_version: string;
+  machine_version: string;
+  local_build_id: string;
+  updater_policy: 'disabled-local-development';
   source_provenance_sha256: string;
 };
 
@@ -89,9 +91,31 @@ export function deriveManualLocalAppIdentity(
   return {
     build_kind: 'local-development',
     public_updater_version: publicUpdaterVersion,
-    bundle_version: `${publicUpdaterVersion}-local.src${sourceProvenanceSha256.slice(0, 12)}`,
+    machine_version: publicUpdaterVersion,
+    local_build_id: `local.src${sourceProvenanceSha256.slice(0, 12)}`,
+    updater_policy: 'disabled-local-development',
     source_provenance_sha256: sourceProvenanceSha256,
   };
+}
+
+function setPlistString(plistPath: string, key: string, value: string) {
+  const replaced = commandResult('plutil', [
+    '-replace', key, '-string', value, plistPath,
+  ], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (replaced.status !== 0) {
+    commandResult('plutil', ['-insert', key, '-string', value, plistPath], {
+      capture: true,
+    });
+  }
+  const observed = commandOutput('plutil', [
+    '-extract', key, 'raw', '-o', '-', plistPath,
+  ]);
+  if (observed !== value) {
+    throw new Error(`Manual local App Info.plist ${key} mismatch after stamping`);
+  }
 }
 
 export function stampManualLocalAppIdentity(
@@ -104,7 +128,9 @@ export function stampManualLocalAppIdentity(
   );
   if (
     identity.build_kind !== expected.build_kind
-    || identity.bundle_version !== expected.bundle_version
+    || identity.machine_version !== expected.machine_version
+    || identity.local_build_id !== expected.local_build_id
+    || identity.updater_policy !== expected.updater_policy
     || !/^[0-9a-f]{64}$/.test(identity.source_lock_sha256)
   ) {
     throw new Error('Manual local App identity does not match its source provenance');
@@ -113,31 +139,46 @@ export function stampManualLocalAppIdentity(
     path.join(appPath, 'Contents', 'Info.plist'),
     'Manual local App Info.plist',
   );
+  for (const key of ['CFBundleShortVersionString', 'CFBundleVersion']) {
+    const actual = commandOutput('plutil', [
+      '-extract', key, 'raw', '-o', '-', plistPath,
+    ]);
+    if (actual !== identity.machine_version) {
+      throw new Error(
+        `Manual local App ${key} must retain canonical machine version `
+        + `${identity.machine_version}; observed ${actual || '<empty>'}`,
+      );
+    }
+  }
   const values = {
     OPLBuildKind: identity.build_kind,
+    OPLLocalBuildID: identity.local_build_id,
     OPLPublicUpdaterVersion: identity.public_updater_version,
+    OPLUpdaterPolicy: identity.updater_policy,
     OPLSourceProvenanceSHA256: identity.source_provenance_sha256,
     OPLSourceLockSHA256: identity.source_lock_sha256,
   };
   for (const [key, value] of Object.entries(values)) {
-    const replaced = commandResult('plutil', [
-      '-replace', key, '-string', value, plistPath,
+    setPlistString(plistPath, key, value);
+  }
+  const launchEnvironment = commandResult('plutil', [
+    '-extract', 'LSEnvironment', 'json', '-o', '-', plistPath,
+  ], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (launchEnvironment.status !== 0) {
+    commandResult('plutil', [
+      '-insert', 'LSEnvironment', '-json', '{}', plistPath,
     ], {
       capture: true,
-      allowFailure: true,
     });
-    if (replaced.status !== 0) {
-      commandResult('plutil', ['-insert', key, '-string', value, plistPath], {
-        capture: true,
-      });
-    }
-    const observed = commandOutput('plutil', [
-      '-extract', key, 'raw', '-o', '-', plistPath,
-    ]);
-    if (observed !== value) {
-      throw new Error(`Manual local App Info.plist ${key} mismatch after stamping`);
-    }
   }
+  setPlistString(
+    plistPath,
+    'LSEnvironment.AIONUI_DISABLE_AUTO_UPDATE',
+    '1',
+  );
   return identity;
 }
 
@@ -306,8 +347,9 @@ export type RepoSnapshot = {
   root: string;
   head: string;
   branch: string;
-  local_main: string;
+  local_main: string | null;
   origin_main: string | null;
+  remote_main: string | null;
 };
 
 export function snapshotDevelopmentRepo(id: string, root: string): RepoSnapshot {
@@ -317,21 +359,81 @@ export function snapshotDevelopmentRepo(id: string, root: string): RepoSnapshot 
     cwd: root,
     allowFailure: true,
   });
-  const localMain = commandOutput('git', ['rev-parse', 'refs/heads/main'], { cwd: root });
+  const localMainResult = commandResult('git', ['rev-parse', '--verify', 'refs/heads/main'], {
+    cwd: root,
+    capture: true,
+    allowFailure: true,
+  });
+  const localMain = localMainResult.status === 0
+    ? String(localMainResult.stdout).trim()
+    : null;
   const origin = commandResult('git', ['rev-parse', '--verify', 'refs/remotes/origin/main'], {
     cwd: root,
     capture: true,
     allowFailure: true,
   });
   const originMain = origin.status === 0 ? String(origin.stdout).trim() : null;
+  const originUrl = commandResult('git', ['remote', 'get-url', 'origin'], {
+    cwd: root,
+    capture: true,
+    allowFailure: true,
+  });
+  let remoteMain: string | null = null;
+  if (originUrl.status === 0 && String(originUrl.stdout).trim()) {
+    const remote = commandResult('git', [
+      'ls-remote', '--heads', 'origin', 'refs/heads/main',
+    ], {
+      cwd: root,
+      capture: true,
+      allowFailure: true,
+      timeoutMs: 60_000,
+    });
+    const match = remote.status === 0
+      ? /^([0-9a-f]{40})\s+refs\/heads\/main$/m.exec(String(remote.stdout).trim())
+      : null;
+    if (!match) {
+      const detail = [remote.error?.message, remote.stderr]
+        .filter((value) => typeof value === 'string' && value.trim())
+        .join('\n')
+        .trim();
+      throw new Error(
+        `${id} cannot read fresh remote origin/main${detail ? `: ${detail}` : ''}`,
+      );
+    }
+    remoteMain = match[1]!;
+    if (originMain !== remoteMain) {
+      throw new Error(
+        `${id} fetched origin/main is stale: `
+        + `origin/main=${originMain || '<missing>'} remote=${remoteMain}`,
+      );
+    }
+  }
   const status = commandOutput('git', ['status', '--porcelain'], { cwd: root });
-  if (branch !== 'main' || head !== localMain) {
-    throw new Error(`${id} must use its development directory main HEAD: branch=${branch || '<detached>'} head=${head} main=${localMain}`);
+  if (originMain) {
+    if (head !== originMain) {
+      throw new Error(
+        `${id} must use the fetched canonical origin/main HEAD: `
+        + `branch=${branch || '<detached>'} head=${head} origin/main=${originMain}`,
+      );
+    }
+  } else if (branch !== 'main' || !localMain || head !== localMain) {
+    throw new Error(
+      `${id} has no fetched origin/main and must use local main HEAD: `
+      + `branch=${branch || '<detached>'} head=${head} main=${localMain || '<missing>'}`,
+    );
   }
   if (status) {
     throw new Error(`${id} development directory is not clean:\n${status}`);
   }
-  return { id, root, head, branch, local_main: localMain, origin_main: originMain };
+  return {
+    id,
+    root,
+    head,
+    branch,
+    local_main: localMain,
+    origin_main: originMain,
+    remote_main: remoteMain,
+  };
 }
 
 export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
@@ -346,8 +448,7 @@ export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
     );
   }
 
-  // Remote advancement is provenance after freeze; only frozen checkout bytes can invalidate the build.
-  const fields = ['head', 'branch', 'local_main'] as const;
+  const fields = ['head', 'branch', 'local_main', 'origin_main', 'remote_main'] as const;
   const differences = fields
     .filter((field) => actual[field] !== expected[field])
     .map((field) => (

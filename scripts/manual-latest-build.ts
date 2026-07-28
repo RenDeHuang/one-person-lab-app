@@ -629,7 +629,7 @@ function printHelp() {
   bun run manual:full-dmg -- [options]
 
 Shared policy:
-  - self-developed App, Shell, Framework, and first-party packages come from clean development-directory main HEADs
+  - self-developed App, Shell, Framework, and first-party packages come from clean fresh remote origin/main HEADs
   - external companions come from the latest official stable GitHub Release and must match its sha256 digest
 
 Options:
@@ -746,8 +746,8 @@ function runBuild(
     cwd: appRoot,
     env: {
       ...buildEnvironment(snapshots),
-      OPL_MANUAL_LOCAL_BUNDLE_VERSION: options.mode === 'local-app'
-        ? buildIdentity.bundle_version
+      OPL_MANUAL_LOCAL_BUILD_ID: options.mode === 'local-app'
+        ? buildIdentity.local_build_id
         : '',
       OPL_MANUAL_LOCAL_SOURCE_PROVENANCE_SHA256: options.mode === 'local-app'
         ? buildIdentity.source_provenance_sha256
@@ -819,7 +819,7 @@ function main() {
       display_version: options.version,
       updater_version: options.updaterVersion,
       source_policy: {
-        self_developed: 'clean_development_directory_main_head',
+        self_developed: 'clean_fresh_remote_canonical_origin_main_head',
         external_companions: 'latest_official_stable_github_release_digest_verified',
         package_selection: 'actual_selected_source_commits_recorded_in_full_package_manifest',
       },
@@ -921,8 +921,11 @@ function main() {
       display_version: options.version,
       updater_version: options.updaterVersion,
       bundle_version: options.mode === 'local-app'
-        ? stampedLocalAppIdentity.bundle_version
+        ? stampedLocalAppIdentity.machine_version
         : options.updaterVersion,
+      local_build_id: options.mode === 'local-app'
+        ? stampedLocalAppIdentity.local_build_id
+        : null,
       build_identity: options.mode === 'local-app' ? stampedLocalAppIdentity : null,
       source_lock: sourceLockPath,
       source_lock_sha256: sourceLockSha256,
