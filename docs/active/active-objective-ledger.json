@@ -301,22 +301,22 @@
         ],
         "shared_root_overlap": "none; the root release-bundle dirty packet does not include this write set",
         "active_lane_overlap": "development may continue; final canonical absorption is serialized by the sole Integrator",
-        "next_action": "run local contract and source gates, create one ordinary checkpoint, read back SHA/tree/blob/raw bytes, then hand the exact commit to the sole Integrator",
+        "next_action": "run App contract and current-Shell compatibility gates, create one ordinary checkpoint, then use the protected PR route for canonical absorption and owner-native close",
         "local_gates": [
           "JSON parse and git diff check",
           "tests/release/codex-default-profile.test.ts",
-          "validate-active-shell with the linked active Shell",
+          "validate-active-shell against current Shell 1c7c compatibility; strict projectId producer enforcement remains post-App successor work",
           "targeted format and lint"
         ],
-        "integration_order": "App exact6 checkpoint before any later Shell classification amendment"
+        "integration_order": "App exact6 canonical and owner-close before the strict projectId managed-scratch Shell successor"
       },
       "scope": "Converge the App conversation rail contract so Default ordinary, Running now, Archived and All/Search use canonical identity sets, while managed ~/Documents/Codex tasks preserve recorded cwd without becoming leaf-directory Projects.",
       "current_evidence": [
         "The owner-native lifecycle receipt remains ACTIVE under controller, owner and execution owner 019fa6a2-c301-7b93-8a5b-1b85e875e279 with the exact six-path write set.",
         "Fresh read-only state_5.sqlite aggregate contains 4975 archived=false rows across exec, user, subagent and other sources, proving archived=false is not an Active, Running now or default-rail identity set and must not be bulk archived or deleted.",
-        "Current App wire main is 5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b; canonical Shell 9a11c0c0e57a95960e486481e8e4d505c79cc57d preserves managed ~/Documents/Codex runtime cwd while projecting those tasks as projectless."
+        "Current App wire main is 5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b. Shell main 1c7c384e8326a3703ab36c2030aaaa22a6da001b remains the current compatibility producer; strict projectId and managed-scratch projection enforcement is intentionally deferred to the distinct post-App Shell successor."
       ],
-      "next_action": "Preserve canonical ordinary/archive identity-set semantics, distinguish recorded cwd from explicit Project affinity and managed ~/Documents/Codex projectless presentation, run gates, checkpoint, absorb through the protected canonical route, and owner-close.",
+      "next_action": "Keep the App SSOT strict, pass the current Shell compatibility bridge, absorb through protected PR #31, verify canonical parity, and owner-close before the separate Shell successor.",
       "integration_order": 8,
       "parallel_group": "app-bug-repair",
       "estimated_remaining": {
