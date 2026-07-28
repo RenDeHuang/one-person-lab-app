@@ -2051,6 +2051,17 @@ test('deadline failures never authorize Framework reconcile without persisted un
   assert.match(standard, /--latest-admission standard-latest-admission\.json/);
 });
 
+test('Full append admission binds the GitHub run id as a jq argument', () => {
+  const full = readWorkflow('_release-full-addon.yml');
+  const admissionStart = full.indexOf('      - name: Admit one-shot Full append operation');
+  const admissionEnd = full.indexOf('      - name: Upload Full admission evidence', admissionStart);
+  assert.ok(admissionStart >= 0 && admissionEnd > admissionStart);
+  const admission = full.slice(admissionStart, admissionEnd);
+  assert.match(admission, /--arg run_id "\$GITHUB_RUN_ID"/);
+  assert.match(admission, /run_id:\$run_id/);
+  assert.doesNotMatch(admission, /run_id:\$GITHUB_RUN_ID/);
+});
+
 test('append_full delegates Full Homebrew without mutating Standard publication surfaces', () => {
   const full = parseWorkflow('_release-full-addon.yml');
   const source = readWorkflow('_release-full-addon.yml');
