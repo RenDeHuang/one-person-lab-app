@@ -147,13 +147,13 @@ test('append Full selection uses the dispatch operation while payload identity s
   const root = fixture(t);
   const file = workflowPath(root, 'release-stable.yml');
   const current = fs.readFileSync(file, 'utf8');
-  assert.match(current, /if: \$\{\{ always\(\) && inputs\.operation == 'append_full' && needs\.admission\.result == 'success' \}\}/);
+  assert.match(current, /if: \$\{\{ !cancelled\(\) && inputs\.operation == 'append_full' && needs\.admission\.result == 'success' \}\}/);
   assert.equal(validateStableReleaseControlPlane(root), 0);
 
   fs.writeFileSync(
     file,
     current.replace(
-      "if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
       "if: ${{ needs.admission.outputs.operation == 'append_full' }}",
     ),
   );
@@ -162,8 +162,17 @@ test('append Full selection uses the dispatch operation while payload identity s
   fs.writeFileSync(
     file,
     current.replace(
-      "if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
       "if: ${{ always() && inputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
     ),
   );
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
