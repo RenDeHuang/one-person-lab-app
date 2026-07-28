@@ -825,6 +825,28 @@ jobs:
           rm -rf "$sidecar_root"
           mkdir -p "$pull_root"
 
+          write_reconcile_evidence() {
+            local status="$1" outcome="$2"
+            OPL_RECONCILE_STATUS="$status" \
+              OPL_PUBLICATION_OUTCOME="$outcome" \
+              OPL_RECEIPT_REF="$receipt_ref" \
+              OPL_RECORD_PATH="$record_path" \
+              OPL_RECONCILE_OUTPUT="$sidecar_root/receipt-sidecar-reconcile.json" \
+              node --input-type=module <<'WEBUI_SIDECAR_RECONCILE_NODE'
+            import crypto from 'node:crypto';
+            import fs from 'node:fs';
+
+            const record = fs.readFileSync(process.env.OPL_RECORD_PATH);
+            fs.writeFileSync(process.env.OPL_RECONCILE_OUTPUT, `${JSON.stringify({
+              schema: 'opl_app_webui_receipt_sidecar_reconcile.v1',
+              status: process.env.OPL_RECONCILE_STATUS,
+              publication_outcome: process.env.OPL_PUBLICATION_OUTCOME,
+              receipt_ref: process.env.OPL_RECEIPT_REF,
+              expected_publication_record_sha256: `sha256:${crypto.createHash('sha256').update(record).digest('hex')}`,
+            })}\n`);
+            WEBUI_SIDECAR_RECONCILE_NODE
+          }
+
           create_args=(
             --authority-mode '${{ inputs.authority_mode }}'
             --carrier-receipt webui-carrier/carrier-receipt.json
@@ -875,11 +897,14 @@ jobs:
             publication_outcome=preexisting_idempotent
           elif grep -Eqi 'not found|manifest unknown|name unknown|no such manifest|404' "$lookup_stderr"; then
             publication_outcome=created
-            oras push \
+            if ! oras push \
               --artifact-type "$artifact_media_type" \
               "$receipt_ref" \
               "$record_path:$artifact_media_type" \
-              > "$sidecar_root/receipt-sidecar-push.txt"
+              > "$sidecar_root/receipt-sidecar-push.txt" 2>&1; then
+              publication_outcome=reconciled_after_unknown_write
+              write_reconcile_evidence pending "$publication_outcome"
+            fi
           else
             cat "$lookup_stderr" >&2
             echo '::error::Could not safely distinguish an absent receipt sidecar from a registry read failure.'
@@ -945,11 +970,16 @@ jobs:
             layer?.mediaType !== artifactType
             || layer?.digest !== digest(expected)
             || layer?.size !== expected.byteLength
-            || !['created', 'preexisting_idempotent'].includes(outcome)
+            || !['created', 'preexisting_idempotent', 'reconciled_after_unknown_write'].includes(outcome)
           ) {
             throw new Error('receipt sidecar manifest does not bind the exact canonical publication record');
           }
           WEBUI_PUBLICATION_RECORD_SIDECAR_NODE
+          if [ "$publication_outcome" = reconciled_after_unknown_write ]; then
+            write_reconcile_evidence reconciled "$publication_outcome"
+          else
+            write_reconcile_evidence not_required "$publication_outcome"
+          fi
 
       - name: Stage exact carrier receipt evidence
         shell: bash
@@ -984,6 +1014,7 @@ jobs:
             webui-publication-record-verification.json \
             receipt-sidecar-descriptor.json \
             receipt-sidecar-manifest.json \
+            receipt-sidecar-reconcile.json \
             receipt-sidecar-pulled-record.json \
             receipt-sidecar-pull-verification.json; do
             test -f "$sidecar_root/$file"
@@ -1004,3 +1035,12 @@ jobs:
             carrier-artifact
           if-no-files-found: error
           retention-days: 90
+
+      - name: Preserve receipt sidecar reconcile evidence after failed publication
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: webui-sidecar-reconcile-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/webui-publication-record-sidecar
+          if-no-files-found: ignore
+          retention-days: 30

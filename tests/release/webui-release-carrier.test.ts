@@ -777,6 +777,10 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.match(sidecar.run, /oras manifest fetch --descriptor "\$receipt_ref"/);
   assert.match(sidecar.run, /publication_outcome=preexisting_idempotent/);
   assert.match(sidecar.run, /publication_outcome=created/);
+  assert.match(sidecar.run, /publication_outcome=reconciled_after_unknown_write/);
+  assert.match(sidecar.run, /write_reconcile_evidence pending "\$publication_outcome"/);
+  assert.match(sidecar.run, /opl_app_webui_receipt_sidecar_reconcile\.v1/);
+  assert.match(sidecar.run, /receipt-sidecar-reconcile\.json/);
   assert.match(sidecar.run, /Could not safely distinguish an absent receipt sidecar from a registry read failure/);
   assert.equal(sidecar.run.match(/\boras push\b/g)?.length, 1);
   assert.match(sidecar.run, /--artifact-type "\$artifact_media_type"/);
@@ -794,6 +798,7 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
     'webui-publication-record-verification.json',
     'receipt-sidecar-descriptor.json',
     'receipt-sidecar-manifest.json',
+    'receipt-sidecar-reconcile.json',
     'receipt-sidecar-pulled-record.json',
     'receipt-sidecar-pull-verification.json',
   ]) {
