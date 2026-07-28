@@ -913,6 +913,8 @@ test('active-shell source gate keeps canonical thread directory queries state-db
     '...legacyOptions,',
     "...{ sourceKinds: ['cli'] },",
     "...(workspace ? { cwd: workspace } : { sourceKinds: ['cli'] }),",
+    '...{ archived: false },',
+    '...{ useStateDbOnly: false },',
   ]) {
     assert.throws(() =>
       assertCanonicalThreadDirectoryTimeoutBoundarySources({
@@ -939,6 +941,14 @@ test('active-shell source gate keeps canonical thread directory queries state-db
       assertCanonicalThreadDirectoryTimeoutBoundarySources({
         focusedTests,
         threadAdapter: threadAdapter.replace('archived,', `${constantArchivedSelector},`),
+      }),
+    );
+  }
+  for (const duplicatedGuardedOption of ['archived: false', 'useStateDbOnly: false']) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace('});', `${duplicatedGuardedOption},\n});`),
       }),
     );
   }

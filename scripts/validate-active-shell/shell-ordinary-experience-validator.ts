@@ -150,23 +150,37 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
     }
     assertNoSourceKindsProperties(expression.properties);
   };
-  const assertNoSourceKindsProperties = (properties: ts.NodeArray<ts.ObjectLiteralElementLike>): void => {
+  const assertNoSourceKindsProperties = (
+    properties: ts.NodeArray<ts.ObjectLiteralElementLike>,
+    allowGuardedDirectProperties = false,
+  ): void => {
     for (const property of properties) {
       if (ts.isSpreadAssignment(property)) {
         assertNoSourceKindsExpression(property.expression);
         continue;
       }
-      if (propertyName(property) === 'sourceKinds') {
+      const name = propertyName(property);
+      if (name === 'sourceKinds') {
         throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
+      }
+      if (!allowGuardedDirectProperties && (name === 'archived' || name === 'useStateDbOnly')) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option spreads must not override archived or useStateDbOnly',
+        );
       }
     }
   };
   for (const options of threadListOptions) {
-    const archived = options.properties.find((property) => propertyName(property) === 'archived');
-    const stateDbOnly = options.properties.find((property) => propertyName(property) === 'useStateDbOnly');
-    if (!archived) {
-      throw new Error('Active shell canonical thread directory thread/list options must include archived');
+    const archivedProperties = options.properties.filter((property) => propertyName(property) === 'archived');
+    const stateDbOnlyProperties = options.properties.filter((property) => propertyName(property) === 'useStateDbOnly');
+    if (archivedProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one archived selector');
     }
+    if (stateDbOnlyProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one useStateDbOnly selector');
+    }
+    const archived = archivedProperties[0];
+    const stateDbOnly = stateDbOnlyProperties[0];
     if (
       !ts.isShorthandPropertyAssignment(archived) &&
       (!ts.isPropertyAssignment(archived) ||
@@ -184,7 +198,7 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
     ) {
       throw new Error('Active shell canonical thread directory thread/list options must set useStateDbOnly to true');
     }
-    assertNoSourceKindsProperties(options.properties);
+    assertNoSourceKindsProperties(options.properties, true);
   }
   assertTextIncludesAll(
     focusedTests,
