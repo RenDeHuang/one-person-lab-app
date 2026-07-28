@@ -121,7 +121,7 @@ function addVersionId(versionIds: Map<string, Set<number>>, releaseVersion: stri
   versionIds.set(releaseVersion, ids);
 }
 
-function durablePublicationVersionIds(versions: GhcrVersion[]) {
+function durablePublicationVersionIds(versions: GhcrVersion[], retainedImageIds: Set<number>) {
   const imageVersionIds = new Map<string, Set<number>>();
   const receiptVersionIds = new Map<string, Set<number>>();
   const rollbackVersionIds = new Map<string, Set<number>>();
@@ -152,7 +152,9 @@ function durablePublicationVersionIds(versions: GhcrVersion[]) {
   for (const [releaseVersion, receiptIds] of receiptVersionIds) {
     const imageIds = imageVersionIds.get(releaseVersion);
     if (!imageIds) continue;
-    for (const id of imageIds) retainedIds.add(id);
+    const eligibleImageIds = [...imageIds].filter((id) => retainedImageIds.has(id));
+    if (eligibleImageIds.length === 0) continue;
+    for (const id of eligibleImageIds) retainedIds.add(id);
     for (const id of receiptIds) retainedIds.add(id);
     for (const id of rollbackVersionIds.get(releaseVersion) ?? []) retainedIds.add(id);
   }
@@ -191,7 +193,10 @@ function cleanup(options: Options) {
     ))
       .slice(0, policy.retain_nightly_versions),
   );
-  const durablePublicationIds = durablePublicationVersionIds(versions);
+  const durablePublicationIds = durablePublicationVersionIds(
+    versions,
+    new Set([...protectedIds, ...retainedStableIds]),
+  );
 
   const candidates = versions
     .filter((version) => Number.isFinite(version.id))

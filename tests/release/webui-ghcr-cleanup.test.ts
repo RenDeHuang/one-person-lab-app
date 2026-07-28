@@ -99,9 +99,9 @@ test('WebUI GHCR cleanup retains a durable publication unit across separate pack
   const logPath = path.join(tempRoot, 'gh.log');
   const durableVersions = [
     ...versions,
-    version(301, '05-20', ['26.5.20']),
-    version(302, '05-20', ['receipt-26.5.20']),
-    version(303, '05-20', ['rollback-26.5.20']),
+    version(301, '06-03', ['26.6.2']),
+    version(302, '06-03', ['receipt-26.6.2']),
+    version(303, '06-03', ['rollback-26.6.2']),
   ];
 
   const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath], fakeGhEnv(binDir, logPath, {
@@ -113,7 +113,7 @@ test('WebUI GHCR cleanup retains a durable publication unit across separate pack
   assert.deepEqual(summary.durable_publication_version_ids, [301, 302, 303]);
   assert.deepEqual(
     summary.candidates.map((candidate: { id: number }) => candidate.id),
-    [109],
+    [109, 206],
   );
 });
 
@@ -124,7 +124,7 @@ test('WebUI GHCR cleanup retains a durable publication unit when receipt and ima
   const logPath = path.join(tempRoot, 'gh.log');
   const durableVersions = [
     ...versions,
-    version(401, '05-20', ['26.5.20', 'receipt-26.5.20', 'rollback-26.5.20']),
+    version(401, '06-03', ['26.6.2', 'receipt-26.6.2', 'rollback-26.6.2']),
   ];
 
   const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath], fakeGhEnv(binDir, logPath, {
@@ -136,7 +136,7 @@ test('WebUI GHCR cleanup retains a durable publication unit when receipt and ima
   assert.deepEqual(summary.durable_publication_version_ids, [401]);
   assert.deepEqual(
     summary.candidates.map((candidate: { id: number }) => candidate.id),
-    [109],
+    [109, 206],
   );
 });
 
@@ -168,5 +168,30 @@ test('WebUI GHCR cleanup does not retain unpaired or malformed durable tags', ()
   assert.deepEqual(
     summary.candidates.map((candidate: { id: number }) => candidate.id),
     [506, 507, 508, 509, 510],
+  );
+});
+
+test('WebUI GHCR cleanup does not extend stable retention for an old durable publication unit', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-ghcr-old-durable-'));
+  const binDir = writeFakeGh(tempRoot);
+  const summaryPath = path.join(tempRoot, 'summary.json');
+  const logPath = path.join(tempRoot, 'gh.log');
+  const durableVersions = [
+    ...versions,
+    version(601, '05-20', ['26.5.20']),
+    version(602, '05-20', ['receipt-26.5.20']),
+    version(603, '05-20', ['rollback-26.5.20']),
+  ];
+
+  const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath], fakeGhEnv(binDir, logPath, {
+    FAKE_PACKAGE_VERSIONS_JSON: JSON.stringify(durableVersions),
+  }));
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.deepEqual(summary.durable_publication_version_ids, []);
+  assert.deepEqual(
+    summary.candidates.map((candidate: { id: number }) => candidate.id),
+    [109, 601, 602, 603],
   );
 });
