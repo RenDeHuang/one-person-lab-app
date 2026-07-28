@@ -239,6 +239,131 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');
 });
 
+test('Docker/WebUI installer exposes one host auto-update contract across Linux and macOS', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-auto-update-home-'));
+  const bin = path.join(home, 'bin');
+  fs.mkdirSync(bin);
+  const uname = path.join(bin, 'uname');
+  fs.writeFileSync(uname, '#!/bin/sh\nprintf "Darwin\\n"\n', 'utf8');
+  fs.chmodSync(uname, 0o755);
+  const env = { HOME: home, PATH: `${bin}:${process.env.PATH ?? ''}` };
+  const enabled = runInstaller(
+    ['--dry-run', '--yes', '--update', '--enable-auto-update', '--auto-update-time', '04:15', '--no-open'],
+    env,
+  );
+
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.match(enabled.stdout, /would write local automatic updater/i);
+  assert.match(enabled.stdout, /LaunchAgent cn\.onepersonlab\.webui-update at 04:15/);
+  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:latest at 04:15/);
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  assert.match(installer, /one-person-lab-webui-update\.timer/);
+  assert.match(installer, /Persistent=true/);
+  assert.match(installer, /OnStartupSec=5m/);
+  assert.match(installer, /cn\.onepersonlab\.webui-update/);
+  assert.match(installer, /RunAtLoad/);
+  assert.match(installer, /StartCalendarInterval/);
+  assert.match(installer, /--pull never --force-recreate/);
+  assert.match(
+    installer,
+    /compose -f "\$COMPOSE_FILE" up -d --pull never --force-recreate/,
+  );
+  assert.match(installer, /schema=opl_webui_host_auto_update_result\.v1/);
+  assert.match(installer, /schema=opl_webui_host_auto_update_config\.v1/);
+  assert.match(installer, /compose -f "\$COMPOSE_FILE" ps -q one-person-lab-webui/);
+  assert.match(installer, /inspect "\$PREVIOUS_CONTAINER_ID" --format '\{\{\.Image\}\}'/);
+  assert.match(installer, /LOCK_OWNER="\$LOCK_DIR\/owner\.pid"/);
+  assert.match(installer, /kill -0 "\$lock_pid"/);
+  assert.match(installer, /ps -p "\$lock_pid" -o command=/);
+  assert.match(installer, /rmdir "\$LOCK_DIR".*return 1/);
+  assert.doesNotMatch(
+    installer,
+    /raw\.githubusercontent\.com.*install-docker-webui\.sh/,
+    'the scheduler must execute the locally generated updater rather than mutable branch code',
+  );
+
+  const disabled = runInstaller(['--dry-run', '--disable-auto-update'], env);
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.match(disabled.stdout, /would unload LaunchAgent cn\.onepersonlab\.webui-update/);
+  assert.match(disabled.stdout, /Manual --update remains available/);
+
+  const status = runInstaller(['--auto-update-status'], env);
+  assert.equal(status.status, 0, status.stderr || status.stdout);
+  assert.match(status.stdout, /scheduler=launchd_user/);
+  assert.match(status.stdout, /enabled=false/);
+  assert.match(status.stdout, /daily_time=not_configured/);
+  assert.match(status.stdout, /status=not_run/);
+});
+
+test('Docker/WebUI installer executes the Linux systemd user timer dry-run path', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-linux-auto-update-home-'));
+  const bin = path.join(home, 'bin');
+  fs.mkdirSync(bin);
+  const uname = path.join(bin, 'uname');
+  fs.writeFileSync(uname, '#!/bin/sh\nprintf "Linux\\n"\n', 'utf8');
+  fs.chmodSync(uname, 0o755);
+  const enabled = runInstaller(
+    ['--dry-run', '--yes', '--update', '--enable-auto-update', '--auto-update-time', '04:15', '--no-open'],
+    { HOME: home, PATH: `${bin}:${process.env.PATH ?? ''}` },
+  );
+
+  assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
+  assert.match(enabled.stdout, /systemd user timer one-person-lab-webui-update\.timer at 04:15/);
+  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:latest at 04:15/);
+
+  const disabled = runInstaller(
+    ['--dry-run', '--disable-auto-update'],
+    { HOME: home, PATH: `${bin}:${process.env.PATH ?? ''}` },
+  );
+  assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
+  assert.match(disabled.stdout, /disable systemd user timer one-person-lab-webui-update\.timer/);
+
+  const status = runInstaller(
+    ['--auto-update-status'],
+    { HOME: home, PATH: `${bin}:${process.env.PATH ?? ''}` },
+  );
+  assert.equal(status.status, 0, status.stderr || status.stdout);
+  assert.match(status.stdout, /scheduler=systemd_user/);
+  assert.match(status.stdout, /enabled=false/);
+  assert.match(status.stdout, /daily_time=not_configured/);
+  assert.match(status.stdout, /status=not_run/);
+});
+
+test('Docker/WebUI auto-update rejects custom images and conflicting lifecycle actions', () => {
+  const custom = runInstaller([
+    '--dry-run',
+    '--yes',
+    '--enable-auto-update',
+    '--tag',
+    '26.7.28-r3',
+    '--no-open',
+  ]);
+  assert.notEqual(custom.status, 0);
+  assert.match(custom.stderr, /Automatic updates support only .*:latest/);
+
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-custom-channel-auto-update-home-'));
+  const updater = path.join(home, 'OnePersonLab', 'updater');
+  fs.mkdirSync(updater, { recursive: true });
+  fs.writeFileSync(
+    path.join(updater, 'config.env'),
+    'schema=opl_webui_host_auto_update_config.v1\nchannel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+  );
+  const configuredCustom = runInstaller(
+    ['--dry-run', '--yes', '--tag', '26.7.28-r3', '--no-open'],
+    { HOME: home },
+  );
+  assert.notEqual(configuredCustom.status, 0);
+  assert.match(configuredCustom.stderr, /Run --disable-auto-update before switching to a custom image/);
+
+  const conflicting = runInstaller(['--dry-run', '--enable-auto-update', '--disable-auto-update']);
+  assert.notEqual(conflicting.status, 0);
+  assert.match(conflicting.stderr, /Choose only one of/);
+
+  const invalidTime = runInstaller(['--dry-run', '--enable-auto-update', '--auto-update-time', '25:00']);
+  assert.notEqual(invalidTime.status, 0);
+  assert.match(invalidTime.stderr, /24-hour HH:MM format/);
+});
+
 test('Docker/WebUI installer dry-run can generate the cloud deployment template plan without starting Docker', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-cloud-template-home-'));
   const target = path.join(home, 'cloud');
