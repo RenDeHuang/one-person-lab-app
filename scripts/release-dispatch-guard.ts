@@ -638,7 +638,8 @@ export function buildPreNonceDispatchGuard(
       nonce_consumed: false,
       mutation_invocation_count: 0,
       mutation_retry_count: 0,
-      read_only_guard_replacement_allowed: true,
+      read_only_reconcile_allowed: true,
+      guard_replacement_allowed: false,
       dispatch_allowed: false,
       redispatch_allowed: false,
     } as const;
@@ -669,7 +670,8 @@ export function buildPreNonceDispatchGuard(
       nonce_consumed: false,
       mutation_invocation_count: 0,
       mutation_retry_count: 0,
-      read_only_guard_replacement_allowed: true,
+      read_only_reconcile_allowed: true,
+      guard_replacement_allowed: false,
       dispatch_allowed: false,
       redispatch_allowed: false,
     } as const;
@@ -700,23 +702,23 @@ export function buildPreNonceDispatchGuard(
       nonce_consumed: false,
       mutation_invocation_count: 0,
       mutation_retry_count: 0,
-      read_only_guard_replacement_allowed: true,
+      read_only_reconcile_allowed: true,
+      guard_replacement_allowed: false,
       dispatch_allowed: false,
       redispatch_allowed: false,
     } as const;
   }
-  const exactCohortMatches = normalizedRuns
+  const ownerWorkflowMatches = normalizedRuns
     .filter((run): run is OwnerWorkflowRun => run !== null)
     .filter((run) => (
       run.path === input.workflow
-      && run.head_sha === input.expectedAppSha.toLowerCase()
       && run.event === 'workflow_dispatch'
       && run.head_branch === 'main'
       && run.run_attempt === 1
     ));
   const operationMatches = input.operationId === undefined
-    ? exactCohortMatches
-    : exactCohortMatches.filter((run) => run.display_title.includes(input.operationId));
+    ? ownerWorkflowMatches
+    : ownerWorkflowMatches.filter((run) => run.display_title.includes(input.operationId));
   const authorityMatches = input.authorityId === undefined
     ? operationMatches
     : operationMatches.filter((run) => run.display_title.includes(input.authorityId));
@@ -767,7 +769,8 @@ export function buildPreNonceDispatchGuard(
     nonce_consumed: false,
     mutation_invocation_count: 0,
     mutation_retry_count: 0,
-    read_only_guard_replacement_allowed: !passed,
+    read_only_reconcile_allowed: true,
+    guard_replacement_allowed: false,
     dispatch_allowed: passed,
     redispatch_allowed: false,
   } as const;

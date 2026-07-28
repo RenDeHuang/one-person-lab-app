@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -535,6 +536,32 @@ function validateCriticalBlobBytes(
   }
 }
 
+export function validateStableOperationAuthorityExecutorBinding(input: {
+  authority: unknown;
+  appRoot: string;
+  expectedActor: string;
+  expectedExecutorSha: string;
+}): StableOperationAuthority {
+  const authority = validateStableOperationAuthority(input.authority);
+  if (authority.issuer !== text(input.expectedActor, 'expected_actor')) {
+    throw new Error('Pre-dispatch authority issuer does not match the dispatch actor.');
+  }
+  const root = path.resolve(input.appRoot);
+  const headResult = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+  if (headResult.status !== 0 || headResult.error) {
+    throw new Error('Unable to resolve the Stable workflow executor App commit.');
+  }
+  const executorSha = exactSha(headResult.stdout.trim(), 'executor_app_sha');
+  if (executorSha !== exactSha(input.expectedExecutorSha, 'expected_executor_sha')) {
+    throw new Error('Stable workflow executor App commit does not match GitHub Actions.');
+  }
+  validateCriticalBlobBytes(root, authority.critical_blobs);
+  return authority;
+}
+
 export function validateStableOperationAuthorityRuntimeBinding(input: {
   authority: unknown;
   appRoot: string;
@@ -815,6 +842,7 @@ function main(argv: string[]): void {
       'pre-nonce-guard-output': { type: 'string' },
       'expected-run-id': { type: 'string' },
       'expected-actor': { type: 'string' },
+      'expected-executor-sha': { type: 'string' },
       'expected-app-sha': { type: 'string' },
       'expected-shell-sha': { type: 'string' },
       'expected-framework-sha': { type: 'string' },
@@ -872,6 +900,22 @@ function main(argv: string[]): void {
       preNonceGuardOutput: required(values['pre-nonce-guard-output'], 'pre-nonce-guard-output'),
     });
     process.stdout.write(`${JSON.stringify({ status: 'passed', ...evidence })}\n`);
+    return;
+  }
+  if (command === 'verify-executor') {
+    const authority = validateStableOperationAuthorityExecutorBinding({
+      authority: readJson(required(values.authority, 'authority')),
+      appRoot: required(values['app-root'], 'app-root'),
+      expectedActor: required(values['expected-actor'], 'expected-actor'),
+      expectedExecutorSha: required(values['expected-executor-sha'], 'expected-executor-sha'),
+    });
+    process.stdout.write(`${JSON.stringify({
+      status: 'passed',
+      authority_id: authority.authority_id,
+      operation_id: authority.operation_id,
+      frozen_app_sha: authority.cohort.app_sha,
+      executor_app_sha: exactSha(values['expected-executor-sha'], 'expected_executor_sha'),
+    })}\n`);
     return;
   }
   if (command === 'verify-authority') {
@@ -992,7 +1036,7 @@ function main(argv: string[]): void {
     process.stdout.write('{"status":"passed"}\n');
     return;
   }
-  throw new Error('Usage: stable-operation-control.ts <create-authority|encode-carrier|decode-carrier|materialize-evidence|verify-authority|bind|consume|verify> ...');
+  throw new Error('Usage: stable-operation-control.ts <create-authority|encode-carrier|decode-carrier|materialize-evidence|verify-executor|verify-authority|bind|consume|verify> ...');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -15,8 +15,17 @@ import {
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import {
+  buildPreNonceDispatchGuard,
+  type CommandRunner,
+} from '../../scripts/release-dispatch-guard.ts';
 
 const workflowDirectory = path.join('.github', 'workflows');
+const appSha = '1'.repeat(40);
+const shellSha = '2'.repeat(40);
+const frameworkSha = '3'.repeat(40);
+const stableWorkflow = '.github/workflows/release-stable.yml';
+const operationId = 'stable-frozen-cohort-42';
 
 function fixture(t: test.TestContext): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-boundary-'));
@@ -53,6 +62,55 @@ function withoutExpectedDiagnostics(run: () => number): number {
   }
 }
 
+function sourceGateReport() {
+  return {
+    schema: 'opl_app_release_source_gate.v1',
+    status: 'passed',
+    typed_blocker: null,
+    admission: {
+      status: 'passed',
+      immutable_cohort: {
+        app_sha: appSha,
+        shell_sha: shellSha,
+        framework_sha: frameworkSha,
+      },
+    },
+    checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
+  };
+}
+
+function ownerRun(
+  id: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id,
+    path: `${stableWorkflow}@refs/heads/main`,
+    status: 'queued',
+    conclusion: null,
+    event: 'workflow_dispatch',
+    head_branch: 'main',
+    head_sha: appSha,
+    run_attempt: 1,
+    created_at: '2026-07-28T06:00:10.000Z',
+    display_title: `OPL Stable standard operation:${operationId} authority:authority-42`,
+    ...overrides,
+  };
+}
+
+function ownerRunsRunner(runs: unknown[]): CommandRunner {
+  return (command) => {
+    if (command === 'gh') {
+      return {
+        status: 0,
+        stdout: JSON.stringify({ total_count: runs.length, workflow_runs: runs }),
+        stderr: '',
+      };
+    }
+    return { status: 1, stdout: '', stderr: `unexpected command ${command}` };
+  };
+}
+
 test('release boundary admits the three-operation control plane and real no-secret Canary', () => {
   const release = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'contracts/app-release-channel.json'), 'utf8'));
   const canary = release.release_bundle_control_plane.validation_canary;
@@ -85,16 +143,57 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
-test('Stable admission rejects a self-issued or malformed authority before source qualification', (t) => {
-  const root = fixture(t);
-  const file = workflowPath(root, 'release-stable.yml');
-  const text = fs.readFileSync(file, 'utf8')
-    .replace('required: true\n        type: string\n      authority_carrier:', 'required: false\n        type: string\n      authority_carrier:')
-    .replace('stable-operation-control.ts decode-carrier', 'stable-operation-control.ts self-issue')
-    .replace('set -euo pipefail', 'set -euo pipefail\n          openssl rand -hex 32');
-  fs.writeFileSync(file, text);
+test('Stable admission requires a pre-issued carrier and rejects self-issued authority plumbing', (t) => {
+  const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
+  const mutations = [
+    (value: string) => value.replace(
+      'authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: true',
+      'authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: false',
+    ),
+    (value: string) => value.replace(
+      'operation_id:\n        description: Deterministic frozen-cohort operation identity bound by the pre-issued authority\n        required: true',
+      'operation_id:\n        description: Deterministic frozen-cohort operation identity bound by the pre-issued authority\n        required: false',
+    ),
+    (value: string) => value.replace(
+      'set -euo pipefail',
+      'set -euo pipefail\n          openssl rand -hex 16',
+    ),
+  ];
+  for (const mutate of mutations) {
+    const root = fixture(t);
+    const text = mutate(source);
+    assert.notEqual(text, source, 'fixture mutation must change the protected Stable workflow');
+    fs.writeFileSync(workflowPath(root, 'release-stable.yml'), text);
+    assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+  }
+});
 
-  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 3);
+test('a concurrent visible consumer or later repeated consumer is blocked before mutation', () => {
+  const common = {
+    workflow: stableWorkflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-42',
+    operationId,
+  };
+  for (const runs of [
+    [ownerRun(42), ownerRun(43)],
+    [
+      ownerRun(41, { status: 'completed', conclusion: 'success' }),
+      ownerRun(42),
+    ],
+  ]) {
+    const report = buildPreNonceDispatchGuard(common, { runner: ownerRunsRunner(runs) });
+    assert.equal(report.status, 'blocked');
+    assert.equal(report.dispatch_allowed, false);
+    assert.equal(report.nonce_consumed, false);
+    assert.equal(report.mutation_invocation_count, 0);
+    assert.equal(report.mutation_retry_count, 0);
+    assert.equal(report.redispatch_allowed, false);
+  }
 });
 
 test('Stable protected admission never interpolates dispatch strings into Bash', (t) => {

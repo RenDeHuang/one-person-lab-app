@@ -94,6 +94,17 @@ function jobRuns(job: Record<string, any> | undefined): string {
     .join('\n');
 }
 
+function jobEvidenceText(job: Record<string, any> | undefined): string {
+  return (Array.isArray(job?.steps) ? job.steps as Array<Record<string, any>> : [])
+    .map((step) => [
+      typeof step.name === 'string' ? step.name : '',
+      typeof step.run === 'string' ? step.run : '',
+      typeof step.uses === 'string' ? step.uses : '',
+      step.with && typeof step.with === 'object' ? JSON.stringify(step.with) : '',
+    ].join('\n'))
+    .join('\n');
+}
+
 function workflowJobs(workflow: Record<string, any>): Record<string, Record<string, any>> {
   return workflow.jobs && typeof workflow.jobs === 'object'
     ? workflow.jobs as Record<string, Record<string, any>>
@@ -322,6 +333,39 @@ const stableEntrySpecs = {
   },
 } as const;
 
+function validateStableOperationControlArtifactConsumer(appRoot: string): number {
+  const id = 'stable_operation_control_artifact_consumer';
+  const parsed = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
+  if (!parsed) return 1;
+  const { text } = parsed;
+  let failures = 0;
+  for (const required of [
+    'stable_operation_control_artifact:',
+    'stable_operation_control_digest:',
+    'Download protected Stable operation control',
+    'Consume one protected Stable operation control before cold work',
+    'stable-operation-control.ts consume',
+    'opl-stable-operation-consumption-${{ github.run_id }}',
+    'Require one matching consumed Stable operation control',
+    '--input "$consumption"',
+  ]) {
+    if (!text.includes(required)) {
+      failures += reportFailure(id, `Stable Bundle is missing durable control consumption ${required}`);
+    }
+  }
+  if (
+    text.includes('validate-release-source-gate.ts')
+    || text.includes('release-dispatch-guard.ts preflight')
+    || text.includes('release-source-qualification.yml')
+  ) {
+    failures += reportFailure(
+      id,
+      'Stable Bundle must consume the protected control artifact and must not rerun source-gate, pre-nonce guard, or source qualification.',
+    );
+  }
+  return failures;
+}
+
 export function validateStableReleaseControlPlane(appRoot: string): number {
   const id = 'stable_release_control_plane';
   const parsed = parseWorkflow(appRoot, '.github/workflows/release-stable.yml', id);
@@ -373,6 +417,17 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   if (JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(expectedJobs)) {
     failures += reportFailure(id, `jobs must be exactly ${expectedJobs.join(', ')}`);
   }
+  if (
+    jobs['source-qualification']
+    || text.includes('uses: ./.github/workflows/release-source-qualification.yml')
+    || text.includes('source-qualification-receipt.ts')
+    || text.includes('validate-source-qualification-receipt.ts')
+  ) {
+    failures += reportFailure(
+      id,
+      'Stable entry must not retain the legacy source-qualification job or receipt after protected operation admission owns the frozen source gate.',
+    );
+  }
   const admission = jobs.admission;
   const admissionRun = jobRuns(admission);
   if (
@@ -407,6 +462,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
 
   const protectedAdmission = jobs['protected-operation-admission'];
   const protectedAdmissionRun = jobRuns(protectedAdmission);
+  const protectedAdmissionEvidence = jobEvidenceText(protectedAdmission);
   if (
     !protectedAdmission
     || protectedAdmission.if !== "${{ inputs.operation == 'standard' }}"
@@ -423,18 +479,35 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     failures += reportFailure(id, 'protected-operation-admission must not perform release or public mutation');
   }
   for (const binding of [
+    'Reject bare or rerun Stable request before expensive work',
     'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
     'stable-operation-control.ts decode-carrier',
     'stable-operation-control.ts materialize-evidence',
+    'stable-operation-control.ts verify-executor',
     'stable-operation-control.ts verify-authority',
+    'git -C app-source checkout --detach "$app_sha"',
     'release-dispatch-guard.ts verify-evidence',
     'release-dispatch-guard.ts preflight',
+    '--current-run-id "$GITHUB_RUN_ID"',
+    '--authority-id',
     'stable-operation-control.ts bind',
+    'stable-operation-control.ts verify',
+    'Upload immutable operation control evidence',
     'opl-stable-operation-control-${{ github.run_id }}',
   ]) {
-    if (!protectedAdmissionRun.includes(binding) && !text.includes(binding)) {
+    if (!protectedAdmissionEvidence.includes(binding)) {
       failures += reportFailure(id, `protected-operation-admission is missing immutable authority binding ${binding}`);
     }
+  }
+  if (
+    protectedAdmissionRun.includes('node --experimental-strip-types app-source/scripts/validate-release-source-gate.ts')
+    || (protectedAdmissionRun.match(/release-dispatch-guard\.ts verify-evidence/g) ?? []).length !== 1
+    || (protectedAdmissionRun.match(/release-dispatch-guard\.ts preflight/g) ?? []).length !== 1
+  ) {
+    failures += reportFailure(
+      id,
+      'protected-operation-admission must verify the frozen pre-submit evidence once and create exactly one distinct run-authority reconcile without rerunning the full source gate.',
+    );
   }
   if (/openssl rand|operation_id="stable-\$\{?GITHUB_RUN_ID\}?"|stable-operation-control\.ts create(?:\s|$)/.test(protectedAdmissionRun)) {
     failures += reportFailure(id, 'protected-operation-admission must not self-issue an authority, nonce, or operation id');
@@ -479,6 +552,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
       failures += reportFailure(id, `stable-admission-manifest is missing protected binding ${binding}`);
     }
   }
+  failures += validateStableOperationControlArtifactConsumer(appRoot);
 
   for (const [jobId, spec] of Object.entries(stableEntrySpecs)) {
     const job = jobs[jobId];

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -14,6 +15,7 @@ import {
   encodeStableOperationAuthorityCarrier,
   stableOperationIdForFrozenCohort,
   validateStableOperationAuthority,
+  validateStableOperationAuthorityExecutorBinding,
   validateStableOperationConsumption,
   validateStableOperationControl,
   validateStableOperationRuntimeBinding,
@@ -244,6 +246,88 @@ test('Stable authority fixes pre-submit bytes while later generated_at and obser
     () => issuedAuthority({ sourceGate: sourceGate({ shellSha: '5'.repeat(40) }) }),
     /Pre-dispatch authority evidence must contain one passed zero-consumer pre-nonce guard/,
   );
+});
+
+test('Stable executor may advance on unrelated main bytes while the frozen authority remains valid', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-operation-executor-'));
+  const git = (...args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git('init');
+    git('config', 'user.name', 'OPL Test');
+    git('config', 'user.email', 'opl-test@example.invalid');
+    for (const relativePath of criticalBlobPaths) {
+      const destination = path.join(root, relativePath);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, `${relativePath}\n`);
+    }
+    git('add', '.');
+    git('commit', '-m', 'frozen stable authority');
+    const frozenAppSha = git('rev-parse', 'HEAD');
+    const runtimeCriticalBlobs = Object.fromEntries(
+      criticalBlobPaths.map((relativePath) => [
+        relativePath,
+        `sha256:${crypto.createHash('sha256').update(fs.readFileSync(path.join(root, relativePath))).digest('hex')}`,
+      ]),
+    );
+    const frozenOperationId = stableOperationIdForFrozenCohort({
+      objectiveFingerprint,
+      appSha: frozenAppSha,
+      shellSha,
+      frameworkSha,
+      criticalBlobs: runtimeCriticalBlobs,
+    });
+    const frozenSourceGate = sourceGate({
+      appSha: frozenAppSha,
+      observedMainSha: frozenAppSha,
+    });
+    const authority = createStableOperationAuthority({
+      authorityId: 'authority-stable-unrelated-main-advance',
+      operationId: frozenOperationId,
+      issuer: 'gaofeng21cn',
+      issuedAt: '2026-07-28T00:00:00.000Z',
+      expiresAt: '2026-07-28T01:00:00.000Z',
+      objectiveFingerprint,
+      nonce,
+      appSha: frozenAppSha,
+      shellSha,
+      frameworkSha,
+      criticalBlobs: runtimeCriticalBlobs,
+      sourceGate: frozenSourceGate,
+      preNonceGuard: preNonceGuard({ operationId: frozenOperationId }),
+    });
+
+    fs.writeFileSync(path.join(root, 'unrelated-main-advance.txt'), 'unrelated\n');
+    git('add', 'unrelated-main-advance.txt');
+    git('commit', '-m', 'unrelated main advance');
+    const executorSha = git('rev-parse', 'HEAD');
+    assert.notEqual(executorSha, frozenAppSha);
+    assert.equal(
+      validateStableOperationAuthorityExecutorBinding({
+        authority,
+        appRoot: root,
+        expectedActor: 'gaofeng21cn',
+        expectedExecutorSha: executorSha,
+      }).cohort.app_sha,
+      frozenAppSha,
+    );
+
+    fs.writeFileSync(path.join(root, 'scripts', 'stable-operation-control.ts'), 'drifted\n');
+    assert.throws(
+      () => validateStableOperationAuthorityExecutorBinding({
+        authority,
+        appRoot: root,
+        expectedActor: 'gaofeng21cn',
+        expectedExecutorSha: executorSha,
+      }),
+      /critical blob drifted/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('Stable operation control permits exactly one matching run-bound consumption receipt', () => {

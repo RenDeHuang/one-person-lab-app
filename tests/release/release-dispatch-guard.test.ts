@@ -112,7 +112,8 @@ test('pre-nonce TLS handshake failure is bounded transport failure and consumes 
   assert.equal(report.nonce_consumed, false);
   assert.equal(report.mutation_invocation_count, 0);
   assert.equal(report.mutation_retry_count, 0);
-  assert.equal(report.read_only_guard_replacement_allowed, true);
+  assert.equal(report.read_only_reconcile_allowed, true);
+  assert.equal(report.guard_replacement_allowed, false);
   assert.equal(report.redispatch_allowed, false);
 });
 
@@ -299,6 +300,28 @@ test('pre-nonce guard permits only its own authority-bound run and rejects any s
   }, { runner: successfulRunner([own, another]) });
   assert.equal(blocked.status, 'blocked');
   assert.equal(blocked.owner_run_match_count, 2);
+});
+
+test('run-bound authority remains current when unrelated main advancement changes the workflow run head', () => {
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-42',
+    operationId,
+  }, {
+    runner: successfulRunner([
+      ownerRun(42, {
+        head_sha: '4'.repeat(40),
+      }),
+    ]),
+  });
+  assert.equal(report.status, 'passed');
+  assert.equal(report.dispatch_allowed, true);
+  assert.equal(report.run_id, '42');
 });
 
 test('pre-nonce guard rejects a repeated pre-issued authority even after an earlier run completed', () => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
@@ -12,6 +13,7 @@ import {
   type StableAdmissionInput,
   type StableAdmissionObservation,
 } from '../../scripts/stable-release-admission-manifest.ts';
+import * as stableOperationControlSource from '../../scripts/stable-operation-control.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const appRef = '1'.repeat(40);
@@ -29,6 +31,30 @@ const workflowPaths = [
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ];
+const stableOperationControl = stableOperationControlSource as unknown as {
+  canonicalJson(value: unknown): string;
+  stableOperationIdForFrozenCohort(input: Record<string, unknown>): string;
+  createStableOperationAuthority(input: Record<string, unknown>): any;
+  validateStableOperationAuthority(value: unknown): any;
+  bindStableOperationAuthority(input: Record<string, unknown>): any;
+  consumeStableOperationControl(input: Record<string, unknown>): any;
+  validateStableOperationConsumption(value: unknown, control: unknown): any;
+};
+const operationControlPaths = [
+  '.github/workflows/release-stable.yml',
+  '.github/workflows/_release-bundle.yml',
+  '.github/workflows/_release-standard-publish.yml',
+  '.github/workflows/_release-native-webui-carrier.yml',
+  'contracts/app-release-channel.json',
+  'scripts/framework-release-adapter.ts',
+  'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
+  'scripts/stable-release-admission-manifest.ts',
+  'scripts/validate-release-source-gate.ts',
+];
+const operationControlBlobs = Object.fromEntries(
+  operationControlPaths.map((file, index) => [file, `sha256:${(index + 1).toString(16).repeat(64)}`]),
+);
 const requiredSecretNames = [
   'BUILD_CERTIFICATE_BASE64',
   'P12_PASSWORD',
@@ -94,9 +120,11 @@ function receipt() {
 function sourceGate(overrides: Record<string, unknown> = {}) {
   return {
     schema: 'opl_app_release_source_gate.v1',
+    generated_at: '2026-07-28T00:10:00.000Z',
     status: 'passed',
     typed_blocker: null,
     operation_fingerprint: 'fix-all-five-stable-control-gaps-20260728',
+    observed_main_sha: appRef,
     admission: {
       status: 'passed',
       immutable_cohort: {
@@ -108,6 +136,38 @@ function sourceGate(overrides: Record<string, unknown> = {}) {
     checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
     ...overrides,
   };
+}
+
+function preNonceGuard(operationId: string) {
+  return {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'pre_nonce',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: operationId,
+    owner_run_match_count: 0,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+  };
+}
+
+function runAuthorityReconcile(input: { operationId: string; authorityId: string; runId: string }) {
+  return {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'run_bound',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: input.operationId,
+    authority_id: input.authorityId,
+    run_id: input.runId,
+    owner_run_match_count: 1,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+  };
+}
+
+function evidenceDigest(value: unknown): string {
+  return `sha256:${crypto.createHash('sha256').update(stableOperationControl.canonicalJson(value)).digest('hex')}`;
 }
 
 function observation(overrides: Partial<StableAdmissionObservation> = {}): StableAdmissionObservation {
@@ -210,6 +270,109 @@ test('admission rejects a source gate without a frozen operation fingerprint', (
       sourceGateBytes: Buffer.from(`${JSON.stringify(frozenSourceGate)}\n`),
     })),
     /operation fingerprint/,
+  );
+});
+
+test('pre-issued authority binds distinct frozen source, pre-nonce, and run-bound evidence', () => {
+  const objectiveFingerprint = 'fix-all-five-stable-control-gaps-20260728';
+  const operationId = stableOperationControl.stableOperationIdForFrozenCohort({
+    objectiveFingerprint,
+    appSha: appRef,
+    shellSha: shellRef,
+    frameworkSha: frameworkRef,
+    criticalBlobs: operationControlBlobs,
+  });
+  const frozenSourceGate = sourceGate({ operation_fingerprint: objectiveFingerprint });
+  const frozenPreNonceGuard = preNonceGuard(operationId);
+  const authority = stableOperationControl.createStableOperationAuthority({
+    authorityId: 'authority-stable-30150000001',
+    operationId,
+    issuer: 'gaofeng21cn',
+    issuedAt: '2026-07-28T00:00:00.000Z',
+    expiresAt: '2026-07-28T01:00:00.000Z',
+    objectiveFingerprint,
+    nonce: 'a'.repeat(32),
+    appSha: appRef,
+    shellSha: shellRef,
+    frameworkSha: frameworkRef,
+    criticalBlobs: operationControlBlobs,
+    sourceGate: frozenSourceGate,
+    preNonceGuard: frozenPreNonceGuard,
+  });
+  assert.equal(stableOperationControl.validateStableOperationAuthority(authority).authority_digest, authority.authority_digest);
+
+  const laterObservation = sourceGate({
+    generated_at: '2026-07-28T00:20:00.000Z',
+    observed_main_sha: '4'.repeat(40),
+    operation_fingerprint: objectiveFingerprint,
+  });
+  assert.notEqual(evidenceDigest(frozenSourceGate), evidenceDigest(laterObservation));
+  assert.equal(
+    stableOperationControl.stableOperationIdForFrozenCohort({
+      objectiveFingerprint,
+      appSha: appRef,
+      shellSha: shellRef,
+      frameworkSha: frameworkRef,
+      criticalBlobs: operationControlBlobs,
+    }),
+    operationId,
+  );
+  assert.equal(stableOperationControl.validateStableOperationAuthority(authority).operation_id, operationId);
+
+  const tamperedAuthority = structuredClone(authority);
+  tamperedAuthority.pre_dispatch_evidence.source_gate.generated_at = '2026-07-28T00:30:00.000Z';
+  assert.throws(() => stableOperationControl.validateStableOperationAuthority(tamperedAuthority));
+
+  const runBoundEvidence = runAuthorityReconcile({
+    operationId,
+    authorityId: authority.authority_id,
+    runId: admissionRunId,
+  });
+  const laterRunReadback = runAuthorityReconcile({
+    operationId,
+    authorityId: authority.authority_id,
+    runId: '30150000002',
+  });
+  assert.notEqual(evidenceDigest(runBoundEvidence), evidenceDigest(laterRunReadback));
+  assert.equal(
+    stableOperationControl.validateStableOperationAuthority(authority).operation_id,
+    operationId,
+    'later run readback and live-main observations do not replace the pre-issued frozen authority',
+  );
+  assert.throws(() => stableOperationControl.bindStableOperationAuthority({
+    authority,
+    authorityDigest: authority.authority_digest,
+    actor: 'gaofeng21cn',
+    runId: admissionRunId,
+    runAttempt: 1,
+    sourceGateDigest: authority.pre_nonce_guard_digest,
+    preNonceGuardDigest: authority.source_gate_digest,
+    runAuthorityReconcileDigest: evidenceDigest(runBoundEvidence),
+    now: '2026-07-28T00:30:00.000Z',
+  }));
+
+  const control = stableOperationControl.bindStableOperationAuthority({
+    authority,
+    authorityDigest: authority.authority_digest,
+    actor: 'gaofeng21cn',
+    runId: admissionRunId,
+    runAttempt: 1,
+    sourceGateDigest: authority.source_gate_digest,
+    preNonceGuardDigest: authority.pre_nonce_guard_digest,
+    runAuthorityReconcileDigest: evidenceDigest(runBoundEvidence),
+    now: '2026-07-28T00:30:00.000Z',
+  });
+  const consumption = stableOperationControl.consumeStableOperationControl({
+    control,
+    operationId,
+    runId: admissionRunId,
+    runAttempt: 1,
+    nonce: authority.nonce,
+  });
+  const tamperedConsumption = structuredClone(consumption);
+  tamperedConsumption.run_authority_reconcile_digest = control.source_gate_digest;
+  assert.throws(
+    () => stableOperationControl.validateStableOperationConsumption(tamperedConsumption, control),
   );
 });
 

@@ -194,19 +194,15 @@ test('Stable Standard publish consumes Native before the one Release publish', (
   assert.equal(parsed.jobs['publish-native-webui'], undefined);
   const standard = workflow('_release-standard-publish.yml');
   assert.equal(standard.parsed.on.workflow_call.inputs.qualified_native_artifact_name.default, '');
-  assert.match(standard.source, /Download exact qualified Native artifact for the unified draft carrier/);
-  assert.match(standard.source, /Preserve immutable Stable carrier across the reconciled checkpoint/);
-  assert.match(standard.source, /Restore qualified Native bytes from the portable Stable carrier/);
-  assert.match(standard.source, /opl-release-standard-operation-checkpoint-\[1-9\]\[0-9\]\*/);
-  assert.match(standard.source, /needs\.restore\.outputs\.channel == 'stable'/);
-  assert.match(standard.source, /native-qualified\n            stable-operation-control/);
+  assert.match(standard.source, /Bind qualified Native and consumed operation control into one immutable carrier/);
+  assert.match(standard.source, /find immutable-carrier-input -type f -name publication-manifest\.json/);
+  assert.match(standard.source, /test ! -e native-release/);
+  assert.match(standard.source, /cp -a "\$native_source_dir"\/\. native-release\//);
+  assert.match(standard.source, /--manifest native-release\/publication-manifest\.json/);
+  assert.doesNotMatch(standard.source, /cd immutable-carrier-input/);
+  assert.doesNotMatch(standard.source, /Download exact qualified Native artifact for the unified draft carrier/);
   assert.match(standard.source, /release-native-webui-carrier\.ts upload-actions/);
   assert.match(standard.source, /Desktop and Native Release assets contain duplicate names/);
-
-  const stable = workflow('release-stable.yml');
-  const resume = stable.parsed.jobs['resume-standard'];
-  assert.equal(resume.with.qualified_native_artifact_name, undefined);
-  assert.equal(resume.with.qualified_native_source_run_id, undefined);
 });
 
 test('asset plan is idempotent and rejects same-name different bytes', () => {

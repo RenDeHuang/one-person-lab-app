@@ -3254,14 +3254,19 @@
       "digest_algorithm": "sha256",
       "standard_dispatch_inputs": [
         "operation",
-        "source_qualification_run_id",
-        "source_qualification_receipt_digest"
+        "authority_id",
+        "operation_id",
+        "authority_carrier",
+        "authority_digest"
       ],
       "raw_standard_version_or_ref_inputs_allowed": false,
       "required_bindings": [
-        "app_owned_source_qualification_receipt",
-        "github_hosted_source_contract_build_preflight_with_self_hosted_vm_tart_zero",
-        "final_app_shell_framework_main_shas",
+        "pre_issued_stable_authority_carrier",
+        "frozen_app_shell_framework_cohort",
+        "frozen_source_gate_bytes_and_digest",
+        "pre_nonce_guard_bytes_and_digest",
+        "run_authority_reconcile_control",
+        "single_use_control_consumption",
         "critical_workflow_git_blobs_and_sha256",
         "apple_protected_secret_names_6_of_6",
         "developer_id_and_notary_authentication_receipt",
@@ -3273,7 +3278,55 @@
         "git_wire_main_refs_and_single_owner_run_query"
       ],
       "fresh_verify_before_expensive_work": true,
+      "full_source_gate_rerun_in_workflow": false,
       "unknown_dispatch_result_policy": "read_only_reconcile_without_rerun_redispatch_or_cancel"
+    },
+    "stable_operation_control": {
+      "authority_schema": "opl_app_stable_operation_authority.v1",
+      "control_schema": "opl_app_stable_operation_control.v1",
+      "consumption_schema": "opl_app_stable_operation_consumption.v1",
+      "script": "scripts/stable-operation-control.ts",
+      "protected_admission_job": "protected-operation-admission",
+      "artifact_name": "opl-stable-operation-control-<stable_run_id>",
+      "authority_carrier_required": true,
+      "authority_issuance": "operator_issued_github_dispatch_input_non_cryptographic",
+      "workflow_may_self_issue_authority_or_nonce": false,
+      "operation_id_derivation": "deterministic_frozen_cohort_and_critical_blob_identity",
+      "bare_dispatch_fails_before_expensive_work": true,
+      "live_main_drift_invalidates_frozen_cohort": false,
+      "current_executor": {
+        "live_main_equality_with_frozen_app_required": false,
+        "critical_blob_equality_with_authority_required": true,
+        "frozen_app_commit_checkout_required": true
+      },
+      "source_gate": {
+        "script": "scripts/validate-release-source-gate.ts",
+        "execution_phase": "operator_pre_dispatch_before_authority_issuance",
+        "runs_per_operation": 1,
+        "workflow_rerun_allowed": false,
+        "digest_bound_to_authority_and_control": true
+      },
+      "pre_nonce_guard": {
+        "script": "scripts/release-dispatch-guard.ts",
+        "phase": "pre_nonce",
+        "execution_phase": "operator_pre_dispatch_before_authority_issuance",
+        "digest_bound_to_authority_and_control": true
+      },
+      "run_authority_reconcile": {
+        "distinct_from_pre_nonce_guard": true,
+        "current_run_binding_required": true,
+        "prior_consumer_forbidden": true,
+        "digest_bound_to_control_and_consumption": true
+      },
+      "single_use_consumption": {
+        "required_before_cold_work": true,
+        "one_operation_one_matching_run": true,
+        "control_artifact_consumer": ".github/workflows/_release-bundle.yml"
+      },
+      "actions_artifact": {
+        "role": "transient_transport_only",
+        "durable_authority": false
+      }
     },
     "dispatch_guard": {
       "schema": "opl_release_dispatch_guard.v1",
@@ -3282,16 +3335,19 @@
       "required_before_nonce_consumption": true,
       "source_gate_report_exact_cohort_binding_required": true,
       "required_pre_nonce_gates": [
-        "release:source-gate",
-        "current_app_profile_exact_shell_consumer",
-        "git_wire_app_shell_framework_main_identity",
-        "single_owner_workflow_runs_query"
+        "release:source-gate_pre_dispatch_once",
+        "current_app_profile_exact_shell_consumer_pre_dispatch_once",
+        "frozen_app_shell_framework_commit_reachability_and_critical_blob_binding",
+        "single_operation_owner_workflow_runs_query"
       ],
       "cross_repository_ref_identity": {
         "transport": "git_ls_remote_wire",
         "commit_or_ref_api_guard_allowed": false,
         "max_transport_attempts_per_read": 3,
-        "transport_failure_is_credential_failure": false
+        "transport_failure_is_credential_failure": false,
+        "live_main_equality_required_after_freeze": false,
+        "frozen_commit_reachability_required": true,
+        "critical_blob_digest_binding_required": true
       },
       "owner_run_lookup": {
         "logical_query_count": 1,
@@ -3299,13 +3355,14 @@
         "parser": "node_structured_json_without_jq",
         "identity_fields": [
           "workflow_path",
-          "head_sha",
           "event_workflow_dispatch",
           "head_branch_main",
           "run_attempt_1",
-          "operation_started_at_bounded_window"
+          "operation_id_in_run_name",
+          "authority_id_in_run_name",
+          "current_run_id_for_consumption"
         ],
-        "identity_window_seconds": 300,
+        "identity_window_seconds": null,
         "zero_or_ambiguous_result": "outcome_unknown"
       },
       "transport_failure_codes": [
@@ -3337,7 +3394,8 @@
       "pre_nonce_failure": {
         "nonce_consumed": false,
         "mutation_invocation_count": 0,
-        "read_only_guard_replacement_allowed": true,
+        "read_only_reconcile_allowed": true,
+        "guard_replacement_allowed": false,
         "dispatch_allowed": false
       },
       "post_dispatch_failure": {
@@ -3364,13 +3422,14 @@
       "release_authority": false,
       "namespace_reservation": false,
       "final_signed_byte_authority": false,
-      "accepted_consumer": ".github/workflows/release-stable.yml",
+      "lifecycle": "retired_for_stable_admission_diagnostic_only",
+      "accepted_consumer": null,
       "pre_dispatch_profile_consumer_guard": "scripts/validate-shell-product-profile-consumer.ts",
       "profile_consumer_test": "tests/unit/common-config/oplProductProfile.test.ts",
       "profile_projection": "current_app_profile_into_temporary_exact_shell_archive",
       "source_shell_mutation_allowed": false,
-      "must_pass_before_source_workflow_dispatch": true,
-      "publication_floor_role": "same_operation_hosted_source_contract_build_preflight"
+      "must_pass_before_source_workflow_dispatch": false,
+      "publication_floor_role": "none"
     },
     "stable_stage_result": {
       "schema": "opl_app_stable_stage_result.v1",
@@ -3449,7 +3508,7 @@
       "prepared_ai_release_notes_marker",
       "prepared_ai_release_notes_standard_scope",
       "framework_freeze_request_schema",
-      "source_qualification_receipt_digest",
+      "stable_operation_control_digest",
       "stable_admission_manifest_digest",
       "apple_credentials_runtime_receipt",
       "cross_namespace_version_allocator",
@@ -3459,7 +3518,10 @@
     "failure_budget": "fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full",
     "source_gate": {
       "package_script": "release:source-gate",
-      "status": "implemented_enforced_before_expensive_release_jobs",
+      "status": "implemented_once_before_dispatch_then_verified_from_frozen_evidence",
+      "execution_owner": "operator_pre_dispatch_controller",
+      "runs_per_operation": 1,
+      "workflow_rerun_allowed": false,
       "scope": [
         "App release-boundary contract",
         "current App profile against exact Shell consumer in a temporary archive",
@@ -3476,7 +3538,7 @@
         "post_publication_optional_certification"
       ],
       "failure_next_action": "repair_source_gate",
-      "rule": "The App release source gate must fail before workflow dispatch or expensive hosted build, Full, WebUI, or post-publication optional certification work when App release-boundary validation, current App profile against the exact Shell consumer, shell format/type, shell ref resolution, or framework ref resolution is invalid."
+      "rule": "The App release source gate runs once before dispatch and is embedded in the operator-issued authority. protected-operation-admission materializes and verifies the exact frozen bytes before dependency installation or expensive hosted build, Full, WebUI, or post-publication optional certification work; it never reruns the full source gate, and unrelated live main advancement does not invalidate the frozen cohort when critical blobs remain exact."
     },
     "rule": "The App freeze-request adapter validates product identity, exact App/Shell/Framework refs, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal and historical Bundle identity remains read-compatible.",
     "stable_operations": [

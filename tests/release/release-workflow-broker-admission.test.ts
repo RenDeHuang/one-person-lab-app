@@ -28,8 +28,6 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'operation_id',
     'shell_ref',
     'source_artifact',
-    'source_qualification_receipt_digest',
-    'source_qualification_run_id',
     'source_run_id',
     'version',
   ]);
