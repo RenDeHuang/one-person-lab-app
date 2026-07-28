@@ -367,11 +367,43 @@ write_auto_update_runner() {
 CURRENT_LOG="$LOG_DIR/current.log"
 PREVIOUS_LOG="$LOG_DIR/previous.log"
 LOCK_DIR="$LOG_DIR/update.lock"
+LOCK_OWNER="$LOCK_DIR/owner.pid"
 mkdir -p "$LOG_DIR"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+
+acquire_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf '%s\n' "$$" > "$LOCK_OWNER"
+    return 0
+  fi
+  local lock_pid='' lock_command=''
+  if [ -f "$LOCK_OWNER" ]; then
+    IFS= read -r lock_pid < "$LOCK_OWNER" || true
+  fi
+  case "$lock_pid" in
+    ''|*[!0-9]*)
+      ;;
+    *)
+      if kill -0 "$lock_pid" 2>/dev/null; then
+        lock_command="$(ps -p "$lock_pid" -o command= 2>/dev/null || true)"
+        case "$lock_command" in
+          *"$0"*)
+            return 1
+            ;;
+        esac
+      fi
+      ;;
+  esac
+  rm -f "$LOCK_OWNER"
+  rmdir "$LOCK_DIR" 2>/dev/null || return 1
+  mkdir "$LOCK_DIR" 2>/dev/null || return 1
+  printf '%s\n' "$$" > "$LOCK_OWNER"
+}
+
+if ! acquire_lock; then
   exit 0
 fi
 cleanup() {
+  rm -f "$LOCK_OWNER"
   rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -653,6 +685,27 @@ show_auto_update_status() {
   fi
 }
 
+auto_update_is_configured() {
+  if [ -f "$AUTO_UPDATE_CONFIG" ] || [ -f "$AUTO_UPDATE_RUNNER" ] ||
+    [ -f "$AUTO_UPDATE_SYSTEMD_SERVICE" ] || [ -f "$AUTO_UPDATE_SYSTEMD_TIMER" ] ||
+    [ -f "$AUTO_UPDATE_LAUNCHD_PLIST" ]; then
+    return 0
+  fi
+  case "$OS_NAME" in
+    Linux)
+      command -v systemctl >/dev/null 2>&1 &&
+        systemctl --user is-enabled --quiet one-person-lab-webui-update.timer 2>/dev/null
+      ;;
+    Darwin)
+      command -v launchctl >/dev/null 2>&1 &&
+        launchctl print "gui/$(id -u)/$AUTO_UPDATE_LAUNCHD_LABEL" >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if [ "$disable_auto_update_after_definitions" = "1" ]; then
   disable_auto_update
   exit 0
@@ -660,6 +713,9 @@ fi
 if [ "$show_auto_update_status_after_definitions" = "1" ]; then
   show_auto_update_status
   exit 0
+fi
+if [ "$IMAGE" != "$DEFAULT_IMAGE" ] && auto_update_is_configured; then
+  die "Automatic updates are already enabled for $DEFAULT_IMAGE. Run --disable-auto-update before switching to a custom image, tag, or digest."
 fi
 
 confirm_ubuntu_docker_install() {

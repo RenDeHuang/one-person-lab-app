@@ -1100,6 +1100,8 @@ function Write-WebUiAutoUpdater {
     "`$dockerCliPath = $(Convert-ToPowerShellSingleQuoted $DockerCliPath)",
     "`$composePath = $(Convert-ToPowerShellSingleQuoted $ComposePath)",
     "`$composeBackupPath = `"`$composePath.auto-update-previous`"",
+    "`$healthUrl = $(Convert-ToPowerShellSingleQuoted $Url)",
+    "`$healthTimeoutSeconds = $(Convert-ToPowerShellSingleQuoted ([string]$TimeoutSeconds))",
     "`$logDir = Join-Path `$updaterDir `"logs`"",
     "`$currentLog = Join-Path `$logDir `"current.log`"",
     "`$previousLog = Join-Path `$logDir `"previous.log`"",
@@ -1108,6 +1110,20 @@ function Write-WebUiAutoUpdater {
     "`$lockTaken = `$false",
     "`$transcriptStarted = `$false",
     "",
+    'function Test-RestoredWebUiHealth {',
+    '  try {',
+    '    $response = Invoke-WebRequest -Uri $healthUrl -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop',
+    '    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)',
+    '  } catch {',
+    '    try {',
+    '      $response = Invoke-WebRequest -Uri $healthUrl -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop',
+    '      return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)',
+    '    } catch {',
+    '      return $false',
+    '    }',
+    '  }',
+    '}',
+    '',
     "try {",
     "  `$lockTaken = `$mutex.WaitOne(0)",
     "  if (-not `$lockTaken) {",
@@ -1149,7 +1165,14 @@ function Write-WebUiAutoUpdater {
     "      Move-Item -LiteralPath `$composeBackupPath -Destination `$composePath -Force",
     "      & `$dockerCliPath compose -f `$composePath up -d --pull never --force-recreate",
     "      if (`$LASTEXITCODE -eq 0) {",
-    "        `$rollback = `"passed`"",
+    "        `$rollbackDeadline = (Get-Date).AddSeconds(`$healthTimeoutSeconds)",
+    "        while ((Get-Date) -lt `$rollbackDeadline) {",
+    "          if (Test-RestoredWebUiHealth) {",
+    "            `$rollback = `"passed`"",
+    "            break",
+    "          }",
+    "          Start-Sleep -Seconds 2",
+    "        }",
     "      }",
     "    }",
     "    @(",
@@ -1204,6 +1227,22 @@ function Disable-WebUiAutoUpdate {
   Remove-Item -LiteralPath $UpdaterPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath (Join-Path (Split-Path -Parent $UpdaterPath) "config.env") -Force -ErrorAction SilentlyContinue
   Write-Step "Automatic WebUI updates are disabled. Manual -Update remains available."
+}
+
+function Test-WebUiAutoUpdateConfigured {
+  param([Parameter(Mandatory = $true)][string]$UpdaterPath)
+
+  $updaterDir = Split-Path -Parent $UpdaterPath
+  if (
+    (Test-Path -LiteralPath $UpdaterPath -PathType Leaf) -or
+    (Test-Path -LiteralPath (Join-Path $updaterDir "config.env") -PathType Leaf)
+  ) {
+    return $true
+  }
+  if ($null -ne (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+    return $null -ne (Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue)
+  }
+  return $false
 }
 
 function Show-WebUiAutoUpdateStatus {
@@ -1910,6 +1949,12 @@ if ($DisableAutoUpdate) {
 if ($AutoUpdateStatus) {
   Show-WebUiAutoUpdateStatus -UpdaterPath $autoUpdaterPath
   exit 0
+}
+if (
+  $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:latest" -and
+  (Test-WebUiAutoUpdateConfigured -UpdaterPath $autoUpdaterPath)
+) {
+  throw "Automatic updates are already enabled for ghcr.io/gaofeng21cn/one-person-lab-webui:latest. Run -DisableAutoUpdate before switching to a custom image, tag, or digest."
 }
 $dockerCliPath = Assert-DockerCli
 Assert-DockerCompose -DockerCliPath $dockerCliPath

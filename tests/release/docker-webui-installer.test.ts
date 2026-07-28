@@ -272,6 +272,10 @@ test('Docker/WebUI installer exposes one host auto-update contract across Linux 
   assert.match(installer, /schema=opl_webui_host_auto_update_config\.v1/);
   assert.match(installer, /compose -f "\$COMPOSE_FILE" ps -q one-person-lab-webui/);
   assert.match(installer, /inspect "\$PREVIOUS_CONTAINER_ID" --format '\{\{\.Image\}\}'/);
+  assert.match(installer, /LOCK_OWNER="\$LOCK_DIR\/owner\.pid"/);
+  assert.match(installer, /kill -0 "\$lock_pid"/);
+  assert.match(installer, /ps -p "\$lock_pid" -o command=/);
+  assert.match(installer, /rmdir "\$LOCK_DIR".*return 1/);
   assert.doesNotMatch(
     installer,
     /raw\.githubusercontent\.com.*install-docker-webui\.sh/,
@@ -336,6 +340,20 @@ test('Docker/WebUI auto-update rejects custom images and conflicting lifecycle a
   ]);
   assert.notEqual(custom.status, 0);
   assert.match(custom.stderr, /Automatic updates support only .*:latest/);
+
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-custom-channel-auto-update-home-'));
+  const updater = path.join(home, 'OnePersonLab', 'updater');
+  fs.mkdirSync(updater, { recursive: true });
+  fs.writeFileSync(
+    path.join(updater, 'config.env'),
+    'schema=opl_webui_host_auto_update_config.v1\nchannel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+  );
+  const configuredCustom = runInstaller(
+    ['--dry-run', '--yes', '--tag', '26.7.28-r3', '--no-open'],
+    { HOME: home },
+  );
+  assert.notEqual(configuredCustom.status, 0);
+  assert.match(configuredCustom.stderr, /Run --disable-auto-update before switching to a custom image/);
 
   const conflicting = runInstaller(['--dry-run', '--enable-auto-update', '--disable-auto-update']);
   assert.notEqual(conflicting.status, 0);

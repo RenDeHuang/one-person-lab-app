@@ -446,7 +446,12 @@ test('Windows Docker/WebUI automatic updates stay on the limited host-side lates
   assert.match(installer, /schema=opl_webui_host_auto_update_config\.v1/);
   assert.match(installer, /daily_time=not_configured/);
   assert.match(autoUpdateWriter, /`\$installerExitCode = `\$LASTEXITCODE/);
+  assert.match(autoUpdateWriter, /function Test-RestoredWebUiHealth/);
+  assert.match(autoUpdateWriter, /`\$rollbackDeadline = \(Get-Date\)\.AddSeconds\(`\$healthTimeoutSeconds\)/);
+  assert.match(autoUpdateWriter, /if \(Test-RestoredWebUiHealth\)/);
   assert.match(autoUpdateWriter, /phase=installer_update/);
   assert.match(autoUpdateWriter, /phase=health/);
+  assert.match(installer, /function Test-WebUiAutoUpdateConfigured/);
+  assert.match(installer, /Run -DisableAutoUpdate before switching to a custom image/);
   assert.doesNotMatch(autoUpdateWriter, /docker\.sock|Docker socket/i);
 });
