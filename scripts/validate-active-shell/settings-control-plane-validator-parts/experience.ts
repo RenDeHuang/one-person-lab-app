@@ -340,7 +340,8 @@ export function validateSettingsExperienceContract(experience) {
         "app_state.agent_packages.directory.entries[].available_actions[].semantic",
       action_id_allowlist_allowed: false,
       catalog_search_is_settings_global_search: false,
-      registry_refresh_visibility: "ordinary_visible_action",
+      dynamic_directory_reload:
+        "ordinary_visible_fresh_fast_app_state_readback_without_registry_cache_authority",
       projected_action_policy:
         "execute only Framework action_id and payload; never infer status, readiness, action ids, or payload fields in the Shell",
       raw_source_fallback_allowed: false,
