@@ -2111,6 +2111,16 @@ test('the App adapter freezes the App Standard compatibility union without Packa
     assert.equal(request.frozen_build_inputs, undefined);
     assert.deepEqual(Object.keys(request.tracks), ['standard', 'full']);
     assert.equal(request.tracks.standard.required_for_latest, true);
+    assert.deepEqual(request.tracks.standard.required_asset_names, [
+      'One-Person-Lab-26.7.20-mac-arm64.dmg',
+      'One-Person-Lab-26.7.20-mac-arm64.zip',
+      'One-Person-Lab-26.7.20-mac-arm64.zip.blockmap',
+      'latest-arm64-mac.yml',
+      'opl-app-component-manifest.json',
+      'opl-app-installer.sh',
+      'standard-gatekeeper-launch-policy.json',
+      'standard-apple-notarization-receipt.json',
+    ]);
     assert.equal(request.tracks.full.required_for_latest, false);
     assert.equal(request.tracks.webui, undefined);
   } finally {
