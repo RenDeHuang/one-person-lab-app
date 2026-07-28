@@ -1340,6 +1340,7 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(webui.jobs['build-and-qualify'].if, "${{ inputs.mode == 'execute' }}");
   assert.equal(webui.jobs['publish-immutable-carrier'].if, "${{ inputs.mode == 'execute' }}");
   assert.deepEqual(webui.jobs['publish-immutable-carrier'].permissions, {
+    actions: 'read',
     contents: 'read',
     packages: 'write',
   });
