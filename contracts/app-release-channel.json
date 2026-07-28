@@ -2273,7 +2273,8 @@
         "stable_authority_run_id",
         "carrier_follower_run_id",
         "carrier_executor_ref",
-        "carrier_artifact_name"
+        "carrier_artifact_name",
+        "publication_record_ref"
       ],
       "task_modes": {
         "production_release": {
@@ -2371,15 +2372,13 @@
             "release-webui-development.yml",
             "workflow_dispatch_event",
             "main",
-            "attempt_1",
+            "actual_publication_run_attempt_recorded",
             "completed_success",
             "exact_executor_sha",
             "exact_source_authority_artifact"
           ],
           "promotion_entry_inputs": [
-            "carrier_follower_run_id",
-            "carrier_executor_ref",
-            "carrier_artifact_name"
+            "publication_record_ref"
           ],
           "promotion_protected_environment": "release-preview-publication",
           "receipt_satisfies_production_latest_or_follower_handoff": false
@@ -2393,7 +2392,7 @@
       "carrier_publication_binding_by_mode": {
         "production_follower": "github_run_id_of_release_webui_follower",
         "development_validation": "legacy_exact_development_publication_run",
-        "independent_preview": "user_supplied_exact_successful_preview_publication_run_revalidated_by_workflow"
+        "independent_preview": "user_supplied_exact_durable_preview_publication_record_revalidated_by_workflow"
       },
       "operator_evidence_handle_policy_by_mode": {
         "production_follower": "no_operator_supplied_handles",

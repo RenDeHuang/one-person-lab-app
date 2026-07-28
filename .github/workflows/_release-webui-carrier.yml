@@ -557,6 +557,15 @@ jobs:
           local_image="$(cat webui-carrier/local-image-ref.txt)"
           test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$local_image")" = linux/amd64
 
+      - name: Validate exact GHCR repository before registry mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/webui-publication-record.ts \
+            validate-repository \
+            --image-repository '${{ inputs.image_repository }}' \
+            > webui-carrier/image-repository-validation.json
+
       - name: Authenticate to GHCR
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
@@ -820,7 +829,9 @@ jobs:
             --authority-mode '${{ inputs.authority_mode }}'
             --carrier-receipt webui-carrier/carrier-receipt.json
             --version-readback webui-carrier/version-descriptor-readback.json
+            --image-repository '${{ inputs.image_repository }}'
             --publication-run-id "$GITHUB_RUN_ID"
+            --publication-run-attempt "$GITHUB_RUN_ATTEMPT"
             --publication-executor-sha "$GITHUB_SHA"
           )
           case '${{ inputs.authority_mode }}' in
@@ -954,6 +965,7 @@ jobs:
             carrier-receipt.json \
             carrier-receipt-verification.json \
             candidate-tag-readback.txt \
+            image-repository-validation.json \
             image-inspect.json \
             immutable-readback.txt \
             registry-readback.json \

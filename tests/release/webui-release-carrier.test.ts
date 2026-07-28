@@ -744,9 +744,9 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.equal(downloadSourceAuthority.with['github-token'], '${{ github.token }}');
   assert.equal(downloadSourceAuthority.with.path, 'webui-carrier/source-authority');
 
-  const versionDescriptorIndex = publishRun.indexOf('version-descriptor-readback.json');
+  const versionDescriptorIndex = sidecar.run.indexOf('version-descriptor-readback.json');
   assert.ok(versionDescriptorIndex >= 0);
-  assert.ok(versionDescriptorIndex < publishRun.indexOf('webui-publication-record.ts'));
+  assert.ok(versionDescriptorIndex < sidecar.run.indexOf('webui-publication-record.ts'));
   assert.match(publishRun, /opl_app_webui_descriptor_readback\.v1/);
   assert.match(publishRun, /exact immutable version tag authority is required before durable sidecar publication/);
 
@@ -755,7 +755,9 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.match(sidecar.run, /webui-publication-record\.ts \\\n\s+create/);
   assert.match(sidecar.run, /--carrier-receipt webui-carrier\/carrier-receipt\.json/);
   assert.match(sidecar.run, /--version-readback webui-carrier\/version-descriptor-readback\.json/);
+  assert.match(sidecar.run, /--image-repository '\$\{\{ inputs\.image_repository \}\}'/);
   assert.match(sidecar.run, /--publication-run-id "\$GITHUB_RUN_ID"/);
+  assert.match(sidecar.run, /--publication-run-attempt "\$GITHUB_RUN_ATTEMPT"/);
   assert.match(sidecar.run, /--publication-executor-sha "\$GITHUB_SHA"/);
   assert.match(sidecar.run, /stable_authority_run_id='\$\{\{ github\.event\.workflow_run\.id \}\}'/);
   assert.match(sidecar.run, /--stable-authority-run-id "\$stable_authority_run_id"/);
@@ -763,6 +765,14 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.match(sidecar.run, /source_authority_path='webui-carrier\/source-authority\.json'/);
   assert.match(sidecar.run, /test -f "\$source_authority_path" && test ! -L "\$source_authority_path"/);
   assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
+  const repositoryValidationIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Validate exact GHCR repository before registry mutation',
+  );
+  const registryPublishIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Publish qualified candidate and CAS immutable version tag',
+  );
+  assert.ok(repositoryValidationIndex >= 0 && repositoryValidationIndex < registryPublishIndex);
+  assert.match(publish.steps[repositoryValidationIndex].run, /validate-repository/);
 
   assert.match(sidecar.run, /oras manifest fetch --descriptor "\$receipt_ref"/);
   assert.match(sidecar.run, /publication_outcome=preexisting_idempotent/);

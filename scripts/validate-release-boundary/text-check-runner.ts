@@ -845,6 +845,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'carrier_follower_run_id',
     'carrier_executor_ref',
     'carrier_artifact_name',
+    'publication_record_ref',
   ])) {
     failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
   }
@@ -1815,6 +1816,7 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         'carrier_follower_run_id',
         'carrier_executor_ref',
         'carrier_artifact_name',
+        'publication_record_ref',
       ].sort();
       if (!exactObject(callee.workflow.permissions, exactReadPermissions) ||
           !admission || admission.if !== "${{ inputs.mode == 'execute' }}" ||
@@ -2109,9 +2111,8 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
         && job.with?.mode === 'execute'
         && job.with?.authority_mode === 'independent_preview'
-        && job.with?.carrier_follower_run_id === '${{ inputs.carrier_follower_run_id }}'
-        && job.with?.carrier_executor_ref === '${{ inputs.carrier_executor_ref }}'
-        && job.with?.carrier_artifact_name === '${{ inputs.carrier_artifact_name }}'
+        && job.with?.publication_record_ref === '${{ inputs.publication_record_ref }}'
+        && Object.keys(job.with ?? {}).length === 3
         && steps.length === 0
       ) {
         continue;
@@ -2218,16 +2219,12 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   const promotionWorkflow = promotion.workflow;
   const promotionJobs = workflowJobs(promotionWorkflow);
   const expectedPromotionInputs = [
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
+    'publication_record_ref',
   ].sort();
   const expectedPromotionWith = {
     mode: 'execute',
     authority_mode: 'independent_preview',
-    carrier_follower_run_id: '${{ inputs.carrier_follower_run_id }}',
-    carrier_executor_ref: '${{ inputs.carrier_executor_ref }}',
-    carrier_artifact_name: '${{ inputs.carrier_artifact_name }}',
+    publication_record_ref: '${{ inputs.publication_record_ref }}',
   };
   const latestWriter = promotionJobs['promote-webui-latest'];
   if (
