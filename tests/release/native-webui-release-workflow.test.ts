@@ -343,22 +343,28 @@ test('Native seal CLI accepts the workflow qualification receipt path without es
 test('Native carrier rejects unsupported target metadata before sealing or upload planning', (t) => {
   const current = fixtureManifest(t);
   const byRole = Object.fromEntries(current.manifest.assets.map((asset) => [asset.role, asset.path]));
-  assert.throws(
-    () => sealNativeWebuiPublicationManifest({
-      repository: current.manifest.repository,
-      version: current.manifest.version,
-      releaseBundleDigest: current.manifest.release_bundle_digest,
-      stableAuthorityRunId: current.manifest.stable_authority_run_id,
-      platform: 'windows' as never,
-      architecture: 'x86_64',
-      appSha: current.manifest.cohort.app_sha,
-      shellSha: current.manifest.cohort.shell_sha,
-      frameworkSha: current.manifest.cohort.framework_sha,
-      qualificationReceiptPath: current.manifest.qualification_receipt.path,
-      assetPaths: byRole,
-    }),
-    /Unsupported Native WebUI target windows-x86_64/,
-  );
+  for (const target of [
+    { platform: 'windows', architecture: 'x86_64' },
+    { platform: 'linux', architecture: 'arm64' },
+    { platform: 'darwin', architecture: 'x86_64' },
+  ]) {
+    assert.throws(
+      () => sealNativeWebuiPublicationManifest({
+        repository: current.manifest.repository,
+        version: current.manifest.version,
+        releaseBundleDigest: current.manifest.release_bundle_digest,
+        stableAuthorityRunId: current.manifest.stable_authority_run_id,
+        platform: target.platform as never,
+        architecture: target.architecture as never,
+        appSha: current.manifest.cohort.app_sha,
+        shellSha: current.manifest.cohort.shell_sha,
+        frameworkSha: current.manifest.cohort.framework_sha,
+        qualificationReceiptPath: current.manifest.qualification_receipt.path,
+        assetPaths: byRole,
+      }),
+      new RegExp(`Unsupported Native WebUI target ${target.platform}-${target.architecture}`),
+    );
+  }
 
   const manifestPath = path.join(current.root, 'unsupported-publication-manifest.json');
   const outputPath = path.join(current.root, 'unsupported-upload-actions.json');
