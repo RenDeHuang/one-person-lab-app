@@ -39,6 +39,7 @@ function configureCandidate(
   publicationChannel: 'stable' | 'preview' | 'nightly',
   version: string,
   updaterVersion: string,
+  includeInstaller = true,
 ): void {
   input.publicationChannel = publicationChannel;
   input.candidateDisplayVersion = version;
@@ -48,6 +49,7 @@ function configureCandidate(
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    ...(includeInstaller ? ['opl-app-installer.sh'] : []),
     ...(publicationChannel === 'nightly'
       ? []
       : ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']),
@@ -211,6 +213,7 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
         'One-Person-Lab-26.7.21-r1-mac-arm64.zip.blockmap',
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
+        'opl-app-installer.sh',
         'standard-gatekeeper-launch-policy.json',
         'standard-apple-notarization-receipt.json',
       ],
@@ -222,6 +225,26 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
     assert.equal('updater_receipts' in receipt, false);
     assert.equal('optional_certification' in receipt, false);
     assert.match(receipt.input_digest, /^sha256:[0-9a-f]{64}$/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('Latest admission rejects a hosted Standard set without the public installer bootstrap', () => {
+  const fixture = createFixture();
+  try {
+    configureCandidate(
+      fixture.root,
+      fixture.input,
+      'stable',
+      '26.7.21-r1',
+      '26.7.2101',
+      false,
+    );
+    assert.throws(
+      () => validateStandardLatestAdmission(fixture.input),
+      /exact GitHub-hosted Standard asset set/,
+    );
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }

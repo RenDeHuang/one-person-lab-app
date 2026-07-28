@@ -54,6 +54,7 @@ const hostedStandardAssetNames = (
   `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
   'latest-arm64-mac.yml',
   'opl-app-component-manifest.json',
+  'opl-app-installer.sh',
   ...(channel === 'nightly'
     ? []
     : ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']),
