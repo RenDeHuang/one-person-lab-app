@@ -53,12 +53,12 @@ export function assertCanonicalThreadAffinityConvergenceSources({
         'workspace: thread.workspace',
         'custom_workspace: hasCanonicalRecordedCwd',
       ],
-      `Active shell ${label} canonical affinity projection`,
+      `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectAffinity',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
         'cached?.extra.custom_workspace === true',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
@@ -72,14 +72,9 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'function recordedCwd(value: unknown): string',
       "if (value === undefined || value === null) return ''",
       "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
-      'function isManagedProjectlessWorkspace(workspace: string): boolean',
-      "const managedRoot = path.join(os.homedir(), 'Documents', 'Codex')",
-      'const workspace = recordedCwd(raw.cwd)',
-      "return isManagedProjectlessWorkspace(workspace) ? '' : workspace",
-      'projectId: projectId(raw)',
       'workspace: recordedCwd(raw.cwd)',
     ],
-    'Active shell canonical cwd and project-affinity parser fail-closed boundary',
+    'Active shell canonical cwd parser fail-closed boundary',
   );
   assertTextExcludesAll(
     threadAdapter,
@@ -96,11 +91,8 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
       'rejects malformed canonical cwd instead of treating it as projectless',
       'rejects a malformed cwd returned by canonical thread read',
-      'groups a managed Documents Codex task from its canonical recorded cwd',
-      'does not let a project id replace a missing canonical recorded cwd',
-      'does not adopt a managed Documents Codex task with a canonical recorded cwd',
     ],
-    'Active shell canonical cwd and project-affinity convergence focused regressions',
+    'Active shell canonical cwd convergence focused regressions',
   );
 }
 
