@@ -820,7 +820,9 @@ export function parseActiveReleaseRunLookups(
   return [...runs.values()].sort((left, right) => left.id - right.id);
 }
 
-function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
+// Keep the release-boundary helper name stable while using the bounded,
+// status-specific lookups required by the current admission contract.
+function readOwnerWorkflowRuns(excludedRunId: string): ActiveReleaseRun[] {
   const endpoint = `repos/${appRepository}/actions/runs`;
   return parseActiveReleaseRunLookups(
     activeReleaseStatuses.map((status) => ({
@@ -834,6 +836,10 @@ function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
     })),
     excludedRunId,
   );
+}
+
+function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
+  return readOwnerWorkflowRuns(excludedRunId);
 }
 
 function shanghaiDate(now = new Date()): string {
