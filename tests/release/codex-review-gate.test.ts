@@ -13,6 +13,16 @@ import {
 const headSha = 'a'.repeat(40);
 const bot = 'chatgpt-codex-connector[bot]';
 
+function cleanIssueComment(
+  reviewedCommit = headSha.slice(0, 10),
+  author = bot,
+): { user: { login: string }; body: string } {
+  return {
+    user: { login: author },
+    body: `Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** \`${reviewedCommit}\``,
+  };
+}
+
 test('Codex review gate waits until the current head has terminal review evidence', () => {
   const result = evaluateCodexReviewGate({
     headSha,
@@ -45,6 +55,51 @@ test('Codex review gate accepts a current review without open threads', () => {
   assert.equal(reviewed.status, 'passed');
 });
 
+test('Codex review gate accepts one connector-authored exact-head clean issue comment and still inspects threads', () => {
+  const reviewed = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment()],
+    reviewThreads: [],
+  });
+  assert.equal(reviewed.status, 'passed');
+
+  const unresolved = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment()],
+    reviewThreads: [{ isResolved: false, isOutdated: false, comments: [{ author: { login: bot } }] }],
+  });
+  assert.equal(unresolved.status, 'failed');
+});
+
+test('Codex review gate rejects stale, foreign, and ambiguous clean issue comments', () => {
+  const stale = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment('b'.repeat(10))],
+    reviewThreads: [],
+  });
+  assert.equal(stale.status, 'waiting');
+
+  const foreign = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment(headSha.slice(0, 10), 'other-reviewer')],
+    reviewThreads: [],
+  });
+  assert.equal(foreign.status, 'waiting');
+
+  const ambiguous = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment(), cleanIssueComment()],
+    reviewThreads: [],
+  });
+  assert.equal(ambiguous.status, 'waiting');
+  assert.match(ambiguous.summary, /ambiguous/);
+});
+
 test('Codex review gate treats missing immutable review evidence as advisory-inconclusive after waiting', () => {
   const waiting = evaluateCodexReviewGate({
     headSha,
@@ -64,7 +119,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.ok(workflow.on.pull_request_review);
   assert.ok(workflow.on.workflow_dispatch.inputs.pull_number.required);
   assert.equal(workflow.permissions.checks, undefined);
-  assert.equal(workflow.permissions.issues, undefined);
+  assert.equal(workflow.permissions.issues, 'read');
   assert.match(workflow.jobs.gate.if, /pull_request\.draft/);
   assert.equal(workflow.jobs.gate.name, 'Codex review advisory');
   assert.equal(workflow.jobs.gate.steps[0].with.ref, '${{ github.event.repository.default_branch }}');
@@ -75,5 +130,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.doesNotMatch(gateSource, /issues\/comments\/.*\/reactions/);
   assert.doesNotMatch(gateSource, /check-runs/);
   assert.doesNotMatch(gateSource, /codex-review-head/);
+  assert.match(gateSource, /issues\/\$\{pullNumber\}\/comments/);
+  assert.match(gateSource, /exact-head clean issue comment/);
   assert.match(source, /pull_request_target/);
 });
