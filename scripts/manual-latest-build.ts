@@ -10,12 +10,14 @@ import { findBuiltApp } from './build-full-first-install-package/archive-output.
 import {
   assertReleaseVersionNotFuture,
   assertUpdaterVersionMatchesDisplay,
+  resolveReleaseVersionIdentity,
 } from './release-version.ts';
 import {
   assertDevelopmentRepoSnapshotsUnchanged,
   commandResult,
   deriveManualLocalAppIdentity,
   fileSha256,
+  githubApi,
   manualVersions,
   manualSourceProvenanceSha256,
   readJson,
@@ -587,9 +589,24 @@ function parseOptions(argv: string[]) {
   if (mode === 'full-dmg' && values['install-path']) {
     throw new Error('--install-path is supported only for local-app');
   }
-  const defaults = manualVersions();
-  const version = values.version?.trim() || defaults.displayVersion;
-  const updaterVersion = values['updater-version']?.trim() || defaults.updaterVersion;
+  let version = values.version?.trim() || '';
+  if (!version) {
+    const latestStable = githubApi<{
+      tag_name?: unknown;
+      draft?: unknown;
+      prerelease?: unknown;
+    }>('repos/gaofeng21cn/one-person-lab-app/releases/latest');
+    if (
+      typeof latestStable.tag_name !== 'string'
+      || latestStable.draft === true
+      || latestStable.prerelease === true
+    ) {
+      throw new Error('Latest public Stable release identity is incomplete');
+    }
+    version = manualVersions(new Date(), latestStable.tag_name).displayVersion;
+  }
+  const updaterVersion = values['updater-version']?.trim()
+    || resolveReleaseVersionIdentity('stable', version).updaterVersion;
   assertReleaseVersionNotFuture('stable', version);
   assertUpdaterVersionMatchesDisplay('stable', version, updaterVersion);
   const workspaceRoot = path.resolve(values['workspace-root'] || path.dirname(appRoot));
@@ -633,8 +650,8 @@ Shared policy:
   - external companions come from the latest official stable GitHub Release and must match its sha256 digest
 
 Options:
-  --version <YY.M.D>              Display version (default: current Asia/Shanghai date)
-  --updater-version <YY.M.D00>    Machine updater version (default: current date + 00)
+  --version <YY.M.D[-rN]>         Display version (default: latest same-day Stable, else today's r0)
+  --updater-version <YY.M.DNN>    Machine version derived from the selected display revision
   --workspace-root <path>         Development repositories root
   --out-dir <path>                Evidence/DMG output directory
   --install-path <path>           local-app target (default: /Applications/One Person Lab.app)

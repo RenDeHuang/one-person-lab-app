@@ -291,6 +291,40 @@ test('manual latest versions use the Asia/Shanghai date and monotonic updater en
     displayVersion: '26.7.21',
     updaterVersion: '26.7.2100',
   });
+  assert.deepEqual(
+    manualVersions(
+      new Date('2026-07-28T12:00:00Z'),
+      'v26.7.28-r3',
+    ),
+    {
+      displayVersion: '26.7.28-r3',
+      updaterVersion: '26.7.2803',
+    },
+  );
+  assert.deepEqual(
+    manualVersions(
+      new Date('2026-07-28T12:00:00Z'),
+      'v26.7.27-r2',
+    ),
+    {
+      displayVersion: '26.7.28',
+      updaterVersion: '26.7.2800',
+    },
+  );
+  assert.throws(
+    () => manualVersions(
+      new Date('2026-07-28T12:00:00Z'),
+      'v26.7.29',
+    ),
+    /newer than the current Asia\/Shanghai date/,
+  );
+  assert.throws(
+    () => manualVersions(
+      new Date('2026-07-28T12:00:00Z'),
+      'latest',
+    ),
+    /not canonical/,
+  );
 });
 
 test('manual local App identity is deterministic without corrupting the updater machine version', () => {

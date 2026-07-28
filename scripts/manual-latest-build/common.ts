@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { resolveReleaseVersionIdentity } from '../release-version.ts';
+import {
+  releaseCalendarParts,
+  resolveReleaseVersionIdentity,
+} from '../release-version.ts';
 
 export type JsonRecord = Record<string, any>;
 
@@ -327,7 +330,10 @@ export function compareStableVersions(left: string, right: string) {
   return 0;
 }
 
-export function manualVersions(now = new Date()) {
+export function manualVersions(
+  now = new Date(),
+  latestStableTag: string | null = null,
+) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
@@ -335,7 +341,34 @@ export function manualVersions(now = new Date()) {
     day: '2-digit',
   }).format(now).split('-').map(Number);
   const [year, month, day] = parts;
-  const displayVersion = `${year - 2000}.${month}.${day}`;
+  const calendarDisplayVersion = `${year - 2000}.${month}.${day}`;
+  let displayVersion = calendarDisplayVersion;
+  if (latestStableTag) {
+    const latestDisplayVersion = latestStableTag.replace(/^v/, '');
+    const latestCalendar = releaseCalendarParts(
+      'stable',
+      latestDisplayVersion,
+    );
+    if (!latestCalendar) {
+      throw new Error(
+        `Latest public Stable tag is not canonical: ${latestStableTag}`,
+      );
+    }
+    const latestDate = Date.UTC(
+      latestCalendar.year,
+      latestCalendar.month - 1,
+      latestCalendar.day,
+    );
+    const currentDate = Date.UTC(year, month - 1, day);
+    if (latestDate > currentDate) {
+      throw new Error(
+        `Latest public Stable tag is newer than the current Asia/Shanghai date: ${latestStableTag}`,
+      );
+    }
+    if (latestDate === currentDate) {
+      displayVersion = latestDisplayVersion;
+    }
+  }
   return {
     displayVersion,
     updaterVersion: resolveReleaseVersionIdentity('stable', displayVersion).updaterVersion,
