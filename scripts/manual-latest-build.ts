@@ -529,7 +529,7 @@ function persistInstallationFailure(
     mode: 'local-app',
     display_version: options.version,
     updater_version: options.updaterVersion,
-    bundle_version: buildIdentity.bundle_version,
+    bundle_version: buildIdentity.machine_version,
     build_identity: buildIdentity,
     source_lock_sha256: fileSha256(sourceLockPath),
     source_lock: sourceLock,

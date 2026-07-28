@@ -821,6 +821,31 @@ test('manual source snapshot rejects a stale tracking ref after remote main adva
   );
 });
 
+test('manual source snapshot remains valid when remote main advances after freeze', (context) => {
+  const root = createDevelopmentRepo();
+  const remoteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-manual-source-remote-'));
+  context.after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(remoteRoot, { recursive: true, force: true });
+  });
+  const bare = path.join(remoteRoot, 'origin.git');
+  const publisher = path.join(remoteRoot, 'publisher');
+  execFileSync('git', ['init', '--bare', '--initial-branch=main', bare]);
+  execFileSync('git', ['remote', 'add', 'origin', bare], { cwd: root });
+  execFileSync('git', ['push', '-u', 'origin', 'main'], { cwd: root });
+  const frozen = snapshotDevelopmentRepo('fixture', root);
+
+  execFileSync('git', ['clone', bare, publisher]);
+  execFileSync('git', ['config', 'user.name', 'OPL Publisher'], { cwd: publisher });
+  execFileSync('git', ['config', 'user.email', 'publisher@example.invalid'], { cwd: publisher });
+  fs.writeFileSync(path.join(publisher, 'source.txt'), 'remote advanced\n');
+  execFileSync('git', ['add', 'source.txt'], { cwd: publisher });
+  execFileSync('git', ['commit', '-m', 'remote advance'], { cwd: publisher });
+  execFileSync('git', ['push', 'origin', 'main'], { cwd: publisher });
+
+  assert.doesNotThrow(() => assertDevelopmentRepoSnapshotUnchanged(frozen));
+});
+
 test('manual latest commands and operator guide remain discoverable', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   assert.equal(

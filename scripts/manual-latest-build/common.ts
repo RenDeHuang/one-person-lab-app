@@ -470,9 +470,24 @@ export function snapshotDevelopmentRepo(id: string, root: string): RepoSnapshot 
 }
 
 export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
-  let actual: RepoSnapshot;
+  let head: string;
+  let branch: string;
+  let status: string;
   try {
-    actual = snapshotDevelopmentRepo(expected.id, expected.root);
+    requireDirectory(expected.root, `${expected.id} repository`);
+    head = commandOutput('git', ['rev-parse', 'HEAD'], { cwd: expected.root });
+    branch = commandOutput('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
+      cwd: expected.root,
+      allowFailure: true,
+    });
+    status = commandOutput(
+      'git',
+      ['status', '--porcelain', '--untracked-files=no'],
+      { cwd: expected.root },
+    );
+    if (status) {
+      throw new Error(`${expected.id} development directory is not clean:\n${status}`);
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -481,12 +496,14 @@ export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
     );
   }
 
-  const fields = ['head', 'branch', 'local_main', 'origin_main', 'remote_main'] as const;
-  const differences = fields
-    .filter((field) => actual[field] !== expected[field])
-    .map((field) => (
-      `${field} expected=${expected[field] ?? '<missing>'} actual=${actual[field] ?? '<missing>'}`
-    ));
+  const differences = [
+    head === expected.head
+      ? null
+      : `head expected=${expected.head} actual=${head}`,
+    branch === expected.branch
+      ? null
+      : `branch expected=${expected.branch || '<detached>'} actual=${branch || '<detached>'}`,
+  ].filter((value): value is string => value !== null);
   if (differences.length > 0) {
     throw new Error(
       `${expected.id} source snapshot changed during manual latest build: ${differences.join(', ')}`,
