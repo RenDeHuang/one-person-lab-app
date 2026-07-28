@@ -769,9 +769,9 @@ test('active-shell source gate preserves explicit local file inputs independentl
 
 test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
   const canonicalProjectionMarkers = [
-    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+    'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
     'workspace: thread.workspace',
-    'custom_workspace: hasCanonicalRecordedCwd',
+    'custom_workspace: hasCanonicalProjectAffinity',
   ];
   const focusedTestNames = [
     'rebuilds a stale projectless cache row from the canonical recorded cwd',
@@ -781,16 +781,24 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
     'rejects malformed canonical cwd instead of treating it as projectless',
     'rejects a malformed cwd returned by canonical thread read',
+    'projects a managed Documents Codex task as a projectless sidebar row',
+    'adopts a managed Documents Codex projectless task into a selected project',
   ];
   const conversationListSync = canonicalProjectionMarkers.join('\n');
   const canonicalThreadLifecycle = canonicalProjectionMarkers.join('\n');
   const focusedTests = focusedTestNames.join('\n');
-  const threadAdapter = [
+  const threadAdapterMarkers = [
     'function recordedCwd(value: unknown): string',
     "if (value === undefined || value === null) return ''",
     "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
+    'function isManagedProjectlessWorkspace(workspace: string): boolean',
+    "const managedRoot = path.join(os.homedir(), 'Documents', 'Codex')",
+    'const workspace = recordedCwd(raw.cwd)',
+    "return isManagedProjectlessWorkspace(workspace) ? '' : workspace",
+    'projectId: projectId(raw)',
     'workspace: recordedCwd(raw.cwd)',
-  ].join('\n');
+  ];
+  const threadAdapter = threadAdapterMarkers.join('\n');
 
   assert.doesNotThrow(() =>
     assertCanonicalThreadAffinityConvergenceSources({
@@ -821,7 +829,7 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
   }
 
   for (const cachedOverride of [
-    'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+    'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectAffinity',
     'cached?.extra.custom_workspace === true',
     'workspace: projectAffinityWorkspace',
     'custom_workspace: customWorkspace',
@@ -851,6 +859,17 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
         conversationListSync,
         focusedTests: focusedTests.replace(focusedTestName, ''),
         threadAdapter,
+      }),
+    );
+  }
+
+  for (const threadAdapterMarker of threadAdapterMarkers) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync,
+        focusedTests,
+        threadAdapter: threadAdapter.replace(threadAdapterMarker, ''),
       }),
     );
   }
