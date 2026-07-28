@@ -1692,9 +1692,11 @@ function Get-WebUiHealthTimeoutClassification {
   $evidence = ($evidencePaths | ForEach-Object {
     Get-Content -LiteralPath $_ -Raw -ErrorAction SilentlyContinue
   }) -join "`n"
-  $networkFailurePattern = "(?i)(?:timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|temporary failure in name resolution|name resolution|dns|tls|ssl|certificate|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)"
+  $networkFailurePattern = "(?i)(?:timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)"
+  $networkErrorContextPattern = "(?i)(?:(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp)[^\r\n]*(?:dns|tls|ssl|certificate)|(?:dns|tls|ssl|certificate)[^\r\n]*(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp))"
   $remoteNetworkFailure = @($evidence -split "`r?`n" | Where-Object {
-    $_ -match "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)" -and $_ -match $networkFailurePattern
+    $_ -match "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)" `
+      -and ($_ -match $networkFailurePattern -or $_ -match $networkErrorContextPattern)
   }).Count -gt 0
   if ($remoteNetworkFailure) {
     return [pscustomobject]@{

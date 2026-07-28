@@ -429,7 +429,9 @@ test('Windows Docker/WebUI health timeout classifies external input only with re
   assert.match(classification, /ghcr\\\.io/);
   assert.match(classification, /github\\\.com/);
   assert.match(classification, /networkFailurePattern/);
-  assert.match(classification, /-and \$_ -match \$networkFailurePattern/);
+  assert.match(classification, /networkErrorContextPattern/);
+  assert.match(classification, /-and \(\$_ -match \$networkFailurePattern/);
+  assert.match(classification, /-or \$_ -match \$networkErrorContextPattern/);
   assert.match(healthWait, /Get-WebUiHealthTimeoutClassification -TargetDir \$failureDir/);
   assert.match(healthWait, /health-timeout-classification\.txt/);
   assert.match(healthWait, /external_input_required/);
@@ -437,6 +439,16 @@ test('Windows Docker/WebUI health timeout classifies external input only with re
   assert.match(healthWait, /Diagnostics do not establish a GitHub\/GHCR network blockage/);
   assert.match(installer, /Docker Desktop -> Settings -> Resources -> Proxies/);
   assert.doesNotMatch(healthWait, /throw "external_input_required: WebUI did not become reachable[\s\S]*First-time Official Profile initialization/);
+});
+
+test('Windows Docker/WebUI requires failure context for generic TLS/DNS/certificate terms', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const classification = extractPowerShellFunction(installer, 'Get-WebUiHealthTimeoutClassification');
+  const primaryPattern = classification.match(/\$networkFailurePattern = "([^"]+)"/)?.[1] ?? '';
+  assert.doesNotMatch(primaryPattern, /\b(?:dns|tls|ssl|certificate)\b/);
+  assert.match(classification, /\$networkErrorContextPattern =/);
+  assert.match(classification, /\$networkErrorContextPattern\)/);
+  assert.match(classification, /(?:error|err|failed|failure|unable|cannot|could not)/i);
 });
 
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
