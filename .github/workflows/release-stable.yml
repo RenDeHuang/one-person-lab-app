@@ -638,7 +638,7 @@ jobs:
     secrets: inherit
 
   append-full:
-    if: ${{ inputs.operation == 'append_full' && needs.admission.result == 'success' }}
+    if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}
     needs: [admission]
     permissions:
       contents: write

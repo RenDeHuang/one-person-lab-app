@@ -319,7 +319,7 @@ const stableEntrySpecs = {
   'append-full': {
     operation: 'append_full',
     workflow: './.github/workflows/_release-full-addon.yml',
-    if: "${{ inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+    if: "${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
     needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
