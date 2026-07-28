@@ -3,18 +3,6 @@ type GitHubReview = {
   commit_id?: string | null;
 };
 
-type GitHubReaction = {
-  user?: { login?: string | null } | null;
-  content?: string | null;
-  source_head_sha?: string | null;
-};
-
-type GitHubIssueComment = {
-  id?: number | null;
-  body?: string | null;
-  created_at?: string | null;
-};
-
 type ReviewThread = {
   isResolved: boolean;
   isOutdated: boolean;
@@ -24,12 +12,11 @@ type ReviewThread = {
 export type CodexReviewGateInput = {
   headSha: string;
   reviews: GitHubReview[];
-  reactions: GitHubReaction[];
   reviewThreads: ReviewThread[];
 };
 
 export type CodexReviewGateResult = {
-  status: 'waiting' | 'failed' | 'passed';
+  status: 'waiting' | 'failed' | 'passed' | 'inconclusive';
   summary: string;
 };
 
@@ -49,15 +36,6 @@ function hasCurrentCodexReview(reviews: GitHubReview[], headSha: string): boolea
   );
 }
 
-function hasTerminalCodexReaction(reactions: GitHubReaction[], headSha: string): boolean {
-  return reactions.some(
-    (reaction) =>
-      isCodexBot(reaction.user?.login) &&
-      reaction.content === '+1' &&
-      String(reaction.source_head_sha ?? '').toLowerCase() === headSha,
-  );
-}
-
 function unresolvedCurrentCodexThreads(reviewThreads: ReviewThread[]): ReviewThread[] {
   return reviewThreads.filter(
     (thread) =>
@@ -69,11 +47,10 @@ function unresolvedCurrentCodexThreads(reviewThreads: ReviewThread[]): ReviewThr
 
 export function evaluateCodexReviewGate(input: CodexReviewGateInput): CodexReviewGateResult {
   const currentReview = hasCurrentCodexReview(input.reviews, input.headSha);
-  const terminalReaction = hasTerminalCodexReaction(input.reactions, input.headSha);
-  if (!currentReview && !terminalReaction) {
+  if (!currentReview) {
     return {
       status: 'waiting',
-      summary: `Waiting for Codex to finish reviewing ${input.headSha.slice(0, 12)}. A reaction-only result must be attached to a head-bound @codex review comment.`,
+      summary: `Waiting for Codex to create a pull-request review record for ${input.headSha.slice(0, 12)}.`,
     };
   }
 
@@ -87,9 +64,18 @@ export function evaluateCodexReviewGate(input: CodexReviewGateInput): CodexRevie
 
   return {
     status: 'passed',
-    summary: currentReview
-      ? `Codex reviewed ${input.headSha.slice(0, 12)} and has no unresolved current threads.`
-      : `Codex acknowledged ${input.headSha.slice(0, 12)} without review findings.`,
+    summary: `Codex reviewed ${input.headSha.slice(0, 12)} and has no unresolved current threads.`,
+  };
+}
+
+export function finalizeCodexReviewGateResult(
+  result: CodexReviewGateResult,
+  waitSeconds: number,
+): CodexReviewGateResult {
+  if (result.status !== 'waiting') return result;
+  return {
+    status: 'inconclusive',
+    summary: `${result.summary} No immutable Codex review record arrived after ${waitSeconds} seconds; reaction-only evidence is intentionally inconclusive for this advisory.`,
   };
 }
 
@@ -124,43 +110,6 @@ async function paginatedGitHubRequest<T>(path: string): Promise<T[]> {
     results.push(...batch);
     if (batch.length < 100) return results;
   }
-}
-
-function codexReviewHeadFromComment(body: string | null | undefined): string | null {
-  const match = String(body ?? '').match(/<!--\s*codex-review-head\s*:\s*([0-9a-f]{40})\s*-->/i);
-  return match?.[1]?.toLowerCase() ?? null;
-}
-
-function isHeadBoundCodexReviewRequest(comment: GitHubIssueComment, headSha: string): boolean {
-  return /@codex\s+review\b/i.test(String(comment.body ?? '')) &&
-    codexReviewHeadFromComment(comment.body) === headSha;
-}
-
-async function fetchCurrentRequestCommentReactions(
-  owner: string,
-  repo: string,
-  pullNumber: number,
-  headSha: string,
-): Promise<GitHubReaction[]> {
-  const comments = await paginatedGitHubRequest<GitHubIssueComment>(
-    `/repos/${owner}/${repo}/issues/${pullNumber}/comments`,
-  );
-  const currentRequests = comments.filter((comment) => {
-    return Number.isInteger(comment.id) &&
-      isHeadBoundCodexReviewRequest(comment, headSha);
-  });
-  const reactions = await Promise.all(
-    currentRequests.map(async (comment) => {
-      const commentReactions = await paginatedGitHubRequest<GitHubReaction>(
-        `/repos/${owner}/${repo}/issues/comments/${comment.id}/reactions`,
-      );
-      return commentReactions.map((reaction) => ({
-        ...reaction,
-        source_head_sha: headSha,
-      }));
-    }),
-  );
-  return reactions.flat();
 }
 
 async function fetchReviewThreads(request: GitHubRequest, owner: string, repo: string, pullNumber: number): Promise<ReviewThread[]> {
@@ -241,15 +190,13 @@ async function main(): Promise<void> {
   const deadlineMs = Date.now() + waitSeconds * 1_000;
 
   for (;;) {
-    const [reviews, requestCommentReactions, reviewThreads] = await Promise.all([
+    const [reviews, reviewThreads] = await Promise.all([
       paginatedGitHubRequest<GitHubReview>(`/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`),
-      fetchCurrentRequestCommentReactions(owner, repo, pullNumber, headSha),
       fetchReviewThreads(githubRequest, owner, repo, pullNumber),
     ]);
     const result = evaluateCodexReviewGate({
       headSha,
       reviews,
-      reactions: requestCommentReactions,
       reviewThreads,
     });
 
@@ -259,14 +206,9 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const terminal = result.status === 'waiting'
-      ? {
-          status: 'failed' as const,
-          summary: `${result.summary} Timed out after ${waitSeconds} seconds; request or rerun Codex review for this head.`,
-        }
-      : result;
+    const terminal = finalizeCodexReviewGateResult(result, waitSeconds);
     console.log(terminal.summary);
-    if (terminal.status !== 'passed') throw new Error(terminal.summary);
+    if (terminal.status === 'failed') throw new Error(terminal.summary);
     return;
   }
 }
