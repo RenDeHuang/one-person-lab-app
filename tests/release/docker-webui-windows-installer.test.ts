@@ -226,7 +226,7 @@ test('Windows Docker/WebUI installs a reusable health-gated desktop launcher', (
   );
   const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
 
-  assert.match(launcherWriter, /dockerCliPath compose -f \$composePath up -d/);
+  assert.match(launcherWriter, /Invoke-DockerCommand -Arguments @\("compose", "-f", \$composePath, "up", "-d"\)/);
   assert.doesNotMatch(launcherWriter, /compose -f \$composePath down/);
   assert.match(launcherWriter, /ArgumentList @\("desktop", "start"\)/);
   assert.match(launcherWriter, /desktopStart\.WaitForExit\(30000\)/);
@@ -235,6 +235,10 @@ test('Windows Docker/WebUI installs a reusable health-gated desktop launcher', (
   assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Head/);
   assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Get/);
   assert.match(launcherWriter, /Start-Process -FilePath \$url/);
+  assert.match(launcherWriter, /function Invoke-DockerCommand/);
+  assert.match(launcherWriter, /\[System\.Diagnostics\.ProcessStartInfo\]::new\(\)/);
+  assert.match(launcherWriter, /\$startInfo\.RedirectStandardOutput = \$true/);
+  assert.doesNotMatch(launcherWriter, /& \$dockerCliPath/);
   assert.match(launcherWriter, /Language\.Parser\]::ParseInput/);
   assert.match(launcherWriter, /Generated One Person Lab launcher is invalid/);
   assert.match(launcherWriter, /CreateShortcut\(\$shortcutPath\)/);
@@ -395,12 +399,17 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
     installer.indexOf('function Refresh-ProcessPathFromEnvironment'),
     installer.indexOf('function Invoke-DiagnosticDockerCommand'),
   );
+  const diagnostics = installer.slice(
+    installer.indexOf('function Invoke-DiagnosticDockerCommand'),
+    installer.indexOf('function Install-Wsl2Prerequisites'),
+  );
   const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
 
   assert.match(resolver, /Get-Command docker\.exe -CommandType Application/);
   assert.match(resolver, /Docker\\Docker\\resources\\bin\\docker\.exe/);
   assert.match(resolver, /Programs\\DockerDesktop\\resources\\bin\\docker\.exe/);
-  assert.match(installer, /\$output = & \$DockerCliPath @Arguments/);
+  assert.match(diagnostics, /Invoke-DockerCommandCapture/);
+  assert.doesNotMatch(diagnostics, /\$output = & \$DockerCliPath @Arguments/);
   assert.match(installer, /\$startInfo\.FileName = \$DockerCliPath/);
   assert.match(installer, /\$startInfo\.Arguments = \$argumentLine/);
   assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
@@ -409,6 +418,13 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
   assert.match(execution, /Collect-WebUiDiagnostics -DockerCliPath \$dockerCliPath/);
   assert.doesNotMatch(installer, /Get-Command docker(?!\.exe)/);
   assert.doesNotMatch(installer, /& docker(?:\s|$)/);
+});
+
+test('Windows Docker/WebUI health timeout reports an external-input boundary', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  assert.match(installer, /external_input_required: WebUI did not become reachable/);
+  assert.match(installer, /First-time Official Profile initialization needs Docker Engine access to GitHub\/GHCR/);
+  assert.match(installer, /Docker Desktop -> Settings -> Resources -> Proxies/);
 });
 
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
