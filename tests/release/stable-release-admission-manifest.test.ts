@@ -229,6 +229,13 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.equal(manifest.source_gate.release_authority, false);
   assert.equal(manifest.source_gate.final_signed_byte_authority, false);
   assert.deepEqual(manifest.apple_credentials.required_secret_names, requiredSecretNames);
+  assert.deepEqual(manifest.dispatcher_contract.accepted_inputs, [
+    'operation',
+    'authority_id',
+    'operation_id',
+    'authority_carrier',
+    'authority_digest',
+  ]);
   assert.equal(manifest.dispatcher_contract.raw_standard_version_or_ref_inputs_allowed, false);
   const { manifest_digest: digest, ...core } = manifest;
   assert.equal(digest, stableAdmissionManifestDigest(core));

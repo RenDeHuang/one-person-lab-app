@@ -7,6 +7,8 @@ on:
     types: [submitted, edited, dismissed]
   pull_request_review_comment:
     types: [created, edited, deleted]
+  issue_comment:
+    types: [created, edited, deleted]
   workflow_dispatch:
     inputs:
       pull_number:
@@ -20,7 +22,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: codex-review-gate-${{ github.event.pull_request.number || inputs.pull_number }}
+  group: codex-review-gate-${{ github.event.pull_request.number || github.event.issue.number || inputs.pull_number }}
   cancel-in-progress: true
 
 env:
@@ -28,7 +30,13 @@ env:
 
 jobs:
   gate:
-    if: github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        (github.event.comment.user.login == 'chatgpt-codex-connector[bot]' ||
+          github.event.comment.user.login == 'chatgpt-codex-connector')) ||
+      (github.event_name != 'issue_comment' && !github.event.pull_request.draft)
     name: Codex review advisory
     runs-on: ubuntu-latest
     steps:
@@ -49,7 +57,7 @@ jobs:
       - name: Wait for and evaluate Codex review
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PULL_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pull_number || github.event.pull_request.number }}
-          CODEX_REVIEW_WAIT_SECONDS: ${{ github.event_name == 'workflow_dispatch' && '0' || '900' }}
+          PULL_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pull_number || github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+          CODEX_REVIEW_WAIT_SECONDS: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'issue_comment') && '0' || '900' }}
           CODEX_REVIEW_POLL_SECONDS: '30'
         run: node --experimental-strip-types scripts/codex-review-gate.ts

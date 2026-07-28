@@ -1481,22 +1481,27 @@ export const appOwnedSessionWorkspaceModel = {
   projectless_session_semantics:
     "no_user_selected_project_affinity_not_no_runtime_cwd",
   projectless_detection:
-    "custom_workspace_equals_false_or_canonical_recorded_cwd_absent_never_turn_or_command_pwd",
+    "explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd",
+  recorded_cwd_role:
+    "canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity",
+  project_affinity_source: "explicit_project_id_projection",
   project_affinity_role:
-    "canonical_recorded_thread_cwd_for_ui_grouping_and_default_turn_cwd_hint",
+    "explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd",
+  managed_scratch_presentation:
+    "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
   workspace_binding_role:
-    "new_session_initial_cwd_or_projectless_one_time_canonical_cwd_adoption_and_sidebar_grouping_metadata_only",
+    "new_session_initial_cwd_and_explicit_project_affinity_assignment_are_distinct",
   runtime_pwd_role:
     "turn_cwd_or_command_pwd_execution_context_not_persisted_as_project_affinity",
   turn_cwd_override_allowed: true,
   writable_roots_role:
     "sandbox_permission_surface_independent_of_project_affinity",
   core_workspace_application:
-    "thread_settings_update_cwd_with_exact_thread_read_before_local_projection_commit",
+    "thread_settings_update_cwd_records_runtime_workspace_only",
   runtime_pwd_changes_project_affinity: false,
   project_affinity_changes_writable_roots: false,
   project_adoption_transition:
-    "projectless_to_bound_once_via_thread_settings_update_cwd",
+    "unbound_to_bound_once_via_explicit_project_affinity_assignment",
   bound_project_reassignment: "not_exposed",
   workspace_owns_session: false,
   workspace_owns_context: false,
@@ -1514,7 +1519,7 @@ export const appOwnedDirectoryGroupPolicy = {
   new_session_action_language: "use_this_working_directory_not_create_project_child",
   project_directory_cardinality: "one_project_affinity_one_canonical_directory",
   legacy_missing_marker_policy:
-    "existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update",
+    "existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration",
   git_origin_url_project_identity_allowed: false,
   turn_cwd_reclassifies_bound_session: false,
   project_adoption_policy: {

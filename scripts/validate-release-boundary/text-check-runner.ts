@@ -319,7 +319,7 @@ const stableEntrySpecs = {
   'append-full': {
     operation: 'append_full',
     workflow: './.github/workflows/_release-full-addon.yml',
-    if: "${{ needs.admission.outputs.operation == 'append_full' }}",
+    if: "${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
     needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
@@ -1096,7 +1096,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl-release-activation-${SOURCE_RUN_ID}',
     'opl-release-full-published-${SOURCE_RUN_ID}',
     'write-optional-certification-receipt.ts',
-    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
     'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
     'actions/runners?per_page=100',
     "runner.status === 'online' && runner.busy === false",
