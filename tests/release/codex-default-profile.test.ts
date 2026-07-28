@@ -874,8 +874,11 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
 test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
   const threadAdapter = [
     "await this.rpc.request('thread/list', {",
+    'cursor,',
     'archived,',
     'useStateDbOnly: true,',
+    '...(workspace ? { cwd: workspace } : {}),',
+    '});',
   ].join('\n');
   const focusedTests = [
     'lists active and archived threads through bounded app-server pagination',
@@ -904,17 +907,30 @@ test('active-shell source gate keeps canonical thread directory queries state-db
   }
 
   for (const forbiddenMarker of [
-    'sourceKinds: renamedKinds',
+    'sourceKinds: renamedKinds,',
     'sourceKinds,',
-    '"sourceKinds": [\'cli\']',
+    '"sourceKinds": [\'cli\'],',
   ]) {
     assert.throws(() =>
       assertCanonicalThreadDirectoryTimeoutBoundarySources({
         focusedTests,
-        threadAdapter: `${threadAdapter}\n${forbiddenMarker}`,
+        threadAdapter: threadAdapter.replace('});', `${forbiddenMarker}\n});`),
       }),
     );
   }
+
+  assert.throws(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: `${threadAdapter.replace('useStateDbOnly: true,', '')}\nconst unrelated = { useStateDbOnly: true };`,
+    }),
+  );
+  assert.throws(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: threadAdapter.replace('useStateDbOnly: true', 'useStateDbOnly: false'),
+    }),
+  );
 
   for (const requiredTestMarker of [
     'lists active and archived threads through bounded app-server pagination',
@@ -933,10 +949,13 @@ test('active-shell source gate keeps canonical thread directory queries state-db
 test('conversation history and managed scratch keep identity, cwd, and Project affinity distinct', () => {
   const guiProductContract = readJson('contracts/app-gui-product-contract.json');
   const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
-  const surfaces =
-    guiProductContract.interaction_baseline.navigation_rail.thread_directory_policy
-      .conversation_history_surfaces;
+  const threadDirectoryPolicy = guiProductContract.interaction_baseline.navigation_rail.thread_directory_policy;
+  const surfaces = threadDirectoryPolicy.conversation_history_surfaces;
+  const guiWorkspaceModel = guiProductContract.interaction_baseline.conversation_scope.session_workspace_model;
   const home = pageStateMatrix.pages.find((page: { id: string }) => page.id === 'guid_home');
+  const ordinaryConversation = pageStateMatrix.pages.find(
+    (page: { id: string }) => page.id === 'ordinary_conversation',
+  );
 
   assert.equal(
     surfaces.default_rail.membership,
@@ -963,8 +982,29 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     managed_root_grouping_policy:
       'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
     projectless_adoption_eligibility:
-      'custom_workspace_false_or_canonical_project_id_absent_including_managed_root',
+      'project_id_absent_renders_unbound_but_pre_successor_adoption_remains_conservatively_guarded_by_custom_workspace_and_recorded_cwd_including_managed_root',
   });
+  assert.equal(
+    threadDirectoryPolicy.directory_group_policy_authority,
+    'current_shell_1c7_compatibility_transport_and_reassignment_guard_only_not_sidebar_project_affinity_authority',
+  );
+  assert.equal(
+    threadDirectoryPolicy.project_affinity_presentation_authority_ref,
+    'conversation_history_surfaces.project_affinity_presentation',
+  );
+  assert.equal(
+    threadDirectoryPolicy.strict_project_affinity_producer,
+    'post_app_shell_successor_project_id_projection',
+  );
+  assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.session_workspace_model_authority,
+    'current_shell_1c7_compatibility_transport_only_not_sidebar_project_affinity_authority',
+  );
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.project_affinity_presentation_authority_ref,
+    'interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces.project_affinity_presentation',
+  );
   assert.deepEqual(home.home_view_model.conversation_history_surfaces, {
     policy_ref:
       'contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces',

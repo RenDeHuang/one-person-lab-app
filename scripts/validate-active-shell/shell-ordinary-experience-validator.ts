@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 import {
   assertShellTextIncludesAll,
   assertTextDoesNotMatch,
@@ -103,20 +104,52 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
   focusedTests: string;
   threadAdapter: string;
 }): void {
-  assertTextIncludesAll(
-    threadAdapter,
-    [
-      "await this.rpc.request('thread/list'",
-      'archived',
-      'useStateDbOnly: true',
-    ],
-    'Active shell canonical thread directory state-db boundary',
-  );
-  assertTextDoesNotMatch(
-    threadAdapter,
-    /(?:\bsourceKinds\b|['"]sourceKinds['"])\s*(?::|,)/u,
-    'Active shell canonical thread directory must not widen source kinds',
-  );
+  const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
+  const threadListOptions: ts.ObjectLiteralExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'request' &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      node.arguments[0].text === 'thread/list'
+    ) {
+      const options = node.arguments[1];
+      if (!options || !ts.isObjectLiteralExpression(options)) {
+        throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
+      }
+      threadListOptions.push(options);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (threadListOptions.length === 0) {
+    throw new Error('Active shell canonical thread directory must call thread/list');
+  }
+  const propertyName = (property: ts.ObjectLiteralElementLike): string | null => {
+    const name = property.name;
+    if (!name) return null;
+    if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) return name.text;
+    if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) return name.expression.text;
+    return null;
+  };
+  for (const options of threadListOptions) {
+    const archived = options.properties.find((property) => propertyName(property) === 'archived');
+    const stateDbOnly = options.properties.find((property) => propertyName(property) === 'useStateDbOnly');
+    if (!archived) {
+      throw new Error('Active shell canonical thread directory thread/list options must include archived');
+    }
+    if (
+      !stateDbOnly ||
+      !ts.isPropertyAssignment(stateDbOnly) ||
+      stateDbOnly.initializer.kind !== ts.SyntaxKind.TrueKeyword
+    ) {
+      throw new Error('Active shell canonical thread directory thread/list options must set useStateDbOnly to true');
+    }
+    if (options.properties.some((property) => propertyName(property) === 'sourceKinds')) {
+      throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
+    }
+  }
   assertTextIncludesAll(
     focusedTests,
     [
