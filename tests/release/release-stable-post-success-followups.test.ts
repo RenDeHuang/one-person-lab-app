@@ -208,7 +208,8 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
   assert.match(source, /source_bundle_digest/);
   assert.match(source, /\.bundle_digest "\$bundle"/);
   assert.match(source, /dispatch_payload=.*--argjson inputs "\$inputs_json"/);
-  assert.match(source, /--arg ref "\$APP_REF"/);
+  assert.match(source, /dispatch_ref="v\$\{VERSION\}"/);
+  assert.match(source, /--arg ref "\$dispatch_ref"/);
   assert.match(source, /'\{ref:\$ref,inputs:\$inputs\}'/);
   assert.match(source, /--input - <<<"\$dispatch_payload"/);
   assert.doesNotMatch(source, /current_main_sha/);
@@ -241,6 +242,8 @@ test("successor is idempotent and does not retry an unknown dispatch result", ()
   assert.match(source, /no retry is allowed/);
   assert.match(source, /status=unknown/);
   assert.match(source, /run_attempt == 1/);
+  assert.match(source, /\.head_branch == \$branch/);
+  assert.match(source, /\.head_sha == \$head/);
   assert.match(source, /unique \| \.\[\]/);
 });
 

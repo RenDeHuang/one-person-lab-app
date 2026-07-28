@@ -315,6 +315,8 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
+    fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'exact_stable_tag' ||
+    fullAddon?.successor_trigger?.executor_head_sha !== 'frozen_app_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
     fullAddon?.mode !== 'same_cohort_additive_only' ||
     !sameStringSet(fullAddon?.allowed_assets, [

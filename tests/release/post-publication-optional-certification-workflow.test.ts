@@ -275,11 +275,24 @@ test('optional certification is an automatic read-only post-publication executor
   }
 
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
+  assert.equal(
+    workflow.jobs['resolve-standard'].if,
+    "${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+  );
+  assert.equal(
+    workflow.jobs['resolve-full'].if,
+    "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full ') }}",
+  );
   assert.match(
     String(workflow.concurrency.group),
     /opl-post-publication-certification-\$\{\{ github\.event\.workflow_run\.id \}\}/,
   );
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
+  assert.match(source, /\.head_branch == "main"/);
+  assert.match(source, /\^OPL Stable standard/);
+  assert.match(source, /\.head_branch \| test\("\^v/);
+  assert.match(source, /\^OPL Stable append_full/);
+  assert.match(source, /test "\$tag" = "\$head_branch"/);
   assert.match(source, /opl-release-activation-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /opl-release-full-published-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /public-component-manifest\.json/);
