@@ -116,6 +116,108 @@ function runPostPublicationClassifier(
   }
 }
 
+function runCapabilityUnavailableReceiptWriter(
+  workflow: Record<string, any>,
+  profile: 'standard' | 'full',
+) {
+  const jobName = profile === 'standard' ? 'write-standard-receipts' : 'write-full-receipt';
+  const stepName = profile === 'standard'
+    ? 'Write Standard VM result and explicit residual not-run receipts'
+    : 'Write exact Full VM certification receipt';
+  const evidenceDirName = profile === 'standard'
+    ? 'imported-standard-vm-evidence'
+    : 'imported-full-vm-evidence';
+  const outputName = profile === 'standard'
+    ? 'standard-dmg-clean-machine.json'
+    : 'full-dmg-clean-machine.json';
+  const version = '26.7.27';
+  const artifactName = profile === 'standard'
+    ? `One-Person-Lab-${version}-mac-arm64.dmg`
+    : `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const sourceVm = 'opl-clean-macos';
+  const script = String(workflowStep(workflow, jobName, stepName).run);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `opl-${profile}-capability-unavailable-`));
+  try {
+    const scriptsDir = path.join(root, 'scripts');
+    fs.mkdirSync(scriptsDir);
+    for (const scriptName of [
+      'write-optional-certification-receipt.ts',
+      'validate-optional-certification-receipt.ts',
+    ]) {
+      fs.copyFileSync(path.join(appRoot, 'scripts', scriptName), path.join(scriptsDir, scriptName));
+    }
+    const evidenceDir = path.join(root, evidenceDirName);
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(evidenceDir, 'published-artifact-identity.json'),
+      `${JSON.stringify({
+        schema: 'opl_app_post_publication_artifact_identity.v1',
+        verified: true,
+        release_tag: `v${version}`,
+        artifact: {
+          name: artifactName,
+          digest: `sha256:${'d'.repeat(64)}`,
+        },
+        cohort: {
+          app_sha: 'a'.repeat(40),
+          shell_sha: 'b'.repeat(40),
+          framework_sha: 'c'.repeat(40),
+        },
+      })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(evidenceDir, 'post-publication-job-start.json'),
+      `${JSON.stringify({
+        schema: 'opl_app_optional_certification_job_start.v1',
+        started: true,
+      })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(evidenceDir, 'post-publication-capability-admission.json'),
+      `${JSON.stringify({
+        schema: 'opl_app_optional_certification_vm_admission.v1',
+        status: 'failed',
+        reason_code: 'capability_admission_failed',
+        source_vm: sourceVm,
+      })}\n`,
+    );
+    const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', script], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        SOURCE_RUN_ID: '123456',
+        RELEASE_TAG: `v${version}`,
+        ARTIFACT_NAME: artifactName,
+        ARTIFACT_DIGEST: `sha256:${'d'.repeat(64)}`,
+        COMPONENT_MANIFEST_DIGEST: `sha256:${'e'.repeat(64)}`,
+        APP_SHA: 'a'.repeat(40),
+        SHELL_SHA: 'b'.repeat(40),
+        FRAMEWORK_SHA: 'c'.repeat(40),
+        VM_ADMITTED: 'true',
+        VM_ADMISSION_REASON: '',
+        VM_JOB_RESULT: 'failure',
+        VM_STATUS: 'unavailable',
+        VM_REASON_CODE: 'capability_admission_failed',
+        VM_ARTIFACT_VERIFIED: 'true',
+        VM_JOB_STARTED: 'true',
+        VM_EXECUTION_STARTED: 'false',
+        VM_CLASSIFICATION_VALID: 'true',
+        GITHUB_RUN_ID: '654321',
+      },
+    });
+    const receiptPath = path.join(root, outputName);
+    return {
+      result,
+      receipt: fs.existsSync(receiptPath)
+        ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) as Record<string, any>
+        : null,
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('optional certification is an automatic read-only post-publication executor', () => {
   const { source, workflow } = readWorkflow(workflowPath);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_run']);
@@ -288,6 +390,9 @@ test('receipt projection distinguishes execution, capability absence, and residu
   assert.match(source, /passed requires a successful reusable job and a started executor/);
   assert.match(source, /failed requires a failed reusable job after execution started/);
   assert.match(source, /did not return one sealable terminal classification/);
+  assert.equal((source.match(/\.source_cohort\.app_sha == \$app_sha/g) ?? []).length, 2);
+  assert.equal((source.match(/\.source_cohort\.shell_sha == \$shell_sha/g) ?? []).length, 2);
+  assert.equal((source.match(/\.source_cohort\.framework_sha == \$framework_sha/g) ?? []).length, 2);
   assert.match(source, /require_tart_summary\(\) \{/);
   assert.match(source, /passed\)[\s\S]+require_tart_summary[\s\S]+\.status == "passed"/);
   assert.match(source, /failed\)[\s\S]+require_tart_summary[\s\S]+\.status == "passed" or \.status == "failed"/);
@@ -454,5 +559,17 @@ test('only exact typed capability evidence can seal unavailable', () => {
     assert.equal(rejected.result.status, 0, rejected.result.stderr || rejected.result.stdout);
     assert.match(rejected.output, /valid=false/);
     assert.doesNotMatch(rejected.output, /status=unavailable/);
+  }
+});
+
+test('capability-unavailable receipts do not require Tart execution evidence', () => {
+  const { workflow } = readWorkflow(workflowPath);
+  for (const profile of ['standard', 'full'] as const) {
+    const { result, receipt } = runCapabilityUnavailableReceiptWriter(workflow, profile);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(receipt?.status, 'unavailable');
+    assert.equal(receipt?.admission?.status, 'failed');
+    assert.equal(receipt?.admission?.reason_code, 'capability_admission_failed');
+    assert.deepEqual(receipt?.result?.evidence_digests, []);
   }
 });
