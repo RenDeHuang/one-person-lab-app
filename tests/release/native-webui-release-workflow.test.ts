@@ -223,9 +223,12 @@ test('Stable Standard publish consumes Native before the one Release publish', (
   assert.equal(standard.parsed.on.workflow_call.inputs.qualified_native_artifact_name.default, '');
   assert.match(standard.source, /Bind qualified Native and consumed operation control into one immutable carrier/);
   assert.match(standard.source, /find immutable-carrier-input -type f -path '.*native-qualified\/\*\/publication-manifest\.json'/);
+  assert.match(standard.source, /cp -a "\$native_qualified_source_dir" native-qualified/);
   assert.match(standard.source, /test ! -e native-release/);
-  assert.match(standard.source, /cp -a "\$native_source_dir"\/\. "native-release\/\$target\/"/);
+  assert.match(standard.source, /cp -a native-qualified\/\. native-release\//);
+  assert.match(standard.source, /diff -r native-qualified native-release/);
   assert.match(standard.source, /--manifest "native-release\/\$target\/publication-manifest\.json"/);
+  assert.match(standard.source, /cp -a "\$control_source_dir" stable-operation-control/);
   assert.doesNotMatch(standard.source, /cd immutable-carrier-input/);
   assert.doesNotMatch(standard.source, /Download exact qualified Native artifact for the unified draft carrier/);
   assert.match(standard.source, /release-native-webui-carrier\.ts upload-actions/);
