@@ -226,7 +226,7 @@ test('Windows Docker/WebUI installs a reusable health-gated desktop launcher', (
   );
   const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
 
-  assert.match(launcherWriter, /dockerCliPath compose -f \$composePath up -d/);
+  assert.match(launcherWriter, /Invoke-DockerCommand -Arguments @\("compose", "-f", \$composePath, "up", "-d"\)/);
   assert.doesNotMatch(launcherWriter, /compose -f \$composePath down/);
   assert.match(launcherWriter, /ArgumentList @\("desktop", "start"\)/);
   assert.match(launcherWriter, /desktopStart\.WaitForExit\(30000\)/);
@@ -235,6 +235,10 @@ test('Windows Docker/WebUI installs a reusable health-gated desktop launcher', (
   assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Head/);
   assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Get/);
   assert.match(launcherWriter, /Start-Process -FilePath \$url/);
+  assert.match(launcherWriter, /function Invoke-DockerCommand/);
+  assert.match(launcherWriter, /\[System\.Diagnostics\.ProcessStartInfo\]::new\(\)/);
+  assert.match(launcherWriter, /\$startInfo\.RedirectStandardOutput = \$true/);
+  assert.doesNotMatch(launcherWriter, /& \$dockerCliPath/);
   assert.match(launcherWriter, /Language\.Parser\]::ParseInput/);
   assert.match(launcherWriter, /Generated One Person Lab launcher is invalid/);
   assert.match(launcherWriter, /CreateShortcut\(\$shortcutPath\)/);
@@ -395,12 +399,17 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
     installer.indexOf('function Refresh-ProcessPathFromEnvironment'),
     installer.indexOf('function Invoke-DiagnosticDockerCommand'),
   );
+  const diagnostics = installer.slice(
+    installer.indexOf('function Invoke-DiagnosticDockerCommand'),
+    installer.indexOf('function Install-Wsl2Prerequisites'),
+  );
   const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
 
   assert.match(resolver, /Get-Command docker\.exe -CommandType Application/);
   assert.match(resolver, /Docker\\Docker\\resources\\bin\\docker\.exe/);
   assert.match(resolver, /Programs\\DockerDesktop\\resources\\bin\\docker\.exe/);
-  assert.match(installer, /\$output = & \$DockerCliPath @Arguments/);
+  assert.match(diagnostics, /Invoke-DockerCommandCapture/);
+  assert.doesNotMatch(diagnostics, /\$output = & \$DockerCliPath @Arguments/);
   assert.match(installer, /\$startInfo\.FileName = \$DockerCliPath/);
   assert.match(installer, /\$startInfo\.Arguments = \$argumentLine/);
   assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
@@ -409,6 +418,41 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
   assert.match(execution, /Collect-WebUiDiagnostics -DockerCliPath \$dockerCliPath/);
   assert.doesNotMatch(installer, /Get-Command docker(?!\.exe)/);
   assert.doesNotMatch(installer, /& docker(?:\s|$)/);
+});
+
+test('Windows Docker/WebUI health timeout classifies external input only with remote network evidence', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const healthWait = extractPowerShellFunction(installer, 'Wait-WebUiHealth');
+  const classification = extractPowerShellFunction(installer, 'Get-WebUiHealthTimeoutClassification');
+  assert.match(installer, /function Get-WebUiHealthTimeoutClassification/);
+  assert.match(classification, /docker-compose-logs\.txt/);
+  assert.match(classification, /ghcr\\\.io/);
+  assert.match(classification, /github\\\.com/);
+  assert.match(classification, /networkFailurePattern/);
+  assert.match(classification, /networkErrorContextPattern/);
+  assert.match(classification, /could not resolve/);
+  assert.match(classification, /networkAdjacentFailurePattern/);
+  assert.match(classification, /lineIndex - 1/);
+  assert.match(classification, /lineIndex \+ 1/);
+  assert.match(classification, /lineIndex -lt \$evidenceLines\.Count/);
+  assert.match(classification, /if \(\$line -match \$networkFailurePattern -or \$line -match \$networkErrorContextPattern\)/);
+  assert.match(healthWait, /Get-WebUiHealthTimeoutClassification -TargetDir \$failureDir/);
+  assert.match(healthWait, /health-timeout-classification\.txt/);
+  assert.match(healthWait, /external_input_required/);
+  assert.match(healthWait, /local_startup_failure/);
+  assert.match(healthWait, /Diagnostics do not establish a GitHub\/GHCR network blockage/);
+  assert.match(installer, /Docker Desktop -> Settings -> Resources -> Proxies/);
+  assert.doesNotMatch(healthWait, /throw "external_input_required: WebUI did not become reachable[\s\S]*First-time Official Profile initialization/);
+});
+
+test('Windows Docker/WebUI requires failure context for generic TLS/DNS/certificate terms', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const classification = extractPowerShellFunction(installer, 'Get-WebUiHealthTimeoutClassification');
+  const primaryPattern = classification.match(/\$networkFailurePattern = "([^"]+)"/)?.[1] ?? '';
+  assert.doesNotMatch(primaryPattern, /\b(?:dns|tls|ssl|certificate)\b/);
+  assert.match(classification, /\$networkErrorContextPattern =/);
+  assert.match(classification, /\$networkErrorContextPattern\)/);
+  assert.match(classification, /(?:error|err|failed|failure|unable|cannot|could not)/i);
 });
 
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
