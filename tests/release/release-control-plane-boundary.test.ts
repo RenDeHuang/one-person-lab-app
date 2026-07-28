@@ -143,6 +143,23 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
+test('append Full selection uses the dispatch operation while payload identity stays admission-bound', (t) => {
+  const root = fixture(t);
+  const file = workflowPath(root, 'release-stable.yml');
+  const current = fs.readFileSync(file, 'utf8');
+  assert.match(current, /if: \$\{\{ inputs\.operation == 'append_full' && needs\.admission\.result == 'success' \}\}/);
+  assert.equal(validateStableReleaseControlPlane(root), 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ needs.admission.outputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+});
+
 test('Stable admission keeps recovery inputs optional but requires their pre-issued carrier values for Standard', (t) => {
   const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
   const mutations = [
