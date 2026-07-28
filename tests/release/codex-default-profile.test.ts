@@ -5,6 +5,7 @@ import { validateAppGuiProductContract } from '../../scripts/validate-active-she
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 import {
+  assertCanonicalThreadDirectoryTimeoutBoundarySources,
   assertCanonicalThreadAffinityConvergenceSources,
   assertCurrentGuidHomeSelectionSources,
   assertProjectlessGuidFileAccessSources,
@@ -865,6 +866,64 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
         conversationListSync,
         focusedTests,
         threadAdapter: invalidThreadAdapter,
+      }),
+    );
+  }
+});
+
+test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
+  const threadAdapter = [
+    "await this.rpc.request('thread/list', {",
+    'archived,',
+    'useStateDbOnly: true,',
+  ].join('\n');
+  const focusedTests = [
+    'lists active and archived threads through bounded app-server pagination',
+    'useStateDbOnly: true',
+    "expect(request.mock.calls[0]?.[1]).not.toHaveProperty('sourceKinds')",
+  ].join('\n');
+
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter,
+    }),
+  );
+
+  for (const requiredMarker of [
+    "await this.rpc.request('thread/list'",
+    'archived',
+    'useStateDbOnly: true',
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace(requiredMarker, ''),
+      }),
+    );
+  }
+
+  for (const forbiddenMarker of [
+    'sourceKinds: OPL_VISIBLE_THREAD_SOURCE_KINDS',
+    'OPL_VISIBLE_THREAD_SOURCE_KINDS',
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: `${threadAdapter}\n${forbiddenMarker}`,
+      }),
+    );
+  }
+
+  for (const requiredTestMarker of [
+    'lists active and archived threads through bounded app-server pagination',
+    'useStateDbOnly: true',
+    "not.toHaveProperty('sourceKinds')",
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests: focusedTests.replace(requiredTestMarker, ''),
+        threadAdapter,
       }),
     );
   }

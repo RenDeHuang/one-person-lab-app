@@ -96,6 +96,38 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   );
 }
 
+export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
+  focusedTests,
+  threadAdapter,
+}: {
+  focusedTests: string;
+  threadAdapter: string;
+}): void {
+  assertTextIncludesAll(
+    threadAdapter,
+    [
+      "await this.rpc.request('thread/list'",
+      'archived',
+      'useStateDbOnly: true',
+    ],
+    'Active shell canonical thread directory state-db boundary',
+  );
+  assertTextExcludesAll(
+    threadAdapter,
+    ['sourceKinds: OPL_VISIBLE_THREAD_SOURCE_KINDS', 'OPL_VISIBLE_THREAD_SOURCE_KINDS'],
+    'Active shell canonical thread directory must not widen source kinds',
+  );
+  assertTextIncludesAll(
+    focusedTests,
+    [
+      'lists active and archived threads through bounded app-server pagination',
+      'useStateDbOnly: true',
+      "not.toHaveProperty('sourceKinds')",
+    ],
+    'Active shell canonical thread directory timeout/archive regressions',
+  );
+}
+
 export function assertProjectlessGuidFileAccessSources(guidPage: string): void {
   assertTextIncludesAll(
     guidPage,
@@ -1496,6 +1528,10 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
   assertCanonicalThreadAffinityConvergenceSources({
     canonicalThreadLifecycle: projectAffinityLifecycle,
     conversationListSync,
+    focusedTests: projectAffinityTests,
+    threadAdapter,
+  });
+  assertCanonicalThreadDirectoryTimeoutBoundarySources({
     focusedTests: projectAffinityTests,
     threadAdapter,
   });
