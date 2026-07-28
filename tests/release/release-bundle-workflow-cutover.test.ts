@@ -336,6 +336,10 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
   assert.equal(stable.jobs['resume-standard'].uses, './.github/workflows/_release-standard-publish.yml');
   assert.equal(stable.jobs['append-full'].uses, './.github/workflows/_release-full-addon.yml');
   assert.equal(
+    stable.jobs['append-full'].if,
+    "${{ inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+  );
+  assert.equal(
     stable.jobs['resume-standard'].with.qualified_native_artifact_name,
     '${{ needs.admission.outputs.qualified_native_artifact_name }}',
   );
