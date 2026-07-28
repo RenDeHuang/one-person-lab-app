@@ -264,7 +264,7 @@
         },
         "conversation_history_surfaces": {
           "policy_ref": "contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces",
-          "default_rail": "canonical_unarchived_ordinary_user_task_only",
+          "default_rail": "canonical_unarchived_thread_directory",
           "running_now": "same_codex_desktop_runtime_task_status_or_explicit_unavailable",
           "archived": "independent_canonical_archived_thread_directory",
           "all_search": "explicit_canonical_historical_search_never_default_rail",
@@ -325,7 +325,7 @@
         "history search as one accessible icon at the trailing edge of the conversation-history heading",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
-        "default rail contains only canonically unarchived ordinary user tasks with owner-authoritative classification",
+        "default rail contains every canonically unarchived thread returned by the App Server directory",
         "Running now uses the same Codex Desktop runtime task-status authority or explicitly reports unavailable",
         "Archived is an independent canonical archived directory and All/Search is an explicit historical entry",
         "managed user Documents Codex workspaces preserve recorded cwd while rendering as projectless without leaf-directory Project groups",

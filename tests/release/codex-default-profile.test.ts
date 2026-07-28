@@ -1023,14 +1023,22 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
 
   assert.equal(
     surfaces.default_rail.membership,
-    'canonical_unarchived_threads_with_owner_authoritative_thread_class_ordinary_user_task',
+    'canonical_unarchived_thread_directory',
   );
-  assert.deepEqual(surfaces.default_rail.forbidden_inference_inputs, [
-    'archived_false',
-    'sourceKinds',
-    'separate_app_server_status',
-    'cache_row_shape',
-  ]);
+  assert.equal(surfaces.default_rail.authority, 'codex_app_server_thread_list_archived_false');
+  assert.equal(surfaces.default_rail.thread_classification_required, false);
+  assert.equal(
+    surfaces.default_rail.archived_false_role,
+    'directory_membership_only_never_running_status',
+  );
+  for (const unsupportedClassificationField of [
+    'thread_classification_authority',
+    'classification_values',
+    'unclassified_codex_policy',
+  ]) {
+    assert.equal(unsupportedClassificationField in surfaces.default_rail, false);
+  }
+  assert.equal('unclassified_codex_label' in surfaces.all_search, false);
   assert.equal(surfaces.running_now.authority, 'same_codex_desktop_runtime_task_status');
   assert.equal(surfaces.archived.membership, 'canonical_archived_thread_directory');
   assert.equal(surfaces.all_search.may_replace_default_rail, false);
@@ -1098,7 +1106,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   assert.deepEqual(home.home_view_model.conversation_history_surfaces, {
     policy_ref:
       'contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces',
-    default_rail: 'canonical_unarchived_ordinary_user_task_only',
+    default_rail: 'canonical_unarchived_thread_directory',
     running_now: 'same_codex_desktop_runtime_task_status_or_explicit_unavailable',
     archived: 'independent_canonical_archived_thread_directory',
     all_search: 'explicit_canonical_historical_search_never_default_rail',

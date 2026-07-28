@@ -409,22 +409,10 @@
         "non_codex_local_row_policy": "preserve",
         "conversation_history_surfaces": {
           "default_rail": {
-            "membership": "canonical_unarchived_threads_with_owner_authoritative_thread_class_ordinary_user_task",
-            "thread_classification_authority": "codex_desktop_runtime_or_owner_authoritative_thread_class",
-            "classification_values": [
-              "ordinary_user_task",
-              "automation",
-              "subagent",
-              "system",
-              "unclassified"
-            ],
-            "unclassified_codex_policy": "exclude_from_default_rail_until_owner_authoritative_classification_is_available",
-            "forbidden_inference_inputs": [
-              "archived_false",
-              "sourceKinds",
-              "separate_app_server_status",
-              "cache_row_shape"
-            ]
+            "membership": "canonical_unarchived_thread_directory",
+            "authority": "codex_app_server_thread_list_archived_false",
+            "thread_classification_required": false,
+            "archived_false_role": "directory_membership_only_never_running_status"
           },
           "running_now": {
             "authority": "same_codex_desktop_runtime_task_status",
@@ -444,8 +432,7 @@
           "all_search": {
             "entry": "explicit_history_search_only",
             "membership": "canonical_historical_directory_query",
-            "may_replace_default_rail": false,
-            "unclassified_codex_label": "unclassified"
+            "may_replace_default_rail": false
           },
           "project_affinity_presentation": {
             "recorded_cwd_role": "canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity",
