@@ -36,7 +36,7 @@ jobs:
         github.event.issue.pull_request &&
         (github.event.comment.user.login == 'chatgpt-codex-connector[bot]' ||
           github.event.comment.user.login == 'chatgpt-codex-connector') &&
-        startsWith(github.event.comment.body, 'Codex Review: Didn''t find any major issues. :tada:')) ||
+        startsWith(github.event.comment.body, 'Codex Review: Didn''t find any major issues.')) ||
       (github.event_name != 'issue_comment' && !github.event.pull_request.draft)
     name: Codex review advisory
     runs-on: ubuntu-latest
