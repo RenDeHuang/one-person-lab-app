@@ -741,6 +741,19 @@ test('manual source snapshot gate rejects tracked source dirtiness after freeze'
   );
 });
 
+test('manual source snapshot gate rejects untracked source dirtiness after freeze', (context) => {
+  const root = createDevelopmentRepo();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const frozen = snapshotDevelopmentRepo('fixture', root);
+
+  fs.writeFileSync(path.join(root, 'injected-source.ts'), 'export const injected = true;\n');
+
+  assert.throws(
+    () => assertDevelopmentRepoSnapshotUnchanged(frozen),
+    /fixture source snapshot became invalid during manual latest build:.*not clean/s,
+  );
+});
+
 test('manual source snapshot gate rejects main advancement after freeze', (context) => {
   const root = createDevelopmentRepo();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -480,11 +480,7 @@ export function assertDevelopmentRepoSnapshotUnchanged(expected: RepoSnapshot) {
       cwd: expected.root,
       allowFailure: true,
     });
-    status = commandOutput(
-      'git',
-      ['status', '--porcelain', '--untracked-files=no'],
-      { cwd: expected.root },
-    );
+    status = commandOutput('git', ['status', '--porcelain'], { cwd: expected.root });
     if (status) {
       throw new Error(`${expected.id} development directory is not clean:\n${status}`);
     }
