@@ -293,6 +293,26 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Docker manual override confirmation',
   );
   requireEqual(
+    dockerOverride?.operator_confirmation?.source,
+    'workflow_dispatch_exact_version_confirmation',
+    'Docker manual override confirmation source',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.expected_value,
+    'move-docker-latest:<exact_version>',
+    'Docker manual override confirmation value',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.actor,
+    'github_human_login',
+    'Docker manual override confirmation actor',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.digest_bound_into_terminal_receipt,
+    true,
+    'Docker manual override confirmation receipt binding',
+  );
+  requireEqual(
     dockerOverride?.selector,
     'carrier_owned_durable_publication_record',
     'Docker manual override selector',

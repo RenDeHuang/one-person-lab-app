@@ -211,6 +211,12 @@
       "docker_manual_override": {
         "target": "retained_immutable_verified_published_version",
         "requires_explicit_user_confirmation": true,
+        "operator_confirmation": {
+          "source": "workflow_dispatch_exact_version_confirmation",
+          "expected_value": "move-docker-latest:<exact_version>",
+          "actor": "github_human_login",
+          "digest_bound_into_terminal_receipt": true
+        },
         "selector": "carrier_owned_durable_publication_record",
         "mutation_scope": [
           "container_webui.latest"

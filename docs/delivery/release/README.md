@@ -397,8 +397,10 @@ The independent emergency path is deliberately different:
 2. The workflow seals `opl_app_webui_source_authority.v1`, publishes and
    qualifies the immutable OCI version, and does not move `stable` or `latest`.
 3. After explicit user confirmation, dispatch
-   `release-webui-development-promote.yml` for that exact carrier receipt.
-   The protected writer changes only WebUI `latest` through a one-write CAS.
+   `release-webui-development-promote.yml` for that exact carrier receipt with
+   `move-docker-latest:<exact version>`. The protected writer records the
+   human GitHub actor and confirmation digest, then changes only WebUI `latest`
+   through a one-write CAS.
 4. Read back the exact `latest` digest anonymously and prove WebUI `stable`
    remains at its frozen predecessor.
 

@@ -255,6 +255,10 @@ function validateDistributionSemantics(semantics) {
     || selector?.retention?.retired_or_revoked_record_selectable !== false
     || dockerOverride?.target !== 'retained_immutable_verified_published_version'
     || dockerOverride?.requires_explicit_user_confirmation !== true
+    || dockerOverride?.operator_confirmation?.source !== 'workflow_dispatch_exact_version_confirmation'
+    || dockerOverride?.operator_confirmation?.expected_value !== 'move-docker-latest:<exact_version>'
+    || dockerOverride?.operator_confirmation?.actor !== 'github_human_login'
+    || dockerOverride?.operator_confirmation?.digest_bound_into_terminal_receipt !== true
     || dockerOverride?.selector !== 'carrier_owned_durable_publication_record'
     || dockerOverride?.compare_and_swap !== 'exact_expected_current'
     || dockerOverride?.fresh_public_readback_required !== true

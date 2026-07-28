@@ -102,6 +102,15 @@ test('distribution/install SSOT validates the current and approved state split',
     ['container_webui.stable', 'desktop.latest'],
   );
   assert.deepEqual(
+    release.distribution_semantics.latest_policy.docker_manual_override.operator_confirmation,
+    {
+      source: 'workflow_dispatch_exact_version_confirmation',
+      expected_value: 'move-docker-latest:<exact_version>',
+      actor: 'github_human_login',
+      digest_bound_into_terminal_receipt: true,
+    },
+  );
+  assert.deepEqual(
     install.software_lifecycle.carrier_adapters.homebrew_cask.payload_profiles.full,
     ['opl_app', 'opl_base_offline_seed', 'opl_package_offline_seeds'],
   );
