@@ -311,6 +311,8 @@ function independentPreviewFixture() {
   current.input.sourceAuthorityPath = sourceAuthorityPath;
   current.input.publicationRecord = publicationRecord;
   current.input.publicationRecordPath = publicationRecordPath;
+  current.input.operator = 'gaofeng21cn';
+  current.input.operatorConfirmation = `move-docker-latest:${previewVersion}`;
   return { ...current, sourceAuthorityPath, publicationRecordPath };
 }
 
@@ -359,7 +361,15 @@ test('contract separates Stable qualification from carrier Latest selection', ()
   ]);
   assert.deepEqual(independent.promotion_entry_inputs, [
     'publication_record_ref',
+    'operator_confirmation',
   ]);
+  assert.deepEqual(independent.operator_confirmation, {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: 'github.actor_human_login',
+    value: 'move-docker-latest:<publication_record.release.version>',
+    receipt_field: 'operator_authorization.confirmation_digest',
+  });
   assert.equal(independent.source_authority_schema, 'opl_app_webui_source_authority.v1');
   assert.equal(independent.source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref, true);
   assert.equal(independent.stable_run_dependency, false);
@@ -397,6 +407,7 @@ test('shared alias writer binds production Stable and independent Preview author
     'carrier_executor_ref',
     'carrier_artifact_name',
     'publication_record_ref',
+    'operator_confirmation',
   ]);
   assert.equal(
     workflow.concurrency.group,
@@ -444,7 +455,10 @@ test('shared alias writer binds production Stable and independent Preview author
   assert.match(source, /carrier-follower-job\.json/);
   assert.match(source, /Materialize and verify exact durable Preview publication record/);
   assert.match(source, /Materialize carrier and source authority from durable Preview publication record/);
-  assert.match(source, /admission_args\+=\(--publication-record evidence\/publication-record\.json\)/);
+  assert.match(
+    source,
+    /admission_args\+=\(\s*--publication-record evidence\/publication-record\.json\s*--operator "\$OPERATOR"\s*--operator-confirmation "\$OPERATOR_CONFIRMATION"\s*\)/,
+  );
   assert.match(source, /oras pull --output intake\/durable-publication-record/);
   assert.match(source, /durable Preview publication record sidecar descriptor or manifest is invalid/);
   assert.match(source, /durable Preview publication record sidecar does not bind the exact record bytes/);
@@ -500,7 +514,9 @@ test('independent Preview Latest dispatch reuses one exact immutable carrier wit
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
     'publication_record_ref',
+    'operator_confirmation',
   ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.operator_confirmation.required, true);
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.permissions.actions, 'read');
   assert.equal(workflow.concurrency.group, 'opl-webui-independent-preview-latest-global');
@@ -511,6 +527,7 @@ test('independent Preview Latest dispatch reuses one exact immutable carrier wit
   assert.equal(promotion.with.mode, 'execute');
   assert.equal(promotion.with.authority_mode, 'independent_preview');
   assert.equal(promotion.with.publication_record_ref, '${{ inputs.publication_record_ref }}');
+  assert.equal(promotion.with.operator_confirmation, '${{ inputs.operator_confirmation }}');
   assert.deepEqual(promotion.permissions, {
     contents: 'read',
     actions: 'read',
@@ -642,6 +659,12 @@ test('independent Preview admission needs no Desktop Stable and binds a separate
   const admission = admitWebuiStablePromotion(current.input);
   assert.equal(admission.authority_mode, 'independent_preview');
   assert.equal(admission.stable_authority, null);
+  assert.deepEqual(admission.operator_authorization, {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: 'gaofeng21cn',
+    confirmation_digest: `sha256:${crypto.createHash('sha256').update('move-docker-latest:26.7.28-preview.r1').digest('hex')}`,
+  });
   assert.equal(admission.source_authority.release.version, '26.7.28-preview.r1');
   assert.equal(
     admission.source_authority.source_authority_digest,
@@ -714,6 +737,34 @@ test('independent Preview admission rejects source drift, incomplete publication
   assert.throws(
     () => admitWebuiStablePromotion(implicit.input),
     /cannot also execute a Latest promotion/,
+  );
+
+  const missingConfirmation = independentPreviewFixture();
+  missingConfirmation.input.operatorConfirmation = undefined;
+  assert.throws(
+    () => admitWebuiStablePromotion(missingConfirmation.input),
+    /operator confirmation/,
+  );
+
+  const mismatchedConfirmation = independentPreviewFixture();
+  mismatchedConfirmation.input.operatorConfirmation = 'move-docker-latest:26.7.28-preview.r2';
+  assert.throws(
+    () => admitWebuiStablePromotion(mismatchedConfirmation.input), /operator confirmation/);
+
+  const botActor = independentPreviewFixture();
+  botActor.input.operator = 'github-actions[bot]';
+  assert.throws(() => admitWebuiStablePromotion(botActor.input), /human GitHub login/);
+
+  const current = independentPreviewFixture();
+  const tamperedAdmission = structuredClone(admitWebuiStablePromotion(current.input));
+  tamperedAdmission.operator_authorization.actor = 'another-user';
+  assert.throws(
+    () => decideWebuiStablePromotion(
+      tamperedAdmission,
+      current.input.stablePrestate,
+      current.input.latestPrestate,
+    ),
+    /admission\.input_digest/,
   );
 });
 
@@ -1006,4 +1057,5 @@ test('independent Preview receipt proves Latest-only mutation and unchanged Stab
   assert.equal(receipt.classification.preview_kind, 'dev');
   assert.equal(receipt.classification.non_stable_notice, true);
   assert.equal(receipt.anonymous_readback.stable_unchanged, true);
+  assert.deepEqual(receipt.operator_authorization, admission.operator_authorization);
 });

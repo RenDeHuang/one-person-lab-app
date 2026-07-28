@@ -61,9 +61,12 @@ no non-Stable disclosure. A cohort can be invalidated only by a frozen byte,
 tree, or digest mismatch; an artifact build or integrity failure; or an
 explicit security revocation bound to a frozen ref or digest.
 
-For manual WebUI independent Preview Latest promotion, the sole selection input
-is the exact durable `publication_record_ref` (`ghcr.io/<repository>:receipt-<version>`).
-The protected workflow pulls and canonical-validates that OCI sidecar, then
+For manual WebUI independent Preview Latest promotion, the sole selection
+identity is the exact durable `publication_record_ref`
+(`ghcr.io/<repository>:receipt-<version>`), accompanied by the exact user
+confirmation `move-docker-latest:<publication-record version>`. The protected
+workflow binds the human GitHub actor and only stores the confirmation digest;
+it then pulls and canonical-validates that OCI sidecar, then
 derives its source authority, qualification disclosure, frozen cohort, image,
 and recorded publication attempt. A run id, executor SHA, or expiring Actions
 artifact is never a selector input.

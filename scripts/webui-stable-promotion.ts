@@ -21,6 +21,7 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runPattern = /^[1-9][0-9]*$/;
 const versionPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*|-preview\.r[1-9][0-9]*|-nightly(?:\.r[1-9][0-9]*)?)?$/;
+const githubActorPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})?$/;
 const appRepository = 'gaofeng21cn/one-person-lab-app';
 
 function record(value: unknown, label: string): JsonRecord {
@@ -71,6 +72,37 @@ function fileDigest(filePath: string): string {
 
 function objectDigest(value: unknown): string {
   return `sha256:${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
+
+function confirmationDigest(value: string): string {
+  return `sha256:${crypto.createHash('sha256').update(value, 'utf8').digest('hex')}`;
+}
+
+function githubActor(value: unknown, label: string): string {
+  const actor = text(value, label);
+  if (!githubActorPattern.test(actor)) throw new Error(`${label} must be a human GitHub login.`);
+  return actor;
+}
+
+function operatorAuthorization(
+  mode: AuthorityMode,
+  releaseVersion: string,
+  operator: unknown,
+  confirmation: unknown,
+): JsonRecord | null {
+  if (mode !== 'independent_preview') return null;
+  const value = text(confirmation, 'independent Preview operator confirmation');
+  exact(
+    value,
+    `move-docker-latest:${releaseVersion}`,
+    'independent Preview operator confirmation',
+  );
+  return {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: githubActor(operator, 'independent Preview operator'),
+    confirmation_digest: confirmationDigest(value),
+  };
 }
 
 function descriptor(value: unknown, expectedRef: string, label: string): JsonRecord {
@@ -397,6 +429,8 @@ export type WebuiStableAdmissionInput = {
   publicationRecordPath?: string;
   sourceAuthority?: JsonRecord;
   sourceAuthorityPath?: string;
+  operator?: string;
+  operatorConfirmation?: string;
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
@@ -448,6 +482,12 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
         carrierExecutorAppSha,
       )
     : null;
+  const latestOperatorAuthorization = operatorAuthorization(
+    mode,
+    release.version,
+    input.operator,
+    input.operatorConfirmation,
+  );
   const sourceAuthority = mode === 'independent_preview'
     ? validateIndependentSourceAuthority(
         durablePublication!.sourceAuthority,
@@ -553,6 +593,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       conclusion: input.stableAuthorityRun!.conclusion,
     },
     source_authority: sourceAuthority,
+    operator_authorization: latestOperatorAuthorization,
     carrier_follower: {
       app_repository: appRepository,
       run_id: input.carrierFollowerRunId,
@@ -618,14 +659,56 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   };
 }
 
+function validateWebuiStablePromotionAdmission(value: unknown): JsonRecord {
+  const admission = record(value, 'admission');
+  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
+  exact(admission.status, 'passed', 'admission status');
+  exact(admission.mutation_admitted, true, 'admission mutation authorization');
+  const mode = authorityMode(admission.authority_mode);
+  const release = record(admission.release, 'admission.release');
+  const latestOperatorAuthorization = operatorAuthorization(
+    mode,
+    text(release.version, 'admission.release.version'),
+    record(admission.operator_authorization ?? {}, 'admission.operator_authorization').actor,
+    mode === 'independent_preview'
+      ? `move-docker-latest:${text(release.version, 'admission.release.version')}`
+      : '',
+  );
+  if (mode === 'independent_preview') {
+    const authorization = record(admission.operator_authorization, 'admission.operator_authorization');
+    exact(
+      authorization.confirmation_digest,
+      latestOperatorAuthorization!.confirmation_digest,
+      'admission.operator_authorization.confirmation_digest',
+    );
+    exact(authorization.source, latestOperatorAuthorization!.source, 'admission.operator_authorization.source');
+    exact(authorization.schema, latestOperatorAuthorization!.schema, 'admission.operator_authorization.schema');
+  } else {
+    exact(admission.operator_authorization, null, 'admission.operator_authorization');
+  }
+  const authority = {
+    authority_mode: admission.authority_mode,
+    classification: admission.classification,
+    stable_authority: admission.stable_authority,
+    source_authority: admission.source_authority,
+    operator_authorization: admission.operator_authorization,
+    carrier_follower: admission.carrier_follower,
+    promotion_executor: admission.promotion_executor,
+    release: admission.release,
+    target: admission.target,
+    expected_prestate: admission.expected_prestate,
+    evidence: admission.evidence,
+  };
+  exact(admission.input_digest, objectDigest(authority), 'admission.input_digest');
+  return admission;
+}
+
 export function decideWebuiStablePromotion(
   admission: JsonRecord,
   currentStableInput: JsonRecord,
   currentLatestInput: JsonRecord,
 ): JsonRecord {
-  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
-  exact(admission.status, 'passed', 'admission status');
-  exact(admission.mutation_admitted, true, 'admission mutation authorization');
+  admission = validateWebuiStablePromotionAdmission(admission);
   const mode = authorityMode(admission.authority_mode);
   const target = record(admission.target, 'admission.target');
   if (JSON.stringify(target.promotion_tags) !== JSON.stringify(promotionTags(mode))) {
@@ -702,11 +785,12 @@ export function writeWebuiStablePromotionReceipt(input: {
   anonymousReadback: JsonRecord;
   latestAnonymousReadback: JsonRecord;
 }): JsonRecord {
-  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
+  const admission = validateWebuiStablePromotionAdmission(input.admission);
   exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v2', 'decision schema');
-  const mode = authorityMode(input.admission.authority_mode);
-  const target = record(input.admission.target, 'admission.target');
-  const expected = record(input.admission.expected_prestate, 'admission.expected_prestate');
+  exact(input.decision.admission_input_digest, admission.input_digest, 'decision.admission_input_digest');
+  const mode = authorityMode(admission.authority_mode);
+  const target = record(admission.target, 'admission.target');
+  const expected = record(admission.expected_prestate, 'admission.expected_prestate');
   const expectedStable = record(expected.stable, 'admission.expected_prestate.stable');
   const decision = text(input.decision.decision, 'decision.decision') as PromotionDecision;
   const attemptCount = Number(input.mutation.attempt_count);
@@ -772,18 +856,19 @@ export function writeWebuiStablePromotionReceipt(input: {
     status = 'failed';
   }
   const evidence = {
-    authority_mode: input.admission.authority_mode,
-    classification: input.admission.classification,
-    admission_input_digest: input.admission.input_digest,
+    authority_mode: admission.authority_mode,
+    classification: admission.classification,
+    admission_input_digest: admission.input_digest,
     decision_input_digest: input.decision.input_digest,
-    stable_authority: input.admission.stable_authority,
-    carrier_follower: input.admission.carrier_follower,
-    promotion_executor: input.admission.promotion_executor,
-    release: input.admission.release,
+    stable_authority: admission.stable_authority,
+    operator_authorization: admission.operator_authorization,
+    carrier_follower: admission.carrier_follower,
+    promotion_executor: admission.promotion_executor,
+    release: admission.release,
     target,
     compare_and_swap: {
       decision,
-      expected_prestate: input.admission.expected_prestate,
+      expected_prestate: admission.expected_prestate,
       observed_prestate: input.decision.observed_prestate,
       promotion_tags: promotionTags(mode),
       tag_attempt_count: attemptCount,
@@ -866,6 +951,8 @@ function main(argv: string[]): void {
       'latest-prestate': { type: 'string' },
       'publication-record': { type: 'string' },
       'source-authority': { type: 'string' },
+      operator: { type: 'string' },
+      'operator-confirmation': { type: 'string' },
       admission: { type: 'string' },
       decision: { type: 'string' },
       'current-stable': { type: 'string' },
@@ -956,6 +1043,10 @@ function main(argv: string[]): void {
         ? readJson(sourceAuthorityPath, 'WebUI source authority')
         : undefined,
       sourceAuthorityPath,
+      operator: values.operator ? required(values.operator, 'operator') : undefined,
+      operatorConfirmation: values['operator-confirmation']
+        ? required(values['operator-confirmation'], 'operator-confirmation')
+        : undefined,
     });
   } else if (command === 'decide') {
     result = decideWebuiStablePromotion(
