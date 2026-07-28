@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
+import { ensureActiveShellCheckout, isGitCheckout } from './active-shell-checkout.ts';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -145,6 +146,7 @@ export type ReleaseSourceGateEnvironment = {
   pathExists?: (candidatePath: string) => boolean;
   readJson?: (candidatePath: string) => unknown;
   variables?: NodeJS.ProcessEnv;
+  preparationFailure?: string;
 };
 
 function usage(): void {
@@ -556,6 +558,15 @@ export function buildReleaseSourceGateReport(
       : `Release environment is not admissible: ${environmentProblems.join('; ')}.`,
     actual: environmentProblems.length > 0 ? environmentProblems.join(', ') : undefined,
   });
+  const preparationFailure = environment.preparationFailure?.trim() || '';
+  if (preparationFailure) {
+    addCheck(checks, {
+      id: 'active_shell_checkout_preparation',
+      status: 'failed',
+      message: `Active shell checkout preparation failed before source-gate admission. ${preparationFailure}`,
+      actual: preparationFailure,
+    });
+  }
 
   const repoRootResult = runner('git', ['rev-parse', '--show-toplevel'], { cwd: options.repoRoot, env: commandEnvironment });
   const resolvedRepoRoot = repoRootResult.status === 0 ? firstLine(repoRootResult.stdout) : '';
@@ -670,12 +681,27 @@ export function buildReleaseSourceGateReport(
       message: `Active shell checkout is missing at ${shellRoot}.`,
     });
   } else {
+    const shellTopLevelResult = runner('git', ['rev-parse', '--show-toplevel'], {
+      cwd: shellRoot,
+      env: commandEnvironment,
+    });
+    const shellTopLevel = shellTopLevelResult.status === 0 ? firstLine(shellTopLevelResult.stdout) : '';
+    const standaloneShellCheckout = Boolean(
+      shellTopLevel && canonicalPath(shellTopLevel) === canonicalPath(shellRoot),
+    );
     addCheck(checks, {
       id: 'active_shell_checkout',
-      status: 'passed',
-      message: `Active shell checkout exists at ${shellRoot}.`,
+      status: standaloneShellCheckout ? 'passed' : 'failed',
+      message: standaloneShellCheckout
+        ? `Active shell checkout is a standalone Git checkout at ${shellRoot}.`
+        : `Active shell root ${shellRoot} must be a standalone Git checkout; archive snapshots are valid only for isolated consumer projections.${commandDetail(shellTopLevelResult) ? ` ${commandDetail(shellTopLevelResult)}` : ''}`,
+      expected: canonicalPath(shellRoot),
+      actual: shellTopLevel || undefined,
+      command: commandText('git', ['rev-parse', '--show-toplevel']),
     });
-    shellSha = resolveGitRef(shellRoot, options.shellRef, runner, commandEnvironment);
+    shellSha = standaloneShellCheckout
+      ? resolveGitRef(shellRoot, options.shellRef, runner, commandEnvironment)
+      : null;
     addCheck(checks, {
       id: 'active_shell_ref_resolved',
       status: shellSha ? 'passed' : 'failed',
@@ -686,7 +712,9 @@ export function buildReleaseSourceGateReport(
       actual: shellSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.shellRef}^{commit}`]),
     });
-    const shellHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, env: commandEnvironment });
+    const shellHeadResult = standaloneShellCheckout
+      ? runner('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, env: commandEnvironment })
+      : { status: 1, stdout: '', stderr: 'active shell root is not a standalone Git checkout' };
     const shellHead = shellHeadResult.status === 0 ? firstLine(shellHeadResult.stdout) : '';
     addCheck(checks, {
       id: 'active_shell_checkout_identity',
@@ -816,7 +844,9 @@ export function buildReleaseSourceGateReport(
     .filter((check) => check.status !== 'passed')
     .map((check) => check.id);
   if (admissionFailedCheckIds.length > 0) {
-    const blockedReason = 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
+    const blockedReason = preparationFailure
+      ? `Active shell checkout preparation failed before source-gate admission: ${preparationFailure} Required source gates were not run; repair preparation and admit a new immutable cohort.`
+      : 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
     blockRequiredGate('app_release_boundary_contract', blockedReason);
     blockRequiredGate('shell_product_profile_consumer', blockedReason);
     blockRequiredGate('active_shell_format_check', blockedReason);
@@ -956,6 +986,27 @@ export function writeReleaseSourceGateReport(options: ReleaseSourceGateOptions, 
   fs.writeFileSync(options.output, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
+export function prepareReleaseSourceShell(
+  options: ReleaseSourceGateOptions,
+  sourceEnvironment: NodeJS.ProcessEnv = process.env,
+): void {
+  // Reject ambient Git selectors before even probing an existing checkout.
+  if (releaseEnvironmentProblems(sourceEnvironment, options).length > 0) return;
+  // Preserve an existing non-Git projection so the source-gate report can reject it with typed evidence.
+  if (fs.existsSync(options.shellRoot) && !isGitCheckout(options.shellRoot)) return;
+  const commandEnvironment = buildCommandEnvironment(sourceEnvironment, options);
+  ensureActiveShellCheckout({
+    shellRoot: options.shellRoot,
+    repo: sourceEnvironment.OPL_APP_SHELL_REPO || 'git@github.com:gaofeng21cn/opl-aion-shell.git',
+    ref: options.shellRef,
+    alignRef: true,
+    runner: (command, args, commandOptions = {}) => run(command, args, {
+      cwd: commandOptions.cwd || defaultRepoRoot,
+      env: commandEnvironment,
+    }),
+  });
+}
+
 function isMainModule(): boolean {
   return import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 }
@@ -963,7 +1014,18 @@ function isMainModule(): boolean {
 if (isMainModule()) {
   try {
     const options = parseReleaseSourceGateArgs(process.argv.slice(2));
-    const report = buildReleaseSourceGateReport(options);
+    let preparationFailure: string | undefined;
+    try {
+      prepareReleaseSourceShell(options);
+    } catch (error) {
+      preparationFailure = error instanceof Error ? error.message : String(error);
+    }
+    const report = buildReleaseSourceGateReport(
+      options,
+      run,
+      undefined,
+      preparationFailure ? { preparationFailure } : {},
+    );
     writeReleaseSourceGateReport(options, report);
     if (options.json) {
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
   buildReleaseSourceGateReport,
   parseReleaseSourceGateArgs,
+  prepareReleaseSourceShell,
+  writeReleaseSourceGateReport,
   type CommandRunner,
   type ReleaseSourceGateOptions,
 } from '../../scripts/validate-release-source-gate.ts';
@@ -94,6 +98,9 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     }
     if (command === 'git' && args.join(' ') === 'rev-parse --show-toplevel' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: `${repoRoot}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse --show-toplevel' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: `${shellRoot}\n`, stderr: '' };
     }
     if (command === 'git' && args.join(' ') === 'remote get-url origin' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: 'https://github.com/gaofeng21cn/one-person-lab-app.git\n', stderr: '' };
@@ -283,6 +290,51 @@ test('release source gate rejects a shell checkout that differs from its resolve
   assert.equal(report.admission.immutable_cohort, null);
 });
 
+test('release source gate rejects an archive directory as the active shell checkout', () => {
+  const report = buildReleaseSourceGateReport(
+    options(),
+    runner({
+      [`${shellRoot} $ git rev-parse --show-toplevel`]: {
+        status: 128,
+        stderr: 'fatal: not a git repository (or any of the parent directories): .git\n',
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_checkout'), 'failed');
+  assert.match(
+    report.checks.find((check) => check.id === 'active_shell_checkout')?.message ?? '',
+    /archive snapshots are valid only for isolated consumer projections/,
+  );
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'failed');
+  assert.equal(report.admission.immutable_cohort, null);
+});
+
+test('release source gate preserves an archive root for typed rejection', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-archive-'));
+  try {
+    const archiveRoot = path.join(root, 'aionui');
+    const marker = path.join(archiveRoot, 'archive-marker.txt');
+    fs.mkdirSync(archiveRoot, { recursive: true });
+    fs.writeFileSync(marker, 'preserve-me\n');
+
+    prepareReleaseSourceShell(options({ shellRoot: archiveRoot }));
+
+    assert.equal(fs.readFileSync(marker, 'utf8'), 'preserve-me\n');
+    assert.equal(fs.existsSync(path.join(archiveRoot, '.git')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('release source gate rejects environment injection before boundary execution', () => {
   const calls: string[] = [];
   const baseRunner = runner();
@@ -306,6 +358,101 @@ test('release source gate rejects environment injection before boundary executio
   assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(calls.some((call) => call.startsWith('npm ') || call.startsWith('bun ')), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source preparation refuses Git environment injection before checkout mutation', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-env-'));
+  try {
+    const shellPath = path.join(root, 'shells', 'aionui');
+    const injectedGitDir = path.join(root, 'injected-git');
+
+    prepareReleaseSourceShell(
+      options({ shellRoot: shellPath }),
+      {
+        GIT_DIR: injectedGitDir,
+        PATH: process.env.PATH,
+      },
+    );
+
+    assert.equal(fs.existsSync(shellPath), false);
+    assert.equal(fs.existsSync(injectedGitDir), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release source CLI path still writes a typed JSON failure after preparation is skipped', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-json-'));
+  try {
+    const shellPath = path.join(root, 'shells', 'aionui');
+    const output = path.join(root, 'source-gate.json');
+    const injectedGitDir = path.join(root, 'injected-git');
+    const gateOptions = options({ shellRoot: shellPath, output });
+    const injectedEnvironment = { GIT_DIR: injectedGitDir, PATH: process.env.PATH };
+
+    prepareReleaseSourceShell(gateOptions, injectedEnvironment);
+    const report = buildReleaseSourceGateReport(
+      gateOptions,
+      (command, args, commandOptions) => runner()(
+        command,
+        args,
+        commandOptions,
+      ),
+      '2026-06-30T00:00:00.000Z',
+      {
+        variables: injectedEnvironment,
+        pathExists: (candidatePath) => candidatePath === shellPath || candidatePath === frameworkRoot,
+        readJson: (candidatePath) => readSourceJson(candidatePath),
+      },
+    );
+    writeReleaseSourceGateReport(gateOptions, report);
+
+    const written = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(written.status, 'failed');
+    assert.equal(written.typed_blocker.schema, 'opl_app_release_source_gate_blocker.v1');
+    assert.equal(written.typed_blocker.failed_check_ids.includes('release_environment_whitelist'), true);
+    assert.equal(fs.existsSync(shellPath), false);
+    assert.equal(fs.existsSync(injectedGitDir), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release source gate writes a typed JSON blocker when shell materialization fails', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-preparation-failure-'));
+  try {
+    const output = path.join(root, 'source-gate.json');
+    const preparationFailure = 'Command failed: git clone --no-tags git@github.com:example.invalid/shell.git /tmp/shell\nnetwork unavailable';
+    const gateOptions = options({ output });
+    const report = buildReleaseSourceGateReport(
+      gateOptions,
+      runner(),
+      '2026-06-30T00:00:00.000Z',
+      {
+        variables: {},
+        preparationFailure,
+        pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+        readJson: (candidatePath) => readSourceJson(candidatePath),
+      },
+    );
+    writeReleaseSourceGateReport(gateOptions, report);
+
+    const written = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(written.schema, 'opl_app_release_source_gate.v1');
+    assert.equal(written.status, 'failed');
+    assert.equal(written.admission.status, 'blocked');
+    assert.equal(written.typed_blocker?.schema, 'opl_app_release_source_gate_blocker.v1');
+    assert.equal(written.typed_blocker?.phase, 'pre_admission');
+    assert.equal(written.typed_blocker?.next_action, 'repair_pre_admission');
+    assert.equal(written.typed_blocker?.failed_check_ids.includes('active_shell_checkout_preparation'), true);
+    assert.match(
+      written.checks.find((check: { id: string }) => check.id === 'active_shell_checkout_preparation')?.message ?? '',
+      /network unavailable/,
+    );
+    assert.equal(written.required_gates.every((gate: { executed: boolean }) => gate.executed === false), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('release source gate strips ambient controller SHA from required gate commands', () => {
