@@ -15,13 +15,15 @@ const noncePattern = /^[0-9a-f]{32}$/;
 const operationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const requiredCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
-  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_release-standard-publish.yml',
-  '.github/workflows/_release-full-addon.yml',
-  '.github/workflows/_release-webui-carrier.yml',
-  '.github/workflows/release-webui-publication-promote.yml',
+  '.github/workflows/_release-native-webui-carrier.yml',
   'contracts/app-release-channel.json',
+  'scripts/framework-release-adapter.ts',
+  'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
+  'scripts/stable-release-admission-manifest.ts',
+  'scripts/validate-release-source-gate.ts',
 ] as const;
 
 export type StableOperationControl = {
@@ -209,7 +211,7 @@ function normalizedCriticalBlobs(value: unknown): Record<string, string> {
     .sort(([left], [right]) => left.localeCompare(right));
   if (entries.length === 0) throw new Error('critical_blobs must bind at least one workflow or contract blob.');
   for (const [file] of entries) {
-    if (!/^(?:\.github\/workflows\/|contracts\/)[A-Za-z0-9._/-]+$/.test(file) || file.includes('..')) {
+    if (!/^(?:\.github\/workflows\/|contracts\/|scripts\/)[A-Za-z0-9._/-]+$/.test(file) || file.includes('..')) {
       throw new Error(`critical_blobs path is not allowed: ${file}`);
     }
   }

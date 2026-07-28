@@ -26,13 +26,15 @@ const nonce = 'a'.repeat(32);
 const objectiveFingerprint = 'fix-all-five-stable-control-gaps-20260728';
 const criticalBlobPaths = [
   '.github/workflows/release-stable.yml',
-  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_release-standard-publish.yml',
-  '.github/workflows/_release-full-addon.yml',
-  '.github/workflows/_release-webui-carrier.yml',
-  '.github/workflows/release-webui-publication-promote.yml',
+  '.github/workflows/_release-native-webui-carrier.yml',
   'contracts/app-release-channel.json',
+  'scripts/framework-release-adapter.ts',
+  'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
+  'scripts/stable-release-admission-manifest.ts',
+  'scripts/validate-release-source-gate.ts',
 ];
 const criticalBlobs = Object.fromEntries(
   criticalBlobPaths.map((file, index) => [file, `sha256:${(index + 6).toString(16).repeat(64)}`]),
