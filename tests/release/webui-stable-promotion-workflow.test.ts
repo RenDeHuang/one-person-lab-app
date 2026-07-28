@@ -450,6 +450,11 @@ test('shared alias writer binds production Stable and independent Preview author
     source,
     /CARRIER_EXECUTOR_REF: \$\{\{ inputs\.carrier_executor_ref \|\| steps\.publication-record\.outputs\.carrier_executor_ref \|\| github\.sha \}\}/,
   );
+  const admissionStep = (workflow.jobs.admission.steps as any[]).find(
+    (step) => step.name === 'Seal one immutable WebUI Stable admission',
+  );
+  assert.equal(admissionStep.env.OPERATOR, '${{ github.actor }}');
+  assert.equal(admissionStep.env.OPERATOR_CONFIRMATION, '${{ inputs.operator_confirmation }}');
   assert.doesNotMatch(source, /inputs\.carrier_run_id/);
   assert.match(source, /carrier-follower-jobs\.json/);
   assert.match(source, /carrier-follower-job\.json/);

@@ -493,6 +493,8 @@ jobs:
           TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ inputs.carrier_follower_run_id || steps.publication-record.outputs.carrier_follower_run_id || github.run_id }}
           CARRIER_EXECUTOR_REF: ${{ inputs.carrier_executor_ref || steps.publication-record.outputs.carrier_executor_ref || github.sha }}
+          OPERATOR: ${{ github.actor }}
+          OPERATOR_CONFIRMATION: ${{ inputs.operator_confirmation }}
         shell: bash
         run: |
           set -euo pipefail

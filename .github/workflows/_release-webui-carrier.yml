@@ -844,7 +844,7 @@ jobs:
               receipt_ref: process.env.OPL_RECEIPT_REF,
               expected_publication_record_sha256: `sha256:${crypto.createHash('sha256').update(record).digest('hex')}`,
             })}\n`);
-            WEBUI_SIDECAR_RECONCILE_NODE
+          WEBUI_SIDECAR_RECONCILE_NODE
           }
 
           create_args=(
