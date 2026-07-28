@@ -507,6 +507,7 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.match(manifestSeal, /--pre-nonce-guard "\$\{pre_nonce_guards\[0\]\}"/);
   assert.match(manifestSeal, /--run-authority-reconcile "\$\{run_reconciles\[0\]\}"/);
   assert.match(manifestSeal, /stable-release-admission-manifest\.ts create[\s\S]*--source-gate "\$source_gate_path"/);
+  assert.match(manifestSeal, /--failure-output "\$RUNNER_TEMP\/stable-release-admission-failure\.json"/);
   assert.doesNotMatch(manifestSeal, /--source-qualification-receipt/);
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);
   assert.equal(stable.jobs.standard.needs.includes('stable-admission-manifest'), true);
@@ -614,6 +615,7 @@ test('Stable manifest consumes exactly one protected evidence set before any Sta
   assert.match(manifestSeal, /--pre-nonce-guard "\$\{pre_nonce_guards\[0\]\}"/);
   assert.match(manifestSeal, /--run-authority-reconcile "\$\{run_reconciles\[0\]\}"/);
   assert.match(manifestSeal, /stable-release-admission-manifest\.ts create[\s\S]*--source-gate "\$source_gate_path"/);
+  assert.match(manifestSeal, /--failure-output "\$RUNNER_TEMP\/stable-release-admission-failure\.json"/);
   assert.doesNotMatch(manifestSeal, /source-qualification-receipt\.ts/);
   const protectedUpload = stableAdmissionManifest.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload same-run protected admission evidence',
@@ -621,6 +623,27 @@ test('Stable manifest consumes exactly one protected evidence set before any Sta
   assert.match(
     String(protectedUpload?.with?.path ?? ''),
     /\$\{\{ steps\.manifest\.outputs\.source_gate_path \}\}/,
+  );
+  const failureValidation = stableAdmissionManifest.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Validate typed Stable admission failure evidence',
+  ) as Record<string, any>;
+  assert.equal(
+    failureValidation.if,
+    "${{ failure() && steps.manifest.outcome == 'failure' }}",
+  );
+  assert.match(String(failureValidation.run), /opl_stable_release_admission_failure\.v1/);
+  assert.match(String(failureValidation.run), /old_authority_or_run_reusable == false/);
+  const failureUpload = stableAdmissionManifest.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload typed Stable admission failure evidence',
+  ) as Record<string, any>;
+  assert.equal(
+    failureUpload.if,
+    "${{ failure() && steps.manifest.outcome == 'failure' }}",
+  );
+  assert.equal(failureUpload.with.name, 'opl-stable-admission-failure-${{ github.run_id }}');
+  assert.equal(
+    failureUpload.with.path,
+    '${{ runner.temp }}/stable-release-admission-failure.json',
   );
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);
   assert.equal(stable.jobs.standard.needs.includes('stable-admission-manifest'), true);

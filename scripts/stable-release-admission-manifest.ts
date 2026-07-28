@@ -16,9 +16,6 @@ import {
   assertPromotionTargetIsNewerThanPublishedStable,
   type PublishedRelease,
 } from './stable-release-version-order.ts';
-import {
-  readOwnerWorkflowRuns,
-} from './release-dispatch-guard.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,9 +46,12 @@ const requiredWorkflowPaths = [
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ] as const;
-const activeReleaseStatuses = ['queued', 'in_progress', 'waiting', 'pending'] as const;
+const activeReleaseStatuses = ['requested', 'queued', 'in_progress', 'waiting', 'pending'] as const;
+const activeRunLookupTimeoutMs = 10_000;
+const activeRunPageSize = 100;
 
 type JsonRecord = Record<string, any>;
+type ActiveReleaseStatus = (typeof activeReleaseStatuses)[number];
 type CommandResult = {
   status: number | null;
   stdout: string;
@@ -78,6 +78,36 @@ export type ActiveReleaseRun = {
   path: string;
   status: string;
   head_sha: string;
+};
+
+export type StableAdmissionFailureReceipt = {
+  schema: 'opl_stable_release_admission_failure.v1';
+  status: 'failed';
+  checked_at: string;
+  operation: 'standard';
+  phase: 'collect_observation' | 'build_manifest';
+  admission_run_id: string;
+  cohort: {
+    app_sha: string;
+    shell_sha: string;
+    framework_sha: string;
+  };
+  failure: {
+    class: 'transport' | 'credential' | 'not_found' | 'protocol' | 'deterministic';
+    code:
+      | 'transport_timeout'
+      | 'transport_error'
+      | 'credential_failure'
+      | 'not_found'
+      | 'invalid_response'
+      | 'admission_invariant_failed';
+    message: string;
+  };
+  source_gate_digest: string | null;
+  credential_receipt_digest: string | null;
+  public_mutation_performed: false;
+  old_authority_or_run_reusable: false;
+  retry_disposition: 'repair_then_new_distinct_operation';
 };
 
 export type StableAdmissionObservation = {
@@ -220,6 +250,55 @@ export function canonicalJson(value: unknown): string {
 
 function sha256Bytes(bytes: Buffer | string): string {
   return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function classifyAdmissionFailure(message: string): StableAdmissionFailureReceipt['failure'] {
+  if (/ETIMEDOUT|timed out|timeout|SIGTERM|signal: killed/i.test(message)) {
+    return { class: 'transport', code: 'transport_timeout', message };
+  }
+  if (/network|could not resolve host|failed to connect|connection reset|unexpected EOF/i.test(message)) {
+    return { class: 'transport', code: 'transport_error', message };
+  }
+  if (/HTTP 401|HTTP 403|bad credentials|authentication failed|requires authentication/i.test(message)) {
+    return { class: 'credential', code: 'credential_failure', message };
+  }
+  if (/HTTP 404|not found/i.test(message)) {
+    return { class: 'not_found', code: 'not_found', message };
+  }
+  if (/did not return JSON|invalid response|bounded active-run page/i.test(message)) {
+    return { class: 'protocol', code: 'invalid_response', message };
+  }
+  return { class: 'deterministic', code: 'admission_invariant_failed', message };
+}
+
+export function buildStableAdmissionFailureReceipt(options: {
+  input: StableAdmissionInput;
+  phase: StableAdmissionFailureReceipt['phase'];
+  error: unknown;
+  sourceGateDigest?: string | null;
+  credentialReceiptDigest?: string | null;
+  checkedAt?: string;
+}): StableAdmissionFailureReceipt {
+  const message = options.error instanceof Error ? options.error.message : String(options.error);
+  return {
+    schema: 'opl_stable_release_admission_failure.v1',
+    status: 'failed',
+    checked_at: options.checkedAt ?? new Date().toISOString(),
+    operation: 'standard',
+    phase: options.phase,
+    admission_run_id: options.input.admissionRunId,
+    cohort: {
+      app_sha: options.input.appRef,
+      shell_sha: options.input.shellRef,
+      framework_sha: options.input.frameworkRef,
+    },
+    failure: classifyAdmissionFailure(message),
+    source_gate_digest: options.sourceGateDigest ?? null,
+    credential_receipt_digest: options.credentialReceiptDigest ?? null,
+    public_mutation_performed: false,
+    old_authority_or_run_reusable: false,
+    retry_disposition: 'repair_then_new_distinct_operation',
+  };
 }
 
 export function stableAdmissionManifestDigest(value: Omit<StableAdmissionManifest, 'manifest_digest'>): string {
@@ -558,14 +637,18 @@ export function parseGitHubJsonLookup(endpoint: string, result: CommandResult): 
   }
 }
 
-function ghJson(endpoint: string, fields: Record<string, string> = {}): unknown {
+function ghJson(
+  endpoint: string,
+  fields: Record<string, string> = {},
+  timeoutMs = 45_000,
+): unknown {
   const args = ['api', '-X', 'GET', endpoint];
   for (const [key, value] of Object.entries(fields)) args.push('-f', `${key}=${value}`);
   const result = spawnSync('gh', args, {
     cwd: appRoot,
     encoding: 'utf8',
     env: process.env,
-    timeout: 45_000,
+    timeout: timeoutMs,
     maxBuffer: 16 * 1024 * 1024,
   });
   return parseGitHubJsonLookup(endpoint, {
@@ -685,36 +768,72 @@ function isReleaseWorkflowPath(value: string): boolean {
   return /^\.github\/workflows\/release-[^/]+\.ya?ml$/.test(workflowPath);
 }
 
-function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
-  const runs = new Map<number, ActiveReleaseRun>();
-  const lookup = readOwnerWorkflowRuns({ maxAttempts: 3, cwd: appRoot });
-  if (lookup.status === 'failed') {
-    throw new Error(
-      `Owner Actions lookup failed as ${lookup.failure_kind}/${lookup.failure_code}: ${lookup.detail}`,
-    );
+export function parseActiveReleaseRunLookups(
+  lookups: Array<{ status: ActiveReleaseStatus; payload: unknown }>,
+  excludedRunId: string,
+): ActiveReleaseRun[] {
+  const observedStatuses = lookups.map((lookup) => lookup.status);
+  if (
+    lookups.length !== activeReleaseStatuses.length
+    || !activeReleaseStatuses.every(
+      (status) => observedStatuses.filter((candidate) => candidate === status).length === 1,
+    )
+  ) {
+    throw new Error('Stable admission must query every active GitHub Actions status exactly once.');
   }
-  for (const entry of lookup.runs) {
-    const candidate = object(entry, 'GitHub Actions run');
-    const id = Number(candidate.id);
-    const runPath = requiredString(candidate.path, 'GitHub Actions run path');
-    const status = requiredString(candidate.status, 'GitHub Actions run status');
-    if (
-      !Number.isSafeInteger(id)
-      || id <= 0
-      || String(id) === excludedRunId
-      || !isReleaseWorkflowPath(runPath)
-      || !activeReleaseStatuses.includes(status as (typeof activeReleaseStatuses)[number])
-    ) {
-      continue;
+  const runs = new Map<number, ActiveReleaseRun>();
+  for (const lookup of lookups) {
+    const page = object(lookup.payload, `GitHub ${lookup.status} runs lookup`);
+    const totalCount = Number(page.total_count);
+    if (!Number.isSafeInteger(totalCount) || totalCount < 0 || !Array.isArray(page.workflow_runs)) {
+      throw new Error(`GitHub ${lookup.status} runs lookup did not return total_count and workflow_runs[].`);
     }
-    runs.set(id, {
-      id,
-      path: runPath.split('@')[0]!,
-      status,
-      head_sha: fullSha(candidate.head_sha, 'GitHub Actions run head'),
-    });
+    if (totalCount !== page.workflow_runs.length || totalCount > activeRunPageSize) {
+      throw new Error(
+        `GitHub ${lookup.status} bounded active-run page is incomplete: `
+        + `total=${totalCount} page=${page.workflow_runs.length} limit=${activeRunPageSize}.`,
+      );
+    }
+    for (const entry of page.workflow_runs) {
+      const candidate = object(entry, `GitHub ${lookup.status} Actions run`);
+      const id = Number(candidate.id);
+      const runPath = requiredString(candidate.path, 'GitHub Actions run path');
+      const status = requiredString(candidate.status, 'GitHub Actions run status');
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error('GitHub Actions run id must be a positive safe integer.');
+      }
+      if (status !== lookup.status) {
+        throw new Error(
+          `GitHub ${lookup.status} runs lookup returned mismatched status ${status}.`,
+        );
+      }
+      if (String(id) === excludedRunId || !isReleaseWorkflowPath(runPath)) continue;
+      if (runs.has(id)) throw new Error(`GitHub active release run ${id} appeared in multiple status pages.`);
+      runs.set(id, {
+        id,
+        path: runPath.split('@')[0]!,
+        status,
+        head_sha: fullSha(candidate.head_sha, 'GitHub Actions run head'),
+      });
+    }
   }
   return [...runs.values()].sort((left, right) => left.id - right.id);
+}
+
+function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
+  const endpoint = `repos/${appRepository}/actions/runs`;
+  return parseActiveReleaseRunLookups(
+    activeReleaseStatuses.map((status) => ({
+      status,
+      payload: ghJson(endpoint, {
+        branch: 'main',
+        status,
+        per_page: String(activeRunPageSize),
+        page: '1',
+      }, activeRunLookupTimeoutMs),
+    })),
+    excludedRunId,
+  );
 }
 
 function shanghaiDate(now = new Date()): string {
@@ -845,6 +964,14 @@ function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
 }
 
+function fileDigestOrNull(filePath: string): string | null {
+  try {
+    return fs.existsSync(filePath) ? sha256Bytes(fs.readFileSync(filePath)) : null;
+  } catch {
+    return null;
+  }
+}
+
 function cliOptions() {
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
@@ -861,6 +988,7 @@ function cliOptions() {
       manifest: { type: 'string' },
       'expected-digest': { type: 'string' },
       'current-run-id': { type: 'string' },
+      'failure-output': { type: 'string' },
       output: { type: 'string' },
     },
   });
@@ -878,6 +1006,7 @@ function cliOptions() {
     return {
       command,
       output,
+      failureOutput: path.resolve(requiredString(values['failure-output'], '--failure-output')),
       sourceGatePath,
       credentialReceiptPath,
       input: {
@@ -906,22 +1035,36 @@ function cliOptions() {
 async function main(): Promise<void> {
   const options = cliOptions();
   if (options.command === 'create') {
-    const observation = await collectObservation(
-      options.input,
-      options.sourceGatePath,
-      options.credentialReceiptPath,
-      options.input.admissionRunId,
-    );
-    const manifest = buildStableReleaseAdmissionManifest(options.input, observation);
-    writeJson(options.output, manifest);
-    process.stdout.write(`${JSON.stringify({
-      status: 'created',
-      version: manifest.version.display,
-      updater_version: manifest.version.updater,
-      manifest_digest: manifest.manifest_digest,
-      output: path.resolve(options.output),
-    })}\n`);
-    return;
+    fs.rmSync(options.failureOutput, { force: true });
+    let phase: StableAdmissionFailureReceipt['phase'] = 'collect_observation';
+    try {
+      const observation = await collectObservation(
+        options.input,
+        options.sourceGatePath,
+        options.credentialReceiptPath,
+        options.input.admissionRunId,
+      );
+      phase = 'build_manifest';
+      const manifest = buildStableReleaseAdmissionManifest(options.input, observation);
+      writeJson(options.output, manifest);
+      process.stdout.write(`${JSON.stringify({
+        status: 'created',
+        version: manifest.version.display,
+        updater_version: manifest.version.updater,
+        manifest_digest: manifest.manifest_digest,
+        output: path.resolve(options.output),
+      })}\n`);
+      return;
+    } catch (error) {
+      writeJson(options.failureOutput, buildStableAdmissionFailureReceipt({
+        input: options.input,
+        phase,
+        error,
+        sourceGateDigest: fileDigestOrNull(options.sourceGatePath),
+        credentialReceiptDigest: fileDigestOrNull(options.credentialReceiptPath),
+      }));
+      throw error;
+    }
   }
   const manifest = object(
     JSON.parse(fs.readFileSync(options.manifestPath, 'utf8')),
