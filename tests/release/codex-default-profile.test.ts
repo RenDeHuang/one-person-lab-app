@@ -904,8 +904,9 @@ test('active-shell source gate keeps canonical thread directory queries state-db
   }
 
   for (const forbiddenMarker of [
-    'sourceKinds: OPL_VISIBLE_THREAD_SOURCE_KINDS',
-    'OPL_VISIBLE_THREAD_SOURCE_KINDS',
+    'sourceKinds: renamedKinds',
+    'sourceKinds,',
+    '"sourceKinds": [\'cli\']',
   ]) {
     assert.throws(() =>
       assertCanonicalThreadDirectoryTimeoutBoundarySources({

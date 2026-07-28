@@ -112,9 +112,9 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
     ],
     'Active shell canonical thread directory state-db boundary',
   );
-  assertTextExcludesAll(
+  assertTextDoesNotMatch(
     threadAdapter,
-    ['sourceKinds: OPL_VISIBLE_THREAD_SOURCE_KINDS', 'OPL_VISIBLE_THREAD_SOURCE_KINDS'],
+    /(?:\bsourceKinds\b|['"]sourceKinds['"])\s*(?::|,)/u,
     'Active shell canonical thread directory must not widen source kinds',
   );
   assertTextIncludesAll(
