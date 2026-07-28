@@ -8,6 +8,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 import {
+  buildNativeWebuiUploadActions,
   planNativeWebuiAssetPublication,
   publishNativeWebuiAssets,
   readbackNativeWebuiAssets,
@@ -371,57 +372,76 @@ function runtimeFor(input: {
   };
 }
 
-test('publisher performs zero mutations for exact remote bytes and verifies anonymous bytes', (t) => {
+test('Native upload actions bind every qualified byte for the unified draft carrier', (t) => {
+  const current = fixtureManifest(t);
+  const actions = buildNativeWebuiUploadActions(current.manifest);
+  assert.equal(actions.schema, 'opl_app_native_webui_upload_actions.v1');
+  assert.equal(actions.repository, current.manifest.repository);
+  assert.equal(actions.tag, current.manifest.tag);
+  assert.equal(actions.upload_actions.length, current.manifest.assets.length);
+  assert.deepEqual(
+    actions.upload_actions.map((action) => ({
+      action: action.action,
+      name: action.name,
+      source_path: action.source_path,
+      size_bytes: action.size_bytes,
+      sha256: action.sha256,
+    })),
+    current.manifest.assets.map((asset) => ({
+      action: 'upload',
+      name: asset.name,
+      source_path: path.resolve(asset.path),
+      size_bytes: asset.size_bytes,
+      sha256: `sha256:${asset.sha256}`,
+    })),
+  );
+  assert.equal(new Set(actions.upload_actions.map((action) => action.name)).size, current.manifest.assets.length);
+  assert.equal(new Set(actions.upload_actions.map((action) => action.source_path)).size, current.manifest.assets.length);
+  for (const action of actions.upload_actions) {
+    assert.match(action.sha256, /^sha256:[0-9a-f]{64}$/);
+  }
+});
+
+test('Native upload-actions CLI emits adapter-compatible digest references without a public mutation', (t) => {
+  const current = fixtureManifest(t);
+  const manifestPath = path.join(current.root, 'publication-manifest.json');
+  const outputPath = path.join(current.root, 'upload-actions.json');
+  fs.writeFileSync(manifestPath, `${JSON.stringify(current.manifest)}\n`);
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/release-native-webui-carrier.ts',
+    'upload-actions',
+    '--manifest', manifestPath,
+    '--output', outputPath,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const actions = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.deepEqual(actions, buildNativeWebuiUploadActions(current.manifest));
+  for (const action of actions.upload_actions) {
+    assert.match(action.sha256, /^sha256:[0-9a-f]{64}$/);
+  }
+});
+
+test('Native upload actions retain raw manifest digest verification before prefixing output', (t) => {
+  const current = fixtureManifest(t);
+  const changed = current.manifest.assets[0];
+  fs.appendFileSync(path.resolve(changed.path), 'changed-after-seal');
+  assert.throws(
+    () => buildNativeWebuiUploadActions(current.manifest),
+    /not canonical or its local bytes changed/,
+  );
+});
+
+test('Native readback remains read-only and legacy post-publish publication is fail-closed', (t) => {
   const current = fixtureManifest(t);
   const runtime = runtimeFor({ manifest: current.manifest, initial: remoteAssets(current.manifest) });
-  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-123-native', runtime);
-  assert.equal(receipt.status, 'idempotent');
-  assert.deepEqual(runtime.uploads, []);
-  assert.equal(receipt.anonymous_readback.length, 5);
-  assert.equal(receipt.latest_modified, false);
-  assert.equal(receipt.container_registry_modified, false);
-});
-
-test('publisher never converts a zero-mutation public readback failure into idempotent completion', (t) => {
-  const current = fixtureManifest(t);
-  const runtime = runtimeFor({
-    manifest: current.manifest,
-    initial: remoteAssets(current.manifest),
-    anonymousReadbackStatus: 22,
-  });
-  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-126-native', runtime);
-  assert.equal(receipt.status, 'public_readback_failed');
+  const receipt = readbackNativeWebuiAssets(current.manifest, runtime);
+  assert.equal(receipt.status, 'complete');
   assert.equal(runtime.uploadCalls, 0);
   assert.deepEqual(runtime.uploads, []);
-  assert.deepEqual(receipt.requested_uploads, []);
-  assert.equal(receipt.retry_disposition, 'fix_public_readback_then_freeze_a_new_standard_bundle_no_upload_retry');
-});
-
-test('publisher invokes one asset-set mutation and leaves unknown resolution to Framework readback', (t) => {
-  const reconciled = fixtureManifest(t);
-  const reconciledRuntime = runtimeFor({
-    manifest: reconciled.manifest,
-    initial: [],
-    uploadStatus: 1,
-    exposeAfterUpload: true,
-  });
-  const reconciledReceipt = publishNativeWebuiAssets(reconciled.manifest, 'gha-124-native', reconciledRuntime);
-  assert.equal(reconciledReceipt.status, 'outcome_unknown');
-  assert.equal(reconciledRuntime.uploadCalls, 1);
-  assert.equal(reconciledRuntime.uploads.length, 5);
-  assert.deepEqual(reconciledReceipt.requested_uploads, reconciled.manifest.assets.map((asset) => asset.name));
-  assert.equal(readbackNativeWebuiAssets(reconciled.manifest, reconciledRuntime).status, 'complete');
-
-  const unknown = fixtureManifest(t);
-  const unknownRuntime = runtimeFor({
-    manifest: unknown.manifest,
-    initial: [],
-    uploadStatus: 1,
-    exposeAfterUpload: false,
-  });
-  const unknownReceipt = publishNativeWebuiAssets(unknown.manifest, 'gha-125-native', unknownRuntime);
-  assert.equal(unknownReceipt.status, 'outcome_unknown');
-  assert.equal(unknownRuntime.uploadCalls, 1);
-  assert.deepEqual(unknownRuntime.uploads, unknown.manifest.assets.map((asset) => asset.name));
-  assert.equal(unknownReceipt.retry_disposition, 'persist_framework_marker_then_exact_read_only_reconcile_no_upload_retry');
+  assert.throws(
+    () => publishNativeWebuiAssets(current.manifest, 'gha-legacy-native', runtime),
+    /unified Stable draft carrier; post-publish append is forbidden/,
+  );
+  assert.equal(runtime.uploadCalls, 0);
 });
