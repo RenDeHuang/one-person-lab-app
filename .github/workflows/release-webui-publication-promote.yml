@@ -1,0 +1,433 @@
+name: Promote Retained WebUI Publication to Latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      publication_version:
+        description: Exact retained WebUI Stable or Preview publication version.
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-webui-stable-promotion-global
+  cancel-in-progress: false
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      admission_artifact: ${{ steps.admission.outputs.admission_artifact }}
+    steps:
+      - name: Checkout canonical selector authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Reject partial or noncanonical selector dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+          [[ '${{ inputs.publication_version }}' =~ ^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-r[1-9][0-9]*|-preview\.r[1-9][0-9]*)?$ ]]
+
+      - name: Setup ORAS for durable record intake
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+
+      - name: Materialize exactly one durable publication record
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ inputs.publication_version }}'
+          receipt_ref="ghcr.io/gaofeng21cn/one-person-lab-webui:receipt-${version}"
+          mkdir -p intake evidence
+          oras pull "$receipt_ref" --output intake
+          matches=()
+          while IFS= read -r match; do matches+=("$match"); done < <(
+            find intake -type f -name webui-publication-record.json -print | LC_ALL=C sort
+          )
+          test "${#matches[@]}" -eq 1
+          test ! -L "${matches[0]}"
+          cp "${matches[0]}" evidence/webui-publication-record.json
+          cmp "${matches[0]}" evidence/webui-publication-record.json
+          node --experimental-strip-types scripts/webui-publication-record.ts \
+            validate --input evidence/webui-publication-record.json \
+            > evidence/publication-record-verification.json
+
+      - name: Read retained version, Stable, and Latest authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          observe_descriptor() {
+            local ref="$1" output="$2"
+            local repository="${ref%@*}" descriptor='' error='' status=unknown observed=null
+            if [ "$repository" = "$ref" ]; then repository="${ref%:*}"; fi
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2>"${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            else
+              error="$(tr '\n' ' ' < "${output}.stderr")"
+              if grep -Eqi 'manifest unknown|name unknown|not found|404' <<<"$error"; then
+                status=absent
+                if [[ "$ref" == *:stable || "$ref" == *:latest ]]; then
+                  tag="${ref##*:}"
+                  if ! oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr"; then
+                    status=unknown
+                  elif grep -Fx "$tag" "${output}.tags" >/dev/null; then
+                    status=unknown
+                  fi
+                fi
+              fi
+            fi
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
+          }
+          version="$(jq -er .release.version evidence/webui-publication-record.json)"
+          repository="$(jq -er .image.repository evidence/webui-publication-record.json)"
+          version_ref="$(jq -er .image.version_ref evidence/webui-publication-record.json)"
+          observe_descriptor "$version_ref" evidence/version-readback.json
+          test "$(jq -er .status evidence/version-readback.json)" = present
+          oras manifest fetch --output evidence/version-manifest.json "$version_ref"
+          test "sha256:$(shasum -a 256 evidence/version-manifest.json | awk '{print $1}')" \
+            = "$(jq -er .digest evidence/version-readback.json)"
+          child_digest="$(jq -er '
+            select(
+              .mediaType == "application/vnd.oci.image.index.v1+json"
+              or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
+            )
+            | .manifests
+            | select(length == 1)
+            | .[0]
+            | select(.platform.os == "linux" and .platform.architecture == "amd64")
+            | .digest
+            | select(test("^sha256:[0-9a-f]{64}$"))
+          ' evidence/version-manifest.json)"
+          jq --arg child_digest "$child_digest" \
+            --arg media_type "$(jq -er .mediaType evidence/version-manifest.json)" \
+            '. + {child_digest:$child_digest,manifest_count:1,media_type:$media_type}' \
+            evidence/version-readback.json > evidence/version-readback.tmp
+          mv evidence/version-readback.tmp evidence/version-readback.json
+          observe_descriptor "${repository}:stable" evidence/stable-prestate.json
+          observe_descriptor "${repository}:latest" evidence/latest-prestate.json
+          test "$version" = '${{ inputs.publication_version }}'
+
+      - name: Seal one durable-record Latest-only admission
+        id: admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/webui-publication-promotion.ts admit \
+            --publication-version '${{ inputs.publication_version }}' \
+            --publication-record evidence/webui-publication-record.json \
+            --version-readback evidence/version-readback.json \
+            --stable-prestate evidence/stable-prestate.json \
+            --latest-prestate evidence/latest-prestate.json \
+            --output evidence/admission.json \
+            > evidence/admission-summary.json
+          echo "admission_artifact=opl-webui-publication-latest-admission-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload durable selector admission
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.admission.outputs.admission_artifact }}
+          path: evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  promote-latest:
+    needs: admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release-preview-publication
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout exact admitted selector authority
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Reject partial or noncanonical pointer mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+
+      - name: Download exact same-run selector admission
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.admission.outputs.admission_artifact }}
+          path: evidence
+
+      - name: Setup ORAS for one bounded Latest pointer mutation
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+
+      - name: Re-read Stable and Latest prestate and derive selector decision
+        id: decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          test "$(printf '%s\n' "$admission" | wc -l | tr -d ' ')" = 1
+          repository="$(jq -er .target.repository "$admission")"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
+          observe_tag() {
+            local ref="$1" tag="$2" output="$3"
+            local status=unknown observed=null
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2>"${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            elif grep -Eqi 'manifest unknown|name unknown|not found|404' "${output}.stderr"; then
+              if oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr" \
+                && ! grep -Fx "$tag" "${output}.tags" >/dev/null; then
+                status=absent
+              fi
+            fi
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
+          }
+          observe_tag "$stable_ref" stable current-stable.json
+          observe_tag "$latest_ref" latest current-latest.json
+          node --experimental-strip-types scripts/webui-publication-promotion.ts decide \
+            --admission "$admission" \
+            --current-stable current-stable.json \
+            --current-latest current-latest.json \
+            --output decision.json \
+            > decision-summary.json
+          echo "decision=$(jq -er .decision decision.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Execute one Latest-only mutation and reconcile read-only
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          CAS_DECISION: ${{ steps.decision.outputs.decision }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          repository="$(jq -er .target.repository "$admission")"
+          target_digest="$(jq -er .target.digest "$admission")"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
+          expected_stable_status="$(jq -er .expected_prestate.stable.status "$admission")"
+          expected_stable_digest="$(jq -r .expected_prestate.stable.digest "$admission")"
+          target_ref="${repository}@${target_digest}"
+          mkdir -p terminal/readbacks/stable terminal/readbacks/latest
+          jq -n '{
+            schema:"opl_app_webui_publication_latest_mutation_attempt.v1",
+            status:"not_attempted",
+            attempt_count:0,
+            attempt_id:null,
+            exit_code:null,
+            stdout_sha256:null,
+            stderr_sha256:null
+          }' > terminal/mutation.json
+          login_performed=false
+          logout_before_readback=true
+          if [ "$CAS_DECISION" = write_once ]; then
+            if printf '%s' "$GHCR_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
+              login_performed=true
+              set +e
+              oras tag "$target_ref" latest > terminal/tag.stdout 2> terminal/tag.stderr
+              tag_status=$?
+              set -e
+              mutation_status=accepted
+              if [ "$tag_status" -ne 0 ]; then mutation_status=unknown; fi
+              jq -n --arg status "$mutation_status" \
+                --arg attempt_id "gha-${GITHUB_RUN_ID}-webui-retained-latest-tag" \
+                --argjson exit_code "$tag_status" \
+                --arg stdout_sha256 "sha256:$(shasum -a 256 terminal/tag.stdout | awk '{print $1}')" \
+                --arg stderr_sha256 "sha256:$(shasum -a 256 terminal/tag.stderr | awk '{print $1}')" \
+                '{
+                  schema:"opl_app_webui_publication_latest_mutation_attempt.v1",
+                  status:$status,
+                  attempt_count:1,
+                  attempt_id:$attempt_id,
+                  exit_code:$exit_code,
+                  stdout_sha256:$stdout_sha256,
+                  stderr_sha256:$stderr_sha256
+                }' > terminal/mutation.json
+            else
+              jq -n '{
+                schema:"opl_app_webui_publication_latest_mutation_attempt.v1",
+                status:"not_attempted",
+                attempt_count:0,
+                attempt_id:null,
+                exit_code:null,
+                stdout_sha256:null,
+                stderr_sha256:null,
+                failure:"registry_login_failed"
+              }' > terminal/mutation.json
+            fi
+          fi
+          if [ "$login_performed" = true ] && ! oras logout ghcr.io; then
+            logout_before_readback=false
+          fi
+          observe_tag() {
+            local ref="$1" tag="$2" output="$3"
+            local status=unknown observed=null
+            if descriptor="$(oras manifest fetch --descriptor "$ref" 2>"${output}.stderr")"; then
+              observed="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$descriptor")" || observed=null
+              if [ "$observed" != null ]; then status=present; fi
+            elif grep -Eqi 'manifest unknown|name unknown|not found|404' "${output}.stderr"; then
+              if oras repo tags "$repository" > "${output}.tags" 2>"${output}.tags.stderr" \
+                && ! grep -Fx "$tag" "${output}.tags" >/dev/null; then
+                status=absent
+              fi
+            fi
+            jq -n --arg ref "$ref" --arg status "$status" --argjson digest "$(
+              if [ "$observed" = null ]; then printf null; else jq -Rn --arg value "$observed" '$value'; fi
+            )" '{schema:"opl_app_webui_descriptor_readback.v1",ref:$ref,status:$status,digest:$digest}' > "$output"
+          }
+          if [ "$(jq -er .attempt_count terminal/mutation.json)" -eq 1 ]; then
+            for attempt in 1 2 3; do
+              stable_readback="terminal/readbacks/stable/${attempt}.json"
+              latest_readback="terminal/readbacks/latest/${attempt}.json"
+              observe_tag "$stable_ref" stable "$stable_readback"
+              observe_tag "$latest_ref" latest "$latest_readback"
+              if [ "$(jq -er .status "$stable_readback")" = "$expected_stable_status" ] \
+                && [ "$(jq -r .digest "$stable_readback")" = "$expected_stable_digest" ] \
+                && [ "$(jq -er .status "$latest_readback")" = present ] \
+                && [ "$(jq -er .digest "$latest_readback")" = "$target_digest" ]; then
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then sleep 2; fi
+            done
+          fi
+          if [ "$(jq -er .attempt_count terminal/mutation.json)" -eq 0 ]; then
+            observe_tag "$stable_ref" stable terminal/anonymous-stable-readback.json
+            observe_tag "$latest_ref" latest terminal/anonymous-latest-readback.json
+          else
+            last_stable="$(find terminal/readbacks/stable -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
+            last_latest="$(find terminal/readbacks/latest -type f -name '*.json' -print | LC_ALL=C sort | tail -n 1)"
+            cp "$last_stable" terminal/anonymous-stable-readback.json
+            cp "$last_latest" terminal/anonymous-latest-readback.json
+          fi
+          jq --argjson logout "$logout_before_readback" \
+            '. + {logout_before_readback:$logout}' terminal/anonymous-stable-readback.json \
+            > terminal/anonymous-stable-readback.tmp
+          mv terminal/anonymous-stable-readback.tmp terminal/anonymous-stable-readback.json
+          jq --argjson logout "$logout_before_readback" \
+            '. + {logout_before_readback:$logout}' terminal/anonymous-latest-readback.json \
+            > terminal/anonymous-latest-readback.tmp
+          mv terminal/anonymous-latest-readback.tmp terminal/anonymous-latest-readback.json
+          jq -s '{schema:"opl_app_webui_publication_latest_reconcile_readbacks.v1",observations:.}' \
+            terminal/readbacks/stable/*.json > terminal/stable-readbacks.json 2>/dev/null || \
+            jq -n '{schema:"opl_app_webui_publication_latest_reconcile_readbacks.v1",observations:[]}' \
+              > terminal/stable-readbacks.json
+          jq -s '{schema:"opl_app_webui_publication_latest_reconcile_readbacks.v1",observations:.}' \
+            terminal/readbacks/latest/*.json > terminal/latest-readbacks.json 2>/dev/null || \
+            jq -n '{schema:"opl_app_webui_publication_latest_reconcile_readbacks.v1",observations:[]}' \
+              > terminal/latest-readbacks.json
+
+      - name: Read back the public version, Latest, and unchanged Stable graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          version_ref="$(jq -er .target.version_ref "$admission")"
+          stable_ref="$(jq -er .target.stable_ref "$admission")"
+          latest_ref="$(jq -er .target.latest_ref "$admission")"
+          target_digest="$(jq -er .target.digest "$admission")"
+          expected_stable_status="$(jq -er .expected_prestate.stable.status "$admission")"
+          expected_stable_digest="$(jq -r .expected_prestate.stable.digest "$admission")"
+          read_manifest() {
+            local ref="$1" name="$2" expected_digest="$3"
+            oras manifest fetch --descriptor "$ref" > "terminal/${name}-descriptor.json"
+            oras manifest fetch --output "terminal/${name}.json" "$ref"
+            actual_digest="sha256:$(sha256sum "terminal/${name}.json" | awk '{print $1}')"
+            test "$actual_digest" = "$expected_digest"
+            jq -e --arg digest "$actual_digest" '.digest == $digest' \
+              "terminal/${name}-descriptor.json" >/dev/null
+          }
+          read_manifest "$version_ref" version "$target_digest"
+          read_manifest "$latest_ref" latest "$target_digest"
+          cmp -s terminal/version.json terminal/latest.json
+          actual_stable_status="$(jq -er .status terminal/anonymous-stable-readback.json)"
+          actual_stable_digest="$(jq -r .digest terminal/anonymous-stable-readback.json)"
+          test "$actual_stable_status" = "$expected_stable_status"
+          test "$actual_stable_digest" = "$expected_stable_digest"
+          if [ "$actual_stable_status" = present ]; then
+            read_manifest "$stable_ref" stable "$actual_stable_digest"
+          else
+            test "$actual_stable_status" = absent
+          fi
+          jq -n \
+            --arg version_ref "$version_ref" \
+            --arg stable_ref "$stable_ref" \
+            --arg latest_ref "$latest_ref" \
+            --arg target_digest "$target_digest" \
+            --arg stable_status "$actual_stable_status" \
+            --argjson stable_digest "$(if [ "$actual_stable_digest" = null ]; then printf null; else jq -Rn --arg value "$actual_stable_digest" '$value'; fi)" \
+            '{
+              schema:"opl_app_webui_publication_latest_public_readback.v1",
+              status:"passed",
+              anonymous:true,
+              version_ref:$version_ref,
+              stable_ref:$stable_ref,
+              latest_ref:$latest_ref,
+              target_digest:$target_digest,
+              version_and_latest_identical_bytes:true,
+              stable_unchanged:true,
+              stable:{status:$stable_status,digest:$stable_digest,unchanged:true}
+            }' > terminal/public-readback.json
+
+      - name: Write terminal retained WebUI Latest receipt
+        if: ${{ always() && steps.decision.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          admission="$(find evidence -type f -name admission.json -print)"
+          node --experimental-strip-types scripts/webui-publication-promotion.ts receipt \
+            --admission "$admission" \
+            --decision decision.json \
+            --mutation terminal/mutation.json \
+            --stable-readbacks terminal/stable-readbacks.json \
+            --latest-readbacks terminal/latest-readbacks.json \
+            --anonymous-stable-readback terminal/anonymous-stable-readback.json \
+            --anonymous-latest-readback terminal/anonymous-latest-readback.json \
+            --output terminal/receipt.json \
+            > terminal/receipt-summary.json
+
+      - name: Upload terminal selector evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-webui-publication-latest-${{ github.run_id }}
+          path: |
+            current-stable.json
+            current-latest.json
+            decision.json
+            decision-summary.json
+            terminal
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce conclusive Latest-only terminal state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(jq -er .status terminal/public-readback.json)" = passed
+          case "$(jq -er .status terminal/receipt.json)" in
+            complete|idempotent|reconciled_complete) ;;
+            *)
+              echo "::error::Retained WebUI Latest promotion is inconclusive; do not retry before owner-authoritative readback."
+              exit 1
+              ;;
+          esac

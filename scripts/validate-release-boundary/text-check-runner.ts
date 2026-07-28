@@ -14,7 +14,11 @@ const exactWebUiCompileCeilingPermissions = {
   packages: 'write',
 } as const;
 const exactStableStandardPermissions = { contents: 'write', actions: 'read' } as const;
-const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as const;
+const exactWebUiPublishPermissions = {
+  actions: 'read',
+  contents: 'read',
+  packages: 'write',
+} as const;
 const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml';
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
@@ -27,6 +31,8 @@ const webuiPromotionPublishEnvironment =
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
+const webuiPublicationPromotionWorkflowPath =
+  '.github/workflows/release-webui-publication-promote.yml';
 const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-follower.yml';
 const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
@@ -115,6 +121,18 @@ export function isAuthorizedWebuiStablePromotionWriteJob(
     && jobId === webuiStablePromotionMutationJob
     && needsExactly(job, ['admission'])
     && job.environment === webuiPromotionPublishEnvironment
+    && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
+}
+
+export function isAuthorizedWebuiPublicationLatestPromotionWriteJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  return workflowPath === webuiPublicationPromotionWorkflowPath
+    && jobId === 'promote-latest'
+    && needsExactly(job, ['admission'])
+    && job.environment === 'release-preview-publication'
     && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
 }
 
@@ -1618,7 +1636,7 @@ function validateWebUiCarrierCallee(
       publish.needs !== 'build-and-qualify' ||
       publish.environment !== webuiCarrierPublishEnvironment ||
       !exactObject(publish.permissions, exactWebUiPublishPermissions)) {
-    failures += reportFailure(id, 'WebUI immutable publish must be execute-only, protected, and request only contents:read/packages:write');
+    failures += reportFailure(id, 'WebUI immutable publish must be execute-only, protected, and request actions:read/contents:read/packages:write');
   }
   if (publish &&
       intersectPermission(callerPermissions, publish.permissions, 'packages') !==
@@ -1940,6 +1958,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     validateNightlyReleaseTopology(appRoot) +
     validatePreviewLatestPointerTopology(appRoot) +
     validateIndependentWebuiPreviewTopology(appRoot) +
+    validateWebuiPublicationLatestPromotionTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
     validateNativeWebuiPublicationTopology(appRoot) +
     validateHomebrewFullPromotionTopology(appRoot);
@@ -1976,6 +1995,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedWebuiPublicationLatestPromotionWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }
@@ -2042,6 +2065,80 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       failures += 1;
       failures += validateExactActionPins(workflowPath, jobId, steps);
     }
+  }
+  return failures;
+}
+
+export function validateWebuiPublicationLatestPromotionTopology(appRoot: string): number {
+  const id = 'webui_publication_latest_promotion_topology';
+  const parsed = parseWorkflow(appRoot, webuiPublicationPromotionWorkflowPath, id);
+  if (!parsed) return 1;
+  const { workflow, text } = parsed;
+  const jobs = workflowJobs(workflow);
+  const admission = jobs.admission;
+  const promotion = jobs['promote-latest'];
+  let failures = 0;
+  if (
+    JSON.stringify(Object.keys(workflow.on ?? {})) !== JSON.stringify(['workflow_dispatch'])
+    || JSON.stringify(Object.keys(workflow.on?.workflow_dispatch?.inputs ?? {}).sort()) !==
+      JSON.stringify(['publication_version'])
+    || !exactObject(workflow.permissions, exactReadPermissions)
+    || !exactObject(workflow.concurrency, {
+      group: 'opl-webui-stable-promotion-global',
+      'cancel-in-progress': false,
+    })
+    || JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(['admission', 'promote-latest'])
+  ) {
+    failures += reportFailure(
+      id,
+      'retained WebUI Latest promotion must expose one explicit version selector and share the alias writer lock',
+    );
+  }
+  if (
+    !admission
+    || Object.prototype.hasOwnProperty.call(admission, 'needs')
+    || !exactObject(admission.permissions, exactReadPermissions)
+    || !promotion
+    || !isAuthorizedWebuiPublicationLatestPromotionWriteJob(
+      webuiPublicationPromotionWorkflowPath,
+      'promote-latest',
+      promotion,
+    )
+  ) {
+    failures += reportFailure(
+      id,
+      'retained WebUI Latest promotion must use one read-only admission plus one protected Latest-only writer',
+    );
+  }
+  for (const required of [
+    'webui-publication-record.ts',
+    'webui-publication-promotion.ts admit',
+    'oras pull "$receipt_ref"',
+    'oras tag "$target_ref" latest',
+    'stable_unchanged:true',
+    'do not retry before owner-authoritative readback',
+  ]) {
+    if (!text.includes(required)) {
+      failures += reportFailure(id, `retained WebUI Latest promotion is missing ${required}`);
+    }
+  }
+  if (
+    /release-webui-development\.yml|release-webui-stable\.yml|gh workflow run|gh run (?:rerun|cancel)|--force/.test(text)
+    || /\boras tag\b[^\n]*\bstable\b/.test(text)
+  ) {
+    failures += reportFailure(
+      id,
+      'retained WebUI Latest promotion must not build, dispatch, or move the Stable alias',
+    );
+  }
+  for (const [jobId, job] of Object.entries(jobs)) {
+    failures += validateExactActionPins(
+      webuiPublicationPromotionWorkflowPath,
+      jobId,
+      Array.isArray((job as Record<string, any>).steps)
+        ? (job as Record<string, any>).steps
+        : [],
+    );
   }
   return failures;
 }
