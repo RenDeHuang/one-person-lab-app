@@ -430,6 +430,7 @@ test('Windows Docker/WebUI health timeout classifies external input only with re
   assert.match(classification, /github\\\.com/);
   assert.match(classification, /networkFailurePattern/);
   assert.match(classification, /networkErrorContextPattern/);
+  assert.match(classification, /could not resolve/);
   assert.match(classification, /-and \(\$_ -match \$networkFailurePattern/);
   assert.match(classification, /-or \$_ -match \$networkErrorContextPattern/);
   assert.match(healthWait, /Get-WebUiHealthTimeoutClassification -TargetDir \$failureDir/);
