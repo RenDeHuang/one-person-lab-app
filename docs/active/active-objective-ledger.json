@@ -6,13 +6,13 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-28T03:34:26Z",
+  "generated_at": "2026-07-28T15:26:39Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "524b4e0d209c2ef2b067d389c955e1d087631afa",
-    "tree": "a6d11f850c2157624520079a89524cc338529a1f",
-    "observation": "origin/main is fresh at 524b4e0d; local main is 5 commits behind and dirty, so no canonical absorption is admitted from this root until the Integrator replays against the fresh wire"
+    "commit": "c90e6103db5d097bd76095a4ee88b88c92b6ad44",
+    "tree": "aec6ae2cbfd50a160194bb07dafa7674ad60fa86",
+    "observation": "origin/main wire and GitHub API agree at c90e6103/tree aec6ae2c; the App root checkout remains untouched under its separate integrator ownership, and this ledger lane replays from the fresh remote base"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
   "freshness_policy": {
@@ -93,7 +93,7 @@
         "PR #45 merged as 1142a2f9 and separates the credential executor SHA from the frozen App/Shell/Framework cohort, so unrelated main movement does not invalidate a run-bound operation.",
         "PR #48 merged as efae838f and closed the trusted current-head Codex review gate replay; PR #53 merged as 9ebe6c1b and exposes operation_id in the runtime dispatcher contract.",
         "GitHub immutable releases are enabled for the repository. Historical r3 remains immutable=false because the setting cannot retroactively lock an existing release; no replacement release was issued.",
-        "Fresh canonical main 99724219/tree 734158f5 descends from all listed control-plane repairs. Prior task worktrees, branches, refs and lifecycle entries from this thread are absent.",
+        "PR #42 merged as c90e6103 with canonical tree aec6ae2c after current-head quality, merge-gate and Codex advisory success. All 14 replay paths passed Git object, GitHub API blob and raw SHA-256 parity; its worktree, gitdir, registration, local/tracking/wire refs and lifecycle entry are absent.",
         "The immutable-release terminal is not closed: the public r3 release reports immutable=false, while the canonical Stable contract requires immutable=true. Repository immutable releases are enabled only for subsequent releases."
       ],
       "next_action": "Obtain a fresh user terminal decision: either authorize one new immutable Stable revision under a distinct single-use operation, or explicitly supersede the immutable-release requirement for historical r3. Do not rewrite or republish r3 in place.",
