@@ -1481,7 +1481,9 @@ export const appOwnedSessionWorkspaceModel = {
   projectless_session_semantics:
     "no_user_selected_project_affinity_not_no_runtime_cwd",
   projectless_detection:
-    "custom_workspace_equals_false_or_canonical_recorded_cwd_absent_never_turn_or_command_pwd",
+    "custom_workspace_equals_false_or_canonical_project_id_absent_including_managed_user_documents_codex_runtime_workspace_never_turn_or_command_pwd",
+  managed_projectless_workspace_root:
+    "user_documents_codex_subtree_preserves_runtime_cwd_and_projects_as_unbound",
   project_affinity_role:
     "canonical_recorded_thread_cwd_for_ui_grouping_and_default_turn_cwd_hint",
   workspace_binding_role:
@@ -1506,6 +1508,8 @@ export const appOwnedSessionWorkspaceModel = {
 export const appOwnedDirectoryGroupPolicy = {
   source: "explicit_project_affinity_projection_joined_by_canonical_thread_id",
   role: "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
+  managed_projectless_workspace_root:
+    "user_documents_codex_subtree_preserves_runtime_cwd_and_projects_as_unbound",
   owns_sessions: false,
   owns_context: false,
   owns_artifacts: false,
@@ -1519,7 +1523,7 @@ export const appOwnedDirectoryGroupPolicy = {
   turn_cwd_reclassifies_bound_session: false,
   project_adoption_policy: {
     eligible_state:
-      "custom_workspace_equals_false_or_canonical_recorded_cwd_absent",
+      "custom_workspace_equals_false_or_canonical_project_id_absent_including_managed_user_documents_codex_runtime_workspace",
     triggers: ["drag_to_directory_group", "keyboard_move_to_project_action"],
     destination_policy:
       "one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots",

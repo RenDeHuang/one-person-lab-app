@@ -420,6 +420,7 @@ export type AppProductProfile = {
         project_affinity_cardinality: string;
         projectless_session_semantics: string;
         projectless_detection: string;
+        managed_projectless_workspace_root: string;
         project_affinity_role: string;
         workspace_binding_role: string;
         runtime_pwd_role: string;
