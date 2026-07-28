@@ -457,7 +457,11 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.doesNotMatch(stableSource, /openssl rand/);
   assert.doesNotMatch(stableSource, /operation_id="stable-\$\{GITHUB_RUN_ID\}"/);
   assert.doesNotMatch(stableSource, /stable-operation-control\.ts create(?:\s|$)/);
-  assert.match(stableSource, /--operation-id '\$\{\{ inputs\.operation_id \}\}'/);
+  assert.doesNotMatch(
+    String(protectedControl.steps.map((step: Record<string, unknown>) => step.run ?? '').join('\n')),
+    /\$\{\{\s*inputs\./,
+  );
+  assert.match(stableSource, /--operation-id "\$OPERATION_ID"/);
   assert.equal(protectedControl.steps.some(
     (step: Record<string, any>) => step.with?.name === 'opl-stable-operation-control-${{ github.run_id }}',
   ), true);
