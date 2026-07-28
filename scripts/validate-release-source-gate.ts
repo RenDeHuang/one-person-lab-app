@@ -146,6 +146,7 @@ export type ReleaseSourceGateEnvironment = {
   pathExists?: (candidatePath: string) => boolean;
   readJson?: (candidatePath: string) => unknown;
   variables?: NodeJS.ProcessEnv;
+  preparationFailure?: string;
 };
 
 function usage(): void {
@@ -557,6 +558,15 @@ export function buildReleaseSourceGateReport(
       : `Release environment is not admissible: ${environmentProblems.join('; ')}.`,
     actual: environmentProblems.length > 0 ? environmentProblems.join(', ') : undefined,
   });
+  const preparationFailure = environment.preparationFailure?.trim() || '';
+  if (preparationFailure) {
+    addCheck(checks, {
+      id: 'active_shell_checkout_preparation',
+      status: 'failed',
+      message: `Active shell checkout preparation failed before source-gate admission. ${preparationFailure}`,
+      actual: preparationFailure,
+    });
+  }
 
   const repoRootResult = runner('git', ['rev-parse', '--show-toplevel'], { cwd: options.repoRoot, env: commandEnvironment });
   const resolvedRepoRoot = repoRootResult.status === 0 ? firstLine(repoRootResult.stdout) : '';
@@ -834,7 +844,9 @@ export function buildReleaseSourceGateReport(
     .filter((check) => check.status !== 'passed')
     .map((check) => check.id);
   if (admissionFailedCheckIds.length > 0) {
-    const blockedReason = 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
+    const blockedReason = preparationFailure
+      ? `Active shell checkout preparation failed before source-gate admission: ${preparationFailure} Required source gates were not run; repair preparation and admit a new immutable cohort.`
+      : 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
     blockRequiredGate('app_release_boundary_contract', blockedReason);
     blockRequiredGate('shell_product_profile_consumer', blockedReason);
     blockRequiredGate('active_shell_format_check', blockedReason);
@@ -1002,8 +1014,18 @@ function isMainModule(): boolean {
 if (isMainModule()) {
   try {
     const options = parseReleaseSourceGateArgs(process.argv.slice(2));
-    prepareReleaseSourceShell(options);
-    const report = buildReleaseSourceGateReport(options);
+    let preparationFailure: string | undefined;
+    try {
+      prepareReleaseSourceShell(options);
+    } catch (error) {
+      preparationFailure = error instanceof Error ? error.message : String(error);
+    }
+    const report = buildReleaseSourceGateReport(
+      options,
+      run,
+      undefined,
+      preparationFailure ? { preparationFailure } : {},
+    );
     writeReleaseSourceGateReport(options, report);
     if (options.json) {
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

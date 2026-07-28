@@ -418,6 +418,43 @@ test('release source CLI path still writes a typed JSON failure after preparatio
   }
 });
 
+test('release source gate writes a typed JSON blocker when shell materialization fails', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-preparation-failure-'));
+  try {
+    const output = path.join(root, 'source-gate.json');
+    const preparationFailure = 'Command failed: git clone --no-tags git@github.com:example.invalid/shell.git /tmp/shell\nnetwork unavailable';
+    const gateOptions = options({ output });
+    const report = buildReleaseSourceGateReport(
+      gateOptions,
+      runner(),
+      '2026-06-30T00:00:00.000Z',
+      {
+        variables: {},
+        preparationFailure,
+        pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+        readJson: (candidatePath) => readSourceJson(candidatePath),
+      },
+    );
+    writeReleaseSourceGateReport(gateOptions, report);
+
+    const written = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(written.schema, 'opl_app_release_source_gate.v1');
+    assert.equal(written.status, 'failed');
+    assert.equal(written.admission.status, 'blocked');
+    assert.equal(written.typed_blocker?.schema, 'opl_app_release_source_gate_blocker.v1');
+    assert.equal(written.typed_blocker?.phase, 'pre_admission');
+    assert.equal(written.typed_blocker?.next_action, 'repair_pre_admission');
+    assert.equal(written.typed_blocker?.failed_check_ids.includes('active_shell_checkout_preparation'), true);
+    assert.match(
+      written.checks.find((check: { id: string }) => check.id === 'active_shell_checkout_preparation')?.message ?? '',
+      /network unavailable/,
+    );
+    assert.equal(written.required_gates.every((gate: { executed: boolean }) => gate.executed === false), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('release source gate strips ambient controller SHA from required gate commands', () => {
   let requiredGateEnvironment: NodeJS.ProcessEnv | undefined;
   const baseRunner = runner();
