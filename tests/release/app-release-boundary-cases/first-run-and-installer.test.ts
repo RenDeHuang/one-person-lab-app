@@ -594,6 +594,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-stable-installer-profile-"));
   const fakeBin = path.join(tempRoot, "bin");
   const curlArgsPath = path.join(tempRoot, "curl-args.txt");
+  const ghArgsPath = path.join(tempRoot, "gh-args.txt");
   const hdiutilArgsPath = path.join(tempRoot, "hdiutil-args.txt");
   const releaseJsonPath = path.join(tempRoot, "release.json");
   const customDmgPath = path.join(tempRoot, "custom.dmg");
@@ -726,8 +727,12 @@ while [ "$#" -gt 0 ]; do
 done
 case "$url" in
   https://api.github.com/*)
-    cp "$OPL_FAKE_RELEASE_JSON" "$output"
-    exit 0
+    if [ "$OPL_FAKE_RELEASE_API_HTTP" = "200" ]; then
+      cp "$OPL_FAKE_RELEASE_JSON" "$output"
+      exit 0
+    fi
+    printf 'release-api-status=%s\n' "$OPL_FAKE_RELEASE_API_HTTP" >&2
+    exit 22
     ;;
   *One-Person-Lab-Full-*)
     if [ "$OPL_FAKE_FULL_HTTP" = "200" ]; then
@@ -757,6 +762,17 @@ case "$url" in
     exit 22
     ;;
 esac
+`,
+  );
+  writeExecutable(
+    path.join(fakeBin, "gh"),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> "$OPL_GH_ARGS_CAPTURE"
+if [ "$1" = "api" ] && [ "$OPL_FAKE_GH_STATUS" = "0" ]; then
+  cat "$OPL_FAKE_RELEASE_JSON"
+  exit 0
+fi
+exit 1
 `,
   );
   writeExecutable(
@@ -800,6 +816,8 @@ exit 1
         manifest,
         manifestAssetDigest,
         prerelease,
+        releaseApiHttp = "200",
+        ghStatus = "1",
       }: {
         fullHttp?: string;
         fullPresent?: boolean;
@@ -808,6 +826,8 @@ exit 1
         manifest?: Parameters<typeof componentManifest>[0];
         manifestAssetDigest?: string;
         prerelease?: boolean;
+        releaseApiHttp?: string;
+        ghStatus?: string;
       } = {},
     ) => {
       writeRelease({
@@ -818,6 +838,7 @@ exit 1
         prerelease,
       });
       fs.writeFileSync(curlArgsPath, "");
+      fs.writeFileSync(ghArgsPath, "");
       fs.writeFileSync(hdiutilArgsPath, "");
       return spawnSync(
         "/bin/bash",
@@ -835,10 +856,13 @@ exit 1
           env: {
             ...process.env,
             OPL_CURL_ARGS_CAPTURE: curlArgsPath,
+            OPL_GH_ARGS_CAPTURE: ghArgsPath,
             OPL_HDIUTIL_ARGS_CAPTURE: hdiutilArgsPath,
             OPL_FAKE_RELEASE_JSON: releaseJsonPath,
             OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
             OPL_FAKE_FULL_HTTP: fullHttp,
+            OPL_FAKE_RELEASE_API_HTTP: releaseApiHttp,
+            OPL_FAKE_GH_STATUS: ghStatus,
             PATH: `${fakeBin}:/usr/bin:/bin`,
           },
         },
@@ -869,6 +893,22 @@ exit 1
       /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/latest/,
     );
     assert.match(latestResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const apiFallbackResult = runInstaller(["--standard"], {
+      releaseApiHttp: "403",
+      ghStatus: "0",
+    });
+    assert.notEqual(apiFallbackResult.status, 0, "fake hdiutil should stop after gh API fallback verification");
+    assert.match(apiFallbackResult.stderr, /used authenticated gh fallback/);
+    assert.match(
+      fs.readFileSync(curlArgsPath, "utf8"),
+      /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/tags\/v26\.7\.20/,
+    );
+    assert.match(
+      fs.readFileSync(ghArgsPath, "utf8"),
+      /api --hostname github\.com .*repos\/gaofeng21cn\/one-person-lab-app\/releases\/tags\/v26\.7\.20/,
+    );
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
     const legacyReleaseResult = runInstaller(["--standard"], {
