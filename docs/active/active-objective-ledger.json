@@ -6,7 +6,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-27-parallel-work-serialized-integration-v2",
-  "generated_at": "2026-07-28T15:26:39Z",
+  "generated_at": "2026-07-28T15:33:35Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -85,7 +85,10 @@
       "id": "desktop-stable-latest",
       "status": "ACTIVE",
       "controller_thread": "019f9cda-e8d2-71e3-abb6-077964145375",
-      "execution_owner_threads": ["019f9cda-e8d2-71e3-abb6-077964145375"],
+      "execution_owner_threads": [
+        "019fa4b7-ad0e-7772-9879-47df59ce9d09",
+        "019f9cda-e8d2-71e3-abb6-077964145375"
+      ],
       "scope": "Produce one fresh admitted Desktop Stable operation and publish immutable Standard and required Native assets with Latest/public readback.",
       "current_evidence": [
         "Stable run 30325431854 attempt 1 completed success and published Latest v26.7.28-r3 with 13 digest-bound public assets; DMG sha256:2cdef0d8ccf23e1ada98fac8dbfecc791d43b7daa98aaa86b61905ebf1c4a5f8 and component manifest sha256:6a96eb0b5eb2252baf924ab53d5420e87a1d764cb54f20c1153cca03dcea07bc remain readable.",
@@ -94,19 +97,20 @@
         "PR #48 merged as efae838f and closed the trusted current-head Codex review gate replay; PR #53 merged as 9ebe6c1b and exposes operation_id in the runtime dispatcher contract.",
         "GitHub immutable releases are enabled for the repository. Historical r3 remains immutable=false because the setting cannot retroactively lock an existing release; no replacement release was issued.",
         "PR #42 merged as c90e6103 with canonical tree aec6ae2c after current-head quality, merge-gate and Codex advisory success. All 14 replay paths passed Git object, GitHub API blob and raw SHA-256 parity; its worktree, gitdir, registration, local/tracking/wire refs and lifecycle entry are absent.",
+        "The remaining source gap is exclusively owned by Release Control thread 019fa4b7-ad0e-7772-9879-47df59ce9d09 through open PR #58; source ownerless=0, and this ledger/authority controller will not cross-write that lane or publish before its canonical owner-close.",
         "The immutable-release terminal is not closed: the public r3 release reports immutable=false, while the canonical Stable contract requires immutable=true. Repository immutable releases are enabled only for subsequent releases."
       ],
-      "next_action": "Obtain a fresh user terminal decision: either authorize one new immutable Stable revision under a distinct single-use operation, or explicitly supersede the immutable-release requirement for historical r3. Do not rewrite or republish r3 in place.",
+      "next_action": "Let sole Release Control owner 019fa4b7-ad0e-7772-9879-47df59ce9d09 replay PR #58 onto fresh main, protected-merge it and owner-close its source lane. Only then may this controller fresh-evaluate one distinct immutable terminal Stable operation; issue no authority, dispatch or publication before that close.",
       "integration_order": 1,
       "parallel_group": "desktop-stable",
       "estimated_remaining": {
-        "wall_clock": "user decision plus one release operation if immutability remains required",
+        "wall_clock": "PR #58 canonical owner-close, then one fresh immutable terminal evaluation and operation if admitted",
         "steps": [
-          {"name": "terminal policy decision", "duration": "user-authoritative", "necessary": "resolve whether immutable=true remains mandatory for the delivered Stable terminal"},
-          {"name": "new immutable Stable revision", "duration": "only if authorized", "necessary": "satisfy the canonical immutable-release contract without mutating historical r3"}
+          {"name": "PR #58 source canonical and owner-close", "duration": "Release Control owner-authoritative", "necessary": "land the remaining immutable-publication source semantics without a duplicate writer"},
+          {"name": "fresh immutable Stable terminal", "duration": "only after distinct admission", "necessary": "satisfy immutable=true without rewriting or republishing historical r3 in place"}
         ]
       },
-      "terminal_gaps": ["public Stable immutable=true or an explicit user supersession", "fresh user terminal acceptance"],
+      "terminal_gaps": ["PR #58 source canonical and owner-close", "public Stable immutable=true", "fresh user terminal acceptance"],
       "archive_performed": false,
       "user_approval_required": true
     },
