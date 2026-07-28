@@ -84,6 +84,41 @@ function receipt(status: OptionalCertificationStatus): Record<string, any> {
   });
 }
 
+function writeJson(root: string, filename: string, value: unknown): string {
+  const output = path.join(root, filename);
+  fs.writeFileSync(output, `${JSON.stringify(value)}\n`);
+  return output;
+}
+
+function dispatchAdmission(reason: 'not_requested' | 'not_authorized' | 'operator_deferred' = 'not_requested'): Record<string, unknown> {
+  return {
+    schema: 'opl_app_optional_certification_dispatch_admission.v1',
+    status: 'not_started',
+    reason_code: reason,
+    source_run_id: expected.sourceRunId,
+    release_tag: expected.releaseTag,
+    physical_job_dispatched: false,
+  };
+}
+
+function passedCapabilityAdmission(): Record<string, unknown> {
+  return {
+    schema: 'opl_app_optional_certification_vm_admission.v1',
+    status: 'passed',
+    reason_code: null,
+    source_vm: 'opl-clean-macos',
+  };
+}
+
+function unavailableCapabilityAdmission(): Record<string, unknown> {
+  return {
+    schema: 'opl_app_optional_certification_vm_admission.v1',
+    status: 'failed',
+    reason_code: 'capability_admission_failed',
+    source_vm: 'opl-clean-macos',
+  };
+}
+
 test('optional certification contract exposes exactly four distinct canonical states', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-optional-certification-receipt.schema.json'), 'utf8'),
@@ -138,7 +173,7 @@ test('receipt writer emits a self-validating not_run record without inventing a 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const admission = path.join(root, 'admission.json');
-  fs.writeFileSync(admission, '{"status":"not_requested","physical_job_dispatched":false}\n');
+  fs.writeFileSync(admission, `${JSON.stringify(dispatchAdmission())}\n`);
   const value = writeOptionalCertificationReceipt({
     expected,
     status: 'not_run',
@@ -165,7 +200,7 @@ test('receipt writer refuses to classify queue, runner, auth, or network state a
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const admission = path.join(root, 'admission.json');
-  fs.writeFileSync(admission, '{"status":"failed"}\n');
+  fs.writeFileSync(admission, `${JSON.stringify(unavailableCapabilityAdmission())}\n`);
   assert.throws(
     () => writeOptionalCertificationReceipt({
       expected,
@@ -183,4 +218,79 @@ test('receipt writer refuses to classify queue, runner, auth, or network state a
     }),
     /typed admission failure/,
   );
+});
+
+test('receipt writer binds every terminal state to an exact typed admission document', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const execution = writeJson(root, 'execution.json', { surface_id: 'real-execution' });
+
+  for (const [index, invalidAdmission] of [
+    null,
+    [],
+    { ...passedCapabilityAdmission(), extra: true },
+    { ...passedCapabilityAdmission(), source_vm: '' },
+    { ...passedCapabilityAdmission(), status: 'failed' },
+  ].entries()) {
+    const admission = writeJson(root, `invalid-${index}.json`, invalidAdmission);
+    assert.throws(
+      () => writeOptionalCertificationReceipt({
+        expected,
+        status: 'passed',
+        certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+        admissionEvidencePath: admission,
+        reasonCode: null,
+        certificationRunId: '30260000002',
+        evidencePaths: [execution],
+        createdAt: '2026-07-28T01:00:00.000Z',
+      }),
+      /Admission evidence/,
+    );
+  }
+
+  const invalidJson = path.join(root, 'invalid-json.json');
+  fs.writeFileSync(invalidJson, '{not valid json}\n');
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected,
+      status: 'passed',
+      certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+      admissionEvidencePath: invalidJson,
+      reasonCode: null,
+      certificationRunId: '30260000002',
+      evidencePaths: [execution],
+      createdAt: '2026-07-28T01:00:00.000Z',
+    }),
+    /Admission evidence must be one valid JSON object/,
+  );
+
+  const target = writeJson(root, 'symlink-target.json', passedCapabilityAdmission());
+  const symlink = path.join(root, 'admission-symlink.json');
+  fs.symlinkSync(target, symlink);
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected,
+      status: 'passed',
+      certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+      admissionEvidencePath: symlink,
+      reasonCode: null,
+      certificationRunId: '30260000002',
+      evidencePaths: [execution],
+      createdAt: '2026-07-28T01:00:00.000Z',
+    }),
+    /Admission evidence must be a non-empty regular file/,
+  );
+
+  const unavailable = writeJson(root, 'unavailable.json', unavailableCapabilityAdmission());
+  const value = writeOptionalCertificationReceipt({
+    expected,
+    status: 'unavailable',
+    certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+    admissionEvidencePath: unavailable,
+    reasonCode: 'capability_admission_failed',
+    certificationRunId: '30260000002',
+    evidencePaths: [],
+    createdAt: '2026-07-28T01:00:00.000Z',
+  });
+  assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
 });

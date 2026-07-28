@@ -22,13 +22,13 @@ export type OptionalCertificationExpectation = {
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runIdPattern = /^[1-9][0-9]*$/;
-const unavailableReasons = new Set([
+export const optionalCertificationUnavailableReasons = new Set([
   'authority_or_capability_not_provable',
   'fleet_lease_admission_failed',
   'vm_admission_failed',
   'capability_admission_failed',
 ]);
-const notRunReasons = new Set([
+export const optionalCertificationNotRunReasons = new Set([
   'not_requested',
   'not_authorized',
   'operator_deferred',
@@ -111,7 +111,7 @@ export function validateOptionalCertificationReceipt(
     }
     if (
       receipt.admission?.status !== 'not_started'
-      || !notRunReasons.has(receipt.admission?.reason_code)
+      || !optionalCertificationNotRunReasons.has(receipt.admission?.reason_code)
     ) {
       errors.push('not_run requires a typed non-execution reason');
     }
@@ -131,7 +131,10 @@ export function validateOptionalCertificationReceipt(
     }
   }
   if (receipt.status === 'unavailable') {
-    if (receipt.admission?.status !== 'failed' || !unavailableReasons.has(receipt.admission?.reason_code)) {
+    if (
+      receipt.admission?.status !== 'failed'
+      || !optionalCertificationUnavailableReasons.has(receipt.admission?.reason_code)
+    ) {
       errors.push('unavailable requires a started-job admission failure with an allowed reason');
     }
     if ((receipt.result?.evidence_digests?.length ?? 0) !== 0) {

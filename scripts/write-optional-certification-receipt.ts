@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import {
+  optionalCertificationNotRunReasons,
+  optionalCertificationUnavailableReasons,
   type OptionalCertificationExpectation,
   type OptionalCertificationStatus,
   validateOptionalCertificationReceipt,
@@ -18,12 +20,24 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const runIdPattern = /^[1-9][0-9]*$/;
 const certificationKinds = new Set(['clean_machine_install', 'updater_upgrade', 'homebrew_install']);
 const platforms = new Set(['macos', 'windows']);
-const notRunReasons = new Set(['not_requested', 'not_authorized', 'operator_deferred']);
-const unavailableReasons = new Set([
-  'authority_or_capability_not_provable',
-  'fleet_lease_admission_failed',
-  'vm_admission_failed',
-  'capability_admission_failed',
+const vmAdmissionSchema = 'opl_app_optional_certification_vm_admission.v1';
+const dispatchAdmissionSchema = 'opl_app_optional_certification_dispatch_admission.v1';
+const tartSmokeSurface = 'opl_tart_gui_first_run_smoke';
+const vmAdmissionKeys = ['reason_code', 'schema', 'source_vm', 'status'];
+const dispatchAdmissionKeys = [
+  'physical_job_dispatched',
+  'reason_code',
+  'release_tag',
+  'schema',
+  'source_run_id',
+  'status',
+];
+const vmAdmissionFailureStages = new Set([
+  'clone_vm',
+  'configure_display',
+  'start_vm',
+  'wait_for_ip',
+  'wait_for_ssh',
 ]);
 
 function required(value: string | undefined, flag: string): string {
@@ -43,6 +57,101 @@ function readRegularFile(filePath: string, label: string): Buffer {
 
 function digestFile(filePath: string, label: string): string {
   return `sha256:${crypto.createHash('sha256').update(readRegularFile(filePath, label)).digest('hex')}`;
+}
+
+function readRegularJson(filePath: string, label: string): JsonRecord {
+  let value: unknown;
+  try {
+    value = JSON.parse(readRegularFile(filePath, label).toString('utf8'));
+  } catch (error) {
+    throw new Error(`${label} must be one valid JSON object: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be one JSON object.`);
+  }
+  return value as JsonRecord;
+}
+
+function exactKeys(value: JsonRecord, expected: readonly string[], label: string): void {
+  const actual = Object.keys(value).sort();
+  const normalizedExpected = [...expected].sort();
+  if (
+    actual.length !== normalizedExpected.length
+    || actual.some((key, index) => key !== normalizedExpected[index])
+  ) {
+    throw new Error(`${label} must contain exactly: ${normalizedExpected.join(', ')}.`);
+  }
+}
+
+function nonEmptyText(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} must be a non-empty string.`);
+  return value.trim();
+}
+
+function assertVmAdmission(
+  evidence: JsonRecord,
+  expected: { status: 'passed' | 'failed'; reasonCode: string | null },
+): void {
+  exactKeys(evidence, vmAdmissionKeys, 'Admission evidence');
+  if (evidence.schema !== vmAdmissionSchema) {
+    throw new Error(`Admission evidence schema must be ${vmAdmissionSchema}.`);
+  }
+  if (evidence.status !== expected.status || evidence.reason_code !== expected.reasonCode) {
+    throw new Error('Admission evidence status or reason code does not match the certification result.');
+  }
+  nonEmptyText(evidence.source_vm, 'Admission evidence source_vm');
+}
+
+function assertNotRunDispatchAdmission(
+  evidence: JsonRecord,
+  input: WriteOptionalCertificationReceiptInput,
+): void {
+  exactKeys(evidence, dispatchAdmissionKeys, 'Admission evidence');
+  if (
+    evidence.schema !== dispatchAdmissionSchema
+    || evidence.status !== 'not_started'
+    || evidence.reason_code !== input.reasonCode
+    || evidence.source_run_id !== input.expected.sourceRunId
+    || evidence.release_tag !== input.expected.releaseTag
+    || evidence.physical_job_dispatched !== false
+  ) {
+    throw new Error('Admission evidence must be the exact typed non-execution dispatch admission.');
+  }
+}
+
+function assertVmAdmissionFailureEvidence(evidence: JsonRecord): void {
+  if (
+    evidence.surface_id !== tartSmokeSurface
+    || evidence.status !== 'failed'
+    || !vmAdmissionFailureStages.has(String(evidence.failure_stage ?? ''))
+  ) {
+    throw new Error('Admission evidence must be an exact typed VM-admission failure summary.');
+  }
+  nonEmptyText(evidence.source_vm, 'VM-admission evidence source_vm');
+}
+
+function assertTypedAdmissionEvidence(input: WriteOptionalCertificationReceiptInput): void {
+  const evidence = readRegularJson(input.admissionEvidencePath, 'Admission evidence');
+  if (input.status === 'not_run') {
+    assertNotRunDispatchAdmission(evidence, input);
+    return;
+  }
+  if (input.status === 'passed' || input.status === 'failed') {
+    assertVmAdmission(evidence, { status: 'passed', reasonCode: null });
+    return;
+  }
+  if (input.status !== 'unavailable') {
+    throw new Error('Certification status is unsupported.');
+  }
+  if (input.reasonCode === 'capability_admission_failed') {
+    assertVmAdmission(evidence, { status: 'failed', reasonCode: input.reasonCode });
+    return;
+  }
+  if (input.reasonCode === 'vm_admission_failed') {
+    assertVmAdmissionFailureEvidence(evidence);
+    return;
+  }
+  throw new Error('unavailable requires exact typed capability or VM-admission evidence.');
 }
 
 function sealReceipt(receipt: JsonRecord): JsonRecord {
@@ -80,7 +189,7 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
   const isUnavailable = status === 'unavailable';
   const isTerminalExecution = status === 'passed' || status === 'failed';
   if (isNotRun) {
-    if (!input.reasonCode || !notRunReasons.has(input.reasonCode)) {
+    if (!input.reasonCode || !optionalCertificationNotRunReasons.has(input.reasonCode)) {
       throw new Error('not_run requires a typed non-execution reason.');
     }
     if (input.certificationRunId !== null || input.evidencePaths.length !== 0) {
@@ -91,7 +200,11 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
       throw new Error('Started certification requires an exact certification run id.');
     }
     if (isUnavailable) {
-      if (!input.reasonCode || !unavailableReasons.has(input.reasonCode) || input.evidencePaths.length !== 0) {
+      if (
+        !input.reasonCode
+        || !optionalCertificationUnavailableReasons.has(input.reasonCode)
+        || input.evidencePaths.length !== 0
+      ) {
         throw new Error('unavailable requires a typed admission failure and no execution evidence.');
       }
     } else if (isTerminalExecution) {
@@ -102,6 +215,7 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
       throw new Error('Certification status is unsupported.');
     }
   }
+  assertTypedAdmissionEvidence(input);
 
   const receipt = sealReceipt({
     schema: 'opl_app_optional_certification_receipt.v1',
