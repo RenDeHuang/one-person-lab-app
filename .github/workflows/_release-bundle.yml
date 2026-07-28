@@ -799,6 +799,83 @@ jobs:
           name: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
           path: native-release
 
+      - name: Materialize verified Native qualification for the portable checkpoint
+        if: ${{ (inputs.publication_channel || inputs.channel) == 'stable' }}
+        env:
+          NATIVE_ARTIFACT: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
+          RELEASE_TAG: v${{ needs.freeze.outputs.version }}
+          BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+          APP_SHA: ${{ needs.freeze.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.freeze.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.freeze.outputs.framework_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d native-release && test ! -L native-release
+          native_symlinks=()
+          while IFS= read -r link; do native_symlinks+=("$link"); done < <(
+            find native-release -type l -print | LC_ALL=C sort
+          )
+          test "${#native_symlinks[@]}" -eq 0
+          manifests=()
+          statuses=()
+          while IFS= read -r manifest; do manifests+=("$manifest"); done < <(
+            find native-release -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r status; do statuses+=("$status"); done < <(
+            find native-release -type f -name prepare-status.json -print | LC_ALL=C sort
+          )
+          test "${#manifests[@]}" -eq 1
+          test "${#statuses[@]}" -eq 1
+          test -s "${manifests[0]}" && test ! -L "${manifests[0]}"
+          test -s "${statuses[0]}" && test ! -L "${statuses[0]}"
+          test "$(dirname "${manifests[0]}")" = "$(dirname "${statuses[0]}")"
+          jq -e --arg artifact "$NATIVE_ARTIFACT" '
+            .schema == "opl_app_native_webui_prepare_status.v1"
+            and .status == "qualified"
+            and .qualified_artifact_name == $artifact
+          ' "${statuses[0]}" >/dev/null
+          node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
+            --manifest "${manifests[0]}" --output "$RUNNER_TEMP/native-upload-actions-source.json"
+          jq -e \
+            --arg tag "$RELEASE_TAG" --arg bundle "$BUNDLE_DIGEST" \
+            --arg app "$APP_SHA" --arg shell "$SHELL_SHA" --arg framework "$FRAMEWORK_SHA" '
+              .schema == "opl_app_native_webui_upload_actions.v1"
+              and .tag == $tag
+              and .release_bundle_digest == $bundle
+              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+              and (.upload_actions | length == 5)
+            ' "$RUNNER_TEMP/native-upload-actions-source.json" >/dev/null
+          test ! -e native-qualified
+          mkdir native-qualified
+          cp -a native-release/. native-qualified/
+          diff -r native-release native-qualified
+          qualified_symlinks=()
+          while IFS= read -r link; do qualified_symlinks+=("$link"); done < <(
+            find native-qualified -type l -print | LC_ALL=C sort
+          )
+          test "${#qualified_symlinks[@]}" -eq 0
+          qualified_manifests=()
+          qualified_statuses=()
+          while IFS= read -r manifest; do qualified_manifests+=("$manifest"); done < <(
+            find native-qualified -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r status; do qualified_statuses+=("$status"); done < <(
+            find native-qualified -type f -name prepare-status.json -print | LC_ALL=C sort
+          )
+          test "${#qualified_manifests[@]}" -eq 1
+          test "${#qualified_statuses[@]}" -eq 1
+          cmp "${manifests[0]}" "${qualified_manifests[0]}"
+          cmp "${statuses[0]}" "${qualified_statuses[0]}"
+          jq -e --arg artifact "$NATIVE_ARTIFACT" '
+            .schema == "opl_app_native_webui_prepare_status.v1"
+            and .status == "qualified"
+            and .qualified_artifact_name == $artifact
+          ' "${qualified_statuses[0]}" >/dev/null
+          node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
+            --manifest "${qualified_manifests[0]}" --output "$RUNNER_TEMP/native-upload-actions-checkpoint.json"
+          cmp "$RUNNER_TEMP/native-upload-actions-source.json" "$RUNNER_TEMP/native-upload-actions-checkpoint.json"
+
       - name: Download consumed Stable operation control for durable carrier binding
         if: ${{ inputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -855,7 +932,7 @@ jobs:
           if [ '${{ inputs.channel }}' = stable ]; then
             manifests=()
             while IFS= read -r manifest; do manifests+=("$manifest"); done < <(
-              find native-release -type f -name publication-manifest.json -print | LC_ALL=C sort
+              find native-qualified -type f -name publication-manifest.json -print | LC_ALL=C sort
             )
             test "${#manifests[@]}" -eq 1
             node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \

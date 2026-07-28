@@ -396,8 +396,11 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   const jobs = workflowJobs(workflow);
   const authorityInputs = workflow.on?.workflow_dispatch?.inputs ?? {};
   for (const name of ['authority_id', 'operation_id', 'authority_carrier', 'authority_digest']) {
-    if (authorityInputs[name]?.required !== true) {
-      failures += reportFailure(id, `${name} must be a required pre-dispatch authority carrier input`);
+    if (authorityInputs[name]?.required !== false || authorityInputs[name]?.default !== '') {
+      failures += reportFailure(
+        id,
+        `${name} must remain an optional recovery input with an empty default; Standard admission enforces it conditionally`,
+      );
     }
   }
   if (
@@ -481,6 +484,10 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   for (const binding of [
     'Reject bare or rerun Stable request before expensive work',
     'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+    'test -n "$AUTHORITY_ID"',
+    'test -n "$OPERATION_ID"',
+    'test -n "$AUTHORITY_CARRIER"',
+    '[[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]',
     'stable-operation-control.ts decode-carrier',
     'stable-operation-control.ts materialize-evidence',
     'stable-operation-control.ts verify-executor',

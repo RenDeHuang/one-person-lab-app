@@ -143,16 +143,16 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
-test('Stable admission requires a pre-issued carrier and rejects self-issued authority plumbing', (t) => {
+test('Stable admission keeps recovery inputs optional but requires their pre-issued carrier values for Standard', (t) => {
   const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
   const mutations = [
     (value: string) => value.replace(
-      'authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: true',
-      'authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: false',
+      "authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: false\n        default: ''",
+      "authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: true\n        default: ''",
     ),
     (value: string) => value.replace(
-      'operation_id:\n        description: Deterministic frozen-cohort operation identity bound by the pre-issued authority\n        required: true',
-      'operation_id:\n        description: Deterministic frozen-cohort operation identity bound by the pre-issued authority\n        required: false',
+      'test -n "$AUTHORITY_CARRIER"',
+      'true # missing conditional Standard authority carrier check',
     ),
     (value: string) => value.replace(
       'set -euo pipefail',

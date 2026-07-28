@@ -252,6 +252,8 @@ function runAdmissionGate(
       encoding: 'utf8',
       env: {
         ...process.env,
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+        GITHUB_REF: 'refs/heads/main',
         GITHUB_RUN_ATTEMPT: '1',
         GITHUB_RUN_ID: '424242',
         RUNNER_TEMP: root,
@@ -372,7 +374,8 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
   for (const input of ['authority_id', 'operation_id', 'authority_carrier', 'authority_digest']) {
-    assert.equal(stable.on.workflow_dispatch.inputs[input].required, true);
+    assert.equal(stable.on.workflow_dispatch.inputs[input].required, false);
+    assert.equal(stable.on.workflow_dispatch.inputs[input].default, '');
   }
   assert.match(stable['run-name'], /operation:\$\{\{ inputs\.operation_id \}\}/);
   assert.match(stable['run-name'], /authority:\$\{\{ inputs\.authority_id \}\}/);
@@ -462,6 +465,13 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     /\$\{\{\s*inputs\./,
   );
   assert.match(stableSource, /--operation-id "\$OPERATION_ID"/);
+  const bareStandard = runAdmissionGate(
+    'release-stable.yml',
+    'protected-operation-admission',
+    'Reject bare or rerun Stable request before expensive work',
+    { operation: 'standard', include_full: 'false' },
+  );
+  assert.notEqual(bareStandard.status, 0, 'a bare Standard dispatch must fail before any expensive job');
   assert.equal(protectedControl.steps.some(
     (step: Record<string, any>) => step.with?.name === 'opl-stable-operation-control-${{ github.run_id }}',
   ), true);
@@ -2253,7 +2263,24 @@ test('Stable Standard publication includes qualified Native bytes before one Rel
   );
   const bundleSource = readWorkflow('_release-bundle.yml');
   assert.match(bundleSource, /path: native-release/);
-  assert.match(bundleSource, /find native-release -type f -name publication-manifest\.json/);
+  const nativeCheckpoint = workflowStep(
+    '_release-bundle.yml',
+    'checkpoint-standard',
+    'Materialize verified Native qualification for the portable checkpoint',
+  );
+  assert.equal(nativeCheckpoint.if, "${{ (inputs.publication_channel || inputs.channel) == 'stable' }}");
+  assert.match(nativeCheckpoint.run, /test -d native-release && test ! -L native-release/);
+  assert.match(nativeCheckpoint.run, /find native-release -type l -print/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#manifests\[@\]\}" -eq 1/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#statuses\[@\]\}" -eq 1/);
+  assert.match(nativeCheckpoint.run, /test ! -e native-qualified/);
+  assert.match(nativeCheckpoint.run, /cp -a native-release\/\. native-qualified\//);
+  assert.match(nativeCheckpoint.run, /diff -r native-release native-qualified/);
+  assert.match(nativeCheckpoint.run, /find native-qualified -type l -print/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_manifests\[@\]\}" -eq 1/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_statuses\[@\]\}" -eq 1/);
+  assert.match(nativeCheckpoint.run, /native-upload-actions-checkpoint\.json/);
+  assert.match(bundleSource, /find native-qualified -type f -name publication-manifest\.json/);
   assert.doesNotMatch(bundleSource, /cd native-qualified/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);

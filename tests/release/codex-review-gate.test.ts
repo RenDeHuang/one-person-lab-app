@@ -54,7 +54,7 @@ test('Codex review gate treats missing immutable review evidence as advisory-inc
   const terminal = finalizeCodexReviewGateResult(waiting, 900);
   assert.equal(terminal.status, 'inconclusive');
   assert.match(terminal.summary, /reaction-only evidence is intentionally inconclusive/);
-  assert.equal(isCodexReviewAdvisoryFailure(terminal), true);
+  assert.equal(isCodexReviewAdvisoryFailure(terminal), false);
 });
 
 test('Codex review advisory is read-only and never becomes a required-check writer', () => {

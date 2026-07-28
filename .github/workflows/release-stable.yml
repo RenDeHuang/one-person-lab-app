@@ -15,19 +15,23 @@ on:
           - append_full
       authority_id:
         description: Pre-issued canonical Stable authority identity for this one operation
-        required: true
+        required: false
+        default: ''
         type: string
       operation_id:
         description: Deterministic frozen-cohort operation identity bound by the pre-issued authority
-        required: true
+        required: false
+        default: ''
         type: string
       authority_carrier:
         description: Canonical base64url pre-issued Stable authority JSON carrier
-        required: true
+        required: false
+        default: ''
         type: string
       authority_digest:
         description: SHA-256 digest declared by the pre-issued authority carrier
-        required: true
+        required: false
+        default: ''
         type: string
       version:
         description: Legacy raw Standard input; must be empty because the admission manifest owns version allocation
