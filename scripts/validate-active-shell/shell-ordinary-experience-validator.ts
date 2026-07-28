@@ -133,6 +133,34 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
     if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) return name.expression.text;
     return null;
   };
+  const assertNoSourceKindsExpression = (expression: ts.Expression): void => {
+    if (ts.isParenthesizedExpression(expression)) {
+      assertNoSourceKindsExpression(expression.expression);
+      return;
+    }
+    if (ts.isConditionalExpression(expression)) {
+      assertNoSourceKindsExpression(expression.whenTrue);
+      assertNoSourceKindsExpression(expression.whenFalse);
+      return;
+    }
+    if (!ts.isObjectLiteralExpression(expression)) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list spreads must use statically inspectable inline objects',
+      );
+    }
+    assertNoSourceKindsProperties(expression.properties);
+  };
+  const assertNoSourceKindsProperties = (properties: ts.NodeArray<ts.ObjectLiteralElementLike>): void => {
+    for (const property of properties) {
+      if (ts.isSpreadAssignment(property)) {
+        assertNoSourceKindsExpression(property.expression);
+        continue;
+      }
+      if (propertyName(property) === 'sourceKinds') {
+        throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
+      }
+    }
+  };
   for (const options of threadListOptions) {
     const archived = options.properties.find((property) => propertyName(property) === 'archived');
     const stateDbOnly = options.properties.find((property) => propertyName(property) === 'useStateDbOnly');
@@ -146,9 +174,7 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
     ) {
       throw new Error('Active shell canonical thread directory thread/list options must set useStateDbOnly to true');
     }
-    if (options.properties.some((property) => propertyName(property) === 'sourceKinds')) {
-      throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
-    }
+    assertNoSourceKindsProperties(options.properties);
   }
   assertTextIncludesAll(
     focusedTests,
