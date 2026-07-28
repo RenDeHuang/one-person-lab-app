@@ -241,9 +241,15 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
 
 test('Docker/WebUI installer exposes one host auto-update contract across Linux and macOS', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-auto-update-home-'));
+  const bin = path.join(home, 'bin');
+  fs.mkdirSync(bin);
+  const uname = path.join(bin, 'uname');
+  fs.writeFileSync(uname, '#!/bin/sh\nprintf "Darwin\\n"\n', 'utf8');
+  fs.chmodSync(uname, 0o755);
+  const env = { HOME: home, PATH: `${bin}:${process.env.PATH ?? ''}` };
   const enabled = runInstaller(
     ['--dry-run', '--yes', '--update', '--enable-auto-update', '--auto-update-time', '04:15', '--no-open'],
-    { HOME: home },
+    env,
   );
 
   assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
@@ -272,12 +278,12 @@ test('Docker/WebUI installer exposes one host auto-update contract across Linux 
     'the scheduler must execute the locally generated updater rather than mutable branch code',
   );
 
-  const disabled = runInstaller(['--dry-run', '--disable-auto-update'], { HOME: home });
+  const disabled = runInstaller(['--dry-run', '--disable-auto-update'], env);
   assert.equal(disabled.status, 0, disabled.stderr || disabled.stdout);
   assert.match(disabled.stdout, /would unload LaunchAgent cn\.onepersonlab\.webui-update/);
   assert.match(disabled.stdout, /Manual --update remains available/);
 
-  const status = runInstaller(['--auto-update-status'], { HOME: home });
+  const status = runInstaller(['--auto-update-status'], env);
   assert.equal(status.status, 0, status.stderr || status.stdout);
   assert.match(status.stdout, /scheduler=launchd_user/);
   assert.match(status.stdout, /enabled=false/);
