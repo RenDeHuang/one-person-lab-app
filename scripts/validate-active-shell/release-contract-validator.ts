@@ -62,6 +62,26 @@ const standardLatestAdmissionContract = {
   },
   failure_mode: 'fail_closed_before_latest_patch',
 };
+const standardPrePublicationAdmissionContract = {
+  validator: 'scripts/validate-standard-publication-input.ts',
+  receipt_schema: 'opl_standard_pre_publication_admission_receipt.v1',
+  required_status: 'passed',
+  runs_before: 'publish-standard-nonlatest',
+  checks: [
+    'exact_component_manifest_identity_and_self_digest',
+    'exact_staged_standard_asset_set',
+    'staged_asset_digest_and_size_binding',
+    'regular_local_asset_presence_and_digest_readback',
+  ],
+  public_mutation_allowed: false,
+  does_not_replace: [
+    'remote_digest_readback',
+    'standard_homebrew_digest_bound_publication',
+    'standard_homebrew_publication_readback',
+    'latest_admission',
+  ],
+  failure_mode: 'fail_closed_before_public_release_creation',
+};
 const publisherReconcileAdmissionContract = {
   persistent_unknown_framework_receipt_required: true,
   unknown_marker_schema: 'opl_release_bundle_unknown_outcome.v1',
@@ -626,6 +646,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.stable?.latest_admission,
     standardLatestAdmissionContract,
     'Standard Latest admission',
+  );
+  assertDeepEqualJson(
+    publication?.stable?.pre_publication_admission,
+    standardPrePublicationAdmissionContract,
+    'Standard pre-publication admission',
   );
   if (
     localFirst?.entrypoint !== 'scripts/verify.sh release-preflight'
