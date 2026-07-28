@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { parse as parseYaml } from "yaml";
 
@@ -13,6 +16,134 @@ const workflowPath = path.join(
 );
 const source = fs.readFileSync(workflowPath, "utf8");
 const workflow = parseYaml(source) as Record<string, any>;
+const fullAddonSource = fs.readFileSync(
+  path.join(process.cwd(), ".github", "workflows", "_release-full-addon.yml"),
+  "utf8",
+);
+const fullAddon = parseYaml(fullAddonSource) as Record<string, any>;
+
+function sha256(bytes: string): string {
+  return `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function runFullIdentityAdmission(remoteMutation?: (release: Record<string, any>) => void) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-followup-identity-"));
+  try {
+    const app = "a".repeat(40);
+    const shell = "b".repeat(40);
+    const framework = "c".repeat(40);
+    const bundleDigest = `sha256:${"d".repeat(64)}`;
+    const version = "26.7.28-r4";
+    const tag = `v${version}`;
+    const artifactBytes = "exact-standard-dmg";
+    const artifactName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+    const manifest = {
+      surface_kind: "opl_app_component_manifest.v1",
+      version,
+      release_tag: tag,
+      artifacts: [{
+        name: artifactName,
+        digest: sha256(artifactBytes),
+        size: Buffer.byteLength(artifactBytes),
+      }],
+    };
+    const manifestBytes = `${JSON.stringify(manifest)}\n`;
+    const manifestDigest = sha256(manifestBytes);
+    const bundle = {
+      bundle_digest: bundleDigest,
+      release: {
+        channel: "stable",
+        version,
+        updater_version: "26.7.2804",
+        tag,
+      },
+      sources: {
+        app: { source_commit: app },
+        shell: { source_commit: shell },
+        framework: { source_commit: framework },
+      },
+    };
+    const identity = {
+      schema: "opl_standard_release_identity_receipt.v2",
+      status: "passed",
+      release: {
+        channel: "stable",
+        version,
+        tag,
+        bundle_digest: bundleDigest,
+      },
+      cohort: {
+        app_sha: app,
+        shell_sha: shell,
+        framework_sha: framework,
+      },
+      component_manifest: {
+        name: "opl-app-component-manifest.json",
+        sha256: manifestDigest,
+      },
+    };
+    const release = {
+      tag_name: tag,
+      draft: false,
+      prerelease: false,
+      assets: [
+        {
+          name: artifactName,
+          digest: sha256(artifactBytes),
+          size: Buffer.byteLength(artifactBytes),
+        },
+        {
+          name: "opl-app-component-manifest.json",
+          digest: manifestDigest,
+          size: Buffer.byteLength(manifestBytes),
+        },
+      ],
+    };
+    remoteMutation?.(release);
+
+    fs.mkdirSync(path.join(root, "checkpoint-identity-bootstrap"));
+    fs.mkdirSync(path.join(root, "standard-activation"));
+    fs.mkdirSync(path.join(root, "bin"));
+    fs.writeFileSync(path.join(root, "bundle.json"), `${JSON.stringify(bundle)}\n`);
+    fs.writeFileSync(
+      path.join(root, "checkpoint-identity-bootstrap", "standard-identity-receipt.json"),
+      `${JSON.stringify(identity)}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, "standard-activation", "latest-component-manifest.json"),
+      manifestBytes,
+    );
+    fs.writeFileSync(path.join(root, "remote-release.json"), `${JSON.stringify(release)}\n`);
+    const ghPath = path.join(root, "bin", "gh");
+    fs.writeFileSync(ghPath, "#!/bin/sh\ncat \"$OPL_TEST_REMOTE_RELEASE\"\n");
+    fs.chmodSync(ghPath, 0o755);
+
+    const identityStep = fullAddon.jobs["restore-standard"].steps.find(
+      (candidate: Record<string, any>) =>
+        candidate.name === "Require exact Stable Standard identity and Full eligibility",
+    );
+    assert.ok(identityStep);
+    const script = String(identityStep.run)
+      .replaceAll("${{ inputs.source_format }}", "checkpoint_v1")
+      .replaceAll("${{ steps.checkpoint.outputs.completed_stage }}", "standard_built")
+      .replaceAll("${{ steps.checkpoint.outputs.bundle_path }}", "bundle.json")
+      .replaceAll("${{ steps.checkpoint.outputs.bundle_digest }}", bundleDigest);
+    return spawnSync("/bin/bash", ["-euo", "pipefail", "-c", script], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${path.join(root, "bin")}:${process.env.PATH}`,
+        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
+        GITHUB_RUN_ID: "123456789",
+        GITHUB_OUTPUT: path.join(root, "github-output.txt"),
+        OPL_TEST_REMOTE_RELEASE: path.join(root, "remote-release.json"),
+      },
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
 
 test("Stable success has one independent Full append successor trigger", () => {
   assert.deepEqual(Object.keys(workflow.on), ["workflow_run"]);
@@ -63,12 +194,17 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
     source,
     /opl-release-activation-\$\{\{ github\.event\.workflow_run\.id \}\}/,
   );
-  assert.match(source, /checkpoint_stage.*standard_qualified/);
-  assert.match(source, /standard_checkpoint_not_qualified/);
-  assert.match(source, /status:"deferred"/);
+  assert.match(source, /standard_built\|standard_qualified/);
+  assert.doesNotMatch(source, /standard_checkpoint_not_qualified/);
+  assert.doesNotMatch(source, /status:"deferred"/);
   assert.match(source, /\.sources\.app\.source_commit == \$head/);
-  assert.match(source, /\.source_cohort\.app_sha == \$head/);
-  assert.match(source, /\.release_tag == \("v" \+ \.version\)/);
+  assert.match(source, /\.source_cohort == \{app_sha:\$head,shell_sha:\$shell,framework_sha:\$framework\}/);
+  assert.match(source, /\.version == \$version/);
+  assert.match(source, /\.release_tag == \$tag/);
+  assert.match(source, /all\(\.artifacts\[\];/);
+  assert.match(fullAddonSource, /\[\.artifacts\[\]\?\.name\]/);
+  assert.match(fullAddonSource, /required_assets=/);
+  assert.doesNotMatch(fullAddonSource, /tracks\.standard\.required_asset_names/);
   assert.match(source, /source_bundle_digest/);
   assert.match(source, /\.bundle_digest "\$bundle"/);
   assert.match(source, /dispatch_payload=.*--argjson inputs "\$inputs_json"/);
@@ -98,7 +234,9 @@ test("successor dispatch is exactly one append_full JSON input set with no legac
 
 test("successor is idempotent and does not retry an unknown dispatch result", () => {
   assert.match(source, /existing_append_full_for_cohort/);
-  assert.match(source, /\.display_title \| test\("\^OPL Stable append_full/);
+  assert.match(source, /actions\/artifacts\?name=\$successor_intent_name/);
+  assert.match(source, /one_successor_per_standard_run:true/);
+  assert.doesNotMatch(source, /one_successor_per_standard_head/);
   assert.match(source, /cancel-in-progress: false/);
   assert.match(source, /no retry is allowed/);
   assert.match(source, /status=unknown/);
@@ -115,4 +253,27 @@ test("successor receipt declares additive and non-blocking boundaries", () => {
   assert.match(source, /opl-full-append-successor-intent-/);
   assert.match(source, /opl-full-append-dispatch-readback-/);
   assert.match(source, /opl-full-append-successor-receipt-/);
+});
+
+test("Full admission accepts exact Standard bytes and rejects remote digest or size drift", () => {
+  const exact = runFullIdentityAdmission();
+  assert.equal(exact.status, 0, exact.stderr || exact.stdout);
+
+  const digestDrift = runFullIdentityAdmission((release) => {
+    release.assets[0].digest = `sha256:${"e".repeat(64)}`;
+  });
+  assert.notEqual(digestDrift.status, 0);
+  assert.match(
+    `${digestDrift.stdout}${digestDrift.stderr}`,
+    /Exact Standard release asset digests are not present remotely/,
+  );
+
+  const sizeDrift = runFullIdentityAdmission((release) => {
+    release.assets[0].size += 1;
+  });
+  assert.notEqual(sizeDrift.status, 0);
+  assert.match(
+    `${sizeDrift.stdout}${sizeDrift.stderr}`,
+    /Exact Standard release asset digests are not present remotely/,
+  );
 });

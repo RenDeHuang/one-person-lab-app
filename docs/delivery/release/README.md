@@ -222,7 +222,7 @@ remaining Standard publication path without rebuilding a completed stage. It
 inherits the checkpoint's original Standard operation id, start, and absolute
 deadline; dispatching a resume cannot refresh that clock.
 
-`append_full` imports a checkpoint at or after `standard_qualified`, builds or
+`append_full` imports a checkpoint at or after `standard_built`, builds or
 qualifies only missing Full stages, and appends the Full DMG and manifest without
 changing Standard assets, updater metadata, prepared notes, or Latest. Its
 absolute operation budget is 50 minutes.

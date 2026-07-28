@@ -502,7 +502,7 @@ a new Bundle, completes exact-byte Standard qualification before the first
 public mutation, then performs digest-idempotent publication, Homebrew readback,
 and Latest activation. `resume_standard` consumes an existing checkpoint and
 cannot rebuild. `append_full` consumes a checkpoint at or after
-`standard_qualified`, performs only missing Full stages, and cannot modify the
+`standard_built` (or a later Full-compatible stage), performs only missing Full stages, and cannot modify the
 Standard terminal.
 
 Each operation resolves one absolute deadline at admission: 90 minutes for

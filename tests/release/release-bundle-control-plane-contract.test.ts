@@ -346,7 +346,11 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   const full = release.full_first_install.published_addon;
   assert.equal(full.operation, "append_full");
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
-  assert.equal(full.checkpoint_minimum_stage, "standard_qualified");
+  assert.equal(full.checkpoint_minimum_stage, "standard_built");
+  assert.equal(full.standard_identity_required, true);
+  assert.equal(full.standard_release_readback, "exact_tag_and_required_asset_set_and_digests");
+  assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
+  assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
   assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");
   assert.equal(full.standard_assets_modified, false);
   assert.equal(full.latest_modified, false);
@@ -393,7 +397,7 @@ test("operation safety is explicit in the machine contract", () => {
   assert.equal(control.operation_control.stable_operations.resume_standard.new_operation_id_allowed, false);
   assert.equal(control.operation_control.stable_operations.resume_standard.start_refresh_allowed, false);
   assert.equal(control.operation_control.stable_operations.resume_standard.deadline_refresh_allowed, false);
-  assert.equal(control.operation_control.stable_operations.append_full.standard_qualified_required, true);
+  assert.equal(control.operation_control.stable_operations.append_full.standard_built_required, true);
   assert.equal(control.operation_control.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
   assert.equal(control.operation_control.elapsed_deadline.exact_reconcile_result, "late_observation");
   assert.equal(control.operation_control.elapsed_deadline.stage_advanced, false);

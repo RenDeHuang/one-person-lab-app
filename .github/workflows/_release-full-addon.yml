@@ -203,6 +203,14 @@ jobs:
           github-token: ${{ github.token }}
           allow-reconcile-required: 'true'
 
+      - name: Download exact Standard activation evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-activation-${{ inputs.source_run_id }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: standard-activation
+
       - name: Require a verified Standard checkpoint and fresh Full eligibility
         env:
           CHECKPOINT_IMPORT: ${{ steps.checkpoint.outputs.checkpoint_import_json }}
@@ -386,7 +394,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Require a Stable Latest Bundle that admitted Full intent
+      - name: Require exact Stable Standard identity and Full eligibility
         id: identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -396,19 +404,79 @@ jobs:
           test '${{ inputs.source_format }}' = checkpoint_v1
           completed_stage='${{ steps.checkpoint.outputs.completed_stage }}'
           case "$completed_stage" in
-            standard_qualified|full_built|full_qualified) ;;
+            standard_built|standard_qualified|full_built|full_qualified) ;;
             *)
-              echo "::error::Full append requires standard_qualified, full_built, or full_qualified, got $completed_stage."
+              echo "::error::Full append requires standard_built, standard_qualified, full_built, or full_qualified, got $completed_stage."
               exit 1
               ;;
           esac
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           test "$(jq -r .release.channel "$bundle")" = stable
-          test "$(jq -r .prepared_notes.evidence.payload.include_full_package "$bundle")" = true
-          latest_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
           bundle_tag="$(jq -r .release.tag "$bundle")"
-          [ "$latest_tag" = "$bundle_tag" ] || {
-            echo "::error::Full may append only after the same Bundle is current Stable Latest."
+          standard_identity_files=()
+          while IFS= read -r identity_file; do
+            standard_identity_files+=("$identity_file")
+          done < <(find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort)
+          if [ "${#standard_identity_files[@]}" -ne 1 ]; then
+            echo "::error::Full append requires exactly one Standard release identity receipt."
+            exit 1
+          fi
+          standard_identity="${standard_identity_files[0]}"
+          test -s "$standard_identity" && test ! -L "$standard_identity"
+          activation_manifests=()
+          while IFS= read -r activation_manifest; do
+            activation_manifests+=("$activation_manifest")
+          done < <(find standard-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort)
+          if [ "${#activation_manifests[@]}" -ne 1 ]; then
+            echo "::error::Full append requires exactly one Standard activation component manifest."
+            exit 1
+          fi
+          activation_manifest="${activation_manifests[0]}"
+          test -s "$activation_manifest" && test ! -L "$activation_manifest"
+          component_manifest_sha="sha256:$(shasum -a 256 "$activation_manifest" | awk '{print $1}')"
+          component_manifest_size="$(wc -c < "$activation_manifest" | tr -d ' ')"
+          jq -e \
+            --arg bundle_digest '${{ steps.checkpoint.outputs.bundle_digest }}' \
+            --arg version "$(jq -r .release.version "$bundle")" \
+            --arg tag "$bundle_tag" \
+            --arg app "$(jq -r .sources.app.source_commit "$bundle")" \
+            --arg shell "$(jq -r .sources.shell.source_commit "$bundle")" \
+            --arg framework "$(jq -r .sources.framework.source_commit "$bundle")" \
+            --arg component_manifest_sha "$component_manifest_sha" '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .release.channel == "stable"
+              and .release.bundle_digest == $bundle_digest
+              and .release.version == $version
+              and .release.tag == $tag
+              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+              and .component_manifest == {
+                name:"opl-app-component-manifest.json",
+                sha256:$component_manifest_sha
+              }
+            ' "$standard_identity" >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$bundle_tag" > standard-release.json
+          expected_assets="$(jq -c \
+            --arg manifest_sha "$component_manifest_sha" \
+            --argjson manifest_size "$component_manifest_size" \
+            '.artifacts + [{name:"opl-app-component-manifest.json",digest:$manifest_sha,size:$manifest_size}] | map({name,digest,size})' \
+            "$activation_manifest")"
+          required_assets="$(jq -c \
+            '([.artifacts[]?.name] + ["opl-app-component-manifest.json"]) | unique' \
+            "$activation_manifest")"
+          jq -e \
+            --arg tag "$bundle_tag" \
+            --argjson required "$required_assets" \
+            --argjson expected "$expected_assets" '
+            . as $release
+            | .tag_name == $tag
+            and .draft == false
+            and .prerelease == false
+            and ([.assets[]?.name] | unique | contains($required))
+            and all($expected[]; . as $asset
+              | ([$release.assets[]? | select(.name == $asset.name and (.digest // "") == $asset.digest and (.size == $asset.size))] | length) == 1)
+            ' standard-release.json >/dev/null || {
+            echo "::error::Exact Standard release asset digests are not present remotely; Full append remains deferred."
             exit 1
           }
           {
@@ -430,7 +498,7 @@ jobs:
         run: |
           mkdir -p checkpoint-restore-failure
           printf '%s\n' 'checkpoint restore did not complete; see immutable Actions step log' > checkpoint-restore-failure/stdout.txt
-          printf '%s\n' 'restore, digest, ABI, stage, or Latest identity validation failed' > checkpoint-restore-failure/stderr.txt
+          printf '%s\n' 'restore, digest, ABI, stage, or Standard release identity validation failed' > checkpoint-restore-failure/stderr.txt
           input_digest="$(printf '%s\0' '${{ inputs.source_run_id }}' '${{ inputs.source_artifact }}' '${{ inputs.framework_executor_ref }}' '${{ inputs.operation }}' '${{ inputs.operation_deadline_at }}' | shasum -a 256 | awk '{print $1}')"
           jq -n --arg digest "sha256:$input_digest" --arg run '${{ inputs.source_run_id }}' --arg artifact '${{ inputs.source_artifact }}' \
             '{schema:"opl_release_checkpoint_restore_failure_receipt.v1",status:"failed",input_digest:$digest,source:{run_id:$run,artifact:$artifact},retry_disposition:"correct_checkpoint_or_freeze_new_bundle"}' \
@@ -446,7 +514,7 @@ jobs:
           retention-days: 30
 
   full-build:
-    if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'standard_qualified' }}
+    if: ${{ inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified') }}
     needs: [restore-standard]
     permissions:
       contents: read
@@ -516,7 +584,7 @@ jobs:
           retention-days: 14
 
   full-qualification:
-    if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
+    if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
     needs: [restore-standard, full-build, materialize-full-build]
     runs-on: macos-14
     timeout-minutes: 20
@@ -691,7 +759,7 @@ jobs:
             --store "$store" --json > append-operation-admit.json
           stage='${{ needs.restore-standard.outputs.completed_stage }}'
           case "$stage" in
-            standard_qualified)
+            standard_built|standard_qualified)
               node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-build" \
                 --release-operation append_full --operation-id "$operation_id" \
@@ -790,12 +858,7 @@ jobs:
           source_artifact='${{ needs.restore-standard.outputs.source_artifact }}'
           checkpoint_transport_executor='${{ needs.restore-standard.outputs.checkpoint_transport_executor }}'
           transport_run_id='${{ needs.restore-standard.outputs.transport_run_id }}'
-          if [ "$source_stage" = standard_qualified ]; then
-            source_run_id="$GITHUB_RUN_ID"
-            source_artifact="opl-release-full-checkpoint-${GITHUB_RUN_ID}"
-            checkpoint_transport_executor=github_actions
-            transport_run_id="$GITHUB_RUN_ID"
-          elif [ "$source_stage" = full_built ]; then
+          if [ "$source_stage" = standard_built ] || [ "$source_stage" = standard_qualified ] || [ "$source_stage" = full_built ]; then
             source_run_id="$GITHUB_RUN_ID"
             source_artifact="opl-release-full-checkpoint-${GITHUB_RUN_ID}"
             checkpoint_transport_executor=github_actions

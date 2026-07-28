@@ -127,7 +127,7 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
   assert.equal(operations.stable_operations.resume_standard.start_refresh_allowed, false);
   assert.equal(operations.stable_operations.resume_standard.deadline_refresh_allowed, false);
   assert.equal(operations.stable_operations.append_full.deadline_minutes, 50);
-  assert.equal(operations.stable_operations.append_full.standard_qualified_required, true);
+  assert.equal(operations.stable_operations.append_full.standard_built_required, true);
   assert.equal(operations.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
   assert.equal(operations.partial_workflow_rerun_allowed, false);
   assert.equal(operations.github_run_attempt_required, 1);

@@ -111,33 +111,13 @@ jobs:
           manifest="${manifests[0]}"
 
           checkpoint_stage="$(jq -er .checkpoint_stage "$checkpoint")"
-          if [ "$checkpoint_stage" != standard_qualified ]; then
-            {
-              echo 'eligible=false'
-              echo "reason_code=standard_checkpoint_not_qualified"
-              echo "source_run_id=$SOURCE_RUN_ID"
-              echo "source_artifact=opl-release-standard-checkpoint-$SOURCE_RUN_ID"
-              echo 'framework_ref='
-              echo 'app_ref='
-              echo 'shell_ref='
-              echo 'version='
-              echo 'source_bundle_digest='
-              echo 'existing_run_id='
-            } >> "$GITHUB_OUTPUT"
-            jq -n \
-              --arg source_run_id "$SOURCE_RUN_ID" \
-              --arg source_artifact "opl-release-standard-checkpoint-$SOURCE_RUN_ID" \
-              --arg checkpoint_stage "$checkpoint_stage" \
-              '{
-                schema:"opl_app_stable_full_successor_intent.v1",
-                status:"deferred",
-                operation:"append_full",
-                source:{run_id:$source_run_id,artifact:$source_artifact},
-                deferred_reason:"standard_checkpoint_not_qualified",
-                observed_checkpoint_stage:$checkpoint_stage
-              }' > successor-intent.json
-            exit 0
-          fi
+          case "$checkpoint_stage" in
+            standard_built|standard_qualified) ;;
+            *)
+              echo "::error::Successful Standard source must export standard_built or standard_qualified, got $checkpoint_stage."
+              exit 1
+              ;;
+          esac
           jq -e --arg head "$SOURCE_HEAD_SHA" '
             .release.channel == "stable"
             and .sources.app.source_commit == $head
@@ -147,14 +127,24 @@ jobs:
             and (.release.tag == ("v" + .release.version))
             and (.release.prerelease == false)
           ' "$bundle" >/dev/null
-          jq -e --arg head "$SOURCE_HEAD_SHA" '
+          jq -e \
+            --arg head "$SOURCE_HEAD_SHA" \
+            --arg version "$(jq -er .release.version "$bundle")" \
+            --arg tag "$(jq -er .release.tag "$bundle")" \
+            --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
+            --arg framework "$(jq -er .sources.framework.source_commit "$bundle")" '
             .surface_kind == "opl_app_component_manifest.v1"
             and .quality_status == "stable"
             and .source_commit == $head
-            and (.source_cohort.app_sha == $head)
-            and (.source_cohort.shell_sha | test("^[0-9a-f]{40}$"))
-            and (.source_cohort.framework_sha | test("^[0-9a-f]{40}$"))
-            and (.release_tag == ("v" + .version))
+            and .source_cohort == {app_sha:$head,shell_sha:$shell,framework_sha:$framework}
+            and .version == $version
+            and .release_tag == $tag
+            and (.artifacts | type == "array" and length >= 6)
+            and ([.artifacts[].name] | length == (unique | length))
+            and all(.artifacts[];
+              (.name | type == "string" and length > 0)
+              and (.digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.size | type == "number" and . > 0))
           ' "$manifest" >/dev/null
 
           version="$(jq -er .release.version "$bundle")"
@@ -163,23 +153,20 @@ jobs:
           shell_ref="$(jq -er .sources.shell.source_commit "$bundle")"
           bundle_digest="$(jq -er .bundle_digest "$bundle")"
           [[ "$bundle_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          candidate_runs="$(
-            gh api --paginate --slurp \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&branch=main&per_page=100"
-          )"
+          successor_intent_name="opl-full-append-successor-intent-${SOURCE_RUN_ID}"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$successor_intent_name&per_page=100" \
+            > existing-successor-artifacts.json
           existing_run_ids="$(
-            jq -r --arg head "$SOURCE_HEAD_SHA" '
-              [.[]?.workflow_runs[]?
-                | select(.head_sha == $head)
-                | select(.path == ".github/workflows/release-stable.yml")
-                | select(.run_attempt == 1)
-                | select(.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
-                | .id] | .[]
-            ' <<<"$candidate_runs"
+            jq -r --arg name "$successor_intent_name" '
+              [.artifacts[]?
+                | select(.name == $name and .expired == false)
+                | .workflow_run.id] | unique | .[]
+            ' existing-successor-artifacts.json
           )"
-          existing_run_count="$(wc -l <<<"$existing_run_ids" | tr -d ' ')"
+          existing_run_count="$(grep -c . <<<"$existing_run_ids" || true)"
           test "$existing_run_count" -le 1 || {
-            echo "::error::More than one Full append successor already exists for this Standard head; refusing to dispatch."
+            echo "::error::More than one Full append successor intent exists for this Standard run; refusing to dispatch."
             exit 1
           }
           existing_run_id="${existing_run_ids:-}"
@@ -227,7 +214,7 @@ jobs:
               source:{run_id:$source_run_id,artifact:$source_artifact,bundle_digest:$bundle_digest},
               cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
               release:{version:$version,standard_assets_modified:false,latest_modified:false},
-              idempotency:{one_successor_per_standard_head:true,existing_run_id:null}
+              idempotency:{one_successor_per_standard_run:true,existing_run_id:null}
             }' > successor-intent.json
 
       - name: Upload immutable successor intent
