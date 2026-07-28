@@ -54,6 +54,24 @@ function resolveShellSourceLayout(shellRoot) {
   return path.resolve(topLevel) === path.resolve(resolvedShellRoot) ? 'external_checkout_root' : 'local_nested_source';
 }
 
+type ShellCommandRunner = (
+  command: string,
+  args: string[],
+  options?: { capture?: boolean; cwd?: string },
+) => { stdout: string | null };
+
+export function ensureShellHistory(shellRoot: string, runner: ShellCommandRunner = run): boolean {
+  const shallow = runner('git', ['rev-parse', '--is-shallow-repository'], {
+    cwd: shellRoot,
+    capture: true,
+  }).stdout?.trim();
+  if (shallow === 'false') return false;
+  if (shallow !== 'true') throw new Error(`Unable to determine whether ${shellRoot} has complete Git history.`);
+
+  runner('git', ['fetch', '--no-tags', '--unshallow', 'origin'], { cwd: shellRoot });
+  return true;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const contract = readAppShellAdapterContract();
@@ -69,10 +87,12 @@ function main() {
 
   if (!fs.existsSync(shellRoot)) {
     fs.mkdirSync(path.dirname(shellRoot), { recursive: true });
-    run('git', ['clone', '--depth', '1', '--branch', ref, repo, shellRoot]);
+    run('git', ['clone', '--branch', ref, repo, shellRoot]);
   } else if (!isGitCheckout(shellRoot)) {
     throw new Error(`${source.checkout_path} exists but is not a Git checkout. Move it aside or pass --reset.`);
   }
+
+  ensureShellHistory(shellRoot);
 
   const packageJsonPath = shellPaths.packageManifestPath;
   const agentsPath = shellPaths.agentsGuidePath;

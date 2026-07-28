@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { isGitCheckout } from '../../scripts/ensure-active-shell.ts';
+import { ensureShellHistory, isGitCheckout } from '../../scripts/ensure-active-shell.ts';
 
 function runGit(cwd: string, args: string[]): void {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -25,4 +25,39 @@ test('does not treat an empty child directory as its parent Git checkout', () =>
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('hydrates a shallow Shell checkout before a currentness validator reads ancestry', () => {
+  const calls: Array<{ command: string; args: string[]; capture?: boolean; cwd?: string }> = [];
+  const shellRoot = '/tmp/opl-active-shell';
+  const result = ensureShellHistory(shellRoot, (command, args, options = {}) => {
+    calls.push({ command, args, ...options });
+    return { stdout: args[0] === 'rev-parse' ? 'true\n' : '' };
+  });
+
+  assert.equal(result, true);
+  assert.deepEqual(calls, [
+    {
+      command: 'git',
+      args: ['rev-parse', '--is-shallow-repository'],
+      capture: true,
+      cwd: shellRoot,
+    },
+    {
+      command: 'git',
+      args: ['fetch', '--no-tags', '--unshallow', 'origin'],
+      cwd: shellRoot,
+    },
+  ]);
+});
+
+test('does not fetch when the Shell checkout already has complete history', () => {
+  const calls: Array<{ command: string; args: string[]; capture?: boolean; cwd?: string }> = [];
+  const result = ensureShellHistory('/tmp/opl-active-shell', (command, args, options = {}) => {
+    calls.push({ command, args, ...options });
+    return { stdout: 'false\n' };
+  });
+
+  assert.equal(result, false);
+  assert.equal(calls.length, 1);
 });

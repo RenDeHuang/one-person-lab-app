@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       mode:
-        description: canary, prepare, publish, or readback.
+        description: canary, prepare, or readback.
         type: string
         default: canary
       stable_authority_run_id:
@@ -48,7 +48,7 @@ on:
         type: string
         default: ''
       publication_artifact_name:
-        description: Exact Native publication artifact name consumed by readback mode.
+        description: Exact Native publication/readback artifact produced by the unified Stable publisher.
         type: string
         default: ''
     outputs:
@@ -58,10 +58,6 @@ on:
       qualified_artifact_name:
         description: Actions artifact containing exact Native assets and qualification evidence.
         value: ${{ jobs.build-and-qualify.outputs.qualified_artifact_name }}
-      publication_artifact_name:
-        description: Actions artifact containing publication state, Framework checkpoint, and public readback.
-        value: ${{ jobs.publish-native-assets.outputs.publication_artifact_name }}
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -396,204 +392,6 @@ jobs:
             echo "qualified_artifact_name=native-webui-qualified-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}"
           } >> "$GITHUB_OUTPUT"
 
-  publish-native-assets:
-    if: ${{ inputs.mode == 'publish' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    continue-on-error: true
-    environment: release-stable
-    outputs:
-      publication_artifact_name: ${{ steps.publication.outputs.publication_artifact_name }}
-    steps:
-      - name: Reject partial rerun
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$GITHUB_RUN_ATTEMPT" = 1
-          [[ '${{ inputs.source_run_id }}' =~ ^[1-9][0-9]*$ ]]
-          [[ '${{ inputs.source_artifact }}' =~ ^[A-Za-z0-9._-]+$ ]]
-          [[ '${{ inputs.qualified_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
-          [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-
-      - name: Checkout current App publication executor
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          ref: ${{ github.sha }}
-          path: executor-source
-
-      - name: Download exact qualified Native asset set
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: ${{ inputs.qualified_artifact_name }}
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          path: native-release
-
-      - name: Restore exact Standard checkpoint
-        id: checkpoint
-        uses: ./executor-source/.github/actions/restore-release-checkpoint
-        with:
-          framework-executor-ref: ${{ inputs.framework_ref }}
-          source-run-id: ${{ inputs.source_run_id }}
-          source-artifact: ${{ inputs.source_artifact }}
-          github-token: ${{ github.token }}
-
-      - name: Bind qualified Native bytes to the Standard checkpoint
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(jq -er .status native-release/prepare-status.json)" = qualified
-          test '${{ steps.checkpoint.outputs.bundle_digest }}' = '${{ inputs.release_bundle_digest }}'
-          test '${{ steps.checkpoint.outputs.version }}' = '${{ inputs.opl_version }}'
-          test '${{ steps.checkpoint.outputs.app_ref }}' = '${{ inputs.app_ref }}'
-          test '${{ steps.checkpoint.outputs.shell_ref }}' = '${{ inputs.shell_ref }}'
-          test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ inputs.framework_ref }}'
-          test '${{ steps.checkpoint.outputs.active_unknown_marker_count }}' = 0
-          identity_receipts=()
-          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
-            find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
-          )
-          test "${#identity_receipts[@]}" -eq 1
-          identity_sha256="sha256:$(shasum -a 256 "${identity_receipts[0]}" | awk '{print $1}')"
-          test "$identity_sha256" = '${{ inputs.standard_identity_sha256 }}'
-          cp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
-          cmp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
-          node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts readback \
-            --manifest native-release/publication-manifest.json \
-            --output native-release/prepublication-readback.json \
-            > native-release/prepublication-readback.stdout.json || test "$?" -eq 2
-          jq -e '
-            .remote_target
-            | test("^github-native-webui:gaofeng21cn/one-person-lab-app@v[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?/sha256:[0-9a-f]{64}$")
-          ' native-release/prepublication-readback.json >/dev/null
-
-      - name: Append one exact Native asset set through the Framework ledger
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BUNDLE_DIGEST: ${{ steps.checkpoint.outputs.bundle_digest }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
-          store='${{ steps.checkpoint.outputs.store_dir }}'
-          operation_id='${{ steps.checkpoint.outputs.standard_operation_id }}'
-          operation_args=(
-            --operation standard
-            --operation-id "$operation_id"
-            --operation-started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}'
-            --operation-deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}'
-          )
-          node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts check \
-            --operation standard \
-            --started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}' \
-            --deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}'
-          node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ steps.checkpoint.outputs.tag }}' \
-            --output native-release/standard-remote.json
-          node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
-            --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-native-standard-readback" \
-            --release-operation standard --operation-id "$operation_id" \
-            --remote-target "github-release:${GITHUB_REPOSITORY}@${{ steps.checkpoint.outputs.tag }}" \
-            --publication-scope track_assets --bundle "$bundle" --track standard --outcome complete \
-            --inspection native-release/standard-remote.json --output native-release/standard-remote.receipt.json
-          framework-executor/bin/opl release publish \
-            --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/standard-remote.receipt.json \
-            "${operation_args[@]}" --store "$store" --json > native-release/standard-published.json
-          mutation_attempt_id="gha-${GITHUB_RUN_ID}-native-webui-assets"
-          set +e
-          node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts publish \
-            --manifest native-release/publication-manifest.json \
-            --mutation-attempt-id "$mutation_attempt_id" \
-            --output native-release/publication-receipt.json \
-            > native-release/publication-receipt.stdout.json
-          publish_exit=$?
-          set -e
-          status="$(jq -er .status native-release/publication-receipt.json)"
-          remote_target="$(jq -er .remote_target native-release/publication-receipt.json)"
-          case "$status" in
-            complete|idempotent)
-              test "$publish_exit" -eq 0
-              node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
-                --operation remote_inspect --executor remote --attempt-id "$mutation_attempt_id" \
-                --release-operation standard --operation-id "$operation_id" \
-                --remote-target "$remote_target" --publication-scope external_target \
-                --bundle "$bundle" --track standard --outcome complete \
-                --output native-release/native-framework.receipt.json
-              framework-executor/bin/opl release publish \
-                --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/native-framework.receipt.json \
-                "${operation_args[@]}" --store "$store" --json > native-release/native-framework-result.json
-              test "$(jq -r .release_bundle_publish.status native-release/native-framework-result.json)" = complete
-              ;;
-            outcome_unknown)
-              test "$publish_exit" -eq 2
-              node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
-                --operation remote_inspect --executor remote --attempt-id "$mutation_attempt_id" \
-                --release-operation standard --operation-id "$operation_id" \
-                --remote-target "$remote_target" --publication-scope external_target \
-                --bundle "$bundle" --track standard --outcome unknown \
-                --output native-release/native-framework.receipt.json
-              framework-executor/bin/opl release publish \
-                --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/native-framework.receipt.json \
-                "${operation_args[@]}" --store "$store" --json > native-release/native-framework-result.json
-              test "$(jq -r .release_bundle_publish.status native-release/native-framework-result.json)" = reconcile_only
-              ;;
-            *) echo "::error::Native WebUI publication status is invalid: $status"; exit 1 ;;
-          esac
-          test "$(jq -r .latest_modified native-release/publication-receipt.json)" = false
-          test "$(jq -r .container_registry_modified native-release/publication-receipt.json)" = false
-          test "$(jq -r .homebrew_modified native-release/publication-receipt.json)" = false
-          framework-executor/bin/opl release checkpoint export \
-            --bundle "$BUNDLE_DIGEST" --output native-release/native-publication-checkpoint \
-            --store "$store" --json > native-release/native-checkpoint-export.json
-          framework-executor/bin/opl release status \
-            --bundle "$BUNDLE_DIGEST" --store "$store" --json > native-release/native-framework-status.json
-          marker_count="$(jq -er '.release_bundle_status.active_unknown_markers | length' native-release/native-framework-status.json)"
-          if [ "$status" = outcome_unknown ]; then
-            test "$marker_count" -eq 1
-            marker="$(jq -cer '.release_bundle_status.active_unknown_markers[0]' native-release/native-framework-status.json)"
-            test "$(jq -r .operation_id <<<"$marker")" = "$operation_id"
-            test "$(jq -r .operation_kind <<<"$marker")" = standard
-            test "$(jq -r .track <<<"$marker")" = standard
-            test "$(jq -r .stage_operation <<<"$marker")" = publish
-            test "$(jq -r .publication_scope <<<"$marker")" = external_target
-            test "$(jq -r .remote_target <<<"$marker")" = "$remote_target"
-            test "$(jq -r .prior_mutation_attempt_id <<<"$marker")" = "$mutation_attempt_id"
-            test "$(find native-release/native-publication-checkpoint -type f -name checkpoint.json | wc -l | tr -d ' ')" -eq 1
-            test -f native-release/publication-manifest.json
-            exit 1
-          fi
-          test "$marker_count" -eq 0
-          test "$(find native-release/native-publication-checkpoint -type f -name checkpoint.json | wc -l | tr -d ' ')" -eq 1
-          test -f native-release/publication-manifest.json
-
-      - name: Persist typed Native publication failure
-        if: ${{ failure() }}
-        shell: bash
-        run: |
-          mkdir -p native-release
-          if [ ! -s native-release/publication-receipt.json ]; then
-            jq -n \
-              '{schema:"opl_app_native_webui_publication_receipt.v1",status:"not_published",retry_disposition:"inspect_prepare_or_checkpoint_evidence_then_freeze_a_new_standard_bundle"}' \
-              > native-release/publication-receipt.json
-          fi
-
-      - name: Upload Native publication and public readback receipt
-        if: ${{ always() }}
-        id: identity
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: native-webui-publication-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: native-release
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-
-      - name: Export publication artifact identity
-        if: ${{ always() }}
-        id: publication
-        shell: bash
-        run: echo "publication_artifact_name=native-webui-publication-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-
   readback-native-assets:
     if: ${{ inputs.mode == 'readback' }}
     runs-on: ubuntu-latest
@@ -638,9 +436,19 @@ jobs:
           test '${{ steps.checkpoint.outputs.app_ref }}' = '${{ inputs.app_ref }}'
           test '${{ steps.checkpoint.outputs.shell_ref }}' = '${{ inputs.shell_ref }}'
           [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-          native_release=imported-checkpoint
-          test -f "$native_release/publication-manifest.json"
-          test "sha256:$(shasum -a 256 "$native_release/standard-identity-receipt.json" | awk '{print $1}')" = \
+          native_manifests=()
+          while IFS= read -r manifest; do native_manifests+=("$manifest"); done < <(
+            find imported-checkpoint -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          test "${#native_manifests[@]}" -eq 1
+          native_manifest="${native_manifests[0]}"
+          native_release="$(dirname "$native_manifest")"
+          identity_receipts=()
+          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+            find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#identity_receipts[@]}" -eq 1
+          test "sha256:$(shasum -a 256 "${identity_receipts[0]}" | awk '{print $1}')" = \
             '${{ inputs.standard_identity_sha256 }}'
           mkdir -p native-readback-root
           ln -s "$GITHUB_WORKSPACE/$native_release" native-readback-root/native-release

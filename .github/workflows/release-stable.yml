@@ -1,5 +1,5 @@
 name: OPL Stable Release Bundle
-run-name: OPL Stable ${{ inputs.operation }} ${{ github.run_id }}
+run-name: OPL Stable ${{ inputs.operation }} operation:${{ inputs.operation_id }} authority:${{ inputs.authority_id }} run:${{ github.run_id }}
 
 on:
   workflow_dispatch:
@@ -13,6 +13,26 @@ on:
           - standard
           - resume_standard
           - append_full
+      authority_id:
+        description: Pre-issued canonical Stable authority identity for this one operation
+        required: false
+        default: ''
+        type: string
+      operation_id:
+        description: Deterministic frozen-cohort operation identity bound by the pre-issued authority
+        required: false
+        default: ''
+        type: string
+      authority_carrier:
+        description: Canonical base64url pre-issued Stable authority JSON carrier
+        required: false
+        default: ''
+        type: string
+      authority_digest:
+        description: SHA-256 digest declared by the pre-issued authority carrier
+        required: false
+        default: ''
+        type: string
       version:
         description: Legacy raw Standard input; must be empty because the admission manifest owns version allocation
         required: false
@@ -43,17 +63,6 @@ on:
         required: false
         default: ''
         type: string
-      source_qualification_run_id:
-        description: Legacy external qualification input; must remain empty
-        required: false
-        default: ''
-        type: string
-      source_qualification_receipt_digest:
-        description: Legacy external qualification digest; must remain empty
-        required: false
-        default: ''
-        type: string
-
 permissions:
   contents: read
   actions: read
@@ -70,18 +79,229 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  source-qualification:
+  protected-operation-admission:
     if: ${{ inputs.operation == 'standard' }}
+    runs-on: macos-14
+    timeout-minutes: 30
+    environment: release-stable
     permissions:
       contents: read
       actions: read
-    uses: ./.github/workflows/release-source-qualification.yml
-    with:
-      operation_scope: stable_operation_source_preflight
+    outputs:
+      app_ref: ${{ steps.control.outputs.app_ref }}
+      shell_ref: ${{ steps.control.outputs.shell_ref }}
+      framework_ref: ${{ steps.control.outputs.framework_ref }}
+      operation_id: ${{ steps.control.outputs.operation_id }}
+      control_digest: ${{ steps.control.outputs.control_digest }}
+      authority_id: ${{ steps.authority.outputs.authority_id }}
+    steps:
+      - name: Reject bare or rerun Stable request before expensive work
+        env:
+          OPERATION: ${{ inputs.operation }}
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          INCLUDE_FULL: ${{ inputs.include_full }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$OPERATION" = standard
+          test -n "$AUTHORITY_ID"
+          test -n "$OPERATION_ID"
+          test -n "$AUTHORITY_CARRIER"
+          [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+          test "$INCLUDE_FULL" = false
+
+      - name: Checkout current Stable workflow executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+          fetch-depth: 0
+
+      - name: Decode and verify pre-issued Stable authority before dependency installation
+        id: authority
+        env:
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts decode-carrier \
+            --input "$AUTHORITY_CARRIER" --authority-id "$AUTHORITY_ID" \
+            --authority-digest "$AUTHORITY_DIGEST" \
+            --output stable-operation-authority.json
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts materialize-evidence \
+            --authority stable-operation-authority.json \
+            --source-gate-output source-gate.json \
+            --pre-nonce-guard-output pre-issued-pre-nonce-guard.json
+          app_sha="$(jq -er .cohort.app_sha stable-operation-authority.json)"
+          shell_sha="$(jq -er .cohort.shell_sha stable-operation-authority.json)"
+          framework_sha="$(jq -er .cohort.framework_sha stable-operation-authority.json)"
+          operation_id="$(jq -er .operation_id stable-operation-authority.json)"
+          objective_fingerprint="$(jq -er .objective_fingerprint stable-operation-authority.json)"
+          test "$operation_id" = "$OPERATION_ID"
+          for value in "$shell_sha" "$framework_sha"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]]
+          done
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify-executor \
+            --authority stable-operation-authority.json \
+            --app-root app-source --expected-actor "$GITHUB_ACTOR" \
+            --expected-executor-sha "$GITHUB_SHA"
+          git -C app-source checkout --detach "$app_sha"
+          test "$(git -C app-source rev-parse HEAD)" = "$app_sha"
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify-authority \
+            --authority stable-operation-authority.json \
+            --authority-id "$AUTHORITY_ID" --authority-digest "$AUTHORITY_DIGEST" \
+            --operation-id "$OPERATION_ID" \
+            --app-root app-source --expected-actor "$GITHUB_ACTOR" --expected-app-sha "$app_sha"
+          {
+            echo "authority_id=$AUTHORITY_ID"
+            echo "operation_id=$operation_id"
+            echo "objective_fingerprint=$objective_fingerprint"
+            echo "app_ref=$app_sha"
+            echo "shell_ref=$shell_sha"
+            echo "framework_ref=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout frozen Shell authority cohort
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ steps.authority.outputs.shell_ref }}
+          path: app-source/shells/aionui
+          fetch-depth: 0
+
+      - name: Checkout frozen Framework authority cohort
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ steps.authority.outputs.framework_ref }}
+          path: framework-source
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app-source/package-lock.json
+
+      - name: Bind one pre-issued Stable authority to this run
+        id: control
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          shell_sha="$(git -C app-source/shells/aionui rev-parse HEAD)"
+          framework_sha="$(git -C framework-source rev-parse HEAD)"
+          for value in "$app_sha" "$shell_sha" "$framework_sha"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]]
+          done
+          test "$app_sha" = '${{ steps.authority.outputs.app_ref }}'
+          test "$shell_sha" = '${{ steps.authority.outputs.shell_ref }}'
+          test "$framework_sha" = '${{ steps.authority.outputs.framework_ref }}'
+          node --experimental-strip-types app-source/scripts/release-dispatch-guard.ts verify-evidence \
+            --workflow .github/workflows/release-stable.yml \
+            --expected-app-sha "$app_sha" \
+            --expected-shell-sha "$shell_sha" \
+            --expected-framework-sha "$framework_sha" \
+            --expected-objective-fingerprint '${{ steps.authority.outputs.objective_fingerprint }}' \
+            --expected-operation-id '${{ steps.authority.outputs.operation_id }}' \
+            --source-gate-report source-gate.json \
+            --pre-nonce-guard-report pre-issued-pre-nonce-guard.json \
+            --output pre-dispatch-evidence-verification.json
+          node --experimental-strip-types app-source/scripts/release-dispatch-guard.ts preflight \
+            --workflow .github/workflows/release-stable.yml \
+            --expected-app-sha "$app_sha" \
+            --expected-shell-sha "$shell_sha" \
+            --expected-framework-sha "$framework_sha" \
+            --current-run-id "$GITHUB_RUN_ID" \
+            --authority-id '${{ steps.authority.outputs.authority_id }}' \
+            --operation-id '${{ steps.authority.outputs.operation_id }}' \
+            --source-gate-report source-gate.json \
+            --output run-authority-reconcile.json
+          node - app-source critical-blobs.json <<'NODE'
+          const crypto = require('crypto');
+          const fs = require('fs');
+          const path = require('path');
+          const [root, output] = process.argv.slice(2);
+          const files = [
+            '.github/workflows/release-stable.yml',
+            '.github/workflows/_release-bundle.yml',
+            '.github/workflows/_release-standard-publish.yml',
+            '.github/workflows/_release-native-webui-carrier.yml',
+            'contracts/app-release-channel.json',
+            'scripts/framework-release-adapter.ts',
+            'scripts/release-dispatch-guard.ts',
+            'scripts/stable-operation-control.ts',
+            'scripts/stable-release-admission-manifest.ts',
+            'scripts/validate-release-source-gate.ts',
+          ];
+          const blobs = Object.fromEntries(files.map((file) => [
+            file,
+            `sha256:${crypto.createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')}`,
+          ]));
+          fs.writeFileSync(output, `${JSON.stringify(blobs, null, 2)}\n`);
+          NODE
+          source_gate_digest="sha256:$(shasum -a 256 source-gate.json | awk '{print $1}')"
+          pre_nonce_guard_digest="sha256:$(shasum -a 256 pre-issued-pre-nonce-guard.json | awk '{print $1}')"
+          run_authority_reconcile_digest="sha256:$(shasum -a 256 run-authority-reconcile.json | awk '{print $1}')"
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts bind \
+            --authority stable-operation-authority.json \
+            --authority-digest "$AUTHORITY_DIGEST" \
+            --actor "$GITHUB_ACTOR" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --source-gate-digest "$source_gate_digest" \
+            --pre-nonce-guard-digest "$pre_nonce_guard_digest" \
+            --run-authority-reconcile-digest "$run_authority_reconcile_digest" \
+            --output stable-operation-control.json
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+            --control stable-operation-control.json --app-root app-source \
+            --source-gate source-gate.json --pre-nonce-guard pre-issued-pre-nonce-guard.json \
+            --run-authority-reconcile run-authority-reconcile.json \
+            --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
+            --expected-app-sha "$app_sha" --expected-shell-sha "$shell_sha" --expected-framework-sha "$framework_sha"
+          {
+            echo "app_ref=$app_sha"
+            echo "shell_ref=$shell_sha"
+            echo "framework_ref=$framework_sha"
+            echo "operation_id=$(jq -er .operation_id stable-operation-control.json)"
+            echo "control_digest=$(jq -er .authority_digest stable-operation-control.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable operation control evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-operation-control-${{ github.run_id }}
+          path: |
+            stable-operation-control.json
+            stable-operation-authority.json
+            source-gate.json
+            pre-issued-pre-nonce-guard.json
+            pre-dispatch-evidence-verification.json
+            run-authority-reconcile.json
+            critical-blobs.json
+          if-no-files-found: error
+          retention-days: 30
 
   admission:
-    needs: [source-qualification]
-    if: ${{ always() && (inputs.operation != 'standard' || needs.source-qualification.result == 'success') }}
+    needs: [protected-operation-admission]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -97,12 +317,12 @@ jobs:
       framework_executor_ref: ${{ steps.admission.outputs.framework_executor_ref }}
       source_run_id: ${{ steps.admission.outputs.source_run_id }}
       source_artifact: ${{ steps.admission.outputs.source_artifact }}
+      qualified_native_artifact_name: ${{ steps.resume-native-carrier.outputs.qualified_native_artifact_name }}
+      qualified_native_source_run_id: ${{ steps.resume-native-carrier.outputs.qualified_native_source_run_id }}
       operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
       package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
       package_compatibility_version_range: ${{ steps.admission.outputs.package_compatibility_version_range }}
-      source_qualification_run_id: ${{ steps.admission.outputs.source_qualification_run_id }}
-      source_qualification_receipt_digest: ${{ steps.admission.outputs.source_qualification_receipt_digest }}
     steps:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -110,13 +330,6 @@ jobs:
           ref: ${{ github.sha }}
           path: app-source
           fetch-depth: 0
-
-      - name: Download same-operation source preflight
-        if: ${{ inputs.operation == 'standard' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-source-qualification-${{ github.run_id }}
-          path: source-qualification-evidence
 
       - name: Admit one bounded Bundle operation
         id: admission
@@ -129,8 +342,6 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
-          LEGACY_SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
-          LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ inputs.source_qualification_receipt_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -142,63 +353,19 @@ jobs:
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
           FRAMEWORK_REF="$REQUESTED_FRAMEWORK_REF"
-          SOURCE_QUALIFICATION_RUN_ID=''
-          SOURCE_QUALIFICATION_RECEIPT_DIGEST=''
           case "$OPERATION" in
             standard)
-              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$LEGACY_SOURCE_QUALIFICATION_RUN_ID$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
-                echo "::error::A new Standard Bundle accepts no external source or qualification artifact."
-                exit 1
-              }
-              SOURCE_QUALIFICATION_RUN_ID="$GITHUB_RUN_ID"
-              SOURCE_QUALIFICATION_RECEIPT_DIGEST='${{ needs.source-qualification.outputs.receipt_digest }}'
-              [[ "$SOURCE_QUALIFICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
-                echo "::error::A new Standard Bundle requires its same-operation source preflight run id."
-                exit 1
-              }
-              [[ "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                echo "::error::A new Standard Bundle requires its same-operation source preflight receipt digest."
+              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
+                echo "::error::A new Standard Bundle accepts no external source artifact."
                 exit 1
               }
               test "$INCLUDE_FULL" = false || {
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
                 exit 1
               }
-              # source-qualification-receipt-resolver:start
-              qualification_receipts=()
-              while IFS= read -r receipt; do
-                qualification_receipts+=("$receipt")
-              done < <(
-                find source-qualification-evidence -type f -name source-qualification-receipt.json -print \
-                  | LC_ALL=C sort
-              )
-              if [ "${#qualification_receipts[@]}" -ne 1 ]; then
-                echo "::error::Source qualification artifact must contain exactly one regular receipt file; found ${#qualification_receipts[@]}."
-                exit 1
-              fi
-              qualification_receipt_path="${qualification_receipts[0]}"
-              test -s "$qualification_receipt_path" && test ! -L "$qualification_receipt_path" || {
-                echo "::error::Source qualification receipt must be one non-empty regular file, not a symlink."
-                exit 1
-              }
-              # source-qualification-receipt-resolver:end
-              node --experimental-strip-types app-source/scripts/source-qualification-receipt.ts verify \
-                --receipt "$qualification_receipt_path" \
-                --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
-                --expected-run-id "$SOURCE_QUALIFICATION_RUN_ID" \
-                --expected-head-sha "$app_sha" \
-                --output verified-source-qualification.json
-              test "$(jq -er .execution.operation_scope "$qualification_receipt_path")" = stable_operation_source_preflight || {
-                echo "::error::Stable admission requires the same-operation source preflight scope."
-                exit 1
-              }
-              SHELL_REF="$(jq -er .cohort.shell.sha verified-source-qualification.json)"
-              FRAMEWORK_REF="$(jq -er .cohort.framework.sha verified-source-qualification.json)"
-              verified_app_ref="$(jq -er .cohort.app.sha verified-source-qualification.json)"
-              test "$verified_app_ref" = "$app_sha" || {
-                echo "::error::Verified source qualification App ref does not match the workflow executor."
-                exit 1
-              }
+              test "$app_sha" = '${{ needs.protected-operation-admission.outputs.app_ref }}'
+              SHELL_REF='${{ needs.protected-operation-admission.outputs.shell_ref }}'
+              FRAMEWORK_REF='${{ needs.protected-operation-admission.outputs.framework_ref }}'
               ;;
             resume_standard|append_full)
               [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
@@ -207,10 +374,6 @@ jobs:
               }
               [[ "$SOURCE_ARTIFACT" =~ ^[A-Za-z0-9._-]+$ ]] || {
                 echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
-                exit 1
-              }
-              test -z "$LEGACY_SOURCE_QUALIFICATION_RUN_ID$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
-                echo "::error::$OPERATION cannot consume a new source qualification receipt."
                 exit 1
               }
               if [ -n "$REQUESTED_FRAMEWORK_REF" ]; then
@@ -246,8 +409,54 @@ jobs:
             echo "operation_deadline_at=$operation_deadline_at"
             echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
             echo "package_compatibility_version_range=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_VERSION_RANGE"
-            echo "source_qualification_run_id=$SOURCE_QUALIFICATION_RUN_ID"
-            echo "source_qualification_receipt_digest=$SOURCE_QUALIFICATION_RECEIPT_DIGEST"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download frozen Native carrier identity for Standard resume
+        if: ${{ steps.admission.outputs.operation == 'resume_standard' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.admission.outputs.source_artifact }}
+          run-id: ${{ steps.admission.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: resume-standard-carrier
+
+      - name: Bind frozen Native carrier identity for Standard resume
+        id: resume-native-carrier
+        if: ${{ steps.admission.outputs.operation == 'resume_standard' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prepare_statuses=()
+          manifests=()
+          controls=()
+          while IFS= read -r item; do prepare_statuses+=("$item"); done < <(
+            find resume-standard-carrier -type f -name prepare-status.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do manifests+=("$item"); done < <(
+            find resume-standard-carrier -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do controls+=("$item"); done < <(
+            find resume-standard-carrier -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
+          test "${#prepare_statuses[@]}" -eq 1
+          test "${#manifests[@]}" -eq 1
+          test "${#controls[@]}" -eq 1
+          artifact_name="$(jq -er '
+            select(.schema == "opl_app_native_webui_prepare_status.v1" and .status == "qualified")
+            | .qualified_artifact_name
+            | strings
+            | select(test("^native-webui-qualified-[A-Za-z0-9._-]+$"))
+          ' "${prepare_statuses[0]}")"
+          native_origin_run_id="$(jq -er '
+            .run_id | strings | select(test("^[1-9][0-9]*$"))
+          ' "${controls[0]}")"
+          manifest_origin_run_id="$(jq -er '
+            .stable_authority_run_id | tostring | select(test("^[1-9][0-9]*$"))
+          ' "${manifests[0]}")"
+          test "$manifest_origin_run_id" = "$native_origin_run_id"
+          {
+            echo "qualified_native_artifact_name=$artifact_name"
+            echo "qualified_native_source_run_id=$native_origin_run_id"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable operation admission
@@ -257,13 +466,12 @@ jobs:
           name: opl-release-operation-admission-${{ github.run_id }}
           path: |
             release-operation-admission.json
-            verified-source-qualification.json
           if-no-files-found: error
           retention-days: 30
 
-  protected-admission:
+  stable-admission-manifest:
     if: ${{ needs.admission.outputs.operation == 'standard' }}
-    needs: [admission]
+    needs: [admission, protected-operation-admission]
     runs-on: macos-14
     timeout-minutes: 15
     environment: release-stable
@@ -288,13 +496,11 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Download exact source qualification receipt
+      - name: Download frozen pre-submit authority evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-source-qualification-${{ needs.admission.outputs.source_qualification_run_id }}
-          run-id: ${{ needs.admission.outputs.source_qualification_run_id }}
-          github-token: ${{ github.token }}
-          path: source-qualification-evidence
+          name: opl-stable-operation-control-${{ github.run_id }}
+          path: operation-control-evidence
 
       - name: Verify protected Apple credentials in the Stable entry
         env:
@@ -315,39 +521,55 @@ jobs:
           APP_REF: ${{ needs.admission.outputs.app_ref }}
           SHELL_REF: ${{ needs.admission.outputs.shell_ref }}
           FRAMEWORK_REF: ${{ needs.admission.outputs.framework_ref }}
-          SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ needs.admission.outputs.source_qualification_receipt_digest }}
         shell: bash
         run: |
           set -euo pipefail
-          # source-qualification-receipt-resolver:start
-          qualification_receipts=()
-          while IFS= read -r receipt; do
-            qualification_receipts+=("$receipt")
-          done < <(
-            find source-qualification-evidence -type f -name source-qualification-receipt.json -print \
-              | LC_ALL=C sort
+          controls=()
+          source_gates=()
+          pre_nonce_guards=()
+          run_reconciles=()
+          while IFS= read -r item; do controls+=("$item"); done < <(
+            find operation-control-evidence -type f -name stable-operation-control.json -print | LC_ALL=C sort
           )
-          if [ "${#qualification_receipts[@]}" -ne 1 ]; then
-            echo "::error::Source qualification artifact must contain exactly one regular receipt file; found ${#qualification_receipts[@]}."
-            exit 1
-          fi
-          qualification_receipt_path="${qualification_receipts[0]}"
-          test -s "$qualification_receipt_path" && test ! -L "$qualification_receipt_path" || {
-            echo "::error::Source qualification receipt must be one non-empty regular file, not a symlink."
-            exit 1
-          }
-          # source-qualification-receipt-resolver:end
-          node --experimental-strip-types scripts/validate-source-qualification-receipt.ts \
-            --receipt "$qualification_receipt_path" \
-            --expected-digest "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" \
-            --expected-run-id '${{ needs.admission.outputs.source_qualification_run_id }}' \
-            --expected-head-sha "$APP_REF"
-          base_version="$(node -e 'const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Shanghai",year:"2-digit",month:"numeric",day:"numeric"}).formatToParts(new Date());const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));process.stdout.write(`${values.year}.${values.month}.${values.day}`)')"
+          while IFS= read -r item; do source_gates+=("$item"); done < <(
+            find operation-control-evidence -type f -name source-gate.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do pre_nonce_guards+=("$item"); done < <(
+            find operation-control-evidence -type f -name pre-issued-pre-nonce-guard.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do run_reconciles+=("$item"); done < <(
+            find operation-control-evidence -type f -name run-authority-reconcile.json -print | LC_ALL=C sort
+          )
+          test "${#controls[@]}" -eq 1
+          test "${#source_gates[@]}" -eq 1
+          test "${#pre_nonce_guards[@]}" -eq 1
+          test "${#run_reconciles[@]}" -eq 1
+          control_path="${controls[0]}"
+          source_gate_path="${source_gates[0]}"
+          node --experimental-strip-types scripts/stable-operation-control.ts verify \
+            --control "$control_path" --app-root . \
+            --source-gate "$source_gate_path" \
+            --pre-nonce-guard "${pre_nonce_guards[0]}" \
+            --run-authority-reconcile "${run_reconciles[0]}" \
+            --expected-run-id "$GITHUB_RUN_ID" \
+            --expected-actor "$(jq -er .actor "$control_path")" \
+            --expected-app-sha "$APP_REF" --expected-shell-sha "$SHELL_REF" --expected-framework-sha "$FRAMEWORK_REF"
+          base_version="$(node <<'NODE'
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Shanghai',
+            year: '2-digit',
+            month: 'numeric',
+            day: 'numeric',
+          }).formatToParts(new Date());
+          const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+          process.stdout.write(`${values.year}.${values.month}.${values.day}`);
+          NODE
+          )"
           node --experimental-strip-types scripts/stable-release-admission-manifest.ts create \
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
             --admission-run-id "$GITHUB_RUN_ID" \
-            --source-qualification-receipt "$qualification_receipt_path" \
+            --source-gate "$source_gate_path" \
             --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \
             --output "$RUNNER_TEMP/stable-release-admission-manifest.json"
           node - "$RUNNER_TEMP/stable-release-admission-manifest.json" "$GITHUB_OUTPUT" <<'NODE'
@@ -361,7 +583,7 @@ jobs:
             '',
           ].join('\n'));
           NODE
-          echo "qualification_receipt_path=$qualification_receipt_path" >> "$GITHUB_OUTPUT"
+          echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload same-run protected admission evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -370,13 +592,13 @@ jobs:
           path: |
             ${{ runner.temp }}/stable-release-admission-manifest.json
             ${{ runner.temp }}/apple-release-credentials-preflight.json
-            ${{ steps.manifest.outputs.qualification_receipt_path }}
+            ${{ steps.manifest.outputs.source_gate_path }}
           if-no-files-found: error
           retention-days: 30
 
   standard:
     if: ${{ needs.admission.outputs.operation == 'standard' }}
-    needs: [admission, protected-admission]
+    needs: [admission, protected-operation-admission, stable-admission-manifest]
     permissions:
       contents: write
       actions: read
@@ -385,15 +607,17 @@ jobs:
       mode: execute
       operation: standard
       channel: stable
-      version: ${{ needs.protected-admission.outputs.version }}
+      version: ${{ needs.stable-admission-manifest.outputs.version }}
       include_full: ${{ fromJSON(needs.admission.outputs.include_full) }}
       package_compatibility_abi: ${{ needs.admission.outputs.package_compatibility_abi }}
       package_compatibility_version_range: ${{ needs.admission.outputs.package_compatibility_version_range }}
-      app_ref: ${{ needs.protected-admission.outputs.app_ref }}
-      shell_ref: ${{ needs.protected-admission.outputs.shell_ref }}
-      framework_ref: ${{ needs.protected-admission.outputs.framework_ref }}
+      app_ref: ${{ needs.protected-operation-admission.outputs.app_ref }}
+      shell_ref: ${{ needs.protected-operation-admission.outputs.shell_ref }}
+      framework_ref: ${{ needs.protected-operation-admission.outputs.framework_ref }}
       operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
+      stable_operation_control_artifact: opl-stable-operation-control-${{ github.run_id }}
+      stable_operation_control_digest: ${{ needs.protected-operation-admission.outputs.control_digest }}
     secrets: inherit
 
   resume-standard:
@@ -409,6 +633,8 @@ jobs:
       source_run_id: ${{ needs.admission.outputs.source_run_id }}
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
+      qualified_native_artifact_name: ${{ needs.admission.outputs.qualified_native_artifact_name }}
+      qualified_native_source_run_id: ${{ needs.admission.outputs.qualified_native_source_run_id }}
     secrets: inherit
 
   append-full:

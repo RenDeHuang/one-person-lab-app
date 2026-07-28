@@ -80,7 +80,7 @@ export function finalizeCodexReviewGateResult(
 }
 
 export function isCodexReviewAdvisoryFailure(result: CodexReviewGateResult): boolean {
-  return result.status === 'failed' || result.status === 'inconclusive';
+  return result.status === 'failed';
 }
 
 type GitHubRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
