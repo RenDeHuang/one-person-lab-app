@@ -57,7 +57,7 @@ function mutationAdmission(
 }
 
 function expectedMutationAttemptId(
-  mutation: 'release_create' | 'asset_upload' | 'latest_patch',
+  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch',
   remoteTarget: string,
   subject: string,
 ): string {
@@ -242,14 +242,18 @@ function success(value: unknown = ''): GitHubCommandResult {
   };
 }
 
-function releaseResponse(assets: Asset[]): Record<string, unknown> {
+function releaseResponse(
+  assets: Asset[],
+  options: { draft?: boolean; immutable?: boolean } = {},
+): Record<string, unknown> {
   return {
     id: 12345,
     name: `One Person Lab v${version}`,
-    draft: false,
+    draft: options.draft ?? false,
     prerelease: false,
     target_commitish: sourceCommit,
     body: notes,
+    immutable: options.immutable ?? true,
     assets: assets.map((asset) => ({
       name: asset.name,
       size: asset.size_bytes,
@@ -403,6 +407,14 @@ function isReleaseInspect(args: string[]): boolean {
   return args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`;
 }
 
+function isImmutableCapabilityRead(args: string[]): boolean {
+  return args[0] === 'api' && args[1] === `repos/${repo}/immutable-releases`;
+}
+
+function immutableCapabilityResponse(enabled = true): GitHubCommandResult {
+  return success({ enabled, enforced_by_owner: false });
+}
+
 test('absent GitHub Release remote inspection yields an empty receipt for the first upload plan', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-absent-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
@@ -554,9 +566,10 @@ test('deadline expiry before asset N prevents asset N and every later mutation',
     run(command, args, options) {
       assert.equal(command, 'gh');
       assert.equal(options.killSignal, 'SIGTERM');
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         assert.equal(options.timeout, 1_234);
-        return success(releaseResponse(remoteAssets));
+        return success(releaseResponse(remoteAssets, { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
         mutationCalls.push(args);
@@ -603,9 +616,10 @@ test('a timed out asset upload stops all mutation and performs only fresh read-o
     readTimeoutMs: 2_345,
     run(_command, args, options) {
       calls.push({ args, options });
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         inspections += 1;
-        return success(releaseResponse([]));
+        return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
         return {
@@ -655,6 +669,7 @@ test('a timed out Release create performs one mutation and then read-only reconc
     readTimeoutMs: 2_222,
     run(_command, args, options) {
       calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         assert.equal(options.timeout, 2_222);
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
@@ -1078,6 +1093,7 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls += 1;
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return success(releaseResponse([]));
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -1106,24 +1122,31 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
   fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
   const calls: Array<{ args: string[]; stdin?: string }> = [];
   let exists = false;
+  let published = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
     run(_command, args, options) {
       calls.push({ args, stdin: options.input });
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/v${nightlyVersion}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
           id: 12345,
           name: `One Person Lab v${nightlyVersion}`,
-          draft: false,
+          draft: !published,
           prerelease: true,
           target_commitish: sourceCommit,
           body: notes,
+          immutable: published,
           assets: [],
         });
       }
       if (args.includes('POST')) {
         exists = true;
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
         return success();
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
@@ -1141,6 +1164,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
   assert.ok(create?.stdin);
   const payload = JSON.parse(create.stdin);
   assert.equal(payload.prerelease, true);
+  assert.equal(payload.draft, true);
   assert.equal(payload.make_latest, 'false');
 });
 
@@ -1148,24 +1172,31 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
   const files = previewFixture();
   const calls: Array<{ args: string[]; stdin?: string }> = [];
   let exists = false;
+  let published = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
     run(_command, args, options) {
       calls.push({ args, stdin: options.input });
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${files.previewTag}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
           id: 12345,
           name: `One Person Lab v${files.previewVersion}`,
-          draft: false,
+          draft: !published,
           prerelease: false,
           target_commitish: sourceCommit,
           body: notes,
+          immutable: published,
           assets: [],
         });
       }
       if (args.includes('POST')) {
         exists = true;
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
         return success();
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
@@ -1183,7 +1214,330 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
   assert.ok(create?.stdin);
   const payload = JSON.parse(create.stdin);
   assert.equal(payload.prerelease, false);
+  assert.equal(payload.draft, true);
   assert.equal(payload.make_latest, 'false');
+});
+
+test('release inspection treats an absent immutable field as false, never true', () => {
+  const response = releaseResponse([]);
+  delete response.immutable;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      assert.equal(isReleaseInspect(args), true);
+      return success(response);
+    },
+  };
+  assert.equal(inspectRelease(repo, tag, runtime).release.immutable, false);
+});
+
+test('immutable capability disabled fails closed before every public mutation', () => {
+  const files = fixture([asset('first.zip', '1')]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse(false);
+      throw new Error(`Unexpected GitHub call after disabled capability: ${args.join(' ')}`);
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    (error: any) => {
+      assert.equal(error.result.status, 'failed');
+      assert.equal(error.result.failure.failure_taxonomy, 'github_immutable_releases_disabled');
+      return true;
+    },
+  );
+  assert.equal(calls.filter((args) => args.includes('POST')).length, 0);
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+});
+
+test('an exact immutable published carrier remains a read-only idempotent reconcile when capability is disabled', () => {
+  const first = asset('first.zip', '2');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isReleaseInspect(args)) {
+        return success(releaseResponse([first], { draft: false, immutable: true }));
+      }
+      throw new Error(`Unexpected GitHub mutation or capability read: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.uploaded, []);
+  assert.equal(calls.every(isReleaseInspect), true);
+});
+
+test('unexpected remote assets fail before immutable publication', () => {
+  const first = asset('first.zip', '2');
+  const unexpected = asset('unexpected.bin', '3');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) {
+        return success(releaseResponse([unexpected], { draft: true, immutable: false }));
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /unexpected asset outside the exact planned set/i,
+  );
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+});
+
+test('duplicate planned asset names fail before capability read or public mutation', () => {
+  const first = asset('first.zip', '4');
+  const files = fixture([first]);
+  const plan = JSON.parse(fs.readFileSync(files.planPath, 'utf8'));
+  plan.release_bundle_publish.receipt.details.upload_actions.push({
+    action: 'upload',
+    name: first.name,
+    source_path: first.source_path,
+    size_bytes: first.size_bytes,
+    sha256: first.sha256,
+  });
+  fs.writeFileSync(files.planPath, `${JSON.stringify(plan)}\n`);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /duplicate or invalid asset names/i,
+  );
+  assert.equal(calls, 0);
+});
+
+test('supplemental immutable carrier receipt joins the exact draft asset set once', () => {
+  const first = asset('desktop.zip', 'a');
+  const durableReceipt = asset('opl-stable-operation-control.json', 'b');
+  const files = fixture([first]);
+  const additionalPath = path.join(files.root, 'additional-upload-actions.json');
+  fs.writeFileSync(additionalPath, `${JSON.stringify({
+    schema: 'opl_app_immutable_release_upload_actions.v1',
+    upload_actions: [{ action: 'upload', ...durableReceipt }],
+  })}\n`);
+  const calls: string[][] = [];
+  const remoteAssets: Asset[] = [];
+  let exists = false;
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse(remoteAssets, { draft: !published, immutable: published }));
+      }
+      if (args.includes('POST')) {
+        exists = true;
+        return success();
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        const uploaded = [first, durableReceipt].find((asset) => asset.source_path === args[3]);
+        assert.ok(uploaded, `unexpected upload ${args[3]}`);
+        remoteAssets.push(uploaded);
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        assert.deepEqual(remoteAssets.map((asset) => asset.name).sort(), [first.name, durableReceipt.name].sort());
+        published = true;
+        return success();
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+    'additional-upload-actions': additionalPath,
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.uploaded, [first.name, durableReceipt.name]);
+  const publishIndex = calls.findIndex((args) => args.includes('PATCH'));
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 2);
+  assert.ok(publishIndex > calls.findIndex((args) => args[0] === 'release' && args[1] === 'upload'));
+});
+
+test('supplemental immutable carrier actions reject a duplicate main-plan asset before GitHub access', () => {
+  const first = asset('desktop.zip', 'c');
+  const files = fixture([first]);
+  const additionalPath = path.join(files.root, 'duplicate-upload-actions.json');
+  fs.writeFileSync(additionalPath, `${JSON.stringify({
+    schema: 'opl_app_immutable_release_upload_actions.v1',
+    upload_actions: [{ action: 'upload', ...first }],
+  })}\n`);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+      'additional-upload-actions': additionalPath,
+    }, runtime),
+    /duplicate or invalid asset names/i,
+  );
+  assert.equal(calls, 0);
+});
+
+test('duplicate remote asset names fail before immutable publication', () => {
+  const first = asset('first.zip', '5');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) {
+        return success(releaseResponse([first, first], { draft: true, immutable: false }));
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /duplicate asset name/i,
+  );
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+});
+
+test('an incomplete published immutable carrier is read-only and cannot receive late assets', () => {
+  const first = asset('first.zip', '6');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) return success(releaseResponse([]));
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /asset set is incomplete/i,
+  );
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+});
+
+test('immutable=false after accepted draft publication returns typed terminal evidence', () => {
+  const first = asset('first.zip', '7');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const remoteAssets: Asset[] = [];
+  let exists = false;
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse(remoteAssets, {
+          draft: !published,
+          immutable: false,
+        }));
+      }
+      if (args.includes('POST')) {
+        exists = true;
+        return success();
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        remoteAssets.push(first);
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        return success();
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+  assert.equal(result.status, 'failed');
+  assert.equal(result.failure.failure_taxonomy, 'published_mutable_policy_violation');
+  assert.equal(result.failure.mutation, 'release_publish');
+  assert.equal(result.retry_disposition, 'read_only_reconcile_only_no_retry');
+  assert.deepEqual(result.uploaded, [first.name]);
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 1);
 });
 
 test('explicit single-use authority may move Latest to Dev Preview without Stable latest_eligible', () => {
@@ -1200,6 +1554,7 @@ test('explicit single-use authority may move Latest to Dev Preview without Stabl
           prerelease: false,
           target_commitish: sourceCommit,
           body: notes,
+          immutable: true,
           assets: [{
             name: `One-Person-Lab-${files.previewVersion}-mac-arm64.zip`,
             size: 100,
@@ -1244,6 +1599,7 @@ test('explicit single-use authority may move Latest to Nightly Preview without S
           prerelease: true,
           target_commitish: sourceCommit,
           body: notes,
+          immutable: true,
           assets: [{
             name: `One-Person-Lab-${files.nightlyVersion}-mac-arm64.zip`,
             size: 100,

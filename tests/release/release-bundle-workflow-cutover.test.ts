@@ -404,41 +404,19 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
   }
 });
 
-test('new Standard binds one pre-issued authority before source preflight and seals its run-bound control in the same run', () => {
+test('new Standard binds one pre-issued authority and seals its run-bound control in the same run', () => {
   const stable = parseWorkflow('release-stable.yml');
   assert.equal(stable.env.OPL_FRAMEWORK_RELEASE_ABI_REF, undefined);
-  for (const input of ['authority_id', 'authority_carrier', 'authority_digest']) {
+  for (const input of ['authority_id', 'operation_id', 'authority_carrier', 'authority_digest']) {
     assert.equal(stable.on.workflow_dispatch.inputs[input].required, true);
   }
+  assert.match(stable['run-name'], /operation:\$\{\{ inputs\.operation_id \}\}/);
   assert.match(stable['run-name'], /authority:\$\{\{ inputs\.authority_id \}\}/);
   assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_run_id.required, false);
   assert.equal(stable.on.workflow_dispatch.inputs.source_qualification_receipt_digest.required, false);
-  assert.equal(
-    stable.jobs['source-qualification'].uses,
-    './.github/workflows/release-source-qualification.yml',
-  );
-  assert.equal(
-    stable.jobs['source-qualification'].with.operation_scope,
-    'stable_operation_source_preflight',
-  );
-  assert.deepEqual(stable.jobs['source-qualification'].needs, ['protected-operation-admission']);
-  assert.equal(
-    stable.jobs['source-qualification'].with.app_ref,
-    '${{ needs.protected-operation-admission.outputs.app_ref }}',
-  );
-  assert.equal(
-    stable.jobs['source-qualification'].with.shell_ref,
-    '${{ needs.protected-operation-admission.outputs.shell_ref }}',
-  );
-  assert.equal(
-    stable.jobs['source-qualification'].with.framework_ref,
-    '${{ needs.protected-operation-admission.outputs.framework_ref }}',
-  );
-  assert.deepEqual(stable.jobs.admission.needs, ['protected-operation-admission', 'source-qualification']);
-  assert.match(
-    String(stable.jobs.admission.if),
-    /inputs\.operation != 'standard'.*needs\.source-qualification\.result == 'success'/,
-  );
+  assert.equal(stable.jobs['source-qualification'], undefined);
+  assert.deepEqual(stable.jobs.admission.needs, ['protected-operation-admission']);
+  assert.equal(stable.jobs.admission.if, '${{ always() }}');
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');
@@ -446,17 +424,9 @@ test('new Standard binds one pre-issued authority before source preflight and se
     stableAdmission,
     /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT\$LEGACY_SOURCE_QUALIFICATION_RUN_ID\$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST"/,
   );
-  assert.match(stableAdmission, /SOURCE_QUALIFICATION_RUN_ID="\$GITHUB_RUN_ID"/);
-  assert.match(
-    stableAdmission,
-    /SOURCE_QUALIFICATION_RECEIPT_DIGEST='\$\{\{ needs\.source-qualification\.outputs\.receipt_digest \}\}'/,
-  );
-  assert.doesNotMatch(stableAdmission, /actions\/runs\/\$SOURCE_QUALIFICATION_RUN_ID/);
-  assert.doesNotMatch(stableAdmission, /gh run download/);
-  assert.match(stableAdmission, /source-qualification-receipt\.ts verify/);
-  assert.match(stableAdmission, /--expected-digest "\$SOURCE_QUALIFICATION_RECEIPT_DIGEST"/);
-  assert.match(stableAdmission, /SHELL_REF="\$\(jq -er \.cohort\.shell\.sha verified-source-qualification\.json\)"/);
-  assert.match(stableAdmission, /FRAMEWORK_REF="\$\(jq -er \.cohort\.framework\.sha verified-source-qualification\.json\)"/);
+  assert.doesNotMatch(stableAdmission, /actions\/runs\/\$SOURCE_QUALIFICATION_RUN_ID|gh run download|source-qualification-receipt\.ts verify/);
+  assert.match(stableAdmission, /SHELL_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.shell_ref \}\}'/);
+  assert.match(stableAdmission, /FRAMEWORK_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.framework_ref \}\}'/);
   assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
   assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
@@ -470,7 +440,7 @@ test('new Standard binds one pre-issued authority before source preflight and se
   assert.equal(protectedControl.environment, 'release-stable');
   assert.equal(protectedControl.needs, undefined);
   assert.equal(protectedControl.steps.some(
-    (step: Record<string, unknown>) => String(step.run ?? '').includes('validate-release-source-gate.ts'),
+    (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-operation-control.ts materialize-evidence'),
   ), true);
   assert.equal(protectedControl.steps.some(
     (step: Record<string, unknown>) => String(step.run ?? '').includes('release-dispatch-guard.ts preflight'),
@@ -484,14 +454,15 @@ test('new Standard binds one pre-issued authority before source preflight and se
   const authorityStepIndex = protectedControl.steps.findIndex(
     (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-operation-control.ts decode-carrier'),
   );
-  const dependencyStepIndex = protectedControl.steps.findIndex(
-    (step: Record<string, unknown>) => step.name === 'Install source-gate dependencies',
+  const cohortCheckoutIndex = protectedControl.steps.findIndex(
+    (step: Record<string, unknown>) => step.name === 'Checkout frozen Shell authority cohort',
   );
-  assert.ok(authorityStepIndex >= 0 && authorityStepIndex < dependencyStepIndex);
+  assert.ok(authorityStepIndex >= 0 && authorityStepIndex < cohortCheckoutIndex);
   const stableSource = readWorkflow('release-stable.yml');
   assert.doesNotMatch(stableSource, /openssl rand/);
   assert.doesNotMatch(stableSource, /operation_id="stable-\$\{GITHUB_RUN_ID\}"/);
   assert.doesNotMatch(stableSource, /stable-operation-control\.ts create(?:\s|$)/);
+  assert.match(stableSource, /--operation-id '\$\{\{ inputs\.operation_id \}\}'/);
   assert.equal(protectedControl.steps.some(
     (step: Record<string, any>) => step.with?.name === 'opl-stable-operation-control-${{ github.run_id }}',
   ), true);
@@ -503,6 +474,9 @@ test('new Standard binds one pre-issued authority before source preflight and se
   ), true);
   assert.equal(stableAdmissionManifest.steps.some(
     (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
+  ), true);
+  assert.equal(stableAdmissionManifest.steps.some(
+    (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-operation-control.ts verify'),
   ), true);
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);
   assert.equal(stable.jobs.standard.needs.includes('stable-admission-manifest'), true);
@@ -553,7 +527,7 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.equal(bundle.jobs['standard-qualification'], undefined);
   assert.deepEqual(
     bundle.jobs['checkpoint-standard'].needs,
-    ['freeze', 'seal-standard-identity'],
+    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui'],
   );
   assert.equal(
     bundle.jobs['publish-standard'].with.standard_identity_sha256,
@@ -587,41 +561,6 @@ test('one signed Standard build is sealed once and every final consumer binds it
   );
 });
 
-test('Stable resolves the unique nested source qualification receipt and fails closed on unsafe layouts', () => {
-  const stable = parseWorkflow('release-stable.yml');
-  const admissionRun = String(stable.jobs.admission.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
-  )?.run ?? '');
-  const stableAdmissionManifest = stable.jobs['stable-admission-manifest'];
-  const protectedRun = String(stableAdmissionManifest.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Seal one same-run Stable admission manifest',
-  )?.run ?? '');
-
-  for (const [name, run] of [['admission', admissionRun], ['stable-admission-manifest', protectedRun]] as const) {
-    const resolver = sourceQualificationReceiptResolver(run);
-    const nested = runSourceQualificationReceiptResolver(resolver, 'nested');
-    assert.equal(nested.status, 0, `${name}: ${nested.stderr}`);
-    assert.equal(
-      nested.stdout.trim(),
-      'source-qualification-evidence/_temp/opl-source-qualification-30214273664/source-qualification-receipt.json',
-    );
-    for (const fixture of ['missing', 'duplicate', 'symlink-only', 'empty'] as const) {
-      const rejected = runSourceQualificationReceiptResolver(resolver, fixture);
-      assert.notEqual(rejected.status, 0, `${name} must reject ${fixture}`);
-    }
-  }
-
-  assert.match(admissionRun, /--receipt "\$qualification_receipt_path"/);
-  assert.match(protectedRun, /--receipt "\$qualification_receipt_path"/);
-  assert.match(protectedRun, /--source-qualification-receipt "\$qualification_receipt_path"/);
-  const protectedUpload = stableAdmissionManifest.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload same-run protected admission evidence',
-  );
-  assert.match(
-    String(protectedUpload?.with?.path ?? ''),
-    /\$\{\{ steps\.manifest\.outputs\.qualification_receipt_path \}\}/,
-  );
-});
 
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
@@ -840,7 +779,6 @@ test('the live control plane is split into Standard build, Standard publish, and
     'checkpoint-standard',
     'prepare-native-webui',
     'publish-standard',
-    'publish-native-webui',
   ]);
   assert.ok(standard.jobs.restore);
   assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
@@ -853,7 +791,7 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.ok(full.jobs.provenance);
   assert.ok(full.jobs['publish-full']);
   for (const [workflow, inheritedMutationJobs] of [
-    [bundle, new Set(['publish-standard', 'publish-native-webui'])],
+    [bundle, new Set(['publish-standard'])],
     [standard, new Set(['publish-standard-nonlatest', 'activate-latest'])],
     [full, new Set(['publish-full'])],
   ] as const) {
@@ -2210,7 +2148,7 @@ test('the App adapter rejects prepared notes that bind a future Full Package pay
   }
 });
 
-test('Standard checkpoint is Desktop-only and WebUI follows without blocking Desktop publication', () => {
+test('Stable Standard publication includes qualified Native bytes before one Release publish', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const follower = parseWorkflow('release-webui-follower.yml');
   const source = readWorkflow('_release-bundle.yml');
@@ -2221,14 +2159,22 @@ test('Standard checkpoint is Desktop-only and WebUI follows without blocking Des
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
-    ['freeze', 'seal-standard-identity'],
+    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui'],
   );
-  assert.deepEqual(workflow.jobs['publish-standard'].needs, ['freeze', 'checkpoint-standard']);
+  assert.deepEqual(workflow.jobs['publish-standard'].needs, [
+    'freeze',
+    'checkpoint-standard',
+    'prepare-native-webui',
+  ]);
   assert.deepEqual(workflow.jobs['prepare-native-webui'].needs, ['freeze']);
-  assert.deepEqual(
-    workflow.jobs['publish-native-webui'].needs,
-    ['freeze', 'checkpoint-standard', 'prepare-native-webui', 'publish-standard'],
+  assert.equal(workflow.jobs['publish-native-webui'], undefined);
+  assert.equal(
+    workflow.jobs['publish-standard'].with.qualified_native_artifact_name,
+    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
   );
+  assert.match(standardSource, /Download exact qualified Native artifact for the unified draft carrier/);
+  assert.match(standardSource, /release-native-webui-carrier\.ts upload-actions/);
+  assert.match(standardSource, /Desktop and Native Release assets contain duplicate names/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);
   assert.deepEqual(Object.keys(follower.on), ['workflow_run']);

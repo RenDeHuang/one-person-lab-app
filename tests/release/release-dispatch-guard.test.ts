@@ -13,6 +13,7 @@ const appSha = '1'.repeat(40);
 const shellSha = '2'.repeat(40);
 const frameworkSha = '3'.repeat(40);
 const workflow = '.github/workflows/release-source-qualification.yml';
+const operationId = 'stable-frozen-cohort-42';
 const operationStartedAt = '2026-07-26T06:00:00.000Z';
 const observedAt = '2026-07-26T06:01:00.000Z';
 
@@ -44,7 +45,7 @@ function ownerRun(id: number, overrides: Record<string, unknown> = {}) {
     head_sha: appSha,
     run_attempt: 1,
     created_at: '2026-07-26T06:00:10.000Z',
-    display_title: 'OPL Stable standard authority-42',
+    display_title: `OPL Stable standard operation:${operationId} authority:authority-42`,
     ...overrides,
   };
 }
@@ -248,6 +249,7 @@ test('pre-nonce guard permits only its own authority-bound run and rejects any s
     sourceGateReport: sourceGateReport(),
     currentRunId: '42',
     authorityId: 'authority-42',
+    operationId,
   }, { runner: successfulRunner([own]) });
   assert.equal(reconciled.status, 'passed');
 
@@ -259,6 +261,7 @@ test('pre-nonce guard permits only its own authority-bound run and rejects any s
     sourceGateReport: sourceGateReport(),
     currentRunId: '42',
     authorityId: 'authority-42',
+    operationId,
   }, { runner: successfulRunner([own, another]) });
   assert.equal(blocked.status, 'blocked');
   assert.equal(blocked.owner_run_match_count, 2);
@@ -275,9 +278,30 @@ test('pre-nonce guard rejects a repeated pre-issued authority even after an earl
     sourceGateReport: sourceGateReport(),
     currentRunId: '42',
     authorityId: 'authority-42',
+    operationId,
   }, { runner: successfulRunner([prior, current]) });
   assert.equal(report.status, 'blocked');
-  assert.match(report.reason, /no prior authority consumer/);
+  assert.match(report.reason, /no prior frozen-operation consumer/);
+});
+
+test('pre-nonce guard rejects a replacement authority for the same frozen operation', () => {
+  const prior = ownerRun(41, { status: 'completed', conclusion: 'failure' });
+  const replacement = ownerRun(42, {
+    display_title: `OPL Stable standard operation:${operationId} authority:authority-43`,
+  });
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-43',
+    operationId,
+  }, { runner: successfulRunner([prior, replacement]) });
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.owner_run_match_count, 2);
+  assert.match(report.reason, /prior frozen-operation consumer/);
 });
 
 test('unchanged Stable failure fingerprint denies dispatch before any wire or owner read', () => {

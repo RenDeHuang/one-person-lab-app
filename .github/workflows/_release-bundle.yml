@@ -212,7 +212,8 @@ jobs:
           node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
             --control "$control" --app-root app-source \
             --source-gate stable-operation-control/source-gate.json \
-            --pre-nonce-guard stable-operation-control/pre-nonce-guard.json \
+            --pre-nonce-guard stable-operation-control/pre-issued-pre-nonce-guard.json \
+            --run-authority-reconcile stable-operation-control/run-authority-reconcile.json \
             --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
             --expected-app-sha '${{ inputs.app_ref }}' \
             --expected-shell-sha '${{ inputs.shell_ref }}' \
@@ -289,7 +290,8 @@ jobs:
           node --experimental-strip-types scripts/stable-operation-control.ts verify \
             --control "$control" --input "$consumption" \
             --app-root . --source-gate stable-operation-control/source-gate.json \
-            --pre-nonce-guard stable-operation-control/pre-nonce-guard.json \
+            --pre-nonce-guard stable-operation-control/pre-issued-pre-nonce-guard.json \
+            --run-authority-reconcile stable-operation-control/run-authority-reconcile.json \
             --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
             --expected-app-sha '${{ inputs.app_ref }}' \
             --expected-shell-sha '${{ inputs.shell_ref }}' \
@@ -738,10 +740,10 @@ jobs:
           retention-days: 30
 
   checkpoint-standard:
-    if: ${{ inputs.mode == 'execute' }}
+    if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' && ((inputs.publication_channel || inputs.channel) != 'stable' || (needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [freeze, seal-standard-identity]
+    needs: [admission, freeze, seal-standard-identity, prepare-native-webui]
     permissions:
       contents: read
       actions: read
@@ -790,6 +792,20 @@ jobs:
           name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
           path: bound-standard
 
+      - name: Download qualified Native bytes before immutable carrier assembly
+        if: ${{ (inputs.publication_channel || inputs.channel) == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
+          path: native-qualified
+
+      - name: Download consumed Stable operation control for durable carrier binding
+        if: ${{ inputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-stable-operation-consumption-${{ github.run_id }}
+          path: stable-operation-control
+
       - name: Setup Framework runtime
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
@@ -836,6 +852,51 @@ jobs:
           mv bound-standard/assets standard-assets
           cp "$identity_receipt" standard-identity-receipt.json
           cmp "$identity_receipt" standard-identity-receipt.json
+          if [ '${{ inputs.channel }}' = stable ]; then
+            manifests=()
+            while IFS= read -r manifest; do manifests+=("$manifest"); done < <(
+              find native-qualified -type f -name publication-manifest.json -print | LC_ALL=C sort
+            )
+            test "${#manifests[@]}" -eq 1
+            (
+              cd native-qualified
+              node --experimental-strip-types ../app-source/scripts/release-native-webui-carrier.ts upload-actions \
+                --manifest "${manifests[0]#native-qualified/}" --output ../native-upload-actions.json
+            )
+            jq -e \
+              --arg tag "v${{ needs.freeze.outputs.version }}" \
+              --arg bundle "$BUNDLE_DIGEST" \
+              --arg app '${{ needs.freeze.outputs.app_sha }}' \
+              --arg shell '${{ needs.freeze.outputs.shell_sha }}' \
+              --arg framework '${{ needs.freeze.outputs.framework_sha }}' \
+              '
+                .schema == "opl_app_native_webui_upload_actions.v1"
+                and .tag == $tag
+                and .release_bundle_digest == $bundle
+                and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+                and (.upload_actions | length == 5)
+              ' native-upload-actions.json >/dev/null
+          fi
+          if [ '${{ inputs.channel }}' = stable ]; then
+            control=stable-operation-control/stable-operation-control.json
+            consumption=stable-operation-control/stable-operation-consumption.json
+            authority=stable-operation-control/stable-operation-authority.json
+            source_gate=stable-operation-control/source-gate.json
+            pre_nonce_guard=stable-operation-control/pre-issued-pre-nonce-guard.json
+            run_authority_reconcile=stable-operation-control/run-authority-reconcile.json
+            for required in "$control" "$consumption" "$authority" "$source_gate" "$pre_nonce_guard" "$run_authority_reconcile"; do
+              test -s "$required" && test ! -L "$required"
+            done
+            node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+              --control "$control" --input "$consumption" \
+              --app-root app-source --source-gate "$source_gate" \
+              --pre-nonce-guard "$pre_nonce_guard" \
+              --run-authority-reconcile "$run_authority_reconcile" \
+              --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
+              --expected-app-sha '${{ needs.freeze.outputs.app_sha }}' \
+              --expected-shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
+              --expected-framework-sha '${{ needs.freeze.outputs.framework_sha }}'
+          fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
@@ -899,6 +960,8 @@ jobs:
             standard-checkpoint
             standard-build-receipt.json
             standard-identity-receipt.json
+            stable-operation-control
+            native-qualified
           if-no-files-found: error
           retention-days: 30
 
@@ -931,8 +994,8 @@ jobs:
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
 
   publish-standard:
-    if: ${{ inputs.mode == 'execute' }}
-    needs: [freeze, checkpoint-standard]
+    if: ${{ always() && inputs.mode == 'execute' && needs.freeze.result == 'success' && needs.checkpoint-standard.result == 'success' && ((inputs.publication_channel || inputs.channel) != 'stable' || (needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified')) }}
+    needs: [freeze, checkpoint-standard, prepare-native-webui]
     uses: ./.github/workflows/_release-standard-publish.yml
     with:
       mode: execute
@@ -946,22 +1009,6 @@ jobs:
       framework_executor_ref: ${{ needs.freeze.outputs.framework_sha }}
       operation_started_at: ${{ needs.freeze.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.freeze.outputs.operation_deadline_at }}
-    secrets: inherit
-
-  publish-native-webui:
-    if: ${{ always() && inputs.mode == 'execute' && (inputs.publication_channel || inputs.channel) == 'stable' && needs.publish-standard.result == 'success' && needs.prepare-native-webui.result == 'success' && needs.prepare-native-webui.outputs.prepare_status == 'qualified' }}
-    needs: [freeze, checkpoint-standard, prepare-native-webui, publish-standard]
-    uses: ./.github/workflows/_release-native-webui-carrier.yml
-    with:
-      mode: publish
-      stable_authority_run_id: ${{ github.run_id }}
-      app_ref: ${{ needs.freeze.outputs.app_sha }}
-      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
-      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
-      opl_version: ${{ needs.freeze.outputs.version }}
-      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
-      source_run_id: ${{ needs.checkpoint-standard.outputs.source_run_id }}
-      source_artifact: ${{ needs.checkpoint-standard.outputs.source_artifact }}
-      standard_identity_sha256: ${{ needs.checkpoint-standard.outputs.standard_identity_sha256 }}
-      qualified_artifact_name: ${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}
+      qualified_native_artifact_name: ${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}
+      qualified_native_source_run_id: ${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}
     secrets: inherit

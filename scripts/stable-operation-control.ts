@@ -43,15 +43,9 @@ export type StableOperationControl = {
   critical_blobs: Record<string, string>;
   source_gate_digest: string;
   pre_nonce_guard_digest: string;
+  run_authority_reconcile_digest: string;
   authority_digest: string;
-  issued_authority: {
-    authority_id: string;
-    issuer: string;
-    issued_at: string;
-    expires_at: string;
-    objective_fingerprint: string;
-    digest: string;
-  };
+  issued_authority: StableOperationAuthority;
 };
 
 export type StableOperationAuthority = {
@@ -78,6 +72,10 @@ export type StableOperationAuthority = {
   critical_blobs: Record<string, string>;
   source_gate_digest: string;
   pre_nonce_guard_digest: string;
+  pre_dispatch_evidence: {
+    source_gate: JsonRecord;
+    pre_nonce_guard: JsonRecord;
+  };
   authority_digest: string;
 };
 
@@ -90,6 +88,7 @@ export type StableOperationConsumption = {
   run_id: string;
   run_attempt: 1;
   nonce_digest: string;
+  run_authority_reconcile_digest: string;
   consumed_once: true;
   consumption_digest: string;
 };
@@ -168,6 +167,41 @@ function objectDigest(value: unknown): string {
   return `sha256:${crypto.createHash('sha256').update(canonicalJson(value)).digest('hex')}`;
 }
 
+function preDispatchEvidence(input: {
+  sourceGate: unknown;
+  preNonceGuard: unknown;
+  operationId: string;
+  objectiveFingerprint: string;
+  appSha: string;
+  shellSha: string;
+  frameworkSha: string;
+}): StableOperationAuthority['pre_dispatch_evidence'] {
+  const sourceGate = record(input.sourceGate, 'source_gate');
+  const preNonceGuard = record(input.preNonceGuard, 'pre_nonce_guard');
+  const sourceGateCohort = record(sourceGate.admission, 'source_gate.admission').immutable_cohort;
+  if (
+    sourceGate.schema !== 'opl_app_release_source_gate.v1'
+    || sourceGate.status !== 'passed'
+    || sourceGate.operation_fingerprint !== objectiveFingerprint(input.objectiveFingerprint)
+    || !sourceGateCohort
+    || typeof sourceGateCohort !== 'object'
+    || Array.isArray(sourceGateCohort)
+    || (sourceGateCohort as JsonRecord).app_sha !== exactSha(input.appSha, 'cohort.app_sha')
+    || (sourceGateCohort as JsonRecord).shell_sha !== exactSha(input.shellSha, 'cohort.shell_sha')
+    || (sourceGateCohort as JsonRecord).framework_sha !== exactSha(input.frameworkSha, 'cohort.framework_sha')
+    || preNonceGuard.schema !== 'opl_release_dispatch_guard.v1'
+    || preNonceGuard.phase !== 'pre_nonce'
+    || preNonceGuard.status !== 'passed'
+    || preNonceGuard.dispatch_allowed !== true
+    || preNonceGuard.operation_id !== operationId(input.operationId)
+    || preNonceGuard.owner_run_match_count !== 0
+    || preNonceGuard.nonce_consumed !== false
+  ) {
+    throw new Error('Pre-dispatch authority evidence must contain one passed zero-consumer pre-nonce guard for the exact frozen operation.');
+  }
+  return { source_gate: sourceGate, pre_nonce_guard: preNonceGuard };
+}
+
 function normalizedCriticalBlobs(value: unknown): Record<string, string> {
   const blobs = record(value, 'critical_blobs');
   const entries = Object.entries(blobs)
@@ -190,6 +224,25 @@ function normalizedCriticalBlobs(value: unknown): Record<string, string> {
     );
   }
   return normalized;
+}
+
+export function stableOperationIdForFrozenCohort(input: {
+  objectiveFingerprint: string;
+  appSha: string;
+  shellSha: string;
+  frameworkSha: string;
+  criticalBlobs: unknown;
+}): string {
+  const frozenIdentity = {
+    objective_fingerprint: objectiveFingerprint(input.objectiveFingerprint),
+    cohort: {
+      app_sha: exactSha(input.appSha, 'cohort.app_sha'),
+      shell_sha: exactSha(input.shellSha, 'cohort.shell_sha'),
+      framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
+    },
+    critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
+  };
+  return `stable-${crypto.createHash('sha256').update(canonicalJson(frozenIdentity)).digest('hex').slice(0, 32)}`;
 }
 
 function nonceDigest(value: string): string {
@@ -247,6 +300,7 @@ export function createStableOperationControl(input: {
   criticalBlobs: unknown;
   sourceGateDigest: string;
   preNonceGuardDigest: string;
+  runAuthorityReconcileDigest: string;
   issuedAuthority: StableOperationAuthority;
 }): StableOperationControl {
   const issuedAuthority = validateStableOperationAuthority(input.issuedAuthority);
@@ -269,19 +323,16 @@ export function createStableOperationControl(input: {
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
     source_gate_digest: digest(input.sourceGateDigest, 'source_gate_digest'),
     pre_nonce_guard_digest: digest(input.preNonceGuardDigest, 'pre_nonce_guard_digest'),
+    run_authority_reconcile_digest: digest(
+      input.runAuthorityReconcileDigest,
+      'run_authority_reconcile_digest',
+    ),
   };
   authority.nonce_digest = nonceDigest(authority.nonce);
   assertAuthorityMatchesControl(issuedAuthority, authority);
   const control = {
     ...authority,
-    issued_authority: {
-      authority_id: issuedAuthority.authority_id,
-      issuer: issuedAuthority.issuer,
-      issued_at: issuedAuthority.issued_at,
-      expires_at: issuedAuthority.expires_at,
-      objective_fingerprint: issuedAuthority.objective_fingerprint,
-      digest: issuedAuthority.authority_digest,
-    },
+    issued_authority: issuedAuthority,
   };
   return { ...control, authority_digest: objectDigest(control) };
 }
@@ -293,7 +344,7 @@ export function validateStableOperationControl(value: unknown): StableOperationC
     throw new Error('Stable operation control is not an admitted Standard operation.');
   }
   if (control.consumed_once !== false) throw new Error('Stable operation control must be an unconsumed admission record.');
-  const issuedAuthority = validateStableOperationAuthorityReference(control.issued_authority);
+  const issuedAuthority = validateStableOperationAuthority(control.issued_authority);
   const created = createStableOperationControl({
     operationId: operationId(control.operation_id),
     actor: text(control.actor, 'actor'),
@@ -306,49 +357,16 @@ export function validateStableOperationControl(value: unknown): StableOperationC
     criticalBlobs: control.critical_blobs,
     sourceGateDigest: digest(control.source_gate_digest, 'source_gate_digest'),
     preNonceGuardDigest: digest(control.pre_nonce_guard_digest, 'pre_nonce_guard_digest'),
-    issuedAuthority: {
-      schema: 'opl_app_stable_operation_authority.v1',
-      status: 'issued',
-      issuance: {
-        source: 'operator_issued_github_dispatch_input',
-        cryptographic_signature: false,
-      },
-      authority_id: issuedAuthority.authority_id,
-      operation: 'standard',
-      operation_id: operationId(control.operation_id),
-      issuer: issuedAuthority.issuer,
-      issued_at: issuedAuthority.issued_at,
-      expires_at: issuedAuthority.expires_at,
-      objective_fingerprint: issuedAuthority.objective_fingerprint,
-      nonce: nonce(control.nonce, 'nonce'),
-      nonce_digest: nonceDigest(nonce(control.nonce, 'nonce')),
-      cohort: {
-        app_sha: exactSha(record(control.cohort, 'cohort').app_sha, 'cohort.app_sha'),
-        shell_sha: exactSha(record(control.cohort, 'cohort').shell_sha, 'cohort.shell_sha'),
-        framework_sha: exactSha(record(control.cohort, 'cohort').framework_sha, 'cohort.framework_sha'),
-      },
-      critical_blobs: normalizedCriticalBlobs(control.critical_blobs),
-      source_gate_digest: digest(control.source_gate_digest, 'source_gate_digest'),
-      pre_nonce_guard_digest: digest(control.pre_nonce_guard_digest, 'pre_nonce_guard_digest'),
-      authority_digest: issuedAuthority.digest,
-    },
+    runAuthorityReconcileDigest: digest(
+      control.run_authority_reconcile_digest,
+      'run_authority_reconcile_digest',
+    ),
+    issuedAuthority,
   });
   if (control.nonce_digest !== created.nonce_digest || control.authority_digest !== created.authority_digest) {
     throw new Error('Stable operation control digest binding is invalid.');
   }
   return created;
-}
-
-function validateStableOperationAuthorityReference(value: unknown): NonNullable<StableOperationControl['issued_authority']> {
-  const authority = record(value, 'issued_authority');
-  return {
-    authority_id: operationId(authority.authority_id),
-    issuer: text(authority.issuer, 'issued_authority.issuer'),
-    issued_at: isoInstant(authority.issued_at, 'issued_authority.issued_at'),
-    expires_at: isoInstant(authority.expires_at, 'issued_authority.expires_at'),
-    objective_fingerprint: objectiveFingerprint(authority.objective_fingerprint),
-    digest: digest(authority.digest, 'issued_authority.digest'),
-  };
 }
 
 export function createStableOperationAuthority(input: {
@@ -363,9 +381,28 @@ export function createStableOperationAuthority(input: {
   shellSha: string;
   frameworkSha: string;
   criticalBlobs: unknown;
-  sourceGateDigest: string;
-  preNonceGuardDigest: string;
+  sourceGate: unknown;
+  preNonceGuard: unknown;
 }): StableOperationAuthority {
+  const expectedOperationId = stableOperationIdForFrozenCohort({
+    objectiveFingerprint: input.objectiveFingerprint,
+    appSha: input.appSha,
+    shellSha: input.shellSha,
+    frameworkSha: input.frameworkSha,
+    criticalBlobs: input.criticalBlobs,
+  });
+  if (operationId(input.operationId) !== expectedOperationId) {
+    throw new Error('Stable operation_id must equal the deterministic frozen-cohort operation identity.');
+  }
+  const evidence = preDispatchEvidence({
+    sourceGate: input.sourceGate,
+    preNonceGuard: input.preNonceGuard,
+    operationId: expectedOperationId,
+    objectiveFingerprint: input.objectiveFingerprint,
+    appSha: input.appSha,
+    shellSha: input.shellSha,
+    frameworkSha: input.frameworkSha,
+  });
   const authority = {
     schema: 'opl_app_stable_operation_authority.v1' as const,
     status: 'issued' as const,
@@ -375,7 +412,7 @@ export function createStableOperationAuthority(input: {
     },
     authority_id: operationId(input.authorityId),
     operation: 'standard' as const,
-    operation_id: operationId(input.operationId),
+    operation_id: expectedOperationId,
     issuer: text(input.issuer, 'issuer'),
     issued_at: isoInstant(input.issuedAt, 'issued_at'),
     expires_at: isoInstant(input.expiresAt, 'expires_at'),
@@ -388,8 +425,9 @@ export function createStableOperationAuthority(input: {
       framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
     },
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
-    source_gate_digest: digest(input.sourceGateDigest, 'source_gate_digest'),
-    pre_nonce_guard_digest: digest(input.preNonceGuardDigest, 'pre_nonce_guard_digest'),
+    source_gate_digest: objectDigest(evidence.source_gate),
+    pre_nonce_guard_digest: objectDigest(evidence.pre_nonce_guard),
+    pre_dispatch_evidence: evidence,
   };
   if (Date.parse(authority.expires_at) <= Date.parse(authority.issued_at)) {
     throw new Error('expires_at must be later than issued_at.');
@@ -422,10 +460,15 @@ export function validateStableOperationAuthority(value: unknown): StableOperatio
     shellSha: exactSha(record(authority.cohort, 'cohort').shell_sha, 'cohort.shell_sha'),
     frameworkSha: exactSha(record(authority.cohort, 'cohort').framework_sha, 'cohort.framework_sha'),
     criticalBlobs: authority.critical_blobs,
-    sourceGateDigest: digest(authority.source_gate_digest, 'source_gate_digest'),
-    preNonceGuardDigest: digest(authority.pre_nonce_guard_digest, 'pre_nonce_guard_digest'),
+    sourceGate: record(record(authority.pre_dispatch_evidence, 'pre_dispatch_evidence').source_gate, 'pre_dispatch_evidence.source_gate'),
+    preNonceGuard: record(record(authority.pre_dispatch_evidence, 'pre_dispatch_evidence').pre_nonce_guard, 'pre_dispatch_evidence.pre_nonce_guard'),
   });
-  if (authority.nonce_digest !== created.nonce_digest || authority.authority_digest !== created.authority_digest) {
+  if (
+    authority.nonce_digest !== created.nonce_digest
+    || authority.source_gate_digest !== created.source_gate_digest
+    || authority.pre_nonce_guard_digest !== created.pre_nonce_guard_digest
+    || authority.authority_digest !== created.authority_digest
+  ) {
     throw new Error('Stable operation authority digest binding is invalid.');
   }
   return created;
@@ -515,6 +558,7 @@ export function bindStableOperationAuthority(input: {
   runAttempt: number;
   sourceGateDigest: string;
   preNonceGuardDigest: string;
+  runAuthorityReconcileDigest: string;
   now?: string;
 }): StableOperationControl {
   const authority = validateStableOperationAuthority(input.authority);
@@ -546,6 +590,7 @@ export function bindStableOperationAuthority(input: {
     criticalBlobs: authority.critical_blobs,
     sourceGateDigest: input.sourceGateDigest,
     preNonceGuardDigest: input.preNonceGuardDigest,
+    runAuthorityReconcileDigest: input.runAuthorityReconcileDigest,
     issuedAuthority: authority,
   });
 }
@@ -573,6 +618,7 @@ export function consumeStableOperationControl(input: {
     run_id: control.run_id,
     run_attempt: 1 as const,
     nonce_digest: control.nonce_digest,
+    run_authority_reconcile_digest: control.run_authority_reconcile_digest,
     consumed_once: true as const,
   };
   return { ...core, consumption_digest: objectDigest(core) };
@@ -593,6 +639,7 @@ export function validateStableOperationConsumption(
     run_id: consumption.run_id,
     run_attempt: consumption.run_attempt,
     nonce_digest: consumption.nonce_digest,
+    run_authority_reconcile_digest: consumption.run_authority_reconcile_digest,
     consumed_once: consumption.consumed_once,
   };
   if (
@@ -604,6 +651,7 @@ export function validateStableOperationConsumption(
     || core.run_id !== control.run_id
     || core.run_attempt !== 1
     || core.nonce_digest !== control.nonce_digest
+    || core.run_authority_reconcile_digest !== control.run_authority_reconcile_digest
     || core.consumed_once !== true
     || consumption.consumption_digest !== objectDigest(core)
   ) {
@@ -617,6 +665,7 @@ export function validateStableOperationRuntimeBinding(input: {
   appRoot: string;
   sourceGatePath: string;
   preNonceGuardPath: string;
+  runAuthorityReconcilePath: string;
   expectedRunId: string;
   expectedActor: string;
   expectedAppSha: string;
@@ -640,11 +689,38 @@ export function validateStableOperationRuntimeBinding(input: {
   }
   const sourceGateBytes = fs.readFileSync(path.resolve(input.sourceGatePath));
   const preNonceGuardBytes = fs.readFileSync(path.resolve(input.preNonceGuardPath));
+  const runAuthorityReconcileBytes = fs.readFileSync(path.resolve(input.runAuthorityReconcilePath));
   if (control.source_gate_digest !== bytesDigest(sourceGateBytes)) {
     throw new Error('Stable operation control source-gate digest drifted.');
   }
   if (control.pre_nonce_guard_digest !== bytesDigest(preNonceGuardBytes)) {
     throw new Error('Stable operation control pre-nonce guard digest drifted.');
+  }
+  if (control.run_authority_reconcile_digest !== bytesDigest(runAuthorityReconcileBytes)) {
+    throw new Error('Stable operation control run-authority reconcile digest drifted.');
+  }
+  let runAuthorityReconcile: JsonRecord;
+  try {
+    runAuthorityReconcile = record(
+      JSON.parse(runAuthorityReconcileBytes.toString('utf8')),
+      'run_authority_reconcile',
+    );
+  } catch {
+    throw new Error('Stable operation run-bound guard must contain one JSON object.');
+  }
+  if (
+    runAuthorityReconcile.schema !== 'opl_release_dispatch_guard.v1'
+    || runAuthorityReconcile.phase !== 'run_bound'
+    || runAuthorityReconcile.status !== 'passed'
+    || runAuthorityReconcile.dispatch_allowed !== true
+    || runAuthorityReconcile.operation_id !== control.operation_id
+    || runAuthorityReconcile.authority_id !== control.issued_authority.authority_id
+    || runAuthorityReconcile.run_id !== control.run_id
+    || runAuthorityReconcile.owner_run_match_count !== 1
+    || runAuthorityReconcile.nonce_consumed !== false
+    || runAuthorityReconcile.mutation_invocation_count !== 0
+  ) {
+    throw new Error('Stable operation run-bound guard does not prove unique unconsumed authority ownership.');
   }
   validateCriticalBlobBytes(input.appRoot, control.critical_blobs);
   return control;
@@ -657,6 +733,31 @@ function readJson(filePath: string): unknown {
     throw new Error(`Expected one non-empty regular JSON file: ${resolved}`);
   }
   return JSON.parse(fs.readFileSync(resolved, 'utf8')) as unknown;
+}
+
+function writeExclusiveCanonicalJson(filePath: string, value: unknown): void {
+  const resolved = path.resolve(filePath);
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  const descriptor = fs.openSync(resolved, 'wx');
+  try {
+    fs.writeFileSync(descriptor, canonicalJson(value));
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+export function materializeStableOperationAuthorityEvidence(input: {
+  authority: unknown;
+  sourceGateOutput: string;
+  preNonceGuardOutput: string;
+}): { source_gate_digest: string; pre_nonce_guard_digest: string } {
+  const authority = validateStableOperationAuthority(input.authority);
+  writeExclusiveCanonicalJson(input.sourceGateOutput, authority.pre_dispatch_evidence.source_gate);
+  writeExclusiveCanonicalJson(input.preNonceGuardOutput, authority.pre_dispatch_evidence.pre_nonce_guard);
+  return {
+    source_gate_digest: authority.source_gate_digest,
+    pre_nonce_guard_digest: authority.pre_nonce_guard_digest,
+  };
 }
 
 function writeExclusiveJson(filePath: string, value: unknown): void {
@@ -692,6 +793,7 @@ function main(argv: string[]): void {
       'critical-blobs': { type: 'string' },
       'source-gate-digest': { type: 'string' },
       'pre-nonce-guard-digest': { type: 'string' },
+      'run-authority-reconcile-digest': { type: 'string' },
       authority: { type: 'string' },
       'authority-digest': { type: 'string' },
       'authority-id': { type: 'string' },
@@ -706,6 +808,9 @@ function main(argv: string[]): void {
       'app-root': { type: 'string' },
       'source-gate': { type: 'string' },
       'pre-nonce-guard': { type: 'string' },
+      'run-authority-reconcile': { type: 'string' },
+      'source-gate-output': { type: 'string' },
+      'pre-nonce-guard-output': { type: 'string' },
       'expected-run-id': { type: 'string' },
       'expected-actor': { type: 'string' },
       'expected-app-sha': { type: 'string' },
@@ -726,8 +831,8 @@ function main(argv: string[]): void {
       shellSha: required(values['shell-sha'], 'shell-sha'),
       frameworkSha: required(values['framework-sha'], 'framework-sha'),
       criticalBlobs: readJson(required(values['critical-blobs'], 'critical-blobs')),
-      sourceGateDigest: required(values['source-gate-digest'], 'source-gate-digest'),
-      preNonceGuardDigest: required(values['pre-nonce-guard-digest'], 'pre-nonce-guard-digest'),
+      sourceGate: readJson(required(values['source-gate'], 'source-gate')),
+      preNonceGuard: readJson(required(values['pre-nonce-guard'], 'pre-nonce-guard')),
     });
     writeExclusiveJson(required(values.output, 'output'), authority);
     process.stdout.write(`${JSON.stringify({ status: authority.status, authority_id: authority.authority_id, authority_digest: authority.authority_digest })}\n`);
@@ -758,6 +863,15 @@ function main(argv: string[]): void {
     })}\n`);
     return;
   }
+  if (command === 'materialize-evidence') {
+    const evidence = materializeStableOperationAuthorityEvidence({
+      authority: readJson(required(values.authority, 'authority')),
+      sourceGateOutput: required(values['source-gate-output'], 'source-gate-output'),
+      preNonceGuardOutput: required(values['pre-nonce-guard-output'], 'pre-nonce-guard-output'),
+    });
+    process.stdout.write(`${JSON.stringify({ status: 'passed', ...evidence })}\n`);
+    return;
+  }
   if (command === 'verify-authority') {
     const authority = validateStableOperationAuthority(readJson(required(values.authority, 'authority')));
     if (
@@ -771,6 +885,12 @@ function main(argv: string[]): void {
       && authority.authority_id !== operationId(values['authority-id'])
     ) {
       throw new Error('Pre-dispatch authority_id does not match the authority carrier.');
+    }
+    if (
+      values['operation-id'] !== undefined
+      && authority.operation_id !== operationId(values['operation-id'])
+    ) {
+      throw new Error('Pre-dispatch operation_id does not match the authority carrier.');
     }
     if (
       values['objective-fingerprint'] !== undefined
@@ -809,6 +929,10 @@ function main(argv: string[]): void {
       runAttempt: Number(required(values['run-attempt'], 'run-attempt')),
       sourceGateDigest: required(values['source-gate-digest'], 'source-gate-digest'),
       preNonceGuardDigest: required(values['pre-nonce-guard-digest'], 'pre-nonce-guard-digest'),
+      runAuthorityReconcileDigest: required(
+        values['run-authority-reconcile-digest'],
+        'run-authority-reconcile-digest',
+      ),
       now: typeof values.now === 'string' ? values.now : undefined,
     });
     writeExclusiveJson(required(values.output, 'output'), control);
@@ -839,6 +963,7 @@ function main(argv: string[]): void {
       values['app-root'],
       values['source-gate'],
       values['pre-nonce-guard'],
+      values['run-authority-reconcile'],
       values['expected-run-id'],
       values['expected-actor'],
       values['expected-app-sha'],
@@ -851,6 +976,10 @@ function main(argv: string[]): void {
         appRoot: required(values['app-root'], 'app-root'),
         sourceGatePath: required(values['source-gate'], 'source-gate'),
         preNonceGuardPath: required(values['pre-nonce-guard'], 'pre-nonce-guard'),
+        runAuthorityReconcilePath: required(
+          values['run-authority-reconcile'],
+          'run-authority-reconcile',
+        ),
         expectedRunId: required(values['expected-run-id'], 'expected-run-id'),
         expectedActor: required(values['expected-actor'], 'expected-actor'),
         expectedAppSha: required(values['expected-app-sha'], 'expected-app-sha'),
@@ -861,7 +990,7 @@ function main(argv: string[]): void {
     process.stdout.write('{"status":"passed"}\n');
     return;
   }
-  throw new Error('Usage: stable-operation-control.ts <create-authority|encode-carrier|decode-carrier|verify-authority|bind|consume|verify> ...');
+  throw new Error('Usage: stable-operation-control.ts <create-authority|encode-carrier|decode-carrier|materialize-evidence|verify-authority|bind|consume|verify> ...');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

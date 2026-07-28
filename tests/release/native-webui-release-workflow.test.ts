@@ -49,18 +49,15 @@ test('Native follower performs only post-Stable exact public readback', () => {
   assert.doesNotMatch(source, /release-webui-stable\.yml|_release-webui-carrier\.yml|packages: write/);
 });
 
-test('Native reusable separates non-blocking preparation, protected additive publication, and readback', () => {
+test('Native reusable separates non-blocking preparation from post-publish readback', () => {
   const { source, parsed } = workflow('_release-native-webui-carrier.yml');
   assert.deepEqual(Object.keys(parsed.on), ['workflow_call']);
   assert.equal(parsed.permissions, undefined);
-  assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'publish-native-assets', 'readback-native-assets']);
+  assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'readback-native-assets']);
   assert.deepEqual(parsed.jobs['build-and-qualify'].permissions, { contents: 'read', actions: 'read' });
   assert.equal(parsed.jobs['build-and-qualify']['continue-on-error'], true);
   assert.equal(parsed.on.workflow_call.outputs.prepare_status.value, '${{ jobs.build-and-qualify.outputs.prepare_status }}');
   assert.equal(parsed.jobs['build-and-qualify'].outputs.prepare_status, '${{ steps.qualified.outputs.prepare_status }}');
-  assert.equal(parsed.jobs['publish-native-assets'].environment, 'release-stable');
-  assert.equal(parsed.jobs['publish-native-assets']['continue-on-error'], true);
-  assert.equal(parsed.jobs['publish-native-assets'].permissions, undefined);
   assert.deepEqual(parsed.jobs['readback-native-assets'].permissions, { contents: 'read', actions: 'read' });
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
@@ -78,19 +75,15 @@ test('Native reusable separates non-blocking preparation, protected additive pub
     'official-profile-first-install-complete',
     'qualified|qualification_failed',
     'http://127.0.0.1:${port}/',
-    'release-native-webui-carrier.ts publish',
     'release-native-webui-carrier.ts readback',
     'restore-release-checkpoint',
     'GH_TOKEN: ${{ github.token }}',
     'publication-scope external_target',
     'prior_mutation_attempt_id',
-    'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
-    'test -f native-release/publication-manifest.json',
+    'find imported-checkpoint -type f -name publication-manifest.json',
+    'find imported-checkpoint -type f -name standard-identity-receipt.json',
     'test "$(jq -r .operation_id <<<"$marker")"',
     'opl release reconcile',
-    'latest_modified',
-    'container_registry_modified',
-    'homebrew_modified',
     'multiple unknown markers',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(
@@ -98,7 +91,7 @@ test('Native reusable separates non-blocking preparation, protected additive pub
     /- name: Read back public Native bytes[\s\S]*?env:\n\s+BUNDLE_DIGEST:.*\n\s+GH_TOKEN: \$\{\{ github\.token \}\}/,
   );
   assert.doesNotMatch(source, /ghcr\.io|docker build|docker push|packages: write|make_latest|github-activate-latest/);
-  assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml/);
+  assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml|publish-native-assets|release-native-webui-carrier\.ts publish|opl release publish/);
 });
 
 test('Native qualification renders a pinned installer without resolving GitHub Latest', (t) => {
@@ -182,18 +175,28 @@ exit 99
   assert.equal(fs.existsSync(curlLog), false, 'an explicit local version must not resolve GitHub Latest');
 });
 
-test('Standard publishes Native only from a qualified same-run artifact without changing Desktop success', () => {
+test('Stable Standard publish consumes Native before the one Release publish', () => {
   const { parsed } = workflow('_release-bundle.yml');
   const prepare = parsed.jobs['prepare-native-webui'];
-  const publish = parsed.jobs['publish-native-webui'];
+  const publish = parsed.jobs['publish-standard'];
   assert.equal(prepare.with.stable_authority_run_id, '${{ github.run_id }}');
-  assert.equal(publish.with.stable_authority_run_id, '${{ github.run_id }}');
-  assert.equal(publish.with.source_run_id, '${{ needs.checkpoint-standard.outputs.source_run_id }}');
-  assert.equal(publish.with.qualified_artifact_name, '${{ needs.prepare-native-webui.outputs.qualified_artifact_name }}');
-  assert.match(publish.if, /needs\.publish-standard\.result == 'success'/);
+  assert.deepEqual(publish.needs, ['freeze', 'checkpoint-standard', 'prepare-native-webui']);
+  assert.equal(
+    publish.with.qualified_native_artifact_name,
+    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
+  );
+  assert.equal(
+    publish.with.qualified_native_source_run_id,
+    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}",
+  );
   assert.match(publish.if, /needs\.prepare-native-webui\.result == 'success'/);
   assert.match(publish.if, /needs\.prepare-native-webui\.outputs\.prepare_status == 'qualified'/);
-  assert.doesNotMatch(publish.if, /failure\(\)/);
+  assert.equal(parsed.jobs['publish-native-webui'], undefined);
+  const standard = workflow('_release-standard-publish.yml');
+  assert.equal(standard.parsed.on.workflow_call.inputs.qualified_native_artifact_name.default, '');
+  assert.match(standard.source, /Download exact qualified Native artifact for the unified draft carrier/);
+  assert.match(standard.source, /release-native-webui-carrier\.ts upload-actions/);
+  assert.match(standard.source, /Desktop and Native Release assets contain duplicate names/);
 });
 
 test('asset plan is idempotent and rejects same-name different bytes', () => {

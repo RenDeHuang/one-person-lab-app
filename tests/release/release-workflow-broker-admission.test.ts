@@ -19,9 +19,13 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'append_full',
   ]);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).sort(), [
+    'authority_carrier',
+    'authority_digest',
+    'authority_id',
     'framework_ref',
     'include_full',
     'operation',
+    'operation_id',
     'shell_ref',
     'source_artifact',
     'source_qualification_receipt_digest',
@@ -30,7 +34,7 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'version',
   ]);
   assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.doesNotMatch(source, /broker|session|operator|pre_api_admission|release_mutation_payload/i);
+  assert.doesNotMatch(source, /broker|session|pre_api_admission|release_mutation_payload/i);
   assert.doesNotMatch(source, /gh run rerun|gh run cancel/);
 });
 
@@ -39,8 +43,8 @@ test('Stable serialization is repository-wide and never cancels an in-flight ope
   assert.equal(workflow.concurrency.group, 'opl-release-bundle-global');
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
   assert.deepEqual(workflow.jobs.admission.permissions, { contents: 'read', actions: 'read' });
-  assert.equal(workflow.jobs['protected-admission'].environment, 'release-stable');
-  assert.deepEqual(workflow.jobs['protected-admission'].permissions, { contents: 'read', actions: 'read' });
+  assert.equal(workflow.jobs['protected-operation-admission'].environment, 'release-stable');
+  assert.deepEqual(workflow.jobs['protected-operation-admission'].permissions, { contents: 'read', actions: 'read' });
 });
 
 test('the three operation jobs are step-free reusable calls behind admission', () => {
@@ -51,7 +55,12 @@ test('the three operation jobs are step-free reusable calls behind admission', (
     'append-full': './.github/workflows/_release-full-addon.yml',
   };
   for (const [jobId, reusable] of Object.entries(expected)) {
-    assert.deepEqual(jobs[jobId].needs, jobId === 'standard' ? ['admission', 'protected-admission'] : ['admission']);
+    assert.deepEqual(
+      jobs[jobId].needs,
+      jobId === 'standard'
+        ? ['admission', 'protected-operation-admission', 'stable-admission-manifest']
+        : ['admission'],
+    );
     assert.equal(jobs[jobId].uses, reusable);
     assert.equal(jobs[jobId].steps, undefined);
     assert.equal(jobs[jobId].secrets, 'inherit');

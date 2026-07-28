@@ -56,6 +56,16 @@ on:
         required: false
         default: ''
         type: string
+      qualified_native_artifact_name:
+        description: Exact qualified Native asset artifact to include in the same immutable Stable Release carrier; empty outside Stable.
+        required: false
+        default: ''
+        type: string
+      qualified_native_source_run_id:
+        description: Exact Bundle run that produced the qualified Native asset artifact.
+        required: false
+        default: ''
+        type: string
     outputs:
       checkpoint_transport_executor:
         description: Executor that transported the checkpoint into this run
@@ -729,7 +739,7 @@ jobs:
 
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with: { ref: '${{ github.sha }}', path: app-source }
+        with: { ref: '${{ needs.restore.outputs.app_ref }}', path: app-source }
 
       - name: Restore Standard checkpoint
         id: checkpoint
@@ -739,6 +749,15 @@ jobs:
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
+
+      - name: Download exact immutable carrier source
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.restore.outputs.source_artifact }}
+          run-id: ${{ needs.restore.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: immutable-carrier-input
 
       - name: Materialize unique Standard build receipt for portable recovery
         shell: bash
@@ -757,6 +776,84 @@ jobs:
           cp "${standard_build_receipts[0]}" standard-build-receipt.json
           cmp "${standard_build_receipts[0]}" standard-build-receipt.json
 
+      - name: Bind qualified Native and consumed operation control into one immutable carrier
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          native_manifests=()
+          while IFS= read -r manifest; do native_manifests+=("$manifest"); done < <(
+            find immutable-carrier-input -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          test "${#native_manifests[@]}" -eq 1
+          (
+            cd immutable-carrier-input
+            node --experimental-strip-types ../app-source/scripts/release-native-webui-carrier.ts upload-actions \
+              --manifest "${native_manifests[0]#immutable-carrier-input/}" \
+              --output ../native-upload-actions.json
+          )
+          jq -e \
+            --arg tag '${{ needs.restore.outputs.tag }}' \
+            --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
+            --arg app '${{ needs.restore.outputs.app_ref }}' \
+            --arg shell '${{ needs.restore.outputs.shell_ref }}' \
+            --arg framework '${{ needs.restore.outputs.framework_source_ref }}' \
+            '
+              .schema == "opl_app_native_webui_upload_actions.v1"
+              and .tag == $tag
+              and .release_bundle_digest == $bundle
+              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+              and (.upload_actions | length == 5)
+            ' native-upload-actions.json >/dev/null
+          controls=()
+          while IFS= read -r control; do controls+=("$control"); done < <(
+            find immutable-carrier-input -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
+          consumptions=()
+          while IFS= read -r consumption; do consumptions+=("$consumption"); done < <(
+            find immutable-carrier-input -type f -name stable-operation-consumption.json -print | LC_ALL=C sort
+          )
+          test "${#controls[@]}" -eq 1
+          test "${#consumptions[@]}" -eq 1
+          control="${controls[0]}"
+          consumption="${consumptions[0]}"
+          source_gate="$(dirname "$control")/source-gate.json"
+          pre_nonce_guard="$(dirname "$control")/pre-issued-pre-nonce-guard.json"
+          run_authority_reconcile="$(dirname "$control")/run-authority-reconcile.json"
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+            --control "$control" --input "$consumption" --app-root app-source \
+            --source-gate "$source_gate" --pre-nonce-guard "$pre_nonce_guard" \
+            --run-authority-reconcile "$run_authority_reconcile" \
+            --expected-run-id '${{ needs.restore.outputs.source_run_id }}' \
+            --expected-actor "$(jq -er .actor "$control")" \
+            --expected-app-sha '${{ needs.restore.outputs.app_ref }}' \
+            --expected-shell-sha '${{ needs.restore.outputs.shell_ref }}' \
+            --expected-framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
+          durable_receipt=opl-stable-operation-control.json
+          jq -n --slurpfile control "$control" --slurpfile consumption "$consumption" \
+            --arg tag '${{ needs.restore.outputs.tag }}' \
+            '{schema:"opl_app_stable_operation_durable_receipt.v1",status:"consumed",tag:$tag,control:$control[0],consumption:$consumption[0]}' \
+            > "$durable_receipt"
+          receipt_size="$(wc -c < "$durable_receipt" | tr -d ' ')"
+          receipt_sha="sha256:$(shasum -a 256 "$durable_receipt" | awk '{print $1}')"
+          # Native assets are part of Framework's publish plan.  The supplemental
+          # set contributes only the App-owned durable control receipt, so every
+          # carrier asset has one unique action and one immutable identity.
+          jq -n \
+            --arg name "$durable_receipt" --arg path "$PWD/$durable_receipt" \
+            --argjson size "$receipt_size" --arg sha "$receipt_sha" \
+            '{schema:"opl_app_immutable_release_upload_actions.v1",upload_actions:[{action:"upload",name:$name,source_path:$path,size_bytes:$size,sha256:$sha}]}' \
+            > immutable-carrier-upload-actions.json
+
+      - name: Download exact qualified Native artifact for the unified draft carrier
+        if: ${{ inputs.qualified_native_artifact_name != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.qualified_native_artifact_name }}
+          run-id: ${{ inputs.qualified_native_source_run_id }}
+          github-token: ${{ github.token }}
+          path: native-release
+
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -766,6 +863,18 @@ jobs:
           set -euo pipefail
           mkdir -p release-failure-evidence
           exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          case '${{ needs.restore.outputs.channel }}' in
+            stable)
+              [[ '${{ inputs.qualified_native_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
+              [[ '${{ inputs.qualified_native_source_run_id }}' =~ ^[1-9][0-9]*$ ]]
+              test '${{ inputs.qualified_native_source_run_id }}' = '${{ needs.restore.outputs.source_run_id }}'
+              ;;
+            preview)
+              test -z '${{ inputs.qualified_native_artifact_name }}'
+              test -z '${{ inputs.qualified_native_source_run_id }}'
+              ;;
+            *) echo "::error::Unsupported Standard publication channel."; exit 1 ;;
+          esac
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
@@ -797,6 +906,54 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publish-plan.json
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            test "$(jq -er .status native-release/prepare-status.json)" = qualified
+            test -s native-release/publication-manifest.json
+            identity_receipts=()
+            while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+              find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+            )
+            test "${#identity_receipts[@]}" -eq 1
+            cp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
+            cmp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
+            jq -e \
+              --arg tag '${{ needs.restore.outputs.tag }}' \
+              --arg version '${{ needs.restore.outputs.version }}' \
+              --arg bundle "$BUNDLE_DIGEST" \
+              --arg run '${{ needs.restore.outputs.source_run_id }}' \
+              --arg app '${{ needs.restore.outputs.app_ref }}' \
+              --arg shell '${{ needs.restore.outputs.shell_ref }}' \
+              --arg framework '${{ needs.restore.outputs.framework_source_ref }}' \
+              '
+                .schema == "opl_app_native_webui_publication_manifest.v1"
+                and .repository == "gaofeng21cn/one-person-lab-app"
+                and .tag == $tag
+                and .version == $version
+                and .release_bundle_digest == $bundle
+                and (.stable_authority_run_id | tostring) == $run
+                and .cohort == {
+                  app_sha: $app,
+                  shell_sha: $shell,
+                  framework_sha: $framework
+                }
+              ' native-release/publication-manifest.json >/dev/null
+            node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
+              --manifest native-release/publication-manifest.json \
+              --output native-upload-actions.json >/dev/null
+            jq --slurpfile native native-upload-actions.json '
+              (.release_bundle_publish.receipt.details.upload_actions // []) as $desktop
+              | ($native[0].upload_actions // []) as $native_actions
+              | if ([($desktop + $native_actions)[].name] | group_by(.) | map(select(length > 1)) | length) != 0
+                then error("Desktop and Native Release assets contain duplicate names")
+                else .release_bundle_publish.receipt.details.upload_actions = ($desktop + $native_actions)
+                end
+            ' publish-plan.json > publish-plan-with-native.json
+            mv publish-plan-with-native.json publish-plan.json
+          fi
+          additional_upload_args=()
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            additional_upload_args=(--additional-upload-actions immutable-carrier-upload-actions.json)
+          fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --publication-channel '${{ needs.restore.outputs.channel }}' \
@@ -804,6 +961,7 @@ jobs:
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            "${additional_upload_args[@]}" \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
           if [ "$apply_status" != complete ]; then
@@ -877,6 +1035,20 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > standard-published.json
           test "$(jq -r .release_bundle_publish.status standard-published.json)" = complete
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            GH_TOKEN="$GH_TOKEN" node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts readback \
+              --manifest native-release/publication-manifest.json \
+              --output native-release/publication-receipt.json \
+              > native-release/publication-receipt.stdout.json
+            test "$(jq -r .status native-release/publication-receipt.json)" = complete
+            test "$(jq -r .latest_modified native-release/publication-receipt.json)" = false
+            test "$(jq -r .container_registry_modified native-release/publication-receipt.json)" = false
+            test "$(jq -r .homebrew_modified native-release/publication-receipt.json)" = false
+            framework-executor/bin/opl release checkpoint export \
+              --bundle "$BUNDLE_DIGEST" --output native-release/native-publication-checkpoint \
+              --store "$store" --json > native-release/native-checkpoint-export.json
+            test "$(find native-release/native-publication-checkpoint -type f -name checkpoint.json | wc -l | tr -d ' ')" -eq 1
+          fi
 
       - name: Persist typed Standard publication failure
         if: ${{ failure() }}
@@ -928,7 +1100,19 @@ jobs:
             reconcile-observation.json
             reconcile-result.json
             release-failure-evidence
+            native-release
+            native-upload-actions.json
           if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Native follower carrier after unified Stable publication
+        if: ${{ always() && inputs.qualified_native_artifact_name != '' && hashFiles('native-release/publication-manifest.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-webui-publication-${{ needs.restore.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-release
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 30
 
   remote-digest-verify:

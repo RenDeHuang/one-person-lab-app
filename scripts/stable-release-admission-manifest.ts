@@ -17,12 +17,7 @@ import {
   type PublishedRelease,
 } from './stable-release-version-order.ts';
 import {
-  validateSourceQualificationReceipt,
-  type SourceQualificationReceipt,
-} from './source-qualification-receipt.ts';
-import {
   readOwnerWorkflowRuns,
-  resolveGitWireRef,
 } from './release-dispatch-guard.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
@@ -45,14 +40,12 @@ const requiredSecretNames = [
 ] as const;
 const requiredWorkflowPaths = [
   '.github/workflows/release-stable.yml',
-  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
-  '.github/workflows/_build-reusable.yml',
-  'contracts/app-source-qualification-receipt.schema.json',
-  'scripts/source-qualification-receipt.ts',
-  'scripts/validate-source-qualification-receipt.ts',
+  '.github/workflows/_release-standard-publish.yml',
+  'scripts/validate-release-source-gate.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ] as const;
@@ -90,14 +83,9 @@ export type ActiveReleaseRun = {
 export type StableAdmissionObservation = {
   checkedAt: string;
   currentDate: string;
-  mainRefs: {
-    app: string;
-    shell: string;
-    framework: string;
-  };
   workflowBlobs: WorkflowBlob[];
-  sourceQualificationReceipt: JsonRecord;
-  sourceQualificationReceiptBytes: Buffer;
+  sourceGate: JsonRecord;
+  sourceGateBytes: Buffer;
   credentialReceipt: JsonRecord;
   credentialReceiptBytes: Buffer;
   publishedReleases: PublishedRelease[];
@@ -143,15 +131,15 @@ export type StableAdmissionManifest = {
     notarization_authentication: 'passed';
     submission_performed: false;
   };
-  source_qualification: {
+  source_gate: {
     producer_run_id: string;
-    producer_workflow: '.github/workflows/release-source-qualification.yml';
+    producer_workflow: '.github/workflows/release-stable.yml';
     artifact_name: string;
-    receipt_digest: string;
-    receipt_file_sha256: string;
-    preflight_evidence_sha256: string;
-    mode: 'development_validation';
-    same_operation: true;
+    source_gate_digest: string;
+    source_gate_file_sha256: string;
+    operation_fingerprint: string;
+    frozen_cohort_reachable: true;
+    full_source_gate_rerun: false;
     release_authority: false;
     namespace_reservation: false;
     final_signed_byte_authority: false;
@@ -188,7 +176,7 @@ export type StableAdmissionManifest = {
     workflow: '.github/workflows/release-stable.yml';
     ref: 'main';
     artifact_name: string;
-    accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'];
+    accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'];
     raw_standard_version_or_ref_inputs_allowed: false;
     unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel';
   };
@@ -340,6 +328,36 @@ function validateWorkflowBlobs(blobs: WorkflowBlob[]): WorkflowBlob[] {
   return sorted;
 }
 
+function validateFrozenSourceGate(
+  value: JsonRecord,
+  expected: { appRef: string; shellRef: string; frameworkRef: string },
+): {
+  operationFingerprint: string;
+} {
+  const cohort = object(value.admission?.immutable_cohort, 'Frozen source-gate cohort');
+  const frozenAppReachable = Array.isArray(value.checks) && value.checks.some(
+    (check: unknown) => check !== null
+      && typeof check === 'object'
+      && !Array.isArray(check)
+      && (check as JsonRecord).id === 'app_frozen_commit_reachable'
+      && (check as JsonRecord).status === 'passed',
+  );
+  const operationFingerprint = requiredString(value.operation_fingerprint, 'Frozen source-gate operation fingerprint');
+  if (
+    value.schema !== 'opl_app_release_source_gate.v1'
+    || value.status !== 'passed'
+    || value.typed_blocker !== null
+    || value.admission?.status !== 'passed'
+    || cohort.app_sha !== expected.appRef
+    || cohort.shell_sha !== expected.shellRef
+    || cohort.framework_sha !== expected.frameworkRef
+    || !frozenAppReachable
+  ) {
+    throw new Error('Frozen source-gate evidence does not prove the exact reachable Stable cohort.');
+  }
+  return { operationFingerprint };
+}
+
 export function buildStableReleaseAdmissionManifest(
   inputValue: StableAdmissionInput,
   observation: StableAdmissionObservation,
@@ -357,23 +375,7 @@ export function buildStableReleaseAdmissionManifest(
     );
   }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
-  const sourceQualification = validateSourceQualificationReceipt(
-    observation.sourceQualificationReceipt,
-    { headSha: input.appRef },
-  );
-  if (
-    sourceQualification.cohort.app.sha !== input.appRef
-    || sourceQualification.cohort.shell.sha !== input.shellRef
-    || sourceQualification.cohort.framework.sha !== input.frameworkRef
-  ) {
-    throw new Error('Source qualification receipt does not bind the frozen Stable cohort.');
-  }
-  if (
-    sourceQualification.execution.operation_scope !== 'stable_operation_source_preflight'
-    || sourceQualification.execution.run_id !== input.admissionRunId
-  ) {
-    throw new Error('Source qualification must be the preflight from the same Stable operation.');
-  }
+  const sourceGate = validateFrozenSourceGate(observation.sourceGate, input);
   validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
     throw new Error(
@@ -456,15 +458,15 @@ export function buildStableReleaseAdmissionManifest(
       notarization_authentication: 'passed',
       submission_performed: false,
     },
-    source_qualification: {
-      producer_run_id: sourceQualification.execution.run_id,
-      producer_workflow: '.github/workflows/release-source-qualification.yml',
-      artifact_name: `opl-source-qualification-${sourceQualification.execution.run_id}`,
-      receipt_digest: sourceQualification.receipt_digest,
-      receipt_file_sha256: sha256Bytes(observation.sourceQualificationReceiptBytes),
-      preflight_evidence_sha256: sourceQualification.artifact.sha256,
-      mode: 'development_validation',
-      same_operation: true,
+    source_gate: {
+      producer_run_id: input.admissionRunId,
+      producer_workflow: '.github/workflows/release-stable.yml',
+      artifact_name: `opl-stable-operation-control-${input.admissionRunId}`,
+      source_gate_digest: sha256Bytes(observation.sourceGateBytes),
+      source_gate_file_sha256: sha256Bytes(observation.sourceGateBytes),
+      operation_fingerprint: sourceGate.operationFingerprint,
+      frozen_cohort_reachable: true,
+      full_source_gate_rerun: false,
       release_authority: false,
       namespace_reservation: false,
       final_signed_byte_authority: false,
@@ -516,7 +518,7 @@ export function buildStableReleaseAdmissionManifest(
       workflow: '.github/workflows/release-stable.yml',
       ref: 'main',
       artifact_name: `opl-stable-admission-${input.admissionRunId}`,
-      accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'],
+      accepted_inputs: ['operation', 'authority_id', 'authority_carrier', 'authority_digest'],
       raw_standard_version_or_ref_inputs_allowed: false,
       unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel',
     },
@@ -570,25 +572,6 @@ function ghJson(endpoint: string, fields: Record<string, string> = {}): unknown 
     stderr: result.stderr || '',
     error: result.error,
   });
-}
-
-function repositoryMainRef(repository: string): string {
-  const remote = repository === appRepository
-    ? 'origin'
-    : `https://github.com/${repository}.git`;
-  const result = resolveGitWireRef({
-    repository,
-    remote,
-    ref: 'refs/heads/main',
-    maxAttempts: 3,
-    cwd: appRoot,
-  });
-  if (result.status === 'failed') {
-    throw new Error(
-      `Git wire lookup ${repository}@refs/heads/main failed as ${result.failure_kind}/${result.failure_code}: ${result.detail}`,
-    );
-  }
-  return result.sha;
 }
 
 function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
@@ -745,29 +728,24 @@ function shanghaiDate(now = new Date()): string {
 
 async function collectObservation(
   input: StableAdmissionInput,
-  sourceQualificationReceiptPath: string,
+  sourceGatePath: string,
   credentialReceiptPath: string,
   excludedRunId: string,
   checkedAt = new Date().toISOString(),
 ): Promise<StableAdmissionObservation> {
-  const sourceQualificationReceiptBytes = fs.readFileSync(sourceQualificationReceiptPath);
+  const sourceGateBytes = fs.readFileSync(sourceGatePath);
   const credentialReceiptBytes = fs.readFileSync(credentialReceiptPath);
   const releaseContractBytes = fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'));
   const releaseContract = object(JSON.parse(releaseContractBytes.toString('utf8')), 'App release contract');
   return {
     checkedAt,
     currentDate: shanghaiDate(),
-    mainRefs: {
-      app: repositoryMainRef(appRepository),
-      shell: repositoryMainRef(shellRepository),
-      framework: repositoryMainRef(frameworkRepository),
-    },
     workflowBlobs: localWorkflowBlobs(input.appRef),
-    sourceQualificationReceipt: object(
-      JSON.parse(sourceQualificationReceiptBytes.toString('utf8')),
-      'Source qualification receipt',
+    sourceGate: object(
+      JSON.parse(sourceGateBytes.toString('utf8')),
+      'Frozen source-gate evidence',
     ),
-    sourceQualificationReceiptBytes,
+    sourceGateBytes,
     credentialReceipt: object(
       JSON.parse(credentialReceiptBytes.toString('utf8')),
       'Apple credential receipt',
@@ -816,7 +794,7 @@ export function firstDifference(actual: unknown, expected: unknown, pointer = '$
 
 export async function verifyStableReleaseAdmissionManifest(options: {
   manifest: StableAdmissionManifest;
-  sourceQualificationReceiptPath: string;
+  sourceGatePath: string;
   credentialReceiptPath: string;
   expectedDigest: string;
   currentRunId: string;
@@ -846,7 +824,7 @@ export async function verifyStableReleaseAdmissionManifest(options: {
   };
   const observation = await collectObservation(
     input,
-    options.sourceQualificationReceiptPath,
+    options.sourceGatePath,
     options.credentialReceiptPath,
     runId(options.currentRunId, 'Current Standard run id'),
     manifest.checked_at,
@@ -876,7 +854,7 @@ function cliOptions() {
       'shell-ref': { type: 'string' },
       'framework-ref': { type: 'string' },
       'admission-run-id': { type: 'string' },
-      'source-qualification-receipt': { type: 'string' },
+      'source-gate': { type: 'string' },
       'credential-receipt': { type: 'string' },
       manifest: { type: 'string' },
       'expected-digest': { type: 'string' },
@@ -886,9 +864,9 @@ function cliOptions() {
   });
   const command = positionals[0] ?? '';
   const output = requiredString(values.output, '--output');
-  const sourceQualificationReceiptPath = path.resolve(requiredString(
-    values['source-qualification-receipt'],
-    '--source-qualification-receipt',
+  const sourceGatePath = path.resolve(requiredString(
+    values['source-gate'],
+    '--source-gate',
   ));
   const credentialReceiptPath = path.resolve(requiredString(
     values['credential-receipt'],
@@ -898,7 +876,7 @@ function cliOptions() {
     return {
       command,
       output,
-      sourceQualificationReceiptPath,
+      sourceGatePath,
       credentialReceiptPath,
       input: {
         baseVersion: requiredString(values['base-version'], '--base-version'),
@@ -913,7 +891,7 @@ function cliOptions() {
     return {
       command,
       output,
-      sourceQualificationReceiptPath,
+      sourceGatePath,
       credentialReceiptPath,
       manifestPath: path.resolve(requiredString(values.manifest, '--manifest')),
       expectedDigest: requiredString(values['expected-digest'], '--expected-digest'),
@@ -928,7 +906,7 @@ async function main(): Promise<void> {
   if (options.command === 'create') {
     const observation = await collectObservation(
       options.input,
-      options.sourceQualificationReceiptPath,
+      options.sourceGatePath,
       options.credentialReceiptPath,
       options.input.admissionRunId,
     );
@@ -949,7 +927,7 @@ async function main(): Promise<void> {
   ) as StableAdmissionManifest;
   const verified = await verifyStableReleaseAdmissionManifest({
     manifest,
-    sourceQualificationReceiptPath: options.sourceQualificationReceiptPath,
+    sourceGatePath: options.sourceGatePath,
     credentialReceiptPath: options.credentialReceiptPath,
     expectedDigest: options.expectedDigest,
     currentRunId: options.currentRunId,
@@ -960,7 +938,7 @@ async function main(): Promise<void> {
     manifest_digest: verified.manifest_digest,
     version: verified.version,
     cohort: verified.cohort,
-    source_qualification: verified.source_qualification,
+    source_gate: verified.source_gate,
     admission_run_id: verified.apple_credentials.producer_run_id,
   };
   writeJson(options.output, output);

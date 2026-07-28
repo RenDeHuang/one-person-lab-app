@@ -85,13 +85,13 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
-test('Stable admission binds attempt one and immutable Actions created_at without legacy authority', (t) => {
+test('Stable admission rejects a self-issued or malformed authority before source qualification', (t) => {
   const root = fixture(t);
   const file = workflowPath(root, 'release-stable.yml');
   const text = fs.readFileSync(file, 'utf8')
-    .replace('test "$GITHUB_RUN_ATTEMPT" = 1', 'test -n "$GITHUB_RUN_ATTEMPT"')
-    .replace('--jq .created_at', '--jq .run_started_at')
-    .replace('set -euo pipefail', 'set -euo pipefail\n          # verify-release-session-lease.ts');
+    .replace('required: true\n        type: string\n      authority_carrier:', 'required: false\n        type: string\n      authority_carrier:')
+    .replace('stable-operation-control.ts decode-carrier', 'stable-operation-control.ts self-issue')
+    .replace('set -euo pipefail', 'set -euo pipefail\n          openssl rand -hex 32');
   fs.writeFileSync(file, text);
 
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 3);
@@ -158,7 +158,7 @@ test('WebUI follower keeps the packages write compile ceiling outside Desktop St
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('Native WebUI follower keeps additive GitHub write behind exact Stable handoff and protected reusable publish', (t) => {
+test('Native WebUI follower remains a read-only consumer of the unified immutable Stable carrier', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
@@ -173,7 +173,7 @@ test('Native WebUI follower keeps additive GitHub write behind exact Stable hand
     workflow.jobs['native-webui-carrier'].needs = ['resolve-handoff'];
   });
   updateWorkflow(root, '_release-native-webui-carrier.yml', (workflow) => {
-    delete workflow.jobs['publish-native-assets'].environment;
+    workflow.jobs['readback-native-assets'].permissions.contents = 'write';
   });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
