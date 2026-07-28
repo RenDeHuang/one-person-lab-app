@@ -291,24 +291,26 @@
         "branch": "codex/archive-filter-validator-20260728",
         "base_commit": "5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b",
         "base_tree": "d3e5d3d93c94698399d472bdc3fada4024297a25",
-        "write_set": [
-          "contracts/app-gui-product-contract.json",
-          "contracts/app-page-state-matrix.json",
-          "docs/active/active-objective-ledger.json",
-          "docs/product/gui/README.md",
-          "scripts/validate-active-shell/shell-ordinary-experience-validator.ts",
-          "tests/release/codex-default-profile.test.ts"
-        ],
+      "write_set": [
+        "contracts/app-gui-product-contract.json",
+        "contracts/app-page-state-matrix.json",
+        "contracts/app-product-profile.json",
+        "docs/active/active-objective-ledger.json",
+        "docs/product/gui/README.md",
+        "scripts/validate-active-shell/app-contract-constants.ts",
+        "scripts/validate-active-shell/shell-ordinary-experience-validator.ts",
+        "tests/release/codex-default-profile.test.ts"
+      ],
         "shared_root_overlap": "none; the root release-bundle dirty packet does not include this write set",
         "active_lane_overlap": "development may continue; final canonical absorption is serialized by the sole Integrator",
-        "next_action": "run App contract and current-Shell compatibility gates, create one ordinary checkpoint, then use the protected PR route for canonical absorption and owner-native close",
+      "next_action": "resolve current-head PR review P2s, run App contract and current-Shell compatibility gates, create one ordinary checkpoint, then use the protected PR route for canonical absorption and owner-native close",
         "local_gates": [
           "JSON parse and git diff check",
           "tests/release/codex-default-profile.test.ts",
           "validate-active-shell against current Shell 1c7c compatibility; strict projectId producer enforcement remains post-App successor work",
           "targeted format and lint"
         ],
-        "integration_order": "App exact6 canonical and owner-close before the strict projectId managed-scratch Shell successor"
+      "integration_order": "App canonical model and owner-close before the strict projectId managed-scratch Shell successor"
       },
       "scope": "Converge the App conversation rail contract so Default ordinary, Running now, Archived and All/Search use canonical identity sets, while managed ~/Documents/Codex tasks preserve recorded cwd without becoming leaf-directory Projects.",
       "current_evidence": [

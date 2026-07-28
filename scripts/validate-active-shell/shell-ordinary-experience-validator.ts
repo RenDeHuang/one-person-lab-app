@@ -168,6 +168,16 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
       throw new Error('Active shell canonical thread directory thread/list options must include archived');
     }
     if (
+      !ts.isShorthandPropertyAssignment(archived) &&
+      (!ts.isPropertyAssignment(archived) ||
+        !ts.isIdentifier(archived.initializer) ||
+        archived.initializer.text !== 'archived')
+    ) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list options must use the dynamic archived selector rather than a constant',
+      );
+    }
+    if (
       !stateDbOnly ||
       !ts.isPropertyAssignment(stateDbOnly) ||
       stateDbOnly.initializer.kind !== ts.SyntaxKind.TrueKeyword

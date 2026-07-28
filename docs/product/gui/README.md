@@ -89,10 +89,10 @@ capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不允许已绑定 session 在 Project 之间任意重分组。Recorded cwd 是运行上下文，不等于用户显式 Project affinity；
 `~/Documents/Codex/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为 projectless，不按叶子目录拆成 Project。
-只有 `custom_workspace=false` 或无 canonical project ID 的 projectless session 可执行一次 Project adoption：
-用户选择唯一 canonical Project directory 后，Shell 通过既有
-`thread/settings/update.cwd` 写入该 thread 的 recorded cwd，再以 `thread/read` exact readback 验证。只有 readback
-匹配时才提交本地 `workspace + custom_workspace=true` projection 并移动 rail row；已有 recorded cwd 时禁止改绑。
+Project 分组只接受显式 `projectId` projection，绝不从 recorded cwd、`custom_workspace`、turn 或 command `pwd` 推断。
+当前 Shell 1c7 兼容 transport 只能通过既有 `thread/settings/update.cwd` 写入并以 `thread/read` exact readback 验证
+recorded cwd；它不能把该 transport write 提升为 Project binding。严格的 projectId producer 属于后续独立 Shell lane；
+在该 producer 可用前，缺少显式 projectId 的会话保持 unbound，且不得被 cwd 叶子目录拆分。
 App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加私有 adoption RPC 或第二 client。
 它不从 turn/command `pwd` 推断绑定、要求 Project 覆盖显式输入、修改 writable roots，或创建 pending/receipt/Handoff 层。
 工作目录 picker 缺失或不可用时，projectless new task、输入、显式
@@ -219,8 +219,8 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   与 archived bit，不比较固定数量。每个 canonical thread ID 最多一行，不能按标题或 workspace 去重。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
   初始化 cwd 或以 projectless 状态开始；`~/Documents/Codex/**` managed scratch 即使保留真实 recorded cwd 也保持
-  projectless 展示，不按其叶子目录建 Project。projectless session 可由用户一次性归入一个 canonical directory group，
-  保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
+  projectless 展示，不按其叶子目录建 Project。只有显式 `projectId` projection 可将 projectless session 一次性归入
+  一个 canonical directory group，保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
   `pwd` 不反写 affinity。目录组提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是

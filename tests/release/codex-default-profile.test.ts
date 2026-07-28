@@ -934,6 +934,20 @@ test('active-shell source gate keeps canonical thread directory queries state-db
       threadAdapter: threadAdapter.replace('useStateDbOnly: true', 'useStateDbOnly: false'),
     }),
   );
+  for (const constantArchivedSelector of ['archived: false', 'archived: true']) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace('archived,', `${constantArchivedSelector},`),
+      }),
+    );
+  }
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: threadAdapter.replace('archived,', 'archived: archived,'),
+    }),
+  );
 
   for (const requiredTestMarker of [
     'lists active and archived threads through bounded app-server pagination',
@@ -955,6 +969,8 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   const threadDirectoryPolicy = guiProductContract.interaction_baseline.navigation_rail.thread_directory_policy;
   const surfaces = threadDirectoryPolicy.conversation_history_surfaces;
   const guiWorkspaceModel = guiProductContract.interaction_baseline.conversation_scope.session_workspace_model;
+  const profileWorkspaceModel = readJson('contracts/app-product-profile.json')
+    .gui.ordinary_conversation.session_workspace_model;
   const home = pageStateMatrix.pages.find((page: { id: string }) => page.id === 'guid_home');
   const ordinaryConversation = pageStateMatrix.pages.find(
     (page: { id: string }) => page.id === 'ordinary_conversation',
@@ -999,6 +1015,32 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     threadDirectoryPolicy.strict_project_affinity_producer,
     'post_app_shell_successor_project_id_projection',
   );
+  assert.equal(
+    guiWorkspaceModel.projectless_detection,
+    'explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd',
+  );
+  assert.equal(
+    guiWorkspaceModel.recorded_cwd_role,
+    'canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity',
+  );
+  assert.equal(guiWorkspaceModel.project_affinity_source, 'explicit_project_id_projection');
+  assert.equal(
+    guiWorkspaceModel.project_affinity_role,
+    'explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd',
+  );
+  assert.equal(
+    guiWorkspaceModel.managed_scratch_presentation,
+    'user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups',
+  );
+  assert.equal(
+    guiWorkspaceModel.core_workspace_application,
+    'thread_settings_update_cwd_records_runtime_workspace_only',
+  );
+  assert.equal(
+    guiWorkspaceModel.project_adoption_transition,
+    'unbound_to_bound_once_via_explicit_project_affinity_assignment',
+  );
+  assert.deepEqual(profileWorkspaceModel, guiWorkspaceModel);
   assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);
   assert.equal(
     guiProductContract.interaction_baseline.conversation_scope.session_workspace_model_authority,
