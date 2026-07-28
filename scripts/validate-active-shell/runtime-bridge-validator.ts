@@ -1222,7 +1222,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       new_session_action_language: 'use_this_working_directory_not_create_project_child',
       project_directory_cardinality: 'one_project_affinity_one_canonical_directory',
       legacy_missing_marker_policy:
-        'existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update',
+        'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
       git_origin_url_project_identity_allowed: false,
       turn_cwd_reclassifies_bound_session: false,
       project_adoption_policy: {
