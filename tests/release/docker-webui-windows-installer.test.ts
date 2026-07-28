@@ -420,11 +420,23 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
   assert.doesNotMatch(installer, /& docker(?:\s|$)/);
 });
 
-test('Windows Docker/WebUI health timeout reports an external-input boundary', () => {
+test('Windows Docker/WebUI health timeout classifies external input only with remote network evidence', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
-  assert.match(installer, /external_input_required: WebUI did not become reachable/);
-  assert.match(installer, /First-time Official Profile initialization needs Docker Engine access to GitHub\/GHCR/);
+  const healthWait = extractPowerShellFunction(installer, 'Wait-WebUiHealth');
+  const classification = extractPowerShellFunction(installer, 'Get-WebUiHealthTimeoutClassification');
+  assert.match(installer, /function Get-WebUiHealthTimeoutClassification/);
+  assert.match(classification, /docker-compose-logs\.txt/);
+  assert.match(classification, /ghcr\\\.io/);
+  assert.match(classification, /github\\\.com/);
+  assert.match(classification, /networkFailurePattern/);
+  assert.match(classification, /-and \$_ -match \$networkFailurePattern/);
+  assert.match(healthWait, /Get-WebUiHealthTimeoutClassification -TargetDir \$failureDir/);
+  assert.match(healthWait, /health-timeout-classification\.txt/);
+  assert.match(healthWait, /external_input_required/);
+  assert.match(healthWait, /local_startup_failure/);
+  assert.match(healthWait, /Diagnostics do not establish a GitHub\/GHCR network blockage/);
   assert.match(installer, /Docker Desktop -> Settings -> Resources -> Proxies/);
+  assert.doesNotMatch(healthWait, /throw "external_input_required: WebUI did not become reachable[\s\S]*First-time Official Profile initialization/);
 });
 
 test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
