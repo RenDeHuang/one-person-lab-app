@@ -124,6 +124,7 @@ export type StableAdmissionManifest = {
     producer_run_id: string;
     producer_workflow: '.github/workflows/release-stable.yml';
     protected_environment: 'release-stable';
+    executor_sha: string;
     receipt_sha256: string;
     required_secret_names: string[];
     required_secret_count: 6;
@@ -235,12 +236,13 @@ function sameStringSet(actual: unknown, expected: readonly string[]): boolean {
 function validateCredentialReceipt(
   receiptValue: unknown,
   input: StableAdmissionInput,
-): JsonRecord {
+): { executorSha: string } {
   const receipt = object(receiptValue, 'Apple credential preflight receipt');
   const execution = object(receipt.execution, 'Apple credential preflight receipt execution');
   const signing = object(receipt.signing, 'Apple credential preflight receipt signing');
   const notarization = object(receipt.notarization, 'Apple credential preflight receipt notarization');
   const mutation = object(receipt.mutation, 'Apple credential preflight receipt mutation');
+  const executorSha = fullSha(execution.head_sha, 'Apple credential preflight receipt executor SHA');
   if (
     receipt.schema !== 'opl_apple_release_credentials_preflight.v1'
     || receipt.status !== 'passed'
@@ -255,9 +257,8 @@ function validateCredentialReceipt(
     || execution.run_attempt !== 1
     || execution.event_name !== 'workflow_dispatch'
     || execution.ref !== 'refs/heads/main'
-    || execution.head_sha !== input.appRef
   ) {
-    throw new Error('Apple credential receipt is not a first-attempt protected preflight for the exact App main cohort.');
+    throw new Error('Apple credential receipt is not a first-attempt protected preflight for the App main executor.');
   }
   if (
     receipt.required_secret_count !== requiredSecretNames.length
@@ -285,7 +286,7 @@ function validateCredentialReceipt(
   ) {
     throw new Error('Apple credential receipt must prove read-only notarization authentication and zero release mutation.');
   }
-  return receipt;
+  return { executorSha };
 }
 
 function normalizeVersionRef(value: string): string {
@@ -376,7 +377,7 @@ export function buildStableReleaseAdmissionManifest(
   }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
   const sourceGate = validateFrozenSourceGate(observation.sourceGate, input);
-  validateCredentialReceipt(observation.credentialReceipt, input);
+  const credentialReceipt = validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
     throw new Error(
       `Stable admission requires zero other active release runs; found ${observation.activeReleaseRuns
@@ -451,6 +452,7 @@ export function buildStableReleaseAdmissionManifest(
       producer_run_id: input.admissionRunId,
       producer_workflow: '.github/workflows/release-stable.yml',
       protected_environment: 'release-stable',
+      executor_sha: credentialReceipt.executorSha,
       receipt_sha256: sha256Bytes(observation.credentialReceiptBytes),
       required_secret_names: [...requiredSecretNames],
       required_secret_count: 6,
