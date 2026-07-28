@@ -202,12 +202,12 @@ function inspection(record: ReturnType<typeof publicationRecord>, options: {
   const assets = options.assets ?? [...expectedAssets(record).assets].reverse();
   return {
     repository,
+    tag,
+    assets,
     release: {
       id: 360_830_750,
-      tag_name: tag,
       draft: false,
       immutable: options.immutable ?? true,
-      assets,
     },
   };
 }

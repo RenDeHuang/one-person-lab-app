@@ -377,8 +377,12 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     assert.equal(stable.on.workflow_dispatch.inputs[input].required, false);
     assert.equal(stable.on.workflow_dispatch.inputs[input].default, '');
   }
-  assert.match(stable['run-name'], /operation:\$\{\{ inputs\.operation_id \}\}/);
-  assert.match(stable['run-name'], /authority:\$\{\{ inputs\.authority_id \}\}/);
+  assert.match(stable['run-name'], /inputs\.operation == 'standard'/);
+  assert.match(
+    stable['run-name'],
+    /format\('OPL Stable standard operation:\{0\} authority:\{1\} run:\{2\}', inputs\.operation_id, inputs\.authority_id, github\.run_id\)/,
+  );
+  assert.match(stable['run-name'], /format\('OPL Stable \{0\} \{1\}', inputs\.operation, github\.run_id\)/);
   assert.equal(stable.jobs['source-qualification'], undefined);
   assert.doesNotMatch(
     readWorkflow('release-stable.yml'),
