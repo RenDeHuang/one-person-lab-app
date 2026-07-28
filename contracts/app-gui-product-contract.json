@@ -6628,7 +6628,7 @@
         "primary_layout": "compact_grouped_package_list_with_inline_dependency_children_and_right_details_panel",
         "catalog_presentation_policy_ref": "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
         "top_controls": [
-          "refresh_registry",
+          "reload_dynamic_directory",
           "catalog_search",
           "package_role_filter",
           "package_status_filter",
@@ -6774,12 +6774,12 @@
           "refresh_fast_state_after_successful_install_without_exposing_stage_internal_activation_in_Settings",
           "use_selected_project_only_as_session_cwd_and_future_domain_workspace_identity",
           "leave_scope_activation_to_Framework_StageRun_or_StageAttempt_workspace_locator",
-          "keep_registry_refresh_ordinary_and_visible_and_render_install_only_when_projected_by_Framework",
+          "reload_dynamic_directory_from_fresh_fast_app_state_without_registry_cache_authority_and_render_install_only_when_projected_by_Framework",
           "use_projected_confirmation_required_for_every_mutating_action"
         ],
         "directory_controls": {
           "top_controls": [
-            "refresh_registry",
+            "reload_dynamic_directory",
             "catalog_search",
             "package_role_filter",
             "package_status_filter",
@@ -7210,7 +7210,7 @@
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
         "a dedicated package catalog search plus package role, availability status, and source filters",
-        "registry refresh as an ordinary visible action and install or maintenance controls only when projected by Framework",
+        "dynamic directory reload as an ordinary fresh App-state readback and install or maintenance controls only when projected by Framework",
         "every complete Settings action rendered from its projected semantic, payload, surface, and confirmation contract without an action-id allowlist",
         "Settings executes only actions projected for the Settings surface; selected project directories establish session cwd and future domain workspace identity only",
         "owner-projected localized names and descriptions for every Package directory item, including unknown future Agents",
@@ -7237,7 +7237,7 @@
         "availability, source, and Home visibility collapsed into one opaque status",
         "App-owned static Agent presentation overlay used as the directory collection, OMA seed, availability source, status source, or action source",
         "Settings global search presented as the package catalog search",
-        "registry refresh hidden inside technical details",
+        "dynamic directory reload hidden inside technical details",
       "package status, ready state, action id, or action payload inferred by the Shell",
       "manifest URL installation presented as the ordinary primary install path",
       "raw setup_required, local_check_not_completed, verification_deferred, scope_materialization_missing, 待验证, 需关注, 不可使用, or contradictory availability labels on ordinary Agent rows",
