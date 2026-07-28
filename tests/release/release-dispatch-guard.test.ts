@@ -238,6 +238,40 @@ test('pre-nonce guard consumes the frozen-reachability source gate and one owner
   assert.equal(report.nonce_consumed, false);
 });
 
+test('pre-nonce guard paginates owner runs before deciding an older operation was never consumed', () => {
+  let observedArgs: string[] = [];
+  const prior = ownerRun(41, { status: 'completed', conclusion: 'success' });
+  const current = ownerRun(42);
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-42',
+    operationId,
+  }, {
+    runner: (command, args) => {
+      if (command !== 'gh') return { status: 1, stdout: '', stderr: 'unexpected command' };
+      observedArgs = args;
+      return {
+        status: 0,
+        stdout: JSON.stringify([
+          { total_count: 102, workflow_runs: Array.from({ length: 100 }, (_, index) => ownerRun(index + 1000, { head_sha: 'f'.repeat(40) })) },
+          { total_count: 102, workflow_runs: [prior, current] },
+        ]),
+        stderr: '',
+      };
+    },
+  });
+
+  assert.ok(observedArgs.includes('--paginate'));
+  assert.ok(observedArgs.includes('--slurp'));
+  assert.equal(report.status, 'blocked');
+  assert.match(report.reason, /no prior frozen-operation consumer/);
+});
+
 test('pre-nonce guard permits only its own authority-bound run and rejects any second matching run', () => {
   const own = ownerRun(42);
   const another = ownerRun(43);

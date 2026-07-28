@@ -439,6 +439,9 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   if (/openssl rand|operation_id="stable-\$\{?GITHUB_RUN_ID\}?"|stable-operation-control\.ts create(?:\s|$)/.test(protectedAdmissionRun)) {
     failures += reportFailure(id, 'protected-operation-admission must not self-issue an authority, nonce, or operation id');
   }
+  if (/\$\{\{\s*inputs\./.test(protectedAdmissionRun)) {
+    failures += reportFailure(id, 'protected-operation-admission must consume dispatch strings through quoted environment variables');
+  }
   const protectedOutputs = protectedAdmission?.outputs ?? {};
   for (const [name, expected] of Object.entries({
     app_ref: '${{ steps.control.outputs.app_ref }}',

@@ -803,12 +803,16 @@ jobs:
             find immutable-carrier-input -type f -name publication-manifest.json -print | LC_ALL=C sort
           )
           test "${#native_manifests[@]}" -eq 1
-          (
-            cd immutable-carrier-input
-            node --experimental-strip-types ../app-source/scripts/release-native-webui-carrier.ts upload-actions \
-              --manifest "${native_manifests[0]#immutable-carrier-input/}" \
-              --output ../native-upload-actions.json
-          )
+          native_carrier="$(dirname "${native_manifests[0]}")"
+          test "$(basename "$native_carrier")" = native-qualified
+          test -d "$native_carrier" && test ! -L "$native_carrier"
+          test ! -e native-release
+          mkdir native-release
+          cp -a "$native_carrier"/. native-release/
+          node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
+            --manifest native-release/publication-manifest.json \
+            --output native-upload-actions.json
+          rm -rf native-release
           jq -e \
             --arg tag '${{ needs.restore.outputs.tag }}' \
             --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \

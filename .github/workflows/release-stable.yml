@@ -103,19 +103,33 @@ jobs:
       authority_id: ${{ steps.authority.outputs.authority_id }}
     steps:
       - name: Reject bare or rerun Stable request before expensive work
+        env:
+          OPERATION: ${{ inputs.operation }}
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          LEGACY_SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+          LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ inputs.source_qualification_receipt_digest }}
+          INCLUDE_FULL: ${{ inputs.include_full }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
           test "$GITHUB_RUN_ATTEMPT" = 1
-          test '${{ inputs.operation }}' = standard
-          test -n '${{ inputs.authority_id }}'
-          test -n '${{ inputs.operation_id }}'
-          test -n '${{ inputs.authority_carrier }}'
-          [[ '${{ inputs.authority_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-          test -z '${{ inputs.version }}${{ inputs.shell_ref }}${{ inputs.framework_ref }}${{ inputs.source_run_id }}${{ inputs.source_artifact }}${{ inputs.source_qualification_run_id }}${{ inputs.source_qualification_receipt_digest }}'
-          test '${{ inputs.include_full }}' = false
+          test "$OPERATION" = standard
+          test -n "$AUTHORITY_ID"
+          test -n "$OPERATION_ID"
+          test -n "$AUTHORITY_CARRIER"
+          [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$LEGACY_SOURCE_QUALIFICATION_RUN_ID$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST"
+          test "$INCLUDE_FULL" = false
 
       - name: Checkout frozen App source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -128,6 +142,7 @@ jobs:
         id: authority
         env:
           AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
           AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
           AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
         shell: bash
@@ -144,14 +159,14 @@ jobs:
           node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify-authority \
             --authority stable-operation-authority.json \
             --authority-id "$AUTHORITY_ID" --authority-digest "$AUTHORITY_DIGEST" \
-            --operation-id '${{ inputs.operation_id }}' \
+            --operation-id "$OPERATION_ID" \
             --app-root app-source --expected-actor "$GITHUB_ACTOR" --expected-app-sha "$GITHUB_SHA"
           app_sha="$(jq -er .cohort.app_sha stable-operation-authority.json)"
           shell_sha="$(jq -er .cohort.shell_sha stable-operation-authority.json)"
           framework_sha="$(jq -er .cohort.framework_sha stable-operation-authority.json)"
           operation_id="$(jq -er .operation_id stable-operation-authority.json)"
           objective_fingerprint="$(jq -er .objective_fingerprint stable-operation-authority.json)"
-          test "$operation_id" = '${{ inputs.operation_id }}'
+          test "$operation_id" = "$OPERATION_ID"
           test "$app_sha" = "$GITHUB_SHA"
           for value in "$shell_sha" "$framework_sha"; do
             [[ "$value" =~ ^[0-9a-f]{40}$ ]]
@@ -192,6 +207,7 @@ jobs:
         id: control
         env:
           GH_TOKEN: ${{ github.token }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -252,7 +268,7 @@ jobs:
           run_authority_reconcile_digest="sha256:$(shasum -a 256 run-authority-reconcile.json | awk '{print $1}')"
           node --experimental-strip-types app-source/scripts/stable-operation-control.ts bind \
             --authority stable-operation-authority.json \
-            --authority-digest '${{ inputs.authority_digest }}' \
+            --authority-digest "$AUTHORITY_DIGEST" \
             --actor "$GITHUB_ACTOR" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --source-gate-digest "$source_gate_digest" \
             --pre-nonce-guard-digest "$pre_nonce_guard_digest" \

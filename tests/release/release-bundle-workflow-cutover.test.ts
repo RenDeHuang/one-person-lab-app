@@ -462,7 +462,11 @@ test('new Standard binds one pre-issued authority and seals its run-bound contro
   assert.doesNotMatch(stableSource, /openssl rand/);
   assert.doesNotMatch(stableSource, /operation_id="stable-\$\{GITHUB_RUN_ID\}"/);
   assert.doesNotMatch(stableSource, /stable-operation-control\.ts create(?:\s|$)/);
-  assert.match(stableSource, /--operation-id '\$\{\{ inputs\.operation_id \}\}'/);
+  assert.doesNotMatch(
+    String(protectedControl.steps.map((step: Record<string, unknown>) => step.run ?? '').join('\n')),
+    /\$\{\{\s*inputs\./,
+  );
+  assert.match(stableSource, /--operation-id "\$OPERATION_ID"/);
   assert.equal(protectedControl.steps.some(
     (step: Record<string, any>) => step.with?.name === 'opl-stable-operation-control-${{ github.run_id }}',
   ), true);
@@ -484,6 +488,14 @@ test('new Standard binds one pre-issued authority and seals its run-bound contro
     stable.jobs.standard.with.stable_operation_control_artifact,
     'opl-stable-operation-control-${{ github.run_id }}',
   );
+  const bundleSource = readWorkflow('_release-bundle.yml');
+  assert.match(bundleSource, /path: native-release/);
+  assert.match(bundleSource, /find native-release -type f -name publication-manifest\.json/);
+  assert.doesNotMatch(bundleSource, /cd native-qualified/);
+  const standardPublishSource = readWorkflow('_release-standard-publish.yml');
+  assert.match(standardPublishSource, /cp -a "\$native_carrier"\/\. native-release\//);
+  assert.match(standardPublishSource, /--manifest native-release\/publication-manifest\.json/);
+  assert.doesNotMatch(standardPublishSource, /cd immutable-carrier-input/);
 
   for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
     const workflow = parseWorkflow(name);

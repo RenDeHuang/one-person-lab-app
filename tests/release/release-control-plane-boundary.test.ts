@@ -97,6 +97,18 @@ test('Stable admission rejects a self-issued or malformed authority before sourc
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 3);
 });
 
+test('Stable protected admission never interpolates dispatch strings into Bash', (t) => {
+  const root = fixture(t);
+  const file = workflowPath(root, 'release-stable.yml');
+  const text = fs.readFileSync(file, 'utf8').replace(
+    'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+    "test '${{ inputs.authority_carrier }}' = trusted\n          test \"$GITHUB_EVENT_NAME\" = workflow_dispatch",
+  );
+  fs.writeFileSync(file, text);
+
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+});
+
 test('all privileged Stable entries remain admission-dependent step-free reusable calls', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-stable.yml', (workflow) => {
