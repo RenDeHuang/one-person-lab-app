@@ -165,7 +165,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.match(source, /github\.event\.issue\.pull_request/);
   assert.match(source, /github\.event\.issue\.number/);
   assert.match(source, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
-  assert.match(source, /startsWith\(github\.event\.comment\.body, 'Codex Review: Didn''t find any major issues\.'\)/);
+  assert.doesNotMatch(source, /github\.event\.comment\.body/);
   assert.match(source, /github\.event_name == 'issue_comment'\) && '0' \|\| '900'/);
   assert.match(source, /scripts\/codex-review-gate\.ts/);
   const gateSource = fs.readFileSync(path.join(process.cwd(), 'scripts', 'codex-review-gate.ts'), 'utf8');
@@ -174,6 +174,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.doesNotMatch(gateSource, /codex-review-head/);
   assert.match(gateSource, /issues\/\$\{pullNumber\}\/comments/);
   assert.match(gateSource, /paginatedGitHubRequest<GitHubIssueComment>/);
+  assert.match(gateSource, /Codex Review: Didn't find any major issues/);
   assert.match(gateSource, /exact-head clean issue comment/);
   assert.match(source, /pull_request_target/);
 });
