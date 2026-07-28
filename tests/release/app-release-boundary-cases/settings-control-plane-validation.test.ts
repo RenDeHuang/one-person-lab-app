@@ -477,7 +477,8 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     "source",
   ]);
   assert.equal(lifecycle.directory_controls.catalog_search_is_settings_global_search, false);
-  assert.ok(lifecycle.directory_controls.top_controls.includes("refresh_registry"));
+  assert.ok(lifecycle.directory_controls.top_controls.includes("reload_dynamic_directory"));
+  assert.equal(lifecycle.directory_controls.top_controls.includes("refresh_registry"), false);
   assert.equal(
     lifecycle.directory_controls.row_actions_source,
     "directory.entries[].available_actions[]",
