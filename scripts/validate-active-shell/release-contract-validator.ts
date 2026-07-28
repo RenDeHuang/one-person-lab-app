@@ -846,6 +846,71 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
       'Release assistant smoke must resolve a non-authoritative target fixture and separate Standard launch gates from Full route receipts',
     );
   }
+
+  const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  assertDeepEqualJson(
+    vmGates.map((gate) => gate?.id),
+    [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+    ],
+    'Physical VM optional certification gates',
+  );
+  for (const gate of vmGates) {
+    if (
+      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+      !Array.isArray(gate?.certification_readiness) ||
+      gate.certification_readiness.length === 0 ||
+      'release_blocking_readiness' in gate
+    ) {
+      throw new Error('Physical VM qualification must remain post-publication optional certification');
+    }
+  }
+  const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
+  const legacyVmGate = acceleration?.vm_gate;
+  for (const field of [
+    'source',
+    'artifact',
+    'smoke_profile',
+    'display',
+    'settings_smoke',
+    'diagnostic_scope',
+    'runtime_profile',
+    'codex_config_wizard',
+    'gate_policy',
+    'certification_readiness',
+    'post_core_ready_background_policy',
+  ]) {
+    assertDeepEqualJson(
+      legacyVmGate?.[field],
+      fullVmGate?.[field],
+      `Legacy Full VM optional certification mirror ${field}`,
+    );
+  }
+  if ('release_blocking_readiness' in (legacyVmGate ?? {})) {
+    throw new Error('Legacy Full VM mirror must not expose release-blocking readiness');
+  }
+
+  const stableValidation = releaseChannel?.release_validation_profiles?.stable;
+  assertDeepEqualJson(
+    stableValidation?.post_publication_optional_certification_surfaces,
+    [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'one_shot_app_installer_fresh_install_smoke',
+      'full_dmg_clean_vm_smoke',
+    ],
+    'Stable post-publication optional certification surfaces',
+  );
+  if (
+    stableValidation?.addon_gate_blocking_standard_terminal !== false ||
+    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke')
+  ) {
+    throw new Error('Full clean-VM certification must remain outside the Stable publication terminal');
+  }
 }
 
 function assertRetiredReleaseControlPlaneAbsent(releaseChannel) {

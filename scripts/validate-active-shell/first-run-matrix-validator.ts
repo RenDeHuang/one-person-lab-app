@@ -257,30 +257,34 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     ['base_url', 'experimental_bearer_token'],
     'Connected VM Provider credential fields',
   );
-  const requiredScenarioIds = ['full_dmg_clean_vm_smoke'];
+  const requiredScenarioIds: string[] = [];
   assertDeepEqualJson(
     qualification.required_release_scenarios,
     requiredScenarioIds,
     'Release VM Provider-independent scenarios',
   );
-  for (const scenarioId of requiredScenarioIds) {
-    const scenario = scenarioById.get(scenarioId);
-    if (scenario?.release_gate !== true || scenario?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
-      throw new Error(`Release scenario ${scenarioId} must consume the Provider-independent qualification contract`);
-    }
-  }
   for (const scenarioId of [
+    'full_first_install_clean_machine',
     'standard_dmg_clean_vm_smoke',
     'homebrew_standard_cask_clean_vm_smoke',
-    'one_shot_app_installer_fresh_install_smoke',
+    'full_dmg_clean_vm_smoke',
   ]) {
     const scenario = scenarioById.get(scenarioId);
     if (
       scenario?.release_gate !== false
       || scenario?.post_publication_optional_certification !== true
+      || scenario?.vm?.diagnostic_scope !== 'post_publication_optional_certification'
     ) {
-      throw new Error(`Post-publication scenario ${scenarioId} must not block publication or Latest`);
+      throw new Error(`Tart scenario ${scenarioId} must be post-publication optional certification and must not block publication or Latest`);
     }
+  }
+  const fullDmgPolicy = scenarioById.get('full_dmg_clean_vm_smoke');
+  if (fullDmgPolicy?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
+    throw new Error('Full DMG optional certification must retain the Provider-independent qualification contract');
+  }
+  const oneShot = scenarioById.get('one_shot_app_installer_fresh_install_smoke');
+  if (oneShot?.release_gate !== false || oneShot?.post_publication_optional_certification !== true) {
+    throw new Error('One-shot installer fresh-install certification must not block publication or Latest');
   }
   const fullFirstInstall = scenarioById.get('full_first_install_clean_machine');
   if (

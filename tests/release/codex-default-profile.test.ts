@@ -594,7 +594,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      'starterIcon(assistant.opl_package_id)',
+      'starterIcon()',
       'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
     ].join('\n'),
     guidStyles: [
@@ -649,7 +649,8 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'assistant.id === activeCapabilityId',
     ],
     ['resolveOplPackageLaunchGate(appState, assistant.opl_package_id)', 'resolveOplPackageLaunchGate(appState, assistant.id)'],
-    ['starterIcon(assistant.opl_package_id)', 'starterIcon(assistant.id)'],
+    ['starterIcon()', 'starterIcon(assistant.opl_package_id)'],
+    ['starterIcon()', 'starterIcon(assistant.id)'],
     [
       'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',

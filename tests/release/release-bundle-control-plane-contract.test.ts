@@ -355,12 +355,12 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.deepEqual(release.homebrew_tap_distribution.excluded_casks, []);
   assert.equal(
     release.homebrew_tap_distribution.tap_update_policy.full.mode,
-    "implemented_unpublished_generator_target",
+    "post_publication_digest_bound_single_attempt_follower",
   );
-  assert.equal(release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed, false);
+  assert.equal(release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed, true);
   assert.equal(
     release.homebrew_tap_distribution.tap_update_policy.full.promotion_status,
-    "not_approved_until_promotion_requirements_pass",
+    "approved_pending_first_protected_follower_readback",
   );
 });
 

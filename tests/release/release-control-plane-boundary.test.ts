@@ -176,18 +176,18 @@ test('Native WebUI follower keeps additive GitHub write behind exact Stable hand
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('Full Homebrew follower qualifies one exact candidate before protected Tap CAS', (t) => {
+test('Full Homebrew follower publishes hosted-qualified bytes without a physical VM dependency', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
 
   updateWorkflow(root, '_release-homebrew-full-publish.yml', (workflow) => {
-    workflow.jobs['publish-cask'].needs = ['prepare-candidate'];
+    workflow.jobs['publish-cask'].needs = ['prepare-candidate', 'qualify-candidate'];
   });
   assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
 
   updateWorkflow(root, '_release-homebrew-full-publish.yml', (workflow) => {
-    workflow.jobs['publish-cask'].needs = ['prepare-candidate', 'qualify-candidate'];
+    workflow.jobs['publish-cask'].needs = ['prepare-candidate'];
     workflow.jobs['prepare-candidate'].steps.push({
       run: 'echo $OPL_HOMEBREW_TAP_TOKEN',
     });

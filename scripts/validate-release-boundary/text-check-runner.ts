@@ -544,11 +544,16 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     postPublicationOptionalCertificationWorkflowPath,
     id,
   );
+  const optionalCertificationVm = parseWorkflow(
+    appRoot,
+    '.github/workflows/opl-first-run-vm.yml',
+    id,
+  );
   const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
   const webuiFollower = parseWorkflow(appRoot, '.github/workflows/release-webui-follower.yml', id);
   const webuiStable = parseWorkflow(appRoot, '.github/workflows/release-webui-stable.yml', id);
-  if (!bundle || !standard || !full || !optionalCertification || !webui || !webuiFollower || !webuiStable) {
-    return [bundle, standard, full, optionalCertification, webui, webuiFollower, webuiStable]
+  if (!bundle || !standard || !full || !optionalCertification || !optionalCertificationVm || !webui || !webuiFollower || !webuiStable) {
+    return [bundle, standard, full, optionalCertification, optionalCertificationVm, webui, webuiFollower, webuiStable]
       .filter((value) => !value).length;
   }
   let failures = 0;
@@ -867,18 +872,23 @@ export function validateReleaseBundleTopology(appRoot: string): number {
 
   const certificationTriggers = optionalCertification.workflow.on ?? {};
   const certificationJobs = workflowJobs(optionalCertification.workflow);
+  const expectedCertificationJobs = [
+    'resolve-standard',
+    'admit-standard-vm',
+    'certify-standard-vm',
+    'write-standard-receipts',
+    'resolve-full',
+    'admit-full-vm',
+    'certify-full-vm',
+    'write-full-receipt',
+  ];
   if (
     JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
       JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify([
-      'resolve-standard',
-      'write-standard-receipts',
-      'resolve-full',
-      'write-full-receipt',
-    ])
+    || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify(expectedCertificationJobs)
   ) {
     failures += reportFailure(
       id,
@@ -888,17 +898,79 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     certificationJobs['resolve-standard']?.needs !== undefined
     || certificationJobs['resolve-full']?.needs !== undefined
-    || !needsExactly(certificationJobs['write-standard-receipts'], ['resolve-standard'])
-    || !needsExactly(certificationJobs['write-full-receipt'], ['resolve-full'])
+    || !certificationJobs['admit-standard-vm']
+    || !needsExactly(certificationJobs['admit-standard-vm'], ['resolve-standard'])
+    || !certificationJobs['certify-standard-vm']
+    || !needsExactly(certificationJobs['certify-standard-vm'], ['resolve-standard', 'admit-standard-vm'])
+    || !certificationJobs['write-standard-receipts']
+    || !needsExactly(certificationJobs['write-standard-receipts'], [
+      'resolve-standard',
+      'admit-standard-vm',
+      'certify-standard-vm',
+    ])
+    || !certificationJobs['admit-full-vm']
+    || !needsExactly(certificationJobs['admit-full-vm'], ['resolve-full'])
+    || !certificationJobs['certify-full-vm']
+    || !needsExactly(certificationJobs['certify-full-vm'], ['resolve-full', 'admit-full-vm'])
+    || !certificationJobs['write-full-receipt']
+    || !needsExactly(certificationJobs['write-full-receipt'], [
+      'resolve-full',
+      'admit-full-vm',
+      'certify-full-vm',
+    ])
   ) {
     failures += reportFailure(
       id,
       'optional certification identity resolution must not depend on the Stable or Full publication DAG',
     );
   }
-  for (const [jobId, job] of Object.entries(certificationJobs)) {
-    if (!exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
+  for (const jobId of [
+    'resolve-standard',
+    'admit-standard-vm',
+    'write-standard-receipts',
+    'resolve-full',
+    'admit-full-vm',
+    'write-full-receipt',
+  ]) {
+    const job = certificationJobs[jobId];
+    if (!job || !exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
       failures += reportFailure(id, `optional certification job ${jobId} must be GitHub-hosted and read-only`);
+    }
+  }
+  for (const profile of ['standard', 'full']) {
+    const jobId = `certify-${profile}-vm`;
+    const job = certificationJobs[jobId];
+    if (
+      !job
+      || job.uses !== './.github/workflows/opl-first-run-vm.yml'
+      || Object.prototype.hasOwnProperty.call(job, 'steps')
+      || Object.prototype.hasOwnProperty.call(job, 'runs-on')
+      || !exactObject(job.permissions, exactReadPermissions)
+    ) {
+      failures += reportFailure(
+        id,
+        `optional certification job ${jobId} must be one step-free read-only reusable VM call`,
+      );
+      continue;
+    }
+    const expectedInputs = {
+      mode: 'execute',
+      release_tag: `\${{ needs.resolve-${profile}.outputs.tag }}`,
+      published_artifact_name: `\${{ needs.resolve-${profile}.outputs.artifact_name }}`,
+      published_artifact_digest: `\${{ needs.resolve-${profile}.outputs.artifact_digest }}`,
+      artifact_app_ref: `\${{ needs.resolve-${profile}.outputs.app_sha }}`,
+      shell_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
+      smoke_harness_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
+      framework_ref: `\${{ needs.resolve-${profile}.outputs.framework_sha }}`,
+      package_profile: profile,
+      diagnostic_scope: 'post_publication_optional_certification',
+      require_macos_gatekeeper: true,
+    };
+    if (!exactObject(job.with, expectedInputs)) {
+      failures += reportFailure(
+        id,
+        `${jobId} must bind the exact published ${profile} DMG and immutable cohort to optional VM certification`,
+      );
     }
   }
   for (const required of [
@@ -906,18 +978,47 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl-release-activation-${SOURCE_RUN_ID}',
     'opl-release-full-published-${SOURCE_RUN_ID}',
     'write-optional-certification-receipt.ts',
+    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+    'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
+    'actions/runners?per_page=100',
+    "runner.status === 'online' && runner.busy === false",
+    'published_artifact_name',
+    'published_artifact_digest',
+    'post_publication_optional_certification',
+    'status=unavailable',
+    'capability_admission_failed',
+    'VM_CLASSIFICATION_VALID',
+    'VM_ARTIFACT_VERIFIED',
+    'VM_JOB_STARTED',
+    'VM_EXECUTION_STARTED',
+    "needs.admit-standard-vm.result == 'success'",
+    "needs.admit-full-vm.result == 'success'",
     '--status not_run',
     '--reason-code not_requested',
-    'physical_job_dispatched:false',
+    'physical_job_dispatched:$dispatched',
     'component_manifest_digest',
     'public-component-manifest.json',
+    'Download exact Standard VM evidence',
+    'opl-first-run-vm-standard-${{ github.run_id }}',
+    'Download exact Full VM evidence',
+    'opl-first-run-vm-full-${{ github.run_id }}',
+    'published-artifact-identity.json',
+    'post-publication-capability-admission.json',
+    'post-publication-execution-start.json',
+    'tart-smoke-summary.json',
+    'settings-runtime-refresh-verification.json',
+    'installed-framework-source-identity.json',
+    'full-runtime-source-identity.json',
+    'opl_framework_installed_source_identity.v1',
+    'opl_full_runtime_source_identity.v1',
+    'source == "packaged_app_resource"',
   ]) {
     if (!optionalCertification.text.includes(required)) {
       failures += reportFailure(id, `post-publication certification follower is missing ${required}`);
     }
   }
   if (
-    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize|opl-first-run-vm\\.yml/.test(
+    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/.test(
       optionalCertification.text,
     )
   ) {
@@ -925,6 +1026,47 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       id,
       'post-publication certification follower must not dispatch, rebuild, sign, publish, or mutate public state',
     );
+  }
+  for (const forbidden of [
+    '${VM_REASON_CODE:-capability_admission_failed}',
+    '${VM_ADMISSION_REASON:-operator_deferred}',
+    'standard-vm-evidence.json',
+    'full-vm-evidence.json',
+  ]) {
+    if (optionalCertification.text.includes(forbidden)) {
+      failures += reportFailure(id, `post-publication certification follower must not fabricate ${forbidden}`);
+    }
+  }
+  for (const required of [
+    'published_artifact_name',
+    'published_artifact_digest',
+    'post_publication_status',
+    'post_publication_reason_code',
+    'published_artifact_verified',
+    'post_publication_job_started',
+    'post_publication_execution_started',
+    'post_publication_classification_valid',
+    'post-publication certification must consume public release bytes, not an Actions artifact',
+    'Verify exact published DMG identity before install',
+    'PUBLISHED_ARTIFACT_NAME: ${{ inputs.published_artifact_name }}',
+    'download_pattern="$PUBLISHED_ARTIFACT_NAME"',
+    'published_artifact_name must be the canonical exact DMG basename for release_tag and package_profile',
+    'Admit exact Tart capability for post-publication certification',
+    'Mark post-publication certification execution started',
+    'keys == ["reason_code","schema","source_vm","status"]',
+    '.source_vm == $source_vm',
+    '.framework_source_archive == null',
+    'clone_vm|configure_display|start_vm|wait_for_ip|wait_for_ssh',
+    'run_guest_smoke|validate_guest_summary',
+    'actual_digest="sha256:$(shasum -a 256 "$dmg_path"',
+    "diagnostic_scope != 'post_publication_optional_certification'",
+  ]) {
+    if (!optionalCertificationVm.text.includes(required)) {
+      failures += reportFailure(id, `optional certification VM path is missing ${required}`);
+    }
+  }
+  if (optionalCertificationVm.text.includes("download_pattern='${{ inputs.published_artifact_name }}'")) {
+    failures += reportFailure(id, 'optional certification VM must pass published artifact names through step env');
   }
 
   const homebrewStandardRuns = jobRuns(standardJobs['publish-homebrew-standard']);
@@ -1127,28 +1269,30 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     JSON.stringify(Object.keys(publisher.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
     || JSON.stringify(Object.keys(publisherInputs)) !== JSON.stringify(['mode', 'authority_run_id', 'handoff_base64', 'handoff_sha256'])
     || !exactObject(publisher.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(publisherJobs)) !== JSON.stringify(['startup-canary', 'prepare-candidate', 'qualify-candidate', 'publish-cask', 'readback'])
+    || JSON.stringify(Object.keys(publisherJobs)) !== JSON.stringify(['startup-canary', 'prepare-candidate', 'publish-cask', 'readback'])
   ) {
-    failures += reportFailure(id, 'Full Homebrew reusable must expose only exact handoff inputs and candidate/qualification/publish/readback jobs');
+    failures += reportFailure(id, 'Full Homebrew reusable must expose only exact handoff inputs and candidate/publish/readback jobs');
   }
   const startup = publisherJobs['startup-canary'];
   const prepare = publisherJobs['prepare-candidate'];
-  const qualify = publisherJobs['qualify-candidate'];
   const publish = publisherJobs['publish-cask'];
   const readback = publisherJobs.readback;
   if (
     !startup || startup.if !== "${{ inputs.mode == 'canary' }}" || !exactObject(startup.permissions, exactReadPermissions)
     || !prepare || prepare.if !== "${{ inputs.mode == 'execute' }}" || !exactObject(prepare.permissions, exactReadPermissions)
-    || !qualify || qualify.if !== "${{ inputs.mode == 'execute' }}" || qualify.uses !== './.github/workflows/opl-first-run-vm.yml'
-    || !needsExactly(qualify, ['prepare-candidate']) || !exactObject(qualify.permissions, exactReadPermissions)
-    || qualify.with?.package_profile !== 'homebrew-full'
-    || qualify.with?.homebrew_candidate_artifact !== '${{ needs.prepare-candidate.outputs.candidate_artifact }}'
-    || !publish || publish.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(publish, ['prepare-candidate', 'qualify-candidate'])
+    || !publish || publish.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(publish, ['prepare-candidate'])
     || publish.environment !== 'release-stable' || !exactObject(publish.permissions, exactReadPermissions)
     || !readback || readback.if !== "${{ inputs.mode == 'execute' }}" || !needsExactly(readback, ['prepare-candidate', 'publish-cask'])
     || !exactObject(readback.permissions, exactReadPermissions)
   ) {
-    failures += reportFailure(id, 'Full Homebrew reusable must qualify exact candidate before protected Tap CAS and public readback');
+    failures += reportFailure(id, 'Full Homebrew reusable must publish the exact hosted-qualified candidate before protected Tap CAS and public readback');
+  }
+  if (
+    /qualify-candidate|opl-first-run-vm\.yml|tart-smoke-summary\.json|smoke_harness_sha|shell-harness|opl-first-run-tart-smoke|--homebrew-cask-file/.test(
+      publisher.text,
+    )
+  ) {
+    failures += reportFailure(id, 'Full Homebrew publication must not depend on physical VM certification before protected Tap CAS');
   }
   const prepareRuns = jobRuns(prepare);
   const publishRuns = jobRuns(publish);
@@ -1169,12 +1313,6 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     if (!prepareRuns.includes(required)) failures += reportFailure(id, `Full Homebrew candidate preparation is missing ${required}`);
   }
   for (const required of [
-    'tart-smoke-summary.json',
-    'homebrew-full-cask',
-    'formula_opl_installed_before == false',
-    'formula_opl_installed_after == false',
-    'active_framework_count == 1',
-    'official_profile.status == "passed"',
     'append_full_operation_id',
     'append_full_operation_deadline_at',
     'publication-scope track_assets',
@@ -1192,8 +1330,20 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'git -C tap-source fetch --no-tags --depth=1 origin "$remote_commit"',
     "git -C tap-source show 'FETCH_HEAD:Casks/one-person-lab-full.rb'",
     'opl_homebrew_full_publication_receipt.v1',
+    'qualification_receipt_sha256:$qualification_sha',
+    'cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}',
   ]) {
     if (!publishRuns.includes(required)) failures += reportFailure(id, `Full Homebrew protected publish is missing ${required}`);
+  }
+  for (const forbidden of [
+    'clean_vm_receipt_sha256',
+    'official_profile_first_install',
+    'formula_opl_installed_before',
+    'formula_opl_installed_after',
+  ]) {
+    if (publishRuns.includes(forbidden)) {
+      failures += reportFailure(id, `Full Homebrew publication must not fabricate optional certification field ${forbidden}`);
+    }
   }
   if (!publisher.text.includes('Restore qualified Full publication checkpoint')) {
     failures += reportFailure(id, 'Full Homebrew protected publish must restore the exact qualified Full checkpoint');
@@ -1211,8 +1361,8 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
   ) {
     failures += reportFailure(id, 'Full Homebrew token must be scoped to the protected publish job');
   }
-  if (prepareRuns.includes('OPL_HOMEBREW_TAP_TOKEN') || jobRuns(qualify).includes('OPL_HOMEBREW_TAP_TOKEN')) {
-    failures += reportFailure(id, 'Full Homebrew token must be unreachable before candidate clean-VM qualification passes');
+  if (prepareRuns.includes('OPL_HOMEBREW_TAP_TOKEN')) {
+    failures += reportFailure(id, 'Full Homebrew token must be unreachable before the protected publish job');
   }
   if (/workflow_dispatch:|depends_on formula: "opl"|github-activate-latest|make_latest|release-webui/.test(publisher.text)) {
     failures += reportFailure(id, 'Full Homebrew reusable must remain isolated from Formula, Latest, WebUI, and manual entry paths');

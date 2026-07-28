@@ -26,13 +26,32 @@ test('distribution/install SSOT validates the current and approved state split',
     'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
-  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 3);
+  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 4);
   assert.equal(install.distribution_install_model.topology_counts.current_ordinary_install_entrypoint_families, 4);
   assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 2);
   assert.equal(install.distribution_install_model.topology_counts.approved_target_app_runtime_forms, 3);
   assert.equal(
     install.distribution_install_model.runtime_forms.native_webui.public_install_status,
     'not_published',
+  );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.approved_universal_target.native_webui_public_discovery,
+    {
+      repository: 'gaofeng21cn/one-person-lab-app',
+      release_selector: 'github_latest_pointer_exact_release',
+      required_asset_roles: [
+        'runtime_tarball',
+        'runtime_metadata',
+        'installer',
+        'installer_sha256',
+        'qualification_receipt',
+      ],
+      installer_digest_authority: 'github_release_asset_digest_sha256',
+      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      exact_tag_download_url_required: true,
+      probe_before_selection_required: true,
+      pre_publication_fallback: 'container_webui',
+    },
   );
   assert.equal(
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_current,
@@ -44,11 +63,11 @@ test('distribution/install SSOT validates the current and approved state split',
   );
   assert.equal(
     release.distribution_semantics.approved_targets.homebrew_full.generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
   );
   assert.equal(
     release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed,
-    false,
+    true,
   );
   assert.equal(
     release.distribution_semantics.approved_targets.native_webui.production_topology,

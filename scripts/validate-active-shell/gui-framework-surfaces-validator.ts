@@ -94,12 +94,27 @@ export function validatePackageAppContributionsProductContract(contract) {
     || contract.at_least_one_non_empty_collection_required !== true
     || contract.id_uniqueness_scope !== 'per_package_per_collection'
     || contract.data_resolution_policy !== 'resolve_data_ref_from_framework_projected_state_only'
-    || contract.action_execution_policy !== 'resolve_action_ref_through_the_existing_app_action_bridge'
+    || contract.action_execution_policy !== 'resolve_action_ref_through_the_descriptor_neutral_app_contribution_execute_broker'
+    || JSON.stringify(contract.navigation_identity) !== JSON.stringify(['package_id', 'navigation_id'])
+    || contract.navigation_source_ref !== 'app_state.agent_packages.directory.entries[].app_contributions.navigation[]'
+    || contract.route_resolution_policy
+      !== 'resolve_navigation_view_and_command_refs_from_the_same_current_directory_entry_then_require_broker_descriptor_revalidation'
+    || contract.read_broker_command
+      !== 'opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]'
+    || contract.execute_broker_command
+      !== 'opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]'
+    || contract.broker_revalidation_policy
+      !== 'broker_must_recheck_the_current_installed_descriptor_carrier_readiness_and_declared_ref_before_each_read_or_execute'
+    || contract.confirmation_policy
+      !== 'descriptor_declared_confirmation_is_enforced_by_the_execute_broker_and_never_inferred_or_bypassed_by_the_shell'
+    || contract.invalid_or_stale_projection_policy
+      !== 'fail_closed_do_not_render_or_fabricate_a_route_when_the_directory_entry_descriptor_or_broker_response_is_missing_stale_or_malformed'
+    || contract.legacy_package_manager_state_allowed !== false
     || contract.invalid_block_policy !== 'reject_entire_package_app_contributions_block_and_preserve_other_packages'
     || contract.shell_rendering_policy !== 'render_standard_structured_views_only'
     || contract.arbitrary_plugin_ui_code_allowed !== false
   ) {
-    throw new Error('App GUI Package contributions must stay role-agnostic, structured, reference-only, and fail closed per Package');
+    throw new Error('App GUI Package contributions must stay role-agnostic, broker-routed, structured, reference-only, and fail closed per Package');
   }
   assertDeepEqualJson(
     contract.optional_collections,
@@ -128,6 +143,19 @@ export function validatePackageAppContributionsProductContract(contract) {
     contract.forbidden_descriptor_fields,
     ['component', 'code', 'path', 'url'],
     'App GUI Package contribution forbidden descriptor fields',
+  );
+  assertDeepEqualJson(
+    contract.forbidden_legacy_truth_sources,
+    [
+      'registry_cache',
+      'package_lock',
+      'lifecycle_receipt',
+      'payload',
+      'last_known_good',
+      'rollback',
+      'currentness_mirror',
+    ],
+    'App GUI Package contribution forbidden legacy truth sources',
   );
 }
 

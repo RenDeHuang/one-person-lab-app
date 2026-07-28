@@ -530,7 +530,7 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
       release.release_bundle_control_plane.validation_canary.secrets_allowed = true;
     },
     (release) => {
-      release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed = true;
+      release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed = false;
     },
     (release) => {
       release.homebrew_tap_distribution.tap_update_policy.nightly.may_update_stable = true;

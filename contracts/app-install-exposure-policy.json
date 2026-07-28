@@ -105,7 +105,23 @@
         "linux_personal_default": "native_webui",
         "server_or_isolated_explicit": "container_webui",
         "headless_explicit": "opl_base_only",
-        "result": "official_profile_converged"
+        "result": "official_profile_converged",
+        "native_webui_public_discovery": {
+          "repository": "gaofeng21cn/one-person-lab-app",
+          "release_selector": "github_latest_pointer_exact_release",
+          "required_asset_roles": [
+            "runtime_tarball",
+            "runtime_metadata",
+            "installer",
+            "installer_sha256",
+            "qualification_receipt"
+          ],
+          "installer_digest_authority": "github_release_asset_digest_sha256",
+          "quality_admission_authority": "exact_digest_bound_native_qualification_receipt_not_latest_pointer",
+          "exact_tag_download_url_required": true,
+          "probe_before_selection_required": true,
+          "pre_publication_fallback": "container_webui"
+        }
       },
       "stable_macos_helper": {
         "current_entrypoint": "install.sh --stable-macos-install",
@@ -155,7 +171,7 @@
         "formula_dependency_current": true,
         "duplicate_base_carrier_risk_current": true,
         "formula_dependency_target": false,
-        "target_generation_status": "implemented_unpublished",
+        "target_generation_status": "implemented_pending_first_protected_follower_readback",
         "target_generator_ref": "scripts/update-homebrew-tap.ts",
         "target_framework_carrier": "full_dmg_embedded_opl_base",
         "target_digest_cas_required": true,
@@ -1240,7 +1256,8 @@
       },
       "initial_live_targets": [
         "Casks/one-person-lab.rb",
-        "Casks/one-person-lab-nightly.rb"
+        "Casks/one-person-lab-nightly.rb",
+        "Casks/one-person-lab-full.rb"
       ],
       "full_first_install_cask": {
         "name": "one-person-lab-full",
@@ -1337,13 +1354,13 @@
     ],
     "nightly_heavy_vm_blocking": false,
     "stable_install_gates": [
-      "full_dmg_clean_vm_smoke",
       "docker_webui_smoke"
     ],
     "post_publication_optional_certification_surfaces": [
       "standard_dmg_clean_vm_smoke",
       "homebrew_standard_cask_clean_vm_smoke",
-      "one_shot_app_installer_fresh_install_smoke"
+      "one_shot_app_installer_fresh_install_smoke",
+      "full_dmg_clean_vm_smoke"
     ],
     "must_verify": [
       "shared progress source",
