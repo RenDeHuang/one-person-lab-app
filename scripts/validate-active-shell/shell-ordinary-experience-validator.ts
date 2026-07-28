@@ -49,9 +49,9 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     assertTextIncludesAll(
       source,
       [
-        'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
+        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalProjectAffinity',
+        'custom_workspace: hasCanonicalRecordedCwd',
       ],
       `Active shell ${label} canonical affinity projection`,
     );
@@ -96,8 +96,9 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
       'rejects malformed canonical cwd instead of treating it as projectless',
       'rejects a malformed cwd returned by canonical thread read',
-      'projects a managed Documents Codex task as a projectless sidebar row',
-      'adopts a managed Documents Codex projectless task into a selected project',
+      'groups a managed Documents Codex task from its canonical recorded cwd',
+      'does not let a project id replace a missing canonical recorded cwd',
+      'does not adopt a managed Documents Codex task with a canonical recorded cwd',
     ],
     'Active shell canonical cwd and project-affinity convergence focused regressions',
   );

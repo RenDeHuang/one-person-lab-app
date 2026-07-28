@@ -769,9 +769,9 @@ test('active-shell source gate preserves explicit local file inputs independentl
 
 test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
   const canonicalProjectionMarkers = [
-    'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
+    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: thread.workspace',
-    'custom_workspace: hasCanonicalProjectAffinity',
+    'custom_workspace: hasCanonicalRecordedCwd',
   ];
   const focusedTestNames = [
     'rebuilds a stale projectless cache row from the canonical recorded cwd',
@@ -781,8 +781,9 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
     'rejects malformed canonical cwd instead of treating it as projectless',
     'rejects a malformed cwd returned by canonical thread read',
-    'projects a managed Documents Codex task as a projectless sidebar row',
-    'adopts a managed Documents Codex projectless task into a selected project',
+    'groups a managed Documents Codex task from its canonical recorded cwd',
+    'does not let a project id replace a missing canonical recorded cwd',
+    'does not adopt a managed Documents Codex task with a canonical recorded cwd',
   ];
   const conversationListSync = canonicalProjectionMarkers.join('\n');
   const canonicalThreadLifecycle = canonicalProjectionMarkers.join('\n');
