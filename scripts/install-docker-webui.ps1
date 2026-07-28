@@ -187,11 +187,15 @@ function Invoke-DiagnosticDockerCommand {
   )
 
   $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
-  $output = & $DockerCliPath @Arguments 2>&1 | Out-String
-  $exitCode = $LASTEXITCODE
-  $content = "`$ $display`n$output"
-  if ($exitCode -ne 0) {
-    $content += "`n[command exited with status $exitCode]`n"
+  $result = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
+    -Arguments $Arguments `
+    -TimeoutSeconds 120
+  $content = "`$ $display`n$($result.Output)"
+  if ($result.TimedOut) {
+    $content += "`n[command timed out after 120 seconds]`n"
+  } elseif ($result.ExitCode -ne 0) {
+    $content += "`n[command exited with status $($result.ExitCode)]`n"
   }
   Write-DiagnosticText -PathValue $OutputPath -Content $content
 }
@@ -914,8 +918,74 @@ try {
 }
 
 function Test-DockerReady {
-  & $dockerCliPath info --format "{{.ServerVersion}}" 2>$null | Out-Null
-  return $LASTEXITCODE -eq 0
+  $result = Invoke-DockerCommand -Arguments @("info", "--format", "{{.ServerVersion}}") -TimeoutSeconds 15
+  return $result.ExitCode -eq 0
+}
+
+function Convert-ToWindowsProcessArgument {
+  param([Parameter(Mandatory = $true)][string]$Value)
+
+  if ($Value -notmatch '[\s"]') {
+    return $Value
+  }
+  $quoted = New-Object System.Text.StringBuilder
+  [void]$quoted.Append('"')
+  $backslashCount = 0
+  foreach ($character in $Value.ToCharArray()) {
+    if ($character -eq '\') {
+      $backslashCount++
+      continue
+    }
+    if ($character -eq '"') {
+      [void]$quoted.Append([string]::new([char]92, ($backslashCount * 2) + 1))
+      [void]$quoted.Append('"')
+      $backslashCount = 0
+      continue
+    }
+    if ($backslashCount -gt 0) {
+      [void]$quoted.Append([string]::new([char]92, $backslashCount))
+      $backslashCount = 0
+    }
+    [void]$quoted.Append($character)
+  }
+  if ($backslashCount -gt 0) {
+    [void]$quoted.Append([string]::new([char]92, $backslashCount * 2))
+  }
+  [void]$quoted.Append('"')
+  return $quoted.ToString()
+}
+
+function Invoke-DockerCommand {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
+  $process = [System.Diagnostics.Process]::new()
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $dockerCliPath
+  $startInfo.Arguments = $argumentLine
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process.StartInfo = $startInfo
+  if (-not $process.Start()) {
+    return [pscustomobject]@{ ExitCode = 1; Output = "Docker process did not start."; TimedOut = $false }
+  }
+  $stdout = $process.StandardOutput.ReadToEndAsync()
+  $stderr = $process.StandardError.ReadToEndAsync()
+  if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+    try {
+      & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+    } catch {
+    }
+    return [pscustomobject]@{ ExitCode = 124; Output = "Docker command timed out after $TimeoutSeconds seconds."; TimedOut = $true }
+  }
+  $process.WaitForExit()
+  $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+  return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output.Trim(); TimedOut = $false }
 }
 
 function Start-OnePersonLabDocker {
@@ -972,9 +1042,9 @@ try {
 
   Start-OnePersonLabDocker
   Write-Host "[One Person Lab] Starting the WebUI container..."
-  $composeOutput = & $dockerCliPath compose -f $composePath up -d 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose failed: $composeOutput"
+  $composeResult = Invoke-DockerCommand -Arguments @("compose", "-f", $composePath, "up", "-d") -TimeoutSeconds 120
+  if ($composeResult.ExitCode -ne 0) {
+    throw "Docker Compose failed: $($composeResult.Output)"
   }
 
   Write-Host "[One Person Lab] Waiting for WebUI health..."
@@ -1874,7 +1944,7 @@ function Wait-WebUiHealth {
     $failureDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-health-timeout-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
   }
   Collect-WebUiDiagnostics -DockerCliPath $DockerCliPath -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
-  throw "WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostic directory: $failureDir"
+  throw "external_input_required: WebUI did not become reachable at $Url within ${TimeoutSeconds}s. First-time Official Profile initialization needs Docker Engine access to GitHub/GHCR. Configure Docker Desktop -> Settings -> Resources -> Proxies, then rerun the installer. Diagnostic directory: $failureDir"
 }
 
 function Open-WebUiBrowser {
