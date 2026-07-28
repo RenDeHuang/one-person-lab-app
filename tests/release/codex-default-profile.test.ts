@@ -876,6 +876,11 @@ test('recorded cwd compatibility does not create sidebar project affinity', () =
     threadDirectory.directory_group_policy.legacy_missing_marker_policy,
     'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
   );
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  assert.equal(
+    runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy.legacy_missing_marker_policy,
+    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
+  );
   assert.equal(
     contract.interaction_baseline.conversation_scope.session_workspace_model.project_affinity_source,
     'explicit_project_id_projection',
