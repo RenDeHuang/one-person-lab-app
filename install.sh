@@ -933,26 +933,50 @@ release_record_value() {
 download_release_record() {
   local selector="$1"
   local record_path="$2"
-  local endpoint
+  local endpoint api_path curl_error_path curl_status=0
   if ! command -v plutil >/dev/null 2>&1; then
     printf 'plutil is required to verify the exact GitHub Release record.\n' >&2
     return 1
   fi
   if [ "$selector" = "latest" ]; then
-    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/latest"
+    api_path="repos/$OPL_APP_RELEASE_REPO/releases/latest"
   else
     validate_release_tag "$selector" || {
       printf 'Invalid GitHub Release tag: %s\n' "$selector" >&2
       return 1
     }
-    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/tags/$selector"
+    api_path="repos/$OPL_APP_RELEASE_REPO/releases/tags/$selector"
   fi
-  curl -fsSL \
+  endpoint="https://api.github.com/$api_path"
+  curl_error_path="${record_path}.curl.stderr"
+  if curl -fsSL \
     -H 'Accept: application/vnd.github+json' \
     -H 'X-GitHub-Api-Version: 2022-11-28' \
     -H 'User-Agent: one-person-lab-installer' \
     "$endpoint" \
-    -o "$record_path"
+    -o "$record_path" \
+    2>"$curl_error_path"; then
+    rm -f "$curl_error_path"
+    return 0
+  else
+    curl_status=$?
+  fi
+  rm -f "$record_path"
+  if command -v gh >/dev/null 2>&1 \
+    && GH_PROMPT_DISABLED=1 gh api --hostname github.com \
+      -H 'Accept: application/vnd.github+json' \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      "$api_path" >"$record_path"; then
+    rm -f "$curl_error_path"
+    printf 'Anonymous GitHub Release API request failed; used authenticated gh fallback.\n' >&2
+    return 0
+  fi
+  rm -f "$record_path"
+  if [ -f "$curl_error_path" ]; then
+    cat "$curl_error_path" >&2
+    rm -f "$curl_error_path"
+  fi
+  return "$curl_status"
 }
 
 resolve_release_record() {
