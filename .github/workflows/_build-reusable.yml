@@ -227,6 +227,69 @@ jobs:
         working-directory: .
         run: node --experimental-strip-types scripts/run-active-shell-tests.ts --project ${{ matrix.project }} --chunk-size 8 --max-workers 2
 
+  prepare-windows-linux-runtime:
+    name: Prepare Windows Linux runtime
+    runs-on: ubuntu-latest
+    if: ${{ inputs.mode != 'canary' && contains(inputs.matrix, 'windows') }}
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout active shell
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref || 'main' }}
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Bind Windows RC Framework manifest for prepared runtime
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+            --manifest shells/aionui/resources/opl-linux/product.json \
+            --framework-ref "${{ inputs.framework_ref }}"
+
+      - name: Prepare target-executed Linux runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const path = require('node:path');
+          const {
+            prepareAioncore,
+          } = require('./shells/aionui/packages/shared-scripts/src/prepare-aioncore.js');
+          const {
+            resolveAioncoreVersion,
+          } = require('./shells/aionui/scripts/resolveAioncoreVersion.js');
+
+          const projectRoot = path.resolve('shells/aionui');
+          prepareAioncore({
+            projectRoot,
+            platform: 'linux',
+            arch: 'x64',
+            version: resolveAioncoreVersion(projectRoot),
+            materializeInternalSymlinksForWindows: true,
+          });
+          NODE
+
+      - name: Upload target-executed Linux runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-windows-linux-runtime-${{ github.run_id }}
+          path: shells/aionui/resources/bundled-aioncore/linux-x64
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
   macos-signing-preflight:
     name: macOS release signing preflight
     runs-on: macos-14
@@ -286,8 +349,9 @@ jobs:
       - typecheck
       - release-boundary
       - active-shell-tests
+      - prepare-windows-linux-runtime
       - macos-signing-preflight
-    if: ${{ always() && inputs.mode != 'canary' && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
+    if: ${{ always() && inputs.mode != 'canary' && (needs['prepare-windows-linux-runtime'].result == 'success' || needs['prepare-windows-linux-runtime'].result == 'skipped') && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
     defaults:
       run:
         working-directory: shells/aionui
@@ -364,6 +428,13 @@ jobs:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
+
+      - name: Download target-executed Linux runtime
+        if: startsWith(matrix.platform, 'windows')
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-windows-linux-runtime-${{ github.run_id }}
+          path: ${{ runner.temp }}/opl-windows-linux-runtime
 
       - name: Get commit hash
         id: commit
@@ -480,6 +551,15 @@ jobs:
           OPL_STANDARD_PAYLOAD_RELEASE_BOUND: ${{ inputs.operation != '' && 'true' || 'false' }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
+      - name: Bind Windows RC Framework manifest
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+            --manifest shells/aionui/resources/opl-linux/product.json \
+            --framework-ref "${{ inputs.framework_ref }}"
+
       - name: Validate synced App product profile consumer
         working-directory: shells/aionui
         run: bunx vitest run tests/unit/common-config/oplProductProfile.test.ts
@@ -587,7 +667,20 @@ jobs:
           $sqliteNode = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
 
           Write-Host "Rebuilding native modules for Electron $electronVer ($arch)"
-          bun x --yes prebuild-install --runtime=electron --target=$electronVer --platform=win32 --arch=$arch --force
+          $bunPath = (Get-Command bun -CommandType Application).Source
+          $prebuild = Start-Process -FilePath $bunPath -ArgumentList @(
+            'x',
+            '--yes',
+            'prebuild-install',
+            '--runtime=electron',
+            "--target=$electronVer",
+            '--platform=win32',
+            "--arch=$arch",
+            '--force'
+          ) -NoNewWindow -Wait -PassThru
+          if ($prebuild.ExitCode -ne 0) {
+            Write-Warning "No matching better-sqlite3 prebuild was available; falling back to electron-rebuild."
+          }
           if (-not (Test-Path $sqliteNode)) {
             bunx electron-rebuild -f -w better-sqlite3
           }
@@ -611,6 +704,7 @@ jobs:
           iex $env:WINDOWS_BUILD_COMMAND
         env:
           WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
+          AIONUI_PREPARED_AIONCORE_RUNTIME_DIR: ${{ runner.temp }}/opl-windows-linux-runtime
           NODE_OPTIONS: '--max-old-space-size=8192'
           npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
           npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
@@ -637,6 +731,15 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Bind packaged Windows RC Framework manifest
+        if: startsWith(matrix.platform, 'windows')
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+            --manifest shells/aionui/out/win-unpacked/resources/opl-linux/product.json \
+            --framework-ref "${{ inputs.framework_ref }}"
 
       # Clean up any stale disk images before DMG creation (macOS only)
       # 清理可能残留的磁盘镜像，避免 hdiutil "Device not configured" 错误
@@ -1126,6 +1229,42 @@ jobs:
             --stable-session-id "${{ inputs.release_bundle_digest }}" \
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
+      - name: Write Windows RC build artifact cohort manifest
+        if: success() && startsWith(matrix.platform, 'windows')
+        shell: bash
+        env:
+          OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          installer_paths=()
+          while IFS= read -r candidate; do installer_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name '*.exe' -print | LC_ALL=C sort
+          )
+          if [ "${#installer_paths[@]}" -ne 1 ]; then
+            echo "::error::Windows RC cohort requires exactly one top-level EXE; found ${#installer_paths[@]}."
+            exit 1
+          fi
+          installer_path="${installer_paths[0]}"
+          packaged_tree="out/win-unpacked"
+          test -f "$installer_path" && test ! -L "$installer_path"
+          test -d "$packaged_tree" && test ! -L "$packaged_tree"
+          artifact_name="${{ inputs.append_commit_hash && format('{0}-{1}', matrix.artifact-name, steps.commit.outputs.short) || matrix.artifact-name }}"
+          node --experimental-strip-types ../../scripts/write-windows-rc-build-cohort.ts \
+            --output out/opl-windows-rc-build-cohort.json \
+            --installer "$installer_path" \
+            --packaged-tree "$packaged_tree" \
+            --app-sha "$(git -C ../.. rev-parse HEAD)" \
+            --app-tree "$(git -C ../.. rev-parse 'HEAD^{tree}')" \
+            --shell-sha "$(git rev-parse HEAD)" \
+            --shell-tree "$(git rev-parse 'HEAD^{tree}')" \
+            --framework-sha "${{ inputs.framework_ref }}" \
+            --version "$OPL_BUILD_VERSION" \
+            --platform win32 \
+            --arch "${{ matrix.arch }}" \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --actions-artifact-name "$artifact_name"
+
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success() && startsWith(matrix.platform, 'macos')
@@ -1148,6 +1287,7 @@ jobs:
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
+            shells/aionui/out/opl-windows-rc-build-cohort.json
             shells/aionui/out/standard-local-authorization-policy.json
             shells/aionui/out/standard-gatekeeper-launch-policy.json
             shells/aionui/out/standard-apple-notarization-receipt.json

@@ -36,6 +36,16 @@ on:
         required: false
         type: string
         default: ''
+      shell_ref:
+        description: 'Exact opl-aion-shell ref. Use a 40-character SHA for an RC cohort.'
+        required: false
+        type: string
+        default: 'main'
+      framework_ref:
+        description: 'Exact OPL Framework 40-character SHA bound into Windows RC evidence.'
+        required: false
+        type: string
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -108,4 +118,6 @@ jobs:
       append_commit_hash: true
       upload_installers_only: true
       opl_release_version: ${{ inputs.opl_release_version }}
+      shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
     secrets: inherit

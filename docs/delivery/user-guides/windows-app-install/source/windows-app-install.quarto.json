@@ -1,0 +1,63 @@
+{
+  "schema": "opl_quarto_user_guide_manifest.v1",
+  "id": "windows-app-install",
+  "title": "One Person Lab Windows RC 安装与配置教程",
+  "short_title": "Windows x64 RC Preview",
+  "owner": "one-person-lab-app",
+  "purpose": "windows_app_install_quarto_manifest",
+  "state": "active_preview",
+  "machine_boundary": "Machine-readable Windows RC guide manifest. Human-readable prose is maintained in docs/guides/windows-app-install/guide.qmd. The public GitHub prerelease, exact asset digests, Windows RC build cohort, physical-host acceptance receipt, App/Shell/Framework source refs, and release contracts remain machine truth.",
+  "audience": "希望在自己的 Windows 11 x64 电脑上试用 One Person Lab Desktop RC Preview 的用户。",
+  "intro": "本文说明如何校验和安装 Windows x64 RC、完成 Gateway 登录和模型访问检查、按需启用 Docker WebUI，并安全更新或卸载。",
+  "source_qmd": "docs/guides/windows-app-install/guide.qmd",
+  "output": {
+    "public_dir": "docs/site/latest/windows-app-install",
+    "html": "docs/site/latest/windows-app-install/windows-app-install.html",
+    "pdf": "docs/site/latest/windows-app-install/windows-app-install-detailed-guide.pdf",
+    "generated_markdown": "docs/delivery/user-guides/windows-app-install/generated/windows-app-install.md",
+    "verification": "docs/delivery/user-guides/windows-app-install/verification/windows-app-install-verification.json"
+  },
+  "download": {
+    "pdf_href": "windows-app-install-detailed-guide.pdf",
+    "preview_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/windows-rc-26.7.26-rc.1",
+    "installer_asset": "One-Person-Lab-26.7.26-rc.1-win-x64.exe",
+    "checksum_asset": "SHA256SUMS.txt",
+    "docker_guide_url": "https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html",
+    "issues_url": "https://github.com/gaofeng21cn/one-person-lab-app/issues/new"
+  },
+  "assets": [],
+  "required_terms": [
+    "One Person Lab Windows RC 安装与配置教程",
+    "Windows 11 x64",
+    "RC Preview",
+    "SHA256SUMS.txt",
+    "Get-FileHash",
+    "Windows SmartScreen",
+    "One Person Lab",
+    "Gateway 账户",
+    "登录并继续",
+    "设为模型访问方式",
+    "模型访问",
+    "WSL 2",
+    "OPL-Linux",
+    "自动安装和修复",
+    "Docker Desktop",
+    "http://localhost:3000/",
+    "检查更新",
+    "卸载",
+    "用户数据",
+    "不是 Stable"
+  ],
+  "forbidden_phrases": [
+    "这是 Windows Stable 版",
+    "关闭 Windows Defender",
+    "在命令行输入 Gateway 密码",
+    "把 API Key 粘贴到 PowerShell"
+  ],
+  "publishing": {
+    "template": "opl-guide",
+    "preferred_pdf_engine": "typst",
+    "pdf_engine": "xelatex",
+    "pdf_engine_reason": "The current shared Chinese guide template uses the verified xelatex path for deterministic HTML/PDF publication."
+  }
+}
