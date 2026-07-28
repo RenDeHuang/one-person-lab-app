@@ -35,16 +35,31 @@ test('Native follower performs only post-Stable exact public readback', () => {
   assert.deepEqual(parsed.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
   assert.deepEqual(parsed.on.workflow_run.types, ['completed']);
   assert.deepEqual(parsed.permissions, { contents: 'read', actions: 'read' });
-  assert.deepEqual(Object.keys(parsed.jobs), ['resolve-handoff', 'native-webui-carrier']);
-  assert.equal(parsed.jobs['native-webui-carrier'].uses, './.github/workflows/_release-native-webui-carrier.yml');
-  assert.deepEqual(parsed.jobs['native-webui-carrier'].permissions, { contents: 'read', actions: 'read' });
-  assert.equal(parsed.jobs['native-webui-carrier'].with.mode, 'readback');
+  assert.deepEqual(Object.keys(parsed.jobs), [
+    'resolve-handoff',
+    'native-webui-linux-readback',
+    'native-webui-macos-readback',
+  ]);
+  const linux = parsed.jobs['native-webui-linux-readback'];
+  const macos = parsed.jobs['native-webui-macos-readback'];
+  for (const readback of [linux, macos]) {
+    assert.equal(readback.uses, './.github/workflows/_release-native-webui-carrier.yml');
+    assert.deepEqual(readback.permissions, { contents: 'read', actions: 'read' });
+    assert.equal(readback.with.mode, 'readback');
+  }
+  assert.equal(linux.with.target_platform, 'linux');
+  assert.equal(linux.with.target_architecture, 'x86_64');
+  assert.equal(macos.with.target_platform, 'darwin');
+  assert.equal(macos.with.target_architecture, 'arm64');
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.run_attempt == 1/);
   assert.match(source, /opl-release-activation-\$\{STABLE_AUTHORITY_RUN_ID\}/);
   assert.match(source, /webui-follower-handoff\.json/);
   assert.match(source, /opl_standard_latest_admission_receipt\.v1/);
   assert.match(source, /framework_terminal_status == "complete"/);
+  assert.match(source, /linux_publication_artifact/);
+  assert.match(source, /macos_publication_artifact/);
+  assert.doesNotMatch(source, /duplicate Native publication artifacts/);
   assert.doesNotMatch(source, /workflow_dispatch:/);
   assert.doesNotMatch(source, /release-webui-stable\.yml|_release-webui-carrier\.yml|packages: write/);
 });
@@ -58,12 +73,15 @@ test('Native reusable separates non-blocking preparation from post-publish readb
   assert.equal(parsed.jobs['build-and-qualify']['continue-on-error'], true);
   assert.equal(parsed.on.workflow_call.outputs.prepare_status.value, '${{ jobs.build-and-qualify.outputs.prepare_status }}');
   assert.equal(parsed.jobs['build-and-qualify'].outputs.prepare_status, '${{ steps.qualified.outputs.prepare_status }}');
+  assert.equal(parsed.jobs['build-and-qualify']['runs-on'], "${{ inputs.target_platform == 'darwin' && 'macos-14' || 'ubuntu-latest' }}");
   assert.deepEqual(parsed.jobs['readback-native-assets'].permissions, { contents: 'read', actions: 'read' });
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'test "$(id -u)" -ne 0',
     'repository: gaofeng21cn/opl-aion-shell',
     'repository: gaofeng21cn/one-person-lab',
+    'PACK_PLATFORM: ${{ inputs.target_platform }}',
+    "PACK_ARCH: ${{ inputs.target_architecture == 'x86_64' && 'x64' || 'arm64' }}",
     'desired_root_package_ids',
     'OPL_SOURCE_ARCHIVE_URL',
     'tests/unit/web-cli/nativeDistribution.test.ts',
@@ -178,12 +196,21 @@ exit 99
 test('Stable Standard publish consumes Native before the one Release publish', () => {
   const { parsed } = workflow('_release-bundle.yml');
   const prepare = parsed.jobs['prepare-native-webui'];
+  const prepareMacos = parsed.jobs['prepare-native-webui-macos'];
   const publish = parsed.jobs['publish-standard'];
   assert.equal(prepare.with.stable_authority_run_id, '${{ github.run_id }}');
-  assert.deepEqual(publish.needs, ['freeze', 'checkpoint-standard', 'prepare-native-webui']);
+  assert.equal(prepare.with.target_platform, 'linux');
+  assert.equal(prepare.with.target_architecture, 'x86_64');
+  assert.equal(prepareMacos.with.target_platform, 'darwin');
+  assert.equal(prepareMacos.with.target_architecture, 'arm64');
+  assert.deepEqual(publish.needs, ['freeze', 'checkpoint-standard', 'prepare-native-webui', 'prepare-native-webui-macos']);
   assert.equal(
     publish.with.qualified_native_artifact_name,
     "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
+  );
+  assert.equal(
+    publish.with.qualified_native_macos_artifact_name,
+    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}",
   );
   assert.equal(
     publish.with.qualified_native_source_run_id,
@@ -195,14 +222,14 @@ test('Stable Standard publish consumes Native before the one Release publish', (
   const standard = workflow('_release-standard-publish.yml');
   assert.equal(standard.parsed.on.workflow_call.inputs.qualified_native_artifact_name.default, '');
   assert.match(standard.source, /Bind qualified Native and consumed operation control into one immutable carrier/);
-  assert.match(standard.source, /find immutable-carrier-input -type f -name publication-manifest\.json/);
+  assert.match(standard.source, /find immutable-carrier-input -type f -path '.*native-qualified\/\*\/publication-manifest\.json'/);
   assert.match(standard.source, /test ! -e native-release/);
-  assert.match(standard.source, /cp -a "\$native_source_dir"\/\. native-release\//);
-  assert.match(standard.source, /--manifest native-release\/publication-manifest\.json/);
+  assert.match(standard.source, /cp -a "\$native_source_dir"\/\. "native-release\/\$target\/"/);
+  assert.match(standard.source, /--manifest "native-release\/\$target\/publication-manifest\.json"/);
   assert.doesNotMatch(standard.source, /cd immutable-carrier-input/);
   assert.doesNotMatch(standard.source, /Download exact qualified Native artifact for the unified draft carrier/);
   assert.match(standard.source, /release-native-webui-carrier\.ts upload-actions/);
-  assert.match(standard.source, /Desktop and Native Release assets contain duplicate names/);
+  assert.match(standard.source, /same-name assets differ/);
 });
 
 test('asset plan is idempotent and rejects same-name different bytes', () => {
@@ -271,6 +298,8 @@ function fixtureManifest(t: test.TestContext) {
     version,
     releaseBundleDigest: `sha256:${'d'.repeat(64)}`,
     stableAuthorityRunId: '123',
+    platform: 'linux',
+    architecture: 'x86_64',
     appSha: 'a'.repeat(40),
     shellSha: 'b'.repeat(40),
     frameworkSha: 'c'.repeat(40),
@@ -295,6 +324,8 @@ test('Native seal CLI accepts the workflow qualification receipt path without es
     '--version', current.manifest.version,
     '--release-bundle-digest', current.manifest.release_bundle_digest,
     '--stable-authority-run-id', current.manifest.stable_authority_run_id,
+    '--platform', current.manifest.platform,
+    '--architecture', current.manifest.architecture,
     '--app-sha', current.manifest.cohort.app_sha,
     '--shell-sha', current.manifest.cohort.shell_sha,
     '--framework-sha', current.manifest.cohort.framework_sha,

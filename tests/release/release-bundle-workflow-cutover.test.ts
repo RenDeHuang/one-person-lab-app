@@ -549,7 +549,7 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.equal(bundle.jobs['standard-qualification'], undefined);
   assert.deepEqual(
     bundle.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui'],
+    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui', 'prepare-native-webui-macos'],
   );
   assert.equal(
     bundle.jobs['publish-standard'].with.standard_identity_sha256,
@@ -834,6 +834,7 @@ test('the live control plane is split into Standard build, Standard publish, and
     'seal-standard-identity',
     'checkpoint-standard',
     'prepare-native-webui',
+    'prepare-native-webui-macos',
     'publish-standard',
   ]);
   assert.ok(standard.jobs.restore);
@@ -2164,6 +2165,7 @@ test('the App adapter freezes the App Standard compatibility union without Packa
       'One-Person-Lab-26.7.20-mac-arm64.zip.blockmap',
       'latest-arm64-mac.yml',
       'opl-app-component-manifest.json',
+      'opl-install.sh',
       'opl-app-installer.sh',
       'standard-gatekeeper-launch-policy.json',
       'standard-apple-notarization-receipt.json',
@@ -2213,26 +2215,33 @@ test('Stable Standard publication includes qualified Native bytes before one Rel
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui'],
+    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui', 'prepare-native-webui-macos'],
   );
   assert.deepEqual(workflow.jobs['publish-standard'].needs, [
     'freeze',
     'checkpoint-standard',
     'prepare-native-webui',
+    'prepare-native-webui-macos',
   ]);
   assert.deepEqual(workflow.jobs['prepare-native-webui'].needs, ['freeze']);
+  assert.deepEqual(workflow.jobs['prepare-native-webui-macos'].needs, ['freeze']);
   assert.equal(workflow.jobs['publish-native-webui'], undefined);
+  assert.equal(workflow.jobs['publish-native-webui-macos'], undefined);
   assert.equal(
     workflow.jobs['publish-standard'].with.qualified_native_artifact_name,
     "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
   );
+  assert.equal(
+    workflow.jobs['publish-standard'].with.qualified_native_macos_artifact_name,
+    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}",
+  );
   assert.match(standardSource, /Bind qualified Native and consumed operation control into one immutable carrier/);
-  assert.match(standardSource, /cp -a "\$native_source_dir"\/\. native-release\//);
-  assert.match(standardSource, /--manifest native-release\/publication-manifest\.json/);
+  assert.match(standardSource, /cp -a "\$native_source_dir"\/\. "native-release\/\$target\/"/);
+  assert.match(standardSource, /--manifest "native-release\/\$target\/publication-manifest\.json"/);
   assert.doesNotMatch(standardSource, /cd immutable-carrier-input/);
   assert.doesNotMatch(standardSource, /Download exact qualified Native artifact for the unified draft carrier/);
   assert.match(standardSource, /release-native-webui-carrier\.ts upload-actions/);
-  assert.match(standardSource, /Desktop and Native Release assets contain duplicate names/);
+  assert.match(standardSource, /same-name assets differ/);
   const resumeCheckpointUpload = parseWorkflow('_release-standard-publish.yml').jobs.restore.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload reconciled operation checkpoint',
   ) as Record<string, any>;
@@ -2271,15 +2280,16 @@ test('Stable Standard publication includes qualified Native bytes before one Rel
   assert.equal(nativeCheckpoint.if, "${{ (inputs.publication_channel || inputs.channel) == 'stable' }}");
   assert.match(nativeCheckpoint.run, /test -d native-release && test ! -L native-release/);
   assert.match(nativeCheckpoint.run, /find native-release -type l -print/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#manifests\[@\]\}" -eq 1/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#statuses\[@\]\}" -eq 1/);
+  assert.match(nativeCheckpoint.run, /for target in linux-x86_64 darwin-arm64; do/);
+  assert.match(nativeCheckpoint.run, /manifest="native-release\/\$target\/publication-manifest\.json"/);
+  assert.match(nativeCheckpoint.run, /status="native-release\/\$target\/prepare-status\.json"/);
   assert.match(nativeCheckpoint.run, /test ! -e native-qualified/);
   assert.match(nativeCheckpoint.run, /cp -a native-release\/\. native-qualified\//);
   assert.match(nativeCheckpoint.run, /diff -r native-release native-qualified/);
   assert.match(nativeCheckpoint.run, /find native-qualified -type l -print/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_manifests\[@\]\}" -eq 1/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_statuses\[@\]\}" -eq 1/);
-  assert.match(nativeCheckpoint.run, /native-upload-actions-checkpoint\.json/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_manifests\[@\]\}" -eq 2/);
+  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_statuses\[@\]\}" -eq 2/);
+  assert.match(nativeCheckpoint.run, /native-upload-actions-checkpoint-\$target\.json/);
   assert.match(bundleSource, /find native-qualified -type f -name publication-manifest\.json/);
   assert.doesNotMatch(bundleSource, /cd native-qualified/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
