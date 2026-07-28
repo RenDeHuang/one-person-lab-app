@@ -137,6 +137,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   const workflow = parseYaml(source) as Record<string, any>;
   assert.ok(workflow.on.pull_request_target);
   assert.ok(workflow.on.pull_request_review);
+  assert.deepEqual(workflow.on.issue_comment.types, ['created', 'edited', 'deleted']);
   assert.ok(workflow.on.workflow_dispatch.inputs.pull_number.required);
   assert.equal(workflow.permissions.checks, undefined);
   assert.equal(workflow.permissions.issues, 'read');
@@ -144,7 +145,11 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.equal(workflow.jobs.gate.name, 'Codex review advisory');
   assert.equal(workflow.jobs.gate.steps[0].with.ref, '${{ github.event.repository.default_branch }}');
   assert.match(source, /CODEX_REVIEW_WAIT_SECONDS/);
-  assert.match(source, /github\.event_name == 'workflow_dispatch' && '0' \|\| '900'/);
+  assert.match(source, /github\.event\.issue\.pull_request/);
+  assert.match(source, /github\.event\.issue\.number/);
+  assert.match(source, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
+  assert.match(source, /startsWith\(github\.event\.comment\.body, 'Codex Review: Didn''t find any major issues\. :tada:'\)/);
+  assert.match(source, /github\.event_name == 'issue_comment'\) && '0' \|\| '900'/);
   assert.match(source, /scripts\/codex-review-gate\.ts/);
   const gateSource = fs.readFileSync(path.join(process.cwd(), 'scripts', 'codex-review-gate.ts'), 'utf8');
   assert.doesNotMatch(gateSource, /issues\/comments\/.*\/reactions/);
