@@ -915,6 +915,9 @@ test('active-shell source gate keeps canonical thread directory queries state-db
     "...(workspace ? { cwd: workspace } : { sourceKinds: ['cli'] }),",
     '...{ archived: false },',
     '...{ useStateDbOnly: false },',
+    "...{ ['source' + 'Kinds']: ['cli'] },",
+    "...{ ['arch' + 'ived']: false },",
+    "...{ ['useStateDb' + 'Only']: false },",
   ]) {
     assert.throws(() =>
       assertCanonicalThreadDirectoryTimeoutBoundarySources({

@@ -160,6 +160,11 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
         continue;
       }
       const name = propertyName(property);
+      if (name === null) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option names must be statically inspectable',
+        );
+      }
       if (name === 'sourceKinds') {
         throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
       }
