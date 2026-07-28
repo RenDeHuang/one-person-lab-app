@@ -79,6 +79,10 @@ export function finalizeCodexReviewGateResult(
   };
 }
 
+export function isCodexReviewAdvisoryFailure(result: CodexReviewGateResult): boolean {
+  return result.status === 'failed' || result.status === 'inconclusive';
+}
+
 type GitHubRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
 
 function requiredEnvironment(name: string): string {
@@ -208,7 +212,7 @@ async function main(): Promise<void> {
 
     const terminal = finalizeCodexReviewGateResult(result, waitSeconds);
     console.log(terminal.summary);
-    if (terminal.status === 'failed') throw new Error(terminal.summary);
+    if (isCodexReviewAdvisoryFailure(terminal)) throw new Error(terminal.summary);
     return;
   }
 }

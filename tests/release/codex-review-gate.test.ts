@@ -4,7 +4,11 @@ import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
-import { evaluateCodexReviewGate, finalizeCodexReviewGateResult } from '../../scripts/codex-review-gate.ts';
+import {
+  evaluateCodexReviewGate,
+  finalizeCodexReviewGateResult,
+  isCodexReviewAdvisoryFailure,
+} from '../../scripts/codex-review-gate.ts';
 
 const headSha = 'a'.repeat(40);
 const bot = 'chatgpt-codex-connector[bot]';
@@ -50,6 +54,7 @@ test('Codex review gate treats missing immutable review evidence as advisory-inc
   const terminal = finalizeCodexReviewGateResult(waiting, 900);
   assert.equal(terminal.status, 'inconclusive');
   assert.match(terminal.summary, /reaction-only evidence is intentionally inconclusive/);
+  assert.equal(isCodexReviewAdvisoryFailure(terminal), true);
 });
 
 test('Codex review advisory is read-only and never becomes a required-check writer', () => {
