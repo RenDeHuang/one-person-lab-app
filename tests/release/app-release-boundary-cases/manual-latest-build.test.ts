@@ -16,6 +16,7 @@ import {
 import {
   assertManualAppVersionIdentity,
   installLocalApp,
+  manualAppLaunchArgs,
   ManualAppInstallationError,
   readAppVersionIdentity,
 } from '../../../scripts/manual-latest-build/install-app.ts';
@@ -587,6 +588,19 @@ test('manual App identity preserves machine SemVer and binds local provenance pl
       expected,
     ),
     /source_lock=<missing>/,
+  );
+});
+
+test('manual App launch forwards an explicit valid CDP port without changing the default', () => {
+  const appPath = '/Applications/One Person Lab.app';
+  assert.deepEqual(manualAppLaunchArgs(appPath, {}), [appPath]);
+  assert.deepEqual(
+    manualAppLaunchArgs(appPath, { AIONUI_CDP_PORT: '9230' }),
+    ['--env', 'AIONUI_CDP_PORT=9230', appPath],
+  );
+  assert.throws(
+    () => manualAppLaunchArgs(appPath, { AIONUI_CDP_PORT: '65536' }),
+    /Invalid AIONUI_CDP_PORT/,
   );
 });
 

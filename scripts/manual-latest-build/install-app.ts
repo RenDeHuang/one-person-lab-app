@@ -131,6 +131,21 @@ function waitForInstalledApp(appPath: string) {
   throw new Error(`Installed App did not start within 30 seconds: ${appPath}`);
 }
 
+export function manualAppLaunchArgs(
+  appPath: string,
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const cdpPort = environment.AIONUI_CDP_PORT?.trim();
+  if (!cdpPort) return [appPath];
+  if (
+    !/^[1-9]\d{0,4}$/.test(cdpPort)
+    || Number(cdpPort) > 65_535
+  ) {
+    throw new Error(`Invalid AIONUI_CDP_PORT for installed App launch: ${cdpPort}`);
+  }
+  return ['--env', `AIONUI_CDP_PORT=${cdpPort}`, appPath];
+}
+
 function stopInstalledApp(appPath: string, bundleId: string) {
   const initial = appProcessIds(appPath);
   if (initial.length === 0) return { was_running: false, stopped_pids: [] as number[] };
@@ -282,6 +297,7 @@ export function installLocalApp(input: {
   if (!installPath.endsWith('.app') || installPath === '/' || installPath === path.parse(installPath).root) {
     throw new Error(`Unsafe App install path: ${installPath}`);
   }
+  const launchArgs = input.launch ? manualAppLaunchArgs(installPath) : null;
   const built = verifyApp(input.builtApp);
   assertManualAppVersionIdentity(built, input.expectedVersionIdentity);
 
@@ -329,7 +345,7 @@ export function installLocalApp(input: {
     assertManualAppVersionIdentity(installed, input.expectedVersionIdentity);
     if (input.launch) {
       phase = 'launch_installed';
-      commandResult('open', [installPath], { timeoutMs: 30_000 });
+      commandResult('open', launchArgs!, { timeoutMs: 30_000 });
       launchProcessIds = waitForInstalledApp(installPath);
       phase = 'verify_launched';
       installed = verifyApp(installPath);
