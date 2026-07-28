@@ -169,6 +169,15 @@ jobs:
           artifact_name="$(jq -er .primary_artifact.name public-component-manifest.json)"
           artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
           artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
+          jq -e \
+            --arg app_sha "$app_sha" \
+            --arg shell_sha "$shell_sha" \
+            --arg framework_sha "$framework_sha" '
+            (.source_cohort | type == "object")
+            and .source_cohort.app_sha == $app_sha
+            and .source_cohort.shell_sha == $shell_sha
+            and .source_cohort.framework_sha == $framework_sha
+          ' public-component-manifest.json >/dev/null
           test "$artifact_name" = "One-Person-Lab-${version}-mac-arm64.dmg"
           [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$artifact_size" =~ ^[1-9][0-9]*$ ]]
@@ -365,7 +374,6 @@ jobs:
             require_unique_evidence imported-standard-vm-evidence published-artifact-identity.json artifact_identity
             require_unique_evidence imported-standard-vm-evidence post-publication-job-start.json job_start
             require_unique_evidence imported-standard-vm-evidence post-publication-capability-admission.json capability_admission
-            require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
             jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
               --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
               type == "object"
@@ -383,20 +391,21 @@ jobs:
             ' "$artifact_identity" >/dev/null
             jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
             source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
-            jq -e --arg source_vm "$source_vm" '
-              type == "object"
-              and .surface_id == "opl_tart_gui_first_run_smoke"
-              and .source_vm == $source_vm
-              and .smoke_profile == "no-clt-clean-vm"
-              and .runtime_profile == "standard"
-              and .framework_source_archive == null
-            ' "$tart_summary" >/dev/null
             case "$VM_STATUS" in
               passed)
                 test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Standard passed requires a successful reusable job and a started executor."
                   exit 1
                 }
+                require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
+                jq -e --arg source_vm "$source_vm" '
+                  type == "object"
+                  and .surface_id == "opl_tart_gui_first_run_smoke"
+                  and .source_vm == $source_vm
+                  and .smoke_profile == "no-clt-clean-vm"
+                  and .runtime_profile == "standard"
+                  and .framework_source_archive == null
+                ' "$tart_summary" >/dev/null
                 jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
                 jq -e '.status == "passed"' "$tart_summary" >/dev/null
                 require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
@@ -423,6 +432,15 @@ jobs:
                   echo "::error::Standard failed requires a failed reusable job after execution started."
                   exit 1
                 }
+                require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
+                jq -e --arg source_vm "$source_vm" '
+                  type == "object"
+                  and .surface_id == "opl_tart_gui_first_run_smoke"
+                  and .source_vm == $source_vm
+                  and .smoke_profile == "no-clt-clean-vm"
+                  and .runtime_profile == "standard"
+                  and .framework_source_archive == null
+                ' "$tart_summary" >/dev/null
                 jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
                 jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
                 require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
@@ -454,6 +472,15 @@ jobs:
                     ;;
                   vm_admission_failed)
                     test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
+                    jq -e --arg source_vm "$source_vm" '
+                      type == "object"
+                      and .surface_id == "opl_tart_gui_first_run_smoke"
+                      and .source_vm == $source_vm
+                      and .smoke_profile == "no-clt-clean-vm"
+                      and .runtime_profile == "standard"
+                      and .framework_source_archive == null
+                    ' "$tart_summary" >/dev/null
                     jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
                     admission_evidence="$tart_summary"
                     ;;
@@ -497,7 +524,9 @@ jobs:
             --output standard-dmg-clean-machine.json
           mkdir -p standard-receipt-evidence
           cp "$admission_evidence" standard-receipt-evidence/
-          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" standard-receipt-evidence/; done
+          if [ "$standard_status" = passed ] || [ "$standard_status" = failed ]; then
+            for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" standard-receipt-evidence/; done
+          fi
 
           jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
             '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
@@ -689,6 +718,15 @@ jobs:
             --release-prerelease false \
             --expected-source-commit "$head_sha" \
             > public-component-identity.json
+          jq -e \
+            --arg app_sha "$app_sha" \
+            --arg shell_sha "$shell_sha" \
+            --arg framework_sha "$framework_sha" '
+            (.source_cohort | type == "object")
+            and .source_cohort.app_sha == $app_sha
+            and .source_cohort.shell_sha == $shell_sha
+            and .source_cohort.framework_sha == $framework_sha
+          ' public-component-manifest.json >/dev/null
           component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
           {
             echo "eligible=true"
@@ -867,7 +905,6 @@ jobs:
             require_unique_evidence imported-full-vm-evidence published-artifact-identity.json artifact_identity
             require_unique_evidence imported-full-vm-evidence post-publication-job-start.json job_start
             require_unique_evidence imported-full-vm-evidence post-publication-capability-admission.json capability_admission
-            require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
             jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
               --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
               type == "object"
@@ -885,20 +922,21 @@ jobs:
             ' "$artifact_identity" >/dev/null
             jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
             source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
-            jq -e --arg source_vm "$source_vm" '
-              type == "object"
-              and .surface_id == "opl_tart_gui_first_run_smoke"
-              and .source_vm == $source_vm
-              and .smoke_profile == "no-clt-clean-vm"
-              and .runtime_profile == "full"
-              and .framework_source_archive == null
-            ' "$tart_summary" >/dev/null
             case "$VM_STATUS" in
               passed)
                 test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
                   echo "::error::Full passed requires a successful reusable job and a started executor."
                   exit 1
                 }
+                require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
+                jq -e --arg source_vm "$source_vm" '
+                  type == "object"
+                  and .surface_id == "opl_tart_gui_first_run_smoke"
+                  and .source_vm == $source_vm
+                  and .smoke_profile == "no-clt-clean-vm"
+                  and .runtime_profile == "full"
+                  and .framework_source_archive == null
+                ' "$tart_summary" >/dev/null
                 jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
                 jq -e '.status == "passed"' "$tart_summary" >/dev/null
                 require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
@@ -925,6 +963,15 @@ jobs:
                   echo "::error::Full failed requires a failed reusable job after execution started."
                   exit 1
                 }
+                require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
+                jq -e --arg source_vm "$source_vm" '
+                  type == "object"
+                  and .surface_id == "opl_tart_gui_first_run_smoke"
+                  and .source_vm == $source_vm
+                  and .smoke_profile == "no-clt-clean-vm"
+                  and .runtime_profile == "full"
+                  and .framework_source_archive == null
+                ' "$tart_summary" >/dev/null
                 jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
                 jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
                 require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
@@ -956,6 +1003,15 @@ jobs:
                     ;;
                   vm_admission_failed)
                     test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
+                    jq -e --arg source_vm "$source_vm" '
+                      type == "object"
+                      and .surface_id == "opl_tart_gui_first_run_smoke"
+                      and .source_vm == $source_vm
+                      and .smoke_profile == "no-clt-clean-vm"
+                      and .runtime_profile == "full"
+                      and .framework_source_archive == null
+                    ' "$tart_summary" >/dev/null
                     jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
                     admission_evidence="$tart_summary"
                     ;;
@@ -1007,7 +1063,9 @@ jobs:
             --output full-dmg-clean-machine.json
           mkdir -p full-receipt-evidence
           cp "$admission_evidence" full-receipt-evidence/
-          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" full-receipt-evidence/; done
+          if [ "$full_status" = passed ] || [ "$full_status" = failed ]; then
+            for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" full-receipt-evidence/; done
+          fi
 
       - name: Upload non-blocking Full certification receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
