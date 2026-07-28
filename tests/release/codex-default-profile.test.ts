@@ -768,15 +768,13 @@ test('active-shell source gate preserves explicit local file inputs independentl
   }
 });
 
-test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
+test('active-shell source gate keeps canonical cwd transport separate from sidebar affinity', () => {
   const canonicalProjectionMarkers = [
     'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: thread.workspace',
     'custom_workspace: hasCanonicalRecordedCwd',
   ];
   const focusedTestNames = [
-    'rebuilds a stale projectless cache row from the canonical recorded cwd',
-    'replaces stale bound shell affinity with the canonical recorded cwd',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
     'keeps canonical adoption successful when a stub projection cannot be materialized',
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -868,6 +866,35 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
         threadAdapter: invalidThreadAdapter,
       }),
     );
+  }
+});
+
+test('recorded cwd compatibility does not create sidebar project affinity', () => {
+  const contract = readJson('contracts/app-gui-product-contract.json');
+  const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
+  assert.equal(
+    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
+    'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
+  );
+  assert.equal(
+    contract.interaction_baseline.conversation_scope.session_workspace_model.project_affinity_source,
+    'explicit_project_id_projection',
+  );
+
+  const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
+  assert.doesNotMatch(JSON.stringify(pageStateMatrix), /directory groups derived from canonical session cwd/);
+  assert.match(JSON.stringify(pageStateMatrix), /directory groups derive only from explicit projectId affinity/);
+
+  const sourceGate = fs.readFileSync(
+    'scripts/validate-active-shell/shell-ordinary-experience-validator.ts',
+    'utf8',
+  );
+  for (const cwdDerivedAffinityMarker of [
+    'rebuilds a stale projectless cache row from the canonical recorded cwd',
+    'replaces stale bound shell affinity with the canonical recorded cwd',
+    'hydrates a legacy missing affinity marker from the canonical recorded cwd',
+  ]) {
+    assert.doesNotMatch(sourceGate, new RegExp(cwdDerivedAffinityMarker));
   }
 });
 

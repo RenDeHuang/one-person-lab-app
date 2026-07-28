@@ -85,8 +85,6 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
-      'rebuilds a stale projectless cache row from the canonical recorded cwd',
-      'replaces stale bound shell affinity with the canonical recorded cwd',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -1627,7 +1625,6 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     projectAffinityTests,
     [
       'keeps directories distinct even when threads share one Git origin',
-      'hydrates a legacy missing affinity marker from the canonical recorded cwd',
       'adopts an explicitly projectless canonical conversation without a cached workspace',
       'updates the App Server cwd before committing the local affinity projection',
       'keeps the conversation projectless when canonical cwd readback does not match',

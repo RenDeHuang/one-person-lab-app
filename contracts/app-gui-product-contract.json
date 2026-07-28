@@ -486,7 +486,7 @@
           "cascade_session_delete_allowed": false,
           "new_session_action_language": "use_this_working_directory_not_create_project_child",
           "project_directory_cardinality": "one_project_affinity_one_canonical_directory",
-          "legacy_missing_marker_policy": "existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update",
+          "legacy_missing_marker_policy": "existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration",
           "git_origin_url_project_identity_allowed": false,
           "turn_cwd_reclassifies_bound_session": false,
           "project_adoption_policy": {
@@ -5369,7 +5369,7 @@
         "active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
-        "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
+        "directory groups derive only from explicit projectId affinity while recorded session cwd remains runtime metadata and a new-session cwd shortcut",
         "advanced work surfaces closed by default with no third column",
         "runtime/task progress available from Runtime page, not Home activity grid"
       ],
