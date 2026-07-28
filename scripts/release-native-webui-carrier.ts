@@ -140,10 +140,10 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function assertTarget(target: NativeWebuiTarget): void {
-  if (
-    target.platform === 'linux' && target.architecture !== 'x86_64'
-    || target.platform === 'darwin' && target.architecture !== 'arm64'
-  ) {
+  const supported =
+    target.platform === 'linux' && target.architecture === 'x86_64'
+    || target.platform === 'darwin' && target.architecture === 'arm64';
+  if (!supported) {
     fail(`Unsupported Native WebUI target ${target.platform}-${target.architecture}`);
   }
 }

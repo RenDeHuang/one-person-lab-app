@@ -340,6 +340,41 @@ test('Native seal CLI accepts the workflow qualification receipt path without es
   assert.deepEqual(JSON.parse(fs.readFileSync(output, 'utf8')), current.manifest);
 });
 
+test('Native carrier rejects unsupported target metadata before sealing or upload planning', (t) => {
+  const current = fixtureManifest(t);
+  const byRole = Object.fromEntries(current.manifest.assets.map((asset) => [asset.role, asset.path]));
+  assert.throws(
+    () => sealNativeWebuiPublicationManifest({
+      repository: current.manifest.repository,
+      version: current.manifest.version,
+      releaseBundleDigest: current.manifest.release_bundle_digest,
+      stableAuthorityRunId: current.manifest.stable_authority_run_id,
+      platform: 'windows' as never,
+      architecture: 'x86_64',
+      appSha: current.manifest.cohort.app_sha,
+      shellSha: current.manifest.cohort.shell_sha,
+      frameworkSha: current.manifest.cohort.framework_sha,
+      qualificationReceiptPath: current.manifest.qualification_receipt.path,
+      assetPaths: byRole,
+    }),
+    /Unsupported Native WebUI target windows-x86_64/,
+  );
+
+  const manifestPath = path.join(current.root, 'unsupported-publication-manifest.json');
+  const outputPath = path.join(current.root, 'unsupported-upload-actions.json');
+  fs.writeFileSync(manifestPath, `${JSON.stringify({ ...current.manifest, platform: 'windows' })}\n`);
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/release-native-webui-carrier.ts',
+    'upload-actions',
+    '--manifest', manifestPath,
+    '--output', outputPath,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /Unsupported Native WebUI target windows-x86_64/);
+  assert.equal(fs.existsSync(outputPath), false);
+});
+
 function remoteAssets(manifest: ReturnType<typeof fixtureManifest>['manifest']): NativeWebuiRemoteAsset[] {
   return manifest.assets.map((asset, index) => ({
     id: index + 1,
