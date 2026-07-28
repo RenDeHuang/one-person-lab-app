@@ -66,6 +66,34 @@ test('Manual Full Preview keeps its explicit self-hosted exception outside Stabl
   );
 });
 
+test('Tart VM consumers use the exact declared pool and advisory labels cannot be broadened', () => {
+  const postPublication = readWorkflow('release-post-publication-certification.yml').source;
+  assert.equal((postPublication.match(/opl-cert-mac-tart/g) || []).length >= 2, true);
+  assert.doesNotMatch(postPublication, /opl-gui-vm/);
+
+  const firstRun = readWorkflow('opl-first-run-vm.yml').workflow;
+  assert.deepEqual(
+    firstRun.jobs['clean-vm-first-run']['runs-on'],
+    ['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart'],
+  );
+  const updater = readWorkflow('opl-updater-upgrade-vm.yml').workflow;
+  assert.deepEqual(
+    updater.jobs.upgrade['runs-on'],
+    ['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart'],
+  );
+
+  const advisory = readWorkflow('self-hosted-advisory.yml');
+  assert.match(advisory.source, /Requested labels are outside the declared advisory pool/);
+  assert.deepEqual(
+    advisory.workflow.on.workflow_dispatch.inputs.mac_runner_labels_json.default,
+    '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]',
+  );
+  assert.deepEqual(
+    advisory.workflow.on.workflow_dispatch.inputs.windows_runner_labels_json.default,
+    '["self-hosted","Windows","X64","opl-cert-windows-wsl"]',
+  );
+});
+
 test('offline self-hosted inventory is deferred before queueing and cannot become a publication dependency', () => {
   const { workflow } = readWorkflow('release-post-publication-certification.yml');
   const capability = workflow.jobs['admit-standard-vm'].steps.find(
@@ -110,7 +138,7 @@ test('offline self-hosted inventory is deferred before queueing and cannot becom
         GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
         RUNNER_INVENTORY_TOKEN: 'read-only-test-token',
         TART_SOURCE: 'tart-base',
-        RUNNER_LABELS: '["self-hosted","macOS","opl-gui-vm"]',
+        RUNNER_LABELS: '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]',
       },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);

@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       mac_runner_labels_json:
-        description: JSON array of labels for the trusted macOS advisory pool.
+        description: JSON array of labels for the trusted Tart-capable macOS advisory pool.
         required: false
-        default: '["self-hosted","macOS","ARM64","opl-cert-mac-gui"]'
+        default: '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]'
         type: string
       windows_runner_labels_json:
         description: JSON array of labels for the trusted Windows/WSL2 advisory pool.
@@ -69,9 +69,13 @@ jobs:
             : process.env.GITHUB_SHA;
           const inventoryToken = (process.env.RUNNER_INVENTORY_TOKEN || process.env.GH_TOKEN || '').trim();
           const targets = [
-            ['mac', process.env.MAC_LABELS_INPUT || '["self-hosted","macOS","ARM64","opl-cert-mac-gui"]'],
+            ['mac', process.env.MAC_LABELS_INPUT || '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]'],
             ['windows', process.env.WINDOWS_LABELS_INPUT || '["self-hosted","Windows","X64","opl-cert-windows-wsl"]'],
           ];
+          const allowedLabels = {
+            mac: [['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart']],
+            windows: [['self-hosted', 'Windows', 'X64', 'opl-cert-windows-wsl']],
+          };
           const result = {
             schema: 'opl_app_self_hosted_advisory_admission.v1',
             source_run_id: process.env.WORKFLOW_RUN_ID || null,
@@ -161,6 +165,11 @@ jobs:
             }
             if (!labels) {
               unavailable(target, [], 'not_authorized', 'No advisory runner label contract is configured.');
+              continue;
+            }
+            if (!allowedLabels[target].some((expected) =>
+              expected.length === labels.length && expected.every((label) => labels.includes(label)))) {
+              unavailable(target, labels, 'not_authorized', 'Requested labels are outside the declared advisory pool.');
               continue;
             }
             if (!inventoryToken) {
