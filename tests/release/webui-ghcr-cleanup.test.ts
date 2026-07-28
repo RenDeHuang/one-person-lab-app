@@ -170,7 +170,6 @@ test('WebUI GHCR cleanup does not retain unpaired or malformed durable tags', ()
     [506, 507, 508, 509, 510],
   );
 });
-
 test('WebUI GHCR cleanup does not extend stable retention for an old durable publication unit', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-ghcr-old-durable-'));
   const binDir = writeFakeGh(tempRoot);
