@@ -575,12 +575,14 @@ jobs:
           process.stdout.write(`${values.year}.${values.month}.${values.day}`);
           NODE
           )"
+          echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
           node --experimental-strip-types scripts/stable-release-admission-manifest.ts create \
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
             --admission-run-id "$GITHUB_RUN_ID" \
             --source-gate "$source_gate_path" \
             --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \
+            --failure-output "$RUNNER_TEMP/stable-release-admission-failure.json" \
             --output "$RUNNER_TEMP/stable-release-admission-manifest.json"
           node - "$RUNNER_TEMP/stable-release-admission-manifest.json" "$GITHUB_OUTPUT" <<'NODE'
           const fs = require('fs');
@@ -593,7 +595,6 @@ jobs:
             '',
           ].join('\n'));
           NODE
-          echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload same-run protected admission evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -603,6 +604,38 @@ jobs:
             ${{ runner.temp }}/stable-release-admission-manifest.json
             ${{ runner.temp }}/apple-release-credentials-preflight.json
             ${{ steps.manifest.outputs.source_gate_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate typed Stable admission failure evidence
+        if: ${{ failure() && steps.manifest.outcome == 'failure' }}
+        env:
+          APP_REF: ${{ needs.admission.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admission.outputs.shell_ref }}
+          FRAMEWORK_REF: ${{ needs.admission.outputs.framework_ref }}
+        run: |
+          jq -e \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg app_ref "$APP_REF" \
+            --arg shell_ref "$SHELL_REF" \
+            --arg framework_ref "$FRAMEWORK_REF" \
+            '.schema == "opl_stable_release_admission_failure.v1"
+              and .status == "failed"
+              and .admission_run_id == $run_id
+              and .cohort.app_sha == $app_ref
+              and .cohort.shell_sha == $shell_ref
+              and .cohort.framework_sha == $framework_ref
+              and .public_mutation_performed == false
+              and .old_authority_or_run_reusable == false
+              and .retry_disposition == "repair_then_new_distinct_operation"' \
+            "$RUNNER_TEMP/stable-release-admission-failure.json"
+
+      - name: Upload typed Stable admission failure evidence
+        if: ${{ failure() && steps.manifest.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-admission-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/stable-release-admission-failure.json
           if-no-files-found: error
           retention-days: 30
 
