@@ -69,8 +69,8 @@ jobs:
             : process.env.GITHUB_SHA;
           const inventoryToken = (process.env.RUNNER_INVENTORY_TOKEN || process.env.GH_TOKEN || '').trim();
           const targets = [
-            ['mac', process.env.MAC_LABELS_INPUT || ''],
-            ['windows', process.env.WINDOWS_LABELS_INPUT || ''],
+            ['mac', process.env.MAC_LABELS_INPUT || '["self-hosted","macOS","ARM64","opl-cert-mac-gui"]'],
+            ['windows', process.env.WINDOWS_LABELS_INPUT || '["self-hosted","Windows","X64","opl-cert-windows-wsl"]'],
           ];
           const result = {
             schema: 'opl_app_self_hosted_advisory_admission.v1',
