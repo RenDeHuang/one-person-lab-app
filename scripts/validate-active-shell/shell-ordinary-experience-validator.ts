@@ -49,17 +49,18 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     assertTextIncludesAll(
       source,
       [
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+        'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
         'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalRecordedCwd',
+        'custom_workspace: hasCanonicalProjectAffinity',
       ],
       `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectAffinity',
         'cached?.extra.custom_workspace === true',
+        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
       ],
@@ -72,6 +73,9 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'function recordedCwd(value: unknown): string',
       "if (value === undefined || value === null) return ''",
       "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
+      'function isManagedProjectlessWorkspace(workspace: string): boolean',
+      "const managedRoot = path.join(os.homedir(), 'Documents', 'Codex')",
+      "return isManagedProjectlessWorkspace(workspace) ? '' : workspace",
       'workspace: recordedCwd(raw.cwd)',
     ],
     'Active shell canonical cwd parser fail-closed boundary',
@@ -86,6 +90,8 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     [
       'rebuilds a stale projectless cache row from the canonical recorded cwd',
       'replaces stale bound shell affinity with the canonical recorded cwd',
+      'projects a managed Documents Codex task as a projectless sidebar row',
+      'adopts a managed Documents Codex projectless task into a selected project',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',

@@ -407,6 +407,67 @@
         "canonical_overview_unavailable_policy": "fallback_to_shell_cache_without_reclassifying_cache_as_authority",
         "stale_codex_acp_cache_row_policy": "exclude_from_ordinary_projection_when_absent_from_available_canonical_overview",
         "non_codex_local_row_policy": "preserve",
+        "conversation_history_surfaces": {
+          "default_rail": {
+            "membership": "canonical_unarchived_threads_with_owner_authoritative_thread_class_ordinary_user_task",
+            "thread_classification_authority": "codex_desktop_runtime_or_owner_authoritative_thread_class",
+            "classification_values": [
+              "ordinary_user_task",
+              "automation",
+              "subagent",
+              "system",
+              "unclassified"
+            ],
+            "unclassified_codex_policy": "exclude_from_default_rail_until_owner_authoritative_classification_is_available",
+            "forbidden_inference_inputs": [
+              "archived_false",
+              "sourceKinds",
+              "separate_app_server_status",
+              "cache_row_shape"
+            ]
+          },
+          "running_now": {
+            "authority": "same_codex_desktop_runtime_task_status",
+            "unavailable_policy": "render_unavailable_without_zero_count_or_inferred_running_state",
+            "forbidden_inference_inputs": [
+              "archived_false",
+              "separate_app_server_running_zero",
+              "separate_app_server_not_loaded"
+            ]
+          },
+          "archived": {
+            "membership": "canonical_archived_thread_directory",
+            "surface": "independent",
+            "unknown_codex_cache_row_when_canonical_unavailable": "visible_on_neither_default_rail_nor_archived_surface",
+            "known_codex_cache_row_when_canonical_unavailable": "retain_last_canonical_archived_state"
+          },
+          "all_search": {
+            "entry": "explicit_history_search_only",
+            "membership": "canonical_historical_directory_query",
+            "may_replace_default_rail": false,
+            "unclassified_codex_label": "unclassified"
+          },
+          "project_affinity_presentation": {
+            "recorded_cwd_role": "canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity",
+            "project_affinity_role": "explicit_project_id_projection_never_inferred_from_recorded_cwd",
+            "managed_projectless_workspace_root": "user_documents_codex_subtree",
+            "managed_root_grouping_policy": "preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups",
+            "projectless_adoption_eligibility": "custom_workspace_false_or_canonical_project_id_absent_including_managed_root"
+          },
+          "visible_id_set_policy": {
+            "source": "surface_filtered_canonical_visible_id_set",
+            "consumers": [
+              "default_rail",
+              "archived",
+              "pinned",
+              "workspace_groups",
+              "timeline"
+            ],
+            "independent_cache_collection_allowed": false
+          },
+          "acceptance_comparison": "same_instant_same_authority_exact_thread_id_set_and_archived_bit",
+          "fixed_count_assertion_allowed": false
+        },
         "workspace_directory_role": "new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only",
         "row_identity": "canonical_thread_id",
         "duplicate_row_per_canonical_thread_allowed": false,

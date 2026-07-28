@@ -87,8 +87,10 @@ Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文�
 真实发现的 installed Agent Package、Skill、Tool、Plugin、MCP、mode 与连接；App 不维护
 capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
-也不允许已绑定 session 在 Project 之间任意重分组。只有 `custom_workspace=false` 或无 canonical recorded cwd 的
-projectless session 可执行一次 Project adoption：用户选择唯一 canonical Project directory 后，Shell 通过既有
+也不允许已绑定 session 在 Project 之间任意重分组。Recorded cwd 是运行上下文，不等于用户显式 Project affinity；
+`~/Documents/Codex/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为 projectless，不按叶子目录拆成 Project。
+只有 `custom_workspace=false` 或无 canonical project ID 的 projectless session 可执行一次 Project adoption：
+用户选择唯一 canonical Project directory 后，Shell 通过既有
 `thread/settings/update.cwd` 写入该 thread 的 recorded cwd，再以 `thread/read` exact readback 验证。只有 readback
 匹配时才提交本地 `workspace + custom_workspace=true` projection 并移动 rail row；已有 recorded cwd 时禁止改绑。
 App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加私有 adoption RPC 或第二 client。
@@ -210,11 +212,14 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   session directory authority，carrier 只保存 affinity、draft、preference 和可重建 cache。Git origin 与 runtime cwd 不作为
   Project identity。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
-  App Server history reset。Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary rail；
-  只有 overview unavailable 时才 fallback cache，非 Codex local row 继续保留。每个 canonical thread ID
-  最多一行，不能按标题或 workspace 去重。
+  App Server history reset。Default rail 只显示明确分类的 canonical 未归档普通用户任务；Running now 只接受同一
+  Codex Desktop runtime 的 task status，缺失时明确不可用。Archived 是独立 canonical archived directory，All/Search
+  仅为显式历史入口。未知 Codex cache row 在 canonical unavailable 时不进入 Default 或 Archived，已知 row 保留最后
+  一次 canonical archive state；非 Codex local row 继续保留。验收比较同一时点、同一 authority 的 exact thread ID set
+  与 archived bit，不比较固定数量。每个 canonical thread ID 最多一行，不能按标题或 workspace 去重。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
-  初始化 cwd 或以 projectless 状态开始；projectless session 可由用户一次性归入一个 canonical directory group，
+  初始化 cwd 或以 projectless 状态开始；`~/Documents/Codex/**` managed scratch 即使保留真实 recorded cwd 也保持
+  projectless 展示，不按其叶子目录建 Project。projectless session 可由用户一次性归入一个 canonical directory group，
   保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
   `pwd` 不反写 affinity。目录组提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
