@@ -809,10 +809,10 @@
           "rebuild_allowed": false
         },
         "append_full": {
-          "source": "portable_framework_checkpoint_at_or_after_standard_qualified",
+          "source": "portable_framework_checkpoint_at_or_after_standard_built",
           "control": "new_independent_append_full_control",
           "deadline_minutes": 50,
-          "standard_qualified_required": true,
+          "standard_built_required": true,
           "standard_rebuild_allowed": false,
           "standard_operation_id_reuse_allowed": false,
           "standard_deadline_inheritance_allowed": false
@@ -892,10 +892,9 @@
       "failure_receipt_schema": "opl_app_release_notes_prepare_receipt.v1",
       "failure_receipt_uploaded_when_writer_started": true,
       "prebuild_failure_must_not_project_as_qualification_runner_lost": true,
-      "full_intent_evidence_path": "payload.include_full_package",
-      "full_intent_admitted_input": "include_full",
-      "new_standard_full_intent_value": false,
-      "full_intent_must_match_before_framework_freeze": true,
+      "full_intent_source": "stable_post_success_successor_workflow",
+      "full_intent_admitted_input": "successful_standard_workflow_run",
+      "full_intent_must_match_before_append_full_admission": true,
       "full_payload_authority_binding": {
         "schema": "opl_app_release_notes_full_payload_authority.v1",
         "artifact_path": "notes-full-payload-authority.json",
@@ -3049,7 +3048,16 @@
     "published_addon": {
       "operation": "append_full",
       "workflow": ".github/workflows/_release-full-addon.yml",
-      "checkpoint_minimum_stage": "standard_qualified",
+      "checkpoint_minimum_stage": "standard_built",
+      "standard_identity_required": true,
+      "standard_release_readback": "exact_tag_and_required_asset_set_and_digests",
+      "successor_trigger": {
+        "workflow": ".github/workflows/release-stable-post-success-followups.yml",
+        "trigger": "successful_standard_workflow_run",
+        "one_successor_per_standard_run": true,
+        "workflow_dispatch_ref": "exact_stable_tag",
+        "executor_head_sha": "frozen_app_sha"
+      },
       "framework_operation_receipt_schema": "opl_release_bundle_operation_receipt.v1",
       "mode": "same_cohort_additive_only",
       "allowed_assets": [

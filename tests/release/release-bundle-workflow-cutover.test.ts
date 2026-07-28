@@ -913,8 +913,10 @@ test('checkpoint state lineage remains Framework-owned while App exposes transpo
 
 test('completed Full stages skip work already proven by the checkpoint', () => {
   const full = parseWorkflow('_release-full-addon.yml');
+  assert.match(String(full.jobs['full-build'].if), /standard_built/);
   assert.match(String(full.jobs['full-build'].if), /standard_qualified/);
   assert.match(String(full.jobs['materialize-full-build'].if), /full_built/);
+  assert.match(String(full.jobs['full-qualification'].if), /standard_built/);
   assert.match(String(full.jobs['full-qualification'].if), /standard_qualified/);
   assert.match(String(full.jobs['full-qualification'].if), /full_built/);
   assert.match(String(full.jobs['checkpoint-full'].if), /full_qualified/);
@@ -924,7 +926,7 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
     (step: Record<string, unknown>) => step.name === 'Bind Full bytes and export additive checkpoint',
   );
   const run = String(bind?.run ?? '');
-  assert.match(run, /standard_qualified\)/);
+  assert.match(run, /standard_built\|standard_qualified\)/);
   assert.match(run, /full_built\)/);
   assert.match(run, /cp "\$original_full_receipt" full-build-receipt\.json/);
   assert.equal((run.match(/opl release build/g) ?? []).length, 1);

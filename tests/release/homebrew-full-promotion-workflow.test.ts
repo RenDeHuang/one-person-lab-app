@@ -34,6 +34,10 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), ['resolve-handoff', 'publish-homebrew-full']);
+  assert.equal(
+    workflow.jobs['resolve-handoff'].if,
+    "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full ') }}",
+  );
   assert.equal(workflow.jobs['publish-homebrew-full'].uses, './.github/workflows/_release-homebrew-full-publish.yml');
   assert.match(source, /homebrew-full-handoff\.json/);
   assert.match(source, /\.operation_control\.operation_id/);
@@ -41,6 +45,10 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.match(source, /\.source\.completed_stage == "full_qualified"/);
   assert.match(source, /\.source\.checkpoint_transport_executor == "github_actions"/);
   assert.match(source, /\.source\.transport_run_id/);
+  assert.match(source, /\.head_branch \| test\("\^v/);
+  assert.match(source, /\^OPL Stable append_full/);
+  assert.match(source, /test "\$\(jq -er \.release\.tag "\$handoff"\)" = "\$head_branch"/);
+  assert.match(source, /test "\$\(jq -er \.release\.cohort\.app_sha "\$handoff"\)" = "\$head_sha"/);
   assert.doesNotMatch(source, /workflow_dispatch:|OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
 });
 

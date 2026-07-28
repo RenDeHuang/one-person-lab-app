@@ -78,7 +78,7 @@ function buildProjection(options: Options) {
       },
       {
         operation: 'append_full' as const,
-        source: 'portable_framework_checkpoint_at_or_after_standard_qualified',
+        source: 'portable_framework_checkpoint_at_or_after_standard_built',
         requested: options.includeFullIntent,
         completed_standard_stages: 'skip',
         rebuild_performed: false,

@@ -527,10 +527,10 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     resumeStandardOperation?.start_refresh_allowed !== false ||
     resumeStandardOperation?.deadline_refresh_allowed !== false ||
     resumeStandardOperation?.rebuild_allowed !== false ||
-    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_qualified' ||
+    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
     appendFullOperation?.deadline_minutes !== 50 ||
-    appendFullOperation?.standard_qualified_required !== true ||
+    appendFullOperation?.standard_built_required !== true ||
     appendFullOperation?.standard_rebuild_allowed !== false ||
     appendFullOperation?.standard_operation_id_reuse_allowed !== false ||
     appendFullOperation?.standard_deadline_inheritance_allowed !== false ||

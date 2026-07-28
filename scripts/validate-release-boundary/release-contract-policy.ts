@@ -309,7 +309,14 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
     fullAddon?.operation !== 'append_full' ||
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
-    fullAddon?.checkpoint_minimum_stage !== 'standard_qualified' ||
+    fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
+    fullAddon?.standard_identity_required !== true ||
+    fullAddon?.standard_release_readback !== 'exact_tag_and_required_asset_set_and_digests' ||
+    fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
+    fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
+    fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
+    fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'exact_stable_tag' ||
+    fullAddon?.successor_trigger?.executor_head_sha !== 'frozen_app_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
     fullAddon?.mode !== 'same_cohort_additive_only' ||
     !sameStringSet(fullAddon?.allowed_assets, [
@@ -606,10 +613,9 @@ function validatePreparedNotesTransportPolicy(releaseContract: Record<string, an
     preparedNotes?.failure_receipt_schema !== 'opl_app_release_notes_prepare_receipt.v1' ||
     preparedNotes?.failure_receipt_uploaded_when_writer_started !== true ||
     preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true ||
-    preparedNotes?.full_intent_evidence_path !== 'payload.include_full_package' ||
-    preparedNotes?.full_intent_admitted_input !== 'include_full' ||
-    preparedNotes?.new_standard_full_intent_value !== false ||
-    preparedNotes?.full_intent_must_match_before_framework_freeze !== true
+    preparedNotes?.full_intent_source !== 'stable_post_success_successor_workflow' ||
+    preparedNotes?.full_intent_admitted_input !== 'successful_standard_workflow_run' ||
+    preparedNotes?.full_intent_must_match_before_append_full_admission !== true
   ) {
     console.error('FAIL prepared_notes_transport: bounded transport retry, typed failure receipts, and admitted Full intent binding are incomplete');
     return 1;
@@ -1237,10 +1243,10 @@ export function validateReleaseAccelerationPolicy(
     resumeStandardOperation?.start_refresh_allowed !== false ||
     resumeStandardOperation?.deadline_refresh_allowed !== false ||
     resumeStandardOperation?.rebuild_allowed !== false ||
-    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_qualified' ||
+    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
     appendFullOperation?.deadline_minutes !== 50 ||
-    appendFullOperation?.standard_qualified_required !== true ||
+    appendFullOperation?.standard_built_required !== true ||
     appendFullOperation?.standard_rebuild_allowed !== false ||
     appendFullOperation?.standard_operation_id_reuse_allowed !== false ||
     appendFullOperation?.standard_deadline_inheritance_allowed !== false ||
