@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { deflateSync } from "node:zlib";
 import {
   compareGuiVisualCohort,
   comparePixels,
@@ -15,6 +16,54 @@ import {
 } from "../../../scripts/compare-gui-visual-cohort.ts";
 
 const appRoot = path.resolve(import.meta.dirname, "../../..");
+const pngSignature = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Uint8Array): Buffer {
+  const typeBytes = Buffer.from(type, "ascii");
+  const result = Buffer.alloc(data.length + 12);
+  result.writeUInt32BE(data.length, 0);
+  typeBytes.copy(result, 4);
+  Buffer.from(data).copy(result, 8);
+  result.writeUInt32BE(
+    crc32(Buffer.concat([typeBytes, Buffer.from(data)])),
+    data.length + 8,
+  );
+  return result;
+}
+
+function transparentColorKeyPng(
+  colorType: 0 | 2,
+  samples: number[],
+): Buffer {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(1, 0);
+  header.writeUInt32BE(1, 4);
+  header.set([8, colorType, 0, 0, 0], 8);
+  const transparency = Buffer.alloc(colorType === 0 ? 2 : 6);
+  samples.forEach((sample, index) => {
+    transparency.writeUInt16BE(sample, index * 2);
+  });
+  return Buffer.concat([
+    pngSignature,
+    pngChunk("IHDR", header),
+    pngChunk("tRNS", transparency),
+    pngChunk("IDAT", deflateSync(Buffer.from([0, ...samples]))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
 
 function readAuthority() {
   const cohortBytes = fs.readFileSync(
@@ -158,6 +207,17 @@ test("PNG codec preserves RGBA bytes and pixel comparison includes alpha", () =>
   assert.equal(metrics.changedPixels, 1);
   assert.equal(metrics.changedPixelRatio, 0.25);
   assert.equal(metrics.meanAbsoluteChannelDelta, 20 / 16);
+});
+
+test("PNG decoder honors grayscale and truecolor tRNS alpha keys", () => {
+  assert.deepEqual(
+    decodePng(transparentColorKeyPng(0, [37])).data,
+    new Uint8Array([37, 37, 37, 0]),
+  );
+  assert.deepEqual(
+    decodePng(transparentColorKeyPng(2, [12, 34, 56])).data,
+    new Uint8Array([12, 34, 56, 0]),
+  );
 });
 
 test("CLI failures are machine-readable and exit nonzero", (t) => {

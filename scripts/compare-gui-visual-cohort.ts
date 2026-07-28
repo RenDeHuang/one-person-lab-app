@@ -333,6 +333,18 @@ export function decodePng(bytes: Buffer): RgbaImage {
   if (colorType === 3 && (!palette || palette.length % 3 !== 0)) {
     throw new Error("indexed PNG is missing a valid palette");
   }
+  if (
+    transparency &&
+    ((colorType === 0 && transparency.length !== 2) ||
+      (colorType === 2 && transparency.length !== 6) ||
+      (colorType === 3 &&
+        palette !== null &&
+        transparency.length > palette.length / 3) ||
+      colorType === 4 ||
+      colorType === 6)
+  ) {
+    throw new Error(`invalid PNG tRNS chunk for color type ${colorType}`);
+  }
 
   const rowBytes = width * channels;
   const expectedInflatedLength = height * (rowBytes + 1);
@@ -376,10 +388,22 @@ export function decodePng(bytes: Buffer): RgbaImage {
     const target = pixel * 4;
     if (colorType === 0) {
       const gray = raw[source]!;
-      rgba.set([gray, gray, gray, 255], target);
+      const alpha =
+        transparency && transparency.readUInt16BE(0) === gray ? 0 : 255;
+      rgba.set([gray, gray, gray, alpha], target);
     } else if (colorType === 2) {
+      const red = raw[source]!;
+      const green = raw[source + 1]!;
+      const blue = raw[source + 2]!;
+      const alpha =
+        transparency &&
+        transparency.readUInt16BE(0) === red &&
+        transparency.readUInt16BE(2) === green &&
+        transparency.readUInt16BE(4) === blue
+          ? 0
+          : 255;
       rgba.set(
-        [raw[source]!, raw[source + 1]!, raw[source + 2]!, 255],
+        [red, green, blue, alpha],
         target,
       );
     } else if (colorType === 3) {
