@@ -45,7 +45,7 @@ function hasCurrentCodexReview(reviews: GitHubReview[], headSha: string): boolea
 function isCurrentCleanCodexIssueComment(comment: GitHubIssueComment, headSha: string): boolean {
   if (!isCodexBot(comment.user?.login)) return false;
   const body = String(comment.body ?? '');
-  if (!/^Codex Review: Didn't find any major issues\. :tada:$/m.test(body)) return false;
+  if (!/^Codex Review: Didn't find any major issues\.(?: [^\r\n]+)?$/m.test(body)) return false;
   const reviewedCommit = body.match(/^\*\*Reviewed commit:\*\* `([0-9a-f]{10,40})`$/im)?.[1];
   return Boolean(reviewedCommit && headSha.startsWith(reviewedCommit));
 }

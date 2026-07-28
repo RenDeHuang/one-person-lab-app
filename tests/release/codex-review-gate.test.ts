@@ -16,10 +16,11 @@ const bot = 'chatgpt-codex-connector[bot]';
 function cleanIssueComment(
   reviewedCommit = headSha.slice(0, 10),
   author = bot,
+  terminalMarker = ':tada:',
 ): { user: { login: string }; body: string } {
   return {
     user: { login: author },
-    body: `Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** \`${reviewedCommit}\``,
+    body: `Codex Review: Didn't find any major issues.${terminalMarker ? ` ${terminalMarker}` : ''}\n\n**Reviewed commit:** \`${reviewedCommit}\``,
   };
 }
 
@@ -71,6 +72,22 @@ test('Codex review gate accepts one connector-authored exact-head clean issue co
     reviewThreads: [{ isResolved: false, isOutdated: false, comments: [{ author: { login: bot } }] }],
   });
   assert.equal(unresolved.status, 'failed');
+
+  const breezy = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment(headSha.slice(0, 16), bot, 'Breezy!')],
+    reviewThreads: [],
+  });
+  assert.equal(breezy.status, 'passed');
+
+  const alternateFlavor = evaluateCodexReviewGate({
+    headSha,
+    reviews: [],
+    issueComments: [cleanIssueComment(headSha.slice(0, 16), bot, 'All clear.')],
+    reviewThreads: [],
+  });
+  assert.equal(alternateFlavor.status, 'passed');
 });
 
 test('Codex review gate rejects stale, foreign, and ambiguous clean issue comments', () => {
@@ -148,7 +165,7 @@ test('Codex review advisory is read-only and never becomes a required-check writ
   assert.match(source, /github\.event\.issue\.pull_request/);
   assert.match(source, /github\.event\.issue\.number/);
   assert.match(source, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
-  assert.match(source, /startsWith\(github\.event\.comment\.body, 'Codex Review: Didn''t find any major issues\. :tada:'\)/);
+  assert.match(source, /startsWith\(github\.event\.comment\.body, 'Codex Review: Didn''t find any major issues\.'\)/);
   assert.match(source, /github\.event_name == 'issue_comment'\) && '0' \|\| '900'/);
   assert.match(source, /scripts\/codex-review-gate\.ts/);
   const gateSource = fs.readFileSync(path.join(process.cwd(), 'scripts', 'codex-review-gate.ts'), 'utf8');
