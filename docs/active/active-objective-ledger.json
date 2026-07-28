@@ -83,9 +83,9 @@
     },
     {
       "id": "desktop-stable-latest",
-      "status": "SAFE_TO_ARCHIVE",
+      "status": "ACTIVE",
       "controller_thread": "019f9cda-e8d2-71e3-abb6-077964145375",
-      "execution_owner_threads": [],
+      "execution_owner_threads": ["019f9cda-e8d2-71e3-abb6-077964145375"],
       "scope": "Produce one fresh admitted Desktop Stable operation and publish immutable Standard and required Native assets with Latest/public readback.",
       "current_evidence": [
         "Stable run 30325431854 attempt 1 completed success and published Latest v26.7.28-r3 with 13 digest-bound public assets; DMG sha256:2cdef0d8ccf23e1ada98fac8dbfecc791d43b7daa98aaa86b61905ebf1c4a5f8 and component manifest sha256:6a96eb0b5eb2252baf924ab53d5420e87a1d764cb54f20c1153cca03dcea07bc remain readable.",
@@ -93,16 +93,20 @@
         "PR #45 merged as 1142a2f9 and separates the credential executor SHA from the frozen App/Shell/Framework cohort, so unrelated main movement does not invalidate a run-bound operation.",
         "PR #48 merged as efae838f and closed the trusted current-head Codex review gate replay; PR #53 merged as 9ebe6c1b and exposes operation_id in the runtime dispatcher contract.",
         "GitHub immutable releases are enabled for the repository. Historical r3 remains immutable=false because the setting cannot retroactively lock an existing release; no replacement release was issued.",
-        "Fresh canonical main e6d02ffc/tree 75e9dd39 descends from all listed repairs. This thread's task worktrees, branches, refs and lifecycle entries are absent; Stable control remaining=[]."
+        "Fresh canonical main e6d02ffc/tree 75e9dd39 descends from all listed control-plane repairs. Prior task worktrees, branches, refs and lifecycle entries from this thread are absent.",
+        "The immutable-release terminal is not closed: the public r3 release reports immutable=false, while the canonical Stable contract requires immutable=true. Repository immutable releases are enabled only for subsequent releases."
       ],
-      "next_action": "Await fresh user acceptance before actual task archival; do not create another Stable authority or publication operation.",
+      "next_action": "Obtain a fresh user terminal decision: either authorize one new immutable Stable revision under a distinct single-use operation, or explicitly supersede the immutable-release requirement for historical r3. Do not rewrite or republish r3 in place.",
       "integration_order": 1,
       "parallel_group": "desktop-stable",
       "estimated_remaining": {
-        "wall_clock": "0h",
-        "steps": []
+        "wall_clock": "user decision plus one release operation if immutability remains required",
+        "steps": [
+          {"name": "terminal policy decision", "duration": "user-authoritative", "necessary": "resolve whether immutable=true remains mandatory for the delivered Stable terminal"},
+          {"name": "new immutable Stable revision", "duration": "only if authorized", "necessary": "satisfy the canonical immutable-release contract without mutating historical r3"}
+        ]
       },
-      "terminal_gaps": [],
+      "terminal_gaps": ["public Stable immutable=true or an explicit user supersession", "fresh user terminal acceptance"],
       "archive_performed": false,
       "user_approval_required": true
     },
