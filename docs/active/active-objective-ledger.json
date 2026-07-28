@@ -6,12 +6,12 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-28-package-management-parallelization-v3",
-  "generated_at": "2026-07-28T02:47:19Z",
+  "generated_at": "2026-07-28T02:54:10Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "03f3317da7342d770119c841e19a84b916b61abb",
-    "tree": "26c27bc4c39974697784a52ae6307917e29380d7",
+    "commit": "ebfe57008735826e0c2c01ec46103112cc762595",
+    "tree": "fa19314de8232fd6279810524a2dd1e463b8ecb3",
     "observation": "origin/main contains the dynamic directory reload contract; the canonical root has unrelated dirty release and review-gate bytes, so this ledger refresh remains isolated in its registered single-file worktree"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
@@ -267,12 +267,12 @@
       "controller_thread": "019f8f6a-718b-78f1-801f-48d5eae617e7",
       "execution_owner_threads": ["019fa42a-4322-7851-b34e-3b8320201538", "019fa173-73d0-70c2-8988-6180d50a46c7"],
       "scope": "Maintain the current objective-to-thread map and prevent stale ledger records from creating owners or blocking current user objectives.",
-      "current_evidence": ["active-objective-ledger.json was replayed onto App origin/main 03f3317da7342d770119c841e19a84b916b61abb/tree 26c27bc4c39974697784a52ae6307917e29380d7 in its formally registered single-file worktree.", "Fresh runtime readback disproves the stale not-discovered premise: Relay and Persona are installed, ready and dynamically projected; release_set_unavailable is the remaining currentness semantic gap.", "Relay runtime-version parity and triage evidence pipeline fixes are canonical at origin/main 6b0d2c5fd3a55898e3cbd551deafe93f56ef2a46/tree 962c27e03056d6dd28bdd6a41394b182c6ff1c57.", "The App root has unrelated dirty release and review-gate bytes, so this lane must checkpoint remotely before any later canonical absorption; global schema-v1 ledger remains a stale historical snapshot."],
-      "next_action": "Validate and ordinary-push this single-file currentness refresh, update its formal lifecycle checkpoint, and keep the existing PR current. Canonical absorption and owner-close remain serialized behind a clean App integration surface and required review; do not create a second ledger writer.",
+      "current_evidence": ["active-objective-ledger.json was replayed onto App origin/main ebfe57008735826e0c2c01ec46103112cc762595/tree fa19314de8232fd6279810524a2dd1e463b8ecb3 in its formally registered single-file worktree.", "Fresh runtime readback disproves the stale not-discovered premise: Relay and Persona are installed, ready and dynamically projected; release_set_unavailable is the remaining currentness semantic gap.", "Relay runtime-version parity and triage evidence pipeline fixes are canonical at origin/main 6b0d2c5fd3a55898e3cbd551deafe93f56ef2a46/tree 962c27e03056d6dd28bdd6a41394b182c6ff1c57.", "PR #23 is open for this single-file refresh. The App root has unrelated dirty release and review-gate bytes; global schema-v1 ledger remains a stale historical snapshot."],
+      "next_action": "Keep PR #23 current, obtain the required independent review, and merge through the protected canonical route. After merge, fetch main, verify commit/tree/blob/raw-byte parity, supersede the stale global pointer and owner-close this lane; do not create a second ledger writer.",
       "integration_order": 7,
       "parallel_group": "coordination",
       "estimated_remaining": {"wall_clock": "0.5-1h", "steps": [{"name": "snapshot validation, checkpoint, absorption and compatibility pointer", "duration": "30-60m", "necessary": "keep ownerless and duplicate-writer gaps at zero without trusting stale records"}]},
-      "terminal_gaps": ["fresh remote checkpoint", "required review and canonical absorption", "global stale ledger superseded", "owner-close of this lane"]
+      "terminal_gaps": ["PR #23 required review and canonical absorption", "global stale ledger superseded", "owner-close of this lane"]
     }
   ],
   "worktree_snapshot": {
