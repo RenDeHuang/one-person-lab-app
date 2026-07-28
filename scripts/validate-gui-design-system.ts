@@ -74,6 +74,17 @@ export type GuiDesignSystemValidation = {
     entries_verified: 8;
     packaged_command: true;
   };
+  visual_reference_cohort: {
+    contract: 'contracts/app-gui-visual-reference-cohort.json';
+    reference_product_build: '26.707.72221+5307';
+    scenes_required: 16;
+    surface_families: ['home', 'conversation', 'rail', 'settings'];
+    viewports: ['desktop', 'narrow'];
+    themes: ['light', 'dark'];
+    locales: ['zh-CN', 'en-US'];
+    reference_assets_complete: false;
+    scene_bound_visual_parity: false;
+  };
   release_ready: false;
 };
 
@@ -95,6 +106,122 @@ const foundationDocs = {
 } as const;
 
 const convergencePlanPath = 'docs/active/aionui-mainline-gui-convergence-plan.md';
+const visualReferenceCohortPath = 'contracts/app-gui-visual-reference-cohort.json';
+const visualPrimitiveIds = ['composer', 'rail_row', 'icon_button', 'menu', 'settings_row'] as const;
+const expectedVisualReferenceScenes = [
+  ['home-default-desktop-light-zh', 'home', 'desktop', 'light', 'zh-CN', '/guid', 'default'],
+  ['home-model-menu-desktop-light-en', 'home', 'desktop', 'light', 'en-US', '/guid', 'model_menu_open'],
+  [
+    'home-capability-palette-desktop-dark-zh',
+    'home',
+    'desktop',
+    'dark',
+    'zh-CN',
+    '/guid',
+    'capability_palette_open',
+  ],
+  ['home-default-narrow-light-en', 'home', 'narrow', 'light', 'en-US', '/guid', 'default'],
+  [
+    'conversation-default-desktop-light-zh',
+    'conversation',
+    'desktop',
+    'light',
+    'zh-CN',
+    '/conversation/:id',
+    'default',
+  ],
+  [
+    'conversation-model-menu-desktop-dark-en',
+    'conversation',
+    'desktop',
+    'dark',
+    'en-US',
+    '/conversation/:id',
+    'model_menu_open',
+  ],
+  [
+    'conversation-command-menu-desktop-light-en',
+    'conversation',
+    'desktop',
+    'light',
+    'en-US',
+    '/conversation/:id',
+    'command_menu_open',
+  ],
+  [
+    'conversation-default-narrow-dark-zh',
+    'conversation',
+    'narrow',
+    'dark',
+    'zh-CN',
+    '/conversation/:id',
+    'default',
+  ],
+  ['rail-selected-desktop-light-en', 'rail', 'desktop', 'light', 'en-US', '/conversation/:id', 'selected_row'],
+  [
+    'rail-hover-actions-desktop-dark-zh',
+    'rail',
+    'desktop',
+    'dark',
+    'zh-CN',
+    '/conversation/:id',
+    'row_hover_actions_visible',
+  ],
+  [
+    'settings-general-desktop-light-zh',
+    'settings',
+    'desktop',
+    'light',
+    'zh-CN',
+    '/settings/general',
+    'default',
+  ],
+  [
+    'settings-appearance-desktop-dark-en',
+    'settings',
+    'desktop',
+    'dark',
+    'en-US',
+    '/settings/appearance',
+    'default',
+  ],
+  [
+    'settings-capabilities-desktop-light-en',
+    'settings',
+    'desktop',
+    'light',
+    'en-US',
+    '/settings/capabilities',
+    'default',
+  ],
+  [
+    'settings-maintenance-desktop-dark-zh',
+    'settings',
+    'desktop',
+    'dark',
+    'zh-CN',
+    '/settings/environment?section=maintenance',
+    'default',
+  ],
+  [
+    'settings-general-narrow-light-en',
+    'settings',
+    'narrow',
+    'light',
+    'en-US',
+    '/settings/general',
+    'default',
+  ],
+  [
+    'settings-capabilities-narrow-dark-zh',
+    'settings',
+    'narrow',
+    'dark',
+    'zh-CN',
+    '/settings/capabilities',
+    'default',
+  ],
+] as const;
 
 const expectedStack = [
   {
@@ -423,6 +550,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const guiContract = readJson(root, 'contracts/app-gui-product-contract.json', issues);
   const pageStateMatrix = readJson(root, 'contracts/app-page-state-matrix.json', issues);
   const shellAdapter = readJson(root, 'contracts/app-shell-adapter.json', issues);
+  const visualReferenceCohort = readJson(root, visualReferenceCohortPath, issues);
   const packageJson = readJson(root, 'package.json', issues);
   const governance = record(registry.design_system_governance);
 
@@ -616,6 +744,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const auditBaseline = record(maintenanceBudgets.audit_baseline);
   const codexOverlayBudget = record(maintenanceBudgets.codex_overlay);
   const visualComparison = record(maintenancePolicy.visual_comparison_protocol);
+  const cohortReference = record(visualReferenceCohort.reference);
+  const cohortCandidate = record(visualReferenceCohort.candidate);
+  const cohortPrimitiveContract = record(visualReferenceCohort.shared_primitive_contract);
+  const cohortPrimitiveBindings = record(cohortPrimitiveContract.shell_class_bindings);
+  const cohortCapture = record(visualReferenceCohort.capture_contract);
+  const cohortViewports = record(cohortCapture.supported_viewports);
+  const cohortDesktopViewport = record(cohortViewports.desktop);
+  const cohortNarrowViewport = record(cohortViewports.narrow);
+  const cohortComparison = record(visualReferenceCohort.comparison_contract);
+  const cohortMaskPolicy = record(cohortComparison.mask_policy);
+  const cohortHumanReview = record(cohortComparison.human_review);
+  const cohortEvidenceBoundary = record(visualReferenceCohort.evidence_boundary);
+  const cohortScenes = Array.isArray(visualReferenceCohort.scene_matrix)
+    ? visualReferenceCohort.scene_matrix.map(record)
+    : [];
   const maintenancePolicyRef = 'docs/product/gui/gui-maintenance-policy.md';
   if (
     maintenancePolicy.schema !== 'opl_app_gui_maintenance_policy.v1' ||
@@ -686,6 +829,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
   if (
     visualComparison.schema !== 'opl_app_gui_visual_comparison.v1' ||
+    visualComparison.active_reference_cohort_ref !== visualReferenceCohortPath ||
+    visualComparison.shell_comparator_ref !== 'scripts/compare-gui-visual-cohort.ts' ||
+    !sameStrings(visualComparison.shared_primitive_ids, visualPrimitiveIds) ||
     !sameStrings(visualComparison.required_binding_fields, [
       'reference_product_build',
       'reference_observed_at',
@@ -713,9 +859,144 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'release_ready',
       'installed_current',
       'upstream_absorbed',
+    ]) ||
+    !sameStrings(visualComparison.scene_bound_visual_parity_requires, [
+      'exact_binding_complete',
+      'dimensions_equal',
+      'pixel_thresholds_passed',
+      'visual_delta_reviewed',
     ])
   ) {
     issues.add('GUI maintenance visual comparison must bind exact cohorts and keep parity claims scene-scoped');
+  }
+  if (
+    visualReferenceCohort.schema_version !== 1 ||
+    visualReferenceCohort.schema !== 'opl_app_gui_visual_reference_cohort.v1' ||
+    visualReferenceCohort.owner !== 'one-person-lab-app' ||
+    visualReferenceCohort.state !== 'active_reference_capture_required' ||
+    cohortReference.product !== 'ChatGPT Codex macOS' ||
+    cohortReference.bundle_version !== '26.707.72221' ||
+    cohortReference.build !== '5307' ||
+    cohortReference.observed_on !== '2026-07-15' ||
+    cohortReference.platform !== 'macos' ||
+    cohortReference.reference_role !== 'pixel_reference_only_no_brand_code_account_or_authority_copy' ||
+    cohortCandidate.product !== 'One Person Lab App' ||
+    cohortCandidate.shell !== 'opl-aion-shell' ||
+    cohortCandidate.app_contract_ref !==
+      'contracts/app-gui-product-contract.json#gui_maintenance_policy.visual_comparison_protocol' ||
+    cohortCandidate.shell_source_ref !== 'active_shell_checkout_git_head' ||
+    cohortCandidate.comparison_tool !== 'scripts/compare-gui-visual-cohort.ts'
+  ) {
+    issues.add('visual reference cohort must bind the active Codex pixel build and thin AionUI candidate route');
+  }
+  if (
+    cohortPrimitiveContract.authority !== 'one-person-lab-app' ||
+    cohortPrimitiveContract.shell_role !== 'thin_implementation_overlay' ||
+    !sameStrings(cohortPrimitiveContract.primitive_ids, visualPrimitiveIds) ||
+    cohortPrimitiveContract.new_component_framework_allowed !== false ||
+    cohortPrimitiveContract.upstream_authority_transfer_allowed !== false ||
+    visualPrimitiveIds.some((id) => cohortPrimitiveBindings[id] !== `opl-codex-${id.replace('_', '-')}`)
+  ) {
+    issues.add('visual reference cohort must use the five App-owned Codex primitives without a new Shell framework');
+  }
+  if (
+    cohortCapture.reference_and_candidate_same_machine_required !== true ||
+    cohortCapture.reference_and_candidate_same_display_scale_required !== true ||
+    cohortCapture.reference_and_candidate_same_viewport_required !== true ||
+    cohortCapture.reference_and_candidate_same_theme_locale_route_state_required !== true ||
+    cohortDesktopViewport.width !== 1440 ||
+    cohortDesktopViewport.height !== 900 ||
+    cohortNarrowViewport.width !== 400 ||
+    cohortNarrowViewport.height !== 800 ||
+    !sameStrings(cohortCapture.themes, ['light', 'dark']) ||
+    !sameStrings(cohortCapture.locales, ['zh-CN', 'en-US']) ||
+    !sameStrings(cohortCapture.required_surface_families, ['home', 'conversation', 'rail', 'settings'])
+  ) {
+    issues.add('visual reference cohort must cover same-machine desktop/narrow light/dark zh/en captures');
+  }
+  if (
+    cohortComparison.pixel_channel_delta_threshold !== 8 ||
+    cohortComparison.changed_pixel_ratio_max !== 0.015 ||
+    cohortComparison.mean_absolute_channel_delta_max !== 1.5 ||
+    cohortComparison.alpha_channel_included !== true ||
+    cohortComparison.dimension_mismatch !== 'fail' ||
+    cohortComparison.missing_scene !== 'fail' ||
+    cohortComparison.diff_png_required !== true ||
+    cohortMaskPolicy.default !== 'none' ||
+    cohortMaskPolicy.declaration_required !== true ||
+    cohortMaskPolicy.maximum_masked_area_ratio !== 0.08 ||
+    !sameStrings(cohortMaskPolicy.allowed_reasons, [
+      'caret_blink',
+      'os_window_chrome_dynamic',
+      'live_status_timestamp',
+    ]) ||
+    cohortMaskPolicy.undeclared_dynamic_region !== 'fail' ||
+    cohortHumanReview.required !== true ||
+    !sameStrings(cohortHumanReview.binding_fields, [
+      'scene_id',
+      'reference_screenshot_sha256',
+      'candidate_screenshot_sha256',
+      'verdict',
+    ]) ||
+    cohortHumanReview.accepted_verdict !== 'accepted' ||
+    !sameStrings(cohortComparison.scene_bound_visual_parity_requires, [
+      'exact_binding_complete',
+      'dimensions_equal',
+      'pixel_thresholds_passed',
+      'visual_delta_reviewed',
+    ])
+  ) {
+    issues.add('visual reference cohort must fail closed on dimensions, pixel thresholds, masks, and exact human review');
+  }
+  if (cohortScenes.length !== expectedVisualReferenceScenes.length) {
+    issues.add(`visual reference cohort must contain exactly ${expectedVisualReferenceScenes.length} governed scenes`);
+  }
+  expectedVisualReferenceScenes.forEach(
+    ([id, surfaceFamily, viewport, theme, locale, route, state], index) => {
+      const scene = cohortScenes[index] ?? {};
+      if (
+        scene.id !== id ||
+        scene.surface_family !== surfaceFamily ||
+        scene.viewport !== viewport ||
+        scene.theme !== theme ||
+        scene.locale !== locale ||
+        scene.route !== route ||
+        scene.state !== state ||
+        scene.image !== `${id}.png` ||
+        !Array.isArray(scene.masks)
+      ) {
+        issues.add(`visual reference cohort scene ${index + 1} must remain ${id} with exact binding fields`);
+        return;
+      }
+      for (const maskValue of scene.masks) {
+        const mask = record(maskValue);
+        const validCoordinates = ['x', 'y', 'width', 'height'].every(
+          (field) => Number.isInteger(mask[field]) && Number(mask[field]) >= 0,
+        );
+        if (
+          !validCoordinates ||
+          Number(mask.width) === 0 ||
+          Number(mask.height) === 0 ||
+          !stringArray(cohortMaskPolicy.allowed_reasons).includes(String(mask.reason))
+        ) {
+          issues.add(`visual reference cohort scene ${id} contains an invalid mask`);
+        }
+      }
+    },
+  );
+  if (
+    cohortEvidenceBoundary.current_reference_assets_complete !== false ||
+    cohortEvidenceBoundary.current_candidate_assets_complete !== false ||
+    cohortEvidenceBoundary.current_scene_comparison_complete !== false ||
+    cohortEvidenceBoundary.visual_parity_complete !== false ||
+    cohortEvidenceBoundary.installed_current !== false ||
+    cohortEvidenceBoundary.release_ready !== false ||
+    cohortEvidenceBoundary.product_wide_one_to_one !== false ||
+    cohortEvidenceBoundary.required_final_evidence_owner !== '019fa0ef-9514-7293-ba5b-15cb8a509522' ||
+    cohortEvidenceBoundary.final_evidence_owner_role !==
+      'same_cohort_installed_evidence_only_no_source_ownership'
+  ) {
+    issues.add('visual reference cohort must keep source, pixel, installed, release, and final-evidence ownership separate');
   }
 
   const settingsNavigation = record(guiContract.settings_navigation);
@@ -1607,6 +1888,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const profileGui = record(profile.gui);
+  const profileAppearance = record(profileGui.appearance);
   const expectedUiLocalePolicy = {
     explicit_user_preference: 'preserve_across_launches',
     first_launch_without_preference: 'detect_system_locale_before_first_render',
@@ -1618,6 +1900,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     JSON.stringify(record(profileGui.ui_locale_policy)) !== JSON.stringify(expectedUiLocalePolicy)
   ) {
     issues.add('GUI contract and product profile must detect system locale before first render and preserve explicit language preferences');
+  }
+  if (
+    profileAppearance.visual_reference_cohort_ref !== visualReferenceCohortPath ||
+    !sameStrings(profileAppearance.shared_visual_primitives, visualPrimitiveIds)
+  ) {
+    issues.add('App product profile appearance must select the active visual reference cohort and shared primitives');
   }
   const profileHome = record(profileGui.home);
   const homeLayout = record(profileHome.home_layout);
@@ -1781,6 +2069,17 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       shell_head: historicalPixelShellSha,
       entries_verified: visualEvidenceEntries as 8,
       packaged_command: true,
+    },
+    visual_reference_cohort: {
+      contract: visualReferenceCohortPath,
+      reference_product_build: '26.707.72221+5307',
+      scenes_required: expectedVisualReferenceScenes.length as 16,
+      surface_families: ['home', 'conversation', 'rail', 'settings'],
+      viewports: ['desktop', 'narrow'],
+      themes: ['light', 'dark'],
+      locales: ['zh-CN', 'en-US'],
+      reference_assets_complete: false,
+      scene_bound_visual_parity: false,
     },
     release_ready: false,
   };

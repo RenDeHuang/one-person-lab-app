@@ -14,6 +14,8 @@ type RunOptions = {
   args?: string[];
   nativeProbeStatus?: number;
   withNativeVerifier?: boolean;
+  publicNativeRelease?: boolean;
+  publicNativeQualificationStatus?: 'passed' | 'failed';
   env?: Record<string, string>;
 };
 
@@ -37,8 +39,62 @@ function runInstaller(options: RunOptions) {
   const binDir = path.join(fixture, 'bin');
   const logPath = path.join(fixture, 'routing.log');
   const nativeVerifierPath = path.join(fixture, 'native-verifier.sh');
+  const nativeReleaseRecordPath = path.join(fixture, 'native-release.json');
+  const nativeQualificationReceiptPath = path.join(fixture, 'native-qualification.json');
   fs.mkdirSync(binDir, { recursive: true });
   fs.writeFileSync(nativeVerifierPath, nativeVerifierSource);
+  if (options.publicNativeRelease) {
+    const version = '26.7.27';
+    const tag = `v${version}`;
+    const base = `one-person-lab-webui-${version}-linux-x86_64`;
+    const appSha = 'e'.repeat(40);
+    const qualificationReceipt = {
+      schema: 'opl_app_native_webui_qualification_receipt.v1',
+      status: options.publicNativeQualificationStatus ?? 'passed',
+      version,
+      release_bundle_digest: `sha256:${'f'.repeat(64)}`,
+      stable_authority_run_id: '12345',
+      platform: 'linux',
+      architecture: 'x86_64',
+      non_root: true,
+      cohort: {
+        app_sha: appSha,
+        shell_sha: '1'.repeat(40),
+        framework_sha: '2'.repeat(40),
+      },
+      lifecycle: {
+        first_install: 'passed',
+        same_version_idempotence: 'passed',
+        cross_version_update: 'passed',
+        rollback: 'passed',
+        data_preservation: 'passed',
+        http_health: 'passed',
+        official_profile_first_install: 'passed',
+      },
+    };
+    const qualificationBytes = `${JSON.stringify(qualificationReceipt)}\n`;
+    fs.writeFileSync(nativeQualificationReceiptPath, qualificationBytes);
+    const assets = [
+      [`${base}.tar.gz`, 'a'.repeat(64)],
+      [`${base}.tar.gz.sha256`, 'b'.repeat(64)],
+      ['install-web.sh', nativeVerifierSha256],
+      ['install-web.sh.sha256', 'c'.repeat(64)],
+      [`${base}.qualification.json`, crypto.createHash('sha256').update(qualificationBytes).digest('hex')],
+    ].map(([name, digest]) => ({
+      name,
+      state: 'uploaded',
+      size: 42,
+      digest: `sha256:${digest}`,
+      browser_download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${name}`,
+    }));
+    fs.writeFileSync(nativeReleaseRecordPath, JSON.stringify({
+      tag_name: tag,
+      draft: false,
+      prerelease: false,
+      target_commitish: appSha,
+      assets,
+    }));
+  }
   fs.writeFileSync(
     path.join(binDir, 'uname'),
     `#!/usr/bin/env sh
@@ -51,15 +107,30 @@ printf '%s\\n' "$TEST_UNAME_S"
 printf 'curl:%s\\n' "$*" >> "$OPL_ROUTING_TEST_LOG"
 output=''
 previous=''
+url=''
 for arg in "$@"; do
   if [ "$previous" = "-o" ]; then
     output="$arg"
-    break
   fi
+  case "$arg" in file://*|http://*|https://*) url="$arg" ;; esac
   previous="$arg"
 done
 if [ -n "$output" ]; then
-  cp "$TEST_NATIVE_INSTALLER_SOURCE" "$output"
+  case "$url" in
+    https://api.github.com/repos/gaofeng21cn/one-person-lab-app/releases/latest)
+      [ -n "\${TEST_NATIVE_RELEASE_RECORD:-}" ] || exit 22
+      cp "$TEST_NATIVE_RELEASE_RECORD" "$output"
+      ;;
+    */install-web.sh)
+      cp "$TEST_NATIVE_INSTALLER_SOURCE" "$output"
+      ;;
+    *.qualification.json)
+      cp "$TEST_NATIVE_QUALIFICATION_RECEIPT" "$output"
+      ;;
+    *)
+      exit 22
+      ;;
+  esac
 else
   printf '%s\\n' '# installer payload'
 fi
@@ -90,6 +161,12 @@ cat >/dev/null || true
       TEST_NATIVE_PROBE_STATUS: String(options.nativeProbeStatus ?? 1),
       TEST_NATIVE_INSTALLER_SOURCE: nativeVerifierPath,
       OPL_ROUTING_TEST_LOG: logPath,
+      ...(options.publicNativeRelease
+        ? {
+            TEST_NATIVE_RELEASE_RECORD: nativeReleaseRecordPath,
+            TEST_NATIVE_QUALIFICATION_RECEIPT: nativeQualificationReceiptPath,
+          }
+        : {}),
       ...(options.withNativeVerifier
         ? {
             OPL_NATIVE_WEBUI_INSTALLER_URL: nativeInstallerUrl,
@@ -124,6 +201,39 @@ test('Linux personal default uses explicit Container fallback when no Native can
   assert.match(result.stderr, /Native WebUI is not yet available as a verified artifact/);
   assert.match(result.log, /install-docker-webui\.sh/);
   assert.match(result.log, /bash:-s -- --yes/);
+  assert.doesNotMatch(result.log, /--probe-artifact/);
+});
+
+test('Linux personal default discovers and verifies the exact public Native asset set', () => {
+  const result = runInstaller({
+    osName: 'Linux',
+    args: ['--yes'],
+    nativeProbeStatus: 0,
+    publicNativeRelease: true,
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.log, /releases\/latest/);
+  assert.match(result.log, /releases\/download\/v26\.7\.27\/install-web\.sh/);
+  assert.match(result.log, /--version 26\.7\.27 --probe-artifact/);
+  assert.match(result.log, /--version 26\.7\.27$/m);
+  assert.doesNotMatch(result.log, /install-docker-webui\.sh/);
+});
+
+test('Latest pointer never substitutes for a passed Native qualification receipt', () => {
+  const result = runInstaller({
+    osName: 'Linux',
+    args: ['--yes'],
+    nativeProbeStatus: 0,
+    publicNativeRelease: true,
+    publicNativeQualificationStatus: 'failed',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.log, /releases\/latest/);
+  assert.match(result.log, /\.qualification\.json/);
+  assert.match(result.stderr, /Native WebUI is not yet available as a verified artifact/);
+  assert.match(result.log, /install-docker-webui\.sh/);
   assert.doesNotMatch(result.log, /--probe-artifact/);
 });
 
@@ -308,6 +418,17 @@ test('headless routes to Framework Base-only without an App runtime form', () =>
   assert.match(result.log, /bash:-s -- --headless --skip-packages/);
   assert.doesNotMatch(result.log, /--with-app/);
   assert.doesNotMatch(result.log, /install-docker-webui/);
+});
+
+test('invalid runtime forms fail closed before invoking an installer', () => {
+  const result = runInstaller({
+    osName: 'Linux',
+    args: ['--runtime-form', 'invalid', '--print-install-route'],
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unsupported runtime form: invalid/);
+  assert.equal(result.log, '');
 });
 
 test('unsupported platforms fail closed before invoking an installer', () => {

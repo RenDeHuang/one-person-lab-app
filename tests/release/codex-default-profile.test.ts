@@ -577,7 +577,12 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     ].join('\n'),
     guidInputCard: [
       'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 1, maxRows: 12 };',
-      'className={`${styles.guidInputInner} relative z-1 flex flex-col bg-dialog-fill-0`}',
+      '${styles.guidInputInner} opl-codex-composer',
+      "isInputActive ? 'opl-codex-composer--focused' : ''",
+      "fileDraggingActive ? 'opl-codex-composer--dragging' : ''",
+      "data-composer-palette-boundary='true'",
+      'activeBorderColor',
+      'inactiveBorderColor',
       '!pl-5px',
     ].join('\n'),
     homeStarters: [
@@ -589,7 +594,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       "const launchReady = launchGate.state !== 'package_unavailable'",
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
-      'starterIcon(assistant.opl_package_id)',
+      'starterIcon()',
       'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
     ].join('\n'),
     guidStyles: [
@@ -644,7 +649,8 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'assistant.id === activeCapabilityId',
     ],
     ['resolveOplPackageLaunchGate(appState, assistant.opl_package_id)', 'resolveOplPackageLaunchGate(appState, assistant.id)'],
-    ['starterIcon(assistant.opl_package_id)', 'starterIcon(assistant.id)'],
+    ['starterIcon()', 'starterIcon(assistant.opl_package_id)'],
+    ['starterIcon()', 'starterIcon(assistant.id)'],
     [
       'active && onClear ? onClear() : onSelect(assistant.opl_shortcut_id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
@@ -711,6 +717,21 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       guidInputCard: 'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 2, maxRows: 20 };',
     }),
   );
+  for (const marker of [
+    '${styles.guidInputInner} opl-codex-composer',
+    "isInputActive ? 'opl-codex-composer--focused' : ''",
+    "fileDraggingActive ? 'opl-codex-composer--dragging' : ''",
+    "data-composer-palette-boundary='true'",
+  ]) {
+    assert.throws(
+      () =>
+        assertCurrentGuidHomeSelectionSources({
+          ...currentSources,
+          guidInputCard: currentSources.guidInputCard.replace(marker, ''),
+        }),
+      new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    );
+  }
 });
 
 test('active-shell source gate preserves explicit local file inputs independently of workspace readiness', () => {

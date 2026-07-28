@@ -156,11 +156,15 @@ export function createAppComponentManifest(input: AppComponentManifestInput) {
   if (input.tag !== `v${input.version}`) {
     throw new Error(`Release tag does not describe v${input.version}.`);
   }
+  const hasInstallerBootstrap = input.assets.some(
+    (asset) => asset.name?.trim() === 'opl-app-installer.sh',
+  );
   const standardAssetNames = new Set([
     'latest-arm64-mac.yml',
     `One-Person-Lab-${input.version}-mac-arm64.dmg`,
     `One-Person-Lab-${input.version}-mac-arm64.zip`,
     `One-Person-Lab-${input.version}-mac-arm64.zip.blockmap`,
+    ...(hasInstallerBootstrap ? ['opl-app-installer.sh'] : []),
     ...(identity.versionChannel === 'nightly'
       ? []
       : ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']),

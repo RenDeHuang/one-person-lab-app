@@ -44,6 +44,11 @@ on:
         description: Exact immutable Framework Release Bundle digest.
         required: true
         type: string
+      standard_identity_sha256:
+        description: Exact digest of the sealed Standard identity receipt.
+        required: false
+        default: ''
+        type: string
       app_ref:
         description: Exact App source SHA in the Bundle.
         required: true
@@ -127,12 +132,14 @@ jobs:
           if [ "$status" = passed ] && ! [[ '${{ inputs.app_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=app_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=shell_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=framework_sha_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]; then status=failed; reason=standard_identity_invalid; fi
           jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' --arg input_digest "$input_digest" \
             '{schema:"opl_release_nested_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,input_digest:$input_digest,evidence:{stdout:"stdout.txt",stderr:"stderr.txt"},run_id:env.GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
             > updater-evidence/operation-admission.json
           test "$status" = passed
           [[ '${{ inputs.baseline_dmg_sha256 }}' =~ ^[0-9a-f]{64}$ ]] || { echo "::error::baseline_dmg_sha256 must be exact."; exit 1; }
           [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_bundle_digest must be exact."; exit 1; }
+          [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::standard_identity_sha256 must be exact."; exit 1; }
           test '${{ inputs.release_bundle_digest }}' != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49 || { echo "::error::release_bundle_digest is permanently rejected."; exit 1; }
           for sha in '${{ inputs.app_ref }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}'; do
             [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Bundle source ref must be an exact SHA."; exit 1; }
@@ -196,6 +203,38 @@ jobs:
           find candidate -type f -path '*/tracks/standard/assets.json' -print > updater-inputs/standard-asset-manifest-paths.txt
           [ "$(wc -l < updater-inputs/standard-asset-manifest-paths.txt | tr -d ' ')" -eq 1 ] || { echo "::error::Bound checkpoint must contain exactly one tracks/standard/assets.json."; exit 1; }
           standard_assets_manifest="$(sed -n '1p' updater-inputs/standard-asset-manifest-paths.txt)"
+          identity_receipts=()
+          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+            find candidate -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#identity_receipts[@]}" -eq 1 || {
+            echo "::error::Bound checkpoint must contain exactly one Standard identity receipt."
+            exit 1
+          }
+          identity_receipt="${identity_receipts[0]}"
+          test -s "$identity_receipt" && test ! -L "$identity_receipt"
+          observed_identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          expected_identity_sha256='${{ inputs.standard_identity_sha256 }}'
+          test "$observed_identity_sha256" = "$expected_identity_sha256" || {
+            echo "::error::Standard identity digest mismatch: expected $expected_identity_sha256, got $observed_identity_sha256."
+            exit 1
+          }
+          jq -e \
+            --arg bundle '${{ inputs.release_bundle_digest }}' \
+            --arg app '${{ inputs.app_ref }}' \
+            --arg shell '${{ inputs.shell_ref }}' \
+            --arg framework '${{ inputs.framework_ref }}' \
+            '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .source.run_attempt == 1
+              and .release.bundle_digest == $bundle
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$identity_receipt" >/dev/null
           test "$(jq -er .surface_kind "$standard_assets_manifest")" = opl_release_bundle_staged_assets.v1
           test "$(jq -er .track "$standard_assets_manifest")" = standard
           expected_zip="$(dirname "$standard_assets_manifest")/assets/$(basename "$zip")"
@@ -203,6 +242,11 @@ jobs:
           checkpoint_zip_entry="$(jq -cer --arg name "$(basename "$zip")" '.assets | map(select(.name == $name)) | if length == 1 then .[0] else error("candidate ZIP entry must be unique") end' "$standard_assets_manifest")"
           checkpoint_zip_sha256="$(jq -er '.sha256 | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))' <<<"$checkpoint_zip_entry")"
           checkpoint_zip_size="$(jq -er '.size_bytes | select(type == "number" and . > 0 and floor == .)' <<<"$checkpoint_zip_entry")"
+          identity_zip_sha256="$(jq -er '.updater_zip.sha256 | select(type == "string" and test("^sha256:[0-9a-f]{64}$"))' "$identity_receipt")"
+          test "$identity_zip_sha256" = "$checkpoint_zip_sha256" || {
+            echo "::error::Standard identity updater ZIP digest differs from the checkpoint asset manifest."
+            exit 1
+          }
           echo "old_dmg=$old_dmg" >> "$GITHUB_OUTPUT"
           echo "feed_dir=$feed_dir" >> "$GITHUB_OUTPUT"
           {

@@ -149,6 +149,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 | --- | --- | --- |
 | App Official Profile policy | `canonical_partial`：单一 Profile、presence-only、Standard/Full 同 roots、persistent uninstall policy、data-driven roots 和只接受 first-install/explicit-Restore 的 one-shot consumer 已进入主线。 | 将 consumer 接入真实 first-install/Restore 入口，并完成跨重启不回装及 Standard/Full clean-install proof。 |
 | App Package UX | `canonical_partial`：App contracts 已把 directory/presence/actions 设为 Settings/Home authority，Framework App-state 已从 fresh Package directory 派生状态。 | Shell/Home 端到端消费、真实未知 Package proof，以及固定 starter/assistant metadata、receipt/lock/physical detail parser 的 consumer-zero 删除。 |
+| Role-neutral App contributions v1 | `owner_bound_source_checkpoint`：App 合同、Framework directory/App-state 投影、Shell parser/resolver 和 Relay 首个 descriptor 已在各自 task branch 收敛，且不按 `package_role` 或 executor 过滤。 | 仍须按 producer-before-consumer 顺序吸收 canonical，接入真实 navigation mount/标准 view renderer、Relay data/action bridge、invalid-package isolation，并分别完成 Pixel、Install、Apple Mail review path 和 Release proof。 |
 | Framework Package plane | `canonical_incremental`：owner-channel `latest-stable` currentness、MAS + ScholarSkills package-local required selection、shared-latest verifier retirement、fresh presence/App-state projection和 installed-only invocation 已进入主线。普通 invocation 只消费 installed Package lock，不访问网络或远端依赖，也不再生成 invocation `offline_lkg`/`recovered_last_known_good`。 | 显式 install/update/remove/repair 仍使用 installed lock、payload/materialization、lifecycle receipt、rollback和 mutex；继续完成 neutral carrier/live proof，并按 consumer-zero 逐 family 删除。 |
 | Package publication | `canonical_policy_partial`：一方 Package 使用独立 GHCR repository 和 owner `latest-stable`；普通 target discovery 已有 owner-channel实现。 | 不是所有 owner latest 都有 fresh publication proof；shared snapshot和显式 maintenance 的旧 catalog/cache retained consumers仍须清零。 |
 | Shell Package consumption | `canonical_partial`：Capabilities 已消费动态 directory 和 exact carrier identity，App contracts 已删除固定 directory authority。 | Home/Settings 全路径、legacy fallback hit-zero、非固定 Package 与真实 install/uninstall preference proof。 |
@@ -219,10 +220,13 @@ Phase 2 执行最多保持四条开发 lane。这里冻结行为、owner、bound
 
 1. fresh fetch对应 repo `main`，确认 canonical authority和当前唯一 writer；
 2. 用结构调用链与字面检索冻结本包 sorted exact write set；
-3. 证明与其他 active write sets交集为零，或明确串行 owner；
-4. 在独立 worktree实现，`unexpected=0`；
-5. producer先进入 canonical main并 readback，consumer才可吸收；
-6. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
+3. 登记与其他 active write sets的交集、field-level conflict owner和最终吸收顺序；
+   overlap不阻止在独立 worktree并行开发和验证；
+4. 在独立 worktree实现，`unexpected=0`，并完成 local-first focused/affected gates；
+5. producer和consumer可并行实现兼容桥、fixture和测试；consumer最终吸收前必须按
+   fresh canonical producer contract semantic replay；
+6. 每个 repo的 shared `main` mutation和wire readback串行，由唯一 integrator解决冲突；
+7. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
 
 ### `W1` Official Profile Consumers
 
@@ -278,6 +282,10 @@ Phase 2 执行最多保持四条开发 lane。这里冻结行为、owner、bound
 ### `W4` Dynamic Settings And Home
 
 - Owner: App product contract consumer -> Shell renderer consumer。
+- Current state: `opl-app-contributions.v1` 的 closed declarative contract、Framework
+  directory/App-state projection、Shell fail-closed parser/resolver 和 Relay 首个 descriptor
+  已形成 owner-bound source checkpoint；尚未 canonical，也没有 production navigation
+  caller、标准 view renderer、Relay data/action bridge、Pixel、Install 或 Release 证明。
 - Bounded surfaces: generic Package/capability rows、projected actions、Home shortcut
   preference、App-owned Restore intent和局部 unavailable体验。
 - Dependencies: `W3` Framework projection canonical；Restore还依赖 `W1` App intent
@@ -349,16 +357,20 @@ Phase 2 execution
   +-- Lane 4 Read-only QA:      inventories, controls, proof preparation
 ```
 
-并行只适用于独立 worktree和零交叉候选。以下必须串行：
+并发采用
+[`parallel_work_serialized_integration`](parallel-delivery-and-clean-development-ssot.md)：
+独立 worktree中的实现、测试和checkpoint可以并行，即使存在小范围文件/字段交叉；
+交叉只决定最终吸收顺序和冲突解决 owner。以下必须串行：
 
 - producer authority canonical -> consumer absorption；
-- 同 repo/module的 source write set；
 - 每个 repo的 `main` CAS和最终 readback；
 - 真实 lifecycle/public mutation；
 - legacy writer停止、删除和同 outcome复验。
 
 `W1` 不需要等待全部 Framework/Runtime工作；`W5` Package owner可与 `W2`并行。
-只有真实 dependency edge或写集交叉才增加顺序，不建立跨仓总锁。
+`W3`/`W5` producer与 `W4`/`W6` consumer可并行准备，只在consumer canonical吸收前等待
+fresh producer contract。write-set overlap不建立跨仓总锁；发生冲突时由后吸收 owner基于
+最新用户SSOT、fresh `main`和机器合同做semantic replay，不能机械选择旧patch一侧。
 
 ## Per-Family Deletion Loop
 

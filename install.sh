@@ -25,8 +25,16 @@ STABLE_MACOS_PACKAGE_PROFILE=${OPL_STABLE_MACOS_PACKAGE_PROFILE:-full}
 STABLE_MACOS_RELEASE_TAG=${OPL_STABLE_MACOS_RELEASE_TAG:-}
 STABLE_MACOS_DMG_URL=${OPL_STABLE_MACOS_DMG_URL:-}
 STABLE_MACOS_DMG_PATH=${OPL_STABLE_MACOS_DMG_PATH:-}
+STABLE_MACOS_DMG_SHA256=${OPL_STABLE_MACOS_DMG_SHA256:-}
 STABLE_MACOS_OPEN=${OPL_STABLE_MACOS_OPEN:-1}
 STABLE_MACOS_WORK_DIR=''
+STABLE_MACOS_RESOLVED_DMG_PATH=''
+STABLE_MACOS_RESOLVED_DMG_SHA256=''
+STABLE_MACOS_RELEASE_RECORD_PATH=''
+STABLE_MACOS_RELEASE_PRERELEASE=''
+STABLE_MACOS_COMPONENT_MANIFEST_PATH=''
+STABLE_MACOS_COMPONENT_MANIFEST_SHA256=''
+STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
 INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
 PRINT_INSTALL_ROUTE=0
 OPEN_OPTION_EXPLICIT=''
@@ -58,12 +66,13 @@ Options:
   --native-installer-sha256 <digest>
                             Required SHA256 for the verifier script bytes.
   --print-install-route     Resolve and print the selected route without installing.
-  --stable-macos-install     Download, copy, locally authorize, and open the Stable App.
+  --stable-macos-install     Download, copy, locally authorize, and open the App release.
   --full                     Require the Full first-install DMG for --stable-macos-install.
   --standard                 Require the standard App DMG for --stable-macos-install.
   --release-tag <tag>        GitHub Release tag for --stable-macos-install. Defaults to latest.
   --dmg-url <url>            Download a specific DMG URL for --stable-macos-install.
   --dmg-path <path>          Install from a local DMG path for --stable-macos-install.
+  --dmg-sha256 <digest>      Required SHA256 for a custom DMG URL or local DMG path.
   --authorize-local-app      After setup, remove macOS quarantine from a local App bundle.
   --authorize-local-app-only Only run the local App authorization helper.
   --app-path <path>          App bundle path for the local authorization helper.
@@ -71,8 +80,11 @@ Options:
   --no-open                 Do not open the App after --stable-macos-install.
   --yes                     Confirm local App authorization non-interactively.
 
-The Stable macOS install path uses local authorization and does not require Apple Developer ID signing.
-Without an explicit package profile, Stable prefers Full and falls back to Standard only when the Full asset is not yet published.
+The macOS App install path uses local authorization and does not require Apple Developer ID signing.
+For an official GitHub Release, it verifies the component manifest and displays the
+actual Stable or Preview quality. A custom DMG source has no asserted release quality.
+Without an explicit package profile, the legacy-named option prefers Full and falls
+back to Standard only when the Full asset is not yet published.
 USAGE
 }
 
@@ -122,6 +134,17 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dmg-path=*)
       STABLE_MACOS_DMG_PATH="${arg#--dmg-path=}"
+      ;;
+    --dmg-sha256)
+      shift
+      if [ "$#" -eq 0 ]; then
+        printf 'Missing value for --dmg-sha256\n' >&2
+        exit 1
+      fi
+      STABLE_MACOS_DMG_SHA256="$1"
+      ;;
+    --dmg-sha256=*)
+      STABLE_MACOS_DMG_SHA256="${arg#--dmg-sha256=}"
       ;;
     --authorize-local-app)
       AUTHORIZE_LOCAL_APP=1
@@ -292,12 +315,14 @@ normalize_runtime_form() {
       ;;
     *)
       printf 'Unsupported runtime form: %s\n' "$OPL_INSTALL_RUNTIME_FORM" >&2
-      exit 1
+      return 1
       ;;
   esac
 }
 
 NATIVE_INSTALLER_PATH=''
+NATIVE_RELEASE_RECORD_PATH=''
+NATIVE_QUALIFICATION_RECEIPT_PATH=''
 
 validate_native_mirror() {
   case "$OPL_NATIVE_WEBUI_MIRROR" in
@@ -348,7 +373,7 @@ sha256_file() {
   elif command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
   else
-    printf 'shasum or sha256sum is required to verify the Native WebUI verifier.\n' >&2
+    printf 'shasum or sha256sum is required for SHA256 verification.\n' >&2
     return 1
   fi
 }
@@ -357,6 +382,158 @@ cleanup_native_installer() {
   if [ -n "$NATIVE_INSTALLER_PATH" ]; then
     rm -f "$NATIVE_INSTALLER_PATH"
   fi
+  if [ -n "$NATIVE_RELEASE_RECORD_PATH" ]; then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+  fi
+  if [ -n "$NATIVE_QUALIFICATION_RECEIPT_PATH" ]; then
+    rm -f "$NATIVE_QUALIFICATION_RECEIPT_PATH"
+  fi
+}
+
+native_configuration_is_empty() {
+  [ -z "$OPL_NATIVE_WEBUI_MIRROR" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_VERSION" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_INSTALLER_URL" ] &&
+    [ -z "$OPL_NATIVE_WEBUI_INSTALLER_SHA256" ]
+}
+
+discover_public_native_webui() {
+  native_configuration_is_empty || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+
+  NATIVE_RELEASE_RECORD_PATH=$(mktemp "${TMPDIR:-/tmp}/opl-native-webui-release.XXXXXX")
+  if ! curl -fsSL \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -H 'User-Agent: one-person-lab-installer' \
+    'https://api.github.com/repos/gaofeng21cn/one-person-lab-app/releases/latest' \
+    -o "$NATIVE_RELEASE_RECORD_PATH"; then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+    NATIVE_RELEASE_RECORD_PATH=''
+    return 1
+  fi
+
+  local discovery
+  if ! discovery=$(python3 - "$NATIVE_RELEASE_RECORD_PATH" <<'PY'
+import json
+import re
+import sys
+
+record = json.load(open(sys.argv[1], encoding="utf-8"))
+tag = record.get("tag_name")
+if record.get("draft") is not False or record.get("prerelease") is not False:
+    raise SystemExit(1)
+if not isinstance(tag, str) or re.fullmatch(r"v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?", tag) is None:
+    raise SystemExit(1)
+version = tag[1:]
+base = f"one-person-lab-webui-{version}-linux-x86_64"
+required = {
+    f"{base}.tar.gz",
+    f"{base}.tar.gz.sha256",
+    "install-web.sh",
+    "install-web.sh.sha256",
+    f"{base}.qualification.json",
+}
+assets = record.get("assets")
+if not isinstance(assets, list):
+    raise SystemExit(1)
+by_name = {}
+for asset in assets:
+    if not isinstance(asset, dict) or asset.get("name") not in required:
+        continue
+    name = asset["name"]
+    if name in by_name:
+        raise SystemExit(1)
+    expected_url = f"https://github.com/gaofeng21cn/one-person-lab-app/releases/download/{tag}/{name}"
+    digest = asset.get("digest")
+    if (
+        asset.get("state") != "uploaded"
+        or not isinstance(asset.get("size"), int)
+        or asset["size"] <= 0
+        or not isinstance(digest, str)
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None
+        or asset.get("browser_download_url") != expected_url
+    ):
+        raise SystemExit(1)
+    by_name[name] = asset
+if set(by_name) != required:
+    raise SystemExit(1)
+installer = by_name["install-web.sh"]
+qualification = by_name[f"{base}.qualification.json"]
+app_sha = record.get("target_commitish")
+if not isinstance(app_sha, str) or re.fullmatch(r"[0-9a-f]{40}", app_sha) is None:
+    raise SystemExit(1)
+print("\t".join((
+    version,
+    app_sha,
+    installer["browser_download_url"],
+    installer["digest"].removeprefix("sha256:"),
+    qualification["browser_download_url"],
+    qualification["digest"].removeprefix("sha256:"),
+)))
+PY
+  ); then
+    rm -f "$NATIVE_RELEASE_RECORD_PATH"
+    NATIVE_RELEASE_RECORD_PATH=''
+    return 1
+  fi
+
+  local version app_sha installer_url installer_sha256 qualification_url qualification_sha256
+  IFS=$'\t' read -r version app_sha installer_url installer_sha256 qualification_url qualification_sha256 <<< "$discovery"
+  [ -n "$version" ] && [ -n "$app_sha" ] && [ -n "$installer_url" ] && [ -n "$installer_sha256" ] &&
+    [ -n "$qualification_url" ] && [ -n "$qualification_sha256" ] || return 1
+
+  NATIVE_QUALIFICATION_RECEIPT_PATH=$(mktemp "${TMPDIR:-/tmp}/opl-native-webui-qualification.XXXXXX")
+  if ! curl -fsSL "$qualification_url" -o "$NATIVE_QUALIFICATION_RECEIPT_PATH"; then
+    rm -f "$NATIVE_QUALIFICATION_RECEIPT_PATH"
+    NATIVE_QUALIFICATION_RECEIPT_PATH=''
+    return 1
+  fi
+  [ "$(sha256_file "$NATIVE_QUALIFICATION_RECEIPT_PATH")" = "$qualification_sha256" ] || return 1
+  python3 - "$NATIVE_QUALIFICATION_RECEIPT_PATH" "$version" "$app_sha" <<'PY' || return 1
+import json
+import re
+import sys
+
+receipt = json.load(open(sys.argv[1], encoding="utf-8"))
+version = sys.argv[2]
+app_sha = sys.argv[3]
+cohort = receipt.get("cohort")
+lifecycle = receipt.get("lifecycle")
+required_lifecycle = {
+    "first_install",
+    "same_version_idempotence",
+    "cross_version_update",
+    "rollback",
+    "data_preservation",
+    "http_health",
+    "official_profile_first_install",
+}
+if (
+    receipt.get("schema") != "opl_app_native_webui_qualification_receipt.v1"
+    or receipt.get("status") != "passed"
+    or receipt.get("version") != version
+    or not isinstance(receipt.get("stable_authority_run_id"), (str, int))
+    or re.fullmatch(r"[1-9][0-9]*", str(receipt.get("stable_authority_run_id"))) is None
+    or not isinstance(receipt.get("release_bundle_digest"), str)
+    or re.fullmatch(r"sha256:[0-9a-f]{64}", receipt["release_bundle_digest"]) is None
+    or receipt.get("platform") != "linux"
+    or receipt.get("architecture") != "x86_64"
+    or receipt.get("non_root") is not True
+    or not isinstance(cohort, dict)
+    or cohort.get("app_sha") != app_sha
+    or re.fullmatch(r"[0-9a-f]{40}", str(cohort.get("shell_sha", ""))) is None
+    or re.fullmatch(r"[0-9a-f]{40}", str(cohort.get("framework_sha", ""))) is None
+    or not isinstance(lifecycle, dict)
+    or set(lifecycle) != required_lifecycle
+    or any(lifecycle.get(gate) != "passed" for gate in required_lifecycle)
+):
+    raise SystemExit(1)
+PY
+  OPL_NATIVE_WEBUI_MIRROR='https://github.com/gaofeng21cn/one-person-lab-app/releases/download'
+  OPL_NATIVE_WEBUI_VERSION="$version"
+  OPL_NATIVE_WEBUI_INSTALLER_URL="$installer_url"
+  OPL_NATIVE_WEBUI_INSTALLER_SHA256="$installer_sha256"
 }
 
 prepare_native_installer() {
@@ -422,7 +599,7 @@ verified_native_artifact_available() {
 resolve_install_route() {
   local platform runtime_form
   platform=$(platform_family)
-  runtime_form=$(normalize_runtime_form)
+  runtime_form=$(normalize_runtime_form) || return 1
 
   if [ "$platform" = "unsupported" ]; then
     printf 'Unsupported platform for OPL App installer: %s\n' "$(uname -s)" >&2
@@ -463,9 +640,12 @@ resolve_install_route() {
         printf 'The Native WebUI development candidate is currently implemented only for Linux hosts.\n' >&2
         exit 1
       fi
+      if native_configuration_is_empty; then
+        discover_public_native_webui || true
+      fi
       if ! verified_native_artifact_available; then
         printf 'A verified OPL Native WebUI artifact is required for --native-webui.\n' >&2
-        printf 'Provide mirror/version plus an exact verifier URL and SHA256 for an OPL-owned immutable candidate.\n' >&2
+        printf 'Publish the exact Native asset set or provide mirror/version plus an exact verifier URL and SHA256 for an OPL-owned immutable candidate.\n' >&2
         exit 1
       fi
       printf 'native-webui\n'
@@ -479,6 +659,9 @@ resolve_install_route() {
           printf 'desktop\n'
           ;;
         linux)
+          if native_configuration_is_empty; then
+            discover_public_native_webui || true
+          fi
           if native_mirror_is_local_development; then
             printf 'Local Native WebUI candidates require explicit --native-webui selection; using Container WebUI.\n' >&2
             printf 'container-webui\n'
@@ -530,6 +713,9 @@ install_container_webui() {
 }
 
 install_native_webui() {
+  if native_configuration_is_empty; then
+    discover_public_native_webui || true
+  fi
   prepare_native_installer || {
     printf 'OPL Native WebUI installer or immutable candidate metadata is unavailable.\n' >&2
     exit 1
@@ -600,8 +786,8 @@ print_stable_macos_next_steps() {
   printf '  4. Shareable PDF: %s\n' "$pdf_url"
   printf '  5. Shareable PPTX: %s\n' "$pptx_url"
   printf '  6. Latest release assets: %s\n' "$releases_url"
-  printf 'If macOS still asks for repeated approval, re-run:\n'
-  printf '  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash -s -- --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_APP_RELEASE_REPO" "$OPL_APP_DOCS_REF" "$OPL_LOCAL_APP_PATH"
+  printf 'If macOS still asks for repeated approval, use a reviewed source checkout and run:\n'
+  printf '  ./install.sh --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_LOCAL_APP_PATH"
 }
 
 run_with_sudo_fallback() {
@@ -694,40 +880,185 @@ confirm_stable_macos_install() {
     return 0
   fi
   if [ ! -r /dev/tty ]; then
-    printf 'Stable macOS install needs confirmation. Re-run with --yes when using a non-interactive installer.\n' >&2
+    printf 'macOS App install needs confirmation. Re-run with --yes when using a non-interactive installer.\n' >&2
     exit 1
   fi
   {
-    printf 'One Person Lab will install this Stable App bundle with local macOS authorization:\n'
+    printf 'One Person Lab will install this App bundle with local macOS authorization:\n'
     printf '  %s\n' "$OPL_LOCAL_APP_PATH"
     printf 'This may replace an existing App at that path, remove recursive quarantine, and open the App.\n'
     printf 'Type "install" to continue: '
   } > /dev/tty
   local reply
   if ! IFS= read -r reply < /dev/tty; then
-    printf 'Stable macOS install needs a controlling terminal, or pass --yes for explicit non-interactive confirmation.\n' >&2
+    printf 'macOS App install needs a controlling terminal, or pass --yes for explicit non-interactive confirmation.\n' >&2
     exit 1
   fi
   if [ "$reply" != "install" ]; then
-    printf 'Stable macOS install cancelled.\n' >&2
+    printf 'macOS App install cancelled.\n' >&2
     exit 1
   fi
 }
 
-resolve_latest_release_tag() {
-  local latest_url effective_url tag
-  latest_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/latest"
-  effective_url=$(curl -fsSIL -o /dev/null -w '%{url_effective}' "$latest_url")
-  tag="${effective_url##*/}"
-  case "$tag" in
-    v*)
-      printf '%s\n' "$tag"
-      ;;
-    *)
-      printf 'Could not resolve latest One Person Lab App release tag from: %s\n' "$effective_url" >&2
-      exit 1
+validate_sha256_value() {
+  case "$1" in
+    *[!0-9a-f]*|'')
+      return 1
       ;;
   esac
+  [ "${#1}" -eq 64 ]
+}
+
+validate_release_tag() {
+  case "$1" in
+    v[0-9A-Za-z._-]*)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  case "$1" in
+    *[!0-9A-Za-z._-]*)
+      return 1
+      ;;
+  esac
+}
+
+release_record_value() {
+  local record_path="$1"
+  local key_path="$2"
+  plutil -extract "$key_path" raw -o - "$record_path"
+}
+
+download_release_record() {
+  local selector="$1"
+  local record_path="$2"
+  local endpoint
+  if ! command -v plutil >/dev/null 2>&1; then
+    printf 'plutil is required to verify the exact GitHub Release record.\n' >&2
+    return 1
+  fi
+  if [ "$selector" = "latest" ]; then
+    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/latest"
+  else
+    validate_release_tag "$selector" || {
+      printf 'Invalid GitHub Release tag: %s\n' "$selector" >&2
+      return 1
+    }
+    endpoint="https://api.github.com/repos/$OPL_APP_RELEASE_REPO/releases/tags/$selector"
+  fi
+  curl -fsSL \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -H 'User-Agent: one-person-lab-installer' \
+    "$endpoint" \
+    -o "$record_path"
+}
+
+resolve_release_record() {
+  local work_dir="$1"
+  local requested_tag="$STABLE_MACOS_RELEASE_TAG"
+  local selector="${requested_tag:-latest}"
+  local record_path="$work_dir/github-release.json"
+  local resolved_tag draft prerelease
+  download_release_record "$selector" "$record_path" || return 1
+  resolved_tag=$(release_record_value "$record_path" tag_name) || {
+    printf 'GitHub Release record does not contain tag_name.\n' >&2
+    return 1
+  }
+  validate_release_tag "$resolved_tag" || {
+    printf 'GitHub Release record returned an invalid tag: %s\n' "$resolved_tag" >&2
+    return 1
+  }
+  if [ -n "$requested_tag" ] && [ "$resolved_tag" != "$requested_tag" ]; then
+    printf 'GitHub Release record tag mismatch: expected %s, got %s.\n' "$requested_tag" "$resolved_tag" >&2
+    return 1
+  fi
+  draft=$(release_record_value "$record_path" draft) || {
+    printf 'GitHub Release record does not contain draft state.\n' >&2
+    return 1
+  }
+  if [ "$draft" != "false" ]; then
+    printf 'macOS App install requires a published GitHub Release record.\n' >&2
+    return 1
+  fi
+  prerelease=$(release_record_value "$record_path" prerelease) || {
+    printf 'GitHub Release record does not contain prerelease state.\n' >&2
+    return 1
+  }
+  case "$prerelease" in
+    true|false)
+      ;;
+    *)
+      printf 'GitHub Release record has an invalid prerelease state.\n' >&2
+      return 1
+      ;;
+  esac
+  STABLE_MACOS_RELEASE_TAG="$resolved_tag"
+  STABLE_MACOS_RELEASE_RECORD_PATH="$record_path"
+  STABLE_MACOS_RELEASE_PRERELEASE="$prerelease"
+}
+
+resolve_latest_release_tag() {
+  local work_dir="$1"
+  resolve_release_record "$work_dir" || return 1
+  printf '%s\n' "$STABLE_MACOS_RELEASE_TAG"
+}
+
+RELEASE_ASSET_URL=''
+RELEASE_ASSET_SHA256=''
+
+resolve_release_asset() {
+  local record_path="$1"
+  local expected_name="$2"
+  local index=0 name digest url matches=0
+  RELEASE_ASSET_URL=''
+  RELEASE_ASSET_SHA256=''
+  while name=$(release_record_value "$record_path" "assets.$index.name" 2>/dev/null); do
+    if [ "$name" = "$expected_name" ]; then
+      matches=$((matches + 1))
+      digest=$(release_record_value "$record_path" "assets.$index.digest") || return 1
+      url=$(release_record_value "$record_path" "assets.$index.browser_download_url") || return 1
+      case "$digest" in
+        sha256:*)
+          digest="${digest#sha256:}"
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+      validate_sha256_value "$digest" || return 1
+      RELEASE_ASSET_SHA256="$digest"
+      RELEASE_ASSET_URL="$url"
+    fi
+    index=$((index + 1))
+  done
+  [ "$matches" -eq 1 ]
+}
+
+require_caller_dmg_sha256() {
+  if ! validate_sha256_value "$STABLE_MACOS_DMG_SHA256"; then
+    printf 'Custom DMG URL or path requires --dmg-sha256 with 64 lowercase hexadecimal characters.\n' >&2
+    return 1
+  fi
+}
+
+verify_resolved_dmg() {
+  local dmg_path="$1"
+  local expected_sha256="$2"
+  verify_file_sha256 "$dmg_path" "$expected_sha256" 'DMG'
+}
+
+verify_file_sha256() {
+  local file_path="$1"
+  local expected_sha256="$2"
+  local label="$3"
+  local actual_sha256
+  actual_sha256=$(sha256_file "$file_path") || return 1
+  if [ "$actual_sha256" != "$expected_sha256" ]; then
+    printf '%s SHA256 mismatch: expected %s, got %s.\n' "$label" "$expected_sha256" "$actual_sha256" >&2
+    return 1
+  fi
 }
 
 release_asset_name() {
@@ -751,65 +1082,301 @@ release_asset_name() {
 
 DOWNLOAD_HTTP_CODE=''
 
-download_release_dmg() {
+download_release_file() {
   local url="$1"
-  local dmg_path="$2"
+  local output_path="$2"
+  local label="$3"
   local curl_status=0
   DOWNLOAD_HTTP_CODE=''
-  printf 'Downloading One Person Lab App DMG:\n  %s\n' "$url" >&2
-  DOWNLOAD_HTTP_CODE=$(curl --http1.1 --connect-timeout 20 --max-time 1800 --retry 3 --retry-delay 2 -fsSL -w '%{http_code}' "$url" -o "$dmg_path") || curl_status=$?
+  printf 'Downloading One Person Lab App %s:\n  %s\n' "$label" "$url" >&2
+  DOWNLOAD_HTTP_CODE=$(curl --http1.1 --connect-timeout 20 --max-time 1800 --retry 3 --retry-delay 2 -fsSL -w '%{http_code}' "$url" -o "$output_path") || curl_status=$?
   if [ "$curl_status" -eq 0 ]; then
     return 0
   fi
-  rm -f "$dmg_path"
+  rm -f "$output_path"
   return "$curl_status"
+}
+
+component_manifest_value() {
+  local manifest_path="$1"
+  local key_path="$2"
+  plutil -extract "$key_path" raw -o - "$manifest_path"
+}
+
+component_manifest_array_json() {
+  local manifest_path="$1"
+  local key_path="$2"
+  plutil -extract "$key_path" json -o - "$manifest_path"
+}
+
+component_manifest_has_exact_artifact() {
+  local manifest_path="$1"
+  local asset_name="$2"
+  local asset_sha256="$3"
+  local tag="$4"
+  local expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+  local index=0 name digest ref matches=0
+  while name=$(component_manifest_value "$manifest_path" "artifacts.$index.name" 2>/dev/null); do
+    if [ "$name" = "$asset_name" ]; then
+      digest=$(component_manifest_value "$manifest_path" "artifacts.$index.digest") || return 1
+      ref=$(component_manifest_value "$manifest_path" "artifacts.$index.ref") || return 1
+      if [ "$digest" = "sha256:$asset_sha256" ] && [ "$ref" = "$expected_url" ]; then
+        matches=$((matches + 1))
+      fi
+    fi
+    index=$((index + 1))
+  done
+  [ "$matches" -eq 1 ]
+}
+
+verify_release_installer_bootstrap() {
+  local record_path="$1"
+  local manifest_path="$2"
+  local tag="$3"
+  local installer_name='opl-app-installer.sh'
+  local expected_url
+
+  [ "${0##*/}" = "$installer_name" ] || return 0
+  if [ ! -f "$0" ] || [ -L "$0" ]; then
+    printf 'Release installer bootstrap must be a regular file: %s\n' "$0" >&2
+    return 1
+  fi
+  resolve_release_asset "$record_path" "$installer_name" || {
+    printf 'GitHub Release record has no unique digest-bound installer bootstrap asset.\n' >&2
+    return 1
+  }
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$installer_name"
+  if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+    printf 'GitHub Release installer bootstrap URL mismatch.\n' >&2
+    return 1
+  fi
+  component_manifest_has_exact_artifact \
+    "$manifest_path" "$installer_name" "$RELEASE_ASSET_SHA256" "$tag" || {
+    printf 'Component manifest does not bind one exact installer bootstrap from the selected Release.\n' >&2
+    return 1
+  }
+  verify_file_sha256 "$0" "$RELEASE_ASSET_SHA256" 'Installer bootstrap'
+}
+
+download_and_validate_component_manifest() {
+  local work_dir="$1"
+  local record_path="$2"
+  local tag="$3"
+  local standard_asset_name="$4"
+  local standard_asset_sha256="$5"
+  local manifest_path expected_url quality build_trigger preview_kind stable_qualified non_stable_notice
+  local release_version version release_tag primary_name primary_digest manifest_ref release_url manifest_digest
+  local skipped_gates failed_gates manifest_asset_sha256
+
+  if ! resolve_release_asset "$record_path" 'opl-app-component-manifest.json'; then
+    printf 'GitHub Release record has no unique digest-bound App component manifest asset.\n' >&2
+    return 1
+  fi
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/opl-app-component-manifest.json"
+  if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+    printf 'GitHub Release component manifest URL mismatch.\n' >&2
+    return 1
+  fi
+  manifest_path="$work_dir/opl-app-component-manifest.json"
+  download_release_file "$RELEASE_ASSET_URL" "$manifest_path" 'component manifest' || return 1
+  verify_file_sha256 "$manifest_path" "$RELEASE_ASSET_SHA256" 'Component manifest' || return 1
+  manifest_asset_sha256="$RELEASE_ASSET_SHA256"
+
+  [ "$(component_manifest_value "$manifest_path" surface_kind)" = 'opl_app_component_manifest.v1' ] || {
+    printf 'Component manifest surface kind is invalid.\n' >&2
+    return 1
+  }
+  [ "$(component_manifest_value "$manifest_path" component_id)" = 'opl-app' ] || {
+    printf 'Component manifest component id is invalid.\n' >&2
+    return 1
+  }
+  release_tag=$(component_manifest_value "$manifest_path" release_tag) || return 1
+  release_version=$(component_manifest_value "$manifest_path" release_version 2>/dev/null || true)
+  version=$(component_manifest_value "$manifest_path" version) || return 1
+  primary_name=$(component_manifest_value "$manifest_path" primary_artifact.name) || return 1
+  primary_digest=$(component_manifest_value "$manifest_path" primary_artifact.digest) || return 1
+  manifest_ref=$(component_manifest_value "$manifest_path" component_manifest_ref) || return 1
+  release_url=$(component_manifest_value "$manifest_path" release_url) || return 1
+  manifest_digest=$(component_manifest_value "$manifest_path" component_manifest_digest) || return 1
+  [ "$release_tag" = "$tag" ] || {
+    printf 'Component manifest release tag does not match the selected GitHub Release.\n' >&2
+    return 1
+  }
+  [ "$version" = "${tag#v}" ] || {
+    printf 'Component manifest version does not match the selected GitHub Release.\n' >&2
+    return 1
+  }
+  if [ -n "$release_version" ] && [ "$release_version" != "${tag#v}" ]; then
+    printf 'Component manifest release version does not match the selected GitHub Release.\n' >&2
+    return 1
+  fi
+  [ "$primary_name" = "$standard_asset_name" ] && [ "$primary_digest" = "sha256:$standard_asset_sha256" ] || {
+    printf 'Component manifest primary Standard DMG identity does not match the selected Release.\n' >&2
+    return 1
+  }
+  component_manifest_has_exact_artifact "$manifest_path" "$standard_asset_name" "$standard_asset_sha256" "$tag" || {
+    printf 'Component manifest does not bind one exact Standard DMG artifact from the selected Release.\n' >&2
+    return 1
+  }
+  [ "$manifest_ref" = "$expected_url" ] || {
+    printf 'Component manifest reference does not match its exact GitHub Release asset URL.\n' >&2
+    return 1
+  }
+  [ "$release_url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/tag/$tag" ] || {
+    printf 'Component manifest release URL does not match the selected GitHub Release.\n' >&2
+    return 1
+  }
+  case "$manifest_digest" in
+    sha256:*)
+      validate_sha256_value "${manifest_digest#sha256:}" || {
+        printf 'Component manifest identity digest is invalid.\n' >&2
+        return 1
+      }
+      ;;
+    *)
+      printf 'Component manifest identity digest is invalid.\n' >&2
+      return 1
+      ;;
+  esac
+
+  quality=$(component_manifest_value "$manifest_path" quality_status 2>/dev/null || true)
+  build_trigger=$(component_manifest_value "$manifest_path" build_trigger 2>/dev/null || true)
+  preview_kind=$(component_manifest_value "$manifest_path" preview_kind 2>/dev/null || true)
+  stable_qualified=$(component_manifest_value "$manifest_path" qualification_disclosure.stable_qualified 2>/dev/null || true)
+  non_stable_notice=$(component_manifest_value "$manifest_path" qualification_disclosure.non_stable_notice 2>/dev/null || true)
+  skipped_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.skipped_gates 2>/dev/null || true)
+  failed_gates=$(component_manifest_array_json "$manifest_path" qualification_disclosure.failed_gates 2>/dev/null || true)
+
+  if [ -z "$quality$build_trigger$preview_kind$stable_qualified$non_stable_notice$skipped_gates$failed_gates" ]; then
+    [ "$STABLE_MACOS_RELEASE_PRERELEASE" = false ] || {
+      printf 'A legacy component manifest cannot describe a prerelease App.\n' >&2
+      return 1
+    }
+    printf 'Release quality: unasserted legacy release (V3 Stable/Preview metadata unavailable).\n'
+    printf 'Legacy release manifest predates V3 qualification disclosure.\n'
+  else
+    [ -n "$quality" ] && [ -n "$build_trigger" ] && [ -n "$preview_kind" ] \
+      && [ -n "$stable_qualified" ] && [ -n "$non_stable_notice" ] \
+      && [ -n "$skipped_gates" ] && [ -n "$failed_gates" ] || {
+      printf 'Component manifest must provide every V3 quality and qualification disclosure field.\n' >&2
+      return 1
+    }
+    case "$quality:$build_trigger:$preview_kind:$stable_qualified:$non_stable_notice:$STABLE_MACOS_RELEASE_PRERELEASE" in
+      stable:manual:null:true:false:false|stable:automated:null:true:false:false)
+        [ "$skipped_gates" = '[]' ] || {
+          printf 'Stable component manifest must not claim skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Stable\n'
+        ;;
+      preview:manual:dev:false:true:false)
+        [ "$skipped_gates" != '[]' ] || {
+          printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Preview (Dev)\n'
+        ;;
+      preview:automated:nightly:false:true:true)
+        [ "$skipped_gates" != '[]' ] || {
+          printf 'Preview component manifest must disclose skipped qualification gates.\n' >&2
+          return 1
+        }
+        printf 'Release quality: Preview (Nightly)\n'
+        ;;
+      *)
+        printf 'Component manifest has an invalid quality, trigger, preview-kind, disclosure, or release-prerelease combination.\n' >&2
+        return 1
+        ;;
+    esac
+    if [ "$quality" = preview ]; then
+      printf 'Non-Stable release: full Stable qualification is not asserted.\n'
+    fi
+    printf 'Skipped qualification gates: %s\n' "$skipped_gates"
+    printf 'Failed qualification gates: %s\n' "$failed_gates"
+  fi
+  printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
+  verify_release_installer_bootstrap "$record_path" "$manifest_path" "$tag" || return 1
+
+  STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
+  STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$manifest_asset_sha256"
+  STABLE_MACOS_RELEASE_QUALITY_ASSERTED=1
 }
 
 download_or_use_dmg() {
   local work_dir="$1"
-  local tag asset_name url dmg_path download_status
-  if [ -n "$STABLE_MACOS_DMG_PATH" ]; then
-    if [ ! -f "$STABLE_MACOS_DMG_PATH" ]; then
-      printf 'DMG path not found: %s\n' "$STABLE_MACOS_DMG_PATH" >&2
-      exit 1
+  local record_path tag asset_name url expected_url dmg_path download_status expected_sha256
+  local standard_asset_name standard_asset_sha256
+  STABLE_MACOS_RESOLVED_DMG_PATH=''
+  STABLE_MACOS_RESOLVED_DMG_SHA256=''
+  STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
+  if [ -n "$STABLE_MACOS_DMG_PATH" ] || [ -n "$STABLE_MACOS_DMG_URL" ]; then
+    require_caller_dmg_sha256 || return 1
+    if [ -n "$STABLE_MACOS_DMG_PATH" ]; then
+      if [ ! -f "$STABLE_MACOS_DMG_PATH" ]; then
+        printf 'DMG path not found: %s\n' "$STABLE_MACOS_DMG_PATH" >&2
+        return 1
+      fi
+      STABLE_MACOS_RESOLVED_DMG_PATH="$STABLE_MACOS_DMG_PATH"
+    else
+      asset_name="${STABLE_MACOS_DMG_URL##*/}"
+      [ -n "$asset_name" ] || asset_name='custom.dmg'
+      dmg_path="$work_dir/$asset_name"
+      download_release_file "$STABLE_MACOS_DMG_URL" "$dmg_path" 'custom DMG' || return 1
+      STABLE_MACOS_RESOLVED_DMG_PATH="$dmg_path"
     fi
-    printf '%s\n' "$STABLE_MACOS_DMG_PATH"
+    STABLE_MACOS_RESOLVED_DMG_SHA256="$STABLE_MACOS_DMG_SHA256"
+    verify_resolved_dmg "$STABLE_MACOS_RESOLVED_DMG_PATH" "$STABLE_MACOS_RESOLVED_DMG_SHA256" || return 1
+    printf 'Release quality: not asserted for a custom DMG source.\n'
     return 0
   fi
 
-  if [ -n "$STABLE_MACOS_DMG_URL" ]; then
-    url="$STABLE_MACOS_DMG_URL"
-    asset_name="${url##*/}"
+  if [ -z "$STABLE_MACOS_RELEASE_TAG" ]; then
+    resolve_latest_release_tag "$work_dir" >/dev/null || return 1
   else
-    tag="$STABLE_MACOS_RELEASE_TAG"
-    if [ -z "$tag" ]; then
-      tag=$(resolve_latest_release_tag)
-    fi
-    asset_name=$(release_asset_name "$tag" "$STABLE_MACOS_PACKAGE_PROFILE")
-    url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+    resolve_release_record "$work_dir" || return 1
   fi
+  record_path="$STABLE_MACOS_RELEASE_RECORD_PATH"
+  tag="$STABLE_MACOS_RELEASE_TAG"
+  asset_name=$(release_asset_name "$tag" "$STABLE_MACOS_PACKAGE_PROFILE")
+  if ! resolve_release_asset "$record_path" "$asset_name"; then
+    if [ "$STABLE_MACOS_PACKAGE_PROFILE" = "full" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "0" ]; then
+      asset_name=$(release_asset_name "$tag" standard)
+      printf 'Full DMG is not published for %s; continuing with the Standard DMG.\n' "$tag" >&2
+      resolve_release_asset "$record_path" "$asset_name" || {
+        printf 'GitHub Release record has no unique digest-bound Standard DMG asset: %s\n' "$asset_name" >&2
+        return 1
+      }
+    else
+      printf 'GitHub Release record has no unique digest-bound DMG asset: %s\n' "$asset_name" >&2
+      return 1
+    fi
+  fi
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+  if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+    printf 'GitHub Release asset URL mismatch for %s.\n' "$asset_name" >&2
+    return 1
+  fi
+  expected_sha256="$RELEASE_ASSET_SHA256"
+
+  url="$RELEASE_ASSET_URL"
   dmg_path="$work_dir/$asset_name"
-  if download_release_dmg "$url" "$dmg_path"; then
-    printf '%s\n' "$dmg_path"
-    return 0
+  if download_release_file "$url" "$dmg_path" 'DMG'; then
+    STABLE_MACOS_RESOLVED_DMG_PATH="$dmg_path"
   else
     download_status=$?
+    return "$download_status"
   fi
 
-  if [ -z "$STABLE_MACOS_DMG_URL" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE" = "full" ] && [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "0" ] && [ "$DOWNLOAD_HTTP_CODE" = "404" ]; then
-    asset_name=$(release_asset_name "$tag" standard)
-    url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
-    dmg_path="$work_dir/$asset_name"
-    printf 'Full DMG is not published for %s; continuing with the Standard DMG.\n' "$tag" >&2
-    if download_release_dmg "$url" "$dmg_path"; then
-      printf '%s\n' "$dmg_path"
-      return 0
-    else
-      return $?
-    fi
-  fi
-
-  return "$download_status"
+  STABLE_MACOS_RESOLVED_DMG_SHA256="$expected_sha256"
+  verify_resolved_dmg "$STABLE_MACOS_RESOLVED_DMG_PATH" "$STABLE_MACOS_RESOLVED_DMG_SHA256" || return 1
+  standard_asset_name=$(release_asset_name "$tag" standard)
+  resolve_release_asset "$record_path" "$standard_asset_name" || {
+    printf 'GitHub Release record has no unique digest-bound Standard DMG asset: %s\n' "$standard_asset_name" >&2
+    return 1
+  }
+  standard_asset_sha256="$RELEASE_ASSET_SHA256"
+  download_and_validate_component_manifest \
+    "$work_dir" "$record_path" "$tag" "$standard_asset_name" "$standard_asset_sha256"
 }
 
 copy_app_from_dmg() {
@@ -855,7 +1422,7 @@ stable_macos_install() {
     printf 'Stable macOS App install is macOS-only.\n' >&2
     exit 1
   fi
-  for required_command in curl hdiutil ditto find xattr; do
+  for required_command in curl hdiutil ditto find plutil xattr; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
       printf 'Missing required command: %s\n' "$required_command" >&2
       exit 1
@@ -864,7 +1431,6 @@ stable_macos_install() {
   ensure_app_target_path
   confirm_stable_macos_install
 
-  local dmg_path
   STABLE_MACOS_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/opl-stable-macos-install.XXXXXX")
   cleanup_stable_macos_install() {
     if [ -n "$STABLE_MACOS_WORK_DIR" ] && [ -d "$STABLE_MACOS_WORK_DIR/mount" ]; then
@@ -876,8 +1442,8 @@ stable_macos_install() {
   }
   trap cleanup_stable_macos_install EXIT
 
-  dmg_path=$(download_or_use_dmg "$STABLE_MACOS_WORK_DIR")
-  copy_app_from_dmg "$dmg_path" "$STABLE_MACOS_WORK_DIR"
+  download_or_use_dmg "$STABLE_MACOS_WORK_DIR"
+  copy_app_from_dmg "$STABLE_MACOS_RESOLVED_DMG_PATH" "$STABLE_MACOS_WORK_DIR"
   AUTHORIZE_LOCAL_APP_YES=1
   authorize_local_app
 
@@ -888,7 +1454,7 @@ stable_macos_install() {
       printf 'The App was installed and locally authorized, but macOS did not open it automatically. Open it manually from: %s\n' "$OPL_LOCAL_APP_PATH" >&2
     fi
   fi
-  printf 'One Person Lab Stable macOS install finished.\n'
+  printf 'One Person Lab macOS App install finished.\n'
   print_stable_macos_next_steps
 }
 
@@ -908,7 +1474,7 @@ if ! command -v curl >/dev/null 2>&1; then
 fi
 
 trap cleanup_native_installer EXIT
-SELECTED_INSTALL_ROUTE=$(resolve_install_route)
+SELECTED_INSTALL_ROUTE=$(resolve_install_route) || exit 1
 if [ "$PRINT_INSTALL_ROUTE" = "1" ]; then
   printf '%s\n' "$SELECTED_INSTALL_ROUTE"
   exit 0

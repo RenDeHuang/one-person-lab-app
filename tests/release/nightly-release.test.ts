@@ -63,7 +63,7 @@ function fixture(t: test.TestContext) {
   fs.writeFileSync(path.join(assetsDir, 'standard-local-authorization-policy.json'), JSON.stringify({
     schema: 'opl_local_authorized_macos_policy.v1',
     package_kind: 'app_standard',
-    stable_release_path: 'local_authorized_unsigned',
+    release_install_path: 'local_authorized_unsigned',
     apple_developer_id_required: false,
     gatekeeper_required: false,
     local_authorization_required: true,

@@ -28,12 +28,13 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     ['app_github_releases', 'homebrew_tap', 'webui_ghcr'],
     'Publication carrier families',
   );
-  requireEqual(releaseTopology?.current_production_publication_paths, 3, 'Production publication path count');
+  requireEqual(releaseTopology?.current_production_publication_paths, 4, 'Production publication path count');
   assertDeepEqualJson(
     releaseTopology?.production_publication_paths,
     [
       'desktop_stable_github_release',
       'homebrew_standard_cask',
+      'homebrew_full_cask_post_publication_follower',
       'container_webui_latest_with_stable_compatibility_alias',
     ],
     'Production publication paths',
@@ -226,12 +227,12 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   const releaseHomebrew = releaseChannel.homebrew_tap_distribution;
   requireEqual(
     release.implementation_state?.homebrew_full,
-    'legacy_cask_exists_not_managed_by_current_release_pipeline',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask current release state',
   );
   requireEqual(releaseHomebrew?.excluded_casks?.includes('one-person-lab-full'), false, 'Approved Full Cask exclusion');
   requireEqual(releaseHomebrew?.full_casks?.includes('one-person-lab-full'), true, 'Approved Full Cask target');
-  requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, false, 'Current Full Cask publication');
+  requireEqual(releaseHomebrew?.tap_update_policy?.full?.homebrew_publish_allowed, true, 'Current Full Cask publication');
   requireEqual(
     releaseHomebrew?.tap_update_policy?.nightly?.mutation_allowed,
     true,
@@ -244,7 +245,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.homebrew_full?.generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask target generator status',
   );
   requireEqual(
@@ -279,7 +280,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.homebrew_full?.public_promotion_status,
-    'not_approved_until_promotion_requirements_pass',
+    'approved_pending_first_protected_follower_readback',
     'Full Cask target public promotion status',
   );
 
@@ -393,15 +394,58 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(installer?.approved_universal_target?.headless_explicit, 'opl_base_only', 'Universal headless target');
   requireEqual(installer?.approved_universal_target?.result, 'official_profile_converged', 'Universal result');
-  requireEqual(
-    installer?.stable_macos_helper?.current_status,
-    'live_compatibility_path',
-    'Stable macOS helper current state',
+  assertDeepEqualJson(
+    installer?.approved_universal_target?.native_webui_public_discovery,
+    {
+      repository: 'gaofeng21cn/one-person-lab-app',
+      release_selector: 'github_latest_pointer_exact_release',
+      required_asset_roles: [
+        'runtime_tarball',
+        'runtime_metadata',
+        'installer',
+        'installer_sha256',
+        'qualification_receipt',
+      ],
+      installer_digest_authority: 'github_release_asset_digest_sha256',
+      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      exact_tag_download_url_required: true,
+      probe_before_selection_required: true,
+      pre_publication_fallback: 'container_webui',
+    },
+    'Native WebUI public discovery policy',
   );
   requireEqual(
-    installer?.stable_macos_helper?.new_public_documentation_priority,
-    false,
-    'Stable macOS helper documentation priority',
+    installer?.stable_macos_helper?.current_status,
+    'direct_component_manifest_entrypoint',
+    'Stable macOS helper current state',
+  );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.compatibility_entrypoints,
+    [],
+    'Direct macOS compatibility entrypoints',
+  );
+  requireEqual(
+    installer?.stable_macos_helper?.compatibility_wrapper_status,
+    'retired',
+    'Direct macOS compatibility wrapper status',
+  );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.retired_compatibility_entrypoints,
+    ['install-stable.sh'],
+    'Retired macOS compatibility entrypoints',
+  );
+  assertDeepEqualJson(
+    installer?.stable_macos_helper?.artifact_integrity,
+    {
+      official_release_asset_authority: 'exact_github_release_record_asset_digest',
+      component_manifest_authority: 'exact_github_release_record_component_manifest_asset_digest',
+      custom_url_or_path_authority: 'caller_supplied_sha256_quality_not_asserted',
+      verification_order: 'dmg_and_component_manifest_before_mount_copy_or_target_replacement',
+      latest_pointer_does_not_imply_stable_qualification: true,
+      non_stable_disclosure_before_target_mutation: true,
+      legacy_component_manifest_policy: 'allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure',
+    },
+    'Direct macOS installer artifact and quality authority',
   );
 
   const installHomebrew = install.homebrew_carriers;
@@ -430,7 +474,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installHomebrew?.full?.formula_dependency_target, false, 'Full Cask target Formula dependency');
   requireEqual(
     installHomebrew?.full?.target_generation_status,
-    'implemented_unpublished',
+    'implemented_pending_first_protected_follower_readback',
     'Full Cask install target generator status',
   );
   requireEqual(

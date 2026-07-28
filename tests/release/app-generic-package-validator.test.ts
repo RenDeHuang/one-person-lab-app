@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { readAppProductProfile } from '../../scripts/app-product-profile/profile-contract.ts';
+import { validatePackageAppContributionsProductContract } from '../../scripts/validate-active-shell/gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from '../../scripts/validate-active-shell/gui-product-home-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 
@@ -172,4 +173,170 @@ test('App-owned Agent presentation overlay restoration fails closed', () => {
     () => validateProductProfile(invalidProfile, installExposure),
     /must not restore fixed Agent\/Home presentation field gui.professional_agent_packages_metadata_policy/,
   );
+});
+
+test('any Package role may project one closed standard App contribution block', () => {
+  const schema = readJson('contracts/opl-app-contributions.schema.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const shellAdapter = readJson('contracts/app-shell-adapter.json');
+  const contributionContract = guiContract.framework_surfaces.package_app_contributions;
+  const viewTypes = [
+    'list_detail',
+    'timeline',
+    'approval_diff',
+    'task_board',
+    'artifact_view',
+    'activity_log',
+  ];
+
+  assert.doesNotThrow(() => validatePackageAppContributionsProductContract(contributionContract));
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.schema_version.const, 'opl-app-contributions.v1');
+  assert.deepEqual(
+    schema.anyOf,
+    ['navigation', 'views', 'commands', 'badges'].map((collection) => ({
+      required: [collection],
+      properties: { [collection]: { minItems: 1 } },
+    })),
+  );
+  for (const collection of ['navigation', 'views', 'commands', 'badges']) {
+    assert.equal(schema.properties[collection].maxItems, 100);
+  }
+  assert.equal(schema.$defs.view.properties.command_ids.maxItems, 100);
+  assert.equal(schema.$defs.view.properties.badge_ids.maxItems, 100);
+  assert.deepEqual(schema.$defs.view.properties.view_type.enum, viewTypes);
+  for (const entry of ['navigation', 'view', 'command', 'badge']) {
+    assert.equal(schema.$defs[entry].additionalProperties, false);
+    for (const forbiddenField of ['component', 'code', 'path', 'url']) {
+      assert.equal(forbiddenField in schema.$defs[entry].properties, false);
+    }
+  }
+
+  assert.equal(contributionContract.package_role_policy, 'role_agnostic_no_package_role_filter');
+  assert.equal(
+    contributionContract.action_execution_policy,
+    'resolve_action_ref_through_the_descriptor_neutral_app_contribution_execute_broker',
+  );
+  assert.equal(
+    contributionContract.invalid_block_policy,
+    'reject_entire_package_app_contributions_block_and_preserve_other_packages',
+  );
+  assert.deepEqual(contributionContract.supported_view_types, viewTypes);
+  assert.deepEqual(contributionContract.reference_integrity, {
+    navigation_view_id: 'must_reference_local_views_view_id',
+    view_command_ids: 'must_reference_local_commands_command_id',
+  });
+  assert.equal(contributionContract.arbitrary_plugin_ui_code_allowed, false);
+
+  assert.ok(shellAdapter.gui_authority.product_contracts.includes('contracts/opl-app-contributions.schema.json'));
+  assert.ok(shellAdapter.shell_contract.capabilities.includes('app_owned_package_contribution_contract'));
+  assert.deepEqual(shellAdapter.state_surface_contract.package_app_contributions, {
+    contract_ref: 'contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions',
+    schema_ref: 'contracts/opl-app-contributions.schema.json',
+    source_ref: 'app_state.agent_packages.directory.entries[].app_contributions',
+    package_role_filter_allowed: false,
+    navigation_identity: ['package_id', 'navigation_id'],
+    read_command: 'opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]',
+    execute_command: 'opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]',
+    route_resolution_policy: 'resolve_only_from_the_current_directory_entry_then_delegate_descriptor_and_ref_revalidation_to_the_broker',
+    response_policy: 'render_only_a_valid_broker_response_for_the_requested_package_ref_and_operation',
+    confirmation_policy: 'broker_and_descriptor_owned_shell_cannot_infer_or_bypass_confirmation',
+    stale_or_malformed_policy: 'fail_closed_hide_the_contribution_without_a_local_fallback_or_fabricated_state',
+    legacy_package_manager_state_allowed: false,
+    invalid_block_policy: 'reject_entire_package_app_contributions_block_and_preserve_other_packages',
+    arbitrary_plugin_ui_code_allowed: false,
+  });
+});
+
+test('unknown descriptor-neutral Package contributions route through the broker without role or id branches', () => {
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const pageState = readJson('contracts/app-page-state-matrix.json');
+  const contributionContract = guiContract.framework_surfaces.package_app_contributions;
+  const contributionPage = pageState.pages.find((page: any) => page.id === 'package_contribution');
+
+  const unknownCarrierEntry = {
+    package_id: 'future.contribution.package',
+    package_role: 'future_unknown_role',
+    app_contributions: {
+      schema_version: 'opl-app-contributions.v1',
+      navigation: [{ navigation_id: 'future.activity', view_id: 'future.activity' }],
+      views: [{ view_id: 'future.activity', data_ref: 'future.data.v1#current' }],
+      commands: [{ command_id: 'future.refresh', action_ref: 'future.data.v1#refresh', confirmation_required: true }],
+    },
+  };
+
+  assert.deepEqual(contributionContract.navigation_identity, ['package_id', 'navigation_id']);
+  assert.equal(contributionContract.package_role_policy, 'role_agnostic_no_package_role_filter');
+  assert.equal(contributionContract.navigation_source_ref, 'app_state.agent_packages.directory.entries[].app_contributions.navigation[]');
+  assert.equal(
+    contributionContract.route_resolution_policy,
+    'resolve_navigation_view_and_command_refs_from_the_same_current_directory_entry_then_require_broker_descriptor_revalidation',
+  );
+  assert.equal(
+    contributionContract.read_broker_command,
+    'opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]',
+  );
+  assert.equal(
+    contributionContract.execute_broker_command,
+    'opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]',
+  );
+  assert.equal(contributionContract.broker_revalidation_policy.includes('current_installed_descriptor'), true);
+  assert.equal(contributionContract.confirmation_policy.includes('never_inferred_or_bypassed_by_the_shell'), true);
+  assert.equal(contributionContract.invalid_or_stale_projection_policy.startsWith('fail_closed'), true);
+  assert.equal(contributionContract.legacy_package_manager_state_allowed, false);
+  assert.deepEqual(contributionContract.forbidden_legacy_truth_sources, [
+    'registry_cache',
+    'package_lock',
+    'lifecycle_receipt',
+    'payload',
+    'last_known_good',
+    'rollback',
+    'currentness_mirror',
+  ]);
+
+  assert.equal(unknownCarrierEntry.package_id, 'future.contribution.package');
+  assert.equal(unknownCarrierEntry.package_role, 'future_unknown_role');
+  assert.equal(unknownCarrierEntry.app_contributions.navigation[0].navigation_id, 'future.activity');
+  assert.equal(unknownCarrierEntry.app_contributions.views[0].data_ref, 'future.data.v1#current');
+  assert.equal(unknownCarrierEntry.app_contributions.commands[0].confirmation_required, true);
+
+  assert.deepEqual(contributionPage.package_contribution_view_model.navigation_identity, ['package_id', 'navigation_id']);
+  assert.equal(contributionPage.package_contribution_view_model.package_role_filter_allowed, false);
+  assert.equal(contributionPage.package_contribution_view_model.broker_descriptor_revalidation_required, true);
+  assert.equal(contributionPage.package_contribution_view_model.confirmation_authority, 'descriptor_and_broker_only');
+  assert.equal(contributionPage.package_contribution_view_model.invalid_or_stale_policy, 'fail_closed_do_not_render_or_fabricate_state');
+  assert.equal(contributionPage.package_contribution_view_model.legacy_manager_fallback_allowed, false);
+  assert.deepEqual(contributionPage.package_contribution_view_model.forbidden_ui_inputs, [
+    'plugin_html',
+    'plugin_javascript',
+    'plugin_react_component',
+    'plugin_electron_code',
+    'plugin_path',
+    'plugin_url',
+  ]);
+});
+
+test('App contribution product contract rejects role filters, executable UI, and view-type drift', () => {
+  const source = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
+
+  for (const mutate of [
+    (contract: any) => { contract.package_role_policy = 'standard_agent_only'; },
+    (contract: any) => { contract.action_execution_policy = 'resolve_action_ref_through_the_existing_app_action_bridge'; },
+    (contract: any) => { contract.navigation_identity = ['navigation_id']; },
+    (contract: any) => { contract.broker_revalidation_policy = 'shell_may_reuse_stale_descriptor'; },
+    (contract: any) => { contract.confirmation_policy = 'shell_may_infer_confirmation'; },
+    (contract: any) => { contract.invalid_or_stale_projection_policy = 'render_last_known_good'; },
+    (contract: any) => { contract.legacy_package_manager_state_allowed = true; },
+    (contract: any) => { contract.forbidden_legacy_truth_sources = []; },
+    (contract: any) => { contract.arbitrary_plugin_ui_code_allowed = true; },
+    (contract: any) => { contract.supported_view_types.push('custom_react_component'); },
+    (contract: any) => { contract.invalid_block_policy = 'filter_invalid_entries_individually'; },
+  ]) {
+    const invalid = structuredClone(source);
+    mutate(invalid);
+    assert.throws(
+      () => validatePackageAppContributionsProductContract(invalid),
+      /role-agnostic|view types|broker-routed|legacy truth sources/,
+    );
+  }
 });

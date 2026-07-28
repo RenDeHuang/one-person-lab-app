@@ -44,22 +44,18 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.doesNotMatch(source, /workflow_dispatch:|OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
 });
 
-test('Full Homebrew reusable renders, qualifies, publishes, and reads back in order', () => {
+test('Full Homebrew reusable publishes hosted-qualified bytes before optional physical certification', () => {
   const source = read('_release-homebrew-full-publish.yml');
   const workflow = parse('_release-homebrew-full-publish.yml');
   assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
   assert.deepEqual(Object.keys(workflow.jobs), [
     'startup-canary',
     'prepare-candidate',
-    'qualify-candidate',
     'publish-cask',
     'readback',
   ]);
-  assert.deepEqual(workflow.jobs['publish-cask'].needs, ['prepare-candidate', 'qualify-candidate']);
+  assert.deepEqual(workflow.jobs['publish-cask'].needs, ['prepare-candidate']);
   assert.equal(workflow.jobs['publish-cask'].environment, 'release-stable');
-  assert.equal(workflow.jobs['qualify-candidate'].uses, './.github/workflows/opl-first-run-vm.yml');
-  assert.equal(workflow.jobs['qualify-candidate'].with.package_profile, 'homebrew-full');
-  assert.match(source, /homebrew_candidate_artifact/);
   assert.match(source, /Restore exact qualified Full checkpoint/);
   assert.match(source, /completed_stage \}\}' = full_qualified/);
   assert.match(source, /Restore qualified Full publication checkpoint/);
@@ -89,11 +85,12 @@ test('Full Homebrew reusable renders, qualifies, publishes, and reads back in or
   assert.match(source, /git -C tap-source show 'FETCH_HEAD:Casks\/one-person-lab-full\.rb'/);
   assert.doesNotMatch(source, /contents\/Casks\/one-person-lab-full\.rb\?ref=main/);
   assert.match(source, /no second push was attempted/);
-  assert.match(source, /formula_opl_installed_before == false/);
-  assert.match(source, /formula_opl_installed_after == false/);
-  assert.doesNotMatch(source, /\.formula_opl_installed == false/);
-  assert.match(source, /active_framework_count == 1/);
-  assert.match(source, /official_profile\.status == "passed"/);
+  assert.doesNotMatch(
+    source,
+    /qualify-candidate|opl-first-run-vm\.yml|tart-smoke-summary\.json|smoke_harness_sha|shell-harness|opl-first-run-tart-smoke|--homebrew-cask-file|clean_vm_receipt_sha256|formula_opl_installed_before|official_profile_first_install/,
+  );
+  assert.match(source, /qualification_receipt_sha256:\$qualification_sha/);
+  assert.match(source, /cohort:\{app_sha:\$app_sha,shell_sha:\$shell_sha,framework_sha:\$framework_sha\}/);
   assert.doesNotMatch(source, /depends_on formula: "opl"|github-activate-latest|make_latest/);
 });
 
@@ -113,7 +110,7 @@ test('append_full resume recognizes only exact GitHub Full or Full Cask unknown 
   assert.doesNotMatch(source, /git\b[^\n]*\bpush\b/);
 });
 
-test('VM harness routes Full Homebrew to candidate-only smoke without Framework injection', () => {
+test('VM harness retains an isolated Full Homebrew probe outside the publication DAG', () => {
   const source = read('opl-first-run-vm.yml');
   assert.match(source, /homebrew_candidate_artifact/);
   assert.match(source, /package_profile=homebrew-full requires an exact pre-publication Cask artifact/);

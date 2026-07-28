@@ -32,13 +32,13 @@ export function localAuthorizationPolicy(packageKind) {
     {
       schema: "opl_local_authorized_macos_policy.v1",
       package_kind: packageKind,
-      stable_release_path: "local_authorized_unsigned",
+      release_install_path: "local_authorized_unsigned",
       apple_developer_id_required: false,
       gatekeeper_required: false,
       local_authorization_required: true,
       quarantine_removal_required: true,
       install_entrypoint: "install.sh --stable-macos-install --yes",
-      compatibility_entrypoints: ["install-stable.sh"],
+      compatibility_entrypoints: [],
       default_package_profile: packageKind === "app_full_first_install" ? "full" : "standard",
       user_prompt_policy:
         "one_terminal_command_no_system_settings_override_expected_after_quarantine_clear",
@@ -160,6 +160,7 @@ export function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     "latest-arm64-mac.yml",
+    "opl-app-installer.sh",
     "standard-gatekeeper-launch-policy.json",
     "standard-apple-notarization-receipt.json",
   ];
@@ -216,6 +217,7 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, dmgName), "standard-dmg");
   writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
+  writeExecutable(path.join(outDir, "opl-app-installer.sh"), "#!/usr/bin/env bash\nexit 0\n");
   writeStandardDistributionTrust(outDir, version);
   const metadata = [
     `version: ${updaterVersion}`,

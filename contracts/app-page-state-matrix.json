@@ -890,6 +890,47 @@
       "refresh_source": "opl app state --profile fast --json"
     },
     {
+      "id": "package_contribution",
+      "expected_source": "current Framework-projected Package contribution directory entry and descriptor-neutral contribution broker",
+      "machine_source": "app_state.agent_packages.directory.entries[].app_contributions + opl app contribution read|execute --package-id <package_id> --ref <dynamic> --input <json> [--confirm]",
+      "page_contract": "dynamic_package_contribution_standard_view",
+      "package_contribution_view_model": {
+        "navigation_identity": [
+          "package_id",
+          "navigation_id"
+        ],
+        "navigation_source_ref": "app_state.agent_packages.directory.entries[].app_contributions.navigation[]",
+        "route_resolution_policy": "resolve_navigation_to_its_local_view_and_refs_from_the_same_current_directory_entry_then_delegate_to_the_broker",
+        "data_read_command": "opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]",
+        "action_execute_command": "opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]",
+        "supported_view_types_source_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.supported_view_types",
+        "rendering_policy": "standard_structured_views_only",
+        "package_role_filter_allowed": false,
+        "broker_descriptor_revalidation_required": true,
+        "confirmation_authority": "descriptor_and_broker_only",
+        "invalid_or_stale_policy": "fail_closed_do_not_render_or_fabricate_state",
+        "legacy_manager_fallback_allowed": false,
+        "forbidden_ui_inputs": [
+          "plugin_html",
+          "plugin_javascript",
+          "plugin_react_component",
+          "plugin_electron_code",
+          "plugin_path",
+          "plugin_url"
+        ]
+      },
+      "must_show": [
+        "only_current_valid_descriptor_declared_navigation_and_standard_views",
+        "broker_owned_confirmation_prompt_when_the_descriptor_requires_confirmation"
+      ],
+      "must_not_show": [
+        "stale_or_missing_descriptor_contribution",
+        "malformed_broker_response",
+        "registry_cache_or_package_lock_fallback",
+        "arbitrary_plugin_ui_or_filesystem_path"
+      ]
+    },
+    {
       "id": "right_context_inspector",
       "expected_source": "App-owned GUI product contract and OPL App state projection refs",
       "machine_source": "contracts/app-gui-product-contract.json#right_context_inspector + opl app state --profile fast --json",

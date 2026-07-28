@@ -1099,6 +1099,15 @@
     },
     "visual_comparison_protocol": {
       "schema": "opl_app_gui_visual_comparison.v1",
+      "active_reference_cohort_ref": "contracts/app-gui-visual-reference-cohort.json",
+      "shell_comparator_ref": "scripts/compare-gui-visual-cohort.ts",
+      "shared_primitive_ids": [
+        "composer",
+        "rail_row",
+        "icon_button",
+        "menu",
+        "settings_row"
+      ],
       "required_binding_fields": [
         "reference_product_build",
         "reference_observed_at",
@@ -1130,6 +1139,12 @@
         "release_ready",
         "installed_current",
         "upstream_absorbed"
+      ],
+      "scene_bound_visual_parity_requires": [
+        "exact_binding_complete",
+        "dimensions_equal",
+        "pixel_thresholds_passed",
+        "visual_delta_reviewed"
       ]
     }
   },
@@ -1216,6 +1231,70 @@
       "plugin_role": "codex_app_distribution_and_capability_bundle",
       "default_presentation": "hide_skill_plugin_packaging_mechanics_by_default",
       "duplicate_skill_policy": "plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills"
+    },
+    "package_app_contributions": {
+      "schema_ref": "contracts/opl-app-contributions.schema.json",
+      "schema_version": "opl-app-contributions.v1",
+      "source_ref": "app_state.agent_packages.directory.entries[].app_contributions",
+      "package_role_policy": "role_agnostic_no_package_role_filter",
+      "optional_collections": [
+        "navigation",
+        "views",
+        "commands",
+        "badges"
+      ],
+      "at_least_one_non_empty_collection_required": true,
+      "supported_view_types": [
+        "list_detail",
+        "timeline",
+        "approval_diff",
+        "task_board",
+        "artifact_view",
+        "activity_log"
+      ],
+      "stable_id_fields": [
+        "navigation_id",
+        "view_id",
+        "command_id",
+        "badge_id"
+      ],
+      "id_uniqueness_scope": "per_package_per_collection",
+      "reference_integrity": {
+        "navigation_view_id": "must_reference_local_views_view_id",
+        "view_command_ids": "must_reference_local_commands_command_id"
+      },
+      "data_resolution_policy": "resolve_data_ref_from_framework_projected_state_only",
+      "action_execution_policy": "resolve_action_ref_through_the_descriptor_neutral_app_contribution_execute_broker",
+      "navigation_identity": [
+        "package_id",
+        "navigation_id"
+      ],
+      "navigation_source_ref": "app_state.agent_packages.directory.entries[].app_contributions.navigation[]",
+      "route_resolution_policy": "resolve_navigation_view_and_command_refs_from_the_same_current_directory_entry_then_require_broker_descriptor_revalidation",
+      "read_broker_command": "opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]",
+      "execute_broker_command": "opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]",
+      "broker_revalidation_policy": "broker_must_recheck_the_current_installed_descriptor_carrier_readiness_and_declared_ref_before_each_read_or_execute",
+      "confirmation_policy": "descriptor_declared_confirmation_is_enforced_by_the_execute_broker_and_never_inferred_or_bypassed_by_the_shell",
+      "invalid_or_stale_projection_policy": "fail_closed_do_not_render_or_fabricate_a_route_when_the_directory_entry_descriptor_or_broker_response_is_missing_stale_or_malformed",
+      "legacy_package_manager_state_allowed": false,
+      "forbidden_legacy_truth_sources": [
+        "registry_cache",
+        "package_lock",
+        "lifecycle_receipt",
+        "payload",
+        "last_known_good",
+        "rollback",
+        "currentness_mirror"
+      ],
+      "invalid_block_policy": "reject_entire_package_app_contributions_block_and_preserve_other_packages",
+      "shell_rendering_policy": "render_standard_structured_views_only",
+      "arbitrary_plugin_ui_code_allowed": false,
+      "forbidden_descriptor_fields": [
+        "component",
+        "code",
+        "path",
+        "url"
+      ]
     },
     "canonical_state": {
       "schema": "opl_app_state.v1",
@@ -5061,14 +5140,14 @@
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification",
-        "standard_dmg_clean_vm_smoke",
-        "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "remote_standard_release_verification"
       ],
       "addon_gate_blocking_standard_terminal": false,
       "diagnostic_gate": [
-        "operator_evidence_bundle"
+        "operator_evidence_bundle",
+        "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke"
       ],
       "latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass"
     },

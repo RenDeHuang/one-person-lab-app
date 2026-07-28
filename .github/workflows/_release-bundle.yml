@@ -87,6 +87,9 @@ on:
       completed_stage:
         description: Framework checkpoint export stage, passed through without App projection
         value: ${{ jobs.checkpoint-standard.outputs.completed_stage }}
+      standard_identity_sha256:
+        description: Unique signed Standard artifact identity digest
+        value: ${{ jobs.checkpoint-standard.outputs.standard_identity_sha256 }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -335,10 +338,12 @@ jobs:
           previous_latest_tag="$(jq -er .tag_name "$previous_latest_json")"
           previous_display="${previous_latest_tag#v}"
           previous_target="$(jq -er .target_commitish "$previous_latest_json")"
-          [[ "$previous_target" =~ ^[0-9a-f]{40}$ ]] || {
-            echo "::error::Latest target_commitish must be an exact SHA."
-            exit 1
-          }
+          export GITHUB_REPOSITORY
+          previous_target="$(
+            node --experimental-strip-types scripts/resolve-github-target-commit.ts \
+              --target "$previous_target" \
+              --release-tag "$previous_latest_tag"
+          )"
           previous_manifest_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' "$previous_latest_json")"
           gh api --header 'Accept: application/octet-stream' "$previous_manifest_url" > "$previous_latest_manifest_json"
           previous_identity_json="$RUNNER_TEMP/opl-previous-latest-component-identity-$GITHUB_RUN_ID.json"
@@ -556,35 +561,88 @@ jobs:
       operation_deadline_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_deadline_at || '' }}
     secrets: inherit
 
-  standard-qualification:
+  seal-standard-identity:
     if: ${{ inputs.mode == 'execute' }}
     needs: [freeze, standard-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       actions: read
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      mode: execute
-      release_artifact_name: macos-build-arm64-dmg
-      release_artifact_run_id: ${{ github.run_id }}
-      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
-      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.freeze.outputs.app_sha }}
-      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
-      smoke_harness_ref: ${{ needs.freeze.outputs.shell_sha }}
-      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
-      package_profile: standard
-      diagnostic_scope: release_gate
-      require_macos_gatekeeper: true
-      operation: ${{ inputs.mode == 'execute' && inputs.operation || '' }}
-      operation_started_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_started_at || '' }}
-      operation_deadline_at: ${{ inputs.mode == 'execute' && needs.freeze.outputs.operation_deadline_at || '' }}
+    outputs:
+      standard_artifact_name: ${{ steps.seal.outputs.standard_artifact_name }}
+      standard_identity_sha256: ${{ steps.seal.outputs.standard_identity_sha256 }}
+    steps:
+      - name: Checkout exact App identity binder
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.freeze.outputs.app_sha }}
+          path: app-source
+
+      - name: Download the one signed Standard build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: macos-build-arm64
+          path: standard-assets
+
+      - name: Stage the exact App installer bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_installer=app-source/install.sh
+          release_installer=standard-assets/opl-app-installer.sh
+          test -f "$source_installer" && test ! -L "$source_installer"
+          cp "$source_installer" "$release_installer"
+          chmod 0755 "$release_installer"
+          test -f "$release_installer" && test ! -L "$release_installer"
+          test -x "$release_installer"
+          cmp "$source_installer" "$release_installer"
+
+      - name: Seal one immutable Standard artifact identity
+        id: seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          node --experimental-strip-types app-source/scripts/bind-standard-release-track.ts \
+            --assets-dir standard-assets \
+            --version '${{ needs.freeze.outputs.version }}' \
+            --updater-version '${{ needs.freeze.outputs.updater_version }}' \
+            --app-sha '${{ needs.freeze.outputs.app_sha }}' \
+            --shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
+            --framework-sha '${{ needs.freeze.outputs.framework_sha }}' \
+            --bundle-digest '${{ needs.freeze.outputs.bundle_digest }}' \
+            --channel '${{ inputs.channel }}' \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-run-id "$GITHUB_RUN_ID" \
+            --source-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --latest-override-requested '${{ inputs.latest_override_requested }}' \
+            --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
+            --component-manifest-output standard-assets/opl-app-component-manifest.json \
+            --identity-receipt-output standard-identity-receipt.json
+          mkdir -p bound-standard
+          mv standard-assets bound-standard/assets
+          mv standard-identity-receipt.json bound-standard/standard-identity-receipt.json
+          identity_digest="sha256:$(shasum -a 256 bound-standard/standard-identity-receipt.json | awk '{print $1}')"
+          [[ "$identity_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          {
+            echo "standard_artifact_name=opl-release-standard-bound-${GITHUB_RUN_ID}"
+            echo "standard_identity_sha256=$identity_digest"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload one bound Standard artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-bound-${{ github.run_id }}
+          path: bound-standard
+          if-no-files-found: error
+          retention-days: 30
 
   checkpoint-standard:
     if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [freeze, standard-build, standard-qualification]
+    needs: [freeze, seal-standard-identity]
     permissions:
       contents: read
       actions: read
@@ -627,17 +685,11 @@ jobs:
           name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
           path: bundle
 
-      - name: Download Standard build
+      - name: Download sealed Standard artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: macos-build-arm64
-          path: standard-assets
-
-      - name: Download exact Standard qualification
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-first-run-vm-standard-${{ github.run_id }}
-          path: standard-qualification
+          name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
+          path: bound-standard
 
       - name: Setup Framework runtime
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -655,22 +707,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --experimental-strip-types app-source/scripts/bind-standard-release-track.ts \
-            --assets-dir standard-assets \
-            --version '${{ needs.freeze.outputs.version }}' \
-            --updater-version '${{ needs.freeze.outputs.updater_version }}' \
-            --app-sha '${{ needs.freeze.outputs.app_sha }}' \
-            --shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
-            --framework-sha '${{ needs.freeze.outputs.framework_sha }}' \
-            --bundle-digest "$BUNDLE_DIGEST" \
-            --channel '${{ inputs.channel }}' \
-            --repository "$GITHUB_REPOSITORY" \
-            --source-run-id "$GITHUB_RUN_ID" \
-            --source-run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --latest-override-requested '${{ inputs.latest_override_requested }}' \
-            --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
-            --component-manifest-output standard-assets/opl-app-component-manifest.json \
-            --identity-receipt-output standard-identity-receipt.json
+          identity_receipt=bound-standard/standard-identity-receipt.json
+          test -s "$identity_receipt" && test ! -L "$identity_receipt"
+          observed_identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          expected_identity_sha256='${{ needs.seal-standard-identity.outputs.standard_identity_sha256 }}'
+          test "$observed_identity_sha256" = "$expected_identity_sha256" || {
+            echo "::error::Standard identity digest mismatch: expected $expected_identity_sha256, got $observed_identity_sha256."
+            exit 1
+          }
+          jq -e \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg bundle "$BUNDLE_DIGEST" \
+            --arg app '${{ needs.freeze.outputs.app_sha }}' \
+            --arg shell '${{ needs.freeze.outputs.shell_sha }}' \
+            --arg framework '${{ needs.freeze.outputs.framework_sha }}' \
+            '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .source.run_id == $run_id
+              and .source.run_attempt == 1
+              and .release.bundle_digest == $bundle
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$identity_receipt" >/dev/null
+          test -d bound-standard/assets && test ! -L bound-standard/assets
+          mv bound-standard/assets standard-assets
+          cp "$identity_receipt" standard-identity-receipt.json
+          cmp "$identity_receipt" standard-identity-receipt.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
@@ -692,33 +758,13 @@ jobs:
             --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
             --store "$RUNNER_TEMP/store" --json > standard-build-result.json
-          legacy_receipts=()
-          while IFS= read -r receipt; do
-            legacy_receipts+=("$receipt")
-          done < <(find standard-qualification -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort)
-          if [ "${#legacy_receipts[@]}" -ne 1 ]; then
-            echo "::error::Standard qualification must contain exactly one artifact qualification receipt; found ${#legacy_receipts[@]}."
-            exit 1
-          fi
-          legacy_receipt="${legacy_receipts[0]}"
-          test -f "$legacy_receipt" && test ! -L "$legacy_receipt"
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
-            --bundle bundle/release-bundle.json --track standard \
-            --legacy-qualification "$legacy_receipt" --output standard-qualification-receipt.json
-          framework-source/bin/opl release verify \
-            --bundle "$BUNDLE_DIGEST" --track standard \
-            --qualification-receipt standard-qualification-receipt.json \
-            --operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
-            --operation-started-at '${{ needs.freeze.outputs.operation_started_at }}' \
-            --operation-deadline-at '${{ needs.freeze.outputs.operation_deadline_at }}' \
-            --store "$RUNNER_TEMP/store" --json > standard-verify-result.json
           framework-source/bin/opl release checkpoint export \
             --bundle "$BUNDLE_DIGEST" --output standard-checkpoint \
             --store "$RUNNER_TEMP/store" --json > checkpoint-export.json
           if jq -e '.tracks.webui' bundle/release-bundle.json >/dev/null; then
-            expected_checkpoint_stage=stable_qualified
+            expected_checkpoint_stage=stable_built
           else
-            expected_checkpoint_stage=standard_qualified
+            expected_checkpoint_stage=standard_built
           fi
           actual_checkpoint_stage="$(jq -er .release_bundle_checkpoint_export.checkpoint_stage checkpoint-export.json)"
           if [ "$actual_checkpoint_stage" != "$expected_checkpoint_stage" ]; then
@@ -738,7 +784,12 @@ jobs:
             echo "checkpoint_transport_executor=github_actions"
             echo "transport_run_id=$GITHUB_RUN_ID"
             echo "completed_stage=$completed_stage"
-            echo "standard_identity_sha256=sha256:$(shasum -a 256 standard-identity-receipt.json | awk '{print $1}')"
+            standard_identity_sha256="sha256:$(shasum -a 256 standard-identity-receipt.json | awk '{print $1}')"
+            test "$standard_identity_sha256" = '${{ needs.seal-standard-identity.outputs.standard_identity_sha256 }}' || {
+              echo "::error::Standard identity digest mismatch after checkpoint export."
+              exit 1
+            }
+            echo "standard_identity_sha256=$standard_identity_sha256"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload portable Standard checkpoint
@@ -760,7 +811,6 @@ jobs:
             standard-identity-receipt.json
             operation-admit-result.json
             standard-build-result.json
-            standard-verify-result.json
             checkpoint-export.json
           if-no-files-found: error
           retention-days: 30
@@ -793,6 +843,7 @@ jobs:
       source_run_id: ${{ github.run_id }}
       source_artifact: opl-release-standard-checkpoint-${{ github.run_id }}
       source_format: checkpoint_v1
+      standard_identity_sha256: ${{ needs.checkpoint-standard.outputs.standard_identity_sha256 }}
       framework_executor_ref: ${{ needs.freeze.outputs.framework_sha }}
       operation_started_at: ${{ needs.freeze.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.freeze.outputs.operation_deadline_at }}

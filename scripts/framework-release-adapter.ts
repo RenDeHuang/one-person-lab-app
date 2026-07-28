@@ -184,6 +184,7 @@ function requiredAssetNames(version: string, track: Track): string[] {
         `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
+        'opl-app-installer.sh',
         'standard-gatekeeper-launch-policy.json',
         'standard-apple-notarization-receipt.json',
       ];
@@ -237,6 +238,7 @@ function parseCommon(argv: string[]) {
       'assets-dir': { type: 'string' },
       inspection: { type: 'string' },
       'legacy-qualification': { type: 'string' },
+      'hosted-core-qualification': { type: 'string' },
       status: { type: 'string' },
       repo: { type: 'string' },
       tag: { type: 'string' },
@@ -709,7 +711,7 @@ function bundleDocument(bundlePath: string): JsonRecord {
   return bundle;
 }
 
-function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
+export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
   const operation = requireOption(values, 'operation');
   const releaseOperation = requireOption(values, 'release-operation') as StableReleaseOperation;
   const operationId = requireOption(values, 'operation-id');
@@ -779,21 +781,36 @@ function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
     && publicationScope === 'track_assets'
   ) {
     const inspection = readJson(path.resolve(requireOption(values, 'inspection')));
-    const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
-    const remoteAssets = new Map(inspectedAssets.map((asset: JsonRecord) => [asset.name, asset]));
-    if (remoteAssets.size !== inspectedAssets.length
-      || remoteAssets.size !== requiredNames.length
-      || requiredNames.some((name: string) => !remoteAssets.has(name))) {
-      throw new Error(`Remote ${track} inspection does not contain the exact unique required asset set.`);
-    }
-    assets = requiredNames.map((name: string) => {
-      const asset = remoteAssets.get(name) as JsonRecord;
-      if (!Number.isSafeInteger(asset.size_bytes) || Number(asset.size_bytes) <= 0
-        || !digestPattern.test(String(asset.sha256 ?? ''))) {
-        throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
+    if (inspection.release?.exists === false) {
+      if (!Array.isArray(inspection.assets) || inspection.assets.length !== 0) {
+        throw new Error(`Remote ${track} absent-release inspection must contain an empty asset list.`);
       }
-      return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
-    });
+    } else if (inspection.release?.exists === true) {
+      const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
+      const requiredNameSet = new Set(requiredNames);
+      const remoteAssets = new Map<string, JsonRecord>();
+      for (const inspectedAsset of inspectedAssets) {
+        const asset = inspectedAsset as JsonRecord;
+        const name = typeof asset?.name === 'string' ? asset.name : '';
+        if (!requiredNameSet.has(name)) {
+          throw new Error(`Remote ${track} inspection contains unknown asset ${name || '<missing>'}.`);
+        }
+        if (remoteAssets.has(name)) {
+          throw new Error(`Remote ${track} inspection contains duplicate asset ${name}.`);
+        }
+        if (!Number.isSafeInteger(asset.size_bytes) || Number(asset.size_bytes) <= 0
+          || !digestPattern.test(String(asset.sha256 ?? ''))) {
+          throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
+        }
+        remoteAssets.set(name, asset);
+      }
+      assets = requiredNames.filter((name: string) => remoteAssets.has(name)).map((name: string) => {
+        const asset = remoteAssets.get(name) as JsonRecord;
+        return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
+      });
+    } else {
+      throw new Error(`Remote ${track} inspection has no definitive Release existence state.`);
+    }
   }
   return {
     surface_kind: 'opl_release_bundle_executor_receipt.v1',
@@ -817,7 +834,74 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
   const bundle = bundleDocument(requireOption(values, 'bundle'));
   const track = requireOption(values, 'track') as Track;
   if (track !== 'standard' && track !== 'full') throw new Error('--track must be standard or full.');
-  const legacyPath = path.resolve(requireOption(values, 'legacy-qualification'));
+  const legacyQualification = values['legacy-qualification'];
+  const hostedCoreQualification = values['hosted-core-qualification'];
+  if (Boolean(legacyQualification) === Boolean(hostedCoreQualification)) {
+    throw new Error('Pass exactly one of --legacy-qualification or --hosted-core-qualification.');
+  }
+  if (hostedCoreQualification) {
+    if (track !== 'full') throw new Error('--hosted-core-qualification supports only the Full track.');
+    const hostedPath = path.resolve(hostedCoreQualification);
+    const hosted = readJson(hostedPath);
+    const subjectName = String(hosted.subject?.asset_name ?? '');
+    const sizeBytes = Number(hosted.subject?.size_bytes);
+    const artifactSha256 = String(hosted.subject?.sha256 ?? '');
+    const requiredNames = bundle.tracks?.full?.required_asset_names;
+    const cohort = hosted.cohort ?? {};
+    const verification = hosted.verification ?? {};
+    if (
+      hosted.schema !== 'opl_app_hosted_full_core_qualification.v1'
+      || hosted.status !== 'passed'
+      || hosted.execution?.execution_class !== 'github_hosted'
+      || hosted.execution?.runner !== 'macos-14'
+      || hosted.execution?.run_attempt !== 1
+      || !/^[1-9][0-9]*$/.test(String(hosted.execution?.run_id ?? ''))
+      || hosted.release?.bundle_digest !== bundle.bundle_digest
+      || hosted.release?.version !== bundle.release.version
+      || !Array.isArray(requiredNames)
+      || !requiredNames.includes(subjectName)
+      || !Number.isSafeInteger(sizeBytes)
+      || sizeBytes <= 0
+      || !digestPattern.test(artifactSha256)
+      || hosted.manifest?.asset_name !== 'opl-release-manifest.json'
+      || !digestPattern.test(String(hosted.manifest?.sha256 ?? ''))
+      || cohort.app_sha !== bundle.sources.app.source_commit
+      || cohort.shell_sha !== bundle.sources.shell.source_commit
+      || cohort.framework_sha !== bundle.sources.framework.source_commit
+      || verification.dmg_verified !== true
+      || verification.read_only_mount !== true
+      || verification.exact_single_app !== true
+      || verification.codesign !== true
+      || verification.stapler !== true
+      || verification.gatekeeper !== true
+      || verification.manifest_bound !== true
+      || verification.full_runtime_native_trust !== true
+      || typeof hosted.evidence_ref !== 'string'
+      || hosted.evidence_ref.trim() === ''
+    ) {
+      throw new Error('Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence.');
+    }
+    return {
+      surface_kind: 'opl_release_bundle_qualification_receipt.v1',
+      schema_ref: 'contracts/opl-framework/release-bundle-qualification-receipt.schema.json',
+      bundle_digest: bundle.bundle_digest,
+      track,
+      subject: {
+        asset_name: subjectName,
+        size_bytes: sizeBytes,
+        sha256: artifactSha256,
+      },
+      cohort: qualificationCohort(bundle),
+      qualification: {
+        kind: 'installed_artifact',
+        result: 'passed',
+        installed_artifact_same_bytes: true,
+        harness_sha256: digestRef(sha256File(hostedPath)),
+        evidence_refs: [hosted.evidence_ref],
+      },
+    };
+  }
+  const legacyPath = path.resolve(String(legacyQualification));
   const legacy = readJson(legacyPath) as ArtifactQualificationReceiptV1;
   const packageProfile = track;
   const artifactSha256 = String(legacy.artifact?.sha256 ?? '').replace(/^sha256:/, '');
@@ -1728,9 +1812,6 @@ export function activateLatest(
   const status = readJson(path.resolve(requireOption(values, 'status'))).release_bundle_status;
   if (status?.bundle_digest !== bundle.bundle_digest) {
     throw new Error('Framework status does not describe the immutable Bundle input.');
-  }
-  if (publicationChannel === 'stable' && status.latest_eligible !== true) {
-    throw new Error('Framework status does not authorize qualified Stable Latest activation for this Bundle.');
   }
   const statusBundle = status.bundle;
   if (

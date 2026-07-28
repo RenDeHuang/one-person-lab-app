@@ -149,8 +149,9 @@ export type StableAdmissionManifest = {
     artifact_name: string;
     receipt_digest: string;
     receipt_file_sha256: string;
-    local_dmg_sha256: string;
+    preflight_evidence_sha256: string;
     mode: 'development_validation';
+    same_operation: true;
     release_authority: false;
     namespace_reservation: false;
     final_signed_byte_authority: false;
@@ -355,15 +356,6 @@ export function buildStableReleaseAdmissionManifest(
       `Stable admission base version ${input.baseVersion} must match Asia/Shanghai date ${observation.currentDate}.`,
     );
   }
-  for (const [label, expected, actual] of [
-    ['App', input.appRef, observation.mainRefs.app],
-    ['Shell', input.shellRef, observation.mainRefs.shell],
-    ['Framework', input.frameworkRef, observation.mainRefs.framework],
-  ] as const) {
-    if (fullSha(actual, `${label} live main`) !== expected) {
-      throw new Error(`${label} live main drifted from the frozen admission cohort.`);
-    }
-  }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
   const sourceQualification = validateSourceQualificationReceipt(
     observation.sourceQualificationReceipt,
@@ -375,6 +367,12 @@ export function buildStableReleaseAdmissionManifest(
     || sourceQualification.cohort.framework.sha !== input.frameworkRef
   ) {
     throw new Error('Source qualification receipt does not bind the frozen Stable cohort.');
+  }
+  if (
+    sourceQualification.execution.operation_scope !== 'stable_operation_source_preflight'
+    || sourceQualification.execution.run_id !== input.admissionRunId
+  ) {
+    throw new Error('Source qualification must be the preflight from the same Stable operation.');
   }
   validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
@@ -464,8 +462,9 @@ export function buildStableReleaseAdmissionManifest(
       artifact_name: `opl-source-qualification-${sourceQualification.execution.run_id}`,
       receipt_digest: sourceQualification.receipt_digest,
       receipt_file_sha256: sha256Bytes(observation.sourceQualificationReceiptBytes),
-      local_dmg_sha256: sourceQualification.artifact.sha256,
+      preflight_evidence_sha256: sourceQualification.artifact.sha256,
       mode: 'development_validation',
+      same_operation: true,
       release_authority: false,
       namespace_reservation: false,
       final_signed_byte_authority: false,

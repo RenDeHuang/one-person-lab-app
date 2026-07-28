@@ -26,8 +26,9 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     asset('One-Person-Lab-26.7.13-mac-arm64.dmg', '2'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip', '3'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip.blockmap', '4'),
-    asset('standard-gatekeeper-launch-policy.json', '5'),
-    asset('standard-apple-notarization-receipt.json', '6'),
+    asset('opl-app-installer.sh', '5'),
+    asset('standard-gatekeeper-launch-policy.json', '6'),
+    asset('standard-apple-notarization-receipt.json', '7'),
   ];
   fs.writeFileSync(releaseJson, `${JSON.stringify({
     tagName: 'v26.7.13',
@@ -76,8 +77,18 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     non_stable_notice: false,
   });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 6);
+  assert.equal(component.artifacts.length, 7);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
+  assert.deepEqual(
+    component.artifacts.find((entry: { name: string }) => entry.name === 'opl-app-installer.sh'),
+    {
+      name: 'opl-app-installer.sh',
+      ref: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.13/opl-app-installer.sh',
+      digest: `sha256:${'5'.repeat(64)}`,
+      size: 100,
+      content_type: 'application/octet-stream',
+    },
+  );
   assert.match(component.component_manifest_digest, /^sha256:[0-9a-f]{64}$/);
 });
 
@@ -112,8 +123,9 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.dmg`, '2'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip`, '3'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip.blockmap`, '4'),
-          asset('standard-gatekeeper-launch-policy.json', '5'),
-          asset('standard-apple-notarization-receipt.json', '6'),
+          asset('opl-app-installer.sh', '5'),
+          asset('standard-gatekeeper-launch-policy.json', '6'),
+          asset('standard-apple-notarization-receipt.json', '7'),
         ],
       })}\n`);
       execFileSync(process.execPath, [
@@ -163,7 +175,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
               non_stable_notice: true,
             },
       );
-      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 4 : 6);
+      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 5 : 7);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -205,18 +217,26 @@ test('Bundle topology binds the component manifest before remote digest verifica
     path.join(appRoot, 'scripts/bind-standard-release-track.ts'),
     'utf8',
   );
+  const sealIdentity = bundleWorkflow.indexOf('  seal-standard-identity:');
   const checkpoint = bundleWorkflow.indexOf('  checkpoint-standard:');
   const publishReusable = bundleWorkflow.indexOf('  publish-standard:');
   const publish = publishWorkflow.indexOf('  publish-standard-nonlatest:');
   const remoteVerify = publishWorkflow.indexOf('  remote-digest-verify:');
   const latest = publishWorkflow.indexOf('  activate-latest:');
 
-  assert.ok(checkpoint >= 0 && checkpoint < publishReusable);
+  assert.ok(sealIdentity >= 0 && sealIdentity < checkpoint && checkpoint < publishReusable);
   assert.ok(publish >= 0 && publish < remoteVerify && remoteVerify < latest);
-  assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /write-opl-app-component-manifest\.ts/);
-  assert.match(bundleWorkflow.slice(checkpoint, publishReusable), /--updater-version '\$\{\{ needs\.freeze\.outputs\.updater_version \}\}'/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /write-opl-app-component-manifest\.ts/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /--updater-version '\$\{\{ needs\.freeze\.outputs\.updater_version \}\}'/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /app-source\/install\.sh/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /opl-app-installer\.sh/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /cmp "\$source_installer" "\$release_installer"/);
   assert.match(bundleWorkflow.slice(publishReusable), /uses: \.\/\.github\/workflows\/_release-standard-publish\.yml/);
   assert.match(bindScript, /opl_standard_release_identity_receipt\.v2/);
-  assert.match(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);
+  assert.doesNotMatch(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);
+  assert.match(
+    publishWorkflow.slice(remoteVerify, latest),
+    /release_bundle_status\.tracks\.standard\.reconcile_required == false/,
+  );
   assert.doesNotMatch(`${bundleWorkflow}\n${publishWorkflow}`, /desktop-release-promote\.yml/);
 });

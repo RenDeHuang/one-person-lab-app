@@ -639,7 +639,8 @@ test('workflow and release contract expose only the protected preview exception'
   assert.equal(freeze.task_local_projection.canonical_live_catalog_equality_is_prebuild_precondition, false);
   assert.equal(freeze.task_local_projection.host_installed_or_effective_state_is_prebuild_precondition, false);
   assert.equal(freeze.post_freeze_validation.module_main_or_tag_advancement_triggers_rebuild, false);
-  assert.equal(freeze.post_build_qualification.stable_latest_still_requires_applicable_qualification, true);
+  assert.equal(freeze.post_build_qualification.stable_latest_still_requires_applicable_qualification, false);
+  assert.equal(freeze.post_build_qualification.failed_qualification_may_block_publication_or_latest, false);
   assert.deepEqual(freeze.cohort_invalidation_causes, [
     'frozen byte tree or digest mismatch',
     'artifact build or integrity failure',

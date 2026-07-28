@@ -318,7 +318,13 @@ test('Standard publisher keeps Stable qualification separate from protected Prev
   const run = String(activate?.run ?? '');
 
   assert.equal(webuiSource.if, "${{ needs.restore.outputs.channel == 'stable' }}");
-  assert.equal(homebrewDownloads.length, 3);
+  assert.deepEqual(
+    homebrewDownloads.map((step: Record<string, unknown>) => step.name),
+    [
+      'Download Standard Homebrew publication receipt',
+      'Download Standard Homebrew readback receipt',
+    ],
+  );
   for (const step of homebrewDownloads) {
     assert.equal(step.if, "${{ needs.restore.outputs.channel == 'stable' }}");
   }
@@ -327,7 +333,8 @@ test('Standard publisher keeps Stable qualification separate from protected Prev
   assert.match(run, /--latest-override-authority latest-override-authority\.json/);
   assert.match(run, /--publication-channel '\$\{\{ needs\.restore\.outputs\.channel \}\}'/);
   assert.match(run, /persistent_override: false/);
-  assert.match(run, /stable_promotion_barrier\.satisfied == true/);
+  assert.doesNotMatch(run, /stable_promotion_barrier\.satisfied == true/);
+  assert.doesNotMatch(run, /release_bundle_status\.latest_eligible == true/);
   assert.match(run, /if \[ '\$\{\{ needs\.restore\.outputs\.channel \}\}' = stable \]; then/);
   assert.doesNotMatch(
     source,

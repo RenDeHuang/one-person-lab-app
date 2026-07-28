@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onepersonlab.dev/contracts/app-optional-certification-receipt.schema.json",
+  "title": "OPL App Post-Publication Optional Certification Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "required_for_publication",
+    "release",
+    "certification",
+    "run",
+    "artifact_handling",
+    "admission",
+    "result",
+    "created_at",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opl_app_optional_certification_receipt.v1"
+    },
+    "status": {
+      "enum": ["passed", "failed", "not_run", "unavailable"]
+    },
+    "required_for_publication": {
+      "const": false
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag", "artifact", "component_manifest_digest", "cohort"],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "digest"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "digest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "component_manifest_digest": { "$ref": "#/$defs/digest" },
+        "cohort": { "$ref": "#/$defs/cohort" }
+      }
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "platform", "capability"],
+      "properties": {
+        "kind": {
+          "enum": ["clean_machine_install", "updater_upgrade", "homebrew_install"]
+        },
+        "platform": {
+          "enum": ["macos", "windows"]
+        },
+        "capability": { "type": "string", "minLength": 1 }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_run_id",
+        "source_run_attempt",
+        "certification_run_id",
+        "certification_run_attempt",
+        "job_started"
+      ],
+      "properties": {
+        "source_run_id": { "$ref": "#/$defs/runId" },
+        "source_run_attempt": { "const": 1 },
+        "certification_run_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/runId" },
+            { "type": "null" }
+          ]
+        },
+        "certification_run_attempt": {
+          "oneOf": [
+            { "const": 1 },
+            { "type": "null" }
+          ]
+        },
+        "job_started": { "type": "boolean" }
+      }
+    },
+    "artifact_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downloaded_from_published_release",
+        "rebuilt",
+        "component_manifest_mutated",
+        "component_manifest_resigned"
+      ],
+      "properties": {
+        "downloaded_from_published_release": { "type": "boolean" },
+        "rebuilt": { "const": false },
+        "component_manifest_mutated": { "const": false },
+        "component_manifest_resigned": { "const": false }
+      }
+    },
+    "admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_code", "evidence_digest"],
+      "properties": {
+        "status": { "enum": ["passed", "failed", "not_started"] },
+        "reason_code": {
+          "oneOf": [
+            {
+              "enum": [
+                "authority_or_capability_not_provable",
+                "fleet_lease_admission_failed",
+                "vm_admission_failed",
+                "capability_admission_failed",
+                "not_requested",
+                "not_authorized",
+                "operator_deferred"
+              ]
+            },
+            { "type": "null" }
+          ]
+        },
+        "evidence_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terminal", "evidence_digests"],
+      "properties": {
+        "terminal": { "const": true },
+        "evidence_digests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receipt_digest": { "$ref": "#/$defs/digest" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "not_run" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "run": {
+            "properties": {
+              "certification_run_id": { "type": "null" },
+              "certification_run_attempt": { "type": "null" },
+              "job_started": { "const": false }
+            }
+          },
+          "artifact_handling": {
+            "properties": {
+              "downloaded_from_published_release": { "const": false }
+            }
+          },
+          "admission": {
+            "properties": {
+              "status": { "const": "not_started" },
+              "reason_code": {
+                "enum": ["not_requested", "not_authorized", "operator_deferred"]
+              }
+            }
+          },
+          "result": {
+            "properties": {
+              "evidence_digests": { "maxItems": 0 }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "run": {
+            "properties": {
+              "certification_run_id": { "$ref": "#/$defs/runId" },
+              "certification_run_attempt": { "const": 1 },
+              "job_started": { "const": true }
+            }
+          },
+          "artifact_handling": {
+            "properties": {
+              "downloaded_from_published_release": { "const": true }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_sha", "shell_sha", "framework_sha"],
+      "properties": {
+        "app_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "shell_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "framework_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    }
+  }
+}

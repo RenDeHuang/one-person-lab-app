@@ -20,10 +20,8 @@ const requiredSourceGateScopes = [
 const requiredSourceGatePrecedes = [
   'standard_macos_arm64_build',
   'full_first_install_build',
-  'standard_dmg_clean_vm_smoke',
-  'homebrew_standard_cask_clean_vm_smoke',
-  'full_dmg_clean_vm_smoke',
   'webui_ghcr_publish',
+  'post_publication_optional_certification',
 ];
 const requiredRetiredReleasePackageScripts = [
   'release:stable',
@@ -50,37 +48,32 @@ const requiredStandardLatestAdmission = {
   required_status: 'passed',
   latest_activation_admitted_required: true,
   framework_latest_eligible_alone_is_sufficient: false,
-  predecessor_policy_schema: 'opl_standard_updater_predecessor_policy.v1',
-  predecessor_selection: 'deduplicated_current_latest_and_highest_public_stable',
+  hosted_publication_floor_schema: 'opl_standard_hosted_publication_floor.v1',
+  source_contract_build_preflight_required: 'passed',
+  remote_digest_readback_required: 'passed',
   current_latest_readback_required: true,
-  highest_public_stable_readback_required: true,
-  receipt_count_must_equal_distinct_predecessor_count: true,
-  predecessor_receipt_schema: 'opl_updater_upgrade_qualification_receipt.v1',
-  predecessor_receipts_must_be_real_updater_vm_evidence: true,
-  synthetic_or_canary_predecessor_receipts_allowed: false,
-  predecessor_receipt_digest_fields: [
-    'updater_receipts[].operation_input_digest',
-    'updater_receipts[].updater_receipt_sha256',
-    'updater_receipts[].candidate_identity_sha256',
-  ],
+  updater_predecessor_receipts_allowed: false,
+  optional_certification_receipts_allowed: false,
+  publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
   required_exact_identity_fields: [
     'bundle_digest',
     'candidate.app_sha',
     'candidate.shell_sha',
     'candidate.framework_sha',
+    'candidate.zip.sha256',
+    'candidate.zip.size_bytes',
+    'candidate.dmg.sha256',
+    'candidate.dmg.size_bytes',
   ],
-  same_candidate_zip_required_for_all_predecessors: true,
-  candidate_zip_identity_fields: ['candidate.zip.sha256', 'candidate.zip.size_bytes'],
   homebrew_evidence: {
     publication_schema: 'opl_bundle_homebrew_publication_receipt.v1',
-    clean_vm_surface_id: 'opl_tart_gui_first_run_smoke',
-    readback_schema: 'opl_bundle_homebrew_readback_receipt.v1',
+    readback_schema: 'opl_bundle_homebrew_publication_readback_receipt.v1',
     required_digest_fields: [
       'homebrew.publication_receipt_sha256',
-      'homebrew.clean_vm_receipt_sha256',
       'homebrew.readback_receipt_sha256',
     ],
-    readback_must_bind_publication_and_clean_vm_actual_file_digests: true,
+    readback_must_bind_publication_actual_file_digest: true,
+    clean_vm_receipt_allowed: false,
   },
   failure_mode: 'fail_closed_before_latest_patch',
 };
@@ -457,6 +450,71 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
   return failures;
 }
 
+function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
+  const acceleration = releaseContract.release_acceleration;
+  const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  let failures = 0;
+  if (
+    JSON.stringify(vmGates.map((gate) => gate?.id)) !== JSON.stringify([
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+    ]) ||
+    vmGates.some((gate) =>
+      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+      !Array.isArray(gate?.certification_readiness) ||
+      gate.certification_readiness.length === 0 ||
+      'release_blocking_readiness' in gate
+    )
+  ) {
+    console.error('FAIL release_vm_certification_policy: every physical VM gate must be post-publication, same-artifact, and non-blocking');
+    failures += 1;
+  }
+  const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
+  const legacyVmGate = acceleration?.vm_gate;
+  const legacyVmMirrorFields = [
+    'source',
+    'artifact',
+    'smoke_profile',
+    'display',
+    'settings_smoke',
+    'diagnostic_scope',
+    'runtime_profile',
+    'codex_config_wizard',
+    'gate_policy',
+    'certification_readiness',
+    'post_core_ready_background_policy',
+  ];
+  if (
+    !fullVmGate ||
+    !legacyVmGate ||
+    legacyVmMirrorFields.some((field) =>
+      JSON.stringify(legacyVmGate[field]) !== JSON.stringify(fullVmGate[field])
+    ) ||
+    'release_blocking_readiness' in legacyVmGate
+  ) {
+    console.error('FAIL release_vm_legacy_mirror: legacy Full VM policy must mirror the optional certification gate');
+    failures += 1;
+  }
+  const stableValidation = releaseContract.release_validation_profiles?.stable;
+  if (
+    stableValidation?.addon_gate_blocking_standard_terminal !== false ||
+    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !sameStringSet(stableValidation?.post_publication_optional_certification_surfaces, [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'one_shot_app_installer_fresh_install_smoke',
+      'full_dmg_clean_vm_smoke',
+    ])
+  ) {
+    console.error('FAIL release_stable_optional_certification: physical VM coverage must remain outside the Stable publication terminal');
+    failures += 1;
+  }
+  return failures;
+}
+
 function validateReleaseExecutionTracks(releaseContract: Record<string, any>): number {
   const policy = releaseContract.release_execution_tracks;
   const local = policy?.tracks?.local;
@@ -633,6 +691,7 @@ function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContra
 function validateReleasePreflightContract(releaseContract: Record<string, any>): number {
   let failures = 0;
   const preflight = releaseContract.release_preflight;
+  const localFirst = preflight?.local_first;
   if (
     preflight?.script !== 'scripts/framework-release-adapter.ts' ||
     preflight?.package_script !== 'release:framework-adapter' ||
@@ -650,6 +709,31 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     preflight?.failure_budget !== 'fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full'
   ) {
     console.error('FAIL release_preflight_contract: release_preflight must bind the App product adapter freeze-request and retire the legacy preflight CLI');
+    failures += 1;
+  }
+  if (
+    localFirst?.entrypoint !== 'scripts/verify.sh release-preflight'
+    || localFirst?.reuses_existing_orchestrator !== true
+    || !sameStringSet(localFirst?.local_checks, [
+      'actionlint',
+      'typecheck',
+      'active_shell',
+      'release_boundary',
+      'candidate_shell',
+      'standard_package_build',
+    ])
+    || !sameStringSet(localFirst?.remote_only, [
+      'github_hosted_linux_windows_macos_matrix',
+      'protected_signing_and_notarization_credentials',
+      'public_mutation',
+      'owner_authoritative_remote_readback',
+    ])
+    || !sameStringSet(localFirst?.optional_deferred, [
+      'post_publication_clean_machine_certification',
+    ])
+    || localFirst?.public_mutation_allowed !== false
+  ) {
+    console.error('FAIL release_preflight_contract: local-first preflight must reuse verify.sh and disclose remote-only and optional work');
     failures += 1;
   }
   for (const checkId of [
@@ -701,7 +785,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   }
   for (const binding of [
     'app_owned_source_qualification_receipt',
-    'one_local_build_and_one_clean_tart_vm',
+    'github_hosted_source_contract_build_preflight_with_self_hosted_vm_tart_zero',
     'final_app_shell_framework_main_shas',
     'critical_workflow_git_blobs_and_sha256',
     'apple_protected_secret_names_6_of_6',
@@ -782,11 +866,12 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || sourceQualification?.workflow !== '.github/workflows/release-source-qualification.yml'
     || sourceQualification?.receipt_script !== 'scripts/source-qualification-receipt.ts'
     || sourceQualification?.validator !== 'scripts/validate-source-qualification-receipt.ts'
-    || sourceQualification?.runner !== 'self_hosted_macos_opl_gui_vm'
+    || sourceQualification?.runner !== 'github_hosted_ubuntu_latest'
     || sourceQualification?.secrets_allowed !== false
     || sourceQualification?.run_attempt_required !== 1
     || sourceQualification?.build_invocation_count !== 1
-    || sourceQualification?.tart_vm_invocation_count !== 1
+    || sourceQualification?.self_hosted_invocation_count !== 0
+    || sourceQualification?.tart_vm_invocation_count !== 0
     || sourceQualification?.local_dmg_is_diagnostic_only !== true
     || sourceQualification?.release_authority !== false
     || sourceQualification?.namespace_reservation !== false
@@ -797,8 +882,9 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || sourceQualification?.profile_projection !== 'current_app_profile_into_temporary_exact_shell_archive'
     || sourceQualification?.source_shell_mutation_allowed !== false
     || sourceQualification?.must_pass_before_source_workflow_dispatch !== true
+    || sourceQualification?.publication_floor_role !== 'same_operation_hosted_source_contract_build_preflight'
   ) {
-    console.error('FAIL release_preflight_contract: source qualification must be one no-secret local build and Tart receipt without release authority');
+    console.error('FAIL release_preflight_contract: source qualification must be one no-secret GitHub-hosted build with zero self-hosted or Tart invocation');
     failures += 1;
   }
   if (
@@ -833,7 +919,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     sourceGate?.failure_next_action !== 'repair_source_gate' ||
     !sourceGate?.scope?.includes('current App profile against exact Shell consumer in a temporary archive') ||
     typeof sourceGate?.rule !== 'string' ||
-    !sourceGate.rule.includes('fail before workflow dispatch or expensive build, VM, Full, Homebrew, or WebUI work')
+    !sourceGate.rule.includes('fail before workflow dispatch or expensive hosted build, Full, WebUI, or post-publication optional certification work')
   ) {
     console.error('FAIL release_source_gate_contract: source gate must be a contracted fail-fast pre-expensive-gate boundary');
     failures += 1;
@@ -843,7 +929,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     failures += 1;
   }
   if (!sameStringSet(sourceGate?.must_run_before, requiredSourceGatePrecedes)) {
-    console.error('FAIL release_source_gate_contract: source gate must precede build, VM, Full, Homebrew, and WebUI work');
+    console.error('FAIL release_source_gate_contract: source gate must precede hosted build, Full, WebUI, and optional certification work');
     failures += 1;
   }
   if (
@@ -861,6 +947,45 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   return failures;
 }
 
+function validateOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
+  const policy = releaseContract.post_publication_optional_certification;
+  let failures = 0;
+  if (
+    policy?.schema !== 'opl_app_optional_certification_policy.v1'
+    || policy?.receipt_schema !== 'contracts/app-optional-certification-receipt.schema.json'
+    || policy?.validator !== 'scripts/validate-optional-certification-receipt.ts'
+    || policy?.required_for_publication !== false
+    || policy?.required_for_latest !== false
+    || policy?.artifact_source !== 'exact_immutable_published_release_artifact'
+    || policy?.artifact_rebuild_allowed !== false
+    || policy?.component_manifest_mutation_allowed !== false
+    || policy?.component_manifest_resign_allowed !== false
+    || !sameStringSet(policy?.statuses, ['passed', 'failed', 'not_run', 'unavailable'])
+    || !sameStringSet(policy?.not_run_reason_codes, [
+      'not_requested',
+      'not_authorized',
+      'operator_deferred',
+    ])
+    || !sameStringSet(policy?.unavailable_reason_codes, [
+      'authority_or_capability_not_provable',
+      'fleet_lease_admission_failed',
+      'vm_admission_failed',
+      'capability_admission_failed',
+    ])
+    || policy?.producer?.workflow !== '.github/workflows/release-post-publication-certification.yml'
+    || policy?.producer?.trigger !== 'workflow_run_after_successful_github_release_publication'
+    || policy?.producer?.automatic_prequeue_admission !== 'emit_not_run_until_exact_physical_capability_is_proven'
+    || policy?.producer?.physical_executor_workflow !== '.github/workflows/opl-first-run-vm.yml'
+    || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
+    || policy?.producer?.stable_dag_dependency !== false
+    || policy?.producer?.may_queue_without_proven_capability !== false
+  ) {
+    console.error('FAIL optional_certification_policy: certification must be four-state, post-publication, same-artifact, and non-blocking');
+    failures += 1;
+  }
+  return failures;
+}
+
 function validateHomebrewVmGateStaticPolicy(
   appRoot: string,
   releaseContract: Record<string, any>,
@@ -873,18 +998,15 @@ function validateHomebrewVmGateStaticPolicy(
   const homebrewVm = homebrewVmScenario?.vm;
   const homebrewPolicy = releaseContract.homebrew_tap_distribution?.cask_install_policy;
   const workflowVmText = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
-  const standardPublishText = fs.readFileSync(path.join(appRoot, '.github/workflows/_release-standard-publish.yml'), 'utf8');
   const preflightText = fs.readFileSync(path.join(appRoot, 'scripts/validate-release-preflight.ts'), 'utf8');
 
   if (
     homebrewVm?.homebrew_cask_install_ref !== requiredHomebrewStandardCaskRef ||
     homebrewPolicy?.standard_cask_install_ref !== requiredHomebrewStandardCaskRef ||
     !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`) ||
-    !standardPublishText.includes('uses: ./.github/workflows/opl-first-run-vm.yml') ||
-    !standardPublishText.includes('package_profile: homebrew-standard') ||
     !preflightText.includes(`const requiredHomebrewStandardCaskRef = '${requiredHomebrewStandardCaskRef}'`)
   ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: standard Homebrew VM gate must install the fully qualified App cask ref');
+    console.error('FAIL homebrew_vm_gate_static_policy: the standalone Homebrew VM gate must install the fully qualified App cask ref');
     failures += 1;
   }
   if (
@@ -1205,7 +1327,7 @@ export function validateReleaseAccelerationPolicy(
     publication?.stable?.lower_level_workflows !== 'workflow_call_only' ||
     JSON.stringify(publication?.stable?.latest_admission) !== JSON.stringify(requiredStandardLatestAdmission)
   ) {
-    console.error('FAIL release_latest_admission: Latest must require dynamic current-Latest/highest-Stable updater, candidate ZIP, Homebrew, and clean-VM evidence');
+    console.error('FAIL release_latest_admission: Latest must require the hosted publication floor, exact candidate bytes, and Homebrew publication/readback without optional certification evidence');
     failures += 1;
   }
   if (
@@ -1353,13 +1475,18 @@ export function validateReleaseAccelerationPolicy(
   }
   if (
     !sameStringSet(homebrew?.allowed_casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
-    !sameStringSet(homebrew?.casks, ['one-person-lab', 'one-person-lab-nightly']) ||
+    !sameStringSet(homebrew?.casks, ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full']) ||
     !sameStringSet(homebrew?.initial_live_targets, [
-      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb',
+      'Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb',
     ]) ||
     !sameStringSet(homebrew?.excluded_casks, []) ||
     !sameStringSet(homebrew?.full_casks, ['one-person-lab-full']) ||
     homebrew?.tap_update_policy?.stable_release_workflow_write_mode !== 'release_bundle_standard_before_latest_only' ||
+    homebrew?.tap_update_policy?.stable?.mode !==
+      'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest' ||
+    homebrew?.tap_update_policy?.stable?.publication_mode !==
+      'release_bundle_publishes_standard_cask_then_hosted_readback_before_latest' ||
+    homebrew?.tap_update_policy?.stable?.may_consume_nightly_directly !== false ||
     homebrew?.tap_update_policy?.nightly?.mode !== 'post_publication_digest_bound_single_attempt_follower' ||
     homebrew?.tap_update_policy?.nightly?.workflow !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     homebrew?.tap_update_policy?.nightly?.environment !== 'release-nightly' ||
@@ -1368,18 +1495,24 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.nightly?.mutation_allowed !== true ||
     homebrew?.tap_update_policy?.nightly?.stable_cask_must_remain_exact !== true ||
     homebrew?.tap_update_policy?.nightly?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
-    homebrew?.tap_update_policy?.full?.mode !== 'implemented_unpublished_generator_target' ||
-    homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== false ||
-    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== true ||
+    homebrew?.tap_update_policy?.full?.mode !== 'post_publication_digest_bound_single_attempt_follower' ||
+    homebrew?.tap_update_policy?.full?.workflow !== '.github/workflows/release-homebrew-full-follower.yml' ||
+    homebrew?.tap_update_policy?.full?.environment !== 'release-stable' ||
+    homebrew?.tap_update_policy?.full?.target !== 'Casks/one-person-lab-full.rb' ||
+    homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== true ||
+    homebrew?.tap_update_policy?.full?.mutation_allowed !== true ||
+    homebrew?.tap_update_policy?.full?.source_completed_stage !== 'full_qualified' ||
+    homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== false ||
     homebrew?.tap_update_policy?.full?.framework_carrier !== 'full_dmg_embedded_opl_base' ||
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
-    homebrew?.tap_update_policy?.full?.promotion_status !== 'not_approved_until_promotion_requirements_pass' ||
-    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded' ||
+    homebrew?.tap_update_policy?.full?.promotion_status !== 'approved_pending_first_protected_follower_readback' ||
+    homebrew?.tap_update_policy?.full?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
+    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_distribution: Nightly must use its isolated digest follower and Full must remain implemented but unpublished with embedded Base');
+    console.error('FAIL release_homebrew_distribution: Nightly and Full must use isolated post-publication digest followers; Full must remain independent of physical VM certification with embedded Base');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);
@@ -1523,6 +1656,8 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validatePreparedNotesTransportPolicy(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
+  failures += validateOptionalCertificationPolicy(releaseContract);
+  failures += validatePhysicalVmOptionalCertificationPolicy(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
   failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);

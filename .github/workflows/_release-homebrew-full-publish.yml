@@ -53,7 +53,6 @@ jobs:
       tag: ${{ steps.identity.outputs.tag }}
       app_sha: ${{ steps.identity.outputs.app_sha }}
       shell_sha: ${{ steps.identity.outputs.shell_sha }}
-      smoke_harness_sha: ${{ steps.identity.outputs.smoke_harness_sha }}
       framework_sha: ${{ steps.identity.outputs.framework_sha }}
       dmg_sha256: ${{ steps.identity.outputs.dmg_sha256 }}
       manifest_sha256: ${{ steps.identity.outputs.manifest_sha256 }}
@@ -117,11 +116,6 @@ jobs:
             echo "::error::Full cohort predates the embedded-Base fail-closed carrier and cannot be promoted to Homebrew."
             exit 1
           }
-          smoke_harness_sha="$(git ls-remote https://github.com/gaofeng21cn/opl-aion-shell.git refs/heads/main | awk '{print $1}')"
-          [[ "$smoke_harness_sha" =~ ^[0-9a-f]{40}$ ]]
-          git clone --filter=blob:none --no-checkout https://github.com/gaofeng21cn/opl-aion-shell.git shell-harness
-          git -C shell-harness fetch --depth=1 origin "$smoke_harness_sha"
-          git -C shell-harness show "$smoke_harness_sha:scripts/opl-first-run-tart-smoke.mjs" | grep -F -- '--homebrew-cask-file' >/dev/null
           dmg_sha="$(jq -er .artifact.sha256 handoff.json)"
           manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
           dmg_name="$(jq -er .artifact.name handoff.json)"
@@ -180,7 +174,6 @@ jobs:
             echo "tag=$tag"
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
-            echo "smoke_harness_sha=$smoke_harness_sha"
             echo "framework_sha=$framework_sha"
             echo "dmg_sha256=$dmg_sha"
             echo "manifest_sha256=$manifest_sha"
@@ -232,28 +225,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  qualify-candidate:
-    if: ${{ inputs.mode == 'execute' }}
-    needs: [prepare-candidate]
-    permissions:
-      contents: read
-      actions: read
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      mode: execute
-      release_tag: ${{ needs.prepare-candidate.outputs.tag }}
-      release_bundle_digest: ${{ needs.prepare-candidate.outputs.bundle_digest }}
-      release_cohort_ref: ${{ needs.prepare-candidate.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.prepare-candidate.outputs.app_sha }}
-      shell_ref: ${{ needs.prepare-candidate.outputs.shell_sha }}
-      smoke_harness_ref: ${{ needs.prepare-candidate.outputs.smoke_harness_sha }}
-      framework_ref: ${{ needs.prepare-candidate.outputs.framework_sha }}
-      package_profile: homebrew-full
-      homebrew_candidate_artifact: ${{ needs.prepare-candidate.outputs.candidate_artifact }}
-
   publish-cask:
     if: ${{ inputs.mode == 'execute' }}
-    needs: [prepare-candidate, qualify-candidate]
+    needs: [prepare-candidate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: release-stable
@@ -264,17 +238,11 @@ jobs:
       - name: Checkout exact App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
-      - name: Download qualified candidate
+      - name: Download exact hosted-qualified candidate
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ needs.prepare-candidate.outputs.candidate_artifact }}
           path: candidate
-
-      - name: Download clean VM qualification
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-first-run-vm-homebrew-full-${{ github.run_id }}
-          path: vm
 
       - name: Restore qualified Full publication checkpoint
         id: checkpoint
@@ -285,7 +253,7 @@ jobs:
           source-artifact: ${{ needs.prepare-candidate.outputs.source_artifact }}
           github-token: ${{ github.token }}
 
-      - name: Publish one qualified Full Cask commit
+      - name: Publish one hosted-qualified Full Cask commit
         env:
           OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           GH_TOKEN: ${{ github.token }}
@@ -293,26 +261,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
-          vm_summaries=()
-          while IFS= read -r receipt; do
-            vm_summaries+=("$receipt")
-          done < <(find vm -type f -name tart-smoke-summary.json -print | LC_ALL=C sort)
-          if [ "${#vm_summaries[@]}" -ne 1 ]; then
-            echo "::error::Full Homebrew publication requires exactly one VM summary; found ${#vm_summaries[@]}."
-            exit 1
-          fi
-          summary="${vm_summaries[0]}"
-          test -f "$summary" && test ! -L "$summary"
-          jq -e '
-            .status == "passed" and .smoke_profile == "homebrew-full-cask" and .runtime_profile == "full"
-            and .guest_summary.install_origin == "homebrew_full_cask"
-            and .guest_summary.homebrew_full_cask.status == "passed"
-            and .guest_summary.homebrew_full_cask.homebrew.formula_opl_installed_before == false
-            and .guest_summary.homebrew_full_cask.homebrew.formula_opl_installed_after == false
-            and .guest_summary.homebrew_full_cask.carrier.active_framework_count == 1
-            and .guest_summary.homebrew_full_cask.official_profile.status == "passed"
-            and .guest_summary.homebrew_full_cask.official_profile.restore_action_invoked == false
-          ' "$summary" >/dev/null
           candidate=candidate/Casks/one-person-lab-full.rb
           test "sha256:$(shasum -a 256 "$candidate" | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
           test -n "$OPL_HOMEBREW_TAP_TOKEN"
@@ -495,8 +443,12 @@ jobs:
             --arg base_commit "$base_commit" --arg result_commit "$result_commit" --arg outcome "$outcome" \
             --arg cask_sha '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' \
             --arg dmg_sha '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest_sha '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' \
-            --arg vm_sha "sha256:$(shasum -a 256 "$summary" | awk '{print $1}')" --argjson push_count "$push_count" '
-            {schema:"opl_homebrew_full_publication_receipt.v1",status:"passed",track:"full",outcome:$outcome,bundle_digest:$bundle,release_version:$version,tap_repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$base_commit,result_commit:$result_commit,push_count:$push_count,cask_sha256:$cask_sha,dmg_sha256:$dmg_sha,manifest_sha256:$manifest_sha,clean_vm_receipt_sha256:$vm_sha,active_framework_count:1,official_profile_first_install:"passed",formula_opl_installed_before:false,formula_opl_installed_after:false}' \
+            --arg qualification_sha '${{ needs.prepare-candidate.outputs.qualification_receipt_sha256 }}' \
+            --arg app_sha '${{ needs.prepare-candidate.outputs.app_sha }}' \
+            --arg shell_sha '${{ needs.prepare-candidate.outputs.shell_sha }}' \
+            --arg framework_sha '${{ needs.prepare-candidate.outputs.framework_sha }}' \
+            --argjson push_count "$push_count" '
+            {schema:"opl_homebrew_full_publication_receipt.v1",status:"passed",track:"full",outcome:$outcome,bundle_digest:$bundle,release_version:$version,tap_repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$base_commit,result_commit:$result_commit,push_count:$push_count,cask_sha256:$cask_sha,dmg_sha256:$dmg_sha,manifest_sha256:$manifest_sha,qualification_receipt_sha256:$qualification_sha,cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}}' \
             > homebrew-full-publication-receipt.json
 
       - name: Upload Full Homebrew publication receipt
@@ -550,12 +502,16 @@ jobs:
             --arg version '${{ needs.prepare-candidate.outputs.version }}' \
             --arg cask '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' \
             --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' \
-            --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
+            --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' \
+            --arg qualification '${{ needs.prepare-candidate.outputs.qualification_receipt_sha256 }}' \
+            --arg app '${{ needs.prepare-candidate.outputs.app_sha }}' \
+            --arg shell '${{ needs.prepare-candidate.outputs.shell_sha }}' \
+            --arg framework '${{ needs.prepare-candidate.outputs.framework_sha }}' '
             .schema == "opl_homebrew_full_publication_receipt.v1" and .status == "passed"
             and .bundle_digest == $bundle and .release_version == $version
             and .cask_sha256 == $cask and .dmg_sha256 == $dmg and .manifest_sha256 == $manifest
-            and .active_framework_count == 1 and .official_profile_first_install == "passed"
-            and .formula_opl_installed_before == false and .formula_opl_installed_after == false
+            and .qualification_receipt_sha256 == $qualification
+            and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
             and (.push_count == 0 or .push_count == 1)
           ' "$receipt" >/dev/null
           result_commit="$(jq -er .result_commit "$receipt")"

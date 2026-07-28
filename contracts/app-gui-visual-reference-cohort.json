@@ -1,0 +1,299 @@
+{
+  "schema_version": 1,
+  "schema": "opl_app_gui_visual_reference_cohort.v1",
+  "owner": "one-person-lab-app",
+  "state": "active_reference_capture_required",
+  "machine_boundary": "Defines the required scene matrix and comparison semantics for scene-bound Codex visual convergence. It does not contain installed evidence and cannot imply product-wide parity, release readiness, installation currentness, or upstream absorption.",
+  "reference": {
+    "product": "ChatGPT Codex macOS",
+    "bundle_version": "26.707.72221",
+    "build": "5307",
+    "observed_on": "2026-07-15",
+    "platform": "macos",
+    "reference_role": "pixel_reference_only_no_brand_code_account_or_authority_copy"
+  },
+  "candidate": {
+    "product": "One Person Lab App",
+    "shell": "opl-aion-shell",
+    "app_contract_ref": "contracts/app-gui-product-contract.json#gui_maintenance_policy.visual_comparison_protocol",
+    "shell_source_ref": "active_shell_checkout_git_head",
+    "comparison_tool": "scripts/compare-gui-visual-cohort.ts"
+  },
+  "shared_primitive_contract": {
+    "authority": "one-person-lab-app",
+    "shell_role": "thin_implementation_overlay",
+    "primitive_ids": [
+      "composer",
+      "rail_row",
+      "icon_button",
+      "menu",
+      "settings_row"
+    ],
+    "shell_class_bindings": {
+      "composer": "opl-codex-composer",
+      "rail_row": "opl-codex-rail-row",
+      "icon_button": "opl-codex-icon-button",
+      "menu": "opl-codex-menu",
+      "settings_row": "opl-codex-settings-row"
+    },
+    "new_component_framework_allowed": false,
+    "upstream_authority_transfer_allowed": false
+  },
+  "capture_contract": {
+    "reference_and_candidate_same_machine_required": true,
+    "reference_and_candidate_same_display_scale_required": true,
+    "reference_and_candidate_same_viewport_required": true,
+    "reference_and_candidate_same_theme_locale_route_state_required": true,
+    "supported_viewports": {
+      "desktop": {
+        "width": 1440,
+        "height": 900
+      },
+      "narrow": {
+        "width": 400,
+        "height": 800
+      }
+    },
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "locales": [
+      "zh-CN",
+      "en-US"
+    ],
+    "required_surface_families": [
+      "home",
+      "conversation",
+      "rail",
+      "settings"
+    ],
+    "reference_directory_layout": "one_png_per_scene_named_<scene_id>.png",
+    "candidate_directory_layout": "one_png_per_scene_named_<scene_id>.png"
+  },
+  "comparison_contract": {
+    "pixel_channel_delta_threshold": 8,
+    "changed_pixel_ratio_max": 0.015,
+    "mean_absolute_channel_delta_max": 1.5,
+    "alpha_channel_included": true,
+    "dimension_mismatch": "fail",
+    "missing_scene": "fail",
+    "diff_png_required": true,
+    "mask_policy": {
+      "default": "none",
+      "declaration_required": true,
+      "maximum_masked_area_ratio": 0.08,
+      "allowed_reasons": [
+        "caret_blink",
+        "os_window_chrome_dynamic",
+        "live_status_timestamp"
+      ],
+      "undeclared_dynamic_region": "fail"
+    },
+    "human_review": {
+      "required": true,
+      "binding_fields": [
+        "scene_id",
+        "reference_screenshot_sha256",
+        "candidate_screenshot_sha256",
+        "verdict"
+      ],
+      "accepted_verdict": "accepted"
+    },
+    "scene_bound_visual_parity_requires": [
+      "exact_binding_complete",
+      "dimensions_equal",
+      "pixel_thresholds_passed",
+      "visual_delta_reviewed"
+    ]
+  },
+  "scene_matrix": [
+    {
+      "id": "home-default-desktop-light-zh",
+      "surface_family": "home",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "zh-CN",
+      "route": "/guid",
+      "state": "default",
+      "image": "home-default-desktop-light-zh.png",
+      "masks": []
+    },
+    {
+      "id": "home-model-menu-desktop-light-en",
+      "surface_family": "home",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/guid",
+      "state": "model_menu_open",
+      "image": "home-model-menu-desktop-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "home-capability-palette-desktop-dark-zh",
+      "surface_family": "home",
+      "viewport": "desktop",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "route": "/guid",
+      "state": "capability_palette_open",
+      "image": "home-capability-palette-desktop-dark-zh.png",
+      "masks": []
+    },
+    {
+      "id": "home-default-narrow-light-en",
+      "surface_family": "home",
+      "viewport": "narrow",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/guid",
+      "state": "default",
+      "image": "home-default-narrow-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "conversation-default-desktop-light-zh",
+      "surface_family": "conversation",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "zh-CN",
+      "route": "/conversation/:id",
+      "state": "default",
+      "image": "conversation-default-desktop-light-zh.png",
+      "masks": []
+    },
+    {
+      "id": "conversation-model-menu-desktop-dark-en",
+      "surface_family": "conversation",
+      "viewport": "desktop",
+      "theme": "dark",
+      "locale": "en-US",
+      "route": "/conversation/:id",
+      "state": "model_menu_open",
+      "image": "conversation-model-menu-desktop-dark-en.png",
+      "masks": []
+    },
+    {
+      "id": "conversation-command-menu-desktop-light-en",
+      "surface_family": "conversation",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/conversation/:id",
+      "state": "command_menu_open",
+      "image": "conversation-command-menu-desktop-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "conversation-default-narrow-dark-zh",
+      "surface_family": "conversation",
+      "viewport": "narrow",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "route": "/conversation/:id",
+      "state": "default",
+      "image": "conversation-default-narrow-dark-zh.png",
+      "masks": []
+    },
+    {
+      "id": "rail-selected-desktop-light-en",
+      "surface_family": "rail",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/conversation/:id",
+      "state": "selected_row",
+      "image": "rail-selected-desktop-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "rail-hover-actions-desktop-dark-zh",
+      "surface_family": "rail",
+      "viewport": "desktop",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "route": "/conversation/:id",
+      "state": "row_hover_actions_visible",
+      "image": "rail-hover-actions-desktop-dark-zh.png",
+      "masks": []
+    },
+    {
+      "id": "settings-general-desktop-light-zh",
+      "surface_family": "settings",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "zh-CN",
+      "route": "/settings/general",
+      "state": "default",
+      "image": "settings-general-desktop-light-zh.png",
+      "masks": []
+    },
+    {
+      "id": "settings-appearance-desktop-dark-en",
+      "surface_family": "settings",
+      "viewport": "desktop",
+      "theme": "dark",
+      "locale": "en-US",
+      "route": "/settings/appearance",
+      "state": "default",
+      "image": "settings-appearance-desktop-dark-en.png",
+      "masks": []
+    },
+    {
+      "id": "settings-capabilities-desktop-light-en",
+      "surface_family": "settings",
+      "viewport": "desktop",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/settings/capabilities",
+      "state": "default",
+      "image": "settings-capabilities-desktop-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "settings-maintenance-desktop-dark-zh",
+      "surface_family": "settings",
+      "viewport": "desktop",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "route": "/settings/environment?section=maintenance",
+      "state": "default",
+      "image": "settings-maintenance-desktop-dark-zh.png",
+      "masks": []
+    },
+    {
+      "id": "settings-general-narrow-light-en",
+      "surface_family": "settings",
+      "viewport": "narrow",
+      "theme": "light",
+      "locale": "en-US",
+      "route": "/settings/general",
+      "state": "default",
+      "image": "settings-general-narrow-light-en.png",
+      "masks": []
+    },
+    {
+      "id": "settings-capabilities-narrow-dark-zh",
+      "surface_family": "settings",
+      "viewport": "narrow",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "route": "/settings/capabilities",
+      "state": "default",
+      "image": "settings-capabilities-narrow-dark-zh.png",
+      "masks": []
+    }
+  ],
+  "evidence_boundary": {
+    "current_reference_assets_complete": false,
+    "current_candidate_assets_complete": false,
+    "current_scene_comparison_complete": false,
+    "visual_parity_complete": false,
+    "installed_current": false,
+    "release_ready": false,
+    "product_wide_one_to_one": false,
+    "required_final_evidence_owner": "019fa0ef-9514-7293-ba5b-15cb8a509522",
+    "final_evidence_owner_role": "same_cohort_installed_evidence_only_no_source_ownership"
+  }
+}

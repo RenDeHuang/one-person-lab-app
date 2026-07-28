@@ -101,11 +101,14 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
   assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
   assert.match(dryRun.stdout, /pull_policy: missing/);
+  assert.match(dryRun.stdout, /restart: unless-stopped/);
   assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
   assert.match(dryRun.stdout, /docker compose .* pull/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
   assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Latest Update at 03:00 and at the current user's next logon/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
+  assert.match(dryRun.stdout, /would write daily launcher .*Start-OnePersonLab\.ps1/);
+  assert.match(dryRun.stdout, /would create desktop shortcut %USERPROFILE%\\Desktop\\One Person Lab\.lnk/);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
   const normalizedDryRun = dryRun.stdout.toLocaleLowerCase('en-US');
@@ -168,7 +171,21 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
   );
   assert.match(startFunction, /TimeoutSeconds 30/);
   assert.match(startFunction, /Start-Process -FilePath \$dockerDesktop/);
-  assert.match(captureFunction, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
+  assert.match(captureFunction, /\[switch\]\$StreamOutput/);
+  assert.match(captureFunction, /Convert-ToWindowsProcessArgument/);
+  assert.match(captureFunction, /\[System\.Diagnostics\.ProcessStartInfo\]::new\(\)/);
+  assert.match(captureFunction, /\$startInfo\.RedirectStandardOutput = \$true/);
+  assert.match(captureFunction, /\$startInfo\.RedirectStandardError = \$true/);
+  assert.match(captureFunction, /\$process\.StandardOutput/);
+  assert.match(captureFunction, /\$process\.StandardError/);
+  assert.match(captureFunction, /Reader\.ReadAsync/);
+  assert.match(captureFunction, /\.WaitForExit\(250\)/);
+  assert.match(captureFunction, /\$deadline = \$startedAt\.AddSeconds\(\$TimeoutSeconds\)/);
+  assert.doesNotMatch(
+    captureFunction,
+    /-WindowStyle Hidden/,
+    'redirected Docker commands must retain a readable process exit code on Windows PowerShell',
+  );
   assert.match(captureFunction, /TimeoutSeconds = 120/);
   assert.match(captureFunction, /Invoke-DockerCommandCaptureWithTimeout/);
   assert.match(
@@ -184,6 +201,46 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
     /if \(\$InstallPrerequisites\) \{\s+Start-DockerDesktopIfPresent/s,
     'daemon recovery must also run from the ordinary non-administrator installer path',
   );
+});
+
+test('Windows Docker/WebUI reads WSL status from a process exit code, not an unset LASTEXITCODE', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const wslStatus = extractPowerShellFunction(installer, 'Invoke-WslStatus');
+  const wslAssertion = extractPowerShellFunction(installer, 'Assert-Wsl2');
+
+  assert.match(wslStatus, /Start-Process\s+`\s+-FilePath \$WslPath/);
+  assert.match(wslStatus, /-ArgumentList @\("--status"\)/);
+  assert.match(wslStatus, /-Wait\s+`\s+-PassThru/);
+  assert.match(wslStatus, /-RedirectStandardOutput \$stdoutPath/);
+  assert.match(wslStatus, /-RedirectStandardError \$stderrPath/);
+  assert.match(wslAssertion, /Invoke-WslStatus -WslPath \$wsl\.Source/);
+  assert.match(wslAssertion, /\$status\.ExitCode -ne 0/);
+  assert.doesNotMatch(wslAssertion, /\$LASTEXITCODE/);
+});
+
+test('Windows Docker/WebUI installs a reusable health-gated desktop launcher', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const launcherWriter = installer.slice(
+    installer.indexOf('function Write-WebUiLauncher'),
+    installer.indexOf('function Write-WebUiAutoUpdater'),
+  );
+  const execution = installer.slice(installer.indexOf('$tagWasProvided ='));
+
+  assert.match(launcherWriter, /dockerCliPath compose -f \$composePath up -d/);
+  assert.doesNotMatch(launcherWriter, /compose -f \$composePath down/);
+  assert.match(launcherWriter, /ArgumentList @\("desktop", "start"\)/);
+  assert.match(launcherWriter, /desktopStart\.WaitForExit\(30000\)/);
+  assert.match(launcherWriter, /Stop-Process -Id \$desktopStart\.Id -Force/);
+  assert.match(launcherWriter, /AddSeconds\(180\)/);
+  assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Head/);
+  assert.match(launcherWriter, /Invoke-WebRequest -Uri \$url -Method Get/);
+  assert.match(launcherWriter, /Start-Process -FilePath \$url/);
+  assert.match(launcherWriter, /Language\.Parser\]::ParseInput/);
+  assert.match(launcherWriter, /Generated One Person Lab launcher is invalid/);
+  assert.match(launcherWriter, /CreateShortcut\(\$shortcutPath\)/);
+  assert.match(launcherWriter, /One Person Lab\.lnk/);
+  assert.match(execution, /Install-WebUiLauncher -DockerCliPath \$dockerCliPath/);
+  assert.match(installer, /restart: unless-stopped/);
 });
 
 test('Windows Docker/WebUI refreshes stale PATH and resolves docker.exe without relying on PATHEXT', {
@@ -254,11 +311,11 @@ test('Windows Docker/WebUI image resolution returns only the pinned image refere
   assert.match(resolver, /Invoke-DockerPullWithPublicGhcrIsolation/);
   assert.match(resolver, /-Arguments @\("pull", \$RequestedImageReference\)/);
   assert.match(resolver, /-ImageReference \$RequestedImageReference/);
-  assert.match(resolver, /Write-Host \$pull\.Output/);
+  assert.match(resolver, /-not \$pull\.OutputWasStreamed/);
   assert.doesNotMatch(resolver, /& docker pull/);
 });
 
-test('Windows Docker/WebUI image pulls are bounded and terminate the stalled process tree', () => {
+test('Windows Docker/WebUI image pulls stream progress, identify Docker proxy configuration, and remain bounded', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const boundedCapture = installer.slice(
     installer.indexOf('function Invoke-DockerCommandCaptureWithTimeout'),
@@ -270,16 +327,34 @@ test('Windows Docker/WebUI image pulls are bounded and terminate the stalled pro
   );
 
   assert.match(installer, /\[int\]\$DockerPullTimeoutSeconds = 1800/);
-  assert.match(boundedCapture, /\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
-  assert.match(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F 2>\$null/);
-  assert.doesNotMatch(boundedCapture, /taskkill\.exe \/PID \$process\.Id \/T \/F 2>&1/);
-  assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\)/);
-  assert.match(boundedCapture, /Stop-Process -Id \$process\.Id -Force/);
+  assert.match(boundedCapture, /\.WaitForExit\(250\)/);
+  assert.match(boundedCapture, /\[System\.Diagnostics\.ProcessStartInfo\]::new\(\)/);
+  assert.match(boundedCapture, /\$startInfo\.RedirectStandardOutput = \$true/);
+  assert.match(boundedCapture, /\$startInfo\.RedirectStandardError = \$true/);
+  assert.match(boundedCapture, /\$streamState\.Reader\.ReadAsync/);
+  assert.match(boundedCapture, /Write-Host \$chunk -NoNewline/);
+  assert.match(boundedCapture, /Docker Desktop -> Settings -> Resources -> Proxies/);
+  assert.match(boundedCapture, /\$nextHeartbeatAt = \$startedAt\.AddSeconds\(20\)/);
+  assert.match(boundedCapture, /if \(-not \$process\.HasExited\)/);
+  assert.match(boundedCapture, /taskkill\.exe" \/PID \$process\.Id \/T \/F 2>\$null/);
+  assert.match(boundedCapture, /catch \[System\.InvalidOperationException\]/);
+  assert.match(boundedCapture, /\$process\.WaitForExit\(\)/);
+  assert.doesNotMatch(boundedCapture, /\$process\.WaitForExit\(\$TimeoutSeconds \* 1000\)/);
   assert.match(boundedCapture, /ExitCode = 124/);
   assert.match(boundedCapture, /TimedOut = \$true/);
   assert.match(resolver, /if \(\$pull\.TimedOut\)/);
   assert.match(resolver, /The stalled pull was stopped/);
   assert.match(resolver, /Invoke-DockerCommandCapture[\s\S]*"image", "inspect"/);
+});
+
+test('Windows Docker/WebUI reports first-time setup progress while waiting for HTTP health', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const healthWait = extractPowerShellFunction(installer, 'Wait-WebUiHealth');
+
+  assert.match(healthWait, /\$nextHeartbeatAt = \$startedAt\.AddSeconds\(20\)/);
+  assert.match(healthWait, /WebUI is still completing first-time setup/);
+  assert.match(healthWait, /Docker Engine also needs GitHub\/GHCR access/);
+  assert.match(healthWait, /Docker Desktop -> Settings -> Resources -> Proxies/);
 });
 
 test('Windows Docker/WebUI isolates public OPL GHCR pulls from host credentials', () => {
@@ -292,6 +367,7 @@ test('Windows Docker/WebUI isolates public OPL GHCR pulls from host credentials'
   assert.match(fallback, /ghcr\\\.io\/gaofeng21cn\/one-person-lab-webui/);
   assert.match(fallback, /return Invoke-PublicGhcrAnonymousDockerCommandCapture/);
   assert.match(fallback, /return Invoke-DockerCommandCaptureWithTimeout/);
+  assert.match(fallback, /-StreamOutput/);
   assert.doesNotMatch(fallback, /Test-DockerCredentialHelperFailure/);
   assert.match(fallback, /@\('--config', \$temporaryConfigDir\) \+ \$Arguments/);
   assert.match(fallback, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
@@ -325,7 +401,8 @@ test('Windows Docker/WebUI uses the resolved absolute docker.exe path for every 
   assert.match(resolver, /Docker\\Docker\\resources\\bin\\docker\.exe/);
   assert.match(resolver, /Programs\\DockerDesktop\\resources\\bin\\docker\.exe/);
   assert.match(installer, /\$output = & \$DockerCliPath @Arguments/);
-  assert.match(installer, /`\$output = & `\$dockerCliPath @dockerArguments/);
+  assert.match(installer, /\$startInfo\.FileName = \$DockerCliPath/);
+  assert.match(installer, /\$startInfo\.Arguments = \$argumentLine/);
   assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
   assert.match(execution, /Resolve-PinnedImageReference -DockerCliPath \$dockerCliPath/);
   assert.match(execution, /Invoke-DockerComposeUp -DockerCliPath \$dockerCliPath/);

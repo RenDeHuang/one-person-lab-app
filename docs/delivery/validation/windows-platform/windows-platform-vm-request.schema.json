@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-platform-vm-request.schema.json",
+  "title": "OPL C-root Windows VM factory request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "factory_root",
+    "lease_id",
+    "vm_name",
+    "platform_owner_task_id",
+    "execution_owner_thread",
+    "source_contract",
+    "guest_localization",
+    "lease_transition",
+    "shared_read_only_inputs",
+    "exclusive_paths",
+    "capacity",
+    "network",
+    "runtime_namespace",
+    "receipt_namespace",
+    "storage_compatibility",
+    "writable_surface_overlap_count",
+    "lease_authorized"
+  ],
+  "properties": {
+    "schema": { "const": "opl_windows_vm_lease_request.v2" },
+    "status": { "const": "prepared_factory_ready" },
+    "factory_root": { "const": "C:\\OPL-VMs" },
+    "lease_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,80}$" },
+    "vm_name": { "enum": ["OPL-V6-WSL2-01", "OPL-WEBUI-CLEAN-01"] },
+    "platform_owner_task_id": {
+      "$ref": "#/$defs/uuid",
+      "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+    },
+    "execution_owner_thread": { "$ref": "#/$defs/uuid" },
+    "source_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_acceptance_sha", "delivery_commit", "intake_manifest_sha256", "post_resize_gate_receipt_sha256"],
+      "properties": {
+        "app_acceptance_sha": { "$ref": "#/$defs/gitSha" },
+        "delivery_commit": { "$ref": "#/$defs/gitSha" },
+        "intake_manifest_sha256": { "$ref": "#/$defs/sha256" },
+        "post_resize_gate_receipt_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "guest_localization": { "$ref": "#/$defs/localization" },
+    "lease_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["previous_owner_thread", "next_owner_thread", "request_receipt_id", "requested_at"],
+      "properties": {
+        "previous_owner_thread": { "type": ["string", "null"] },
+        "next_owner_thread": { "$ref": "#/$defs/uuid" },
+        "request_receipt_id": { "$ref": "#/$defs/uuid" },
+        "requested_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "shared_read_only_inputs": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\(?:ISO|Base)(?:\\\\.*)?$" }
+    },
+    "exclusive_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guest", "config", "evidence", "vhdx"],
+      "properties": {
+        "guest": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01$" },
+        "config": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\\\Virtual Machines$" },
+        "evidence": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\\\Evidence$" },
+        "vhdx": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\\\Virtual Hard Disks\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\.vhdx$" }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processor_count", "startup_memory_bytes", "minimum_memory_bytes", "maximum_memory_bytes", "dynamic_memory", "vhdx_max_bytes", "nested_virtualization"],
+      "properties": {
+        "processor_count": { "type": "integer", "minimum": 2, "maximum": 16 },
+        "startup_memory_bytes": { "type": "integer", "minimum": 4294967296 },
+        "minimum_memory_bytes": { "type": "integer", "minimum": 2147483648 },
+        "maximum_memory_bytes": { "type": "integer", "minimum": 8589934592 },
+        "dynamic_memory": { "const": true },
+        "vhdx_max_bytes": { "type": "integer", "minimum": 68719476736 },
+        "nested_virtualization": { "const": true }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temporary_oobe_switch", "isolated_switch", "nat_name", "subnet", "host_gateway", "guest_ip", "prefix_length", "inbound_nat_mappings", "host_loopback_port_lease"],
+      "properties": {
+        "temporary_oobe_switch": { "const": "Default Switch" },
+        "isolated_switch": { "type": "string", "pattern": "^OPL-NAT-OPL-(?:V6-WSL2|WEBUI-CLEAN)-01$" },
+        "nat_name": { "type": "string", "pattern": "^OPL-NAT-OPL-(?:V6-WSL2|WEBUI-CLEAN)-01$" },
+        "subnet": { "enum": ["172.28.101.0/24", "172.28.102.0/24"] },
+        "host_gateway": { "enum": ["172.28.101.1", "172.28.102.1"] },
+        "guest_ip": { "enum": ["172.28.101.10", "172.28.102.10"] },
+        "prefix_length": { "const": 24 },
+        "inbound_nat_mappings": { "const": 0 },
+        "host_loopback_port_lease": { "enum": ["33001-33019", "33101-33119"] }
+      }
+    },
+    "runtime_namespace": { "enum": ["OPL-V6-WSL2-01", "OPL-WEBUI-CLEAN-01"] },
+    "receipt_namespace": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\Guests\\\\OPL-(?:V6-WSL2|WEBUI-CLEAN)-01\\\\Evidence$" },
+    "storage_compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drive", "filesystem", "minimum_free_bytes", "probe_receipt_sha256"],
+      "properties": {
+        "drive": { "const": "C:" },
+        "filesystem": { "const": "NTFS" },
+        "minimum_free_bytes": { "type": "integer", "minimum": 32212254720 },
+        "probe_receipt_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "writable_surface_overlap_count": { "const": 0 },
+    "lease_authorized": { "const": false }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "vm_name": { "const": "OPL-V6-WSL2-01" } }, "required": ["vm_name"] },
+      "then": {
+        "properties": {
+          "lease_id": { "const": "opl-v6-wsl2-01" },
+          "execution_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
+          "lease_transition": {
+            "properties": {
+              "next_owner_thread": {
+                "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+              }
+            }
+          },
+          "exclusive_paths": {
+            "properties": {
+              "guest": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01" },
+              "config": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Virtual Machines" },
+              "evidence": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence" },
+              "vhdx": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Virtual Hard Disks\\OPL-V6-WSL2-01.vhdx" }
+            }
+          },
+          "network": {
+            "properties": {
+              "isolated_switch": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+              "nat_name": { "const": "OPL-NAT-OPL-V6-WSL2-01" },
+              "subnet": { "const": "172.28.102.0/24" },
+              "host_gateway": { "const": "172.28.102.1" },
+              "guest_ip": { "const": "172.28.102.10" },
+              "host_loopback_port_lease": { "const": "33101-33119" }
+            }
+          },
+          "runtime_namespace": { "const": "OPL-V6-WSL2-01" },
+          "receipt_namespace": { "const": "C:\\OPL-VMs\\Guests\\OPL-V6-WSL2-01\\Evidence" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "vm_name": { "const": "OPL-WEBUI-CLEAN-01" } }, "required": ["vm_name"] },
+      "then": {
+        "properties": {
+          "lease_id": { "const": "opl-webui-clean-01" },
+          "execution_owner_thread": {
+            "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+          },
+          "lease_transition": {
+            "properties": {
+              "next_owner_thread": {
+                "not": { "const": "019f9bc5-8707-78b2-b221-5453d9d9b855" }
+              }
+            }
+          },
+          "exclusive_paths": {
+            "properties": {
+              "guest": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01" },
+              "config": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Virtual Machines" },
+              "evidence": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Evidence" },
+              "vhdx": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Virtual Hard Disks\\OPL-WEBUI-CLEAN-01.vhdx" }
+            }
+          },
+          "network": {
+            "properties": {
+              "isolated_switch": { "const": "OPL-NAT-OPL-WEBUI-CLEAN-01" },
+              "nat_name": { "const": "OPL-NAT-OPL-WEBUI-CLEAN-01" },
+              "subnet": { "const": "172.28.101.0/24" },
+              "host_gateway": { "const": "172.28.101.1" },
+              "guest_ip": { "const": "172.28.101.10" },
+              "host_loopback_port_lease": { "const": "33001-33019" }
+            }
+          },
+          "runtime_namespace": { "const": "OPL-WEBUI-CLEAN-01" },
+          "receipt_namespace": { "const": "C:\\OPL-VMs\\Guests\\OPL-WEBUI-CLEAN-01\\Evidence" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "localization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installation_media_language", "ui_language", "system_locale", "user_locale", "default_input_method_tip"],
+      "properties": {
+        "installation_media_language": { "const": "zh-CN" },
+        "ui_language": { "const": "zh-CN" },
+        "system_locale": { "const": "zh-CN" },
+        "user_locale": { "const": "zh-CN" },
+        "default_input_method_tip": { "const": "0804:00000804" }
+      }
+    }
+  }
+}

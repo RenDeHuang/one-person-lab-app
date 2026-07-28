@@ -33,37 +33,32 @@ const standardLatestAdmissionContract = {
   required_status: 'passed',
   latest_activation_admitted_required: true,
   framework_latest_eligible_alone_is_sufficient: false,
-  predecessor_policy_schema: 'opl_standard_updater_predecessor_policy.v1',
-  predecessor_selection: 'deduplicated_current_latest_and_highest_public_stable',
+  hosted_publication_floor_schema: 'opl_standard_hosted_publication_floor.v1',
+  source_contract_build_preflight_required: 'passed',
+  remote_digest_readback_required: 'passed',
   current_latest_readback_required: true,
-  highest_public_stable_readback_required: true,
-  receipt_count_must_equal_distinct_predecessor_count: true,
-  predecessor_receipt_schema: 'opl_updater_upgrade_qualification_receipt.v1',
-  predecessor_receipts_must_be_real_updater_vm_evidence: true,
-  synthetic_or_canary_predecessor_receipts_allowed: false,
-  predecessor_receipt_digest_fields: [
-    'updater_receipts[].operation_input_digest',
-    'updater_receipts[].updater_receipt_sha256',
-    'updater_receipts[].candidate_identity_sha256',
-  ],
+  updater_predecessor_receipts_allowed: false,
+  optional_certification_receipts_allowed: false,
+  publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
   required_exact_identity_fields: [
     'bundle_digest',
     'candidate.app_sha',
     'candidate.shell_sha',
     'candidate.framework_sha',
+    'candidate.zip.sha256',
+    'candidate.zip.size_bytes',
+    'candidate.dmg.sha256',
+    'candidate.dmg.size_bytes',
   ],
-  same_candidate_zip_required_for_all_predecessors: true,
-  candidate_zip_identity_fields: ['candidate.zip.sha256', 'candidate.zip.size_bytes'],
   homebrew_evidence: {
     publication_schema: 'opl_bundle_homebrew_publication_receipt.v1',
-    clean_vm_surface_id: 'opl_tart_gui_first_run_smoke',
-    readback_schema: 'opl_bundle_homebrew_readback_receipt.v1',
+    readback_schema: 'opl_bundle_homebrew_publication_readback_receipt.v1',
     required_digest_fields: [
       'homebrew.publication_receipt_sha256',
-      'homebrew.clean_vm_receipt_sha256',
       'homebrew.readback_receipt_sha256',
     ],
-    readback_must_bind_publication_and_clean_vm_actual_file_digests: true,
+    readback_must_bind_publication_actual_file_digest: true,
+    clean_vm_receipt_allowed: false,
   },
   failure_mode: 'fail_closed_before_latest_patch',
 };
@@ -199,8 +194,53 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseExecutionPolicy(releaseChannel, shellPaths);
+  validateOptionalCertificationPolicy(releaseChannel);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateOptionalCertificationPolicy(releaseChannel) {
+  const policy = releaseChannel?.post_publication_optional_certification;
+  if (
+    policy?.schema !== 'opl_app_optional_certification_policy.v1'
+    || policy?.receipt_schema !== 'contracts/app-optional-certification-receipt.schema.json'
+    || policy?.validator !== 'scripts/validate-optional-certification-receipt.ts'
+    || policy?.required_for_publication !== false
+    || policy?.required_for_latest !== false
+    || policy?.artifact_source !== 'exact_immutable_published_release_artifact'
+    || policy?.artifact_rebuild_allowed !== false
+    || policy?.component_manifest_mutation_allowed !== false
+    || policy?.component_manifest_resign_allowed !== false
+    || policy?.producer?.workflow !== '.github/workflows/release-post-publication-certification.yml'
+    || policy?.producer?.trigger !== 'workflow_run_after_successful_github_release_publication'
+    || policy?.producer?.automatic_prequeue_admission !== 'emit_not_run_until_exact_physical_capability_is_proven'
+    || policy?.producer?.physical_executor_workflow !== '.github/workflows/opl-first-run-vm.yml'
+    || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
+    || policy?.producer?.stable_dag_dependency !== false
+    || policy?.producer?.may_queue_without_proven_capability !== false
+  ) {
+    throw new Error('Optional certification must consume published bytes without blocking Stable publication or Latest');
+  }
+  assertDeepEqualJson(
+    policy.statuses,
+    ['passed', 'failed', 'not_run', 'unavailable'],
+    'Optional certification states',
+  );
+  assertDeepEqualJson(
+    policy.not_run_reason_codes,
+    ['not_requested', 'not_authorized', 'operator_deferred'],
+    'Optional certification not-run reasons',
+  );
+  assertDeepEqualJson(
+    policy.unavailable_reason_codes,
+    [
+      'authority_or_capability_not_provable',
+      'fleet_lease_admission_failed',
+      'vm_admission_failed',
+      'capability_admission_failed',
+    ],
+    'Optional certification unavailable reasons',
+  );
 }
 
 function validateProviderConfigurationBoundary(boundary) {
@@ -295,6 +335,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   const validationCanary = control?.validation_canary;
   const acceleration = releaseChannel?.release_acceleration;
   const preflight = releaseChannel?.release_preflight;
+  const localFirst = preflight?.local_first;
   const stableStageResult = preflight?.stable_stage_result;
   const failureFingerprint = preflight?.dispatch_guard?.failure_fingerprint_circuit_breaker;
   const settingsReadiness = acceleration?.settings_page_readiness_policy;
@@ -548,6 +589,28 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     'Standard Latest admission',
   );
   if (
+    localFirst?.entrypoint !== 'scripts/verify.sh release-preflight'
+    || localFirst?.reuses_existing_orchestrator !== true
+    || localFirst?.public_mutation_allowed !== false
+  ) {
+    throw new Error('Local-first release preflight must reuse verify.sh without public mutation');
+  }
+  assertDeepEqualJson(
+    localFirst.local_checks,
+    ['actionlint', 'typecheck', 'active_shell', 'release_boundary', 'candidate_shell', 'standard_package_build'],
+    'Local-first release checks',
+  );
+  assertDeepEqualJson(
+    localFirst.remote_only,
+    [
+      'github_hosted_linux_windows_macos_matrix',
+      'protected_signing_and_notarization_credentials',
+      'public_mutation',
+      'owner_authoritative_remote_readback',
+    ],
+    'Local-first remote-only checks',
+  );
+  if (
     publisher?.missing_asset !== 'upload' ||
     publisher?.same_name_same_digest !== 'already_complete' ||
     publisher?.same_name_different_digest !== 'fail_closed_require_new_bundle_or_version' ||
@@ -783,6 +846,71 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
       'Release assistant smoke must resolve a non-authoritative target fixture and separate Standard launch gates from Full route receipts',
     );
   }
+
+  const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  assertDeepEqualJson(
+    vmGates.map((gate) => gate?.id),
+    [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+    ],
+    'Physical VM optional certification gates',
+  );
+  for (const gate of vmGates) {
+    if (
+      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+      !Array.isArray(gate?.certification_readiness) ||
+      gate.certification_readiness.length === 0 ||
+      'release_blocking_readiness' in gate
+    ) {
+      throw new Error('Physical VM qualification must remain post-publication optional certification');
+    }
+  }
+  const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
+  const legacyVmGate = acceleration?.vm_gate;
+  for (const field of [
+    'source',
+    'artifact',
+    'smoke_profile',
+    'display',
+    'settings_smoke',
+    'diagnostic_scope',
+    'runtime_profile',
+    'codex_config_wizard',
+    'gate_policy',
+    'certification_readiness',
+    'post_core_ready_background_policy',
+  ]) {
+    assertDeepEqualJson(
+      legacyVmGate?.[field],
+      fullVmGate?.[field],
+      `Legacy Full VM optional certification mirror ${field}`,
+    );
+  }
+  if ('release_blocking_readiness' in (legacyVmGate ?? {})) {
+    throw new Error('Legacy Full VM mirror must not expose release-blocking readiness');
+  }
+
+  const stableValidation = releaseChannel?.release_validation_profiles?.stable;
+  assertDeepEqualJson(
+    stableValidation?.post_publication_optional_certification_surfaces,
+    [
+      'standard_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'one_shot_app_installer_fresh_install_smoke',
+      'full_dmg_clean_vm_smoke',
+    ],
+    'Stable post-publication optional certification surfaces',
+  );
+  if (
+    stableValidation?.addon_gate_blocking_standard_terminal !== false ||
+    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke')
+  ) {
+    throw new Error('Full clean-VM certification must remain outside the Stable publication terminal');
+  }
 }
 
 function assertRetiredReleaseControlPlaneAbsent(releaseChannel) {
@@ -895,12 +1023,53 @@ function validateWebuiGhcrImage(webuiImage) {
     webuiImage.stable_promotion?.compatibility_alias_ref !==
       'ghcr.io/gaofeng21cn/one-person-lab-webui:stable' ||
     webuiImage.stable_promotion?.manual_version_promotion_policy !==
-      'manual_version_may_advance_latest_only_after_the_same_stable_quality_gate' ||
+      'manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable' ||
+    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v4' ||
+    webuiImage.stable_promotion?.admission_schema !==
+      'opl_app_webui_stable_promotion_admission.v4' ||
+    webuiImage.stable_promotion?.decision_schema !==
+      'opl_app_webui_stable_promotion_decision.v2' ||
+    webuiImage.stable_promotion?.receipt_schema !==
+      'opl_app_webui_stable_promotion_receipt.v4' ||
     webuiImage.stable_promotion?.compare_and_swap
-      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true
+      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true ||
+    webuiImage.stable_promotion?.compare_and_swap
+      ?.development_validation_requires_stable_prestate_unchanged !== true ||
+    webuiImage.stable_promotion?.task_modes?.development_validation
+      ?.stable_alias_mutation_allowed !== false ||
+    webuiImage.stable_promotion?.task_modes?.development_validation
+      ?.stable_prestate_must_remain_unchanged !== true
   ) {
     throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before Latest/Stable tags');
   }
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.production_release.promotion_tags,
+    ['stable', 'latest'],
+    'Docker/WebUI production promotion tags',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.development_validation.promotion_tags,
+    ['latest'],
+    'Docker/WebUI development promotion tags',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.development_validation.classification,
+    {
+      quality_status: 'preview',
+      build_trigger: 'manual',
+      preview_kind: 'dev',
+      non_stable_notice: true,
+    },
+    'Docker/WebUI development preview classification',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.compare_and_swap.promotion_tags_by_authority_mode,
+    {
+      production_follower: ['stable', 'latest'],
+      development_validation: ['latest'],
+    },
+    'Docker/WebUI promotion tags by authority mode',
+  );
   assertIncludesAll(
     contract.publish_gate?.must_read_back,
     [

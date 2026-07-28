@@ -47,6 +47,7 @@ function Write-UserPathStatus {
 
   Write-Step "User path status:"
   Write-Step "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
+  Write-Step "  daily_start: use the One Person Lab desktop shortcut to start Docker Desktop, wait for WebUI health, and open the browser."
   Write-Step "  browser_webui: open $Url after the health check passes."
   Write-Step "  access_key_settings: sign in to Gateway or enter an API key in WebUI first-run or Settings -> Account & Access."
   Write-Step "  runtime_proxy: WebUI sends Gateway sign-in and API-key configuration through the existing OPL runtime provider."
@@ -266,75 +267,185 @@ function Start-DockerDesktopIfPresent {
   Start-Process -FilePath $dockerDesktop | Out-Null
 }
 
-function Convert-ToPowerShellSingleQuotedLiteral {
+function Convert-ToWindowsProcessArgument {
   param([Parameter(Mandatory = $true)][string]$Value)
-  return "'" + ($Value -replace "'", "''") + "'"
+
+  if ($Value.Length -eq 0) {
+    return '""'
+  }
+  if ($Value -notmatch '[\s"]') {
+    return $Value
+  }
+  $quoted = [System.Text.StringBuilder]::new()
+  [void]$quoted.Append('"')
+  $backslashCount = 0
+  foreach ($character in $Value.ToCharArray()) {
+    if ($character -eq '\') {
+      $backslashCount++
+      continue
+    }
+    if ($character -eq '"') {
+      [void]$quoted.Append([string]::new([char]92, ($backslashCount * 2) + 1))
+      [void]$quoted.Append('"')
+      $backslashCount = 0
+      continue
+    }
+    if ($backslashCount -gt 0) {
+      [void]$quoted.Append([string]::new([char]92, $backslashCount))
+      $backslashCount = 0
+    }
+    [void]$quoted.Append($character)
+  }
+  if ($backslashCount -gt 0) {
+    [void]$quoted.Append([string]::new([char]92, $backslashCount * 2))
+  }
+  [void]$quoted.Append('"')
+  return $quoted.ToString()
 }
 
 function Invoke-DockerCommandCaptureWithTimeout {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
-    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [switch]$StreamOutput
   )
 
-  $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-command-" + [Guid]::NewGuid().ToString('N'))
-  $wrapperPath = Join-Path $temporaryDir 'invoke-docker.ps1'
-  $outputPath = Join-Path $temporaryDir 'output.txt'
-  $argumentLiterals = @($Arguments | ForEach-Object { Convert-ToPowerShellSingleQuotedLiteral -Value $_ })
-  $dockerCliLiteral = Convert-ToPowerShellSingleQuotedLiteral -Value $DockerCliPath
-  $wrapper = @"
-`$ErrorActionPreference = 'Continue'
-`$dockerCliPath = $dockerCliLiteral
-`$dockerArguments = @($($argumentLiterals -join ', '))
-`$output = & `$dockerCliPath @dockerArguments 2>&1 | Out-String
-`$exitCode = `$LASTEXITCODE
-Set-Content -LiteralPath $(Convert-ToPowerShellSingleQuotedLiteral -Value $outputPath) -Value `$output -Encoding UTF8
-exit `$exitCode
-"@
-
+  $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
+  $process = [System.Diagnostics.Process]::new()
   try {
-    New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
-    Set-Content -LiteralPath $wrapperPath -Value $wrapper -Encoding UTF8
-    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $process = Start-Process `
-      -FilePath $powershell `
-      -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $wrapperPath + '"')) `
-      -WindowStyle Hidden `
-      -PassThru
-    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-      & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $DockerCliPath
+    $startInfo.Arguments = $argumentLine
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+      throw "Docker process did not start."
+    }
+    $streamStates = @(
+      [pscustomobject]@{
+        Reader = $process.StandardOutput
+        Buffer = (New-Object char[] 4096)
+        PendingRead = $null
+        Completed = $false
+      },
+      [pscustomobject]@{
+        Reader = $process.StandardError
+        Buffer = (New-Object char[] 4096)
+        PendingRead = $null
+        Completed = $false
+      }
+    )
+    foreach ($streamState in $streamStates) {
+      $streamState.PendingRead = $streamState.Reader.ReadAsync(
+        $streamState.Buffer,
+        0,
+        $streamState.Buffer.Length
+      )
+    }
+    $output = [System.Text.StringBuilder]::new()
+    $drainOutput = {
+      $receivedOutput = $false
+      foreach ($streamState in $streamStates) {
+        while (-not $streamState.Completed -and $streamState.PendingRead.IsCompleted) {
+          $readCount = $streamState.PendingRead.GetAwaiter().GetResult()
+          if ($readCount -le 0) {
+            $streamState.Completed = $true
+            break
+          }
+          $chunk = [string]::new($streamState.Buffer, 0, $readCount)
+          [void]$output.Append($chunk)
+          if ($StreamOutput) {
+            Write-Host $chunk -NoNewline
+          }
+          $receivedOutput = $true
+          $streamState.PendingRead = $streamState.Reader.ReadAsync(
+            $streamState.Buffer,
+            0,
+            $streamState.Buffer.Length
+          )
+        }
+      }
+      return $receivedOutput
+    }.GetNewClosure()
+
+    $outputWasStreamed = $false
+    $startedAt = Get-Date
+    $deadline = $startedAt.AddSeconds($TimeoutSeconds)
+    $nextHeartbeatAt = $startedAt.AddSeconds(20)
+    $timedOut = $false
+    $processExited = $false
+
+    while (-not $processExited -or @($streamStates | Where-Object { -not $_.Completed }).Count -gt 0) {
+      if (-not $processExited) {
+        $processExited = $process.WaitForExit(250)
+      } else {
+        Start-Sleep -Milliseconds 50
+      }
+      if (& $drainOutput) {
+        if ($StreamOutput) {
+          $outputWasStreamed = $true
+          $nextHeartbeatAt = (Get-Date).AddSeconds(20)
+        }
+      } elseif ($StreamOutput -and (Get-Date) -ge $nextHeartbeatAt) {
+        $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+        Write-Step "Docker is still downloading the WebUI image (${elapsedSeconds}s without new layer output). If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
+        $nextHeartbeatAt = (Get-Date).AddSeconds(20)
+      }
+      if (-not $processExited -and (Get-Date) -ge $deadline) {
+        $timedOut = $true
+        break
+      }
+    }
+
+    if ($timedOut) {
+      if (-not $process.HasExited) {
+        try {
+          & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+        } catch {
+        }
+      }
       $killDeadline = (Get-Date).AddSeconds(5)
       while (-not $process.HasExited -and (Get-Date) -lt $killDeadline) {
         Start-Sleep -Milliseconds 100
         $process.Refresh()
       }
       if (-not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        try {
+          $process.Kill()
+        } catch [System.InvalidOperationException] {
+        }
       }
-      $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
-        (Get-Content -LiteralPath $outputPath -Raw).Trim()
-      } else {
-        ''
-      }
-      return [pscustomobject]@{
-        ExitCode = 124
-        Output = $output
-        TimedOut = $true
+      $process.WaitForExit()
+    } else {
+      $process.WaitForExit()
+    }
+    if (& $drainOutput) {
+      if ($StreamOutput) {
+        $outputWasStreamed = $true
       }
     }
-    $output = if (Test-Path -LiteralPath $outputPath -PathType Leaf) {
-      (Get-Content -LiteralPath $outputPath -Raw).Trim()
-    } else {
-      ''
+    $outputText = $output.ToString().Trim()
+
+    if ($timedOut) {
+      return [pscustomobject]@{
+        ExitCode = 124
+        Output = $outputText
+        TimedOut = $true
+        OutputWasStreamed = $outputWasStreamed
+      }
     }
     return [pscustomobject]@{
       ExitCode = $process.ExitCode
-      Output = $output
+      Output = $outputText
       TimedOut = $false
+      OutputWasStreamed = $outputWasStreamed
     }
   } finally {
-    Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
+    $process.Dispose()
   }
 }
 
@@ -361,7 +472,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
-    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [switch]$StreamOutput
   )
 
   $temporaryConfigDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-docker-anonymous-" + [Guid]::NewGuid().ToString('N'))
@@ -374,7 +486,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
     return Invoke-DockerCommandCaptureWithTimeout `
       -DockerCliPath $DockerCliPath `
       -Arguments (@('--config', $temporaryConfigDir) + $Arguments) `
-      -TimeoutSeconds $TimeoutSeconds
+      -TimeoutSeconds $TimeoutSeconds `
+      -StreamOutput:$StreamOutput
   } finally {
     Remove-Item -LiteralPath $temporaryConfigDir -Force -Recurse -ErrorAction SilentlyContinue
   }
@@ -392,12 +505,14 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
     return Invoke-PublicGhcrAnonymousDockerCommandCapture `
       -DockerCliPath $DockerCliPath `
       -Arguments $Arguments `
-      -TimeoutSeconds $DockerPullTimeoutSeconds
+      -TimeoutSeconds $DockerPullTimeoutSeconds `
+      -StreamOutput
   }
   return Invoke-DockerCommandCaptureWithTimeout `
     -DockerCliPath $DockerCliPath `
     -Arguments $Arguments `
-    -TimeoutSeconds $DockerPullTimeoutSeconds
+    -TimeoutSeconds $DockerPullTimeoutSeconds `
+    -StreamOutput
 }
 
 function Wait-DockerDaemon {
@@ -501,7 +616,7 @@ function Resolve-PinnedImageReference {
     -DockerCliPath $DockerCliPath `
     -Arguments @("pull", $RequestedImageReference) `
     -ImageReference $RequestedImageReference
-  if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
+  if (-not $pull.OutputWasStreamed -and -not [string]::IsNullOrWhiteSpace($pull.Output)) {
     Write-Host $pull.Output
   }
   if ($pull.TimedOut) {
@@ -550,6 +665,7 @@ services:
   one-person-lab-webui:
     image: $(Convert-ToComposeScalar $ImageReference)
     pull_policy: missing
+    restart: unless-stopped
     ports:
       - $(Convert-ToComposeScalar "127.0.0.1:${HostPort}:3000")
     environment:
@@ -680,6 +796,39 @@ function Assert-DockerCompose {
   Write-Step "Docker Compose plugin is available."
 }
 
+function Invoke-WslStatus {
+  param([Parameter(Mandatory = $true)][string]$WslPath)
+
+  $temporaryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("opl-wsl-status-" + [Guid]::NewGuid().ToString('N'))
+  $stdoutPath = Join-Path $temporaryDir "stdout.txt"
+  $stderrPath = Join-Path $temporaryDir "stderr.txt"
+  try {
+    New-Item -ItemType Directory -Force -Path $temporaryDir | Out-Null
+    $process = Start-Process `
+      -FilePath $WslPath `
+      -ArgumentList @("--status") `
+      -Wait `
+      -PassThru `
+      -NoNewWindow `
+      -RedirectStandardOutput $stdoutPath `
+      -RedirectStandardError $stderrPath
+    $output = @(
+      if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
+        Get-Content -LiteralPath $stdoutPath -Raw
+      }
+      if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+        Get-Content -LiteralPath $stderrPath -Raw
+      }
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    return [pscustomobject]@{
+      ExitCode = $process.ExitCode
+      Output = ($output -join [Environment]::NewLine).Trim()
+    }
+  } finally {
+    Remove-Item -LiteralPath $temporaryDir -Force -Recurse -ErrorAction SilentlyContinue
+  }
+}
+
 function Assert-Wsl2 {
   if ($DryRun) {
     if ($InstallPrerequisites) {
@@ -699,16 +848,16 @@ function Assert-Wsl2 {
     throw "WSL is not available. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then install/open Docker Desktop."
   }
 
-  $statusOutput = & wsl.exe --status 2>&1
-  if ($LASTEXITCODE -ne 0) {
+  $status = Invoke-WslStatus -WslPath $wsl.Source
+  if ($status.ExitCode -ne 0) {
     Install-Wsl2Prerequisites
-    $statusOutput = & wsl.exe --status 2>&1
+    $status = Invoke-WslStatus -WslPath $wsl.Source
   }
-  if ($LASTEXITCODE -ne 0) {
-    throw "WSL status check failed. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then reopen Docker Desktop. Details: $statusOutput"
+  if ($status.ExitCode -ne 0) {
+    throw "WSL status check failed. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then reopen Docker Desktop. Details: $($status.Output)"
   }
 
-  $statusText = ($statusOutput | Out-String)
+  $statusText = $status.Output
   if ($statusText -notmatch "2" -and $statusText -notmatch "WSL2") {
     Write-Warning "WSL is installed, but this script could not confirm WSL 2 from 'wsl --status'. Docker Desktop may still guide you through the WSL 2 backend setup."
   } else {
@@ -730,6 +879,190 @@ function New-DirectoryIfNeeded {
 function Convert-ToPowerShellSingleQuoted {
   param([Parameter(Mandatory = $true)][string]$Value)
   return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Write-WebUiLauncher {
+  param(
+    [Parameter(Mandatory = $true)][string]$LauncherPath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [AllowEmptyString()][string]$DockerDesktopPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $dockerDesktopLiteral = if ([string]::IsNullOrWhiteSpace($DockerDesktopPath)) {
+    '$null'
+  } else {
+    Convert-ToPowerShellSingleQuoted $DockerDesktopPath
+  }
+  $template = @'
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version 3.0
+$ErrorActionPreference = "Stop"
+$dockerCliPath = __DOCKER_CLI__
+$dockerDesktopPath = __DOCKER_DESKTOP__
+$composePath = __COMPOSE_PATH__
+$url = __WEBUI_URL__
+$healthTimeoutSeconds = __HEALTH_TIMEOUT__
+
+try {
+  $Host.UI.RawUI.WindowTitle = "One Person Lab"
+} catch {
+}
+
+function Test-DockerReady {
+  & $dockerCliPath info --format "{{.ServerVersion}}" 2>$null | Out-Null
+  return $LASTEXITCODE -eq 0
+}
+
+function Start-OnePersonLabDocker {
+  if (Test-DockerReady) {
+    return
+  }
+
+  Write-Host "[One Person Lab] Starting Docker Desktop..."
+  try {
+    $desktopStart = Start-Process `
+      -FilePath $dockerCliPath `
+      -ArgumentList @("desktop", "start") `
+      -WindowStyle Hidden `
+      -PassThru
+    if (-not $desktopStart.WaitForExit(30000)) {
+      Stop-Process -Id $desktopStart.Id -Force -ErrorAction SilentlyContinue
+    }
+  } catch {
+  }
+  if (-not (Test-DockerReady) -and
+      -not [string]::IsNullOrWhiteSpace($dockerDesktopPath) -and
+      (Test-Path -LiteralPath $dockerDesktopPath -PathType Leaf)) {
+    Start-Process -FilePath $dockerDesktopPath | Out-Null
+  }
+
+  $deadline = (Get-Date).AddSeconds(180)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-DockerReady) {
+      return
+    }
+    Start-Sleep -Seconds 2
+  }
+  throw "Docker Desktop did not become ready within 180 seconds. Open Docker Desktop and finish any setup prompts."
+}
+
+function Test-OnePersonLabHealth {
+  try {
+    $response = Invoke-WebRequest -Uri $url -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+  } catch {
+    try {
+      $response = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+      return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+    } catch {
+      return $false
+    }
+  }
+}
+
+try {
+  if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
+    throw "compose.yaml was not found at $composePath. Run the One Person Lab installer once to repair it."
+  }
+
+  Start-OnePersonLabDocker
+  Write-Host "[One Person Lab] Starting the WebUI container..."
+  $composeOutput = & $dockerCliPath compose -f $composePath up -d 2>&1 | Out-String
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker Compose failed: $composeOutput"
+  }
+
+  Write-Host "[One Person Lab] Waiting for WebUI health..."
+  $deadline = (Get-Date).AddSeconds($healthTimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-OnePersonLabHealth) {
+      Write-Host "[One Person Lab] Ready. Opening $url"
+      Start-Process -FilePath $url
+      exit 0
+    }
+    Start-Sleep -Seconds 2
+  }
+  throw "WebUI did not become reachable at $url within $healthTimeoutSeconds seconds."
+} catch {
+  Write-Host ""
+  Write-Host "[One Person Lab] Startup failed: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "Run the installer again to repair the local startup files."
+  Read-Host "Press Enter to close this window"
+  exit 1
+}
+'@
+
+  $content = $template.Replace("__DOCKER_CLI__", (Convert-ToPowerShellSingleQuoted $DockerCliPath))
+  $content = $content.Replace("__DOCKER_DESKTOP__", $dockerDesktopLiteral)
+  $content = $content.Replace("__COMPOSE_PATH__", (Convert-ToPowerShellSingleQuoted $ComposePath))
+  $content = $content.Replace("__WEBUI_URL__", (Convert-ToPowerShellSingleQuoted $Url))
+  $content = $content.Replace("__HEALTH_TIMEOUT__", [string]$TimeoutSeconds)
+  $tokens = $null
+  $parseErrors = $null
+  [System.Management.Automation.Language.Parser]::ParseInput(
+    $content,
+    [ref]$tokens,
+    [ref]$parseErrors
+  ) | Out-Null
+  if ($parseErrors.Count -gt 0) {
+    $parseSummary = ($parseErrors | ForEach-Object { $_.Message }) -join "; "
+    throw "Generated One Person Lab launcher is invalid: $parseSummary"
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would write daily launcher $LauncherPath"
+    return
+  }
+
+  $temporaryPath = "$LauncherPath.download"
+  Set-Content -LiteralPath $temporaryPath -Value $content -Encoding UTF8
+  Move-Item -LiteralPath $temporaryPath -Destination $LauncherPath -Force
+}
+
+function Install-WebUiLauncher {
+  param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $installRoot = Split-Path -Parent $ComposePath
+  $launcherPath = Join-Path $installRoot "Start-OnePersonLab.ps1"
+  $dockerDesktopPath = Resolve-DockerDesktopApplicationPath
+  Write-WebUiLauncher `
+    -LauncherPath $launcherPath `
+    -DockerCliPath $DockerCliPath `
+    -DockerDesktopPath $(if ($null -eq $dockerDesktopPath) { "" } else { $dockerDesktopPath }) `
+    -ComposePath $ComposePath `
+    -Url $Url `
+    -TimeoutSeconds $TimeoutSeconds
+
+  if ($DryRun) {
+    Write-Step "Dry run: would create desktop shortcut %USERPROFILE%\Desktop\One Person Lab.lnk"
+    return
+  }
+
+  $desktopPath = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+  if ([string]::IsNullOrWhiteSpace($desktopPath)) {
+    $desktopPath = Join-Path (Get-DefaultUserProfile) "Desktop"
+  }
+  New-Item -ItemType Directory -Force -Path $desktopPath | Out-Null
+  $shortcutPath = Join-Path $desktopPath "One Person Lab.lnk"
+  $powershell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($shortcutPath)
+  $shortcut.TargetPath = $powershell
+  $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $launcherPath + '"'
+  $shortcut.WorkingDirectory = $installRoot
+  $shortcut.Description = "Start One Person Lab and open the local WebUI"
+  $shortcut.IconLocation = "$powershell,0"
+  $shortcut.Save()
+  Write-Step "Daily launcher installed: $shortcutPath"
 }
 
 function Write-WebUiAutoUpdater {
@@ -1402,11 +1735,18 @@ function Wait-WebUiHealth {
   }
 
   Write-Step "Waiting up to ${TimeoutSeconds}s for WebUI HTTP health at $Url."
-  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $startedAt = Get-Date
+  $deadline = $startedAt.AddSeconds($TimeoutSeconds)
+  $nextHeartbeatAt = $startedAt.AddSeconds(20)
   while ((Get-Date) -lt $deadline) {
     if (Test-WebUiHttpHealth -Url $Url) {
       Write-Step "WebUI HTTP health check passed: $Url"
       return
+    }
+    if ((Get-Date) -ge $nextHeartbeatAt) {
+      $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+      Write-Step "WebUI is still completing first-time setup (${elapsedSeconds}s). The image download may already be complete; Docker Engine also needs GitHub/GHCR access for initial managed components. If this does not advance, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies."
+      $nextHeartbeatAt = (Get-Date).AddSeconds(20)
     }
     Start-Sleep -Seconds 2
   }
@@ -1522,6 +1862,7 @@ try {
   throw
 }
 Wait-WebUiHealth -DockerCliPath $dockerCliPath -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
+Install-WebUiLauncher -DockerCliPath $dockerCliPath -ComposePath $composePath -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 if ($EnableAutoUpdate) {
   Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 } elseif (-not $Update) {

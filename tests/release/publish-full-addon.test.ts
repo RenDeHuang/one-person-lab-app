@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
@@ -12,6 +13,88 @@ const local = {
   size: 42,
   sha256: 'a'.repeat(64),
 };
+
+const hostedFullBundle = {
+  surface_kind: 'opl_release_bundle.v1',
+  bundle_digest: `sha256:${'b'.repeat(64)}`,
+  release: { version: '26.7.18' },
+  identity_mode: 'app_standard_compatibility',
+  package_compatibility: { abi: 'opl_packages.v1', version_range: '>=0.1.0 <1.0.0' },
+  sources: {
+    app: { source_commit: 'c'.repeat(40) },
+    shell: { source_commit: 'd'.repeat(40) },
+    framework: { source_commit: 'e'.repeat(40) },
+  },
+  tracks: {
+    full: { required_asset_names: [local.name] },
+  },
+};
+
+function hostedFullQualification(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: 'opl_app_hosted_full_core_qualification.v1',
+    status: 'passed',
+    execution: {
+      execution_class: 'github_hosted',
+      runner: 'macos-14',
+      run_id: '30280000001',
+      run_attempt: 1,
+    },
+    release: {
+      bundle_digest: hostedFullBundle.bundle_digest,
+      version: hostedFullBundle.release.version,
+    },
+    subject: {
+      asset_name: local.name,
+      size_bytes: local.size,
+      sha256: `sha256:${local.sha256}`,
+    },
+    manifest: {
+      asset_name: 'opl-release-manifest.json',
+      sha256: `sha256:${'f'.repeat(64)}`,
+    },
+    cohort: {
+      app_sha: hostedFullBundle.sources.app.source_commit,
+      shell_sha: hostedFullBundle.sources.shell.source_commit,
+      framework_sha: hostedFullBundle.sources.framework.source_commit,
+    },
+    verification: {
+      dmg_verified: true,
+      read_only_mount: true,
+      exact_single_app: true,
+      codesign: true,
+      stapler: true,
+      gatekeeper: true,
+      manifest_bound: true,
+      full_runtime_native_trust: true,
+    },
+    evidence_ref: 'opl-hosted-full-core-qualification-30280000001',
+    ...overrides,
+  };
+}
+
+function runHostedFullQualification(bundle: unknown, qualification: unknown) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-hosted-full-qualification-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const qualificationPath = path.join(root, 'qualification.json');
+  const outputPath = path.join(root, 'output.json');
+  fs.writeFileSync(bundlePath, `${JSON.stringify(bundle)}\n`);
+  fs.writeFileSync(qualificationPath, `${JSON.stringify(qualification)}\n`);
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/framework-release-adapter.ts',
+    'qualification-receipt',
+    '--bundle', bundlePath,
+    '--track', 'full',
+    '--hosted-core-qualification', qualificationPath,
+    '--output', outputPath,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  return {
+    result,
+    output: result.status === 0 ? JSON.parse(fs.readFileSync(outputPath, 'utf8')) : null,
+    root,
+  };
+}
 
 test('missing Full add-on asset is scheduled for additive upload', () => {
   assert.deepEqual(planFullAddonUpload([local], []), [{ ...local, action: 'upload' }]);
@@ -48,6 +131,46 @@ test('retired direct Full add-on publisher fails closed before parsing caller in
   assert.equal(receipt.mutation_authorized, false);
 });
 
+test('hosted Full qualification binds the exact Bundle and fails closed on digest or cohort drift', (t) => {
+  const valid = runHostedFullQualification(hostedFullBundle, hostedFullQualification());
+  t.after(() => fs.rmSync(valid.root, { recursive: true, force: true }));
+  assert.equal(valid.result.status, 0, valid.result.stderr || valid.result.stdout);
+  assert.deepEqual(valid.output.subject, {
+    asset_name: local.name,
+    size_bytes: local.size,
+    sha256: `sha256:${local.sha256}`,
+  });
+  assert.deepEqual(valid.output.cohort, {
+    app_sha: hostedFullBundle.sources.app.source_commit,
+    shell_sha: hostedFullBundle.sources.shell.source_commit,
+    framework_sha: hostedFullBundle.sources.framework.source_commit,
+    identity_mode: 'app_standard_compatibility',
+    package_compatibility: { abi: 'opl_packages.v1', version_range: '>=0.1.0 <1.0.0' },
+  });
+
+  const mismatches = [
+    hostedFullQualification({
+      release: { bundle_digest: `sha256:${'0'.repeat(64)}`, version: hostedFullBundle.release.version },
+    }),
+    hostedFullQualification({
+      cohort: {
+        app_sha: '0'.repeat(40),
+        shell_sha: hostedFullBundle.sources.shell.source_commit,
+        framework_sha: hostedFullBundle.sources.framework.source_commit,
+      },
+    }),
+  ];
+  for (const qualification of mismatches) {
+    const rejected = runHostedFullQualification(hostedFullBundle, qualification);
+    t.after(() => fs.rmSync(rejected.root, { recursive: true, force: true }));
+    assert.notEqual(rejected.result.status, 0);
+    assert.match(
+      rejected.result.stderr,
+      /Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence/,
+    );
+  }
+});
+
 test('Full add-on workflow cannot overwrite release state or existing assets', () => {
   const stableWorkflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/release-stable.yml'), 'utf8');
   const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/_release-full-addon.yml'), 'utf8');
@@ -55,11 +178,20 @@ test('Full add-on workflow cannot overwrite release state or existing assets', (
   const fullStart = workflow.indexOf('  publish-full:');
   assert.ok(fullStart >= 0);
   const full = workflow.slice(fullStart);
+  const qualificationStart = workflow.indexOf('  full-qualification:');
+  const checkpointStart = workflow.indexOf('  checkpoint-full:');
+  assert.ok(qualificationStart >= 0 && checkpointStart > qualificationStart);
+  const qualification = workflow.slice(qualificationStart, checkpointStart);
   const source = `${full}\n${publisher}`;
 
   assert.match(stableWorkflow, /append-full:[\s\S]*uses: \.\/\.github\/workflows\/_release-full-addon\.yml/);
   assert.match(workflow, /full-build:[\s\S]*needs: \[restore-standard\]/);
-  assert.match(workflow, /full-qualification:[\s\S]*release_artifact_run_id: \$\{\{ github\.run_id \}\}/);
+  assert.match(qualification, /runs-on: macos-14/);
+  assert.match(qualification, /hdiutil attach "\$dmg_path" -nobrowse -readonly/);
+  assert.match(qualification, /opl_app_hosted_full_core_qualification\.v1/);
+  assert.doesNotMatch(qualification, /opl-first-run-vm|tart\b/i);
+  assert.match(workflow, /--hosted-core-qualification "\$hosted_receipt"/);
+  assert.doesNotMatch(workflow, /--legacy-qualification/);
   assert.match(full, /Append only exact Full bytes/);
   assert.match(full, /framework-executor\/bin\/opl release publish/);
   assert.match(full, /framework-executor\/bin\/opl release reconcile/);

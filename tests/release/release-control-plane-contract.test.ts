@@ -220,7 +220,7 @@ test('Stable attempt results are deterministic observations and unchanged finger
   assert.doesNotMatch(workflow, /stable_stage_result.*framework_checkpoint/i);
 });
 
-test('Standard Latest admission derives exact predecessors from public release truth', () => {
+test('Standard Latest admission consumes hosted publication and Homebrew readback without optional certification', () => {
   const stable = readJson('contracts/app-release-channel.json')
     .release_bundle_control_plane.publication.stable;
   const admission = stable.latest_admission;
@@ -230,39 +230,34 @@ test('Standard Latest admission derives exact predecessors from public release t
   assert.equal(admission.required_status, 'passed');
   assert.equal(admission.latest_activation_admitted_required, true);
   assert.equal(admission.framework_latest_eligible_alone_is_sufficient, false);
-  assert.equal(admission.predecessor_policy_schema, 'opl_standard_updater_predecessor_policy.v1');
-  assert.equal(admission.predecessor_selection, 'deduplicated_current_latest_and_highest_public_stable');
+  assert.equal(admission.hosted_publication_floor_schema, 'opl_standard_hosted_publication_floor.v1');
+  assert.equal(admission.source_contract_build_preflight_required, 'passed');
+  assert.equal(admission.remote_digest_readback_required, 'passed');
   assert.equal(admission.current_latest_readback_required, true);
-  assert.equal(admission.highest_public_stable_readback_required, true);
-  assert.equal(admission.receipt_count_must_equal_distinct_predecessor_count, true);
-  assert.equal(admission.predecessor_receipt_schema, 'opl_updater_upgrade_qualification_receipt.v1');
-  assert.equal(admission.predecessor_receipts_must_be_real_updater_vm_evidence, true);
-  assert.equal(admission.synthetic_or_canary_predecessor_receipts_allowed, false);
-  assert.deepEqual(admission.predecessor_receipt_digest_fields, [
-    'updater_receipts[].operation_input_digest',
-    'updater_receipts[].updater_receipt_sha256',
-    'updater_receipts[].candidate_identity_sha256',
-  ]);
+  assert.equal(admission.updater_predecessor_receipts_allowed, false);
+  assert.equal(admission.optional_certification_receipts_allowed, false);
+  assert.deepEqual(admission.publication_ancestor_counts, { self_hosted: 0, vm: 0, tart: 0 });
   assert.deepEqual(admission.required_exact_identity_fields, [
     'bundle_digest',
     'candidate.app_sha',
     'candidate.shell_sha',
     'candidate.framework_sha',
-  ]);
-  assert.equal(admission.same_candidate_zip_required_for_all_predecessors, true);
-  assert.deepEqual(admission.candidate_zip_identity_fields, [
     'candidate.zip.sha256',
     'candidate.zip.size_bytes',
+    'candidate.dmg.sha256',
+    'candidate.dmg.size_bytes',
   ]);
   assert.equal(admission.homebrew_evidence.publication_schema, 'opl_bundle_homebrew_publication_receipt.v1');
-  assert.equal(admission.homebrew_evidence.clean_vm_surface_id, 'opl_tart_gui_first_run_smoke');
-  assert.equal(admission.homebrew_evidence.readback_schema, 'opl_bundle_homebrew_readback_receipt.v1');
+  assert.equal(
+    admission.homebrew_evidence.readback_schema,
+    'opl_bundle_homebrew_publication_readback_receipt.v1',
+  );
   assert.deepEqual(admission.homebrew_evidence.required_digest_fields, [
     'homebrew.publication_receipt_sha256',
-    'homebrew.clean_vm_receipt_sha256',
     'homebrew.readback_receipt_sha256',
   ]);
-  assert.equal(admission.homebrew_evidence.readback_must_bind_publication_and_clean_vm_actual_file_digests, true);
+  assert.equal(admission.homebrew_evidence.readback_must_bind_publication_actual_file_digest, true);
+  assert.equal(admission.homebrew_evidence.clean_vm_receipt_allowed, false);
   assert.equal(admission.failure_mode, 'fail_closed_before_latest_patch');
 });
 
@@ -507,13 +502,16 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
       release.release_bundle_control_plane.publication.stable.latest_admission.framework_latest_eligible_alone_is_sufficient = true;
     },
     (release) => {
-      release.release_bundle_control_plane.publication.stable.latest_admission.predecessor_selection = 'fixed_versions';
+      release.release_bundle_control_plane.publication.stable.latest_admission
+        .updater_predecessor_receipts_allowed = true;
     },
     (release) => {
-      release.release_bundle_control_plane.publication.stable.latest_admission.same_candidate_zip_required_for_all_predecessors = false;
+      release.release_bundle_control_plane.publication.stable.latest_admission
+        .publication_ancestor_counts.vm = 1;
     },
     (release) => {
-      release.release_bundle_control_plane.publication.stable.latest_admission.homebrew_evidence.readback_must_bind_publication_and_clean_vm_actual_file_digests = false;
+      release.release_bundle_control_plane.publication.stable.latest_admission
+        .homebrew_evidence.clean_vm_receipt_allowed = true;
     },
     (release) => {
       release.release_bundle_control_plane.publisher_idempotency.reconcile_admission
@@ -532,7 +530,7 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
       release.release_bundle_control_plane.validation_canary.secrets_allowed = true;
     },
     (release) => {
-      release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed = true;
+      release.homebrew_tap_distribution.tap_update_policy.full.homebrew_publish_allowed = false;
     },
     (release) => {
       release.homebrew_tap_distribution.tap_update_policy.nightly.may_update_stable = true;

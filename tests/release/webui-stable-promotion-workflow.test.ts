@@ -240,7 +240,7 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
     'immutable_version_digest',
   ]);
   const promotion = contract.stable_promotion;
-  assert.equal(promotion.schema, 'opl_app_webui_stable_promotion_contract.v3');
+  assert.equal(promotion.schema, 'opl_app_webui_stable_promotion_contract.v4');
   assert.equal(
     promotion.trigger,
     'successful_release_stable_workflow_run_follower_after_latest_activation',
@@ -255,7 +255,19 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
     'carrier_artifact_name',
   ]);
   assert.equal(promotion.task_modes.production_release.desktop_latest_required, true);
+  assert.deepEqual(promotion.task_modes.production_release.promotion_tags, ['stable', 'latest']);
   assert.equal(promotion.task_modes.development_validation.desktop_latest_required, false);
+  assert.deepEqual(promotion.task_modes.development_validation.promotion_tags, ['latest']);
+  assert.equal(
+    promotion.task_modes.development_validation.stable_prestate_must_remain_unchanged,
+    true,
+  );
+  assert.deepEqual(promotion.task_modes.development_validation.classification, {
+    quality_status: 'preview',
+    build_trigger: 'manual',
+    preview_kind: 'dev',
+    non_stable_notice: true,
+  });
   assert.equal(
     promotion.task_modes.development_validation
       .receipt_satisfies_production_latest_or_follower_handoff,
@@ -316,7 +328,15 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
   );
   assert.equal(
     promotion.manual_version_promotion_policy,
-    'manual_version_may_advance_latest_only_after_the_same_stable_quality_gate',
+    'manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable',
+  );
+  assert.deepEqual(
+    promotion.compare_and_swap.promotion_tags_by_authority_mode.development_validation,
+    ['latest'],
+  );
+  assert.equal(
+    promotion.compare_and_swap.mutation_command_by_authority_mode.development_validation,
+    'oras tag <repository>@<target_digest> latest',
   );
   assert.equal(promotion.unknown_outcome.maximum_bounded_read_only_descriptor_readbacks, 3);
   assert.equal(promotion.ordering.github_latest_before_webui_stable, true);
@@ -327,7 +347,9 @@ test('contract makes WebUI Stable an independent protected carrier promotion', (
   assert.equal(promotion.ordering.development_validation_may_precede_desktop_latest, true);
   assert.equal(promotion.ordering.desktop_latest_does_not_wait_for_webui, true);
   assert.equal(promotion.ordering.webui_stable_independent_of_framework_package_promotion, true);
-  assert.equal(promotion.receipt_schema, 'opl_app_webui_stable_promotion_receipt.v3');
+  assert.equal(promotion.admission_schema, 'opl_app_webui_stable_promotion_admission.v4');
+  assert.equal(promotion.decision_schema, 'opl_app_webui_stable_promotion_decision.v2');
+  assert.equal(promotion.receipt_schema, 'opl_app_webui_stable_promotion_receipt.v4');
 });
 
 test('workflow binds the triggering Stable authority and current follower run', () => {
@@ -358,7 +380,9 @@ test('workflow binds the triggering Stable authority and current follower run', 
   assert.equal(workflow.jobs['promote-webui-stable'].permissions.actions, 'read');
   assert.equal(workflow.jobs['promote-webui-stable'].permissions.contents, 'read');
   assert.equal((source.match(/\boras tag\b/g) ?? []).length, 1);
-  assert.match(source, /oras tag "\$target_ref" stable latest/);
+  assert.match(source, /oras tag "\$target_ref" "\$\{promotion_tags\[@\]\}"/);
+  assert.match(source, /test "\$\{promotion_tags\[\*\]\}" = "stable latest"/);
+  assert.match(source, /test "\$\{promotion_tags\[\*\]\}" = latest/);
   assert.doesNotMatch(source, /framework_candidate_run_id|framework_latest_stable_run_id/);
   assert.doesNotMatch(source, /inputs\.source_app_run_id|^\s+workflow_dispatch:/m);
   assert.doesNotMatch(source, /homebrew|github-latest|releases\/latest/i);
@@ -387,7 +411,7 @@ test('workflow binds the triggering Stable authority and current follower run', 
   assert.match(source, /public-oci-readback\.json/);
   assert.match(source, /oras blob fetch --descriptor/);
   assert.match(source, /layer-descriptors\.json/);
-  assert.match(source, /identical_bytes:true/);
+  assert.match(source, /version_and_latest_identical_bytes:true/);
   assert.match(source, /config_descriptor_verified:true/);
   assert.match(source, /carrier_artifact="\$CARRIER_ARTIFACT_NAME"/);
   assert.doesNotMatch(source, /basename "\$\(dirname "\$carrier_source"\)"/);
@@ -505,7 +529,7 @@ test('workflow reads only source carrier evidence before protected stable CAS', 
     'Read immutable, version, Stable, and Latest authority',
     'Seal one immutable WebUI Stable admission',
     'Re-read Stable and Latest prestate and derive CAS decision',
-    'Execute at most one WebUI Stable tag mutation and reconcile read-only',
+    'Execute at most one admitted WebUI tag mutation and reconcile read-only',
     'Write terminal WebUI Stable receipt',
     'Upload terminal WebUI Stable evidence',
   ].map((entry) => source.indexOf(entry));
@@ -700,6 +724,44 @@ test('definitive Stable/Latest drift may reconcile only through the same qualifi
   assert.equal(decision.authorized_tag_attempts, 1);
 });
 
+test('development CAS advances Latest only while freezing the Stable prestate', () => {
+  const current = fixture('in_progress');
+  current.input.authorityMode = 'development_validation';
+  current.input.stableAuthorityRun.conclusion = 'failure';
+  current.input.stableAuthorityRun.head_sha = sourceAppSha;
+  current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.carrierFollowerRun.event = 'workflow_dispatch';
+  current.input.promotionExecutorRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.promotionExecutorRun.event = 'workflow_dispatch';
+  const admission = admitWebuiStablePromotion(current.input);
+  const stableRef = admission.target.stable_ref;
+  const latestRef = admission.target.latest_ref;
+
+  assert.deepEqual(admission.target.promotion_tags, ['latest']);
+  assert.deepEqual(admission.classification, {
+    quality_status: 'preview',
+    build_trigger: 'manual',
+    preview_kind: 'dev',
+    quality_unchanged: true,
+    non_stable_notice: true,
+  });
+  assert.equal(decideWebuiStablePromotion(
+    admission,
+    observation(stableRef, 'present', digest('f')),
+    observation(latestRef, 'present', digest('f')),
+  ).decision, 'write_once');
+  assert.equal(decideWebuiStablePromotion(
+    admission,
+    observation(stableRef, 'present', digest('f')),
+    observation(latestRef, 'present', versionDigest),
+  ).decision, 'idempotent');
+  assert.equal(decideWebuiStablePromotion(
+    admission,
+    observation(stableRef, 'present', digest('0')),
+    observation(latestRef, 'present', digest('f')),
+  ).decision, 'conflict');
+});
+
 test('terminal receipt closes complete, reconciled, unknown, idempotent, rejected, and bounded outcomes', () => {
   const current = fixture();
   const admission = admitWebuiStablePromotion(current.input);
@@ -808,4 +870,54 @@ test('terminal receipt closes complete, reconciled, unknown, idempotent, rejecte
     anonymousReadback: targetAnonymous,
     latestAnonymousReadback: latestTargetAnonymous,
   }), /at most three/);
+});
+
+test('development receipt proves preview classification and unchanged Stable alias', () => {
+  const current = fixture('in_progress');
+  current.input.authorityMode = 'development_validation';
+  current.input.stableAuthorityRun.conclusion = 'failure';
+  current.input.stableAuthorityRun.head_sha = sourceAppSha;
+  current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.carrierFollowerRun.event = 'workflow_dispatch';
+  current.input.promotionExecutorRun.path = '.github/workflows/release-webui-development.yml';
+  current.input.promotionExecutorRun.event = 'workflow_dispatch';
+  const admission = admitWebuiStablePromotion(current.input);
+  const stableRef = admission.target.stable_ref;
+  const latestRef = admission.target.latest_ref;
+  const decision = decideWebuiStablePromotion(
+    admission,
+    observation(stableRef, 'present', digest('f')),
+    observation(latestRef, 'present', digest('f')),
+  );
+  const stableUnchanged = observation(stableRef, 'present', digest('f'), true);
+  const latestTarget = observation(latestRef, 'present', versionDigest, true);
+  const receipt = writeWebuiStablePromotionReceipt({
+    admission,
+    decision,
+    mutation: {
+      schema: 'opl_app_webui_stable_mutation_attempt.v1',
+      status: 'accepted',
+      attempt_count: 1,
+      attempt_id: 'attempt-1',
+    },
+    readbacks: {
+      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+      observations: [stableUnchanged],
+    },
+    latestReadbacks: {
+      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
+      observations: [latestTarget],
+    },
+    anonymousReadback: stableUnchanged,
+    latestAnonymousReadback: latestTarget,
+  });
+
+  assert.equal(receipt.status, 'complete');
+  assert.equal(receipt.schema, 'opl_app_webui_stable_promotion_receipt.v4');
+  assert.deepEqual(receipt.compare_and_swap.promotion_tags, ['latest']);
+  assert.equal(receipt.classification.quality_status, 'preview');
+  assert.equal(receipt.classification.build_trigger, 'manual');
+  assert.equal(receipt.classification.preview_kind, 'dev');
+  assert.equal(receipt.classification.non_stable_notice, true);
+  assert.equal(receipt.anonymous_readback.stable_unchanged, true);
 });

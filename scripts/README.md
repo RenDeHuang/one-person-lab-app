@@ -22,7 +22,7 @@ should happen only when AGUI replay is explicitly requested.
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-runtime-route.ts` | Explicitly validates the core dynamic Agent Runtime route, including its product contract, page-state matrix, generic typed-view envelope, and required Framework producer. Runtime is required for an adopted shell, while Stable release admission remains independently scoped. |
 | `validate-shell-candidates.ts` | Validates only the fixed active/foreground/retained/archived role registry by default. `--candidate opl-native-workbench` enables Native detail validation; Hermes and AGUI remain role tombstones whose explicit validation/replay detail is owned by their adapters and runbooks. Hermes command execution requires `--manual-reference-replay` for an actual technical-verification need. |
-| `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
+| `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, the 16-scene Codex visual reference cohort, exact mask/pixel/review semantics, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs or cohort bindings are absent and never promotes docs or visual QA into installed or release readiness. |
 | `app-product-profile.ts` | Projects the exact App product profile and App-owned Official Profile apply helper into the selected shell. `--check` rejects profile or helper byte drift so Standard and Full cannot acquire separate root lists or helper behavior. |
 | `validate-shell-product-profile-consumer.ts` | Projects the current App profile into a temporary archive of the exact clean Shell commit and runs the real Shell consumer test without writing the source Shell checkout. |
 | `release-dispatch-guard.ts` | Performs bounded Git-wire cohort identity and one structured owner workflow-runs query before nonce consumption or after a single dispatch; it has no mutation command. |
@@ -422,8 +422,14 @@ without a miss/forced-rebuild guard.
 Codex App and Computer Use checks are non-blocking exploratory tools;
 release-blocking App readiness must live in deterministic scripts, contracts,
 or GitHub Actions gates.
-The App VM wrapper exposes `diagnostic_scope=release_gate|bootstrap_only`.
-Release workflows use `release_gate`; `desktop-release-diagnostics.yml`
+The App VM wrapper exposes
+`diagnostic_scope=release_gate|post_publication_optional_certification|bootstrap_only`.
+`post_publication_optional_certification` is an independent, non-blocking
+consumer of an exact already-published artifact; it never rebuilds, re-signs,
+publishes, or authorizes Latest. When no physical capability is admitted, the
+dispatcher records `not_run` instead of queueing work or guessing
+`unavailable`. Legacy release workflows use `release_gate`;
+`desktop-release-diagnostics.yml`
 defaults to `bootstrap_only` to skip Codex asset cache restore/prefetch/save,
 Settings sweep, assistant route smoke, and Codex functional/AI checks while
 still installing and launching the App and collecting bootstrap fatal/native

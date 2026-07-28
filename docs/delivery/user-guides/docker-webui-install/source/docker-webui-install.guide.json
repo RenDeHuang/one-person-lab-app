@@ -67,6 +67,7 @@
     "docker.exe",
     "一次性匿名 Docker 配置",
     "Resolving WebUI image",
+    "手工拉取 latest 后快速应用",
     "-Update",
     "-EnableAutoUpdate",
     "One Person Lab WebUI Latest Update",

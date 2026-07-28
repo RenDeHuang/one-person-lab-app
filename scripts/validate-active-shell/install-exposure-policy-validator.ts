@@ -203,6 +203,25 @@ function validateInstallerSurfaces(policy) {
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
   }
+  const directMacos = installerSurfaces.get('stable_local_authorized_macos_install');
+  if (
+    directMacos?.entrypoint !== 'install.sh --stable-macos-install --yes'
+    || directMacos?.release_quality_source !== 'exact_component_manifest'
+    || directMacos?.latest_pointer_is_quality_independent !== true
+    || directMacos?.non_stable_disclosure_before_target_mutation !== true
+    || JSON.stringify(directMacos?.compatibility_entrypoints) !== JSON.stringify([])
+    || JSON.stringify(directMacos?.retired_entrypoints) !== JSON.stringify(['install-stable.sh'])
+    || Object.hasOwn(directMacos ?? {}, 'stable_release_path')
+  ) {
+    throw new Error('Direct macOS install exposure must bind the exact component manifest without treating Latest as Stable.');
+  }
+  if (
+    policy.distribution_install_model?.installer_convergence?.stable_macos_helper?.artifact_integrity
+      ?.legacy_component_manifest_policy !==
+    'allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure'
+  ) {
+    throw new Error('Direct macOS install exposure must disclose its bounded legacy component-manifest policy.');
+  }
   const forbiddenDependencyFields = [
     'capability_target_closure',
     'capability_source',

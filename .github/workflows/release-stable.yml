@@ -1,5 +1,5 @@
 name: OPL Stable Release Bundle
-run-name: OPL Stable ${{ inputs.operation }} ${{ inputs.source_qualification_run_id || inputs.source_run_id }}
+run-name: OPL Stable ${{ inputs.operation }} ${{ github.run_id }}
 
 on:
   workflow_dispatch:
@@ -44,12 +44,12 @@ on:
         default: ''
         type: string
       source_qualification_run_id:
-        description: Exact successful main-only source qualification run; required only for a new Standard Bundle
+        description: Legacy external qualification input; must remain empty
         required: false
         default: ''
         type: string
       source_qualification_receipt_digest:
-        description: Exact sha256 digest of the immutable App source qualification receipt
+        description: Legacy external qualification digest; must remain empty
         required: false
         default: ''
         type: string
@@ -70,7 +70,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  source-qualification:
+    if: ${{ inputs.operation == 'standard' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/release-source-qualification.yml
+    with:
+      operation_scope: stable_operation_source_preflight
+
   admission:
+    needs: [source-qualification]
+    if: ${{ always() && (inputs.operation != 'standard' || needs.source-qualification.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -100,6 +111,13 @@ jobs:
           path: app-source
           fetch-depth: 0
 
+      - name: Download same-operation source preflight
+        if: ${{ inputs.operation == 'standard' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-source-qualification-${{ github.run_id }}
+          path: source-qualification-evidence
+
       - name: Admit one bounded Bundle operation
         id: admission
         env:
@@ -111,8 +129,8 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
-          SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
-          SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ inputs.source_qualification_receipt_digest }}
+          LEGACY_SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+          LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST: ${{ inputs.source_qualification_receipt_digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -124,50 +142,28 @@ jobs:
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
           FRAMEWORK_REF="$REQUESTED_FRAMEWORK_REF"
+          SOURCE_QUALIFICATION_RUN_ID=''
+          SOURCE_QUALIFICATION_RECEIPT_DIGEST=''
           case "$OPERATION" in
             standard)
-              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
-                echo "::error::A new Standard Bundle accepts only one immutable source qualification run and receipt digest."
+              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$LEGACY_SOURCE_QUALIFICATION_RUN_ID$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
+                echo "::error::A new Standard Bundle accepts no external source or qualification artifact."
                 exit 1
               }
+              SOURCE_QUALIFICATION_RUN_ID="$GITHUB_RUN_ID"
+              SOURCE_QUALIFICATION_RECEIPT_DIGEST='${{ needs.source-qualification.outputs.receipt_digest }}'
               [[ "$SOURCE_QUALIFICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
-                echo "::error::A new Standard Bundle requires an exact source qualification run id."
+                echo "::error::A new Standard Bundle requires its same-operation source preflight run id."
                 exit 1
               }
               [[ "$SOURCE_QUALIFICATION_RECEIPT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                echo "::error::A new Standard Bundle requires the exact source qualification receipt digest."
+                echo "::error::A new Standard Bundle requires its same-operation source preflight receipt digest."
                 exit 1
               }
               test "$INCLUDE_FULL" = false || {
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
                 exit 1
               }
-              qualification_run_json="$(
-                timeout --foreground --signal=TERM --kill-after=5s 30s \
-                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_QUALIFICATION_RUN_ID"
-              )"
-              jq -e \
-                --arg app_sha "$app_sha" \
-                --arg workflow ".github/workflows/release-source-qualification.yml" \
-                '
-                  .status == "completed"
-                  and .conclusion == "success"
-                  and .run_attempt == 1
-                  and .event == "workflow_dispatch"
-                  and .head_branch == "main"
-                  and .head_sha == $app_sha
-                  and .path == $workflow
-                ' <<<"$qualification_run_json" >/dev/null || {
-                  echo "::error::Stable admission requires one successful first-attempt source qualification on this exact App main."
-                  exit 1
-                }
-              rm -rf source-qualification-evidence
-              mkdir -p source-qualification-evidence
-              timeout --foreground --signal=TERM --kill-after=5s 60s \
-                gh run download "$SOURCE_QUALIFICATION_RUN_ID" \
-                  --repo "$GITHUB_REPOSITORY" \
-                  --name "opl-source-qualification-$SOURCE_QUALIFICATION_RUN_ID" \
-                  --dir source-qualification-evidence
               # source-qualification-receipt-resolver:start
               qualification_receipts=()
               while IFS= read -r receipt; do
@@ -192,6 +188,10 @@ jobs:
                 --expected-run-id "$SOURCE_QUALIFICATION_RUN_ID" \
                 --expected-head-sha "$app_sha" \
                 --output verified-source-qualification.json
+              test "$(jq -er .execution.operation_scope "$qualification_receipt_path")" = stable_operation_source_preflight || {
+                echo "::error::Stable admission requires the same-operation source preflight scope."
+                exit 1
+              }
               SHELL_REF="$(jq -er .cohort.shell.sha verified-source-qualification.json)"
               FRAMEWORK_REF="$(jq -er .cohort.framework.sha verified-source-qualification.json)"
               verified_app_ref="$(jq -er .cohort.app.sha verified-source-qualification.json)"
@@ -209,7 +209,7 @@ jobs:
                 echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
                 exit 1
               }
-              test -z "$SOURCE_QUALIFICATION_RUN_ID$SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
+              test -z "$LEGACY_SOURCE_QUALIFICATION_RUN_ID$LEGACY_SOURCE_QUALIFICATION_RECEIPT_DIGEST" || {
                 echo "::error::$OPERATION cannot consume a new source qualification receipt."
                 exit 1
               }

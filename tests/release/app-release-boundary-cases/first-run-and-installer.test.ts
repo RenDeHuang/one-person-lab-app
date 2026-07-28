@@ -10,6 +10,7 @@ import {
   writeFile,
 } from "./helpers.ts";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { validateFirstRunMatrix } from "../../../scripts/validate-active-shell/first-run-matrix-validator.ts";
 import { validateReleaseChannelContract } from "../../../scripts/validate-active-shell/release-contract-validator.ts";
 import { syncAppProductProfileToShell } from "../../../scripts/app-product-profile.ts";
@@ -27,14 +28,34 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   const matrix = readJson("contracts/app-first-run-test-matrix.json");
   const adapter = readJson("contracts/app-shell-adapter.json");
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
+  const fullDmg = matrix.scenarios.find((entry) => entry.id === "full_dmg_clean_vm_smoke");
+  assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
+  assert.equal(fullDmg.release_gate, false);
+  assert.equal(fullDmg.post_publication_optional_certification, true);
+
+  for (const scenario of matrix.scenarios.filter((entry) => entry.vm)) {
+    assert.equal(scenario.release_gate, false, `${scenario.id} physical VM release gate`);
+    assert.equal(
+      scenario.post_publication_optional_certification,
+      true,
+      `${scenario.id} post-publication optional certification`,
+    );
+    assert.equal(
+      scenario.vm.diagnostic_scope,
+      "post_publication_optional_certification",
+      `${scenario.id} diagnostic scope`,
+    );
+  }
+
   for (const id of [
     "standard_dmg_clean_vm_smoke",
-    "full_dmg_clean_vm_smoke",
     "homebrew_standard_cask_clean_vm_smoke",
+    "one_shot_app_installer_fresh_install_smoke",
   ]) {
     const scenario = matrix.scenarios.find((entry) => entry.id === id);
     assert.ok(scenario, id);
-    assert.equal(scenario.release_gate, true, id);
+    assert.equal(scenario.release_gate, false, id);
+    assert.equal(scenario.post_publication_optional_certification, true, id);
   }
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
@@ -50,7 +71,6 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
     );
     assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
   }
-  const fullDmg = matrix.scenarios.find((scenario) => scenario.id === "full_dmg_clean_vm_smoke");
   assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
     "missing_controls",
     "composer_state",
@@ -167,14 +187,29 @@ test("release qualification reuses host Codex credentials only for requested con
 
 test("one-shot App installer boundary is enforced by release-boundary checks", () => {
   const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
-  const stable = requireReleaseBoundaryCheck("short_stable_macos_installer");
+  const install = readJson("contracts/app-install-exposure-policy.json");
 
   assert.equal(oneShot.file, "install.sh");
   assert.ok(oneShot.required.includes("--stable-macos-install"));
   assert.ok(oneShot.required.includes("--authorize-local-app-only"));
-  assert.equal(stable.file, "install-stable.sh");
-  assert.ok(stable.required.some((entry) => entry.includes("install.sh")));
-  assert.ok(stable.required.some((entry) => entry.includes("--stable-macos-install")));
+  assert.deepEqual(install.distribution_install_model.installer_convergence.stable_macos_helper.artifact_integrity, {
+    official_release_asset_authority: "exact_github_release_record_asset_digest",
+    component_manifest_authority: "exact_github_release_record_component_manifest_asset_digest",
+    custom_url_or_path_authority: "caller_supplied_sha256_quality_not_asserted",
+    verification_order: "dmg_and_component_manifest_before_mount_copy_or_target_replacement",
+    latest_pointer_does_not_imply_stable_qualification: true,
+    non_stable_disclosure_before_target_mutation: true,
+    legacy_component_manifest_policy: "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure",
+  });
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_entrypoints,
+    [],
+  );
+  assert.equal(
+    install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_wrapper_status,
+    "retired",
+  );
+  assert.equal(fs.existsSync(path.join(appRoot, "install-stable.sh")), false);
   assert.equal(fs.existsSync(path.join(appRoot, "install-free.sh")), false);
 });
 
@@ -311,6 +346,11 @@ test("reusable build cohort selects the product App without counting nested Elec
   const stepEnd = workflow.indexOf("\n      - name:", stepStart + 1);
   const step = workflow.slice(stepStart, stepEnd);
   assert.ok(stepStart >= 0 && stepEnd > stepStart, "missing build cohort manifest step");
+  assert.match(
+    step,
+    /if: success\(\) && startsWith\(matrix\.platform, 'macos'\)/,
+    "DMG/App cohort generation must not run for Linux or Windows source preflight builds",
+  );
   assert.match(
     step,
     /find out -maxdepth 2 -type d -name 'One Person Lab\.app' -print \| LC_ALL=C sort/,
@@ -550,11 +590,112 @@ printf 'Darwin\\n'
   }
 });
 
-test("Stable macOS installer prefers Full, fails open on a missing asset, and honors explicit profiles", () => {
+test("Stable macOS installer binds exact release assets before mount and preserves profile selection", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-stable-installer-profile-"));
   const fakeBin = path.join(tempRoot, "bin");
   const curlArgsPath = path.join(tempRoot, "curl-args.txt");
+  const hdiutilArgsPath = path.join(tempRoot, "hdiutil-args.txt");
+  const releaseJsonPath = path.join(tempRoot, "release.json");
+  const customDmgPath = path.join(tempRoot, "custom.dmg");
+  const version = "26.7.20";
+  const tag = `v${version}`;
+  const fullName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const standardName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const componentManifestName = "opl-app-component-manifest.json";
+  const fullBytes = "full-dmg-bytes\n";
+  const standardBytes = "standard-dmg-bytes\n";
+  const digest = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
+  const asset = (name: string, bytes: string, digestOverride?: string) => ({
+    name,
+    digest: `sha256:${digestOverride ?? digest(bytes)}`,
+    browser_download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${name}`,
+  });
+  const componentManifest = ({
+    qualityStatus = "stable",
+    buildTrigger = "manual",
+    previewKind = null,
+    stableQualified = true,
+    nonStableNotice = false,
+    skippedGates = [] as string[],
+    primaryDigest,
+    primaryName = standardName,
+    legacyV3Manifest = false,
+    legacyV3Fields = {} as Record<string, unknown>,
+  }: {
+    qualityStatus?: string;
+    buildTrigger?: string;
+    previewKind?: string | null;
+    stableQualified?: boolean;
+    nonStableNotice?: boolean;
+    skippedGates?: string[];
+    primaryDigest?: string;
+    primaryName?: string;
+    legacyV3Manifest?: boolean;
+    legacyV3Fields?: Record<string, unknown>;
+  } = {}) => JSON.stringify({
+    surface_kind: "opl_app_component_manifest.v1",
+    component_id: "opl-app",
+    version,
+    release_tag: tag,
+    release_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${tag}`,
+    component_manifest_ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${componentManifestName}`,
+    component_manifest_digest: `sha256:${"a".repeat(64)}`,
+    primary_artifact: {
+      name: primaryName,
+      digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
+    },
+    artifacts: [{
+      name: standardName,
+      digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
+      ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${standardName}`,
+    }],
+    ...(legacyV3Manifest ? legacyV3Fields : {
+      release_version: version,
+      quality_status: qualityStatus,
+      build_trigger: buildTrigger,
+      preview_kind: previewKind,
+      qualification_disclosure: {
+        stable_qualified: stableQualified,
+        non_stable_notice: nonStableNotice,
+        skipped_gates: skippedGates,
+        failed_gates: [],
+      },
+    }),
+  });
+  const writeRelease = ({
+    fullPresent = true,
+    standardDigest,
+    manifest,
+    manifestAssetDigest,
+    prerelease = false,
+  }: {
+    fullPresent?: boolean;
+    standardDigest?: string;
+    manifest?: Parameters<typeof componentManifest>[0];
+    manifestAssetDigest?: string;
+    prerelease?: boolean;
+  } = {}) => {
+    const manifestBytes = componentManifest({
+      ...manifest,
+      primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
+    });
+    fs.writeFileSync(
+      releaseJsonPath,
+      JSON.stringify({
+        tag_name: tag,
+        draft: false,
+        prerelease,
+        assets: [
+          ...(fullPresent ? [asset(fullName, fullBytes)] : []),
+          asset(standardName, standardBytes, standardDigest),
+          asset(componentManifestName, manifestBytes, manifestAssetDigest),
+        ],
+      }),
+    );
+    fs.writeFileSync(path.join(tempRoot, componentManifestName), manifestBytes);
+  };
   fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(customDmgPath, standardBytes);
 
   writeExecutable(
     path.join(fakeBin, "uname"),
@@ -566,23 +707,80 @@ printf 'Darwin\\n'
     path.join(fakeBin, "curl"),
     `#!/bin/sh
 printf '%s\\n' "$*" >> "$OPL_CURL_ARGS_CAPTURE"
-case "$*" in
+output=''
+url=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o)
+      output="$2"
+      shift 2
+      ;;
+    http://*|https://*)
+      url="$1"
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+case "$url" in
+  https://api.github.com/*)
+    cp "$OPL_FAKE_RELEASE_JSON" "$output"
+    exit 0
+    ;;
   *One-Person-Lab-Full-*)
     if [ "$OPL_FAKE_FULL_HTTP" = "200" ]; then
+      printf 'full-dmg-bytes\\n' > "$output"
       printf '200'
       exit 0
     fi
     printf '%s' "$OPL_FAKE_FULL_HTTP"
     exit 22
     ;;
+  *One-Person-Lab-*)
+    printf 'standard-dmg-bytes\\n' > "$output"
+    printf '200'
+    exit 0
+    ;;
+  *opl-app-component-manifest.json)
+    cp "$OPL_FAKE_COMPONENT_MANIFEST" "$output"
+    printf '200'
+    exit 0
+    ;;
+  https://example.invalid/custom.dmg)
+    printf 'standard-dmg-bytes\\n' > "$output"
+    printf '200'
+    exit 0
+    ;;
   *)
-    printf '503'
     exit 22
     ;;
 esac
 `,
   );
-  for (const command of ["hdiutil", "ditto", "find", "xattr"]) {
+  writeExecutable(
+    path.join(fakeBin, "plutil"),
+    `#!${process.execPath}
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+if (args[0] !== "-extract" || !["raw", "json"].includes(args[2]) || args[3] !== "-o" || args[4] !== "-") process.exit(2);
+let value = JSON.parse(fs.readFileSync(args[5], "utf8"));
+for (const part of args[1].split(".")) {
+  if (value == null || !(part in value)) process.exit(1);
+  value = value[part];
+}
+process.stdout.write(args[2] === "json" ? JSON.stringify(value) : String(value));
+`,
+  );
+  writeExecutable(
+    path.join(fakeBin, "hdiutil"),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> "$OPL_HDIUTIL_ARGS_CAPTURE"
+exit 1
+`,
+  );
+  for (const command of ["ditto", "find", "xattr"]) {
     writeExecutable(
       path.join(fakeBin, command),
       `#!/bin/sh
@@ -592,15 +790,42 @@ exit 1
   }
 
   try {
-    const runInstaller = (profileArgs: string[], fullHttp = "404") =>
-      spawnSync(
+    const runInstaller = (
+      profileArgs: string[],
+      {
+        fullHttp = "200",
+        fullPresent = true,
+        standardDigest,
+        releaseTag = true,
+        manifest,
+        manifestAssetDigest,
+        prerelease,
+      }: {
+        fullHttp?: string;
+        fullPresent?: boolean;
+        standardDigest?: string;
+        releaseTag?: boolean;
+        manifest?: Parameters<typeof componentManifest>[0];
+        manifestAssetDigest?: string;
+        prerelease?: boolean;
+      } = {},
+    ) => {
+      writeRelease({
+        fullPresent,
+        standardDigest,
+        manifest,
+        manifestAssetDigest,
+        prerelease,
+      });
+      fs.writeFileSync(curlArgsPath, "");
+      fs.writeFileSync(hdiutilArgsPath, "");
+      return spawnSync(
         "/bin/bash",
         [
           path.join(appRoot, "install.sh"),
           "--stable-macos-install",
           ...profileArgs,
-          "--release-tag",
-          "v26.7.20",
+          ...(releaseTag ? ["--release-tag", tag] : []),
           "--yes",
           "--no-open",
         ],
@@ -610,13 +835,17 @@ exit 1
           env: {
             ...process.env,
             OPL_CURL_ARGS_CAPTURE: curlArgsPath,
+            OPL_HDIUTIL_ARGS_CAPTURE: hdiutilArgsPath,
+            OPL_FAKE_RELEASE_JSON: releaseJsonPath,
+            OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
             OPL_FAKE_FULL_HTTP: fullHttp,
             PATH: `${fakeBin}:/usr/bin:/bin`,
           },
         },
       );
+    };
 
-    const availableFullResult = runInstaller([], "200");
+    const availableFullResult = runInstaller([]);
     assert.notEqual(availableFullResult.status, 0, "fake hdiutil should stop after the Full download");
     const availableFullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(
@@ -627,19 +856,114 @@ exit 1
       availableFullCurlArgs,
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
+    assert.match(
+      fs.readFileSync(hdiutilArgsPath, "utf8"),
+      /attach/,
+      availableFullResult.stderr || availableFullResult.stdout,
+    );
 
-    fs.writeFileSync(curlArgsPath, "");
-    const fallbackResult = runInstaller([]);
+    const latestResult = runInstaller(["--standard"], { releaseTag: false });
+    assert.notEqual(latestResult.status, 0, "fake hdiutil should stop after Latest DMG verification");
+    assert.match(
+      fs.readFileSync(curlArgsPath, "utf8"),
+      /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/latest/,
+    );
+    assert.match(latestResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const legacyReleaseResult = runInstaller(["--standard"], {
+      manifest: { legacyV3Manifest: true },
+    });
+    assert.notEqual(legacyReleaseResult.status, 0, "fake hdiutil should stop after a legacy release download");
+    assert.match(
+      legacyReleaseResult.stdout,
+      /Release quality: unasserted legacy release \(V3 Stable\/Preview metadata unavailable\)/,
+    );
+    assert.match(legacyReleaseResult.stdout, /Legacy release manifest predates V3 qualification disclosure/);
+    assert.doesNotMatch(legacyReleaseResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const partialLegacyReleaseResult = runInstaller(["--standard"], {
+      manifest: {
+        legacyV3Manifest: true,
+        legacyV3Fields: { quality_status: "preview" },
+      },
+    });
+    assert.notEqual(partialLegacyReleaseResult.status, 0);
+    assert.match(
+      partialLegacyReleaseResult.stderr,
+      /must provide every V3 quality and qualification disclosure field/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const devPreviewResult = runInstaller(["--standard"], {
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "manual",
+        previewKind: "dev",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: ["homebrew_clean_install"],
+      },
+    });
+    assert.notEqual(devPreviewResult.status, 0, "fake hdiutil should stop after a disclosed Dev Preview download");
+    assert.match(devPreviewResult.stdout, /Release quality: Preview \(Dev\)/);
+    assert.match(
+      devPreviewResult.stdout,
+      /Latest pointer selects this exact release but does not change its declared quality/,
+    );
+    assert.match(devPreviewResult.stdout, /Non-Stable release/);
+    assert.match(devPreviewResult.stdout, /homebrew_clean_install/);
+    assert.doesNotMatch(devPreviewResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const nightlyPreviewResult = runInstaller(["--standard"], {
+      prerelease: true,
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "automated",
+        previewKind: "nightly",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: ["stable_heavy_vm"],
+      },
+    });
+    assert.notEqual(nightlyPreviewResult.status, 0, "fake hdiutil should stop after a disclosed Nightly Preview download");
+    assert.match(nightlyPreviewResult.stdout, /Release quality: Preview \(Nightly\)/);
+    assert.match(
+      nightlyPreviewResult.stdout,
+      /Latest pointer selects this exact release but does not change its declared quality/,
+    );
+    assert.match(nightlyPreviewResult.stdout, /Non-Stable release/);
+    assert.match(nightlyPreviewResult.stdout, /stable_heavy_vm/);
+    assert.doesNotMatch(nightlyPreviewResult.stdout, /Release quality: Stable/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const undisclosedPreviewResult = runInstaller(["--standard"], {
+      manifest: {
+        qualityStatus: "preview",
+        buildTrigger: "manual",
+        previewKind: "dev",
+        stableQualified: false,
+        nonStableNotice: true,
+        skippedGates: [],
+      },
+    });
+    assert.notEqual(undisclosedPreviewResult.status, 0);
+    assert.match(undisclosedPreviewResult.stderr, /must disclose skipped qualification gates/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const fallbackResult = runInstaller([], { fullPresent: false });
     assert.notEqual(fallbackResult.status, 0, "fake Standard download should stop after the fallback");
     const fallbackCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(
       fallbackCurlArgs,
-      /One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg[\s\S]*One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
     assert.match(fallbackResult.stderr, /continuing with the Standard DMG/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
-    fs.writeFileSync(curlArgsPath, "");
-    const unavailableResult = runInstaller([], "503");
+    const unavailableResult = runInstaller([], { fullHttp: "503" });
     assert.notEqual(unavailableResult.status, 0, "Full server failures must not select a different package");
     const unavailableCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(unavailableCurlArgs, /One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/);
@@ -648,19 +972,94 @@ exit 1
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
     assert.doesNotMatch(unavailableResult.stderr, /continuing with the Standard DMG/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
-    fs.writeFileSync(curlArgsPath, "");
-    const fullResult = runInstaller(["--full"]);
+    const fullResult = runInstaller(["--full"], { fullPresent: false });
     assert.notEqual(fullResult.status, 0, "missing explicit Full must fail without fallback");
     const fullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(
       fullCurlArgs,
-      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+      /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/tags\/v26\.7\.20/,
     );
     assert.doesNotMatch(
       fullCurlArgs,
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const mismatchResult = runInstaller(["--standard"], { standardDigest: "0".repeat(64) });
+    assert.notEqual(mismatchResult.status, 0);
+    assert.match(mismatchResult.stderr, /DMG SHA256 mismatch/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const manifestIdentityMismatchResult = runInstaller(["--standard"], {
+      manifest: { primaryDigest: "0".repeat(64) },
+    });
+    assert.notEqual(manifestIdentityMismatchResult.status, 0);
+    assert.match(
+      manifestIdentityMismatchResult.stderr,
+      /Component manifest primary Standard DMG identity does not match the selected Release/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const manifestDigestMismatchResult = runInstaller(["--standard"], {
+      manifestAssetDigest: "0".repeat(64),
+    });
+    assert.notEqual(manifestDigestMismatchResult.status, 0);
+    assert.match(manifestDigestMismatchResult.stderr, /Component manifest SHA256 mismatch/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const malformedRecordResult = runInstaller(["--standard"], { standardDigest: "missing" });
+    assert.notEqual(malformedRecordResult.status, 0);
+    assert.match(malformedRecordResult.stderr, /no unique digest-bound DMG asset/);
+    assert.doesNotMatch(
+      fs.readFileSync(curlArgsPath, "utf8"),
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const customWithoutDigest = runInstaller(["--dmg-path", customDmgPath]);
+    assert.notEqual(customWithoutDigest.status, 0);
+    assert.match(customWithoutDigest.stderr, /requires --dmg-sha256/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const customUrlWithoutDigest = runInstaller(["--dmg-url", "https://example.invalid/custom.dmg"]);
+    assert.notEqual(customUrlWithoutDigest.status, 0);
+    assert.match(customUrlWithoutDigest.stderr, /requires --dmg-sha256/);
+    assert.equal(fs.readFileSync(curlArgsPath, "utf8"), "");
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const customMismatch = runInstaller([
+      "--dmg-path",
+      customDmgPath,
+      "--dmg-sha256",
+      "0".repeat(64),
+    ]);
+    assert.notEqual(customMismatch.status, 0);
+    assert.match(customMismatch.stderr, /DMG SHA256 mismatch/);
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const customVerified = runInstaller([
+      "--dmg-path",
+      customDmgPath,
+      "--dmg-sha256",
+      digest(standardBytes),
+    ]);
+    assert.notEqual(customVerified.status, 0, "fake hdiutil should stop after custom DMG verification");
+    assert.match(customVerified.stdout, /Release quality: not asserted for a custom DMG source/);
+    assert.doesNotMatch(fs.readFileSync(curlArgsPath, "utf8"), /api\.github\.com\/repos/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const customUrlVerified = runInstaller([
+      "--dmg-url",
+      "https://example.invalid/custom.dmg",
+      "--dmg-sha256",
+      digest(standardBytes),
+    ]);
+    assert.notEqual(customUrlVerified.status, 0, "fake hdiutil should stop after custom URL verification");
+    assert.match(customUrlVerified.stdout, /Release quality: not asserted for a custom DMG source/);
+    assert.doesNotMatch(fs.readFileSync(curlArgsPath, "utf8"), /opl-app-component-manifest/);
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

@@ -19,10 +19,11 @@
         "homebrew_tap",
         "webui_ghcr"
       ],
-      "current_production_publication_paths": 3,
+      "current_production_publication_paths": 4,
       "production_publication_paths": [
         "desktop_stable_github_release",
         "homebrew_standard_cask",
+        "homebrew_full_cask_post_publication_follower",
         "container_webui_latest_with_stable_compatibility_alias"
       ],
       "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
@@ -31,7 +32,6 @@
         "windows_x64_wsl2_only_rc_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
-        "homebrew_full_implemented_unpublished_target",
         "native_webui_implemented_unpublished_target",
         "canary_validation_only"
       ]
@@ -202,7 +202,7 @@
       "native_webui": "approved_target_not_published",
       "homebrew_standard": "live_managed",
       "homebrew_nightly": "implemented_pending_first_follower_readback",
-      "homebrew_full": "legacy_cask_exists_not_managed_by_current_release_pipeline"
+      "homebrew_full": "implemented_pending_first_protected_follower_readback"
     },
     "publication_history": {
       "desktop_nightly": {
@@ -284,7 +284,7 @@
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
         "homebrew_cask": "one-person-lab-full",
-        "generation_status": "implemented_unpublished",
+        "generation_status": "implemented_pending_first_protected_follower_readback",
         "generator": "scripts/update-homebrew-tap.ts",
         "package_kind": "app_full_first_install",
         "formula_dependency_target": false,
@@ -295,14 +295,13 @@
           "one-person-lab-nightly"
         ],
         "digest_cas_required": true,
-        "public_promotion_status": "not_approved_until_promotion_requirements_pass",
+        "public_promotion_status": "approved_pending_first_protected_follower_readback",
         "standard_updater_visible": false,
         "promotion_requires": [
-          "full_embedded_base_activation",
-          "single_active_framework_readback",
-          "formula_absent_clean_vm_readback",
-          "official_profile_convergence",
-          "digest_bound_tap_publication"
+          "github_hosted_full_qualification",
+          "exact_public_full_asset_and_manifest_readback",
+          "protected_single_attempt_digest_bound_tap_cas",
+          "exact_public_tap_commit_and_cask_readback"
         ]
       },
       "native_webui": {
@@ -562,8 +561,9 @@
         "prepared_ai_release_notes_policy",
         "installed_app_acceptance",
         "standard_updater_readback",
-        "predecessor_to_candidate_updater_qualification",
-        "homebrew_cask_publication_and_clean_vm_readback"
+        "hosted_standard_publication_floor",
+        "homebrew_cask_publication_and_readback",
+        "post_publication_optional_certification_policy"
       ],
       "does_not_own": [
         "generic_release_bundle_schema",
@@ -666,10 +666,10 @@
         "installed_or_effective_advancement_invalidates_cohort": false
       },
       "post_build_qualification": {
-        "installed_effective_and_clean_machine_readback_stage": "artifact_qualification_after_build",
+        "installed_effective_and_clean_machine_readback_stage": "post_publication_optional_certification",
         "may_be_used_as_source_freeze_admission": false,
-        "stable_latest_still_requires_applicable_qualification": true,
-        "failed_qualification_may_block_publication_or_latest": true
+        "stable_latest_still_requires_applicable_qualification": false,
+        "failed_qualification_may_block_publication_or_latest": false
       },
       "cohort_invalidation_causes": [
         "frozen byte tree or digest mismatch",
@@ -942,40 +942,36 @@
           "required_status": "passed",
           "latest_activation_admitted_required": true,
           "framework_latest_eligible_alone_is_sufficient": false,
-          "predecessor_policy_schema": "opl_standard_updater_predecessor_policy.v1",
-          "predecessor_selection": "deduplicated_current_latest_and_highest_public_stable",
+          "hosted_publication_floor_schema": "opl_standard_hosted_publication_floor.v1",
+          "source_contract_build_preflight_required": "passed",
+          "remote_digest_readback_required": "passed",
           "current_latest_readback_required": true,
-          "highest_public_stable_readback_required": true,
-          "receipt_count_must_equal_distinct_predecessor_count": true,
-          "predecessor_receipt_schema": "opl_updater_upgrade_qualification_receipt.v1",
-          "predecessor_receipts_must_be_real_updater_vm_evidence": true,
-          "synthetic_or_canary_predecessor_receipts_allowed": false,
-          "predecessor_receipt_digest_fields": [
-            "updater_receipts[].operation_input_digest",
-            "updater_receipts[].updater_receipt_sha256",
-            "updater_receipts[].candidate_identity_sha256"
-          ],
+          "updater_predecessor_receipts_allowed": false,
+          "optional_certification_receipts_allowed": false,
+          "publication_ancestor_counts": {
+            "self_hosted": 0,
+            "vm": 0,
+            "tart": 0
+          },
           "required_exact_identity_fields": [
             "bundle_digest",
             "candidate.app_sha",
             "candidate.shell_sha",
-            "candidate.framework_sha"
-          ],
-          "same_candidate_zip_required_for_all_predecessors": true,
-          "candidate_zip_identity_fields": [
+            "candidate.framework_sha",
             "candidate.zip.sha256",
-            "candidate.zip.size_bytes"
+            "candidate.zip.size_bytes",
+            "candidate.dmg.sha256",
+            "candidate.dmg.size_bytes"
           ],
           "homebrew_evidence": {
             "publication_schema": "opl_bundle_homebrew_publication_receipt.v1",
-            "clean_vm_surface_id": "opl_tart_gui_first_run_smoke",
-            "readback_schema": "opl_bundle_homebrew_readback_receipt.v1",
+            "readback_schema": "opl_bundle_homebrew_publication_readback_receipt.v1",
             "required_digest_fields": [
               "homebrew.publication_receipt_sha256",
-              "homebrew.clean_vm_receipt_sha256",
               "homebrew.readback_receipt_sha256"
             ],
-            "readback_must_bind_publication_and_clean_vm_actual_file_digests": true
+            "readback_must_bind_publication_actual_file_digest": true,
+            "clean_vm_receipt_allowed": false
           },
           "failure_mode": "fail_closed_before_latest_patch"
         },
@@ -988,11 +984,11 @@
           "opl-app-component-manifest.json",
           "standard-gatekeeper-launch-policy.json",
           "standard-apple-notarization-receipt.json",
-          "standard_exact_byte_qualification",
+          "github_hosted_source_contract_build_preflight",
+          "github_hosted_signed_notarized_standard_build",
           "remote_digest_readback",
-          "previous_latest_to_candidate_exact_zip_updater_upgrade",
           "standard_homebrew_digest_bound_publication",
-          "standard_homebrew_clean_vm_install_and_readback"
+          "standard_homebrew_publication_readback"
         ]
       },
       "manual_full_preview": {
@@ -2183,7 +2179,7 @@
       "immutable_version_digest"
     ],
     "stable_promotion": {
-      "schema": "opl_app_webui_stable_promotion_contract.v3",
+      "schema": "opl_app_webui_stable_promotion_contract.v4",
       "writer": "release-webui-stable.yml#promote-webui-stable",
       "workflow": ".github/workflows/release-webui-stable.yml",
       "trigger": "successful_release_stable_workflow_run_follower_after_latest_activation",
@@ -2201,7 +2197,17 @@
           "authority_mode": "production_follower",
           "entry_workflow": ".github/workflows/release-webui-follower.yml",
           "desktop_latest_required": true,
-          "development_receipt_accepted_as_handoff": false
+          "development_receipt_accepted_as_handoff": false,
+          "promotion_tags": [
+            "stable",
+            "latest"
+          ],
+          "classification": {
+            "quality_status": "stable",
+            "build_trigger": "automated",
+            "preview_kind": null,
+            "non_stable_notice": false
+          }
         },
         "development_validation": {
           "authority_mode": "development_validation",
@@ -2209,6 +2215,17 @@
           "source": "exact_first_attempt_terminal_stable_run_frozen_bundle",
           "desktop_latest_required": false,
           "protected_public_mutation_required": true,
+          "promotion_tags": [
+            "latest"
+          ],
+          "stable_alias_mutation_allowed": false,
+          "stable_prestate_must_remain_unchanged": true,
+          "classification": {
+            "quality_status": "preview",
+            "build_trigger": "manual",
+            "preview_kind": "dev",
+            "non_stable_notice": true
+          },
           "receipt_satisfies_production_latest_or_follower_handoff": false,
           "promotion_only_delivery_bridge": {
             "entry_workflow": ".github/workflows/release-webui-development-promote.yml",
@@ -2235,7 +2252,7 @@
       "automatic_update_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
-      "manual_version_promotion_policy": "manual_version_may_advance_latest_only_after_the_same_stable_quality_gate",
+      "manual_version_promotion_policy": "manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable",
       "stable_authority_requirements": [
         "release-stable.yml",
         "main",
@@ -2291,9 +2308,22 @@
         "unexpected_digest_is_conflict_without_mutation": true,
         "prestate_unknown_is_not_absent": true,
         "divergent_aliases_may_only_reconcile_to_same_qualified_target": true,
-        "mutation_command": "oras tag <repository>@<target_digest> stable latest",
+        "promotion_tags_by_authority_mode": {
+          "production_follower": [
+            "stable",
+            "latest"
+          ],
+          "development_validation": [
+            "latest"
+          ]
+        },
+        "mutation_command_by_authority_mode": {
+          "production_follower": "oras tag <repository>@<target_digest> stable latest",
+          "development_validation": "oras tag <repository>@<target_digest> latest"
+        },
+        "development_validation_requires_stable_prestate_unchanged": true,
         "maximum_tag_attempts": 1,
-        "single_command_updates_both_moving_tags": true,
+        "single_command_updates_all_admitted_moving_tags": true,
         "force_allowed": false
       },
       "unknown_outcome": {
@@ -2314,8 +2344,9 @@
         "webui_stable_is_non_blocking_follower": true,
         "webui_failure_may_rollback_or_reactivate_desktop_latest": false
       },
-      "admission_schema": "opl_app_webui_stable_promotion_admission.v3",
-      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v3"
+      "admission_schema": "opl_app_webui_stable_promotion_admission.v4",
+      "decision_schema": "opl_app_webui_stable_promotion_decision.v2",
+      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v4"
     },
     "stable_tags": [
       "<app_or_opl_version>",
@@ -2386,7 +2417,8 @@
     ],
   "casks": [
     "one-person-lab",
-    "one-person-lab-nightly"
+    "one-person-lab-nightly",
+    "one-person-lab-full"
   ],
     "cask_install_policy": {
       "standard_cask": "one-person-lab",
@@ -2402,7 +2434,8 @@
     },
   "initial_live_targets": [
     "Casks/one-person-lab.rb",
-    "Casks/one-person-lab-nightly.rb"
+    "Casks/one-person-lab-nightly.rb",
+    "Casks/one-person-lab-full.rb"
   ],
     "excluded_casks": [],
     "full_casks": [
@@ -2438,21 +2471,28 @@
       "stable_cask_must_remain_exact": true,
       "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
     },
-      "stable": {
-        "mode": "release_bundle_publishes_standard_cask_then_clean_vm_readback_before_latest",
-        "may_consume_nightly_directly": false
+    "stable": {
+      "mode": "release_bundle_publishes_standard_cask_then_hosted_readback_before_latest",
+      "publication_mode": "release_bundle_publishes_standard_cask_then_hosted_readback_before_latest",
+      "may_consume_nightly_directly": false
       },
       "full": {
-        "mode": "implemented_unpublished_generator_target",
-        "homebrew_publish_allowed": false,
-        "homebrew_clean_vm_gate_required": true,
+        "mode": "post_publication_digest_bound_single_attempt_follower",
+        "workflow": ".github/workflows/release-homebrew-full-follower.yml",
+        "environment": "release-stable",
+        "target": "Casks/one-person-lab-full.rb",
+        "homebrew_publish_allowed": true,
+        "mutation_allowed": true,
+        "source_completed_stage": "full_qualified",
+        "homebrew_clean_vm_gate_required": false,
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
         "standard_updater_visible": false,
         "standard_assets_notes_updater_or_latest_may_change": false,
         "framework_carrier": "full_dmg_embedded_opl_base",
         "formula_dependency_required": false,
-        "promotion_status": "not_approved_until_promotion_requirements_pass"
+        "promotion_status": "approved_pending_first_protected_follower_readback",
+        "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
       },
       "version_identity": {
         "cask_version": "updater_version",
@@ -2476,7 +2516,7 @@
         "release_set_manifest_digest"
       ]
     },
-    "full_first_install_policy": "github_release_full_dmg_is_current_authority; managed Homebrew Full generator is implemented_unpublished; standard updater metadata remains excluded",
+    "full_first_install_policy": "github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
@@ -3001,6 +3041,28 @@
       "package_entry": null,
       "may_create_release_state_or_authorize_mutation": false
     },
+    "local_first": {
+      "entrypoint": "scripts/verify.sh release-preflight",
+      "reuses_existing_orchestrator": true,
+      "local_checks": [
+        "actionlint",
+        "typecheck",
+        "active_shell",
+        "release_boundary",
+        "candidate_shell",
+        "standard_package_build"
+      ],
+      "remote_only": [
+        "github_hosted_linux_windows_macos_matrix",
+        "protected_signing_and_notarization_credentials",
+        "public_mutation",
+        "owner_authoritative_remote_readback"
+      ],
+      "optional_deferred": [
+        "post_publication_clean_machine_certification"
+      ],
+      "public_mutation_allowed": false
+    },
     "full_addon_preflight": {
       "status": "deferred_to_independent_addon_attempt",
       "operation": "append_full",
@@ -3025,7 +3087,7 @@
       "raw_standard_version_or_ref_inputs_allowed": false,
       "required_bindings": [
         "app_owned_source_qualification_receipt",
-        "one_local_build_and_one_clean_tart_vm",
+        "github_hosted_source_contract_build_preflight_with_self_hosted_vm_tart_zero",
         "final_app_shell_framework_main_shas",
         "critical_workflow_git_blobs_and_sha256",
         "apple_protected_secret_names_6_of_6",
@@ -3119,11 +3181,12 @@
       "workflow": ".github/workflows/release-source-qualification.yml",
       "receipt_script": "scripts/source-qualification-receipt.ts",
       "validator": "scripts/validate-source-qualification-receipt.ts",
-      "runner": "self_hosted_macos_opl_gui_vm",
+      "runner": "github_hosted_ubuntu_latest",
       "secrets_allowed": false,
       "run_attempt_required": 1,
       "build_invocation_count": 1,
-      "tart_vm_invocation_count": 1,
+      "self_hosted_invocation_count": 0,
+      "tart_vm_invocation_count": 0,
       "local_dmg_is_diagnostic_only": true,
       "release_authority": false,
       "namespace_reservation": false,
@@ -3133,7 +3196,8 @@
       "profile_consumer_test": "tests/unit/common-config/oplProductProfile.test.ts",
       "profile_projection": "current_app_profile_into_temporary_exact_shell_archive",
       "source_shell_mutation_allowed": false,
-      "must_pass_before_source_workflow_dispatch": true
+      "must_pass_before_source_workflow_dispatch": true,
+      "publication_floor_role": "same_operation_hosted_source_contract_build_preflight"
     },
     "stable_stage_result": {
       "schema": "opl_app_stable_stage_result.v1",
@@ -3235,13 +3299,11 @@
       "must_run_before": [
         "standard_macos_arm64_build",
         "full_first_install_build",
-        "standard_dmg_clean_vm_smoke",
-        "homebrew_standard_cask_clean_vm_smoke",
-        "full_dmg_clean_vm_smoke",
-        "webui_ghcr_publish"
+        "webui_ghcr_publish",
+        "post_publication_optional_certification"
       ],
       "failure_next_action": "repair_source_gate",
-      "rule": "The App release source gate must fail before workflow dispatch or expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, current App profile against the exact Shell consumer, shell format/type, shell ref resolution, or framework ref resolution is invalid."
+      "rule": "The App release source gate must fail before workflow dispatch or expensive hosted build, Full, WebUI, or post-publication optional certification work when App release-boundary validation, current App profile against the exact Shell consumer, shell format/type, shell ref resolution, or framework ref resolution is invalid."
     },
     "rule": "The App freeze-request adapter validates product identity, exact App/Shell/Framework refs, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal and historical Bundle identity remains read-compatible.",
     "stable_operations": [
@@ -3249,6 +3311,69 @@
       "resume_standard",
       "append_full"
     ]
+  },
+  "post_publication_optional_certification": {
+    "schema": "opl_app_optional_certification_policy.v1",
+    "receipt_schema": "contracts/app-optional-certification-receipt.schema.json",
+    "validator": "scripts/validate-optional-certification-receipt.ts",
+    "required_for_publication": false,
+    "required_for_latest": false,
+    "artifact_source": "exact_immutable_published_release_artifact",
+    "artifact_rebuild_allowed": false,
+    "component_manifest_mutation_allowed": false,
+    "component_manifest_resign_allowed": false,
+    "identity_bindings": [
+      "release_tag",
+      "artifact_name",
+      "artifact_digest",
+      "component_manifest_digest",
+      "app_sha",
+      "shell_sha",
+      "framework_sha",
+      "source_run_id",
+      "certification_run_id_when_started",
+      "platform",
+      "capability"
+    ],
+    "statuses": [
+      "passed",
+      "failed",
+      "not_run",
+      "unavailable"
+    ],
+    "status_semantics": {
+      "passed": "started certification completed successfully with immutable evidence",
+      "failed": "started certification completed with a product or quality failure",
+      "not_run": "no certification job started; an explicit non-execution reason may be sealed",
+      "unavailable": "a started certification job failed typed lease, VM, or capability admission"
+    },
+    "not_run_reason_codes": [
+      "not_requested",
+      "not_authorized",
+      "operator_deferred"
+    ],
+    "unavailable_reason_codes": [
+      "authority_or_capability_not_provable",
+      "fleet_lease_admission_failed",
+      "vm_admission_failed",
+      "capability_admission_failed"
+    ],
+    "forbidden_unavailable_claims": [
+      "runner_offline_without_started_job",
+      "queued_workflow",
+      "github_auth_failure",
+      "network_failure"
+    ],
+    "producer": {
+      "workflow": ".github/workflows/release-post-publication-certification.yml",
+      "trigger": "workflow_run_after_successful_github_release_publication",
+      "automatic_prequeue_admission": "emit_not_run_until_exact_physical_capability_is_proven",
+      "physical_executor_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "dispatcher_execution": "github_hosted_read_only_public_artifact_consumer",
+      "stable_dag_dependency": false,
+      "may_queue_without_proven_capability": false
+    },
+    "rule": "Optional clean-machine certification consumes the exact already-published artifact and produces a separate immutable receipt. It never rebuilds, mutates or resigns the component manifest, blocks publication or Latest, or masquerades as publication success."
   },
   "release_acceleration": {
     "scope": "product_build_qualification_vm_and_cache_policy_only",
@@ -3770,16 +3895,16 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
           "settings_navigation",
           "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
         ],
-        "gate_policy": "deterministic_release_blocking"
+        "gate_policy": "optional_non_blocking_same_published_artifact"
       },
       {
         "id": "homebrew_standard_cask_clean_vm_smoke",
@@ -3796,9 +3921,9 @@
         "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "brew_tap_and_cask_install",
           "local_authorization_policy",
           "app_launch",
@@ -3806,7 +3931,7 @@
           "settings_navigation",
           "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
         ],
-        "gate_policy": "deterministic_release_blocking",
+        "gate_policy": "optional_non_blocking_same_published_artifact",
         "precondition": "VM image already has Homebrew installed",
         "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE"
       },
@@ -3817,17 +3942,17 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "release_gate",
+        "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "full",
         "codex_config_wizard": "required_and_submitted",
-        "release_blocking_readiness": [
+        "certification_readiness": [
           "local_authorization_policy",
           "core_ready",
           "domain_modules_ready",
           "family_runtime_provider_ready",
           "assistant_route_receipts"
         ],
-        "gate_policy": "deterministic_release_blocking",
+        "gate_policy": "optional_non_blocking_same_published_artifact",
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
       }
     ],
@@ -3837,10 +3962,10 @@
       "smoke_profile": "no-clt-clean-vm",
       "display": "1920x1080px",
       "settings_smoke": true,
-      "diagnostic_scope": "release_gate",
+      "diagnostic_scope": "post_publication_optional_certification",
       "runtime_profile": "full",
       "codex_config_wizard": "required_and_submitted",
-      "gate_policy": "deterministic_release_blocking",
+      "gate_policy": "optional_non_blocking_same_published_artifact",
       "preflight_summary_fields": [
         "runner_labels",
         "source_vm",
@@ -3858,10 +3983,12 @@
         "tart_graphics",
         "temporary_vm_retention"
       ],
-      "release_blocking_readiness": [
+      "certification_readiness": [
+        "local_authorization_policy",
         "core_ready",
         "domain_modules_ready",
-        "family_runtime_provider_ready"
+        "family_runtime_provider_ready",
+        "assistant_route_receipts"
       ],
       "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready",
       "non_blocking_deferred_maintenance": [
@@ -3920,35 +4047,42 @@
       "workflow": ".github/workflows/release-nightly.yml"
     },
     "stable": {
-      "purpose": "complete user-install proof before a stable App Release is treated as smooth",
+      "purpose": "publish one immutable Stable artifact through the GitHub-hosted source, contract, build, signing, notarization, package, Homebrew, Latest, and public readback floor",
       "required_lanes": [
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification",
-        "standard_dmg_clean_vm_smoke",
-        "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "remote_standard_release_verification"
       ],
       "addon_lanes": [
         "full_first_install_build",
-        "full_dmg_clean_vm_smoke",
         "remote_full_addon_verification",
         "docker_webui_smoke",
         "webui_ghcr_publish"
       ],
       "addon_gate_blocking_standard_terminal": false,
       "diagnostic_lanes": [
-        "operator_evidence_bundle"
-      ],
-      "required_installation_surfaces": [
+        "operator_evidence_bundle",
         "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke"
+        "one_shot_app_installer_fresh_install_smoke",
+        "full_dmg_clean_vm_smoke"
+      ],
+      "post_publication_optional_certification_surfaces": [
+        "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke",
+        "full_dmg_clean_vm_smoke"
+      ],
+      "optional_certification_statuses": [
+        "passed",
+        "failed",
+        "not_run",
+        "unavailable"
       ],
       "release_latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass",
-      "heavy_gate_policy": "run before stable promotion; may be skipped only for draft or emergency packaging refreshes that are not called stable-complete",
+      "heavy_gate_policy": "post-publication optional certification never blocks or queues Stable publication or Latest",
       "forbidden_inferences": [
         "stable/latest promotion from draft evidence bundle alone",
         "family production readiness from App release/user-path evidence",

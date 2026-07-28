@@ -86,6 +86,26 @@ manager:
 4. **Render dynamically.** App and replaceable shells render Package,
    shortcut, task, and typed-view descriptors without Package-id branches.
 
+`contracts/opl-app-contributions.schema.json` defines the optional
+`app_contributions` field of the common Package contract. It is role-agnostic:
+any `package_role` may contribute navigation, views, commands, or badges. A
+contribution block declares `opl-app-contributions.v1`, contains at least one
+non-empty collection, uses stable ids and localized labels or titles, and may
+only select the App-owned `list_detail`, `timeline`, `approval_diff`,
+`task_board`, `artifact_view`, or `activity_log` view types. Navigation points
+to a view in the same block; view commands point to commands in that block;
+data, badge values, and actions remain references to Framework-projected or
+domain-owned truth.
+
+The App owns this schema and the reusable renderers. Framework validates and
+projects Package declarations. Shells resolve the projected references and
+render the standard views without filtering on `package_role` or branching on
+Package ids. One invalid block is rejected as a unit without hiding valid
+contributions from other Packages. A Package or Codex Plugin cannot contribute
+React, Electron, HTML, JavaScript, component, filesystem path, URL, or other
+executable UI code. Native UI evolution therefore remains an App/Shell release,
+while Package integration remains data-driven.
+
 This is presence-based composition, not version-based dependency resolution.
 Breaking interface changes are handled by publishing a new capability identity
 or adapting at the owning Package boundary, rather than by growing a central

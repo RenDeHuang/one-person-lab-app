@@ -113,24 +113,28 @@ follower automation are implemented, but the first public publication and
 follower readbacks are still required before the channel can be called
 production-verified.
 
-### One-Shot Installer
+### Verified Install Paths
 
-Terminal users can also use the general bootstrap installer. The current
-implementation prepares the Framework and adds the App where supported:
+Homebrew users can install the current Standard App through the digest-bound
+cask:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 ```
 
-The script now routes macOS personal hosts to Desktop, Linux personal hosts to
-a verified Native WebUI candidate when one is available or otherwise to
-Container WebUI, server/isolated hosts to Container WebUI, and explicit
-headless installs to Base only. Its Desktop bootstrap passes `--with-app` and
-converges through the Framework-owned Official Profile path. Native Linux still
-requires publicly qualified immutable assets and fresh readback; until those
-exist, automatic Linux routing falls back to Container WebUI. The stable macOS
-helper remains a compatibility surface and is intentionally not a new-user
-recommendation.
+Without Homebrew, download the exact DMG from the GitHub Release linked below.
+Do not pipe a mutable branch copy of `install.sh` directly into a shell. The
+tag-scoped `opl-app-installer.sh` Release asset verifies its own component
+manifest and DMG before any App target mutation:
+
+```bash
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
+chmod 0755 opl-app-installer.sh
+./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+```
+
+The repository script remains available as `./install.sh` for developers
+working from a reviewed source checkout.
 
 ### Direct Download
 
@@ -142,8 +146,8 @@ For a first-time macOS arm64 install without Homebrew, choose
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`. It is the authoritative complete
 first-install asset while Full Homebrew publication remains unmanaged.
 
-For macOS, the current ordinary paths are DMG, Homebrew, and the one-shot
-bootstrap. Linux personal hosts currently fall back to Container WebUI unless
+For macOS, the current ordinary paths are DMG and Homebrew. Linux personal
+hosts currently fall back to Container WebUI unless
 an exact verified Native candidate is supplied; server and isolated installs
 remain Container WebUI. Native Linux WebUI packaging and routing exist, but no
 public qualified OPL Native asset is available yet. For a screenshot-based

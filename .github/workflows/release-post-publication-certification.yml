@@ -1,0 +1,1021 @@
+name: OPL Post-Publication Optional Certification
+run-name: Optional certification for Stable run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Stable Release Bundle
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-post-publication-certification-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-standard:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.identity.outputs.eligible }}
+      tag: ${{ steps.identity.outputs.tag }}
+      artifact_name: ${{ steps.identity.outputs.artifact_name }}
+      artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
+      component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Admit one successful canonical Stable authority run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > stable-authority-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' stable-authority-run.json >/dev/null
+          activation_artifact="opl-release-activation-${SOURCE_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            > stable-authority-artifacts.json
+          count="$(
+            jq -r --arg name "$activation_artifact" \
+              '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+              stable-authority-artifacts.json
+          )"
+          case "$count" in
+            0)
+              echo "activation_artifact_found=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "activation_artifact_found=true" >> "$GITHUB_OUTPUT"
+              echo "activation_artifact=$activation_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stable authority run contains duplicate Latest activation artifacts."
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact Latest activation evidence
+        if: ${{ steps.authority.outputs.activation_artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.activation_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: latest-activation
+
+      - name: Bind exact public Standard identity
+        id: identity
+        if: ${{ always() && steps.authority.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.authority.outputs.activation_artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          manifests=()
+          while IFS= read -r value; do handoffs+=("$value"); done < <(
+            find latest-activation -type f -name webui-follower-handoff.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r value; do manifests+=("$value"); done < <(
+            find latest-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1
+          test "${#manifests[@]}" -eq 1
+          handoff="${handoffs[0]}"
+          activation_manifest="${manifests[0]}"
+          head_sha="$(jq -er .head_sha stable-authority-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$head_sha" '
+            .schema == "opl_app_webui_follower_handoff.v1"
+            and .status == "ready"
+            and .stable_authority == {
+              repository: "gaofeng21cn/one-person-lab-app",
+              workflow: ".github/workflows/release-stable.yml",
+              run_id: $run,
+              run_attempt: 1,
+              executor_head_sha: $head
+            }
+            and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and .latest_activation.admission_schema == "opl_standard_latest_admission_receipt.v1"
+            and .latest_activation.admitted == true
+            and .latest_activation.framework_terminal_status == "complete"
+          ' "$handoff" >/dev/null
+          version="$(jq -er .release.version "$handoff")"
+          tag="v${version}"
+          app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
+          shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
+          framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
+          test "$app_sha" = "$head_sha"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
+          jq -e --arg tag "$tag" --arg head "$head_sha" '
+            .tag_name == $tag
+            and .draft == false
+            and .prerelease == false
+            and .target_commitish == $head
+          ' public-release.json >/dev/null
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          curl --fail --location --retry 0 \
+            "$release_base/opl-app-component-manifest.json" \
+            --output public-component-manifest.json
+          cmp "$activation_manifest" public-component-manifest.json
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest public-component-manifest.json \
+            --expected-tag "$tag" \
+            --release-prerelease false \
+            --expected-source-commit "$head_sha" \
+            > public-component-identity.json
+          artifact_name="$(jq -er .primary_artifact.name public-component-manifest.json)"
+          artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
+          artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
+          test "$artifact_name" = "One-Person-Lab-${version}-mac-arm64.dmg"
+          [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$artifact_size" =~ ^[1-9][0-9]*$ ]]
+          jq -e --arg name "$artifact_name" --argjson size "$artifact_size" '
+            [.assets[] | select(.name == $name and .size == $size)] | length == 1
+          ' public-release.json >/dev/null
+          component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
+          {
+            echo "eligible=true"
+            echo "tag=$tag"
+            echo "artifact_name=$artifact_name"
+            echo "artifact_digest=$artifact_digest"
+            echo "component_manifest_digest=$component_manifest_digest"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  admit-standard-vm:
+    if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
+    needs: [resolve-standard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.capability.outputs.eligible }}
+      reason_code: ${{ steps.capability.outputs.reason_code }}
+    steps:
+      - name: Inspect exact physical capability before queueing a self-hosted job
+        id: capability
+        env:
+          RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+          RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
+          TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_labels="${RUNNER_LABELS:-[\"self-hosted\",\"macOS\",\"opl-gui-vm\"]}"
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' <<< "$runner_labels" >/dev/null
+          if [ -z "$RUNNER_INVENTORY_TOKEN" ] || [ -z "$TART_SOURCE" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=not_authorized" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" \
+            > runner-pages.json
+          runner_count="$(RUNNER_LABELS="$runner_labels" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync('runner-pages.json', 'utf8'));
+          const required = JSON.parse(process.env.RUNNER_LABELS);
+          const runners = pages.flatMap((page) => Array.isArray(page.runners) ? page.runners : []);
+          const eligible = runners.filter((runner) => {
+            const labels = new Set((runner.labels || []).map((label) => label.name));
+            return runner.status === 'online' && runner.busy === false && required.every((label) => labels.has(label));
+          });
+          process.stdout.write(String(eligible.length));
+          NODE
+          )"
+          if [ "$runner_count" = 0 ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=operator_deferred" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            echo "reason_code=" >> "$GITHUB_OUTPUT"
+          fi
+
+  certify-standard-vm:
+    if: ${{ needs.admit-standard-vm.outputs.eligible == 'true' }}
+    needs: [resolve-standard, admit-standard-vm]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.resolve-standard.outputs.tag }}
+      published_artifact_name: ${{ needs.resolve-standard.outputs.artifact_name }}
+      published_artifact_digest: ${{ needs.resolve-standard.outputs.artifact_digest }}
+      artifact_app_ref: ${{ needs.resolve-standard.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-standard.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.resolve-standard.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-standard.outputs.framework_sha }}
+      package_profile: standard
+      diagnostic_scope: post_publication_optional_certification
+      require_macos_gatekeeper: true
+
+  write-standard-receipts:
+    if: ${{ always() && needs.resolve-standard.outputs.eligible == 'true' && needs.admit-standard-vm.result == 'success' }}
+    needs: [resolve-standard, admit-standard-vm, certify-standard-vm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Download exact Standard VM evidence
+        if: ${{ needs.admit-standard-vm.outputs.eligible == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-standard-${{ github.run_id }}
+          path: imported-standard-vm-evidence
+
+      - name: Write Standard VM result and explicit residual not-run receipts
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
+          ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.artifact_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+          VM_ADMITTED: ${{ needs.admit-standard-vm.outputs.eligible }}
+          VM_ADMISSION_REASON: ${{ needs.admit-standard-vm.outputs.reason_code }}
+          VM_JOB_RESULT: ${{ needs.certify-standard-vm.result }}
+          VM_STATUS: ${{ needs.certify-standard-vm.outputs.post_publication_status }}
+          VM_REASON_CODE: ${{ needs.certify-standard-vm.outputs.post_publication_reason_code }}
+          VM_ARTIFACT_VERIFIED: ${{ needs.certify-standard-vm.outputs.published_artifact_verified }}
+          VM_JOB_STARTED: ${{ needs.certify-standard-vm.outputs.post_publication_job_started }}
+          VM_EXECUTION_STARTED: ${{ needs.certify-standard-vm.outputs.post_publication_execution_started }}
+          VM_CLASSIFICATION_VALID: ${{ needs.certify-standard-vm.outputs.post_publication_classification_valid }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          common_args=(
+            --release-tag "$RELEASE_TAG"
+            --artifact-name "$ARTIFACT_NAME"
+            --artifact-digest "$ARTIFACT_DIGEST"
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST"
+            --app-sha "$APP_SHA"
+            --shell-sha "$SHELL_SHA"
+            --framework-sha "$FRAMEWORK_SHA"
+            --source-run-id "$SOURCE_RUN_ID"
+            --platform macos
+          )
+
+          standard_status=''
+          standard_reason=''
+          admission_status=not_started
+          admission_evidence=''
+          dispatched=false
+          evidence_files=()
+          require_unique_evidence() {
+            local root="$1"
+            local basename="$2"
+            local output_name="$3"
+            local matches=()
+            while IFS= read -r -d '' candidate; do matches+=("$candidate"); done < <(
+              find "$root" -type f -name "$basename" -print0
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::Expected exactly one $basename in $root; found ${#matches[@]}."
+              exit 1
+            }
+            test -s "${matches[0]}" && test ! -L "${matches[0]}" || {
+              echo "::error::Evidence must be one non-empty regular non-symlink file: ${matches[0]}"
+              exit 1
+            }
+            printf -v "$output_name" '%s' "${matches[0]}"
+          }
+          if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_ADMITTED" = false || { echo "::error::Standard VM admission must be true or false."; exit 1; }
+            test "$VM_JOB_RESULT" = skipped || {
+              echo "::error::A not-admitted Standard VM must not have a non-skipped reusable job."
+              exit 1
+            }
+            case "$VM_ADMISSION_REASON" in
+              not_authorized|operator_deferred) ;;
+              *) echo "::error::A not-admitted Standard VM requires an exact non-execution reason."; exit 1 ;;
+            esac
+            standard_status=not_run
+            standard_reason="$VM_ADMISSION_REASON"
+          else
+            test "$VM_ADMISSION_REASON" = '' || { echo "::error::An admitted Standard VM must not carry an admission reason."; exit 1; }
+            test "$VM_CLASSIFICATION_VALID" = true || {
+              echo "::error::The admitted Standard VM did not return one sealable terminal classification."
+              exit 1
+            }
+            test "$VM_ARTIFACT_VERIFIED" = true && test "$VM_JOB_STARTED" = true || {
+              echo "::error::Standard certification cannot seal a receipt before exact public artifact verification and job start."
+              exit 1
+            }
+            dispatched=true
+            admission_status=passed
+            require_unique_evidence imported-standard-vm-evidence published-artifact-identity.json artifact_identity
+            require_unique_evidence imported-standard-vm-evidence post-publication-job-start.json job_start
+            require_unique_evidence imported-standard-vm-evidence post-publication-capability-admission.json capability_admission
+            require_unique_evidence imported-standard-vm-evidence tart-smoke-summary.json tart_summary
+            jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
+              --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
+              type == "object"
+              and (keys == ["artifact","cohort","release_tag","schema","verified"])
+              and .schema == "opl_app_post_publication_artifact_identity.v1"
+              and .verified == true
+              and .release_tag == $tag
+              and (.artifact | keys == ["digest","name"])
+              and .artifact.name == $name
+              and .artifact.digest == $digest
+              and (.cohort | keys == ["app_sha","framework_sha","shell_sha"])
+              and .cohort.app_sha == $app_sha
+              and .cohort.shell_sha == $shell_sha
+              and .cohort.framework_sha == $framework_sha
+            ' "$artifact_identity" >/dev/null
+            jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
+            source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
+            jq -e --arg source_vm "$source_vm" '
+              type == "object"
+              and .surface_id == "opl_tart_gui_first_run_smoke"
+              and .source_vm == $source_vm
+              and .smoke_profile == "no-clt-clean-vm"
+              and .runtime_profile == "standard"
+              and .framework_source_archive == null
+            ' "$tart_summary" >/dev/null
+            case "$VM_STATUS" in
+              passed)
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Standard passed requires a successful reusable job and a started executor."
+                  exit 1
+                }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
+                require_unique_evidence imported-standard-vm-evidence settings-smoke-summary.json settings_summary
+                require_unique_evidence imported-standard-vm-evidence settings-runtime-refresh-verification.json settings_verification
+                require_unique_evidence imported-standard-vm-evidence installed-framework-source-identity.json framework_identity
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                jq -e '.surface_id == "opl_packaged_gui_settings_smoke" and .status == "passed"' "$settings_summary" >/dev/null
+                jq -e '.schema == "opl_settings_runtime_refresh_evidence_verification.v1" and .status == "passed"' "$settings_verification" >/dev/null
+                jq -e --arg framework_sha "$FRAMEWORK_SHA" '
+                  .schema == "opl_framework_installed_source_identity.v1"
+                  and .status == "passed"
+                  and .install_mode == "archive"
+                  and .expected_framework_sha == $framework_sha
+                  and .observed_framework_sha == $framework_sha
+                  and .exact_match == true
+                ' "$framework_identity" >/dev/null
+                standard_status=passed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary" "$settings_summary" "$settings_verification" "$framework_identity")
+                ;;
+              failed)
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Standard failed requires a failed reusable job after execution started."
+                  exit 1
+                }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-standard-vm-evidence post-publication-execution-start.json execution_start
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                standard_status=failed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary")
+                settings_matches=()
+                while IFS= read -r -d '' candidate; do settings_matches+=("$candidate"); done < <(find imported-standard-vm-evidence -type f -name settings-runtime-refresh-verification.json -print0)
+                test "${#settings_matches[@]}" -le 1 || { echo "::error::Standard failed evidence contains duplicate Settings verification files."; exit 1; }
+                if [ "${#settings_matches[@]}" -eq 1 ]; then
+                  test -s "${settings_matches[0]}" && test ! -L "${settings_matches[0]}"
+                  evidence_files+=("${settings_matches[0]}")
+                fi
+                ;;
+              unavailable)
+                test "$VM_JOB_RESULT" = failure && test -n "$VM_REASON_CODE" || {
+                  echo "::error::Standard unavailable requires a failed started job."
+                  exit 1
+                }
+                standard_status=unavailable
+                standard_reason="$VM_REASON_CODE"
+                admission_status=failed
+                case "$standard_reason" in
+                  capability_admission_failed)
+                    test "$VM_EXECUTION_STARTED" != true || { echo "::error::Capability admission failure must precede execution start."; exit 1; }
+                    jq -e --arg source_vm "$source_vm" '.status == "failed" and .reason_code == "capability_admission_failed" and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                    admission_evidence="$capability_admission"
+                    ;;
+                  vm_admission_failed)
+                    test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
+                    admission_evidence="$tart_summary"
+                    ;;
+                  *) echo "::error::Standard unavailable requires an exact child reason."; exit 1 ;;
+                esac
+                ;;
+              *)
+                echo "::error::Standard certification returned an unsupported status."
+                exit 1
+                ;;
+            esac
+          fi
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            --arg status "$admission_status" --arg reason "$standard_reason" --argjson dispatched "$dispatched" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
+            > standard-dispatch-admission.json
+          if [ "$standard_status" = not_run ]; then
+            admission_evidence=standard-dispatch-admission.json
+          fi
+          standard_args=(
+            "${common_args[@]}"
+            --status "$standard_status"
+            --certification-kind clean_machine_install
+            --capability tart-clean-macos
+            --admission-evidence-file "$admission_evidence"
+          )
+          case "$standard_status" in
+            passed|failed)
+              standard_args+=(--certification-run-id "$GITHUB_RUN_ID")
+              for evidence_file in "${evidence_files[@]}"; do standard_args+=(--evidence-file "$evidence_file"); done
+              ;;
+            unavailable)
+              standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$standard_reason")
+              ;;
+            not_run)
+              standard_args+=(--reason-code "$standard_reason")
+              ;;
+          esac
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${standard_args[@]}" \
+            --output standard-dmg-clean-machine.json
+          mkdir -p standard-receipt-evidence
+          cp "$admission_evidence" standard-receipt-evidence/
+          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" standard-receipt-evidence/; done
+
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:"not_started",reason_code:"not_requested",source_run_id:$run,release_tag:$tag,physical_job_dispatched:false}' \
+            > residual-not-run-admission.json
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${common_args[@]}" \
+            --status not_run \
+            --certification-kind homebrew_install \
+            --capability tart-homebrew-macos \
+            --reason-code not_requested \
+            --admission-evidence-file residual-not-run-admission.json \
+            --output homebrew-standard-clean-machine.json
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${common_args[@]}" \
+            --status not_run \
+            --certification-kind clean_machine_install \
+            --capability tart-one-shot-installer \
+            --reason-code not_requested \
+            --admission-evidence-file residual-not-run-admission.json \
+            --output one-shot-installer-clean-machine.json
+
+      - name: Upload non-blocking Standard certification receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-post-publication-standard-certification-${{ github.event.workflow_run.id }}
+          path: |
+            standard-dmg-clean-machine.json
+            homebrew-standard-clean-machine.json
+            one-shot-installer-clean-machine.json
+            standard-dispatch-admission.json
+            standard-receipt-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  resolve-full:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.identity.outputs.eligible }}
+      tag: ${{ steps.identity.outputs.tag }}
+      artifact_name: ${{ steps.identity.outputs.artifact_name }}
+      artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
+      component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Resolve optional exact Full publication
+        id: publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > stable-authority-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' stable-authority-run.json >/dev/null
+          publication_artifact="opl-release-full-published-${SOURCE_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            > stable-authority-artifacts.json
+          count="$(
+            jq -r --arg name "$publication_artifact" \
+              '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+              stable-authority-artifacts.json
+          )"
+          case "$count" in
+            0)
+              echo "publication_artifact_found=false" >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo "publication_artifact_found=true" >> "$GITHUB_OUTPUT"
+              echo "publication_artifact=$publication_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stable authority run contains duplicate Full publication artifacts."
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact Full publication evidence
+        if: ${{ steps.publication.outputs.publication_artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.publication.outputs.publication_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: full-publication
+
+      - name: Bind exact public Full identity
+        id: identity
+        if: ${{ always() && steps.publication.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ steps.publication.outputs.publication_artifact_found }}' != true ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          handoffs=()
+          while IFS= read -r value; do handoffs+=("$value"); done < <(
+            find full-publication -type f -name homebrew-full-handoff.json -print | LC_ALL=C sort
+          )
+          test "${#handoffs[@]}" -eq 1
+          handoff="${handoffs[0]}"
+          head_sha="$(jq -er .head_sha stable-authority-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$head_sha" '
+            .schema == "opl_homebrew_full_follower_handoff.v1"
+            and .status == "ready"
+            and .operation == "append_full"
+            and .authority == {
+              repository: "gaofeng21cn/one-person-lab-app",
+              workflow: ".github/workflows/release-stable.yml",
+              run_id: $run,
+              run_attempt: 1,
+              executor_head_sha: $head
+            }
+            and (.release.tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
+            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and (.artifact.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and (.manifest.sha256 | test("^sha256:[0-9a-f]{64}$"))
+            and .github_full_publication.status == "complete"
+            and .homebrew_modified == false
+            and .latest_modified == false
+          ' "$handoff" >/dev/null
+          tag="$(jq -er .release.tag "$handoff")"
+          artifact_name="$(jq -er .artifact.name "$handoff")"
+          artifact_digest="$(jq -er .artifact.sha256 "$handoff")"
+          artifact_size="$(jq -er .artifact.size_bytes "$handoff")"
+          manifest_name="$(jq -er .manifest.name "$handoff")"
+          manifest_digest="$(jq -er .manifest.sha256 "$handoff")"
+          app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
+          shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
+          framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
+          test "$app_sha" = "$head_sha"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
+          jq -e --arg tag "$tag" --arg head "$head_sha" --arg name "$artifact_name" --argjson size "$artifact_size" '
+            .tag_name == $tag
+            and .draft == false
+            and .prerelease == false
+            and .target_commitish == $head
+            and ([.assets[] | select(.name == $name and .size == $size)] | length == 1)
+          ' public-release.json >/dev/null
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          curl --fail --location --retry 0 \
+            "$release_base/$manifest_name" \
+            --output public-full-manifest.json
+          test "sha256:$(sha256sum public-full-manifest.json | awk '{print $1}')" = "$manifest_digest"
+          jq -e --arg name "$artifact_name" --arg sha "$artifact_digest" --argjson size "$artifact_size" '
+            .schema == "opl_public_release_manifest.v1"
+            and .package_kind == "opl_full_first_install_macos_arm64"
+            and .primary_install_asset == $name
+            and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
+          ' public-full-manifest.json >/dev/null
+          curl --fail --location --retry 0 \
+            "$release_base/opl-app-component-manifest.json" \
+            --output public-component-manifest.json
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest public-component-manifest.json \
+            --expected-tag "$tag" \
+            --release-prerelease false \
+            --expected-source-commit "$head_sha" \
+            > public-component-identity.json
+          component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
+          {
+            echo "eligible=true"
+            echo "tag=$tag"
+            echo "artifact_name=$artifact_name"
+            echo "artifact_digest=$artifact_digest"
+            echo "component_manifest_digest=$component_manifest_digest"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  admit-full-vm:
+    if: ${{ needs.resolve-full.outputs.eligible == 'true' }}
+    needs: [resolve-full]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.capability.outputs.eligible }}
+      reason_code: ${{ steps.capability.outputs.reason_code }}
+    steps:
+      - name: Inspect exact physical capability before queueing a self-hosted job
+        id: capability
+        env:
+          RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+          RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
+          TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_labels="${RUNNER_LABELS:-[\"self-hosted\",\"macOS\",\"opl-gui-vm\"]}"
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' <<< "$runner_labels" >/dev/null
+          if [ -z "$RUNNER_INVENTORY_TOKEN" ] || [ -z "$TART_SOURCE" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=not_authorized" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" \
+            > runner-pages.json
+          runner_count="$(RUNNER_LABELS="$runner_labels" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync('runner-pages.json', 'utf8'));
+          const required = JSON.parse(process.env.RUNNER_LABELS);
+          const runners = pages.flatMap((page) => Array.isArray(page.runners) ? page.runners : []);
+          const eligible = runners.filter((runner) => {
+            const labels = new Set((runner.labels || []).map((label) => label.name));
+            return runner.status === 'online' && runner.busy === false && required.every((label) => labels.has(label));
+          });
+          process.stdout.write(String(eligible.length));
+          NODE
+          )"
+          if [ "$runner_count" = 0 ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason_code=operator_deferred" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            echo "reason_code=" >> "$GITHUB_OUTPUT"
+          fi
+
+  certify-full-vm:
+    if: ${{ needs.admit-full-vm.outputs.eligible == 'true' }}
+    needs: [resolve-full, admit-full-vm]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_tag: ${{ needs.resolve-full.outputs.tag }}
+      published_artifact_name: ${{ needs.resolve-full.outputs.artifact_name }}
+      published_artifact_digest: ${{ needs.resolve-full.outputs.artifact_digest }}
+      artifact_app_ref: ${{ needs.resolve-full.outputs.app_sha }}
+      shell_ref: ${{ needs.resolve-full.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.resolve-full.outputs.shell_sha }}
+      framework_ref: ${{ needs.resolve-full.outputs.framework_sha }}
+      package_profile: full
+      diagnostic_scope: post_publication_optional_certification
+      require_macos_gatekeeper: true
+
+  write-full-receipt:
+    if: ${{ always() && needs.resolve-full.outputs.eligible == 'true' && needs.admit-full-vm.result == 'success' }}
+    needs: [resolve-full, admit-full-vm, certify-full-vm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Download exact Full VM evidence
+        if: ${{ needs.admit-full-vm.outputs.eligible == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: imported-full-vm-evidence
+
+      - name: Write exact Full VM certification receipt
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-full.outputs.tag }}
+          ARTIFACT_NAME: ${{ needs.resolve-full.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ needs.resolve-full.outputs.artifact_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-full.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-full.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-full.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-full.outputs.framework_sha }}
+          VM_ADMITTED: ${{ needs.admit-full-vm.outputs.eligible }}
+          VM_ADMISSION_REASON: ${{ needs.admit-full-vm.outputs.reason_code }}
+          VM_JOB_RESULT: ${{ needs.certify-full-vm.result }}
+          VM_STATUS: ${{ needs.certify-full-vm.outputs.post_publication_status }}
+          VM_REASON_CODE: ${{ needs.certify-full-vm.outputs.post_publication_reason_code }}
+          VM_ARTIFACT_VERIFIED: ${{ needs.certify-full-vm.outputs.published_artifact_verified }}
+          VM_JOB_STARTED: ${{ needs.certify-full-vm.outputs.post_publication_job_started }}
+          VM_EXECUTION_STARTED: ${{ needs.certify-full-vm.outputs.post_publication_execution_started }}
+          VM_CLASSIFICATION_VALID: ${{ needs.certify-full-vm.outputs.post_publication_classification_valid }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          full_status=''
+          full_reason=''
+          admission_status=not_started
+          admission_evidence=''
+          dispatched=false
+          evidence_files=()
+          require_unique_evidence() {
+            local root="$1"
+            local basename="$2"
+            local output_name="$3"
+            local matches=()
+            while IFS= read -r -d '' candidate; do matches+=("$candidate"); done < <(
+              find "$root" -type f -name "$basename" -print0
+            )
+            test "${#matches[@]}" -eq 1 || {
+              echo "::error::Expected exactly one $basename in $root; found ${#matches[@]}."
+              exit 1
+            }
+            test -s "${matches[0]}" && test ! -L "${matches[0]}" || {
+              echo "::error::Evidence must be one non-empty regular non-symlink file: ${matches[0]}"
+              exit 1
+            }
+            printf -v "$output_name" '%s' "${matches[0]}"
+          }
+          if [ "$VM_ADMITTED" != true ]; then
+            test "$VM_ADMITTED" = false || { echo "::error::Full VM admission must be true or false."; exit 1; }
+            test "$VM_JOB_RESULT" = skipped || {
+              echo "::error::A not-admitted Full VM must not have a non-skipped reusable job."
+              exit 1
+            }
+            case "$VM_ADMISSION_REASON" in
+              not_authorized|operator_deferred) ;;
+              *) echo "::error::A not-admitted Full VM requires an exact non-execution reason."; exit 1 ;;
+            esac
+            full_status=not_run
+            full_reason="$VM_ADMISSION_REASON"
+          else
+            test "$VM_ADMISSION_REASON" = '' || { echo "::error::An admitted Full VM must not carry an admission reason."; exit 1; }
+            test "$VM_CLASSIFICATION_VALID" = true || {
+              echo "::error::The admitted Full VM did not return one sealable terminal classification."
+              exit 1
+            }
+            test "$VM_ARTIFACT_VERIFIED" = true && test "$VM_JOB_STARTED" = true || {
+              echo "::error::Full certification cannot seal a receipt before exact public artifact verification and job start."
+              exit 1
+            }
+            dispatched=true
+            admission_status=passed
+            require_unique_evidence imported-full-vm-evidence published-artifact-identity.json artifact_identity
+            require_unique_evidence imported-full-vm-evidence post-publication-job-start.json job_start
+            require_unique_evidence imported-full-vm-evidence post-publication-capability-admission.json capability_admission
+            require_unique_evidence imported-full-vm-evidence tart-smoke-summary.json tart_summary
+            jq -e --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
+              --arg app_sha "$APP_SHA" --arg shell_sha "$SHELL_SHA" --arg framework_sha "$FRAMEWORK_SHA" '
+              type == "object"
+              and (keys == ["artifact","cohort","release_tag","schema","verified"])
+              and .schema == "opl_app_post_publication_artifact_identity.v1"
+              and .verified == true
+              and .release_tag == $tag
+              and (.artifact | keys == ["digest","name"])
+              and .artifact.name == $name
+              and .artifact.digest == $digest
+              and (.cohort | keys == ["app_sha","framework_sha","shell_sha"])
+              and .cohort.app_sha == $app_sha
+              and .cohort.shell_sha == $shell_sha
+              and .cohort.framework_sha == $framework_sha
+            ' "$artifact_identity" >/dev/null
+            jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_job_start.v1" and .started == true' "$job_start" >/dev/null
+            source_vm="$(jq -er 'select(type == "object" and (keys == ["reason_code","schema","source_vm","status"]) and .schema == "opl_app_optional_certification_vm_admission.v1") | .source_vm | select(type == "string" and length > 0)' "$capability_admission")"
+            jq -e --arg source_vm "$source_vm" '
+              type == "object"
+              and .surface_id == "opl_tart_gui_first_run_smoke"
+              and .source_vm == $source_vm
+              and .smoke_profile == "no-clt-clean-vm"
+              and .runtime_profile == "full"
+              and .framework_source_archive == null
+            ' "$tart_summary" >/dev/null
+            case "$VM_STATUS" in
+              passed)
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = success && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Full passed requires a successful reusable job and a started executor."
+                  exit 1
+                }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
+                require_unique_evidence imported-full-vm-evidence settings-smoke-summary.json settings_summary
+                require_unique_evidence imported-full-vm-evidence settings-runtime-refresh-verification.json settings_verification
+                require_unique_evidence imported-full-vm-evidence full-runtime-source-identity.json full_runtime_identity
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                jq -e '.surface_id == "opl_packaged_gui_settings_smoke" and .status == "passed"' "$settings_summary" >/dev/null
+                jq -e '.schema == "opl_settings_runtime_refresh_evidence_verification.v1" and .status == "passed"' "$settings_verification" >/dev/null
+                jq -e --arg framework_sha "$FRAMEWORK_SHA" '
+                  .schema == "opl_full_runtime_source_identity.v1"
+                  and .status == "passed"
+                  and .source == "packaged_app_resource"
+                  and .expected_framework_sha == $framework_sha
+                  and .observed_framework_sha == $framework_sha
+                  and .exact_match == true
+                ' "$full_runtime_identity" >/dev/null
+                full_status=passed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary" "$settings_summary" "$settings_verification" "$full_runtime_identity")
+                ;;
+              failed)
+                test "$VM_REASON_CODE" = '' && test "$VM_JOB_RESULT" = failure && test "$VM_EXECUTION_STARTED" = true || {
+                  echo "::error::Full failed requires a failed reusable job after execution started."
+                  exit 1
+                }
+                jq -e --arg source_vm "$source_vm" '.status == "passed" and .reason_code == null and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                jq -e '.status == "passed" or .status == "failed"' "$tart_summary" >/dev/null
+                require_unique_evidence imported-full-vm-evidence post-publication-execution-start.json execution_start
+                jq -e 'type == "object" and (keys == ["schema","started"]) and .schema == "opl_app_optional_certification_execution_start.v1" and .started == true' "$execution_start" >/dev/null
+                full_status=failed
+                admission_evidence="$capability_admission"
+                evidence_files=("$artifact_identity" "$job_start" "$capability_admission" "$execution_start" "$tart_summary")
+                settings_matches=()
+                while IFS= read -r -d '' candidate; do settings_matches+=("$candidate"); done < <(find imported-full-vm-evidence -type f -name settings-runtime-refresh-verification.json -print0)
+                test "${#settings_matches[@]}" -le 1 || { echo "::error::Full failed evidence contains duplicate Settings verification files."; exit 1; }
+                if [ "${#settings_matches[@]}" -eq 1 ]; then
+                  test -s "${settings_matches[0]}" && test ! -L "${settings_matches[0]}"
+                  evidence_files+=("${settings_matches[0]}")
+                fi
+                ;;
+              unavailable)
+                test "$VM_JOB_RESULT" = failure && test -n "$VM_REASON_CODE" || {
+                  echo "::error::Full unavailable requires a failed started job."
+                  exit 1
+                }
+                full_status=unavailable
+                full_reason="$VM_REASON_CODE"
+                admission_status=failed
+                case "$full_reason" in
+                  capability_admission_failed)
+                    test "$VM_EXECUTION_STARTED" != true || { echo "::error::Capability admission failure must precede execution start."; exit 1; }
+                    jq -e --arg source_vm "$source_vm" '.status == "failed" and .reason_code == "capability_admission_failed" and .source_vm == $source_vm' "$capability_admission" >/dev/null
+                    admission_evidence="$capability_admission"
+                    ;;
+                  vm_admission_failed)
+                    test "$VM_EXECUTION_STARTED" = true || { echo "::error::VM admission failure requires a started executor."; exit 1; }
+                    jq -e '.status == "failed" and (.failure_stage | IN("clone_vm","configure_display","start_vm","wait_for_ip","wait_for_ssh"))' "$tart_summary" >/dev/null
+                    admission_evidence="$tart_summary"
+                    ;;
+                  *) echo "::error::Full unavailable requires an exact child reason."; exit 1 ;;
+                esac
+                ;;
+              *)
+                echo "::error::Full certification returned an unsupported status."
+                exit 1
+                ;;
+            esac
+          fi
+          jq -n --arg run "$SOURCE_RUN_ID" --arg tag "$RELEASE_TAG" \
+            --arg status "$admission_status" --arg reason "$full_reason" --argjson dispatched "$dispatched" \
+            '{schema:"opl_app_optional_certification_dispatch_admission.v1",status:$status,reason_code:(if $reason == "" then null else $reason end),source_run_id:$run,release_tag:$tag,physical_job_dispatched:$dispatched}' \
+            > full-dispatch-admission.json
+          if [ "$full_status" = not_run ]; then
+            admission_evidence=full-dispatch-admission.json
+          fi
+          full_args=(
+            --release-tag "$RELEASE_TAG" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --artifact-digest "$ARTIFACT_DIGEST" \
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST" \
+            --app-sha "$APP_SHA" \
+            --shell-sha "$SHELL_SHA" \
+            --framework-sha "$FRAMEWORK_SHA" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --status "$full_status" \
+            --certification-kind clean_machine_install \
+            --platform macos \
+            --capability tart-full-clean-macos \
+            --admission-evidence-file "$admission_evidence"
+          )
+          case "$full_status" in
+            passed|failed)
+              full_args+=(--certification-run-id "$GITHUB_RUN_ID")
+              for evidence_file in "${evidence_files[@]}"; do full_args+=(--evidence-file "$evidence_file"); done
+              ;;
+            unavailable)
+              full_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$full_reason")
+              ;;
+            not_run)
+              full_args+=(--reason-code "$full_reason")
+              ;;
+          esac
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            "${full_args[@]}" \
+            --output full-dmg-clean-machine.json
+          mkdir -p full-receipt-evidence
+          cp "$admission_evidence" full-receipt-evidence/
+          for evidence_file in "${evidence_files[@]}"; do cp "$evidence_file" full-receipt-evidence/; done
+
+      - name: Upload non-blocking Full certification receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-post-publication-full-certification-${{ github.event.workflow_run.id }}
+          path: |
+            full-dmg-clean-machine.json
+            full-dispatch-admission.json
+            full-receipt-evidence
+          if-no-files-found: error
+          retention-days: 90

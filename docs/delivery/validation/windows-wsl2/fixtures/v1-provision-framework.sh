@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root=/opt/opl-validation/framework
-archive=/mnt/c/Users/oplrunner/OnePersonLab/staging/one-person-lab-fe1fafa26f2c59922596718b305761bbc7558c9c.tar.gz
-expected_archive_sha256=dc941070a4173d403f5da056e16d365e2b1afd144ca62d26cc80364c6729ec00
+archive=/mnt/c/Users/oplrunner/OnePersonLab/staging/one-person-lab-e260ad46e2cf73ea334d2453d901ee448248d9e0.tar.gz
+expected_archive_sha256=054c66c8675fee976ad066095c92138ab2f50adb11780b2c262a23067b764d1a
 expected_lock_sha256=de38ef719945e95fbf0802f741d4c9e73cd93be9285c667fb6b1bba8375016b3
 
 actual_archive_sha256="$(sha256sum "$archive" | awk '{print $1}')"
@@ -24,7 +24,7 @@ fi
 
 {
   printf 'observed_at=%s\n' "$(date --iso-8601=seconds)"
-  printf 'framework_ref=%s\n' fe1fafa26f2c59922596718b305761bbc7558c9c
+  printf 'framework_ref=%s\n' e260ad46e2cf73ea334d2453d901ee448248d9e0
   printf 'archive_sha256=%s\n' "$actual_archive_sha256"
   printf 'package_lock_sha256=%s\n' "$actual_lock_sha256"
   printf 'package_version=%s\n' "$(jq -r '.version' "$root/package.json")"

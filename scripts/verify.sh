@@ -16,11 +16,47 @@ Lanes:
   candidate-shell   Minimal fixed-role registry check; candidate detail remains explicit.
   structure         Active shell and App release-boundary static checks without release packaging.
   full              active-shell + release-boundary + role registry; candidate detail is not a default gate.
+  release-preflight Run every locally reproducible Stable release gate and seal nonlocal gaps.
 
-This wrapper intentionally does not build DMGs, publish releases, or run VM smoke
-tests. Use the explicit release:* and test:opl-first-run-vm:* commands for those
-release lanes.
+This wrapper intentionally does not publish releases or run VM smoke tests. Use
+the explicit release:* and test:opl-first-run-vm:* commands for those lanes.
 USAGE
+}
+
+write_preflight_summary() {
+  local summary_path="$1"
+  local status="$2"
+  node - "$summary_path" "$status" <<'NODE'
+const fs = require('node:fs');
+const [summaryPath, status] = process.argv.slice(2);
+const existing = fs.existsSync(summaryPath)
+  ? JSON.parse(fs.readFileSync(summaryPath, 'utf8'))
+  : {};
+const payload = {
+  schema: 'opl_app_local_release_preflight.v1',
+  status,
+  entrypoint: 'scripts/verify.sh release-preflight',
+  public_mutation_allowed: false,
+  local_checks: [
+    'actionlint',
+    'typecheck',
+    'active_shell',
+    'release_boundary',
+    'candidate_shell',
+    'standard_package_build',
+  ],
+  remote_only: [
+    'github_hosted_linux_windows_macos_matrix',
+    'protected_signing_and_notarization_credentials',
+    'public_mutation',
+    'owner_authoritative_remote_readback',
+  ],
+  optional_deferred: ['post_publication_clean_machine_certification'],
+  ...existing,
+  status,
+};
+fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`);
+NODE
 }
 
 run_lane() {
@@ -51,6 +87,21 @@ run_lane() {
       run_lane active-shell
       run_lane release-boundary
       run_lane candidate-shell
+      ;;
+    release-preflight)
+      OPL_PREFLIGHT_SUMMARY_PATH="${OPL_RELEASE_LOCAL_PREFLIGHT_SUMMARY:-artifacts/release-local-preflight.json}"
+      OPL_PREFLIGHT_FINAL_STATUS=failed
+      mkdir -p "$(dirname "$OPL_PREFLIGHT_SUMMARY_PATH")"
+      write_preflight_summary "$OPL_PREFLIGHT_SUMMARY_PATH" running
+      trap 'rc=$?; write_preflight_summary "$OPL_PREFLIGHT_SUMMARY_PATH" "$OPL_PREFLIGHT_FINAL_STATUS"; trap - EXIT; exit "$rc"' EXIT
+      npm run ensure:shell
+      actionlint -shellcheck= -pyflakes=
+      npm run typecheck
+      npm run validate:active-shell
+      npm run test:release-boundary
+      npm run validate:shell-candidates
+      npm run build-mac:arm64
+      OPL_PREFLIGHT_FINAL_STATUS=passed
       ;;
     -h|--help|help)
       usage
