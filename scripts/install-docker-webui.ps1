@@ -187,11 +187,15 @@ function Invoke-DiagnosticDockerCommand {
   )
 
   $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
-  $output = & $DockerCliPath @Arguments 2>&1 | Out-String
-  $exitCode = $LASTEXITCODE
-  $content = "`$ $display`n$output"
-  if ($exitCode -ne 0) {
-    $content += "`n[command exited with status $exitCode]`n"
+  $result = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
+    -Arguments $Arguments `
+    -TimeoutSeconds 120
+  $content = "`$ $display`n$($result.Output)"
+  if ($result.TimedOut) {
+    $content += "`n[command timed out after 120 seconds]`n"
+  } elseif ($result.ExitCode -ne 0) {
+    $content += "`n[command exited with status $($result.ExitCode)]`n"
   }
   Write-DiagnosticText -PathValue $OutputPath -Content $content
 }
@@ -914,8 +918,74 @@ try {
 }
 
 function Test-DockerReady {
-  & $dockerCliPath info --format "{{.ServerVersion}}" 2>$null | Out-Null
-  return $LASTEXITCODE -eq 0
+  $result = Invoke-DockerCommand -Arguments @("info", "--format", "{{.ServerVersion}}") -TimeoutSeconds 15
+  return $result.ExitCode -eq 0
+}
+
+function Convert-ToWindowsProcessArgument {
+  param([Parameter(Mandatory = $true)][string]$Value)
+
+  if ($Value -notmatch '[\s"]') {
+    return $Value
+  }
+  $quoted = New-Object System.Text.StringBuilder
+  [void]$quoted.Append('"')
+  $backslashCount = 0
+  foreach ($character in $Value.ToCharArray()) {
+    if ($character -eq '\') {
+      $backslashCount++
+      continue
+    }
+    if ($character -eq '"') {
+      [void]$quoted.Append([string]::new([char]92, ($backslashCount * 2) + 1))
+      [void]$quoted.Append('"')
+      $backslashCount = 0
+      continue
+    }
+    if ($backslashCount -gt 0) {
+      [void]$quoted.Append([string]::new([char]92, $backslashCount))
+      $backslashCount = 0
+    }
+    [void]$quoted.Append($character)
+  }
+  if ($backslashCount -gt 0) {
+    [void]$quoted.Append([string]::new([char]92, $backslashCount * 2))
+  }
+  [void]$quoted.Append('"')
+  return $quoted.ToString()
+}
+
+function Invoke-DockerCommand {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
+  $process = [System.Diagnostics.Process]::new()
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $dockerCliPath
+  $startInfo.Arguments = $argumentLine
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process.StartInfo = $startInfo
+  if (-not $process.Start()) {
+    return [pscustomobject]@{ ExitCode = 1; Output = "Docker process did not start."; TimedOut = $false }
+  }
+  $stdout = $process.StandardOutput.ReadToEndAsync()
+  $stderr = $process.StandardError.ReadToEndAsync()
+  if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+    try {
+      & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+    } catch {
+    }
+    return [pscustomobject]@{ ExitCode = 124; Output = "Docker command timed out after $TimeoutSeconds seconds."; TimedOut = $true }
+  }
+  $process.WaitForExit()
+  $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+  return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output.Trim(); TimedOut = $false }
 }
 
 function Start-OnePersonLabDocker {
@@ -972,9 +1042,9 @@ try {
 
   Start-OnePersonLabDocker
   Write-Host "[One Person Lab] Starting the WebUI container..."
-  $composeOutput = & $dockerCliPath compose -f $composePath up -d 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose failed: $composeOutput"
+  $composeResult = Invoke-DockerCommand -Arguments @("compose", "-f", $composePath, "up", "-d") -TimeoutSeconds 120
+  if ($composeResult.ExitCode -ne 0) {
+    throw "Docker Compose failed: $($composeResult.Output)"
   }
 
   Write-Host "[One Person Lab] Waiting for WebUI health..."
@@ -1602,6 +1672,65 @@ function Collect-WebUiDiagnostics {
   return $TargetDir
 }
 
+function Get-WebUiHealthTimeoutClassification {
+  param(
+    [Parameter(Mandatory = $true)][string]$TargetDir
+  )
+
+  # A health timeout is an external-input blocker only when the captured
+  # container/Docker evidence names a remote OPL dependency and records a
+  # network failure. Local crashes, bad data, and port issues stay local.
+  $evidencePaths = @(
+    "docker-compose-logs.txt",
+    "docker-image.txt",
+    "docker-compose-ps.txt"
+  ) | ForEach-Object {
+    Join-Path $TargetDir $_
+  } | Where-Object {
+    Test-Path -LiteralPath $_ -PathType Leaf
+  }
+  $evidence = ($evidencePaths | ForEach-Object {
+    Get-Content -LiteralPath $_ -Raw -ErrorAction SilentlyContinue
+  }) -join "`n"
+  $networkFailurePattern = "(?i)(?:timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)"
+  $networkErrorContextPattern = "(?i)(?:(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp)[^\r\n]*(?:dns|tls|ssl|certificate)|(?:dns|tls|ssl|certificate)[^\r\n]*(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp))"
+  $networkAdjacentFailurePattern = "(?i)(?:(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b)[^\r\n]{0,80}(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)|(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)[^\r\n]{0,80}(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b))"
+  $evidenceLines = @($evidence -split "`r?`n")
+  $remoteNetworkFailure = $false
+  for ($lineIndex = 0; $lineIndex -lt $evidenceLines.Count; $lineIndex++) {
+    $line = [string]$evidenceLines[$lineIndex]
+    if ($line -notmatch "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)") {
+      continue
+    }
+    if ($line -match $networkFailurePattern -or $line -match $networkErrorContextPattern) {
+      $remoteNetworkFailure = $true
+      break
+    }
+    foreach ($adjacentIndex in @($lineIndex - 1, $lineIndex + 1)) {
+      if ($adjacentIndex -lt 0 -or $adjacentIndex -ge $evidenceLines.Count) {
+        continue
+      }
+      if ([string]$evidenceLines[$adjacentIndex] -match $networkAdjacentFailurePattern) {
+        $remoteNetworkFailure = $true
+        break
+      }
+    }
+    if ($remoteNetworkFailure) {
+      break
+    }
+  }
+  if ($remoteNetworkFailure) {
+    return [pscustomobject]@{
+      Classification = "external_input_required"
+      Reason = "Captured Docker/container evidence names GitHub/GHCR and records a network failure."
+    }
+  }
+  return [pscustomobject]@{
+    Classification = "local_startup_failure"
+    Reason = "Captured evidence does not establish a GitHub/GHCR network blockage."
+  }
+}
+
 function Convert-ToEvidenceRelativePath {
   param(
     [Parameter(Mandatory = $true)][string]$EvidenceRoot,
@@ -1874,7 +2003,27 @@ function Wait-WebUiHealth {
     $failureDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-health-timeout-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
   }
   Collect-WebUiDiagnostics -DockerCliPath $DockerCliPath -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
-  throw "WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostic directory: $failureDir"
+  $classification = Get-WebUiHealthTimeoutClassification -TargetDir $failureDir
+  Write-DiagnosticText `
+    -PathValue (Join-Path $failureDir "health-timeout-classification.txt") `
+    -Content (@(
+      "classification=$($classification.Classification)",
+      "reason=$($classification.Reason)"
+    ) -join "`n")
+  if (-not [string]::IsNullOrWhiteSpace($DiagnosticsArchive) -and (Test-Path -LiteralPath $failureDir -PathType Container)) {
+    $archiveParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($DiagnosticsArchive))
+    if (-not [string]::IsNullOrWhiteSpace($archiveParent)) {
+      New-Item -ItemType Directory -Force -Path $archiveParent | Out-Null
+    }
+    if (Test-Path -LiteralPath $DiagnosticsArchive) {
+      Remove-Item -LiteralPath $DiagnosticsArchive -Force
+    }
+    Compress-Archive -Path (Join-Path $failureDir "*") -DestinationPath $DiagnosticsArchive -Force
+  }
+  if ($classification.Classification -eq "external_input_required") {
+    throw "external_input_required: WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostics establish a GitHub/GHCR network blockage; check Docker Desktop -> Settings -> Resources -> Proxies and rerun. Diagnostic directory: $failureDir"
+  }
+  throw "local_startup_failure: WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostics do not establish a GitHub/GHCR network blockage; inspect the local container, persisted data, port, and Docker logs. Diagnostic directory: $failureDir"
 }
 
 function Open-WebUiBrowser {

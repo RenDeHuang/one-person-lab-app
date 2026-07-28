@@ -648,7 +648,7 @@ jobs:
     secrets: inherit
 
   append-full:
-    if: ${{ needs.admission.outputs.operation == 'append_full' }}
+    if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}
     needs: [admission]
     permissions:
       contents: write
