@@ -107,15 +107,40 @@ test('Runtime keeps its Framework producer and is required for every adopted she
   );
 });
 
-test('dual GUI conversation continuity rejects shell-owned thread history', () => {
+test('dual GUI conversation continuity preserves Codex ownership of canonical thread history', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const invalid = structuredClone(runtimeBridge);
-  invalid.canonical_conversation_continuity_policy.shell_can_own_thread_history = true;
+  invalid.canonical_conversation_continuity_policy.codex_core_owns_canonical_thread_history = false;
 
   assert.throws(
     () => validateRuntimeBridgeContract(invalid, activeAdapter),
-    /shell_can_own_thread_history must be false/,
+    /codex_core_owns_canonical_thread_history must be true/,
+  );
+});
+
+test('ordinary OPL history excludes the canonical Codex directory', () => {
+  const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
+  const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
+  const policy = runtimeBridge.canonical_conversation_continuity_policy;
+
+  assert.equal(policy.ordinary_rail_authority, 'opl_conversation_store_only');
+  assert.equal(policy.opl_conversation_store_owns_ordinary_history, true);
+  assert.equal(policy.canonical_codex_scope, 'explicit_known_conversation_open_and_lifecycle_only');
+  assert.equal(policy.canonical_directory_enumeration_allowed_for_ordinary_rail, false);
+  assert.equal(policy.row_identity, 'opl_conversation_id');
+  assert.equal(
+    policy.directory_group_policy.legacy_missing_marker_policy,
+    'legacy_unknown_visible_unclassified_never_infer_from_workspace_cwd_canonical_cwd_git_origin_title_or_time',
+  );
+  assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
+
+  const invalid = structuredClone(runtimeBridge);
+  invalid.canonical_conversation_continuity_policy.canonical_directory_enumeration_allowed_for_ordinary_rail =
+    true;
+  assert.throws(
+    () => validateRuntimeBridgeContract(invalid, activeAdapter),
+    /canonical_directory_enumeration_allowed_for_ordinary_rail must be false/,
   );
 });
 

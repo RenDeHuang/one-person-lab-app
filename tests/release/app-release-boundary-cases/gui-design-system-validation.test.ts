@@ -682,13 +682,13 @@ test('GUI design-system validator rejects removal of projectless one-time projec
   );
 });
 
-test('GUI design-system validator rejects directory cascade delete and stale Codex cache authority', () => {
+test('GUI design-system validator rejects directory cascade delete and canonical directory injection', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
   threadDirectory.directory_group_policy.cascade_session_delete_allowed = true;
-  threadDirectory.stale_codex_acp_cache_row_policy = 'preserve_in_ordinary_projection';
+  threadDirectory.canonical_directory_enumeration_allowed_for_ordinary_rail = true;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(
@@ -773,13 +773,38 @@ test('GUI design-system validator rejects restored workspace-scoped project cont
   );
 });
 
-test('GUI design-system validator rejects a shell-owned ordinary rail thread history', () => {
+test('GUI design-system validator rejects loss of OPL ordinary history authority', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.navigation_rail.thread_directory_policy.shell_thread_history_authority = true;
+  contract.interaction_baseline.navigation_rail.thread_directory_policy.opl_conversation_store_owns_ordinary_history = false;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
+test('GUI design-system contract keeps ordinary history local and legacy affinity unknown', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const policy = contract.interaction_baseline.navigation_rail.thread_directory_policy;
+
+  assert.equal(policy.ordinary_rail_authority, 'opl_conversation_store_only');
+  assert.equal(policy.opl_conversation_store_owns_ordinary_history, true);
+  assert.equal(policy.canonical_codex_scope, 'explicit_known_conversation_open_and_lifecycle_only');
+  assert.equal(policy.canonical_directory_enumeration_allowed_for_ordinary_rail, false);
+  assert.equal(policy.row_identity, 'opl_conversation_id');
+  assert.equal(
+    policy.directory_group_policy.legacy_missing_marker_policy,
+    'legacy_unknown_visible_unclassified_never_infer_from_workspace_cwd_canonical_cwd_git_origin_title_or_time',
+  );
+  assert.doesNotThrow(() => validateGuiDesignSystem(root));
+
+  policy.canonical_directory_enumeration_allowed_for_ordinary_rail = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
     /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,

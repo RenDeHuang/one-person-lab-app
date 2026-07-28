@@ -767,22 +767,27 @@ test('active-shell source gate preserves explicit local file inputs independentl
   }
 });
 
-test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
+test('active-shell source gate isolates ordinary OPL history while preserving explicit canonical cwd lifecycle', () => {
   const canonicalProjectionMarkers = [
     'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: thread.workspace',
     'custom_workspace: hasCanonicalRecordedCwd',
   ];
+  const ordinaryHistoryMarkers = [
+    'export const buildOplConversationHistory',
+    "conversation.source !== 'codex-app-server'",
+    'ipcBridge.database.getUserConversations.invoke({ limit: 10000 })',
+  ];
   const focusedTestNames = [
-    'rebuilds a stale projectless cache row from the canonical recorded cwd',
-    'replaces stale bound shell affinity with the canonical recorded cwd',
+    'keeps the OPL rail local instead of injecting unrelated canonical Codex tasks',
+    'does not restore a materialized canonical subagent projection to ordinary OPL history',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
     'keeps canonical adoption successful when a stub projection cannot be materialized',
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
     'rejects malformed canonical cwd instead of treating it as projectless',
     'rejects a malformed cwd returned by canonical thread read',
   ];
-  const conversationListSync = canonicalProjectionMarkers.join('\n');
+  const conversationListSync = ordinaryHistoryMarkers.join('\n');
   const canonicalThreadLifecycle = canonicalProjectionMarkers.join('\n');
   const focusedTests = focusedTestNames.join('\n');
   const threadAdapter = [
@@ -804,16 +809,19 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
   for (const requiredMarker of canonicalProjectionMarkers) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
-        canonicalThreadLifecycle,
-        conversationListSync: conversationListSync.replace(requiredMarker, ''),
+        canonicalThreadLifecycle: canonicalThreadLifecycle.replace(requiredMarker, ''),
+        conversationListSync,
         focusedTests,
         threadAdapter,
       }),
     );
+  }
+
+  for (const requiredMarker of ordinaryHistoryMarkers) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
-        canonicalThreadLifecycle: canonicalThreadLifecycle.replace(requiredMarker, ''),
-        conversationListSync,
+        canonicalThreadLifecycle,
+        conversationListSync: conversationListSync.replace(requiredMarker, ''),
         focusedTests,
         threadAdapter,
       }),
@@ -828,16 +836,23 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
   ]) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
-        canonicalThreadLifecycle,
-        conversationListSync: `${conversationListSync}\n${cachedOverride}`,
+        canonicalThreadLifecycle: `${canonicalThreadLifecycle}\n${cachedOverride}`,
+        conversationListSync,
         focusedTests,
         threadAdapter,
       }),
     );
+  }
+
+  for (const canonicalDirectoryInjection of [
+    'mergeCanonicalThreadDirectory',
+    'ipcBridge.codexThreads.list.invoke',
+    'projectCanonicalCodexThread',
+  ]) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
-        canonicalThreadLifecycle: `${canonicalThreadLifecycle}\n${cachedOverride}`,
-        conversationListSync,
+        canonicalThreadLifecycle,
+        conversationListSync: `${conversationListSync}\n${canonicalDirectoryInjection}`,
         focusedTests,
         threadAdapter,
       }),
@@ -1148,7 +1163,7 @@ test('41301 GUI contract rejects persistent project context and legacy inspector
   }
 });
 
-test('session-first contracts reject directory ownership, stale cache authority, and workspace-gated local inputs', () => {
+test('session-first contracts reject directory ownership, canonical directory injection, and workspace-gated local inputs', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const validateGui = (contract: any) => validateAppGuiProductContract(
     contract,
@@ -1161,7 +1176,7 @@ test('session-first contracts reject directory ownership, stale cache authority,
       contract.interaction_baseline.navigation_rail.thread_directory_policy.directory_group_policy.cascade_session_delete_allowed = true;
     },
     (contract: any) => {
-      contract.interaction_baseline.navigation_rail.thread_directory_policy.stale_codex_acp_cache_row_policy = 'keep';
+      contract.interaction_baseline.navigation_rail.thread_directory_policy.canonical_directory_enumeration_allowed_for_ordinary_rail = true;
     },
     (contract: any) => {
       contract.interaction_baseline.navigation_rail.thread_directory_policy.title_based_deduplication_allowed = true;

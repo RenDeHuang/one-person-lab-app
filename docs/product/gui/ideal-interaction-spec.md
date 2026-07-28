@@ -22,7 +22,8 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 ## 产品原则
 
 1. **Chat first。** 用户打开 App 后直接开始或继续 conversation，不先阅读 dashboard。
-2. **Session first, context visible。** Canonical Codex thread 是 conversation 身份单位；当前
+2. **Session first, context visible。** OPL conversation 是普通产品面的身份单位；可选的 canonical
+   Codex thread ID 只作为该已知 conversation 的显式生命周期引用，不是普通历史目录的数据源。当前
    project/local/branch 与 conversation context 始终可理解。Project affinity 为零或一，用于新任务初始 cwd、
    projectless 一次性 adoption、recorded rail 分组和提示，不拥有 session，也不是权限域；没有 workspace
    时仍允许显式选择任意本地文件/目录。
@@ -36,8 +37,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    与 raw detail 可按需展开。
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
-8. **Thread operations stay native and thin。** 用户通过现有 directory/actions 执行 thread
-   list/read/start/resume/fork/archive；App Server 拥有 thread truth，Shell 只做一个薄 adapter。
+8. **Thread operations stay native and thin。** 用户只可针对一个已知 OPL conversation，通过现有
+   actions 显式执行 canonical thread open/read/resume/fork/archive/restore/rename/delete；App Server
+   拥有这些已调用 thread lifecycle 的 truth，Shell 只做一个薄 adapter，不枚举 global directory。
 
 没有明确 OPL delta 的主流程默认采用 OPL contracts 对
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
@@ -48,7 +50,7 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 宽桌面首次进入 ordinary Home 或 conversation 时：
 
-- 左侧目录/对话 rail 默认可见，展示由 App Server canonical overview 投影的 threads；
+- 左侧目录/对话 rail 默认可见，只展示 OPL conversation store 中的普通 conversations；
   project/workspace/directory 只用于新 session 初始 cwd、projectless session 一次性 adoption 和 Project-affinity 分组，
   不拥有 session、context 或 artifact。一个 session 的 Project affinity 最多一个。
   命令或 turn 的实际 `pwd` 可变化，但不反写 affinity 或分组。
@@ -69,7 +71,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 ## 核心用户流程
 
-1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务通过
+1. **进入工作上下文。** App 从 OPL conversation store 恢复最近 conversation；只有该已知
+   conversation 已持久化 canonical thread ID 且用户显式打开或恢复时，才调用对应 App Server lifecycle。新任务通过
    composer 上方独立 context bar 选择初始 cwd，也可不选目录直接开始 projectless conversation。Projectless 表示没有
    用户选择的 Project affinity，不表示底层没有 runtime cwd。未选时不显示“不使用项目”占位行；用户可稍后
    把 projectless session 一次性归入一个目录组，保留同一 thread 和 history。命令或 turn 的实际 `pwd` 可按
@@ -100,15 +103,13 @@ Rail 负责 navigation，不承担 dashboard：
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按显式 Project-affinity marker 分组 App Server threads，并以 canonical thread ID join。App Server overview
-  可用时是 Codex session directory authority；carrier 只持有 affinity、draft、preference 和可重建 cache，不拥有 history。
-  Git origin URL 与 turn/command runtime `pwd` 只进入 Environment，不作为 Project identity；缺 marker 但已有
-  canonical recorded cwd 的 legacy thread 按该 cwd 水合为 bound，不发起 cwd update，也不按 Git origin 合并。
-  已带 canonical thread ID、但 canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary
-  projection；仅 overview unavailable 时 fallback cache，非 Codex local row 保留。升级前创建且没有
-  `canonical_thread_id` / `acp_session_id` join key 的 legacy Codex conversation 不能被 overview 证明为
-  stale，必须继续作为 legacy local conversation 可见，不得按标题、workspace 或时间启发式迁移或删除。
-  每个 canonical thread ID 最多一行，不按标题或 workspace 去重。
+- 中段只读取 OPL conversation store，并按 OPL 持久化的权威 Project-affinity/workspace metadata
+  分组。普通 rail 禁止调用、枚举、合并或通过 fallback 注入 Codex App Server canonical/global
+  thread directory；canonical thread ID 即使存在，也只作为该 OPL conversation 的显式生命周期引用。
+- Project affinity 及 temporary/explicit workspace 分类只接受 OPL 持久化的权威 metadata。
+  Legacy conversation 缺少这些 metadata 时必须继续可见，并标记为 `legacy_unknown` 或未归类；
+  不得根据非空 workspace/cwd、canonical recorded cwd、Git origin、标题或时间猜测、迁移、合并、
+  隐藏或删除。
 - Projectless conversation 继续可用，但不伪造 project/context 层级，也不禁用 attachment、
   任意本地 file/directory picker、paste/drop 或 `/open`。这些访问只服从 Codex
   permission/approval/sandbox。
@@ -120,41 +121,45 @@ Rail 负责 navigation，不承担 dashboard：
   target。Settings、新对话和 ordinary composer send 都不得显示或执行 `agent_package_activate`，也不得
   用 session cwd 或全局 workspace root 构造 activation payload。真正的 scope activation 只由 Framework
   在真实 StageRun/StageAttempt 启动前按该 stage 的 `workspace_locator` 执行。
-- 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
-  直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
-  Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
+- 支持 search、pin、rename、archive、restore、delete、reset。只有已知 OPL conversation 持有
+  canonical thread ID 且用户显式触发生命周期动作时，rename/archive/restore/delete 才可分别映射
+  `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是 Shell UI
+  metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
 - 底部固定 account、help、Settings。
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
 - New-session context bar 的工作目录动作明确说明只设置新 session 的初始工作目录；runtime `pwd` 不反写 App metadata。
 - 目录组提供“使用此工作目录新建对话”和 projectless session adoption。Adoption 支持拖动及键盘可达的等价动作，
-  仅 `custom_workspace=false` 或无 canonical recorded cwd 的 thread eligible。Destination 是用户选择的唯一 canonical
-  Project directory，不要求覆盖 thread 曾引用的文件或目录；这些显式输入与 writable roots 仍是独立上下文/权限。
-  Carrier 通过现有 `thread/settings/update.cwd` 写 canonical recorded cwd，并以 `thread/read` exact readback 验证；只有
-  readback 匹配才持久化本地 `workspace + custom_workspace=true` projection 并移动 row。任一步失败都保持 projectless、
-  显示轻提示且不阻止对话。已有 recorded cwd 的 session 不执行更新。目录组无 owner 语义，不提供组级删除，也不得级联
-  archive/delete/reset 其下 session。
+  仅 OPL 权威 metadata 明确标记为 temporary/projectless 的 conversation eligible。Destination 是用户选择的唯一
+  Project directory，不要求覆盖 conversation 曾引用的文件或目录；这些显式输入与 writable roots 仍是独立上下文/权限。
+  Adoption 成功后原子持久化 OPL `workspace_affinity=explicit`、`is_temporary_workspace=false`
+  与所选 workspace，再移动 row；任一步失败都保持原 OPL metadata、显示轻提示且不阻止对话。
+  `legacy_unknown` conversation 保持可见和未归类，不以任何 cwd 推断 eligibility 或自动 adoption。
+  目录组无 owner 语义，不提供组级删除，也不得级联 archive/delete/reset 其下 session。
 - Home 的 New task 只通过 composer 上方独立 context bar 选择初始 cwd；Local/Worktree、starting branch
   仅在 active adapter 有真实 new-session action 时显示，不提供 managed Worktree create/reuse 的假入口。
 - Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供已绑定 session 的目录
   重绑、Local↔Worktree lifecycle、projection transaction 或任意 rail 重分组。Projectless adoption 只走上述
-  单向、用户触发、affinity-assignment-backed 的 rail 动作；不能从 thread/runtime cwd 是否存在推断 projectless。
+  单向、用户触发、OPL-authoritative metadata assignment 的 rail 动作；不能从 workspace/cwd、
+  canonical cwd、Git origin、标题或时间推断 projectless。
 - App 不保存 `opl_workspace_handoff.v1`，不发明私有 App Server adoption RPC，也不提供 managed Worktree、cleanup、
-  snapshot receipt、restore 或 cross-host handoff 控制面。Projectless adoption 只执行一次公开
-  `thread/settings/update.cwd -> thread/read`，不创建第二套 thread client、pending 状态机或 receipt，不修改 sandbox
+  snapshot receipt、restore 或 cross-host handoff 控制面。Projectless adoption 只更新 OPL conversation store
+  的权威 workspace metadata，不创建第二套 thread client、pending 状态机或 receipt，不修改 sandbox
   writable roots，也不授权 `bound(A) -> bound(B)`。用户或执行器为某一 turn 覆盖 cwd、在 shell 中改变 `pwd`，均不反写
-  canonical recorded cwd 或 Project affinity。
+  OPL Project affinity。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
 
 ### 用户触发的线程操作
 
-- 主界面不提供独立“线程协调”页面或 rail 区块。Project 下的 conversation rows 是 App
-  Server thread 的可见入口，目录分组不改变身份或授权。
-- 读取采用 metadata first；list/read/start/resume/fork/archive/restore 复用一个 App Server
-  adapter并保持键盘可达。普通 conversation 发送继续走 AionUI 现有 ACP。
+- 主界面不提供独立“线程协调”页面或 rail 区块。Conversation rows 来自 OPL conversation
+  store，目录分组不改变身份或授权；canonical thread ID 不是普通历史数据源。
+- 只有用户针对一个已知 OPL conversation 显式执行 open/read/resume/fork/archive/restore/rename/delete
+  时，才复用一个 App Server adapter，并保持键盘可达。Adapter 不调用 `thread/list` 枚举
+  canonical/global directory，也不向 ordinary rail 合并或 fallback 注入其结果。普通 conversation
+  发送继续走 AionUI 现有 ACP。
 - Shell 不维护第二 JSON-RPC client、JSONL audit/idempotency ledger、write-set advisory、model
   delivery、dynamic thread tools、pending-request control plane 或 cross-host handoff。
 
@@ -414,8 +419,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
   不执行 activation；Framework 仅在真实 StageRun/StageAttempt 前按该 stage 的 `workspace_locator` 激活。
 - Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
-- Projectless session 可一次性归入一个 canonical directory group；已绑定 session 不任意换组，runtime `pwd`
-  和额外 writable roots 不改变 Project affinity。
+- OPL metadata 明确为 temporary/projectless 的 session 可一次性归入一个目录组；已绑定 session
+  不任意换组，runtime `pwd` 和额外 writable roots 不改变 Project affinity。Legacy session 缺少
+  权威 metadata 时保持可见并标记 `legacy_unknown`/未归类，不按任何路径或文本线索猜测。
 - Composer 只有 textarea、send-local controls 和 bottom action row；Home/new-session context bar 是
   composer stack 的独立上层，purpose 不再常驻可变 selector，既有 conversation 不重复 project/local/branch。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
@@ -428,11 +434,13 @@ First-run 的目标是让用户尽快进入可工作的 App：
   选择在 Home，管理在 Settings，Native/default-release 的 Runtime gate 仍保持可选。
 - Environment 首层保持 recorded workspace/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
-- 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
-  list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
-- Home New task 只用 composer 上方独立 context bar 设置初始 cwd；projectless adoption 从 rail 触发，经
-  `thread/settings/update.cwd` 与 exact `thread/read` 成功后持久化本地 projection，后续 conversation
-  以 canonical recorded cwd 作为默认 workspace hint。Conversation Environment 保持只读，Shell 不含 managed Worktree/Handoff 或已绑定 session
+- 普通 navigation 不展示独立 coordination 页面；ordinary rail 只读取 OPL conversation store。
+  用户仅可针对已知 OPL conversation 从现有 actions 显式执行 canonical
+  open/read/resume/fork/archive/restore/rename/delete，普通 conversation 仍走现有 ACP。
+- Home New task 只用 composer 上方独立 context bar 设置初始 cwd；projectless adoption 从 rail 触发，
+  成功后原子持久化 OPL 权威 workspace metadata。Legacy conversation 缺 metadata 时保持
+  `legacy_unknown`/未归类，不根据 workspace/cwd、canonical cwd、Git origin、标题或时间推断。
+  Conversation Environment 保持只读，Shell 不含 managed Worktree/Handoff 或已绑定 session
   的任意目录重绑。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
   sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入

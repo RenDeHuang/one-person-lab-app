@@ -191,22 +191,23 @@ function validateHomeLayout(guiContract) {
 function validateSessionDirectoryPolicy(guiContract) {
   const policy = guiContract.interaction_baseline?.navigation_rail?.thread_directory_policy;
   if (
-    policy?.canonical_authority !== 'codex_app_server_thread_list_read_resume' ||
-    policy.codex_session_directory_authority !== 'canonical_app_server_thread_overview_when_available' ||
-    policy.canonical_overview_unavailable_policy !==
-      'fallback_to_shell_cache_without_reclassifying_cache_as_authority' ||
-    policy.stale_codex_acp_cache_row_policy !==
-      'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
-    policy.non_codex_local_row_policy !== 'preserve' ||
-    policy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
-    policy.shell_thread_history_authority !== false ||
+    policy?.ordinary_rail_authority !== 'opl_conversation_store_only' ||
+    policy.canonical_codex_scope !== 'explicit_known_conversation_open_and_lifecycle_only' ||
+    policy.canonical_directory_enumeration_allowed_for_ordinary_rail !== false ||
+    policy.codex_app_server_row_injection_policy !== 'forbidden' ||
+    policy.ordinary_row_source_policy !==
+      'opl_conversation_store_rows_excluding_codex_app_server_source' ||
+    policy.shell_local_storage_role !==
+      'authoritative_opl_conversation_store_for_ordinary_history_and_ui_metadata' ||
+    policy.codex_core_owns_canonical_thread_history !== true ||
+    policy.opl_conversation_store_owns_ordinary_history !== true ||
     policy.workspace_directory_role !==
       'new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only' ||
-    policy.row_identity !== 'canonical_thread_id' ||
-    policy.duplicate_row_per_canonical_thread_allowed !== false ||
+    policy.row_identity !== 'opl_conversation_id' ||
+    policy.duplicate_row_per_opl_conversation_allowed !== false ||
     policy.title_based_deduplication_allowed !== false
   ) {
-    throw new Error('App GUI thread directory must prefer canonical App Server sessions and use Shell rows as cache only');
+    throw new Error('App GUI ordinary history must use only the OPL conversation store');
   }
   assertDeepEqualJson(
     policy.directory_group_policy,

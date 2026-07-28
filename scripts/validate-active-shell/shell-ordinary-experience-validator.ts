@@ -42,30 +42,39 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   focusedTests: string;
   threadAdapter: string;
 }): void {
-  for (const [label, source] of [
-    ['canonical thread lifecycle', canonicalThreadLifecycle],
-    ['canonical directory merge', conversationListSync],
-  ] as const) {
-    assertTextIncludesAll(
-      source,
-      [
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
-        'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalRecordedCwd',
-      ],
-      `Active shell ${label} cwd projection`,
-    );
-    assertTextExcludesAll(
-      source,
-      [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
-        'cached?.extra.custom_workspace === true',
-        'workspace: projectAffinityWorkspace',
-        'custom_workspace: customWorkspace',
-      ],
-      `Active shell ${label} cache authority boundary`,
-    );
-  }
+  assertTextIncludesAll(
+    canonicalThreadLifecycle,
+    [
+      'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+      'workspace: thread.workspace',
+      'custom_workspace: hasCanonicalRecordedCwd',
+    ],
+    'Active shell explicit canonical thread lifecycle cwd projection',
+  );
+  assertTextExcludesAll(
+    canonicalThreadLifecycle,
+    [
+      'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+      'cached?.extra.custom_workspace === true',
+      'workspace: projectAffinityWorkspace',
+      'custom_workspace: customWorkspace',
+    ],
+    'Active shell explicit canonical thread lifecycle cache authority boundary',
+  );
+  assertTextIncludesAll(
+    conversationListSync,
+    [
+      'export const buildOplConversationHistory',
+      "conversation.source !== 'codex-app-server'",
+      'ipcBridge.database.getUserConversations.invoke({ limit: 10000 })',
+    ],
+    'Active shell OPL conversation-store ordinary history boundary',
+  );
+  assertTextExcludesAll(
+    conversationListSync,
+    ['mergeCanonicalThreadDirectory', 'ipcBridge.codexThreads.list.invoke', 'projectCanonicalCodexThread'],
+    'Active shell ordinary history canonical-directory exclusion',
+  );
   assertTextIncludesAll(
     threadAdapter,
     [
@@ -84,8 +93,8 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
-      'rebuilds a stale projectless cache row from the canonical recorded cwd',
-      'replaces stale bound shell affinity with the canonical recorded cwd',
+      'keeps the OPL rail local instead of injecting unrelated canonical Codex tasks',
+      'does not restore a materialized canonical subagent projection to ordinary OPL history',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -1364,29 +1373,35 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     'Active shell explicit current-session input regression',
   );
 
-  assertShellTextIncludesAll(
+  const ordinaryHistorySync = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
     [
-      'export const mergeCanonicalThreadDirectory',
-      'if (!directory) return localConversations',
-      'const returnedThreadIds = new Set(directory.threads.map((thread) => thread.id))',
-      'const threadId = canonicalCodexThreadId(conversation)',
-      "return conversation.type !== 'acp' || conversation.extra.backend !== 'codex'",
-      '...directory.threads.map((thread) => projectCanonicalCodexThread(thread, cachedByThreadId.get(thread.id)))',
+      'export const buildOplConversationHistory',
+      "conversation.source !== 'codex-app-server'",
+      'ipcBridge.database.getUserConversations.invoke({ limit: 10000 })',
+      'conversationsState = buildOplConversationHistory(filteredData)',
     ],
-    'Active shell canonical App Server session directory projection',
+    'Active shell OPL conversation-store ordinary history projection',
+  );
+  assertTextExcludesAll(
+    ordinaryHistorySync,
+    [
+      'mergeCanonicalThreadDirectory',
+      'ipcBridge.codexThreads.list.invoke',
+      'projectCanonicalCodexThread',
+      'canonicalCodexThreadId',
+    ],
+    'Active shell ordinary history canonical-directory isolation',
   );
   assertShellTextIncludesAll(
     shellPaths,
     'tests/unit/conversation/runtime/conversationListSyncGuard.test.ts',
     [
-      'drops unmatched stale Codex cache rows when the complete App Server overview is available',
-      'retains unmatched non-Codex local rows without title or workspace deduplication',
-      'deduplicates local canonical rows only when the App Server returns',
-      'falls back to shell cache when the canonical directory is unavailable',
+      'keeps the OPL rail local instead of injecting unrelated canonical Codex tasks',
+      'does not restore a materialized canonical subagent projection to ordinary OPL history',
     ],
-    'Active shell canonical session directory regressions',
+    'Active shell OPL conversation-store history regressions',
   );
 
   const threadAdapter = assertShellTextIncludesAll(
@@ -1503,7 +1518,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     projectAffinityTests,
     [
       'keeps directories distinct even when threads share one Git origin',
-      'hydrates a legacy missing affinity marker from the canonical recorded cwd',
+      'keeps the OPL rail local instead of injecting unrelated canonical Codex tasks',
       'adopts an explicitly projectless canonical conversation without a cached workspace',
       'updates the App Server cwd before committing the local affinity projection',
       'keeps the conversation projectless when canonical cwd readback does not match',

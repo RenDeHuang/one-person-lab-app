@@ -431,8 +431,8 @@
     "implementation_status": "candidate_launcher_only_active_shell_parity_not_proven"
   },
   "canonical_conversation_continuity_policy": {
-    "state": "target_with_current_shell_deviations",
-    "thread_truth_owner": "codex_core_app_server",
+    "state": "active_aionui_history_boundary",
+    "thread_truth_owner": "codex_core_app_server_for_canonical_execution_threads",
     "canonical_identity": "host_identity_plus_opaque_app_server_thread_id",
     "required_operations": [
       "thread/list",
@@ -444,18 +444,19 @@
       "thread/unarchive",
       "thread/delete"
     ],
-    "ordinary_rail_authority": "codex_app_server_thread_list_read_resume",
-    "shell_local_storage_role": "ui_preferences_drafts_and_rebuildable_cache_only",
-    "shell_can_own_thread_history": false,
-    "codex_session_directory_authority": "canonical_app_server_thread_overview_when_available",
-    "canonical_overview_unavailable_policy": "fallback_to_shell_cache_without_reclassifying_cache_as_authority",
-    "stale_codex_acp_cache_row_policy": "exclude_from_ordinary_projection_when_absent_from_available_canonical_overview",
-    "non_codex_local_row_policy": "preserve",
+    "ordinary_rail_authority": "opl_conversation_store_only",
+    "shell_local_storage_role": "authoritative_opl_conversation_store_for_ordinary_history_and_ui_metadata",
+    "codex_core_owns_canonical_thread_history": true,
+    "opl_conversation_store_owns_ordinary_history": true,
+    "canonical_codex_scope": "explicit_known_conversation_open_and_lifecycle_only",
+    "canonical_directory_enumeration_allowed_for_ordinary_rail": false,
+    "codex_app_server_row_injection_policy": "forbidden",
+    "ordinary_row_source_policy": "opl_conversation_store_rows_excluding_codex_app_server_source",
     "direct_cross_shell_private_store_access_allowed": false,
     "duplicate_thread_store_allowed": false,
     "simultaneous_same_thread_write_safety_claimed": false,
-    "active_aionui_status": "shell_local_conversation_repository_requires_canonical_projection",
-    "opl_native_workbench_status": "resume_capable_full_local_transcript_cache_requires_canonical_thread_directory",
+    "active_aionui_status": "ordinary_history_isolated_to_opl_conversation_store",
+    "opl_native_workbench_status": "must_preserve_the_same_history_boundary_before_adoption",
     "archive_restore_operations": ["thread/archive", "thread/unarchive"],
     "task_action_protocols": {
       "rename": "thread/name/set",
@@ -466,12 +467,12 @@
     "pin_role": "shell_ui_metadata_only",
     "local_reset_role": "retain_existing_aionui_conversation_semantics_not_app_server_history_reset",
     "workspace_directory_role": "new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only_not_authorization_domain",
-    "row_identity": "canonical_thread_id",
-    "duplicate_row_per_canonical_thread_allowed": false,
+    "row_identity": "opl_conversation_id",
+    "duplicate_row_per_opl_conversation_allowed": false,
     "title_based_deduplication_allowed": false,
     "e2e_fixture_storage_policy": "isolated_storage_root_never_production_user_data",
     "directory_group_policy": {
-      "source": "explicit_project_affinity_projection_joined_by_canonical_thread_id",
+      "source": "explicit_opl_workspace_affinity_metadata",
       "role": "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
       "owns_sessions": false,
       "owns_context": false,
@@ -479,12 +480,12 @@
       "group_delete_action_allowed": false,
       "cascade_session_delete_allowed": false,
       "new_session_action_language": "use_this_working_directory_not_create_project_child",
-      "project_directory_cardinality": "one_project_affinity_one_canonical_directory",
-      "legacy_missing_marker_policy": "existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update",
+      "project_directory_cardinality": "one_explicit_project_affinity_one_directory_group",
+      "legacy_missing_marker_policy": "legacy_unknown_visible_unclassified_never_infer_from_workspace_cwd_canonical_cwd_git_origin_title_or_time",
       "git_origin_url_project_identity_allowed": false,
       "turn_cwd_reclassifies_bound_session": false,
       "project_adoption_policy": {
-        "eligible_state": "custom_workspace_equals_false_or_canonical_recorded_cwd_absent",
+        "eligible_state": "authoritative_workspace_affinity_is_temporary_or_none",
         "triggers": ["drag_to_directory_group", "keyboard_move_to_project_action"],
         "destination_policy": "one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots",
         "result": "persist_selected_directory_as_the_canonical_recorded_cwd_preserving_thread_id_and_history",
@@ -502,8 +503,8 @@
         "private_pending_deferred_revision_state_allowed": false
       }
     },
-    "acceptance": "both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity",
-    "implementation_status": "projectless_adoption_contract_target_source_missing_other_continuity_not_proven_across_both_shells"
+    "acceptance": "ordinary_rail_lists_only_opl_conversation_store_and_known_canonical_refs_remain_explicit_lifecycle_only",
+    "implementation_status": "active_aionui_history_boundary_implemented_native_continuity_not_proven"
   },
   "codex_review_surface_policy": {
     "state": "source_partial_last_turn_and_custom_target_instructions_implemented_review_focus_and_inline_comments_protocol_blocked",

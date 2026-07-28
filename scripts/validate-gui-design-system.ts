@@ -1329,7 +1329,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     desktopAffordancePolicy.previous_next_scope !== 'visible_ordinary_conversations' ||
     desktopAffordancePolicy.new_window_scope !== 'desktop_only' ||
     desktopAffordancePolicy.webui_information_architecture_expansion_allowed !== false ||
-    threadDirectoryPolicy.canonical_authority !== 'codex_app_server_thread_list_read_resume' ||
+    threadDirectoryPolicy.ordinary_rail_authority !== 'opl_conversation_store_only' ||
+    threadDirectoryPolicy.canonical_codex_scope !==
+      'explicit_known_conversation_open_and_lifecycle_only' ||
     !sameStrings(threadDirectoryPolicy.protocols, [
       'thread/list',
       'thread/read',
@@ -1350,19 +1352,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadDirectoryPolicy.pin_role !== 'shell_ui_metadata_only' ||
     threadDirectoryPolicy.local_reset_role !==
       'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
-    threadDirectoryPolicy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
-    threadDirectoryPolicy.shell_thread_history_authority !== false ||
-    threadDirectoryPolicy.codex_session_directory_authority !==
-      'canonical_app_server_thread_overview_when_available' ||
-    threadDirectoryPolicy.canonical_overview_unavailable_policy !==
-      'fallback_to_shell_cache_without_reclassifying_cache_as_authority' ||
-    threadDirectoryPolicy.stale_codex_acp_cache_row_policy !==
-      'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
-    threadDirectoryPolicy.non_codex_local_row_policy !== 'preserve' ||
+    threadDirectoryPolicy.shell_local_storage_role !==
+      'authoritative_opl_conversation_store_for_ordinary_history_and_ui_metadata' ||
+    threadDirectoryPolicy.codex_core_owns_canonical_thread_history !== true ||
+    threadDirectoryPolicy.opl_conversation_store_owns_ordinary_history !== true ||
+    threadDirectoryPolicy.canonical_directory_enumeration_allowed_for_ordinary_rail !== false ||
+    threadDirectoryPolicy.codex_app_server_row_injection_policy !== 'forbidden' ||
+    threadDirectoryPolicy.ordinary_row_source_policy !==
+      'opl_conversation_store_rows_excluding_codex_app_server_source' ||
     threadDirectoryPolicy.workspace_directory_role !==
       'new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only' ||
-    threadDirectoryPolicy.row_identity !== 'canonical_thread_id' ||
-    threadDirectoryPolicy.duplicate_row_per_canonical_thread_allowed !== false ||
+    threadDirectoryPolicy.row_identity !== 'opl_conversation_id' ||
+    threadDirectoryPolicy.duplicate_row_per_opl_conversation_allowed !== false ||
     threadDirectoryPolicy.title_based_deduplication_allowed !== false ||
     threadDirectoryPolicy.e2e_fixture_storage_policy !== 'isolated_storage_root_never_production_user_data' ||
     JSON.stringify(threadDirectoryPolicy.directory_group_policy) !== JSON.stringify(appOwnedDirectoryGroupPolicy) ||

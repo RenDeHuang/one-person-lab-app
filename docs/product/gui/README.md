@@ -87,12 +87,14 @@ Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文�
 真实发现的 installed Agent Package、Skill、Tool、Plugin、MCP、mode 与连接；App 不维护
 capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
-也不允许已绑定 session 在 Project 之间任意重分组。只有 `custom_workspace=false` 或无 canonical recorded cwd 的
-projectless session 可执行一次 Project adoption：用户选择唯一 canonical Project directory 后，Shell 通过既有
-`thread/settings/update.cwd` 写入该 thread 的 recorded cwd，再以 `thread/read` exact readback 验证。只有 readback
-匹配时才提交本地 `workspace + custom_workspace=true` projection 并移动 rail row；已有 recorded cwd 时禁止改绑。
-App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加私有 adoption RPC 或第二 client。
-它不从 turn/command `pwd` 推断绑定、要求 Project 覆盖显式输入、修改 writable roots，或创建 pending/receipt/Handoff 层。
+也不允许已绑定 session 在 Project 之间任意重分组。Ordinary rail 只读取 OPL conversation store，
+不能调用、枚举、合并或通过 fallback 注入 Codex App Server canonical/global directory。
+Project affinity 与 temporary/explicit 分类只接受 OPL 持久化的权威 metadata；只有明确标记为
+temporary/projectless 的 session 可执行一次 Project adoption，并在成功后原子持久化
+`workspace_affinity=explicit`、`is_temporary_workspace=false` 与所选 workspace。Legacy session
+缺少权威 metadata 时保持可见并标记 `legacy_unknown`/未归类，不按 workspace/cwd、canonical cwd、
+Git origin、标题或时间猜测。Canonical thread ID 只用于已知 OPL conversation 的显式 lifecycle；
+OPL 不增加私有 adoption RPC 或第二 client，也不修改 writable roots 或创建 pending/receipt/Handoff 层。
 工作目录 picker 缺失或不可用时，projectless new task、输入、显式
 send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 owner-projected action 的
 `required_payload_fields` 明确要求 Workspace 或 managed target 时，才对该 Agent launch 做局部校验。
@@ -160,7 +162,9 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `shell_implementation_conformance=docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `gui_shell_authority: implementation_only`
 - `ideal_target.workspace_session_rail_default_visible=true`
-- `ideal_target.ordinary_rail_thread_authority=codex_app_server_thread_list_read_resume`
+- `ideal_target.ordinary_rail_history_authority=opl_conversation_store_only`
+- `ideal_target.canonical_codex_scope=known_opl_conversation_explicit_open_read_resume_fork_archive_restore_rename_delete_only`
+- `ideal_target.legacy_workspace_affinity=legacy_unknown_without_authoritative_metadata`
 - `ideal_target.workspace_directory_owner=false`
 - `ideal_target.explicit_session_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
 - `ideal_target.workspace_selection=new_session_initial_cwd_only`
@@ -205,17 +209,17 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Active AionUI Rail 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 的 Native phase-1/default-release gate 仍保持可选。主体按 canonical thread ID 关联的显式
-  Project affinity 分组 App Server threads，底部承载 account/help/Settings；App Server canonical overview 可用时是 Codex
-  session directory authority，carrier 只保存 affinity、draft、preference 和可重建 cache。Git origin 与 runtime cwd 不作为
-  Project identity。Rename/archive/restore/delete 分别映射 `thread/name/set`、
-  `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
-  App Server history reset。Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary rail；
-  只有 overview unavailable 时才 fallback cache，非 Codex local row 继续保留。每个 canonical thread ID
-  最多一行，不能按标题或 workspace 去重。
+- Active AionUI Rail 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 的 Native
+  phase-1/default-release gate 仍保持可选。主体只读取 OPL conversation store，并按 OPL 持久化的
+  权威 Project-affinity metadata 分组，底部承载 account/help/Settings。普通 rail 不调用、枚举、
+  合并或通过 fallback 注入 Codex App Server canonical/global directory。Canonical thread ID 只作为
+  已知 OPL conversation 的显式 lifecycle 引用，不是 ordinary history 数据源。Legacy conversation
+  缺少 affinity/temporary metadata 时继续可见并标记 `legacy_unknown`/未归类，不按 workspace/cwd、
+  canonical cwd、Git origin、标题或时间猜测。Pin 是 Shell UI metadata，本地 reset 不冒充
+  App Server history reset。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
-  初始化 cwd 或以 projectless 状态开始；projectless session 可由用户一次性归入一个 canonical directory group，
-  保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
+  初始化 cwd 或以 projectless 状态开始；OPL metadata 明确为 temporary/projectless 的 session 可由用户一次性归入一个目录组，
+  保留 conversation identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
   `pwd` 不反写 affinity。目录组提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
@@ -257,17 +261,21 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   负责打开，展开时由 panel header 负责收回；全局 titlebar 与浮动 handle 不得重复同源开关。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
-- Thread identity/history 归 Codex Core/App Server。Shell 只保留一个用户触发的 App Server
-  adapter，复用现有 directory/actions 执行 `thread/list`、`thread/read`、`thread/start`、
-  `thread/resume`、`thread/fork`、archive/restore 和 rename/delete；普通 conversation
-  继续走 AionUI 现有 ACP。没有独立“线程协调”页面、模型 dynamic tool、第二 JSON-RPC client、
-  audit/idempotency ledger、pending-request 控制面或 cross-host handoff。
+- Ordinary conversation identity/history 与 rail authority 归 OPL conversation store。Shell
+  只保留一个用户触发的 App Server adapter；仅当用户针对已知 OPL conversation 显式执行
+  open/read/resume/fork/archive/restore/rename/delete 时，才使用其已持久化 canonical thread ID。
+  Adapter 不执行 `thread/list`/`thread/start` 来枚举或创建 ordinary directory，也不向 rail 合并或
+  fallback 注入 canonical/global results；普通 conversation 继续走 AionUI 现有 ACP。没有独立
+  “线程协调”页面、模型 dynamic tool、第二 JSON-RPC client、audit/idempotency ledger、
+  pending-request 控制面或 cross-host handoff。
 - Preview 通过现有 ref-only adapter 打开当前 session 的显式 attachment、可见 conversation result，或用户
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 只通过 composer 上方独立 context bar 的工作目录动作设置初始 cwd；projectless session 可从 rail 通过拖动或
-  键盘可达的等价动作一次性归入一个目录组。失败时保持 projectless 和对话可用。Shell 不创建 managed Worktree、
+- New session 只通过 composer 上方独立 context bar 的工作目录动作设置初始 cwd；仅 OPL
+  权威 metadata 明确为 temporary/projectless 的 session 可从 rail 通过拖动或键盘可达的等价动作
+  一次性归入一个目录组，成功后原子持久化 explicit workspace metadata。失败时保持原 metadata 和
+  对话可用；legacy 缺 metadata 时保持 `legacy_unknown`/未归类。Shell 不创建 managed Worktree、
   不保存 `workspace_handoff` metadata，也不提供已绑定 session 的任意目录重绑或 Local↔Worktree handoff。
 - Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex
   conversation；单个 Agent Package 的 Workspace/managed-target 前提或 readiness 故障不得升级为全局聊天门禁。
@@ -305,7 +313,7 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 3. **更新人读目标。** 功能、交互、视觉和元素位置只在各自 owner 文件定义一次，
    其它文件使用链接，不复制长列表。
 4. **实现 thin adapter。** Shell 通过 generated profile、state/action bridge、
-   Settings Control Plane、single existing App Server thread-directory/user-action adapter、route redirect、局部 renderer composition、i18n/CSS 和
+   Settings Control Plane、single existing App Server explicit-lifecycle adapter、route redirect、局部 renderer composition、i18n/CSS 和
    focused tests 承接，不创建 shell-local 产品规则。
 5. **更新 conformance read model。** 记录来源、当前状态、允许偏差、验证入口和
    evidence boundary；不把 docs-only 或 contract-only 状态写成已实现。

@@ -1474,18 +1474,18 @@ export const appOwnedPageStateHomeLayout = {
   ],
 };
 export const appOwnedSessionWorkspaceModel = {
-  primary_unit: "session_backed_by_codex_thread_id",
-  identity_authority: "codex_core_app_server_thread_id",
-  project_affinity_states: ["unbound", "bound"],
+  primary_unit: "opl_conversation_with_optional_canonical_thread_reference",
+  identity_authority: "opl_conversation_store_id_for_ordinary_history",
+  project_affinity_states: ["explicit", "temporary", "legacy_unknown"],
   project_affinity_cardinality: "zero_or_one",
   projectless_session_semantics:
     "no_user_selected_project_affinity_not_no_runtime_cwd",
   projectless_detection:
-    "custom_workspace_equals_false_or_canonical_recorded_cwd_absent_never_turn_or_command_pwd",
+    "authoritative_opl_workspace_affinity_metadata_only_never_workspace_cwd_canonical_cwd_git_origin_title_or_time",
   project_affinity_role:
-    "canonical_recorded_thread_cwd_for_ui_grouping_and_default_turn_cwd_hint",
+    "opl_persisted_workspace_affinity_for_ui_grouping_and_default_turn_cwd_hint",
   workspace_binding_role:
-    "new_session_initial_cwd_or_projectless_one_time_canonical_cwd_adoption_and_sidebar_grouping_metadata_only",
+    "new_session_authoritative_explicit_or_temporary_metadata_and_user_initiated_one_time_explicit_adoption",
   runtime_pwd_role:
     "turn_cwd_or_command_pwd_execution_context_not_persisted_as_project_affinity",
   turn_cwd_override_allowed: true,
@@ -1496,7 +1496,7 @@ export const appOwnedSessionWorkspaceModel = {
   runtime_pwd_changes_project_affinity: false,
   project_affinity_changes_writable_roots: false,
   project_adoption_transition:
-    "projectless_to_bound_once_via_thread_settings_update_cwd",
+    "temporary_or_legacy_unknown_to_explicit_once_via_thread_settings_update_cwd",
   bound_project_reassignment: "not_exposed",
   workspace_owns_session: false,
   workspace_owns_context: false,
@@ -1504,7 +1504,7 @@ export const appOwnedSessionWorkspaceModel = {
   workspace_group_cascade_session_delete_allowed: false,
 };
 export const appOwnedDirectoryGroupPolicy = {
-  source: "explicit_project_affinity_projection_joined_by_canonical_thread_id",
+  source: "explicit_opl_workspace_affinity_metadata",
   role: "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
   owns_sessions: false,
   owns_context: false,
@@ -1512,14 +1512,14 @@ export const appOwnedDirectoryGroupPolicy = {
   group_delete_action_allowed: false,
   cascade_session_delete_allowed: false,
   new_session_action_language: "use_this_working_directory_not_create_project_child",
-  project_directory_cardinality: "one_project_affinity_one_canonical_directory",
+  project_directory_cardinality: "one_explicit_project_affinity_one_directory_group",
   legacy_missing_marker_policy:
-    "existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update",
+    "legacy_unknown_visible_unclassified_never_infer_from_workspace_cwd_canonical_cwd_git_origin_title_or_time",
   git_origin_url_project_identity_allowed: false,
   turn_cwd_reclassifies_bound_session: false,
   project_adoption_policy: {
     eligible_state:
-      "custom_workspace_equals_false_or_canonical_recorded_cwd_absent",
+      "authoritative_workspace_affinity_is_temporary_or_none",
     triggers: ["drag_to_directory_group", "keyboard_move_to_project_action"],
     destination_policy:
       "one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots",
