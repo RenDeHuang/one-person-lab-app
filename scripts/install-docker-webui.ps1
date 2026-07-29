@@ -8,7 +8,7 @@ param(
   [ValidateRange(1, 65535)]
   [int]$Port = 3000,
   [string]$Image = "ghcr.io/gaofeng21cn/one-person-lab-webui",
-  [string]$Tag = "latest",
+  [string]$Tag = "stable",
   [string]$DataDir,
   [string]$ProjectsDir,
   [ValidateRange(30, 7200)]
@@ -35,7 +35,8 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
 $script:PreDataInventory = ""
 $script:PreProjectsInventory = ""
-$script:AutoUpdateTaskName = "One Person Lab WebUI Latest Update"
+$script:AutoUpdateTaskName = "One Person Lab WebUI Stable Update"
+$script:LegacyAutoUpdateTaskName = "One Person Lab WebUI Latest Update"
 
 function Write-Step {
   param([string]$Message)
@@ -53,7 +54,7 @@ function Write-UserPathStatus {
   Write-Step "  runtime_proxy: WebUI sends Gateway sign-in and API-key configuration through the existing OPL runtime provider."
   Write-Step "  startup_recovery: if startup fails, collect redacted startup diagnostics and rerun after fixing Docker, port, image, or data issues."
   Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
-  Write-Step "  host_update: rerun this installer, pass -Update, or enable the user-scoped Windows latest update task."
+  Write-Step "  host_update: rerun this installer, pass -Update, or enable the user-scoped Windows stable update task."
 }
 
 function Test-Administrator {
@@ -1176,7 +1177,7 @@ function Write-WebUiAutoUpdater {
     "`$currentLog = Join-Path `$logDir `"current.log`"",
     "`$previousLog = Join-Path `$logDir `"previous.log`"",
     "`$resultPath = Join-Path `$updaterDir `"last-result.env`"",
-    "`$mutex = New-Object System.Threading.Mutex(`$false, `"Local\OnePersonLabWebUiLatestUpdate`")",
+    "`$mutex = New-Object System.Threading.Mutex(`$false, `"Local\OnePersonLabWebUiStableUpdate`")",
     "`$lockTaken = `$false",
     "`$transcriptStarted = `$false",
     "",
@@ -1251,7 +1252,7 @@ function Write-WebUiAutoUpdater {
     "      `"phase=installer_update`",",
     "      `"rollback=`$rollback`",",
     "      `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
-    "      `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:latest`",",
+    "      `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:stable`",",
     "      `"installer_exit_code=`$installerExitCode`"",
     "    ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
     "    throw `"One Person Lab WebUI automatic update failed with exit code `$installerExitCode.`"",
@@ -1262,7 +1263,7 @@ function Write-WebUiAutoUpdater {
     "    `"phase=health`",",
     "    `"rollback=not_required`",",
     "    `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
-    "    `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:latest`",",
+    "    `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:stable`",",
     "    `"installer_exit_code=0`"",
     "  ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
     "  Remove-Item -LiteralPath `$composeBackupPath -Force -ErrorAction SilentlyContinue",
@@ -1290,9 +1291,11 @@ function Disable-WebUiAutoUpdate {
     return
   }
 
-  $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue
-  if ($null -ne $task) {
-    Unregister-ScheduledTask -TaskName $script:AutoUpdateTaskName -Confirm:$false
+  foreach ($taskName in @($script:AutoUpdateTaskName, $script:LegacyAutoUpdateTaskName)) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+      Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    }
   }
   Remove-Item -LiteralPath $UpdaterPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath (Join-Path (Split-Path -Parent $UpdaterPath) "config.env") -Force -ErrorAction SilentlyContinue
@@ -1310,7 +1313,11 @@ function Test-WebUiAutoUpdateConfigured {
     return $true
   }
   if ($null -ne (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue)) {
-    return $null -ne (Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue)
+    foreach ($taskName in @($script:AutoUpdateTaskName, $script:LegacyAutoUpdateTaskName)) {
+      if ($null -ne (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+        return $true
+      }
+    }
   }
   return $false
 }
@@ -1319,6 +1326,9 @@ function Show-WebUiAutoUpdateStatus {
   param([Parameter(Mandatory = $true)][string]$UpdaterPath)
 
   $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue
+  if ($null -eq $task) {
+    $task = Get-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -ErrorAction SilentlyContinue
+  }
   Write-Output "scheduler=windows_task_scheduler"
   Write-Output "enabled=$(([string]($null -ne $task)).ToLowerInvariant())"
   Write-Output "runner=$UpdaterPath"
@@ -1326,7 +1336,7 @@ function Show-WebUiAutoUpdateStatus {
   if (Test-Path -LiteralPath $configPath -PathType Leaf) {
     Get-Content -LiteralPath $configPath
   } else {
-    Write-Output "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+    Write-Output "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:stable"
     Write-Output "daily_time=not_configured"
   }
   $resultPath = Join-Path (Split-Path -Parent $UpdaterPath) "last-result.env"
@@ -1394,15 +1404,20 @@ function Register-WebUiAutoUpdate {
     -Trigger $triggers `
     -Settings $settings `
     -Principal $principal `
-    -Description "Checks the One Person Lab WebUI latest image from the Windows host and preserves data/projects." `
+    -Description "Checks the One Person Lab WebUI stable image from the Windows host and preserves data/projects." `
     -Force | Out-Null
+
+  $legacyTask = Get-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -ErrorAction SilentlyContinue
+  if ($null -ne $legacyTask) {
+    Unregister-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -Confirm:$false
+  }
 
   $configPath = Join-Path (Split-Path -Parent $UpdaterPath) "config.env"
   $configTemporaryPath = "$configPath.download"
   @(
     "schema=opl_webui_host_auto_update_config.v1",
     "scheduler=windows_task_scheduler",
-    "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+    "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
     "daily_time=$AutoUpdateTime"
   ) | Set-Content -LiteralPath $configTemporaryPath -Encoding ASCII
   Move-Item -LiteralPath $configTemporaryPath -Destination $configPath -Force
@@ -2081,8 +2096,8 @@ if (-not [string]::IsNullOrWhiteSpace($EvidenceArchive)) {
   $resolvedEvidenceArchive = Resolve-FullPath $EvidenceArchive
 }
 $requestedImageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
-if ($EnableAutoUpdate -and $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:latest") {
-  throw "-EnableAutoUpdate supports only the default ghcr.io/gaofeng21cn/one-person-lab-webui:latest channel. Use -Update manually for custom images, tags, or digests."
+if ($EnableAutoUpdate -and $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:stable") {
+  throw "-EnableAutoUpdate supports only the default ghcr.io/gaofeng21cn/one-person-lab-webui:stable channel. Use -Update manually for custom images, tags, or digests."
 }
 if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
   $HealthUrl = "http://localhost:$Port/"
@@ -2100,10 +2115,10 @@ if ($AutoUpdateStatus) {
   exit 0
 }
 if (
-  $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:latest" -and
+  $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:stable" -and
   (Test-WebUiAutoUpdateConfigured -UpdaterPath $autoUpdaterPath)
 ) {
-  throw "Automatic updates are already enabled for ghcr.io/gaofeng21cn/one-person-lab-webui:latest. Run -DisableAutoUpdate before switching to a custom image, tag, or digest."
+  throw "Automatic updates are already enabled for ghcr.io/gaofeng21cn/one-person-lab-webui:stable. Run -DisableAutoUpdate before switching to a custom image, tag, or digest."
 }
 $dockerCliPath = Assert-DockerCli
 Assert-DockerCompose -DockerCliPath $dockerCliPath
@@ -2130,7 +2145,7 @@ if ($Update) {
 } else {
   Write-Step "Update model: rerun this installer to resolve the channel once again; compose never follows a moving tag at runtime."
 }
-Write-Step "Image/seed: default latest WebUI image uses the full seed; -Tag and -Image are advanced overrides."
+Write-Step "Image/seed: default stable WebUI image uses the full seed; use -Tag latest only to opt in to Preview, or -Image for an advanced override."
 Write-Step "Gateway account credentials and API keys are entered inside WebUI first-run or Settings -> Account & Access. This script does not accept or write them."
 Write-UserPathStatus -Url $url
 

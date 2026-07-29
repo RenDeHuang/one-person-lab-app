@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:latest'
+DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:stable'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPL_WEBUI_HOME=${OPL_WEBUI_HOME:-"$HOME/OnePersonLab"}
 DATA_DIR=${OPL_WEBUI_DATA_DIR:-"$OPL_WEBUI_HOME/data"}
@@ -36,7 +36,7 @@ Options:
   --dry-run                 Print the actions without installing Docker or starting the container.
   --yes                     Allow Ubuntu Docker Engine installation without an interactive prompt.
   --update                  Pull the configured WebUI image and recreate the host-side compose service.
-  --enable-auto-update      Enable a current-user host scheduler for the default :latest channel.
+  --enable-auto-update      Enable a current-user host scheduler for the default :stable channel.
   --disable-auto-update     Disable the current-user host scheduler. Manual --update remains available.
   --auto-update-status      Show the current-user host scheduler and last update result.
   --auto-update-time <HH:MM>
@@ -1168,7 +1168,7 @@ if [ "$UPDATE" = "1" ]; then
 else
   log "Update model: rerun this installer, or pass --update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 fi
-log "Image/seed: default latest WebUI image uses the full seed; --tag and --image are advanced overrides."
+log "Image/seed: default stable WebUI image uses the full seed; use --tag latest only to opt in to Preview, or --image for an advanced override."
 log "Gateway account credentials and API keys are not accepted by this installer; enter them inside WebUI first-run or Settings -> Account & Access."
 log_user_path_status
 
