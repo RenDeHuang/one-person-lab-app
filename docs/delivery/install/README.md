@@ -68,6 +68,12 @@ manifest 暴露对应格子时才能选择，缺失必须 fail closed。需要�
 表面。入口必须从 exact Release manifest 解析平台资产和 digest，不得用可变 `latest`
 或文档中的历史版本代替。
 
+macOS 的直接 Release 安装会先匿名读取 GitHub Release API。若该请求失败（包括
+API 限流返回 HTTP 403），安装器只会在本机已有 `gh` 且 `gh auth` 已登录
+`github.com` 时，使用 `gh api` 读取同一个 `latest` 或精确 tag 的 Release
+记录；它不会切换版本或跳过 digest 校验。没有 GitHub CLI 或有效登录时会在下载和
+目标 App 修改前失败关闭。
+
 ## 产品支持矩阵
 
 | 产品表面 | Standard | Full |

@@ -253,6 +253,35 @@ test('Latest admission rejects a hosted Standard set without the public installe
   }
 });
 
+test('Latest admission rejects a self-consistent primary artifact not bound to the staged DMG', () => {
+  const fixture = createFixture();
+  try {
+    const manifest = JSON.parse(fs.readFileSync(fixture.input.componentManifestPath, 'utf8'));
+    manifest.primary_artifact.digest = `sha256:${'f'.repeat(64)}`;
+    const core = Object.fromEntries(
+      Object.entries(manifest).filter(([key]) => key !== 'component_manifest_digest'),
+    );
+    manifest.component_manifest_digest =
+      `sha256:${crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex')}`;
+    fs.writeFileSync(fixture.input.componentManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const staged = JSON.parse(fs.readFileSync(fixture.input.standardAssetsPath, 'utf8'));
+    const stagedManifest = staged.assets.find(
+      (asset: Record<string, unknown>) => asset.name === 'opl-app-component-manifest.json',
+    );
+    stagedManifest.sha256 = sha256(fixture.input.componentManifestPath);
+    stagedManifest.size_bytes = fs.statSync(fixture.input.componentManifestPath).size;
+    fs.writeFileSync(fixture.input.standardAssetsPath, `${JSON.stringify(staged, null, 2)}\n`);
+
+    assert.throws(
+      () => validateStandardLatestAdmission(fixture.input),
+      /primary artifact digest does not match/,
+    );
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test('Latest admission accepts a qualified Preview tag as the Stable compare-and-swap predecessor', () => {
   const fixture = createFixture();
   try {

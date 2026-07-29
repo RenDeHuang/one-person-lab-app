@@ -86,7 +86,8 @@
         "preview_kind": {
           "enum": [
             "dev",
-            "nightly"
+            "nightly",
+            null
           ],
           "type": [
             "string",

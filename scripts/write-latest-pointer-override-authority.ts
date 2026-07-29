@@ -5,10 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import {
-  assertReleaseSemanticsAxes,
-  assertUpdaterVersionMatchesDisplay,
-} from './release-version.ts';
+import { readAppComponentManifestIdentity } from './read-opl-app-component-manifest-identity.ts';
 
 type JsonRecord = Record<string, any>;
 
@@ -43,66 +40,37 @@ function requireLatestTag(value: string): string {
   return value;
 }
 
-function manifestDigest(manifest: JsonRecord): string {
-  const core = Object.fromEntries(
-    Object.entries(manifest).filter(([key]) => key !== 'component_manifest_digest'),
-  );
-  return `sha256:${crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex')}`;
-}
-
 export function createLatestPointerOverrideAuthority(
   manifest: JsonRecord,
   expectedCurrentLatestTag: string,
 ): JsonRecord {
-  if (
-    manifest.surface_kind !== 'opl_app_component_manifest.v1'
-    || manifest.component_id !== 'opl-app'
-  ) {
-    throw new Error('Latest override authority requires one canonical App component manifest.');
-  }
-  if (manifest.quality_status !== 'preview' && manifest.quality_status !== 'stable') {
-    throw new Error('Latest override authority requires one exact Stable or Preview build.');
-  }
-  assertReleaseSemanticsAxes({
-    qualityStatus: manifest.quality_status,
-    buildTrigger: manifest.build_trigger,
-    previewKind: manifest.preview_kind,
-  });
-  const publicationChannel = manifest.quality_status === 'stable'
-    ? 'stable'
-    : manifest.preview_kind === 'nightly' ? 'nightly' : 'preview';
-  assertUpdaterVersionMatchesDisplay(
-    publicationChannel,
-    String(manifest.release_version ?? ''),
-    String(manifest.updater_version ?? ''),
+  const releaseTag = String(manifest.release_tag ?? '');
+  const sourceCommit = String(manifest.source_commit ?? '');
+  const identity = readAppComponentManifestIdentity(
+    manifest,
+    releaseTag,
+    manifest.preview_kind === 'nightly',
+    sourceCommit,
   );
-  if (
-    manifest.release_tag !== `v${manifest.release_version}`
-    || manifest.version !== manifest.release_version
-  ) {
-    throw new Error('Component manifest release identity is inconsistent.');
-  }
-  if (
-    requireDigest(manifest.component_manifest_digest, 'Component manifest digest')
-    !== manifestDigest(manifest)
-  ) {
-    throw new Error('Component manifest digest does not match its immutable bytes.');
-  }
-  const isPreview = manifest.quality_status === 'preview';
-  const skippedGates = manifest.qualification_disclosure?.skipped_gates;
+  const qualityStatus = identity.quality_status;
+  const buildTrigger = identity.build_trigger;
+  const previewKind = identity.preview_kind;
+  const qualificationDisclosure = identity.qualification_disclosure as JsonRecord;
+  const isPreview = qualityStatus === 'preview';
+  const skippedGates = qualificationDisclosure.skipped_gates;
   if (
     !Array.isArray(skippedGates)
     || skippedGates.some((gate: unknown) => typeof gate !== 'string' || !gate.trim())
     || new Set(skippedGates).size !== skippedGates.length
     || (isPreview && (
-      manifest.qualification_disclosure?.stable_qualified !== false
-      || manifest.qualification_disclosure?.non_stable_notice !== true
+      qualificationDisclosure.stable_qualified !== false
+      || qualificationDisclosure.non_stable_notice !== true
       || skippedGates.length === 0
     ))
     || (!isPreview && (
-      manifest.preview_kind !== null
-      || manifest.qualification_disclosure?.stable_qualified !== true
-      || manifest.qualification_disclosure?.non_stable_notice !== false
+      previewKind !== null
+      || qualificationDisclosure.stable_qualified !== true
+      || qualificationDisclosure.non_stable_notice !== false
     ))
   ) {
     throw new Error('Latest override requires exact quality and qualification disclosure.');
@@ -119,15 +87,15 @@ export function createLatestPointerOverrideAuthority(
       persistent_override: false,
     },
     candidate: {
-      tag: manifest.release_tag,
-      component_manifest_digest: manifest.component_manifest_digest,
+      tag: identity.release_tag,
+      component_manifest_digest: identity.component_manifest_digest,
       artifact_digest: requireDigest(
         manifest.primary_artifact?.digest,
         'Component manifest primary artifact digest',
       ),
-      quality_status: manifest.quality_status,
-      build_trigger: manifest.build_trigger,
-      preview_kind: manifest.preview_kind,
+      quality_status: qualityStatus,
+      build_trigger: buildTrigger,
+      preview_kind: previewKind,
       quality_unchanged: true,
       non_stable_notice: isPreview,
       skipped_gates: skippedGates,

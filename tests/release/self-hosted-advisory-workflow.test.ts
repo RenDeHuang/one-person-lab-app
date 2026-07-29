@@ -260,10 +260,12 @@ test('scheduled and manual re-admission bind checkout to one successful immutabl
     assert.equal(execution.receipt.source_sha, sourceSha);
     assert.equal(execution.receipt.retry_policy.mode, 'scheduled_re_admission');
     assert.equal(execution.receipt.retry_policy.dedupe_key, 'source_sha+target');
-    assert.equal(execution.receipt.targets.mac.status, 'ready');
-    assert.equal(execution.receipt.targets.mac_gui.status, 'ready');
-    assert.equal(execution.receipt.targets.mac_vmware.status, 'ready');
-    assert.equal(execution.receipt.targets.windows.status, 'ready');
+    for (const target of Object.keys(targetLabels)) {
+      assert.equal(execution.receipt.targets[target].status, 'not_run');
+      assert.equal(execution.receipt.targets[target].reason_code, 'operator_deferred');
+      assert.match(execution.receipt.targets[target].detail, /authenticated Fleet capability and lease readback/);
+      assert.equal(execution.outputs[`${target}_status`], 'not_run');
+    }
   });
 
   await t.test('manual re-admission selects the explicitly requested successful run ID', (t) => {
@@ -319,11 +321,11 @@ test('scheduled retry de-duplicates each source target without suppressing an un
   assert.equal(execution.receipt.source_sha, sourceSha);
   assert.equal(execution.receipt.targets.mac.status, 'not_run');
   assert.equal(execution.receipt.targets.mac.reason_code, 'already_recorded');
-  assert.equal(execution.receipt.targets.windows.status, 'ready');
-  assert.equal(execution.receipt.targets.mac_gui.status, 'ready');
-  assert.equal(execution.receipt.targets.mac_vmware.status, 'ready');
+  assert.equal(execution.receipt.targets.windows.status, 'not_run');
+  assert.equal(execution.receipt.targets.mac_gui.status, 'not_run');
+  assert.equal(execution.receipt.targets.mac_vmware.status, 'not_run');
   assert.equal(execution.outputs.mac_status, 'not_run');
-  assert.equal(execution.outputs.windows_status, 'ready');
+  assert.equal(execution.outputs.windows_status, 'not_run');
   assert.equal(execution.calls.filter((call) => call.includes('actions/runners?')).length, 1);
 });
 
@@ -449,6 +451,7 @@ test('platform jobs perform substantive bounded checks but stay advisory to Stab
 
   const windowsSmoke = windows.steps.find((step: Record<string, unknown>) => step.id === 'platform-smoke');
   assert.match(windowsSmoke.run, /docker-webui-windows-installer\.test\.ts/);
+  assert.equal((windowsSmoke.run.match(/\$LASTEXITCODE -ne 0/g) ?? []).length, 3);
   assert.match(windowsSmoke.run, /wsl\.exe --status/);
   assert.match(windowsSmoke.run, /docker version --format/);
   assert.match(source, /@\("windows_installer_behavior", "wsl2_status", "docker_engine_handshake"\)/);

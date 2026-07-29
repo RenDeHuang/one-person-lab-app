@@ -527,6 +527,9 @@ jobs:
               ;;
             unavailable)
               standard_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$standard_reason")
+              if [ "$standard_reason" = vm_admission_failed ]; then
+                standard_args+=(--capability-admission-evidence-file "$capability_admission")
+              fi
               ;;
             not_run)
               standard_args+=(--reason-code "$standard_reason")
@@ -1068,6 +1071,9 @@ jobs:
               ;;
             unavailable)
               full_args+=(--certification-run-id "$GITHUB_RUN_ID" --reason-code "$full_reason")
+              if [ "$full_reason" = vm_admission_failed ]; then
+                full_args+=(--capability-admission-evidence-file "$capability_admission")
+              fi
               ;;
             not_run)
               full_args+=(--reason-code "$full_reason")
